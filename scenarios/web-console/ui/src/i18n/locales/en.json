@@ -295,6 +295,16 @@
     "cancel": "Cancel",
     "confirm": "Close"
   },
+  "confirmDelete": {
+    "title": "Delete session permanently?",
+    "body": "This permanently deletes \"{{name}}\" and its transcript. This cannot be undone.",
+    "cancel": "Cancel",
+    "confirm": "Delete permanently"
+  },
+  "archiveToast": {
+    "archived": "Archived {{name}}",
+    "undo": "Undo"
+  },
   "recoverableSessions": {
     "heading": "{{count}} sessions awaiting recovery from a previous run",
     "heading_one": "1 session awaiting recovery from a previous run",
@@ -306,6 +316,7 @@
     "dismiss": "Dismiss",
     "dismissTitle": "Hide this orphan from the list (on-disk state preserved)",
     "view": "View",
+    "viewArchive": "View in archive",
     "reattachAll": "Reattach all",
     "dismissAll": "Dismiss all"
   },
@@ -377,7 +388,56 @@
     "originTabsAria": "Filter sessions by origin",
     "originTabUi": "UI-owned",
     "originTabProgrammatic": "Programmatic",
-    "originTabRemote": "Remote"
+    "originTabRemote": "Remote",
+    "archive": "Archive",
+    "archiveBack": "Back to sessions",
+    "archiveFilterPlaceholder": "Filter by session name",
+    "archiveLoading": "Loading archive…",
+    "archiveEmpty": "No archived sessions match.",
+    "archiveMessages": "{{count}} messages",
+    "archiveMessages_one": "1 message",
+    "archiveStateReopenable": "Reopenable",
+    "archiveStateReadOnly": "Read-only",
+    "archiveStateNothing": "Nothing to restore",
+    "archiveSearchAll": "Search all {{count}} archived sessions"
+  },
+  "archiveDrawer": {
+    "title": "Session archive",
+    "close": "Close session archive",
+    "searchPlaceholder": "Search message text across the archive",
+    "resultCounts": "{{messages}} messages · {{sessions}} sessions",
+    "textSearch": "Text",
+    "semanticSearch": "Semantic",
+    "semanticUnavailable": "Semantic search is not available yet. Text search uses the local full-text index.",
+    "allAgents": "All agents",
+    "shell": "Shell",
+    "anyTime": "Any time",
+    "last7Days": "Last 7 days",
+    "last30Days": "Last 30 days",
+    "lastYear": "Last year",
+    "myMessages": "My messages",
+    "crashOrphans": "Crash orphans ({{count}})",
+    "resultsHeading": "Archived message results",
+    "readerHeading": "Read-only archived transcript",
+    "searchPrompt": "Search for wording you remember. Results are messages, with their session shown as context.",
+    "searching": "Searching archived messages…",
+    "noResults": "No archived messages match these filters.",
+    "you": "you",
+    "archivedAt": "Archived {{time}}",
+    "messageCount": "{{count}} messages",
+    "messageCount_one": "1 message",
+    "state_reopenable": "Reopenable",
+    "state_read_only": "Read-only",
+    "state_nothing_to_restore": "Nothing to restore",
+    "reopen": "Reopen",
+    "reopening": "Reopening…",
+    "reopenNextPhase": "Reopen is not available in this version yet",
+    "export": "Export",
+    "delete": "Delete",
+    "selectResult": "Select a message result to read its transcript.",
+    "deleteTitle": "Delete archived session permanently?",
+    "deleteBody": "This permanently deletes {{name}} and its transcript. This cannot be undone.",
+    "deleteConfirm": "Delete permanently"
   },
   "tabContextMenu": {
     "rename": "Rename",
@@ -390,6 +450,7 @@
     "moveUp": "Move Up",
     "moveDown": "Move Down",
     "closeTab": "Close Tab",
+    "deletePermanently": "Delete permanently",
     "copyDebugLog": "Copy debug log"
   },
   "terminalContextMenu": {
@@ -443,6 +504,7 @@
   },
   "messagesPane": {
     "copyMessageTitle": "Copy message",
+    "sendToComposerTitle": "Send to active session composer",
     "viewAsPlainTextTitle": "View as plain text",
     "viewAsMarkdownTitle": "View as markdown",
     "readFromHereTitle": "Read from here",
@@ -571,6 +633,9 @@
       "defaultsHint": "These defaults pre-populate the launch dialog. You can override per session.",
       "defaultBackendLabel": "Default backend:",
       "defaultTimeoutLabel": "Default timeout:",
+      "archiveStorageTitle": "Archive storage",
+      "archiveStorageSummary": "{{count}} archived entries use {{size}} across transcripts and resumability data.",
+      "archiveStorageLoading": "Measuring archived transcripts and resumability data…",
       "openTerminals": "Open terminals",
       "openTerminalsHint": "Sessions are server-side processes. Panes are their workspace views.",
       "resetLayout": "Reset layout",

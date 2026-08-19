@@ -8,13 +8,15 @@ import type { ConversationEvent } from "../api/conversation";
 import type { TTSPlaybackState } from "../audio-integration";
 import { makeConversationEvents } from "./fixtures/conversationFixture";
 
-const { mockLoadOlderConversationPage } = vi.hoisted(() => ({
+const { mockLoadOlderConversationPage, mockLoadConversationPageContaining } = vi.hoisted(() => ({
   mockLoadOlderConversationPage: vi.fn().mockResolvedValue(false),
+  mockLoadConversationPageContaining: vi.fn().mockResolvedValue(false),
 }));
 
 vi.mock("../hooks/useConversationSession", () => ({
   refreshConversationSession: vi.fn().mockResolvedValue(undefined),
   loadOlderConversationPage: mockLoadOlderConversationPage,
+  loadConversationPageContaining: mockLoadConversationPageContaining,
 }));
 
 const { mockResolveFilePreview, mockGetFilePreviewText } = vi.hoisted(() => ({
@@ -143,6 +145,7 @@ describe("MessagesPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLoadOlderConversationPage.mockResolvedValue(false);
+    mockLoadConversationPageContaining.mockResolvedValue(false);
     useConversationStore.setState({ sessions: {}, viewModes: {} });
     globalThis.fetch = vi.fn() as typeof fetch;
     // Mock IntersectionObserver for auto-scroll sentinel
@@ -192,6 +195,31 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("msg-audio-e1")).toBeInTheDocument();
     expect(screen.getByTestId("msg-speak-from-e2")).toBeInTheDocument();
     expect(screen.getByTestId("msg-audio-e2")).toBeInTheDocument();
+  });
+
+  it("read-only mode hides transcript-mutating controls and can stage a message", () => {
+    const onSendToComposer = vi.fn();
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Reusable context" })]);
+    render(<MessagesPane {...defaultProps} readOnly onSendToComposer={onSendToComposer} />);
+
+    expect(screen.queryByTestId("msg-speak-from-e1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("msg-audio-e1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("msg-copy-e1")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-render-toggle-e1")).toBeInTheDocument();
+    expect(screen.getByTestId("messages-search-btn")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("msg-send-to-composer-e1"));
+    expect(onSendToComposer).toHaveBeenCalledWith("Reusable context");
+  });
+
+  it("loads the page containing an archive hit before focusing it", async () => {
+    mockLoadConversationPageContaining.mockImplementation(async () => {
+      seedEvents([makeEvent({ id: "target", sequence: 42 })]);
+      return true;
+    });
+    render(<MessagesPane {...defaultProps} readOnly focusEventId="target" focusSequence={42} />);
+
+    await waitFor(() => expect(mockLoadConversationPageContaining).toHaveBeenCalledWith("sess-1", 42));
   });
 
   it("clicking 'read from here' calls onPlayFromHere with correct event ID", () => {

@@ -59,6 +59,7 @@ function renderSidebar(bucketNav: OriginBucketNavigation[]) {
       onCloseMobile={vi.fn()}
       onActivatePane={vi.fn()}
       onClosePane={vi.fn()}
+      onDeletePanePermanently={vi.fn()}
       onNewTerminal={vi.fn()}
       onOpenLauncher={vi.fn()}
       onNewSessionInGroup={vi.fn()}

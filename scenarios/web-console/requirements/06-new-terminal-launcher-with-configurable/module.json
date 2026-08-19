@@ -10,7 +10,7 @@
       "description": "Terminal launcher dialog presents empty shell option and configurable shortcut entries. Opens on new-pane action.",
       "id": "REQ-P0-006a",
       "prd_ref": "OT-P0-006",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Terminal Launch Flow UI",
       "validation": [
         {
@@ -49,7 +49,7 @@
       "description": "Shortcut entries configurable via API. Default shortcuts include `claude --dangerously-skip-permissions` and `codex --yolo`. Shortcut selection creates session with specified command.",
       "id": "REQ-P0-006b",
       "prd_ref": "OT-P0-006",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Configurable Shortcut Entries",
       "validation": [
         {
@@ -80,7 +80,7 @@
       "description": "Selecting a shortcut entry creates a new session with the shortcut's command pre-populated. Session creation uses the same API as empty shell.",
       "id": "REQ-P0-006b-i",
       "prd_ref": "OT-P0-006",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Shortcut Session Creation",
       "validation": [
         {

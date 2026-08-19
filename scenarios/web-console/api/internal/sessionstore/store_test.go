@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"path/filepath"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -32,9 +33,15 @@ CREATE TABLE sessions (
     last_activity_at TEXT NOT NULL DEFAULT '',
     orphaned_at TEXT NOT NULL DEFAULT '',
     recovered_into TEXT NOT NULL DEFAULT '',
+    archived_at TEXT NOT NULL DEFAULT '',
     origin TEXT NOT NULL DEFAULT 'ui',
     owner TEXT NOT NULL DEFAULT '',
     display_label TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE conversation_events (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    text TEXT NOT NULL DEFAULT ''
 );`
 
 func newSQLStore(t *testing.T) *SQLStore {
@@ -111,5 +118,79 @@ func TestInMemoryStore_ProvenanceRoundTrip(t *testing.T) {
 	}
 	if got.Origin != OriginUI || got.Owner != "" || got.DisplayLabel != "My tab" {
 		t.Fatalf("provenance = %q/%q/%q, want ui//My tab", got.Origin, got.Owner, got.DisplayLabel)
+	}
+}
+
+func TestSQLStore_ArchiveRoundTrip(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	s := newSQLStore(t)
+	if err := s.Save(ctx, Metadata{ID: "sess-archive", Shell: "/bin/bash"}); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	archivedAt := time.Date(2026, 8, 18, 19, 0, 0, 0, time.UTC)
+	if err := s.MarkArchived(ctx, "sess-archive", archivedAt); err != nil {
+		t.Fatalf("mark archived: %v", err)
+	}
+	rows, err := s.ListArchived(ctx)
+	if err != nil {
+		t.Fatalf("list archived: %v", err)
+	}
+	if len(rows) != 1 || rows[0].ID != "sess-archive" || !rows[0].ArchivedAt.Equal(archivedAt) {
+		t.Fatalf("archived rows = %+v", rows)
+	}
+	if err := s.MarkUnarchived(ctx, "sess-archive"); err != nil {
+		t.Fatalf("mark unarchived: %v", err)
+	}
+	rows, err = s.ListArchived(ctx)
+	if err != nil {
+		t.Fatalf("list after unarchive: %v", err)
+	}
+	if len(rows) != 0 {
+		t.Fatalf("archived rows after unarchive = %+v, want empty", rows)
+	}
+	if _, err := s.Get(ctx, "sess-archive"); err != nil {
+		t.Fatalf("session row was destroyed: %v", err)
+	}
+}
+
+func TestSQLStore_MarkDismissedAfterReopenClearsArchiveAtomically(t *testing.T) {
+	ctx := context.Background()
+	s := newSQLStore(t)
+	if err := s.Save(ctx, Metadata{ID: "old", ArchivedAt: time.Now().UTC()}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.MarkDismissed(ctx, "old", "replacement"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get(ctx, "old")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.ArchivedAt.IsZero() || got.RecoveredInto != "replacement" || got.Status != StatusDismissed {
+		t.Fatalf("reopened archive metadata = %+v", got)
+	}
+}
+
+func TestSQLStore_RetentionCandidatesRequireExplicitArchiveTimestamp(t *testing.T) {
+	ctx := context.Background()
+	s := newSQLStore(t)
+	ancient := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	archived := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, meta := range []Metadata{
+		{ID: "live-five-years-old", Status: StatusLive, Created: ancient, AgentType: AgentCodex},
+		{ID: "legacy-dismissed", Status: StatusDismissed, Created: ancient, AgentType: AgentCodex},
+		{ID: "explicitly-archived", Status: StatusLive, Created: ancient, ArchivedAt: archived, AgentType: AgentCodex},
+	} {
+		if err := s.Save(ctx, meta); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := s.ListRetentionCandidates(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].ID != "explicitly-archived" {
+		t.Fatalf("retention candidates = %+v, want only explicitly-archived", got)
 	}
 }

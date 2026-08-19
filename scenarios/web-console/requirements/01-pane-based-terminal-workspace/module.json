@@ -10,7 +10,7 @@
       "description": "Implement responsive CSS grid layout that renders 2-column panes on desktop (>=768px) and single-column stacked panes on mobile (<768px). Pane containers must support dynamic addition and removal without full re-render.",
       "id": "REQ-P0-001a",
       "prd_ref": "OT-P0-001",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Responsive Pane Grid Layout",
       "validation": [
         {
@@ -42,7 +42,7 @@
       "description": "Each pane operates an independent terminal session with its own PTY, input/output stream, and lifecycle. Pane creation allocates a new session; pane destruction tears down the session cleanly.",
       "id": "REQ-P0-001b",
       "prd_ref": "OT-P0-001",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Independent Pane Session Lifecycle",
       "validation": [
         {
@@ -87,7 +87,7 @@
       "description": "PTY allocation creates isolated process per session. Cleanup on termination releases file descriptors and signals child process.",
       "id": "REQ-P0-001b-i",
       "prd_ref": "OT-P0-001",
-      "status": "passed",
+      "status": "in_progress",
       "title": "PTY Allocation and Cleanup",
       "validation": [
         {
@@ -104,7 +104,7 @@
       "description": "Pane add/remove controls visible in workspace header. Add opens a new terminal; close tears down the pane session with confirmation if process is running.",
       "id": "REQ-P0-001c",
       "prd_ref": "OT-P0-001",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Pane Management Controls",
       "validation": [
         {
@@ -142,13 +142,20 @@
       "description": "Messages open reliably for multi-thousand-event sessions with a bounded first render; scrolling is anchored and stable; whole-history search, jump, and export preserve access to events outside the loaded page while durable terminal sessions remain intact across a Web Console restart.",
       "id": "REQ-P0-001d",
       "prd_ref": "OT-P0-001",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Bounded, Stable Conversation Messages",
       "validation": [
         {
-          "notes": "Virtualizer first render is bounded for a 2,500-event fixture and page refresh coverage verifies tail-only and older-page behavior.",
+          "notes": "Virtualizer first render is bounded for a 2,500-event fixture.",
           "phase": "unit",
-          "ref": "ui/src/__tests__/useVirtualList.test.tsx; ui/src/hooks/__tests__/refreshConversationSession.test.ts",
+          "ref": "ui/src/__tests__/useVirtualList.test.tsx",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Page refresh coverage verifies tail-only and older-page behavior.",
+          "phase": "unit",
+          "ref": "ui/src/hooks/__tests__/refreshConversationSession.test.ts",
           "status": "passing",
           "type": "test"
         },

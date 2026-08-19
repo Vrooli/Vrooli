@@ -654,6 +654,47 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "archive-retention",
+          "description": "Show archive retention policy and measured storage",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "GetArchiveRetention"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "archive-prune",
+          "description": "Preview archive retention; pass --apply to perform the reported actions",
+          "flags": [
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Apply the reported prune actions (default is dry-run)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "PruneArchive"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ],
+            "requires_confirmation": true
+          }
         }
       ]
     },

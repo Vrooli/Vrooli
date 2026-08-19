@@ -56,6 +56,18 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "sessions_archived_list",
+		Path:        sessionsconnect.SessionsServiceListArchivedProcedure,
+		Method:      "POST",
+		Summary:     "List archived sessions",
+		Description: "Returns one newest entry per reopen lineage with pane identity, message count, and restore state.",
+		Category:    "sessions",
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"sessions": "[]ArchivedSession", "total": "integer"},
+		},
+	},
+	{
 		ID:          "sessions_delete",
 		Path:        sessionsconnect.SessionsServiceDeleteProcedure,
 		Method:      "POST",
@@ -64,6 +76,30 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "sessions",
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing id"},
+		},
+	},
+	{
+		ID:          "sessions_archive",
+		Path:        sessionsconnect.SessionsServiceArchiveProcedure,
+		Method:      "POST",
+		Summary:     "Archive a terminal session",
+		Description: "Stops the live PTY while preserving the session row, workspace identity, transcript, and agent checkpoints.",
+		Category:    "sessions",
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing id"},
+			{Status: 404, Code: "not_found", Description: "Session not found"},
+		},
+	},
+	{
+		ID:          "sessions_unarchive",
+		Path:        sessionsconnect.SessionsServiceUnarchiveProcedure,
+		Method:      "POST",
+		Summary:     "Undo a session archive marker",
+		Description: "Clears archived_at without starting a replacement process or resuming an agent.",
+		Category:    "sessions",
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing id"},
+			{Status: 404, Code: "not_found", Description: "Session not found"},
 		},
 	},
 	{
@@ -114,6 +150,22 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 412, Code: "failed_precondition", Description: "Session is not awaiting_recovery, or no agent identity recorded"},
 			{Status: 429, Code: "resource_exhausted", Description: "Session limit reached while spawning replacement"},
 		},
+	},
+	{
+		ID:          "sessions_archive_retention_get",
+		Path:        sessionsconnect.SessionsServiceGetArchiveRetentionProcedure,
+		Method:      "POST",
+		Summary:     "Inspect archive retention",
+		Description: "Returns the configured bounds and measured transcript/agent-history storage for explicitly archived sessions.",
+		Category:    "sessions",
+	},
+	{
+		ID:          "sessions_archive_prune",
+		Path:        sessionsconnect.SessionsServicePruneArchiveProcedure,
+		Method:      "POST",
+		Summary:     "Preview or apply archive retention",
+		Description: "Dry-run by default. Apply mode prunes agent history first and deletes only old message-less archived transcripts.",
+		Category:    "sessions",
 	},
 	{
 		ID:          "sessions_policy_get",

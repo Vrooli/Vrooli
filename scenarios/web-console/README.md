@@ -17,6 +17,7 @@ Web Console delivers a full-fidelity terminal experience in the browser with pan
 5. Mobile usability through floating terminal keyboard controls.
 6. Configurable new-terminal launcher with empty shell and shortcut options.
 7. Sidebar/drawer for operational controls and status.
+8. Non-destructive session archive with cross-session transcript retrieval and bounded retention.
 
 ## Single-User Design
 
@@ -39,12 +40,14 @@ Web Console is designed for personal server use — a single operator running th
 - Default policy: never expire.
 - Refreshing page or reconnecting should restore session context.
 - Missed output while disconnected must be replayed and visible.
+- Closing a pane archives it and preserves its transcript. Permanent deletion is a separate confirmed action.
+- Archived sessions expose `Reopenable`, `Read-only`, or `Nothing to restore` before the operator acts.
 
 ### Conversation Messages
 
 - Messages use a bounded 500-event window. Opening a Messages pane reads the newest page; approaching the top loads the preceding page without shifting the visible content.
 - `ConversationService.Get` accepts `limit` and `before_sequence`; callers that omit both retain the legacy complete-history response.
-- Whole-history search is server-side and debounced in the UI. SQLite uses a bounded, literal-escaped `LIKE` query and returns sequence-addressable excerpts; revisit FTS5 only when a session exceeds roughly 50 MB or measured search latency exceeds 150 ms.
+- Per-session whole-history search is server-side and debounced in the UI. Cross-session archive search uses SQLite FTS5 and returns sequence-addressable message excerpts across retained lineages.
 - Message jump loads the page containing an off-window search result. Export Select All uses the server range endpoint, capped at 5,000 events, so it does not silently omit older history.
 - Virtualized message and navigator lists keep first paint bounded even for multi-thousand-event sessions. Inactive Messages panes unmount while terminal panes remain warm.
 

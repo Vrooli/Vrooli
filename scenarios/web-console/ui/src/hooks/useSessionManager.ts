@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { toErrorInfo, type ErrorInfo } from "../lib/errors";
 import { getWorkspaceLayout, updateWorkspacePane } from "../api/workspace";
-import { createSession, deleteSession, listSessions, type SessionInfo, type BackendID, type PolicyMode, type AgentType } from "../api/sessions";
+import { archiveSession, createSession, deleteSession, listSessions, unarchiveSession, type SessionInfo, type BackendID, type PolicyMode, type AgentType } from "../api/sessions";
 import { createRemoteSession } from "../api/remoteSessions";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { orderPanesByGroupBlocks } from "../lib/workspaceNavigation";
@@ -57,6 +57,7 @@ export function useSessionManager() {
   const [hydrationError, setHydrationError] = useState<ErrorInfo | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const terminalRefs = useRef<Map<string, TerminalPaneHandle>>(new Map());
+  const archivedUndoRef = useRef<Map<string, PaneState>>(new Map());
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Mirror panes/isHydrated into refs so the SSE-driven merge callbacks below
@@ -299,7 +300,7 @@ export function useSessionManager() {
     }
   }, []);
 
-  const removePane = useCallback(async (sessionId: string) => {
+  const releasePaneLocally = useCallback((sessionId: string) => {
     setPanes((prev) => prev.filter((p) => p.session.id !== sessionId));
     terminalRefs.current.delete(sessionId);
     // Session-end is a genuine stop intent: tear down any TTS provider held for
@@ -307,12 +308,43 @@ export function useSessionManager() {
     // speaking) when its pane last unmounted, so ending a session stops its
     // audio rather than leaving an orphaned tail playing.
     ttsPlaybackRegistry.stop(sessionId);
+  }, []);
+
+  const removePane = useCallback(async (sessionId: string): Promise<"undoable" | "removed" | "failed"> => {
+    const pane = panesRef.current.find((candidate) => candidate.session.id === sessionId);
+    if (!pane) return "failed";
     try {
-      await deleteSession(sessionId);
+      await archiveSession(sessionId);
+      releasePaneLocally(sessionId);
+      if (!sessionId.startsWith("remote:")) archivedUndoRef.current.set(sessionId, pane);
+      return sessionId.startsWith("remote:") ? "removed" : "undoable";
     } catch {
-      // Session may already be dead
+      return "failed";
+    }
+  }, [releasePaneLocally]);
+
+  const undoArchive = useCallback(async (sessionId: string): Promise<boolean> => {
+    const pane = archivedUndoRef.current.get(sessionId);
+    if (!pane) return false;
+    try {
+      await unarchiveSession(sessionId);
+      setPanes((prev) => prev.some((candidate) => candidate.session.id === sessionId) ? prev : [...prev, pane]);
+      archivedUndoRef.current.delete(sessionId);
+      return true;
+    } catch {
+      archivedUndoRef.current.delete(sessionId);
+      return false;
     }
   }, []);
+
+  const deletePanePermanently = useCallback(async (sessionId: string) => {
+    try {
+      await deleteSession(sessionId);
+    } finally {
+      archivedUndoRef.current.delete(sessionId);
+      releasePaneLocally(sessionId);
+    }
+  }, [releasePaneLocally]);
 
   const handleExit = useCallback((sessionId: string) => {
     console.log(`Session ${sessionId} exited`);
@@ -516,6 +548,8 @@ export function useSessionManager() {
     clearHydrationError,
     launchSession,
     removePane,
+    undoArchive,
+    deletePanePermanently,
     mergeExternalSession,
     endExternalSession,
     handleExit,

@@ -22,7 +22,9 @@ type ConversationRepository interface {
 	ListSession(ctx context.Context, sessionID string) (ConversationSessionState, error)
 	ListSessionPage(ctx context.Context, sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error)
 	CountSessionEvents(ctx context.Context, sessionID string) (int64, error)
+	SessionStorageBytes(ctx context.Context, sessionID string) (int64, error)
 	SearchSession(ctx context.Context, sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error)
+	SearchArchived(ctx context.Context, filter ArchivedConversationSearchFilter) ([]ArchivedConversationSearchMatch, bool, int64, int64, error)
 	ListSessionRange(ctx context.Context, sessionID string, from, to int64) ([]ConversationEvent, error)
 	UpdateSpeechParagraphs(ctx context.Context, sessionID, eventID string, paragraphs []string) error
 	UpdateCursor(ctx context.Context, sessionID string, patch conversationCursorPatch) (ConversationCursor, error)
@@ -35,6 +37,23 @@ type ConversationSearchMatch struct {
 	EventID  string
 	Sequence int64
 	Excerpt  string
+}
+
+type ArchivedConversationSearchFilter struct {
+	Query        string
+	Limit        int
+	AgentType    string
+	Role         string
+	CreatedAfter time.Time
+}
+
+type ArchivedConversationSearchMatch struct {
+	EventID   string
+	SessionID string
+	Sequence  int64
+	Role      string
+	CreatedAt time.Time
+	Excerpt   string
 }
 
 type SQLConversationRepository struct {
@@ -240,6 +259,17 @@ func (r *SQLConversationRepository) CountSessionEvents(ctx context.Context, sess
 	return count, nil
 }
 
+func (r *SQLConversationRepository) SessionStorageBytes(ctx context.Context, sessionID string) (int64, error) {
+	var size int64
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COALESCE(SUM(
+			length(id) + length(session_id) + length(source) + length(role) + length(text) +
+			length(speech_paragraphs) + length(COALESCE(original_speech_paragraphs, '')) + length(created_at)
+		), 0)
+		FROM conversation_events WHERE session_id = ?`, sessionID).Scan(&size)
+	return size, err
+}
+
 func (r *SQLConversationRepository) SearchSession(ctx context.Context, sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
 	if limit <= 0 {
 		limit = 500
@@ -272,6 +302,83 @@ func (r *SQLConversationRepository) SearchSession(ctx context.Context, sessionID
 		matches = matches[:limit]
 	}
 	return matches, truncated, total, nil
+}
+
+func (r *SQLConversationRepository) SearchArchived(ctx context.Context, filter ArchivedConversationSearchFilter) ([]ArchivedConversationSearchMatch, bool, int64, int64, error) {
+	ftsQuery := plainTextFTSQuery(filter.Query)
+	if ftsQuery == "" {
+		return []ArchivedConversationSearchMatch{}, false, 0, 0, nil
+	}
+	limit := filter.Limit
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	where := []string{
+		"conversation_events_fts.text MATCH ?",
+		"(s.archived_at <> '' OR s.status IN ('dismissed', 'awaiting_recovery'))",
+		"(s.recovered_into = '' OR NOT EXISTS (SELECT 1 FROM sessions successor WHERE successor.id = s.recovered_into))",
+	}
+	args := []any{ftsQuery}
+	if filter.AgentType != "" {
+		where = append(where, "s.agent_type = ?")
+		args = append(args, filter.AgentType)
+	}
+	if filter.Role != "" {
+		where = append(where, "e.role = ?")
+		args = append(args, filter.Role)
+	}
+	if !filter.CreatedAfter.IsZero() {
+		where = append(where, "e.created_at >= ?")
+		args = append(args, formatTime(filter.CreatedAfter))
+	}
+	from := ` FROM conversation_events_fts
+		JOIN conversation_events e ON e.rowid = conversation_events_fts.rowid
+		JOIN sessions s ON s.id = e.session_id
+		WHERE ` + strings.Join(where, " AND ")
+	var total int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*)`+from, args...).Scan(&total); err != nil {
+		return nil, false, 0, 0, fmt.Errorf("count archived search results: %w", err)
+	}
+	var distinctSessions int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(DISTINCT e.session_id)`+from, args...).Scan(&distinctSessions); err != nil {
+		return nil, false, 0, 0, fmt.Errorf("count archived search sessions: %w", err)
+	}
+	queryArgs := append(append([]any(nil), args...), limit+1)
+	rows, err := r.db.QueryContext(ctx, `SELECT e.id, e.session_id, e.sequence, e.role, e.created_at, e.text`+from+`
+		ORDER BY bm25(conversation_events_fts), e.created_at DESC LIMIT ?`, queryArgs...)
+	if err != nil {
+		return nil, false, 0, 0, fmt.Errorf("search archived conversations: %w", err)
+	}
+	defer rows.Close()
+	matches := make([]ArchivedConversationSearchMatch, 0, min(limit, int(total)))
+	for rows.Next() {
+		var match ArchivedConversationSearchMatch
+		var createdAt, text string
+		if err := rows.Scan(&match.EventID, &match.SessionID, &match.Sequence, &match.Role, &createdAt, &text); err != nil {
+			return nil, false, 0, 0, err
+		}
+		match.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+		match.Excerpt = conversationExcerpt(text, filter.Query)
+		matches = append(matches, match)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, 0, 0, err
+	}
+	truncated := len(matches) > limit
+	if truncated {
+		matches = matches[:limit]
+	}
+	return matches, truncated, total, distinctSessions, nil
+}
+
+func plainTextFTSQuery(query string) string {
+	terms := strings.Fields(strings.TrimSpace(query))
+	quoted := make([]string, 0, len(terms))
+	for _, term := range terms {
+		term = strings.ReplaceAll(term, `"`, `""`)
+		quoted = append(quoted, `"`+term+`"`)
+	}
+	return strings.Join(quoted, " AND ")
 }
 
 func conversationExcerpt(text, query string) string {
@@ -654,6 +761,24 @@ func (r *InMemoryConversationRepository) CountSessionEvents(_ context.Context, s
 	return int64(len(session.events)), nil
 }
 
+func (r *InMemoryConversationRepository) SessionStorageBytes(_ context.Context, sessionID string) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var size int64
+	if session := r.sessions[sessionID]; session != nil {
+		for _, event := range session.events {
+			size += int64(len(event.ID) + len(event.SessionID) + len(event.Source) + len(string(event.Role)) + len(event.Text) + len(event.CreatedAt.Format(time.RFC3339Nano)))
+			for _, paragraph := range event.SpeechParagraphs {
+				size += int64(len(paragraph))
+			}
+			for _, paragraph := range event.OriginalSpeechParagraphs {
+				size += int64(len(paragraph))
+			}
+		}
+	}
+	return size, nil
+}
+
 func (r *InMemoryConversationRepository) SearchSession(ctx context.Context, sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
 	state, err := r.ListSession(ctx, sessionID)
 	if err != nil {
@@ -674,6 +799,10 @@ func (r *InMemoryConversationRepository) SearchSession(ctx context.Context, sess
 		matches = matches[:limit]
 	}
 	return matches, truncated, total, nil
+}
+
+func (r *InMemoryConversationRepository) SearchArchived(_ context.Context, _ ArchivedConversationSearchFilter) ([]ArchivedConversationSearchMatch, bool, int64, int64, error) {
+	return []ArchivedConversationSearchMatch{}, false, 0, 0, nil
 }
 
 func (r *InMemoryConversationRepository) ListSessionRange(ctx context.Context, sessionID string, from, to int64) ([]ConversationEvent, error) {

@@ -10,7 +10,7 @@
       "description": "Go API manages PTY sessions: create shell process with pty.StartWithSize, track sessions by ID, support concurrent sessions, clean up on termination.",
       "id": "REQ-P0-002a",
       "prd_ref": "OT-P0-002",
-      "status": "passed",
+      "status": "in_progress",
       "title": "PTY Session Backend",
       "validation": [
         {
@@ -37,7 +37,7 @@
         {
           "notes": "Shell resolution falls back to $SHELL env",
           "phase": "unit",
-          "ref": "api/config_test.go:TestResolveShell_FallbackToSHELL",
+          "ref": "api/decision_boundary_test.go:TestResolveShell_FallsBackToSHELL",
           "status": "passing",
           "type": "test"
         }
@@ -49,7 +49,7 @@
       "description": "WebSocket endpoint streams bidirectional I/O between browser and PTY. JSON message protocol with stdin, stdout, resize, exit, error, ping/pong types.",
       "id": "REQ-P0-002b",
       "prd_ref": "OT-P0-002",
-      "status": "passed",
+      "status": "in_progress",
       "title": "WebSocket I/O Streaming",
       "validation": [
         {
@@ -60,16 +60,16 @@
           "type": "test"
         },
         {
-          "notes": "WebSocket hook manages connection lifecycle",
+          "notes": "Terminal transport keeps reconnecting through a prolonged server restart",
           "phase": "unit",
-          "ref": "ui/src/__tests__/useTerminalSocket.test.ts",
+          "ref": "ui/src/hooks/terminal/useTerminalTransport.test.ts",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Hook behavioral tests: open/resize/stdout/exit/error/close/input/cleanup/malformed messages",
+          "notes": "Server-side WebSocket tests cover open, resize, stdout, exit, error, input, cleanup, and malformed messages",
           "phase": "unit",
-          "ref": "ui/src/__tests__/useTerminalSocket.hook.test.ts",
+          "ref": "api/terminal_ws_test.go",
           "status": "passing",
           "type": "test"
         },
@@ -94,13 +94,13 @@
       "description": "Binary-safe I/O protocol transmits raw bytes without encoding corruption. JSON message framing preserves binary payloads.",
       "id": "REQ-P0-002b-i",
       "prd_ref": "OT-P0-002",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Binary-Safe I/O Protocol",
       "validation": [
         {
-          "notes": "WebSocket message types defined and parsed correctly",
+          "notes": "WebSocket framing and terminal payload handling preserve raw terminal data",
           "phase": "unit",
-          "ref": "ui/src/__tests__/useTerminalSocket.test.ts",
+          "ref": "api/terminal_ws_test.go",
           "status": "passing",
           "type": "test"
         }
@@ -111,7 +111,7 @@
       "description": "Terminal resize messages propagate from browser to PTY via pty.Setsize. SIGWINCH handling ensures interactive CLIs (vim, htop) reflow correctly.",
       "id": "REQ-P0-002c",
       "prd_ref": "OT-P0-002",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Terminal Resize Handling",
       "validation": [
         {
@@ -149,7 +149,7 @@
       "description": "xterm.js terminal emulator renders PTY output with full ANSI/cursor support. Addon fitAddon auto-sizes terminal to container.",
       "id": "REQ-P0-002d",
       "prd_ref": "OT-P0-002",
-      "status": "passed",
+      "status": "in_progress",
       "title": "xterm.js Terminal Rendering",
       "validation": [
         {

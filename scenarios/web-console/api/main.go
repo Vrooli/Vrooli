@@ -112,6 +112,9 @@ func initSchemaWithProviders(ctx context.Context, db dbx.Handle, providers []dat
 	if err := applyColumnMigrations(ctx, db); err != nil {
 		return err
 	}
+	if err := ensureConversationFTS(ctx, db); err != nil {
+		return fmt.Errorf("migration: conversation FTS: %w", err)
+	}
 
 	if err := migrateSessionsAgentTypeConstraint(ctx, db); err != nil {
 		return fmt.Errorf("migration: %w", err)
@@ -129,6 +132,89 @@ func initSchemaWithProviders(ctx context.Context, db dbx.Handle, providers []dat
 	}
 
 	return nil
+}
+
+const conversationFTSMigration = "conversation_events_fts_v1"
+
+// ensureConversationFTS creates the archive-search index and backfills old
+// events in bounded transactions. Progress is durable, so an interrupted boot
+// resumes rather than duplicating index rows or restarting the full backfill.
+func ensureConversationFTS(ctx context.Context, db dbx.Handle) error {
+	ddl := []string{
+		`CREATE TABLE IF NOT EXISTS web_console_migrations (
+			name TEXT PRIMARY KEY,
+			last_rowid INTEGER NOT NULL DEFAULT 0,
+			completed_at TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE VIRTUAL TABLE IF NOT EXISTS conversation_events_fts USING fts5(event_id UNINDEXED, text, tokenize='unicode61')`,
+		`CREATE TRIGGER IF NOT EXISTS conversation_events_fts_insert AFTER INSERT ON conversation_events BEGIN
+			INSERT INTO conversation_events_fts(rowid, event_id, text) VALUES (new.rowid, new.id, new.text);
+		END`,
+		`CREATE TRIGGER IF NOT EXISTS conversation_events_fts_delete AFTER DELETE ON conversation_events BEGIN
+			DELETE FROM conversation_events_fts WHERE rowid = old.rowid;
+		END`,
+		`CREATE TRIGGER IF NOT EXISTS conversation_events_fts_text_update AFTER UPDATE OF text ON conversation_events BEGIN
+			DELETE FROM conversation_events_fts WHERE rowid = old.rowid;
+			INSERT INTO conversation_events_fts(rowid, event_id, text) VALUES (new.rowid, new.id, new.text);
+		END`,
+	}
+	for _, statement := range ddl {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
+
+	var cursor int64
+	var completed string
+	err := db.QueryRowContext(ctx, `SELECT last_rowid, completed_at FROM web_console_migrations WHERE name = ?`, conversationFTSMigration).Scan(&cursor, &completed)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if completed != "" {
+		return nil
+	}
+
+	const batchSize = 1000
+	for {
+		var upper int64
+		if err := db.QueryRowContext(ctx, `SELECT COALESCE(MAX(rowid), 0) FROM (
+			SELECT rowid FROM conversation_events WHERE rowid > ? ORDER BY rowid LIMIT ?
+		)`, cursor, batchSize).Scan(&upper); err != nil {
+			return err
+		}
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		if upper == 0 {
+			_, err = tx.ExecContext(ctx, `INSERT INTO web_console_migrations(name, last_rowid, completed_at)
+				VALUES (?, ?, ?) ON CONFLICT(name) DO UPDATE SET last_rowid=excluded.last_rowid, completed_at=excluded.completed_at`,
+				conversationFTSMigration, cursor, time.Now().UTC().Format(time.RFC3339))
+			if err == nil {
+				err = tx.Commit()
+			} else {
+				_ = tx.Rollback()
+			}
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, `DELETE FROM conversation_events_fts WHERE rowid > ? AND rowid <= ?`, cursor, upper); err == nil {
+			_, err = tx.ExecContext(ctx, `INSERT INTO conversation_events_fts(rowid, event_id, text)
+				SELECT rowid, id, text FROM conversation_events WHERE rowid > ? AND rowid <= ?`, cursor, upper)
+		}
+		if err == nil {
+			_, err = tx.ExecContext(ctx, `INSERT INTO web_console_migrations(name, last_rowid, completed_at)
+				VALUES (?, ?, '') ON CONFLICT(name) DO UPDATE SET last_rowid=excluded.last_rowid`, conversationFTSMigration, upper)
+		}
+		if err == nil {
+			err = tx.Commit()
+		} else {
+			_ = tx.Rollback()
+		}
+		if err != nil {
+			return err
+		}
+		cursor = upper
+	}
 }
 
 // applyColumnMigrations adds columns to existing tables. ALTER TABLE ADD COLUMN
@@ -635,16 +721,27 @@ func (s *Server) setupRoutes() {
 
 	// Sessions domain (CRUD, recovery, policy) — Connect-RPC.
 	sessionsH.Module(&sessionsH.Adapter{
-		Manager:          s.sessions,
-		Store:            s.sessionStore,
-		Idempotency:      s.idempotency,
-		Events:           s.events,
-		Metrics:          s.metrics,
-		Conversations:    s.conversations,
-		CodexCheckpoints: s.codexCheckpointStore,
-		AgentCheckpoints: s.agentCheckpointStore,
-		Workspace:        s.workspace,
-		CopyCodexHome:    copyCodexHome,
+		Manager:             s.sessions,
+		Store:               s.sessionStore,
+		Idempotency:         s.idempotency,
+		Events:              s.events,
+		Metrics:             s.metrics,
+		Conversations:       s.conversations,
+		CodexCheckpoints:    s.codexCheckpointStore,
+		AgentCheckpoints:    s.agentCheckpointStore,
+		Workspace:           s.workspace,
+		CopyCodexHome:       copyCodexHome,
+		AgentHistoryPresent: archivedAgentHistoryPresent,
+		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
+			cfg := s.sessions.GetConfig()
+			return sessionsH.ArchiveRetentionPolicy{
+				MessageLessAge: time.Duration(cfg.ArchiveMessageLessAgeDays) * 24 * time.Hour,
+				AgentHomeAge:   time.Duration(cfg.ArchiveAgentHomeAgeDays) * 24 * time.Hour,
+				MaxBytes:       cfg.ArchiveMaxBytes,
+			}
+		},
+		AgentHistorySize:  archivedAgentHistorySize,
+		PruneAgentHistory: pruneArchivedAgentHistory,
 	}, nil).Mount(s.router)
 
 	// Terminal — Connect-RPC TerminalService (GetScreen, SendInput,

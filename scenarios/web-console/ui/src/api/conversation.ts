@@ -151,6 +151,55 @@ export async function searchConversation(sessionId: string, query: string, limit
   return { matches: response.matches.map((match) => ({ eventId: match.eventId, sequence: Number(match.sequence), excerpt: match.excerpt })), truncated: response.truncated, totalMatches: Number(response.totalMatches) };
 }
 
+export interface ArchivedConversationSearchMatch {
+  eventId: string;
+  sessionId: string;
+  sequence: number;
+  role: string;
+  createdAt: string;
+  excerpt: string;
+}
+
+export interface ArchivedConversationSearchResponse {
+  matches: ArchivedConversationSearchMatch[];
+  truncated: boolean;
+  totalMatches: number;
+  distinctSessions: number;
+}
+
+export interface ArchivedConversationSearchFilters {
+  agentType?: string;
+  role?: string;
+  createdAfter?: string;
+}
+
+export async function searchArchivedConversations(
+  query: string,
+  filters: ArchivedConversationSearchFilters = {},
+  limit = 100,
+): Promise<ArchivedConversationSearchResponse> {
+  const response = await conversationClient.searchArchived({
+    query,
+    limit,
+    agentType: filters.agentType ?? "",
+    role: filters.role ?? "",
+    createdAfter: filters.createdAfter ?? "",
+  });
+  return {
+    matches: response.matches.map((match) => ({
+      eventId: match.eventId,
+      sessionId: match.sessionId,
+      sequence: Number(match.sequence),
+      role: match.role,
+      createdAt: match.createdAt,
+      excerpt: match.excerpt,
+    })),
+    truncated: response.truncated,
+    totalMatches: Number(response.totalMatches),
+    distinctSessions: Number(response.distinctSessions),
+  };
+}
+
 export async function getConversationRange(sessionId: string, fromSequence: number, toSequence: number): Promise<ConversationSessionResponse> {
   const response = await conversationClient.getRange({ sessionId, fromSequence: BigInt(fromSequence), toSequence: BigInt(toSequence) });
   return { sessionId: response.sessionId, events: response.events.map(decodeConversationEvent), cursor: decodeConversationCursor(response.cursor) };

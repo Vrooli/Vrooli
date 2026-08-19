@@ -18,7 +18,7 @@ import { useWakeLock } from "../hooks/useWakeLock";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { usePressGesture } from "../hooks/usePressGesture";
 import { useWakeLockStatus } from "../stores/useWakeLockStatus";
-import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
 import {
   resolveWorkspaceLayout,
   reconcileTrackFractions,
@@ -32,7 +32,7 @@ import type { GateResult, InputSource } from "./terminal/inputGate";
 import { uploadFile } from "../api/uploads";
 import { fetchCapabilities } from "../api/capabilities";
 import { getSessionDefaults } from "../api/settings";
-import { getSession, type BackendOption, type BackendID, type ExpirationPolicy, type SessionOriginName } from "../api/sessions";
+import { getSession, type BackendOption, type BackendID, type ExpirationPolicy, type RecoverResult, type SessionOriginName } from "../api/sessions";
 import { listRemoteTerminalTargets, type RemoteTerminalTarget } from "../api/remoteSessions";
 import type { LaunchOptions, TerminalTarget } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
@@ -60,7 +60,8 @@ import SessionSidebar from "./SessionSidebar";
 import AudioPlayerBar from "./AudioPlayerBar";
 import SummarizeErrorBanner, { type SummarizeErrorState } from "./SummarizeErrorBanner";
 import EnableAudioBanner from "./EnableAudioBanner";
-import RecoverableSessionsBanner from "./RecoverableSessionsBanner";
+import CrashRecoveryNotice from "./CrashRecoveryNotice";
+import ArchiveDrawer from "./ArchiveDrawer";
 import SessionRecoveryBanner from "./SessionRecoveryBanner";
 import TopSafeArea from "./TopSafeArea";
 import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
@@ -140,6 +141,8 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
     clearHydrationError,
     launchSession,
     removePane: removeSessionPane,
+    undoArchive,
+    deletePanePermanently,
     mergeExternalSession,
     endExternalSession,
     handleExit: sessionHandleExit,
@@ -246,10 +249,48 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   const composerDraft = useComposerDraft(workspace.activePane);
   const composerAttachments = useComposerAttachments();
   const [composerOpen, setComposerOpen] = useState(false);
+  const [archiveDrawerOpen, setArchiveDrawerOpen] = useState(false);
+  const [archivePreferOrphans, setArchivePreferOrphans] = useState(false);
+  const openCrashArchive = useCallback(() => {
+    setArchivePreferOrphans(true);
+    setArchiveDrawerOpen(true);
+  }, []);
+  const closeArchiveDrawer = useCallback(() => {
+    setArchiveDrawerOpen(false);
+    setArchivePreferOrphans(false);
+  }, []);
   const openComposer = useCallback(() => setComposerOpen(true), []);
   const closeComposer = useCallback(() => setComposerOpen(false), []);
   // Desktop keyboard shortcut (Ctrl/Cmd+Shift+K) opens the composer.
   useComposerHotkey(openComposer);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLocaleLowerCase() === "h") {
+        event.preventDefault();
+        setArchiveDrawerOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const sendArchivedMessageToComposer = useCallback((text: string) => {
+    const target = composerDraft.getSessionId();
+    if (!target || target !== useWorkspaceStore.getState().activePane) return;
+    composerDraft.appendAtCaret(text);
+    setArchiveDrawerOpen(false);
+    setComposerOpen(true);
+  }, [composerDraft]);
+
+  const handleArchiveReopened = useCallback((result: RecoverResult) => {
+    pendingActivePaneRef.current = result.new_session_id;
+    void getSession(result.new_session_id).then((session) => {
+      mergeExternalSession(session, true);
+    }).catch(() => {
+      // The session.created event is the authoritative fallback. Keeping the
+      // pending target makes that later merge focus the reopened pane.
+    });
+  }, [mergeExternalSession]);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -274,7 +315,12 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   const pendingActivePaneRef = useRef<string | null>(null);
   const pendingGroupBySessionRef = useRef<Map<string, string>>(new Map());
   const pendingLauncherGroupRef = useRef<string | null>(null);
-  const [pendingClose, setPendingClose] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [archiveUndo, setArchiveUndo] = useState<{
+    sessionId: string;
+    pane: PaneMetadata;
+    index: number;
+  } | null>(null);
   const exitedSessionsRef = useRef<Set<string>>(new Set());
 
   const activatePane = useCallback((sessionId: string) => {
@@ -498,49 +544,55 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   // in the store doesn't re-render the whole tab strip via an inline arrow.
   const handleNewTerminal = useCallback(() => { handleLaunch(); }, [handleLaunch]);
 
-  const doRemovePane = useCallback(
+  const releaseWorkspacePane = useCallback(
     (sessionId: string) => {
-      removeSessionPane(sessionId);
       removeWorkspacePane(sessionId);
       clearConversationSession(sessionId);
       exitedSessionsRef.current.delete(sessionId);
       try { localStorage.removeItem(`wc-mobile-draft-${sessionId}`); } catch { /* ignore */ }
     },
-    [clearConversationSession, removeSessionPane, removeWorkspacePane],
+    [clearConversationSession, removeWorkspacePane],
   );
 
   const handleRequestClose = useCallback(
     async (sessionId: string) => {
-      // Skip confirmation for sessions whose process already exited
-      if (exitedSessionsRef.current.has(sessionId)) {
-        doRemovePane(sessionId);
-        return;
+      const index = workspace.panes.findIndex((pane) => pane.sessionId === sessionId);
+      const pane = workspace.panes[index];
+      const outcome = await removeSessionPane(sessionId);
+      if (outcome === "failed") return;
+      releaseWorkspacePane(sessionId);
+      if (outcome === "undoable" && pane) {
+        setArchiveUndo({ sessionId, pane, index });
       }
-      // Ask the server whether the shell has a running child process
-      try {
-        const info = await getSession(sessionId);
-        if (!info.busy) {
-          doRemovePane(sessionId);
-          return;
-        }
-      } catch {
-        // If the fetch fails (e.g. session already gone), close without dialog
-        doRemovePane(sessionId);
-        return;
-      }
-      setPendingClose(sessionId);
     },
-    [doRemovePane],
+    [releaseWorkspacePane, removeSessionPane, workspace.panes],
   );
 
-  const handleConfirmClose = useCallback(() => {
-    if (pendingClose) doRemovePane(pendingClose);
-    setPendingClose(null);
-  }, [pendingClose, doRemovePane]);
+  useEffect(() => {
+    if (!archiveUndo) return;
+    const timer = window.setTimeout(() => setArchiveUndo(null), 8_000);
+    return () => window.clearTimeout(timer);
+  }, [archiveUndo]);
 
-  const handleCancelClose = useCallback(() => {
-    setPendingClose(null);
-  }, []);
+  const handleUndoArchive = useCallback(async () => {
+    if (!archiveUndo) return;
+    if (await undoArchive(archiveUndo.sessionId)) {
+      useWorkspaceStore.setState((state) => {
+        if (state.panes.some((pane) => pane.sessionId === archiveUndo.sessionId)) return state;
+        const panes = [...state.panes];
+        panes.splice(Math.min(archiveUndo.index, panes.length), 0, archiveUndo.pane);
+        return { panes, activePane: archiveUndo.sessionId };
+      });
+    }
+    setArchiveUndo(null);
+  }, [archiveUndo, undoArchive]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDelete) return;
+    await deletePanePermanently(pendingDelete);
+    releaseWorkspacePane(pendingDelete);
+    setPendingDelete(null);
+  }, [deletePanePermanently, pendingDelete, releaseWorkspacePane]);
 
   useTabLikeNavigationShortcuts({
     enabled: isTabLikeMode,
@@ -693,13 +745,13 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         },
         closeTab: () => {
           const active = activeWorkspacePane;
-          if (active) doRemovePane(active);
+          if (active) void handleRequestClose(active);
         },
         sendToTerminal: (data: string) => { handleSendToTerminal(data, "voice"); },
         exitVoiceMode: () => voiceInput.stopRecording(),
       }, suggestion.args);
     });
-  }, [activeWorkspacePane, voiceInput, handleSendToTerminal, handleLaunch, doRemovePane, setActiveWorkspacePane, workspacePanes]);
+  }, [activeWorkspacePane, voiceInput, handleSendToTerminal, handleLaunch, handleRequestClose, setActiveWorkspacePane, workspacePanes]);
 
   const handleVoiceCommandDismiss = useCallback(() => {
     voiceInput.dismissCommandSuggestion();
@@ -1191,11 +1243,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           fillClassName="bg-wc-surface-base"
         >
           <SessionRecoveryBanner />
-          <RecoverableSessionsBanner
-            onRecovered={(result) => {
-              pendingActivePaneRef.current = result.new_session_id;
-            }}
-          />
+          <CrashRecoveryNotice onOpenArchive={openCrashArchive} />
         </TopSafeArea>
         <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
@@ -1239,6 +1287,14 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           defaultPolicy={defaultPolicy}
           availableBackends={availableBackends}
           availableTargets={availableTargets}
+        />
+        <ArchiveDrawer
+          open={archiveDrawerOpen}
+          onClose={closeArchiveDrawer}
+          activeSessionId={workspace.activePane}
+          onSendToComposer={sendArchivedMessageToComposer}
+          onReopened={handleArchiveReopened}
+          preferOrphans={archivePreferOrphans}
         />
       </div>
     );
@@ -1489,11 +1545,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         <SessionRecoveryBanner />
         {/* Recoverable sessions surface — banner is hidden when nothing is
             awaiting recovery, so steady-state UI is unchanged. */}
-        <RecoverableSessionsBanner
-          onRecovered={(result) => {
-            pendingActivePaneRef.current = result.new_session_id;
-          }}
-        />
+        <CrashRecoveryNotice onOpenArchive={openCrashArchive} />
         {activeSessionTrackingDegraded && activeViewMode === "messages" && (
           <div role="status" className="border-b border-amber-700/40 bg-amber-900/20 px-3 py-1 text-xs text-amber-100">
             Conversation tracking may be delayed for this recovered Claude session. Terminal activity is continuing.
@@ -1508,6 +1560,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
             onNewTerminal={handleNewTerminal}
             onOpenLauncher={openLauncher}
             onClosePane={handleRequestClose}
+            onDeletePanePermanently={setPendingDelete}
             isCreating={isCreating}
             trailingActions={isMobile ? (
               <Button
@@ -1613,10 +1666,15 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
               onCloseMobile={() => setMobileSidebarOpen(false)}
               onActivatePane={activatePane}
               onClosePane={handleRequestClose}
+              onDeletePanePermanently={setPendingDelete}
               onNewTerminal={() => handleLaunch()}
               onOpenLauncher={openLauncher}
               onNewSessionInGroup={handleNewSessionInGroup}
               onOpenSettings={() => workspace.setSettingsModalOpen(true)}
+              onOpenArchiveDrawer={() => {
+                setMobileSidebarOpen(false);
+                setArchiveDrawerOpen(true);
+              }}
             />
           )}
           {/* Tab-like modes: stacked panes with hidden inactive panes */}
@@ -1909,23 +1967,49 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
       {/* Manage Groups drawer (opened from TabBar / SessionSidebar menus) */}
       <ManageGroupsDrawer />
 
+      <ArchiveDrawer
+        open={archiveDrawerOpen}
+        onClose={closeArchiveDrawer}
+        activeSessionId={workspace.activePane}
+        onSendToComposer={sendArchivedMessageToComposer}
+        onReopened={handleArchiveReopened}
+        preferOrphans={archivePreferOrphans}
+      />
+
       {/* AI Modal */}
       <AiInput onExecute={(cmd) => { handleSendToTerminal(cmd, "toolbar-submit"); }} />
 
-      {/* Close confirmation dialog */}
+      {/* Permanent deletion remains explicit and confirmation-backed. */}
       <ConfirmDialog
-        open={pendingClose !== null}
-        title={t(strings.confirmClose.title)}
-        body={t(strings.confirmClose.body, {
-          name: workspace.panes.find((p) => p.sessionId === pendingClose)?.name ?? "terminal",
+        open={pendingDelete !== null}
+        title={t(strings.confirmDelete.title)}
+        body={t(strings.confirmDelete.body, {
+          name: workspace.panes.find((p) => p.sessionId === pendingDelete)?.name ?? "terminal",
         })}
-        cancelLabel={t(strings.confirmClose.cancel)}
-        confirmLabel={t(strings.confirmClose.confirm)}
+        cancelLabel={t(strings.confirmDelete.cancel)}
+        confirmLabel={t(strings.confirmDelete.confirm)}
         destructive
-        onConfirm={handleConfirmClose}
-        onCancel={handleCancelClose}
-        testIdPrefix="confirm-close"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setPendingDelete(null)}
+        testIdPrefix="confirm-delete-session"
       />
+
+      {archiveUndo && (
+        <div
+          role="status"
+          data-testid="archive-undo-toast"
+          className="fixed bottom-4 start-1/2 z-wc-toast flex -translate-x-1/2 items-center gap-3 rounded-xl border border-wc-default bg-wc-panel px-4 py-3 text-sm text-wc-primary shadow-xl"
+        >
+          <span>{t(strings.archiveToast.archived, { name: archiveUndo.pane.name })}</span>
+          <button
+            type="button"
+            className="font-semibold text-wc-accent hover:underline"
+            onClick={() => void handleUndoArchive()}
+          >
+            {t(strings.archiveToast.undo)}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

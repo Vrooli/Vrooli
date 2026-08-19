@@ -2,8 +2,9 @@
 
 Durable record of the design investigation and the operator decisions behind the
 web-console session archive. The plan
-`web-console-session-archive-*` executes this design; this document holds the
-rationale, the wireframes, and the measured facts the plan compresses.
+`web-console-session-archive-*` implemented this design; this document holds the
+rationale, the wireframes, the measured starting facts, and the decisions made
+during implementation.
 
 Visual companion: [`ARCHIVED-SESSIONS-UX.html`](./ARCHIVED-SESSIONS-UX.html) —
 open in a browser for the rendered wireframes in web-console's real palette.
@@ -14,8 +15,8 @@ the two ever disagree.
 
 ## 1. The friction
 
-The operator keeps sessions open that they do not need running, because closing
-one destroys it. Three distinct needs drive this:
+The archive removes the need to keep finished sessions running only to preserve
+their history. Three distinct needs drove this:
 
 1. **Reference.** A past conversation contains wording worth reusing, or a
    message worth copying into a live session for context.
@@ -42,18 +43,13 @@ All measurements taken 2026-08-18 against the live store
 | Events belonging to dismissed sessions | 41,994 across 127 sessions |
 | Events with no session row | 0 |
 
-### 2.1 Close is a hard cascading destroy
+### 2.1 Close now archives; permanent deletion is explicit
 
-`Adapter.Delete` (`api/handlers/sessions/adapter.go:254`) calls
-`Manager.Delete` (`api/session/session_manager.go:427`), which kills the PTY,
-deletes the `sessions` row, and removes the session upload directory. The
-adapter then deletes the conversation (`api/conversation_repository.go:480`,
-cascading `conversation_events` via FK), the codex rollout checkpoints, and the
-agent transcript checkpoints.
-
-In the UI, `removePane` (`ui/src/hooks/useSessionManager.ts:291`) calls
-`deleteSession` unconditionally. The X on a tab is therefore a permanent,
-unconfirmed delete of the transcript.
+The UI close path calls `Archive`, which sets `archived_at`, stops the process,
+and preserves the session row, pane identity, and conversation. The close toast
+offers an eight-second Undo through `Unarchive`. `Delete` remains available as
+a separate confirmed action and performs the full cleanup only when the
+operator explicitly chooses it.
 
 ### 2.2 A de-facto archive already exists, with no reader
 
@@ -76,30 +72,26 @@ re-applies provenance (origin/owner/label), reassigns the workspace pane so
 name, color and group survive, and pastes an agent-specific resume command from
 `BuildResumeCommand` (`api/internal/sessions/helpers.go:94`).
 
-Its only barrier to serving the archive is a status gate: it refuses any row not
-in `awaiting_recovery`, and only the crash-recovery sweep
-(`api/session/session_lifecycle.go`) sets that status.
+The archive-facing `Reopen` operation now delegates to this workflow after
+validating an archived row. Crash-orphan `Recover` keeps its original
+`awaiting_recovery` gate. Both operations preserve the same idempotency and
+replacement-session result contract.
 
-### 2.4 Message search exists and is scoped to one session
+### 2.4 Message search uses a cross-session FTS5 index
 
-`searchConversation(sessionId, query)` (`ui/src/api/conversation.ts:149`) already
-searches message **text** and drives the navigator panel in `MessagesPane`.
-Server-side it is `SELECT … WHERE session_id = ? AND text LIKE ? ESCAPE '\'`
-with a 160-character excerpt builder (`api/conversation_repository.go:243`).
+The existing per-session search remains available in `MessagesPane`.
+`ConversationService.SearchArchived` uses the new `conversation_events_fts`
+FTS5 table to search message text across archived lineages. SQLite on the
+supported host includes FTS5; startup creates and reconciles the content index,
+and triggers keep it synchronized with event writes and deletes.
 
-Two limits matter:
+### 2.5 Retention is bounded and opt-in
 
-- The `session_id` predicate is the only thing preventing cross-session search.
-- There is no FTS5 table and no index on `conversation_events.text`. A
-  `LIKE '%…%'` scan is acceptable over one session's few hundred rows and is a
-  full table scan over the whole archive. At 71,446 rows today and growing, the
-  scope widening and the FTS5 index are one change, not two.
-
-### 2.5 There is no retention anywhere in web-console
-
-No prune, no vacuum, no age or size policy exists in the scenario. **Today the
-delete cascade is the retention policy.** Archiving removes it. Retention must
-therefore ship with the archive, not after it.
+Retention defaults to unlimited (`0` for all thresholds) and pruning defaults
+to a dry run. Configured pruning considers only rows with an explicit
+`archived_at`, removes exact session-owned agent history before transcript data,
+and permanently deletes only old message-less transcript rows. Settings report
+the visible archive's combined transcript and agent-history size.
 
 ### 2.6 Semantic search has no foundation in this scenario
 
@@ -192,8 +184,7 @@ agent's own on-disk history (`~/.claude/projects`, per-session CODEX_HOME); if
 that is gone, resume produces a broken session.
 
 The archive therefore has three visible states, shown on the row **before** the
-click, following the existing pattern in `RecoverableSessionsBanner`
-(disabled button plus a reason string):
+click with a disabled action and reason when resume is unsafe:
 
 | State | Meaning |
 | --- | --- |
@@ -206,19 +197,21 @@ pruned. Those directories are far larger than the SQLite rows and are what
 retention actually needs to reclaim. Showing the decay is more honest than
 implying everything reopens forever.
 
-### D8 — Reopen must not multiply the transcript
+### D8 — Collapse copied transcripts by lineage
 
 `Recover()` **copies** conversation rows to the new session id
 (`CopySession`, `api/conversation_repository.go:504`). Archive → reopen →
 archive → reopen therefore leaves three copies of one conversation in the
-archive. The archive must present one entry per conversation lineage. See open
-question Q1 for the two acceptable resolutions.
+archive. The implementation keeps the proven copy behavior and follows
+`recovered_into` to the newest row, so the archive presents one entry per
+conversation lineage.
 
 ### D9 — The archive subsumes the recovery banner
 
 A crash orphan is an involuntarily archived session. Folding
-`RecoverableSessionsBanner` into the archive surface gives one mental model and
-one code path, and removes a surface.
+the former recovery drawer into the archive surface gives one mental model and
+one action surface. A compact count-only notice preserves the urgency of
+interrupted work.
 
 ## 4. Wireframes
 
@@ -275,8 +268,7 @@ Clicking the footer row swaps the sidebar body. It does not open a modal.
 
 ### 4.3 Deep archive drawer — search first (D4, D5)
 
-`DrawerShell size="full"` already exists and is used by
-`RecoverableSessionsBanner`.
+`DrawerShell size="full"` provides the shared full-screen overlay behavior.
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
@@ -358,24 +350,28 @@ Honest expectation: literal search over the operator's own messages covers most
 of the described need, because the remembered detail is usually their own
 phrasing.
 
-## 6. Open questions
+## 6. Resolved implementation questions
 
-**Q1 — Does reopen copy the transcript or re-point it?** (blocks D8)
-Two acceptable resolutions: re-point the `conversation_events` rows to the new
-session id instead of copying; or keep the copy and add a lineage column so the
-archive collapses a reopen chain into one entry. Re-pointing is simpler and
-loses the ability to see the conversation as it stood at archive time.
-Copy-plus-lineage preserves that and costs storage per reopen.
+**Q1 — Does reopen copy the transcript or re-point it?** Reopen keeps the proven
+copy behavior and uses the existing `recovered_into` pointer as its lineage.
+Archive listing and search resolve each chain forward and expose its newest row
+once.
 
-**Q2 — What is the retention policy?** Proposed: retain message-bearing
-transcripts indefinitely; expire message-less shell sessions after 7 days;
-prune agent home directories on an age policy, which moves a row from
-Reopenable to Read-only rather than deleting it; surface total archive size in
-settings.
+**Q2 — What is the retention policy?** All thresholds default to zero
+(unlimited): `WC_ARCHIVE_MESSAGELESS_AGE_DAYS`,
+`WC_ARCHIVE_AGENT_HOME_AGE_DAYS`, and `WC_ARCHIVE_MAX_BYTES`. Prune defaults to
+dry-run. It removes session-owned agent history first and retains every
+message-bearing transcript. Only explicitly archived, old, message-less rows
+can be deleted.
 
-**Q3 — Archive uniformly, or only message-bearing sessions?** Proposed: archive
-uniformly so the close gesture never surprises, and default the archive view to
-a "has messages" filter.
+**Q3 — Archive uniformly, or only message-bearing sessions?** Close archives
+uniformly. The archive counts and lists legacy dismissed entries for retrieval,
+but retention candidates require an explicit archive timestamp.
+
+**Q4 — Does the archive subsume crash recovery?** Yes. Archive entries carry an
+`awaiting_recovery` marker. A compact count-only notice opens the drawer with
+the Crash orphans filter selected. The drawer owns Reattach, Dismiss, bulk
+actions, disabled reasons, and stable per-session idempotency keys.
 
 ## 7. Prior art in this repo
 

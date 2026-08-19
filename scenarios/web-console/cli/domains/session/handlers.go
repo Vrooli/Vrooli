@@ -56,6 +56,57 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	return cliapp.RenderListReport(ctx.Stdout(), report)
 }
 
+func (h *handlers) archiveRetention(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetArchiveRetention(context.Background(), connect.NewRequest(&sessionsv1.GetArchiveRetentionRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get archive retention", err, nil)
+	}
+	policy, stats := resp.Msg.GetPolicy(), resp.Msg.GetStats()
+	report := cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Archived entries: %d; total measured bytes: %d", stats.GetEntryCount(), stats.GetTotalBytes())},
+		ResultsHeading: "Archive retention",
+		Results: []string{
+			fmt.Sprintf("message_less_age_days: %d", policy.GetMessageLessAgeDays()),
+			fmt.Sprintf("agent_home_age_days: %d", policy.GetAgentHomeAgeDays()),
+			fmt.Sprintf("max_bytes: %d", policy.GetMaxBytes()),
+			fmt.Sprintf("message_count: %d", stats.GetMessageCount()),
+			fmt.Sprintf("transcript_bytes: %d", stats.GetTranscriptBytes()),
+			fmt.Sprintf("agent_home_bytes: %d", stats.GetAgentHomeBytes()),
+		},
+		RetrievalHints: []string{fmt.Sprintf("%s session archive-prune", support.CLIName)},
+	}
+	if ctx.JSON() {
+		return cliapp.PrintReportJSON(ctx.Stdout(), report)
+	}
+	return cliapp.RenderListReport(ctx.Stdout(), report)
+}
+
+func (h *handlers) archivePrune(ctx cliapp.RunContext) error {
+	apply := strings.EqualFold(ctx.Flag("apply"), "true")
+	resp, err := h.client.PruneArchive(context.Background(), connect.NewRequest(&sessionsv1.PruneArchiveRequest{Apply: apply}))
+	if err != nil {
+		return cliapp.WrapAPIError("prune archive", err, nil)
+	}
+	results := make([]string, 0, len(resp.Msg.GetActions())+1)
+	for _, action := range resp.Msg.GetActions() {
+		results = append(results, fmt.Sprintf("%s: %s (%d bytes, applied=%t)", action.GetSessionId(), action.GetKind(), action.GetBytes(), action.GetApplied()))
+	}
+	if len(results) == 0 {
+		results = append(results, "No prune actions matched the configured policy")
+	}
+	report := cliapp.MutationReport{
+		Result: results,
+		NextCommand: []string{
+			fmt.Sprintf("dry_run: %t", resp.Msg.GetDryRun()),
+			fmt.Sprintf("reclaimed_bytes: %d", resp.Msg.GetReclaimedBytes()),
+		},
+	}
+	if ctx.JSON() {
+		return cliapp.PrintReportJSON(ctx.Stdout(), report)
+	}
+	return cliapp.RenderMutationReport(ctx.Stdout(), report)
+}
+
 func (h *handlers) get(ctx cliapp.RunContext) error {
 	id := ctx.Positional("session-id")
 	if id == "" {

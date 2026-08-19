@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ClipboardCopy, Dot, FolderCog, FolderMinus, FolderPlus, MailOpen, Palette, Pencil, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ClipboardCopy, Dot, FolderCog, FolderMinus, FolderPlus, MailOpen, Palette, Pencil, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 import { strings } from "../consts/strings";
@@ -28,6 +28,7 @@ interface TabContextMenuProps {
   onMoveUp?: () => void;
   onMoveDown?: () => void;
   onClose: (sessionId: string) => void;
+  onDeletePermanently: (sessionId: string) => void;
   onDismiss: () => void;
 }
 
@@ -44,6 +45,7 @@ export default function TabContextMenu({
   onMoveUp,
   onMoveDown,
   onClose,
+  onDeletePermanently,
   onDismiss,
 }: TabContextMenuProps) {
   const { t } = useTranslation();
@@ -164,6 +166,15 @@ export default function TabContextMenu({
       >
         <X className="h-4 w-4 shrink-0" />
         {t(strings.tabContextMenu.closeTab)}
+      </button>
+
+      <button
+        data-testid="tab-ctx-delete-permanently"
+        className={`${contextMenuItemClass} text-red-300 hover:text-red-200`}
+        onClick={() => handleAction(() => onDeletePermanently(sessionId))}
+      >
+        <Trash2 className="h-4 w-4 shrink-0" />
+        {t(strings.tabContextMenu.deletePermanently)}
       </button>
 
       {/* TEMP: remove after the terminal-output-duplication bug is fixed.

@@ -10,7 +10,7 @@
       "description": "All HTTP REST calls (health, sessions CRUD) route through api-base resolveApiBase/buildApiUrl helpers. No hardcoded origins.",
       "id": "REQ-P0-004a",
       "prd_ref": "OT-P0-004",
-      "status": "passed",
+      "status": "in_progress",
       "title": "api-base HTTP Integration",
       "validation": [
         {
@@ -35,7 +35,7 @@
       "description": "WebSocket connections for terminal I/O use api-base WS URL resolution. Connection upgrades work through reverse proxies.",
       "id": "REQ-P0-004b",
       "prd_ref": "OT-P0-004",
-      "status": "passed",
+      "status": "in_progress",
       "title": "api-base WebSocket Integration",
       "validation": [
         {
@@ -52,7 +52,7 @@
       "description": "WebSocket upgrade requests route through reverse proxy without direct-origin assumptions. Connection negotiation handles proxy headers.",
       "id": "REQ-P0-004b-i",
       "prd_ref": "OT-P0-004",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Proxy Connection Upgrade",
       "validation": [
         {

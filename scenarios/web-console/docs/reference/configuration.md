@@ -63,6 +63,16 @@ unavailable and no remote session can be created. Tokens are server-side only.
 | `WC_DEFAULT_POLICY_MODE` | `never` | `never`, `preset`, `custom` | Default expiration policy mode for new sessions. |
 | `WC_DEFAULT_POLICY_DURATION` | *(empty)* | `1h`, `8h`, `24h`, or Go duration | Default expiration duration. Only used when policy mode is `preset` or `custom`. |
 
+### Archive Retention
+
+All archive-retention limits are opt-in. Inspect them with `web-console session archive-retention`; preview actions with `web-console session archive-prune` before using `--apply`.
+
+| Variable | Default | Range | Impact |
+|----------|---------|-------|--------|
+| `WC_ARCHIVE_MESSAGELESS_AGE_DAYS` | `0` (unlimited) | 0–36,500 days | Makes explicitly archived rows with no messages eligible for permanent transcript deletion after this age. Message-bearing transcripts are retained. |
+| `WC_ARCHIVE_AGENT_HOME_AGE_DAYS` | `0` (unlimited) | 0–36,500 days | Prunes exact session-owned agent history after this age. The conversation stays searchable and its restore state becomes `Read-only`. |
+| `WC_ARCHIVE_MAX_BYTES` | `0` (unlimited) | 0–2^62 bytes | Soft ceiling across measured archive transcript and agent-history bytes. Size pressure prunes agent history before any eligible message-less transcript. |
+
 ---
 
 ## UI Constants

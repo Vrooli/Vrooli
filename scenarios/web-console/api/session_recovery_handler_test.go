@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +16,35 @@ import (
 
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 )
+
+func TestPrunedCodexHomeStaysAbsentAndReadOnly(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("WC_SESSION_STATE_ROOT", root)
+	meta := sessionstore.Metadata{ID: "archived-codex", AgentType: sessionstore.AgentCodex, AgentSessionID: "agent-1"}
+	home := filepath.Join(root, "codex", meta.ID)
+	if err := os.MkdirAll(filepath.Join(home, "sessions"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, "sessions", "rollout.jsonl"), []byte("history"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !archivedAgentHistoryPresent(meta) {
+		t.Fatal("seeded Codex history should be present")
+	}
+	reclaimed, err := pruneArchivedAgentHistory(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reclaimed == 0 {
+		t.Fatal("expected measured reclaimed bytes")
+	}
+	if archivedAgentHistoryPresent(meta) {
+		t.Fatal("history check recreated or accepted the pruned Codex home")
+	}
+	if _, err := os.Stat(home); !os.IsNotExist(err) {
+		t.Fatalf("pruned home exists after history check: %v", err)
+	}
+}
 
 // newRecoveryTestServer wires the in-memory store + fake PTY factory so the
 // recovery flow can be exercised end-to-end without tmux. The fake PTY
@@ -66,6 +97,38 @@ func callRecover(t *testing.T, srv *Server, id string) (*sessionsv1.RecoverRespo
 	return resp.Msg, nil
 }
 
+func callReopen(t *testing.T, srv *Server, id, idempotencyKey string) (*sessionsv1.ReopenResponse, error) {
+	t.Helper()
+	req := connect.NewRequest(&sessionsv1.ReopenRequest{Id: id})
+	if idempotencyKey != "" {
+		req.Header().Set("X-Idempotency-Key", idempotencyKey)
+	}
+	resp, err := newSessionsConnectHandlerForServer(srv).Reopen(context.Background(), req)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}
+
+func saveArchived(t *testing.T, srv *Server, id string, agent sessionstore.Agent, agentSessionID string) {
+	t.Helper()
+	if err := srv.sessionStore.Save(context.Background(), sessionstore.Metadata{
+		ID:             id,
+		Backend:        backend.Persistent,
+		Shell:          "/bin/bash",
+		Cols:           120,
+		Rows:           36,
+		Created:        time.Now().Add(-2 * time.Hour),
+		Detached:       true,
+		Status:         sessionstore.StatusDismissed,
+		AgentType:      agent,
+		AgentSessionID: agentSessionID,
+		ArchivedAt:     time.Now().Add(-time.Hour),
+	}); err != nil {
+		t.Fatalf("save archived session: %v", err)
+	}
+}
+
 func callDismissRecoverable(t *testing.T, srv *Server, id string) error {
 	t.Helper()
 	_, err := newSessionsConnectHandlerForServer(srv).DismissRecoverable(context.Background(),
@@ -115,6 +178,46 @@ func TestHandleRecover_Codex_HappyPath(t *testing.T) {
 	}
 	if old.RecoveredInto != resp.GetNewSessionId() {
 		t.Errorf("RecoveredInto: got %q want %q", old.RecoveredInto, resp.GetNewSessionId())
+	}
+}
+
+func TestHandleReopen_ArchivedSessionIsIdempotentAndClearsArchiveMarker(t *testing.T) {
+	srv := newRecoveryTestServer(t)
+	saveArchived(t, srv, "archived-old", sessionstore.AgentCodex, "codex-archive")
+
+	first, err := callReopen(t, srv, "archived-old", "stable-drawer-entry-key")
+	if err != nil {
+		t.Fatalf("Reopen: %v", err)
+	}
+	second, err := callReopen(t, srv, "archived-old", "stable-drawer-entry-key")
+	if err != nil {
+		t.Fatalf("idempotent Reopen: %v", err)
+	}
+	if first.GetNewSessionId() == "" || second.GetNewSessionId() != first.GetNewSessionId() {
+		t.Fatalf("reopen ids first=%q second=%q", first.GetNewSessionId(), second.GetNewSessionId())
+	}
+	old, err := srv.sessionStore.Get(context.Background(), "archived-old")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !old.ArchivedAt.IsZero() {
+		t.Fatalf("archived_at survived successful reopen: %s", old.ArchivedAt)
+	}
+	if old.RecoveredInto != first.GetNewSessionId() {
+		t.Fatalf("recovered_into=%q want %q", old.RecoveredInto, first.GetNewSessionId())
+	}
+}
+
+func TestHandleReopen_RefusesArchivedClaudeWithoutAgentIdentity(t *testing.T) {
+	srv := newRecoveryTestServer(t)
+	saveArchived(t, srv, "claude-read-only", sessionstore.AgentClaude, "")
+
+	_, err := callReopen(t, srv, "claude-read-only", "read-only-key")
+	if got := connectCode(err); got != connect.CodeFailedPrecondition {
+		t.Fatalf("expected CodeFailedPrecondition, got %s (err=%v)", got, err)
+	}
+	if err == nil || !strings.Contains(err.Error(), "claude session id is required") {
+		t.Fatalf("missing projection refusal reason: %v", err)
 	}
 }
 

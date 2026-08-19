@@ -6,6 +6,7 @@ package sessions
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -21,9 +22,14 @@ import (
 type Service interface {
 	Create(ctx context.Context, in CreateInput) (Session, error)
 	List(ctx context.Context) ([]Session, error)
+	ListArchived(ctx context.Context) ([]ArchivedSession, error)
 	RecoveryStatus(ctx context.Context) RecoveryStatus
 	Get(ctx context.Context, id string) (Session, error)
+	Archive(ctx context.Context, id string) error
+	Unarchive(ctx context.Context, id string) error
 	Delete(ctx context.Context, id string) error
+	GetArchiveRetention(ctx context.Context) (ArchiveRetentionSnapshot, error)
+	PruneArchive(ctx context.Context, apply bool) (ArchivePruneResult, error)
 
 	ListRecoverable(ctx context.Context) ([]RecoverableSession, error)
 	DismissRecoverable(ctx context.Context, id string) error
@@ -69,6 +75,74 @@ type Session struct {
 	Owner            string
 	DisplayLabel     string
 	TrackingDegraded bool
+}
+
+type RestoreState string
+
+const (
+	RestoreStateReopenable       RestoreState = "reopenable"
+	RestoreStateReadOnly         RestoreState = "read_only"
+	RestoreStateNothingToRestore RestoreState = "nothing_to_restore"
+)
+
+// ArchiveRetentionPolicy is the resolved server policy. Zero values disable
+// the corresponding bound; this keeps a fresh installation non-destructive.
+type ArchiveRetentionPolicy struct {
+	MessageLessAge time.Duration
+	AgentHomeAge   time.Duration
+	MaxBytes       int64
+}
+
+type ArchiveRetentionStats struct {
+	EntryCount      int64
+	MessageCount    int64
+	TranscriptBytes int64
+	AgentHomeBytes  int64
+	TotalBytes      int64
+}
+
+type ArchiveRetentionSnapshot struct {
+	Policy ArchiveRetentionPolicy
+	Stats  ArchiveRetentionStats
+}
+
+type PruneKind string
+
+const (
+	PruneAgentHome  PruneKind = "agent_home"
+	PruneTranscript PruneKind = "transcript"
+)
+
+type ArchivePruneAction struct {
+	SessionID string
+	Kind      PruneKind
+	Bytes     int64
+	Applied   bool
+}
+
+type ArchivePruneResult struct {
+	DryRun         bool
+	Actions        []ArchivePruneAction
+	ReclaimedBytes int64
+	Before         ArchiveRetentionStats
+	After          ArchiveRetentionStats
+}
+
+// ArchivedSession is the archive projection for one collapsed reopen lineage.
+type ArchivedSession struct {
+	ID                 string
+	ArchivedAt         string
+	CreatedAt          string
+	AgentType          string
+	AgentSessionID     string
+	CWD                string
+	PaneName           string
+	HeaderColor        string
+	GroupName          string
+	MessageCount       int64
+	RestoreState       RestoreState
+	RestoreStateReason string
+	AwaitingRecovery   bool
 }
 
 // CreateInput carries the fields a caller may set when creating a session.

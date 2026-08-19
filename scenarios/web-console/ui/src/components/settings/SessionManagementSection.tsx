@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
+  Archive,
   ChevronDown,
   ChevronUp,
   Clock,
@@ -16,8 +17,8 @@ import { BACKEND_OPTIONS } from "../../consts/backend-options";
 import { POLICY_OPTIONS, parsePolicySelection, policyKey } from "../../consts/policy-options";
 import { useCountdown } from "../../hooks/useCountdown";
 import { useWorkspaceSync } from "../../hooks/useWorkspaceSync";
-import type { BackendID, PolicyMode, SessionInfo } from "../../api/sessions";
-import { updateSessionPolicy } from "../../api/sessions";
+import type { ArchiveRetentionSnapshot, BackendID, PolicyMode, SessionInfo } from "../../api/sessions";
+import { getArchiveRetention, updateSessionPolicy } from "../../api/sessions";
 import { toErrorInfo } from "../../lib/errors";
 import { getSessionDefaults, updateSessionDefaults } from "../../api/settings";
 import { fetchCapabilities } from "../../api/capabilities";
@@ -170,6 +171,18 @@ function SessionDefaultsControl() {
   );
 }
 
+function formatStorageBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[index]}`;
+}
+
 interface SessionManagementSectionProps {
   sessions: Array<{ session: SessionInfo }>;
   onDeleteSession: (id: string) => void;
@@ -194,6 +207,7 @@ export default function SessionManagementSection({
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [policyError, setPolicyError] = useState<string | null>(null);
+  const [archiveRetention, setArchiveRetention] = useState<ArchiveRetentionSnapshot | null>(null);
   const policyErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -202,6 +216,18 @@ export default function SessionManagementSection({
         clearTimeout(policyErrorTimer.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getArchiveRetention()
+      .then((snapshot) => {
+        if (!cancelled) setArchiveRetention(snapshot);
+      })
+      .catch(() => {
+        if (!cancelled) setArchiveRetention(null);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   const handlePolicyChange = useCallback(async (sessionId: string, mode: PolicyMode, duration?: string) => {
@@ -229,6 +255,31 @@ export default function SessionManagementSection({
       />
 
       <SessionDefaultsControl />
+
+      <div
+        data-testid="archive-storage-summary"
+        data-entry-count={archiveRetention?.stats.entry_count ?? ""}
+        data-total-bytes={archiveRetention?.stats.total_bytes ?? ""}
+      >
+        <SettingsCard className="space-y-2">
+          <div className="flex items-start gap-3">
+            <Archive className="mt-0.5 h-4 w-4 text-wc-accent" />
+            <div>
+              <div className="text-sm font-medium text-wc-text-secondary">
+                {t(strings.settings.sessionsSection.archiveStorageTitle)}
+              </div>
+              <div className="text-[11px] text-wc-text-muted">
+                {archiveRetention
+                  ? t(strings.settings.sessionsSection.archiveStorageSummary, {
+                      count: archiveRetention.stats.entry_count,
+                      size: formatStorageBytes(archiveRetention.stats.total_bytes),
+                    })
+                  : t(strings.settings.sessionsSection.archiveStorageLoading)}
+              </div>
+            </div>
+          </div>
+        </SettingsCard>
+      </div>
 
       <SettingsCard className="space-y-4">
         <div className="flex items-center justify-between gap-3">

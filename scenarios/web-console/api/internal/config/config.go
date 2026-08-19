@@ -49,6 +49,22 @@ type Config struct {
 	// Env: WC_MAX_SESSIONS | Default: 0 (unlimited) | Range: 0–1000
 	MaxSessions int
 
+	// ArchiveMessageLessAgeDays permanently deletes explicitly archived rows
+	// with no conversation messages after this age. Zero means unlimited.
+	// Env: WC_ARCHIVE_MESSAGELESS_AGE_DAYS | Default: 0 | Range: 0–36500
+	ArchiveMessageLessAgeDays int
+
+	// ArchiveAgentHomeAgeDays prunes resumability state while preserving the
+	// transcript after this age. Zero means unlimited.
+	// Env: WC_ARCHIVE_AGENT_HOME_AGE_DAYS | Default: 0 | Range: 0–36500
+	ArchiveAgentHomeAgeDays int
+
+	// ArchiveMaxBytes is a soft ceiling across archived transcripts and agent
+	// history. Retention only removes agent history to meet it; message-bearing
+	// transcripts remain protected. Zero means unlimited.
+	// Env: WC_ARCHIVE_MAX_BYTES | Default: 0 (unlimited)
+	ArchiveMaxBytes int64
+
 	// ClientChannelBuffer is the capacity of the per-client output channel.
 	// Env: WC_CLIENT_CHANNEL_BUFFER | Default: 256 | Range: 8–1024
 	ClientChannelBuffer int
@@ -87,20 +103,23 @@ type Config struct {
 // Default returns the default configuration with all sane defaults.
 func Default() Config {
 	return Config{
-		TerminalScrollbackLines: 10_000,
-		PTYReadBuffer:           4096,
-		WSBufferSize:            4096,
-		DefaultCols:             80,
-		DefaultRows:             24,
-		DefaultShell:            resolveShell(),
-		MaxSessions:             0,
-		ClientChannelBuffer:     256,
-		CoalesceNotifyThreshold: 5,
-		SIGWINCHCooldownMs:      1000,
-		DefaultCWD:              resolveWorkingDir(),
-		DefaultBackend:          "auto",
-		DefaultPolicyMode:       "never",
-		DefaultPolicyDuration:   "",
+		TerminalScrollbackLines:   10_000,
+		PTYReadBuffer:             4096,
+		WSBufferSize:              4096,
+		DefaultCols:               80,
+		DefaultRows:               24,
+		DefaultShell:              resolveShell(),
+		MaxSessions:               0,
+		ArchiveMessageLessAgeDays: 0,
+		ArchiveAgentHomeAgeDays:   0,
+		ArchiveMaxBytes:           0,
+		ClientChannelBuffer:       256,
+		CoalesceNotifyThreshold:   5,
+		SIGWINCHCooldownMs:        1000,
+		DefaultCWD:                resolveWorkingDir(),
+		DefaultBackend:            "auto",
+		DefaultPolicyMode:         "never",
+		DefaultPolicyDuration:     "",
 	}
 }
 
@@ -115,6 +134,9 @@ func Load() Config {
 	cfg.DefaultCols = uint16(envInt("WC_DEFAULT_COLS", int(cfg.DefaultCols), 20, 500))
 	cfg.DefaultRows = uint16(envInt("WC_DEFAULT_ROWS", int(cfg.DefaultRows), 5, 200))
 	cfg.MaxSessions = envInt("WC_MAX_SESSIONS", cfg.MaxSessions, 0, 1000)
+	cfg.ArchiveMessageLessAgeDays = envInt("WC_ARCHIVE_MESSAGELESS_AGE_DAYS", cfg.ArchiveMessageLessAgeDays, 0, 36_500)
+	cfg.ArchiveAgentHomeAgeDays = envInt("WC_ARCHIVE_AGENT_HOME_AGE_DAYS", cfg.ArchiveAgentHomeAgeDays, 0, 36_500)
+	cfg.ArchiveMaxBytes = envInt64("WC_ARCHIVE_MAX_BYTES", cfg.ArchiveMaxBytes, 0, 1<<62)
 	cfg.ClientChannelBuffer = envInt("WC_CLIENT_CHANNEL_BUFFER", cfg.ClientChannelBuffer, 8, 1024)
 	cfg.CoalesceNotifyThreshold = envInt("WC_COALESCE_NOTIFY_THRESHOLD", cfg.CoalesceNotifyThreshold, 1, 1000)
 	cfg.SIGWINCHCooldownMs = envInt("WC_SIGWINCH_COOLDOWN_MS", cfg.SIGWINCHCooldownMs, 0, 30000)
@@ -242,6 +264,25 @@ func envInt(key string, defaultVal, min, max int) int {
 		return defaultVal
 	}
 	val, err := strconv.Atoi(raw)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "web-console: ignoring invalid %s=%q: %v\n", key, raw, err)
+		return defaultVal
+	}
+	if val < min {
+		return min
+	}
+	if val > max {
+		return max
+	}
+	return val
+}
+
+func envInt64(key string, defaultVal, min, max int64) int64 {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return defaultVal
+	}
+	val, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "web-console: ignoring invalid %s=%q: %v\n", key, raw, err)
 		return defaultVal

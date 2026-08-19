@@ -1,5 +1,5 @@
 import { createClient } from "@connectrpc/connect";
-import { SessionsService, SessionOrigin } from "@vrooli/proto-types/web-console/v1/sessions/sessions_pb";
+import { ArchiveRestoreState, SessionsService, SessionOrigin } from "@vrooli/proto-types/web-console/v1/sessions/sessions_pb";
 import { resolveApiBase, buildWsUrl } from "@vrooli/api-base";
 
 import { transport } from "./client";
@@ -103,6 +103,39 @@ export interface RecoverResult {
   agent_type?: string;
   command_sent?: string;
   codex_home_copied?: boolean;
+}
+
+export type ArchivedRestoreState = "reopenable" | "read_only" | "nothing_to_restore";
+
+export interface ArchivedSession {
+  id: string;
+  archived_at: string;
+  created_at: string;
+  agent_type: AgentType;
+  agent_session_id?: string;
+  cwd?: string;
+  pane_name: string;
+  header_color?: string;
+  group_name?: string;
+  message_count: number;
+  restore_state: ArchivedRestoreState;
+  restore_state_reason?: string;
+  awaiting_recovery?: boolean;
+}
+
+export interface ArchiveRetentionSnapshot {
+	policy: {
+		message_less_age_days: number;
+		agent_home_age_days: number;
+		max_bytes: number;
+	};
+	stats: {
+		entry_count: number;
+		message_count: number;
+		transcript_bytes: number;
+		agent_home_bytes: number;
+		total_bytes: number;
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -244,6 +277,17 @@ function decodePolicyView(v: ProtoPolicyView | undefined): PolicyResponse {
   };
 }
 
+function restoreStateName(state: ArchiveRestoreState): ArchivedRestoreState {
+  switch (state) {
+    case ArchiveRestoreState.REOPENABLE:
+      return "reopenable";
+    case ArchiveRestoreState.NOTHING_TO_RESTORE:
+      return "nothing_to_restore";
+    default:
+      return "read_only";
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Typed wrappers
 // ---------------------------------------------------------------------------
@@ -347,6 +391,61 @@ export async function deleteSession(id: string): Promise<void> {
   await sessionsClient.delete({ id });
 }
 
+export async function archiveSession(id: string): Promise<void> {
+  if (id.startsWith("remote:")) {
+    await deleteRemoteSession(id);
+    return;
+  }
+  await sessionsClient.archive({ id });
+  window.dispatchEvent(new CustomEvent("web-console:archive-changed"));
+}
+
+export async function unarchiveSession(id: string): Promise<void> {
+  if (id.startsWith("remote:")) return;
+  await sessionsClient.unarchive({ id });
+  window.dispatchEvent(new CustomEvent("web-console:archive-changed"));
+}
+
+export async function listArchivedSessions(): Promise<{ sessions: ArchivedSession[]; total: number }> {
+  const response = await sessionsClient.listArchived({});
+  return {
+    sessions: response.sessions.map((session) => ({
+      id: session.id,
+      archived_at: session.archivedAt,
+      created_at: session.createdAt,
+      agent_type: (session.agentType as AgentType) || "none",
+      agent_session_id: session.agentSessionId || undefined,
+      cwd: session.cwd || undefined,
+      pane_name: session.paneName || session.id.slice(0, 8),
+      header_color: session.headerColor || undefined,
+      group_name: session.groupName || undefined,
+      message_count: Number(session.messageCount),
+      restore_state: restoreStateName(session.restoreState),
+      restore_state_reason: session.restoreStateReason || undefined,
+      awaiting_recovery: session.awaitingRecovery,
+    })),
+    total: response.total,
+  };
+}
+
+export async function getArchiveRetention(): Promise<ArchiveRetentionSnapshot> {
+	const response = await sessionsClient.getArchiveRetention({});
+	return {
+		policy: {
+			message_less_age_days: response.policy?.messageLessAgeDays ?? 0,
+			agent_home_age_days: response.policy?.agentHomeAgeDays ?? 0,
+			max_bytes: Number(response.policy?.maxBytes ?? 0),
+		},
+		stats: {
+			entry_count: Number(response.stats?.entryCount ?? 0),
+			message_count: Number(response.stats?.messageCount ?? 0),
+			transcript_bytes: Number(response.stats?.transcriptBytes ?? 0),
+			agent_home_bytes: Number(response.stats?.agentHomeBytes ?? 0),
+			total_bytes: Number(response.stats?.totalBytes ?? 0),
+		},
+	};
+}
+
 export async function listRecoverableSessions(): Promise<RecoverableSession[]> {
   const resp = await sessionsClient.listRecoverable({});
   return resp.sessions.map(decodeRecoverable);
@@ -356,6 +455,20 @@ export async function recoverSession(oldId: string, idempotencyKey?: string): Pr
   const resp = await sessionsClient.recover(
     { id: oldId },
     idempotencyKey ? { headers: { "X-Idempotency-Key": idempotencyKey } } : undefined,
+  );
+  return {
+    old_session_id: resp.oldSessionId,
+    new_session_id: resp.newSessionId,
+    agent_type: resp.agentType || undefined,
+    command_sent: resp.commandSent || undefined,
+    codex_home_copied: resp.codexHomeCopied,
+  };
+}
+
+export async function reopenSession(oldId: string, idempotencyKey: string): Promise<RecoverResult> {
+  const resp = await sessionsClient.reopen(
+    { id: oldId },
+    { headers: { "X-Idempotency-Key": idempotencyKey } },
   );
   return {
     old_session_id: resp.oldSessionId,

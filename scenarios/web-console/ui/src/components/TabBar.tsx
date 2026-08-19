@@ -59,6 +59,7 @@ interface TabBarProps {
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
   onClosePane: (sessionId: string) => void;
+  onDeletePanePermanently: (sessionId: string) => void;
   isCreating?: boolean;
   /** Extra action buttons rendered before the plus button (e.g. settings on mobile). */
   trailingActions?: React.ReactNode;
@@ -70,6 +71,7 @@ function TabBar({
   onNewTerminal,
   onOpenLauncher,
   onClosePane,
+  onDeletePanePermanently,
   isCreating,
   trailingActions,
 }: TabBarProps) {
@@ -493,6 +495,7 @@ function TabBar({
             onRemoveFromGroup={() => removePaneFromGroup(tabContextMenu.sessionId)}
             onManageGroups={() => setManageGroupsTarget({ sessionId: tabContextMenu.sessionId })}
             onClose={onClosePane}
+            onDeletePermanently={onDeletePanePermanently}
             onDismiss={() => setTabContextMenu(null)}
           />
         );

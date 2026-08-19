@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     last_activity_at TEXT NOT NULL DEFAULT '',
     orphaned_at TEXT NOT NULL DEFAULT '',
     recovered_into TEXT NOT NULL DEFAULT '',
+    archived_at TEXT NOT NULL DEFAULT '',
     -- Provenance: who opened this session. Rows predating this column are
     -- backfilled to 'ui' by the ALTER TABLE migration in api/main.go, because
     -- every historical session was opened from the web UI.

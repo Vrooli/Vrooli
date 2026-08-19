@@ -1,4 +1,4 @@
-<title>Archived sessions — web-console UX proposal</title>
+<title>Archived sessions — web-console UX reference</title>
 <style>
   /* ---------- Document shell: theme-aware ---------- */
   :root {
@@ -305,12 +305,12 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">web-console · interaction proposal</p>
+    <p class="eyebrow">web-console · implemented interaction reference</p>
     <h1>Archived sessions</h1>
-    <p class="deck">Closing a session should file it, not destroy it. Below: where the archive lives in the
+    <p class="deck">Closing a session files it without destroying its history. Below: where the archive lives in the
       sidebar, what the deep search surface looks like, and how a filed session comes back.</p>
     <div class="facts">
-      <div class="fact"><b>Today</b><span>Close is a hard cascading delete — PTY, session row, transcript, checkpoints, uploads.</span></div>
+      <div class="fact"><b>Implemented</b><span>Close archives the session row and transcript; permanent deletion is a separate confirmed action.</span></div>
       <div class="fact"><b>Already built</b><span><span class="code">Recover()</span> restores a session, its transcript, and its pane. It's gated to crash orphans.</span></div>
       <div class="fact"><b>Already built</b><span>Message-text search exists and works. It's scoped to one session id.</span></div>
     </div>
@@ -617,8 +617,7 @@
       </div>
     </div>
     <p class="caption" style="max-width:52ch">Toast on close, ~8 seconds. <strong>Archive</strong> becomes the X
-      button's meaning; <strong>Delete</strong> moves to the context menu behind a confirm. Today the default is
-      destructive and silent — this inverts it.</p>
+      button's meaning; <strong>Delete</strong> is in the context menu behind a confirmation.</p>
   </section>
 
   <section>
@@ -663,21 +662,19 @@
 
   <section>
     <div class="sec-head">
-      <p class="kicker">Before building</p>
-      <h2>Four decisions I can't make for you</h2>
+      <p class="kicker">Implemented decisions</p>
+      <h2>Four questions resolved during delivery</h2>
     </div>
     <ol class="flow">
       <li><div><strong>Does reopening copy the transcript or re-point it?</strong> <span class="code">Recover()</span>
         mints a new session id and <em>copies</em> the conversation rows. Archive → reopen → archive → reopen leaves
-        three copies of one conversation cluttering the archive. Either re-point the rows or thread a lineage so the
-        archive collapses a chain into one entry. This is the detail most likely to make the feature feel broken.</div></li>
-      <li><div><strong>What's the retention policy?</strong> There is none anywhere in web-console — I grepped.
-        Today the delete cascade <em>is</em> the retention policy, and archiving removes it. This has to ship in the
-        same change, not after.</div></li>
-      <li><div><strong>Archive everything, or only sessions with messages?</strong> I'd archive uniformly so there
-        are no surprises, default the archive view to "has messages", and expire message-less shells fast.</div></li>
-      <li><div><strong>Does the archive subsume the recovery banner?</strong> I think it should — a crash orphan is
-        just an involuntarily archived session. One surface, one mental model, and it deletes code.</div></li>
+        copies the conversation, and <span class="code">recovered_into</span> provides a lineage that the archive collapses to one entry.</div></li>
+      <li><div><strong>What's the retention policy?</strong> All thresholds default to unlimited and prune defaults
+        to dry-run. Agent history is pruned first; message-bearing transcripts are retained.</div></li>
+      <li><div><strong>Archive everything, or only sessions with messages?</strong> Close archives uniformly. Only
+        explicitly archived, old, message-less rows can become transcript-prune candidates.</div></li>
+      <li><div><strong>Does the archive subsume the recovery banner?</strong> Yes. A compact orphan count opens the
+        archive filtered to crash orphans; the archive drawer owns every recovery action.</div></li>
     </ol>
   </section>
 

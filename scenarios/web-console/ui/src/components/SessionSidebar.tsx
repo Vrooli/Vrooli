@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { ArrowDownUp, GripVertical, MessageSquareText, Plus, Settings, TerminalSquare, X } from "lucide-react";
+import { Archive, ArrowDownUp, ArrowLeft, GripVertical, MessageSquareText, Plus, Search, Settings, TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
@@ -15,6 +15,8 @@ import { useGroupActions } from "../hooks/useGroupActions";
 import { Button } from "./ui/button";
 import TabContextMenu from "./TabContextMenu";
 import GroupContextMenu from "./GroupContextMenu";
+import { listArchivedSessions, type ArchivedSession } from "../api/sessions";
+import { formatRelativeTime } from "./MessageJumpList.helpers";
 
 const SIDEBAR_LONG_PRESS_MS = 500;
 const SIDEBAR_PRESS_MOVE_THRESHOLD = 8;
@@ -32,10 +34,12 @@ interface SessionSidebarProps {
   onCloseMobile: () => void;
   onActivatePane: (sessionId: string) => void;
   onClosePane: (sessionId: string) => void;
+  onDeletePanePermanently: (sessionId: string) => void;
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
   onNewSessionInGroup: (groupId: string) => void;
   onOpenSettings: () => void;
+  onOpenArchiveDrawer?: () => void;
 }
 
 function modeLabel(viewMode: string): string {
@@ -48,6 +52,12 @@ const ORIGIN_TAB_LABEL = {
   remote: strings.sessionSidebar.originTabRemote,
 } as const satisfies Record<SidebarOriginTab, string>;
 
+const ARCHIVE_STATE_LABEL = {
+  reopenable: strings.sessionSidebar.archiveStateReopenable,
+  read_only: strings.sessionSidebar.archiveStateReadOnly,
+  nothing_to_restore: strings.sessionSidebar.archiveStateNothing,
+} as const;
+
 export default function SessionSidebar({
   buckets,
   containerRef,
@@ -57,10 +67,12 @@ export default function SessionSidebar({
   onCloseMobile,
   onActivatePane,
   onClosePane,
+  onDeletePanePermanently,
   onNewTerminal,
   onOpenLauncher,
   onNewSessionInGroup,
   onOpenSettings,
+  onOpenArchiveDrawer,
 }: SessionSidebarProps) {
   const { t } = useTranslation();
   const sidebarRef = useRef<HTMLElement>(null);
@@ -76,6 +88,8 @@ export default function SessionSidebar({
   const setSidebarSortMode = useWorkspaceStore((s) => s.setSidebarSortMode);
   const sidebarOriginTab = useWorkspaceStore((s) => s.sidebarOriginTab);
   const setSidebarOriginTab = useWorkspaceStore((s) => s.setSidebarOriginTab);
+  const sidebarView = useWorkspaceStore((s) => s.sidebarView);
+  const setSidebarView = useWorkspaceStore((s) => s.setSidebarView);
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
 	const viewerCounts = useWorkspaceStore((s) => s.viewerCounts);
   const { syncPaneUpdate, syncPaneMove } = useWorkspaceSync();
@@ -98,7 +112,36 @@ export default function SessionSidebar({
   // Manual-mode drag-reorder (driven by an explicit grip handle so it never
   // collides with the row tap / long-press gestures).
   const [dragState, setDragState] = useState<{ paneId: string; dropIndex: number } | null>(null);
+  const [archivedSessions, setArchivedSessions] = useState<ArchivedSession[]>([]);
+  const [archivedTotal, setArchivedTotal] = useState(0);
+  const [archiveFilter, setArchiveFilter] = useState("");
+  const [archiveLoading, setArchiveLoading] = useState(true);
   const isManualSort = sidebarSortMode === "manual";
+
+  const refreshArchive = useCallback(async () => {
+    try {
+      const result = await listArchivedSessions();
+      setArchivedSessions(result.sessions);
+      setArchivedTotal(result.total);
+    } catch {
+      // The live session list remains usable when the archive endpoint is
+      // temporarily unavailable (startup/reconnect). A later archive event or
+      // remount retries without turning sidebar navigation into an error state.
+    } finally {
+      setArchiveLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshArchive();
+    window.addEventListener("web-console:archive-changed", refreshArchive);
+    return () => window.removeEventListener("web-console:archive-changed", refreshArchive);
+  }, [refreshArchive]);
+
+  const visibleArchived = archivedSessions
+    .slice(0, 20)
+    .filter((session) => !session.awaiting_recovery)
+    .filter((session) => session.pane_name.toLocaleLowerCase().includes(archiveFilter.trim().toLocaleLowerCase()));
 
   const { size, isResizing, resizeHandleProps } = useResizablePanel({
     containerRef,
@@ -289,7 +332,7 @@ export default function SessionSidebar({
         )}
       </div>
 
-      {showOriginTabs && (
+      {sidebarView === "list" && showOriginTabs && (
         <div
           role="tablist"
           aria-label={t(strings.sessionSidebar.originTabsAria)}
@@ -322,7 +365,7 @@ export default function SessionSidebar({
         </div>
       )}
 
-      <div className="flex select-none items-center gap-1.5 border-b border-wc-default px-3 py-1.5 text-[11px] text-wc-text-muted">
+      {sidebarView === "list" && <div className="flex select-none items-center gap-1.5 border-b border-wc-default px-3 py-1.5 text-[11px] text-wc-text-muted">
         <ArrowDownUp className="h-3 w-3 shrink-0" />
         <label htmlFor="sidebar-sort-select" className="shrink-0">
           {t(strings.sessionSidebar.sortLabel)}
@@ -339,9 +382,9 @@ export default function SessionSidebar({
           <option value="activity">{t(strings.sessionSidebar.sortActivity)}</option>
           <option value="unread">{t(strings.sessionSidebar.sortUnread)}</option>
         </select>
-      </div>
+      </div>}
 
-      <div className="flex-1 select-none overflow-y-auto p-2">
+      {sidebarView === "list" ? <div className="flex-1 select-none overflow-y-auto p-2">
         {items.map((item) => {
           if (item.kind === "group-label") {
             const { group, tabCount } = item;
@@ -531,7 +574,69 @@ export default function SessionSidebar({
             </div>
           );
         })}
-      </div>
+      </div> : (
+        <div data-testid="sidebar-archive-view" className="flex min-h-0 flex-1 flex-col">
+          <div className="border-b border-wc-default p-2">
+            <button
+              type="button"
+              data-testid="sidebar-archive-back"
+              className="mb-2 flex items-center gap-1 text-xs text-wc-text-secondary hover:text-wc-text-primary"
+              onClick={() => setSidebarView("list")}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              {t(strings.sessionSidebar.archiveBack)}
+            </button>
+            <label className="flex items-center gap-2 rounded border border-wc-default bg-wc-surface-input px-2 py-1.5">
+              <Search className="h-3.5 w-3.5 text-wc-text-muted" />
+              <input
+                data-testid="sidebar-archive-filter"
+                className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary outline-none"
+                value={archiveFilter}
+                onChange={(event) => setArchiveFilter(event.target.value)}
+                placeholder={t(strings.sessionSidebar.archiveFilterPlaceholder)}
+              />
+            </label>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            {archiveLoading && <p className="p-2 text-xs text-wc-text-muted">{t(strings.sessionSidebar.archiveLoading)}</p>}
+            {!archiveLoading && visibleArchived.length === 0 && (
+              <p className="p-2 text-xs text-wc-text-muted">{t(strings.sessionSidebar.archiveEmpty)}</p>
+            )}
+            {visibleArchived.map((session) => (
+              <div key={session.id} data-testid={`sidebar-archive-session-${session.id}`} className="mb-1 rounded border border-wc-default p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm font-medium text-wc-text-primary">{session.pane_name}</span>
+                  <span className="shrink-0 text-[10px] text-wc-text-faint">{formatRelativeTime(session.archived_at)}</span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-wc-text-muted">
+                  <span>{session.agent_type}</span>
+                  <span>{t(strings.sessionSidebar.archiveMessages, { count: session.message_count })}</span>
+                  <span>{t(ARCHIVE_STATE_LABEL[session.restore_state])}</span>
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              data-testid="sidebar-archive-search-all"
+              className="mt-2 w-full rounded border border-dashed border-wc-default px-3 py-2 text-xs text-wc-text-secondary hover:bg-wc-surface-raised"
+              onClick={onOpenArchiveDrawer}
+            >
+              {t(strings.sessionSidebar.archiveSearchAll, { count: archivedTotal })}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        data-testid="sidebar-archive-footer"
+        className="flex shrink-0 items-center gap-2 border-t border-wc-default px-3 py-2 text-sm text-wc-text-secondary hover:bg-wc-surface-raised hover:text-wc-text-primary"
+        onClick={() => setSidebarView("archive")}
+      >
+        <Archive className="h-4 w-4" />
+        <span className="flex-1 text-start">{t(strings.sessionSidebar.archive)}</span>
+        <span className="rounded bg-wc-surface-input px-1.5 text-xs">{archivedTotal}</span>
+      </button>
     </>
   );
 
@@ -606,6 +711,7 @@ export default function SessionSidebar({
             onMoveUp={canMoveUp ? () => moveTo(orderIdx - 1) : undefined}
             onMoveDown={canMoveDown ? () => moveTo(orderIdx + 1) : undefined}
             onClose={onClosePane}
+            onDeletePermanently={onDeletePanePermanently}
             onDismiss={() => setTabContextMenu(null)}
           />
         );

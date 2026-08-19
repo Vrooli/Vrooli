@@ -26,9 +26,9 @@ A subset of session metadata is mirrored into the persistent `sessions` table so
 [CODE: api/internal/<domain>/schema.sql]
 
 ### `sessions`
-Mirror of session metadata for recovery only. PTY state is **not** persisted. The `status` column enforces the recovery state machine: `live → awaiting_recovery → {live | dismissed}`. Transitions are owned by `Recover()` and the recovery endpoints. `agent_type` + `agent_session_id` are populated from the codex `session_meta` event or the claude `Stop` hook payload and are sufficient to reattach an agent on recovery.
+Persistent session metadata for live-session continuity, deliberate archive, and crash recovery. PTY state is **not** persisted. The `status` column enforces the process-recovery state machine: `live → awaiting_recovery → {live | dismissed}`. The independent `archived_at` timestamp records the operator archive lifecycle without widening that status constraint. A non-empty `archived_at` means the operator closed the pane non-destructively; archive keeps the row, pane identity, and conversation. Reopen creates a replacement live session and records its ID in `recovered_into`. Archive listings follow `recovered_into` to the newest row and show one entry per lineage.
 
-Key columns: `id`, `backend`, `shell`, `cols`, `rows`, `policy_mode`, `policy_duration`, `agent_type` (`none|codex|claude|opencode|grok`), `launch_command`, `agent_session_id`, `cwd`, `last_rollout_path`, `last_activity_at`, `orphaned_at`, `recovered_into`, `detached`, `status`, `origin`, `owner`, `display_label`. For `opencode`/`grok`, `agent_session_id` is captured by the OpenCode watcher / Grok tailer respectively and is required for recovery.
+Key columns: `id`, `backend`, `shell`, `cols`, `rows`, `policy_mode`, `policy_duration`, `agent_type` (`none|codex|claude|opencode|grok`), `launch_command`, `agent_session_id`, `cwd`, `last_rollout_path`, `last_activity_at`, `orphaned_at`, `archived_at`, `recovered_into`, `detached`, `status`, `origin`, `owner`, `display_label`. For `opencode`/`grok`, `agent_session_id` is captured by the OpenCode watcher / Grok tailer respectively and is required for recovery.
 
 Provenance columns: `origin` (`ui|programmatic|remote`) records who opened the session so the sidebar can separate human-opened tabs from agent- or remote-launched ones; `owner` is a free-form provenance tag (e.g. `agent-manager`); `display_label` is the human-facing sidebar label. All three are `TEXT NOT NULL` with defaults (`origin` defaults to `'ui'`, `owner`/`display_label` to `''`). The `ALTER TABLE sessions ADD COLUMN origin ... DEFAULT 'ui'` migration backfills every pre-existing row to `origin='ui'`, since all historical sessions were opened from the web UI. `idx_sessions_origin` indexes `origin`.
 
@@ -37,6 +37,14 @@ One row per session that has a semantic message history. Tracks `last_sequence` 
 
 ### `conversation_events`
 Append-only event log scoped to a `conversation_sessions.session_id`. Each row is one assistant or user turn with `text`, `speech_paragraphs`, optional `original_speech_paragraphs` (pre-summarization), per-event `delivery_state`, `tts_state`, `consumption_state`, and a monotonic `sequence`. Uniqueness is `(session_id, sequence)`. Source-of-truth for the messages pane and TTS replay; see [Conversation Tracking guide](../guides/CONVERSATION_TRACKING.md).
+
+The `conversation_events_fts` FTS5 virtual table indexes `text` for cross-session archive search. Insert, update, and delete triggers keep it synchronized with `conversation_events`; startup reconciliation backfills missing index rows. Archive search joins through `sessions`, excludes live lineages, and returns message hits rather than scanning every transcript with `LIKE`.
+
+## Archive retention
+
+Archive retention is disabled by default: `WC_ARCHIVE_MESSAGELESS_AGE_DAYS=0`, `WC_ARCHIVE_AGENT_HOME_AGE_DAYS=0`, and `WC_ARCHIVE_MAX_BYTES=0` mean no age limit and no size ceiling. `PruneArchive` is a dry run unless the caller explicitly applies it. Candidate selection requires a non-empty `archived_at`; legacy dismissed rows and live rows are measured but are never prune candidates.
+
+When configured, retention removes session-owned agent history before transcript data. This changes a `Reopenable` entry to `Read-only` while keeping its conversation searchable. A transcript row is eligible for deletion only when it has no messages and is older than `WC_ARCHIVE_MESSAGELESS_AGE_DAYS`.
 
 ### `codex_rollout_checkpoints`
 Per-rollout-file byte offset checkpoints. Lets the server backfill messages written while the UI was closed and resume after restart without re-reading old lines. Key: rollout `path`.

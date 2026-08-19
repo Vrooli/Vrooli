@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"web-console/internal/backend"
@@ -25,6 +28,7 @@ type SessionManager interface {
 	Get(id string) (*session.Session, bool)
 	List() []*session.Session
 	Delete(ctx context.Context, id string) error
+	Archive(ctx context.Context, id string) error
 	RecoveryProgress() session.RecoveryProgress
 }
 
@@ -37,6 +41,8 @@ type ConversationsStore interface {
 	DeleteSession(ctx context.Context, id string)
 	CopySession(ctx context.Context, oldID, newID string) error
 	HasConversationAfter(ctx context.Context, sessionID string, after time.Time) bool
+	CountSessionEvents(ctx context.Context, sessionID string) int64
+	SessionStorageBytes(ctx context.Context, sessionID string) int64
 }
 
 // CodexCheckpoints is the minimal seam for clearing per-source ingestion
@@ -49,17 +55,28 @@ type CodexCheckpoints interface {
 // Adapter is the production Service implementation. It is constructed in
 // api/main.go with typed deps — no *Server import — and passed to Module.
 type Adapter struct {
-	Manager          SessionManager
-	Store            sessionstore.Store
-	Idempotency      *intsessions.IdempotencyCache
-	Events           *events.Logger
-	Metrics          *intmetrics.Metrics
-	Conversations    ConversationsStore
-	CodexCheckpoints CodexCheckpoints
-	AgentCheckpoints CodexCheckpoints
-	Workspace        intworkspace.Store
-	CopyCodexHome    func(oldID, newID string) error
-	Logger           *log.Logger
+	Manager             SessionManager
+	Store               sessionstore.Store
+	Idempotency         *intsessions.IdempotencyCache
+	Events              *events.Logger
+	Metrics             *intmetrics.Metrics
+	Conversations       ConversationsStore
+	CodexCheckpoints    CodexCheckpoints
+	AgentCheckpoints    CodexCheckpoints
+	Workspace           intworkspace.Store
+	CopyCodexHome       func(oldID, newID string) error
+	Logger              *log.Logger
+	AgentHistoryPresent func(sessionstore.Metadata) bool
+	RetentionPolicy     func() ArchiveRetentionPolicy
+	AgentHistorySize    func(sessionstore.Metadata) (int64, error)
+	PruneAgentHistory   func(sessionstore.Metadata) (int64, error)
+	Now                 func() time.Time
+
+	// ArchiveGracePeriod is the server-owned undo window. Zero uses the
+	// product default; tests may set a negative duration for immediate finalization.
+	ArchiveGracePeriod time.Duration
+	archiveMu          sync.Mutex
+	archiveTimers      map[string]*time.Timer
 }
 
 func (a *Adapter) logger() *log.Logger {
@@ -177,6 +194,9 @@ func (a *Adapter) List(ctx context.Context) ([]Session, error) {
 	for _, sess := range live {
 		s := responseToHandlerSession(intsessions.FromSession(sess))
 		if p, ok := provenance[s.ID]; ok {
+			if !p.ArchivedAt.IsZero() {
+				continue
+			}
 			s.Origin, s.Owner, s.DisplayLabel = string(p.Origin), p.Owner, p.DisplayLabel
 		}
 		if recoveredAgents[s.ID] == sessionstore.AgentClaude && isClaudeTrackingDegraded(sess, a.Conversations) {
@@ -185,6 +205,269 @@ func (a *Adapter) List(ctx context.Context) ([]Session, error) {
 		out = append(out, s)
 	}
 	return out, nil
+}
+
+func (a *Adapter) ListArchived(ctx context.Context) ([]ArchivedSession, error) {
+	if a.Store == nil {
+		return nil, nil
+	}
+	archived, err := a.Store.ListArchived(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: list archived sessions: %s", ErrInternal, err)
+	}
+	all, err := a.Store.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: resolve archive lineages: %s", ErrInternal, err)
+	}
+	byID := make(map[string]sessionstore.Metadata, len(all))
+	for _, row := range all {
+		byID[row.ID] = row
+	}
+
+	panes := map[string]intworkspace.Pane{}
+	groups := map[string]string{}
+	if a.Workspace != nil {
+		layout, layoutErr := a.Workspace.GetLayout(ctx)
+		if layoutErr != nil {
+			return nil, fmt.Errorf("%w: load archived workspace identity: %s", ErrInternal, layoutErr)
+		}
+		for _, pane := range layout.Panes {
+			panes[pane.SessionID] = pane
+		}
+		for _, group := range layout.Groups {
+			groups[group.ID] = group.Name
+		}
+	}
+
+	collapsed := make(map[string]sessionstore.Metadata, len(archived))
+	for _, row := range archived {
+		newest := intsessions.ResolveLineage(row, byID)
+		if newest.ArchivedAt.IsZero() && newest.Status != sessionstore.StatusDismissed && newest.Status != sessionstore.StatusAwaitingRecovery {
+			continue
+		}
+		collapsed[newest.ID] = newest
+	}
+
+	result := make([]ArchivedSession, 0, len(collapsed))
+	for _, row := range collapsed {
+		messageCount := int64(0)
+		if a.Conversations != nil {
+			messageCount = a.Conversations.CountSessionEvents(ctx, row.ID)
+		}
+		archivedAt := row.ArchivedAt
+		if archivedAt.IsZero() {
+			archivedAt = row.OrphanedAt
+		}
+		if archivedAt.IsZero() {
+			archivedAt = row.LastActivityAt
+		}
+		if archivedAt.IsZero() {
+			archivedAt = row.Created
+		}
+		entry := ArchivedSession{
+			ID:               row.ID,
+			ArchivedAt:       formatTimeOrEmpty(archivedAt),
+			CreatedAt:        formatTimeOrEmpty(row.Created),
+			AgentType:        string(row.AgentType),
+			AgentSessionID:   row.AgentSessionID,
+			CWD:              row.CWD,
+			MessageCount:     messageCount,
+			AwaitingRecovery: row.Status == sessionstore.StatusAwaitingRecovery,
+		}
+		entry.RestoreState, entry.RestoreStateReason = a.restoreState(row, messageCount)
+		if pane, ok := panes[row.ID]; ok {
+			entry.PaneName = pane.Name
+			entry.HeaderColor = pane.HeaderColor
+			entry.GroupName = groups[pane.GroupID]
+		}
+		result = append(result, entry)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].ArchivedAt > result[j].ArchivedAt })
+	return result, nil
+}
+
+type retentionCandidate struct {
+	meta            sessionstore.Metadata
+	messageCount    int64
+	transcriptBytes int64
+	homeBytes       int64
+}
+
+func (a *Adapter) retentionPolicy() ArchiveRetentionPolicy {
+	if a.RetentionPolicy == nil {
+		return ArchiveRetentionPolicy{}
+	}
+	return a.RetentionPolicy()
+}
+
+func (a *Adapter) now() time.Time {
+	if a.Now != nil {
+		return a.Now().UTC()
+	}
+	return time.Now().UTC()
+}
+
+func (a *Adapter) measureRetentionRow(ctx context.Context, row sessionstore.Metadata) (retentionCandidate, error) {
+	candidate := retentionCandidate{meta: row}
+	if a.Conversations != nil {
+		candidate.messageCount = a.Conversations.CountSessionEvents(ctx, row.ID)
+		candidate.transcriptBytes = a.Conversations.SessionStorageBytes(ctx, row.ID)
+	}
+	if a.AgentHistorySize != nil {
+		homeBytes, err := a.AgentHistorySize(row)
+		if err != nil {
+			return retentionCandidate{}, err
+		}
+		candidate.homeBytes = homeBytes
+	}
+	return candidate, nil
+}
+
+func (a *Adapter) retentionCandidates(ctx context.Context) ([]retentionCandidate, error) {
+	if a.Store == nil {
+		return nil, nil
+	}
+	rows, err := a.Store.ListRetentionCandidates(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: list archive retention candidates: %s", ErrInternal, err)
+	}
+	candidates := make([]retentionCandidate, 0, len(rows))
+	for _, row := range rows {
+		candidate, measureErr := a.measureRetentionRow(ctx, row)
+		if measureErr != nil {
+			return nil, fmt.Errorf("%w: measure agent history for %s: %s", ErrInternal, row.ID, measureErr)
+		}
+		candidates = append(candidates, candidate)
+	}
+	return candidates, nil
+}
+
+func (a *Adapter) archiveRetentionStats(ctx context.Context) (ArchiveRetentionStats, error) {
+	if a.Store == nil {
+		return ArchiveRetentionStats{}, nil
+	}
+	entries, err := a.ListArchived(ctx)
+	if err != nil {
+		return ArchiveRetentionStats{}, err
+	}
+	all, err := a.Store.List(ctx)
+	if err != nil {
+		return ArchiveRetentionStats{}, fmt.Errorf("%w: list archive metadata for storage totals: %s", ErrInternal, err)
+	}
+	byID := make(map[string]sessionstore.Metadata, len(all))
+	for _, row := range all {
+		byID[row.ID] = row
+	}
+	stats := ArchiveRetentionStats{EntryCount: int64(len(entries))}
+	for _, entry := range entries {
+		stats.MessageCount += entry.MessageCount
+		if a.Conversations != nil {
+			stats.TranscriptBytes += a.Conversations.SessionStorageBytes(ctx, entry.ID)
+		}
+		if row, ok := byID[entry.ID]; ok && a.AgentHistorySize != nil {
+			size, sizeErr := a.AgentHistorySize(row)
+			if sizeErr != nil {
+				return ArchiveRetentionStats{}, fmt.Errorf("%w: measure agent history for %s: %s", ErrInternal, row.ID, sizeErr)
+			}
+			stats.AgentHomeBytes += size
+		}
+	}
+	stats.TotalBytes = stats.TranscriptBytes + stats.AgentHomeBytes
+	return stats, nil
+}
+
+func (a *Adapter) GetArchiveRetention(ctx context.Context) (ArchiveRetentionSnapshot, error) {
+	stats, err := a.archiveRetentionStats(ctx)
+	if err != nil {
+		return ArchiveRetentionSnapshot{}, err
+	}
+	return ArchiveRetentionSnapshot{Policy: a.retentionPolicy(), Stats: stats}, nil
+}
+
+// PruneArchive is fail-safe by default: apply=false only reports the ordered
+// actions. Candidate membership is already constrained by the store's SQL
+// query to rows with a non-empty archived_at value.
+func (a *Adapter) PruneArchive(ctx context.Context, apply bool) (ArchivePruneResult, error) {
+	candidates, err := a.retentionCandidates(ctx)
+	if err != nil {
+		return ArchivePruneResult{}, err
+	}
+	before, err := a.archiveRetentionStats(ctx)
+	if err != nil {
+		return ArchivePruneResult{}, err
+	}
+	policy := a.retentionPolicy()
+	result := ArchivePruneResult{DryRun: !apply, Before: before, After: before}
+	now := a.now()
+	projectedBytes := before.TotalBytes
+
+	for _, candidate := range candidates {
+		archivedAt := candidate.meta.ArchivedAt
+		emptyDue := policy.MessageLessAge > 0 && candidate.messageCount == 0 && !archivedAt.After(now.Add(-policy.MessageLessAge))
+		homeDue := policy.AgentHomeAge > 0 && !archivedAt.After(now.Add(-policy.AgentHomeAge))
+		overSize := policy.MaxBytes > 0 && projectedBytes > policy.MaxBytes
+		if candidate.homeBytes > 0 && (homeDue || overSize || emptyDue) {
+			action := ArchivePruneAction{SessionID: candidate.meta.ID, Kind: PruneAgentHome, Bytes: candidate.homeBytes}
+			if apply {
+				if a.PruneAgentHistory == nil {
+					return ArchivePruneResult{}, fmt.Errorf("%w: agent-history prune is unavailable", ErrInternal)
+				}
+				reclaimed, pruneErr := a.PruneAgentHistory(candidate.meta)
+				if pruneErr != nil {
+					return ArchivePruneResult{}, fmt.Errorf("%w: prune agent history for %s: %s", ErrInternal, candidate.meta.ID, pruneErr)
+				}
+				action.Bytes = reclaimed
+				action.Applied = true
+			}
+			result.Actions = append(result.Actions, action)
+			result.ReclaimedBytes += action.Bytes
+			projectedBytes -= candidate.homeBytes
+		}
+
+		if emptyDue {
+			action := ArchivePruneAction{SessionID: candidate.meta.ID, Kind: PruneTranscript, Bytes: candidate.transcriptBytes}
+			if apply {
+				if err := a.Delete(ctx, candidate.meta.ID); err != nil {
+					return ArchivePruneResult{}, err
+				}
+				action.Applied = true
+			}
+			result.Actions = append(result.Actions, action)
+			result.ReclaimedBytes += action.Bytes
+			projectedBytes -= candidate.transcriptBytes
+		}
+	}
+
+	if apply {
+		result.After, err = a.archiveRetentionStats(ctx)
+		if err != nil {
+			return ArchivePruneResult{}, err
+		}
+	}
+	return result, nil
+}
+
+func (a *Adapter) restoreState(row sessionstore.Metadata, messageCount int64) (RestoreState, string) {
+	if row.AgentType == sessionstore.AgentNone && messageCount == 0 {
+		return RestoreStateNothingToRestore, "no agent identity or conversation recorded"
+	}
+	if ok, reason := intsessions.Recoverability(row); !ok {
+		return RestoreStateReadOnly, reason
+	}
+	present := a.AgentHistoryPresent
+	if present == nil {
+		present = func(meta sessionstore.Metadata) bool {
+			if meta.LastRolloutPath == "" {
+				return false
+			}
+			_, err := os.Stat(meta.LastRolloutPath)
+			return err == nil
+		}
+	}
+	if !present(row) {
+		return RestoreStateReadOnly, "agent history is no longer available on disk"
+	}
+	return RestoreStateReopenable, ""
 }
 
 const trackingGracePeriod = 2 * time.Minute
@@ -252,21 +535,110 @@ func (a *Adapter) Get(ctx context.Context, id string) (Session, error) {
 }
 
 func (a *Adapter) Delete(ctx context.Context, id string) error {
-	if err := a.Manager.Delete(ctx, id); err == nil {
-		if a.Conversations != nil {
-			a.Conversations.DeleteSession(ctx, id)
+	a.cancelArchiveTimer(id)
+	_, managed := a.Manager.Get(id)
+	persisted := false
+	if a.Store != nil {
+		_, err := a.Store.Get(ctx, id)
+		persisted = err == nil
+	}
+	if !managed && !persisted {
+		return nil
+	}
+	if managed {
+		if err := a.Manager.Delete(ctx, id); err != nil {
+			return fmt.Errorf("delete live session %q: %v: %w", sanitizeID(id), err, ErrInternal)
 		}
-		if a.CodexCheckpoints != nil {
-			_ = a.CodexCheckpoints.DeleteSession(ctx, id)
-		}
-		if a.AgentCheckpoints != nil {
-			_ = a.AgentCheckpoints.DeleteSession(ctx, id)
-		}
-		a.Events.Emit(events.SessionDeleted, id, nil)
-		a.Metrics.SessionsDeleted.Add(1)
 		a.Metrics.ActiveSessions.Add(-1)
+	} else if err := a.Store.Delete(ctx, id); err != nil {
+		return fmt.Errorf("delete archived session %q: %v: %w", sanitizeID(id), err, ErrInternal)
+	}
+	if a.Conversations != nil {
+		a.Conversations.DeleteSession(ctx, id)
+	}
+	if a.CodexCheckpoints != nil {
+		_ = a.CodexCheckpoints.DeleteSession(ctx, id)
+	}
+	if a.AgentCheckpoints != nil {
+		_ = a.AgentCheckpoints.DeleteSession(ctx, id)
+	}
+	a.Events.Emit(events.SessionDeleted, id, nil)
+	a.Metrics.SessionsDeleted.Add(1)
+	return nil
+}
+
+// Archive stops the live process while preserving every durable artifact. It
+// is intentionally separate from Delete, whose cascade remains the explicit
+// permanent-destruction path.
+func (a *Adapter) Archive(ctx context.Context, id string) error {
+	if a.Store == nil {
+		return fmt.Errorf("session store not configured: %w", ErrInternal)
+	}
+	if _, err := a.Store.Get(ctx, id); err != nil {
+		return fmt.Errorf("no session row with id %q: %w", sanitizeID(id), ErrNotFound)
+	}
+	if err := a.Store.MarkArchived(ctx, id, time.Now().UTC()); err != nil {
+		return fmt.Errorf("mark archived: %v: %w", err, ErrInternal)
+	}
+
+	a.archiveMu.Lock()
+	if a.archiveTimers == nil {
+		a.archiveTimers = make(map[string]*time.Timer)
+	}
+	if existing := a.archiveTimers[id]; existing != nil {
+		existing.Stop()
+	}
+	delay := a.ArchiveGracePeriod
+	if delay == 0 {
+		delay = 8 * time.Second
+	}
+	finalize := func() {
+		if err := a.Manager.Archive(context.Background(), id); err != nil {
+			a.logger().Printf("archive session %s: finalize: %v", sanitizeID(id), err)
+		} else {
+			a.Metrics.ActiveSessions.Add(-1)
+		}
+		a.archiveMu.Lock()
+		delete(a.archiveTimers, id)
+		a.archiveMu.Unlock()
+	}
+	if delay < 0 {
+		a.archiveMu.Unlock()
+		finalize()
+		return nil
+	}
+	a.archiveTimers[id] = time.AfterFunc(delay, finalize)
+	a.archiveMu.Unlock()
+	return nil
+}
+
+// Unarchive clears the archive marker for the short undo path. It does not
+// create a process or run an agent resume command.
+func (a *Adapter) Unarchive(ctx context.Context, id string) error {
+	if a.Store == nil {
+		return fmt.Errorf("session store not configured: %w", ErrInternal)
+	}
+	a.archiveMu.Lock()
+	timer := a.archiveTimers[id]
+	if timer == nil || !timer.Stop() {
+		a.archiveMu.Unlock()
+		return fmt.Errorf("session %q archive undo window expired: %w", sanitizeID(id), ErrFailedPrecondition)
+	}
+	delete(a.archiveTimers, id)
+	a.archiveMu.Unlock()
+	if err := a.Store.MarkUnarchived(ctx, id); err != nil {
+		return fmt.Errorf("unarchive session %q: %v: %w", sanitizeID(id), err, ErrNotFound)
 	}
 	return nil
+}
+
+func (a *Adapter) cancelArchiveTimer(id string) {
+	a.archiveMu.Lock()
+	defer a.archiveMu.Unlock()
+	if timer := a.archiveTimers[id]; timer != nil {
+		timer.Stop()
+		delete(a.archiveTimers, id)
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -343,13 +715,23 @@ func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (RecoverResult, 
 	if err != nil {
 		return RecoverResult{}, fmt.Errorf("no session row with id %q: %w", sanitizeID(oldID), ErrNotFound)
 	}
-	if old.Status != sessionstore.StatusAwaitingRecovery {
-		return RecoverResult{}, fmt.Errorf("session %q is in status %q, not awaiting_recovery: %w", sanitizeID(oldID), old.Status, ErrFailedPrecondition)
+	isCrashRecovery := old.Status == sessionstore.StatusAwaitingRecovery
+	isArchived := !old.ArchivedAt.IsZero()
+	if !isCrashRecovery && !isArchived {
+		return RecoverResult{}, fmt.Errorf("session %q is neither awaiting_recovery nor archived: %w", sanitizeID(oldID), ErrFailedPrecondition)
 	}
 	// Single source of truth for recoverability (and its precise refusal
 	// reasons) so every agent type — codex, claude, opencode, grok — is gated
 	// identically here and in the recoverable-sessions listing.
-	if ok, reason := intsessions.Recoverability(old); !ok {
+	if isArchived {
+		messageCount := int64(0)
+		if a.Conversations != nil {
+			messageCount = a.Conversations.CountSessionEvents(ctx, old.ID)
+		}
+		if state, reason := a.restoreState(old, messageCount); state != RestoreStateReopenable {
+			return RecoverResult{}, fmt.Errorf("%s: %w", reason, ErrFailedPrecondition)
+		}
+	} else if ok, reason := intsessions.Recoverability(old); !ok {
 		return RecoverResult{}, fmt.Errorf("%s: %w", reason, ErrFailedPrecondition)
 	}
 

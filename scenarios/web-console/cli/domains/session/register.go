@@ -20,15 +20,17 @@ const GroupName = "session"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"SessionsService.List":               h.list,
-		"SessionsService.Get":                h.get,
-		"SessionsService.Create":             h.create,
-		"SessionsService.Delete":             h.delete,
-		"SessionsService.GetPolicy":          h.policyGet,
-		"SessionsService.UpdatePolicy":       h.policySet,
-		"SessionsService.ListRecoverable":    h.listRecoverable,
-		"SessionsService.Recover":            h.recover,
-		"SessionsService.DismissRecoverable": h.dismiss,
+		"SessionsService.List":                h.list,
+		"SessionsService.Get":                 h.get,
+		"SessionsService.Create":              h.create,
+		"SessionsService.Delete":              h.delete,
+		"SessionsService.GetPolicy":           h.policyGet,
+		"SessionsService.UpdatePolicy":        h.policySet,
+		"SessionsService.ListRecoverable":     h.listRecoverable,
+		"SessionsService.Recover":             h.recover,
+		"SessionsService.DismissRecoverable":  h.dismiss,
+		"SessionsService.GetArchiveRetention": h.archiveRetention,
+		"SessionsService.PruneArchive":        h.archivePrune,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

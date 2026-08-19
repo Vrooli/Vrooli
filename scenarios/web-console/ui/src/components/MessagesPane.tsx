@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import {
   ArrowDown,
+  ArrowUpRight,
   Check,
   ChevronDown,
   ChevronUp,
@@ -62,6 +63,14 @@ interface MessagesPaneProps {
   onSetMuted: (next: boolean) => void;
   playbackFocusRequest: PlaybackFocusRequest | null;
   toolbarTrailingAction?: ReactNode;
+  /** Removes every transcript-mutating affordance while preserving navigation,
+   * rendering, copy/export, Mermaid, and file preview behavior. */
+  readOnly?: boolean;
+  /** Optional archive hit to reveal after its containing page is loaded. */
+  focusEventId?: string | null;
+  focusSequence?: number | null;
+  /** Stages a message in the operator-selected live session composer. */
+  onSendToComposer?: (text: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +166,8 @@ interface MessageRowProps {
   onLinkClick: (href: string, event: React.MouseEvent<HTMLAnchorElement>) => void;
   onFileReferenceClick: (path: string) => void;
   onMermaidOpen: (code: string) => void;
+  readOnly: boolean;
+  onSendToComposer?: (text: string) => void;
 }
 
 /** Anchored placement order for popovers opening below their trigger. */
@@ -196,6 +207,8 @@ const MessageRow = memo(function MessageRow({
   onLinkClick,
   onFileReferenceClick,
   onMermaidOpen,
+  readOnly,
+  onSendToComposer,
 }: MessageRowProps) {
   const { t } = useTranslation();
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
@@ -280,7 +293,7 @@ const MessageRow = memo(function MessageRow({
           <FileCode2 className="h-3.5 w-3.5" />
         </button>
 
-        {!isUser && (
+        {!readOnly && !isUser && (
           <>
             <button
               data-testid={`msg-speak-from-${event.id}`}
@@ -424,6 +437,18 @@ const MessageRow = memo(function MessageRow({
           </>
         )}
 
+        {onSendToComposer && (
+          <button
+            data-testid={`msg-send-to-composer-${event.id}`}
+            onClick={() => onSendToComposer(event.text)}
+            className="rounded p-0.5 text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary"
+            title={t(strings.messagesPane.sendToComposerTitle)}
+            type="button"
+          >
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </button>
+        )}
+
         <span className="flex-1" />
         <span>#{event.sequence}</span>
       </div>
@@ -480,6 +505,8 @@ const MessageRow = memo(function MessageRow({
   prevProps.isDimmed === nextProps.isDimmed &&
   prevProps.isExpanded === nextProps.isExpanded &&
   prevProps.isPlaintext === nextProps.isPlaintext &&
+  prevProps.readOnly === nextProps.readOnly &&
+  prevProps.onSendToComposer === nextProps.onSendToComposer &&
   prevProps.onLinkClick === nextProps.onLinkClick &&
   prevProps.onFileReferenceClick === nextProps.onFileReferenceClick &&
   prevProps.onMermaidOpen === nextProps.onMermaidOpen
@@ -505,6 +532,10 @@ export default function MessagesPane({
   onSetMuted,
   playbackFocusRequest,
   toolbarTrailingAction,
+  readOnly = false,
+  focusEventId = null,
+  focusSequence = null,
+  onSendToComposer,
 }: MessagesPaneProps) {
   const { t } = useTranslation();
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
@@ -1023,6 +1054,18 @@ export default function MessagesPane({
     }
   }, [scrollToEvent, searchQuery]);
 
+  useEffect(() => {
+    if (!focusEventId || !focusSequence) return;
+    let cancelled = false;
+    const reveal = async () => {
+      const present = useConversationStore.getState().sessions[sessionId]?.events.some((event) => event.id === focusEventId);
+      if (!present && !await loadConversationPageContaining(sessionId, focusSequence)) return;
+      if (!cancelled) requestAnimationFrame(() => focusAndScroll(focusEventId));
+    };
+    void reveal();
+    return () => { cancelled = true; };
+  }, [focusEventId, focusSequence, focusAndScroll, sessionId]);
+
   const handleNavUp = useCallback(() => {
     if (navIds.length === 0) return;
     const prev = focusedNavIndex <= 0 ? navIds.length - 1 : focusedNavIndex - 1;
@@ -1077,6 +1120,7 @@ export default function MessagesPane({
   return (
     <div
       data-testid={`messages-pane-${sessionId}`}
+      aria-readonly={readOnly}
       className="relative flex h-full flex-col bg-wc-surface-base px-2 pb-4 pt-1 select-text"
     >
       <div
@@ -1215,6 +1259,8 @@ export default function MessagesPane({
                     onLinkClick={handleMarkdownLinkClick}
                     onFileReferenceClick={handleInlineCodeFileClick}
                     onMermaidOpen={handleMermaidOpen}
+                    readOnly={readOnly}
+                    onSendToComposer={onSendToComposer}
                   />
                 </div>
               );

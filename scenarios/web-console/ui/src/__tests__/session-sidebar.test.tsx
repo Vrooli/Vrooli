@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createRef } from "react";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import SessionSidebar from "../components/SessionSidebar";
 import { buildWorkspaceNavigationItems } from "../lib/workspaceNavigation";
 import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
@@ -13,6 +13,11 @@ vi.mock("../hooks/useWorkspaceSync", () => ({
     syncUpdateGroup: vi.fn(),
     syncDeleteGroup: vi.fn(),
   }),
+}));
+
+const listArchivedSessions = vi.fn();
+vi.mock("../api/sessions", () => ({
+  listArchivedSessions: () => listArchivedSessions(),
 }));
 
 const pane = (sessionId: string, headerColor: string): PaneMetadata => ({
@@ -39,6 +44,7 @@ const baseProps = {
   onCloseMobile: vi.fn(),
   onActivatePane: vi.fn(),
   onClosePane: vi.fn(),
+  onDeletePanePermanently: vi.fn(),
   onNewTerminal: vi.fn(),
   onOpenLauncher: vi.fn(),
   onNewSessionInGroup: vi.fn(),
@@ -46,8 +52,15 @@ const baseProps = {
 };
 
 beforeEach(() => {
-  useWorkspaceStore.setState({ groups: [], sidebarSortMode: "manual", plusButtonBehavior: "launcher", panes: [] });
+  useWorkspaceStore.setState({ groups: [], sidebarSortMode: "manual", sidebarView: "list", plusButtonBehavior: "launcher", panes: [] });
   vi.clearAllMocks();
+  listArchivedSessions.mockResolvedValue({
+    total: 2,
+    sessions: [
+      { id: "arc-1", pane_name: "Release planning", archived_at: "2026-08-18T18:00:00Z", created_at: "", agent_type: "codex", message_count: 12, restore_state: "reopenable" },
+      { id: "arc-2", pane_name: "Design review", archived_at: "2026-08-18T17:00:00Z", created_at: "", agent_type: "claude", message_count: 4, restore_state: "read_only" },
+    ],
+  });
 });
 
 describe("SessionSidebar", () => {
@@ -122,5 +135,38 @@ describe("SessionSidebar", () => {
     fireEvent.click(screen.getByTestId("group-ctx-new-session"));
 
     expect(baseProps.onNewSessionInGroup).toHaveBeenCalledWith("g1");
+  });
+
+  it("renders the archive footer when origin tabs are hidden", async () => {
+    const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+    expect(screen.queryByTestId("sidebar-origin-tabs")).not.toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-archive-footer")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("sidebar-archive-footer")).toHaveTextContent("2"));
+  });
+
+  it("filters the loaded shallow archive by name without another request", async () => {
+    const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+    fireEvent.click(screen.getByTestId("sidebar-archive-footer"));
+    await screen.findByTestId("sidebar-archive-session-arc-1");
+    expect(screen.getByTestId("sidebar-archive-session-arc-2")).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("sidebar-archive-filter"), { target: { value: "release" } });
+    expect(screen.getByTestId("sidebar-archive-session-arc-1")).toBeInTheDocument();
+    expect(screen.queryByTestId("sidebar-archive-session-arc-2")).not.toBeInTheDocument();
+    expect(listArchivedSessions).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves crash-orphan details to the archive drawer", async () => {
+    listArchivedSessions.mockResolvedValue({
+      total: 1,
+      sessions: [{ id: "crash", pane_name: "Crash orphan", archived_at: "2026-08-18T18:00:00Z", created_at: "", agent_type: "codex", message_count: 2, restore_state: "reopenable", awaiting_recovery: true }],
+    });
+    const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+    fireEvent.click(screen.getByTestId("sidebar-archive-footer"));
+    await waitFor(() => expect(listArchivedSessions).toHaveBeenCalled());
+    expect(screen.queryByTestId("sidebar-archive-session-crash")).not.toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-archive-search-all")).toBeInTheDocument();
   });
 });

@@ -50,6 +50,7 @@ function renderSidebar() {
       onCloseMobile={() => {}}
       onActivatePane={() => {}}
       onClosePane={() => {}}
+      onDeletePanePermanently={() => {}}
       onNewTerminal={() => {}}
       onOpenLauncher={() => {}}
       onNewSessionInGroup={() => {}}

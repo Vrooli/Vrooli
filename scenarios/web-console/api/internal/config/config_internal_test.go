@@ -28,6 +28,9 @@ func TestDefault(t *testing.T) {
 	if cfg.MaxSessions != 0 {
 		t.Errorf("MaxSessions: want 0, got %d", cfg.MaxSessions)
 	}
+	if cfg.ArchiveMessageLessAgeDays != 0 || cfg.ArchiveAgentHomeAgeDays != 0 || cfg.ArchiveMaxBytes != 0 {
+		t.Errorf("archive retention defaults must be unlimited: %+v", cfg)
+	}
 	if cfg.ClientChannelBuffer != 256 {
 		t.Errorf("ClientChannelBuffer: want 256, got %d", cfg.ClientChannelBuffer)
 	}
@@ -41,6 +44,9 @@ func TestLoad_EnvOverride(t *testing.T) {
 	t.Setenv("WC_TERMINAL_SCROLLBACK_LINES", "5000")
 	t.Setenv("WC_DEFAULT_COLS", "120")
 	t.Setenv("WC_MAX_SESSIONS", "10")
+	t.Setenv("WC_ARCHIVE_MESSAGELESS_AGE_DAYS", "7")
+	t.Setenv("WC_ARCHIVE_AGENT_HOME_AGE_DAYS", "30")
+	t.Setenv("WC_ARCHIVE_MAX_BYTES", "1048576")
 
 	cfg := Load()
 
@@ -52,6 +58,9 @@ func TestLoad_EnvOverride(t *testing.T) {
 	}
 	if cfg.MaxSessions != 10 {
 		t.Errorf("MaxSessions: want 10, got %d", cfg.MaxSessions)
+	}
+	if cfg.ArchiveMessageLessAgeDays != 7 || cfg.ArchiveAgentHomeAgeDays != 30 || cfg.ArchiveMaxBytes != 1_048_576 {
+		t.Errorf("archive retention env overrides not loaded: %+v", cfg)
 	}
 }
 

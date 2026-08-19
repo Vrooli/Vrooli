@@ -28,7 +28,13 @@ Show capability inventory and liveness from `GET /api/v1/capabilities`.
 | `list` / `ls` | List active sessions |
 | `get` / `show` | Show one session |
 | `create` | Create a session (optionally `--body-file PATH`). Provenance/launch flags: `--origin ui\|programmatic\|remote` (default `programmatic`), `--owner <tag>`, `--label <text>`, `--launch-command <cmd>`, `--execute-launch-command` (run the launch command headlessly instead of only staging it) |
-| `delete` / `rm` | Terminate a session |
+| `delete` / `rm` | Permanently delete a session and its retained data |
+| `archive` | Archive a session non-destructively |
+| `unarchive` | Undo an archive by clearing its archive marker |
+| `archive-list` | List collapsed archived-session lineages and restore states |
+| `reopen` | Reopen an archived session with a required replay-safe idempotency key |
+| `archive-retention` | Show archive entry counts, bytes, and configured retention limits |
+| `archive-prune` | Preview retention actions; add `--apply` to execute them |
 | `policy-get` | Show the expiration policy for a session |
 | `policy-set` | Set the expiration policy (`--mode`, optional `--duration`) |
 | `conversation` | Show the conversation feed for a session |

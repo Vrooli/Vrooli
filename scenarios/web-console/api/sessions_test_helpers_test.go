@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 
 	sessionsH "web-console/handlers/sessions"
+	"web-console/internal/sessionstore"
 )
 
 // sessionsConnectIface mirrors the methods on the unexported *connectHandler
@@ -19,25 +21,55 @@ type sessionsConnectIface interface {
 	Create(context.Context, *connect.Request[sessionsv1.CreateRequest]) (*connect.Response[sessionsv1.CreateResponse], error)
 	List(context.Context, *connect.Request[sessionsv1.ListRequest]) (*connect.Response[sessionsv1.ListResponse], error)
 	Get(context.Context, *connect.Request[sessionsv1.GetRequest]) (*connect.Response[sessionsv1.GetResponse], error)
+	Archive(context.Context, *connect.Request[sessionsv1.ArchiveRequest]) (*connect.Response[sessionsv1.ArchiveResponse], error)
+	Unarchive(context.Context, *connect.Request[sessionsv1.UnarchiveRequest]) (*connect.Response[sessionsv1.UnarchiveResponse], error)
 	Delete(context.Context, *connect.Request[sessionsv1.DeleteRequest]) (*connect.Response[sessionsv1.DeleteResponse], error)
 	ListRecoverable(context.Context, *connect.Request[sessionsv1.ListRecoverableRequest]) (*connect.Response[sessionsv1.ListRecoverableResponse], error)
 	DismissRecoverable(context.Context, *connect.Request[sessionsv1.DismissRecoverableRequest]) (*connect.Response[sessionsv1.DismissRecoverableResponse], error)
 	Recover(context.Context, *connect.Request[sessionsv1.RecoverRequest]) (*connect.Response[sessionsv1.RecoverResponse], error)
+	Reopen(context.Context, *connect.Request[sessionsv1.ReopenRequest]) (*connect.Response[sessionsv1.ReopenResponse], error)
+	GetArchiveRetention(context.Context, *connect.Request[sessionsv1.GetArchiveRetentionRequest]) (*connect.Response[sessionsv1.GetArchiveRetentionResponse], error)
+	PruneArchive(context.Context, *connect.Request[sessionsv1.PruneArchiveRequest]) (*connect.Response[sessionsv1.PruneArchiveResponse], error)
 	GetPolicy(context.Context, *connect.Request[sessionsv1.GetPolicyRequest]) (*connect.Response[sessionsv1.GetPolicyResponse], error)
 	UpdatePolicy(context.Context, *connect.Request[sessionsv1.UpdatePolicyRequest]) (*connect.Response[sessionsv1.UpdatePolicyResponse], error)
 }
 
+func callArchive(t *testing.T, srv *Server, id string) error {
+	t.Helper()
+	_, err := newSessionsConnectHandlerForServer(srv).Archive(context.Background(),
+		connect.NewRequest(&sessionsv1.ArchiveRequest{Id: id}))
+	return err
+}
+
+func callUnarchive(t *testing.T, srv *Server, id string) error {
+	t.Helper()
+	_, err := newSessionsConnectHandlerForServer(srv).Unarchive(context.Background(),
+		connect.NewRequest(&sessionsv1.UnarchiveRequest{Id: id}))
+	return err
+}
+
 func newSessionsConnectHandlerForServer(srv *Server) sessionsConnectIface {
 	return sessionsH.NewConnectHandler(sessionsH.Deps{Service: &sessionsH.Adapter{
-		Manager:          srv.sessions,
-		Store:            srv.sessionStore,
-		Idempotency:      srv.idempotency,
-		Events:           srv.events,
-		Metrics:          srv.metrics,
-		Conversations:    srv.conversations,
-		CodexCheckpoints: srv.codexCheckpointStore,
-		Workspace:        srv.workspace,
-		CopyCodexHome:    copyCodexHome,
+		Manager:             srv.sessions,
+		Store:               srv.sessionStore,
+		Idempotency:         srv.idempotency,
+		Events:              srv.events,
+		Metrics:             srv.metrics,
+		Conversations:       srv.conversations,
+		CodexCheckpoints:    srv.codexCheckpointStore,
+		Workspace:           srv.workspace,
+		CopyCodexHome:       copyCodexHome,
+		AgentHistoryPresent: func(sessionstore.Metadata) bool { return true },
+		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
+			cfg := srv.sessions.GetConfig()
+			return sessionsH.ArchiveRetentionPolicy{
+				MessageLessAge: time.Duration(cfg.ArchiveMessageLessAgeDays) * 24 * time.Hour,
+				AgentHomeAge:   time.Duration(cfg.ArchiveAgentHomeAgeDays) * 24 * time.Hour,
+				MaxBytes:       cfg.ArchiveMaxBytes,
+			}
+		},
+		AgentHistorySize:  archivedAgentHistorySize,
+		PruneAgentHistory: pruneArchivedAgentHistory,
 	}})
 }
 

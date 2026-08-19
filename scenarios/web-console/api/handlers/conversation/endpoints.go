@@ -52,6 +52,18 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "conversation_archived_search",
+		Path:        conversationconnect.ConversationServiceSearchArchivedProcedure,
+		Method:      "POST",
+		Summary:     "Search archived conversation messages",
+		Description: "Uses the FTS5 index across deliberate archives, dismissed recovery rows, and crash orphans; live sessions are excluded.",
+		Category:    "conversation",
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"matches": "[]ArchivedSearchMatch", "total_matches": "int64", "distinct_sessions": "int64"},
+		},
+	},
+	{
 		ID:          "conversation_event_summarize",
 		Path:        conversationconnect.ConversationServiceSummarizeEventProcedure,
 		Method:      "POST",

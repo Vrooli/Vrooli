@@ -425,6 +425,16 @@ func (sm *Manager) List() []*Session {
 
 // Delete terminates a session and cleans up resources.
 func (sm *Manager) Delete(ctx context.Context, id string) error {
+	return sm.terminate(ctx, id, false)
+}
+
+// Archive terminates a session while preserving its persisted metadata. The
+// archive service owns the archived_at transition and all transcript state.
+func (sm *Manager) Archive(ctx context.Context, id string) error {
+	return sm.terminate(ctx, id, true)
+}
+
+func (sm *Manager) terminate(ctx context.Context, id string, preserveMetadata bool) error {
 	sm.mu.Lock()
 	sess, ok := sm.sessions[id]
 	if !ok {
@@ -440,7 +450,7 @@ func (sm *Manager) Delete(ctx context.Context, id string) error {
 		sm.onSessionDelete(id)
 	}
 	// Clean up persisted metadata
-	if sm.store != nil {
+	if sm.store != nil && !preserveMetadata {
 		_ = sm.store.Delete(ctx, id)
 	}
 	// Clean up session upload directory

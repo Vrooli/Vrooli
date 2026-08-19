@@ -37,6 +37,7 @@ export type PlusButtonBehavior = "launcher" | "new-terminal";
 /** Sidebar ordering: "manual" honors backend sort_order (drag-reorderable);
  *  the rest are view-only sorts that never write sort_order. */
 export type SidebarSortMode = "manual" | "name" | "activity" | "unread";
+export type SidebarView = "list" | "archive";
 
 /** Which origin bucket the sidebar tab strip currently shows. Mirrors the
  *  session-origin buckets (see workspaceNavigation.originBucket): a session with
@@ -122,6 +123,8 @@ interface WorkspaceState {
   recentHeaderColors: string[];
   /** Sidebar session ordering mode. View-only except "manual". */
   sidebarSortMode: SidebarSortMode;
+  /** Lifecycle view; archive is separate from the provenance tab axis. */
+  sidebarView: SidebarView;
   /** Active origin tab in the sidebar. Only meaningful while the tab strip is
    *  mounted (i.e. at least one non-UI-origin session exists); when the active
    *  bucket has no sessions the sidebar falls back to the first present bucket
@@ -206,6 +209,7 @@ interface WorkspaceActions {
   /** Record an explicitly-picked header color into recents (dedup, cap 6). */
   addRecentHeaderColor: (color: string) => void;
   setSidebarSortMode: (mode: SidebarSortMode) => void;
+  setSidebarView: (view: SidebarView) => void;
   setSidebarOriginTab: (tab: SidebarOriginTab) => void;
   setAdaptiveChrome: (enabled: boolean) => void;
   toggleModifier: (key: keyof ModifierState) => void;
@@ -310,6 +314,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       recentCombos: [],
       recentHeaderColors: [],
       sidebarSortMode: "manual",
+      sidebarView: "list",
       sidebarOriginTab: "ui",
       adaptiveChrome: true,
       modifiers: { ctrl: false, alt: false, shift: false },
@@ -336,6 +341,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         }),
 
       setSidebarSortMode: (mode) => set({ sidebarSortMode: mode }),
+      setSidebarView: (view) => set({ sidebarView: view }),
       setSidebarOriginTab: (tab) => set({ sidebarOriginTab: tab }),
       setAdaptiveChrome: (enabled) => set({ adaptiveChrome: enabled }),
 
@@ -555,7 +561,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 17,
+      version: 18,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -629,6 +635,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 17) {
           state.sidebarOriginTab ??= "ui";
         }
+        if (version < 18) {
+          state.sidebarView ??= "list";
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -662,6 +671,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         recentCombos: state.recentCombos,
         recentHeaderColors: state.recentHeaderColors,
         sidebarSortMode: state.sidebarSortMode,
+        sidebarView: state.sidebarView,
         sidebarOriginTab: state.sidebarOriginTab,
         adaptiveChrome: state.adaptiveChrome,
         keepScreenAwake: state.keepScreenAwake,

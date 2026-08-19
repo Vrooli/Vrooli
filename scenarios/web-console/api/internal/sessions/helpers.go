@@ -6,6 +6,28 @@ import (
 	"web-console/session"
 )
 
+// ResolveLineage follows recovered_into to the newest known row. Corrupt
+// cycles are bounded and return the last safe row instead of looping.
+func ResolveLineage(start sessionstore.Metadata, byID map[string]sessionstore.Metadata) sessionstore.Metadata {
+	current := start
+	visited := map[string]struct{}{current.ID: {}}
+	for current.RecoveredInto != "" {
+		next, ok := byID[current.RecoveredInto]
+		if !ok {
+			break
+		}
+		if _, seen := visited[next.ID]; seen {
+			break
+		}
+		visited[next.ID] = struct{}{}
+		current = next
+		if len(visited) > len(byID)+1 {
+			break
+		}
+	}
+	return current
+}
+
 // FromSession converts an internal Session to the cached Response shape.
 func FromSession(s *session.Session) Response {
 	return Response{

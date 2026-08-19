@@ -72,6 +72,32 @@ func (a *conversationAdapter) Search(sessionID, query string, limit int) ([]conv
 	return out, truncated, total, nil
 }
 
+func (a *conversationAdapter) SearchArchived(ctx context.Context, filter conversationH.ArchivedSearchFilter) (conversationH.ArchivedSearchResult, error) {
+	var createdAfter time.Time
+	if filter.CreatedAfter != "" {
+		parsed, err := time.Parse(time.RFC3339, filter.CreatedAfter)
+		if err != nil {
+			return conversationH.ArchivedSearchResult{}, fmt.Errorf("created_after must be RFC3339: %w", conversationH.ErrInvalidArgument)
+		}
+		createdAfter = parsed
+	}
+	matches, truncated, total, distinct, err := a.srv.conversations.SearchArchived(ctx, ArchivedConversationSearchFilter{
+		Query: filter.Query, Limit: filter.Limit, AgentType: filter.AgentType, Role: filter.Role, CreatedAfter: createdAfter,
+	})
+	if err != nil {
+		return conversationH.ArchivedSearchResult{}, err
+	}
+	result := conversationH.ArchivedSearchResult{Truncated: truncated, TotalMatches: total, DistinctSessions: distinct}
+	result.Matches = make([]conversationH.ArchivedSearchMatch, 0, len(matches))
+	for _, match := range matches {
+		result.Matches = append(result.Matches, conversationH.ArchivedSearchMatch{
+			EventID: match.EventID, SessionID: match.SessionID, Sequence: match.Sequence, Role: match.Role,
+			CreatedAt: match.CreatedAt.UTC().Format(time.RFC3339Nano), Excerpt: match.Excerpt,
+		})
+	}
+	return result, nil
+}
+
 func (a *conversationAdapter) GetRange(sessionID string, from, to int64) (conversationH.SessionState, error) {
 	if _, ok := a.srv.sessions.Get(sessionID); !ok {
 		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)

@@ -21,6 +21,7 @@ import (
 type Service interface {
 	Get(sessionID string, sinceSequence int64, limit int, beforeSequence int64) (SessionState, error)
 	Search(sessionID, query string, limit int) ([]SearchMatch, bool, int64, error)
+	SearchArchived(ctx context.Context, filter ArchivedSearchFilter) (ArchivedSearchResult, error)
 	GetRange(sessionID string, from, to int64) (SessionState, error)
 	UpdateCursor(sessionID string, patch CursorPatch) (Cursor, error)
 	SummarizeEvent(ctx context.Context, sessionID, eventID string) (SummarizeResult, error)
@@ -29,6 +30,30 @@ type SearchMatch struct {
 	EventID  string
 	Sequence int64
 	Excerpt  string
+}
+
+type ArchivedSearchFilter struct {
+	Query        string
+	Limit        int
+	AgentType    string
+	Role         string
+	CreatedAfter string
+}
+
+type ArchivedSearchMatch struct {
+	EventID   string
+	SessionID string
+	Sequence  int64
+	Role      string
+	CreatedAt string
+	Excerpt   string
+}
+
+type ArchivedSearchResult struct {
+	Matches          []ArchivedSearchMatch
+	Truncated        bool
+	TotalMatches     int64
+	DistinctSessions int64
 }
 
 // Event mirrors the legacy JSON shape of one stored conversation entry.

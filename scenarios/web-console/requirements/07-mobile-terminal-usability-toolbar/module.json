@@ -10,7 +10,7 @@
       "description": "Floating toolbar component renders above mobile keyboard with essential terminal keys (Ctrl, Alt, Tab, Esc, arrows). Does not overlap terminal viewport.",
       "id": "REQ-P0-007a",
       "prd_ref": "OT-P0-007",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Floating Toolbar Component",
       "validation": [
         {
@@ -35,7 +35,7 @@
       "description": "Toolbar keys inject correct escape sequences into active terminal. Chord support (Ctrl+C, Ctrl+D, Ctrl+Z) works reliably.",
       "id": "REQ-P0-007b",
       "prd_ref": "OT-P0-007",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Terminal Key/Chord Mapping",
       "validation": [
         {
@@ -59,7 +59,7 @@
       "description": "Chord sequences (Ctrl+C, Ctrl+D, Ctrl+Z) reliably produce correct escape codes under rapid input and concurrent terminal sessions.",
       "id": "REQ-P0-007b-i",
       "prd_ref": "OT-P0-007",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Chord Sequence Reliability",
       "validation": [
         {

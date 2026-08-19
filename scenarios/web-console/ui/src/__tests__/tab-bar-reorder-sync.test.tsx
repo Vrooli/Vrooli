@@ -60,6 +60,7 @@ describe("TabBar reorder sync", () => {
         onNewTerminal={vi.fn()}
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
+        onDeletePanePermanently={vi.fn()}
       />,
     );
 
@@ -109,6 +110,7 @@ describe("TabBar reorder sync", () => {
         onNewTerminal={vi.fn()}
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
+        onDeletePanePermanently={vi.fn()}
       />,
     );
 
@@ -156,6 +158,7 @@ describe("TabBar reorder sync", () => {
         onNewTerminal={vi.fn()}
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
+        onDeletePanePermanently={vi.fn()}
       />,
     );
 
@@ -194,6 +197,7 @@ describe("TabBar reorder sync", () => {
         onNewTerminal={vi.fn()}
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
+        onDeletePanePermanently={vi.fn()}
       />,
     );
 

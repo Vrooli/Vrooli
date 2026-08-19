@@ -390,8 +390,20 @@ func (s *ConversationStore) CountSessionEvents(ctx context.Context, sessionID st
 	return count
 }
 
+func (s *ConversationStore) SessionStorageBytes(ctx context.Context, sessionID string) int64 {
+	size, err := s.repository.SessionStorageBytes(ctx, sessionID)
+	if err != nil {
+		return 0
+	}
+	return size
+}
+
 func (s *ConversationStore) SearchSession(ctx context.Context, sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
 	return s.repository.SearchSession(ctx, sessionID, query, limit)
+}
+
+func (s *ConversationStore) SearchArchived(ctx context.Context, filter ArchivedConversationSearchFilter) ([]ArchivedConversationSearchMatch, bool, int64, int64, error) {
+	return s.repository.SearchArchived(ctx, filter)
 }
 
 func (s *ConversationStore) ListSessionRange(ctx context.Context, sessionID string, from, to int64) ([]ConversationEvent, error) {

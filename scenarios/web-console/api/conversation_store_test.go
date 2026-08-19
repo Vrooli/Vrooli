@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"strings"
+	"time"
 )
 import "testing"
 
@@ -172,5 +174,109 @@ func TestListSession_MixedRoles(t *testing.T) {
 	}
 	if state.Events[1].Role != ConversationRoleAssistant {
 		t.Errorf("expected second event assistant, got %s", state.Events[1].Role)
+	}
+}
+
+func TestSQLSearchArchivedUsesFTSAndExcludesLiveSessions(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	db := setupTestDB(t)
+	var fts5 int
+	if err := db.QueryRow(`SELECT sqlite_compileoption_used('ENABLE_FTS5')`).Scan(&fts5); err != nil || fts5 != 1 {
+		t.Fatalf("modernc sqlite FTS5 unavailable: value=%d err=%v", fts5, err)
+	}
+	if err := ensureConversationFTS(ctx, db); err != nil {
+		t.Fatalf("ensure FTS: %v", err)
+	}
+	for _, row := range []struct{ id, archivedAt string }{
+		{"archive-a", "2026-08-18T18:00:00Z"},
+		{"archive-b", "2026-08-18T18:01:00Z"},
+		{"archive-c", "2026-08-18T18:02:00Z"},
+		{"live", ""},
+	} {
+		if _, err := db.Exec(`INSERT INTO sessions(id, archived_at) VALUES (?, ?)`, row.id, row.archivedAt); err != nil {
+			t.Fatalf("insert session %s: %v", row.id, err)
+		}
+	}
+	// archive-a is an older copy of archive-b. Deep search follows the same
+	// collapsed-lineage contract as ListArchived, so duplicate transcript
+	// copies never crowd out independent sessions in a bounded result page.
+	if _, err := db.Exec(`UPDATE sessions SET recovered_into = 'archive-b' WHERE id = 'archive-a'`); err != nil {
+		t.Fatalf("link archived lineage: %v", err)
+	}
+	repo := NewSQLConversationRepository(db)
+	for index, id := range []string{"archive-a", "archive-b", "archive-c", "live"} {
+		if _, err := repo.AppendEvent(ctx, ConversationEvent{
+			ID: "event-" + id, SessionID: id, Source: "test", Role: ConversationRoleAssistant,
+			Text: "shared archive needle", CreatedAt: time.Date(2026, 8, 18, 18, index, 0, 0, time.UTC),
+		}); err != nil {
+			t.Fatalf("append %s: %v", id, err)
+		}
+	}
+
+	matches, truncated, total, distinct, err := repo.SearchArchived(ctx, ArchivedConversationSearchFilter{Query: "archive needle", Limit: 20})
+	if err != nil {
+		t.Fatalf("search archived: %v", err)
+	}
+	if truncated || total != 2 || distinct != 2 || len(matches) != 2 {
+		t.Fatalf("search result matches=%d total=%d distinct=%d truncated=%v", len(matches), total, distinct, truncated)
+	}
+	for _, match := range matches {
+		if match.SessionID == "live" {
+			t.Fatalf("live session leaked into archive search: %+v", match)
+		}
+	}
+
+	perSession, _, perTotal, err := repo.SearchSession(ctx, "live", "archive needle", 20)
+	if err != nil || len(perSession) != 1 || perTotal != 1 {
+		t.Fatalf("existing per-session search changed: matches=%+v total=%d err=%v", perSession, perTotal, err)
+	}
+
+	rows, err := db.Query(`EXPLAIN QUERY PLAN SELECT e.id FROM conversation_events_fts
+		JOIN conversation_events e ON e.rowid=conversation_events_fts.rowid
+		JOIN sessions s ON s.id=e.session_id
+		WHERE conversation_events_fts.text MATCH '"archive" AND "needle"' AND s.archived_at <> ''`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var plan strings.Builder
+	for rows.Next() {
+		var id, parent, unused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
+			t.Fatal(err)
+		}
+		plan.WriteString(detail)
+		plan.WriteByte('\n')
+	}
+	if got := strings.ToUpper(plan.String()); !strings.Contains(got, "VIRTUAL TABLE INDEX") {
+		t.Fatalf("query plan does not use FTS index:\n%s", plan.String())
+	}
+}
+
+func TestEnsureConversationFTSBackfillsOnceAndIndexesNewAppends(t *testing.T) { // [REQ:REQ-P0-003a]
+	ctx := context.Background()
+	db := setupTestDB(t)
+	if _, err := db.Exec(`INSERT INTO sessions(id, archived_at) VALUES ('archived', '2026-08-18T18:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLConversationRepository(db)
+	if _, err := repo.AppendEvent(ctx, ConversationEvent{ID: "before", SessionID: "archived", Role: ConversationRoleUser, Text: "backfill sentinel"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureConversationFTS(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureConversationFTS(ctx, db); err != nil {
+		t.Fatalf("idempotent ensure: %v", err)
+	}
+	if _, err := repo.AppendEvent(ctx, ConversationEvent{ID: "after", SessionID: "archived", Role: ConversationRoleUser, Text: "fresh sentinel"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{"backfill sentinel", "fresh sentinel"} {
+		matches, _, total, _, err := repo.SearchArchived(ctx, ArchivedConversationSearchFilter{Query: query})
+		if err != nil || total != 1 || len(matches) != 1 {
+			t.Fatalf("query %q: matches=%+v total=%d err=%v", query, matches, total, err)
+		}
 	}
 }

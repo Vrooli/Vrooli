@@ -49,6 +49,7 @@ const renderTabBar = () =>
       onNewTerminal={vi.fn()}
       onOpenLauncher={vi.fn()}
       onClosePane={vi.fn()}
+      onDeletePanePermanently={vi.fn()}
     />,
   );
 

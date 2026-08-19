@@ -291,6 +291,16 @@
     "cancel": "キャンセル",
     "confirm": "閉じる"
   },
+  "confirmDelete": {
+    "title": "セッションを完全に削除しますか?",
+    "body": "「{{name}}」とその会話履歴を完全に削除します。この操作は元に戻せません。",
+    "cancel": "キャンセル",
+    "confirm": "完全に削除"
+  },
+  "archiveToast": {
+    "archived": "{{name}}をアーカイブしました",
+    "undo": "元に戻す"
+  },
   "recoverableSessions": {
     "heading": "前回の実行から復旧待ちのセッションが{{count}}件あります",
     "agentLabel": "エージェント: {{agent}}",
@@ -301,6 +311,7 @@
     "dismiss": "閉じる",
     "dismissTitle": "このオーファンをリストから非表示にする(ディスク上の状態は保持)",
     "view": "表示",
+    "viewArchive": "アーカイブで表示",
     "reattachAll": "すべて再アタッチ",
     "dismissAll": "すべて閉じる"
   },
@@ -371,7 +382,56 @@
     "originTabsAria": "オリジンでセッションを絞り込む",
     "originTabUi": "UI作成",
     "originTabProgrammatic": "プログラム",
-    "originTabRemote": "リモート"
+    "originTabRemote": "リモート",
+    "archive": "アーカイブ",
+    "archiveBack": "セッションに戻る",
+    "archiveFilterPlaceholder": "セッション名で絞り込む",
+    "archiveLoading": "アーカイブを読み込み中…",
+    "archiveEmpty": "一致するアーカイブ済みセッションはありません。",
+    "archiveMessages": "{{count}} 件のメッセージ",
+    "archiveMessages_one": "1 件のメッセージ",
+    "archiveStateReopenable": "再開可能",
+    "archiveStateReadOnly": "読み取り専用",
+    "archiveStateNothing": "復元するものなし",
+    "archiveSearchAll": "アーカイブ済み {{count}} セッションをすべて検索"
+  },
+  "archiveDrawer": {
+    "title": "セッションアーカイブ",
+    "close": "セッションアーカイブを閉じる",
+    "searchPlaceholder": "アーカイブ全体のメッセージ本文を検索",
+    "resultCounts": "{{messages}}件のメッセージ · {{sessions}}件のセッション",
+    "textSearch": "テキスト",
+    "semanticSearch": "セマンティック",
+    "semanticUnavailable": "セマンティック検索はまだ利用できません。テキスト検索はローカル全文索引を使用します。",
+    "allAgents": "すべてのエージェント",
+    "shell": "シェル",
+    "anyTime": "すべての期間",
+    "last7Days": "過去7日間",
+    "last30Days": "過去30日間",
+    "lastYear": "過去1年間",
+    "myMessages": "自分のメッセージ",
+    "crashOrphans": "クラッシュ孤立セッション ({{count}})",
+    "resultsHeading": "アーカイブ済みメッセージの結果",
+    "readerHeading": "読み取り専用のアーカイブ会話",
+    "searchPrompt": "覚えている言葉を検索してください。結果はメッセージで、セッションが文脈として表示されます。",
+    "searching": "アーカイブ済みメッセージを検索中…",
+    "noResults": "条件に一致するアーカイブ済みメッセージはありません。",
+    "you": "あなた",
+    "archivedAt": "{{time}}にアーカイブ",
+    "messageCount": "{{count}}件のメッセージ",
+    "messageCount_one": "1件のメッセージ",
+    "state_reopenable": "再開可能",
+    "state_read_only": "読み取り専用",
+    "state_nothing_to_restore": "復元するものなし",
+    "reopen": "再開",
+    "reopening": "再開中…",
+    "reopenNextPhase": "このバージョンでは再開をまだ利用できません",
+    "export": "エクスポート",
+    "delete": "削除",
+    "selectResult": "メッセージ結果を選択して会話を読みます。",
+    "deleteTitle": "アーカイブ済みセッションを完全に削除しますか？",
+    "deleteBody": "{{name}}と会話を完全に削除します。この操作は元に戻せません。",
+    "deleteConfirm": "完全に削除"
   },
   "tabContextMenu": {
     "rename": "名前を変更",
@@ -384,6 +444,7 @@
     "moveUp": "上へ移動",
     "moveDown": "下へ移動",
     "closeTab": "タブを閉じる",
+    "deletePermanently": "完全に削除",
     "copyDebugLog": "デバッグログをコピー"
   },
   "terminalContextMenu": {
@@ -437,6 +498,7 @@
   },
   "messagesPane": {
     "copyMessageTitle": "メッセージをコピー",
+    "sendToComposerTitle": "アクティブなセッションのコンポーザーへ送る",
     "viewAsPlainTextTitle": "プレーンテキストで表示",
     "viewAsMarkdownTitle": "マークダウンで表示",
     "readFromHereTitle": "ここから読み上げ",
@@ -564,6 +626,9 @@
       "defaultsHint": "これらの既定値は起動ダイアログの初期値となります。セッションごとに上書きできます。",
       "defaultBackendLabel": "既定のバックエンド:",
       "defaultTimeoutLabel": "既定のタイムアウト:",
+      "archiveStorageTitle": "アーカイブ容量",
+      "archiveStorageSummary": "{{count}} 件のアーカイブが会話と再開データに {{size}} 使用しています。",
+      "archiveStorageLoading": "アーカイブした会話と再開データを計測中…",
       "openTerminals": "開いているターミナル",
       "openTerminalsHint": "セッションはサーバー側のプロセスです。ペインはそのワークスペース上の表示です。",
       "resetLayout": "レイアウトをリセット",

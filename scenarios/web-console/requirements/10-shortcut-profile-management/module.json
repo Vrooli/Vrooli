@@ -10,7 +10,7 @@
       "description": "Shortcut profiles stored in-memory with service/workspace/parent scope hierarchy. API supports CRUD for shortcut profiles with scope-based resolution.",
       "id": "REQ-P1-002a",
       "prd_ref": "OT-P1-002",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Shortcut Profile Storage",
       "validation": [
         {
@@ -35,13 +35,13 @@
       "description": "TerminalLauncher fetches effective shortcuts from API on open, falling back to DEFAULT_SHORTCUTS. Scope hierarchy resolution happens server-side.",
       "id": "REQ-P1-002b",
       "prd_ref": "OT-P1-002",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Shortcut Profile Management UI",
       "validation": [
         {
-          "notes": "Verify API-driven shortcuts fetch + fallback — launcher.test.ts, shortcut-profiles.test.ts",
+          "notes": "Terminal launcher fetches effective shortcuts from the API and falls back to defaults on failure",
           "phase": "integration",
-          "ref": "ui/src/__tests__/shortcut-profiles.test.ts",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx",
           "status": "passing",
           "type": "test"
         },
@@ -66,7 +66,7 @@
       "description": "When API shortcut fetch fails, launcher falls back to DEFAULT_SHORTCUTS defined in consts/shortcuts.ts without error display.",
       "id": "REQ-P1-002b-i",
       "prd_ref": "OT-P1-002",
-      "status": "passed",
+      "status": "in_progress",
       "title": "Fallback Shortcut Resolution",
       "validation": [
         {

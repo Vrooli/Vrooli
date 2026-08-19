@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -112,6 +113,18 @@ func (h *connectHandler) List(ctx context.Context, _ *connect.Request[sessionsv1
 	}), nil
 }
 
+func (h *connectHandler) ListArchived(ctx context.Context, _ *connect.Request[sessionsv1.ListArchivedRequest]) (*connect.Response[sessionsv1.ListArchivedResponse], error) {
+	rows, err := h.deps.Service.ListArchived(ctx)
+	if err != nil {
+		return nil, h.classify(err, "sessions.ListArchived")
+	}
+	out := make([]*sessionsv1.ArchivedSession, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, archivedToProto(row))
+	}
+	return connect.NewResponse(&sessionsv1.ListArchivedResponse{Sessions: out, Total: int32(len(out))}), nil
+}
+
 func (h *connectHandler) Get(ctx context.Context, req *connect.Request[sessionsv1.GetRequest]) (*connect.Response[sessionsv1.GetResponse], error) {
 	id := strings.TrimSpace(req.Msg.GetId())
 	if id == "" {
@@ -133,6 +146,28 @@ func (h *connectHandler) Delete(ctx context.Context, req *connect.Request[sessio
 		return nil, h.classify(err, "sessions.Delete")
 	}
 	return connect.NewResponse(&sessionsv1.DeleteResponse{}), nil
+}
+
+func (h *connectHandler) Archive(ctx context.Context, req *connect.Request[sessionsv1.ArchiveRequest]) (*connect.Response[sessionsv1.ArchiveResponse], error) {
+	id := strings.TrimSpace(req.Msg.GetId())
+	if id == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	}
+	if err := h.deps.Service.Archive(ctx, id); err != nil {
+		return nil, h.classify(err, "sessions.Archive")
+	}
+	return connect.NewResponse(&sessionsv1.ArchiveResponse{Id: id}), nil
+}
+
+func (h *connectHandler) Unarchive(ctx context.Context, req *connect.Request[sessionsv1.UnarchiveRequest]) (*connect.Response[sessionsv1.UnarchiveResponse], error) {
+	id := strings.TrimSpace(req.Msg.GetId())
+	if id == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	}
+	if err := h.deps.Service.Unarchive(ctx, id); err != nil {
+		return nil, h.classify(err, "sessions.Unarchive")
+	}
+	return connect.NewResponse(&sessionsv1.UnarchiveResponse{Id: id}), nil
 }
 
 func (h *connectHandler) ListRecoverable(ctx context.Context, _ *connect.Request[sessionsv1.ListRecoverableRequest]) (*connect.Response[sessionsv1.ListRecoverableResponse], error) {
@@ -177,6 +212,75 @@ func (h *connectHandler) Recover(ctx context.Context, req *connect.Request[sessi
 		CommandSent:     res.CommandSent,
 		CodexHomeCopied: res.CodexHomeCopied,
 	}), nil
+}
+
+func (h *connectHandler) Reopen(ctx context.Context, req *connect.Request[sessionsv1.ReopenRequest]) (*connect.Response[sessionsv1.ReopenResponse], error) {
+	id := strings.TrimSpace(req.Msg.GetId())
+	if id == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	}
+	res, err := h.deps.Service.Recover(ctx, RecoverInput{
+		ID:             id,
+		IdempotencyKey: req.Header().Get(idempotencyHeader),
+	})
+	if err != nil {
+		return nil, h.classify(err, "sessions.Reopen")
+	}
+	return connect.NewResponse(&sessionsv1.ReopenResponse{
+		OldSessionId:    res.OldSessionID,
+		NewSessionId:    res.NewSessionID,
+		AgentType:       res.AgentType,
+		CommandSent:     res.CommandSent,
+		CodexHomeCopied: res.CodexHomeCopied,
+	}), nil
+}
+
+func (h *connectHandler) GetArchiveRetention(ctx context.Context, _ *connect.Request[sessionsv1.GetArchiveRetentionRequest]) (*connect.Response[sessionsv1.GetArchiveRetentionResponse], error) {
+	snapshot, err := h.deps.Service.GetArchiveRetention(ctx)
+	if err != nil {
+		return nil, h.classify(err, "sessions.GetArchiveRetention")
+	}
+	return connect.NewResponse(&sessionsv1.GetArchiveRetentionResponse{
+		Policy: &sessionsv1.ArchiveRetentionPolicy{
+			MessageLessAgeDays: int32(snapshot.Policy.MessageLessAge / (24 * time.Hour)),
+			AgentHomeAgeDays:   int32(snapshot.Policy.AgentHomeAge / (24 * time.Hour)),
+			MaxBytes:           snapshot.Policy.MaxBytes,
+		},
+		Stats: archiveRetentionStatsToProto(snapshot.Stats),
+	}), nil
+}
+
+func (h *connectHandler) PruneArchive(ctx context.Context, req *connect.Request[sessionsv1.PruneArchiveRequest]) (*connect.Response[sessionsv1.PruneArchiveResponse], error) {
+	result, err := h.deps.Service.PruneArchive(ctx, req.Msg.GetApply())
+	if err != nil {
+		return nil, h.classify(err, "sessions.PruneArchive")
+	}
+	actions := make([]*sessionsv1.ArchivePruneAction, 0, len(result.Actions))
+	for _, action := range result.Actions {
+		actions = append(actions, &sessionsv1.ArchivePruneAction{
+			SessionId: action.SessionID,
+			Kind:      string(action.Kind),
+			Bytes:     action.Bytes,
+			Applied:   action.Applied,
+		})
+	}
+	return connect.NewResponse(&sessionsv1.PruneArchiveResponse{
+		DryRun:         result.DryRun,
+		Actions:        actions,
+		ReclaimedBytes: result.ReclaimedBytes,
+		Before:         archiveRetentionStatsToProto(result.Before),
+		After:          archiveRetentionStatsToProto(result.After),
+	}), nil
+}
+
+func archiveRetentionStatsToProto(stats ArchiveRetentionStats) *sessionsv1.ArchiveRetentionStats {
+	return &sessionsv1.ArchiveRetentionStats{
+		EntryCount:      stats.EntryCount,
+		MessageCount:    stats.MessageCount,
+		TranscriptBytes: stats.TranscriptBytes,
+		AgentHomeBytes:  stats.AgentHomeBytes,
+		TotalBytes:      stats.TotalBytes,
+	}
 }
 
 func (h *connectHandler) GetPolicy(ctx context.Context, req *connect.Request[sessionsv1.GetPolicyRequest]) (*connect.Response[sessionsv1.GetPolicyResponse], error) {
@@ -293,6 +397,33 @@ func sessionsToProto(in []Session) []*sessionsv1.Session {
 		out = append(out, sessionToProto(s))
 	}
 	return out
+}
+
+func archivedToProto(row ArchivedSession) *sessionsv1.ArchivedSession {
+	state := sessionsv1.ArchiveRestoreState_ARCHIVE_RESTORE_STATE_UNSPECIFIED
+	switch row.RestoreState {
+	case RestoreStateReopenable:
+		state = sessionsv1.ArchiveRestoreState_ARCHIVE_RESTORE_STATE_REOPENABLE
+	case RestoreStateReadOnly:
+		state = sessionsv1.ArchiveRestoreState_ARCHIVE_RESTORE_STATE_READ_ONLY
+	case RestoreStateNothingToRestore:
+		state = sessionsv1.ArchiveRestoreState_ARCHIVE_RESTORE_STATE_NOTHING_TO_RESTORE
+	}
+	return &sessionsv1.ArchivedSession{
+		Id:                 row.ID,
+		ArchivedAt:         row.ArchivedAt,
+		CreatedAt:          row.CreatedAt,
+		AgentType:          row.AgentType,
+		AgentSessionId:     row.AgentSessionID,
+		Cwd:                row.CWD,
+		PaneName:           row.PaneName,
+		HeaderColor:        row.HeaderColor,
+		GroupName:          row.GroupName,
+		MessageCount:       row.MessageCount,
+		RestoreState:       state,
+		RestoreStateReason: row.RestoreStateReason,
+		AwaitingRecovery:   row.AwaitingRecovery,
+	}
 }
 
 func recoverableToProto(r RecoverableSession) *sessionsv1.RecoverableSession {

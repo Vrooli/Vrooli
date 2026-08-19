@@ -40,6 +40,7 @@
 - [ ] OT-P1-002 | Shortcut Profile Management | Shortcut catalog is configuration-driven (service/workspace/parent context) rather than hardcoded UI constants
 - [ ] OT-P1-003 | AI Provider Policy Controls | Provider priority, timeout, and fallback policy are configurable with surfaced provider health
 - [ ] OT-P1-004 | Operational Observability Coverage | Metrics and structured events cover lifecycle, reconnects, pane actions, and AI provider failovers
+- [ ] OT-P1-013 | Remote Terminal Targets | The launcher and CLI should expose a shared target vocabulary and readiness state for local, Bridge-node, and SSH terminal dispatch
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Collaborative Session Modes | Optional observer/shared-view terminal modes for paired operations and escalations

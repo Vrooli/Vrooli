@@ -75,6 +75,30 @@ func (h *connectHandler) Search(_ context.Context, req *connect.Request[conversa
 	return connect.NewResponse(&conversationv1.SearchResponse{Matches: out, Truncated: truncated, TotalMatches: total}), nil
 }
 
+func (h *connectHandler) SearchArchived(ctx context.Context, req *connect.Request[conversationv1.SearchArchivedRequest]) (*connect.Response[conversationv1.SearchArchivedResponse], error) {
+	if strings.TrimSpace(req.Msg.GetQuery()) == "" {
+		return connect.NewResponse(&conversationv1.SearchArchivedResponse{}), nil
+	}
+	result, err := h.deps.Service.SearchArchived(ctx, ArchivedSearchFilter{
+		Query: req.Msg.GetQuery(), Limit: int(req.Msg.GetLimit()), AgentType: req.Msg.GetAgentType(),
+		Role: req.Msg.GetRole(), CreatedAfter: req.Msg.GetCreatedAfter(),
+	})
+	if err != nil {
+		return nil, h.classify(err, "conversation.SearchArchived")
+	}
+	matches := make([]*conversationv1.ArchivedSearchMatch, 0, len(result.Matches))
+	for _, match := range result.Matches {
+		matches = append(matches, &conversationv1.ArchivedSearchMatch{
+			EventId: match.EventID, SessionId: match.SessionID, Sequence: match.Sequence,
+			Role: match.Role, CreatedAt: match.CreatedAt, Excerpt: match.Excerpt,
+		})
+	}
+	return connect.NewResponse(&conversationv1.SearchArchivedResponse{
+		Matches: matches, Truncated: result.Truncated, TotalMatches: result.TotalMatches,
+		DistinctSessions: result.DistinctSessions,
+	}), nil
+}
+
 func (h *connectHandler) GetRange(_ context.Context, req *connect.Request[conversationv1.GetRangeRequest]) (*connect.Response[conversationv1.GetResponse], error) {
 	state, err := h.deps.Service.GetRange(strings.TrimSpace(req.Msg.GetSessionId()), req.Msg.GetFromSequence(), req.Msg.GetToSequence())
 	if err != nil {

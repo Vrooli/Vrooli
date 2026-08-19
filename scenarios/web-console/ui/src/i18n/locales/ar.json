@@ -295,6 +295,16 @@
     "cancel": "إلغاء",
     "confirm": "إغلاق"
   },
+  "confirmDelete": {
+    "title": "حذف الجلسة نهائيًا؟",
+    "body": "سيؤدي هذا إلى حذف \"{{name}}\" والنص نهائيًا. لا يمكن التراجع عن ذلك.",
+    "cancel": "إلغاء",
+    "confirm": "حذف نهائي"
+  },
+  "archiveToast": {
+    "archived": "تمت أرشفة {{name}}",
+    "undo": "تراجع"
+  },
   "recoverableSessions": {
     "heading": "{{count}} جلسة بانتظار الاستعادة من تشغيل سابق",
     "agentLabel": "وكيل: {{agent}}",
@@ -305,6 +315,7 @@
     "dismiss": "إغلاق",
     "dismissTitle": "إخفاء هذه الجلسة اليتيمة من القائمة (يبقى الحالة على القرص)",
     "view": "عرض",
+    "viewArchive": "عرض في الأرشيف",
     "reattachAll": "إعادة إرفاق الكل",
     "dismissAll": "إغلاق الكل"
   },
@@ -375,7 +386,56 @@
     "originTabsAria": "تصفية الجلسات حسب المصدر",
     "originTabUi": "واجهة المستخدم",
     "originTabProgrammatic": "برمجية",
-    "originTabRemote": "بعيد"
+    "originTabRemote": "بعيد",
+    "archive": "الأرشيف",
+    "archiveBack": "العودة إلى الجلسات",
+    "archiveFilterPlaceholder": "تصفية حسب اسم الجلسة",
+    "archiveLoading": "جارٍ تحميل الأرشيف…",
+    "archiveEmpty": "لا توجد جلسات مؤرشفة مطابقة.",
+    "archiveMessages": "{{count}} رسائل",
+    "archiveMessages_one": "رسالة واحدة",
+    "archiveStateReopenable": "قابلة لإعادة الفتح",
+    "archiveStateReadOnly": "للقراءة فقط",
+    "archiveStateNothing": "لا شيء لاستعادته",
+    "archiveSearchAll": "البحث في جميع الجلسات المؤرشفة وعددها {{count}}"
+  },
+  "archiveDrawer": {
+    "title": "أرشيف الجلسات",
+    "close": "إغلاق أرشيف الجلسات",
+    "searchPlaceholder": "البحث في نص الرسائل عبر الأرشيف",
+    "resultCounts": "{{messages}} رسالة · {{sessions}} جلسة",
+    "textSearch": "نصي",
+    "semanticSearch": "دلالي",
+    "semanticUnavailable": "البحث الدلالي غير متاح بعد. يستخدم البحث النصي الفهرس المحلي للنص الكامل.",
+    "allAgents": "كل الوكلاء",
+    "shell": "طرفية",
+    "anyTime": "أي وقت",
+    "last7Days": "آخر 7 أيام",
+    "last30Days": "آخر 30 يومًا",
+    "lastYear": "السنة الماضية",
+    "myMessages": "رسائلي",
+    "crashOrphans": "جلسات التعطل ({{count}})",
+    "resultsHeading": "نتائج الرسائل المؤرشفة",
+    "readerHeading": "نص مؤرشف للقراءة فقط",
+    "searchPrompt": "ابحث عن صياغة تتذكرها. النتائج رسائل وتظهر جلستها كسياق.",
+    "searching": "جارٍ البحث في الرسائل المؤرشفة…",
+    "noResults": "لا توجد رسائل مؤرشفة تطابق عوامل التصفية.",
+    "you": "أنت",
+    "archivedAt": "أُرشفت {{time}}",
+    "messageCount": "{{count}} رسالة",
+    "messageCount_one": "رسالة واحدة",
+    "state_reopenable": "قابلة لإعادة الفتح",
+    "state_read_only": "للقراءة فقط",
+    "state_nothing_to_restore": "لا شيء لاستعادته",
+    "reopen": "إعادة الفتح",
+    "reopening": "جارٍ إعادة الفتح…",
+    "reopenNextPhase": "إعادة الفتح غير متاحة في هذا الإصدار بعد",
+    "export": "تصدير",
+    "delete": "حذف",
+    "selectResult": "اختر نتيجة رسالة لقراءة نص جلستها.",
+    "deleteTitle": "حذف الجلسة المؤرشفة نهائيًا؟",
+    "deleteBody": "سيؤدي هذا إلى حذف {{name}} ونصها نهائيًا. لا يمكن التراجع.",
+    "deleteConfirm": "حذف نهائي"
   },
   "tabContextMenu": {
     "rename": "إعادة التسمية",
@@ -388,6 +448,7 @@
     "moveUp": "تحريك لأعلى",
     "moveDown": "تحريك لأسفل",
     "closeTab": "إغلاق التبويب",
+    "deletePermanently": "حذف نهائي",
     "copyDebugLog": "نسخ سجل التصحيح"
   },
   "terminalContextMenu": {
@@ -441,6 +502,7 @@
   },
   "messagesPane": {
     "copyMessageTitle": "نسخ الرسالة",
+    "sendToComposerTitle": "إرسال إلى محرر الجلسة النشطة",
     "viewAsPlainTextTitle": "عرض كنص عادي",
     "viewAsMarkdownTitle": "عرض كماركداون",
     "readFromHereTitle": "اقرأ من هنا",
@@ -569,6 +631,9 @@
       "defaultsHint": "تملأ هذه الافتراضيات مربع الإطلاق مسبقًا. يمكنك التجاوز لكل جلسة.",
       "defaultBackendLabel": "الخلفية الافتراضية:",
       "defaultTimeoutLabel": "المهلة الافتراضية:",
+      "archiveStorageTitle": "مساحة الأرشيف",
+      "archiveStorageSummary": "يستخدم {{count}} عنصرًا مؤرشفًا {{size}} للنصوص وبيانات الاستئناف.",
+      "archiveStorageLoading": "جارٍ قياس النصوص المؤرشفة وبيانات الاستئناف…",
       "openTerminals": "الطرفيات المفتوحة",
       "openTerminalsHint": "الجلسات عمليات من جانب الخادم. اللوحات هي عروضها في مساحة العمل.",
       "resetLayout": "إعادة تعيين التخطيط",

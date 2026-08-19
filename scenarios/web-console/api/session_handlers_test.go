@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"web-console/internal/audioports"
 	"web-console/internal/config"
@@ -23,7 +24,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 
+	sessionsH "web-console/handlers/sessions"
 	intsessions "web-console/internal/sessions"
+	"web-console/internal/sessionstore"
 	intworkspace "web-console/internal/workspace"
 
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
@@ -428,6 +431,307 @@ func TestHandleDeleteSession(t *testing.T) {
 
 	if _, ok := srv.sessions.Get(sess.ID); ok {
 		t.Error("session should not exist after delete")
+	}
+}
+
+func TestArchivePreservesTranscriptAndUnarchiveRestoresVisibility(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	srv.sessionStore = store
+	srv.sessions.SetStore(store)
+
+	sess, err := srv.sessions.Create(ctx, "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, result := srv.conversations.AppendUserEvent(ctx, sess.ID, "test", "keep this transcript"); !result.Appended {
+		t.Fatalf("append conversation: %+v", result)
+	}
+
+	h := sessionsH.NewConnectHandler(sessionsH.Deps{Service: &sessionsH.Adapter{
+		Manager:            srv.sessions,
+		Store:              store,
+		Idempotency:        srv.idempotency,
+		Events:             srv.events,
+		Metrics:            srv.metrics,
+		Conversations:      srv.conversations,
+		ArchiveGracePeriod: time.Hour,
+	}})
+	if _, err := h.Archive(ctx, connect.NewRequest(&sessionsv1.ArchiveRequest{Id: sess.ID})); err != nil {
+		t.Fatalf("archive: %v", err)
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, sess.ID); got != 1 {
+		t.Fatalf("conversation count after archive = %d, want 1", got)
+	}
+	meta, err := store.Get(ctx, sess.ID)
+	if err != nil || meta.ArchivedAt.IsZero() {
+		t.Fatalf("archived session row = %+v, err=%v", meta, err)
+	}
+	if listed, err := h.List(ctx, connect.NewRequest(&sessionsv1.ListRequest{})); err != nil || len(listed.Msg.GetSessions()) != 0 {
+		t.Fatalf("live listing after archive = %+v, err=%v", listed, err)
+	}
+
+	if _, err := h.Unarchive(ctx, connect.NewRequest(&sessionsv1.UnarchiveRequest{Id: sess.ID})); err != nil {
+		t.Fatalf("unarchive: %v", err)
+	}
+	meta, err = store.Get(ctx, sess.ID)
+	if err != nil || !meta.ArchivedAt.IsZero() {
+		t.Fatalf("unarchived session row = %+v, err=%v", meta, err)
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, sess.ID); got != 1 {
+		t.Fatalf("conversation count after unarchive = %d, want 1", got)
+	}
+	_ = srv.sessions.Delete(ctx, sess.ID)
+}
+
+func TestPermanentDeleteStillDestroysSessionAndTranscript(t *testing.T) { // [REQ:REQ-P0-003a]
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	srv.sessionStore = store
+	srv.sessions.SetStore(store)
+	sess, err := srv.sessions.Create(ctx, "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, result := srv.conversations.AppendAssistantEvent(ctx, sess.ID, "test", "delete this transcript"); !result.Appended {
+		t.Fatalf("append conversation: %+v", result)
+	}
+	if err := callDelete(t, srv, sess.ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, err := store.Get(ctx, sess.ID); err == nil {
+		t.Fatal("session row survived permanent deletion")
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, sess.ID); got != 0 {
+		t.Fatalf("conversation count after permanent delete = %d, want 0", got)
+	}
+}
+
+func TestPermanentDeleteDestroysArchivedPersistedSession(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	srv.sessionStore = store
+	srv.sessions.SetStore(store)
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "archived-only", Status: sessionstore.StatusDismissed, ArchivedAt: time.Now().UTC()}); err != nil {
+		t.Fatal(err)
+	}
+	if _, result := srv.conversations.AppendAssistantEvent(ctx, "archived-only", "test", "delete archived transcript"); !result.Appended {
+		t.Fatalf("append conversation: %+v", result)
+	}
+	if err := callDelete(t, srv, "archived-only"); err != nil {
+		t.Fatalf("delete archived: %v", err)
+	}
+	if _, err := store.Get(ctx, "archived-only"); err == nil {
+		t.Fatal("archived session row survived permanent deletion")
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, "archived-only"); got != 0 {
+		t.Fatalf("archived conversation count after permanent delete = %d", got)
+	}
+}
+
+func TestArchivePruneDefaultsToDryRunAndDeletesNothing(t *testing.T) {
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "dry-run-empty", ArchivedAt: old}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "legacy-visible-not-prunable", Status: sessionstore.StatusDismissed, Created: old}); err != nil {
+		t.Fatal(err)
+	}
+	adapter := &sessionsH.Adapter{
+		Manager: srv.sessions, Store: store, Conversations: srv.conversations,
+		Events: srv.events, Metrics: srv.metrics, Workspace: srv.workspace,
+		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
+			return sessionsH.ArchiveRetentionPolicy{MessageLessAge: 7 * 24 * time.Hour}
+		},
+	}
+
+	result, err := adapter.PruneArchive(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.DryRun || len(result.Actions) != 1 || result.Actions[0].Kind != sessionsH.PruneTranscript {
+		t.Fatalf("dry-run result = %+v", result)
+	}
+	if _, err := store.Get(ctx, "dry-run-empty"); err != nil {
+		t.Fatalf("dry run deleted archived row: %v", err)
+	}
+	snapshot, err := adapter.GetArchiveRetention(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Stats.EntryCount != 2 {
+		t.Fatalf("visible archive count = %d, want explicit + legacy entries", snapshot.Stats.EntryCount)
+	}
+	if _, err := store.Get(ctx, "legacy-visible-not-prunable"); err != nil {
+		t.Fatalf("legacy row was touched: %v", err)
+	}
+}
+
+func TestArchivePruneHomeFirstPreservesConversationAndDecaysRestoreState(t *testing.T) {
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	meta := sessionstore.Metadata{ID: "home-prune", AgentType: sessionstore.AgentCodex, AgentSessionID: "agent-1", ArchivedAt: old}
+	if err := store.Save(ctx, meta); err != nil {
+		t.Fatal(err)
+	}
+	if _, result := srv.conversations.AppendAssistantEvent(ctx, meta.ID, "test", "preserve me"); !result.Appended {
+		t.Fatalf("append: %+v", result)
+	}
+	historyPresent := true
+	adapter := &sessionsH.Adapter{
+		Manager: srv.sessions, Store: store, Conversations: srv.conversations,
+		Events: srv.events, Metrics: srv.metrics, Workspace: srv.workspace,
+		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
+			return sessionsH.ArchiveRetentionPolicy{AgentHomeAge: 7 * 24 * time.Hour}
+		},
+		AgentHistoryPresent: func(sessionstore.Metadata) bool { return historyPresent },
+		AgentHistorySize:    func(sessionstore.Metadata) (int64, error) { return 4096, nil },
+		PruneAgentHistory: func(sessionstore.Metadata) (int64, error) {
+			historyPresent = false
+			return 4096, nil
+		},
+	}
+
+	result, err := adapter.PruneArchive(ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.DryRun || len(result.Actions) != 1 || result.Actions[0].Kind != sessionsH.PruneAgentHome || !result.Actions[0].Applied {
+		t.Fatalf("apply result = %+v", result)
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, meta.ID); got != 1 {
+		t.Fatalf("conversation count after home prune = %d, want 1", got)
+	}
+	rows, err := adapter.ListArchived(ctx)
+	if err != nil || len(rows) != 1 || rows[0].RestoreState != sessionsH.RestoreStateReadOnly {
+		t.Fatalf("archive after home prune = %+v, err=%v", rows, err)
+	}
+}
+
+func TestArchivePruneDeletesOnlyOldMessageLessTranscripts(t *testing.T) {
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	for _, id := range []string{"old-empty", "old-with-message"} {
+		if err := store.Save(ctx, sessionstore.Metadata{ID: id, ArchivedAt: old}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, result := srv.conversations.AppendUserEvent(ctx, "old-with-message", "test", "do not delete"); !result.Appended {
+		t.Fatalf("append: %+v", result)
+	}
+	adapter := &sessionsH.Adapter{
+		Manager: srv.sessions, Store: store, Conversations: srv.conversations,
+		Events: srv.events, Metrics: srv.metrics, Workspace: srv.workspace,
+		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
+			return sessionsH.ArchiveRetentionPolicy{MessageLessAge: 7 * 24 * time.Hour}
+		},
+	}
+
+	if _, err := adapter.PruneArchive(ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Get(ctx, "old-empty"); err == nil {
+		t.Fatal("old message-less archive survived apply")
+	}
+	if _, err := store.Get(ctx, "old-with-message"); err != nil {
+		t.Fatalf("message-bearing archive was deleted: %v", err)
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, "old-with-message"); got != 1 {
+		t.Fatalf("message-bearing transcript count = %d, want 1", got)
+	}
+}
+
+func TestListArchivedCollapsesLineageAtNewestRow(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	archivedOld := time.Date(2026, 8, 18, 18, 0, 0, 0, time.UTC)
+	archivedNew := archivedOld.Add(time.Hour)
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "old", AgentType: sessionstore.AgentCodex, RecoveredInto: "new", ArchivedAt: archivedOld}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "new", AgentType: sessionstore.AgentCodex, ArchivedAt: archivedNew, LastRolloutPath: "/history/new"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, result := srv.conversations.AppendAssistantEvent(ctx, "new", "test", "newest transcript"); !result.Appended {
+		t.Fatalf("append: %+v", result)
+	}
+	if err := srv.workspace.UpsertPane(ctx, intworkspace.Pane{SessionID: "new", Name: "Newest pane", HeaderColor: "#123456"}); err != nil {
+		t.Fatal(err)
+	}
+	adapter := &sessionsH.Adapter{
+		Store: store, Conversations: srv.conversations, Workspace: srv.workspace,
+		AgentHistoryPresent: func(sessionstore.Metadata) bool { return true },
+	}
+	rows, err := adapter.ListArchived(ctx)
+	if err != nil {
+		t.Fatalf("list archived: %v", err)
+	}
+	if len(rows) != 1 || rows[0].ID != "new" || rows[0].MessageCount != 1 || rows[0].PaneName != "Newest pane" {
+		t.Fatalf("collapsed rows = %+v", rows)
+	}
+	if rows[0].RestoreState != sessionsH.RestoreStateReopenable {
+		t.Fatalf("restore state = %q", rows[0].RestoreState)
+	}
+}
+
+func TestListArchivedProjectsHonestNonReopenableStates(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	now := time.Date(2026, 8, 18, 19, 0, 0, 0, time.UTC)
+	_ = store.Save(ctx, sessionstore.Metadata{ID: "claude", AgentType: sessionstore.AgentClaude, ArchivedAt: now})
+	_ = store.Save(ctx, sessionstore.Metadata{ID: "shell", AgentType: sessionstore.AgentNone, ArchivedAt: now.Add(-time.Minute)})
+	if _, result := srv.conversations.AppendUserEvent(ctx, "claude", "test", "preserved"); !result.Appended {
+		t.Fatalf("append: %+v", result)
+	}
+	adapter := &sessionsH.Adapter{Store: store, Conversations: srv.conversations}
+	rows, err := adapter.ListArchived(ctx)
+	if err != nil {
+		t.Fatalf("list archived: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("rows = %+v", rows)
+	}
+	byID := map[string]sessionsH.ArchivedSession{}
+	for _, row := range rows {
+		byID[row.ID] = row
+	}
+	claude := byID["claude"]
+	if claude.RestoreState != sessionsH.RestoreStateReadOnly || claude.RestoreStateReason != "claude session id is required (resuming the wrong project is unsafe)" {
+		t.Fatalf("claude projection = %+v", claude)
+	}
+	shell := byID["shell"]
+	if shell.RestoreState != sessionsH.RestoreStateNothingToRestore || shell.RestoreStateReason == "" {
+		t.Fatalf("shell projection = %+v", shell)
+	}
+}
+
+func TestListArchivedMarksCrashOrphans(t *testing.T) {
+	ctx := context.Background()
+	store := sessionstore.NewInMemory()
+	if err := store.Save(ctx, sessionstore.Metadata{
+		ID: "crash-orphan", AgentType: sessionstore.AgentCodex,
+		Status: sessionstore.StatusAwaitingRecovery, OrphanedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := (&sessionsH.Adapter{Store: store}).ListArchived(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || !rows[0].AwaitingRecovery {
+		t.Fatalf("archive crash marker = %+v", rows)
 	}
 }
 

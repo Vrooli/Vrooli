@@ -165,6 +165,9 @@ const mockStoreState = {
   settingsModalOpen: false,
   aiModalOpen: false,
   groups: [],
+  sidebarView: "list" as const,
+  sidebarSortMode: "manual" as const,
+  sidebarOriginTab: "ui" as const,
   plusButtonBehavior: "launcher",
   defaultHeaderColor: "transparent",
   defaultThemeId: "default",
@@ -191,6 +194,9 @@ const mockStoreActions = {
   setSettingsModalOpen: vi.fn(),
   setAiModalOpen: vi.fn(),
   setTabContextMenu: vi.fn(),
+  setSidebarView: vi.fn(),
+  setSidebarSortMode: vi.fn(),
+  setSidebarOriginTab: vi.fn(),
   resetLayout: vi.fn(),
 };
 

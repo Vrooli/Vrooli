@@ -524,7 +524,7 @@ extraction prep.
 
 ## Work ladder
 
-- Rung: W0 (goal/problem contract comparison)
-- Evidence: The nearest indexed goals are `hosted-cloud-tier-foundation` and `portal-front-door`; neither names this plan's browser audio extraction scope. Web-console scope remains limited to its shared-package adapter and validation obligations.
-- Constraint: Existing web-console documentation-health failures remain separately recorded and are not reinterpreted as audio extraction requirements.
-- Measured: 2026-08-03.
+- Rung: W3 (implementation)
+- Evidence: W0 comparison remains aligned: goals `hosted-cloud-tier-foundation` and `portal-front-door` do not contradict the archive plan, while `OT-P0-003` and `OT-P0-008` require durable session continuity and drawer controls. W1 passes with `business-health validate scenario web-console`; W2 passes with `vrooli scenario requirements validate web-console`, both with zero findings after repairing legacy statuses, stale validation refs, orphan targets, and the missing remote-terminal target. The archive implementation itself does not yet exist.
+- Blocker: none; proceed through the scenario maturity ladder while implementing the archive plan.
+- Measured: 2026-08-18.

@@ -32,6 +32,23 @@ Every HTTP and WebSocket endpoint exposed by the web-console API. Routes are reg
 
 Recovery contract and state machine: [Session Recovery guide](../guides/SESSION_RECOVERY.md).
 
+### Archive and recovery RPCs
+
+These Connect-RPC methods are defined by `SessionsService` and `ConversationService`:
+
+| Service method | Behavior |
+|---|---|
+| `SessionsService.Archive` | Sets `archived_at`, stops the session process, and preserves the row, pane metadata, and conversation. |
+| `SessionsService.Unarchive` | Clears `archived_at` during the close undo window. It does not create a replacement session. |
+| `SessionsService.ListArchived` | Returns collapsed archive lineages, restore state, storage context, and the `awaiting_recovery` marker. |
+| `SessionsService.Reopen` | Reuses the recovery workflow for a deliberate archive. `X-Idempotency-Key` makes ambiguous retries replay-safe. |
+| `SessionsService.GetArchiveRetention` | Returns retention policy plus measured transcript and agent-history bytes. |
+| `SessionsService.PruneArchive` | Reports a dry run by default. `apply=true` executes only the returned eligible actions. |
+| `ConversationService.SearchArchived` | Uses the FTS5 index to return message hits across archived lineages. |
+| `ConversationService.GetRange` | Returns a bounded conversation range for the read-only archive reader and export. |
+
+`SessionsService.Delete` remains the explicit permanent-delete operation. UI callers expose it only through a destructive confirmation.
+
 **Create provenance & launch fields.** `CreateRequest` (proto `web-console/v1/sessions`) carries provenance and launch intent alongside the shell/backend fields:
 
 - `origin` (`SessionOrigin`): who opened the session. The taxonomy is `SESSION_ORIGIN_UI` (human-opened browser tab), `SESSION_ORIGIN_PROGRAMMATIC` (agent/CLI caller), and `SESSION_ORIGIN_REMOTE`. `SESSION_ORIGIN_UNSPECIFIED` is **normalized to `SESSION_ORIGIN_PROGRAMMATIC`** on create — every first-party UI client sets `UI` explicitly, so an origin-less create can only have come from a programmatic caller. Persisted to `sessions.origin`.

@@ -34,6 +34,8 @@ async function flushHydration() {
 vi.mock("../api/sessions", () => ({
   createSession: vi.fn(),
   listSessions: vi.fn(),
+  archiveSession: vi.fn(),
+  unarchiveSession: vi.fn(),
   deleteSession: vi.fn(),
 }));
 
@@ -58,6 +60,8 @@ describe("useSessionManager", () => {
   let mockCreateSession: ReturnType<typeof vi.fn>;
   let mockListSessions: ReturnType<typeof vi.fn>;
   let mockDeleteSession: ReturnType<typeof vi.fn>;
+  let mockArchiveSession: ReturnType<typeof vi.fn>;
+  let mockUnarchiveSession: ReturnType<typeof vi.fn>;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
@@ -67,6 +71,8 @@ describe("useSessionManager", () => {
     mockCreateSession = api.createSession as ReturnType<typeof vi.fn>;
     mockListSessions = api.listSessions as ReturnType<typeof vi.fn>;
     mockDeleteSession = api.deleteSession as ReturnType<typeof vi.fn>;
+    mockArchiveSession = api.archiveSession as ReturnType<typeof vi.fn>;
+    mockUnarchiveSession = api.unarchiveSession as ReturnType<typeof vi.fn>;
     mockListSessions.mockResolvedValue([]);
   });
 
@@ -215,10 +221,10 @@ describe("useSessionManager", () => {
     expect(result.current.isCreating).toBe(false);
   });
 
-  it("removes a pane and calls deleteSession", async () => {
+  it("archives a pane without calling permanent delete", async () => {
     const mockSession = { id: "sess-1", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
     mockCreateSession.mockResolvedValueOnce(mockSession);
-    mockDeleteSession.mockResolvedValueOnce(undefined);
+    mockArchiveSession.mockResolvedValueOnce(undefined);
 
     const { result } = renderHook(() => useSessionManager());
 
@@ -232,7 +238,8 @@ describe("useSessionManager", () => {
     });
 
     expect(result.current.panes).toHaveLength(0);
-    expect(mockDeleteSession).toHaveBeenCalledWith("sess-1");
+    expect(mockArchiveSession).toHaveBeenCalledWith("sess-1");
+    expect(mockDeleteSession).not.toHaveBeenCalled();
   });
 
   it("clears error on demand", async () => {
@@ -265,26 +272,27 @@ describe("useSessionManager", () => {
     expect(result.current.panes).toHaveLength(2);
   });
 
-  it("removePane handles already-dead sessions", async () => {
+  it("keeps the pane visible when archive fails", async () => {
     const mockSession = { id: "sess-1", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
     mockCreateSession.mockResolvedValueOnce(mockSession);
-    mockDeleteSession.mockRejectedValueOnce(new Error("session already dead"));
+    mockArchiveSession.mockRejectedValueOnce(new Error("session already dead"));
 
     const { result } = renderHook(() => useSessionManager());
 
     await act(async () => { await result.current.launchSession(); });
 
-    // Should not throw even if deleteSession fails
+    let outcome: string | undefined;
     await act(async () => {
-      await result.current.removePane("sess-1");
+      outcome = await result.current.removePane("sess-1");
     });
-    expect(result.current.panes).toHaveLength(0);
+    expect(outcome).toBe("failed");
+    expect(result.current.panes).toHaveLength(1);
   });
 
   it("removePane removes pane from list", async () => {
     const mockSession = { id: "sess-1", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
     mockCreateSession.mockResolvedValueOnce(mockSession);
-    mockDeleteSession.mockResolvedValueOnce(undefined);
+    mockArchiveSession.mockResolvedValueOnce(undefined);
 
     const { result } = renderHook(() => useSessionManager());
 
@@ -293,6 +301,22 @@ describe("useSessionManager", () => {
 
     await act(async () => { await result.current.removePane("sess-1"); });
     expect(result.current.panes).toHaveLength(0);
+  });
+
+  it("undoes an archive without creating or deleting a session", async () => {
+    const mockSession = { id: "sess-1", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
+    mockCreateSession.mockResolvedValueOnce(mockSession);
+    mockArchiveSession.mockResolvedValueOnce(undefined);
+    mockUnarchiveSession.mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() => useSessionManager());
+
+    await act(async () => { await result.current.launchSession(); });
+    await act(async () => { await result.current.removePane("sess-1"); });
+    await act(async () => { expect(await result.current.undoArchive("sess-1")).toBe(true); });
+
+    expect(result.current.panes).toHaveLength(1);
+    expect(mockUnarchiveSession).toHaveBeenCalledWith("sess-1");
+    expect(mockDeleteSession).not.toHaveBeenCalled();
   });
 
   it("launches with execute_launch_command so the server runs the command once", async () => {

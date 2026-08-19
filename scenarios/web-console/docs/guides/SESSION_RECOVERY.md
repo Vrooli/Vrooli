@@ -2,10 +2,11 @@
 
 Web-console persists every `backend=persistent` pane behind a tmux session. The persisted **DB row** is what makes recovery possible — once it is gone, the on-disk codex/claude history has no DB pointer back to the pane it belonged to.
 
-There are two recovery modes:
+There are three continuity modes:
 
 - **Normal restart recovery (automatic).** API restarts but the host and tmux server stay alive. `Recover()` re-attaches to surviving `wc-<id>` tmux sessions, status stays `live`, the user sees no interruption.
 - **Crash recovery (one CLI call).** Host reboot, tmux scope kill, OOM, or manual `tmux -L wc kill-server`. The tmux session is gone but the DB row is preserved with `status='awaiting_recovery'`, agent identity (`agent_type`, `agent_session_id`, `cwd`, `last_rollout_path`), and `orphaned_at`. Run `web-console session recover <id>` to spawn a fresh persistent pane, copy the per-session `CODEX_HOME`, carry over the prior conversation history, and paste the resume command.
+- **Deliberate archive and reopen.** Closing a pane sets `archived_at`, stops its process, and preserves its row, pane identity, and conversation. The archive drawer searches retained messages and shows whether the entry is `Reopenable`, `Read-only`, or has `Nothing to restore`. Reopen uses the same recovery workflow and idempotency contract as crash recovery.
 
 This guide covers the supported (CLI-driven) flow. The legacy manual procedure lives in the appendix for the case where the API itself is broken.
 
@@ -61,9 +62,19 @@ To drop an orphan you don't want to recover (UI noise reduction, on-disk state i
 web-console session dismiss 8a10aa94-29d1-472d-a910-7a5548a7ca35
 ```
 
-## UI Surface
+## Archive and recovery UI
 
-When the API has any `awaiting_recovery` rows, the workspace shows a compact amber summary above the tab strip. Select **View** to open a drawer containing each orphan's pane name, header color, group, agent, and working directory. **Reattach all** processes rows sequentially and continues after an individual failure; every row uses a stable `X-Idempotency-Key`, so an ambiguous network retry cannot create a duplicate replacement pane. Claude rows without a known `agent_session_id` render with `Reattach` disabled — `claude --resume` against the wrong project is unsafe and not auto-guessed.
+The session close control archives and offers Undo for approximately eight seconds. The sidebar's pinned Archive row opens a recent-session name filter. The full archive drawer searches message text across all archived lineages, opens the selected transcript read-only, exports it, and can stage a message into the active live composer.
+
+Each entry declares one restore state before the operator acts:
+
+| State | Meaning |
+|---|---|
+| `Reopenable` | Agent identity and exact session-owned history are available. |
+| `Read-only` | The conversation is intact, but agent history was pruned or was never recorded. |
+| `Nothing to restore` | No resumable agent and no captured messages exist. |
+
+When the API has `awaiting_recovery` rows, the workspace shows a compact amber count above the tab strip. Select **View in archive** to open the archive drawer with the Crash orphans filter selected. The drawer is the only surface that lists or acts on crash orphans. **Reattach all** processes rows sequentially and continues after an individual failure; every row uses a stable `X-Idempotency-Key`, so an ambiguous network retry cannot create a duplicate replacement pane. Rows without safe recovery identity render with `Reattach` disabled and explain why.
 
 Recovery moves the original workspace-pane record to the replacement session in the same SQLite transaction: name, header color, group, ordering, active state, theme, font size, and message-view capability are retained. The replacement inherits the original working directory as well.
 
@@ -79,27 +90,34 @@ Recovery moves the original workspace-pane record to the replacement session in 
 | Web-console tmux socket | `tmux -L wc ...` |
 | Tmux session name | `wc-<web-console-session-id>` |
 
-## Status state machine
+## Session lifecycle
 
 ```
-            create (UI/CLI)
-                  │
-                  ▼
-                live ─── delete by user ──► gone
-                  │
-                  │ tmux missing on Recover()
-                  ▼
-         awaiting_recovery
-                  │
-        ┌─────────┼──────────────┐
-        │         │              │
-   recover    dismiss     tmux reappears + Recover()
-        │         │              │
-        ▼         ▼              ▼
-   dismissed dismissed         live
+                      create (UI/CLI)
+                             │
+                             ▼
+                           live ─── close ───► archived
+                             │                   │
+              tmux missing on startup       reopen
+                             │                   │
+                             ▼                   ▼
+                    awaiting_recovery ────────► live
+                       │           │
+                    dismiss     reattach
+                       │           │
+                       ▼           ▼
+                    archived      live
+
+        any retained state ── confirmed permanent delete ──► gone
 ```
 
-Only `Recover()` and the recovery endpoints transition status. Application code never deletes a `detached=1` row directly.
+`archived_at` is independent of `status`: deliberate archive uses the timestamp, while crash recovery uses `awaiting_recovery`. Dismiss makes a crash orphan an ordinary retained archive. Reopen and Reattach both use the recovery implementation, copy the conversation to a replacement session, and link the old row through `recovered_into`; archive listing collapses that lineage to one entry.
+
+## Retention
+
+Archive retention is unlimited by default. `web-console session archive-retention` reports the current policy and measured storage. `web-console session archive-prune` is a dry run; use `--apply` only after reviewing its actions.
+
+Configured retention prunes exact session-owned agent history before transcript rows. This preserves search and moves an entry from `Reopenable` to `Read-only`. It can permanently delete a transcript only when the entry has no messages, has an explicit `archived_at`, and exceeds `WC_ARCHIVE_MESSAGELESS_AGE_DAYS`. `WC_ARCHIVE_AGENT_HOME_AGE_DAYS` controls history age and `WC_ARCHIVE_MAX_BYTES` is a soft total-size ceiling; zero disables each limit.
 
 ## How agent identity is captured
 
