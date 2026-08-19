@@ -8,7 +8,6 @@ import { getVoiceStreamConfig, getWakeWordConfig, transcribeAudio, transcribeAud
 import { createAudioFilterChain } from "./hooks/voice/audioUtils";
 import { playRecordingStartCue, playRecordingStopCue } from "./hooks/voice/audioCues";
 import { WhisperProvider } from "./hooks/voice/WhisperProvider";
-import { WebSpeechProvider } from "./hooks/voice/WebSpeechProvider";
 import { PcmVoiceStreamProvider } from "./hooks/voice/PcmVoiceStreamProvider";
 
 // HOST DIFFERENCE: narrow swarm adapter for its API/proto clients and browser
@@ -26,7 +25,6 @@ export const voiceCoreServices: VoiceCoreServices = {
   playRecordingStartCue,
   playRecordingStopCue,
   WhisperProvider,
-  WebSpeechProvider,
   bytesToFeatures,
   createWakeWordEngine,
   PassiveListener,

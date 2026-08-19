@@ -225,9 +225,9 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
 		ProfileName: getEnvDefault("AGENT_MANAGER_PROFILE_NAME", "swarm-manager"),
 		ProfileKey:  getEnvDefault("AGENT_MANAGER_PROFILE_KEY", "swarm-manager/default"),
-		// swarm-manager/session is required so a missing or unreconciled session
-		// profile fails loudly at startup, rather than at the moment an operator
-		// sends their first message and the spawn is refused.
+		// swarm-manager/session is required before a spawn can be dispatched. The
+		// API still boots when agent-manager is starting; profile reconciliation
+		// below retries until the dependency is ready.
 		RequiredKeys: []string{"swarm-manager/analysis", "swarm-manager/deep-work", "swarm-manager/session"},
 		Timeout:      30 * time.Second,
 		Enabled:      agentEnabled,
@@ -1106,12 +1106,7 @@ func main() {
 	}
 
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
-		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		if err := srv.agentSvc.Initialize(initCtx); err != nil {
-			cancel()
-			log.Fatalf("failed to initialize agent-manager profiles: %v", err)
-		}
-		cancel()
+		go initializeAgentManagerProfiles(srv.agentSvc)
 	}
 
 	srv.startAISearchBackground()
@@ -1144,6 +1139,27 @@ func main() {
 	close(srv.aiSearchStopChan)
 	close(srv.autoFilerStopChan)
 	close(srv.transitionSweepStop)
+}
+
+// initializeAgentManagerProfiles keeps the API available while the required
+// agent-manager dependency completes its own startup sweep. A transient
+// discovery failure must not turn a dependency-start race into a scenario
+// health failure; handlers that need agent-manager remain unavailable until
+// the profile mapping is reconciled.
+func initializeAgentManagerProfiles(svc *agentmanager.AgentService) {
+	const retryDelay = 5 * time.Second
+
+	for {
+		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		err := svc.Initialize(initCtx)
+		cancel()
+		if err == nil {
+			return
+		}
+
+		slog.Warn("agent-manager profile initialization deferred", "err", err, "retry_after", retryDelay)
+		time.Sleep(retryDelay)
+	}
 }
 
 // startAISearchBackground kicks off two background tasks for aisearch:

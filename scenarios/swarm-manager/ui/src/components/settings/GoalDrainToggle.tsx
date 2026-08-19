@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActionMutation } from "../../hooks/useActionMutation";
 import { Card } from "../ui/card";
 import { defaultQueryOptions } from "../../lib";
-import { autoDrainService } from "../../services/auto-drain-service";
+import { autoDrainService, type AutoDrainState } from "../../services/auto-drain-service";
 import { ToggleButtons } from "./ToggleButtons";
 
 const AUTO_DRAIN_QUERY_KEY = ["auto-drain"] as const;
@@ -30,7 +30,7 @@ export function GoalDrainToggle() {
     // the switch reverts and the operator assumes they mis-tapped.
     successMessage: (_next, enabled) => enabled ? "Goal-directed execution on" : "Goal-directed execution off",
     source: "GoalDrainToggle.set",
-    onSuccess: (next) => queryClient.setQueryData(AUTO_DRAIN_QUERY_KEY, next),
+    onSuccess: (next) => queryClient.setQueryData<AutoDrainState>(AUTO_DRAIN_QUERY_KEY, next),
   });
 
   const enabled = data?.enabled ?? false;

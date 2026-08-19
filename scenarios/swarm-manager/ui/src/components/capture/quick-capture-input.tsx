@@ -99,6 +99,7 @@ export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
         isSubmitting={isSubmitting}
         placeholder="What's on your mind?"
         submitLabel="Send capture"
+        testId={selectors.captures.quickComposer}
         inputTestId={selectors.captures.quickInputSubmit}
         attachTestId={selectors.captures.quickInputAttach}
         submitTestId={selectors.captures.quickInputSend}
@@ -115,6 +116,7 @@ export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
             : undefined
         }
         canSubmit={Boolean(canSubmit)}
+        micTestId={selectors.captures.quickInputMic}
         onTranscript={(transcribed) => setText((prev) => (prev ? prev.trimEnd() + " " : "") + transcribed)}
       />
 

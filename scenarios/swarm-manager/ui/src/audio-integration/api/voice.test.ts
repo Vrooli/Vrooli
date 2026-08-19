@@ -94,6 +94,15 @@ describe("strategyPreferenceLabel", () => {
   });
 });
 
+describe("buildVoiceStreamWsUrl", () => {
+  it("removes the Connect API version suffix before appending the raw stream route", async () => {
+    const { buildVoiceStreamWsUrl } = await import("./voice");
+    const url = buildVoiceStreamWsUrl("en", "session-1", "resume-1");
+    expect(url).toBe("ws://test/ws/voice/stream?format=pcm_s16le&language=en&protocol_version=2&session_id=session-1&resume_token=resume-1");
+    expect(url).not.toContain("/api/v1/api/v1/");
+  });
+});
+
 describe("getVoiceStreamConfig", () => {
   beforeEach(() => {
     getMock.mockReset();

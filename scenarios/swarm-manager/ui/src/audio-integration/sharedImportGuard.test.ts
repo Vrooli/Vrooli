@@ -41,7 +41,6 @@ describe("shared audio substrate boundary", () => {
       "voiceCoreServices.ts",
       "hooks/useVoiceCore.ts",
       "hooks/voice/WhisperProvider.ts",
-      "hooks/voice/WebSpeechProvider.ts",
     ];
     for (const relativePath of hostSpecific) {
       expect(readFileSync(join(AUDIO_ROOT, relativePath), "utf8"), relativePath).toContain("HOST DIFFERENCE:");

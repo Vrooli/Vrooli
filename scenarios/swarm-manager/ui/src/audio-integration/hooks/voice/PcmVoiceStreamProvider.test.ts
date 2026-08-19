@@ -38,12 +38,13 @@ vi.mock("@vrooli/audio-capture-browser", async (importOriginal) => {
     onError?: (code: string, text: string) => void;
   }) => {
     const message = JSON.parse(raw) as { type: string; code?: string; text?: string; processedSequence?: number };
-    if (message.type === "status") handlers.onStatus?.(message.code ?? "stream_status", message.text ?? "Streaming transcription status updated.", message.processedSequence === undefined ? undefined : BigInt(message.processedSequence));
+    if (message.type === "status") handlers.onStatus?.(message.code ?? "stream_status", message.text ?? "", message.processedSequence === undefined ? undefined : BigInt(message.processedSequence));
     else if (message.type === "final") handlers.onFinal?.(message.text?.trim() ?? "");
     else if (message.type === "error") handlers.onError?.(message.code ?? "provider_failure", message.text ?? "Streaming provider failed.");
   },
   TurnJournal: class TurnJournal {
     restore = async () => ({ nextSequence: 0n, nextSample: 0n });
+    read = () => ({ retainedBytes: 0 });
     append = core.append;
     acknowledgeProcessed = core.acknowledge;
     replayAfter = () => [];

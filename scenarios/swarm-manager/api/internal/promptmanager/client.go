@@ -4,19 +4,23 @@
 package promptmanager
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	experimentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments"
+	experimentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments/experiments_v1connect"
+	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
+	skillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills/skills_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // ReadSkillResult holds the content and optional variant selection from a prompt-manager read.
@@ -171,385 +175,222 @@ type readResponse struct {
 
 // ReadSkill fetches a single skill from prompt-manager with variable substitution.
 func (c *HTTPClient) ReadSkill(ctx context.Context, skillID string, variables map[string]string, withScope bool) (string, error) {
-	baseURL, err := c.baseURLResolver(ctx)
+	resp, err := c.readSkills(ctx, &skillsv1.ReadSkillsRequest{Identifiers: []string{skillID}, Variables: variables, Output: "combined", WithScope: withScope})
 	if err != nil {
-		return "", fmt.Errorf("promptmanager: resolve URL: %w", err)
+		return "", err
 	}
-
-	reqBody := readRequest{
-		Identifiers: []string{skillID},
-		Variables:   variables,
-		Output:      "combined",
-		WithScope:   withScope,
-	}
-
-	body, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", fmt.Errorf("promptmanager: marshal request: %w", err)
-	}
-
-	url := baseURL + "/api/v1/skills/read"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("promptmanager: create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("promptmanager: request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var readResp readResponse
-	if err := json.NewDecoder(resp.Body).Decode(&readResp); err != nil {
-		return "", fmt.Errorf("promptmanager: decode response: %w", err)
-	}
-
-	return readResp.Combined, nil
+	return resp.GetCombined(), nil
 }
 
 func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID string, _ []string) (SkillSourceSnapshot, error) {
-	baseURL, err := c.baseURLResolver(ctx)
+	readResp, err := c.readSkills(ctx, &skillsv1.ReadSkillsRequest{Identifiers: []string{skillID}, Output: "both"})
 	if err != nil {
-		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: resolve URL: %w", err)
+		return SkillSourceSnapshot{}, err
 	}
-	reqBody := readRequest{
-		Identifiers: []string{skillID},
-		Output:      "both",
-	}
-	body, err := json.Marshal(reqBody)
-	if err != nil {
-		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: marshal source request: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/skills/read", bytes.NewReader(body))
-	if err != nil {
-		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: create source request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: source request failed: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: source status %d: %s", resp.StatusCode, string(respBody))
-	}
-	var readResp readResponse
-	if err := json.NewDecoder(resp.Body).Decode(&readResp); err != nil {
-		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: decode source response: %w", err)
-	}
-	if len(readResp.Skills) != 1 || strings.TrimSpace(readResp.Combined) == "" || strings.TrimSpace(readResp.CombinedHash) == "" {
+	if len(readResp.GetSkills()) != 1 || strings.TrimSpace(readResp.GetCombined()) == "" || strings.TrimSpace(readResp.GetCombinedHash()) == "" {
 		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: source response for %q is incomplete", skillID)
 	}
-	skill := readResp.Skills[0]
-	variables := make([]string, 0, len(skill.Variables))
-	for _, variable := range skill.Variables {
-		if name := strings.TrimSpace(variable.Name); name != "" {
+	skill := readResp.GetSkills()[0]
+	variables := make([]string, 0, len(skill.GetVariables()))
+	for _, variable := range skill.GetVariables() {
+		if name := strings.TrimSpace(variable.GetName()); name != "" {
 			variables = append(variables, name)
 		}
 	}
 	sort.Strings(variables)
-	variant := strings.TrimSpace(readResp.SelectedVariantID)
+	variant := strings.TrimSpace(readResp.GetSelectedVariantId())
 	if variant == "" {
 		variant = "control"
 	}
 	return SkillSourceSnapshot{
-		SkillID: skill.ID, Revision: skill.Revision, SelectedVariantID: variant,
-		Content: readResp.Combined, ContentHash: readResp.CombinedHash, TemplateVariables: variables,
+		SkillID: skill.GetId(), Revision: int(skill.GetRevision()), SelectedVariantID: variant,
+		Content: readResp.GetCombined(), ContentHash: readResp.GetCombinedHash(), TemplateVariables: variables,
 	}, nil
 }
 
 // ReadSkillWithExperiment fetches a skill from prompt-manager with experiment-based variant selection.
 func (c *HTTPClient) ReadSkillWithExperiment(ctx context.Context, skillID string, variables map[string]string, withScope bool, experimentID string) (ReadSkillResult, error) {
-	baseURL, err := c.baseURLResolver(ctx)
+	readResp, err := c.readSkills(ctx, &skillsv1.ReadSkillsRequest{Identifiers: []string{skillID}, Variables: variables, Output: "combined", WithScope: withScope, ExperimentId: experimentID})
 	if err != nil {
-		return ReadSkillResult{}, fmt.Errorf("promptmanager: resolve URL: %w", err)
+		return ReadSkillResult{}, err
 	}
-
-	reqBody := readRequest{
-		Identifiers:  []string{skillID},
-		Variables:    variables,
-		Output:       "combined",
-		WithScope:    withScope,
-		ExperimentID: experimentID,
-	}
-
-	body, err := json.Marshal(reqBody)
-	if err != nil {
-		return ReadSkillResult{}, fmt.Errorf("promptmanager: marshal request: %w", err)
-	}
-
-	reqURL := baseURL + "/api/v1/skills/read"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(body))
-	if err != nil {
-		return ReadSkillResult{}, fmt.Errorf("promptmanager: create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return ReadSkillResult{}, fmt.Errorf("promptmanager: request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return ReadSkillResult{}, fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var readResp readResponse
-	if err := json.NewDecoder(resp.Body).Decode(&readResp); err != nil {
-		return ReadSkillResult{}, fmt.Errorf("promptmanager: decode response: %w", err)
-	}
-
 	return ReadSkillResult{
-		Content:   readResp.Combined,
-		VariantID: readResp.SelectedVariantID,
+		Content:   readResp.GetCombined(),
+		VariantID: readResp.GetSelectedVariantId(),
 	}, nil
 }
 
 // RecordExperimentOutcome posts an outcome to prompt-manager for an experiment.
 func (c *HTTPClient) RecordExperimentOutcome(ctx context.Context, experimentID string, outcome ExperimentOutcomeRequest) error {
-	baseURL, err := c.baseURLResolver(ctx)
+	client, err := c.experimentsClient(ctx)
 	if err != nil {
-		return fmt.Errorf("promptmanager: resolve URL: %w", err)
+		return err
 	}
-
-	body, err := json.Marshal(outcome)
+	data, err := rawJSONValue(outcome.Data)
 	if err != nil {
-		return fmt.Errorf("promptmanager: marshal outcome: %w", err)
+		return fmt.Errorf("promptmanager: encode outcome data: %w", err)
 	}
-
-	reqURL := baseURL + "/api/v1/experiments/" + url.PathEscape(strings.TrimSpace(experimentID)) + "/outcomes"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(body))
+	_, err = client.RecordOutcome(ctx, connect.NewRequest(&experimentsv1.RecordOutcomeRequest{
+		ExperimentId: strings.TrimSpace(experimentID), VariantId: outcome.VariantID,
+		Source: outcome.Source, SchemaVersion: int32(outcome.SchemaVersion), Data: data,
+	}))
 	if err != nil {
-		return fmt.Errorf("promptmanager: create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("promptmanager: request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
+		return fmt.Errorf("promptmanager: record experiment outcome: %w", err)
 	}
 	return nil
 }
 
 // ListExperimentOutcomes fetches raw outcomes for an experiment from prompt-manager.
 func (c *HTTPClient) ListExperimentOutcomes(ctx context.Context, experimentID string) ([]json.RawMessage, error) {
-	baseURL, err := c.baseURLResolver(ctx)
+	client, err := c.experimentsClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("promptmanager: resolve URL: %w", err)
+		return nil, err
 	}
-
-	reqURL := baseURL + "/api/v1/experiments/" + url.PathEscape(strings.TrimSpace(experimentID)) + "/outcomes"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	resp, err := client.ListOutcomes(ctx, connect.NewRequest(&experimentsv1.ListOutcomesRequest{ExperimentId: strings.TrimSpace(experimentID)}))
 	if err != nil {
-		return nil, fmt.Errorf("promptmanager: create request: %w", err)
+		return nil, fmt.Errorf("promptmanager: list experiment outcomes: %w", err)
 	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("promptmanager: request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result []json.RawMessage
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("promptmanager: decode response: %w", err)
+	result := make([]json.RawMessage, 0, len(resp.Msg.GetOutcomes()))
+	for _, outcome := range resp.Msg.GetOutcomes() {
+		raw, marshalErr := protojson.Marshal(outcome)
+		if marshalErr != nil {
+			return nil, fmt.Errorf("promptmanager: encode experiment outcome: %w", marshalErr)
+		}
+		result = append(result, raw)
 	}
 	return result, nil
 }
 
 // ListSkills fetches prompt-manager skill metadata with optional tag filtering.
 func (c *HTTPClient) ListSkills(ctx context.Context, tag string) ([]PromptSkill, error) {
-	baseURL, err := c.baseURLResolver(ctx)
+	client, err := c.skillsClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("promptmanager: resolve URL: %w", err)
+		return nil, err
 	}
-
-	query := ""
-	trimmedTag := strings.TrimSpace(tag)
-	if trimmedTag != "" {
-		query = "?tag=" + url.QueryEscape(trimmedTag)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/skills"+query, nil)
+	resp, err := client.ListSkills(ctx, connect.NewRequest(&skillsv1.ListSkillsRequest{Tag: strings.TrimSpace(tag)}))
 	if err != nil {
-		return nil, fmt.Errorf("promptmanager: create request: %w", err)
+		return nil, fmt.Errorf("promptmanager: list skills: %w", err)
 	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("promptmanager: request failed: %w", err)
+	var envelope struct {
+		Skills []PromptSkill `json:"skills"`
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
+	if err := protoConvert(resp.Msg, &envelope); err != nil {
+		return nil, err
 	}
-
-	var result []PromptSkill
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("promptmanager: decode response: %w", err)
-	}
-	return result, nil
+	return envelope.Skills, nil
 }
 
 // GetSkill fetches full details for a single skill.
 func (c *HTTPClient) GetSkill(ctx context.Context, skillID string) (PromptSkill, error) {
-	baseURL, err := c.baseURLResolver(ctx)
+	client, err := c.skillsClient(ctx)
 	if err != nil {
-		return PromptSkill{}, fmt.Errorf("promptmanager: resolve URL: %w", err)
+		return PromptSkill{}, err
 	}
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		baseURL+"/api/v1/skills/"+url.PathEscape(strings.TrimSpace(skillID)),
-		nil,
-	)
+	resp, err := client.GetSkill(ctx, connect.NewRequest(&skillsv1.GetSkillRequest{Id: strings.TrimSpace(skillID)}))
 	if err != nil {
-		return PromptSkill{}, fmt.Errorf("promptmanager: create request: %w", err)
+		return PromptSkill{}, fmt.Errorf("promptmanager: get skill: %w", err)
 	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return PromptSkill{}, fmt.Errorf("promptmanager: request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return PromptSkill{}, fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
-	}
-
 	var result PromptSkill
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return PromptSkill{}, fmt.Errorf("promptmanager: decode response: %w", err)
+	if err := protoConvert(resp.Msg.GetSkill(), &result); err != nil {
+		return PromptSkill{}, err
 	}
 	return result, nil
 }
 
 // UpdateSkill applies a partial update to a skill and returns the updated record.
 func (c *HTTPClient) UpdateSkill(ctx context.Context, skillID string, patch PromptSkillUpdate) (PromptSkill, error) {
-	baseURL, err := c.baseURLResolver(ctx)
+	client, err := c.skillsClient(ctx)
 	if err != nil {
-		return PromptSkill{}, fmt.Errorf("promptmanager: resolve URL: %w", err)
+		return PromptSkill{}, err
 	}
-
-	body, err := json.Marshal(patch)
+	req := &skillsv1.UpdateSkillRequest{Id: strings.TrimSpace(skillID), Name: patch.Name, Description: patch.Description, Content: patch.Content, DefaultScope: patch.DefaultScope, Draft: patch.Draft, Folder: patch.Folder}
+	resp, err := client.UpdateSkill(ctx, connect.NewRequest(req))
 	if err != nil {
-		return PromptSkill{}, fmt.Errorf("promptmanager: marshal request: %w", err)
+		return PromptSkill{}, fmt.Errorf("promptmanager: update skill: %w", err)
 	}
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPut,
-		baseURL+"/api/v1/skills/"+url.PathEscape(strings.TrimSpace(skillID)),
-		bytes.NewReader(body),
-	)
-	if err != nil {
-		return PromptSkill{}, fmt.Errorf("promptmanager: create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return PromptSkill{}, fmt.Errorf("promptmanager: request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return PromptSkill{}, fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
-	}
-
 	var result PromptSkill
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return PromptSkill{}, fmt.Errorf("promptmanager: decode response: %w", err)
+	if err := protoConvert(resp.Msg.GetSkill(), &result); err != nil {
+		return PromptSkill{}, err
 	}
 	return result, nil
 }
 
 // GetSkillVersions returns stored version history for a skill.
 func (c *HTTPClient) GetSkillVersions(ctx context.Context, skillID string) (PromptSkillVersions, error) {
-	baseURL, err := c.baseURLResolver(ctx)
+	client, err := c.skillsClient(ctx)
 	if err != nil {
-		return PromptSkillVersions{}, fmt.Errorf("promptmanager: resolve URL: %w", err)
+		return PromptSkillVersions{}, err
 	}
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		baseURL+"/api/v1/skills/"+url.PathEscape(strings.TrimSpace(skillID))+"/versions",
-		nil,
-	)
+	resp, err := client.ListSkillVersions(ctx, connect.NewRequest(&skillsv1.ListSkillVersionsRequest{Id: strings.TrimSpace(skillID)}))
 	if err != nil {
-		return PromptSkillVersions{}, fmt.Errorf("promptmanager: create request: %w", err)
+		return PromptSkillVersions{}, fmt.Errorf("promptmanager: list versions: %w", err)
 	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return PromptSkillVersions{}, fmt.Errorf("promptmanager: request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return PromptSkillVersions{}, fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
-	}
-
 	var result PromptSkillVersions
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return PromptSkillVersions{}, fmt.Errorf("promptmanager: decode response: %w", err)
+	if err := protoConvert(resp.Msg, &result); err != nil {
+		return PromptSkillVersions{}, err
 	}
 	return result, nil
 }
 
 // RevertSkillVersion reverts a skill to a previous version in prompt-manager.
 func (c *HTTPClient) RevertSkillVersion(ctx context.Context, skillID string, version int) error {
+	client, err := c.skillsClient(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = client.RevertSkill(ctx, connect.NewRequest(&skillsv1.RevertSkillRequest{Id: strings.TrimSpace(skillID), Version: int32(version)}))
+	if err != nil {
+		return fmt.Errorf("promptmanager: revert skill: %w", err)
+	}
+	return nil
+}
+
+func (c *HTTPClient) skillsClient(ctx context.Context) (skillsconnect.SkillsServiceClient, error) {
 	baseURL, err := c.baseURLResolver(ctx)
 	if err != nil {
-		return fmt.Errorf("promptmanager: resolve URL: %w", err)
+		return nil, fmt.Errorf("promptmanager: resolve URL: %w", err)
 	}
+	return skillsconnect.NewSkillsServiceClient(c.httpClient, strings.TrimRight(baseURL, "/")), nil
+}
 
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		baseURL+"/api/v1/skills/"+url.PathEscape(strings.TrimSpace(skillID))+"/revert/"+strconv.Itoa(version),
-		nil,
-	)
+func (c *HTTPClient) experimentsClient(ctx context.Context) (experimentsconnect.ExperimentsServiceClient, error) {
+	baseURL, err := c.baseURLResolver(ctx)
 	if err != nil {
-		return fmt.Errorf("promptmanager: create request: %w", err)
+		return nil, fmt.Errorf("promptmanager: resolve URL: %w", err)
 	}
+	return experimentsconnect.NewExperimentsServiceClient(c.httpClient, strings.TrimRight(baseURL, "/")), nil
+}
 
-	resp, err := c.httpClient.Do(req)
+func rawJSONValue(raw json.RawMessage) (*structpb.Value, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil, err
+	}
+	return structpb.NewValue(value)
+}
+
+func (c *HTTPClient) readSkills(ctx context.Context, req *skillsv1.ReadSkillsRequest) (*skillsv1.ReadSkillsResponse, error) {
+	client, err := c.skillsClient(ctx)
 	if err != nil {
-		return fmt.Errorf("promptmanager: request failed: %w", err)
+		return nil, err
 	}
-	defer resp.Body.Close()
+	resp, err := client.ReadSkills(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, fmt.Errorf("promptmanager: read skills: %w", err)
+	}
+	return resp.Msg, nil
+}
 
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("promptmanager: status %d: %s", resp.StatusCode, string(respBody))
+func protoConvert(source proto.Message, target any) error {
+	raw, err := protojson.Marshal(source)
+	if err != nil {
+		return fmt.Errorf("promptmanager: encode protobuf response: %w", err)
+	}
+	if err := json.Unmarshal(raw, target); err != nil {
+		return fmt.Errorf("promptmanager: decode protobuf response: %w", err)
 	}
 	return nil
 }

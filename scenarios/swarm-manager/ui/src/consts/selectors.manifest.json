@@ -244,6 +244,14 @@
       "testId": "captures-quick-input-submit",
       "selector": "[data-testid=\"captures-quick-input-submit\"]"
     },
+    "captures.quickInputMic": {
+      "testId": "captures-quick-input-mic",
+      "selector": "[data-testid=\"captures-quick-input-mic\"]"
+    },
+    "captures.quickComposer": {
+      "testId": "captures-quick-composer",
+      "selector": "[data-testid=\"captures-quick-composer\"]"
+    },
     "captures.quickInputAttach": {
       "testId": "captures-quick-input-attach",
       "selector": "[data-testid=\"captures-quick-input-attach\"]"

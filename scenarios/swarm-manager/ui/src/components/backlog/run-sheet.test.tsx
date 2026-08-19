@@ -10,6 +10,7 @@ vi.mock("../../services", () => ({
 }));
 
 vi.mock("../../lib/api-client", () => ({
+  API_BASE: "http://localhost:3000/api/v1",
   defaultApiClient: { get: (...args: unknown[]) => mockGet(...args) },
   isApiError: () => false,
 }));

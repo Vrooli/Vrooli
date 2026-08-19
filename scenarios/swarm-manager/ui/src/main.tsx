@@ -35,6 +35,7 @@ import { describeError } from "./lib/error-utils";
 import { ToastProvider } from "./components/ui/toast-provider";
 import { AudioToolsProvider, createAudioToolsClient, registerVoiceTransport, useHydrateVoiceConfig } from "./audio-integration";
 import { fetchAudioToolsDiscovery } from "./api/discovery";
+import { AudioUnavailableBanner } from "./components/AudioUnavailableBanner";
 import "./styles.css";
 
 // Every route is code-split via lazy(); after a rebuild the old hashed
@@ -171,6 +172,7 @@ void bootstrapAudioTools().then(({ unavailableReason }) => {
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <AudioToolsProvider client={audioToolsClient} unavailableReason={unavailableReason || undefined}>
+            <AudioUnavailableBanner reason={unavailableReason || undefined} className="m-3" />
             <VoiceConfigHydrator>
               <App />
             </VoiceConfigHydrator>

@@ -35,19 +35,25 @@ func TestSearchJSONMapsToValidDescriptor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load .vrooli/search.json: %v", err)
 	}
-	if len(file.Providers) != 1 {
-		t.Fatalf("want exactly 1 provider, got %d", len(file.Providers))
+	if len(file.Providers) != 2 {
+		t.Fatalf("want exactly 2 providers, got %d", len(file.Providers))
 	}
 
 	descriptors, err := searchregister.Descriptors(file)
 	if err != nil {
 		t.Fatalf("map search.json to registry descriptors: %v", err)
 	}
-	if len(descriptors) != 1 {
-		t.Fatalf("want 1 descriptor, got %d", len(descriptors))
+	if len(descriptors) != 2 {
+		t.Fatalf("want 2 descriptors, got %d", len(descriptors))
 	}
 
-	d := descriptors[0]
+	var d = descriptors[0]
+	for _, candidate := range descriptors {
+		if candidate.GetProviderId() == "swarm-manager.records" {
+			d = candidate
+			break
+		}
+	}
 	if got := d.GetProviderId(); got != "swarm-manager.records" {
 		t.Errorf("provider_id = %q, want swarm-manager.records", got)
 	}

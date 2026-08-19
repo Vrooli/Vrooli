@@ -70,6 +70,7 @@ export function MicButton({ onTranscript, onPartialTranscript, disabled, testId 
       isPassive={voice.isPassive}
       isTranscribing={voice.isTranscribing}
       error={errorMessage}
+      backend={voice.backend}
       audioLevel={voice.audioLevel}
       voiceActivity={voice.voiceActivity}
       serverVad={serverVad}

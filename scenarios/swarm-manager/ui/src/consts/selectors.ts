@@ -145,6 +145,8 @@ export const literalSelectors = {
   captures: {
     quickInput: "captures-quick-input",
     quickInputSubmit: "captures-quick-input-submit",
+    quickInputMic: "captures-quick-input-mic",
+    quickComposer: "captures-quick-composer",
     quickInputAttach: "captures-quick-input-attach",
     quickInputSend: "captures-quick-input-send",
     card: "capture-card",

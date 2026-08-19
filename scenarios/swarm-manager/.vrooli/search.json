@@ -5,7 +5,6 @@
     {
       "provider_id": "swarm-manager.initiative",
       "lifecycle": "experimental",
-      "declared_at": "2026-08-13T20:38:00Z",
       "provider_group": "swarm-manager",
       "bucket": "BUCKET_STATE",
       "type": "initiative",
@@ -27,6 +26,15 @@
         "score_field": "score",
         "path_field": "payload.name",
         "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": false,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {"max_gap": 0, "hard_floor": 0}
       },
       "scope": "SCOPE_PROJECT"
     },

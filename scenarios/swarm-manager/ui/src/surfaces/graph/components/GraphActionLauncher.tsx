@@ -59,6 +59,7 @@ export function GraphActionLauncher({
             label="Quick Capture"
             description="Capture a note, task, dependency, or relationship without starting an agent session."
             onClick={() => runAction(onQuickCapture)}
+            testId="graph-action-quick-capture"
           />
           <LauncherItem
             icon={<SESSION_KIND_ICONS.meta_orchestration className="h-5 w-5" />}
@@ -133,18 +134,21 @@ function LauncherItem({
   description,
   onClick,
   disabled,
+  testId,
 }: {
   icon: ReactNode;
   label: string;
   description: string;
   onClick: () => void;
   disabled?: boolean;
+  testId?: string;
 }) {
   return (
     <button
       type="button"
       role="menuitem"
       aria-label={label}
+      data-testid={testId}
       onClick={onClick}
       disabled={disabled}
       className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-500/40 disabled:pointer-events-none disabled:opacity-50"

@@ -9,6 +9,8 @@ export interface VoiceMicButtonProps {
   isPassive?: boolean;
   isTranscribing: boolean;
   error: string | null;
+  /** Machine-readable active backend identity for support and qualification. */
+  backend?: string;
   audioLevel?: number;
   voiceActivity?: VoiceActivitySnapshot;
   partialTranscript?: string;
@@ -31,6 +33,7 @@ export default function VoiceMicButton({
   isPassive,
   isTranscribing,
   error,
+  backend,
   audioLevel = 0,
   voiceActivity,
   onStart,
@@ -44,7 +47,7 @@ export default function VoiceMicButton({
 }: VoiceMicButtonProps & { onPrepare?: () => void }) {
   const state = !supported ? "unavailable" : isTranscribing ? "transcribing" : isPreparing ? "preparing" : isPassive ? "recovering" : isRecording || isListening ? "recording" : error ? "error" : "idle";
   return (
-    <div className={["shrink-0", className].filter(Boolean).join(" ")}>
+    <div className={["shrink-0", className].filter(Boolean).join(" ")} data-voice-backend={backend}>
       <VoiceInputButton
         state={state}
         mode={isListening ? "always-on" : "timeout"}

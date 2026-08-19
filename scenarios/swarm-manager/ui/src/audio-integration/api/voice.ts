@@ -245,9 +245,14 @@ function decodeSpeakerProfile(p: SpeakerProfile): SpeakerVerificationProfile {
 }
 
 function apiBaseToWsBase(apiBase: string): string {
-  if (apiBase.startsWith("https://")) return `wss://${apiBase.slice("https://".length)}`;
-  if (apiBase.startsWith("http://")) return `ws://${apiBase.slice("http://".length)}`;
-  return apiBase;
+  // The scenario UI server owns the browser-side upgrade under `/ws`; it
+  // transforms the voice suffix to the API's `/api/v1/voice/stream` route.
+  // Keep this same-origin so hosted/proxied deployments do not need to expose
+  // the scenario API port to the browser.
+  const root = apiBase.replace(/\/+$/, "").replace(/\/api\/v\d+$/i, "");
+  if (root.startsWith("https://")) return `wss://${root.slice("https://".length)}`;
+  if (root.startsWith("http://")) return `ws://${root.slice("http://".length)}`;
+  return root;
 }
 
 /**
@@ -257,7 +262,7 @@ function apiBaseToWsBase(apiBase: string): string {
  */
 export function buildVoiceStreamWsUrl(language?: string, sessionId?: string, resumeToken?: string): string {
   const wsBase = apiBaseToWsBase(API_BASE.replace(/\/$/, ""));
-  const url = `${wsBase}/api/v1/voice/stream`;
+  const url = `${wsBase}/ws/voice/stream`;
   // Legacy callers keep WebM. The canonical PCM provider supplies a durable
   // session identity and is therefore explicitly negotiated as protocol v2.
   const params = new URLSearchParams({ format: sessionId ? "pcm_s16le" : "webm" });

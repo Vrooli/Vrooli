@@ -8,5 +8,10 @@ startScenarioServer({
   corsOrigins: '*',
   embeddedProxy: true,
   wsPathPrefix: '/ws',
-  wsPathTransform: (incomingPath) => incomingPath || '/ws',
+  wsPathTransform: (incomingPath) => {
+    const path = incomingPath || '/ws'
+    return path.startsWith('/ws/voice/stream')
+      ? path.replace(/^\/ws/, '/api/v1')
+      : path
+  },
 })

@@ -9,6 +9,7 @@ const baseProps = {
   isListening: false,
   isPassive: false,
   isTranscribing: false,
+  error: null,
   onStart: vi.fn(),
   onStop: vi.fn(),
 };
@@ -41,5 +42,17 @@ describe("VoiceMicButton", () => {
     expect(screen.getByRole("button", { name: "Voice input error" })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText("The speech backend is unavailable; retry the turn.")).not.toBeInTheDocument();
+  });
+
+  it("exposes the active durable backend identity on the stable host surface", () => {
+    render(
+      <VoiceMicButton
+        {...baseProps}
+        backend="whisper"
+        testId="composer-mic"
+      />,
+    );
+
+    expect(screen.getByTestId("composer-mic").parentElement).toHaveAttribute("data-voice-backend", "whisper");
   });
 });
