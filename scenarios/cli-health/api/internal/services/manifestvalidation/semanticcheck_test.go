@@ -140,6 +140,7 @@ func TestSemanticFindingsRejectEachSeededViolation(t *testing.T) {
 func TestSemanticFindingsAcceptCorrectManifest(t *testing.T) {
 	findings := semanticFindingsFor(t, semanticCommand([]cliapp.ManifestFlag{
 		{Name: "payload", Bind: &cliapp.ManifestFlagBind{Field: "required_payload"}},
+		{Name: "profile", Bind: &cliapp.ManifestFlagBind{Field: "profile", Kind: "json_inline"}},
 	}))
 	for _, finding := range findings {
 		if finding.Code == CodeBindingFieldCollision || finding.Code == CodeBindingControlFlagBound || finding.Code == CodeBindingRequiredFieldUnpopulated || finding.Code == CodeBindingBindWhereRenameSuffices {

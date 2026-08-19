@@ -152,6 +152,7 @@ func TestMaturitySpecCoversCLIHealthFindings(t *testing.T) {
 		manifestvalidation.CodeMeasureTier,
 		manifestvalidation.CodeCLIBinaryUnrunnable,
 		manifestvalidation.CodeCLIHelpFailed,
+		manifestvalidation.CodeCLICommandMissing,
 		manifestvalidation.CodeCLICommandUndeclared,
 		manifestvalidation.CodeCLIMainUnreadable,
 		manifestvalidation.CodeCLIMainHeavy,

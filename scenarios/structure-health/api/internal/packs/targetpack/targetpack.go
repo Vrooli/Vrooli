@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"structure-health/internal/rules"
 )
 
@@ -97,7 +98,57 @@ func evaluatePackage(root, id string, parseUnits []ParseUnit) []rules.Finding {
 	out = append(out, packageBuildOutputRules(root)...)
 	out = append(out, packageSourceEntrypointRules(root)...)
 	out = append(out, packageParseUnitRules(root, parseUnits)...)
+	out = append(out, packageConsumerClassRules(root, id)...)
 	return out
+}
+
+type packageDependentsResponse struct {
+	Dependents struct {
+		Issues []struct {
+			Code        string `json:"code"`
+			Message     string `json:"message"`
+			Path        string `json:"path"`
+			PackageName string `json:"package_name"`
+		} `json:"issues"`
+	} `json:"dependents"`
+}
+
+// packageConsumerClassRules delegates discovery to the control-plane package
+// registry. Structure-health is a separate Go module, so this adapter keeps
+// the registry's classification and boundary decision in one implementation.
+func packageConsumerClassRules(root, id string) []rules.Finding {
+	repoRoot, err := repocontract.FindRepoRoot(root)
+	if err != nil {
+		// Standalone target-pack fixtures are intentionally not repository
+		// targets. The live project has a repository contract, so only a
+		// discovered project root proceeds to the control-plane scan.
+		return nil
+	}
+
+	cmd := exec.Command("vrooli", "package", "dependents", id, "--json")
+	cmd.Dir = repoRoot
+	data, err := cmd.Output()
+	if err != nil {
+		return []rules.Finding{finding("PACKAGE_CONSUMER_CLASS_SCAN_FAILED", "error", "package consumer-class discovery command failed", filepath.ToSlash(filepath.Join(".vrooli", "package.json")), "Restore the control-plane package registry command and re-run structure-health.")}
+	}
+
+	var response packageDependentsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return []rules.Finding{finding("PACKAGE_CONSUMER_CLASS_SCAN_FAILED", "error", "package consumer-class discovery returned invalid JSON", filepath.ToSlash(filepath.Join(".vrooli", "package.json")), "Restore JSON output from the control-plane package registry command.")}
+	}
+
+	findings := make([]rules.Finding, 0)
+	for _, issue := range response.Dependents.Issues {
+		if issue.Code != "PACKAGE_CONSUMER_CLASS_VIOLATION" {
+			continue
+		}
+		location := issue.Path
+		if strings.TrimSpace(location) == "" {
+			location = filepath.ToSlash(filepath.Join(".vrooli", "package.json"))
+		}
+		findings = append(findings, finding(issue.Code, "error", "package consumer class is outside its declared boundary", location, issue.Message))
+	}
+	return findings
 }
 
 func packageBuildOutputRules(root string) []rules.Finding {

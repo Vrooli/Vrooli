@@ -21,6 +21,7 @@ import (
 	envvalidation "structure-health/internal/packs/configpack/envvalidation"
 	hardcodedvalues "structure-health/internal/packs/configpack/hardcodedvalues"
 	healthlifecycle "structure-health/internal/packs/configpack/healthlifecycle"
+	manifestschema "structure-health/internal/packs/configpack/manifestschema"
 	ports "structure-health/internal/packs/configpack/ports"
 	runtimestorage "structure-health/internal/packs/configpack/runtimestorage"
 	setupconditions "structure-health/internal/packs/configpack/setupconditions"
@@ -146,6 +147,15 @@ var registry = []entry{
 		Feed: feedServiceJSON, Severity: "medium",
 		run: func(c, p, s string) []auditrules.Violation {
 			return setupsteps.CheckSetupStepsConfiguration([]byte(c), p)
+		},
+	},
+	{
+		// The only whole-document rule for a scenario manifest. Every sibling
+		// rule here inspects one hand-picked shape; this one runs the schema.
+		Code: "SCENARIO_MANIFEST_INVALID", Name: "Scenario Manifest Schema",
+		Feed: feedServiceJSON, Severity: "high",
+		run: func(c, p, s string) []auditrules.Violation {
+			return manifestschema.CheckServiceManifestSchema([]byte(c), p)
 		},
 	},
 

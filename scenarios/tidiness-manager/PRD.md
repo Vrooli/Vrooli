@@ -40,7 +40,6 @@
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Trend analysis | Display code health metrics over time (% files long, % files with issues, avg issues per file)
 - [ ] OT-P2-002 | Issue-tracker integration | Create tasks in app-issue-tracker for high-severity tidiness issues
-- [ ] OT-P2-003 | code-smell integration | Call code-smell scenario for deeper pattern analysis beyond structural issues
 - [ ] OT-P2-004 | Remediation automation | Auto-apply safe fixes (e.g., dead import removal) with approval workflow
 - [ ] OT-P2-005 | Custom rule engine | Allow humans to define custom tidiness rules (e.g., "no files >X lines in api/handlers/")
 - [ ] OT-P2-006 | Multi-scenario reports | Generate fleet-wide tidiness reports showing worst offenders across all scenarios
@@ -50,12 +49,13 @@
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (Makefile execution, language detection, file traversal, AI orchestration), React UI (dashboard, campaign management, metrics visualization), CLI (agent integration)
 - Data + storage expectations: PostgreSQL (issue tracking, campaign state, audit trail), file-based JSON (light scan caching for portability), optional Redis (expensive operation caching)
-- Integration strategy: CLI-first for agents → HTTP API for UI/external → visited-tracker campaigns → resource-claude-code/codes for AI analysis → optional static analysis tools (gocyclo, dupl, jscpd) → optional code-smell for pattern detection
-- Non-goals / guardrails: Not auto-fixing code (that's code-smell's domain); not standards enforcement (that's scenario-auditor's domain); not lint/type/static-quality contract enforcement (that's quality-health's domain); not real-time IDE integration (batch-oriented)
+- Integration strategy: CLI-first for agents → HTTP API for UI/external → visited-tracker campaigns → resource-claude-code/codes for AI analysis → optional static analysis tools (gocyclo, dupl, jscpd)
+- Non-goals / guardrails: Not auto-fixing code; not pattern/anti-pattern detection; not standards enforcement (that's scenario-auditor's domain); not lint/type/static-quality contract enforcement (that's quality-health's domain); not real-time IDE integration (batch-oriented)
+- **Unowned capability gap (2026-08-18):** auto-fix and pattern-based smell detection previously belonged to the `code-smell` scenario, which was retired as abandoned (no dependents, no registry entry, source stale since 2025-12; the planned integration was never built). These two capabilities now have **no owner**. Tidiness Manager still declines them by design — adopting them would be a deliberate scope expansion requiring a PRD revision, not a bugfix.
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: postgres (data storage), resource-claude-code (AI analysis), resource-codes (additional AI capabilities)
-- Optional resources: redis (caching), visited-tracker (campaign management, file prioritization), code-smell (pattern analysis integration)
+- Optional resources: redis (caching), visited-tracker (campaign management, file prioritization)
 - Optional tools: gocyclo (Go complexity analysis), dupl (Go duplication detection), jscpd (TS/JS duplication detection)
 - Scenario dependencies: visited-tracker (file tracking), scenario-auditor (complementary standards checks), app-issue-tracker (task creation integration for P2)
 - Operational risks: AI cost runaway (mitigate with strict batching + session limits); false positive noise (mitigate with configurable thresholds); Makefile inconsistency across scenarios (document standards); campaign resource exhaustion (enforce global concurrency limit K)
@@ -76,8 +76,6 @@
 **scenario-auditor**: Complementary - auditor enforces standards compliance (security, schema, best practices); tidiness enforces cleanliness (length, organization, duplication)
 
 **quality-health**: Complementary - quality-health owns lint/type/static-quality contracts, strict config policy, suppressions, and static-quality autofix. Tidiness Manager must not duplicate those findings.
-
-**code-smell**: Integration partner - tidiness focuses on structure (WHERE messy); code-smell focuses on patterns (WHAT wrong); tidiness can call code-smell for deeper analysis in P2
 
 **app-issue-tracker**: Consumer in P2 - high-severity tidiness issues can auto-create tasks for human/agent follow-up
 

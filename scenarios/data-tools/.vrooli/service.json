@@ -209,26 +209,6 @@
           "description": "Execute phased scenario test suite"
         }
       ]
-    },
-    "stop": {
-      "description": "Stop application services",
-      "steps": [
-        {
-          "name": "stop-api-server",
-          "run": "pkill -f 'data-tools-api' || true; sleep 1; pkill -9 -f 'data-tools-api' 2>/dev/null || true",
-          "description": "Stop Go API server processes"
-        },
-        {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'scenarios/data-tools.*vite' || true; pkill -f 'scenarios/data-tools.*serve' || true; sleep 1; pkill -9 -f 'scenarios/data-tools.*vite' 2>/dev/null || true; pkill -9 -f 'scenarios/data-tools.*serve' 2>/dev/null || true",
-          "description": "Stop UI server processes"
-        },
-        {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Application services stopped'",
-          "description": "Confirm services stopped"
-        }
-      ]
     }
   },
   "dependencies": {

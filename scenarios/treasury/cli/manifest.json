@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "treasury",
-  "description": "Typed operator and agent command surface for Treasury's spend-and-earn authority.",
+  "description": "Typed operator and agent command surface for Agent Treasury's spend-and-earn authority.",
   "groups": [
     {
       "name": "safety",
@@ -98,6 +98,12 @@
           "positionals": [{"name": "mandate-id", "required": true, "description": "Standing mandate identifier."}],
           "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "CancelStandingMandate"},
           "governance": {"effect": "destructive", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "list-all",
+          "description": "List all mandates visible to the authenticated operator across books.",
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "ListMandates"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         }
       ]
     },
@@ -158,6 +164,12 @@
           "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
         },
         {
+          "name": "freeze-status",
+          "description": "Read the durable scenario-wide kill-switch state.",
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "GetFreezeStatus"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
           "name": "freeze-all",
           "description": "Engage the scenario-wide kill switch.",
           "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "FreezeAll"},
@@ -178,7 +190,10 @@
         {
           "name": "list",
           "description": "List approval requests, optionally filtered by status.",
-          "flags": [{"name": "status", "description": "Generated ApprovalStatus enum value.", "default": "APPROVAL_STATUS_QUEUED", "values": ["APPROVAL_STATUS_UNSPECIFIED", "APPROVAL_STATUS_QUEUED", "APPROVAL_STATUS_APPROVED", "APPROVAL_STATUS_DECLINED", "APPROVAL_STATUS_EXPIRED"]}],
+          "flags": [
+            {"name": "status", "description": "Generated ApprovalStatus enum value.", "default": "APPROVAL_STATUS_QUEUED", "values": ["APPROVAL_STATUS_UNSPECIFIED", "APPROVAL_STATUS_QUEUED", "APPROVAL_STATUS_APPROVED", "APPROVAL_STATUS_DECLINED", "APPROVAL_STATUS_EXPIRED"]},
+            {"name": "book-id", "description": "Restrict the approval queue to one custody book."}
+          ],
           "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "ListApprovals"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         },

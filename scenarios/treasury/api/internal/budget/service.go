@@ -75,6 +75,7 @@ type Service interface {
 	SetGating(context.Context, string, bool) (Budget, error)
 	SetFrozen(context.Context, string, bool) (Budget, error)
 	SetScopeFrozen(context.Context, FreezeScope, string, bool) (FreezeControl, error)
+	ScenarioFreezeStatus(context.Context) (FreezeControl, error)
 	IsFrozen(context.Context, string, string) (bool, FreezeScope, error)
 	Headroom(context.Context, string) (Headroom, error)
 }
@@ -216,6 +217,18 @@ func (s *service) SetScopeFrozen(ctx context.Context, scope FreezeScope, id stri
 		return FreezeControl{}, err
 	}
 	return repository.SetFreezeControl(ctx, FreezeControl{Scope: scope, ScopeID: id, Frozen: next.Frozen, UpdatedAt: s.clock.Now().UTC()})
+}
+
+func (s *service) ScenarioFreezeStatus(ctx context.Context) (FreezeControl, error) {
+	repository, ok := s.repository.(FreezeRepository)
+	if !ok {
+		return FreezeControl{}, fmt.Errorf("%w: freeze repository is required", ErrInvalid)
+	}
+	control, err := repository.GetFreezeControl(ctx, FreezeScopeScenario, "*")
+	if errors.Is(err, ErrNotFound) {
+		return FreezeControl{Scope: FreezeScopeScenario, ScopeID: "*"}, nil
+	}
+	return control, err
 }
 
 func (s *service) IsFrozen(ctx context.Context, bookID, budgetID string) (bool, FreezeScope, error) {

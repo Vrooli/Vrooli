@@ -427,7 +427,10 @@ func finalize(scenario string, findings []Finding) Report {
 
 func defaultManifestRel(scenario string) string {
 	if isProjectTarget(scenario) {
-		return "cli/manifest.json"
+		if rel, err := repocontract.ScenarioCLIManifestRel(""); err == nil {
+			return rel
+		}
+		return scenario
 	}
 	rel, err := repocontract.ScenarioCLIManifestRepoRel("", scenario)
 	if err != nil {

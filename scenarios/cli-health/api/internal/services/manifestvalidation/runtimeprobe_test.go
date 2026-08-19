@@ -80,7 +80,7 @@ func TestRuntimeProbe_NilSeamDisablesProbe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	for _, code := range []string{CodeCLIBinaryUnrunnable, CodeCLIHelpFailed, CodeCLICommandUndeclared} {
+	for _, code := range []string{CodeCLIBinaryUnrunnable, CodeCLIHelpFailed, CodeCLICommandMissing, CodeCLICommandUndeclared} {
 		if got := findingsWithCode(rep.Findings, code); len(got) != 0 {
 			t.Fatalf("nil probe should emit no %s, got %+v", code, got)
 		}
@@ -148,7 +148,7 @@ func TestRuntimeProbe_MatchingSurfaceNoFindings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	for _, code := range []string{CodeCLIBinaryUnrunnable, CodeCLIHelpFailed, CodeCLICommandUndeclared} {
+	for _, code := range []string{CodeCLIBinaryUnrunnable, CodeCLIHelpFailed, CodeCLICommandMissing, CodeCLICommandUndeclared} {
 		if got := findingsWithCode(rep.Findings, code); len(got) != 0 {
 			t.Fatalf("clean surface should emit no %s, got %+v", code, got)
 		}
@@ -234,16 +234,19 @@ func TestRuntimeProbe_DeclaredButMissingIsError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	got := findingsWithCode(rep.Findings, CodeCLICommandUndeclared)
-	// "do" declared-but-missing AND "other" undeclared-accepted = two divergences.
-	if len(got) != 2 {
-		t.Fatalf("want two command_undeclared findings (missing + undeclared), got %+v", got)
+	missing := findingsWithCode(rep.Findings, CodeCLICommandMissing)
+	if len(missing) != 1 {
+		t.Fatalf("want one command_missing finding, got %+v", missing)
+	}
+	undeclared := findingsWithCode(rep.Findings, CodeCLICommandUndeclared)
+	if len(undeclared) != 1 {
+		t.Fatalf("want one command_undeclared finding, got %+v", undeclared)
 	}
 }
 
-// A group the manifest declares but the binary does not expose at runtime is NOT
-// reported as missing (guards against help-parse gaps producing false errors).
-func TestRuntimeProbe_AbsentGroupNotFlaggedMissing(t *testing.T) {
+// A successfully probed scenario binary that omits an entire manifest group is
+// the strongest form of false capability absence and must not pass silently.
+func TestRuntimeProbe_AbsentGroupReportsEveryDeclaredCommandMissing(t *testing.T) {
 	obs := RuntimeObservation{
 		Resolved: true,
 		Binary:   "/usr/bin/fixture",
@@ -256,8 +259,42 @@ func TestRuntimeProbe_AbsentGroupNotFlaggedMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got := findingsWithCode(rep.Findings, CodeCLICommandUndeclared); len(got) != 0 {
-		t.Fatalf("absent group must not be flagged missing, got %+v", got)
+	if got := findingsWithCode(rep.Findings, CodeCLICommandMissing); len(got) != 1 {
+		t.Fatalf("absent group must report its declared command missing, got %+v", got)
+	}
+}
+
+func TestRuntimeProbe_OpaqueLegacyParentDoesNotInventMissingLeaves(t *testing.T) {
+	obs := RuntimeObservation{
+		Resolved: true,
+		Binary:   "/usr/bin/fixture",
+		Commands: []RuntimeCommand{{Group: "", Name: "g1"}},
+	}
+	probe := &fakeProbe{obs: obs}
+	svc := newServiceWithProbe(probe)
+
+	rep, err := svc.ValidateScenario(WithIncludeExecution(context.Background(), true), "fixture")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := findingsWithCode(rep.Findings, CodeCLICommandMissing); len(got) != 0 {
+		t.Fatalf("opaque legacy parent must not invent missing leaves, got %+v", got)
+	}
+}
+
+func TestRuntimeProbe_DeclaredFrameworkBuiltinIsImplicitlyPresent(t *testing.T) {
+	m := &cliapp.Manifest{Groups: []cliapp.ManifestGroup{{
+		Name:     "meta",
+		Flat:     true,
+		Commands: []cliapp.ManifestCommand{{Name: "help"}},
+	}}}
+	got := commandSurfaceFindings(
+		RuntimeObservation{Resolved: true, Binary: "/usr/bin/fixture"},
+		m,
+		"cli/manifest.json",
+	)
+	if missing := findingsWithCode(got, CodeCLICommandMissing); len(missing) != 0 {
+		t.Fatalf("framework builtin must be treated as present, got %+v", missing)
 	}
 }
 

@@ -26,9 +26,12 @@ var groups = map[string][]serviceSpec{
 	"authorization": {{name: agentService, methods: []string{"AgentSpend.ProposeCharge", "AgentSpend.GetAuthorization"}}},
 	"mandate": {
 		{name: agentService, methods: []string{"AgentSpend.ListMandates"}},
-		{name: adminService, methods: []string{"TreasuryAdmin.CreateMandate", "TreasuryAdmin.RevokeMandate"}},
+		{name: adminService, methods: []string{"TreasuryAdmin.CreateMandate", "TreasuryAdmin.RevokeMandate", "TreasuryAdmin.CancelStandingMandate", "TreasuryAdmin.ListMandates"}},
 	},
-	"budget":     {{name: adminService, methods: []string{"TreasuryAdmin.SetBudgetCaps", "TreasuryAdmin.SetGating", "TreasuryAdmin.FreezeBudget", "TreasuryAdmin.UnfreezeBudget"}}},
+	"budget": {
+		{name: agentService, methods: []string{"AgentSpend.GetBudgetHeadroom"}},
+		{name: adminService, methods: []string{"TreasuryAdmin.SetBudgetCaps", "TreasuryAdmin.SetGating", "TreasuryAdmin.FreezeBudget", "TreasuryAdmin.UnfreezeBudget", "TreasuryAdmin.FreezeBook", "TreasuryAdmin.UnfreezeBook", "TreasuryAdmin.GetFreezeStatus", "TreasuryAdmin.FreezeAll", "TreasuryAdmin.UnfreezeAll"}},
+	},
 	"approval":   {{name: adminService, methods: []string{"TreasuryAdmin.ListApprovals", "TreasuryAdmin.ResolveApproval"}}},
 	"instrument": {{name: adminService, methods: []string{"TreasuryAdmin.RegisterInstrument"}}},
 	"settlement": {
@@ -38,10 +41,13 @@ var groups = map[string][]serviceSpec{
 }
 
 var readMethods = map[string]bool{
-	"AgentSpend.GetAuthorization": true,
-	"AgentSpend.ListMandates":     true,
-	"TreasuryAdmin.GetBook":       true,
-	"TreasuryAdmin.ListApprovals": true,
+	"AgentSpend.GetAuthorization":   true,
+	"AgentSpend.GetBudgetHeadroom":  true,
+	"AgentSpend.ListMandates":       true,
+	"TreasuryAdmin.GetBook":         true,
+	"TreasuryAdmin.ListApprovals":   true,
+	"TreasuryAdmin.ListMandates":    true,
+	"TreasuryAdmin.GetFreezeStatus": true,
 }
 
 func Register(core *cliapp.ScenarioApp, manifest []byte, groupName string) (cliapp.SubcommandGroup, error) {

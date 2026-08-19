@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -101,6 +102,38 @@ func TestProjectPackReportsEveryProjectConfigViolation(t *testing.T) {
 	if count != 2 {
 		t.Fatalf("project config violations = %d, want 2", count)
 	}
+}
+
+func TestProjectPackRejectsDuplicateCredentialDescriptorInOneManifest(t *testing.T) {
+	root := validProjectFixture(t)
+	write(t, root, "scenarios/demo/.vrooli/service.json", `{"credentials":{"descriptors":[{"logical_id":"vrooli/demo","field":"token"},{"logical_id":"vrooli/demo","field":"token"}]}}`)
+	got := Evaluate("project", root, "repo")
+	for _, finding := range got {
+		if finding.Code == "PROJECT_CREDENTIAL_DESCRIPTOR_DUPLICATE" {
+			if !strings.Contains(finding.Message, "vrooli/demo:token") || !strings.Contains(finding.Location, "/credentials/descriptors/1") {
+				t.Fatalf("duplicate finding lacks descriptor evidence: %+v", finding)
+			}
+			return
+		}
+	}
+	t.Fatalf("expected duplicate credential descriptor finding, got %v", got)
+}
+
+func TestProjectPackReportsOwningScenarioManifestSchemaViolation(t *testing.T) {
+	root := validProjectFixture(t)
+	write(t, root, ".vrooli/schemas/cli-manifest.schema.json", `{"type":"object","required":["name"],"properties":{"name":{"type":"string"}},"additionalProperties":true}`)
+	write(t, root, "cli/manifest.json", `{"name":"repo"}`)
+	write(t, root, "scenarios/demo/cli/manifest.json", `{"name":42}`)
+
+	for _, finding := range Evaluate("project", root, "repo") {
+		if finding.Code == "PROJECT_CLI_MANIFEST_SCHEMA" && finding.Location == "scenarios/demo/cli/manifest.json" {
+			if !strings.Contains(finding.Message, "scenario/demo") {
+				t.Fatalf("manifest finding lacks owning scenario: %+v", finding)
+			}
+			return
+		}
+	}
+	t.Fatalf("expected owning scenario manifest schema finding, got %v", Evaluate("project", root, "repo"))
 }
 
 func TestProjectPackNegativeRuleFixtures(t *testing.T) {

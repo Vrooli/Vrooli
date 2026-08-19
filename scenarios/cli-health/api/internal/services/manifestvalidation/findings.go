@@ -55,7 +55,8 @@ const (
 	// CLI is not installed here.
 	CodeCLIBinaryUnrunnable         = "cli.binary_unrunnable"            // declared CLI surface but binary cannot be resolved in this run context
 	CodeCLIHelpFailed               = "cli.help_failed"                  // binary resolves but `--help` errors / produces nothing
-	CodeCLICommandUndeclared        = "cli.command_undeclared"           // runtime command surface diverges from the manifest
+	CodeCLICommandMissing           = "cli.command_missing"              // manifest declares a command the runtime CLI does not expose
+	CodeCLICommandUndeclared        = "cli.command_undeclared"           // runtime CLI exposes a command absent from the manifest
 	CodeCLIDiscoveryCoverage        = "cli.discovery_coverage_low"       // manifest does not cover the observed runtime surface
 	CodeOmissionContradictsCommand  = "cli.omission_contradicts_command" // omission says a live command is absent
 	CodeProjectCLIEmpty             = "project.cli_empty"                // project target emitted no runtime commands

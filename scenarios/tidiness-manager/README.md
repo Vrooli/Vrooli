@@ -97,7 +97,6 @@ tidiness-manager/
 - **redis** (optional): Caching for expensive operations
 - **resource-claude-code** (optional): AI-powered analysis
 - **visited-tracker** (optional): Campaign-based file tracking
-- **code-smell** (optional): Pattern-based smell detection
 
 ### Consumers
 - Development agents needing refactor guidance
@@ -213,8 +212,11 @@ Stored in postgres `config` table; UI provides management interface.
 ## Comparison to Related Scenarios
 
 - **scenario-auditor**: Standards compliance (security, schema) vs. code cleanliness (length, organization)
-- **code-smell**: Pattern violations vs. structural issues - complementary, can integrate
 - **visited-tracker**: Provides file tracking; tidiness-manager is a consumer
+
+> The `code-smell` scenario was retired on 2026-08-18 as abandoned. It owned pattern/anti-pattern
+> detection and auto-fix — capabilities Tidiness Manager deliberately does not cover. Both are
+> currently unowned; see the non-goals note in [PRD.md](PRD.md).
 
 ## Notes for Implementers
 

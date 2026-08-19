@@ -351,6 +351,37 @@
       ]
     },
     {
+      "id": "treasuryadmin_list_mandates",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ListMandates",
+      "method": "POST",
+      "summary": "List operator mandates across books",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ListMandatesRequest"
+      },
+      "response": {
+        "type": "ListMandatesResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
       "id": "treasuryadmin_set_budget_caps",
       "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/SetBudgetCaps",
       "method": "POST",
@@ -630,6 +661,37 @@
       ]
     },
     {
+      "id": "treasuryadmin_get_freeze_status",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetFreezeStatus",
+      "method": "POST",
+      "summary": "Read the scenario-wide kill-switch state",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "GetFreezeStatusRequest"
+      },
+      "response": {
+        "type": "GetFreezeStatusResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
       "id": "treasuryadmin_unfreeze_all",
       "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/UnfreezeAll",
       "method": "POST",
@@ -731,7 +793,21 @@
       "category": "x402",
       "rest_exception": {
         "reason": "third_party_shape",
-        "note": "x402 is standardized as HTTP 402 plus Payment-Required, Payment-Signature, and Payment-Response headers."
+        "note": "x402 is standardized as HTTP 402 plus Payment-Required, Payment-Signature, and Payment-Response headers; its request, success, challenge, and error bodies intentionally retain that external JSON shape.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
       }
     },
     {
@@ -743,7 +819,21 @@
       "category": "x402",
       "rest_exception": {
         "reason": "third_party_shape",
-        "note": "x402 is standardized as HTTP 402 plus Payment-Required, Payment-Signature, and Payment-Response headers."
+        "note": "x402 is standardized as HTTP 402 plus Payment-Required, Payment-Signature, and Payment-Response headers; its request, success, challenge, and error bodies intentionally retain that external JSON shape.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
       }
     }
   ]

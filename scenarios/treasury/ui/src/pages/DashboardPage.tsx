@@ -24,13 +24,16 @@ export function DashboardPage() {
   const [error, setError] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const [resolvingId, setResolvingId] = useState("");
+  const [bookId, setBookId] = useState("");
 
   async function openQueue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
     try {
-      setApprovals(await listPendingApprovals(operatorToken));
+      const pending = await listPendingApprovals(operatorToken);
+      setApprovals(pending);
+      setBookId([...new Set(pending.map((approval) => approval.bookId).filter(Boolean))].sort()[0] ?? "");
       setAuthenticated(true);
     } catch {
       setAuthenticated(false);
@@ -39,6 +42,11 @@ export function DashboardPage() {
       setLoading(false);
     }
   }
+
+  const books = [...new Set(approvals.map((approval) => approval.bookId).filter(Boolean))].sort();
+  const visibleApprovals = bookId
+    ? approvals.filter((approval) => approval.bookId === bookId)
+    : approvals;
 
   async function decide(approval: ApprovalRequest, resolution: ApprovalStatus.APPROVED | ApprovalStatus.DECLINED) {
     setResolvingId(approval.id);
@@ -115,18 +123,34 @@ export function DashboardPage() {
         </Card>
       ) : (
         <div data-testid={selectors.approvals.queue} className="space-y-4">
+          {books.length > 0 ? (
+            <div className="max-w-md space-y-2">
+              <label htmlFor="approval-book" className="text-sm font-medium">
+                {t(strings.approvals.bookLabel)}
+              </label>
+              <select
+                id="approval-book"
+                data-testid={selectors.approvals.bookSelect}
+                className="min-h-11 w-full rounded-md border border-app-border bg-app-card px-3 text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-ring"
+                value={bookId}
+                onChange={(event) => setBookId(event.target.value)}
+              >
+                {books.map((book) => <option key={book} value={book}>{book}</option>)}
+              </select>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-lg font-semibold">{t(strings.approvals.pendingTitle)}</h3>
             <StatusBadge tone="warning">
               <Clock3 aria-hidden="true" className="me-1 size-3.5" />
-              {t(strings.approvals.pendingCount, { count: approvals.length })}
+              {t(strings.approvals.pendingCount, { count: visibleApprovals.length })}
             </StatusBadge>
           </div>
-          {approvals.length === 0 ? (
+          {visibleApprovals.length === 0 ? (
             <Card><CardContent className="py-8 text-center text-app-muted-foreground">{t(strings.approvals.empty)}</CardContent></Card>
           ) : (
             <ul className="grid gap-4" aria-label={t(strings.approvals.pendingTitle)}>
-              {approvals.map((approval) => {
+              {visibleApprovals.map((approval) => {
                 const money = formatMoney(approval.amountMinor, approval.currency, i18n.language);
                 const busy = resolvingId === approval.id;
                 return (
@@ -145,6 +169,7 @@ export function DashboardPage() {
                       <CardContent className="grid gap-4">
                         <dl className="grid gap-3 text-sm sm:grid-cols-3">
                           <ApprovalDetail label={t(strings.approvals.agentLabel)} value={approval.requestingAgent} />
+                          <ApprovalDetail label={t(strings.approvals.bookLabel)} value={approval.bookId} />
                           <ApprovalDetail label={t(strings.approvals.mandateLabel)} value={approval.mandateId} />
                           <ApprovalDetail label={t(strings.approvals.expiresLabel)} value={formatTimestamp(approval.expiresAt, i18n.language)} />
                         </dl>

@@ -13,6 +13,7 @@ import { DashboardPage } from "./DashboardPage";
 const approval = create(ApprovalRequestSchema, {
   id: "approval-1",
   authorizationId: "authorization-1",
+  bookId: "book-1",
   mandateId: "mandate-1",
   requestingAgent: "procurement-agent",
   amountMinor: 12_345n,
@@ -87,6 +88,28 @@ describe("Approval queue", () => {
     expect(await screen.findByTestId(selectors.approvals.item({ id: "approval-1" }))).toHaveTextContent("Pending review");
     expect(screen.getByRole("button", { name: "Approve $123.45 payment to Acme Supplies" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Decline $123.45 payment to Acme Supplies" })).toBeVisible();
+  });
+
+  // [REQ:TRS-P1-004]
+  it("keeps approval chains visibly separated by book", async () => {
+    const second = create(ApprovalRequestSchema, {
+      ...approval,
+      id: "approval-2",
+      authorizationId: "authorization-2",
+      bookId: "book-2",
+      counterparty: "Beta Supplies",
+    });
+    mocks.listPendingApprovals.mockResolvedValue([approval, second]);
+    const user = userEvent.setup();
+    renderWithProviders(<DashboardPage />);
+    await user.type(screen.getByTestId(selectors.approvals.tokenInput), "operator-secret");
+    await user.click(screen.getByTestId(selectors.approvals.openQueueButton));
+
+    expect(await screen.findByTestId(selectors.approvals.item({ id: "approval-1" }))).toBeVisible();
+    expect(screen.queryByTestId(selectors.approvals.item({ id: "approval-2" }))).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByTestId(selectors.approvals.bookSelect), "book-2");
+    expect(screen.getByTestId(selectors.approvals.item({ id: "approval-2" }))).toBeVisible();
+    expect(screen.queryByTestId(selectors.approvals.item({ id: "approval-1" }))).not.toBeInTheDocument();
   });
 
   it("reports authentication failures without exposing the token", async () => {

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P2 requirements: expansion surfaces. Each is deliberately optional and none is a prerequisite for another tier. They are recorded so a later reader can tell a deferred decision from an omission.",
-    "last_validated_at": "2026-08-19T01:10:21-04:00",
+    "last_validated_at": "2026-08-19T02:59:24-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "TRS-P2-001",
       "title": "Rail reconciliation",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P2-001",
       "criticality": "P2",
       "description": "The scenario may match settled charges against a rail's own statement and surface unmatched entries on both sides",
@@ -18,7 +18,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "planned",
           "notes": "Planned test at `api/internal/reconcile/matcher_test.go`. Unmatched entries are surfaced on both sides rather than silently dropped, and a match never rewrites either source. Pairs with money-ledger OT-P2-001 so the two reconciliations agree on what unmatched means. [REQ:TRS-P2-001]"
         }
       ]
@@ -26,7 +26,7 @@
     {
       "id": "TRS-P2-002",
       "title": "AP2 mandate interoperability",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P2-002",
       "criticality": "P2",
       "description": "The scenario may emit and accept AP2-shaped signed mandates so it can transact with an AP2-speaking counterparty",
@@ -34,7 +34,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "planned",
           "notes": "Planned test at `api/internal/interop/ap2_test.go`. A native mandate round-trips through the AP2 shape without losing cap, scope or expiry, and an inbound AP2 mandate that widens scope on import is rejected. [REQ:TRS-P2-002]"
         }
       ]
@@ -42,7 +42,7 @@
     {
       "id": "TRS-P2-003",
       "title": "Browser checkout rail",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P2-003",
       "criticality": "P2",
       "description": "The scenario may drive a card-shaped web checkout through browser-automation-studio under a mandate whose instrument cannot overspend if the flow is compromised",
@@ -50,13 +50,13 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "planned",
           "notes": "Planned test at `api/internal/rail/checkout/adapter_test.go`. The instrument handed to a checkout flow is scoped to the mandate before the flow starts, so a compromised page cannot raise the amount. [REQ:TRS-P2-003]"
         },
         {
           "type": "manual",
           "phase": "business",
-          "status": "implemented",
+          "status": "planned",
           "notes": "Planned automation at `bas/cases/checkout/scoped-purchase.json`. A driven checkout completes against a local fixture merchant and the resulting charge matches the mandate exactly. [REQ:TRS-P2-003]"
         }
       ]
@@ -80,7 +80,7 @@
     {
       "id": "TRS-P2-005",
       "title": "Advisory spend anomaly signals",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P2-005",
       "criticality": "P2",
       "description": "The scenario may surface unusual spend patterns against a budget's own history as advisory signals that never block a charge on their own",
@@ -88,7 +88,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "planned",
           "notes": "Planned test at `api/internal/signals/anomaly_test.go`. A signal changes no authorization outcome. The test asserts that an anomalous-but-in-policy charge still authorizes, which is what keeps the advisory boundary honest. [REQ:TRS-P2-005]"
         }
       ]
@@ -96,7 +96,7 @@
     {
       "id": "TRS-P2-006",
       "title": "Mandate templates",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P2-006",
       "criticality": "P2",
       "description": "The scenario may let an operator save a recurring authorization shape as a named template so common grants do not get hand-built each time",
@@ -104,7 +104,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "implemented",
+          "status": "planned",
           "notes": "Planned test at `api/internal/mandate/template_test.go`. A template instantiates a mandate no broader than the template declares, and editing a template never alters mandates already issued from it. [REQ:TRS-P2-006]"
         }
       ]

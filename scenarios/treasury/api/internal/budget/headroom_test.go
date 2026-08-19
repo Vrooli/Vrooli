@@ -44,9 +44,9 @@ func TestHeadroomIsComputedFromAuthorizationRecords(t *testing.T) {
 	require.NoError(t, err)
 	authorizations := authorization.NewSQLiteRepository(handle)
 	for _, record := range []authorization.Record{
-		{ID: "pending", IdempotencyKey: "pending-key", MandateID: "mandate-1", BudgetID: policy.ID, RequestingAgent: "agent:1", AmountMinor: 200, Currency: "USD", Counterparty: "vendor.example", Verdict: authorization.VerdictPending, HoldMinor: 200, CreatedAt: now.Add(-10 * time.Minute), ExpiresAt: now.Add(5 * time.Minute)},
-		{ID: "settled", IdempotencyKey: "settled-key", MandateID: "mandate-1", BudgetID: policy.ID, RequestingAgent: "agent:1", AmountMinor: 150, Currency: "USD", Counterparty: "vendor.example", Verdict: authorization.VerdictSettled, CreatedAt: now.Add(-20 * time.Minute), ExpiresAt: now.Add(-5 * time.Minute)},
-		{ID: "released", IdempotencyKey: "released-key", MandateID: "mandate-1", BudgetID: policy.ID, RequestingAgent: "agent:1", AmountMinor: 50, Currency: "USD", Counterparty: "vendor.example", Verdict: authorization.VerdictReleased, CreatedAt: now.Add(-5 * time.Minute), ExpiresAt: now.Add(5 * time.Minute)},
+		{ID: "pending", IdempotencyKey: "pending-key", BookID: "book-1", MandateID: "mandate-1", BudgetID: policy.ID, RequestingAgent: "agent:1", AmountMinor: 200, Currency: "USD", Counterparty: "vendor.example", Verdict: authorization.VerdictPending, HoldMinor: 200, CreatedAt: now.Add(-10 * time.Minute), ExpiresAt: now.Add(5 * time.Minute)},
+		{ID: "settled", IdempotencyKey: "settled-key", BookID: "book-1", MandateID: "mandate-1", BudgetID: policy.ID, RequestingAgent: "agent:1", AmountMinor: 150, Currency: "USD", Counterparty: "vendor.example", Verdict: authorization.VerdictSettled, CreatedAt: now.Add(-20 * time.Minute), ExpiresAt: now.Add(-5 * time.Minute)},
+		{ID: "released", IdempotencyKey: "released-key", BookID: "book-1", MandateID: "mandate-1", BudgetID: policy.ID, RequestingAgent: "agent:1", AmountMinor: 50, Currency: "USD", Counterparty: "vendor.example", Verdict: authorization.VerdictReleased, CreatedAt: now.Add(-5 * time.Minute), ExpiresAt: now.Add(5 * time.Minute)},
 	} {
 		_, err = authorizations.Create(ctx, record)
 		require.NoError(t, err)

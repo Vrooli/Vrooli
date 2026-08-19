@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"structure-health/internal/rules"
 )
 
@@ -102,6 +103,9 @@ func evaluateProject(root string) []rules.Finding {
 	appendProjectCheck(&out, projectProfileRoots(contract), "PROJECT_PROFILE_ROOTS", ".vrooli/repo-contract.json", "Keep profile includes inside canonical repository roots.")
 	appendProjectCheck(&out, projectBundleProfile(contract), "PROJECT_BUNDLE_PROFILE", ".vrooli/repo-contract.json", "Restore the mini_vrooli_bundle include, exclude, and parameter policy.")
 	appendProjectCheck(&out, projectResourceArtifacts(root), "PROJECT_RESOURCE_ARTIFACTS", ".vrooli/schemas/resource-definitions.json", "Regenerate resource schema artifacts and repair missing resource references.")
+	out = append(out, projectCredentialDescriptorRules(root, contract)...)
+	out = append(out, projectCLIManifestSchemaRules(root)...)
+	out = append(out, projectScopeVocabularyRules(root)...)
 	return out
 }
 
@@ -390,6 +394,55 @@ func projectResourceArtifacts(root string) error {
 		return fmt.Errorf("resource schema artifact is invalid JSON")
 	}
 	return nil
+}
+
+// projectCredentialDescriptorRules validates every repository-owned manifest
+// with the same generic descriptor walk. A credential declaration is scoped to
+// its manifest: the same logical credential may intentionally be declared by
+// different consumers, but one manifest cannot declare the same store key
+// twice.
+func projectCredentialDescriptorRules(root string, c projectContract) []rules.Finding {
+	var out []rules.Finding
+	check := func(path string) {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return
+		}
+		duplicates, err := repocontract.FindCredentialDescriptorDuplicates(raw)
+		if err != nil {
+			// The owning manifest rule reports malformed JSON. Keep this check
+			// focused on duplicate declarations rather than double-reporting it.
+			return
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return
+		}
+		location := filepath.ToSlash(rel)
+		for _, duplicate := range duplicates {
+			out = append(out, finding(
+				"PROJECT_CREDENTIAL_DESCRIPTOR_DUPLICATE",
+				"error",
+				fmt.Sprintf("credential %s:%s is declared more than once (first at %s, again at %s)", duplicate.LogicalID, duplicate.Field, duplicate.FirstPath, duplicate.DuplicatePath),
+				location+duplicate.DuplicatePath,
+				"Remove the duplicate logical_id/field declaration from this manifest; declarations in separate manifests remain independent.",
+			))
+		}
+	}
+	scanTargets := func(base, manifestRel string) {
+		entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(base)))
+		if err != nil {
+			return
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				check(filepath.Join(root, filepath.FromSlash(base), entry.Name(), filepath.FromSlash(manifestRel)))
+			}
+		}
+	}
+	scanTargets(c.Layout.ScenarioDir, c.Scenario.WellKnownPaths["service"])
+	scanTargets(c.Layout.ResourceDir, c.Resource.Manifest)
+	return out
 }
 
 func countFilesNamed(root, name string) int {

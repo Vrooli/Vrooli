@@ -34,7 +34,7 @@ func TestStandingMandateAdvancesOnceAndCancellationStopsNextCharge(t *testing.T)
 	require.NoError(t, err)
 	service := mandate.NewService(mandate.NewSQLiteRepository(handle), clock, signer)
 	created, err := service.Issue(ctx, mandate.IssueInput{
-		ID: "standing-1", IdempotencyKey: "standing-key-1", BookID: "book-1", BudgetID: "budget-1",
+		ID: "standing-1", IdempotencyKey: "recurrence-idem-1", BookID: "book-1", BudgetID: "budget-1",
 		Authorizer: "operator:1", CapMinor: 1_000, Currency: "USD", AllowedCounterparties: []string{"vendor.example"},
 		ExpiresAt: now.Add(90 * 24 * time.Hour), RecurrenceInterval: 30 * 24 * time.Hour, NextChargeAt: now.Add(time.Hour),
 	})

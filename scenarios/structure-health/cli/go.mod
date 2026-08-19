@@ -12,6 +12,7 @@ require (
 
 require (
 	github.com/vrooli/api-core v0.0.0 // indirect
+	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/vrooli v0.0.0 // indirect
 )
 

@@ -76,4 +76,9 @@ func TestSQLiteGrantSpineReservesHeadroomAtomicallyWithinTheService(t *testing.T
 		require.NotEqual(t, "headroom", name, "headroom must be derived from immutable records, never stored")
 	}
 	require.NoError(t, rows.Err())
+
+	// [REQ:TRS-P1-004] The durable authorization ownership binding cannot be
+	// reassigned to another book, even through a raw SQL write.
+	_, err = handle.ExecContext(ctx, `UPDATE authorization_book_bindings SET book_id='book-2' WHERE authorization_id=(SELECT authorization_id FROM authorization_book_bindings LIMIT 1)`)
+	require.Error(t, err)
 }

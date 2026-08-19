@@ -40,7 +40,7 @@ func validateAgentSpendSurface(service protoreflect.ServiceDescriptor) error {
 	return nil
 }
 
-// [REQ:TRS-P0-004] The generated descriptor, rather than a hand-maintained
+// [REQ:TRS-P0-004] [REQ:TRS-P1-007] The generated descriptor, rather than a hand-maintained
 // method list in production code, proves that policy mutation is absent.
 func TestGeneratedAgentSpendDescriptorHasOnlyReviewedMethods(t *testing.T) {
 	service := authorizationv1.File_treasury_v1_authorization_authorization_proto.Services().ByName("AgentSpend")

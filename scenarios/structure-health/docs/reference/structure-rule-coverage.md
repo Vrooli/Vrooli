@@ -4,7 +4,7 @@
 
 | Target kind | Rules | Enforced | Advisory | None | Reachable | Callers |
 |---|---:|---:|---:|---:|---|---:|
-| scenario | 17 | 16 | 1 | 0 | yes | 2 |
+| scenario | 19 | 17 | 2 | 0 | yes | 2 |
 | resource | 4 | 4 | 0 | 0 | yes | 2 |
 | tool | 3 | 3 | 0 | 0 | yes | 2 |
 | safeguard | 3 | 3 | 0 | 0 | yes | 2 |

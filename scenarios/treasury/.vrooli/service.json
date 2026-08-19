@@ -4,7 +4,7 @@
   "service": {
     "parent": "vrooli",
     "name": "treasury",
-    "displayName": "Treasury",
+    "displayName": "Agent Treasury",
     "description": "Holds what an agent is permitted to spend and permitted to charge, evaluates every attempt against a grant a human made, and settles it through whichever rail fits",
     "version": "0.0.1",
     "type": "business-application",
@@ -70,6 +70,14 @@
         "label": "Treasury mandate signing key",
         "description": "Signs canonical immutable mandate payloads and is intentionally independent from the operator API credential.",
         "required": true
+      },
+      {
+        "logical_id": "vrooli/treasury/lithic",
+        "field": "value",
+        "env": "TREASURY_LITHIC_CREDENTIAL",
+        "label": "Lithic sandbox issuing credential",
+        "description": "Strict JSON containing an operator-created Lithic sandbox api_key and optional account_token. Resolved only while issuing a scoped card.",
+        "required": false
       }
     ]
   },
@@ -177,9 +185,6 @@
         }
       ]
     },
-    "build": {},
-    "deploy": {},
-    "clean": {},
     "test": {
       "description": "Execute phased test suite via test-genie",
       "steps": [
@@ -192,24 +197,6 @@
           "name": "run-tests",
           "run": "test-genie execute treasury --preset comprehensive",
           "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'treasury-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
         }
       ]
     }
@@ -259,7 +246,22 @@
       }
     }
   },
-  "credentials": {},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned SQLite custody, authorization, settlement, evidence, idempotency and outbox records under SCENARIO_DATA_DIR.",
+        "budget": {
+          "max_bytes": "100GiB",
+          "rationale": "Single-operator transaction history is bounded by documented retention and backup policy; this ceiling forces explicit review before exceptional growth."
+        }
+      }
+    },
+    "rationale": "Treasury owns one durable SQLite database; Money Ledger journals and facilitator state remain externally owned and are not claimed here."
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/treasury.db"
   }

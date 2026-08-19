@@ -28,12 +28,12 @@ const (
 )
 
 type Request struct {
-	ID, AuthorizationID, MandateID, RequestingAgent string
-	AmountMinor                                     int64
-	Currency, Counterparty                          string
-	Status                                          Status
-	ResolverIdentity                                string
-	CreatedAt, ExpiresAt, ResolvedAt                time.Time
+	ID, AuthorizationID, BookID, MandateID, RequestingAgent string
+	AmountMinor                                             int64
+	Currency, Counterparty                                  string
+	Status                                                  Status
+	ResolverIdentity                                        string
+	CreatedAt, ExpiresAt, ResolvedAt                        time.Time
 }
 
 type RelayAttempt struct {
@@ -42,6 +42,7 @@ type RelayAttempt struct {
 }
 
 type Controller interface {
+	Get(context.Context, string) (authorization.Record, error)
 	Approve(context.Context, string) (authorization.Record, error)
 	Release(context.Context, string) (authorization.Record, error)
 }
@@ -75,15 +76,15 @@ func (s *Service) Admit(ctx context.Context, in authorization.ApprovalAdmission)
 		return fmt.Errorf("%w: repository and clock are required", ErrInvalid)
 	}
 	now := s.clock.Now().UTC()
-	request := Request{ID: strings.TrimSpace(in.ID), AuthorizationID: strings.TrimSpace(in.AuthorizationID), MandateID: strings.TrimSpace(in.MandateID), RequestingAgent: strings.TrimSpace(in.RequestingAgent), AmountMinor: in.AmountMinor, Currency: strings.ToUpper(strings.TrimSpace(in.Currency)), Counterparty: strings.ToLower(strings.TrimSpace(in.Counterparty)), Status: StatusQueued, CreatedAt: now, ExpiresAt: in.ExpiresAt.UTC()}
-	if request.ID == "" || request.AuthorizationID == "" || request.MandateID == "" || request.RequestingAgent == "" || request.AmountMinor <= 0 || request.Currency == "" || request.Counterparty == "" || !request.ExpiresAt.After(now) {
+	request := Request{ID: strings.TrimSpace(in.ID), AuthorizationID: strings.TrimSpace(in.AuthorizationID), BookID: strings.TrimSpace(in.BookID), MandateID: strings.TrimSpace(in.MandateID), RequestingAgent: strings.TrimSpace(in.RequestingAgent), AmountMinor: in.AmountMinor, Currency: strings.ToUpper(strings.TrimSpace(in.Currency)), Counterparty: strings.ToLower(strings.TrimSpace(in.Counterparty)), Status: StatusQueued, CreatedAt: now, ExpiresAt: in.ExpiresAt.UTC()}
+	if request.ID == "" || request.AuthorizationID == "" || request.BookID == "" || request.MandateID == "" || request.RequestingAgent == "" || request.AmountMinor <= 0 || request.Currency == "" || request.Counterparty == "" || !request.ExpiresAt.After(now) {
 		return fmt.Errorf("%w: complete unexpired authorization projection is required", ErrInvalid)
 	}
 	created, err := s.repository.Create(ctx, request)
 	if err != nil {
 		return err
 	}
-	if created.AuthorizationID != request.AuthorizationID || created.MandateID != request.MandateID || created.RequestingAgent != request.RequestingAgent || created.AmountMinor != request.AmountMinor || created.Currency != request.Currency || created.Counterparty != request.Counterparty || !created.ExpiresAt.Equal(request.ExpiresAt) {
+	if created.AuthorizationID != request.AuthorizationID || created.BookID != request.BookID || created.MandateID != request.MandateID || created.RequestingAgent != request.RequestingAgent || created.AmountMinor != request.AmountMinor || created.Currency != request.Currency || created.Counterparty != request.Counterparty || !created.ExpiresAt.Equal(request.ExpiresAt) {
 		return fmt.Errorf("%w: approval id was already used for a different authorization", ErrInvalid)
 	}
 	attempt := RelayAttempt{ID: request.ID + ":relay:1", ApprovalID: request.ID, Outcome: "skipped", AttemptedAt: now}
@@ -123,7 +124,13 @@ func (s *Service) Resolve(ctx context.Context, id string, resolution Status, res
 	if s.controller == nil || s.clock == nil {
 		return Request{}, fmt.Errorf("%w: controller and clock are required", ErrInvalid)
 	}
-	var authorizationRecord authorization.Record
+	authorizationRecord, err := s.controller.Get(ctx, current.AuthorizationID)
+	if err != nil {
+		return Request{}, fmt.Errorf("load authorization for approval: %w", err)
+	}
+	if authorizationRecord.BookID != current.BookID {
+		return Request{}, fmt.Errorf("%w: approval and authorization books do not match", ErrInvalid)
+	}
 	if resolution == StatusApproved {
 		authorizationRecord, err = s.controller.Approve(ctx, current.AuthorizationID)
 	} else {
@@ -145,14 +152,18 @@ func (s *Service) Get(ctx context.Context, id string) (Request, error) {
 	return s.repository.Get(ctx, strings.TrimSpace(id))
 }
 
-func (s *Service) List(ctx context.Context, status Status) ([]Request, error) {
+func (s *Service) List(ctx context.Context, status Status, bookID ...string) ([]Request, error) {
 	if s.repository == nil {
 		return nil, fmt.Errorf("%w: repository is required", ErrInvalid)
 	}
 	if status != "" && status != StatusQueued && status != StatusApproved && status != StatusDeclined && status != StatusExpired {
 		return nil, fmt.Errorf("%w: unsupported approval status %q", ErrInvalid, status)
 	}
-	return s.repository.List(ctx, status)
+	book := ""
+	if len(bookID) > 0 {
+		book = strings.TrimSpace(bookID[0])
+	}
+	return s.repository.List(ctx, status, book)
 }
 
 func (s *Service) Expire(ctx context.Context, id string) (Request, error) {

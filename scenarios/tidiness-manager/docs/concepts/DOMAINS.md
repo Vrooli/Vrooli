@@ -25,11 +25,14 @@ Shared concepts include scenario identity, file path, severity, issue category, 
 
 ## Deferred Domains
 
-P2 integrations such as app-issue-tracker task creation, code-smell handoff, custom rules, trend reporting, and remediation automation are deferred product domains.
+P2 integrations such as app-issue-tracker task creation, custom rules, trend reporting, and remediation automation are deferred product domains.
 
 ## Non-Domains
 
 Lint policy, type policy, static-quality config enforcement, and standards auditing are not Tidiness Manager domains.
+
+Pattern/anti-pattern detection and code auto-fix are also non-domains. They belonged to the retired
+`code-smell` scenario (removed 2026-08-18) and are currently unowned rather than deferred.
 
 ## Cross-References
 

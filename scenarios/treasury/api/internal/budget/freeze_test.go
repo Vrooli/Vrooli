@@ -40,6 +40,10 @@ func TestFreezeHierarchy(t *testing.T) {
 
 	_, err = service.SetScopeFrozen(ctx, budget.FreezeScopeScenario, "ignored", true)
 	require.NoError(t, err)
+	status, err := service.ScenarioFreezeStatus(ctx)
+	require.NoError(t, err)
+	require.True(t, status.Frozen)
+	require.Equal(t, budget.FreezeScopeScenario, status.Scope)
 	frozen, scope, err = service.IsFrozen(ctx, "book-1", "budget-1")
 	require.NoError(t, err)
 	require.True(t, frozen)
@@ -70,6 +74,7 @@ func TestFreezeTransitionMatrix(t *testing.T) {
 	} {
 		next, err := budget.TransitionFreeze(budget.FreezeState{Frozen: test.initial}, test.event)
 		require.NoError(t, err)
+		require.NoError(t, budget.CheckFreezeInvariants(next))
 		require.Equal(t, test.want, next.Frozen)
 	}
 }

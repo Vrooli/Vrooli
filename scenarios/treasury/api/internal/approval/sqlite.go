@@ -9,6 +9,7 @@ import (
 )
 
 type DB interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
@@ -19,9 +20,20 @@ type SQLiteRepository struct{ db DB }
 func NewSQLiteRepository(db DB) *SQLiteRepository { return &SQLiteRepository{db: db} }
 
 func (r *SQLiteRepository) Create(ctx context.Context, value Request) (Request, error) {
-	_, err := r.db.ExecContext(ctx, `INSERT INTO approval_requests(id,authorization_id,mandate_id,requesting_agent,amount_minor,currency,counterparty,status,resolver_identity,created_at,expires_at,resolved_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`, value.ID, value.AuthorizationID, value.MandateID, value.RequestingAgent, value.AmountMinor, value.Currency, value.Counterparty, string(value.Status), value.ResolverIdentity, value.CreatedAt.Format(time.RFC3339Nano), value.ExpiresAt.Format(time.RFC3339Nano), "")
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return Request{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	_, err = tx.ExecContext(ctx, `INSERT INTO approval_requests(id,authorization_id,mandate_id,requesting_agent,amount_minor,currency,counterparty,status,resolver_identity,created_at,expires_at,resolved_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`, value.ID, value.AuthorizationID, value.MandateID, value.RequestingAgent, value.AmountMinor, value.Currency, value.Counterparty, string(value.Status), value.ResolverIdentity, value.CreatedAt.Format(time.RFC3339Nano), value.ExpiresAt.Format(time.RFC3339Nano), "")
 	if err != nil {
 		return Request{}, fmt.Errorf("create approval: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO approval_book_bindings(approval_id,book_id) VALUES(?,?) ON CONFLICT(approval_id) DO NOTHING`, value.ID, value.BookID); err != nil {
+		return Request{}, fmt.Errorf("bind approval book: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Request{}, err
 	}
 	return r.Get(ctx, value.ID)
 }
@@ -29,7 +41,7 @@ func (r *SQLiteRepository) Create(ctx context.Context, value Request) (Request, 
 func (r *SQLiteRepository) Get(ctx context.Context, id string) (Request, error) {
 	var value Request
 	var status, createdAt, expiresAt, resolvedAt string
-	err := r.db.QueryRowContext(ctx, `SELECT id,authorization_id,mandate_id,requesting_agent,amount_minor,currency,counterparty,status,resolver_identity,created_at,expires_at,resolved_at FROM approval_requests WHERE id=?`, id).Scan(&value.ID, &value.AuthorizationID, &value.MandateID, &value.RequestingAgent, &value.AmountMinor, &value.Currency, &value.Counterparty, &status, &value.ResolverIdentity, &createdAt, &expiresAt, &resolvedAt)
+	err := r.db.QueryRowContext(ctx, selectApproval+` WHERE a.id=?`, id).Scan(&value.ID, &value.AuthorizationID, &value.BookID, &value.MandateID, &value.RequestingAgent, &value.AmountMinor, &value.Currency, &value.Counterparty, &status, &value.ResolverIdentity, &createdAt, &expiresAt, &resolvedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Request{}, ErrNotFound
 	}
@@ -51,14 +63,23 @@ func (r *SQLiteRepository) Get(ctx context.Context, id string) (Request, error) 
 	return value, nil
 }
 
-func (r *SQLiteRepository) List(ctx context.Context, status Status) ([]Request, error) {
-	query := `SELECT id,authorization_id,mandate_id,requesting_agent,amount_minor,currency,counterparty,status,resolver_identity,created_at,expires_at,resolved_at FROM approval_requests`
+func (r *SQLiteRepository) List(ctx context.Context, status Status, bookID string) ([]Request, error) {
+	query := selectApproval
 	args := []any{}
 	if status != "" {
-		query += ` WHERE status=?`
+		query += ` WHERE a.status=?`
 		args = append(args, string(status))
 	}
-	query += ` ORDER BY created_at,id`
+	if bookID != "" {
+		if len(args) == 0 {
+			query += ` WHERE`
+		} else {
+			query += ` AND`
+		}
+		query += ` b.book_id=?`
+		args = append(args, bookID)
+	}
+	query += ` ORDER BY a.created_at,a.id`
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -82,7 +103,7 @@ type rowScanner interface {
 func scanRequest(row rowScanner) (Request, error) {
 	var value Request
 	var status, createdAt, expiresAt, resolvedAt string
-	if err := row.Scan(&value.ID, &value.AuthorizationID, &value.MandateID, &value.RequestingAgent, &value.AmountMinor, &value.Currency, &value.Counterparty, &status, &value.ResolverIdentity, &createdAt, &expiresAt, &resolvedAt); err != nil {
+	if err := row.Scan(&value.ID, &value.AuthorizationID, &value.BookID, &value.MandateID, &value.RequestingAgent, &value.AmountMinor, &value.Currency, &value.Counterparty, &status, &value.ResolverIdentity, &createdAt, &expiresAt, &resolvedAt); err != nil {
 		return Request{}, err
 	}
 	value.Status = Status(status)
@@ -100,6 +121,8 @@ func scanRequest(row rowScanner) (Request, error) {
 	}
 	return value, nil
 }
+
+const selectApproval = `SELECT a.id,a.authorization_id,b.book_id,a.mandate_id,a.requesting_agent,a.amount_minor,a.currency,a.counterparty,a.status,a.resolver_identity,a.created_at,a.expires_at,a.resolved_at FROM approval_requests a JOIN approval_book_bindings b ON b.approval_id=a.id`
 
 func (r *SQLiteRepository) Resolve(ctx context.Context, id string, status Status, resolver, resolvedAt string) (Request, error) {
 	result, err := r.db.ExecContext(ctx, `UPDATE approval_requests SET status=?,resolver_identity=?,resolved_at=? WHERE id=? AND status='queued'`, string(status), resolver, resolvedAt, id)

@@ -38,7 +38,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/pages.dashboard",
+          "selector": "@selector/pages.approvals",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
@@ -52,7 +52,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/pages.dashboard",
+          "selector": "@selector/pages.approvals",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
           "expected": {
             "stringValue": "routed-smoke-001"

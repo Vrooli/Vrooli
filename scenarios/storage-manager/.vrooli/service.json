@@ -250,9 +250,6 @@
         }
       ]
     },
-    "build": {},
-    "deploy": {},
-    "clean": {},
     "test": {
       "description": "Execute phased test suite via test-genie",
       "steps": [
@@ -265,24 +262,6 @@
           "name": "run-tests",
           "run": "test-genie execute storage-manager --preset comprehensive",
           "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'storage-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
         }
       ]
     }

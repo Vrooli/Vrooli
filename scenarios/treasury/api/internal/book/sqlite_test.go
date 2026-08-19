@@ -18,7 +18,7 @@ import (
 	"treasury/internal/mandate"
 )
 
-// [REQ:TRS-P0-010] The real schema admits many books for the operator but no
+// [REQ:TRS-P0-010] [REQ:TRS-P1-004] The real schema admits many books for the operator but no
 // second beneficiary, even when a future caller bypasses an HTTP boundary.
 func TestSQLiteRepositoryEnforcesOneOperatorBeneficiary(t *testing.T) {
 	databaseHandle := db.NewSQLite(t)
@@ -33,7 +33,7 @@ func TestSQLiteRepositoryEnforcesOneOperatorBeneficiary(t *testing.T) {
 	require.ErrorIs(t, err, book.ErrBeneficiaryConflict)
 }
 
-// [REQ:TRS-P0-010] enforces invariant: onlyOperatorBeneficiaryCanBeRepresented.
+// [REQ:TRS-P0-010] [REQ:TRS-P1-004] enforces invariant: onlyOperatorBeneficiaryCanBeRepresented.
 // This test deliberately bypasses every service and handler. The persistence
 // schema itself must make third-party custody and cross-book authority
 // relationships unrepresentable.

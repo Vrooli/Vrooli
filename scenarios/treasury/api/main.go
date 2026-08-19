@@ -19,6 +19,8 @@ import (
 	"treasury/internal/modules"
 	"treasury/internal/operatorauth"
 	"treasury/internal/rail"
+	"treasury/internal/rail/card"
+	lithicrail "treasury/internal/rail/card/lithic"
 	"treasury/internal/rail/manual"
 	x402rail "treasury/internal/rail/x402"
 	"treasury/internal/server"
@@ -249,9 +251,22 @@ func main() {
 	if err != nil {
 		log.Fatalf("x402 rail configuration failed: %v", err)
 	}
-	railRegistry, err := rail.NewRegistry(manual.New(), x402Adapter)
+	cardHTTPClient := &http.Client{Timeout: 30 * time.Second}
+	lithicURL := strings.TrimSpace(os.Getenv("LITHIC_SANDBOX_URL"))
+	if lithicURL == "" {
+		lithicURL = "https://sandbox.lithic.com"
+	}
+	lithicAdapter, err := lithicrail.New(lithicURL, cardHTTPClient)
+	if err != nil {
+		log.Fatalf("scoped card rail configuration failed: %v", err)
+	}
+	railRegistry, err := rail.NewRegistry(manual.New(), x402Adapter, lithicAdapter)
 	if err != nil {
 		log.Fatalf("rail registry configuration failed: %v", err)
+	}
+	cardRegistry, err := card.NewRegistry(lithicAdapter)
+	if err != nil {
+		log.Fatalf("card issuer registry configuration failed: %v", err)
 	}
 	facilitatorURL := strings.TrimSpace(os.Getenv("X402_FACILITATOR_URL"))
 	if facilitatorURL == "" {
@@ -287,8 +302,8 @@ func main() {
 		server.Deps{Clock: clock, Logger: log.Default()},
 		healthH.Module(db, "treasury-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		agentspendH.Module(db, identityVerifier, clock, approvalRelay, railRegistry, credentialResolver),
-		treasuryadminH.Module(db, operatorAuthorizer, clock, approvalRelay, railRegistry, credentialResolver, mandateSigner),
+		agentspendH.Module(db, identityVerifier, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver),
+		treasuryadminH.Module(db, operatorAuthorizer, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver, mandateSigner),
 		x402gateH.Module(x402Gate, operatorAuthorizer),
 	)
 

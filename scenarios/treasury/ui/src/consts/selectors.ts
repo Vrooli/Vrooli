@@ -327,6 +327,14 @@ const literalSelectors = {
     tokenInput: "approvals-token-input",
     openQueueButton: "approvals-open-queue",
     queue: "approvals-queue",
+    bookSelect: "approvals-book-select",
+  },
+  controls: {
+    panel: "controls-panel",
+    tokenInput: "controls-token-input",
+    openButton: "controls-open",
+    freezeAllButton: "controls-freeze-all",
+    bookSelect: "controls-book-select",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -388,6 +396,13 @@ const dynamicSelectorDefinitions = {
         id: { type: "string" },
         action: { type: "enum", values: ["approve", "decline"] as const },
       },
+    }),
+  },
+  controls: {
+    standingItem: defineDynamicSelector({
+      description: "Standing mandate row by mandate identifier",
+      testIdPattern: "controls-standing-${id}",
+      params: { id: { type: "string" } },
     }),
   },
 } satisfies DynamicSelectorTree;

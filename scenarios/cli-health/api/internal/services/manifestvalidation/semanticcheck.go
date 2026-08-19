@@ -148,6 +148,12 @@ func redundantBindFindings(request protoreflect.MessageDescriptor, mappings []ar
 		if mapping.Bind == nil || strings.TrimSpace(mapping.Bind.Field) == "" {
 			continue
 		}
+		// A structured decode kind is behavioral metadata, not a redundant
+		// field rename. Removing this bind would make a message-valued flag
+		// impossible to populate from its single CLI string.
+		if cliapp.StructuredDecodeKind(mapping.Bind.Kind) {
+			continue
+		}
 		if strings.TrimSpace(mapping.BindWaiver) != "" {
 			continue
 		}

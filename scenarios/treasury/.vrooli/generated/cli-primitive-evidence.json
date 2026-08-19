@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "treasury",
   "generator": "v1.0.0",
-  "manifest_hash": "f2e0f3eeac0bfe01db15d4830f950701611e040097af2a324acc258bc69ac49b",
+  "manifest_hash": "73f1a2821a4ee96a58d1c5ea2d4dcdfec95ffbc4e49244d897c7d2f05c16c128",
   "commands": [
     {
       "path": "approval list",
@@ -49,6 +49,30 @@
       "binding": "TreasuryAdmin.FreezeBudget"
     },
     {
+      "path": "budget freeze-all",
+      "group": "budget",
+      "command": "freeze-all",
+      "binding": "TreasuryAdmin.FreezeAll"
+    },
+    {
+      "path": "budget freeze-book",
+      "group": "budget",
+      "command": "freeze-book",
+      "binding": "TreasuryAdmin.FreezeBook"
+    },
+    {
+      "path": "budget freeze-status",
+      "group": "budget",
+      "command": "freeze-status",
+      "binding": "TreasuryAdmin.GetFreezeStatus"
+    },
+    {
+      "path": "budget headroom",
+      "group": "budget",
+      "command": "headroom",
+      "binding": "AgentSpend.GetBudgetHeadroom"
+    },
+    {
       "path": "budget set-caps",
       "group": "budget",
       "command": "set-caps",
@@ -65,6 +89,18 @@
       "group": "budget",
       "command": "unfreeze",
       "binding": "TreasuryAdmin.UnfreezeBudget"
+    },
+    {
+      "path": "budget unfreeze-all",
+      "group": "budget",
+      "command": "unfreeze-all",
+      "binding": "TreasuryAdmin.UnfreezeAll"
+    },
+    {
+      "path": "budget unfreeze-book",
+      "group": "budget",
+      "command": "unfreeze-book",
+      "binding": "TreasuryAdmin.UnfreezeBook"
     },
     {
       "path": "evidence describe",
@@ -91,6 +127,12 @@
       "binding": "."
     },
     {
+      "path": "mandate cancel-standing",
+      "group": "mandate",
+      "command": "cancel-standing",
+      "binding": "TreasuryAdmin.CancelStandingMandate"
+    },
+    {
       "path": "mandate create",
       "group": "mandate",
       "command": "create",
@@ -101,6 +143,12 @@
       "group": "mandate",
       "command": "list",
       "binding": "AgentSpend.ListMandates"
+    },
+    {
+      "path": "mandate list-all",
+      "group": "mandate",
+      "command": "list-all",
+      "binding": "TreasuryAdmin.ListMandates"
     },
     {
       "path": "mandate revoke",

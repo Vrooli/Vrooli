@@ -11,9 +11,9 @@ function operatorHeaders(operatorToken: string): HeadersInit {
   return { Authorization: `Bearer ${operatorToken}` };
 }
 
-export async function listPendingApprovals(operatorToken: string): Promise<ApprovalRequest[]> {
+export async function listPendingApprovals(operatorToken: string, bookId = ""): Promise<ApprovalRequest[]> {
   const response = await treasuryAdmin.listApprovals(
-    { status: ApprovalStatus.QUEUED },
+    { status: ApprovalStatus.QUEUED, bookId },
     { headers: operatorHeaders(operatorToken) },
   );
   return response.approvals;

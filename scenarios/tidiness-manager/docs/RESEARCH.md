@@ -20,11 +20,11 @@ Searched for existing scenarios that might overlap with tidiness-manager's core 
    - **Overlap**: Quality checking, rules engine, violation reporting
    - **Differentiation**: scenario-auditor focuses on **standards compliance** (security, schema validation, best practices enforcement). tidiness-manager focuses on **code cleanliness** (file length, dead code, duplication, refactoring opportunities). Complementary tools - auditor says "does this meet our standards?" while tidiness says "is this code getting messy?"
 
-3. **code-smell** (`/scenarios/code-smell/`)
+3. **the retired code-smell scenario** (removed 2026-08-18, not absorbed)
    - **Purpose**: Self-improving code quality guardian detecting and fixing code smell violations
    - **Overlap**: Code quality, pattern detection, auto-fixing, AI-powered analysis
-   - **Differentiation**: SIGNIFICANT OVERLAP. code-smell focuses on **pattern-based violations** (bad practices, anti-patterns, smell patterns). tidiness-manager focuses on **structural issues** (length, organization, dead code, duplication).
-   - **Integration Opportunity**: These should likely work together - code-smell detects WHAT is wrong (patterns), tidiness-manager detects WHERE things are getting messy (structure). tidiness-manager could call code-smell for deep pattern analysis.
+   - **Differentiation**: SIGNIFICANT OVERLAP. code-smell focused on **pattern-based violations** (bad practices, anti-patterns, smell patterns). tidiness-manager focuses on **structural issues** (length, organization, dead code, duplication).
+   - **Outcome**: The planned integration (OT-P2-003 / TM-FF-003) was never built, and code-smell was retired as abandoned — no dependents, no registry entry, source stale since 2025-12. Its capabilities were **not** absorbed here: pattern detection and auto-fix remain unowned. The original analysis below is preserved as the historical record of why the boundary was drawn.
 
 4. **the retired PRD control-tower** (absorbed into `/scenarios/business-health/`)
    - **Purpose**: PRD and requirements management with quality metrics
@@ -40,7 +40,7 @@ Searched for existing scenarios that might overlap with tidiness-manager's core 
 
 tidiness-manager is unique because it:
 
-1. **Orchestrates multiple quality tools** - Combines cheap static analysis (lint, type checking, line counts) with expensive AI analysis (code-smell, resource-claude-code) in a coordinated way
+1. **Orchestrates multiple quality tools** - Combines cheap static analysis (lint, type checking, line counts) with expensive AI analysis (resource-claude-code) in a coordinated way
 2. **Progressive coverage** - Uses visited-tracker to ensure comprehensive, non-redundant analysis across large codebases
 3. **Campaign management** - Provides automatic, long-running tidiness campaigns that systematically improve code health
 4. **Makefile integration** - Leverages existing scenario Makefiles (`make lint`, `make type`) as the foundation for light scanning
@@ -58,7 +58,6 @@ tidiness-manager is unique because it:
 
 **Complementary:**
 - `scenario-auditor` - Standards compliance (different focus)
-- `code-smell` - Pattern-based smell detection (integration partner)
 - `app-issue-tracker` - Could receive tidiness issues as tasks
 
 **Consumers:**
@@ -125,7 +124,7 @@ tidiness-manager is unique because it:
 
 ## Implementation Risks
 
-1. **Overlap with code-smell** - Need clear boundaries or integration strategy
+1. ~~**Overlap with code-smell** - Need clear boundaries or integration strategy~~ — resolved by code-smell's retirement (2026-08-18); no overlap remains, but pattern detection and auto-fix are now unowned
 2. **AI cost control** - Smart scans could get expensive; need strict batching
 3. **False positives** - Long files aren't always bad; need context-aware flagging
 4. **Campaign runaway** - Auto-campaigns must have kill switches
@@ -133,7 +132,7 @@ tidiness-manager is unique because it:
 
 ## Recommendations
 
-1. **Coordinate with code-smell** - Define clear integration points or merge capabilities
+1. ~~**Coordinate with code-smell** - Define clear integration points or merge capabilities~~ — superseded: code-smell was retired without absorption, so there is nothing left to coordinate with
 2. **Start with light scanning** - Prove value with cheap analysis before heavy AI
 3. **Build API-first** - CLI and UI consume the same API
 4. **Configurable everything** - Thresholds, rules, campaigns should be tunable
@@ -144,6 +143,5 @@ tidiness-manager is unique because it:
 
 - visited-tracker PRD: `/scenarios/visited-tracker/PRD.md`
 - scenario-auditor README: `/scenarios/scenario-auditor/README.md`
-- code-smell PRD: `/scenarios/code-smell/PRD.md`
 - Vrooli context: `/README.md` and `/VISION.md`
 - Template documentation: `vrooli scenario template show react-vite`

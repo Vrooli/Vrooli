@@ -42,16 +42,16 @@
 - [x] OT-P1-004 | Personal and business books | A mandate should belong to exactly one book, and books should not share instruments, budgets or approval chains
 - [x] OT-P1-005 | Standing mandates and obligations | The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action
 - [x] OT-P1-006 | Kill switch | When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement
-- [ ] OT-P1-007 | Spend position without a ledger round-trip | The scenario should report remaining headroom per budget from its own authorization records, so an agent can plan without querying money-ledger
+- [x] OT-P1-007 | Spend position without a ledger round-trip | The scenario should report remaining headroom per budget from its own authorization records, so an agent can plan without querying money-ledger
 
 ### 🟢 P2 – Future / expansion
 
-- [x] OT-P2-001 | Rail reconciliation | The scenario may match settled charges against a rail's own statement and surface unmatched entries on both sides
-- [x] OT-P2-002 | AP2 mandate interoperability | The scenario may emit and accept AP2-shaped signed mandates so it can transact with an AP2-speaking counterparty
-- [x] OT-P2-003 | Browser checkout rail | The scenario may drive a card-shaped web checkout through browser-automation-studio under a mandate whose instrument cannot overspend if the flow is compromised
+- [ ] OT-P2-001 | Rail reconciliation | The scenario may match settled charges against a rail's own statement and surface unmatched entries on both sides
+- [ ] OT-P2-002 | AP2 mandate interoperability | The scenario may emit and accept AP2-shaped signed mandates so it can transact with an AP2-speaking counterparty
+- [ ] OT-P2-003 | Browser checkout rail | The scenario may drive a card-shaped web checkout through browser-automation-studio under a mandate whose instrument cannot overspend if the flow is compromised
 - [ ] OT-P2-004 | Price book read from offer-desk | The scenario may read inbound prices from offer-desk rather than declaring them locally, joining what should earn to what a call costs
-- [x] OT-P2-005 | Advisory spend anomaly signals | The scenario may surface unusual spend patterns against a budget's own history as advisory signals that never block a charge on their own
-- [x] OT-P2-006 | Mandate templates | The scenario may let an operator save a recurring authorization shape as a named template so common grants do not get hand-built each time
+- [ ] OT-P2-005 | Advisory spend anomaly signals | The scenario may surface unusual spend patterns against a budget's own history as advisory signals that never block a charge on their own
+- [ ] OT-P2-006 | Mandate templates | The scenario may let an operator save a recurring authorization shape as a named template so common grants do not get hand-built each time
 
 ## 🧱 Tech Direction Snapshot
 

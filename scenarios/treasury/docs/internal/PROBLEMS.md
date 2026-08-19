@@ -146,6 +146,11 @@ query-only failure resolution, cancellation-safe outcome recording, and live
 identity rebinding. Complete attempt evidence and ledger emission remain
 designed until Phase 8.
 
+**Resolution:** Phases 8–16 now verify complete immutable evidence, durable
+Money Ledger emission, operator controls, scoped-card issuance, and the final
+security/comprehensive suites. The implementation gap described here is
+closed; operator-dependent live rail proofs remain separate entries below.
+
 ### 2026-08-18 — Storage Manager mistakes a domain Query result for sql.Rows
 
 **Symptom:** Test Genie run `20260819-020951-3b1f6edd` failed Storage with
@@ -185,6 +190,91 @@ own validator enforces, then rerun the Treasury comprehensive suite.
 **Refs:** scenario-qa `knw-1787104257680826857`, run
 `20260819-014547-256280ab`, `scenarios/treasury/api/go.mod`.
 
+**Resolution:** The governed dependency state now passes the dependency phase
+in comprehensive run `20260819-063957-7b748ec4`. Keep the upstream bug for its
+installer/validator consistency work; Treasury no longer needs a workaround.
+
+### 2026-08-19 — live recurring transaction needs operator-owned facts
+
+**Symptom:** The P1-001 recurring payment and P1-002 operator-use targets have
+no real settlement, evidence ID, or downstream Money Ledger posting.
+
+**Root cause:** The repository cannot choose or invent a real obligation. It
+also cannot authorize an Agent Manager run on the operator's behalf.
+
+**Workaround:** Use automated and attended local fixtures for implementation
+validation. Do not present them as a real transaction.
+
+**Real fix:** Supply the merchant, amount, currency, payment time, non-sensitive
+receipt reference, confirmation that payment is due, and an authorized agent
+identity. Then settle against Money Ledger book
+`87f1fc53-97c9-48ed-b4c8-6c09499e36a2` and account
+`99e87b30-e093-47e3-8f45-4b15838ae798`.
+
+**Owner:** operator.
+
+**Refs:** `requirements/02-post-launch/module.json`,
+`docs/operations/RUNBOOK.md`.
+
+### 2026-08-19 — live x402 proof needs a funded signer
+
+**Symptom:** P1-001 has no cent-scale outbound and inbound x402 settlement on
+a real network.
+
+**Root cause:** No wallet, signer, network selection, or funds were supplied.
+
+**Workaround:** Contract, adapter, policy, and failure behavior are covered by
+local tests. They do not prove value moved.
+
+**Real fix:** Provision an approved signer and funded test account through the
+governed credential path, select the network, and run both directions against
+the self-hosted facilitator.
+
+**Owner:** operator.
+
+**Refs:** `api/internal/rail/x402/`, `handlers/x402gate/`,
+`requirements/02-post-launch/module.json`.
+
+### 2026-08-19 — scoped-card enforcement needs a Lithic sandbox account
+
+**Symptom:** P1-003 has no live provider response proving that an amount or
+merchant outside the mandate is declined by the issuer.
+
+**Root cause:** Credential identity `vrooli/treasury/lithic` is not configured,
+and the sandbox account/API key must be created by an operator.
+
+**Workaround:** The local fake provider proves the exact issued scope and
+provider-decline behavior. The live test remains gated by
+`TREASURY_LITHIC_SANDBOX_INTEGRATION=1` and resolves its key through Credential
+Authority.
+
+**Real fix:** Create a Lithic sandbox account, provision its API key at the
+documented credential identity, and run the operator-gated integration test.
+
+**Owner:** operator.
+
+**Refs:** `api/internal/rail/card/lithic/adapter_test.go`,
+`docs/operations/RUNBOOK.md`, `requirements/02-post-launch/module.json`.
+
+### 2026-08-19 — requirement sync promotes planned manual validations
+
+**Symptom:** `test-genie requirements sync` changes planned manual-only P2
+validations to implemented after the named suite phase passes, then checks off
+unimplemented PRD targets. Business Health immediately reports them as
+unattested manual claims.
+
+**Root cause:** Test Genie's sync writer conflates a passing phase with a manual
+attestation.
+
+**Workaround:** Run the required sync once, then restore unimplemented manual
+requirements and PRD targets to planned. Business Health returns clean L3.
+
+**Real fix:** Require manual-log evidence before promoting a manual validation.
+
+**Owner:** Test Genie / scenario-qa `knw-1787121761545564738`.
+
+**Refs:** `requirements/03-future/module.json`, `PRD.md`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -205,6 +295,6 @@ a migration handoff with a planned retirement path back into
 ## Work ladder
 
 - Rung: W3 / R0
-- Evidence: goal `treasury-full-implementation` points to the active implementation plan and agrees with the PRD's P0/P1 capability set. Test Genie run `20260819-012010-335b29e5` executes all 22 phases (19 pass, 3 fail); contracts, API, architecture, dependencies, docs, unit, storage, business, security, proto, and agent conformance pass. The grant spine, authorization boundary, exact agent descriptor, operator realm, and local approval gate have passing focused, race, real-transport, generated-flow, stopped-dependency, and requirement-linked evidence.
-- Blocker: complete evidence and replay, ledger emission, operator UI, rail providers, and live-transaction proof remain in the active plan before the final R1/9-of-9 gate. Exactly-once settlement now has focused, concurrent, generated-client, formal-check, and replay evidence. The comprehensive suite still carries the three later-owned UI health, workflow, and branding failures plus the governed-installer tidy mismatch recorded above.
-- Measured: 2026-08-18
+- Evidence: W0 comparison still matches goal `treasury-full-implementation` to every P0/P1 operational target; W1 Business Health is clean L3; W2 `vrooli scenario requirements validate treasury` passes; and W3 Test Genie run `20260819-065815-5977126a` passes all 22 phases. A 2026-08-19 live-state recheck found only `phase8-*` fixture rows in Treasury, no x402 prices or admissions, no non-fixture Treasury posting in Money Ledger, `vrooli/treasury/lithic:value` configured=false, and facilitator support `{kinds:[], extensions:[], signers:{}}` with empty chains/schemes.
+- Blocker: R1 remains unearned until the operator supplies (1) a real recurring obligation's merchant, amount, currency, payment time, non-sensitive receipt reference, confirmation it is due, and authorization to execute it; (2) an approved funded x402 signer, network, asset, and live counterparty; and (3) an operator-created Lithic sandbox credential. P1-001, P1-002, and P1-003 remain planned; no fixture or mock is represented as live financial evidence.
+- Measured: 2026-08-19

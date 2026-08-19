@@ -18,13 +18,17 @@ import (
 	"treasury/internal/instrument"
 	"treasury/internal/mandate"
 	"treasury/internal/rail"
+	"treasury/internal/rail/card"
 	"treasury/internal/rail/manual"
 )
 
 type credentialResolver struct {
-	reference string
-	field     string
-	value     string
+	reference       string
+	field           string
+	value           string
+	storedReference string
+	storedField     string
+	storedValue     string
 }
 
 func TestProductSchemasContainNoCredentialValueColumns(t *testing.T) {
@@ -46,7 +50,15 @@ func TestProductSchemasContainNoCredentialValueColumns(t *testing.T) {
 
 func (r *credentialResolver) Resolve(_ context.Context, reference, field string) (string, error) {
 	r.reference, r.field = reference, field
+	if reference == r.storedReference && field == r.storedField && r.storedValue != "" {
+		return r.storedValue, nil
+	}
 	return r.value, nil
+}
+
+func (r *credentialResolver) Store(_ context.Context, reference, field, value string) error {
+	r.storedReference, r.storedField, r.storedValue = reference, field, value
+	return nil
 }
 
 // [REQ:TRS-P0-007] Instrument scope is projected from a live mandate while
@@ -100,6 +112,69 @@ func (credentialRail) Settle(context.Context, rail.SettleCommand) (rail.Result, 
 
 func (credentialRail) QueryOutcome(context.Context, rail.Query) (rail.Result, error) {
 	return rail.Result{}, nil
+}
+
+type scopedCardIssuer struct{ received card.IssueCommand }
+
+func (*scopedCardIssuer) Name() string { return "fixture-scoped-card" }
+func (i *scopedCardIssuer) Issue(_ context.Context, command card.IssueCommand) (card.Issued, error) {
+	i.received = command
+	return card.Issued{ExternalID: "provider-card-1", Credential: "issued-card-secret", Scope: command.Scope}, nil
+}
+
+func (i *scopedCardIssuer) Inspect(context.Context, card.InspectQuery) (card.Issued, error) {
+	return card.Issued{}, nil
+}
+
+// [REQ:TRS-P1-003] Registration resolves the provider credential at issuance,
+// projects every scope field from the live mandate, and writes the resulting
+// card secret back to Credential Authority instead of Treasury's database.
+func TestScopedCardIssuanceUsesMandateAndCredentialAuthority(t *testing.T) {
+	ctx := context.Background()
+	handle := db.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(ctx, handle, database.SchemaProviderFunc(book.Schema), database.SchemaProviderFunc(budget.Schema), database.SchemaProviderFunc(mandate.Schema), database.SchemaProviderFunc(rail.Schema), database.SchemaProviderFunc(instrument.Schema)))
+	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	clock := schedule.NewFake(now)
+	_, err := book.NewService(book.NewSQLiteRepository(handle), clock).Create(ctx, book.CreateInput{ID: "card-book", Name: "Operator", BeneficiaryIdentity: "operator:1"})
+	require.NoError(t, err)
+	_, err = budget.NewService(budget.NewSQLiteRepository(handle), clock).Create(ctx, budget.Budget{ID: "card-budget", BookID: "card-book", Currency: "USD", TotalCapMinor: 2000, PeriodicCapMinor: 2000, PerTransactionCapMinor: 2000, Period: time.Hour, AllowedCounterparties: []string{"MERCHANT123"}})
+	require.NoError(t, err)
+	signer, err := mandate.NewHMACSigner([]byte("test-only-key"))
+	require.NoError(t, err)
+	mandates := mandate.NewService(mandate.NewSQLiteRepository(handle), clock, signer)
+	grant, err := mandates.Issue(ctx, mandate.IssueInput{ID: "card-mandate", IdempotencyKey: "card-mandate-key", BookID: "card-book", BudgetID: "card-budget", Authorizer: "operator:1", CapMinor: 875, Currency: "USD", AllowedCounterparties: []string{"MERCHANT123"}, ExpiresAt: now.Add(48 * time.Hour)})
+	require.NoError(t, err)
+	issuer := &scopedCardIssuer{}
+	issuers, err := card.NewRegistry(issuer)
+	require.NoError(t, err)
+	rails, err := rail.NewRegistry()
+	require.NoError(t, err)
+	credentials := &credentialResolver{value: `{"api_key":"provider-secret"}`}
+	service := instrument.NewServiceWithCardIssuers(instrument.NewSQLiteRepository(handle), mandates, rails, credentials, clock, issuers)
+
+	created, err := service.Register(ctx, instrument.RegisterInput{ID: "card-instrument", MandateID: grant.ID, Rail: issuer.Name(), CredentialReference: "vrooli/treasury/lithic", Counterparty: "MERCHANT123"})
+	require.NoError(t, err)
+	require.Equal(t, grant.ID, issuer.received.Scope.MandateReference)
+	require.Equal(t, grant.CapMinor, issuer.received.Scope.AmountMinor)
+	require.Equal(t, grant.Currency, issuer.received.Scope.Currency)
+	require.Equal(t, "merchant123", issuer.received.Scope.Counterparty)
+	require.Equal(t, grant.ExpiresAt, issuer.received.Scope.ExpiresAt)
+	require.Equal(t, "vrooli/treasury/lithic", credentials.reference)
+	require.Equal(t, "value", credentials.field)
+	require.Equal(t, "issued-card-secret", credentials.storedValue)
+	require.Equal(t, "value", credentials.storedField)
+	require.NotEqual(t, "vrooli/treasury/lithic", credentials.storedReference)
+	require.Equal(t, credentials.storedReference, created.CredentialReference)
+
+	var storedReference string
+	require.NoError(t, handle.QueryRowContext(ctx, `SELECT credential_reference FROM instruments WHERE id='card-instrument'`).Scan(&storedReference))
+	require.Equal(t, credentials.storedReference, storedReference)
+	require.NotContains(t, storedReference, "provider-secret")
+	require.NotContains(t, storedReference, "issued-card-secret")
+	scoped, err := service.ResolveForUse(ctx, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, "issued-card-secret", scoped.Value)
+	require.Equal(t, storedReference, credentials.reference)
 }
 
 func TestManualInstrumentRequiresNoCredentialMaterial(t *testing.T) {

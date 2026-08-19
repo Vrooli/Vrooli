@@ -28,13 +28,13 @@ workflow model.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| Mandate lifecycle | mandate | An operator issues a grant. | A mandate that is live, exhausted, expired or revoked. | States; expiry is time-driven and needs no actor; revocation is terminal. | Level 4 target |
-| Spend authorization | authorization | An agent proposes a charge. | A verdict, and a hold when approved. | States; holds must release on every terminal path including crash recovery. | Level 4 target |
+| Mandate lifecycle | mandate | An operator issues a grant. | A mandate that is live, exhausted, expired or revoked. | States; expiry is time-driven and needs no actor; revocation is terminal. | Level 4 measured |
+| Spend authorization | authorization | An agent proposes a charge. | A verdict, and a hold when approved. | States; holds must release on every terminal path including crash recovery. | Level 4 measured |
 | Approval resolution | approval | An authorization requires a human. | Approved, declined or expired. | States; retries on relay only; stale completion is real because humans are slow. | Level 4 measured |
 | Settlement | settlement | An approved authorization is executed. | Settled, failed or unknown. | States; exactly-once under retry; the hard case is the unknown-outcome window. | Level 5 measured |
-| Standing mandate recurrence | mandate | A recurrence boundary is reached. | A new authorization, or a stopped obligation. | States; cancellation must beat the next charge. | Level 3 target |
-| Ledger emission | ledger | A charge reaches a terminal outcome. | A money event accepted downstream. | Retries; idempotent; must not block settlement. | Level 3 target |
-| Freeze propagation | budget | An operator freezes a scope. | Authorization refused at that scope. | Effect must precede the next authorization, not the next settlement. | Level 2 target |
+| Standing mandate recurrence | mandate | A recurrence boundary is reached. | A new authorization, or a stopped obligation. | States; cancellation must beat the next charge. | Level 3 measured |
+| Ledger emission | ledger | A charge reaches a terminal outcome. | A money event accepted downstream. | Retries; idempotent; must not block settlement. | Level 3 measured |
+| Freeze propagation | budget | An operator freezes a scope. | Authorization refused at that scope. | Effect must precede the next authorization, not the next settlement. | Level 2 measured |
 
 ## Flow Details
 
@@ -207,8 +207,12 @@ their declarative contracts, complete state/event matrices, generated models,
 named traces, and production-transition replays live under their respective
 `api/internal/<domain>/flow/` directories and pass `flow-verifier verify
 check`. Ledger emission is level 3: its production transition has a complete
-state/event matrix and representative outage/recovery traces. Every other flow
-remains level 1 (inventory) until its executable artifacts land. This is
+state/event matrix and representative outage/recovery traces. Standing mandate
+recurrence is level 3: all four state/event pairs are covered and named active
+period/cancellation traces replay production transition code. Freeze propagation
+is level 2: its two-state imperative model, events, invariant check, and complete
+transition matrix live in `api/internal/budget/freeze.go` and its test. Other
+flows remain level 1 (inventory) until their executable artifacts land. This is
 intentionally a measurement, not a restatement of the targets below.
 
 Targets and their justification:

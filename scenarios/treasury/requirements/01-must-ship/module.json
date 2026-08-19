@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P0 requirements: the authorization spine. Every entry here must hold before any automated rail is wired, because each one is a property that a later rail assumes rather than re-establishes.",
-    "last_validated_at": "2026-08-19T01:10:21-04:00",
+    "last_validated_at": "2026-08-19T02:41:28-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"

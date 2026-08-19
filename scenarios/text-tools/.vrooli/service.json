@@ -186,21 +186,6 @@
           "description": "Execute phased scenario test suite"
         }
       ]
-    },
-    "stop": {
-      "description": "Stop Text Tools services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"text-tools-api\" || true; sleep 1; pkill -9 -f \"text-tools-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"npm run dev\" || true; pkill -f \"vite\" || true",
-          "description": "Stop UI process"
-        }
-      ]
     }
   },
   "dependencies": {

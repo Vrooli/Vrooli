@@ -16,17 +16,18 @@ import (
 	"treasury/internal/module"
 	"treasury/internal/operatorauth"
 	"treasury/internal/rail"
+	"treasury/internal/rail/card"
 	"treasury/internal/settlement"
 )
 
-func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock schedule.Clock, relay approval.Relay, rails *rail.Registry, credentials instrument.CredentialResolver, signer mandate.Signer) module.Module {
+func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock schedule.Clock, relay approval.Relay, rails *rail.Registry, cardIssuers *card.Registry, credentials instrument.CredentialResolver, signer mandate.Signer) module.Module {
 	authorizations := authorization.NewSQLiteRepository(db)
 	evidenceRecorder := evidence.NewRecorder(evidence.NewSQLiteRecorder(db))
 	approvals := approval.NewService(approval.NewSQLiteRepository(db), authorizations, relay, clock, evidenceRecorder)
 	books := book.NewService(book.NewSQLiteRepository(db), clock)
 	budgets := budget.NewService(budget.NewSQLiteRepository(db), clock, authorizations)
 	mandates := mandate.NewService(mandate.NewSQLiteRepository(db), clock, signer)
-	instruments := instrument.NewService(instrument.NewSQLiteRepository(db), mandates, rails, credentials, clock)
+	instruments := instrument.NewServiceWithCardIssuers(instrument.NewSQLiteRepository(db), mandates, rails, credentials, clock, cardIssuers)
 	settlements := settlement.NewService(settlement.NewSQLiteRepository(db), authorizations, instruments, rails, nil, clock, budgets)
 	path, handler := authorizationconnect.NewTreasuryAdminHandler(NewConnectHandler(authorizer, books, budgets, mandates, approvals, instruments, settlements, authorizations))
 	return module.Module{Name: "treasuryadmin", Mount: func(router *mux.Router) {

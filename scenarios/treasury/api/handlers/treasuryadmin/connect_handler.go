@@ -29,7 +29,7 @@ import (
 )
 
 type Approvals interface {
-	List(context.Context, approval.Status) ([]approval.Request, error)
+	List(context.Context, approval.Status, ...string) ([]approval.Request, error)
 	Resolve(context.Context, string, approval.Status, string) (approval.Request, error)
 }
 
@@ -55,12 +55,14 @@ type Budgets interface {
 	SetGating(context.Context, string, bool) (budget.Budget, error)
 	SetFrozen(context.Context, string, bool) (budget.Budget, error)
 	SetScopeFrozen(context.Context, budget.FreezeScope, string, bool) (budget.FreezeControl, error)
+	ScenarioFreezeStatus(context.Context) (budget.FreezeControl, error)
 }
 
 type Mandates interface {
 	Issue(context.Context, mandate.IssueInput) (mandate.Mandate, error)
 	Revoke(context.Context, string) (mandate.Mandate, error)
 	CancelStanding(context.Context, string) (mandate.Mandate, error)
+	List(context.Context) ([]mandate.Mandate, error)
 }
 
 type connectHandler struct {
@@ -194,6 +196,24 @@ func (h *connectHandler) CancelStandingMandate(ctx context.Context, request *con
 	return connect.NewResponse(&authorizationv1.CancelStandingMandateResponse{Mandate: mandateToProto(value)}), nil
 }
 
+func (h *connectHandler) ListMandates(ctx context.Context, request *connect.Request[authorizationv1.ListMandatesRequest]) (*connect.Response[authorizationv1.ListMandatesResponse], error) {
+	if err := h.authorize(ctx, request); err != nil {
+		return nil, err
+	}
+	if h.mandates == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("mandate service unavailable"))
+	}
+	values, err := h.mandates.List(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &authorizationv1.ListMandatesResponse{Mandates: make([]*mandatev1.Mandate, 0, len(values))}
+	for _, value := range values {
+		response.Mandates = append(response.Mandates, mandateToProto(value))
+	}
+	return connect.NewResponse(response), nil
+}
+
 func (h *connectHandler) RevokeMandate(ctx context.Context, request *connect.Request[authorizationv1.RevokeMandateRequest]) (*connect.Response[authorizationv1.RevokeMandateResponse], error) {
 	if err := h.authorize(ctx, request); err != nil {
 		return nil, err
@@ -254,7 +274,7 @@ func (h *connectHandler) ListApprovals(ctx context.Context, request *connect.Req
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	values, err := h.approvals.List(ctx, status)
+	values, err := h.approvals.List(ctx, status, request.Msg.GetBookId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -317,7 +337,7 @@ func approvalToProto(value approval.Request) *approvalv1.ApprovalRequest {
 	case approval.StatusExpired:
 		status = approvalv1.ApprovalStatus_APPROVAL_STATUS_EXPIRED
 	}
-	msg := &approvalv1.ApprovalRequest{Id: value.ID, AuthorizationId: value.AuthorizationID, MandateId: value.MandateID, RequestingAgent: value.RequestingAgent, AmountMinor: value.AmountMinor, Currency: value.Currency, Counterparty: value.Counterparty, Status: status, ResolverIdentity: value.ResolverIdentity, CreatedAt: timestamppb.New(value.CreatedAt), ExpiresAt: timestamppb.New(value.ExpiresAt)}
+	msg := &approvalv1.ApprovalRequest{Id: value.ID, AuthorizationId: value.AuthorizationID, BookId: value.BookID, MandateId: value.MandateID, RequestingAgent: value.RequestingAgent, AmountMinor: value.AmountMinor, Currency: value.Currency, Counterparty: value.Counterparty, Status: status, ResolverIdentity: value.ResolverIdentity, CreatedAt: timestamppb.New(value.CreatedAt), ExpiresAt: timestamppb.New(value.ExpiresAt)}
 	if !value.ResolvedAt.IsZero() {
 		msg.ResolvedAt = timestamppb.New(value.ResolvedAt)
 	}
@@ -378,6 +398,24 @@ func (h *connectHandler) FreezeAll(ctx context.Context, request *connect.Request
 		return nil, err
 	}
 	return connect.NewResponse(&authorizationv1.FreezeAllResponse{Frozen: value.Frozen, UpdatedAt: timestamppb.New(value.UpdatedAt)}), nil
+}
+
+func (h *connectHandler) GetFreezeStatus(ctx context.Context, request *connect.Request[authorizationv1.GetFreezeStatusRequest]) (*connect.Response[authorizationv1.GetFreezeStatusResponse], error) {
+	if err := h.authorize(ctx, request); err != nil {
+		return nil, err
+	}
+	if h.budgets == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("budget service unavailable"))
+	}
+	value, err := h.budgets.ScenarioFreezeStatus(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &authorizationv1.GetFreezeStatusResponse{Frozen: value.Frozen}
+	if !value.UpdatedAt.IsZero() {
+		response.UpdatedAt = timestamppb.New(value.UpdatedAt)
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (h *connectHandler) UnfreezeAll(ctx context.Context, request *connect.Request[authorizationv1.UnfreezeAllRequest]) (*connect.Response[authorizationv1.UnfreezeAllResponse], error) {
@@ -506,7 +544,7 @@ func authorizationToProto(value authorization.Record) *authorizationv1.Authoriza
 	case authorization.VerdictSettled:
 		verdict = authorizationv1.AuthorizationVerdict_AUTHORIZATION_VERDICT_SETTLED
 	}
-	return &authorizationv1.AuthorizationRecord{Id: value.ID, IdempotencyKey: value.IdempotencyKey, MandateId: value.MandateID, BudgetId: value.BudgetID, RequestingAgent: value.RequestingAgent, AmountMinor: value.AmountMinor, Currency: value.Currency, Counterparty: value.Counterparty, Verdict: verdict, ViolatedConstraint: value.ViolatedConstraint, Remediation: value.Remediation, HoldMinor: value.HoldMinor, CreatedAt: timestamppb.New(value.CreatedAt), ExpiresAt: timestamppb.New(value.ExpiresAt)}
+	return &authorizationv1.AuthorizationRecord{Id: value.ID, IdempotencyKey: value.IdempotencyKey, BookId: value.BookID, MandateId: value.MandateID, BudgetId: value.BudgetID, RequestingAgent: value.RequestingAgent, AmountMinor: value.AmountMinor, Currency: value.Currency, Counterparty: value.Counterparty, Verdict: verdict, ViolatedConstraint: value.ViolatedConstraint, Remediation: value.Remediation, HoldMinor: value.HoldMinor, CreatedAt: timestamppb.New(value.CreatedAt), ExpiresAt: timestamppb.New(value.ExpiresAt)}
 }
 
 func settlementToProto(value settlement.Record) *settlementv1.Charge {

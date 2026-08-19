@@ -24,6 +24,16 @@ metadata, cli-core primitive registration, proto binding coverage, and explicit
 exception declarations. A command reaches the top rung by *declaring* how it is
 built, and CLI Health verifies the declaration against structural evidence.
 
+Runtime command parity is a separate contract and does use the CLI's bounded
+help surface when execution is requested. `cli.command_missing` means the
+manifest promises a command that a successfully probed scenario binary does not
+expose; it is an ERROR on `runtime_surface` with remediation to rebuild first,
+then repair registration or remove the stale declaration. The reverse mismatch,
+a runtime command absent from the manifest, remains
+`cli.command_undeclared`. Keeping the directions distinct prevents a stale
+binary from being misreported as a missing capability and gives fleet repair a
+deterministic owner.
+
 ## The maturity ladder
 
 CLI Health reports one capability, `command_architecture`, with five rungs. The

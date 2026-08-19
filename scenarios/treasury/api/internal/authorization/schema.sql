@@ -16,6 +16,49 @@ CREATE TABLE IF NOT EXISTS authorizations (
     CHECK ((verdict IN ('pending', 'approved') AND hold_minor = amount_minor) OR (verdict NOT IN ('pending', 'approved') AND hold_minor = 0))
 );
 
+-- Book ownership is a domain-owned binding rather than a column migration on
+-- the existing authorization ledger. This keeps upgrades safe while making
+-- the isolation boundary mandatory for every newly persisted authorization.
+CREATE TABLE IF NOT EXISTS authorization_book_bindings (
+    authorization_id TEXT PRIMARY KEY REFERENCES authorizations(id),
+    book_id TEXT NOT NULL CHECK (length(trim(book_id)) > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_authorization_book_bindings_book
+ON authorization_book_bindings(book_id, authorization_id);
+
+CREATE TRIGGER IF NOT EXISTS authorization_book_binding_insert_guard
+BEFORE INSERT ON authorization_book_bindings
+FOR EACH ROW
+WHEN EXISTS (
+    SELECT 1
+    FROM authorizations a
+    LEFT JOIN mandates m ON m.id = a.mandate_id
+    LEFT JOIN budgets b ON b.id = a.budget_id
+    WHERE a.id = NEW.authorization_id
+      AND ((m.id IS NOT NULL AND m.book_id <> NEW.book_id)
+        OR (b.id IS NOT NULL AND b.book_id <> NEW.book_id))
+)
+BEGIN
+    SELECT RAISE(ABORT, 'authorization book must match mandate and budget books');
+END;
+
+CREATE TRIGGER IF NOT EXISTS authorization_book_binding_update_guard
+BEFORE UPDATE OF book_id, authorization_id ON authorization_book_bindings
+FOR EACH ROW
+WHEN EXISTS (
+    SELECT 1
+    FROM authorizations a
+    LEFT JOIN mandates m ON m.id = a.mandate_id
+    LEFT JOIN budgets b ON b.id = a.budget_id
+    WHERE a.id = NEW.authorization_id
+      AND ((m.id IS NOT NULL AND m.book_id <> NEW.book_id)
+        OR (b.id IS NOT NULL AND b.book_id <> NEW.book_id))
+)
+BEGIN
+    SELECT RAISE(ABORT, 'authorization book must match mandate and budget books');
+END;
+
 CREATE INDEX IF NOT EXISTS authorizations_budget_usage
 ON authorizations(budget_id, created_at, verdict, expires_at);
 

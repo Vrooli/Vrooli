@@ -13,6 +13,40 @@ CREATE TABLE IF NOT EXISTS approval_requests (
     resolved_at TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS approval_book_bindings (
+    approval_id TEXT PRIMARY KEY REFERENCES approval_requests(id),
+    book_id TEXT NOT NULL CHECK (length(trim(book_id)) > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_approval_book_bindings_book
+ON approval_book_bindings(book_id, approval_id);
+
+CREATE TRIGGER IF NOT EXISTS approval_book_binding_insert_guard
+BEFORE INSERT ON approval_book_bindings
+FOR EACH ROW
+WHEN NOT EXISTS (
+    SELECT 1
+    FROM approval_requests p
+    JOIN authorization_book_bindings a ON a.authorization_id = p.authorization_id
+    WHERE p.id = NEW.approval_id AND a.book_id = NEW.book_id
+)
+BEGIN
+    SELECT RAISE(ABORT, 'approval book must match authorization book');
+END;
+
+CREATE TRIGGER IF NOT EXISTS approval_book_binding_update_guard
+BEFORE UPDATE OF book_id, approval_id ON approval_book_bindings
+FOR EACH ROW
+WHEN NOT EXISTS (
+    SELECT 1
+    FROM approval_requests p
+    JOIN authorization_book_bindings a ON a.authorization_id = p.authorization_id
+    WHERE p.id = NEW.approval_id AND a.book_id = NEW.book_id
+)
+BEGIN
+    SELECT RAISE(ABORT, 'approval book must match authorization book');
+END;
+
 CREATE TABLE IF NOT EXISTS approval_relay_attempts (
     id TEXT PRIMARY KEY,
     approval_id TEXT NOT NULL REFERENCES approval_requests(id),

@@ -32,6 +32,7 @@ const (
 type Record struct {
 	ID                 string
 	IdempotencyKey     string
+	BookID             string
 	MandateID          string
 	BudgetID           string
 	RequestingAgent    string
@@ -90,6 +91,7 @@ type EvidenceRecorder interface {
 type ApprovalAdmission struct {
 	ID              string
 	AuthorizationID string
+	BookID          string
 	MandateID       string
 	RequestingAgent string
 	AmountMinor     int64
@@ -217,6 +219,7 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	}
 
 	record := baseRecord(in, now)
+	record.BookID = grant.BookID
 	record.BudgetID = policy.ID
 	record.RequestingAgent = claims.Subject
 	record.HoldMinor = in.AmountMinor
@@ -252,6 +255,7 @@ func (s *Service) ensureApproval(ctx context.Context, record Record) error {
 	return s.approvals.Admit(ctx, ApprovalAdmission{
 		ID:              record.ID + ":approval",
 		AuthorizationID: record.ID,
+		BookID:          record.BookID,
 		MandateID:       record.MandateID,
 		RequestingAgent: record.RequestingAgent,
 		AmountMinor:     record.AmountMinor,

@@ -120,6 +120,19 @@ func writeError(writer http.ResponseWriter, status int, detail string) {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	{ID: "x402_price_declare", Path: "/api/v1/x402/prices", Method: "POST", Summary: "Declare operator-owned x402 price terms", Category: "x402", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape, Note: "x402 is standardized as HTTP 402 plus Payment-Required, Payment-Signature, and Payment-Response headers."}},
-	{ID: "x402_payment_admit", Path: "/api/v1/x402/prices/{price_id}/admit", Method: "POST", Summary: "Verify and settle an x402 payment before admitting a priced request", Category: "x402", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape, Note: "x402 is standardized as HTTP 402 plus Payment-Required, Payment-Signature, and Payment-Response headers."}},
+	{ID: "x402_price_declare", Path: "/api/v1/x402/prices", Method: "POST", Summary: "Declare operator-owned x402 price terms", Category: "x402", RESTException: x402RESTException()},
+	{ID: "x402_payment_admit", Path: "/api/v1/x402/prices/{price_id}/admit", Method: "POST", Summary: "Verify and settle an x402 payment before admitting a priced request", Category: "x402", RESTException: x402RESTException()},
+}
+
+func x402RESTException() *module.RESTException {
+	externalJSON := module.RESTPayload{Transport: "json", Conformance: "external_shape"}
+	return &module.RESTException{
+		Reason: module.RESTReasonThirdPartyShape,
+		Note:   "x402 is standardized as HTTP 402 plus Payment-Required, Payment-Signature, and Payment-Response headers; its request, success, challenge, and error bodies intentionally retain that external JSON shape.",
+		ProtoPayloads: &module.RESTProtoPayloads{
+			Request:  externalJSON,
+			Response: externalJSON,
+			Error:    externalJSON,
+		},
+	}
 }

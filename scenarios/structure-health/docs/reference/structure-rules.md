@@ -12,6 +12,8 @@ This page is generated from the Structure Health rule catalog. The executable ca
 | PACKAGE_GO_REPLACE_MISSING | package | error | enforced | package.go-replaces |
 | PACKAGE_BUILD_OUTPUTS_COMMITTED | package | error | enforced | package.no-committed-build-outputs |
 | PACKAGE_BUILD_OUTPUTS_UNDECLARED | package | error | enforced | package.build-output-declarations |
+| PACKAGE_CONSUMER_CLASS_SCAN_FAILED | package | error | enforced | package.consumer-discovery |
+| PACKAGE_CONSUMER_CLASS_VIOLATION | package | error | enforced | package.allowed-consumers |
 | PACKAGE_INTERNAL_IMPORT | package | error | enforced | package.no-root-internal |
 | PACKAGE_LAYOUT_MISSING | package | error | enforced | package.layout |
 | PACKAGE_MANIFEST_INVALID | package | error | enforced | package.manifest-shape |
@@ -37,6 +39,7 @@ This page is generated from the Structure Health rule catalog. The executable ca
 | PROJECT_CLAIM_UNRESOLVED | project | error | enforced | project.claim-resolution |
 | PROJECT_BUNDLE_PROFILE | project | error | enforced | project.bundle-profile |
 | PROJECT_CANONICAL_LAYOUT | project | error | enforced | project.canonical-layout |
+| PROJECT_CREDENTIAL_DESCRIPTOR_DUPLICATE | project | error | enforced | project.credential-descriptor-uniqueness |
 | PROJECT_CONFIG_SURFACE | project | error | enforced | project.config-surface |
 | PROJECT_CONTRACT_INVALID | project | error | enforced | project.contract |
 | PROJECT_EXCLUDED_LEGACY | project | error | enforced | project.excluded-legacy |
@@ -60,6 +63,7 @@ This page is generated from the Structure Health rule catalog. The executable ca
 | SCENARIO_UI_LOCKFILE_MISSING | scenario | error | enforced | scenario.ui-lockfile |
 | SCENARIO_WORKSPACE_DEPENDENCY | scenario | error | enforced | scenario.no-workspace-star |
 | SCENARIO_SHARED_PACKAGE_BYPASS | scenario | error | enforced | scenario.shared-package-boundary |
+| SCENARIO_MANIFEST_INVALID | scenario | warning | advisory | scenario.manifest |
 | TEAM_LAYOUT_MISSING | team | error | enforced | team.layout |
 | TEAM_MANIFEST_INVALID | team | error | enforced | team.manifest |
 | TEAM_OWNER_MISMATCH | team | error | enforced | team.identity |

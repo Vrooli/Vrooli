@@ -3,6 +3,7 @@ package instrument
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/vrooli/api-core/schedule"
 	"treasury/internal/mandate"
+	"treasury/internal/rail/card"
 )
 
 var (
@@ -38,21 +40,35 @@ type CredentialResolver interface {
 	Resolve(context.Context, string, string) (string, error)
 }
 
+type CredentialWriter interface {
+	Store(context.Context, string, string, string) error
+}
+
+type CardIssuers interface {
+	Get(string) (card.Issuer, error)
+	Has(string) bool
+}
+
 type ScopedCredential struct {
 	Instrument Instrument
 	Value      string
 }
 
 type Service struct {
-	repository Repository
-	mandates   Mandates
-	rails      Rails
-	resolver   CredentialResolver
-	clock      schedule.Clock
+	repository  Repository
+	mandates    Mandates
+	rails       Rails
+	resolver    CredentialResolver
+	cardIssuers CardIssuers
+	clock       schedule.Clock
 }
 
 func NewService(repository Repository, mandates Mandates, rails Rails, resolver CredentialResolver, clock schedule.Clock) *Service {
 	return &Service{repository: repository, mandates: mandates, rails: rails, resolver: resolver, clock: clock}
+}
+
+func NewServiceWithCardIssuers(repository Repository, mandates Mandates, rails Rails, resolver CredentialResolver, clock schedule.Clock, issuers CardIssuers) *Service {
+	return &Service{repository: repository, mandates: mandates, rails: rails, resolver: resolver, cardIssuers: issuers, clock: clock}
 }
 
 func (s *Service) Register(ctx context.Context, in RegisterInput) (Instrument, error) {
@@ -73,7 +89,8 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (Instrument, e
 	if in.CredentialReference != "" && (strings.ContainsAny(in.CredentialReference, "=\r\n\t ") || !strings.Contains(in.CredentialReference, "/")) {
 		return Instrument{}, fmt.Errorf("%w: credential_reference must be a namespaced logical identity", ErrInvalid)
 	}
-	if !s.rails.Has(in.Rail) {
+	isCard := s.cardIssuers != nil && s.cardIssuers.Has(in.Rail)
+	if !s.rails.Has(in.Rail) && !isCard {
 		return Instrument{}, fmt.Errorf("%w: rail is not registered", ErrInvalid)
 	}
 	grant, err := s.mandates.RequireLive(ctx, in.MandateID)
@@ -83,8 +100,40 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (Instrument, e
 	if !grant.AllowsCounterparty(in.Counterparty) {
 		return Instrument{}, fmt.Errorf("%w: counterparty is outside mandate scope", ErrInvalid)
 	}
+	if isCard {
+		if s.resolver == nil {
+			return Instrument{}, fmt.Errorf("%w: card issuance requires credential resolution", ErrInvalid)
+		}
+		writer, ok := s.resolver.(CredentialWriter)
+		if !ok {
+			return Instrument{}, fmt.Errorf("%w: card issuance requires a writable credential authority", ErrInvalid)
+		}
+		providerCredential, resolveErr := s.resolver.Resolve(ctx, in.CredentialReference, "value")
+		if resolveErr != nil {
+			return Instrument{}, fmt.Errorf("resolve card provider credential: %w", resolveErr)
+		}
+		issuer, issuerErr := s.cardIssuers.Get(in.Rail)
+		if issuerErr != nil {
+			return Instrument{}, fmt.Errorf("load card issuer: %w", issuerErr)
+		}
+		scope := card.Scope{MandateReference: grant.ID, AmountMinor: grant.CapMinor, Currency: grant.Currency, Counterparty: in.Counterparty, ExpiresAt: grant.ExpiresAt}
+		issued, issueErr := issuer.Issue(ctx, card.IssueCommand{InstrumentID: in.ID, IdempotencyKey: in.ID, Credential: providerCredential, Scope: scope})
+		if issueErr != nil {
+			return Instrument{}, fmt.Errorf("issue mandate-scoped card: %w", issueErr)
+		}
+		issuedReference := cardCredentialReference(in.ID)
+		if storeErr := writer.Store(ctx, issuedReference, "value", issued.Credential); storeErr != nil {
+			return Instrument{}, fmt.Errorf("store issued card credential: %w", storeErr)
+		}
+		in.CredentialReference = issuedReference
+	}
 	value := Instrument{ID: in.ID, BookID: grant.BookID, MandateID: grant.ID, Rail: in.Rail, CredentialReference: in.CredentialReference, CapMinor: grant.CapMinor, Currency: grant.Currency, Counterparty: in.Counterparty, ExpiresAt: grant.ExpiresAt, CreatedAt: s.clock.Now().UTC()}
 	return s.repository.Create(ctx, value)
+}
+
+func cardCredentialReference(instrumentID string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(instrumentID)))
+	return fmt.Sprintf("vrooli/treasury/instruments/%x", sum[:16])
 }
 
 // ResolveForUse revalidates the live mandate before resolving credential

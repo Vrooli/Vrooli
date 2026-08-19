@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P1 requirements: the rails and the operator controls that make the P0 spine useful against real counterparties. Each assumes the P0 properties rather than re-establishing them.",
-    "last_validated_at": "2026-08-19T01:10:21-04:00",
+    "last_validated_at": "2026-08-19T02:41:28-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -66,16 +66,18 @@
       "description": "The scenario should issue single-use or counterparty-locked cards scoped to a mandate's amount, counterparty and expiry, behind a rail contract that names no vendor",
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/rail/card/contract_test.go#TestIssuerContractIsProviderNeutralAndRejectsScopeWidening; api/internal/instrument/sqlite_test.go#TestScopedCardIssuanceUsesMandateAndCredentialAuthority; api/internal/rail/card/lithic/adapter_test.go#TestIssueAndInspectProviderEnforcedScope",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned test at `api/internal/rail/card/adapter_test.go`. Issued card scope is derived from the mandate, never from caller input, and the rail interface carries no vendor-specific type. [REQ:TRS-P1-003]"
+          "notes": "Issued card scope is derived from the live mandate, the contract carries no provider type, and provider/issued credentials cross Credential Authority only. [REQ:TRS-P1-003]"
         },
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/rail/card/lithic/adapter_test.go#TestLithicSandboxProviderEnforcesMandateScope",
           "phase": "integration",
           "status": "planned",
-          "notes": "Planned test at `api/internal/rail/card/credential_test.go`. Card credentials resolve through secrets-manager and never reach scenario storage or an API response body. [REQ:TRS-P1-003]"
+          "notes": "Operator-gated live Lithic sandbox proof reads the issued scope and requires provider declines above the cap and at a different merchant acceptor ID. It remains planned until an operator provisions a sandbox account and the gated test passes in Test Genie. [REQ:TRS-P1-003]"
         }
       ]
     },
@@ -88,16 +90,18 @@
       "description": "A mandate should belong to exactly one book, and books should not share instruments, budgets or approval chains",
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/authorization/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned test at `api/internal/book/isolation_test.go`. A mandate in one book cannot resolve an instrument, budget or approver belonging to another. [REQ:TRS-P1-004]"
+          "notes": "Raw SQL cannot reassign an authorization or approval chain across the mandate and budget book boundary. [REQ:TRS-P1-004]"
         },
         {
-          "type": "manual",
-          "phase": "business",
+          "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "Planned automation at `bas/cases/books/separation.json`. An operator viewing one book sees no balance, instrument or pending approval from the other. [REQ:TRS-P1-004]"
+          "notes": "The operator queue switches books without displaying approval cards from another book. [REQ:TRS-P1-004]"
         }
       ]
     },
@@ -110,16 +114,18 @@
       "description": "The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action",
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/mandate/standing_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned test at `api/internal/mandate/standing_test.go`. A standing mandate carries a recurrence and a next-charge date, and cancelling it prevents the next charge without rewriting settled history. [REQ:TRS-P1-005]"
+          "notes": "A standing mandate carries durable recurrence state; an atomic cancellation prevents the next boundary from being claimed. [REQ:TRS-P1-005]"
         },
         {
-          "type": "manual",
-          "phase": "business",
+          "type": "test",
+          "ref": "ui/src/pages/SettingsPage.test.tsx",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "Planned automation at `bas/cases/obligations/cancel.json`. An operator cancels a recurring obligation from the console in one action and the next charge does not authorize. [REQ:TRS-P1-005]"
+          "notes": "The operator sees the next charge by book and cancels the obligation in one action. [REQ:TRS-P1-005]"
         }
       ]
     },
@@ -132,38 +138,42 @@
       "description": "When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement",
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/budget/freeze_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned test at `api/internal/policy/freeze_test.go`. A freeze at each scope refuses authorization immediately; an already-authorized but unsettled charge is also stopped. [REQ:TRS-P1-006]"
+          "notes": "Budget, book, and scenario freeze scope is durable and the broadest active scope wins. [REQ:TRS-P1-006]"
         },
         {
-          "type": "manual",
-          "phase": "business",
+          "type": "test",
+          "ref": "api/internal/settlement/sqlite_test.go",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "Planned automation at `bas/cases/controls/freeze-all.json`. An operator freezes everything from one control and a subsequent agent charge is refused. [REQ:TRS-P1-006]"
+          "notes": "A freeze engaged after approval releases the hold and stops settlement before the rail adapter is called. [REQ:TRS-P1-006]"
         }
       ]
     },
     {
       "id": "TRS-P1-007",
       "title": "Spend position without a ledger round-trip",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
       "description": "The scenario should report remaining headroom per budget from its own authorization records, so an agent can plan without querying money-ledger",
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/budget/headroom_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned test at `api/internal/budget/headroom_test.go`. Headroom is computed from this scenario's own authorization and settlement records and never asserted or cached as a mutable field. Pending authorizations reduce headroom before they settle. [REQ:TRS-P1-007]"
+          "notes": "Headroom is computed from authorization records rather than a mutable balance; pending and settled records count while released records do not. [REQ:TRS-P1-007]"
         },
         {
-          "type": "manual",
-          "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test at `api/handlers/agentspend/headroom_test.go`. The agent-facing surface returns headroom without contacting money-ledger. [REQ:TRS-P1-007]"
+          "type": "test",
+          "ref": "api/handlers/agentspend/surface_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The generated agent-facing service exposes computed headroom without accepting a caller-owned balance. [REQ:TRS-P1-007]"
         }
       ]
     }

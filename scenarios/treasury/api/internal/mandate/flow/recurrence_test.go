@@ -22,5 +22,28 @@ func TestRecurrenceTransitionMatrix(t *testing.T) {
 		got, err := TransitionRecurrence(test.status, test.event)
 		require.Equal(t, test.want, got)
 		require.Equal(t, test.fails, err != nil)
+		require.NoError(t, CheckRecurrenceInvariants(got))
+	}
+}
+
+func TestRecurrenceNamedTraces(t *testing.T) {
+	traces := []struct {
+		name   string
+		events []RecurrenceEvent
+		want   RecurrenceStatus
+	}{
+		{name: "two due periods remain active", events: []RecurrenceEvent{RecurrenceBoundary, RecurrenceBoundary}, want: RecurrenceActive},
+		{name: "operator cancellation is terminal", events: []RecurrenceEvent{RecurrenceBoundary, RecurrenceCancel}, want: RecurrenceCancelled},
+	}
+	for _, trace := range traces {
+		t.Run(trace.name, func(t *testing.T) {
+			status := RecurrenceActive
+			for _, event := range trace.events {
+				var err error
+				status, err = TransitionRecurrence(status, event)
+				require.NoError(t, err)
+			}
+			require.Equal(t, trace.want, status)
+		})
 	}
 }

@@ -253,7 +253,7 @@ func newFixture(t *testing.T, railAdapter *adapter) fixture {
 	_, err = instruments.Register(ctx, instrument.RegisterInput{ID: "instrument-1", MandateID: "mandate-1", Rail: railAdapter.Name(), CredentialReference: "treasury/test-credential", Counterparty: "api.example"})
 	require.NoError(t, err)
 	authorizations := authorization.NewSQLiteRepository(handle)
-	_, err = authorizations.Create(ctx, authorization.Record{ID: "auth-1", IdempotencyKey: "auth-key-1", MandateID: "mandate-1", BudgetID: "budget-1", RequestingAgent: "agent:1", AmountMinor: 250, Currency: "USD", Counterparty: "api.example", Verdict: authorization.VerdictApproved, HoldMinor: 250, CreatedAt: now, ExpiresAt: now.Add(15 * time.Minute)})
+	_, err = authorizations.Create(ctx, authorization.Record{ID: "auth-1", IdempotencyKey: "auth-key-1", BookID: "book-1", MandateID: "mandate-1", BudgetID: "budget-1", RequestingAgent: "agent:1", AmountMinor: 250, Currency: "USD", Counterparty: "api.example", Verdict: authorization.VerdictApproved, HoldMinor: 250, CreatedAt: now, ExpiresAt: now.Add(15 * time.Minute)})
 	require.NoError(t, err)
 	settlements := settlement.NewSQLiteRepository(handle)
 	return fixture{

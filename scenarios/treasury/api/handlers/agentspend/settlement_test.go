@@ -55,7 +55,7 @@ func TestReportOutcomeUsesDurableServerOwnedSettlement(t *testing.T) {
 	_, err = instruments.Register(ctx, instrument.RegisterInput{ID: "instrument-1", MandateID: "mandate-1", Rail: adapter.Name(), CredentialReference: "treasury/handler-test", Counterparty: "api.example"})
 	require.NoError(t, err)
 	authorizations := authorization.NewSQLiteRepository(handle)
-	_, err = authorizations.Create(ctx, authorization.Record{ID: "auth-1", IdempotencyKey: "auth-key", MandateID: "mandate-1", BudgetID: "budget-1", RequestingAgent: "agent:1", AmountMinor: 125, Currency: "USD", Counterparty: "api.example", Verdict: authorization.VerdictApproved, HoldMinor: 125, CreatedAt: now, ExpiresAt: now.Add(15 * time.Minute)})
+	_, err = authorizations.Create(ctx, authorization.Record{ID: "auth-1", IdempotencyKey: "auth-key", BookID: "book-1", MandateID: "mandate-1", BudgetID: "budget-1", RequestingAgent: "agent:1", AmountMinor: 125, Currency: "USD", Counterparty: "api.example", Verdict: authorization.VerdictApproved, HoldMinor: 125, CreatedAt: now, ExpiresAt: now.Add(15 * time.Minute)})
 	require.NoError(t, err)
 	verifier := handlerVerifier{claims: identity.Claims{Subject: "agent:1"}}
 	authorizationService := authorization.NewService(authorizations, verifier, mandates, budget.NewService(budget.NewSQLiteRepository(handle), clock), evidence.NewRecorder(evidence.NewSQLiteRecorder(handle)), clock)

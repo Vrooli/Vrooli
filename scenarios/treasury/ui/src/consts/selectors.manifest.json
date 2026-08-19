@@ -96,6 +96,30 @@
       "testId": "approvals-queue",
       "selector": "[data-testid=\"approvals-queue\"]"
     },
+    "approvals.bookSelect": {
+      "testId": "approvals-book-select",
+      "selector": "[data-testid=\"approvals-book-select\"]"
+    },
+    "controls.panel": {
+      "testId": "controls-panel",
+      "selector": "[data-testid=\"controls-panel\"]"
+    },
+    "controls.tokenInput": {
+      "testId": "controls-token-input",
+      "selector": "[data-testid=\"controls-token-input\"]"
+    },
+    "controls.openButton": {
+      "testId": "controls-open",
+      "selector": "[data-testid=\"controls-open\"]"
+    },
+    "controls.freezeAllButton": {
+      "testId": "controls-freeze-all",
+      "selector": "[data-testid=\"controls-freeze-all\"]"
+    },
+    "controls.bookSelect": {
+      "testId": "controls-book-select",
+      "selector": "[data-testid=\"controls-book-select\"]"
+    },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
       "selector": "[data-testid=\"error-boundary-root\"]"
@@ -195,6 +219,17 @@
             "approve",
             "decline"
           ]
+        }
+      ]
+    },
+    "controls.standingItem": {
+      "description": "Standing mandate row by mandate identifier",
+      "selectorPattern": "[data-testid=\"controls-standing-${id}\"]",
+      "testIdPattern": "controls-standing-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
         }
       ]
     }

@@ -135,8 +135,10 @@ func hasCLISurface(m *cliapp.Manifest) bool {
 // degrade-don't-hard-fail policy:
 //   - binary unresolved  -> warning (cli.binary_unrunnable): not installed here.
 //   - root --help broken  -> error   (cli.help_failed): present but broken.
-//   - command divergence  -> error   (cli.command_undeclared): runtime surface
-//     diverges from the manifest SSOT (either direction).
+//   - declared missing    -> error   (cli.command_missing): manifest promises a
+//     command the runtime CLI does not expose.
+//   - runtime undeclared  -> error   (cli.command_undeclared): runtime exposes a
+//     command absent from the manifest SSOT.
 func runtimeFindingsForTarget(obs RuntimeObservation, m *cliapp.Manifest, manifestPath, target string) []Finding {
 	if !obs.Resolved {
 		return []Finding{{
@@ -209,6 +211,7 @@ func commandSurfaceFindingsForTarget(obs RuntimeObservation, m *cliapp.Manifest,
 	}
 
 	var findings []Finding
+	hasUndeclaredRuntimeCommand := false
 	groups := map[string]bool{}
 	for group := range manifestByGroup {
 		groups[group] = true
@@ -219,15 +222,34 @@ func commandSurfaceFindingsForTarget(obs RuntimeObservation, m *cliapp.Manifest,
 	for _, group := range sortedKeys(groups) {
 		runtime, present := runtimeByGroup[group]
 		if !present {
-			// Group not observed at runtime — likely a help-parse gap or a
-			// capability-gated group; do not flag its whole command set missing.
-			continue
+			// Project probing intentionally stops at a bounded depth and cannot
+			// prove that an unobserved synthetic/deeper group is absent. Scenario
+			// probes walk the complete help tree, so an absent group there is real
+			// declared-but-missing capability debt.
+			if isProjectTarget(target) {
+				continue
+			}
+			// Some legacy CLIs expose a parent as a root command and parse its
+			// children internally instead of through cli-core SubcommandGroups.
+			// Their nested help is opaque to the generic walker. The observed
+			// parent proves the capability surface exists, but not which leaves it
+			// contains, so absence of the synthetic group is uncheckable rather
+			// than proof that every declared leaf is missing.
+			if root := runtimeByGroup[""]; root[group] {
+				continue
+			}
+			runtime = map[string]bool{}
 		}
 		declared := manifestByGroup[group]
 
 		// Declared-but-missing: the manifest claims a command the binary's help
 		// tree does not expose under a group it otherwise does expose.
 		for _, name := range sortedKeys(declared) {
+			if group == "" && builtinCommands[name] {
+				// cli-core injects these commands even when the help-tree parser
+				// omits framework meta entries from its leaf observations.
+				continue
+			}
 			if isProjectTarget(target) && group == "" && projectParentCommand(m, name) {
 				// The root manifest catalogs parent commands as governance
 				// entries, but the flattened runtime observation reports the
@@ -240,10 +262,10 @@ func commandSurfaceFindingsForTarget(obs RuntimeObservation, m *cliapp.Manifest,
 			}
 			findings = append(findings, Finding{
 				Severity:   SeverityError,
-				Code:       CodeCLICommandUndeclared,
+				Code:       CodeCLICommandMissing,
 				Location:   commandLocation(manifestPath, group, name),
 				Message:    fmt.Sprintf("manifest declares command %q but the binary does not expose it at runtime under group %q", groupCmd(group, name), group),
-				Suggestion: "rebuild/reinstall the CLI, or remove the stale command from the manifest",
+				Suggestion: "rebuild/reinstall the CLI; if the fresh binary still omits the command, register its handler or remove the stale manifest declaration",
 			})
 		}
 
@@ -260,9 +282,10 @@ func commandSurfaceFindingsForTarget(obs RuntimeObservation, m *cliapp.Manifest,
 				Message:    fmt.Sprintf("binary exposes command %q at runtime but the manifest does not declare it (manifest is the CLI SSOT)", groupCmd(group, name)),
 				Suggestion: "add the command to the manifest under its group/binding, declare it in exceptions[] if it is a legitimate special case (streaming/upload/passthrough/durable run), or remove it from the CLI",
 			})
+			hasUndeclaredRuntimeCommand = true
 		}
 	}
-	if len(runtimeByGroup) > 0 && len(findings) > 0 {
+	if len(runtimeByGroup) > 0 && hasUndeclaredRuntimeCommand {
 		findings = append(findings, Finding{
 			Severity: SeverityError, Code: CodeCLIDiscoveryCoverage, Location: manifestPath,
 			Message:    "manifest command coverage is below the observed runtime CLI surface",
