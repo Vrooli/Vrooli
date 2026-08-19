@@ -46,7 +46,7 @@ closes that gap **without** committing to runner integration.
 - Authenticating on the operator's behalf (operator completes Google OAuth).
 - Any change to `data-backup-manager`, `agentpolicy`, or `internal/resources`
   code (consumption is declarative / additive-row).
-- The hosted **Gemini API** resource (`resources/gemini`) — different thing.
+- The hosted **Gemini API** integration — a different thing.
 
 ## Key decisions
 
@@ -91,5 +91,5 @@ keyring/OAuth re-auth on restore).
   (deferred).
 - No `sudo` in install/update.
 - No edits to `data-backup-manager`, `agentpolicy`, or `internal/resources` code.
-- No edits to the hosted **Gemini API** resource (`resources/gemini`).
+- No edits to the hosted **Gemini API** integration.
 - No faked permission enforcement; no guessed detection signal.

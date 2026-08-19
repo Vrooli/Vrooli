@@ -35,7 +35,13 @@
     }
   },
   "display_name": "Antigravity CLI",
-  "description": "Google Antigravity coding CLI resource (binary `agy`): a thin Go entrypoint wiring lifecycle, an upstream update-check, and shared command-permission governance. Optional external-cli; sudo-free install; on-disk state backed up. NOT wired as an agent-manager runner (deferred follow-up).",
+  "description": "Google Antigravity coding CLI resource (binary `agy`): a thin Go entrypoint wiring lifecycle, an upstream update-check, and shared command-permission governance. Optional external-cli; sudo-free install; on-disk state backed up.",
+  "execution": {
+    "runner_type": "antigravity",
+    "codec": "antigravity",
+    "detection_signal": "ANTIGRAVITY_AGENT=1",
+    "hook_surface": "native-permissions"
+  },
   "cli": {
     "enabled": true,
     "command": "resource-antigravity",

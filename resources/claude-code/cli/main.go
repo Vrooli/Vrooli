@@ -8,7 +8,7 @@ import (
 
 	"resource-claude-code/cli/internal/permissionscli"
 
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/upstreamcheck"
 	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
@@ -87,8 +87,8 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(
 		commands,
 		[]cliapp.SubcommandGroup{
-			agentpolicy.ModelDiscoveryCommands(agentpolicy.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName)}),
-			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Claude native permission denials remain active; verify the installed Claude version with a PreToolUse runner canary before treating the portable hook as enforced."}}}),
+			agentharness.ModelDiscoveryCommands(agentharness.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName)}),
+			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_verified", Caveats: []string{"Claude native permission denials remain active; the source-controlled PreToolUse matcher is verified by data-only replay and a non-mutating live probe."}}}),
 			permissionscli.HookCommands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{

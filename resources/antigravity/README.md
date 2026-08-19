@@ -6,7 +6,7 @@ resource inside Vrooli.
 > Antigravity is Google's go-forward terminal coding agent for individual
 > (Pro / Ultra / free-tier) users — it **replaces Gemini CLI**, whose individual
 > serving ended 2026-06-18. This resource models the *coding agent*; it is
-> unrelated to the hosted **Gemini API** resource (`resources/gemini`).
+> unrelated to the hosted **Gemini API** integration.
 
 ## Intent
 

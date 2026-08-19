@@ -1,0 +1,14 @@
+{
+  "schema_version": "v1",
+  "runner": "antigravity",
+  "provenance": {
+    "source": "Antigravity agy 1.0.13 print surface; unauthenticated installs expose no stable model inventory",
+    "observed_at": "2026-08-19"
+  },
+  "roles": {
+    "code.default": {"model": "default", "description": "Antigravity runner-selected default for balanced coding work.", "capabilities": ["code", "tools"]},
+    "code.fast": {"model": "default", "description": "Antigravity runner-selected default for low-latency coding work.", "capabilities": ["code", "tools"]},
+    "code.smart": {"model": "default", "description": "Antigravity runner-selected default for complex coding work.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.cheap": {"model": "default", "description": "Antigravity runner-selected default for cost-conscious coding work.", "capabilities": ["code", "tools"]}
+  }
+}

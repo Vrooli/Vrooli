@@ -92,6 +92,29 @@ func FindCredentialDescriptorDuplicates(data []byte) ([]CredentialDescriptorDupl
 	return duplicates, nil
 }
 
+// ValidateCredentialDescriptorUniqueness enforces the cross-manifest
+// credential invariant at a manifest boundary. Keeping this beside the
+// structural walker means scenario, resource, tool, and future manifest
+// loaders share the same rule and error shape.
+func ValidateCredentialDescriptorUniqueness(data []byte, owner string) error {
+	duplicates, err := FindCredentialDescriptorDuplicates(data)
+	if err != nil {
+		return err
+	}
+	if len(duplicates) == 0 {
+		return nil
+	}
+	duplicate := duplicates[0]
+	return fmt.Errorf(
+		"%s declares credential %s:%s more than once (paths %s and %s)",
+		owner,
+		duplicate.LogicalID,
+		duplicate.Field,
+		duplicate.FirstPath,
+		duplicate.DuplicatePath,
+	)
+}
+
 func escapeJSONPointer(value string) string {
 	value = strings.ReplaceAll(value, "~", "~0")
 	return strings.ReplaceAll(value, "/", "~1")

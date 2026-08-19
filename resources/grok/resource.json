@@ -20,6 +20,12 @@
   },
   "display_name": "Grok Build CLI",
   "description": "xAI Grok Build coding CLI resource: a thin Go entrypoint wiring lifecycle and an upstream update-check; agent-manager (when later wired) invokes the raw grok binary directly.",
+  "execution": {
+    "runner_type": "grok",
+    "codec": "grok",
+    "detection_signal": "GROK_AGENT=1",
+    "hook_surface": "native-permissions"
+  },
   "cli": {
     "enabled": true,
     "command": "resource-grok",

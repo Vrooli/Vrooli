@@ -112,6 +112,36 @@ func Comparable(a, b SamplingKey) error {
 // preferred vocabulary separately without duplicating byte-offset logic.
 func LexiconSpans(text string, lexicon []string) []Span { return lexiconSpans(text, lexicon) }
 
+// ArtifactsPresent returns the distinct declared artifacts that occur in text,
+// in declaration order. An artifact is a literal a writer may quote -- a
+// command, a path, an identifier, a figure -- so matching is the same
+// case-insensitive substring match the lexicon uses rather than a word-boundary
+// match: "test-genie runs wait --json" is one artifact containing spaces and
+// flags, and a word matcher would never find it.
+//
+// Distinctness is what makes the count meaningful. Text that repeats one
+// command eight times is not eight artifacts concrete, and counting spans
+// rather than terms would say that it is.
+func ArtifactsPresent(text string, artifacts []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, span := range lexiconSpans(text, artifacts) {
+		if !seen[span.Term] {
+			seen[span.Term] = true
+			out = append(out, span.Term)
+		}
+	}
+	// lexiconSpans sorts by position; declaration order is restored so callers
+	// reporting "which artifacts landed" get a stable list across runs.
+	ordered := make([]string, 0, len(out))
+	for _, artifact := range artifacts {
+		if seen[strings.TrimSpace(artifact)] {
+			ordered = append(ordered, strings.TrimSpace(artifact))
+		}
+	}
+	return ordered
+}
+
 // Analyze computes every deterministic metric unconditionally.
 func Analyze(text string, lexicon []string) Metrics {
 	spans := wordsWithSpans(text)
@@ -248,6 +278,88 @@ func CrossSectionRepetition(sections []string) float64 {
 		}
 	}
 	return ratio(total, float64(pairs))
+}
+
+// contentStopWords are excluded from novelty because they recur in any English
+// prose and would swamp the signal. The list is deliberately short and closed:
+// a longer list starts encoding a topic, and this measure has to work on text
+// whose topic it knows nothing about.
+var contentStopWords = map[string]bool{
+	"a": true, "an": true, "the": true, "and": true, "or": true, "of": true, "to": true,
+	"in": true, "on": true, "for": true, "is": true, "are": true, "was": true, "were": true,
+	"that": true, "this": true, "it": true, "its": true, "as": true, "with": true,
+	"after": true, "before": true, "once": true, "every": true, "not": true, "we": true,
+	"our": true, "you": true, "your": true, "they": true, "their": true, "be": true,
+	"been": true, "being": true, "by": true, "from": true, "at": true, "can": true,
+	"will": true, "would": true, "could": true, "has": true, "have": true, "had": true,
+	"than": true, "then": true, "so": true, "such": true, "those": true, "these": true,
+	"there": true, "here": true, "what": true, "which": true, "who": true, "when": true,
+	"where": true, "how": true, "all": true, "any": true, "both": true, "each": true,
+	"more": true, "most": true, "other": true, "some": true, "only": true, "own": true,
+	"same": true, "too": true, "very": true, "just": true,
+}
+
+// contentTerms returns the distinct content words of a text.
+func contentTerms(text string) map[string]bool {
+	out := map[string]bool{}
+	for _, w := range words(text) {
+		if len(w) > 2 && !contentStopWords[w] {
+			out[w] = true
+		}
+	}
+	return out
+}
+
+// SectionNovelty returns the share of a section's content terms that did not
+// appear in the section immediately before it. It answers whether a passage
+// brought new material, which is a different question from whether it reused
+// wording: prose that re-argues a settled point in fresh words scores low here
+// and low on CrossSectionRepetition at the same time, because it repeats the
+// substance while sharing few tokens.
+//
+// The comparison is against the preceding section alone rather than against
+// every prior section, and that choice is what makes a fixed threshold usable.
+// Measured against all prior text the value falls purely because there is more
+// prior text to have already said something: across 62 committed sections the
+// median ran 0.721, 0.614, then 0.472 by the third position, so any single
+// floor would pass an opening section unconditionally and fail a closing one
+// unconditionally. Against the preceding section alone the same corpus gives
+// 0.721, 0.758, 0.735, 0.719 by position -- flat, and therefore gateable.
+//
+// The measure rewards novelty, so a section that wanders off the document's
+// subject scores near 1.0. That is its blind spot by construction, and it is
+// why this belongs beside CrossSectionRepetition and the coherence verdict
+// rather than in place of either. A passage has to be both new and on-subject,
+// and neither number establishes the other.
+func SectionNovelty(section, previous string) float64 {
+	terms := contentTerms(section)
+	if len(terms) == 0 {
+		return 0
+	}
+	prior := contentTerms(previous)
+	var fresh int
+	for term := range terms {
+		if !prior[term] {
+			fresh++
+		}
+	}
+	return float64(fresh) / float64(len(terms))
+}
+
+// MinSectionNovelty returns the lowest adjacent-section novelty in a document,
+// which is the transition where the document came closest to adding nothing.
+// Fewer than two sections have no transition and report 1.
+func MinSectionNovelty(sections []string) float64 {
+	if len(sections) < 2 {
+		return 1
+	}
+	lowest := 1.0
+	for i := 1; i < len(sections); i++ {
+		if value := SectionNovelty(sections[i], sections[i-1]); value < lowest {
+			lowest = value
+		}
+	}
+	return lowest
 }
 
 // StyleDrift returns the mean absolute distance from the document's average

@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/agentharness v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 )
 
@@ -19,6 +20,7 @@ github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
+replace github.com/vrooli/agentharness => ../../../packages/agentharness
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 

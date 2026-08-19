@@ -8,10 +8,10 @@ import (
 
 	"resource-claude-code/cli/internal/permissions"
 
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/agentharness"
 )
 
-var claudePermissionPosture = agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Claude native permission denials remain active; the portable PreToolUse runner requires an installed-version canary before it is considered verified."}}
+var claudePermissionPosture = agentharness.EnforcementPosture{Permissions: "hook_verified", Caveats: []string{"Claude native permission denials remain active; the source-controlled PreToolUse matcher is verified by data-only replay and a non-mutating live probe."}}
 
 func (h *Handlers) Plan(args []string) error {
 	fs := h.flagSet("permissions plan")
@@ -59,26 +59,26 @@ func (h *Handlers) Reconcile(args []string) error {
 	return h.writePlan(result, *jsonOut)
 }
 
-func (h *Handlers) planDocument(path string) (agentpolicy.PermissionPlanResult, permissions.Policy, error) {
-	document, data, err := agentpolicy.LoadPermissionDocument(path, h.Stdin)
+func (h *Handlers) planDocument(path string) (agentharness.PermissionPlanResult, permissions.Policy, error) {
+	document, data, err := agentharness.LoadPermissionDocument(path, h.Stdin)
 	if err != nil {
-		return agentpolicy.PermissionPlanResult{}, permissions.Policy{}, err
+		return agentharness.PermissionPlanResult{}, permissions.Policy{}, err
 	}
 	if document.Scope != "" && document.Scope != "user" {
-		return agentpolicy.PermissionPlanResult{}, permissions.Policy{}, fmt.Errorf("Claude Code supports only scope user, got %q", document.Scope)
+		return agentharness.PermissionPlanResult{}, permissions.Policy{}, fmt.Errorf("Claude Code supports only scope user, got %q", document.Scope)
 	}
 	live, err := h.Adapter.Load()
 	if err != nil {
-		return agentpolicy.PermissionPlanResult{}, permissions.Policy{}, err
+		return agentharness.PermissionPlanResult{}, permissions.Policy{}, err
 	}
-	allow, ask, deny := agentpolicy.PermissionPatterns(document)
+	allow, ask, deny := agentharness.PermissionPatterns(document)
 	allow = claudeBashPatterns(allow)
 	ask = claudeBashPatterns(ask)
 	deny = claudeBashPatterns(deny)
 	desired := permissions.Policy{BashAllow: allow, BashAsk: ask, BashDeny: deny, Hooks: true}
-	paths := []string{h.Adapter.SettingsPath, "vrooli-policy-runner (PreToolUse command; installed-version canary required)"}
-	return agentpolicy.PlanPermissionProjection("claude-code", document, data,
-		agentpolicy.PermissionProjection{Allow: claudePortablePatterns(live.BashAllow), Ask: claudePortablePatterns(live.BashAsk), Deny: claudePortablePatterns(live.BashDeny)}, paths, claudePermissionPosture), desired, nil
+	paths := []string{h.Adapter.SettingsPath, h.Adapter.HookScriptPath()}
+	return agentharness.PlanPermissionProjection("claude-code", document, data,
+		agentharness.PermissionProjection{Allow: claudePortablePatterns(live.BashAllow), Ask: claudePortablePatterns(live.BashAsk), Deny: claudePortablePatterns(live.BashDeny)}, paths, claudePermissionPosture), desired, nil
 }
 
 func claudeBashPatterns(patterns []string) []string {
@@ -101,7 +101,7 @@ func claudePortablePatterns(patterns []string) []string {
 	return portable
 }
 
-func (h *Handlers) writePlan(result agentpolicy.PermissionPlanResult, asJSON bool) error {
+func (h *Handlers) writePlan(result agentharness.PermissionPlanResult, asJSON bool) error {
 	if asJSON {
 		data, err := json.MarshalIndent(result, "", "  ")
 		if err != nil {

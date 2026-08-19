@@ -37,6 +37,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/agentharness"
 )
 
 // Scope selects which Antigravity settings file the adapter targets. Antigravity
@@ -224,21 +226,25 @@ func (a *Adapter) syncHook(p Policy) error {
 	if strings.TrimSpace(a.HookPath) == "" {
 		return nil
 	}
+	broker := agentharness.NewHookBroker()
+	target := agentharness.HookTarget{Agent: "antigravity", Path: a.HookPath}
+	if _, err := broker.Migrate(target); err != nil {
+		return err
+	}
 	if len(p.BashDeny) == 0 {
-		if err := os.Remove(a.HookPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("remove Antigravity hook: %w", err)
-		}
-		return nil
+		_, err := broker.Remove(target, "PreToolUse", "vrooli-policy-runner")
+		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(a.HookPath), 0o755); err != nil {
-		return fmt.Errorf("create Antigravity hook directory: %w", err)
-	}
-	out, err := json.MarshalIndent(a.RenderHook(), "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode Antigravity hook: %w", err)
-	}
-	out = append(out, '\n')
-	return atomicWrite(a.HookPath, out, 0o644)
+	config := a.RenderHook()
+	groups := config["hooks"].(map[string]any)
+	entries := groups["PreToolUse"].([]any)
+	group := entries[0].(map[string]any)
+	inner := group["hooks"].([]any)[0].(map[string]any)
+	matcher, _ := group["matcher"].(string)
+	_, err := broker.Reconcile(target, agentharness.HookRegistration{
+		Event: "PreToolUse", ID: "vrooli-policy-runner", Matcher: matcher, Hook: inner,
+	})
+	return err
 }
 
 // Fingerprint returns the sha256 hex of the canonical Policy projection.

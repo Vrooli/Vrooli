@@ -1,9 +1,10 @@
 # SearXNG resource contract
 
 SearXNG provides the local metasearch capability consumed by `web-search`.
-The selected architecture is a single Docker container because the official
-SearXNG image is the supported local runtime; Docker is an explicit host
-requirement, not a portability claim.
+The selected architecture is a managed native service composed from a
+checksum-pinned CPython runtime, locked wheels, and a reviewed SearXNG source
+tree. It is portable across the declared Linux, macOS, and Windows targets;
+the runtime has no external daemon dependency.
 
 The resource contract is deliberately narrow:
 

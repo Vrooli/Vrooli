@@ -156,7 +156,7 @@ func runConfigApply(args []string, stdout io.Writer) error {
 	return json.NewEncoder(stdout).Encode(report)
 }
 
-// runEngineHealth surfaces the signal the container healthcheck cannot see:
+// runEngineHealth surfaces the signal the liveness healthcheck cannot see:
 // /healthz stays 200 while every engine is suspended. Exit is non-zero only
 // when zero engines respond (critical), so try_start orchestration flows are
 // not broken by a merely degraded instance.

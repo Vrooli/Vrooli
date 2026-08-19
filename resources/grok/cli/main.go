@@ -8,7 +8,7 @@ import (
 	"resource-grok/cli/internal/permissionscli"
 	"resource-grok/cli/internal/upstream"
 
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
 	agentinstall "github.com/vrooli/vrooli/packages/resource-agent-install"
@@ -58,13 +58,14 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{Binary: "grok", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".grok"), Version: upstreamPinnedVersion, URLTemplate: "https://x.ai/cli/grok-${version}-${os}-${arch}"})}}),
 		[]cliapp.SubcommandGroup{
-			agentpolicy.ModelDiscoveryCommands(agentpolicy.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName)}),
-			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Grok native permission rules remain active; verify the installed Grok version with a PreToolUse runner canary before treating the portable hook as enforced."}}}),
+			agentharness.ModelDiscoveryCommands(agentharness.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName)}),
+			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Grok native permission rules remain active; verify the installed Grok version with a PreToolUse runner canary before treating the portable hook as enforced."}}}),
 			// Grok is not on npm/GitHub releases — its latest version is a bare
 			// text pointer at https://x.ai/cli/<channel>, so we override the
 			// upstream-check fetcher (see internal/upstream).
 			upstreamverb.Commands(upstream.Handlers(appName, upstreamPinnedVersion)),
 			// Manage Grok's native [permission] rules + PreToolUse deny hook.
+			permissionscli.HookCommands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 		},
 	)

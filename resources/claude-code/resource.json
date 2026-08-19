@@ -20,6 +20,12 @@
   },
   "display_name": "Claude Code CLI",
   "description": "Anthropic's Claude Code CLI for interactive and scripted development workflows.",
+  "execution": {
+    "runner_type": "claude-code",
+    "codec": "claude",
+    "detection_signal": "CLAUDECODE=1",
+    "hook_surface": "native-permissions"
+  },
   "cli": {
     "enabled": true,
     "command": "resource-claude-code",

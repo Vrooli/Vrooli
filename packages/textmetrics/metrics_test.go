@@ -113,3 +113,65 @@ func TestBasisNamesTheRealEmbeddingDimension(t *testing.T) {
 		t.Fatalf("basis misreports the embedding dimension: %q", set.Basis)
 	}
 }
+
+func TestSectionNoveltySeparatesRestatementFromNewMaterial(t *testing.T) {
+	first := "The runner owns the execution after the command returns. Logs stream to durable storage and the identifier stays addressable."
+	restated := "The execution is owned by the runner once the command has returned. Durable storage receives the streamed logs and the identifier remains addressable."
+	advanced := "Operators reconnect hours later from another machine. A colleague inherits the release decision without reconstructing missing telemetry."
+
+	if got := SectionNovelty(first, first); got != 0 {
+		t.Fatalf("a section repeated verbatim must introduce nothing, got %v", got)
+	}
+	// Restatement in fresh words is the failure this measure exists to catch:
+	// it scores low here while sharing few tokens with what it repeats.
+	low := SectionNovelty(restated, first)
+	high := SectionNovelty(advanced, first)
+	if low >= high {
+		t.Fatalf("paraphrased restatement (%v) must score below advancing material (%v)", low, high)
+	}
+	if high <= 0.5 {
+		t.Fatalf("a section on new material should clear 0.5, got %v", high)
+	}
+}
+
+func TestMinSectionNoveltyReportsWeakestTransition(t *testing.T) {
+	sections := []string{
+		"Durable runs keep their identity after the caller exits.",
+		"Durable runs retain identity once the caller has exited.",
+		"Scheduling policy decides which suites run overnight on shared hardware.",
+	}
+	got := MinSectionNovelty(sections)
+	if got >= 0.5 {
+		t.Fatalf("the restating transition should set the floor, got %v", got)
+	}
+	if only := MinSectionNovelty([]string{"one section"}); only != 1 {
+		t.Fatalf("a document with no transition has nothing to measure, got %v", only)
+	}
+}
+
+func TestArtifactsPresentCountsDistinctLiteralsNotOccurrences(t *testing.T) {
+	artifacts := []string{
+		"test-genie runs wait --json",
+		"vrooli scenario test",
+		"docs/TESTING.md",
+		"vrooli scenario test abort",
+	}
+	text := "Start with vrooli scenario test, then block once on test-genie runs wait --json. " +
+		"Run test-genie runs wait --json again and it returns the same record. See docs/TESTING.md."
+
+	got := ArtifactsPresent(text, artifacts)
+	// Repeating one command does not make the prose more concrete, and the
+	// abort command never appears at all.
+	want := []string{"test-genie runs wait --json", "vrooli scenario test", "docs/TESTING.md"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("declaration order not preserved: expected %v, got %v", want, got)
+		}
+	}
+	if none := ArtifactsPresent("prose with no artifacts in it", artifacts); len(none) != 0 {
+		t.Fatalf("expected no artifacts, got %v", none)
+	}
+}

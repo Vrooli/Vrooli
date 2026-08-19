@@ -22,7 +22,16 @@ This mirrors the per-entity guidance in [`docs/agent-system/TEAM_DOCS_PATTERNS.m
 
 Every technique ships as `doc + paired skill`. This is a hard rule, not a recommendation. Neither half is optional, and neither half replaces the other. The doc holds *reasoning*; the skill holds *procedure*. A doc with no skill is a stale shrine. A skill with no doc is brittle.
 
-Enforced by the canon coherence test at `scenarios/prompt-manager/test/agent_system_canon_test.sh`: every `<slug>.md` (excluding `README.md`) in this folder must have a matching `scenarios/prompt-manager/store/skills/packs/core/<slug>/SKILL.md`, and every skill tagged `audit-technique` must have a matching PoR doc here.
+Enforced by the canon coherence test at `scenarios/prompt-manager/test/agent_system_canon_test.sh`, in two deliberately **asymmetric** directions:
+
+1. Every `<slug>.md` (excluding `README.md`) in this folder must have a matching `scenarios/prompt-manager/store/skills/packs/core/<slug>/SKILL.md`.
+2. Every skill **in the live rotation** must have a matching PoR doc here. The rotation is `quality-auditor`'s `taskParameters.rotationQuery` — a `steer` skill carrying the `audit-technique` tag whose detection has **not** graduated to a programmatic engine (`programmaticHome` unset).
+
+**Why direction 2 keys on the rotation and not on the tag** (corrected 2026-08-17). Keying on the tag alone put the test in disagreement with the contract it enforced. Five tagged skills are not rotated lenses — `proto-contract-audit`, `quality-health`, `tidiness` and `ui-health` were born provider-owned, and `scenario-improvement-campaign` is a `tools`-mode orchestration skill — so the tag-only rule demanded strategic canon for lenses no auditor rotates through. That is precisely the failure this section names above: a doc nobody reads is a stale shrine. It also read as a *pass* for months while failing, because the check ran as an `external` sensor reporting "not collected", and it returned on the first mismatch, so the true count was never visible in one run. All three faults are fixed.
+
+The asymmetry is the point. A lens that **graduates** to a provider keeps both its tag and its doc — `screaming-architecture-audit` is the worked case — because the doc holds why the lens applied and what the contrarian challenged, and that stays worth reading after detection mechanizes. Direction 1 keeps such a doc honest by requiring its skill to still exist. Direction 2 stops *requiring* a doc the moment the lens leaves the rotation.
+
+**Open question, not a defect.** `scenario-improvement-campaign` carries the `audit-technique` tag while being a `tools`-mode orchestration skill with no provider home and no lens of its own. The rotation query already excludes it on mode, so nothing is broken, but the tag arguably misdescribes it. Resolve by decision if the tag ever starts meaning something a `tools` skill can satisfy.
 
 This registry was created on 2026-05-03 specifically to close the `skillless canon` smell across the seven audit lenses already in active rotation: the procedure side existed for each, but the strategic-canon side did not — so the qa-contrarian had no operator-curated home to challenge an audit's applicability or conclusions against.
 

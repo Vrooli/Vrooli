@@ -4,6 +4,7 @@
   upstream availability condition, not a resource lifecycle failure.
   `resource-searxng engine-health --json` reports degraded engines while the
   `web-search` consumer continues to handle unavailable live search gracefully.
-- Docker is required by design. Hosts without a running Docker daemon are not
-  supported for this resource and should fail the control-plane preflight
-  before attempting runtime operations.
+- Native runtime smoke coverage on each non-Linux desktop target remains a
+  release-pipeline responsibility; the manifest still carries target-specific
+  runtime and composed-tree digests so a missing or altered artifact fails
+  before launch.

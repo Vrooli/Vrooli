@@ -1,9 +1,10 @@
 # SearXNG resource
 
-SearXNG is Vrooli's privacy-conscious local metasearch resource. It is an
-intentional `docker-service`: one manifest-declared SearXNG container exposes
-an HTTP endpoint on port 8280. Docker is therefore an explicit host
-requirement on Linux, macOS, and Windows.
+SearXNG is Vrooli's privacy-conscious local metasearch resource. It is a
+manifest-declared managed service composed from a checksum-pinned portable
+Python runtime, locked wheels, and a reviewed SearXNG source tree. The native
+supervisor exposes an HTTP endpoint on port 8280 with no external runtime
+daemon required.
 
 `resource.json` is the runtime authority. The shared Go control plane owns
 install, start, stop, restart, status, and logs; the resource Go CLI provides
@@ -18,8 +19,8 @@ resource-searxng engine-health --json
 
 Configuration and cache are separate durable mounts:
 
-- `RESOURCE_CONFIG_DIR` → `/etc/searxng` (contains `settings.yml`)
-- `RESOURCE_DATA_DIR` → `/var/cache/searxng`
+- `RESOURCE_CONFIG_DIR` → the durable SearXNG settings directory
+- `RESOURCE_DATA_DIR` → the regenerable SearXNG cache directory
 
 `config-apply` imports and backs up existing settings, preserves unknown
 upstream YAML and existing secrets, and redacts secrets from output. The

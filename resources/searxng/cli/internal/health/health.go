@@ -1,7 +1,7 @@
 // Package health owns SearXNG-specific probe logic that should not live in CLI
 // wiring.
 //
-// The container /healthz endpoint is liveness-only: it reports 200 while every
+// The /healthz endpoint is liveness-only: it reports 200 while every
 // search engine behind the instance is suspended or broken. This package adds
 // the missing engine-level signal by running a canary query through
 // /search?format=json (whose payload carries unresponsive_engines) and
@@ -56,7 +56,7 @@ type Report struct {
 // Classify maps a responsive-engine count to a health bucket: two or more
 // distinct engines answering means the metasearch layer still has redundancy,
 // exactly one means every query rides a single backend, zero means search is
-// effectively down even though the container is "healthy".
+// effectively down even though the process is "healthy".
 func Classify(responsiveEngines int) string {
 	switch {
 	case responsiveEngines >= 2:

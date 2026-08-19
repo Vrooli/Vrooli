@@ -72,8 +72,17 @@ func TestSaveAddsDenyAndHookEntry(t *testing.T) {
 		t.Fatalf("matcher: %v", entry["matcher"])
 	}
 
-	if _, err := os.Stat(a.HookScriptPath()); !os.IsNotExist(err) {
-		t.Fatalf("legacy shell hook must not be materialized, stat err=%v", err)
+	info, err := os.Stat(a.HookScriptPath())
+	if err != nil {
+		t.Fatalf("managed shell hook was not materialized: %v", err)
+	}
+	if info.Mode().Perm() != 0o700 {
+		t.Fatalf("managed shell hook mode = %o, want 700", info.Mode().Perm())
+	}
+	hookEntries := entry["hooks"].([]any)
+	hookCommand := hookEntries[0].(map[string]any)["command"].(string)
+	if !strings.Contains(hookCommand, HookScriptName) || !strings.Contains(hookCommand, "Bash(git stash*)") {
+		t.Fatalf("hook command does not carry the managed script and pattern: %q", hookCommand)
 	}
 }
 

@@ -9,7 +9,7 @@ import (
 
 	"resource-claude-code/cli/internal/permissions"
 
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -24,7 +24,7 @@ func newTestHandlers(t *testing.T, kind cliutil.CallerKind) (*Handlers, *bytes.B
 			HookScriptDir: filepath.Join(dir, ".vrooli-hooks"),
 		},
 		DetectCaller:   func() cliutil.CallerKind { return kind },
-		Policy:         agentpolicy.DefaultPolicy(),
+		Policy:         agentharness.DefaultPolicy(),
 		CLIVersion:     "test-0.0",
 		VersionCommand: []string{"true"},
 		VersionRunner:  func(ctx context.Context, args []string) (string, error) { return "1.0.0", nil },
@@ -57,7 +57,7 @@ func TestDenyAsAgentRefusedWithoutOverride(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected deny error")
 	}
-	if !strings.Contains(err.Error(), agentpolicy.OverrideFlag) {
+	if !strings.Contains(err.Error(), agentharness.OverrideFlag) {
 		t.Errorf("expected override flag mentioned in error: %v", err)
 	}
 	// Adapter must not have been written.

@@ -8,10 +8,10 @@ import (
 
 	"resource-grok/cli/internal/permissions"
 
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/agentharness"
 )
 
-var grokPermissionPosture = agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Grok native permission rules remain active; the portable PreToolUse runner requires an installed-version canary before it is considered verified."}}
+var grokPermissionPosture = agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Grok native permission rules remain active; the portable PreToolUse runner requires an installed-version canary before it is considered verified."}}
 
 func (h *Handlers) Plan(args []string) error {
 	fs, scopeRaw := h.flagSet("permissions plan")
@@ -59,31 +59,31 @@ func (h *Handlers) Reconcile(args []string) error {
 	return h.writePlan(result, *jsonOut)
 }
 
-func (h *Handlers) planDocument(path, scopeRaw string) (agentpolicy.PermissionPlanResult, permissions.Policy, *permissions.Adapter, error) {
+func (h *Handlers) planDocument(path, scopeRaw string) (agentharness.PermissionPlanResult, permissions.Policy, *permissions.Adapter, error) {
 	adapter, err := h.adapter(scopeRaw)
 	if err != nil {
-		return agentpolicy.PermissionPlanResult{}, permissions.Policy{}, nil, err
+		return agentharness.PermissionPlanResult{}, permissions.Policy{}, nil, err
 	}
-	document, data, err := agentpolicy.LoadPermissionDocument(path, h.Stdin)
+	document, data, err := agentharness.LoadPermissionDocument(path, h.Stdin)
 	if err != nil {
-		return agentpolicy.PermissionPlanResult{}, permissions.Policy{}, nil, err
+		return agentharness.PermissionPlanResult{}, permissions.Policy{}, nil, err
 	}
 	if document.Scope != "" && document.Scope != string(adapter.Scope) {
-		return agentpolicy.PermissionPlanResult{}, permissions.Policy{}, nil, fmt.Errorf("document scope %q does not match --scope %q", document.Scope, adapter.Scope)
+		return agentharness.PermissionPlanResult{}, permissions.Policy{}, nil, fmt.Errorf("document scope %q does not match --scope %q", document.Scope, adapter.Scope)
 	}
 	document.Scope = string(adapter.Scope)
 	live, err := adapter.Load()
 	if err != nil {
-		return agentpolicy.PermissionPlanResult{}, permissions.Policy{}, nil, err
+		return agentharness.PermissionPlanResult{}, permissions.Policy{}, nil, err
 	}
-	allow, ask, deny := agentpolicy.PermissionPatterns(document)
+	allow, ask, deny := agentharness.PermissionPatterns(document)
 	allow = grokBashPatterns(allow)
 	ask = grokBashPatterns(ask)
 	deny = grokBashPatterns(deny)
 	desired := permissions.Policy{BashAllow: allow, BashAsk: ask, BashDeny: deny, Hooks: true}
 	paths := []string{adapter.SettingsPath, "vrooli-policy-runner (PreToolUse command; installed-version canary required)"}
-	return agentpolicy.PlanPermissionProjection("grok", document, data,
-		agentpolicy.PermissionProjection{Allow: grokPortablePatterns(live.BashAllow), Ask: grokPortablePatterns(live.BashAsk), Deny: grokPortablePatterns(live.BashDeny)}, paths, grokPermissionPosture), desired, adapter, nil
+	return agentharness.PlanPermissionProjection("grok", document, data,
+		agentharness.PermissionProjection{Allow: grokPortablePatterns(live.BashAllow), Ask: grokPortablePatterns(live.BashAsk), Deny: grokPortablePatterns(live.BashDeny)}, paths, grokPermissionPosture), desired, adapter, nil
 }
 
 func grokBashPatterns(patterns []string) []string {
@@ -106,7 +106,7 @@ func grokPortablePatterns(patterns []string) []string {
 	return portable
 }
 
-func (h *Handlers) writePlan(result agentpolicy.PermissionPlanResult, asJSON bool) error {
+func (h *Handlers) writePlan(result agentharness.PermissionPlanResult, asJSON bool) error {
 	if asJSON {
 		data, err := json.MarshalIndent(result, "", "  ")
 		if err != nil {

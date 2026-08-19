@@ -8,6 +8,7 @@ import (
 	"resource-antigravity/cli/internal/permissionscli"
 	"resource-antigravity/cli/internal/upstream"
 
+	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
 	agentinstall "github.com/vrooli/vrooli/packages/resource-agent-install"
@@ -57,6 +58,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{Binary: "agy", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".gemini"), Version: upstreamPinnedVersion, URLTemplate: "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/artifacts/${os}_${arch}.tar.gz", ArchiveEntry: "antigravity"})}}),
 		[]cliapp.SubcommandGroup{
+			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Antigravity permissions and the projected PreToolUse hook require a live canary before being treated as enforced."}}}),
 			// Antigravity is not on npm/GitHub releases — its latest version is
 			// served as a per-platform JSON manifest from the auto-updater
 			// service, so we override the upstream-check fetcher (see
@@ -64,6 +66,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 			upstreamverb.Commands(upstream.Handlers(appName, upstreamPinnedVersion)),
 			// Manage Antigravity's native `permissions` allow/deny/ask grants in
 			// ~/.gemini/antigravity-cli/settings.json (see internal/permissions).
+			permissionscli.HookCommands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 		},
 	)

@@ -12,11 +12,6 @@
 // hooks.json PreToolUse command surface. The native sandbox/approval controls
 // remain separate; the adapter records both and reports hook firing as
 // unverified until a runtime canary proves the installed binary invokes it.
-//
-// Duplicated structurally from resources/claude-code and
-// resources/opencode permissions packages per the duplicate-before-extract
-// memory. Phase 4 will extract the shared canonical Policy + state shape
-// into packages/cli-core/agentpolicy.
 package permissions
 
 import (
@@ -31,6 +26,7 @@ import (
 	"sort"
 
 	"github.com/pelletier/go-toml/v2"
+	"github.com/vrooli/agentharness"
 )
 
 // Scope selects which Codex config file the adapter targets.
@@ -38,9 +34,9 @@ type Scope string
 
 const (
 	// ScopeUser writes ~/.codex/config.toml.
-	ScopeUser Scope = "user"
+	ScopeUser = "user"
 	// ScopeAdmin writes ~/.codex/requirements.toml (admin-enforced).
-	ScopeAdmin Scope = "admin"
+	ScopeAdmin = "admin"
 )
 
 // vrooliSectionKey is the top-level TOML table the adapter owns.
@@ -216,27 +212,24 @@ func (a *Adapter) RenderHook(p Policy) map[string]any {
 
 func (a *Adapter) savePreToolHook(p Policy) error {
 	hook := a.RenderHook(p)
+	broker := agentharness.NewHookBroker()
+	target := agentharness.HookTarget{Agent: "codex", Path: a.HookPath}
+	if _, err := broker.Migrate(target); err != nil {
+		return err
+	}
 	if hook == nil {
-		if err := os.Remove(a.HookPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("remove codex hook: %w", err)
-		}
-		return nil
+		_, err := broker.Remove(target, "PreToolUse", "vrooli-policy-runner")
+		return err
 	}
-	data, err := json.MarshalIndent(hook, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode codex hook: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(a.HookPath), 0o755); err != nil {
-		return fmt.Errorf("mkdir codex hook directory: %w", err)
-	}
-	tmp := a.HookPath + ".tmp"
-	if err := os.WriteFile(tmp, append(data, '\n'), 0o644); err != nil {
-		return fmt.Errorf("write codex hook: %w", err)
-	}
-	if err := os.Rename(tmp, a.HookPath); err != nil {
-		return fmt.Errorf("publish codex hook: %w", err)
-	}
-	return nil
+	groups := hook["hooks"].(map[string]any)
+	entries := groups["PreToolUse"].([]any)
+	group := entries[0].(map[string]any)
+	inner := group["hooks"].([]any)[0].(map[string]any)
+	matcher, _ := group["matcher"].(string)
+	_, err := broker.Reconcile(target, agentharness.HookRegistration{
+		Event: "PreToolUse", ID: "vrooli-policy-runner", Matcher: matcher, Hook: inner,
+	})
+	return err
 }
 
 // Fingerprint returns the sha256 hex of the canonical Policy projection.

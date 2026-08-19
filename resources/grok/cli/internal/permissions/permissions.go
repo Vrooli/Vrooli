@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
+	"github.com/vrooli/agentharness"
 )
 
 // Scope selects which Grok config file the adapter targets.
@@ -110,6 +111,9 @@ func (a *Adapter) HookScriptPath() string {
 // JSON. Admin scope gets a distinct filename so the two scopes never
 // clobber each other's backstop.
 func (a *Adapter) HookConfigPath() string {
+	if override := strings.TrimSpace(os.Getenv("VROOLI_AGENT_HOOK_PATH")); override != "" {
+		return override
+	}
 	name := "vrooli-bash-deny.json"
 	if a.Scope == ScopeAdmin {
 		name = "vrooli-bash-deny.admin.json"
@@ -217,25 +221,25 @@ func (a *Adapter) Save(p Policy) error {
 // hook invokes the standalone policy runner; no shell script is executed.
 func (a *Adapter) syncHook(p Policy) error {
 	globs := bashDenyGlobs(p.BashDeny)
-	if !p.Hooks || len(globs) == 0 {
-		// Remove this scope's hook JSON.
-		if err := os.Remove(a.HookConfigPath()); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("remove hook %s: %w", a.HookConfigPath(), err)
-		}
-		return nil
-	}
-	if err := os.MkdirAll(a.HooksDir, 0o755); err != nil {
-		return fmt.Errorf("mkdir %s: %w", a.HooksDir, err)
-	}
-	entry, err := json.MarshalIndent(buildHookConfig(a.HookScriptPath(), globs), "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode hook config: %w", err)
-	}
-	entry = append(entry, '\n')
-	if err := atomicWrite(a.HookConfigPath(), entry, 0o644); err != nil {
+	broker := agentharness.NewHookBroker()
+	target := agentharness.HookTarget{Agent: "grok", Path: a.HookConfigPath()}
+	if _, err := broker.Migrate(target); err != nil {
 		return err
 	}
-	return nil
+	if !p.Hooks || len(globs) == 0 {
+		_, err := broker.Remove(target, "PreToolUse", "vrooli-policy-runner")
+		return err
+	}
+	config := buildHookConfig(a.HookScriptPath(), globs)
+	groups := config["hooks"].(map[string]any)
+	entries := groups["PreToolUse"].([]any)
+	group := entries[0].(map[string]any)
+	inner := group["hooks"].([]any)[0].(map[string]any)
+	matcher, _ := group["matcher"].(string)
+	_, err := broker.Reconcile(target, agentharness.HookRegistration{
+		Event: "PreToolUse", ID: "vrooli-policy-runner", Matcher: matcher, Hook: inner,
+	})
+	return err
 }
 
 // buildHookConfig constructs the Grok-native PreToolUse hook JSON. The

@@ -37,3 +37,10 @@ func TestFindCredentialDescriptorDuplicatesRejectsInvalidJSON(t *testing.T) {
 		t.Fatal("invalid JSON did not return an error")
 	}
 }
+
+func TestValidateCredentialDescriptorUniqueness(t *testing.T) {
+	err := ValidateCredentialDescriptorUniqueness([]byte(`{"credentials":{"descriptors":[{"logical_id":"vrooli/demo"},{"logical_id":"vrooli/demo"}]}}`), "resource.json")
+	if err == nil || !strings.Contains(err.Error(), "resource.json declares credential vrooli/demo:value more than once") {
+		t.Fatalf("ValidateCredentialDescriptorUniqueness() error = %v", err)
+	}
+}

@@ -1,9 +1,9 @@
 # SearXNG operations
 
-SearXNG is a `docker-service` resource. Its one supported runtime is the
-single image declared in `resource.json`; Docker must be installed and running
-before lifecycle operations. Redis, Docker Compose, direct Docker commands,
-and shell resource scripts are not supported operator paths.
+SearXNG is a managed native resource. Its runtime is the composed artifact
+declared in `resource.json`; the control plane supervises it directly. Redis,
+compose tooling, direct container commands, and shell resource scripts are not
+supported operator paths.
 
 Use the shared control plane for lifecycle and logs:
 
@@ -16,12 +16,13 @@ resource-searxng stop
 ```
 
 The manifest declares two independent durable mounts: `RESOURCE_CONFIG_DIR`
-maps to `/etc/searxng`, and `RESOURCE_DATA_DIR` maps to `/var/cache/searxng`.
+is the durable settings directory, and `RESOURCE_DATA_DIR` is the regenerable
+cache directory.
 Do not put settings in the cache directory.
 
 `engine-health --json` is the resource diagnostic. It performs a bounded JSON
 canary query and reports `healthy`, `degraded`, or `critical`; it does not
-replace the normal `/stats` container health check.
+replace the normal `/stats` managed-service health check.
 
 ```bash
 resource-searxng engine-health --json

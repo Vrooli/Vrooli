@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestManifestDeclaresOnlyTheSupportedDockerContract(t *testing.T) {
+func TestManifestDeclaresOnlyTheSupportedManagedContract(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "resource.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -25,13 +25,15 @@ func TestManifestDeclaresOnlyTheSupportedDockerContract(t *testing.T) {
 				Inputs []string `json:"inputs"`
 			} `json:"freshness"`
 		} `json:"cli"`
-		Runtime struct {
-			Image   string `json:"image"`
-			Volumes []struct {
-				Source string `json:"source"`
-				Target string `json:"target"`
-			} `json:"volumes"`
-		} `json:"runtime"`
+		ManagedService struct {
+			Artifact struct {
+				Layout    string `json:"layout"`
+				EntryPath string `json:"entry_path"`
+			} `json:"artifact"`
+			Acquisition struct {
+				Kind string `json:"kind"`
+			} `json:"acquisition"`
+		} `json:"managed_service"`
 		Health []struct {
 			Target string `json:"target"`
 		} `json:"health_checks"`
@@ -43,30 +45,20 @@ func TestManifestDeclaresOnlyTheSupportedDockerContract(t *testing.T) {
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if manifest.Template != "docker-service" || manifest.Driver != "docker-service" {
+	if manifest.Template != "managed-service" || manifest.Driver != "managed-service" {
 		t.Fatalf("template/driver = %q/%q", manifest.Template, manifest.Driver)
 	}
 	if strings.Contains(strings.ToLower(manifest.Description), "shell") {
 		t.Fatalf("description retains shell-era claim: %q", manifest.Description)
 	}
-	if manifest.Runtime.Image == "" || len(manifest.Runtime.Volumes) != 2 {
-		t.Fatalf("runtime = %#v", manifest.Runtime)
-	}
-	wantMounts := map[string]string{"${RESOURCE_CONFIG_DIR}": "/etc/searxng", "${RESOURCE_DATA_DIR}": "/var/cache/searxng"}
-	for _, mount := range manifest.Runtime.Volumes {
-		if wantMounts[mount.Source] != mount.Target {
-			t.Fatalf("unexpected mount %#v", mount)
-		}
-		delete(wantMounts, mount.Source)
-	}
-	if len(wantMounts) != 0 {
-		t.Fatalf("missing mounts: %#v", wantMounts)
+	if manifest.ManagedService.Acquisition.Kind != "composed" || manifest.ManagedService.Artifact.Layout != "dir" || manifest.ManagedService.Artifact.EntryPath != "runtime/bin/python" {
+		t.Fatalf("managed service artifact/acquisition = %#v", manifest.ManagedService)
 	}
 	if len(manifest.Health) != 1 || !strings.HasSuffix(manifest.Health[0].Target, "/stats") {
 		t.Fatalf("health = %#v", manifest.Health)
 	}
-	if len(manifest.HostTools) != 1 || manifest.HostTools[0].Name != "docker" || !manifest.HostTools[0].Required {
-		t.Fatalf("host tools = %#v, want required Docker preflight", manifest.HostTools)
+	if len(manifest.HostTools) != 0 {
+		t.Fatalf("host tools = %#v, want no external runtime requirement", manifest.HostTools)
 	}
 	if manifest.CLI.SourceBuild.Kind != "go_module" {
 		t.Fatalf("cli.source_build.kind = %q, want go_module", manifest.CLI.SourceBuild.Kind)
@@ -82,7 +74,7 @@ func TestDocumentationAndCapabilityContractContainNoLegacyRuntime(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Docker", "RESOURCE_CONFIG_DIR", "/etc/searxng", "RESOURCE_DATA_DIR", "/var/cache/searxng", "engine-health"} {
+	for _, want := range []string{"managed-service", "RESOURCE_CONFIG_DIR", "RESOURCE_DATA_DIR", "engine-health"} {
 		if !strings.Contains(string(operations), want) {
 			t.Fatalf("operations document missing %q", want)
 		}
@@ -91,12 +83,12 @@ func TestDocumentationAndCapabilityContractContainNoLegacyRuntime(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, forbidden := range []string{"redis", "compose", "docker-compose"} {
+	for _, forbidden := range []string{"redis"} {
 		if strings.Contains(strings.ToLower(string(capabilities)), forbidden) {
 			t.Fatalf("capability contract retains obsolete %q claim", forbidden)
 		}
 	}
-	for _, legacy := range []string{"lib/common.sh", "test/run-tests.sh", "docker/docker-compose.yml", "cli/install.sh", "cli/install.ps1", "config/settings.yml.template"} {
+	for _, legacy := range []string{"lib/common.sh", "test/run-tests.sh", "compose/legacy.yml", "cli/install.sh", "cli/install.ps1", "config/settings.yml.template"} {
 		if _, err := os.Stat(filepath.Join(root, legacy)); !os.IsNotExist(err) {
 			t.Fatalf("legacy path %q remains or could not be checked: %v", legacy, err)
 		}

@@ -13,7 +13,7 @@
         "kind": "dir",
         "class": "config",
         "regenerable": false,
-        "rationale": "SearXNG settings are bind-mounted to /etc/searxng."
+        "rationale": "SearXNG settings persist in the managed resource configuration directory."
       },
       "cache": {
         "rung": "relocatable",
@@ -27,9 +27,9 @@
         "regenerable": true,
         "relocation": {
           "key": "RESOURCE_DATA_DIR",
-          "scope": "container"
+            "scope": "resource"
         },
-        "rationale": "SearXNG's /var/cache/searxng mount is disposable runtime cache.",
+        "rationale": "SearXNG runtime cache is disposable and remains outside the pinned artifact.",
         "budget": {
           "max_age": "30d",
           "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
@@ -38,7 +38,7 @@
     }
   },
   "display_name": "SearXNG",
-  "description": "Managed SearXNG metasearch service: one Docker container with Go-native lifecycle, configuration, and diagnostics.",
+  "description": "Managed, checksum-pinned SearXNG metasearch service composed from a portable Python runtime, locked wheels, and the reviewed SearXNG source tree.",
   "cli": {
     "enabled": true,
     "command": "resource-searxng",
@@ -75,63 +75,143 @@
       "kind": "go_module"
     }
   },
-  "template": "docker-service",
-  "driver": "docker-service",
+  "template": "managed-service",
+  "driver": "managed-service",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {"control-plane": "managed-private", "desktop-bundle": "managed-private"},
+      "allowed_modes": ["managed-private", "managed-shared", "attach-only", "remote-vrooli", "managed-discovered"],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": ["read-only", "read-write"]
+    },
+    "artifact": {
+      "path": "server/searxng",
+      "version": "2026.08.14",
+      "layout": "dir",
+      "entry_path": "runtime/bin/python",
+      "sha256_by_platform": {
+        "linux-amd64": "48085aa8687bb3b829846adf14b3a860e250f253da6937832d102dce0766b19b",
+        "linux-arm64": "d41d99925bafe05b4fd30e55b5db45d03f316e073f7f7dbc90cd167e464f9634",
+        "macos-amd64": "003f1c38353b93a2ed2ede3dd3a0211dadcfb847eafd562d8edc92a42c16caa1",
+        "macos-arm64": "7b7e49b82fdba3a5a554455256b644b9ee0814bf80493b9ac48dff6027e5d7d9",
+        "windows-amd64": "80ad2c479e85ca8c35312802e9d9177c7ee1c052cad936bf0ab51ee7bc42a978"
+      },
+      "bundle_artifact": "searxng_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "composed",
+      "license": "AGPL-3.0-or-later; CPython PSF-2.0; SearXNG dependencies retain their upstream licenses",
+      "provenance": {"kind": "none"},
+      "targets": [
+        {
+          "when": {"os": "linux", "arch": "amd64"},
+          "layout": "dir",
+          "artifact_sha256": "48085aa8687bb3b829846adf14b3a860e250f253da6937832d102dce0766b19b",
+          "compose": [
+            {"role": "runtime", "kind": "url", "dest": "runtime", "bin_path": "python", "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz", "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0", "archive": "tar.gz"},
+            {"role": "python-wheels", "kind": "python-wheels", "dest": "wheels", "lockfile": "requirements.lock"},
+            {"role": "application", "kind": "url", "dest": "source", "bin_path": "searxng-374939b888c8644b408b793fe42d584454631cec", "url": "https://github.com/searxng/searxng/archive/374939b888c8644b408b793fe42d584454631cec.tar.gz", "sha256": "6f622f828ccbb08f9133506c3a87f2bda83921e85b853d1c624f370b64334e5a", "archive": "tar.gz"}
+          ]
+        },
+        {
+          "when": {"os": "linux", "arch": "arm64"},
+          "layout": "dir",
+          "artifact_sha256": "d41d99925bafe05b4fd30e55b5db45d03f316e073f7f7dbc90cd167e464f9634",
+          "compose": [{"role": "runtime", "kind": "url", "dest": "runtime", "bin_path": "python", "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-aarch64-unknown-linux-gnu-install_only.tar.gz", "sha256": "4952b18bafda1880d4ab1f86e1c348dbdb31f0e6d049e76dc5f052f2f796f1c5", "archive": "tar.gz"}, {"role": "python-wheels", "kind": "python-wheels", "dest": "wheels", "lockfile": "requirements.lock"}, {"role": "application", "kind": "url", "dest": "source", "bin_path": "searxng-374939b888c8644b408b793fe42d584454631cec", "url": "https://github.com/searxng/searxng/archive/374939b888c8644b408b793fe42d584454631cec.tar.gz", "sha256": "6f622f828ccbb08f9133506c3a87f2bda83921e85b853d1c624f370b64334e5a", "archive": "tar.gz"}]
+        },
+        {
+          "when": {"os": "macos", "arch": "amd64"},
+          "layout": "dir",
+          "artifact_sha256": "003f1c38353b93a2ed2ede3dd3a0211dadcfb847eafd562d8edc92a42c16caa1",
+          "compose": [{"role": "runtime", "kind": "url", "dest": "runtime", "bin_path": "python", "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-apple-darwin-install_only.tar.gz", "sha256": "1a94c83264731e9603fbea78e57e7ca8f20e7d91eb866627ac2304621b0f6f1f", "archive": "tar.gz"}, {"role": "python-wheels", "kind": "python-wheels", "dest": "wheels", "lockfile": "requirements.lock"}, {"role": "application", "kind": "url", "dest": "source", "bin_path": "searxng-374939b888c8644b408b793fe42d584454631cec", "url": "https://github.com/searxng/searxng/archive/374939b888c8644b408b793fe42d584454631cec.tar.gz", "sha256": "6f622f828ccbb08f9133506c3a87f2bda83921e85b853d1c624f370b64334e5a", "archive": "tar.gz"}]
+        },
+        {
+          "when": {"os": "macos", "arch": "arm64"},
+          "layout": "dir",
+          "artifact_sha256": "7b7e49b82fdba3a5a554455256b644b9ee0814bf80493b9ac48dff6027e5d7d9",
+          "compose": [{"role": "runtime", "kind": "url", "dest": "runtime", "bin_path": "python", "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-aarch64-apple-darwin-install_only.tar.gz", "sha256": "4572133a5542f306b9bdb155da5800f9e38950cd0a98d469b832ce256fe299ea", "archive": "tar.gz"}, {"role": "python-wheels", "kind": "python-wheels", "dest": "wheels", "lockfile": "requirements.lock"}, {"role": "application", "kind": "url", "dest": "source", "bin_path": "searxng-374939b888c8644b408b793fe42d584454631cec", "url": "https://github.com/searxng/searxng/archive/374939b888c8644b408b793fe42d584454631cec.tar.gz", "sha256": "6f622f828ccbb08f9133506c3a87f2bda83921e85b853d1c624f370b64334e5a", "archive": "tar.gz"}]
+        },
+        {
+          "when": {"os": "windows", "arch": "amd64"},
+          "layout": "dir",
+          "artifact_sha256": "80ad2c479e85ca8c35312802e9d9177c7ee1c052cad936bf0ab51ee7bc42a978",
+          "compose": [{"role": "runtime", "kind": "url", "dest": "runtime", "bin_path": "python", "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-pc-windows-msvc-install_only.tar.gz", "sha256": "7330282b47cd43a66b702d39078d2e5a88e580cee351d82f95045f21f5ee042a", "archive": "tar.gz"}, {"role": "python-wheels", "kind": "python-wheels", "dest": "wheels", "lockfile": "requirements.lock"}, {"role": "application", "kind": "url", "dest": "source", "bin_path": "searxng-374939b888c8644b408b793fe42d584454631cec", "url": "https://github.com/searxng/searxng/archive/374939b888c8644b408b793fe42d584454631cec.tar.gz", "sha256": "6f622f828ccbb08f9133506c3a87f2bda83921e85b853d1c624f370b64334e5a", "archive": "tar.gz"}]
+        },
+        {
+          "when": {"os": "windows", "arch": "arm64"},
+          "unsupported": "Granian does not publish a Windows arm64 wheel in the pinned release; publish a native wheel before enabling this target."
+        }
+      ]
+    },
+    "arguments": ["-m", "granian", "--interface", "wsgi", "--host", "127.0.0.1", "--port", "${RESOURCE_PORT_HTTP}", "searx.webapp:app"],
+    "environment": {
+      "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/source:${RESOURCE_ARTIFACT_DIR}/wheels",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "SEARXNG_SETTINGS_PATH": "${RESOURCE_CONFIG_DIR}/settings.yml",
+      "SEARXNG_CACHE_DIR": "${RESOURCE_DATA_DIR}"
+    },
+    "bootstrap": {
+      "marker": "bootstrap/initialized",
+      "executable": "runtime/bin/python",
+      "arguments": [
+        "-c",
+        "import os, pathlib, secrets\nconfig = pathlib.Path(os.environ['RESOURCE_CONFIG_DIR']) / 'settings.yml'\nconfig.parent.mkdir(parents=True, exist_ok=True)\nif not config.exists():\n    config.write_text('use_default_settings: true\\ngeneral:\\n    instance_name: Vrooli SearXNG\\n    enable_metrics: true\\nsearch:\\n    formats:\\n        - html\\n        - json\\nserver:\\n    base_url: http://localhost:8280\\n    limiter: false\\n    secret_key: ' + secrets.token_hex(32) + '\\n', encoding='utf-8')\n    config.chmod(0o600)\nmarker = pathlib.Path(os.environ['RESOURCE_DATA_DIR']) / 'bootstrap/initialized'\nmarker.parent.mkdir(parents=True, exist_ok=True)\nmarker.write_text('initialized\\n', encoding='utf-8')"
+      ]
+    },
+    "attach_health_path": "/stats",
+    "shutdown": {"signal": "terminate"}
+  },
   "deployment": {
     "profiles": {
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
+          "requires": [],
           "limitations": [
-            "Docker images, storage, and networking remain host-managed."
+            "The composed Python runtime and application tree are checksum-pinned for this target."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "artifact-checksum"
           ]
         },
         "macos": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
+          "requires": [],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "The composed Python runtime and application tree are checksum-pinned for this target."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "artifact-checksum"
           ]
         },
         "windows": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
-            "amd64",
-            "arm64"
+            "amd64"
           ],
-          "requires": [
-            "docker"
-          ],
+          "requires": [],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "The composed Python runtime and application tree are checksum-pinned for this target."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "artifact-checksum"
           ]
         }
       }
@@ -154,19 +234,7 @@
     "macos": "supported",
     "windows": "supported"
   },
-  "hostTools": [
-    {
-      "name": "docker",
-      "required": true,
-      "reason": "SearXNG is intentionally a single-container Docker resource.",
-      "when": [
-        "setup",
-        "develop",
-        "runtime"
-      ],
-      "notes": "Docker must be available before lifecycle commands run."
-    }
-  ],
+  "hostTools": [],
   "dependencies": [],
   "ports": [
     {
@@ -184,21 +252,7 @@
     }
   ],
   "runtime": {
-    "image": "ghcr.io/searxng/searxng@sha256:02d441bbb647b7be422d21041420115cddadac4644368f67c7c7f407bbe72e22",
-    "container_name": "searxng",
-    "env": {
-      "SEARXNG_BASE_URL": "http://localhost:8280"
-    },
-    "volumes": [
-      {
-        "source": "${RESOURCE_CONFIG_DIR}",
-        "target": "/etc/searxng"
-      },
-      {
-        "source": "${RESOURCE_DATA_DIR}",
-        "target": "/var/cache/searxng"
-      }
-    ]
+    "env": {"SEARXNG_BASE_URL": "http://localhost:8280"}
   },
   "environment_exports": {
     "static": {
@@ -238,5 +292,5 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "vendorable"
 }
