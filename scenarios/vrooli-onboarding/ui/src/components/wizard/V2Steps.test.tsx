@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { StepDerivedResources } from "./StepDerivedResources";
@@ -19,15 +19,9 @@ const api = vi.hoisted(() => ({
   applyOnboarding: vi.fn(),
   fetchV2ApplyPlan: vi.fn(),
   fetchV2ApplyStatus: vi.fn(),
-  fetchOperatorInputs: vi.fn(),
-  fetchCredentialStoreStatus: vi.fn(),
-  selectCredentialBackend: vi.fn(),
-  reselectCredentialBackend: vi.fn(),
-  initializeCredentialStore: vi.fn(),
-  unlockCredentialStore: vi.fn(),
-  changeCredentialStorePassphrase: vi.fn(),
-  rewrapCredentialStore: vi.fn(),
-  resolveOperatorInputs: vi.fn(),
+  fetchCapabilities: vi.fn(),
+  previewCapability: vi.fn(),
+  applyCapability: vi.fn(),
 }));
 
 vi.mock("../../lib/api", () => api);
@@ -52,7 +46,7 @@ beforeEach(() => {
     resources: ["postgres"],
     credentials: [{ resource: "openrouter", logical_id: "openrouter", field: "api_key", label: "OpenRouter key", required: true, status: "unconfigured" }],
     hosts: [{ name: "git", status: "ready", kind: "tool", required: true }],
-    integrations: [{ name: "OAuth", status: "deferred", detail: "Owned by integration-hub" }],
+    integrations: [{ name: "alpha/github-oauth", category: "integration", status: "deferred", required: true, detail: "Read project issues. Connection setup is deferred until the integration capability is available." }, { name: "release-authority", category: "system", status: "ready" }],
     checked_at: "2026-07-29T00:00:00Z",
   });
   api.fetchV2Closure.mockResolvedValue({ resources: [{ name: "postgres", required: true, direct: true, provenance: [] }, { name: "ollama", required: false, direct: false, provenance: [] }], scenarios: [] });
@@ -66,14 +60,9 @@ beforeEach(() => {
   api.applyOnboarding.mockResolvedValue({ status: "applied", items: [{ name: "postgres", outcome: "applied" }] });
   api.fetchV2ApplyPlan.mockResolvedValue({ items: [{ id: "resource:postgres", kind: "resource", name: "postgres", required: true }] });
   api.fetchV2ApplyStatus.mockResolvedValue({ run_id: "apply-test", status: "applied", items: [{ name: "postgres", outcome: "applied" }] });
-  api.fetchOperatorInputs.mockResolvedValue({ version: 1, updated_at: "now", requests: [] });
-  api.fetchCredentialStoreStatus.mockResolvedValue({ initialized: true, active: true, entries: 1, active_wrap: "native-wrap", active_key_store: "keychain" });
-  api.selectCredentialBackend.mockResolvedValue({ status: "selected", backend: "native" });
-  api.initializeCredentialStore.mockResolvedValue({ initialized: true, active: true, entries: 0 });
-  api.unlockCredentialStore.mockResolvedValue({ status: "unlocked", active_wrap: "encrypted-file" });
-  api.changeCredentialStorePassphrase.mockResolvedValue({ status: "changed" });
-  api.rewrapCredentialStore.mockResolvedValue({ status: "rewrapped", provider: "native", key_store: "keychain" });
-  api.resolveOperatorInputs.mockResolvedValue({ status: "resolved", configuration_pending: false });
+  api.fetchCapabilities.mockResolvedValue({ capabilities: [], count: 0 });
+  api.previewCapability.mockResolvedValue({ capability_id: "demo-capability", plan_id: "demo-plan", state: "ready_to_preview", mutations: [{ id: "demo-write", summary: "write a verified demo artifact", reversible: true }] });
+  api.applyCapability.mockResolvedValue({ capability_id: "demo-capability", state: "ready", outcome: "demo_ready", retryable: true, evidence: [{ kind: "demo", artifact_identity: "demo-artifact", observed_at: "now", verified: true }] });
 });
 
 describe("V2 onboarding wizard steps", () => {
@@ -119,9 +108,12 @@ describe("V2 onboarding wizard steps", () => {
     expect(onConfig).toHaveBeenCalledWith("host_safeguards", "firewall", { target: "collector.example:6666" });
   });
 
-  it("renders the deferred integration contract", () => {
+  it("renders the deferred integration contract", async () => {
     renderWithProviders(<StepIntegrationsDeferred />);
     expect(screen.getByRole("status")).toHaveTextContent("Integration setup is deferred");
+    const declared = await screen.findByTestId("declared-integrations");
+    expect(declared).toHaveTextContent("alpha/github-oauth");
+    expect(declared).toHaveTextContent("Read project issues");
     expect(screen.getByRole("link", { name: /read the integration contract/i })).toHaveAttribute("href", "/docs/configuration/integrations/connectors.md");
   });
 
@@ -144,7 +136,7 @@ describe("V2 onboarding wizard steps", () => {
     renderWithProviders(<StepReadiness title="Validation" />);
     expect(await screen.findByText("Host requirements")).toBeInTheDocument();
     expect(screen.getByText("Integrations")).toBeInTheDocument();
-    expect(screen.getByText("OAuth")).toBeInTheDocument();
+    expect(screen.getByText("alpha/github-oauth")).toBeInTheDocument();
   });
 
   it("surfaces provider failures and records deliberate degraded continuation", async () => {
@@ -194,12 +186,50 @@ describe("V2 onboarding wizard steps", () => {
     });
     renderWithProviders(<StepReadiness title="Apply" />);
     expect(await screen.findByTestId("backend-diagnosis")).toHaveTextContent("Available");
-    expect(screen.getByTestId("store-init-guidance")).toBeInTheDocument();
     expect(screen.getByTestId("credential-obtain-link")).toHaveAttribute("href", "https://example.test/key");
     fireEvent.click(screen.getByTestId("apply-confirm"));
     await waitFor(() => expect(api.applyOnboarding).toHaveBeenCalled());
     expect(await screen.findByTestId("apply-report")).toHaveTextContent("postgres");
     expect(await screen.findByTestId("apply-report")).toHaveTextContent("applied");
+  });
+
+  it("surfaces capability status and provider evidence without owner-specific rendering", async () => {
+    api.fetchCapabilities.mockResolvedValueOnce({
+      count: 1,
+      capabilities: [{
+        descriptor: {
+          version: "operator-capability/v1", id: "demo-capability", owner: "demo.owner", title: "Protect a demo artifact",
+          description: "A provider-defined action.", inputs: [{ id: "destination", kind: "path", label: "Destination", required: true }],
+          policy: { requires_confirmation: true, idempotent: true, retryable: true }, evidence: { secret_free: true, kinds: ["demo"] },
+        },
+        state: "needs_operator_input", missing_inputs: ["destination"], remediation: "Choose a destination.", updated_at: "now",
+      }],
+    });
+    renderWithProviders(<StepReadiness title="Credentials" />);
+    expect(await screen.findByTestId("capability-card-demo-capability")).toHaveTextContent("Protect a demo artifact");
+    fireEvent.change(screen.getByLabelText("Destination"), { target: { value: "/mnt/approved" } });
+    fireEvent.click(screen.getByTestId("capability-confirm-demo-capability"));
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    await waitFor(() => expect(api.previewCapability).toHaveBeenCalledWith({ capability_id: "demo-capability", confirm: false, inputs: { destination: "/mnt/approved" } }));
+    fireEvent.click(await screen.findByRole("button", { name: "Apply reviewed capability" }));
+    await waitFor(() => expect(api.applyCapability).toHaveBeenCalledWith({ capability_id: "demo-capability", confirm: true, inputs: { destination: "/mnt/approved" } }));
+    expect(screen.getByTestId("capability-result-demo-capability")).toHaveTextContent("demo_ready");
+    expect(screen.queryByText("secret-value")).not.toBeInTheDocument();
+  });
+
+  it("does not render manual recovery commands in the onboarding action surface", async () => {
+    api.fetchV2Readiness.mockResolvedValueOnce({
+      status: "missing",
+      scenarios: [],
+      resources: [],
+      credentials: [],
+      hosts: [],
+      integrations: [],
+      checked_at: "2026-07-29T00:00:00Z",
+    });
+    renderWithProviders(<StepReadiness title="Validation" />);
+    expect(await screen.findByTestId("readiness-summary")).toHaveTextContent("missing");
+    expect(screen.queryByText(/secrets-manager backup export/i)).not.toBeInTheDocument();
   });
 
   it("keeps the apply route as a distinct step identity", async () => {
@@ -231,54 +261,5 @@ describe("V2 onboarding wizard steps", () => {
     expect(input).toHaveValue("secret-value");
   });
 
-  it("resolves deferred operator inputs through the protected queue", async () => {
-    api.fetchOperatorInputs.mockResolvedValueOnce({ version: 1, updated_at: "now", requests: [{ id: "mode", kind: "choice", title: "Operating mode", default: "desktop" }] });
-    renderWithProviders(<StepReadiness title="Credentials" />);
-    const input = await screen.findByTestId("operator-input");
-    fireEvent.change(input, { target: { value: "server" } });
-    fireEvent.click(screen.getByTestId("operator-input-resolve"));
-    await waitFor(() => expect(api.resolveOperatorInputs).toHaveBeenCalledWith([{ request_id: "mode", value: "server" }]));
-    expect(input).toHaveValue("");
-  });
 
-  it("supports credential store initialization and lifecycle controls", async () => {
-    api.fetchCredentialStoreStatus.mockResolvedValueOnce({ initialized: false, active: false, entries: 0 });
-    renderWithProviders(<StepReadiness title="Credentials" />);
-    fireEvent.click(await screen.findByText("Manage protection"));
-    fireEvent.change(screen.getByLabelText("New store passphrase"), { target: { value: "new-secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "Initialize" }));
-    await waitFor(() => expect(api.initializeCredentialStore).toHaveBeenCalledWith("new-secret"));
-    cleanup();
-
-    api.fetchCredentialStoreStatus.mockResolvedValue({ initialized: true, active: true, entries: 0, active_wrap: "encrypted-file", active_key_store: "file" });
-    renderWithProviders(<StepReadiness title="Credentials" />);
-    const card = await screen.findAllByTestId("credential-store-card").then((cards) => cards[cards.length - 1]!);
-    const cardQueries = within(card);
-    fireEvent.click(cardQueries.getByText("Manage protection"));
-    fireEvent.change(cardQueries.getByLabelText("Store passphrase"), { target: { value: "current" } });
-    fireEvent.click(cardQueries.getByRole("button", { name: "Unlock" }));
-    fireEvent.click(cardQueries.getByRole("button", { name: "Rewrap" }));
-    fireEvent.change(cardQueries.getByLabelText("Current store passphrase"), { target: { value: "current" } });
-    fireEvent.change(cardQueries.getByLabelText("New store passphrase"), { target: { value: "rotated" } });
-    fireEvent.click(cardQueries.getByRole("button", { name: "Change passphrase" }));
-    fireEvent.click(cardQueries.getByRole("button", { name: "Use native authority" }));
-    fireEvent.click(cardQueries.getByRole("button", { name: "Use encrypted authority" }));
-    await waitFor(() => {
-      expect(api.unlockCredentialStore).toHaveBeenCalledWith("current");
-      expect(api.rewrapCredentialStore).toHaveBeenCalledWith("current");
-      expect(api.changeCredentialStorePassphrase).toHaveBeenCalledWith("current", "rotated");
-    });
-    expect(api.selectCredentialBackend).toHaveBeenCalledWith("native");
-    expect(api.selectCredentialBackend).toHaveBeenCalledWith("encrypted-file");
-  });
-
-  it("exposes verified backend migration when credentials exist", async () => {
-    api.fetchCredentialStoreStatus.mockResolvedValue({ initialized: true, active: true, entries: 1, active_wrap: "encrypted-file", active_key_store: "file" });
-    api.reselectCredentialBackend.mockResolvedValue({ from: "encrypted-file", to: "native", attempted: ["credential"], verified: ["credential"], committed: true });
-    renderWithProviders(<StepReadiness title="Credentials" />);
-    const card = await screen.findAllByTestId("credential-store-card").then((cards) => cards[cards.length - 1]!);
-    fireEvent.click(within(card).getByText("Manage protection"));
-    fireEvent.click(within(card).getByRole("button", { name: "Re-evaluate and migrate safely" }));
-    await waitFor(() => expect(api.reselectCredentialBackend).toHaveBeenCalled());
-  });
 });

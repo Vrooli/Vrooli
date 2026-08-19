@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	memoryHighPercent = 60
-	memoryMaxPercent  = 70
-	oomScoreAdjust    = 500
+	oomScoreAdjust = 500
+	// unlimitedAddressSpace is RLIM_INFINITY as reported for RLIMIT_AS. The
+	// supervised Ollama process must stay at this value; see verifyProcessControls.
+	unlimitedAddressSpace = ^uint64(0)
 )
 
 type managedServiceState struct {
@@ -82,7 +83,8 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	}
 	status.Applied = true
 	status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
-	status.Notes = append(status.Notes, fmt.Sprintf("ollama supervisor process %d has the declared memory and OOM controls", state.PID))
+	status.Notes = append(status.Notes, fmt.Sprintf("ollama supervisor process %d has the declared OOM control and an uncapped address space", state.PID))
+	status.Notes = append(status.Notes, "memory_high_percent/memory_max_percent are NOT enforced: Linux has no rlimit that bounds resident memory, and capping address space instead breaks CUDA model loads. Enforcing them needs a dedicated cgroup v2 scope per managed service.")
 	return status
 }
 
@@ -132,19 +134,23 @@ func ollamaStatePath() string {
 	return filepath.Join(home, ".local", "state", "vrooli", "resources", "ollama", "managed-service.json")
 }
 
+// verifyProcessControls checks the controls the supervisor can actually enforce.
+//
+// The address-space check is deliberately inverted from what it used to be. This
+// safeguard once required RLIMIT_AS to equal 60%/70% of physical memory, reading
+// a memory declaration as an address-space cap. That cap bounds virtual address
+// space rather than resident memory, so it protected nothing measurable and
+// broke CUDA: llama.cpp reserves a 32 GiB VMM pool on first inference, which the
+// cap rejected as "CUDA error: out of memory" on an idle GPU, so every Ollama
+// model load died and all embedding traffic failed. A capped address space on
+// the supervised PID is now the failure condition, not the requirement.
 func verifyProcessControls(pid int) error {
-	total, err := physicalMemory()
-	if err != nil {
-		return err
-	}
 	cur, max, err := processLimitsFn(pid)
 	if err != nil {
 		return err
 	}
-	wantCur := total * memoryHighPercent / 100
-	wantMax := total * memoryMaxPercent / 100
-	if cur != wantCur || max != wantMax {
-		return fmt.Errorf("address-space limit is cur=%d max=%d, want cur=%d max=%d", cur, max, wantCur, wantMax)
+	if cur != unlimitedAddressSpace || max != unlimitedAddressSpace {
+		return fmt.Errorf("address space is capped at cur=%d max=%d; an address-space cap breaks CUDA model loads and must not be applied for a memory declaration", cur, max)
 	}
 	value, err := readFileFn(filepath.Join("/proc", strconv.Itoa(pid), "oom_score_adj"))
 	if err != nil {
@@ -154,22 +160,4 @@ func verifyProcessControls(pid int) error {
 		return fmt.Errorf("oom_score_adj is %q, want %d", strings.TrimSpace(string(value)), oomScoreAdjust)
 	}
 	return nil
-}
-
-func physicalMemory() (uint64, error) {
-	data, err := readFileFn("/proc/meminfo")
-	if err != nil {
-		return 0, fmt.Errorf("read physical memory: %w", err)
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[0] == "MemTotal:" {
-			kib, err := strconv.ParseUint(fields[1], 10, 64)
-			if err != nil || kib == 0 {
-				break
-			}
-			return kib * 1024, nil
-		}
-	}
-	return 0, fmt.Errorf("physical memory is missing from /proc/meminfo")
 }

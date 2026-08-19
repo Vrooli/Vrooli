@@ -39,7 +39,7 @@ func newHandler(t *testing.T) *connectHandler {
 		apidb.SchemaProviderFunc(internalpairing.Schema),
 	))
 	repo := internalpairing.NewSQLiteRepository(d, clk)
-	svc := internalpairing.NewService(repo, &fakeRegistrar{}, clk)
+	svc := internalpairing.NewService(repo, &fakeRegistrar{}, clk, internalpairing.WithGrantValidator(func([]string) error { return nil }))
 	return NewConnectHandler(Deps{Service: svc, ControlPlanePublicKey: "CP-PUBKEY"})
 }
 
@@ -78,7 +78,7 @@ func TestHandler_IssueThenRedeem(t *testing.T) {
 	h := newHandler(t)
 
 	issued, err := h.IssuePairingCode(ownerCtx(), connect.NewRequest(&pairingv1.IssuePairingCodeRequest{
-		Name: "mac-mini", Scopes: []string{"scenario test*"},
+		Name: "mac-mini", Scopes: []string{"vrooli:write"},
 	}))
 	require.NoError(t, err)
 	require.NotEmpty(t, issued.Msg.Code)

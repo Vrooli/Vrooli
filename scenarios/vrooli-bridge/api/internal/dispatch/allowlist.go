@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/vrooli/api-core/scopecatalog"
-	"github.com/vrooli/api-core/targetmodel"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -38,29 +38,42 @@ type manifestArtifact struct {
 	} `json:"outputs"`
 }
 
-// DefaultManifest is the constructor's immutable artifact input for the pure
-// decision tests. It is resolved from the checked-in typed bindings plus the
-// derived scope catalog, not maintained as a Go verb list or scope list.
-var (
-	DefaultManifest        = loadManifest()
-	defaultManifestOutputs = loadManifestOutputs()
-)
+var defaultManifestCache struct {
+	sync.Once
+	entries []string
+	outputs map[string][]ArtifactOutput
+	err     error
+}
 
-func loadManifest() []string {
+// BuildManifest resolves the checked-in dispatch artifact against the shared
+// CLI scope catalog. It is intentionally called lazily rather than during
+// package initialization: a malformed scenario manifest must produce a
+// typed degraded service, not a process-start panic. The result is cached
+// because the checked-in manifest and catalog are process configuration.
+func BuildManifest() ([]string, map[string][]ArtifactOutput, error) {
+	defaultManifestCache.Do(func() {
+		defaultManifestCache.entries, defaultManifestCache.outputs, defaultManifestCache.err = buildManifest()
+	})
+	return append([]string(nil), defaultManifestCache.entries...), cloneOutputs(defaultManifestCache.outputs), defaultManifestCache.err
+}
+
+func buildManifest() ([]string, map[string][]ArtifactOutput, error) {
 	root, err := repocontract.FindRepoRootFromEnvOrCWD()
 	if err != nil {
-		panic(fmt.Sprintf("locate repository for dispatch scope catalog: %v", err))
+		return nil, nil, fmt.Errorf("locate repository for dispatch scope catalog: %w", err)
 	}
 	catalog, err := scopecatalog.Build(root)
 	if err != nil {
-		panic(fmt.Sprintf("build dispatch scope catalog: %v", err))
+		return nil, nil, err
 	}
 
 	var artifact manifestArtifact
 	if err := json.Unmarshal(dispatchManifestJSON, &artifact); err != nil {
-		panic(fmt.Sprintf("decode dispatch manifest: %v", err))
+		return nil, nil, fmt.Errorf("decode dispatch manifest: %w", err)
 	}
-	validateDefaultGrants(catalog, artifact.DefaultGrants)
+	if err := validateDefaultGrants(catalog, artifact.DefaultGrants); err != nil {
+		return nil, nil, err
+	}
 	bindings := make([]string, 0, len(catalog.Scopes))
 
 	// Project CLI command names are the dispatch vocabulary. Their governance
@@ -72,47 +85,52 @@ func loadManifest() []string {
 		if !scope.RunEligible || strings.TrimSpace(scope.Command) == "" {
 			continue
 		}
-		verb := strings.ReplaceAll(scope.Command, "/", " ")
-		if scope.Scenario != scopecatalog.ProjectManifestIdentity {
-			verb = scope.Scenario + " " + verb
-		}
+		verb := scope.Verb()
 		effect := string(scope.Effect)
 		required := "vrooli-bridge:" + effect
 		if !catalog.HasScope(required) {
-			panic(fmt.Sprintf("catalog command %q requires missing bridge effect scope %q", scope.Command, required))
+			return nil, nil, fmt.Errorf("catalog command %q requires missing bridge effect scope %q", scope.Command, required)
 		}
-		// A node must hold both the effect grant and a verb-pattern grant.
-		// Keeping the two requirements in the derived entry prevents adding a
-		// new catalog command from widening every existing node that only has
-		// the broad effect grant.
-		result = append(result, encodeManifestEntry(verb, []string{required, verb}))
+		// A node must hold both the namespace-and-effect grant and Bridge's
+		// transport-level effect capability. The namespace grant follows the
+		// derived catalog, so adding a command needs no per-node verb edit while
+		// still granting nothing in an unconceded scenario or effect.
+		result = append(result, encodeManifestEntry(verb, []string{scope.Value, required}))
 	}
 	result = append(result, bindings...)
 	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
-	return result
+	return result, manifestOutputs(artifact), nil
 }
 
-func validateDefaultGrants(catalog scopecatalog.Catalog, grants []string) {
+func cloneOutputs(input map[string][]ArtifactOutput) map[string][]ArtifactOutput {
+	if input == nil {
+		return nil
+	}
+	output := make(map[string][]ArtifactOutput, len(input))
+	for verb, entries := range input {
+		output[verb] = append([]ArtifactOutput(nil), entries...)
+	}
+	return output
+}
+
+func validateDefaultGrants(catalog scopecatalog.Catalog, grants []string) error {
 	for _, grant := range grants {
 		grant = strings.TrimSpace(grant)
 		if grant == "" {
-			panic("dispatch manifest contains an empty default grant")
+			return fmt.Errorf("dispatch manifest contains an empty default grant")
 		}
 		if grant != string(scopecatalog.EffectRead) && grant != string(scopecatalog.EffectWrite) && grant != string(scopecatalog.EffectDestructive) {
-			panic(fmt.Sprintf("dispatch manifest contains invalid default grant %q", grant))
+			return fmt.Errorf("dispatch manifest contains invalid default grant %q", grant)
 		}
 		required := "vrooli-bridge:" + grant
 		if !catalog.HasScope(required) {
-			panic(fmt.Sprintf("dispatch default grant %q requires missing derived scope %q", grant, required))
+			return fmt.Errorf("dispatch default grant %q requires missing derived scope %q", grant, required)
 		}
 	}
+	return nil
 }
 
-func loadManifestOutputs() map[string][]ArtifactOutput {
-	var artifact manifestArtifact
-	if err := json.Unmarshal(dispatchManifestJSON, &artifact); err != nil {
-		panic(fmt.Sprintf("decode dispatch manifest outputs: %v", err))
-	}
+func manifestOutputs(artifact manifestArtifact) map[string][]ArtifactOutput {
 	result := make(map[string][]ArtifactOutput)
 	for _, output := range artifact.Outputs {
 		verb := strings.TrimSpace(output.Verb)
@@ -160,8 +178,8 @@ func Allow(job Job, scopes, manifest []string) error {
 	if !inManifest(j.Verb, manifest) {
 		return ErrVerbNotInManifest{Verb: j.Verb}
 	}
-	if !anyScopeMatches(scopes, j.Verb, manifest) {
-		return ErrVerbOutOfScope{Verb: j.Verb}
+	if allowed, missing := anyScopeMatches(scopes, j.Verb, manifest); !allowed {
+		return ErrVerbOutOfScope{Verb: j.Verb, RequiredScope: missing}
 	}
 	return nil
 }
@@ -176,40 +194,33 @@ func inManifest(verb string, manifest []string) bool {
 	return false
 }
 
-// anyScopeMatches reports whether any granted scope covers verb.
-func anyScopeMatches(scopes []string, verb string, manifest []string) bool {
+// anyScopeMatches reports whether every catalog-derived requirement for one
+// matching entry is held. It returns the first missing concrete scope so a
+// refusal tells the operator exactly what authority is absent.
+func anyScopeMatches(scopes []string, verb string, manifest []string) (bool, string) {
+	missing := ""
 	for _, entry := range manifest {
 		if manifestEntryVerb(entry) != verb {
 			continue
 		}
 		required := manifestEntryScopes(entry)
 		if len(required) == 0 {
-			// Keep hand-built unit-test manifests useful, while all production
-			// entries emitted by loadManifest carry the paired requirements.
-			return scopeMatchesAny(scopes, verb)
+			continue
 		}
-		effectMatched, verbMatched := false, false
+		entryAllowed := true
 		for _, requirement := range required {
-			if strings.HasPrefix(requirement, "vrooli-bridge:") {
-				effectMatched = effectMatched || scopeMatchesAny(scopes, requirement)
-			} else {
-				verbMatched = verbMatched || scopeMatchesAny(scopes, requirement)
+			if !scopecatalog.Resolve(scopes, requirement) {
+				entryAllowed = false
+				if missing == "" {
+					missing = requirement
+				}
 			}
 		}
-		if effectMatched && verbMatched {
-			return true
+		if entryAllowed {
+			return true, ""
 		}
 	}
-	return false
-}
-
-func scopeMatchesAny(scopes []string, required string) bool {
-	for _, s := range scopes {
-		if scopeMatches(strings.TrimSpace(s), required) {
-			return true
-		}
-	}
-	return false
+	return false, missing
 }
 
 const manifestSeparator = "\x00"
@@ -237,13 +248,4 @@ func manifestEntryScopes(entry string) []string {
 		return nil
 	}
 	return strings.Split(entry[index+len(manifestSeparator):], manifestSeparator)
-}
-
-// scopeMatches implements the scope glob grammar: an exact match, a trailing-`*`
-// prefix match (e.g. "scenario test*" covers "scenario test" and "scenario
-// testall"), or the universal "*". The wildcard is only honoured as a trailing
-// character — an interior `*` is treated literally, so a scope can never be
-// tricked into matching across the namespace boundary.
-func scopeMatches(scope, verb string) bool {
-	return targetmodel.ScopeAllows([]string{scope}, verb)
 }

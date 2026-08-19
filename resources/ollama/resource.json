@@ -3,6 +3,10 @@
   "name": "ollama",
   "display_name": "Ollama",
   "description": "Managed Ollama model-serving runtime for local inference workloads.",
+  "execution": {
+    "install_only": true,
+    "rationale": "Ollama supplies local models to coding-agent codecs but is not itself an agent-manager coding-agent runner."
+  },
   "storage": {
     "entries": {
       "models": {

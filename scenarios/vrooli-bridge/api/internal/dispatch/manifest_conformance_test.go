@@ -18,6 +18,10 @@ func TestManifestConformsToSharedScopeCatalog(t *testing.T) {
 	if bytes.Contains(dispatchManifestJSON, []byte("typed_bindings")) {
 		t.Fatal("dispatch manifest must not carry a hand-maintained typed binding list")
 	}
+	manifest, _, err := BuildManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
 	root, err := repocontract.FindRepoRootFromEnvOrCWD()
 	if err != nil {
 		t.Fatal(err)
@@ -30,26 +34,23 @@ func TestManifestConformsToSharedScopeCatalog(t *testing.T) {
 		if !scope.RunEligible || strings.TrimSpace(scope.Command) == "" {
 			continue
 		}
-		verb := strings.ReplaceAll(scope.Command, "/", " ")
-		if scope.Scenario != scopecatalog.ProjectManifestIdentity {
-			verb = scope.Scenario + " " + verb
-		}
-		if !inManifest(verb, DefaultManifest) {
+		verb := scope.Verb()
+		if !inManifest(verb, manifest) {
 			t.Fatalf("run-eligible catalog command %q is absent from the bridge manifest", verb)
 		}
 		matched := false
-		for _, entry := range DefaultManifest {
+		for _, entry := range manifest {
 			if manifestEntryVerb(entry) != verb {
 				continue
 			}
 			requirements := manifestEntryScopes(entry)
-			if contains(requirements, "vrooli-bridge:"+string(scope.Effect)) && contains(requirements, verb) {
+			if contains(requirements, "vrooli-bridge:"+string(scope.Effect)) && contains(requirements, scope.Value) {
 				matched = true
 				break
 			}
 		}
 		if !matched {
-			t.Fatalf("catalog command %q lacks paired effect and verb requirements", verb)
+			t.Fatalf("catalog command %q lacks paired transport and namespace requirements", verb)
 		}
 	}
 }

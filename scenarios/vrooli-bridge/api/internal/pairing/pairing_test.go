@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"strconv"
 	"testing"
 	"time"
@@ -60,10 +61,10 @@ func TestService_IssueAndRedeem(t *testing.T) {
 	d, clk := newPairingDB(t)
 	repo := pairing.NewSQLiteRepository(d, clk)
 	reg := &fakeRegistrar{}
-	svc := pairing.NewService(repo, reg, clk)
+	svc := pairing.NewService(repo, reg, clk, pairing.WithGrantValidator(func([]string) error { return nil }))
 	ctx := context.Background()
 
-	issued, err := svc.IssueCode(ctx, "mac-mini", []string{"scenario test*"}, 0)
+	issued, err := svc.IssueCode(ctx, "mac-mini", []string{"demo:read"}, 0)
 	require.NoError(t, err)
 	require.NotEmpty(t, issued.Code)
 
@@ -77,7 +78,7 @@ func TestService_IssueAndRedeem(t *testing.T) {
 	// Owner-assigned name/scopes from the code win over the node's proposal.
 	require.Len(t, reg.calls, 1)
 	require.Equal(t, "mac-mini", reg.calls[0].Name)
-	require.Equal(t, []string{"scenario test*"}, reg.calls[0].Scopes)
+	require.Equal(t, []string{"demo:read"}, reg.calls[0].Scopes)
 
 	// The node's key is now active and verifiable.
 	gotPub, ok, err := repo.ActivePublicKey(ctx, nodeID)
@@ -86,13 +87,37 @@ func TestService_IssueAndRedeem(t *testing.T) {
 	require.Equal(t, pub, base64.StdEncoding.EncodeToString(gotPub))
 }
 
+func TestServiceRejectsInvalidGrantsBeforePairingPersistence(t *testing.T) {
+	d, clk := newPairingDB(t)
+	repo := pairing.NewSQLiteRepository(d, clk)
+	validator := func(scopes []string) error {
+		if len(scopes) > 0 && scopes[0] == "scenario status*" {
+			return errors.New(`scope "scenario status*": command-named grants are not allowed`)
+		}
+		return nil
+	}
+	svc := pairing.NewService(repo, &fakeRegistrar{}, clk, pairing.WithGrantValidator(validator))
+
+	_, err := svc.IssueCode(context.Background(), "node", []string{"scenario status*"}, 0)
+	var invalid pairing.ErrInvalid
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "scopes", invalid.Field)
+	require.Contains(t, err.Error(), "scenario status*")
+
+	req, err := svc.RequestPairing(context.Background(), newPubKeyB64(t), pairing.NodeFacts{Name: "node", OS: "linux", Arch: "amd64"})
+	require.NoError(t, err)
+	_, _, err = svc.Approve(context.Background(), req.ID, true, []string{"scenario status*"})
+	require.ErrorAs(t, err, &invalid)
+	require.Contains(t, err.Error(), "scenario status*")
+}
+
 // [REQ:BRG-P0-002] A code is single-use: the second redeem is rejected and does
 // NOT register a second node (no rogue enrolment by replay).
 func TestService_RedeemTwiceRejected(t *testing.T) {
 	d, clk := newPairingDB(t)
 	repo := pairing.NewSQLiteRepository(d, clk)
 	reg := &fakeRegistrar{}
-	svc := pairing.NewService(repo, reg, clk)
+	svc := pairing.NewService(repo, reg, clk, pairing.WithGrantValidator(func([]string) error { return nil }))
 	ctx := context.Background()
 
 	issued, err := svc.IssueCode(ctx, "", nil, 0)
@@ -154,7 +179,7 @@ func TestService_RequestApprove(t *testing.T) {
 	d, clk := newPairingDB(t)
 	repo := pairing.NewSQLiteRepository(d, clk)
 	reg := &fakeRegistrar{}
-	svc := pairing.NewService(repo, reg, clk)
+	svc := pairing.NewService(repo, reg, clk, pairing.WithGrantValidator(func([]string) error { return nil }))
 	ctx := context.Background()
 
 	pub := newPubKeyB64(t)
@@ -166,7 +191,7 @@ func TestService_RequestApprove(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, pending, 1)
 
-	status, nodeID, err := svc.Approve(ctx, req.ID, true, []string{"scenario test*"})
+	status, nodeID, err := svc.Approve(ctx, req.ID, true, []string{"demo:read"})
 	require.NoError(t, err)
 	require.Equal(t, pairing.RequestApproved, status)
 	require.Equal(t, "node-1", nodeID)

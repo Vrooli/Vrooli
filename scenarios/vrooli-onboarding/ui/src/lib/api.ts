@@ -1,5 +1,5 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
-import type { Resource, ResourceHealthResponse, GlossaryResponse, OperatorState, OperatorStatePatch, V2ScenarioResponse, V2Recommendation, V2ReadinessResponse, V2HostRequirementsResponse, V2ClosureResponse, V2ResourceResponse, V2ApplyResponse, V2ApplyPlanResponse, V2SessionResponse, OperatorInputQueue, CredentialStoreStatus } from "../types";
+import type { Resource, ResourceHealthResponse, GlossaryResponse, OperatorState, OperatorStatePatch, V2ScenarioResponse, V2Recommendation, V2ReadinessResponse, V2HostRequirementsResponse, V2ClosureResponse, V2ResourceResponse, V2ApplyResponse, V2ApplyPlanResponse, V2SessionResponse, OperatorInputQueue, CapabilityStatusResponse, CapabilityPreview, CapabilityResult } from "../types";
 
 // Simple! Just specify if you want the /api/v1 suffix
 const API_BASE = resolveApiBase({ appendSuffix: true });
@@ -83,33 +83,26 @@ export function fetchOperatorInputs() {
   return typedFetch<OperatorInputQueue>(url, { cache: "no-store" });
 }
 
-export function fetchCredentialStoreStatus() {
-  const url = buildApiUrl("/v2/credentials/store/status", { baseUrl: API_BASE.replace(/\/v1$/, "") });
-  return typedFetch<CredentialStoreStatus>(url, { cache: "no-store" });
+export function fetchCapabilities() {
+  const url = buildApiUrl("/v2/capabilities", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<CapabilityStatusResponse>(url, { cache: "no-store" });
 }
 
-function credentialStoreMutation<T>(path: string, body: unknown) {
-  const url = buildApiUrl(path, { baseUrl: API_BASE.replace(/\/v1$/, "") });
-  return typedFetch<T>(url, { method: "POST", body: JSON.stringify(body) });
+export interface CapabilityActionRequest {
+  capability_id: string;
+  idempotency_key?: string;
+  confirm: boolean;
+  inputs: Record<string, unknown>;
 }
 
-export function selectCredentialBackend(backend: "native" | "encrypted-file") {
-  return credentialStoreMutation<{ status: string; backend: string }>("/v2/credentials/store/select", { backend, reason: "selected through onboarding" });
+export function previewCapability(request: CapabilityActionRequest) {
+  const url = buildApiUrl("/v2/capabilities/preview", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<CapabilityPreview>(url, { method: "POST", body: JSON.stringify(request) });
 }
-export function reselectCredentialBackend() {
-  return credentialStoreMutation<{ from: string; to: string; attempted: string[]; verified: string[]; failed?: string[]; committed: boolean }>("/v2/credentials/store/reselect", {});
-}
-export function initializeCredentialStore(passphrase: string) {
-  return credentialStoreMutation<CredentialStoreStatus>("/v2/credentials/store/init", { passphrase });
-}
-export function unlockCredentialStore(passphrase: string) {
-  return credentialStoreMutation<{ status: string; active_wrap: string }>("/v2/credentials/store/unlock", { passphrase });
-}
-export function changeCredentialStorePassphrase(current_passphrase: string, new_passphrase: string) {
-  return credentialStoreMutation<{ status: string }>("/v2/credentials/store/change-passphrase", { current_passphrase, new_passphrase });
-}
-export function rewrapCredentialStore(passphrase: string) {
-  return credentialStoreMutation<{ status: string; provider: string; key_store: string }>("/v2/credentials/store/rewrap", { passphrase });
+
+export function applyCapability(request: CapabilityActionRequest) {
+  const url = buildApiUrl("/v2/capabilities/apply", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<CapabilityResult>(url, { method: "POST", body: JSON.stringify(request) });
 }
 
 export function resolveOperatorInputs(answers: Array<{ request_id: string; value: string }>) {

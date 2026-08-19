@@ -45,9 +45,11 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/scopecatalog"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/api-core/trustposture"
+	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 
 	artifactsH "vrooli-bridge/handlers/artifacts"
@@ -425,9 +427,31 @@ func main() {
 	// One registry service instance is shared by the pairing registrar (creates
 	// node records on redeem) and the dispatch handler (reads node scopes to
 	// authorize a job). Both read/write the same `nodes` table.
-	registrySvc := internalregistry.NewService(nodeLastSeen)
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		log.Fatalf("locate repository for node grant validation: %v", err)
+	}
+	grantCatalog, err := scopecatalog.Build(repoRoot)
+	var grantValidator func([]string) error
+	if err != nil {
+		// A malformed scenario manifest must not take the fleet control plane
+		// down. Registry and health remain available for diagnosis, while all
+		// scope-bearing writes and execution services fail closed below.
+		log.Printf("degraded catalog: node grants and dispatch unavailable: %v", err)
+	} else {
+		grantValidator = internalregistry.NewCatalogGrantValidator(grantCatalog)
+	}
+	registryOpts := make([]internalregistry.Option, 0, 1)
+	if grantValidator != nil {
+		registryOpts = append(registryOpts, internalregistry.WithGrantValidator(grantValidator))
+	}
+	registrySvc := internalregistry.NewService(nodeLastSeen, registryOpts...)
 	registrar := registrarAdapter{svc: registrySvc}
-	pairingSvc := internalpairing.NewService(pairingRepo, registrar, clk)
+	pairingOpts := make([]internalpairing.Option, 0, 1)
+	if grantValidator != nil {
+		pairingOpts = append(pairingOpts, internalpairing.WithGrantValidator(grantValidator))
+	}
+	pairingSvc := internalpairing.NewService(pairingRepo, registrar, clk, pairingOpts...)
 	if _, err := pairingSvc.ReconcileEnrollments(context.Background()); err != nil {
 		log.Fatalf("pairing enrollment reconciliation failed: %v", err)
 	}
@@ -659,7 +683,7 @@ func main() {
 		machinesH.Module(db, clk, sshSvc, registrySvc, pairingSvc, presenceHub, onboardSvc, logger),
 		// registry RevokeNode performs atomic revocation: durable revoke +
 		// credential destruction (pairingSvc) + live-channel drop (presenceHub).
-		registryH.Module(db, clk, presenceHub, pairingSvc, presenceHub, logger),
+		registryH.Module(registrySvc, presenceHub, pairingSvc, presenceHub, logger),
 		attachedH.Module(db.Primary(), logger, presenceHub),
 		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger,
 			channelH.WithDeliveryAckRecorder(runsSvc), channelH.WithAuditSink(auditStore),

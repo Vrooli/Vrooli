@@ -63,6 +63,22 @@ func TestSessionWebSocketRelaysBytesAndAuditsLifecycle(t *testing.T) {
 	}
 }
 
+func TestSessionWebSocketAcceptsEnrolledLocalSessionWithoutSecondJWT(t *testing.T) {
+	h := &sessionWSHandler{manager: session.NewManager(nil, nil), audit: &auditmocks.FakeSink{}}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := auth.WithIdentity(r.Context(), auth.Identity{OwnerID: "owner-1", AuthMethod: auth.AuthMethodEnrolled})
+		h.handle(w, r.WithContext(ctx))
+	}))
+	defer srv.Close()
+
+	url := "ws" + srv.URL[4:] + "/api/v1/channel/session?node=n1&session_id=enrolled-s1&scopes=" + session.Scope
+	conn, resp, err := (&websocket.Dialer{}).Dial(url, nil)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
+	defer conn.Close()
+	require.Equal(t, "enrolled-s1", readSessionFrame(t, conn).GetOpen().GetSessionId())
+}
+
 func TestSessionWebSocketRefusesNodeWithoutScopeBeforeUpgrade(t *testing.T) {
 	h := &sessionWSHandler{manager: session.NewManager(nil, nil), auth: &auth.FakeValidator{Identity: auth.Identity{OwnerID: "owner-1"}}}
 	srv := httptest.NewServer(sessionHTTPHandler(h))

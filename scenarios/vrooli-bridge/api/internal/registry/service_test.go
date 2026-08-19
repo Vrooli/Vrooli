@@ -2,12 +2,14 @@ package registry_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"vrooli-bridge/internal/registry"
 	"vrooli-bridge/internal/registry/mocks"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/scopecatalog"
 )
 
 // [REQ:BRG-P0-001] Register validates the required identity fields and trims.
@@ -43,18 +45,69 @@ func TestService_Register_Validation(t *testing.T) {
 	}
 }
 
-// [REQ:BRG-P0-001] Register normalises capability/scope lists (trim + drop empty).
-func TestService_Register_NormalisesLists(t *testing.T) {
+// [REQ:BRG-P0-001] Register normalises self-reported capabilities while owner
+// grants retain a strict, non-normalizing grammar.
+func TestService_Register_NormalisesCapabilities(t *testing.T) {
 	repo := mocks.NewFakeRepository()
-	svc := registry.NewService(repo)
+	svc := registry.NewService(repo, registry.WithGrantValidator(registry.NewCatalogGrantValidator(scopecatalog.Catalog{
+		Scopes: []scopecatalog.Scope{{Scenario: "demo", Value: "demo:read"}},
+	})))
 	n, err := svc.Register(context.Background(), registry.RegisterInput{
 		Name: "a", OS: "linux", Arch: "amd64",
 		Capabilities: []string{" scenario test* ", "", "  "},
-		Scopes:       []string{"registry list", " "},
+		Scopes:       []string{"demo:read"},
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{"scenario test*"}, n.Capabilities)
-	require.Equal(t, []string{"registry list"}, n.Scopes)
+	require.Equal(t, []string{"demo:read"}, n.Scopes)
+}
+
+func TestServiceRejectsCommandNamedAndUnknownGrantsAtRegisterAndUpdate(t *testing.T) {
+	catalog := scopecatalog.Catalog{Scopes: []scopecatalog.Scope{
+		{Scenario: "web-console", Value: "web-console:read"},
+		{Scenario: "web-console", Value: "web-console:write"},
+	}}
+	valid := registry.NewCatalogGrantValidator(catalog)
+	tests := []struct {
+		name  string
+		scope string
+		ok    bool
+	}{
+		{name: "exact", scope: "web-console:read", ok: true},
+		{name: "namespace wildcard", scope: "web-console:*", ok: true},
+		{name: "effect wildcard", scope: "*:read", ok: true},
+		{name: "universal", scope: "*", ok: true},
+		{name: "session transport", scope: "vrooli-bridge:session", ok: true},
+		{name: "command named", scope: "scenario status*"},
+		{name: "unknown exact", scope: "unknown:read"},
+		{name: "unknown namespace wildcard", scope: "unknown:*"},
+		{name: "verb suffix wildcard", scope: "web-console:read*"},
+		{name: "leading whitespace", scope: " web-console:read"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := mocks.NewFakeRepository()
+			svc := registry.NewService(repo, registry.WithGrantValidator(valid))
+			created, registerErr := svc.Register(context.Background(), registry.RegisterInput{
+				Name: "node", OS: "linux", Arch: "amd64", Scopes: []string{test.scope},
+			})
+			if test.ok {
+				require.NoError(t, registerErr)
+				_, updateErr := svc.Update(context.Background(), registry.UpdateInput{ID: created.ID, Name: "node", Scopes: []string{test.scope}})
+				require.NoError(t, updateErr)
+				return
+			}
+			var invalid registry.ErrInvalidGrant
+			require.ErrorAs(t, registerErr, &invalid)
+			require.Equal(t, test.scope, invalid.Scope)
+			require.NotEmpty(t, invalid.Reason)
+
+			repo.Seed(registry.Node{ID: "existing", Name: "node", OS: "linux", Arch: "amd64"})
+			_, updateErr := svc.Update(context.Background(), registry.UpdateInput{ID: "existing", Name: "node", Scopes: []string{test.scope}})
+			require.ErrorAs(t, updateErr, &invalid)
+			require.True(t, strings.Contains(updateErr.Error(), test.scope), "typed refusal must name rejected scope: %v", updateErr)
+		})
+	}
 }
 
 func TestService_Update_RequiresIDAndName(t *testing.T) {

@@ -25,7 +25,6 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return append([]cliapp.SubcommandGroup{
 		resources.Register(core),
 		credentials.Register(core),
-		credentials.StoreRegister(core),
 		operator.Register(core),
 		wizard.Register(core),
 	}, control.SubcommandGroups(core)...)

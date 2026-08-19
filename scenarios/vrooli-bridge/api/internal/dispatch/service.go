@@ -33,6 +33,7 @@ type service struct {
 	pusher         JobPusher
 	manifest       []string
 	outputs        map[string][]ArtifactOutput
+	catalogErr     error
 	defaultTimeout int64
 	leases         DeviceLeaseStore
 }
@@ -40,13 +41,27 @@ type service struct {
 // Option customises the service (manifest override, default timeout).
 type Option func(*service)
 
-// WithManifest overrides the recognised verb-namespace allowlist.
+// WithManifest overrides the encoded manifest-derived admission entries.
 func WithManifest(manifest []string) Option {
-	return func(s *service) { s.manifest = manifest }
+	return func(s *service) {
+		s.manifest = append([]string(nil), manifest...)
+		s.catalogErr = nil
+	}
 }
 
 func WithManifestOutputs(outputs map[string][]ArtifactOutput) Option {
 	return func(s *service) { s.outputs = outputs }
+}
+
+// WithCatalogError forces the service into the same typed degraded state used
+// when the startup catalog build fails. It keeps the negative path directly
+// testable without mutating a real scenario manifest.
+func WithCatalogError(err error) Option {
+	return func(s *service) {
+		s.catalogErr = catalogUnavailable(err)
+		s.manifest = nil
+		s.outputs = nil
+	}
 }
 
 // WithDefaultTimeout overrides the timeout applied when a job passes <= 0.
@@ -69,14 +84,16 @@ func WithDeviceLeaseStore(store DeviceLeaseStore) Option {
 
 // NewService constructs the production Service.
 func NewService(nodes NodeReader, presence Presence, runsCtl RunController, sink AuditSink, pusher JobPusher, opts ...Option) Service {
+	manifest, outputs, catalogErr := BuildManifest()
 	s := &service{
 		nodes:          nodes,
 		presence:       presence,
 		runs:           runsCtl,
 		audit:          sink,
 		pusher:         pusher,
-		manifest:       DefaultManifest,
-		outputs:        defaultManifestOutputs,
+		manifest:       manifest,
+		outputs:        outputs,
+		catalogErr:     catalogUnavailable(catalogErr),
 		defaultTimeout: DefaultTimeoutSeconds,
 		leases:         NewMemoryDeviceLeaseStore(),
 	}
@@ -92,6 +109,10 @@ var _ Service = (*service)(nil)
 func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, error) {
 	job := in.Job.trimmed()
 	in.Job = job
+	if s.catalogErr != nil {
+		s.auditReject(ctx, in, s.catalogErr.Error())
+		return Decision{}, s.catalogErr
+	}
 
 	if isDeviceScoped(job.Verb) {
 		if job.DeviceID == "" || job.LeaseToken == "" {

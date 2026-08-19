@@ -28,6 +28,12 @@
   },
   "display_name": "OpenCode",
   "description": "OpenCode CLI resource: a thin Go entrypoint wiring lifecycle, governed permissions, and an upstream update-check; agent-manager invokes the raw opencode binary directly.",
+  "execution": {
+    "runner_type": "opencode",
+    "codec": "opencode",
+    "detection_signal": "OPENCODE_PID matches a calling-process ancestor",
+    "hook_surface": "native-permissions"
+  },
   "cli": {
     "enabled": true,
     "command": "resource-opencode",

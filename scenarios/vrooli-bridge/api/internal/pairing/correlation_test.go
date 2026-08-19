@@ -51,7 +51,7 @@ func TestCorrelatedRedemptionConcurrentReplayConverges(t *testing.T) {
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(pairing.Schema)))
 	clock := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
 	registrar := &correlatedRegistrar{nodes: map[string]string{}}
-	svc := pairing.NewService(pairing.NewSQLiteRepository(d, clock), registrar, clock)
+	svc := pairing.NewService(pairing.NewSQLiteRepository(d, clock), registrar, clock, pairing.WithGrantValidator(func([]string) error { return nil }))
 	issued, err := svc.IssueCodeForEnrollment(ctx, "mac", nil, 0, "attempt-concurrent")
 	require.NoError(t, err)
 	key := base64.StdEncoding.EncodeToString(make([]byte, 32))
@@ -81,8 +81,8 @@ func TestCorrelatedRedemptionIsReplaySafe(t *testing.T) {
 	require.NoError(t, apiDB.EnsureSchemas(ctx, d, apiDB.SchemaProviderFunc(pairing.Schema)))
 	clock := scheduletest.New(time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC))
 	registrar := &correlatedRegistrar{nodes: map[string]string{}}
-	svc := pairing.NewService(pairing.NewSQLiteRepository(d, clock), registrar, clock)
-	issued, err := svc.IssueCodeForEnrollment(ctx, "mac", []string{"presence.read"}, 0, "attempt-1")
+	svc := pairing.NewService(pairing.NewSQLiteRepository(d, clock), registrar, clock, pairing.WithGrantValidator(func([]string) error { return nil }))
+	issued, err := svc.IssueCodeForEnrollment(ctx, "mac", []string{"demo:read"}, 0, "attempt-1")
 	require.NoError(t, err)
 	key := base64.StdEncoding.EncodeToString(make([]byte, 32))
 	first, err := svc.Redeem(ctx, issued.Code, key, pairing.NodeFacts{OS: "darwin", Arch: "amd64"})

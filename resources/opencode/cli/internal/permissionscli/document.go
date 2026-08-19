@@ -7,10 +7,10 @@ import (
 
 	"resource-opencode/cli/internal/permissions"
 
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/agentharness"
 )
 
-var openCodePermissionPosture = agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"OpenCode native permission rules are projected alongside tool.execute.before; plugin firing and refusal require a live canary on the installed version."}}
+var openCodePermissionPosture = agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"OpenCode native permission rules are projected alongside tool.execute.before; plugin firing and refusal require a live canary on the installed version."}}
 
 func (h *Handlers) Plan(args []string) error {
 	fs := h.flagSet("permissions plan")
@@ -55,25 +55,25 @@ func (h *Handlers) Reconcile(args []string) error {
 	return h.writePlan(result, *jsonOut)
 }
 
-func (h *Handlers) planDocument(path string) (agentpolicy.PermissionPlanResult, permissions.Policy, error) {
-	document, data, err := agentpolicy.LoadPermissionDocument(path, h.Stdin)
+func (h *Handlers) planDocument(path string) (agentharness.PermissionPlanResult, permissions.Policy, error) {
+	document, data, err := agentharness.LoadPermissionDocument(path, h.Stdin)
 	if err != nil {
-		return agentpolicy.PermissionPlanResult{}, permissions.Policy{}, err
+		return agentharness.PermissionPlanResult{}, permissions.Policy{}, err
 	}
 	if document.Scope != "" && document.Scope != "user" {
-		return agentpolicy.PermissionPlanResult{}, permissions.Policy{}, fmt.Errorf("OpenCode supports only scope user, got %q", document.Scope)
+		return agentharness.PermissionPlanResult{}, permissions.Policy{}, fmt.Errorf("OpenCode supports only scope user, got %q", document.Scope)
 	}
 	live, err := h.Adapter.Load()
 	if err != nil {
-		return agentpolicy.PermissionPlanResult{}, permissions.Policy{}, err
+		return agentharness.PermissionPlanResult{}, permissions.Policy{}, err
 	}
-	allow, ask, deny := agentpolicy.PermissionPatterns(document)
+	allow, ask, deny := agentharness.PermissionPatterns(document)
 	desired := permissions.Policy{BashAllow: allow, BashAsk: ask, BashDeny: deny}
-	return agentpolicy.PlanPermissionProjection("opencode", document, data,
-		agentpolicy.PermissionProjection{Allow: live.BashAllow, Ask: live.BashAsk, Deny: live.BashDeny}, []string{h.Adapter.SettingsPath}, openCodePermissionPosture), desired, nil
+	return agentharness.PlanPermissionProjection("opencode", document, data,
+		agentharness.PermissionProjection{Allow: live.BashAllow, Ask: live.BashAsk, Deny: live.BashDeny}, []string{h.Adapter.SettingsPath}, openCodePermissionPosture), desired, nil
 }
 
-func (h *Handlers) writePlan(result agentpolicy.PermissionPlanResult, asJSON bool) error {
+func (h *Handlers) writePlan(result agentharness.PermissionPlanResult, asJSON bool) error {
 	if asJSON {
 		data, err := json.MarshalIndent(result, "", "  ")
 		if err != nil {

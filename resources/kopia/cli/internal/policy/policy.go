@@ -142,6 +142,9 @@ func (s Service) run(ctx context.Context, target repoctx.Target, argv []string) 
 	if err != nil {
 		return err
 	}
+	if err := target.RetireLegacyPassphrase(); err != nil {
+		return err
+	}
 	_, err = s.out().Write(cmdutil.EnsureTrailingNewline(out))
 	return err
 }

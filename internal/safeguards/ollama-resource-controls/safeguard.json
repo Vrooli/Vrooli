@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
  "name": "ollama_resource_controls",
-  "description": "Verify that the managed-service supervisor applies memory limits and OOM priority to the supervised Ollama process",
+  "description": "Verify that the supervised Ollama process carries its OOM priority and keeps an uncapped address space, since an address-space cap breaks CUDA model loads",
   "handler": "ollama_resource_controls",
   "platforms": [
     "linux"

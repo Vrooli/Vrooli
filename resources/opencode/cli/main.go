@@ -8,7 +8,7 @@ import (
 	"resource-opencode/cli/internal/configcli"
 	"resource-opencode/cli/internal/permissionscli"
 
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/upstreamcheck"
 	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
@@ -59,9 +59,10 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{Binary: "opencode", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".local", "share", "opencode"), Version: upstreamPinnedVersion, URLTemplate: "https://github.com/sst/opencode/releases/download/v${version}/opencode-${os}-${arch}.tar.gz", ArchiveEntry: "opencode"})}}),
 		[]cliapp.SubcommandGroup{
-			agentpolicy.ModelDiscoveryCommands(agentpolicy.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName)}),
-			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"OpenCode native permission rules are projected alongside tool.execute.before; plugin firing and refusal require a live canary on the installed version."}}}),
+			agentharness.ModelDiscoveryCommands(agentharness.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName)}),
+			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"OpenCode native permission rules are projected alongside tool.execute.before; plugin firing and refusal require a live canary on the installed version."}}}),
 			configcli.Commands(configcli.Default()),
+			permissionscli.HookCommands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{
 				DisplayName:   appName,

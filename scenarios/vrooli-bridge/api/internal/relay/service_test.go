@@ -2,6 +2,7 @@ package relay_test
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"sync"
 	"testing"
@@ -56,8 +57,9 @@ func (f fakePusher) Cancel(_ context.Context, _ string, correlationID, _ string)
 }
 
 func TestAdmissionParityWithTypedDispatch(t *testing.T) {
-	manifest := []string{"scenario test"}
-	node := dispatch.TargetNode{ID: "n1", Kind: "agent", Scopes: []string{"scenario test"}}
+	manifest, _, err := dispatch.BuildManifest()
+	require.NoError(t, err)
+	node := dispatch.TargetNode{ID: "n1", Kind: "agent", Scopes: []string{"vrooli-bridge:write", "vrooli:write"}}
 	cases := []struct {
 		name    string
 		request relay.Request
@@ -66,7 +68,7 @@ func TestAdmissionParityWithTypedDispatch(t *testing.T) {
 		{name: "accepted", request: relay.Request{NodeID: "n1", Scenario: "demo", Command: "scenario test"}, node: node},
 		{name: "unsafe token", request: relay.Request{NodeID: "n1", Scenario: "demo", Command: "scenario test", Args: []string{"x;bad"}}, node: node},
 		{name: "out of scope", request: relay.Request{NodeID: "n1", Scenario: "demo", Command: "scenario test"}, node: dispatch.TargetNode{ID: "n1", Kind: "agent"}},
-		{name: "unknown command", request: relay.Request{NodeID: "n1", Scenario: "demo", Command: "scenario status"}, node: node},
+		{name: "unknown command", request: relay.Request{NodeID: "n1", Scenario: "demo", Command: "secrets list"}, node: node},
 		{name: "revoked", request: relay.Request{NodeID: "n1", Scenario: "demo", Command: "scenario test"}, node: dispatch.TargetNode{ID: "n1", Kind: "agent", Revoked: true, Scopes: node.Scopes}},
 	}
 	for _, tc := range cases {
@@ -83,6 +85,25 @@ func TestAdmissionParityWithTypedDispatch(t *testing.T) {
 	}
 }
 
+func TestCall_CatalogUnavailableFailsClosedBeforeNodeSideEffects(t *testing.T) {
+	auditSink := &fakeAudit{}
+	svc := relay.NewService(
+		fakeNodes{node: dispatch.TargetNode{ID: "n1", Kind: "agent", Scopes: []string{"vrooli-bridge:write", "vrooli:write"}}},
+		fakePresence{online: true, dispatchable: true},
+		auditSink,
+		fakePusher{},
+		relay.NewBroker(),
+		relay.WithCatalogError(errors.New("validate scenarios/demo/cli/manifest.json: malformed groups")),
+	)
+
+	_, err := svc.Call(context.Background(), relay.Request{Actor: "owner", NodeID: "n1", Scenario: "demo", Command: "scenario test"})
+	var unavailable dispatch.ErrCatalogUnavailable
+	require.ErrorAs(t, err, &unavailable)
+	require.Contains(t, err.Error(), "scenarios/demo/cli/manifest.json")
+	require.Len(t, auditSink.records, 1)
+	require.Equal(t, audit.OutcomeRejected, auditSink.records[0].Outcome)
+}
+
 func TestCallStreamsAndAuditsNodeCommandOutcome(t *testing.T) {
 	broker := relay.NewBroker()
 	auditSink := &fakeAudit{}
@@ -93,7 +114,7 @@ func TestCallStreamsAndAuditsNodeCommandOutcome(t *testing.T) {
 			_ = broker.Deliver(context.Background(), "n1", relay.Response{CorrelationID: request.CorrelationID, Kind: relay.KindCompleted, ExitCode: 0})
 		}()
 	}}
-	svc := relay.NewService(fakeNodes{node: dispatch.TargetNode{ID: "n1", Kind: "agent", Scopes: []string{"scenario test"}}}, fakePresence{online: true, dispatchable: true}, auditSink, pusher, broker, relay.WithManifest([]string{"scenario test"}))
+	svc := relay.NewService(fakeNodes{node: dispatch.TargetNode{ID: "n1", Kind: "agent", Scopes: []string{"vrooli-bridge:write", "vrooli:write"}}}, fakePresence{online: true, dispatchable: true}, auditSink, pusher, broker)
 
 	response, err := svc.Call(context.Background(), relay.Request{Actor: "owner", NodeID: "n1", Scenario: "demo", Command: "scenario test"})
 	require.NoError(t, err)
@@ -116,7 +137,7 @@ func TestCallNamesAndCancelsResponseLimit(t *testing.T) {
 		},
 		cancel: func(correlationID string) { cancelled = correlationID },
 	}
-	svc := relay.NewService(fakeNodes{node: dispatch.TargetNode{ID: "n1", Kind: "agent", Scopes: []string{"scenario test"}}}, fakePresence{online: true, dispatchable: true}, nil, pusher, broker, relay.WithManifest([]string{"scenario test"}))
+	svc := relay.NewService(fakeNodes{node: dispatch.TargetNode{ID: "n1", Kind: "agent", Scopes: []string{"vrooli-bridge:write", "vrooli:write"}}}, fakePresence{online: true, dispatchable: true}, nil, pusher, broker)
 
 	response, err := svc.Call(context.Background(), relay.Request{NodeID: "n1", Scenario: "demo", Command: "scenario test", MaxResponseBytes: 3})
 	var limit relay.ErrResponseLimit

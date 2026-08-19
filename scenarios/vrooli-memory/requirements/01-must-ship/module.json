@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P0 requirements — the journal, the retrieval contract, facet-routed retention, and the compaction loop. Nothing here is implemented yet: every status is planned, and every validation entry declares intended evidence without asserting a ref to a test that does not exist.",
-    "last_validated_at": "2026-08-08T19:45:08-04:00",
+    "last_validated_at": "2026-08-19T00:50:07-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "VMEM-P0-001",
       "title": "Append-only journal",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "storage",
       "criticality": "P0",
@@ -25,14 +25,14 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/journal/service_test.go::TestAppendPreservesWriteOrderAndFacetEmbeddings",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Appending N entries then reading yields exactly N entries in write order with stable ids."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/forest/service_test.go::TestRunCompactsOnlyEligibleOldEpisodesAndPreservesLeaves",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "No repository method exposes update or delete of a journal entry; a compaction pass leaves leaf count unchanged."
         },
         {
@@ -47,7 +47,7 @@
     {
       "id": "VMEM-P0-002",
       "title": "Deliberate write verb",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "write-path",
       "criticality": "P0",
@@ -62,14 +62,14 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/journal/service_test.go::TestAppendPreservesWriteOrderAndFacetEmbeddings",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A note with a stubbed classifier is appended with the returned facet and its derived texts embedded."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/journal/service_test.go::TestClassifierFailureStillAppendsUnclassifiedEntry",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "When the classifier errors, the entry is still appended, marked unclassified, and enqueued for retry."
         },
         {
@@ -84,7 +84,7 @@
     {
       "id": "VMEM-P0-003",
       "title": "Full-fidelity semantic recall",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "retrieval",
       "criticality": "P0",
@@ -99,14 +99,14 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/recall/service_test.go::TestRecallKeepsAbsorbedLeafAndCollapsesDescendants",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A leaf that has been absorbed into a summary is still returned for a query matching its text."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/recall/service_test.go::TestRecallCollapsesDescendantsWhenAncestorWins",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A summary node is returned for a query matching the summary text but no individual leaf."
         },
         {
@@ -121,7 +121,7 @@
     {
       "id": "VMEM-P0-004",
       "title": "Best-node retrieval with descendant collapse",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "retrieval",
       "criticality": "P0",
@@ -135,14 +135,14 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/recall/service_test.go::TestRecallKeepsAbsorbedLeafAndCollapsesDescendants",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A query matching a leaf verbatim returns that leaf, not its vaguer ancestor summary."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/recall/service_test.go::TestRecallCollapsesDescendantsWhenAncestorWins",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "When a summary and two of its children all score above threshold, the summary is returned once with children collapsed."
         }
       ]
@@ -150,7 +150,7 @@
     {
       "id": "VMEM-P0-005",
       "title": "Facet-routed retention policy",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "facets",
       "criticality": "P0",
@@ -165,21 +165,21 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/facets/service_test.go::TestOnlyEpisodeIsCompactionEligibleAndPinExemptsIt",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Compaction candidate selection admits episode-facet entries and rejects all five other facets."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/facets/service_test.go::TestUnknownFacetIsHardError",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An entry with an unknown facet value is rejected at write rather than silently defaulted."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/facets/service_test.go::TestResolvedThreadExcludedFromWakeAndCompaction",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A thread entry marked resolved is excluded from wake and from compaction candidacy."
         }
       ]
@@ -187,7 +187,7 @@
     {
       "id": "VMEM-P0-006",
       "title": "Guaranteed pinned recall",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "retrieval",
       "criticality": "P0",
@@ -203,14 +203,14 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/recall/service_test.go::TestWakePinsFirstAndNeverSilentlyTruncatesPins",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A pinned rule semantically unrelated to every other memory still appears in wake output."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/recall/service_test.go::TestWakePinsFirstAndNeverSilentlyTruncatesPins",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "With a budget smaller than the pinned set, wake emits all pinned entries and reports explicit overflow."
         },
         {
@@ -225,7 +225,7 @@
     {
       "id": "VMEM-P0-007",
       "title": "Pressure-driven compaction",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "compaction",
       "criticality": "P0",
@@ -240,28 +240,28 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/forest/service_test.go::TestRunWithFrontierUnderTargetIsNoop",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "With the frontier under target, a compaction pass is a no-op."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/forest/service_test.go::TestRunRepeatsUntilEligibleFrontierReachesTarget",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Given two candidate clusters, the higher cohesion-times-slots-freed score is collapsed first."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/forest/service_test.go::TestRunLeavesOrphanUntilTightClusterCompacts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An orphan entry with no near neighbours is not collapsed while any tighter cluster remains."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/forest/service_test.go::TestRunRepeatsUntilEligibleFrontierReachesTarget",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Entries inside the recency floor are excluded from candidacy regardless of cohesion."
         },
         {
@@ -276,7 +276,7 @@
     {
       "id": "VMEM-P0-008",
       "title": "Budgeted ambient recall",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "wake",
       "criticality": "P0",
@@ -291,21 +291,21 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/recall/service_test.go::TestWakeBudgetStableAcrossCorpusSize",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Wake output stays within the configured line budget across corpus sizes spanning three orders of magnitude."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/recall/service_test.go::TestWakeBudgetStableAcrossCorpusSize",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Cover selection returns finer-grained nodes for recent spans and coarser nodes for old spans."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/recall/service_test.go::TestWakeBudgetStableAcrossCorpusSize",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Raising the frontier target does not change wake output size."
         }
       ]
@@ -313,7 +313,7 @@
     {
       "id": "VMEM-P0-009",
       "title": "Federated retrieval registration",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "category": "integration",
       "criticality": "P0",
@@ -328,7 +328,7 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/federation/search_descriptor_test.go::TestSearchDescriptorParsesAndMapsRecallHits",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The source-ledger descriptor in scenarios/source-ledger/.vrooli/search.json validates against .vrooli/schemas/search.schema.json."
         },
         {
@@ -348,7 +348,7 @@
     {
       "id": "VMEM-P0-010",
       "title": "Harness memory projection",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "category": "integration",
       "criticality": "P0",
@@ -363,14 +363,14 @@
           "type": "test",
           "ref": "api/internal/harness/projection_test.go::TestProjectionSplicedFileStaysWithinConsumerLineCeiling",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Projection writes a generated-artifact header followed by the current wake output."
         },
         {
           "type": "test",
           "ref": "api/internal/harness/projection_test.go::TestProjectionSplicedFileStaysWithinConsumerLineCeiling",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "No read path ingests the projected file as a memory source."
         },
         {
@@ -392,7 +392,7 @@
     {
       "id": "VMEM-P0-011",
       "title": "Harness memory import",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "category": "harness",
       "criticality": "P0",
@@ -409,42 +409,42 @@
           "type": "test",
           "ref": "api/internal/harness/import_test.go::TestImportAndCaptureAreRemoteAndContentAddressed",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Running import twice over an unchanged source creates zero additional journal entries."
         },
         {
           "type": "test",
           "ref": "api/internal/harness/import_test.go::TestImportAndCaptureAreRemoteAndContentAddressed",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Reordering entries within a source markdown file produces zero new entries, proving the key is content-addressed rather than positional."
         },
         {
           "type": "test",
           "ref": "api/internal/harness/import_test.go::TestImportAndCaptureAreRemoteAndContentAddressed",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Editing a source entry in place creates a new journal entry rather than mutating the original, preserving append-only semantics."
         },
         {
           "type": "test",
           "ref": "api/internal/harness/adapters_test.go::TestFormatReadersExtractNormalizedItems",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An adapter extracting zero items from a non-empty source fails rather than reporting an empty diff, so a vendor format change cannot look like 'nothing new'."
         },
         {
           "type": "test",
           "ref": "api/internal/harness/adapters_test.go::TestFormatReadersExtractNormalizedItems",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Each supported format — markdown-per-file, markdown-section, markdown-blob, jsonl, sqlite — round-trips through its adapter."
         },
         {
           "type": "test",
           "ref": "api/internal/harness/import_test.go::TestImportAndCaptureAreRemoteAndContentAddressed",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Imported entries are never written with a pinned facet without operator confirmation."
         },
         {

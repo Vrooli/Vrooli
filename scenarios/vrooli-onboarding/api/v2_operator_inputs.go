@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/operatorinput"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
 
 func (s *Server) handleV2OperatorInputs(w http.ResponseWriter, _ *http.Request) {
@@ -24,23 +25,25 @@ func (s *Server) handleV2OperatorInputsResolve(w http.ResponseWriter, r *http.Re
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "answers must be a JSON array: " + err.Error()})
 		return
 	}
+	queue, err := operatorinput.Load()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
 	if _, err := operatorinput.ResolveWith(answers, func(values map[string]string) error {
-		passphrase, ok := values["credential-store-passphrase"]
-		if !ok {
-			return nil
-		}
-		description, err := securestore.DescribeStore()
+		requests, err := buildCapabilityRequests(queue, values)
 		if err != nil {
-			return fmt.Errorf("inspect encrypted credential store: %w", err)
+			return err
 		}
-		if description.Initialized {
-			if _, err := securestore.UnlockStore(passphrase); err != nil {
-				return fmt.Errorf("unlock encrypted credential store: %w", err)
+		defer clearCapabilityRequests(requests)
+		for _, request := range requests {
+			result, applyErr := (controlPlaneExecutor{}).applyCapability(r.Context(), request)
+			if applyErr != nil {
+				return fmt.Errorf("apply capability %q: %w", request.CapabilityID, applyErr)
 			}
-			return nil
-		}
-		if _, err := securestore.InitializeStore(passphrase); err != nil {
-			return fmt.Errorf("initialize encrypted credential store: %w", err)
+			if result.State != operatorcapability.StateReady {
+				return fmt.Errorf("capability %q did not become ready: %s", request.CapabilityID, result.Remediation)
+			}
 		}
 		return nil
 	}); err != nil {
@@ -48,4 +51,55 @@ func (s *Server) handleV2OperatorInputsResolve(w http.ResponseWriter, r *http.Re
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": "resolved", "configuration_pending": false})
+}
+
+func buildCapabilityRequests(queue operatorinput.Pending, values map[string]string) ([]operatorcapability.ActionRequest, error) {
+	groups := map[string]*operatorcapability.ActionRequest{}
+	for _, request := range queue.Requests {
+		capabilityID := strings.TrimSpace(request.CapabilityID)
+		inputID := strings.TrimSpace(request.InputID)
+		if capabilityID == "" || inputID == "" {
+			return nil, fmt.Errorf("operator input %q is missing generic capability metadata", request.ID)
+		}
+		value, ok := values[request.ID]
+		if !ok {
+			continue
+		}
+		group := groups[capabilityID]
+		if group == nil {
+			group = &operatorcapability.ActionRequest{CapabilityID: capabilityID, Confirm: false, Inputs: map[string]json.RawMessage{}}
+			groups[capabilityID] = group
+		}
+		if inputID == "confirm" {
+			group.Confirm = strings.EqualFold(strings.TrimSpace(value), "true")
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return nil, fmt.Errorf("encode operator input %q: %w", request.ID, err)
+		}
+		if request.Kind == operatorinput.KindBoolean || request.Kind == operatorinput.KindConfirmation {
+			if value != "true" && value != "false" {
+				return nil, fmt.Errorf("operator input %q must be boolean", request.ID)
+			}
+			encoded = json.RawMessage(value)
+		}
+		group.Inputs[inputID] = encoded
+	}
+	requests := make([]operatorcapability.ActionRequest, 0, len(groups))
+	for _, request := range groups {
+		request.IdempotencyKey = operatorcapability.StableIdempotencyKey(request.CapabilityID, request.Inputs)
+		requests = append(requests, *request)
+	}
+	return requests, nil
+}
+
+func clearCapabilityRequests(requests []operatorcapability.ActionRequest) {
+	for i := range requests {
+		for key, value := range requests[i].Inputs {
+			for index := range value {
+				value[index] = 0
+			}
+			delete(requests[i].Inputs, key)
+		}
+	}
 }

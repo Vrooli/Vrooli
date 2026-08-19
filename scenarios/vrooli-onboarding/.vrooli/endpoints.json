@@ -266,12 +266,36 @@
       ]
     },
     {
-      "id": "credentials-store-status",
-      "path": "/api/v2/credentials/store/status",
+      "id": "capabilities",
+      "path": "/api/v2/capabilities",
       "method": "GET",
       "category": "credentials",
-      "summary": "Read metadata-safe encrypted credential-store status",
-      "description": "Reports initialization, authority, wrap, and entry-count metadata without credential values or passphrases."
+      "summary": "Discover provider-defined operator capabilities",
+      "description": "Returns capability descriptors, typed inputs, candidate metadata, current state, remediation, and secret-free evidence."
+    },
+    {
+      "id": "capabilities-status",
+      "path": "/api/v2/capabilities/status",
+      "method": "GET",
+      "category": "credentials",
+      "summary": "Read provider-defined capability status",
+      "description": "The status alias exposes the same metadata-only capability catalog."
+    },
+    {
+      "id": "capabilities-preview",
+      "path": "/api/v2/capabilities/preview",
+      "method": "POST",
+      "category": "credentials",
+      "summary": "Preview a typed provider capability",
+      "description": "Validates a typed action and returns the exact declared mutations without performing external writes."
+    },
+    {
+      "id": "capabilities-apply",
+      "path": "/api/v2/capabilities/apply",
+      "method": "POST",
+      "category": "credentials",
+      "summary": "Apply a confirmed provider capability",
+      "description": "Passes typed inputs to the owning control-plane provider and returns only typed result metadata and secret-free evidence."
     },
     {
       "id": "surface",
@@ -408,54 +432,6 @@
           "curl": "curl http://localhost:${API_PORT}/api/v2/readiness"
         }
       ]
-    },
-    {
-      "id": "credentials-store-select",
-      "path": "/api/v2/credentials/store/select",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Select the credential backend",
-      "description": "Persists an explicit native or encrypted-file authority decision through securestore."
-    },
-    {
-      "id": "credentials-store-reselect",
-      "path": "/api/v2/credentials/store/reselect",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Re-evaluate and safely migrate the credential backend",
-      "description": "Re-diagnoses the native authority, copies manifest-backed credentials, verifies read-back, and commits the new selection only after every value is verified. Credential values never cross the onboarding API."
-    },
-    {
-      "id": "credentials-store-init",
-      "path": "/api/v2/credentials/store/init",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Initialize encrypted credential-store protection",
-      "description": "Accepts a passphrase only in the protected request body and returns store metadata."
-    },
-    {
-      "id": "credentials-store-unlock",
-      "path": "/api/v2/credentials/store/unlock",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Unlock encrypted credential-store protection",
-      "description": "Accepts a passphrase only in the protected request body and returns the active wrap name."
-    },
-    {
-      "id": "credentials-store-change-passphrase",
-      "path": "/api/v2/credentials/store/change-passphrase",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Change encrypted credential-store passphrase",
-      "description": "Replaces only the passphrase wrap; stored credential values are not returned or re-encrypted."
-    },
-    {
-      "id": "credentials-store-rewrap",
-      "path": "/api/v2/credentials/store/rewrap",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Add unattended native protection to the encrypted store",
-      "description": "Accepts an existing passphrase only in the protected request body and returns wrap metadata."
     },
     {
       "id": "credentials-provision",

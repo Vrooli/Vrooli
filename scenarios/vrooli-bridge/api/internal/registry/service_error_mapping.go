@@ -18,6 +18,10 @@ func ToConnectError(err error) error {
 	if errors.As(err, &invalid) {
 		return connect.NewError(connect.CodeInvalidArgument, invalid)
 	}
+	var invalidGrant ErrInvalidGrant
+	if errors.As(err, &invalidGrant) {
+		return connect.NewError(connect.CodeInvalidArgument, invalidGrant)
+	}
 	var notFound ErrNodeNotFound
 	if errors.As(err, &notFound) {
 		return connect.NewError(connect.CodeNotFound, notFound)

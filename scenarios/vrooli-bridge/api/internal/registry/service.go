@@ -2,7 +2,10 @@ package registry
 
 import (
 	"context"
+	"fmt"
 	"strings"
+
+	"github.com/vrooli/api-core/scopecatalog"
 )
 
 // Service is the application-layer surface the registry handlers depend on.
@@ -31,12 +34,25 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo          Repository
+	validateGrant func([]string) error
 }
 
-// NewService constructs the production Service.
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+type Option func(*service)
+
+// WithGrantValidator supplies the catalog-derived write-time authority gate.
+func WithGrantValidator(validate func([]string) error) Option {
+	return func(s *service) { s.validateGrant = validate }
+}
+
+// NewService constructs the production Service. Non-empty grants fail closed
+// unless the caller supplies the repository catalog validator.
+func NewService(repo Repository, opts ...Option) Service {
+	s := &service{repo: repo}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Compile-time guarantee.
@@ -61,6 +77,9 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Node, error) 
 	}
 	if !ValidKind(kind) {
 		return Node{}, ErrInvalidNode{Field: "kind", Reason: "must be agent, ssh, or attached"}
+	}
+	if err := s.validateScopes(in.Scopes); err != nil {
+		return Node{}, err
 	}
 	return s.repo.Create(ctx, Node{
 		Name:                 name,
@@ -95,6 +114,9 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Node, error) {
 	if name == "" {
 		return Node{}, ErrInvalidNode{Field: "name", Reason: "required"}
 	}
+	if err := s.validateScopes(in.Scopes); err != nil {
+		return Node{}, err
+	}
 	return s.repo.Update(ctx, Node{
 		ID:           id,
 		Name:         name,
@@ -103,6 +125,70 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Node, error) {
 		Scopes:       trimAll(in.Scopes),
 		Revision:     strings.TrimSpace(in.Revision),
 	})
+}
+
+func (s *service) validateScopes(scopes []string) error {
+	if len(scopes) == 0 {
+		return nil
+	}
+	if s.validateGrant == nil {
+		return ErrInvalidGrant{Scope: scopes[0], Reason: "catalog grant validator is not configured"}
+	}
+	return s.validateGrant(scopes)
+}
+
+// NewCatalogGrantValidator creates the one write-time vocabulary gate used by
+// registry and pairing. Catalog scopes and their two wildcard forms are valid;
+// Bridge's session transport capability is the sole non-command grant.
+func NewCatalogGrantValidator(catalog scopecatalog.Catalog) func([]string) error {
+	namespaces := make(map[string]struct{})
+	for _, scope := range catalog.Scopes {
+		namespaces[scope.Scenario] = struct{}{}
+	}
+	for _, omitted := range catalog.OmittedResolutions {
+		namespaces[omitted.Scenario] = struct{}{}
+	}
+	return func(scopes []string) error {
+		for _, scope := range scopes {
+			if err := validateGrant(scope, catalog, namespaces); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+func validateGrant(scope string, catalog scopecatalog.Catalog, namespaces map[string]struct{}) error {
+	if scope == "" {
+		return ErrInvalidGrant{Scope: scope, Reason: "empty grants are not allowed"}
+	}
+	if scope != strings.TrimSpace(scope) {
+		return ErrInvalidGrant{Scope: scope, Reason: "leading or trailing whitespace is not allowed"}
+	}
+	if strings.Contains(scope, " ") {
+		return ErrInvalidGrant{Scope: scope, Reason: "command-named grants are not allowed; use <namespace>:<effect>"}
+	}
+	if scope == "*" || scope == "vrooli-bridge:session" || catalog.HasScope(scope) {
+		return nil
+	}
+	namespace, effect, ok := strings.Cut(scope, ":")
+	if !ok || namespace == "" || effect == "" || strings.Contains(effect, ":") {
+		return ErrInvalidGrant{Scope: scope, Reason: "must be *, <namespace>:<effect>, <namespace>:*, or *:<effect>"}
+	}
+	if effect == "*" {
+		if _, exists := namespaces[namespace]; exists && namespace != "*" {
+			return nil
+		}
+		return ErrInvalidGrant{Scope: scope, Reason: fmt.Sprintf("namespace %q does not exist in the derived catalog", namespace)}
+	}
+	if namespace == "*" && validEffect(effect) {
+		return nil
+	}
+	return ErrInvalidGrant{Scope: scope, Reason: "scope is not present in the derived catalog"}
+}
+
+func validEffect(effect string) bool {
+	return effect == string(scopecatalog.EffectRead) || effect == string(scopecatalog.EffectWrite) || effect == string(scopecatalog.EffectDestructive)
 }
 
 func (s *service) Revoke(ctx context.Context, id string) (Node, error) {
@@ -121,8 +207,8 @@ func (s *service) Remove(ctx context.Context, id string) error {
 	return s.repo.Remove(ctx, id)
 }
 
-// trimAll trims each element and drops empties, normalising the
-// capability/scope lists so storage and comparison are stable.
+// trimAll trims each element and drops empties. Scope inputs have already
+// passed the strict non-normalizing validator before they reach this helper.
 func trimAll(in []string) []string {
 	if len(in) == 0 {
 		return nil

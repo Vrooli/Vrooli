@@ -213,6 +213,9 @@ func (s Service) Connect(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := target.RetireLegacyPassphrase(); err != nil {
+		return err
+	}
 	return s.report(*jsonOut, out, fmt.Sprintf("connected to repository %q", *name))
 }
 
@@ -253,6 +256,9 @@ func (s Service) Stats(ctx context.Context, args []string) error {
 	argv := append(target.GlobalArgs(), "blob", "stats", "--raw")
 	out, err := s.Runner.Run(ctx, kexec.Call{Args: argv, Env: target.Env})
 	if err != nil {
+		return err
+	}
+	if err := target.RetireLegacyPassphrase(); err != nil {
 		return err
 	}
 	if !*jsonOut {
@@ -411,6 +417,9 @@ func (s Service) simpleRepoCommand(ctx context.Context, args []string, cmdName s
 	if err != nil {
 		return err
 	}
+	if err := target.RetireLegacyPassphrase(); err != nil {
+		return err
+	}
 	_, err = s.out().Write(cmdutil.EnsureTrailingNewline(out))
 	return err
 }
@@ -442,14 +451,10 @@ func (s Service) resolveS3Creds(ctx context.Context, name, accessKey, secretKey 
 // registerForConnect upserts a registry entry from connect-time backend flags,
 // ensuring the passphrase exists and storing any provided S3 creds.
 func (s Service) registerForConnect(ctx context.Context, name, backend, path, bucket, endpoint, prefix, region string, disableTLS bool, accessKey, secretKey string) error {
-	identity, err := kopiaregistry.PassphraseIdentity(name)
-	if err != nil {
-		return err
-	}
 	if s.Credentials == nil {
 		return fmt.Errorf("credential authority is unavailable")
 	}
-	value, err := s.Credentials.Resolve(identity, kopiaregistry.PassphraseField)
+	value, err := credentials.ResolvePassphrase(s.Credentials, name, s.Env.RepoLegacyPasswordFile(name))
 	if err != nil {
 		return fmt.Errorf("cannot connect %q: read repository passphrase: %w", name, err)
 	}

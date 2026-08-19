@@ -12,7 +12,7 @@ import (
 
 const (
 	onboardingTokenIdentity = "vrooli/onboarding" // #nosec G101 -- this is a credential-store identity, never a secret.
-	onboardingTokenField = "api-token" // #nosec G101 -- this is a credential-store field identifier, never a secret.
+	onboardingTokenField    = "api-token"         // #nosec G101 -- this is a credential-store field identifier, never a secret.
 )
 
 // onboardingExpectedToken is deliberately resolved through the credential

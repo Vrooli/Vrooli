@@ -7,6 +7,7 @@ import (
 	"vrooli-bridge/internal/registry"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/scopecatalog"
 )
 
 // TestRegistry_DurableIdentityAndAtomicRevoke is the named requirement test for
@@ -23,10 +24,12 @@ func TestRegistry_DurableIdentityAndAtomicRevoke(t *testing.T) {
 
 	// Register through the service (validation path), then drop the handle and
 	// re-open a fresh repository to prove the record is durable, not in-memory.
-	svc := registry.NewService(registry.NewSQLiteRepository(d, clk))
+	svc := registry.NewService(registry.NewSQLiteRepository(d, clk), registry.WithGrantValidator(registry.NewCatalogGrantValidator(scopecatalog.Catalog{
+		Scopes: []scopecatalog.Scope{{Scenario: "vrooli", Value: "vrooli:write"}},
+	})))
 	created, err := svc.Register(ctx, registry.RegisterInput{
 		Name: "office-linux", OS: "linux", Arch: "amd64",
-		Scopes: []string{"scenario test*"},
+		Scopes: []string{"vrooli:write"},
 	})
 	require.NoError(t, err)
 
@@ -34,7 +37,7 @@ func TestRegistry_DurableIdentityAndAtomicRevoke(t *testing.T) {
 	got, err := freshRepo.Get(ctx, created.ID)
 	require.NoError(t, err)
 	require.Equal(t, "office-linux", got.Name)
-	require.Equal(t, []string{"scenario test*"}, got.Scopes)
+	require.Equal(t, []string{"vrooli:write"}, got.Scopes)
 	require.False(t, got.Revoked())
 
 	// Revoke atomically: one operation stamps revoked_at; the node is terminal.

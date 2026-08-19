@@ -9,6 +9,7 @@ import (
 	"vrooli-bridge/internal/registry"
 	"vrooli-bridge/internal/runs"
 
+	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/api-core/targetmodel"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -134,12 +135,9 @@ func bridgeTargetReason(revoked, dispatchAuthorized bool) string {
 }
 
 func hasScenarioTestScope(scopes []string) bool {
-	for _, scope := range scopes {
-		if scope == "scenario test" || scope == "scenario test*" {
-			return true
-		}
-	}
-	return false
+	namespaceOK := scopecatalog.Resolve(scopes, "vrooli:write")
+	transportOK := scopecatalog.Resolve(scopes, "vrooli-bridge:write")
+	return namespaceOK && transportOK
 }
 
 // runnerAdapter binds the gate Runner seam to the SHARED dispatch service (which

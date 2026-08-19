@@ -28,14 +28,25 @@ const (
 // registers redeeming nodes (via the NodeRegistrar seam), stores their Ed25519
 // public keys, and runs the request/approve fallback.
 type Service struct {
-	repo      Repository
-	registrar NodeRegistrar
-	clock     schedule.Clock
+	repo           Repository
+	registrar      NodeRegistrar
+	clock          schedule.Clock
+	validateScopes func([]string) error
+}
+
+type Option func(*Service)
+
+func WithGrantValidator(validate func([]string) error) Option {
+	return func(s *Service) { s.validateScopes = validate }
 }
 
 // NewService constructs the pairing service.
-func NewService(repo Repository, registrar NodeRegistrar, clk schedule.Clock) *Service {
-	return &Service{repo: repo, registrar: registrar, clock: clk}
+func NewService(repo Repository, registrar NodeRegistrar, clk schedule.Clock, opts ...Option) *Service {
+	s := &Service{repo: repo, registrar: registrar, clock: clk}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // IssuedCode is the result of IssueCode: the plaintext code (returned ONCE) and
@@ -62,6 +73,9 @@ func (s *Service) IssueCodeForEnrollment(ctx context.Context, name string, scope
 }
 
 func (s *Service) issueCode(ctx context.Context, name string, scopes []string, ttl time.Duration, correlationID string) (IssuedCode, error) {
+	if err := s.validateGrantScopes(scopes); err != nil {
+		return IssuedCode{}, err
+	}
 	if ttl <= 0 {
 		ttl = defaultCodeTTL
 	}
@@ -319,6 +333,11 @@ func (s *Service) RequestPairing(ctx context.Context, nodePublicKeyB64 string, f
 // Approve approves (or rejects) a pending request. On approval it registers the
 // node and stores its credential, then records the decision atomically.
 func (s *Service) Approve(ctx context.Context, requestID string, approve bool, scopes []string) (status RequestStatus, nodeID string, err error) {
+	if approve {
+		if err := s.validateGrantScopes(scopes); err != nil {
+			return "", "", err
+		}
+	}
 	req, err := s.repo.GetRequest(ctx, requestID)
 	if err != nil {
 		return "", "", err
@@ -352,6 +371,19 @@ func (s *Service) Approve(ctx context.Context, requestID string, approve bool, s
 		return "", "", err
 	}
 	return RequestApproved, nodeID, nil
+}
+
+func (s *Service) validateGrantScopes(scopes []string) error {
+	if len(scopes) == 0 {
+		return nil
+	}
+	if s.validateScopes == nil {
+		return ErrInvalid{Field: "scopes", Reason: "catalog grant validator is not configured"}
+	}
+	if err := s.validateScopes(scopes); err != nil {
+		return ErrInvalid{Field: "scopes", Reason: err.Error()}
+	}
+	return nil
 }
 
 // ListRequests returns pending (or, with includeDecided, all) join requests.

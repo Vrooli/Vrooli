@@ -78,6 +78,7 @@ func (c *Client) openNodeSession(id string, open *sessionv1.Open) {
 	c.closeNodeSession(id, "replaced")
 	ctx, cancel := context.WithCancel(c.baseCtxOrBackground())
 	cmd := exec.CommandContext(ctx, shell) // #nosec G204 -- interactiveShell allowlists the executable; no user-supplied argv or shell string reaches exec.
+	cmd.Env = interactiveCommandEnv(c.cfg.VrooliBin, os.Environ())
 	if dir := strings.TrimSpace(open.GetWorkingDir()); dir != "" {
 		cmd.Dir = filepath.Clean(dir)
 	}
@@ -253,7 +254,7 @@ func allowedInteractiveShell(shell string) bool {
 }
 
 func interactiveShell(shell string) string {
-	shell = filepath.Clean(strings.TrimSpace(shell))
+	shell = strings.TrimSpace(shell)
 	if shell == "" {
 		if runtime.GOOS == "windows" {
 			shell = os.Getenv("COMSPEC")
@@ -264,6 +265,7 @@ func interactiveShell(shell string) string {
 			}
 		}
 	}
+	shell = filepath.Clean(shell)
 	base := filepath.Base(shell)
 	switch base {
 	case "sh", "bash", "zsh", "fish", "cmd.exe", "powershell.exe", "pwsh.exe":
@@ -271,4 +273,40 @@ func interactiveShell(shell string) string {
 	default:
 		return ""
 	}
+}
+
+func interactiveCommandEnv(vrooliBin string, base []string) []string {
+	env := append([]string(nil), base...)
+	bin := strings.TrimSpace(vrooliBin)
+	if bin == "" || !filepath.IsAbs(bin) {
+		return env
+	}
+	dir := filepath.Dir(bin)
+	if dir == "." || dir == string(filepath.Separator) {
+		return env
+	}
+
+	pathValue := ""
+	pathIndex := -1
+	for i, value := range env {
+		if strings.HasPrefix(value, "PATH=") {
+			pathIndex = i
+			pathValue = strings.TrimPrefix(value, "PATH=")
+			break
+		}
+	}
+	entries := strings.Split(pathValue, string(os.PathListSeparator))
+	for _, entry := range entries {
+		if entry == dir {
+			return env
+		}
+	}
+	pathValue = dir + string(os.PathListSeparator) + pathValue
+	pathEntry := "PATH=" + pathValue
+	if pathIndex >= 0 {
+		env[pathIndex] = pathEntry
+	} else {
+		env = append(env, pathEntry)
+	}
+	return env
 }

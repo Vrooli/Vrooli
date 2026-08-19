@@ -37,15 +37,22 @@ func (h *sessionWSHandler) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	// The ambient bearer token is intentionally insufficient. The caller must
 	// present a second, short-lived re-authentication proof for shell access.
+	// An enrolled local session is already a short-lived credential minted from
+	// the operator's locally held signing key, so it is the proof itself and
+	// does not need a second authenticator JWT.
 	reauth := strings.TrimSpace(r.Header.Get("X-Bridge-Owner-Reauth"))
-	if reauth == "" || h.auth == nil {
+	if reauth == "" && owner.AuthMethod == auth.AuthMethodEnrolled {
+		// The middleware has already verified the enrolled local session and
+		// populated the owner identity from that proof.
+	} else if reauth == "" || h.auth == nil {
 		h.reject(w, r, owner.OwnerID, "owner re-authentication required")
 		return
-	}
-	verified, err := h.auth.Validate(r.Context(), reauth)
-	if err != nil || verified.OwnerID != owner.OwnerID {
-		h.reject(w, r, owner.OwnerID, "owner re-authentication rejected")
-		return
+	} else {
+		verified, err := h.auth.Validate(r.Context(), reauth)
+		if err != nil || verified.OwnerID != owner.OwnerID {
+			h.reject(w, r, owner.OwnerID, "owner re-authentication rejected")
+			return
+		}
 	}
 
 	nodeID := strings.TrimSpace(r.URL.Query().Get("node"))
@@ -74,10 +81,12 @@ func (h *sessionWSHandler) handle(w http.ResponseWriter, r *http.Request) {
 		h.reject(w, r, owner.OwnerID, err.Error())
 		return
 	}
-	upgrader := websocket.Upgrader{ReadBufferSize: 32 * 1024, WriteBufferSize: 32 * 1024,
+	upgrader := websocket.Upgrader{
+		ReadBufferSize: 32 * 1024, WriteBufferSize: 32 * 1024,
 		CheckOrigin: func(req *http.Request) bool {
 			return req.Header.Get("Origin") == "" || sameOrigin(req.Header.Get("Origin"), req.Host)
-		}}
+		},
+	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		_ = h.manager.Close(context.Background(), id, "websocket upgrade failed")
@@ -277,12 +286,15 @@ func (h *sessionWSHandler) write(conn *websocket.Conn, frame *sessionv1.Frame) e
 	}
 	return conn.WriteMessage(websocket.BinaryMessage, b)
 }
+
 func rejectFrame(code, reason string) *sessionv1.Frame {
 	return &sessionv1.Frame{Payload: &sessionv1.Frame_Ack{Ack: &sessionv1.Ack{Code: code, Reason: reason}}}
 }
+
 func sameOrigin(origin, host string) bool {
 	return strings.TrimPrefix(strings.TrimPrefix(origin, "http://"), "https://") == host
 }
+
 func minDuration(a, b time.Duration) time.Duration {
 	if a <= 0 {
 		return b

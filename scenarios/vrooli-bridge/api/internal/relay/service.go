@@ -17,25 +17,44 @@ type Service interface {
 }
 
 type service struct {
-	nodes    NodeReader
-	presence Presence
-	audit    audit.Sink
-	pusher   Pusher
-	broker   *Broker
-	manifest []string
+	nodes      NodeReader
+	presence   Presence
+	audit      audit.Sink
+	pusher     Pusher
+	broker     *Broker
+	manifest   []string
+	catalogErr error
 }
 
 type Option func(*service)
 
 func WithManifest(manifest []string) Option {
-	return func(s *service) { s.manifest = append([]string(nil), manifest...) }
+	return func(s *service) {
+		s.manifest = append([]string(nil), manifest...)
+		s.catalogErr = nil
+	}
+}
+
+// WithCatalogError forces relay admission into the same typed degraded state
+// as dispatch. It is useful for startup wiring and negative-path tests.
+func WithCatalogError(err error) Option {
+	return func(s *service) {
+		if err != nil {
+			s.catalogErr = dispatch.ErrCatalogUnavailable{Cause: err}
+		}
+		s.manifest = nil
+	}
 }
 
 func NewService(nodes NodeReader, presence Presence, sink audit.Sink, pusher Pusher, broker *Broker, opts ...Option) Service {
 	if broker == nil {
 		broker = NewBroker()
 	}
-	s := &service{nodes: nodes, presence: presence, audit: sink, pusher: pusher, broker: broker, manifest: dispatch.DefaultManifest}
+	manifest, _, catalogErr := dispatch.BuildManifest()
+	s := &service{nodes: nodes, presence: presence, audit: sink, pusher: pusher, broker: broker, manifest: manifest}
+	if catalogErr != nil {
+		s.catalogErr = dispatch.ErrCatalogUnavailable{Cause: catalogErr}
+	}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -46,6 +65,10 @@ var _ Service = (*service)(nil)
 
 func (s *service) Call(ctx context.Context, request Request) (Response, error) {
 	request = normalizeRequest(request)
+	if s.catalogErr != nil {
+		s.auditTerminal(ctx, request, audit.OutcomeRejected, s.catalogErr.Error())
+		return Response{}, s.catalogErr
+	}
 	if request.NodeID == "" || request.Scenario == "" || request.Command == "" {
 		return Response{}, fmt.Errorf("%w: node_id, scenario, and command are required", ErrInvalidRequest)
 	}

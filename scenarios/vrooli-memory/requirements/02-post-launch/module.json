@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P1 requirements — records absorption, run linkage, operator surfaces, and the multi-space embedding refinement. All planned; validation entries declare intended evidence without asserting refs that do not exist. Note: id P1-009 is intentionally vacant. Harness memory import was promoted to P0 as VMEM-P0-011 (D-022); the id was retired rather than reused, and P1-010 was not renumbered, so that existing cross-references stay valid and no reader mistakes a renumber for a different requirement.",
-    "last_validated_at": "2026-08-08T19:45:08-04:00",
+    "last_validated_at": "2026-08-19T00:50:07-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "VMEM-P1-001",
       "title": "Work-record memory kind",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "records-absorption",
       "criticality": "P1",
@@ -25,14 +25,14 @@
           "type": "test",
           "ref": "../source-ledger/api/handlers/journal/connect_handler_test.go::TestWorkRecordRequiresEveryNarrativeField",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A work-record note missing a required field is rejected with a field-specific error."
         },
         {
           "type": "test",
           "ref": "api/internal/harness/import_test.go::TestSwarmImportReplayAfterInterruptionLosesNothingOrDuplicatesNothing",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A work-record written inside a run resolves its backlog association from correlation with no flag passed."
         },
         {
@@ -45,7 +45,7 @@
     {
       "id": "VMEM-P1-002",
       "title": "Run correlation and sibling events",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "integration",
       "criticality": "P1",
@@ -60,14 +60,14 @@
           "type": "test",
           "ref": "../source-ledger/api/handlers/journal/connect_handler_test.go::TestAppendDerivesCorrelationOnlyFromVerifiedProvenance",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A write carrying run correlation persists the ids and no copied run payload."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/handlers/journal/connect_handler_test.go::TestAppendDerivesCorrelationOnlyFromVerifiedProvenance",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A write with absent correlation (operator shell, null run id) succeeds and stores no correlation."
         },
         {
@@ -82,7 +82,7 @@
     {
       "id": "VMEM-P1-003",
       "title": "Tree descent",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "category": "retrieval",
       "criticality": "P1",
@@ -97,14 +97,14 @@
           "type": "test",
           "ref": "../source-ledger/api/handlers/forest/connect_handler_test.go::TestNodesProtoPreservesForestNodeIdentity",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Zoom on a depth-2 node returns its immediate children, not its transitive leaves."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/handlers/forest/connect_handler_test.go::TestNodesProtoPreservesForestNodeIdentity",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Rendered summary nodes carry an explicit summary label with span and depth; leaves do not."
         }
       ]
@@ -112,7 +112,7 @@
     {
       "id": "VMEM-P1-004",
       "title": "Supersession-aware summarization",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "compaction",
       "criticality": "P1",
@@ -127,14 +127,14 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/forest/service_test.go::TestSummaryPromptPreservesTailAndForbidsInventedResolution",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A cluster containing a claim and its later negation summarizes to the later claim only."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/forest/service_test.go::TestSummaryPromptPreservesTailAndForbidsInventedResolution",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A cluster of compatible claims summarizes without dropping the distinct claims it can fit in budget."
         },
         {
@@ -147,7 +147,7 @@
     {
       "id": "VMEM-P1-005",
       "title": "Multi-space facet embedding",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "category": "embedding",
       "criticality": "P1",
@@ -162,14 +162,14 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/journal/service_test.go::TestAppendPreservesWriteOrderAndFacetEmbeddings",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A memory produces one embedding per derived facet text, each retrievable and attributable to its source text."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/inference/client_test.go::TestEmbedderUsesDistinctGatewayTasks",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Clustering-purpose embeddings request the clustering task prefix; retrieval-purpose embeddings request the document prefix."
         },
         {
@@ -183,21 +183,21 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/forest/service_test.go::TestClusteringGroupsOnASecondaryFacetSpace",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Clustering groups two memories that agree on the entities space while disagreeing on topic, which is the purpose clause: more than one notion of relatedness."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/forest/service_test.go::TestPairScoringNeverComparesAcrossFacetSpaces",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Spaces are paired by index and the shorter side bounds the comparison, so a summary's single space never scores against a leaf's entities framing."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/recall/service_test.go::TestRecallScoresAcrossEveryFacetSpace",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Recall takes the best space, so a query matching a secondary framing outranks a partial primary match."
         }
       ]
@@ -242,7 +242,7 @@
     {
       "id": "VMEM-P1-007",
       "title": "Curated instruction topology repair",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "category": "harness",
       "criticality": "P1",
@@ -257,21 +257,21 @@
           "type": "test",
           "ref": "api/internal/harness/topology_test.go::TestEnsureCuratedTopologyUsesProjectAgentsAsCanonicalAndRepairsLinks",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Startup repairs workspace and home aliases to the project-level AGENTS.md canonical file."
         },
         {
           "type": "test",
           "ref": "api/internal/harness/topology_test.go::TestEnsureCuratedTopologyRecoversMissingCanonicalWithoutImportingGeneratedProjection",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Recovery ignores generated projection content and preserves surviving curated content."
         },
         {
           "type": "test",
           "ref": "api/internal/harness/topology_test.go::TestEnsureCuratedTopologyRejectsNoSurvivingCandidate",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Startup fails closed when no canonical or surviving curated candidate exists."
         }
       ]
@@ -279,7 +279,7 @@
     {
       "id": "VMEM-P1-008",
       "title": "Harness write capture",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-008",
       "category": "harness",
       "criticality": "P1",
@@ -309,7 +309,7 @@
           "type": "test",
           "ref": "cli/domains/harness/hooks_test.go::TestNativeHookFailureAlwaysReturnsSuccess",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Structured native hook payloads are filtered and capture/API failures are swallowed so the agent tool call always remains unblocked."
         },
         {
@@ -322,7 +322,7 @@
     {
       "id": "VMEM-P1-010",
       "title": "Pinned-set bounding by curation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-010",
       "category": "facets",
       "criticality": "P1",
@@ -338,28 +338,28 @@
           "type": "test",
           "ref": "../source-ledger/api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Near-duplicate pinned entries surface as a merge proposal and are never collapsed without operator confirmation."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A pin whose review date passes without reconfirmation becomes unpinned, remains in the journal, and remains retrievable by recall."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Reconfirming a pin extends its review date without creating a duplicate journal entry."
         },
         {
           "type": "test",
           "ref": "../source-ledger/api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A pin request that would exceed the budget returns the weakest current pins as a trade-off proposal rather than silently pinning or silently refusing."
         },
         {

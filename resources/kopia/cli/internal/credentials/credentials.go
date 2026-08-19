@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
@@ -57,6 +58,85 @@ func ValidateStoredPassphrase(store Store, identity credentialauthority.Identity
 	}
 	if strings.TrimSpace(stored) == "" || stored != value {
 		return fmt.Errorf("read back repository passphrase did not match")
+	}
+	return nil
+}
+
+// ResolvePassphrase returns the repository passphrase from the credential
+// authority. Older resource-kopia versions left a copy beside repository.config;
+// when the authority already has a value, that value is canonical even if the
+// legacy copy differs. Callers retire the legacy copy only after a successful
+// repository operation proves that the authority value opens the repository.
+// The legacy path is supplied by the caller so this package remains independent
+// of the resource's storage layout.
+func ResolvePassphrase(store Store, repo, legacyPath string) (string, error) {
+	if store == nil {
+		return "", fmt.Errorf("credential authority is unavailable")
+	}
+	identity, err := kopiaregistry.PassphraseIdentity(repo)
+	if err != nil {
+		return "", err
+	}
+	value, resolveErr := store.Resolve(identity, kopiaregistry.PassphraseField)
+	if resolveErr == nil && strings.TrimSpace(value) != "" {
+		return value, nil
+	}
+	if resolveErr != nil && !errors.Is(resolveErr, credentialauthority.ErrUnconfigured) {
+		return "", resolveErr
+	}
+
+	legacy, readErr := os.ReadFile(legacyPath)
+	if readErr != nil {
+		if errors.Is(readErr, os.ErrNotExist) {
+			if resolveErr != nil {
+				return "", resolveErr
+			}
+			return "", fmt.Errorf("repository passphrase for %q is not configured", repo)
+		}
+		return "", fmt.Errorf("read legacy repository passphrase for %q: %w", repo, readErr)
+	}
+	legacyValue := strings.TrimSpace(string(legacy))
+	if legacyValue == "" {
+		if resolveErr != nil {
+			return "", resolveErr
+		}
+		return "", fmt.Errorf("repository passphrase for %q is empty", repo)
+	}
+	if err := store.Put(identity, kopiaregistry.PassphraseField, legacyValue); err != nil {
+		return "", fmt.Errorf("migrate repository passphrase for %q: %w", repo, err)
+	}
+	return legacyValue, nil
+}
+
+// RetireLegacyPassphrase removes a legacy sidecar after a successful
+// repository operation. It intentionally does not compare the sidecar value:
+// a stale sidecar is exactly the migration case this function retires.
+func RetireLegacyPassphrase(store Store, repo, legacyPath string) error {
+	if strings.TrimSpace(legacyPath) == "" {
+		return nil
+	}
+	if _, err := os.Stat(legacyPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("inspect legacy repository passphrase for cleanup: %w", err)
+	}
+	if store == nil {
+		return fmt.Errorf("credential authority is unavailable")
+	}
+	identity, err := kopiaregistry.PassphraseIdentity(repo)
+	if err != nil {
+		return err
+	}
+	stored, err := store.Resolve(identity, kopiaregistry.PassphraseField)
+	if err != nil {
+		return fmt.Errorf("verify repository passphrase before legacy cleanup: %w", err)
+	}
+	if strings.TrimSpace(stored) == "" {
+		return fmt.Errorf("verify repository passphrase before legacy cleanup: authority value is empty")
+	}
+	if err := os.Remove(legacyPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("remove legacy repository passphrase: %w", err)
 	}
 	return nil
 }

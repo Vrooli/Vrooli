@@ -7,9 +7,9 @@ re-discovering the same constraint.
 ## Work ladder
 
 - Rung: W0
-- Evidence: the deterministic `swarm-manager goals list --json` search found no goal whose name, title, or description names `vrooli-bridge`; the requested Plan Manager slug `vrooli-onboarding-consent-true-apply-one-wizard-across` is absent from the live plan store.
-- Blocker: contract-to-goal comparison is unverifiable until the authoritative goal/plan record is restored or linked.
-- Measured: 2026-08-11
+- Evidence: goal `contribution-verification-isolated` directs “vrooli-bridge integration so the inbound triage team can safely run incoming PR patches and scenario proposals on an isolated install before approving them upstream”; no P0 operational target in `PRD.md` names isolated contribution verification (OT-P0-004 covers typed dispatch generally, not this goal capability).
+- Blocker: decide whether isolated contribution verification is a Bridge P0 capability or only a future consumer integration, then align the goal or PRD before walking W1–W3.
+- Measured: 2026-08-18
 
 This file ships empty in newly generated scenarios. Append entries as
 they appear.

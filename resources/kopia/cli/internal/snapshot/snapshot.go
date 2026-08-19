@@ -227,12 +227,18 @@ func (s Service) run(ctx context.Context, target repoctx.Target, argv []string) 
 	if err != nil {
 		return err
 	}
+	if err := target.RetireLegacyPassphrase(); err != nil {
+		return err
+	}
 	_, err = s.out().Write(cmdutil.EnsureTrailingNewline(out))
 	return err
 }
 
 func (s Service) runSilent(ctx context.Context, target repoctx.Target, argv []string) error {
 	_, err := s.Runner.Run(ctx, kexec.Call{Args: argv, Env: target.Env})
+	if err == nil {
+		err = target.RetireLegacyPassphrase()
+	}
 	return err
 }
 

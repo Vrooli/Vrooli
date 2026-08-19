@@ -1,6 +1,6 @@
 // Package dispatch is the safety gate for remote execution (OT-P0-004). It
 // validates every {scenario, verb, args} job against the scenario-CLI manifest
-// allowlist AND the target node's granted verb-namespace scopes before anything
+// allowlist AND the target node's transport and catalog grants before anything
 // runs, and it NEVER constructs a raw shell string — a valid job is carried to
 // the node as the typed channel.JobPush envelope (translated at the handler
 // boundary). On a valid, non-dry-run dispatch the service creates a durable run
@@ -15,6 +15,7 @@
 package dispatch
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -73,6 +74,32 @@ type ErrUnsupportedNodeKind struct{ ID, Kind string }
 
 func (e ErrUnsupportedNodeKind) Error() string {
 	return fmt.Sprintf("node %q of kind %q cannot receive agent jobs", e.ID, e.Kind)
+}
+
+// ErrCatalogUnavailable is returned when the shared CLI catalog cannot be
+// built. Bridge remains alive in this state so health and registry surfaces can
+// explain the outage, while every execution path refuses closed with the
+// offending manifest or validation detail.
+type ErrCatalogUnavailable struct{ Cause error }
+
+func (e ErrCatalogUnavailable) Error() string {
+	if e.Cause == nil {
+		return "dispatch catalog unavailable"
+	}
+	return fmt.Sprintf("dispatch catalog unavailable: %v", e.Cause)
+}
+
+func (e ErrCatalogUnavailable) Unwrap() error { return e.Cause }
+
+func catalogUnavailable(err error) error {
+	if err == nil {
+		return nil
+	}
+	var unavailable ErrCatalogUnavailable
+	if errors.As(err, &unavailable) {
+		return err
+	}
+	return ErrCatalogUnavailable{Cause: err}
 }
 
 // DispatchInput is what Service.Dispatch accepts: the owner actor (for audit),
@@ -138,7 +165,7 @@ func (e ErrNodeNeedsUpdate) Error() string {
 	return fmt.Sprintf("node %q needs an agent update (protocol incompatible); excluded from dispatch", e.ID)
 }
 
-// ErrVerbNotInManifest — the verb is not a recognised manifest verb namespace.
+// ErrVerbNotInManifest — the verb is not a recognised manifest command.
 type ErrVerbNotInManifest struct{ Verb string }
 
 func (e ErrVerbNotInManifest) Error() string {
@@ -147,9 +174,15 @@ func (e ErrVerbNotInManifest) Error() string {
 
 // ErrVerbOutOfScope — the verb is a known manifest verb but the node has not
 // been granted a scope covering it.
-type ErrVerbOutOfScope struct{ Verb string }
+type ErrVerbOutOfScope struct {
+	Verb          string
+	RequiredScope string
+}
 
 func (e ErrVerbOutOfScope) Error() string {
+	if e.RequiredScope != "" {
+		return fmt.Sprintf("verb %q is outside this node's granted scopes; missing %q", e.Verb, e.RequiredScope)
+	}
 	return fmt.Sprintf("verb %q is outside this node's granted scopes", e.Verb)
 }
 

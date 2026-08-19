@@ -38,6 +38,14 @@ type readinessCredentialDescriptor struct {
 	DerivedFrom  string `json:"derived_from,omitempty"`
 }
 
+type integrationRequirement struct {
+	Connector string   `json:"connector"`
+	Scopes    []string `json:"scopes,omitempty"`
+	Purpose   string   `json:"purpose,omitempty"`
+	Required  bool     `json:"required,omitempty"`
+	Multi     bool     `json:"multi,omitempty"`
+}
+
 type readinessResponse struct {
 	Status              string                `json:"status"`
 	Scenarios           []string              `json:"scenarios"`
@@ -51,10 +59,19 @@ type readinessResponse struct {
 }
 
 type recoveryReadiness struct {
-	ReceiptExists bool     `json:"receipt_exists"`
-	ExportedAt    string   `json:"exported_at,omitempty"`
-	EntryCount    int      `json:"entry_count"`
-	Uncovered     []string `json:"uncovered"`
+	ReceiptExists         bool                   `json:"receipt_exists"`
+	ExportedAt            string                 `json:"exported_at,omitempty"`
+	EntryCount            int                    `json:"entry_count"`
+	Uncovered             []string               `json:"uncovered"`
+	RequiredAbsent        []string               `json:"required_absent"`
+	RequiredAbsentDetails []recoveryGapReadiness `json:"required_absent_details"`
+	RootCopy              json.RawMessage        `json:"root_copy,omitempty"`
+	RootCopyIssues        []string               `json:"root_copy_issues"`
+}
+
+type recoveryGapReadiness struct {
+	Address     string `json:"address"`
+	Description string `json:"description,omitempty"`
 }
 
 type credentialDiagnosisResponse struct {
@@ -65,9 +82,11 @@ type credentialDiagnosisResponse struct {
 // is one of ready, degraded, missing, unsupported, or deferred.
 type readinessItem struct {
 	Name        string `json:"name"`
+	Category    string `json:"category,omitempty"`
 	Status      string `json:"status"`
 	Detail      string `json:"detail,omitempty"`
 	Remediation string `json:"remediation,omitempty"`
+	Required    bool   `json:"required,omitempty"`
 }
 
 type releaseAuthorityStatus struct {
@@ -95,6 +114,7 @@ var releaseAuthorityStatusCommand = func(ctx context.Context, root string) ([]by
 func releaseAuthorityReadiness(root string) readinessItem {
 	item := readinessItem{
 		Name:        "release-authority",
+		Category:    "system",
 		Status:      "unsupported",
 		Detail:      "release authority status is unavailable",
 		Remediation: "Run `vrooli release-authority init` after the native secure store is available.",
@@ -187,6 +207,49 @@ func loadScenarioCredentialReadiness(scenario string) ([]credentialReadiness, er
 	return credentialReadinessForDescriptors(scenario, manifest.Credentials.Descriptors), nil
 }
 
+func loadIntegrationReadiness(path, owner string) ([]readinessItem, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var manifest struct {
+		Integrations []integrationRequirement `json:"integrations"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("decode %s integration declarations: %w", owner, err)
+	}
+	items := make([]readinessItem, 0, len(manifest.Integrations))
+	for _, integration := range manifest.Integrations {
+		connector := strings.TrimSpace(integration.Connector)
+		if connector == "" {
+			return nil, fmt.Errorf("%s declares an integration without a connector", owner)
+		}
+		name := owner + "/" + connector
+		detail := "Connection setup is deferred until the integration capability is available."
+		if integration.Purpose != "" {
+			detail = integration.Purpose + " Connection setup is deferred until the integration capability is available."
+		}
+		if len(integration.Scopes) > 0 {
+			detail += " Requested scopes: " + strings.Join(integration.Scopes, ", ") + "."
+		}
+		if integration.Multi {
+			detail += " Multiple connections may be bound."
+		}
+		items = append(items, readinessItem{
+			Name:        name,
+			Category:    "integration",
+			Status:      "deferred",
+			Detail:      detail,
+			Remediation: "Configure the declared connection when the integration capability is available.",
+			Required:    integration.Required,
+		})
+	}
+	return items, nil
+}
+
 func credentialReadinessForDescriptors(owner string, descriptors []readinessCredentialDescriptor) []credentialReadiness {
 	items := make([]credentialReadiness, 0, len(descriptors))
 	for _, descriptor := range descriptors {
@@ -226,8 +289,16 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
+	root, err := manifestRoot()
+	if err != nil {
+		if writeCatalogDegraded(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
 	resourceSet := map[string]struct{}{}
-	response := readinessResponse{Status: "ready", Scenarios: make([]string, 0, len(models)), Credentials: []credentialReadiness{}, Hosts: []hostReadiness{}, Integrations: []readinessItem{{Name: "integration-hub", Status: "deferred", Detail: "Integration Hub is not yet available; no bindings were created.", Remediation: "Configure integrations after Integration Hub is installed."}}, Recovery: recoveryReadiness{Uncovered: []string{}}, CheckedAt: operatorStateNow().UTC().Format(time.RFC3339)}
+	response := readinessResponse{Status: "ready", Scenarios: make([]string, 0, len(models)), Credentials: []credentialReadiness{}, Hosts: []hostReadiness{}, Integrations: []readinessItem{}, Recovery: recoveryReadiness{Uncovered: []string{}, RequiredAbsent: []string{}, RequiredAbsentDetails: []recoveryGapReadiness{}, RootCopyIssues: []string{}}, CheckedAt: operatorStateNow().UTC().Format(time.RFC3339)}
 	for _, model := range models {
 		response.Scenarios = append(response.Scenarios, model.Name)
 		scenarioCredentials, err := loadScenarioCredentialReadiness(model.Name)
@@ -236,6 +307,12 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		response.Credentials = append(response.Credentials, scenarioCredentials...)
+		integrationItems, integrationErr := loadIntegrationReadiness(filepath.Join(root, "scenarios", model.Name, ".vrooli", "service.json"), model.Name)
+		if integrationErr != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": integrationErr.Error()})
+			return
+		}
+		response.Integrations = append(response.Integrations, integrationItems...)
 		for _, resource := range model.Resources {
 			resourceSet[resource] = struct{}{}
 		}
@@ -248,20 +325,21 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		response.Credentials = append(response.Credentials, credentials...)
+		integrationItems, integrationErr := loadIntegrationReadiness(filepath.Join(root, "resources", resource, "resource.json"), resource)
+		if integrationErr != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": integrationErr.Error()})
+			return
+		}
+		response.Integrations = append(response.Integrations, integrationItems...)
 	}
 	sort.Strings(response.Scenarios)
 	sort.Strings(response.Resources)
 	sort.Slice(response.Credentials, func(i, j int) bool {
 		return response.Credentials[i].Resource+response.Credentials[i].Field < response.Credentials[j].Resource+response.Credentials[j].Field
 	})
-	root, err := manifestRoot()
-	if err != nil {
-		if writeCatalogDegraded(w, err) {
-			return
-		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
-	}
+	sort.Slice(response.Integrations, func(i, j int) bool {
+		return response.Integrations[i].Name < response.Integrations[j].Name
+	})
 	state, err := loadOperatorState()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -302,6 +380,20 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
 			response.Recovery = diagnosis.Recovery
 			if response.Recovery.Uncovered == nil {
 				response.Recovery.Uncovered = []string{}
+			}
+			if response.Recovery.RequiredAbsent == nil {
+				response.Recovery.RequiredAbsent = []string{}
+			}
+			if response.Recovery.RequiredAbsentDetails == nil {
+				response.Recovery.RequiredAbsentDetails = []recoveryGapReadiness{}
+			}
+			if response.Recovery.RootCopyIssues == nil {
+				response.Recovery.RootCopyIssues = []string{}
+			}
+			if len(response.Recovery.RequiredAbsent) > 0 {
+				response.Status = lessReady(response.Status, "missing")
+			} else if len(response.Recovery.Uncovered) > 0 || len(response.Recovery.RootCopyIssues) > 0 {
+				response.Status = lessReady(response.Status, "degraded")
 			}
 		}
 	}

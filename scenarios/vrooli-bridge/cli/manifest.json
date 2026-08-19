@@ -124,7 +124,7 @@
             },
             {
               "name": "scopes",
-              "description": "Comma-separated granted verb-namespace scopes"
+              "description": "Comma-separated catalog grants (<namespace>:<effect>, with catalog wildcards)"
             }
           ],
           "binding": {
@@ -228,7 +228,7 @@
             },
             {
               "name": "scopes",
-              "description": "Comma-separated granted verb-namespace scopes"
+              "description": "Comma-separated catalog grants (<namespace>:<effect>, with catalog wildcards)"
             },
             {
               "name": "revision",
@@ -694,7 +694,7 @@
             },
             {
               "name": "scopes",
-              "description": "Comma-separated granted verb-namespace scopes"
+              "description": "Comma-separated catalog grants (<namespace>:<effect>, with catalog wildcards)"
             },
             {
               "name": "ttl",
@@ -826,7 +826,7 @@
             },
             {
               "name": "scopes",
-              "description": "Comma-separated granted verb-namespace scopes"
+              "description": "Comma-separated catalog grants (<namespace>:<effect>, with catalog wildcards)"
             }
           ],
           "binding": {

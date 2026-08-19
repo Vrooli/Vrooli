@@ -13,8 +13,6 @@ import (
 
 	"resource-kopia/cli/internal/credentials"
 	"resource-kopia/cli/internal/registry"
-
-	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
 // Env var names kopia reads for the passphrase and S3 credentials. Secrets are
@@ -30,6 +28,16 @@ type Target struct {
 	Entry registry.Entry
 	// Env is the secret overlay for kexec.Call.Env (KOPIA_PASSWORD, AWS_*).
 	Env map[string]string
+	// Credentials and LegacyPath let command owners retire a legacy sidecar only
+	// after their repository operation has returned success.
+	Credentials credentials.Store
+	LegacyPath  string
+}
+
+// RetireLegacyPassphrase removes the old sidecar after a successful operation
+// using the authority-backed value.
+func (t Target) RetireLegacyPassphrase() error {
+	return credentials.RetireLegacyPassphrase(t.Credentials, t.Entry.Name, t.LegacyPath)
 }
 
 // GlobalArgs returns the kopia global flags that address this repository's
@@ -63,14 +71,11 @@ func (r Resolver) Resolve(ctx context.Context, name string) (Target, error) {
 
 // targetFor builds the secret env overlay for an entry.
 func (r Resolver) targetFor(ctx context.Context, entry registry.Entry) (Target, error) {
-	identity, err := kopiaregistry.PassphraseIdentity(entry.Name)
-	if err != nil {
-		return Target{}, err
-	}
 	if r.Credentials == nil {
 		return Target{}, fmt.Errorf("credential authority is unavailable")
 	}
-	passphrase, err := r.Credentials.Resolve(identity, kopiaregistry.PassphraseField)
+	legacyPath := entry.ConfigFile + ".kopia-password"
+	passphrase, err := credentials.ResolvePassphrase(r.Credentials, entry.Name, legacyPath)
 	if err != nil {
 		return Target{}, fmt.Errorf("read repository passphrase for %q: %w", entry.Name, err)
 	}
@@ -91,5 +96,5 @@ func (r Resolver) targetFor(ctx context.Context, entry registry.Entry) (Target, 
 		env[EnvAWSSecretKey] = creds.SecretAccessKey
 	}
 
-	return Target{Entry: entry, Env: env}, nil
+	return Target{Entry: entry, Env: env, Credentials: r.Credentials, LegacyPath: legacyPath}, nil
 }

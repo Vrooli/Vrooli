@@ -73,11 +73,7 @@ func TestInspectReadsBackSupervisedProcessLimits(t *testing.T) {
 		if pid != 4321 {
 			return 0, 0, errors.New("unexpected pid")
 		}
-		total, err := physicalMemory()
-		if err != nil {
-			return 0, 0, err
-		}
-		return total * memoryHighPercent / 100, total * memoryMaxPercent / 100, nil
+		return unlimitedAddressSpace, unlimitedAddressSpace, nil
 	}
 	readFileFn = func(path string) ([]byte, error) {
 		if path == "/proc/4321/oom_score_adj" {
@@ -89,8 +85,46 @@ func TestInspectReadsBackSupervisedProcessLimits(t *testing.T) {
 	if !status.Applied || status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
 		t.Fatalf("status = %+v, want applied", status)
 	}
-	if !strings.Contains(strings.Join(status.Notes, " "), "supervisor process 4321") {
+	notes := strings.Join(status.Notes, " ")
+	if !strings.Contains(notes, "supervisor process 4321") {
 		t.Fatalf("notes = %v, want supervised PID evidence", status.Notes)
+	}
+	// The unenforced memory percentages must be stated, not implied as applied.
+	if !strings.Contains(notes, "NOT enforced") {
+		t.Fatalf("notes = %v, want an explicit note that the memory percentages are unenforced", status.Notes)
+	}
+}
+
+// TestInspectRejectsCappedAddressSpace guards the regression that took Ollama
+// down: a memory declaration applied as an RLIMIT_AS cap. llama.cpp reserves a
+// 32 GiB CUDA VMM pool on first inference, so any address-space cap kills every
+// model load with "CUDA error: out of memory" on an idle GPU. The safeguard must
+// report a capped address space as missing controls, never as healthy.
+func TestInspectRejectsCappedAddressSpace(t *testing.T) {
+	restoreHooks(t)
+	statePath := filepath.Join(t.TempDir(), "managed-service.json")
+	if err := os.WriteFile(statePath, []byte(`{"pid":4321}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	statePathFn = func() string { return statePath }
+	processAlive = func(pid int) bool { return pid == 4321 }
+	// The exact values observed on the host when every embedding request failed:
+	// 60% and 70% of 60.9 GiB of physical memory.
+	processLimitsFn = func(int) (uint64, uint64, error) {
+		return 39259304755, 45802522214, nil
+	}
+	readFileFn = func(path string) ([]byte, error) {
+		if path == "/proc/4321/oom_score_adj" {
+			return []byte(fmt.Sprint(oomScoreAdjust)), nil
+		}
+		return os.ReadFile(path)
+	}
+	status := newTestHandler().Inspect(linuxHost(), linuxReq())
+	if status.Applied {
+		t.Fatalf("status = %+v, want not applied while the address space is capped", status)
+	}
+	if !strings.Contains(strings.Join(status.Notes, " "), "address space is capped") {
+		t.Fatalf("notes = %v, want the capped address space named as the defect", status.Notes)
 	}
 }
 

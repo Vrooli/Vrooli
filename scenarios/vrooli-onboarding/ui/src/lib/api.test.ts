@@ -5,7 +5,7 @@ vi.mock("@vrooli/api-base", () => ({
   buildApiUrl: (path: string, options: { baseUrl: string }) => `${options.baseUrl}${path}`,
 }));
 
-import { applyOnboarding, changeCredentialStorePassphrase, fetchCredentialStoreStatus, fetchHealth, fetchGlossary, fetchOperatorInputs, fetchOperatorState, fetchResourceHealth, fetchResources, fetchV2ApplyPlan, fetchV2ApplyStatus, fetchV2Closure, fetchV2HostRequirements, fetchV2Recommendation, fetchV2Resources, fetchV2Readiness, fetchV2Scenarios, fetchV2Session, initializeCredentialStore, provisionCredential, reselectCredentialBackend, resolveOperatorInputs, rewrapCredentialStore, saveOperatorState, saveV2SessionStep, selectCredentialBackend, unlockCredentialStore } from "./api";
+import { applyOnboarding, applyCapability, fetchCapabilities, fetchHealth, fetchGlossary, fetchOperatorInputs, fetchOperatorState, fetchResourceHealth, fetchResources, fetchV2ApplyPlan, fetchV2ApplyStatus, fetchV2Closure, fetchV2HostRequirements, fetchV2Recommendation, fetchV2Resources, fetchV2Readiness, fetchV2Scenarios, fetchV2Session, previewCapability, provisionCredential, resolveOperatorInputs, saveOperatorState, saveV2SessionStep } from "./api";
 
 function mockFetch(body: unknown, ok = true, status = 200) {
   globalThis.fetch = vi.fn().mockResolvedValue({ ok, status, json: () => Promise.resolve(body) });
@@ -54,6 +54,17 @@ describe("onboarding V2 API client", () => {
 		expect(globalThis.fetch).toHaveBeenCalledWith("http://localhost:9999/api/v2/apply", expect.objectContaining({ method: "POST", body: "{}" }));
 	});
 
+	it("reads and applies provider-defined capabilities through the generic endpoints", async () => {
+		mockFetch({ capabilities: [], count: 0 });
+		await fetchCapabilities();
+		expect(globalThis.fetch).toHaveBeenCalledWith("http://localhost:9999/api/v2/capabilities", expect.objectContaining({ cache: "no-store" }));
+		mockFetch({ capability_id: "demo", plan_id: "plan", state: "ready_to_preview" });
+		await previewCapability({ capability_id: "demo", confirm: false, inputs: { destination: "/mnt/demo" } });
+		mockFetch({ capability_id: "demo", state: "ready", outcome: "complete", retryable: true });
+		await applyCapability({ capability_id: "demo", confirm: true, inputs: { destination: "/mnt/demo" } });
+		expect(globalThis.fetch).toHaveBeenLastCalledWith("http://localhost:9999/api/v2/capabilities/apply", expect.objectContaining({ method: "POST", body: JSON.stringify({ capability_id: "demo", confirm: true, inputs: { destination: "/mnt/demo" } }) }));
+	});
+
   it("covers the read and mutation surfaces without exposing secrets", async () => {
     mockFetch({ status: "ok", service: "onboarding", timestamp: "now" });
     await fetchHealth();
@@ -67,20 +78,6 @@ describe("onboarding V2 API client", () => {
     await saveV2SessionStep(2);
     mockFetch({ version: 1, updated_at: "now", requests: [] });
     await fetchOperatorInputs();
-    mockFetch({ initialized: false, active: false, entries: 0 });
-    await fetchCredentialStoreStatus();
-    mockFetch({ status: "selected", backend: "native" });
-    await selectCredentialBackend("native");
-    mockFetch({ from: "encrypted-file", to: "native", attempted: [], verified: [], committed: true });
-    await reselectCredentialBackend();
-    mockFetch({ status: "initialized", initialized: true, active: true, entries: 0 });
-    await initializeCredentialStore("secret");
-    mockFetch({ status: "unlocked", active_wrap: "encrypted-file" });
-    await unlockCredentialStore("secret");
-    mockFetch({ status: "changed" });
-    await changeCredentialStorePassphrase("old", "new");
-    mockFetch({ status: "rewrapped", provider: "native", key_store: "keychain" });
-    await rewrapCredentialStore("secret");
     mockFetch({ status: "resolved", configuration_pending: false });
     await resolveOperatorInputs([{ request_id: "choice", value: "yes" }]);
     mockFetch({ resources: [] });

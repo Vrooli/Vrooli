@@ -3,6 +3,7 @@ package channel
 import (
 	"log"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,4 +32,25 @@ func TestOpenNodeSessionUsesNativePTYAndResizes(t *testing.T) {
 	require.NotNil(t, current.terminal, "supported Unix targets must allocate a native PTY")
 
 	c.resizeNodeSession("session-pty", &sessionv1.Resize{Columns: 120, Rows: 40})
+}
+
+func TestInteractiveShellDefaultsBeforeCleaningEmptyInput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("default shell selection is platform-specific on Windows")
+	}
+	t.Setenv("SHELL", "")
+	require.Equal(t, "/bin/sh", interactiveShell(""))
+	require.Equal(t, "/bin/sh", interactiveShell("   "))
+}
+
+func TestInteractiveCommandEnvMakesConfiguredVrooliBinDiscoverable(t *testing.T) {
+	env := interactiveCommandEnv("/Users/test/.vrooli/bin/vrooli", []string{"PATH=/usr/bin:/bin", "HOME=/Users/test"})
+	require.Contains(t, env, "HOME=/Users/test")
+	var pathValue string
+	for _, value := range env {
+		if strings.HasPrefix(value, "PATH=") {
+			pathValue = strings.TrimPrefix(value, "PATH=")
+		}
+	}
+	require.Equal(t, "/Users/test/.vrooli/bin:/usr/bin:/bin", pathValue)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/projectstate"
 )
 
@@ -58,18 +60,64 @@ func (e controlPlaneExecutor) run(ctx context.Context, args ...string) error {
 	return e.runNamed(ctx, "vrooli", args...)
 }
 
+func (e controlPlaneExecutor) applyCapability(ctx context.Context, request operatorcapability.ActionRequest) (operatorcapability.Result, error) {
+	output, runErr := e.runCapabilityJSON(ctx, "apply", request)
+	var result operatorcapability.Result
+	if decodeErr := json.Unmarshal(output, &result); decodeErr != nil {
+		if runErr != nil {
+			return operatorcapability.Result{}, runErr
+		}
+		return operatorcapability.Result{}, fmt.Errorf("decode capability result: %w", decodeErr)
+	}
+	if runErr != nil {
+		return result, runErr
+	}
+	return result, nil
+}
+
+func (e controlPlaneExecutor) previewCapability(ctx context.Context, request operatorcapability.ActionRequest) (operatorcapability.Preview, error) {
+	output, runErr := e.runCapabilityJSON(ctx, "preview", request)
+	var preview operatorcapability.Preview
+	if decodeErr := json.Unmarshal(output, &preview); decodeErr != nil {
+		if runErr != nil {
+			return operatorcapability.Preview{}, runErr
+		}
+		return operatorcapability.Preview{}, fmt.Errorf("decode capability preview: %w", decodeErr)
+	}
+	if runErr != nil {
+		return preview, runErr
+	}
+	return preview, nil
+}
+
+func (e controlPlaneExecutor) runCapabilityJSON(ctx context.Context, action string, request operatorcapability.ActionRequest) ([]byte, error) {
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("encode capability action: %w", err)
+	}
+	return e.runNamedWithInput(ctx, []byte(append(payload, '\n')), "capability", action, "--json")
+}
+
 func (controlPlaneExecutor) runNamed(ctx context.Context, name string, args ...string) error {
-	command := controlPlaneCommand(ctx, name, args...)
+	_, err := (controlPlaneExecutor{}).runNamedWithInput(ctx, nil, name, args...)
+	return err
+}
+
+func (controlPlaneExecutor) runNamedWithInput(ctx context.Context, input []byte, commandName string, args ...string) ([]byte, error) {
+	command := controlPlaneCommand(ctx, commandName, args...)
+	if input != nil {
+		command.Stdin = bytes.NewReader(input)
+	}
 	stdout, err := command.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("control plane %s stdout pipe: %w", strings.Join(args, " "), err)
+		return nil, fmt.Errorf("control plane %s stdout pipe: %w", strings.Join(args, " "), err)
 	}
 	stderr, err := command.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("control plane %s stderr pipe: %w", strings.Join(args, " "), err)
+		return nil, fmt.Errorf("control plane %s stderr pipe: %w", strings.Join(args, " "), err)
 	}
 	if err := command.Start(); err != nil {
-		return fmt.Errorf("control plane %s start: %w", strings.Join(args, " "), err)
+		return nil, fmt.Errorf("control plane %s start: %w", strings.Join(args, " "), err)
 	}
 	var outputMu sync.Mutex
 	var output []string
@@ -92,9 +140,12 @@ func (controlPlaneExecutor) runNamed(ctx context.Context, name string, args ...s
 		outputMu.Lock()
 		joined := strings.TrimSpace(strings.Join(output, "\n"))
 		outputMu.Unlock()
-		return fmt.Errorf("control plane %s failed: %w: %s", strings.Join(args, " "), waitErr, joined)
+		return []byte(joined), fmt.Errorf("control plane %s failed: %w: %s", strings.Join(args, " "), waitErr, joined)
 	}
-	return nil
+	outputMu.Lock()
+	joined := strings.TrimSpace(strings.Join(output, "\n"))
+	outputMu.Unlock()
+	return []byte(joined), nil
 }
 
 func (e controlPlaneExecutor) InstallTool(ctx context.Context, name string) error {

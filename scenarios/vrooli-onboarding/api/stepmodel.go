@@ -5,17 +5,24 @@ import (
 )
 
 type onboardingStep struct {
-	ID       string
-	Ordinal  int
-	Title    string
-	Route    string
-	Deferred bool
+	ID        string
+	Ordinal   int
+	Title     string
+	Route     string
+	Deferred  bool
 	Satisfied func(OperatorState) bool
 }
 
 var onboardingSteps = []onboardingStep{
 	{ID: "welcome", Ordinal: 0, Title: "Welcome", Route: "/setup/welcome", Satisfied: func(s OperatorState) bool { return s.Session != nil }},
-	{ID: "scenarios", Ordinal: 1, Title: "Scenarios", Route: "/setup/scenarios", Satisfied: func(s OperatorState) bool { for _, choice := range s.Scenarios { if choice.Enabled != nil && *choice.Enabled { return true } }; return false }},
+	{ID: "scenarios", Ordinal: 1, Title: "Scenarios", Route: "/setup/scenarios", Satisfied: func(s OperatorState) bool {
+		for _, choice := range s.Scenarios {
+			if choice.Enabled != nil && *choice.Enabled {
+				return true
+			}
+		}
+		return false
+	}},
 	{ID: "resources", Ordinal: 2, Title: "Resources", Route: "/setup/resources", Satisfied: func(s OperatorState) bool { return s.Resources != nil }},
 	{ID: "credentials", Ordinal: 3, Title: "Credentials", Route: "/setup/credentials", Satisfied: func(s OperatorState) bool { return s.Scenarios != nil }},
 	{ID: "integrations", Ordinal: 4, Title: "Integrations", Route: "/setup/integrations", Deferred: true, Satisfied: func(s OperatorState) bool { return s.Version != "" }},

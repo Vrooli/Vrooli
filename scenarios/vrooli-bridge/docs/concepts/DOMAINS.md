@@ -113,7 +113,7 @@ belong in [`DATA.md`](DATA.md).
 
 ### dispatch
 
-- Purpose: the safety gate for remote execution — validate every `{scenario, verb, args}` job against the scenario-CLI manifest and the target node's verb-namespace scopes before anything runs; never construct raw shell.
+- Purpose: the safety gate for remote execution — validate every `{scenario, verb, args}` job against the scenario-CLI manifest plus the target node's transport and `<namespace>:<effect>` catalog grants before anything runs; never construct raw shell.
 - Primary archetype: policy / command. The allowlist surface is the manifest-declared verb set.
 - Owns: job definitions and allowlist decisions. Does not own: the running of the job (runs) or privileged setup (provisioning).
 - Related docs: [`../internal/SECURITY.md`](../internal/SECURITY.md), [`INTEGRATIONS.md`](INTEGRATIONS.md).

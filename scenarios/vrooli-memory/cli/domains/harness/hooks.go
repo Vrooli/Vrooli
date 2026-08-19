@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -16,6 +18,10 @@ import (
 )
 
 const memoryHookID = "vrooli-memory-capture"
+
+type hookCommandRunner func(home, runtime string, args []string) error
+
+var runHookCommand hookCommandRunner = executeHookCommand
 
 type nativeWrite struct {
 	Runtime, Path, Body string
@@ -139,11 +145,9 @@ func reconcileHooks(action, runtime string) ([]string, error) {
 	}
 	var out []string
 	for _, item := range runtimes {
-		var err error
-		if item == "claude-code" {
-			err = reconcileClaude(filepath.Join(home, ".claude", "settings.json"), action)
-		} else {
-			err = reconcileGrok(filepath.Join(home, ".grok", "hooks", memoryHookID+".json"), action)
+		args, err := hookCommandArgs(item, action)
+		if err == nil {
+			err = runHookCommand(home, item, args)
 		}
 		if err != nil {
 			return nil, err
@@ -157,65 +161,41 @@ func reconcileHooks(action, runtime string) ([]string, error) {
 	return out, nil
 }
 
-func reconcileClaude(path, action string) error {
-	doc := map[string]any{}
-	if raw, err := os.ReadFile(path); err == nil && len(raw) > 0 {
-		if err := json.Unmarshal(raw, &doc); err != nil {
-			return err
-		}
-	} else if err != nil && !os.IsNotExist(err) {
-		return err
+func hookCommandArgs(runtime, action string) ([]string, error) {
+	if action != "install" && action != "remove" {
+		return nil, fmt.Errorf("unsupported hook action %q", action)
 	}
-	hooks, _ := doc["hooks"].(map[string]any)
-	if hooks == nil {
-		hooks = map[string]any{}
-	}
-	entries, _ := hooks["PreToolUse"].([]any)
-	filtered := make([]any, 0, len(entries)+1)
-	for _, raw := range entries {
-		entry, _ := raw.(map[string]any)
-		if entry["managedBy"] == memoryHookID {
-			continue
-		}
-		filtered = append(filtered, raw)
-	}
-	if action == "install" {
-		filtered = append(filtered, map[string]any{"matcher": "*", "managedBy": memoryHookID, "hooks": []any{map[string]any{"type": "command", "command": "vrooli-memory hook --runtime claude-code"}}})
-	}
-	if len(filtered) == 0 {
-		delete(hooks, "PreToolUse")
-	} else {
-		hooks["PreToolUse"] = filtered
-	}
-	if len(hooks) == 0 {
-		delete(doc, "hooks")
-	} else {
-		doc["hooks"] = hooks
-	}
-	return writeJSON(path, doc)
-}
-
-func reconcileGrok(path, action string) error {
+	event := "PreToolUse"
+	hook := map[string]any{"type": "command", "command": "vrooli-memory hook --runtime " + runtime}
 	if action == "remove" {
-		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		return nil
+		return []string{"hooks", "remove", "--event", event, "--id", memoryHookID, "--scope", "global"}, nil
 	}
-	return writeJSON(path, map[string]any{"managedBy": memoryHookID, "hooks": map[string]any{"PreToolUse": []any{map[string]any{"matcher": "*", "hooks": []any{map[string]any{"type": "command", "command": "vrooli-memory hook --runtime grok"}}}}}})
+	data, err := json.Marshal(hook)
+	if err != nil {
+		return nil, err
+	}
+	return []string{"hooks", "reconcile", "--event", event, "--id", memoryHookID, "--hook-json", string(data), "--scope", "global"}, nil
 }
 
-func writeJSON(path string, value any) error {
-	data, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
+func executeHookCommand(home, runtime string, args []string) error {
+	binary := "resource-" + runtime
+	if override := strings.TrimSpace(os.Getenv("VROOLI_MEMORY_" + strings.ToUpper(strings.ReplaceAll(runtime, "-", "_")) + "_CLI")); override != "" {
+		binary = override
+	}
+	cmd := exec.Command(binary, args...)
+	env := append([]string(nil), os.Environ()...)
+	env = append(env, "HOME="+home)
+	if runtime == "grok" {
+		env = append(env, "VROOLI_AGENT_HOOK_PATH="+filepath.Join(home, ".grok", "hooks", memoryHookID+".json"))
+	}
+	cmd.Env = env
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		if message := strings.TrimSpace(stderr.String()); message != "" {
+			return fmt.Errorf("%s: %w", message, err)
+		}
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return nil
 }

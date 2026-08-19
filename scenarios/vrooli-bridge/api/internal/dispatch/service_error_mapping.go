@@ -15,6 +15,7 @@ import (
 //   - unknown node → NotFound
 //   - revoked/offline node → FailedPrecondition (the node cannot accept it now)
 //   - delivery failure → Unavailable (transient)
+//   - catalog unavailable → Unavailable (Bridge stays alive but cannot safely execute)
 //   - anything else → Internal
 func ToConnectError(err error) error {
 	if err == nil {
@@ -33,6 +34,7 @@ func ToConnectError(err error) error {
 		delivery    ErrDeliveryFailed
 		leaseReq    ErrDeviceLeaseRequired
 		leaseHeld   ErrDeviceLeaseNotHeld
+		catalog     ErrCatalogUnavailable
 	)
 	switch {
 	case errors.As(err, &invalid):
@@ -59,6 +61,8 @@ func ToConnectError(err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, leaseHeld)
 	case errors.As(err, &delivery):
 		return connect.NewError(connect.CodeUnavailable, delivery)
+	case errors.As(err, &catalog):
+		return connect.NewError(connect.CodeUnavailable, catalog)
 	default:
 		return connect.NewError(connect.CodeInternal, err)
 	}
@@ -79,9 +83,10 @@ func IsRejection(err error) bool {
 		kind        ErrUnsupportedNodeKind
 		leaseReq    ErrDeviceLeaseRequired
 		leaseHeld   ErrDeviceLeaseNotHeld
+		catalog     ErrCatalogUnavailable
 	)
 	return errors.As(err, &invalid) || errors.As(err, &notInMan) || errors.As(err, &outOfScope) ||
 		errors.As(err, &unsafe) || errors.As(err, &notFound) || errors.As(err, &revoked) ||
 		errors.As(err, &offline) || errors.As(err, &needsUpdate) || errors.As(err, &kind) ||
-		errors.As(err, &leaseReq) || errors.As(err, &leaseHeld)
+		errors.As(err, &leaseReq) || errors.As(err, &leaseHeld) || errors.As(err, &catalog)
 }

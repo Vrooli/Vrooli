@@ -11,7 +11,7 @@
 // opencode rejects any unknown top-level key ("Configuration is invalid …
 // Unrecognized key"), so the list of which bash patterns this adapter
 // manages is NOT stored inline. It lives in the sidecar state file
-// (.vrooli-permissions-state.json, see state.go), which is the source of
+// (.vrooli-permissions-state.json, backed by agentharness), which is the source of
 // truth for "which entries are managed"; hand-written entries are detected
 // by their absence from it. A retired pre-1.0 build wrote an inline
 // `x-vrooli-managed-permissions` key — that is the bug this design fixes;

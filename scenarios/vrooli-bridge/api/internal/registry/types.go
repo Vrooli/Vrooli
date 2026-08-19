@@ -95,6 +95,17 @@ func (e ErrInvalidNode) Error() string {
 	return fmt.Sprintf("%s: %s", e.Field, e.Reason)
 }
 
+// ErrInvalidGrant is the typed refusal returned when an owner attempts to
+// persist a node grant outside the derived catalog vocabulary.
+type ErrInvalidGrant struct {
+	Scope  string
+	Reason string
+}
+
+func (e ErrInvalidGrant) Error() string {
+	return fmt.Sprintf("scope %q: %s", e.Scope, e.Reason)
+}
+
 type ErrNodeActive struct{ ID string }
 
 func (e ErrNodeActive) Error() string {

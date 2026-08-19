@@ -51,6 +51,13 @@ func (r Runtime) RepoConfigFile(repo string) string {
 	return filepath.Join(r.ReposDir, repo, "repository.config")
 }
 
+// RepoLegacyPasswordFile is the password sidecar written by older
+// resource-kopia versions. It exists only as a migration input and is never a
+// runtime credential source after authority read-back succeeds.
+func (r Runtime) RepoLegacyPasswordFile(repo string) string {
+	return filepath.Join(r.ReposDir, repo, "repository.config.kopia-password")
+}
+
 // RepoCacheDir returns the kopia cache directory for a named repository.
 func (r Runtime) RepoCacheDir(repo string) string {
 	return filepath.Join(r.CacheRoot, "repos", repo)

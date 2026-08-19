@@ -2,6 +2,8 @@ package credentials
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -93,5 +95,73 @@ func TestS3CredentialsProviderFailureIsNotMissing(t *testing.T) {
 	store.putErr = errors.New("locked")
 	if err := PutS3Credentials(store, "offsite", S3Credentials{AccessKeyID: "a", SecretAccessKey: "b"}); err == nil {
 		t.Fatal("PutS3Credentials succeeded with a locked authority")
+	}
+}
+
+func TestResolvePassphraseMigratesLegacySidecarUntilOperationSucceeds(t *testing.T) {
+	store := &fakeStore{values: map[string]string{}}
+	legacyPath := filepath.Join(t.TempDir(), "repository.config.kopia-password")
+	if err := os.WriteFile(legacyPath, []byte("legacy-passphrase\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := ResolvePassphrase(store, "elements-local", legacyPath)
+	if err != nil || got != "legacy-passphrase" {
+		t.Fatalf("ResolvePassphrase() = %q, %v", got, err)
+	}
+	if _, err := os.Stat(legacyPath); err != nil {
+		t.Fatalf("legacy sidecar disappeared before operation success, stat error = %v", err)
+	}
+	if err := RetireLegacyPassphrase(store, "elements-local", legacyPath); err != nil {
+		t.Fatalf("RetireLegacyPassphrase() = %v", err)
+	}
+	if _, err := os.Stat(legacyPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("legacy sidecar still exists after retirement, stat error = %v", err)
+	}
+	identity, err := kopiaregistry.PassphraseIdentity("elements-local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := store.Resolve(identity, kopiaregistry.PassphraseField); err != nil || got != "legacy-passphrase" {
+		t.Fatalf("authority passphrase = %q, %v", got, err)
+	}
+}
+
+func TestResolvePassphraseUsesAuthorityWhenLegacySidecarDiffers(t *testing.T) {
+	store := &fakeStore{values: map[string]string{}}
+	identity, err := kopiaregistry.PassphraseIdentity("elements-local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.values[string(identity)+":"+kopiaregistry.PassphraseField] = "authority-passphrase"
+	legacyPath := filepath.Join(t.TempDir(), "repository.config.kopia-password")
+	if err := os.WriteFile(legacyPath, []byte("different-passphrase\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ResolvePassphrase(store, "elements-local", legacyPath)
+	if err != nil || got != "authority-passphrase" {
+		t.Fatalf("ResolvePassphrase() = %q, %v", got, err)
+	}
+	if _, err := os.Stat(legacyPath); err != nil {
+		t.Fatalf("conflicting legacy sidecar was removed: %v", err)
+	}
+}
+
+func TestRetireLegacyPassphraseRemovesConflictingSidecarAfterVerifiedOperation(t *testing.T) {
+	store := &fakeStore{values: map[string]string{}}
+	identity, err := kopiaregistry.PassphraseIdentity("elements-local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.values[string(identity)+":"+kopiaregistry.PassphraseField] = "authority-passphrase"
+	legacyPath := filepath.Join(t.TempDir(), "repository.config.kopia-password")
+	if err := os.WriteFile(legacyPath, []byte("different-passphrase\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := RetireLegacyPassphrase(store, "elements-local", legacyPath); err != nil {
+		t.Fatalf("RetireLegacyPassphrase() = %v", err)
+	}
+	if _, err := os.Stat(legacyPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("legacy sidecar still exists, stat error = %v", err)
 	}
 }
