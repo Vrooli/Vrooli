@@ -69,6 +69,36 @@ func TestBindingConditionUsesNearestRankAndReportsUninstrumentedDrift(t *testing
 	require.Equal(t, int64(30), condition.Serving.LatencyP50Ms)
 	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY, condition.Status)
 	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, condition.Freshness.DriftStatus)
+	require.Equal(t, receiptExerciseBasis, condition.Exercise.Basis)
+}
+
+func TestBindingConditionReportsLedgerAndReceiptBasesWithoutSumming(t *testing.T) {
+	now := time.Now().UTC()
+	r := &Registry{
+		bindings: []*bindingsv1.Binding{
+			{Id: "demo/read/ledger", Scenario: "demo"},
+			{Id: "demo/read/receipt", Scenario: "demo"},
+		},
+		recorder: fakeInvocationRecorder{rows: []Invocation{{
+			BindingID: "demo/read/ledger", ProgramID: "sweep", Provenance: "PROVENANCE_OPERATOR", Outcome: "success", OccurredAt: now,
+		}}},
+		exerciseReader: fakeExerciseReader{observations: []ExerciseObservation{{
+			TargetScenario: "demo", Operation: "demo/read/receipt", Invocations: 3,
+		}}},
+	}
+
+	response, err := r.Conditions(context.Background(), "", "", time.Hour)
+	require.NoError(t, err)
+	require.Equal(t, ledgerExerciseBasis, response.GetLedgerExercise().GetBasis())
+	require.Equal(t, int32(1), response.GetLedgerExercise().GetInstrumentedBindings())
+	require.Equal(t, int32(2), response.GetLedgerExercise().GetTotalBindings())
+	require.Equal(t, int64(1), response.GetLedgerExercise().GetInvocations())
+	require.Equal(t, receiptExerciseBasis, response.GetReceiptExercise().GetBasis())
+	require.Equal(t, int32(1), response.GetReceiptExercise().GetInstrumentedBindings())
+	require.Equal(t, int32(2), response.GetReceiptExercise().GetTotalBindings())
+	require.Equal(t, int64(3), response.GetReceiptExercise().GetInvocations())
+	// The deprecated scalar is a receipt alias, never a sum of the bases.
+	require.Equal(t, int32(1), response.GetInstrumentedBindings())
 }
 
 func TestBindingConditionReportsDormantAndNotHealthy(t *testing.T) { // [REQ:PRT-P1-008]

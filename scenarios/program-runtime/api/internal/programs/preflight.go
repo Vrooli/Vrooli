@@ -30,6 +30,7 @@ type analysis struct {
 	Degraded string         `json:"degraded"`
 	Bound    []analysisName `json:"bound"`
 	Free     []analysisName `json:"free"`
+	Imports  []analysisName `json:"imports"`
 	Shadowed []analysisName `json:"shadowed"`
 }
 
@@ -82,6 +83,17 @@ func ResolveSource(source string, known []string, analyzerPath string) []*progra
 	}
 
 	var diagnostics []*programsv1.Diagnostic
+	for _, entry := range result.Imports {
+		if _, protected := protectedRuntimeNames[entry.Name]; !protected {
+			continue
+		}
+		diagnostics = append(diagnostics, &programsv1.Diagnostic{
+			Severity: "error",
+			Line:     entry.Line,
+			Name:     entry.Name,
+			Message:  fmt.Sprintf("import %q is unavailable because the runtime names are already bound; use the bound names directly", entry.Name),
+		})
+	}
 	for _, entry := range result.Shadowed {
 		if _, ok := knownSet[entry.Name]; !ok {
 			continue

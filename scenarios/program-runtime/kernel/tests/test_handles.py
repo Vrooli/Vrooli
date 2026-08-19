@@ -130,6 +130,120 @@ def test_binding_response_accepts_explicit_rows_projection():
     assert "kept" in result["stdout"]
 
 
+def test_projection_verb_uses_operation_rows_and_preserves_metadata_and_raw():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'''{
+                "verb":"recall",
+                "binding_id":"search-hub/query/query",
+                "owner":"search-hub",
+                "rows_field":"ranked",
+                "result":{
+                    "ranked":[{"kind":"record","id":"one"},{"kind":"doc","id":"two"}],
+                    "latencyMs":12,
+                    "partial":false
+                }
+            }'''
+
+    kernel = SessionKernel([], session_id="phase-2", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
+    source = """
+rows = recall("retention")
+print(rows.count())
+print(rows.group_by("kind"))
+print(rows.meta()["binding_id"])
+print(rows.meta()["latencyMs"])
+print(rows.raw()["partial"])
+"""
+    with patch("host.engine.urllib.request.urlopen", return_value=Response()):
+        result = kernel.execute(source)
+    assert result["ok"]
+    assert "2" in result["stdout"]
+    assert "'record': 1" in result["stdout"]
+    assert "search-hub/query/query" in result["stdout"]
+    assert "12" in result["stdout"]
+    assert "False" in result["stdout"]
+
+
+def test_projection_verb_without_repeated_rows_returns_one_response_row():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"verb":"capture","binding_id":"vrooli-memory/journal/note","owner":"vrooli-memory","result":{"entry":{"id":"note-1"}}}'
+
+    kernel = SessionKernel([], session_id="phase-2", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
+    with patch("host.engine.urllib.request.urlopen", return_value=Response()):
+        result = kernel.execute('row = capture("evidence").head(1)[0]\nprint(row["entry"]["id"])')
+    assert result["ok"]
+    assert "note-1" in result["stdout"]
+
+
+def test_projection_verb_treats_an_omitted_empty_repeated_field_as_zero_rows():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"verb":"recall","binding_id":"search-hub/query/query","owner":"search-hub","rows_field":"ranked","result":{"degraded":true,"groups":[]}}'
+
+    kernel = SessionKernel([], session_id="phase-3", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
+    with patch("host.engine.urllib.request.urlopen", return_value=Response()):
+        result = kernel.execute('rows = recall(query="retention")\nprint(rows.count())\nprint(rows.meta()["degraded"])')
+    assert result["ok"]
+    assert result["stdout"].splitlines() == ["0", "True"]
+
+
+def test_projection_verbs_accept_measured_keyword_vocabulary():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"verb":"recall","binding_id":"search-hub/query/query","owner":"search-hub","rows_field":"ranked","result":{"ranked":[{"id":"one"}]}}'
+
+    kernel = SessionKernel([], session_id="phase-3", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
+    with patch("host.engine.urllib.request.urlopen", return_value=Response()) as open_url:
+        result = kernel.execute('print(recall(query="retention").count())')
+    assert result["ok"]
+    assert result["stdout"].strip() == "1"
+    assert b'"intent": "retention"' in open_url.call_args.args[0].data
+
+
+def test_projection_verbs_reject_alias_collisions_and_report_accepted_keywords():
+    kernel = SessionKernel()
+
+    collision = kernel.execute('recall(intent="canonical", query="alias")')
+    assert not collision["ok"]
+    assert "intent=" in collision["error"] and "query=" in collision["error"]
+
+    unknown = kernel.execute('recall(topic="retention")')
+    assert not unknown["ok"]
+    assert "topic" in unknown["error"]
+    for accepted in ("intent", "query", "depth", "rows"):
+        assert accepted in unknown["error"]
+
+    missing = kernel.execute("recall()")
+    assert not missing["ok"]
+    assert "accepted keywords" in missing["error"]
+    assert "intent" in missing["error"] and "query" in missing["error"]
+
+
 def test_handle_constructor_is_available_to_isolated_programs():
     result = SessionKernel().execute("rows = Handle([{'value': 7}])\nprint(rows.agg('value', 'sum'))")
     assert result["ok"]

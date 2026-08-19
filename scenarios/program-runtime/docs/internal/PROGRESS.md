@@ -7,7 +7,6 @@ This file ships empty in newly generated scenarios. Append entries when
 work lands, not while work is still speculative.
 
 ## Progress Log
-
 | Date | Author | Status | Summary |
 |---|---|---|---|
 | 2026-07-07 | codex | partial | Continued Phase 5 floor-proof work: generated experience pages are now active instead of draft, the template ships dashboard/notes/settings BAS observer cases with `spec_entry_id` labels, `bas/registry.json` is regenerated with those cases, the perf example uses `@selector/layout.shell`, and the routed DB proof declares required mutating safety labels. Validation: shallow template validation passes and deep validation no longer reports registry-stale or selector-bypass findings. Remaining blocker: retained deep run `template-validation-react-vite-deep-20260707-041314-6ce71066` still cannot prove active floors because Test Genie runs the generated scenario by `--scenario-path`/logical placement without registering runtime ports for BAS/experience-manager capture; filed scenario-qa bug `knw-1783397791178031359`. |
@@ -68,6 +67,7 @@ work lands, not while work is still speculative.
 | 2026-08-18 | codex | validated | Final closeout evidence: post-fix `vrooli-events` run `20260818-220718-e21f40ec` passed 21/21, including CLI runtime alignment, dependency metadata, measures, and regenerated primitive evidence; the earlier 19/21 result is superseded. Program Runtime run `20260818-213507-f575eddb` passed 22/22. Meta Optimization Manager run `20260818-213640-3ee6c541` remains 17/21 with broad pre-existing maturity debt. Collection diff `program-runtime-plan2-final-20260818` classified Program Runtime clean, Meta pre-existing, and the historical events member not-comparable because its baseline phase set differs; its current comparison child passed. The live receipt aggregate reports non-zero prompt-manager/search-hub invocations with timestamps and attribution remainders; Condition reports one receipt-backed instrumented leg, and Act basis matches doctor at 74/123 scenarios, 59 reachable, 12 unreachable. |
 | 2026-08-18 | codex | validated | Final post-restart Program Runtime run `20260818-221821-fb47b7c6` passed 22/22 after tightening unresolved-name filtering for `left_handle` and `right_handle`. The live unresolved ledger now contains only `test_geni`; `meta-optimization-manager focus next --json` contains no test/operator-provenance or `test_geni` gap, and `business-health validate scenario program-runtime` is PASSED with zero findings. |
 
+| 2026-08-18 | codex | validated | Binding condition now publishes typed ledger_exercise and receipt_exercise summaries without summing overlapping populations. A governed read-only sweep attempted 725 bindings (394 succeeded, 331 failed safely), raising local-ledger instrumentation from 11/1326 to 726/1326 while receipt instrumentation remained 1/1326. programs mine shapes and counts were unchanged. Full API and CLI Go suites pass. |
 ## Entry Template
 
 Use this table shape when appending entries.

@@ -23,6 +23,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -38,9 +39,26 @@ type Rule struct {
 	// substrings rather than exact copies of Brief: the three surfaces have
 	// different audiences and lengths, and forcing identical prose would make
 	// the check either trivially satisfied or permanently red.
-	DocProbe   string `json:"doc_probe"`
-	SkillProbe string `json:"skill_probe"`
+	DocProbe   string             `json:"doc_probe"`
+	SkillProbe string             `json:"skill_probe"`
+	Signatures []FailureSignature `json:"failure_signatures"`
 }
+
+// FailureSignature is a deterministic fingerprint for a failure caused by a
+// missing or violated harness rule. Cause is matched exactly after
+// normalization; DetailPattern is a case-insensitive Go regular expression.
+// Example is executable contract evidence used to prove every declared
+// signature still matches the detail shape it documents.
+type FailureSignature struct {
+	Cause         string `json:"cause"`
+	DetailPattern string `json:"detail_pattern"`
+	Example       string `json:"example"`
+}
+
+// UnattributedRuleID is deliberately a first-class result. Guessing when no
+// signature, or more than one signature, matches would corrupt the feedback
+// loop that uses miss counts to judge brief changes.
+const UnattributedRuleID = "unattributed"
 
 // Contract is the versioned harness state.
 type Contract struct {
@@ -61,7 +79,47 @@ func Load() Contract {
 	if len(contract.Rules) == 0 {
 		panic("harness contract declares no rules")
 	}
+	for _, rule := range contract.Rules {
+		if len(rule.Signatures) == 0 {
+			panic(fmt.Sprintf("harness rule %q declares no failure signatures", rule.ID))
+		}
+		for _, signature := range rule.Signatures {
+			matcher, err := regexp.Compile("(?i)" + signature.DetailPattern)
+			if err != nil {
+				panic(fmt.Sprintf("harness rule %q has invalid failure signature: %v", rule.ID, err))
+			}
+			if strings.TrimSpace(signature.Cause) == "" || !matcher.MatchString(signature.Example) {
+				panic(fmt.Sprintf("harness rule %q has an unproven failure signature", rule.ID))
+			}
+		}
+	}
 	return contract
+}
+
+// ResolveFailure returns the single rule whose signature matches cause and
+// detail. An absent or ambiguous match is explicitly unattributed; contract
+// order is never used as hidden precedence.
+func (c Contract) ResolveFailure(cause, detail string) string {
+	cause = strings.ToLower(strings.TrimSpace(cause))
+	matches := map[string]struct{}{}
+	for _, rule := range c.Rules {
+		for _, signature := range rule.Signatures {
+			if strings.ToLower(strings.TrimSpace(signature.Cause)) != cause {
+				continue
+			}
+			matcher, err := regexp.Compile("(?i)" + signature.DetailPattern)
+			if err == nil && matcher.MatchString(detail) {
+				matches[rule.ID] = struct{}{}
+			}
+		}
+	}
+	if len(matches) != 1 {
+		return UnattributedRuleID
+	}
+	for ruleID := range matches {
+		return ruleID
+	}
+	return UnattributedRuleID
 }
 
 // Instruction renders the brief handed to the authoring model.

@@ -52,6 +52,12 @@ type AuthoringCaseResult struct {
 	AgentBytes    int64
 	Model         string
 	FailureDetail string
+	RuleID        string
+}
+
+type AuthoringRuleMiss struct {
+	RuleID string
+	Count  int32
 }
 
 type AuthoringResult struct {
@@ -71,6 +77,7 @@ type AuthoringResult struct {
 	// two runs are only comparable when their stamps match.
 	HarnessStamp string
 	Cases        []AuthoringCaseResult
+	RuleMisses   []AuthoringRuleMiss
 }
 
 // perCaseReserve is the headroom the eval keeps before starting another case.
@@ -165,9 +172,7 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 			result.Reason = fmt.Sprintf(
 				"stopped after %d of %d cases to stay inside the response deadline; %d not attempted",
 				index, len(suite.Cases), result.NotAttempted)
-			sort.SliceStable(result.Cases, func(left, right int) bool {
-				return result.Cases[left].CaseID < result.Cases[right].CaseID
-			})
+			finalizeAuthoringResult(&result)
 			return result
 		}
 		caseResult := AuthoringCaseResult{CaseID: item.ID}
@@ -185,6 +190,7 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 				return result
 			}
 			caseResult.FailureDetail = err.Error()
+			attributeAuthoringFailure(&caseResult, "authoring_error", caseResult.FailureDetail)
 			result.Missed++
 			result.Cases = append(result.Cases, caseResult)
 			continue
@@ -197,6 +203,13 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 		caseResult.AgentBytes = agentBytes
 		caseResult.FailureDetail = detail
 		if err != nil {
+			if strings.TrimSpace(caseResult.FailureDetail) == "" {
+				caseResult.FailureDetail = err.Error()
+			}
+			if strings.TrimSpace(caseResult.Cause) == "" {
+				caseResult.Cause = "execution_error"
+			}
+			attributeAuthoringFailure(&caseResult, caseResult.Cause, caseResult.FailureDetail)
 			result.Missed++
 			result.Cases = append(result.Cases, caseResult)
 			continue
@@ -206,6 +219,10 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 				caseResult.FirstAttempt = true
 				result.Met++
 			} else {
+				if strings.TrimSpace(caseResult.FailureDetail) == "" {
+					caseResult.FailureDetail = fmt.Sprintf("case=%s; runtime cause=%s", item.ID, cause)
+				}
+				attributeAuthoringFailure(&caseResult, cause, caseResult.FailureDetail)
 				result.Missed++
 			}
 			result.Cases = append(result.Cases, caseResult)
@@ -221,15 +238,46 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 			caseResult.FirstAttempt = true
 			result.Met++
 		} else {
+			caseResult.FailureDetail = fmt.Sprintf("case=%s; oracle=%s was not satisfied; stdout=%q", item.ID, item.Oracle.Kind, boundedDetail(stdout, 512))
+			attributeAuthoringFailure(&caseResult, "wrong_result", caseResult.FailureDetail)
 			result.WrongResult++
 		}
 		result.Cases = append(result.Cases, caseResult)
 	}
 	result.Status = "measured"
+	finalizeAuthoringResult(&result)
+	return result
+}
+
+func attributeAuthoringFailure(result *AuthoringCaseResult, cause, detail string) {
+	result.Cause = strings.TrimSpace(cause)
+	result.RuleID = harness.Load().ResolveFailure(result.Cause, detail)
+}
+
+func boundedDetail(detail string, limit int) string {
+	if limit <= 0 || len(detail) <= limit {
+		return detail
+	}
+	return detail[:limit] + "…"
+}
+
+func finalizeAuthoringResult(result *AuthoringResult) {
 	sort.SliceStable(result.Cases, func(left, right int) bool {
 		return result.Cases[left].CaseID < result.Cases[right].CaseID
 	})
-	return result
+	counts := map[string]int32{}
+	for _, item := range result.Cases {
+		if item.RuleID != "" {
+			counts[item.RuleID]++
+		}
+	}
+	result.RuleMisses = result.RuleMisses[:0]
+	for ruleID, count := range counts {
+		result.RuleMisses = append(result.RuleMisses, AuthoringRuleMiss{RuleID: ruleID, Count: count})
+	}
+	sort.Slice(result.RuleMisses, func(left, right int) bool {
+		return result.RuleMisses[left].RuleID < result.RuleMisses[right].RuleID
+	})
 }
 
 func isRouteUnavailable(err error) bool {
@@ -285,7 +333,7 @@ func satisfiesOracle(oracle AuthoringOracle, stdout string) bool {
 		return containsJSONKey(stdout, oracle.Key)
 	case "null_verdict":
 		lower := strings.ToLower(stdout)
-		return strings.Contains(lower, "null") || strings.Contains(lower, "nothing") || strings.Contains(lower, "no governed")
+		return strings.Contains(lower, "null") || strings.Contains(lower, "nothing") || strings.Contains(lower, "no governed") || strings.Contains(lower, "no capability")
 	case "null_verdict_or_success":
 		return strings.TrimSpace(stdout) != ""
 	case "row_count_min":

@@ -20,6 +20,8 @@ import (
 const (
 	conditionSustainedWindow = 7 * 24 * time.Hour
 	conditionExerciseWindow  = 24 * time.Hour
+	ledgerExerciseBasis      = "local_invocation_ledger"
+	receiptExerciseBasis     = "fleet_receipt_aggregate"
 )
 
 type conditionBand struct {
@@ -71,7 +73,18 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 	for _, row := range sustainedRows {
 		sustainedByBinding[row.BindingID] = append(sustainedByBinding[row.BindingID], row)
 	}
-	response := &bindingsv1.GetBindingConditionResponse{WindowSeconds: int64(window / time.Second)}
+	response := &bindingsv1.GetBindingConditionResponse{
+		WindowSeconds: int64(window / time.Second),
+		LedgerExercise: &bindingsv1.ExerciseBasisSummary{
+			Basis: ledgerExerciseBasis,
+		},
+		ReceiptExercise: &bindingsv1.ExerciseBasisSummary{
+			Basis: receiptExerciseBasis,
+		},
+	}
+	// The local ledger and fleet receipts overlap, and neither population
+	// contains the other. Report both bases independently and never sum them.
+	response.GetLedgerExercise().Invocations = int64(len(rows))
 	exerciseByScenario := make(map[string][]ExerciseObservation)
 	exerciseAvailable := make(map[string]bool)
 	if r.exerciseReader != nil {
@@ -100,6 +113,8 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 			continue
 		}
 		response.TotalBindings++
+		response.GetLedgerExercise().TotalBindings++
+		response.GetReceiptExercise().TotalBindings++
 		metadata := freshnessMetadata{generationMtime: r.generationMtime}
 		metadata.sourcePath = r.manifestPaths[binding.GetScenario()]
 		if metadata.sourcePath == "" {
@@ -107,12 +122,19 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 		}
 		metadata.sourceMtime = r.manifestMtimes[binding.GetScenario()]
 		condition := conditionForWithFreshnessAndExercise(binding, byBinding[binding.GetId()], sustainedByBinding[binding.GetId()], metadata, exerciseByScenario[binding.GetScenario()], exerciseAvailable[binding.GetScenario()])
+		if len(byBinding[binding.GetId()]) > 0 {
+			response.GetLedgerExercise().InstrumentedBindings++
+		}
 		if condition.GetExercise().GetInvocations() > 0 {
-			response.InstrumentedBindings++
+			response.GetReceiptExercise().InstrumentedBindings++
+			response.GetReceiptExercise().Invocations += condition.GetExercise().GetInvocations()
 		}
 		response.Conditions = append(response.Conditions, condition)
 		byScenario[binding.GetScenario()] = append(byScenario[binding.GetScenario()], condition)
 	}
+	// Preserve the legacy field as a receipt-basis alias while all in-tree
+	// consumers migrate to the explicit summaries above.
+	response.InstrumentedBindings = response.GetReceiptExercise().GetInstrumentedBindings()
 	for _, scenario := range sortedScenarioNames(byScenario) {
 		conditions := byScenario[scenario]
 		rollup := &bindingsv1.ScenarioCondition{Scenario: scenario, BindingCount: int32(len(conditions))}
@@ -372,7 +394,8 @@ func conditionForWithExercise(binding interface {
 	GetCommand() string
 	GetService() string
 	GetMethod() string
-}, rows, sustainedRows []Invocation, artifactMtime time.Time, observations []ExerciseObservation, exerciseAvailable bool) *bindingsv1.BindingCondition {
+}, rows, sustainedRows []Invocation, artifactMtime time.Time, observations []ExerciseObservation, exerciseAvailable bool,
+) *bindingsv1.BindingCondition {
 	condition := &bindingsv1.BindingCondition{BindingId: binding.GetId(), Scenario: binding.GetScenario()}
 	serving := &bindingsv1.ServingCondition{Family: &bindingsv1.ConditionFamily{Status: bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, Reason: "serving has no invocations in window"}}
 	exercise := exerciseForBinding(binding, observations, exerciseAvailable)

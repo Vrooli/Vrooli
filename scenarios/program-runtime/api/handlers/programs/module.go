@@ -120,7 +120,13 @@ func (h *handler) RunAuthoringEval(ctx context.Context, req *connect.Request[pro
 			Cause:          item.Cause,
 			AgentBytes:     item.AgentBytes,
 			Model:          item.Model,
+			RuleId:         item.RuleID,
+			FailureDetail:  item.FailureDetail,
 		})
+	}
+	ruleMisses := make([]*programsv1.AuthoringRuleMiss, 0, len(result.RuleMisses))
+	for _, item := range result.RuleMisses {
+		ruleMisses = append(ruleMisses, &programsv1.AuthoringRuleMiss{RuleId: item.RuleID, Count: item.Count})
 	}
 	return connect.NewResponse(&programsv1.RunAuthoringEvalResponse{
 		Suite:        result.Suite,
@@ -135,5 +141,6 @@ func (h *handler) RunAuthoringEval(ctx context.Context, req *connect.Request[pro
 		Results:      cases,
 		NotAttempted: result.NotAttempted,
 		HarnessStamp: result.HarnessStamp,
+		RuleMisses:   ruleMisses,
 	}), nil
 }

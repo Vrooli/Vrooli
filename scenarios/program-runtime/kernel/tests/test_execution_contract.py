@@ -225,14 +225,30 @@ def test_inference_and_describe_accept_additive_model_facing_aliases():
             return Handle([kwargs])
 
     run = FakeBinding()
+    batch = FakeBinding()
     surface = _InferenceSurface("session", "configured", [])
     surface._run = run
+    surface._run_batch = batch
 
     surface.classify(text="classify this")
     surface.extract(text="extract this")
     surface.judge(text="judge this")
     surface.write(text="write this")
-    assert [call["source"] for call in run.calls] == ["classify this", "extract this", "judge this", "write this"]
+    assert [call["source"] for call in run.calls[:4]] == ["classify this", "extract this", "judge this", "write this"]
+
+    # The additive plural spelling resolves before the governed batch route.
+    with pytest.raises(RuntimeError, match="incomplete result set"):
+        surface.classify(texts=["one", "two"])
+    assert batch.calls[-1]["items"] == [{"source": "one"}, {"source": "two"}]
+
+    surface.extract(texts=["extract one", "extract two"])
+    surface.judge(texts=["judge one", "judge two"])
+    surface.write(texts=["write one", "write two"])
+    assert [call["source"] for call in run.calls[-3:]] == [
+        ["extract one", "extract two"],
+        ["judge one", "judge two"],
+        ["write one", "write two"],
+    ]
 
     surface.classify(source="classify this", labels=["bug", "feature"])
     schema = __import__("json").loads(run.calls[-1]["schema_json"])
@@ -244,12 +260,33 @@ def test_inference_and_describe_accept_additive_model_facing_aliases():
 
     with pytest.raises(TypeError, match=r"source=.*text=|text=.*source="):
         surface.classify(source="canonical", text="alias")
+    with pytest.raises(TypeError, match=r"text=.*texts=|texts=.*text="):
+        surface.classify(text="canonical", texts=["alias"])
+    for operation in (surface.classify, surface.extract, surface.judge, surface.write):
+        with pytest.raises(TypeError, match=r"source=.*texts=|texts=.*source="):
+            operation(source="canonical", texts=["alias"])
     with pytest.raises(TypeError, match=r"schema=.*labels=|labels=.*schema="):
         surface.classify(text="both", schema={"type": "string"}, labels=["bug"])
     with pytest.raises(ValueError, match="labels"):
         surface.classify(text="empty", labels=[])
     with pytest.raises(TypeError, match="1"):
         surface.classify(text="non-string", labels=["bug", 1])
+
+
+def test_inference_and_describe_unknown_keywords_list_the_accepted_set():
+    surface = _InferenceSurface("session", "configured", [])
+    for name, operation in (
+        ("classify", surface.classify),
+        ("extract", surface.extract),
+        ("judge", surface.judge),
+        ("write", surface.write),
+    ):
+        with pytest.raises(TypeError, match=rf"{name}.*mystery.*accepted keywords.*source.*text.*texts"):
+            operation(mystery="value")
+
+    namespace = Namespace(session_id="session", bridge_url="configured")
+    with pytest.raises(TypeError, match=r"describe.*mystery.*accepted keywords.*binding.*binding_id"):
+        namespace.describe(mystery="value")
 
 
 def test_classify_accepts_small_string_batches_through_governed_batch_route():

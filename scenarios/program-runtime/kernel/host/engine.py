@@ -95,15 +95,40 @@ _SAFE_BUILTINS["open"] = _guarded_open
 _MISSING = object()
 
 
-def _resolve_keyword_alias(canonical_name: str, canonical: object, alias_name: str, alias: object) -> Any:
-    """Resolve one additive keyword alias without silently choosing a winner."""
-    canonical_provided = canonical is not _MISSING
-    alias_provided = alias is not _MISSING
-    if canonical_provided and alias_provided:
-        raise TypeError(f"pass either {canonical_name}= or {alias_name}=, not both")
-    if not canonical_provided and not alias_provided:
-        raise TypeError(f"missing required argument: {canonical_name}= (or {alias_name}=)")
-    return canonical if canonical_provided else alias
+def _resolve_keyword_alias(
+    canonical_name: str,
+    canonical: object,
+    alias_name: str,
+    alias: object,
+    *additional_aliases: object,
+) -> Any:
+    """Resolve additive keyword aliases without silently choosing a winner."""
+    if len(additional_aliases) % 2:
+        raise RuntimeError("keyword alias declaration must contain name/value pairs")
+    candidates = [(canonical_name, canonical), (alias_name, alias)]
+    candidates.extend(
+        (str(additional_aliases[index]), additional_aliases[index + 1])
+        for index in range(0, len(additional_aliases), 2)
+    )
+    provided = [(name, value) for name, value in candidates if value is not _MISSING]
+    if len(provided) > 1:
+        accepted = ", ".join(f"{name}=" for name, _ in candidates)
+        received = ", ".join(f"{name}=" for name, _ in provided)
+        raise TypeError(f"pass only one of {accepted}; received {received}")
+    if not provided:
+        accepted = ", ".join(name for name, _ in candidates)
+        raise TypeError(f"missing required argument; accepted keywords: {accepted}")
+    return provided[0][1]
+
+
+def _reject_unknown_keywords(callable_name: str, unknown: dict[str, Any], accepted: Iterable[str]) -> None:
+    """Raise one recovery-oriented error for every public convenience facade."""
+    if not unknown:
+        return
+    offending = ", ".join(repr(name) for name in sorted(unknown))
+    available = ", ".join(sorted(set(accepted)))
+    noun = "keyword" if len(unknown) == 1 else "keywords"
+    raise TypeError(f"{callable_name}() got unexpected {noun} {offending}; accepted keywords: {available}")
 
 
 def _resolve_labels_schema(schema: object, labels: object) -> Any:
@@ -310,7 +335,14 @@ def _similarity(left: str, right: str) -> float:
     return 1 - previous[len(right)] / max(len(left), len(right))
 
 
-def _projection_verb(root: "Namespace", verb: str, primary: str):
+def _projection_verb(
+    root: "Namespace",
+    verb: str,
+    primary: str,
+    *,
+    aliases: tuple[str, ...] = (),
+    options: tuple[str, ...] = (),
+):
     """Bind one projection verb to its primary argument name.
 
     The returned callable accepts the primary argument positionally or by
@@ -318,13 +350,27 @@ def _projection_verb(root: "Namespace", verb: str, primary: str):
     way as ``discover`` at a call site.
     """
 
-    def invoke(value: Any = None, **kwargs: Any) -> Handle:
-        if value is not None:
-            if primary in kwargs:
+    accepted = (primary, *aliases, *options)
+
+    def invoke(value: Any = _MISSING, **kwargs: Any) -> Handle:
+        _reject_unknown_keywords(verb, {key: item for key, item in kwargs.items() if key not in accepted}, accepted)
+        canonical = kwargs.pop(primary, _MISSING)
+        if value is not _MISSING:
+            if canonical is not _MISSING:
                 raise TypeError(f"{verb}() got {primary!r} twice")
-            kwargs[primary] = value
-        if not str(kwargs.get(primary, "")).strip():
-            raise TypeError(f"{verb}() requires a non-empty {primary}")
+            canonical = value
+        if aliases:
+            alias_values: list[object] = []
+            for alias in aliases:
+                alias_values.extend((alias, kwargs.pop(alias, _MISSING)))
+            canonical = _resolve_keyword_alias(primary, canonical, str(alias_values[0]), alias_values[1], *alias_values[2:])
+        elif canonical is _MISSING:
+            available = ", ".join(sorted(accepted))
+            raise TypeError(f"{verb}() requires {primary}; accepted keywords: {available}")
+        if not str(canonical).strip():
+            available = ", ".join(sorted(accepted))
+            raise TypeError(f"{verb}() requires a non-empty {primary}; accepted keywords: {available}")
+        kwargs[primary] = canonical
         return root.projection(verb, **kwargs)
 
     invoke.__name__ = verb
@@ -485,8 +531,9 @@ class Namespace:
     def agent(self) -> "_DeferredSurface":
         return self._agent
 
-    def describe(self, binding: str | object = _MISSING, *, binding_id: str | object = _MISSING) -> Handle:
+    def describe(self, binding: str | object = _MISSING, *, binding_id: str | object = _MISSING, **unknown: Any) -> Handle:
         """Read a binding contract through the registry's live descriptor path."""
+        _reject_unknown_keywords("describe", unknown, ("binding", "binding_id"))
         binding = _resolve_keyword_alias("binding", binding, "binding_id", binding_id)
         if not self._bridge_url:
             raise RuntimeError("program-runtime binding bridge is unavailable")
@@ -512,7 +559,8 @@ class Namespace:
         rows = payload.get("arguments", []) if isinstance(payload, dict) else []
         return Handle(rows, f"vrooli.describe({binding})")
 
-    def reachable(self) -> Handle:
+    def reachable(self, **unknown: Any) -> Handle:
+        _reject_unknown_keywords("reachable", unknown, ())
         if self._reachability_url:
             request = urllib.request.Request(
                 self._reachability_url,
@@ -557,7 +605,7 @@ class Namespace:
             )
         raise AttributeError(f"no governed binding scenario or group {group!r}")
 
-    def discover(self, intent: str, mode: str = "judged") -> Handle:
+    def discover(self, intent: str | object = _MISSING, mode: str = "judged", **unknown: Any) -> Handle:
         """Resolve one governed capability by intent.
 
         `mode` selects the retrieval strategy and is accepted here because the
@@ -571,6 +619,9 @@ class Namespace:
                     but it costs a model round-trip and inherits its health.
         - `deep`    `judged` over paraphrased queries; widest recall.
         """
+        _reject_unknown_keywords("discover", unknown, ("intent", "mode"))
+        if intent is _MISSING or not str(intent).strip():
+            raise TypeError("discover() requires a non-empty intent; accepted keywords: intent, mode")
         if mode not in ("fast", "judged", "deep"):
             raise ValueError('discover mode must be "fast", "judged", or "deep"')
         return self._discover_bridge(intent, mode)
@@ -595,7 +646,28 @@ class Namespace:
             raise RuntimeError(f"program-runtime projection {verb} unavailable: {exc}") from exc
         if not isinstance(payload, dict):
             payload = {"value": payload}
-        return Handle([payload], verb, metadata=payload, raw=payload)
+        result = payload.get("result", {})
+        if not isinstance(result, dict):
+            result = {"value": result}
+        rows_field = str(payload.get("rows_field", "")).strip()
+        if rows_field:
+            # Protobuf JSON omits empty repeated fields. That is an honest
+            # zero-row Handle, not a malformed response. A present scalar or
+            # object still violates the descriptor-derived projection contract.
+            rows = result.get(rows_field, [])
+            if not isinstance(rows, list):
+                raise RuntimeError(
+                    f"program-runtime projection {verb} response field {rows_field!r} is not a list"
+                )
+        else:
+            rows = [result]
+        metadata = {
+            "verb": payload.get("verb", verb),
+            "binding_id": payload.get("binding_id", ""),
+            "owner": payload.get("owner", ""),
+        }
+        metadata.update({key: value for key, value in result.items() if key != rows_field})
+        return Handle(rows, verb, metadata=metadata, raw=result)
 
     def _execute_library_source(self, spec: dict[str, Any], args: tuple[Any, ...], kwargs: dict[str, Any]) -> Handle:
         """Execute one operator-promoted source with only public runtime globals."""
@@ -659,8 +731,9 @@ class Namespace:
                 return Handle([_discovery_unavailable_row(f"discovery unavailable: {exc}", mode)], "vrooli.discover")
         return Handle([_discovery_unavailable_row("discovery unavailable: bridge is not configured", mode)], "vrooli.discover")
 
-    def gather(self, *calls: Any, max_workers: int = 8) -> list[Handle]:
+    def gather(self, *calls: Any, max_workers: int = 8, **unknown: Any) -> list[Handle]:
         """Run zero-argument binding callables concurrently and preserve order."""
+        _reject_unknown_keywords("gather", unknown, ("max_workers",))
         if not calls:
             return []
         if any(not callable(call) for call in calls):
@@ -832,8 +905,9 @@ class _InferenceSurface:
             kwargs["max_output_tokens"] = int(max_output_tokens)
         return self._run(**kwargs)
 
-    def classify(self, source: str | Iterable[str] | object = _MISSING, schema: Any | object = _MISSING, instruction: str = "", *, text: str | Iterable[str] | object = _MISSING, labels: Any | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
-        source = _resolve_keyword_alias("source", source, "text", text)
+    def classify(self, source: str | Iterable[str] | object = _MISSING, schema: Any | object = _MISSING, instruction: str = "", *, text: str | Iterable[str] | object = _MISSING, texts: Iterable[str] | object = _MISSING, labels: Any | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None, **unknown: Any) -> Any:
+        _reject_unknown_keywords("ai.classify", unknown, ("source", "text", "texts", "schema", "labels", "instruction", "turns", "attachments", "profile"))
+        source = _resolve_keyword_alias("source", source, "text", text, "texts", texts)
         schema = _resolve_labels_schema(schema, labels)
         if isinstance(source, (list, tuple)):
             if turns is not None or attachments is not None or profile is not None:
@@ -884,21 +958,25 @@ class _InferenceSurface:
             raise RuntimeError("ai-gateway batch returned an incomplete result set")
         return Handle(rows, "ai.classify(batch)", metadata={"role": "classify.fast"}, raw=payload)
 
-    def extract(self, source: str | object = _MISSING, schema: Any = None, instruction: str = "", *, text: str | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
-        source = _resolve_keyword_alias("source", source, "text", text)
+    def extract(self, source: str | object = _MISSING, schema: Any = None, instruction: str = "", *, text: str | object = _MISSING, texts: Iterable[str] | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None, **unknown: Any) -> Any:
+        _reject_unknown_keywords("ai.extract", unknown, ("source", "text", "texts", "schema", "instruction", "turns", "attachments", "profile"))
+        source = _resolve_keyword_alias("source", source, "text", text, "texts", texts)
         return self._invoke("extract.structured", source, schema, instruction, turns=turns, attachments=attachments, profile=profile)
 
-    def judge(self, source: str | object = _MISSING, schema: Any = None, instruction: str = "", *, text: str | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
-        source = _resolve_keyword_alias("source", source, "text", text)
+    def judge(self, source: str | object = _MISSING, schema: Any = None, instruction: str = "", *, text: str | object = _MISSING, texts: Iterable[str] | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None, **unknown: Any) -> Any:
+        _reject_unknown_keywords("ai.judge", unknown, ("source", "text", "texts", "schema", "instruction", "turns", "attachments", "profile"))
+        source = _resolve_keyword_alias("source", source, "text", text, "texts", texts)
         return self._invoke("judge.default", source, schema, instruction, turns=turns, attachments=attachments, profile=profile)
 
-    def write(self, source: str | object = _MISSING, schema: Any = None, instruction: str = "", *, text: str | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None, temperature: float | None = None, max_output_tokens: int | None = None) -> Any:
+    def write(self, source: str | object = _MISSING, schema: Any = None, instruction: str = "", *, text: str | object = _MISSING, texts: Iterable[str] | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None, temperature: float | None = None, max_output_tokens: int | None = None, **unknown: Any) -> Any:
         """Natural-prose generation. Unlike classify/extract/judge this role is
         overridable, so `temperature` is accepted here and refused there."""
-        source = _resolve_keyword_alias("source", source, "text", text)
+        _reject_unknown_keywords("ai.write", unknown, ("source", "text", "texts", "schema", "instruction", "turns", "attachments", "profile", "temperature", "max_output_tokens"))
+        source = _resolve_keyword_alias("source", source, "text", text, "texts", texts)
         return self._invoke("write.default", source, schema, instruction, turns=turns, attachments=attachments, profile=profile, temperature=temperature, max_output_tokens=max_output_tokens)
 
-    def batch(self, sources: Iterable[Any], schema: Any = None, instruction: str = "", role: str = "classify.fast") -> Any:
+    def batch(self, sources: Iterable[Any], schema: Any = None, instruction: str = "", role: str = "classify.fast", **unknown: Any) -> Any:
+        _reject_unknown_keywords("ai.batch", unknown, ("sources", "schema", "instruction", "role"))
         if schema is None:
             schema_json = ""
         elif isinstance(schema, str):
@@ -1119,10 +1197,10 @@ class SessionKernel:
             # `discover`, so `recall("intent")` and `recall(intent="intent")`
             # are both valid. A keyword-only surface reads as an inconsistency
             # next to `discover` and is a needless first-attempt failure.
-            "recall": _projection_verb(root, "recall", "intent"),
-            "guide": _projection_verb(root, "guide", "task"),
-            "validate": _projection_verb(root, "validate", "scenario"),
-            "capture": _projection_verb(root, "capture", "text"),
+            "recall": _projection_verb(root, "recall", "intent", aliases=("query",), options=("depth", "rows")),
+            "guide": _projection_verb(root, "guide", "task", options=("rows",)),
+            "validate": _projection_verb(root, "validate", "scenario", options=("depth", "rows")),
+            "capture": _projection_verb(root, "capture", "text", options=("kind", "trigger", "approach", "evidence", "outcome", "rows")),
             "ai": root.ai,
             "agent": root.agent,
             "gather": root.gather,

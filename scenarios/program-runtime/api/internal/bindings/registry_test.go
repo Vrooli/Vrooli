@@ -294,7 +294,13 @@ func TestSweepRecordsOperatorInvocationWithLatency(t *testing.T) {
 	require.Equal(t, int32(1), response.GetSucceeded())
 	require.Len(t, recorder.rows, 1)
 	require.Equal(t, "PROVENANCE_OPERATOR", recorder.rows[0].Provenance)
+	require.Equal(t, "sweep", recorder.rows[0].ProgramID)
+	require.Equal(t, "synthetic", recorder.rows[0].Origin)
 	require.Greater(t, recorder.rows[0].LatencyMS, int64(0))
+	registry.SetExerciseReader(fakeExerciseReader{})
+	conditions, err := registry.Conditions(context.Background(), "", "", time.Hour)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), conditions.GetLedgerExercise().GetInstrumentedBindings(), "operator sweep must count as ledger exercise")
 }
 
 func TestListAnnotatesAndFiltersUnreachableBindings(t *testing.T) {

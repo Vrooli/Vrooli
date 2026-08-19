@@ -35,8 +35,10 @@ import (
 	"program-runtime/internal/sessions"
 )
 
-const maxDeepParaphrases = 3
-const maxJudgeCandidates = 8
+const (
+	maxDeepParaphrases = 3
+	maxJudgeCandidates = 8
+)
 
 type service struct {
 	bindingsconnect.UnimplementedBindingRegistryServiceHandler
@@ -384,12 +386,13 @@ var projectionVerbs = map[string]projectionVerb{
 	"recall": {
 		binding: "search-hub/query/query",
 		owner:   "search-hub",
+		rows:    "ranked",
 		build: func(request projectionRequest) (map[string]any, error) {
 			intent := request.first("intent", "query", "text")
 			if intent == "" {
 				return nil, errors.New("recall requires a non-empty intent")
 			}
-			args := map[string]any{"query": intent, "rows": "ranked"}
+			args := map[string]any{"query": intent}
 			if request.first("depth") == "deep" {
 				args["limit"] = 30
 			} else {
@@ -407,6 +410,7 @@ var projectionVerbs = map[string]projectionVerb{
 	"validate": {
 		binding: "test-genie/runs/list",
 		owner:   "test-genie",
+		rows:    "runs",
 		build: func(request projectionRequest) (map[string]any, error) {
 			scenario := request.first("scenario", "target", "name")
 			if scenario == "" {
@@ -432,6 +436,7 @@ var projectionVerbs = map[string]projectionVerb{
 	"capture": {
 		binding: "vrooli-memory/journal/note",
 		owner:   "vrooli-memory",
+		rows:    projectionWholeResponse,
 		build: func(request projectionRequest) (map[string]any, error) {
 			body := request.first("text", "note", "body")
 			if body == "" {
@@ -464,13 +469,46 @@ var projectionVerbs = map[string]projectionVerb{
 	// compose. It stays declared and fails closed with that reason rather than
 	// disappearing, so the gap is visible to the agent and to the unbound
 	// census instead of silently absent.
-	"guide": {owner: "prompt-manager"},
+	"guide": {owner: "prompt-manager", rows: "results"},
 }
+
+// projectionWholeResponse is the explicit row projection for operations whose
+// response has no repeated field. Such operations still return a one-row
+// Handle; the marker keeps that decision declared beside every other verb.
+const projectionWholeResponse = "$response"
 
 type projectionVerb struct {
 	binding string
 	owner   string
+	rows    string
 	build   func(projectionRequest) (map[string]any, error)
+}
+
+func projectionRowFields(binding *bindingsv1.Binding) []string {
+	if binding == nil {
+		return nil
+	}
+	fields := append([]string(nil), binding.GetRowFieldCandidates()...)
+	if selected := strings.TrimSpace(binding.GetRowsField()); selected != "" {
+		fields = append(fields, selected)
+	}
+	sort.Strings(fields)
+	return slices.Compact(fields)
+}
+
+func validateProjectionRows(binding *bindingsv1.Binding, rows string) error {
+	if rows == "" || rows == projectionWholeResponse {
+		return nil
+	}
+	fields := projectionRowFields(binding)
+	if slices.Contains(fields, rows) {
+		return nil
+	}
+	available := strings.Join(fields, ", ")
+	if available == "" {
+		available = "<none>"
+	}
+	return fmt.Errorf("projection rows %q is not a repeated response field; available fields: %s", rows, available)
 }
 
 // projectionRequest is the decoded verb payload. The control fields are typed;
@@ -562,19 +600,23 @@ func ProjectionBridge(manager *sessions.Manager, registry *bindings.Registry) ht
 			writeBridgeError(w, http.StatusServiceUnavailable, fmt.Sprintf("projection %q is unavailable: binding registry is not configured", verb))
 			return
 		}
-		if _, governed := registry.Binding(spec.binding); !governed {
+		binding, governed := registry.Binding(spec.binding)
+		if !governed {
 			writeBridgeError(w, http.StatusServiceUnavailable, fmt.Sprintf("projection %q is unavailable: binding %q is not governed in the live registry", verb, spec.binding))
+			return
+		}
+		rowsField := spec.rows
+		if override := request.first("rows"); override != "" {
+			rowsField = override
+		}
+		if err := validateProjectionRows(binding, rowsField); err != nil {
+			writeBridgeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		args, err := spec.build(request)
 		if err != nil {
 			writeBridgeError(w, http.StatusBadRequest, err.Error())
 			return
-		}
-		rowsField := ""
-		if value, ok := args["rows"]; ok {
-			rowsField = fmt.Sprint(value)
-			delete(args, "rows")
 		}
 		result, err := registry.Execute(r.Context(), spec.binding, args, nil, false,
 			bindings.InvocationMetadata{SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance},
@@ -584,7 +626,7 @@ func ProjectionBridge(manager *sessions.Manager, registry *bindings.Registry) ht
 			return
 		}
 		response := map[string]any{"verb": verb, "binding_id": spec.binding, "owner": spec.owner, "result": result}
-		if rowsField != "" {
+		if rowsField != "" && rowsField != projectionWholeResponse {
 			response["rows_field"] = rowsField
 		}
 		w.Header().Set("Content-Type", "application/json")

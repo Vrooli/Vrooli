@@ -9,6 +9,7 @@ Contract: read source on stdin, write one JSON object on stdout.
 
     {"ok": true,
      "free": [{"name": "test_geni", "line": 3}],
+     "imports": [{"name": "json", "line": 1}],
      "shadowed": [{"name": "search_hub", "line": 7}]}
 
     {"ok": false, "syntax_error": {"message": "...", "line": 4}}
@@ -91,6 +92,23 @@ def _first_line(tree: ast.AST, names: set[str], want_store: bool) -> dict[str, i
     return lines
 
 
+def _imports(tree: ast.AST) -> list[dict[str, int | str]]:
+    """Report imported module roots without deciding whether they are allowed.
+
+    The bound name is deliberately not used here: ``import vrooli as v`` still
+    imports the protected ``vrooli`` module root, while ``from json import
+    loads`` imports the admitted ``json`` root. Policy remains on the Go side.
+    """
+    imports: list[dict[str, int | str]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append({"name": alias.name.split(".", 1)[0], "line": int(node.lineno)})
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.append({"name": node.module.split(".", 1)[0], "line": int(node.lineno)})
+    return sorted(imports, key=lambda item: (int(item["line"]), str(item["name"])))
+
+
 def analyze(source: str) -> dict:
     try:
         tree = ast.parse(source, "<program>", "exec")
@@ -112,6 +130,7 @@ def analyze(source: str) -> dict:
         "ok": True,
         "bound": [{"name": name} for name in sorted(module_bound)],
         "free": [{"name": name, "line": free_lines.get(name, 0)} for name in sorted(free)],
+        "imports": _imports(tree),
         "shadowed": [{"name": name, "line": line} for name, line in sorted(shadow_lines.items())],
     }
 

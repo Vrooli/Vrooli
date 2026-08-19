@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 )
 
 // The projection verbs had no tests at all, which is why `validate` returned an
@@ -237,11 +239,32 @@ func TestEveryDeclaredVerbIsEitherComposedOrExplicitlyUnavailable(t *testing.T) 
 		if spec.owner == "" {
 			t.Fatalf("verb %q names no owner; an unavailable verb must say whose gap it is", name)
 		}
+		if spec.rows == "" {
+			t.Fatalf("verb %q declares no default row projection", name)
+		}
 		if spec.binding == "" && spec.build != nil {
 			t.Fatalf("verb %q has a builder but no binding to compose", name)
 		}
 		if spec.binding != "" && spec.build == nil {
 			t.Fatalf("verb %q composes %q but has no argument builder", name, spec.binding)
+		}
+	}
+}
+
+func TestProjectionRowsAreValidatedAgainstTheResponseContract(t *testing.T) {
+	binding := &bindingsv1.Binding{RowsField: "runs", RowFieldCandidates: []string{"summaries", "warnings"}}
+	for _, field := range []string{"runs", "summaries", "warnings", projectionWholeResponse} {
+		if err := validateProjectionRows(binding, field); err != nil {
+			t.Fatalf("field %q should be accepted: %v", field, err)
+		}
+	}
+	err := validateProjectionRows(binding, "missing")
+	if err == nil {
+		t.Fatal("unknown row field must be rejected")
+	}
+	for _, want := range []string{"missing", "runs", "summaries", "warnings"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q does not name %q", err, want)
 		}
 	}
 }

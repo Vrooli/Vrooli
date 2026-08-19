@@ -30,6 +30,7 @@ func resolve(t *testing.T, source string) []diagnosticView {
 	for _, diagnostic := range diagnostics {
 		out = append(out, diagnosticView{
 			Severity: diagnostic.GetSeverity(),
+			Line:     diagnostic.GetLine(),
 			Name:     diagnostic.GetName(),
 			Message:  diagnostic.GetMessage(),
 			Nearest:  diagnostic.GetNearestMatch(),
@@ -40,9 +41,43 @@ func resolve(t *testing.T, source string) []diagnosticView {
 
 type diagnosticView struct {
 	Severity string
+	Line     int32
 	Name     string
 	Message  string
 	Nearest  string
+}
+
+func TestResolveSourceRefusesRuntimeShadowingImports(t *testing.T) {
+	cases := map[string]struct {
+		source string
+		line   int32
+	}{
+		"module import": {source: "import vrooli\nprint(vrooli)", line: 1},
+		"from import":   {source: "print('before')\nfrom vrooli import recall", line: 2},
+	}
+	for name, test := range cases {
+		t.Run(name, func(t *testing.T) {
+			found := errorsOnly(resolve(t, test.source))
+			if found == nil {
+				t.Skip("analyzer unavailable in this environment")
+			}
+			if len(found) != 1 {
+				t.Fatalf("expected exactly one import refusal, got %+v", found)
+			}
+			if found[0].Name != "vrooli" || found[0].Line != test.line {
+				t.Fatalf("import diagnostic lost root or line: %+v", found[0])
+			}
+			if !strings.Contains(found[0].Message, "import") || !strings.Contains(found[0].Message, "already bound") {
+				t.Fatalf("diagnostic must explain the runtime import rule: %q", found[0].Message)
+			}
+		})
+	}
+}
+
+func TestResolveSourceAdmitsStandardLibraryImport(t *testing.T) {
+	if found := errorsOnly(resolve(t, "import json\nprint(json.dumps({'ok': True}))")); len(found) != 0 {
+		t.Fatalf("standard-library import was refused: %+v", found)
+	}
 }
 
 func errorsOnly(views []diagnosticView) []diagnosticView {
@@ -193,6 +228,13 @@ func TestResolveSourceWithoutAnalyzerReturnsNoDiagnostics(t *testing.T) {
 // that resolve; recording them answers "what could an agent not invoke" with a
 // name the agent could invoke perfectly well.
 func TestOnlyUnresolvedCapabilitiesReachTheLedger(t *testing.T) {
+	importViews := ResolveSource("import vrooli", knownNames, analyzerPath())
+	for _, diagnostic := range importViews {
+		if IsUnresolvedNameDiagnostic(diagnostic) {
+			t.Fatalf("runtime import refusal must not be recorded as an unresolved capability: %q", diagnostic.GetMessage())
+		}
+	}
+
 	protectedViews := ResolveSource("vrooli = 1", knownNames, analyzerPath())
 	if protectedViews == nil {
 		t.Skip("analyzer unavailable in this environment")

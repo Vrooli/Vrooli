@@ -90,7 +90,8 @@ func exerciseMatchesBinding(observation ExerciseObservation, binding interface {
 	GetCommand() string
 	GetService() string
 	GetMethod() string
-}) bool {
+},
+) bool {
 	operation := strings.ToLower(strings.TrimSpace(observation.Operation))
 	if operation == "" {
 		return false
@@ -120,17 +121,18 @@ func exerciseForBinding(binding interface {
 	GetCommand() string
 	GetService() string
 	GetMethod() string
-}, observations []ExerciseObservation, available bool) *bindingsv1.ExerciseCondition {
+}, observations []ExerciseObservation, available bool,
+) *bindingsv1.ExerciseCondition {
 	if !available {
 		return &bindingsv1.ExerciseCondition{Family: &bindingsv1.ConditionFamily{
 			Status: bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED,
 			Reason: "exercise receipt aggregate unavailable",
-		}}
+		}, Basis: receiptExerciseBasis}
 	}
 	exercise := &bindingsv1.ExerciseCondition{Family: &bindingsv1.ConditionFamily{
 		Status: bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT,
 		Reason: "exercise.invocations=0",
-	}}
+	}, Basis: receiptExerciseBasis}
 	for _, observation := range observations {
 		if !exerciseMatchesBinding(observation, binding) {
 			continue

@@ -296,10 +296,12 @@ else:
 
 ## Typed inference and contract aliases
 
-The typed inference helpers accept the model-friendly `text=` alias in addition
-to the canonical `source=` spelling. `describe` likewise accepts
+The typed inference helpers accept the model-friendly `text=` and `texts=`
+aliases in addition to the canonical `source=` spelling. The plural spelling
+is especially useful for `ai.classify(texts=[...])`, which uses the governed
+batch route. `describe` likewise accepts
 `binding_id=` in addition to `binding=`. Both spellings are additive and
-backward-compatible; passing both spellings in one call fails with a `TypeError`
+backward-compatible; passing multiple spellings in one call fails with a `TypeError`
 that names the collision rather than choosing silently.
 
 ```python
@@ -322,9 +324,9 @@ optional depth only; use `describe` or `discover` for a binding id.
 | Verb | What it does |
 |---|---|
 | `discover(intent, mode=)` | One governed binding for an intent, or an explicit null verdict. |
-| `recall(intent, depth="fast")` | Governed records and docs through search-hub. `depth="deep"` widens the result set. |
-| `validate(scenario, depth="fast")` | The **latest recorded** test-genie run verdicts for a scenario. |
-| `capture(text, kind="note")` | Writes to vrooli-memory. `kind="work-record"` also accepts `trigger`, `approach`, `evidence`, `outcome`. |
+| `recall(intent, depth="fast", rows="ranked")` | Search-hub's selected repeated response field; `ranked` is the default. `query=` is an additive alias for `intent=`. `depth="deep"` widens the result set. |
+| `validate(scenario, depth="fast", rows="runs")` | The latest recorded test-genie run rows; `runs` is the default. It does not start a run. |
+| `capture(text, kind="note")` | A one-row Handle containing the append response because the operation has no repeated response field. `kind="work-record"` also accepts `trigger`, `approach`, `evidence`, `outcome`. |
 | `ai.classify / extract / judge / write / batch` | Bounded typed inference through ai-gateway, schema-validated locally. `classify`, `extract`, and `judge` are deterministic and refuse a caller-supplied `temperature`; only `ai.write` accepts `temperature=` and `max_output_tokens=`. |
 | `agent.start / collect / run` | A delegated agent-manager run and its evidence. |
 | `gather(*callables)` | Concurrent fan-out. |
@@ -334,6 +336,17 @@ optional depth only; use `describe` or `discover` for a binding id.
 
 Each verb takes its primary argument positionally or by keyword:
 `recall("retention")` and `recall(intent="retention")` are the same call.
+The measured model-facing form `recall(query="retention")` is also accepted.
+`validate` accepts `scenario=` and `capture` accepts `text=`. Supplying two
+spellings of one value raises a `TypeError`; an unknown keyword names the
+offending keyword and lists the accepted keywords so the caller can recover
+without guessing.
+Runtime verbs project the operation's rows directly. Non-row response fields
+and the `verb`, `binding_id`, and `owner` identity are available through
+`meta()`; `raw()` returns the decoded owning-operation response. When an
+operation has several repeated response fields, `rows="<field>"` overrides the
+documented default. An invalid field fails closed and lists the available
+repeated fields.
 
 **`validate` reads; it does not start a run.** Starting a run is a write that
 test-genie exposes as run-ineligible, so no governed binding exists for it.

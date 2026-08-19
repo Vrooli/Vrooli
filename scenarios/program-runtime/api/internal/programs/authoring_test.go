@@ -117,6 +117,9 @@ func TestAuthoringOraclesUseDeclaredFields(t *testing.T) {
 	if satisfiesOracle(AuthoringOracle{Kind: "null_verdict"}, "binding-id") {
 		t.Fatal("null_verdict must not accept an arbitrary successful binding")
 	}
+	if !satisfiesOracle(AuthoringOracle{Kind: "null_verdict"}, "no capability") {
+		t.Fatal("null_verdict must accept the exact safe-stop answer requested by the corpus")
+	}
 }
 
 func TestAuthoringEvalCountsWrongResultSeparatelyFromFailure(t *testing.T) {
@@ -131,6 +134,14 @@ func TestAuthoringEvalCountsWrongResultSeparatelyFromFailure(t *testing.T) {
 	if result.WrongResult != 2 || result.Met != 0 || result.Missed != 0 {
 		t.Fatalf("a program that ran but answered wrongly is wrong_result, got met=%d missed=%d wrong=%d",
 			result.Met, result.Missed, result.WrongResult)
+	}
+	if len(result.RuleMisses) != 1 || result.RuleMisses[0].RuleID != "unattributed" || result.RuleMisses[0].Count != 2 {
+		t.Fatalf("wrong results must be explicitly counted, got %#v", result.RuleMisses)
+	}
+	for _, item := range result.Cases {
+		if item.RuleID != "unattributed" || item.FailureDetail == "" {
+			t.Fatalf("wrong result must retain explicit attribution evidence, got %#v", item)
+		}
 	}
 }
 
@@ -148,6 +159,31 @@ func TestAuthoringEvalCountsFailedProgramAsMissed(t *testing.T) {
 	}
 	if result.Cases[0].Cause != "unresolved_name" {
 		t.Fatalf("the failure cause must be retained per case, got %q", result.Cases[0].Cause)
+	}
+	if result.Cases[0].RuleID != "unattributed" {
+		t.Fatalf("an unmatched failure must not be guessed, got %q", result.Cases[0].RuleID)
+	}
+	if len(result.RuleMisses) != 1 || result.RuleMisses[0].Count != 2 {
+		t.Fatalf("per-rule counts must sum to missed cases, got %#v", result.RuleMisses)
+	}
+}
+
+func TestAuthoringEvalAttributesRecordedHarnessFailure(t *testing.T) {
+	deps := AuthoringDeps{
+		SuitePath: writeSuite(t, AuthoringSuite{Name: "attribution", Cases: []AuthoringCase{{
+			ID: "ambiguous", Task: "call", Oracle: AuthoringOracle{Kind: "stdout_contains", Text: "ok"},
+		}}}),
+		Author: func(_ context.Context, _, _ string) (string, string, error) { return "call()", "m", nil },
+		RunCase: func(_ context.Context, _, _ string) (string, string, int64, string, error) {
+			return "", "ambiguous_response", 0, "binding search-hub/query/query has no determinable primary response field", nil
+		},
+	}
+	result := RunAuthoringEval(context.Background(), deps)
+	if result.Missed != 1 || result.Cases[0].RuleID != "rows-field-for-ambiguous" {
+		t.Fatalf("expected recorded failure to resolve to rows-field rule, got %#v", result)
+	}
+	if len(result.RuleMisses) != 1 || result.RuleMisses[0].RuleID != "rows-field-for-ambiguous" || result.RuleMisses[0].Count != 1 {
+		t.Fatalf("expected one attributed miss, got %#v", result.RuleMisses)
 	}
 }
 

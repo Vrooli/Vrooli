@@ -36,7 +36,17 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			}
 			return r.Msg, nil
 		}, func(_ cliapp.OperationContext, result *programsv1.RunAuthoringEvalResponse) cliapp.ListReport {
-			return cliapp.ListReport{Summary: []string{fmt.Sprintf("Authoring eval: status=%s met=%d floor=%d.", result.GetStatus(), result.GetMet(), result.GetFloor())}}
+			summary := []string{fmt.Sprintf("Authoring eval: status=%s met=%d floor=%d.", result.GetStatus(), result.GetMet(), result.GetFloor())}
+			for _, miss := range result.GetRuleMisses() {
+				summary = append(summary, fmt.Sprintf("Rule miss: %s=%d.", miss.GetRuleId(), miss.GetCount()))
+			}
+			for _, item := range result.GetResults() {
+				if item.GetFirstAttemptOk() {
+					continue
+				}
+				summary = append(summary, fmt.Sprintf("Case %s: rule=%s cause=%s detail=%s", item.GetCaseId(), item.GetRuleId(), item.GetCause(), item.GetFailureDetail()))
+			}
+			return cliapp.ListReport{Summary: summary}
 		}),
 	})
 }

@@ -72,6 +72,33 @@ func TestRuleIDsAreUnique(t *testing.T) {
 	}
 }
 
+func TestEveryDeclaredFailureSignatureResolvesToItsRule(t *testing.T) {
+	contract := Load()
+	for _, rule := range contract.Rules {
+		for _, signature := range rule.Signatures {
+			if got := contract.ResolveFailure(signature.Cause, signature.Example); got != rule.ID {
+				t.Fatalf("signature for rule %q resolved to %q (cause=%q detail=%q)", rule.ID, got, signature.Cause, signature.Example)
+			}
+		}
+	}
+}
+
+func TestFailureAttributionIsExplicitWhenAbsentOrAmbiguous(t *testing.T) {
+	contract := Contract{Rules: []Rule{
+		{ID: "first", Signatures: []FailureSignature{{Cause: "kernel_runtime", DetailPattern: "unexpected keyword"}}},
+		{ID: "second", Signatures: []FailureSignature{{Cause: "kernel_runtime", DetailPattern: "keyword 'topic'"}}},
+	}}
+	if got := contract.ResolveFailure("kernel_runtime", "unexpected keyword 'other'"); got != "first" {
+		t.Fatalf("single match should resolve, got %q", got)
+	}
+	if got := contract.ResolveFailure("kernel_runtime", "unexpected keyword 'topic'"); got != UnattributedRuleID {
+		t.Fatalf("ambiguous match must not use contract order as precedence, got %q", got)
+	}
+	if got := contract.ResolveFailure("kernel_runtime", "unrecognized failure"); got != UnattributedRuleID {
+		t.Fatalf("missing match must be explicit, got %q", got)
+	}
+}
+
 // TestInstructionCarriesEveryRule: the brief is generated, so a rule cannot be
 // declared and then silently left out of what the model actually reads.
 func TestInstructionCarriesEveryRule(t *testing.T) {

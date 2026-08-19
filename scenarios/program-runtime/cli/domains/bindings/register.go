@@ -85,9 +85,11 @@ func (h *handlers) conditionReport(_ cliapp.OperationContext, r *bindingsv1.GetB
 		if c.GetSustainedDegradation() {
 			sustained = "; sustained=" + c.GetSustainedDegradationReason()
 		}
-		items = append(items, fmt.Sprintf("%s — %s (%s; p50=%dms p95=%dms invocations=%d%s)", c.GetBindingId(), status, c.GetVerdict(), c.GetServing().GetLatencyP50Ms(), c.GetServing().GetLatencyP95Ms(), c.GetExercise().GetInvocations(), sustained))
+		items = append(items, fmt.Sprintf("%s — %s (%s; p50=%dms p95=%dms receipt_invocations=%d basis=%s%s)", c.GetBindingId(), status, c.GetVerdict(), c.GetServing().GetLatencyP50Ms(), c.GetServing().GetLatencyP95Ms(), c.GetExercise().GetInvocations(), c.GetExercise().GetBasis(), sustained))
 	}
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Binding conditions: verdicts healthy=%d degraded=%d dormant=%d uninstrumented=%d; instrumented=%d/%d; window: %ds.", verdicts["CONDITION_STATUS_HEALTHY"], verdicts["CONDITION_STATUS_DEGRADED"], verdicts["CONDITION_STATUS_DORMANT"], verdicts["CONDITION_STATUS_UNINSTRUMENTED"], r.GetInstrumentedBindings(), r.GetTotalBindings(), r.GetWindowSeconds())}, ResultsHeading: "Conditions", Results: items}
+	ledger := r.GetLedgerExercise()
+	receipts := r.GetReceiptExercise()
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Binding conditions: verdicts healthy=%d degraded=%d dormant=%d uninstrumented=%d; ledger instrumented=%d/%d invocations=%d basis=%s; receipts instrumented=%d/%d invocations=%d basis=%s; window: %ds.", verdicts["CONDITION_STATUS_HEALTHY"], verdicts["CONDITION_STATUS_DEGRADED"], verdicts["CONDITION_STATUS_DORMANT"], verdicts["CONDITION_STATUS_UNINSTRUMENTED"], ledger.GetInstrumentedBindings(), ledger.GetTotalBindings(), ledger.GetInvocations(), ledger.GetBasis(), receipts.GetInstrumentedBindings(), receipts.GetTotalBindings(), receipts.GetInvocations(), receipts.GetBasis(), r.GetWindowSeconds())}, ResultsHeading: "Conditions", Results: items}
 }
 
 func (h *handlers) list(ctx cliapp.OperationContext) (*bindingsv1.ListBindingsResponse, error) {

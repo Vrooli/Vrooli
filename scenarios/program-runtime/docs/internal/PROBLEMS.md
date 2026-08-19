@@ -334,17 +334,21 @@ reported as cross-stamp evidence rather than a like-for-like claim.
 
 **Refs:** `evals/authoring.primary.json`, `internal/harness/contract.json`.
 
-### 2026-08-18 — BLOCKED EXTERNAL: project control-plane authoring case
+### 2026-08-18 — RESOLVED: project control-plane authoring case
 
 The `project-cli` corpus case correctly authors
-`vrooli.scenario.status(name="program-runtime")`, but the live root
-`vrooli-api` returns HTTP 500 because its binary expects runtime-registry schema
-7 while the database is schema 8. `vrooli develop --environment development
---resources none --scenarios none` was attempted through the supported
-lifecycle, but setup stopped on the existing sudo-owned onboarding requirement
-before it could refresh the already-running root API. This case is retained as
-a real integration signal; it is not counted as a Program Runtime surface
-defect, and the 9/12 measurements remain honest about it.
+`vrooli.scenario.status(name="program-runtime")`. It previously reached a stale
+root `vrooli-api` that supported runtime-registry schema 7 after the database
+had advanced to schema 8, producing an opaque HTTP 500 while the freshly built
+CLI path succeeded.
+
+The root API is now current and the live program succeeds. The forward-schema
+guard remains strict because an older writer must not mutate state whose newer
+operational semantics it does not understand. The guard is now a typed
+`SchemaCompatibilityError`; the Connect status path maps it to
+`failed_precondition` with a supported `vrooli develop` rebuild instruction,
+and tests pin both the storage and transport contracts. The corpus case remains
+as an integration signal.
 
 **Owner:** project control plane / operator.
 

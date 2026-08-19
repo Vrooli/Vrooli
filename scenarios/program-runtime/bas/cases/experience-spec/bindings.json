@@ -41,6 +41,30 @@
         },
         "metadata": { "label": "Bindings page visible" }
       }
+    },
+    {
+      "id": "wait-binding-registry-lifecycle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"binding-registry\"][data-experience-state=\"loading\"], [data-experience-surface=\"binding-registry\"][data-experience-state=\"ready\"], [data-experience-surface=\"binding-registry\"][data-experience-state=\"empty\"], [data-experience-surface=\"binding-registry\"][data-experience-state=\"partial\"], [data-experience-surface=\"binding-registry\"][data-experience-state=\"error\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Binding registry exposes its authored lifecycle" }
+      }
+    },
+    {
+      "id": "wait-binding-registry-terminal",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"binding-registry\"][data-experience-state=\"ready\"], [data-experience-surface=\"binding-registry\"][data-experience-state=\"empty\"], [data-experience-surface=\"binding-registry\"][data-experience-state=\"partial\"], [data-experience-surface=\"binding-registry\"][data-experience-state=\"error\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Binding registry reaches an authored terminal state" }
+      }
     }
   ]
 }

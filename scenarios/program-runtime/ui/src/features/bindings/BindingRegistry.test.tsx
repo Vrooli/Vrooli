@@ -15,6 +15,7 @@ describe("BindingRegistry", () => {
     renderWithProviders(<BindingRegistry />);
     expect(await screen.findByText("fixture/list")).toBeInTheDocument();
     expect(await screen.findByText("no manifest")).toBeInTheDocument();
+    expect(screen.getByTestId("bindings-registry")).toHaveAttribute("data-experience-state", "ready");
   });
 
   it("renders explicit empty states", async () => {
@@ -23,6 +24,7 @@ describe("BindingRegistry", () => {
     renderWithProviders(<BindingRegistry />);
     expect(await screen.findByText("No governed bindings resolved.")).toBeInTheDocument();
     expect(await screen.findByText("No unbound capabilities reported.")).toBeInTheDocument();
+    expect(screen.getByTestId("bindings-registry")).toHaveAttribute("data-experience-state", "empty");
   });
 
   it("renders a structured request failure", async () => {
@@ -31,5 +33,6 @@ describe("BindingRegistry", () => {
     renderWithProviders(<BindingRegistry />);
     expect(await screen.findByRole("alert")).toHaveTextContent("registry unavailable");
     expect(await screen.findByText("No unbound capabilities reported.")).toBeInTheDocument();
+    expect(screen.getByTestId("bindings-registry")).toHaveAttribute("data-experience-state", "error");
   });
 });

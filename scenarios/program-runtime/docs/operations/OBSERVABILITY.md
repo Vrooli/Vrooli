@@ -22,7 +22,32 @@ Use this document to answer:
 | Typed inference usage | usage | ai-gateway `Usage` | enforce and explain per-session inference budgets | `cost_micros`, input tokens, and output tokens remain within configured ceilings |
 | Delegated-run spend | usage | agent-manager run receipts | enforce and explain the separate delegated-run budget | delegated usage remains within its configured ceiling |
 | Binding reachability | diagnostic | `program-runtime bindings doctor` | distinguish absent manifests from a stopped owner | unreachable count is investigated, not treated as unbound |
+| Binding exercise | empirical | `program-runtime bindings condition --json` | report local runtime use and fleet-wide serving receipts without conflating their populations | inspect `ledger_exercise` and `receipt_exercise` separately; never add them |
 | Friction evidence | empirical | `programs mine`, `mine-refusals`, `mine-unresolved` | feed recurring runtime failures to meta-optimization-manager | durable shapes have a recent locator |
+
+### Binding exercise bases
+
+`bindings condition` reports two independent instrumentation summaries:
+
+- `ledger_exercise` has basis `local_invocation_ledger`. It counts bindings
+  Program Runtime attempted through its governed execution path, including
+  operator sweeps. This is the repeatable local exercise signal.
+- `receipt_exercise` has basis `fleet_receipt_aggregate`. It counts bindings
+  matched to durable receipts served across the fleet, including calls made
+  outside Program Runtime.
+
+The populations overlap and neither contains the other, so they must never be
+summed. Each summary carries its own instrumented-binding count, total-binding
+denominator, and invocation count. Per-binding condition verdicts use the
+receipt basis and name that basis in their typed `exercise` field. The
+deprecated top-level `instrumented_bindings` field remains only as a
+receipt-basis compatibility alias for older clients.
+
+`bindings sweep --dry-run --json` shows the read-effect population without
+calling it; `bindings sweep --execute --json` invokes only reachable,
+argument-populatable read bindings and records `PROVENANCE_OPERATOR` with
+program id `sweep`. That provenance contributes to ledger exercise but is
+excluded from the default friction-mining corpus.
 
 ## Logs
 

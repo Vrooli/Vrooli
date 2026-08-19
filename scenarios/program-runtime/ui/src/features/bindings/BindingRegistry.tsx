@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchBindings, fetchUnbound } from "../../api/bindings";
+import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { StatusBadge } from "../../components/ui/status-badge";
 import { selectors } from "../../consts/selectors";
@@ -9,9 +10,25 @@ export function BindingRegistry() {
   const bound = useQuery({ queryKey: ["bindings"], queryFn: fetchBindings });
   const unbound = useQuery({ queryKey: ["bindings", "unbound"], queryFn: fetchUnbound });
   const error = bound.error ?? unbound.error;
+  const state: ExperienceSurfaceState = error
+    ? "error"
+    : bound.isLoading || unbound.isLoading
+      ? bound.data || unbound.data
+        ? "partial"
+        : "loading"
+      : bound.data?.length || unbound.data?.length
+        ? "ready"
+        : "empty";
 
   return (
-    <section data-testid={selectors.bindings.registry} aria-labelledby="binding-registry-heading" className="grid gap-4 lg:grid-cols-2">
+    <ExperienceSurface
+      surfaceId="binding-registry"
+      state={state}
+      statusMessage={state === "error" ? "Binding registry unavailable" : "Binding registry is loading"}
+      data-testid={selectors.bindings.registry}
+      aria-labelledby="binding-registry-heading"
+      className="grid gap-4 lg:grid-cols-2"
+    >
       <Card>
         <CardHeader>
           <CardTitle id="binding-registry-heading">Governed callable registry</CardTitle>
@@ -59,6 +76,6 @@ export function BindingRegistry() {
           )}
         </CardContent>
       </Card>
-    </section>
+    </ExperienceSurface>
   );
 }

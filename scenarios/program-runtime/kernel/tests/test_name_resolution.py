@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parents[1]))
 
 import pytest  # noqa: E402
 
-from host import engine  # noqa: E402
+from host import analyze, engine  # noqa: E402
 from host.safebuiltins import SAFE_BUILTIN_NAMES  # noqa: E402
 
 
@@ -83,3 +83,20 @@ def test_common_exceptions_are_available_to_programs():
 def test_analyzer_and_kernel_share_one_builtin_surface():
     """Two lists would let the analyzer refuse a name the kernel resolves."""
     assert set(engine._SAFE_BUILTINS) >= set(SAFE_BUILTIN_NAMES) - {"__spec__"}
+
+
+def test_analyzer_reports_import_roots_without_changing_scope_analysis():
+    result = analyze.analyze(
+        "import vrooli\n"
+        "from vrooli import recall\n"
+        "import json as payload\n"
+        "print(payload.dumps({}))\n"
+    )
+
+    assert result["imports"] == [
+        {"name": "vrooli", "line": 1},
+        {"name": "vrooli", "line": 2},
+        {"name": "json", "line": 3},
+    ]
+    assert result["free"] == []
+    assert {entry["name"] for entry in result["bound"]} >= {"vrooli", "recall", "payload"}
