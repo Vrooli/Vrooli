@@ -26,6 +26,7 @@ import (
 	evidenceH "treasury/handlers/evidence"
 	mandateH "treasury/handlers/mandate"
 	treasuryadminH "treasury/handlers/treasuryadmin"
+	x402gateH "treasury/handlers/x402gate"
 
 	apidb "github.com/vrooli/api-core/database"
 	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
@@ -45,6 +46,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, capsH.Endpoints...)
 	out = append(out, agentspendH.Endpoints...)
 	out = append(out, treasuryadminH.Endpoints...)
+	out = append(out, x402gateH.Endpoints...)
 	return out
 }
 
@@ -91,6 +93,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(mandateH.Schema),
 		apidb.SchemaProviderFunc(agentspendH.Schema),
 		apidb.SchemaProviderFunc(treasuryadminH.Schema),
+		apidb.SchemaProviderFunc(x402gateH.Schema),
 		apidb.SchemaProviderFunc(evidenceH.Schema),
 	}
 }

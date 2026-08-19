@@ -1,6 +1,7 @@
 import {
   createBrowserRouter,
   createMemoryRouter,
+  Navigate,
   RouterProvider,
   type RouteObject,
 } from "react-router-dom";
@@ -22,6 +23,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "settings", element: <SettingsPage /> },
+      { path: "*", element: <Navigate to="/" replace /> },
     ],
   },
 ];

@@ -15,9 +15,9 @@ describe("AppRouter", () => {
     cleanup();
   });
 
-  it("renders the dashboard at /", () => {
+  it("renders the approval queue at /", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.approvals)).toBeInTheDocument();
   });
 
   it("renders the settings page at /settings", () => {

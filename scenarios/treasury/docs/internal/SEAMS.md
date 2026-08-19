@@ -145,7 +145,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Vendor-neutral value movement and outcome query |
-| **Interface** | `internal/rail/service.go::Adapter` (`Settle`, `Query`) over mandate-bearing rail-neutral command/result types. |
+| **Interface** | `internal/rail/service.go::Adapter` (`Settle`, `QueryOutcome`) over mandate-bearing rail-neutral command/result types. |
 | **Production wiring** | `main.go` registers `rail/manual.Adapter` in `rail.Registry`; the registry wraps every adapter with mandatory contract validation before dispatch. |
 | **Test fake** | `internal/rail/contract_test.go::automatedFixture` proves an automated implementation and the manual adapter produce the same downstream result envelope. |
 | **Why it exists** | Settlement must not branch on vendors or give the human-operated path weaker authority. Central guarding makes a missing mandate fail before any registered adapter can execute. |
@@ -159,6 +159,26 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Production wiring** | `main.go` constructs the repository-standard typed credential client over the Vrooli credential authority and injects `instrument.CredentialClientResolver`; unavailable authority wires a fail-closed resolver. |
 | **Test fake** | Instrument tests record the requested logical reference and return an in-memory value, then prove that value never appears in SQLite. |
 | **Why it exists** | Instrument rows and API responses may contain scope but never credential material. Re-resolving only after revalidating the live mandate keeps revocation and expiry effective at the last safe boundary. |
+
+### settlement execution ports
+
+| | |
+|---|---|
+| **Seam** | Durable exactly-once claim and governed execution dependencies |
+| **Interface** | `internal/settlement/repository.go::Repository` (`Claim`, atomic `Complete`, idempotent reads) plus the narrow `Authorizations`, `Instruments`, and `Rails` ports in `internal/settlement/service.go`. `Complete` receives immutable evidence artifacts and commits terminal outcome, evidence, and ledger outbox together. |
+| **Production wiring** | `handlers/agentspend.Module` wires automated settlement with live agent verification; `handlers/treasuryadmin.Module` wires operator-attested manual settlement behind `operatorauth.Authorizer`. Both share the routed SQLite repository, instrument service, guarded rail registry, and clock. |
+| **Test fake** | Settlement tests use real SQLite and real authorization/instrument services, substituting only the credential resolver, identity verifier, and deterministic rail adapter; adapter counters prove one dispatch under concurrency. |
+| **Why it exists** | The database must fence the external side effect before it happens, while tests must force timeout, cancellation, query resolution, and simultaneous retry deterministically. The service consumes only stored authority and never accepts a caller-owned outcome. |
+
+### ledger.Emitter
+
+| | |
+|---|---|
+| **Seam** | Idempotent Money Ledger delivery |
+| **Interface** | `internal/ledger/service.go::Emitter` (`Emit(ctx, Emission) (duplicate, error)`) and `ledger.Repository` for queued/accepted delivery state. |
+| **Production wiring** | `main.go` constructs the generated Money Ledger Connect client from explicit origin/book/account configuration and runs the durable dispatcher every five seconds. Missing or unreachable configuration wires `UnavailableEmitter`; settlement remains available and the outbox remains queued. |
+| **Test fake** | Ledger tests inject a sequenced emitter to force outage then recovery; a generated in-process Money Ledger handler proves exact event shape and duplicate acceptance. |
+| **Why it exists** | The downstream journal cannot participate in Treasury's SQLite transaction. A local outbox plus stable external id converts transport retry into destination-side deduplication without ever rolling back money that already moved. |
 
 ### Pinger (database reachability)
 

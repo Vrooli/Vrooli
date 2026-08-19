@@ -19,3 +19,14 @@ CREATE TABLE IF NOT EXISTS budget_scope_entries (
     effect TEXT NOT NULL CHECK (effect IN ('allow', 'deny')),
     PRIMARY KEY (budget_id, counterparty, effect)
 );
+
+-- Book and scenario freezes are domain-owned controls with soft book IDs.
+-- Budget-local freeze remains on budgets because it is part of that entity.
+CREATE TABLE IF NOT EXISTS freeze_controls (
+    scope TEXT NOT NULL CHECK (scope IN ('book', 'scenario')),
+    scope_id TEXT NOT NULL CHECK (length(trim(scope_id)) > 0),
+    frozen INTEGER NOT NULL CHECK (frozen IN (0, 1)),
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (scope, scope_id),
+    CHECK ((scope = 'scenario' AND scope_id = '*') OR (scope = 'book' AND scope_id <> '*'))
+);

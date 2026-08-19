@@ -53,6 +53,26 @@
       ]
     }
   },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/treasury",
+        "field": "operator-token",
+        "env": "TREASURY_OPERATOR_TOKEN",
+        "label": "Treasury operator API token",
+        "description": "Authenticates the local operator realm. Agent credentials are always rejected at this boundary.",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/treasury",
+        "field": "mandate-signing-key",
+        "env": "TREASURY_MANDATE_SIGNING_KEY",
+        "label": "Treasury mandate signing key",
+        "description": "Signs canonical immutable mandate payloads and is intentionally independent from the operator API credential.",
+        "required": true
+      }
+    ]
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -195,7 +215,15 @@
     }
   },
   "dependencies": {
-    "resources": {},
+    "resources": {
+      "x402-facilitator": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Self-hosted x402 v2 facilitator used by both outbound payment and inbound earning adapters. It starts fail-closed with no supported network until an operator provisions a signer and explicit RPC route.",
+        "degraded_behavior": "P0 manual settlement and all non-x402 paths remain available. Automated x402 spend and earning refuse while the facilitator is unavailable or has no configured network."
+      }
+    },
     "scenarios": {
       "agent-manager": {
         "type": "scenario",

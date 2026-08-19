@@ -76,13 +76,25 @@
       "testId": "theme-select",
       "selector": "[data-testid=\"theme-select\"]"
     },
-    "pages.dashboard": {
-      "testId": "page-dashboard",
-      "selector": "[data-testid=\"page-dashboard\"]"
+    "pages.approvals": {
+      "testId": "page-approvals",
+      "selector": "[data-testid=\"page-approvals\"]"
     },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
+    },
+    "approvals.tokenInput": {
+      "testId": "approvals-token-input",
+      "selector": "[data-testid=\"approvals-token-input\"]"
+    },
+    "approvals.openQueueButton": {
+      "testId": "approvals-open-queue",
+      "selector": "[data-testid=\"approvals-open-queue\"]"
+    },
+    "approvals.queue": {
+      "testId": "approvals-queue",
+      "selector": "[data-testid=\"approvals-queue\"]"
     },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
@@ -103,7 +115,7 @@
           "name": "key",
           "type": "enum",
           "values": [
-            "dashboard",
+            "approvals",
             "settings"
           ]
         }
@@ -118,7 +130,7 @@
           "name": "key",
           "type": "enum",
           "values": [
-            "dashboard",
+            "approvals",
             "settings"
           ]
         }
@@ -152,6 +164,36 @@
             "en",
             "ja",
             "ar"
+          ]
+        }
+      ]
+    },
+    "approvals.item": {
+      "description": "Pending approval card by approval identifier",
+      "selectorPattern": "[data-testid=\"approval-${id}\"]",
+      "testIdPattern": "approval-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "approvals.action": {
+      "description": "Approval decision button by approval identifier and action",
+      "selectorPattern": "[data-testid=\"approval-${id}-${action}\"]",
+      "testIdPattern": "approval-${id}-${action}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "action",
+          "type": "enum",
+          "values": [
+            "approve",
+            "decline"
           ]
         }
       ]

@@ -8,9 +8,14 @@ import (
 	"time"
 )
 
-type SQLiteRepository struct{ db *sql.DB }
+type DB interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
 
-func NewSQLiteRepository(db *sql.DB) *SQLiteRepository { return &SQLiteRepository{db: db} }
+type SQLiteRepository struct{ db DB }
+
+func NewSQLiteRepository(db DB) *SQLiteRepository { return &SQLiteRepository{db: db} }
 
 func (r *SQLiteRepository) Create(ctx context.Context, value Book) (Book, error) {
 	tx, err := r.db.BeginTx(ctx, nil)

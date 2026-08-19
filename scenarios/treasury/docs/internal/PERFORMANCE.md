@@ -29,7 +29,23 @@ Use this document to answer:
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet. | n/a | n/a | 2026-08-18 |
+| Inbound x402 admission, 32 concurrent unique payers | 532.8-560.4 ms total over five runs (median 541.0 ms); 0 lock-timeout failures; 32 receipts and 32 inflow outbox rows per run | `go test -run TestConcurrentInboundPayersMeasureSQLiteContention -count=5 -v ./internal/rail/x402` | 2026-08-19 |
+
+### SQLite migration-trigger observation
+
+The declared trigger was **not reached** in this observation. Thirty-two
+simultaneous inbound payers completed through a single SQLite connection with
+WAL enabled, each committing a durable admission and Money Ledger outbox row,
+without a lock-timeout failure. The median batch elapsed time was 541.0 ms
+(about 59 admissions/second for this bounded local fixture).
+
+This is a baseline, not a capacity claim. The fixture gives the facilitator a
+1 ms response delay and does not reproduce public-chain latency, filesystem
+variance, or production request bodies. Re-run the same test at higher
+concurrency and under the deployed storage path. Reconsider SQLite when
+lock-timeout failures appear, when admission tail latency harms paid callers,
+or when measured external payer volume approaches the observed serialized
+write envelope.
 
 ## Known Constraints
 

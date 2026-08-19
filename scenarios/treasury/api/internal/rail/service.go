@@ -51,8 +51,12 @@ type SettleCommand struct {
 type Query struct {
 	SettlementID     string
 	MandateReference string
+	InstrumentID     string
 	ExternalID       string
+	ReceiptReference string
 	IdempotencyKey   string
+	Counterparty     string
+	Credential       string
 }
 
 // Result is deliberately adapter-neutral. Settlement, evidence, and ledger
@@ -69,7 +73,7 @@ type Result struct {
 type Adapter interface {
 	Name() string
 	Settle(context.Context, SettleCommand) (Result, error)
-	Query(context.Context, Query) (Result, error)
+	QueryOutcome(context.Context, Query) (Result, error)
 }
 
 func ValidateSettle(command SettleCommand) error {
@@ -162,9 +166,9 @@ func (a guardedAdapter) Settle(ctx context.Context, command SettleCommand) (Resu
 	return a.inner.Settle(ctx, command)
 }
 
-func (a guardedAdapter) Query(ctx context.Context, query Query) (Result, error) {
-	if strings.TrimSpace(query.SettlementID) == "" || strings.TrimSpace(query.MandateReference) == "" || (strings.TrimSpace(query.ExternalID) == "" && strings.TrimSpace(query.IdempotencyKey) == "") {
-		return Result{}, fmt.Errorf("%w: settlement_id, mandate_reference, and an external_id or idempotency_key are required for query", ErrInvalid)
+func (a guardedAdapter) QueryOutcome(ctx context.Context, query Query) (Result, error) {
+	if strings.TrimSpace(query.SettlementID) == "" || strings.TrimSpace(query.MandateReference) == "" || strings.TrimSpace(query.IdempotencyKey) == "" {
+		return Result{}, fmt.Errorf("%w: settlement_id, mandate_reference, and idempotency_key are required for query", ErrInvalid)
 	}
-	return a.inner.Query(ctx, query)
+	return a.inner.QueryOutcome(ctx, query)
 }

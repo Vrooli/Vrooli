@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P1 requirements: the rails and the operator controls that make the P0 spine useful against real counterparties. Each assumes the P0 properties rather than re-establishing them.",
-    "last_validated_at": "2026-08-18T21:47:58-04:00",
+    "last_validated_at": "2026-08-19T01:10:21-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -82,7 +82,7 @@
     {
       "id": "TRS-P1-004",
       "title": "Personal and business books",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
       "description": "A mandate should belong to exactly one book, and books should not share instruments, budgets or approval chains",
@@ -104,7 +104,7 @@
     {
       "id": "TRS-P1-005",
       "title": "Standing mandates and obligations",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
       "description": "The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action",
@@ -126,7 +126,7 @@
     {
       "id": "TRS-P1-006",
       "title": "Kill switch",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
       "description": "When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement",

@@ -64,6 +64,10 @@ type Budgets interface {
 	Get(context.Context, string) (budget.Budget, error)
 }
 
+type FreezeReader interface {
+	IsFrozen(context.Context, string, string) (bool, budget.FreezeScope, error)
+}
+
 type DecisionEvidence struct {
 	ID                 string
 	AuthorizationID    string
@@ -72,6 +76,10 @@ type DecisionEvidence struct {
 	Verdict            Verdict
 	ViolatedConstraint string
 	Detail             string
+	IdempotencyKey     string
+	AmountMinor        int64
+	Currency           string
+	Counterparty       string
 	CreatedAt          time.Time
 }
 
@@ -183,7 +191,15 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	if !policy.AllowsCounterparty(in.Counterparty) || !grant.AllowsCounterparty(in.Counterparty) {
 		return s.deny(ctx, in, claims.Subject, now, "counterparty_scope", "use an allowed counterparty or ask the operator to issue a different grant")
 	}
-	if policy.Frozen {
+	if freezes, ok := s.budgets.(FreezeReader); ok {
+		frozen, scope, freezeErr := freezes.IsFrozen(ctx, grant.BookID, policy.ID)
+		if freezeErr != nil {
+			return Record{}, fmt.Errorf("read kill switch: %w", freezeErr)
+		}
+		if frozen {
+			return s.deny(ctx, in, claims.Subject, now, string(scope)+"_frozen", "ask the operator to release the "+string(scope)+" kill switch")
+		}
+	} else if policy.Frozen {
 		return s.deny(ctx, in, claims.Subject, now, "budget_frozen", "ask the operator to unfreeze the budget")
 	}
 	periodStart := periodBoundary(now, policy.Period)
@@ -273,7 +289,7 @@ func (s *Service) deny(ctx context.Context, in ProposeInput, subject string, now
 }
 
 func (s *Service) recordEvidence(ctx context.Context, record Record, detail string) error {
-	return s.evidence.RecordDecision(ctx, DecisionEvidence{ID: record.ID + ":decision", AuthorizationID: record.ID, MandateID: record.MandateID, AgentSubject: record.RequestingAgent, Verdict: record.Verdict, ViolatedConstraint: record.ViolatedConstraint, Detail: detail, CreatedAt: record.CreatedAt})
+	return s.evidence.RecordDecision(ctx, DecisionEvidence{ID: record.ID + ":decision", AuthorizationID: record.ID, MandateID: record.MandateID, AgentSubject: record.RequestingAgent, Verdict: record.Verdict, ViolatedConstraint: record.ViolatedConstraint, Detail: detail, IdempotencyKey: record.IdempotencyKey, AmountMinor: record.AmountMinor, Currency: record.Currency, Counterparty: record.Counterparty, CreatedAt: record.CreatedAt})
 }
 
 func baseRecord(in ProposeInput, now time.Time) Record {

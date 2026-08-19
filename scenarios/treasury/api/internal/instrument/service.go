@@ -64,10 +64,13 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (Instrument, e
 	in.Rail = strings.ToLower(strings.TrimSpace(in.Rail))
 	in.CredentialReference = strings.TrimSpace(in.CredentialReference)
 	in.Counterparty = strings.ToLower(strings.TrimSpace(in.Counterparty))
-	if in.ID == "" || in.MandateID == "" || in.Rail == "" || in.CredentialReference == "" || in.Counterparty == "" {
-		return Instrument{}, fmt.Errorf("%w: id, mandate_id, rail, credential_reference, and counterparty are required", ErrInvalid)
+	if in.Rail == "manual" && in.CredentialReference == "" {
+		in.CredentialReference = "manual/operator-attestation"
 	}
-	if strings.ContainsAny(in.CredentialReference, "=\r\n\t ") || !strings.Contains(in.CredentialReference, "/") {
+	if in.ID == "" || in.MandateID == "" || in.Rail == "" || in.Counterparty == "" || in.Rail != "manual" && in.CredentialReference == "" {
+		return Instrument{}, fmt.Errorf("%w: id, mandate_id, rail, counterparty, and an automated-rail credential_reference are required", ErrInvalid)
+	}
+	if in.CredentialReference != "" && (strings.ContainsAny(in.CredentialReference, "=\r\n\t ") || !strings.Contains(in.CredentialReference, "/")) {
 		return Instrument{}, fmt.Errorf("%w: credential_reference must be a namespaced logical identity", ErrInvalid)
 	}
 	if !s.rails.Has(in.Rail) {
@@ -88,8 +91,8 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (Instrument, e
 // material. The value exists only in the returned in-memory scope and is never
 // passed to persistence or transport DTOs.
 func (s *Service) ResolveForUse(ctx context.Context, id string) (ScopedCredential, error) {
-	if s.repository == nil || s.mandates == nil || s.resolver == nil {
-		return ScopedCredential{}, fmt.Errorf("%w: repository, mandates, and credential resolver are required", ErrInvalid)
+	if s.repository == nil || s.mandates == nil {
+		return ScopedCredential{}, fmt.Errorf("%w: repository and mandates are required", ErrInvalid)
 	}
 	value, err := s.repository.Get(ctx, strings.TrimSpace(id))
 	if err != nil {
@@ -101,6 +104,12 @@ func (s *Service) ResolveForUse(ctx context.Context, id string) (ScopedCredentia
 	}
 	if value.BookID != grant.BookID || value.CapMinor != grant.CapMinor || value.Currency != grant.Currency || !value.ExpiresAt.Equal(grant.ExpiresAt) || !grant.AllowsCounterparty(value.Counterparty) {
 		return ScopedCredential{}, fmt.Errorf("%w: persisted scope no longer matches its mandate", ErrInvalid)
+	}
+	if value.Rail == "manual" {
+		return ScopedCredential{Instrument: value}, nil
+	}
+	if s.resolver == nil {
+		return ScopedCredential{}, fmt.Errorf("%w: automated rail credential resolver is required", ErrInvalid)
 	}
 	secret, err := s.resolver.Resolve(ctx, value.CredentialReference, "value")
 	if err != nil {

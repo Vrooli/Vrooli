@@ -67,7 +67,7 @@ func (r *SQLiteRepository) Claim(ctx context.Context, value Record) (ClaimResult
 	return ClaimResult{Record: stored, Claimed: claimed}, nil
 }
 
-func (r *SQLiteRepository) Complete(ctx context.Context, id string, outcome Outcome, result RailResult, updatedAt, retainUntil string) (Record, error) {
+func (r *SQLiteRepository) Complete(ctx context.Context, id string, outcome Outcome, result RailResult, updatedAt, retainUntil string, artifactValues ...CompletionArtifacts) (Record, error) {
 	if outcome != OutcomeSettled && outcome != OutcomeFailed && outcome != OutcomeUnknown {
 		return Record{}, fmt.Errorf("complete settlement: invalid terminal outcome %q", outcome)
 	}
@@ -75,7 +75,12 @@ func (r *SQLiteRepository) Complete(ctx context.Context, id string, outcome Outc
 	if result.FromQuery {
 		query = `UPDATE settlements SET outcome=?,external_id=?,receipt_reference=?,basis=?,detail=?,occurred_at=?,updated_at=?,retain_until=? WHERE id=? AND outcome='unknown'`
 	}
-	execResult, err := r.exec(ctx, query, string(outcome), result.ExternalID, result.ReceiptReference, result.Basis, result.Detail, formatOptionalTime(result.OccurredAt), updatedAt, retainUntil, id)
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return Record{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	execResult, err := tx.ExecContext(ctx, query, string(outcome), result.ExternalID, result.ReceiptReference, result.Basis, result.Detail, formatOptionalTime(result.OccurredAt), updatedAt, retainUntil, id)
 	if err != nil {
 		return Record{}, err
 	}
@@ -84,29 +89,43 @@ func (r *SQLiteRepository) Complete(ctx context.Context, id string, outcome Outc
 		return Record{}, err
 	}
 	if rows == 0 {
-		current, getErr := r.Get(ctx, id)
+		current, getErr := scanRecord(tx.QueryRowContext(ctx, selectSettlement+` WHERE id=?`, id))
 		if getErr == nil && current.Outcome == outcome {
 			return current, nil
 		}
 		return Record{}, fmt.Errorf("complete settlement: transition rejected from current state")
 	}
-	return r.Get(ctx, id)
-}
-
-func (r *SQLiteRepository) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	stored, err := scanRecord(tx.QueryRowContext(ctx, selectSettlement+` WHERE id=?`, id))
 	if err != nil {
-		return nil, err
+		return Record{}, err
 	}
-	defer func() { _ = tx.Rollback() }()
-	result, err := tx.ExecContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
+	if outcome == OutcomeSettled || outcome == OutcomeFailed {
+		if len(artifactValues) != 1 {
+			return Record{}, errors.New("complete settlement: exactly one immutable artifact snapshot is required")
+		}
+		artifacts := artifactValues[0]
+		if artifacts.AgentSubject == "" || artifacts.RequestJSON == "" || artifacts.RailResponseJSON == "" || artifacts.ReceiptJSON == "" {
+			return Record{}, errors.New("complete settlement: complete immutable artifact snapshot is required")
+		}
+		var approvalID string
+		_ = tx.QueryRowContext(ctx, `SELECT id FROM approval_requests WHERE authorization_id=?`, stored.AuthorizationID).Scan(&approvalID)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO spend_attempt_evidence(id,authorization_id,mandate_id,approval_id,settlement_id,instrument_id,agent_subject,outcome,basis,request_json,rail_response_json,receipt_json,recorded_at,retain_until) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, stored.AuthorizationID+":attempt", stored.AuthorizationID, stored.MandateID, approvalID, stored.ID, stored.InstrumentID, artifacts.AgentSubject, string(outcome), result.Basis, artifacts.RequestJSON, artifacts.RailResponseJSON, artifacts.ReceiptJSON, updatedAt, retainUntil); err != nil {
+			return Record{}, fmt.Errorf("append settlement evidence: %w", err)
+		}
+		if outcome == OutcomeSettled {
+			basis := "authoritative"
+			if result.Basis == "operator_attestation" {
+				basis = "operator_asserted"
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO ledger_emissions(id,settlement_id,external_id,adapter_id,account_id,book_id,amount_minor,currency,basis,occurred_at,fetched_at,description,status,attempts,last_error,created_at,accepted_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,0,'',?,'')`, stored.ID+":ledger", stored.ID, "treasury:"+stored.ID, "treasury", "", "", -stored.AmountMinor, stored.Currency, basis, formatOptionalTime(result.OccurredAt), updatedAt, "Treasury settlement "+stored.ID+" at "+stored.Counterparty, "queued", updatedAt); err != nil {
+				return Record{}, fmt.Errorf("queue money-ledger emission: %w", err)
+			}
+		}
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return Record{}, err
 	}
-	return result, nil
+	return stored, nil
 }
 
 const selectSettlement = `SELECT id,authorization_id,mandate_id,instrument_id,rail,idempotency_key,amount_minor,currency,counterparty,outcome,external_id,receipt_reference,basis,detail,occurred_at,created_at,updated_at,retain_until FROM settlements`

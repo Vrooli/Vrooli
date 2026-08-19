@@ -33,6 +33,11 @@ func TestLocalApprovalResolvesWhileRelayIsUnavailable(t *testing.T) {
 	repository := approval.NewSQLiteRepository(handle)
 	service := approval.NewService(repository, controller, approval.UnavailableRelay{Cause: errors.New("connection refused")}, schedule.NewFake(now))
 	require.NoError(t, service.Admit(ctx, authorization.ApprovalAdmission{ID: "approval-1", AuthorizationID: "auth-1", MandateID: "mandate-1", RequestingAgent: "operator:1", AmountMinor: 500, Currency: "USD", Counterparty: "vendor.example", ExpiresAt: now.Add(time.Hour)}))
+	queued, err := service.List(ctx, approval.StatusQueued)
+	require.NoError(t, err)
+	require.Len(t, queued, 1)
+	require.Equal(t, "approval-1", queued[0].ID)
+	require.Equal(t, now.Add(time.Hour), queued[0].ExpiresAt)
 
 	attempts, err := service.RelayAttempts(ctx, "approval-1")
 	require.NoError(t, err)

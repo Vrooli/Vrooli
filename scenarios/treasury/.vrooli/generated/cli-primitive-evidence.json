@@ -4,13 +4,133 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "treasury",
   "generator": "v1.0.0",
-  "manifest_hash": "6f45c8cc5adac9d1490c680452c048e55adbd3c318c60139e0514249e5f19c72",
+  "manifest_hash": "f2e0f3eeac0bfe01db15d4830f950701611e040097af2a324acc258bc69ac49b",
   "commands": [
+    {
+      "path": "approval list",
+      "group": "approval",
+      "command": "list",
+      "binding": "TreasuryAdmin.ListApprovals"
+    },
+    {
+      "path": "approval resolve",
+      "group": "approval",
+      "command": "resolve",
+      "binding": "TreasuryAdmin.ResolveApproval"
+    },
+    {
+      "path": "authorization get",
+      "group": "authorization",
+      "command": "get",
+      "binding": "AgentSpend.GetAuthorization"
+    },
+    {
+      "path": "authorization propose",
+      "group": "authorization",
+      "command": "propose",
+      "binding": "AgentSpend.ProposeCharge"
+    },
+    {
+      "path": "book create",
+      "group": "book",
+      "command": "create",
+      "binding": "TreasuryAdmin.CreateBook"
+    },
+    {
+      "path": "book get",
+      "group": "book",
+      "command": "get",
+      "binding": "TreasuryAdmin.GetBook"
+    },
+    {
+      "path": "budget freeze",
+      "group": "budget",
+      "command": "freeze",
+      "binding": "TreasuryAdmin.FreezeBudget"
+    },
+    {
+      "path": "budget set-caps",
+      "group": "budget",
+      "command": "set-caps",
+      "binding": "TreasuryAdmin.SetBudgetCaps"
+    },
+    {
+      "path": "budget set-gating",
+      "group": "budget",
+      "command": "set-gating",
+      "binding": "TreasuryAdmin.SetGating"
+    },
+    {
+      "path": "budget unfreeze",
+      "group": "budget",
+      "command": "unfreeze",
+      "binding": "TreasuryAdmin.UnfreezeBudget"
+    },
+    {
+      "path": "evidence describe",
+      "group": "evidence",
+      "command": "describe",
+      "binding": "."
+    },
+    {
+      "path": "identity describe",
+      "group": "identity",
+      "command": "describe",
+      "binding": "."
+    },
+    {
+      "path": "instrument register",
+      "group": "instrument",
+      "command": "register",
+      "binding": "TreasuryAdmin.RegisterInstrument"
+    },
+    {
+      "path": "ledger describe",
+      "group": "ledger",
+      "command": "describe",
+      "binding": "."
+    },
+    {
+      "path": "mandate create",
+      "group": "mandate",
+      "command": "create",
+      "binding": "TreasuryAdmin.CreateMandate"
+    },
+    {
+      "path": "mandate list",
+      "group": "mandate",
+      "command": "list",
+      "binding": "AgentSpend.ListMandates"
+    },
+    {
+      "path": "mandate revoke",
+      "group": "mandate",
+      "command": "revoke",
+      "binding": "TreasuryAdmin.RevokeMandate"
+    },
+    {
+      "path": "rail describe",
+      "group": "rail",
+      "command": "describe",
+      "binding": "."
+    },
     {
       "path": "safety invariants",
       "group": "safety",
       "command": "invariants",
       "binding": "."
+    },
+    {
+      "path": "settlement report-manual",
+      "group": "settlement",
+      "command": "report-manual",
+      "binding": "TreasuryAdmin.ReportManualOutcome"
+    },
+    {
+      "path": "settlement report-outcome",
+      "group": "settlement",
+      "command": "report-outcome",
+      "binding": "AgentSpend.ReportOutcome"
     }
   ]
 }

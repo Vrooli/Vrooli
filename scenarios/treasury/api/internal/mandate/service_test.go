@@ -52,6 +52,28 @@ func (r *memoryRepository) GetByIdempotencyKey(_ context.Context, key string) (m
 	return r.byID[id], nil
 }
 
+func (r *memoryRepository) List(context.Context) ([]mandate.Mandate, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	values := make([]mandate.Mandate, 0, len(r.byID))
+	for _, value := range r.byID {
+		values = append(values, value)
+	}
+	return values, nil
+}
+
+func (r *memoryRepository) UpdateStatus(_ context.Context, id string, from, to flow.MandateStatus) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	value, ok := r.byID[id]
+	if !ok || value.Status != from {
+		return mandate.ErrNotFound
+	}
+	value.Status = to
+	r.byID[id] = value
+	return nil
+}
+
 type fixedSigner struct {
 	signature []byte
 	err       error
@@ -140,4 +162,17 @@ func TestIssueSurfacesSignerFailure(t *testing.T) {
 	service := mandate.NewService(newMemoryRepository(), schedule.NewFake(now), fixedSigner{err: errors.New("signer unavailable")})
 	_, err := service.Issue(context.Background(), validIssue(now))
 	require.ErrorContains(t, err, "sign mandate")
+}
+
+func TestRevokeTransitionsLiveMandateAndIsIdempotent(t *testing.T) {
+	now := time.Now().UTC()
+	service := mandate.NewService(newMemoryRepository(), schedule.NewFake(now), fixedSigner{signature: []byte("signed")})
+	issued, err := service.Issue(context.Background(), validIssue(now))
+	require.NoError(t, err)
+	revoked, err := service.Revoke(context.Background(), issued.ID)
+	require.NoError(t, err)
+	require.Equal(t, flow.MandateRevoked, revoked.Status)
+	retry, err := service.Revoke(context.Background(), issued.ID)
+	require.NoError(t, err)
+	require.Equal(t, revoked, retry)
 }

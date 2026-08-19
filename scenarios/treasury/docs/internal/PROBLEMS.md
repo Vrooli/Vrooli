@@ -141,8 +141,25 @@ operator-realm boundary on every admin method. Phase 5 now verifies the local
 approval queue, optional relay failure isolation, and release on decline or
 expiry. Phase 6 verifies rail uniformity, the no-mandate refusal, manual-rail
 parity, mandate-derived instrument scope, and reference-only credential
-storage. Exactly-once settlement and end-to-end retained evidence remain
-designed until their owning phases.
+storage. Phase 7 now verifies exactly-once settlement, durable ambiguity,
+query-only failure resolution, cancellation-safe outcome recording, and live
+identity rebinding. Complete attempt evidence and ledger emission remain
+designed until Phase 8.
+
+### 2026-08-18 — Storage Manager mistakes a domain Query result for sql.Rows
+
+**Symptom:** Test Genie run `20260819-020951-3b1f6edd` failed Storage with
+`DB_ROWS_NOT_CLOSED` at the assignment from `rail.Adapter.Query`, although the
+method returned a value-typed `rail.Result` and no database cursor existed.
+
+**Workaround:** the rail contract now uses the clearer name `QueryOutcome`.
+Focused `storage-manager validate scenario treasury --json` passes with no
+errors after that rename.
+
+**Real fix:** make the rows-close analyzer resolve the call's return type before
+classifying a method named `Query` as a database cursor.
+
+**Owner:** Storage Manager / scenario-qa `knw-1787106202657008986`.
 
 ### 2026-08-18 — governed install and tidy validation disagree
 
@@ -189,5 +206,5 @@ a migration handoff with a planned retirement path back into
 
 - Rung: W3 / R0
 - Evidence: goal `treasury-full-implementation` points to the active implementation plan and agrees with the PRD's P0/P1 capability set. Test Genie run `20260819-012010-335b29e5` executes all 22 phases (19 pass, 3 fail); contracts, API, architecture, dependencies, docs, unit, storage, business, security, proto, and agent conformance pass. The grant spine, authorization boundary, exact agent descriptor, operator realm, and local approval gate have passing focused, race, real-transport, generated-flow, stopped-dependency, and requirement-linked evidence.
-- Blocker: exactly-once settlement, complete evidence and replay, ledger emission, operator UI, and live-transaction proof remain in the active plan before the final R1/9-of-9 gate. The three comprehensive failures are UI health, workflow, and branding; each maps to a later owning phase rather than a failed financial invariant.
+- Blocker: complete evidence and replay, ledger emission, operator UI, rail providers, and live-transaction proof remain in the active plan before the final R1/9-of-9 gate. Exactly-once settlement now has focused, concurrent, generated-client, formal-check, and replay evidence. The comprehensive suite still carries the three later-owned UI health, workflow, and branding failures plus the governed-installer tidy mismatch recorded above.
 - Measured: 2026-08-18

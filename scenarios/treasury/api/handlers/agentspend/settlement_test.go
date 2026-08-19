@@ -22,6 +22,7 @@ import (
 	"treasury/internal/evidence"
 	"treasury/internal/identity"
 	"treasury/internal/instrument"
+	"treasury/internal/ledger"
 	"treasury/internal/mandate"
 	"treasury/internal/rail"
 	"treasury/internal/settlement"
@@ -34,7 +35,7 @@ func TestReportOutcomeUsesDurableServerOwnedSettlement(t *testing.T) {
 	handle := db.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, handle,
 		database.SchemaProviderFunc(book.Schema), database.SchemaProviderFunc(budget.Schema), database.SchemaProviderFunc(mandate.Schema),
-		database.SchemaProviderFunc(authorization.Schema), database.SchemaProviderFunc(evidence.Schema), database.SchemaProviderFunc(instrument.Schema), database.SchemaProviderFunc(settlement.Schema),
+		database.SchemaProviderFunc(authorization.Schema), database.SchemaProviderFunc(evidence.Schema), database.SchemaProviderFunc(instrument.Schema), database.SchemaProviderFunc(settlement.Schema), database.SchemaProviderFunc(ledger.Schema),
 	))
 	now := time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
 	clock := schedule.NewFake(now)
@@ -97,7 +98,7 @@ func (r *handlerRail) Settle(context.Context, rail.SettleCommand) (rail.Result, 
 	return rail.Result{Outcome: rail.OutcomeSettled, ExternalID: "external-1", ReceiptReference: "receipt-1", Basis: "processor_confirmation", Detail: "confirmed", OccurredAt: time.Date(2026, 8, 18, 12, 0, 1, 0, time.UTC)}, nil
 }
 
-func (*handlerRail) Query(context.Context, rail.Query) (rail.Result, error) {
+func (*handlerRail) QueryOutcome(context.Context, rail.Query) (rail.Result, error) {
 	return rail.Result{Outcome: rail.OutcomeUnknown}, nil
 }
 

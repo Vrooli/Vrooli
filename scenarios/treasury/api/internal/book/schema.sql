@@ -1,3 +1,6 @@
+-- INVARIANT: onlyOperatorBeneficiaryCanBeRepresented
+-- Holding value for a second beneficiary would cross into third-party custody,
+-- a regulated activity Treasury is deliberately unable to represent.
 CREATE TABLE IF NOT EXISTS treasury_beneficiary (
     singleton_key INTEGER PRIMARY KEY CHECK (singleton_key = 1),
     identity TEXT NOT NULL UNIQUE

@@ -1,5 +1,5 @@
 import {
-  Home,
+  ShieldCheck,
   Settings,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -47,7 +47,7 @@ function iconForItem(item: NavItem) {
   switch (item.key) {
     case "settings":
       return <Settings aria-hidden className={iconClass} />;
-    case "dashboard":
-      return <Home aria-hidden className={iconClass} />;
+    case "approvals":
+      return <ShieldCheck aria-hidden className={iconClass} />;
   }
 }

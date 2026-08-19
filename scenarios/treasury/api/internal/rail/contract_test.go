@@ -60,6 +60,6 @@ func (automatedFixture) Settle(_ context.Context, command rail.SettleCommand) (r
 	return rail.Result{Outcome: rail.OutcomeSettled, ExternalID: "processor-1", ReceiptReference: "processor-receipt-1", Basis: "processor_confirmation", OccurredAt: time.Date(2026, 8, 18, 12, 0, 1, 0, time.UTC)}, nil
 }
 
-func (automatedFixture) Query(context.Context, rail.Query) (rail.Result, error) {
+func (automatedFixture) QueryOutcome(context.Context, rail.Query) (rail.Result, error) {
 	return rail.Result{}, nil
 }

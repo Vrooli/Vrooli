@@ -27,6 +27,7 @@ This document does not own:
 - storage details and retention: [`DATA.md`](DATA.md),
 - resource and scenario dependencies: [`INTEGRATIONS.md`](INTEGRATIONS.md),
 - test seams and fakes: [`../internal/SEAMS.md`](../internal/SEAMS.md),
+- cross-domain security and financial-integrity rules: [`../internal/INVARIANTS.md`](../internal/INVARIANTS.md),
 - test strategy: [`../internal/TESTING.md`](../internal/TESTING.md),
 - deployment and operations: [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md),
 - commercial strategy: [`../business/MONETIZATION.md`](../business/MONETIZATION.md).
@@ -229,6 +230,7 @@ question, one canonical home.
 | Telemetry, metrics, and alerts | `docs/operations/OBSERVABILITY.md` |
 | Seams and test doubles | `docs/internal/SEAMS.md` |
 | Testing strategy | `docs/internal/TESTING.md` |
+| Cross-domain invariants | `docs/internal/INVARIANTS.md` |
 | Known drift and deferred work | `docs/internal/PROBLEMS.md` |
 | Change history | `docs/internal/PROGRESS.md` |
 
@@ -248,6 +250,7 @@ Every durable scenario document should be registered in
 - [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — deployment readiness
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — seam registry
 - [`../internal/TESTING.md`](../internal/TESTING.md) — test patterns
+- [`../internal/INVARIANTS.md`](../internal/INVARIANTS.md) — cross-domain enforced rules
 - [`../internal/ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md) — error semantics
 - [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — known issues / tech debt
 - [`../internal/PROGRESS.md`](../internal/PROGRESS.md) — lifecycle log

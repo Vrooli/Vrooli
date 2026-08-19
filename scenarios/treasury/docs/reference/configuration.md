@@ -30,14 +30,49 @@ ports as outbound source ports. See the project-level port allocation reference
 |---|---|---|
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/treasury.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
 | `TREASURY_OPERATOR_TOKEN` | falls back to `API_TOKEN` | Required credential for every `TreasuryAdmin` RPC. When neither variable is set, the admin service remains mounted but fails closed with `failed_precondition`; an agent identity token is always rejected. |
+| `TREASURY_MANDATE_SIGNING_KEY` | unset | HMAC key used only to sign canonical immutable mandate payloads. Missing configuration leaves reads available but makes mandate creation fail closed. Keep it independent from the operator API credential so either authority can rotate without changing the other. |
 | `NOTIFICATION_HUB_API_URL` | unset | Optional approval-relay base URL supplied by scenario dependency discovery. Missing or unreachable relay records a failed attempt while the local approval queue remains authoritative. |
+| `MONEY_LEDGER_API_URL` | unset | Money Ledger Connect origin. Missing or unreachable configuration leaves emissions durably queued and never changes a settlement outcome. |
+| `TREASURY_LEDGER_BOOK_ID` | unset | Existing Money Ledger book that receives settlement events. Required with `MONEY_LEDGER_API_URL`; Treasury never guesses or creates an operator's journal structure. |
+| `TREASURY_LEDGER_ACCOUNT_ID` | unset | Existing Money Ledger account in the configured book. Its currency must match the settlement. Expenses are emitted as negative minor units. |
+| `X402_FACILITATOR_URL` | `http://127.0.0.1:14020` | Self-hosted x402 v2 facilitator origin used for inbound verify/settle calls. Non-loopback origins must use HTTPS. The managed resource starts in an intentionally empty, fail-closed state until an operator provisions a network and signer. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth and fallback `TreasuryAdmin` operator credential. Prefer `TREASURY_OPERATOR_TOKEN` when the two authorities should rotate independently. |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 
-Instrument credentials require no Treasury environment variable. The API uses
+Automated instrument credentials require no Treasury environment variable. The API uses
 the repository-standard typed credential client backed by the lifecycle-managed
 Vrooli credential authority. Instrument rows contain a namespaced logical
 identity only; the client resolves its `value` field in memory at use time.
+The manual rail stores the non-secret marker `manual/operator-attestation` and
+never contacts the credential authority; its receipt enters only through the
+operator-authenticated `TreasuryAdmin.ReportManualOutcome` RPC.
+
+An outbound x402 instrument resolves a strict JSON value from Credential
+Authority. The value is never written to Treasury's database or returned by an
+API:
+
+```json
+{
+  "endpoint_url": "https://merchant.example/paid-resource",
+  "signer_url": "https://operator-wallet.example/rpc",
+  "signer_authorization": "Bearer <wallet-rpc-credential>",
+  "account": "0x1111111111111111111111111111111111111111",
+  "networks": ["eip155:8453"],
+  "assets": {
+    "0x2222222222222222222222222222222222222222": {
+      "decimals": 6,
+      "currency": "USD"
+    }
+  }
+}
+```
+
+`endpoint_url` must exactly match the priced resource and its hostname must
+match the mandate counterparty. The signer is an operator-controlled standard
+JSON-RPC wallet supporting `eth_signTypedData_v4`; Treasury never receives a
+private key. Networks and assets are explicit allowlists, and the selected
+quote must equal—not merely fit below—the authorized minor-unit amount. HTTP
+and redirects are refused except for loopback HTTP in local validation.
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect
@@ -80,9 +115,10 @@ Single source of truth for everything the lifecycle needs to know.
 | `environment` | static env vars set for every lifecycle step |
 | `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |
 
-The template ships with `dependencies.resources: {}` — SQLite is
-in-process, so no resource is required. Scenarios add resources here
-when they need shared infrastructure.
+Treasury declares the optional `x402-facilitator` managed resource with
+`startup_policy: try_start`. SQLite remains in-process. If the facilitator is
+absent or has no configured scheme, manual settlement and every non-x402 path
+remain available while x402 fails closed.
 
 ## Schema bootstrap
 

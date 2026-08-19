@@ -1,0 +1,198 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "x402-facilitator",
+  "display_name": "X402 Facilitator",
+  "description": "Self-hosted x402 v2 verification and settlement service, pinned to the reviewed Second State Rust facilitator image.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-x402-facilitator",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-x402-facilitator_${os}_${arch}"
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-x402-facilitator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    }
+  },
+  "template": "docker-service",
+  "driver": "docker-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker remains a host-managed dependency. No payment network is enabled until an operator provisions a facilitator signer and an explicit RPC route."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running. No payment network is enabled until an operator provisions a facilitator signer and an explicit RPC route."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running. No payment network is enabled until an operator provisions a facilitator signer and an explicit RPC route."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "portability_tier": "partial",
+  "category": "infrastructure",
+  "requirements": {
+    "ram_mb": 512,
+    "disk_mb": 500,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "medium",
+    "class": "infrastructure",
+    "weight": 2
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "http",
+      "container": 8080,
+      "host": 14020,
+      "host_ip": "127.0.0.1"
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:14020/health",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    }
+  ],
+  "runtime": {
+    "image": "ghcr.io/x402-rs/x402-facilitator@sha256:3a71fd6e3ff5ae00c30bcfbff35e5cf858bb37b9b97de032f46545c18e953d71",
+    "container_name": "vrooli-x402-facilitator",
+    "env": {
+      "HOST": "0.0.0.0",
+      "PORT": "8080",
+      "RUST_LOG": "info"
+    },
+    "memory_limit": "512m",
+    "volumes": [
+      {
+        "source": "config/config.json",
+        "target": "/app/config.json"
+      }
+    ]
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific dependency settings for x402-facilitator.",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "X402_FACILITATOR_HOST": "127.0.0.1"
+    },
+    "from_ports": {
+      "X402_FACILITATOR_PORT": "http"
+    },
+    "from_runtime_env": [],
+    "derived": {
+      "X402_FACILITATOR_URL": {
+        "template": "http://${X402_FACILITATOR_HOST}:${X402_FACILITATOR_PORT}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 520,
+    "startup_timeout_seconds": 120,
+    "startup_time_estimate": "5-15s after the pinned image is present; first pull depends on network throughput",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "high"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 120,
+    "stop_timeout_seconds": 30,
+    "retries": 2
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

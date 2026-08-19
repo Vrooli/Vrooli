@@ -10,3 +10,27 @@ CREATE TABLE IF NOT EXISTS instruments (
     expires_at TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+
+-- INVARIANT: onlyOperatorBeneficiaryCanBeRepresented
+-- An instrument and its mandate must remain in the same operator-owned book.
+CREATE TRIGGER IF NOT EXISTS instruments_book_mandate_match_insert
+BEFORE INSERT ON instruments
+FOR EACH ROW
+WHEN NOT EXISTS (
+    SELECT 1 FROM mandates
+    WHERE mandates.id = NEW.mandate_id AND mandates.book_id = NEW.book_id
+)
+BEGIN
+    SELECT RAISE(ABORT, 'instrument mandate must belong to instrument book');
+END;
+
+CREATE TRIGGER IF NOT EXISTS instruments_book_mandate_match_update
+BEFORE UPDATE OF book_id, mandate_id ON instruments
+FOR EACH ROW
+WHEN NOT EXISTS (
+    SELECT 1 FROM mandates
+    WHERE mandates.id = NEW.mandate_id AND mandates.book_id = NEW.book_id
+)
+BEGIN
+    SELECT RAISE(ABORT, 'instrument mandate must belong to instrument book');
+END;

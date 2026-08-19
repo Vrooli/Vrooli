@@ -40,6 +40,15 @@ type budgets struct {
 
 func (b budgets) Get(context.Context, string) (budget.Budget, error) { return b.value, b.err }
 
+type frozenBudgets struct {
+	budgets
+	scope budget.FreezeScope
+}
+
+func (b frozenBudgets) IsFrozen(context.Context, string, string) (bool, budget.FreezeScope, error) {
+	return true, b.scope, nil
+}
+
 type evidence struct {
 	mu      sync.Mutex
 	records []authorization.DecisionEvidence
@@ -276,6 +285,21 @@ func TestProposeEvaluatesStoredPolicyInSecurityOrder(t *testing.T) {
 			require.Equal(t, test.want, got.ViolatedConstraint)
 			require.NotEmpty(t, got.Remediation)
 		})
+	}
+}
+
+// [REQ:TRS-P1-006] A broad kill switch is read inside the authorization
+// boundary and refuses the next proposal before any hold is persisted.
+func TestBookOrScenarioFreezeRefusesNextAuthorization(t *testing.T) {
+	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	for _, scope := range []budget.FreezeScope{budget.FreezeScopeBook, budget.FreezeScopeScenario} {
+		repo := newRepository()
+		service := authorization.NewService(repo, verifier{claims: identity.Claims{Subject: "agent:1"}}, mandates{value: validGrant(now)}, frozenBudgets{budgets: budgets{value: validPolicy()}, scope: scope}, &evidence{}, schedule.NewFake(now), &approvalQueue{})
+		result, err := service.Propose(context.Background(), validInput("auth-"+string(scope), 10))
+		require.NoError(t, err)
+		require.Equal(t, authorization.VerdictRefused, result.Verdict)
+		require.Equal(t, string(scope)+"_frozen", result.ViolatedConstraint)
+		require.Empty(t, repo.records)
 	}
 }
 

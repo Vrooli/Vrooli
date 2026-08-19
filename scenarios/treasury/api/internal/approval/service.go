@@ -50,15 +50,24 @@ type Relay interface {
 	Relay(context.Context, Request) error
 }
 
+type TerminalRecorder interface {
+	RecordApprovalTerminal(context.Context, string, authorization.Record, string, string, time.Time) error
+}
+
 type Service struct {
 	repository Repository
 	controller Controller
 	relay      Relay
+	evidence   TerminalRecorder
 	clock      schedule.Clock
 }
 
-func NewService(repository Repository, controller Controller, relay Relay, clock schedule.Clock) *Service {
-	return &Service{repository: repository, controller: controller, relay: relay, clock: clock}
+func NewService(repository Repository, controller Controller, relay Relay, clock schedule.Clock, evidence ...TerminalRecorder) *Service {
+	service := &Service{repository: repository, controller: controller, relay: relay, clock: clock}
+	if len(evidence) > 0 {
+		service.evidence = evidence[0]
+	}
+	return service
 }
 
 func (s *Service) Admit(ctx context.Context, in authorization.ApprovalAdmission) error {
@@ -114,19 +123,36 @@ func (s *Service) Resolve(ctx context.Context, id string, resolution Status, res
 	if s.controller == nil || s.clock == nil {
 		return Request{}, fmt.Errorf("%w: controller and clock are required", ErrInvalid)
 	}
+	var authorizationRecord authorization.Record
 	if resolution == StatusApproved {
-		_, err = s.controller.Approve(ctx, current.AuthorizationID)
+		authorizationRecord, err = s.controller.Approve(ctx, current.AuthorizationID)
 	} else {
-		_, err = s.controller.Release(ctx, current.AuthorizationID)
+		authorizationRecord, err = s.controller.Release(ctx, current.AuthorizationID)
 	}
 	if err != nil {
 		return Request{}, fmt.Errorf("apply authorization resolution: %w", err)
 	}
-	return s.repository.Resolve(ctx, current.ID, resolution, resolver, s.clock.Now().UTC().Format(time.RFC3339Nano))
+	resolvedAt := s.clock.Now().UTC()
+	if resolution == StatusDeclined && s.evidence != nil {
+		if err := s.evidence.RecordApprovalTerminal(context.WithoutCancel(ctx), current.ID, authorizationRecord, string(StatusDeclined), resolver, resolvedAt); err != nil {
+			return Request{}, fmt.Errorf("record declined attempt evidence: %w", err)
+		}
+	}
+	return s.repository.Resolve(ctx, current.ID, resolution, resolver, resolvedAt.Format(time.RFC3339Nano))
 }
 
 func (s *Service) Get(ctx context.Context, id string) (Request, error) {
 	return s.repository.Get(ctx, strings.TrimSpace(id))
+}
+
+func (s *Service) List(ctx context.Context, status Status) ([]Request, error) {
+	if s.repository == nil {
+		return nil, fmt.Errorf("%w: repository is required", ErrInvalid)
+	}
+	if status != "" && status != StatusQueued && status != StatusApproved && status != StatusDeclined && status != StatusExpired {
+		return nil, fmt.Errorf("%w: unsupported approval status %q", ErrInvalid, status)
+	}
+	return s.repository.List(ctx, status)
 }
 
 func (s *Service) Expire(ctx context.Context, id string) (Request, error) {
@@ -143,10 +169,17 @@ func (s *Service) Expire(ctx context.Context, id string) (Request, error) {
 	if _, err := approvalflow.TransitionApproval(approvalflow.ApprovalState{Status: approvalflow.ApprovalStatus(current.Status)}, approvalflow.ApprovalExpire); err != nil {
 		return Request{}, err
 	}
-	if _, err := s.controller.Release(ctx, current.AuthorizationID); err != nil {
+	authorizationRecord, err := s.controller.Release(ctx, current.AuthorizationID)
+	if err != nil {
 		return Request{}, fmt.Errorf("release expired authorization: %w", err)
 	}
-	return s.repository.Resolve(ctx, current.ID, StatusExpired, "system:expiry", s.clock.Now().UTC().Format(time.RFC3339Nano))
+	resolvedAt := s.clock.Now().UTC()
+	if s.evidence != nil {
+		if err := s.evidence.RecordApprovalTerminal(context.WithoutCancel(ctx), current.ID, authorizationRecord, string(StatusExpired), "system:expiry", resolvedAt); err != nil {
+			return Request{}, fmt.Errorf("record expired attempt evidence: %w", err)
+		}
+	}
+	return s.repository.Resolve(ctx, current.ID, StatusExpired, "system:expiry", resolvedAt.Format(time.RFC3339Nano))
 }
 
 func (s *Service) RelayAttempts(ctx context.Context, id string) ([]RelayAttempt, error) {

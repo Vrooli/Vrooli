@@ -2,14 +2,14 @@
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Treasury のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
     "title": "Treasury",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "eyebrow": "エージェント支出管理",
+    "description": "統制された支出要求を確認し、明示的で監査可能な判断を行います。"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "モバイルナビゲーション",
     "nav": {
-      "dashboard": "ダッシュボード",
+      "approvals": "承認",
       "settings": "設定"
     }
   },
@@ -22,16 +22,36 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
-    },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
     }
+  },
+  "approvals": {
+    "title": "承認キュー",
+    "description": "保留中のエージェント支出要求を確認します。すべての判断は認証され、監査証跡に記録されます。",
+    "signInTitle": "オペレーター認証",
+    "tokenLabel": "オペレータートークン",
+    "tokenHelp": "トークンはこのページのメモリだけに保持され、ブラウザーには保存されません。",
+    "openQueue": "承認キューを開く",
+    "loading": "キューを開いています…",
+    "authError": "認証に失敗しました。オペレータートークンを確認して再試行してください。",
+    "resolveError": "判断を記録できませんでした。要求は保留のままです。再試行してください。",
+    "pendingTitle": "保留中の要求",
+    "pendingCount": "{{count}} 件保留中",
+    "pendingCount_one": "1 件保留中",
+    "empty": "判断が必要な支出要求はありません。",
+    "statusQueued": "レビュー待ち",
+    "agentLabel": "要求エージェント",
+    "mandateLabel": "委任",
+    "expiresLabel": "有効期限",
+    "approve": "承認",
+    "decline": "却下",
+    "approveAria": "{{counterparty}}への{{amount}}の支払いを承認",
+    "declineAria": "{{counterparty}}への{{amount}}の支払いを却下",
+    "approvedAnnouncement": "{{counterparty}}への支払いを承認しました。",
+    "declinedAnnouncement": "{{counterparty}}への支払いを却下しました。"
   },
   "health": {
     "title": "API ステータス",

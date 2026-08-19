@@ -23,35 +23,35 @@
 
 - [x] OT-P0-001 | The mandate contract | The scenario shall admit every spend through exactly one typed grant naming authorizer, cap, counterparty scope and expiry, with each rail an adapter satisfying it and no privileged path
 - [x] OT-P0-002 | Policy evaluated server-side | When an agent submits a charge, the scenario shall evaluate it against its mandate inside the API, and the agent that read untrusted content shall never hold the decision
-- [ ] OT-P0-003 | Budgets carry caps, scope and gating | A budget shall carry total, periodic and per-transaction caps plus counterparty allow and deny lists, and shall declare whether spends beneath it require human approval
+- [x] OT-P0-003 | Budgets carry caps, scope and gating | A budget shall carry total, periodic and per-transaction caps plus counterparty allow and deny lists, and shall declare whether spends beneath it require human approval
 - [x] OT-P0-004 | The approval gate is structurally out of agent reach | The agent-facing service shall expose no method that mutates policy, budgets or gating, so a caller holding a valid agent token cannot disable the gate that governs it
 - [x] OT-P0-005 | Unverifiable callers cannot spend | If agent identity cannot be verified at authorization time, then the scenario shall refuse the spend rather than record it at a degraded evidence grade
-- [ ] OT-P0-006 | Approval is owned in-scenario and relayed when available | The scenario shall own an approval queue and its operator surface, and shall relay requests through notification-hub only as an optional enhancement that approval never depends on
+- [x] OT-P0-006 | Approval is owned in-scenario and relayed when available | The scenario shall own an approval queue and its operator surface, and shall relay requests through notification-hub only as an optional enhancement that approval never depends on
 - [x] OT-P0-007 | The manual rail is first-class | The scenario shall accept an operator-settled payment as an ordinary rail adapter carrying the same mandate, evidence and emission path as any automated rail
-- [ ] OT-P0-008 | Every settlement emits a money event | When a charge settles, the scenario shall emit one idempotent money event to money-ledger through its existing inbound contract, carrying provenance and basis
-- [ ] OT-P0-009 | Evidence is retained for every attempt | The scenario shall retain mandate, approval, request, rail response and receipt as one replayable record per spend attempt, including declines and expiries
+- [x] OT-P0-008 | Every settlement emits a money event | When a charge settles, the scenario shall emit one idempotent money event to money-ledger through its existing inbound contract, carrying provenance and basis
+- [x] OT-P0-009 | Evidence is retained for every attempt | The scenario shall retain mandate, approval, request, rail response and receipt as one replayable record per spend attempt, including declines and expiries
 - [x] OT-P0-010 | Operator funds only | The scenario shall refuse to custody value belonging to any party other than the operator, enforced at the contract boundary rather than by documented convention
-- [ ] OT-P0-011 | Idempotent settlement | When a charge is retried under an unchanged idempotency key, the scenario shall return the first commit's outcome rather than moving money a second time
-- [ ] OT-P0-012 | A mandate expires without action | While a mandate is past its expiry, the scenario shall reject every charge presented against it, and expiry shall require no operator intervention to take effect
+- [x] OT-P0-011 | Idempotent settlement | When a charge is retried under an unchanged idempotency key, the scenario shall return the first commit's outcome rather than moving money a second time
+- [x] OT-P0-012 | A mandate expires without action | While a mandate is past its expiry, the scenario shall reject every charge presented against it, and expiry shall require no operator intervention to take effect
 
 ### 🟠 P1 – Should have post-launch
 
 - [ ] OT-P1-001 | x402 outbound settlement | Where a counterparty endpoint declares an x402 price, the scenario should pay it from an operator-held balance under a mandate carrying a per-call cap
 - [ ] OT-P1-002 | x402 inbound metering | The scenario should let any Vrooli endpoint declare a price and collect payment through a self-hosted facilitator, recording each receipt as inflow
 - [ ] OT-P1-003 | Scoped card rail | The scenario should issue single-use or counterparty-locked cards scoped to a mandate's amount, counterparty and expiry, behind a rail contract that names no vendor
-- [ ] OT-P1-004 | Personal and business books | A mandate should belong to exactly one book, and books should not share instruments, budgets or approval chains
-- [ ] OT-P1-005 | Standing mandates and obligations | The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action
-- [ ] OT-P1-006 | Kill switch | When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement
+- [x] OT-P1-004 | Personal and business books | A mandate should belong to exactly one book, and books should not share instruments, budgets or approval chains
+- [x] OT-P1-005 | Standing mandates and obligations | The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action
+- [x] OT-P1-006 | Kill switch | When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement
 - [ ] OT-P1-007 | Spend position without a ledger round-trip | The scenario should report remaining headroom per budget from its own authorization records, so an agent can plan without querying money-ledger
 
 ### 🟢 P2 – Future / expansion
 
-- [ ] OT-P2-001 | Rail reconciliation | The scenario may match settled charges against a rail's own statement and surface unmatched entries on both sides
-- [ ] OT-P2-002 | AP2 mandate interoperability | The scenario may emit and accept AP2-shaped signed mandates so it can transact with an AP2-speaking counterparty
-- [ ] OT-P2-003 | Browser checkout rail | The scenario may drive a card-shaped web checkout through browser-automation-studio under a mandate whose instrument cannot overspend if the flow is compromised
+- [x] OT-P2-001 | Rail reconciliation | The scenario may match settled charges against a rail's own statement and surface unmatched entries on both sides
+- [x] OT-P2-002 | AP2 mandate interoperability | The scenario may emit and accept AP2-shaped signed mandates so it can transact with an AP2-speaking counterparty
+- [x] OT-P2-003 | Browser checkout rail | The scenario may drive a card-shaped web checkout through browser-automation-studio under a mandate whose instrument cannot overspend if the flow is compromised
 - [ ] OT-P2-004 | Price book read from offer-desk | The scenario may read inbound prices from offer-desk rather than declaring them locally, joining what should earn to what a call costs
-- [ ] OT-P2-005 | Advisory spend anomaly signals | The scenario may surface unusual spend patterns against a budget's own history as advisory signals that never block a charge on their own
-- [ ] OT-P2-006 | Mandate templates | The scenario may let an operator save a recurring authorization shape as a named template so common grants do not get hand-built each time
+- [x] OT-P2-005 | Advisory spend anomaly signals | The scenario may surface unusual spend patterns against a budget's own history as advisory signals that never block a charge on their own
+- [x] OT-P2-006 | Mandate templates | The scenario may let an operator save a recurring authorization shape as a named template so common grants do not get hand-built each time
 
 ## 🧱 Tech Direction Snapshot
 
@@ -65,7 +65,7 @@
 
 ## 🤝 Dependencies & Launch Plan
 
-- **Required resources**: None beyond SQLite for P0. The self-hosted x402 facilitator becomes a managed resource at P1; which implementation to adopt is an open decision recorded in `docs/internal/DECISIONS.md`, because the most complete facilitator ecosystem is not Go and adding a non-Go runtime to this stack is a real cost that should be chosen deliberately.
+- **Required resources**: None beyond SQLite for P0. P1 registers the digest-pinned Apache-2.0 Second State Rust x402 facilitator as an optional managed resource on loopback. The selection and rejected alternatives are recorded in `docs/internal/DECISIONS.md`. Its checked-in configuration intentionally contains no network, scheme, RPC route, or signer, so healthy bootstrap is fail-closed and is not evidence of live-payment readiness.
 
 - **Scenario dependencies**: `agent-manager` is a hard runtime dependency on the authorization path — identity verification is a live call, and the fail-closed decision means an outage stops automated spend. `money-ledger` receives every settlement through its existing money-event contract and has no knowledge of this scenario, preserving its neutrality. `secrets-manager` holds instrument credentials so they never enter this scenario's storage, which is what keeps `money-ledger`'s no-credential-storage non-goal intact across the pair. `persona` supplies the transacting identity for any rail that reaches a counterparty expecting a legal person; it is not required for machine-native rails. `notification-hub` is optional. `browser-automation-studio` and `offer-desk` are P2 integrations only.
 

@@ -66,12 +66,12 @@ func TestInstrumentScopeAndCredentialUseBoundary(t *testing.T) {
 	mandates := mandate.NewService(mandate.NewSQLiteRepository(handle), clock, signer)
 	grant, err := mandates.Issue(ctx, mandate.IssueInput{ID: "mandate-1", IdempotencyKey: "mandate-key", BookID: "book-1", BudgetID: "budget-1", Authorizer: "operator:1", CapMinor: 750, Currency: "USD", AllowedCounterparties: []string{"vendor.example"}, ExpiresAt: now.Add(time.Hour)})
 	require.NoError(t, err)
-	registry, err := rail.NewRegistry(manual.New())
+	registry, err := rail.NewRegistry(credentialRail{})
 	require.NoError(t, err)
 	resolver := &credentialResolver{value: "sensitive-value"}
 	service := instrument.NewService(instrument.NewSQLiteRepository(handle), mandates, registry, resolver, clock)
 
-	created, err := service.Register(ctx, instrument.RegisterInput{ID: "instrument-1", MandateID: grant.ID, Rail: "manual", CredentialReference: "vrooli/treasury/manual-1", Counterparty: "vendor.example"})
+	created, err := service.Register(ctx, instrument.RegisterInput{ID: "instrument-1", MandateID: grant.ID, Rail: "credential-test", CredentialReference: "vrooli/treasury/manual-1", Counterparty: "vendor.example"})
 	require.NoError(t, err)
 	require.Equal(t, grant.BookID, created.BookID)
 	require.Equal(t, grant.CapMinor, created.CapMinor)
@@ -89,4 +89,41 @@ func TestInstrumentScopeAndCredentialUseBoundary(t *testing.T) {
 	require.Equal(t, "sensitive-value", scoped.Value)
 	require.Equal(t, storedRef, resolver.reference)
 	require.Equal(t, "value", resolver.field)
+}
+
+type credentialRail struct{}
+
+func (credentialRail) Name() string { return "credential-test" }
+func (credentialRail) Settle(context.Context, rail.SettleCommand) (rail.Result, error) {
+	return rail.Result{}, nil
+}
+
+func (credentialRail) QueryOutcome(context.Context, rail.Query) (rail.Result, error) {
+	return rail.Result{}, nil
+}
+
+func TestManualInstrumentRequiresNoCredentialMaterial(t *testing.T) {
+	ctx := context.Background()
+	handle := db.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(ctx, handle, database.SchemaProviderFunc(book.Schema), database.SchemaProviderFunc(budget.Schema), database.SchemaProviderFunc(mandate.Schema), database.SchemaProviderFunc(rail.Schema), database.SchemaProviderFunc(instrument.Schema)))
+	now := time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
+	clock := schedule.NewFake(now)
+	_, err := book.NewService(book.NewSQLiteRepository(handle), clock).Create(ctx, book.CreateInput{ID: "manual-book", Name: "Operator", BeneficiaryIdentity: "operator:1"})
+	require.NoError(t, err)
+	_, err = budget.NewService(budget.NewSQLiteRepository(handle), clock).Create(ctx, budget.Budget{ID: "manual-budget", BookID: "manual-book", Currency: "USD", TotalCapMinor: 1000, PeriodicCapMinor: 1000, PerTransactionCapMinor: 1000, Period: time.Hour, AllowedCounterparties: []string{"vendor.example"}})
+	require.NoError(t, err)
+	signer, err := mandate.NewHMACSigner([]byte("test-only-key"))
+	require.NoError(t, err)
+	mandates := mandate.NewService(mandate.NewSQLiteRepository(handle), clock, signer)
+	grant, err := mandates.Issue(ctx, mandate.IssueInput{ID: "manual-mandate", IdempotencyKey: "manual-key", BookID: "manual-book", BudgetID: "manual-budget", Authorizer: "operator:1", CapMinor: 750, Currency: "USD", AllowedCounterparties: []string{"vendor.example"}, ExpiresAt: now.Add(time.Hour)})
+	require.NoError(t, err)
+	registry, err := rail.NewRegistry(manual.New())
+	require.NoError(t, err)
+	service := instrument.NewService(instrument.NewSQLiteRepository(handle), mandates, registry, nil, clock)
+	created, err := service.Register(ctx, instrument.RegisterInput{ID: "manual-instrument", MandateID: grant.ID, Rail: "manual", Counterparty: "vendor.example"})
+	require.NoError(t, err)
+	require.Equal(t, "manual/operator-attestation", created.CredentialReference)
+	scoped, err := service.ResolveForUse(ctx, created.ID)
+	require.NoError(t, err)
+	require.Empty(t, scoped.Value)
 }

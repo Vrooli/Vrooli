@@ -56,7 +56,7 @@ database reachability.
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| Books | book | SQLite | `api/internal/book/schema.sql` | Life of the scenario; archived, never deleted while any charge references it. | Holds the single beneficiary identity. The schema admits exactly one, which is where `TRS-P0-010` is enforced. |
+| Books | book | SQLite | `api/internal/book/schema.sql` | Life of the scenario; archived, never deleted while any charge references it. | Holds the single beneficiary identity. The schema admits exactly one; subordinate budget, mandate, and instrument rows carry only `book_id` and cannot store an alternate beneficiary. Cross-book parent relationships are rejected by schema constraints. This is where `TRS-P0-010` is enforced. |
 | Budgets | budget | SQLite | `api/internal/budget/schema.sql` | Life of the scenario; archived on retirement. | Caps and gating intent. Never holds a spent-to-date figure. |
 | Budget scope entries | budget | SQLite | `api/internal/budget/schema.sql` | With parent budget. | Allow and deny entries. Deny outranks allow for the same counterparty. |
 | Mandates | mandate | SQLite | `api/internal/mandate/schema.sql` | Retained after expiry; never deleted while evidence references them. | The signed grant. Immutable after issue — a change is a new mandate. |
@@ -67,7 +67,7 @@ database reachability.
 | Relay attempts | approval | SQLite | `api/internal/approval/schema.sql` | 90 days. | Notification-hub delivery attempts. A failure here never changes an approval outcome. |
 | Instruments | instrument | SQLite | `api/internal/instrument/schema.sql` | Until revoked; record retained after revocation. | Stores a credential *reference*, never credential material. |
 | Rails | rail | SQLite | `api/internal/rail/schema.sql` | Life of the scenario. | Adapter registration and non-secret configuration. |
-| Charges | settlement | SQLite | `api/internal/settlement/schema.sql` | Append-only; retained with evidence. | The exactly-once execution record. |
+| Charges | settlement | SQLite | `api/internal/settlement/schema.sql` | State transitions are compare-and-swap constrained; terminal outcome is immutable and retained with evidence. | The exactly-once execution record. |
 | Idempotency keys | settlement | SQLite | `api/internal/settlement/schema.sql` | 180 days after terminal outcome. | Caller-supplied and required. Retention must outlive any plausible client retry window. |
 | Evidence records | evidence | SQLite | `api/internal/evidence/schema.sql` | Indefinite; append-only, never rewritten. | Joins mandate, approval, request, rail response and receipt. Covers declines and expiries equally. |
 | Ledger emissions | ledger | SQLite | `api/internal/ledger/schema.sql` | Indefinite. | Emission log with its own idempotency, so a retry cannot double-post downstream. |
@@ -96,8 +96,8 @@ Each domain's schema file lives beside the code that interprets it. The
 | `approval_requests`, `relay_attempts` | approval | `api/internal/approval/schema.sql` | approval repository/service/handlers |
 | `instruments` | instrument | `api/internal/instrument/schema.sql` | instrument repository; rail adapters (read-only) |
 | `rails` | rail | `api/internal/rail/schema.sql` | rail registry |
-| `charges`, `idempotency_keys` | settlement | `api/internal/settlement/schema.sql` | settlement repository/service |
-| `evidence_records` | evidence | `api/internal/evidence/schema.sql` | evidence store; every domain writes through its seam |
+| `settlements` | settlement | `api/internal/settlement/schema.sql` | settlement repository/service; includes the durable idempotency claim |
+| `evidence_records`, `spend_attempt_evidence` | evidence | `api/internal/evidence/schema.sql` | chronological decisions plus one immutable, self-contained terminal attempt snapshot |
 | `ledger_emissions` | ledger | `api/internal/ledger/schema.sql` | ledger emitter |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
@@ -106,6 +106,12 @@ evaluator reads `mandates` and `budgets`; budget headroom reads
 `authorizations` and `holds`. No domain writes another's tables. Where a
 read crosses a boundary it goes through the owning domain's repository
 interface, not through raw SQL, so the seam stays substitutable in tests.
+The sole intentional write exception is the settlement commit coordinator:
+inside one local SQLite transaction it writes the terminal settlement, its
+immutable evidence snapshot, and its ledger outbox row. That narrow exception
+exists to remove the crash window after money moves and is recorded in
+`DECISIONS.md`; neither evidence nor ledger exposes a general cross-domain
+mutation API.
 
 ## Migrations And Compatibility
 
@@ -114,11 +120,13 @@ code that interprets them.
 
 Two constraints are stronger here than in an ordinary scenario:
 
-- **Evidence and emissions are append-only.** A migration may add a column
+- **Evidence is append-only; emission delivery state is monotonic.** A migration may add a column
   or a table. It may not drop, rename in place, or backfill a value into an
   existing evidence row, because the point of the record is that it was not
   edited afterwards. Where a shape must change, add the new column, write
-  new records with it, and leave old records readable as they were.
+  new records with it, and leave old records readable as they were. An emission
+  may move only from `queued` to `accepted`; retry counters and the last
+  transport error are delivery telemetry, not rewritten financial evidence.
 - **Idempotency keys must survive a migration.** Dropping or rewriting
   `idempotency_keys` converts every in-flight client retry into a potential
   double charge. A migration touching that table needs an explicit entry in
@@ -141,7 +149,8 @@ history this scenario claims to have observed.
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| Evidence records | None. | Indefinite, append-only. | No operator-facing purge exists by design. If a storage bound is ever needed, it must be an explicit decision, not a default. |
+| Decision evidence | None. | Indefinite, append-only. | No operator-facing purge exists by design. |
+| Terminal spend-attempt evidence | None. | At least 180 days from terminal outcome; append-only. | The stored `retain_until` is a floor, not an automatic deletion trigger. |
 | Ledger emissions | None. | Indefinite. | — |
 | Authorizations, holds, charges | None while referenced by evidence. | Retained with their evidence record. | — |
 | Idempotency keys | Age. | 180 days after terminal outcome. | The window is a judgement, not a measurement. Revisit once real client retry behaviour is observed. |

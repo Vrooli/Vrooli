@@ -6,85 +6,236 @@
     {
       "name": "safety",
       "description": "Inspect Treasury's non-negotiable financial safety invariants.",
+      "commands": [{
+        "name": "invariants",
+        "description": "Show the structural constraints every Treasury implementation must preserve.",
+        "binding": {"kind": "local"},
+        "governance": {"effect": "read", "run_eligible": true}
+      }]
+    },
+    {
+      "name": "book",
+      "description": "Inspect ownership of the source-of-funds boundary.",
+      "commands": [
+        {"name": "get", "description": "Read an operator custody book.", "positionals": [{"name": "book-id", "required": true, "description": "Book identifier."}], "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "GetBook"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "create", "description": "Create the operator custody book from generated-proto JSON.", "flags": [{"name": "book", "required": true, "description": "Inline JSON Book message.", "bind": {"field": "book", "kind": "json_inline"}}], "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "CreateBook"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}}
+      ]
+    },
+    {
+      "name": "identity",
+      "description": "Inspect the fail-closed agent identity boundary.",
+      "commands": [{"name": "describe", "description": "Describe the identity domain boundary.", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "rail",
+      "description": "Inspect the payment-adapter boundary.",
+      "commands": [{"name": "describe", "description": "Describe the rail domain boundary.", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "evidence",
+      "description": "Inspect the append-only spend evidence boundary.",
+      "commands": [{"name": "describe", "description": "Describe the evidence domain boundary.", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "ledger",
+      "description": "Inspect the durable Money Ledger emission boundary.",
+      "commands": [{"name": "describe", "description": "Describe the ledger domain boundary.", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "authorization",
+      "description": "Propose spending and read authoritative authorization decisions.",
       "commands": [
         {
-          "name": "invariants",
-          "description": "Show the structural constraints every Treasury implementation must preserve.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true
-          }
+          "name": "propose",
+          "description": "Ask Treasury to authorize one charge under an existing mandate.",
+          "flags": [
+            {"name": "id", "required": true, "description": "Authorization identifier."},
+            {"name": "idempotency-key", "required": true, "description": "Stable retry key."},
+            {"name": "mandate-id", "required": true, "description": "Mandate granting this spend."},
+            {"name": "amount-minor", "required": true, "description": "Amount in currency minor units."},
+            {"name": "currency", "required": true, "description": "ISO 4217 currency code."},
+            {"name": "counterparty", "required": true, "description": "Intended payee."}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AgentSpend", "method": "ProposeCharge"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "get",
+          "description": "Read one authorization and its constraint-specific decision.",
+          "positionals": [{"name": "id", "required": true, "description": "Authorization identifier."}],
+          "binding": {"kind": "connect-rpc", "service": "AgentSpend", "method": "GetAuthorization"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "mandate",
+      "description": "Create, list and revoke signed spending authority.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List mandates visible to the authenticated agent.",
+          "binding": {"kind": "connect-rpc", "service": "AgentSpend", "method": "ListMandates"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "create",
+          "description": "Create a signed operator mandate from generated-proto JSON.",
+          "flags": [{"name": "mandate", "required": true, "description": "Inline JSON Mandate message.", "bind": {"field": "mandate", "kind": "json_inline"}}],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "CreateMandate"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke an existing mandate.",
+          "positionals": [{"name": "mandate-id", "required": true, "description": "Mandate identifier."}],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "RevokeMandate"},
+          "governance": {"effect": "destructive", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "cancel-standing",
+          "description": "Cancel a recurring obligation before its next charge.",
+          "positionals": [{"name": "mandate-id", "required": true, "description": "Standing mandate identifier."}],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "CancelStandingMandate"},
+          "governance": {"effect": "destructive", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        }
+      ]
+    },
+    {
+      "name": "budget",
+      "description": "Control budget caps, human gating and the emergency freeze.",
+      "commands": [
+        {
+          "name": "set-caps",
+          "description": "Set authoritative caps from generated-proto JSON.",
+          "flags": [{"name": "budget", "required": true, "description": "Inline JSON Budget message.", "bind": {"field": "budget", "kind": "json_inline"}}],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "SetBudgetCaps"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "set-gating",
+          "description": "Enable or disable mandatory human approval for a budget.",
+          "flags": [
+            {"name": "budget-id", "required": true, "description": "Budget identifier."},
+            {"name": "requires-approval", "bool": true, "description": "Require a human decision."}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "SetGating"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "freeze",
+          "description": "Freeze a budget immediately.",
+          "positionals": [{"name": "budget-id", "required": true, "description": "Budget identifier."}],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "FreezeBudget"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "unfreeze",
+          "description": "Restore spending under a frozen budget.",
+          "positionals": [{"name": "budget-id", "required": true, "description": "Budget identifier."}],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "UnfreezeBudget"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "headroom",
+          "description": "Compute remaining budget headroom from Treasury records without querying Money Ledger.",
+          "positionals": [{"name": "budget-id", "required": true, "description": "Budget identifier."}],
+          "binding": {"kind": "connect-rpc", "service": "AgentSpend", "method": "GetBudgetHeadroom"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "freeze-book",
+          "description": "Freeze authorization and unsettled dispatch across one book.",
+          "positionals": [{"name": "book-id", "required": true, "description": "Book identifier."}],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "FreezeBook"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "unfreeze-book",
+          "description": "Release one book freeze.",
+          "positionals": [{"name": "book-id", "required": true, "description": "Book identifier."}],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "UnfreezeBook"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "freeze-all",
+          "description": "Engage the scenario-wide kill switch.",
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "FreezeAll"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "unfreeze-all",
+          "description": "Release the scenario-wide kill switch.",
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "UnfreezeAll"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        }
+      ]
+    },
+    {
+      "name": "approval",
+      "description": "Read and resolve operator approval requests.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List approval requests, optionally filtered by status.",
+          "flags": [{"name": "status", "description": "Generated ApprovalStatus enum value.", "default": "APPROVAL_STATUS_QUEUED", "values": ["APPROVAL_STATUS_UNSPECIFIED", "APPROVAL_STATUS_QUEUED", "APPROVAL_STATUS_APPROVED", "APPROVAL_STATUS_DECLINED", "APPROVAL_STATUS_EXPIRED"]}],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "ListApprovals"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "resolve",
+          "description": "Approve or decline one queued spending request.",
+          "positionals": [{"name": "approval-id", "required": true, "description": "Approval identifier."}],
+          "flags": [{"name": "resolution", "required": true, "description": "Explicit terminal decision.", "values": ["APPROVAL_STATUS_APPROVED", "APPROVAL_STATUS_DECLINED"]}],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "ResolveApproval"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        }
+      ]
+    },
+    {
+      "name": "instrument",
+      "description": "Register bounded payment instruments without exposing credentials.",
+      "commands": [{
+        "name": "register",
+        "description": "Register an instrument from generated-proto JSON.",
+        "flags": [{"name": "instrument", "required": true, "description": "Inline JSON Instrument message.", "bind": {"field": "instrument", "kind": "json_inline"}}],
+        "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "RegisterInstrument"},
+        "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+      }]
+    },
+    {
+      "name": "settlement",
+      "description": "Execute registered rails or attest a manual payment outcome.",
+      "commands": [
+        {
+          "name": "report-outcome",
+          "description": "Ask the registered adapter to produce an authoritative outcome.",
+          "flags": [
+            {"name": "authorization-id", "required": true, "description": "Approved authorization identifier."},
+            {"name": "settlement-id", "required": true, "description": "Settlement identifier."},
+            {"name": "instrument-id", "required": true, "description": "Registered instrument identifier."},
+            {"name": "idempotency-key", "required": true, "description": "Stable settlement retry key."}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AgentSpend", "method": "ReportOutcome"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
+        },
+        {
+          "name": "report-manual",
+          "description": "Record an operator-attested manual payment outcome.",
+          "flags": [
+            {"name": "authorization-id", "required": true, "description": "Approved authorization identifier."},
+            {"name": "settlement-id", "required": true, "description": "Settlement identifier."},
+            {"name": "instrument-id", "required": true, "description": "Registered manual instrument identifier."},
+            {"name": "idempotency-key", "required": true, "description": "Stable settlement retry key."},
+            {"name": "attestation", "required": true, "description": "Inline JSON ManualAttestation message.", "bind": {"field": "attestation", "kind": "json_inline"}}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "TreasuryAdmin", "method": "ReportManualOutcome"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true}
         }
       ]
     }
   ],
-  "measures": {
-    "domains": []
-  },
+  "measures": {"domains": []},
   "exceptions": [],
-  "omitted": [
-    {
-      "service": "AgentSpend",
-      "method": "ProposeCharge",
-      "reason": "The API authorization spine lands in Phase 3; the governed agent CLI binding is introduced in the dedicated CLI surface phase."
-    },
-    {
-      "service": "AgentSpend",
-      "method": "GetAuthorization",
-      "reason": "The API authorization spine lands in Phase 3; the governed agent CLI binding is introduced in the dedicated CLI surface phase."
-    },
-    {
-      "service": "AgentSpend",
-      "method": "ListMandates",
-      "reason": "The RPC is structurally declared in Phase 4; behavior and its governed agent CLI binding land in the dedicated CLI surface phase."
-    },
-    {
-      "service": "AgentSpend",
-      "method": "ReportOutcome",
-      "reason": "The RPC is structurally declared in Phase 4; behavior and its governed agent CLI binding land with settlement and the dedicated CLI surface phase."
-    },
-    {
-      "service": "TreasuryAdmin",
-      "method": "CreateMandate",
-      "reason": "The operator RPC is structurally declared in Phase 4; its governed CLI binding lands in the dedicated CLI surface phase."
-    },
-    {
-      "service": "TreasuryAdmin",
-      "method": "RevokeMandate",
-      "reason": "The operator RPC is structurally declared in Phase 4; its governed CLI binding lands in the dedicated CLI surface phase."
-    },
-    {
-      "service": "TreasuryAdmin",
-      "method": "SetBudgetCaps",
-      "reason": "The operator RPC is structurally declared in Phase 4; its governed CLI binding lands in the dedicated CLI surface phase."
-    },
-    {
-      "service": "TreasuryAdmin",
-      "method": "SetGating",
-      "reason": "The operator RPC is structurally declared in Phase 4; its governed CLI binding lands in the dedicated CLI surface phase."
-    },
-    {
-      "service": "TreasuryAdmin",
-      "method": "ResolveApproval",
-      "reason": "The local operator resolution behavior lands with the approval phase; its governed CLI binding lands in the dedicated CLI surface phase."
-    },
-    {
-      "service": "TreasuryAdmin",
-      "method": "FreezeBudget",
-      "reason": "The operator RPC is structurally declared in Phase 4; behavior lands with the kill switch and its CLI binding lands in the dedicated CLI surface phase."
-    },
-    {
-      "service": "TreasuryAdmin",
-      "method": "UnfreezeBudget",
-      "reason": "The operator RPC is structurally declared in Phase 4; behavior lands with the kill switch and its CLI binding lands in the dedicated CLI surface phase."
-    },
-    {
-      "service": "TreasuryAdmin",
-      "method": "RegisterInstrument",
-      "reason": "The operator RPC is structurally declared in Phase 4; behavior lands with rails and its CLI binding lands in the dedicated CLI surface phase."
-    }
-  ]
+  "omitted": []
 }

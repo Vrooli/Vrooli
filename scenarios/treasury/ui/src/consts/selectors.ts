@@ -320,8 +320,13 @@ const literalSelectors = {
     select: "theme-select",
   },
   pages: {
-    dashboard: "page-dashboard",
+    approvals: "page-approvals",
     settings: "page-settings",
+  },
+  approvals: {
+    tokenInput: "approvals-token-input",
+    openQueueButton: "approvals-open-queue",
+    queue: "approvals-queue",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -338,7 +343,7 @@ const dynamicSelectorDefinitions = {
         key: {
           type: "enum",
           values: [
-            "dashboard",
+            "approvals",
             "settings",
           ] as const,
         },
@@ -351,7 +356,7 @@ const dynamicSelectorDefinitions = {
         key: {
           type: "enum",
           values: [
-            "dashboard",
+            "approvals",
             "settings",
           ] as const,
         },
@@ -368,6 +373,21 @@ const dynamicSelectorDefinitions = {
       description: "Locale choice radio button on the settings page",
       testIdPattern: "page-settings-locale-${code}",
       params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
+  approvals: {
+    item: defineDynamicSelector({
+      description: "Pending approval card by approval identifier",
+      testIdPattern: "approval-${id}",
+      params: { id: { type: "string" } },
+    }),
+    action: defineDynamicSelector({
+      description: "Approval decision button by approval identifier and action",
+      testIdPattern: "approval-${id}-${action}",
+      params: {
+        id: { type: "string" },
+        action: { type: "enum", values: ["approve", "decline"] as const },
+      },
     }),
   },
 } satisfies DynamicSelectorTree;

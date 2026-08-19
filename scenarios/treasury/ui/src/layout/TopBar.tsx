@@ -16,7 +16,7 @@ export function TopBar() {
   return (
     <header
       data-testid={selectors.layout.topBar}
-      className="flex shrink-0 items-center justify-between gap-4 border-b border-app-border bg-app-surface px-4 py-3"
+      className="flex shrink-0 items-center justify-between gap-4 border-b border-app-border bg-app-background px-4 py-3"
     >
       <h1
         data-testid={selectors.app.title}
@@ -29,7 +29,7 @@ export function TopBar() {
           data-testid={selectors.theme.switcher}
           className="flex items-center gap-2 text-xs text-app-muted-foreground"
         >
-          <span className="sr-only">{t(strings.theme.switcherLabel)}</span>
+          <span>{t(strings.theme.switcherLabel)}</span>
           <select
             value={choice}
             onChange={(e) => setTheme(e.target.value as ThemeChoice)}

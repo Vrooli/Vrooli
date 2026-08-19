@@ -3,6 +3,8 @@ package domains
 import (
 	"github.com/vrooli/cli-core/cliapp"
 
+	"treasury/cli/domains/catalog"
+	"treasury/cli/domains/remote"
 	"treasury/cli/domains/safety"
 )
 
@@ -39,5 +41,15 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	_ = core
 	_ = manifest
 	groups := []cliapp.SubcommandGroup{safety.Register()}
+	for _, name := range []string{"rail", "evidence", "ledger", "identity"} {
+		groups = append(groups, catalog.Register(name))
+	}
+	for _, name := range []string{"book", "authorization", "mandate", "budget", "approval", "instrument", "settlement"} {
+		group, err := remote.Register(core, manifest, name)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
+	}
 	return groups, nil
 }

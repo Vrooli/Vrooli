@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P0 requirements: the authorization spine. Every entry here must hold before any automated rail is wired, because each one is a property that a later rail assumes rather than re-establishes.",
-    "last_validated_at": "2026-08-18T21:47:58-04:00",
+    "last_validated_at": "2026-08-19T01:10:21-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -65,7 +65,7 @@
     {
       "id": "TRS-P0-003",
       "title": "Budgets carry caps, scope and gating",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "A budget shall carry total, periodic and per-transaction caps plus counterparty allow and deny lists, and shall declare whether spends beneath it require human approval",
@@ -143,7 +143,7 @@
     {
       "id": "TRS-P0-006",
       "title": "Approval is owned in-scenario and relayed when available",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "criticality": "P0",
       "description": "The scenario shall own an approval queue and its operator surface, and shall relay requests through notification-hub only as an optional enhancement that approval never depends on",
@@ -197,50 +197,60 @@
     {
       "id": "TRS-P0-008",
       "title": "Every settlement emits a money event",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "When a charge settles, the scenario shall emit one idempotent money event to money-ledger through its existing inbound contract, carrying provenance and basis",
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/ledger/money_ledger_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned test at `api/internal/ledger/emitter_test.go`. The emitted payload satisfies money-ledger's money-event contract with adapter, external id, fetch time and a basis of authoritative or operator-asserted. [REQ:TRS-P0-008]"
+          "notes": "A real generated Money Ledger Connect handler captures the emitted event and proves stable external id, configured book/account routing, negative expense amount, currency, provenance basis, and duplicate acceptance. [REQ:TRS-P0-008]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/service_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Outage delivery failure leaves the durable row queued; recovery marks it accepted, and all later drains emit nothing. Settlement SQLite tests prove the outbox row is committed with the charge and uses `treasury:\u003csettlement-id\u003e` idempotency. [REQ:TRS-P0-008]"
         },
         {
           "type": "manual",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test at `api/internal/ledger/emitter_replay_test.go`. Re-emitting a settled charge produces no duplicate posting downstream. [REQ:TRS-P0-008]"
+          "status": "implemented",
+          "notes": "Attended 2026-08-19 drill stopped Money Ledger, settled `phase8-settlement`, observed queued local evidence, restarted Money Ledger, and found exactly one posting with external id `treasury:phase8-settlement`; a settlement retry retained one evidence row, one outbox row, and one posting. [REQ:TRS-P0-008]"
         }
       ]
     },
     {
       "id": "TRS-P0-009",
       "title": "Evidence is retained for every attempt",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
       "description": "The scenario shall retain mandate, approval, request, rail response and receipt as one replayable record per spend attempt, including declines and expiries",
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/evidence/service_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned test at `api/internal/evidence/store_test.go`. Every terminal outcome writes a record, and the store refuses to mutate or delete an existing one. [REQ:TRS-P0-009]"
+          "notes": "A refused proposal produces one complete record; replay reconstructs it from that row alone, SQLite triggers reject update/delete, and an id collision with different content is rejected rather than silently treated as idempotent. [REQ:TRS-P0-009]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/approval/evidence_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Approval decline and expiry each retain the complete request, approval id, resolver/basis, and terminal outcome as one immutable replay record. Settlement tests cover settled and definite-failure rail outcomes with request, response, and receipt snapshots. [REQ:TRS-P0-009]"
         },
         {
           "type": "manual",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test at `api/internal/evidence/replay_test.go`. A stored record reconstructs the full decision path for an approved charge, a policy decline, an approval decline and an expiry. [REQ:TRS-P0-009]"
-        },
-        {
-          "type": "manual",
-          "phase": "business",
           "status": "implemented",
-          "notes": "Planned automation at `bas/cases/evidence/audit-trail.json`. An operator opens a declined attempt in the console and can see which constraint refused it. [REQ:TRS-P0-009]"
+          "notes": "Attended 2026-08-19 drill queried `spend_attempt_evidence` after settlement with Money Ledger stopped and reconstructed amount 321, agent, mandate, instrument, rail external reference, receipt, basis, and retention deadline without joining mutable domain tables. [REQ:TRS-P0-009]"
         }
       ]
     },
@@ -264,36 +274,52 @@
           "ref": "api/internal/book/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "The real SQLite schema's singleton beneficiary row and books foreign key are exercised while multiple books for that same beneficiary remain valid. [REQ:TRS-P0-010]"
+          "notes": "Raw SQL bypass tests prove the real SQLite schema rejects a second beneficiary row, a book for an unregistered beneficiary, an unknown-book budget, a cross-book mandate, and a cross-book instrument. Schema metadata also proves budgets, mandates, and instruments have no alternate beneficiary column, while multiple books for the one operator remain valid. [REQ:TRS-P0-010]"
         }
       ]
     },
     {
       "id": "TRS-P0-011",
       "title": "Idempotent settlement",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "criticality": "P0",
       "description": "When a charge is retried under an unchanged idempotency key, the scenario shall return the first commit's outcome rather than moving money a second time",
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/settlement/sqlite_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned test at `api/internal/settlement/idempotency_test.go`. A repeated key returns the original outcome; a distinct key under the same mandate is an independent charge. An absent key is refused rather than defaulted. [REQ:TRS-P0-011]"
+          "notes": "Real SQLite tests require a caller key, reject payload aliases, retain and return the first outcome, persist ambiguity after a lost response, and prove that unknown cannot become failed without query provenance. [REQ:TRS-P0-011]"
         },
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/settlement/sqlite_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test at `api/internal/settlement/concurrent_test.go`. Concurrent submissions of the same key resolve to exactly one settlement under row-level locking. [REQ:TRS-P0-011]"
+          "status": "implemented",
+          "notes": "Thirty-two simultaneous submissions of one key all receive the same settled result while the adapter call counter and durable row count both remain exactly one. [REQ:TRS-P0-011]"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/agentspend/settlement_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "A real generated Connect client/server rejects caller-asserted outcomes and returns the server-owned durable settlement on retry with one adapter call. [REQ:TRS-P0-011]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/settlement/flow/flow_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The checked Quint/Apalache artifact's complete transition matrix and named/generated traces replay against production settlement transitions. [REQ:TRS-P0-011]"
         }
       ]
     },
     {
       "id": "TRS-P0-012",
       "title": "A mandate expires without action",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-012",
       "criticality": "P0",
       "description": "While a mandate is past its expiry, the scenario shall reject every charge presented against it, and expiry shall require no operator intervention to take effect",

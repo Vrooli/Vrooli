@@ -37,17 +37,15 @@ Use this document to answer:
 
 ## Vrooli Resources
 
-**P0 declares no external resources.** SQLite is embedded and sufficient
-for the authorization spine, which moves no money. This is not the
-template's default statement left in place — it is a decision. The spine
-was deliberately sequenced first precisely so the mandate contract could be
-proven wrong before any resource, vendor or custody question was committed
-to.
+**P0 declares no external resources.** SQLite is embedded and sufficient for
+the authorization spine. P1 adds one optional managed facilitator resource;
+its checked-in configuration deliberately advertises no network or scheme, so
+registration and health never imply payment readiness.
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
 | SQLite (embedded) | active | Single-operator custody and low authorization volume. Serialised writers satisfy the row-locking requirement directly. | Inbound x402 metering (`TRS-P1-002`) is the one declared trigger. See [`DATA.md`](DATA.md). |
-| x402 facilitator | planned (P1) | Self-hosting the facilitator is what makes the rail owned rather than rented, consistent with the ecosystem's wrap-don't-use posture. | `TRS-P1-001` / `TRS-P1-002`. **Open question:** the most complete facilitator implementations are not Go, and adding a non-Go runtime to this stack is a real cost. Recorded unresolved in [`../internal/DECISIONS.md`](../internal/DECISIONS.md). |
+| x402 facilitator | registered, fail-closed bootstrap (P1) | The digest-pinned Apache-2.0 Second State Rust facilitator is self-hosted on loopback. Its empty checked-in network/scheme configuration cannot move value. | Provision an attended signer, RPC route, explicit network allowlist, funded test wallet, and testnet proof before declaring `TRS-P1-001` / `TRS-P1-002` operational. Selection evidence is in [`../internal/DECISIONS.md`](../internal/DECISIONS.md). |
 | Shared database | not-applicable | Not warranted at single-operator volume. | Only the SQLite trigger above. |
 | Queue / broker | not-applicable | Ledger emission retry is a small durable table, not a broker workload. | Emission volume that a table cannot drain, which single-operator spend will not produce. |
 
@@ -69,7 +67,7 @@ to.
 | Service | Status | Reason | Contract |
 |---|---|---|---|
 | None named, by design | active decision | No P0 or P1 operational target names a payment vendor. Rails are adapters behind one execution contract, so a vendor is a configuration choice rather than an architectural one. | Adapter interface in `api/internal/rail/`. |
-| Stablecoin settlement network | planned (P1) | The x402 rail settles on a public network. | Reached through the facilitator, never directly. |
+| Stablecoin settlement network | adapter implemented; live configuration pending (P1) | The x402 rail settles on a public network only after operator provisioning. | Inbound settlement is reached through the facilitator. Outbound signing is delegated to an operator-owned wallet RPC and the paid request is sent directly to the priced endpoint. |
 | Card issuing provider | planned (P1) | The scoped-card rail needs an issuer. | Behind `api/internal/rail/card/`; the rail interface carries no vendor-specific type, which is what keeps the choice reversible. |
 
 All third-party packages are installed through

@@ -34,7 +34,7 @@ func (*Adapter) Settle(_ context.Context, command rail.SettleCommand) (rail.Resu
 	}, nil
 }
 
-func (*Adapter) Query(_ context.Context, query rail.Query) (rail.Result, error) {
+func (*Adapter) QueryOutcome(_ context.Context, query rail.Query) (rail.Result, error) {
 	if strings.TrimSpace(query.SettlementID) == "" || strings.TrimSpace(query.MandateReference) == "" || (strings.TrimSpace(query.ExternalID) == "" && strings.TrimSpace(query.IdempotencyKey) == "") {
 		return rail.Result{}, fmt.Errorf("%w: complete manual query is required", rail.ErrInvalid)
 	}

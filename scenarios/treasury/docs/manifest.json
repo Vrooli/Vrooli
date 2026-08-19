@@ -1193,6 +1193,42 @@
           }
         },
         {
+          "path": "internal/INVARIANTS.md",
+          "docType": "invariants",
+          "title": "Invariants",
+          "aliases": [
+            "invariant-registry",
+            "non-negotiable-rules"
+          ],
+          "description": "Cross-domain security, financial-integrity, and custody invariants with enforcement anchors",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "invariants",
+            "custody-boundaries"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "ownerSkills": [
+            "invariant-discovery-and-enforcement"
+          ],
+          "validation": {
+            "requiredHeadings": [
+              "onlyOperatorBeneficiaryCanBeRepresented",
+              "Cross-references"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
           "path": "internal/TESTING.md",
           "docType": "testing",
           "title": "Testing",

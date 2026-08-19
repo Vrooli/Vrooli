@@ -13,10 +13,11 @@ import (
 )
 
 var permittedAgentSpendMethods = map[protoreflect.Name]struct{}{
-	"ProposeCharge":    {},
-	"GetAuthorization": {},
-	"ListMandates":     {},
-	"ReportOutcome":    {},
+	"ProposeCharge":     {},
+	"GetAuthorization":  {},
+	"GetBudgetHeadroom": {},
+	"ListMandates":      {},
+	"ReportOutcome":     {},
 }
 
 // validateAgentSpendSurface encodes Decision D-004 as an exact allowlist. A

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"treasury/internal/budget"
 )
 
 type DB interface {
@@ -60,6 +62,15 @@ COALESCE(SUM(CASE WHEN verdict = 'settled' OR (verdict IN ('pending','approved')
 COALESCE(SUM(CASE WHEN created_at >= ? AND (verdict = 'settled' OR (verdict IN ('pending','approved') AND expires_at > ?)) THEN amount_minor ELSE 0 END), 0),
 COALESCE(SUM(CASE WHEN mandate_id = ? AND (verdict = 'settled' OR (verdict IN ('pending','approved') AND expires_at > ?)) THEN amount_minor ELSE 0 END), 0)
 FROM authorizations WHERE budget_id = ?`, now.Format(time.RFC3339Nano), periodStart.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano), mandateID, now.Format(time.RFC3339Nano), budgetID).Scan(&usage.BudgetTotalMinor, &usage.BudgetPeriodMinor, &usage.MandateTotalMinor)
+	return usage, err
+}
+
+func (r *SQLiteRepository) BudgetUsage(ctx context.Context, budgetID string, periodStart, now time.Time) (budget.Usage, error) {
+	var usage budget.Usage
+	err := r.db.QueryRowContext(ctx, `SELECT
+COALESCE(SUM(CASE WHEN verdict = 'settled' OR (verdict IN ('pending','approved') AND expires_at > ?) THEN amount_minor ELSE 0 END), 0),
+COALESCE(SUM(CASE WHEN created_at >= ? AND (verdict = 'settled' OR (verdict IN ('pending','approved') AND expires_at > ?)) THEN amount_minor ELSE 0 END), 0)
+FROM authorizations WHERE budget_id = ?`, now.Format(time.RFC3339Nano), periodStart.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano), budgetID).Scan(&usage.TotalMinor, &usage.PeriodMinor)
 	return usage, err
 }
 

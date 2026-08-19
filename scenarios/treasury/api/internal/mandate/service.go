@@ -42,6 +42,9 @@ type Mandate struct {
 	IssuedAt              time.Time
 	Signature             []byte
 	Status                flow.MandateStatus
+	RecurrenceInterval    time.Duration
+	NextChargeAt          time.Time
+	CancelledAt           time.Time
 }
 
 type IssueInput struct {
@@ -56,6 +59,18 @@ type IssueInput struct {
 	DeniedCounterparties  []string
 	RequiredEvidence      []string
 	ExpiresAt             time.Time
+	RecurrenceInterval    time.Duration
+	NextChargeAt          time.Time
+}
+
+type DueOccurrence struct {
+	MandateID, IdempotencyKey string
+	ChargeAt, NextChargeAt    time.Time
+}
+
+type StandingRepository interface {
+	CancelStanding(context.Context, string, time.Time) (Mandate, error)
+	ClaimDue(context.Context, string, time.Time) (DueOccurrence, error)
 }
 
 func (m Mandate) AllowsCounterparty(counterparty string) bool {
@@ -74,6 +89,10 @@ type Service interface {
 	Issue(context.Context, IssueInput) (Mandate, error)
 	Get(context.Context, string) (Mandate, error)
 	RequireLive(context.Context, string) (Mandate, error)
+	Revoke(context.Context, string) (Mandate, error)
+	List(context.Context) ([]Mandate, error)
+	CancelStanding(context.Context, string) (Mandate, error)
+	ClaimDue(context.Context, string) (DueOccurrence, error)
 }
 
 type service struct {
@@ -148,6 +167,78 @@ func (s *service) RequireLive(ctx context.Context, id string) (Mandate, error) {
 	return value, nil
 }
 
+func (s *service) Revoke(ctx context.Context, id string) (Mandate, error) {
+	value, err := s.Get(ctx, id)
+	if err != nil {
+		return Mandate{}, err
+	}
+	if value.Status == flow.MandateRevoked {
+		return value, nil
+	}
+	next, err := flow.TransitionMandate(flow.MandateState{Status: value.Status}, flow.MandateRevoke)
+	if err != nil {
+		return Mandate{}, err
+	}
+	if standing, ok := s.repository.(StandingRepository); ok && value.RecurrenceInterval > 0 {
+		return standing.CancelStanding(ctx, value.ID, s.clock.Now().UTC())
+	}
+	if err := s.repository.UpdateStatus(ctx, value.ID, value.Status, next.Status); err != nil {
+		return Mandate{}, err
+	}
+	value.Status = next.Status
+	return value, nil
+}
+
+func (s *service) CancelStanding(ctx context.Context, id string) (Mandate, error) {
+	if s.clock == nil {
+		return Mandate{}, fmt.Errorf("%w: clock is required", ErrInvalid)
+	}
+	repository, ok := s.repository.(StandingRepository)
+	if !ok {
+		return Mandate{}, fmt.Errorf("%w: standing mandate repository is required", ErrInvalid)
+	}
+	value, err := s.Get(ctx, id)
+	if err != nil {
+		return Mandate{}, err
+	}
+	if value.RecurrenceInterval <= 0 {
+		return Mandate{}, fmt.Errorf("%w: mandate is not standing", ErrInvalid)
+	}
+	if value.Status == flow.MandateRevoked {
+		return value, nil
+	}
+	if _, err := flow.TransitionMandate(flow.MandateState{Status: value.Status}, flow.MandateRevoke); err != nil {
+		return Mandate{}, err
+	}
+	return repository.CancelStanding(ctx, value.ID, s.clock.Now().UTC())
+}
+
+func (s *service) ClaimDue(ctx context.Context, id string) (DueOccurrence, error) {
+	if s.clock == nil {
+		return DueOccurrence{}, fmt.Errorf("%w: clock is required", ErrInvalid)
+	}
+	repository, ok := s.repository.(StandingRepository)
+	if !ok {
+		return DueOccurrence{}, fmt.Errorf("%w: standing mandate repository is required", ErrInvalid)
+	}
+	return repository.ClaimDue(ctx, strings.TrimSpace(id), s.clock.Now().UTC())
+}
+
+func (s *service) List(ctx context.Context) ([]Mandate, error) {
+	if s.repository == nil || s.clock == nil {
+		return nil, fmt.Errorf("%w: service dependencies are required", ErrInvalid)
+	}
+	values, err := s.repository.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	now := s.clock.Now()
+	for i := range values {
+		values[i] = s.stateAt(values[i], now)
+	}
+	return values, nil
+}
+
 func (s *service) stateAt(value Mandate, now time.Time) Mandate {
 	if value.Status == flow.MandateLive && !now.Before(value.ExpiresAt) {
 		next, err := flow.TransitionMandate(flow.MandateState{Status: value.Status}, flow.MandateReachExpiry)
@@ -188,6 +279,12 @@ func validateIssue(in IssueInput, now time.Time) (Mandate, error) {
 		return Mandate{}, &ValidationError{Constraint: "expires_at is required"}
 	case !now.Before(in.ExpiresAt):
 		return Mandate{}, &ValidationError{Constraint: "expires_at must be in the future"}
+	case (in.RecurrenceInterval > 0) != !in.NextChargeAt.IsZero():
+		return Mandate{}, &ValidationError{Constraint: "recurrence_interval and next_charge_at must be supplied together"}
+	case in.RecurrenceInterval > 0 && in.RecurrenceInterval < time.Minute:
+		return Mandate{}, &ValidationError{Constraint: "recurrence_interval must be at least one minute"}
+	case !in.NextChargeAt.IsZero() && (!in.NextChargeAt.After(now) || in.NextChargeAt.After(in.ExpiresAt)):
+		return Mandate{}, &ValidationError{Constraint: "next_charge_at must be after issue and no later than expiry"}
 	}
 	return Mandate{
 		ID:                    in.ID,
@@ -202,6 +299,8 @@ func validateIssue(in IssueInput, now time.Time) (Mandate, error) {
 		RequiredEvidence:      normalize(in.RequiredEvidence),
 		ExpiresAt:             in.ExpiresAt.UTC(),
 		IssuedAt:              now.UTC(),
+		RecurrenceInterval:    in.RecurrenceInterval,
+		NextChargeAt:          in.NextChargeAt.UTC(),
 	}, nil
 }
 
@@ -238,6 +337,8 @@ func signingPayload(value Mandate) ([]byte, error) {
 		ExpiresAt             time.Time `json:"expires_at"`
 		IssuedAt              time.Time `json:"issued_at"`
 		Status                string    `json:"status"`
+		RecurrenceSeconds     int64     `json:"recurrence_seconds,omitempty"`
+		NextChargeAt          time.Time `json:"next_charge_at,omitempty"`
 	}
 	return json.Marshal(unsignedMandate{
 		ID: value.ID, IdempotencyKey: value.IdempotencyKey, BookID: value.BookID,
@@ -245,6 +346,7 @@ func signingPayload(value Mandate) ([]byte, error) {
 		Currency: value.Currency, AllowedCounterparties: value.AllowedCounterparties,
 		DeniedCounterparties: value.DeniedCounterparties, RequiredEvidence: value.RequiredEvidence,
 		ExpiresAt: value.ExpiresAt, IssuedAt: value.IssuedAt, Status: string(value.Status),
+		RecurrenceSeconds: int64(value.RecurrenceInterval / time.Second), NextChargeAt: value.NextChargeAt,
 	})
 }
 

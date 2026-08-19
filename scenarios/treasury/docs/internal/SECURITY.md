@@ -52,8 +52,8 @@ decision in the scenario.
 
 | Service | Realm | May do | May not do |
 |---|---|---|---|
-| `AgentSpend` | agent | Request authorization, report an outcome, read its own attempt results and budget headroom. | Anything that mutates policy, budgets, gating, mandates, instruments or freeze state — **because no such method is declared on the service.** |
-| `TreasuryAdmin` | operator | Everything: policy, budgets, mandates, instruments, approval resolution, freeze, evidence read. | — |
+| `AgentSpend` | agent | Request authorization, execute an automated approved charge, read its own attempt results and budget headroom. | Assert a rail outcome or manual receipt; mutate policy, budgets, gating, mandates, instruments or freeze state — **because no such method is declared on the service.** |
+| `TreasuryAdmin` | operator | Policy, budgets, mandates, instruments, approval resolution, freeze, evidence read, and operator-attested manual settlement. | — |
 
 The guarantee is **structural, not a permission check**. `TRS-P0-004`
 asserts against the generated proto service descriptor that `AgentSpend`
@@ -91,6 +91,7 @@ translation layers over the API.
 | x402 facilitator keys | `secrets-manager` | P1 (`TRS-P1-001`, `TRS-P1-002`) | Same handling. A self-hosted facilitator's signing material is the highest-value secret in the system. |
 | `agent-manager` verification | none held | P0 | Verification is a live call; this scenario holds no signing secret and therefore cannot mint an identity token. |
 | Operator API credential | `TREASURY_OPERATOR_TOKEN` or `API_TOKEN` | P0 | Read only at composition time and compared in constant time. Never persisted or returned. Missing configuration disables `TreasuryAdmin`. |
+| Mandate signing key | `TREASURY_MANDATE_SIGNING_KEY` | P0 | Read only at composition time and used to HMAC the canonical immutable grant. It is independent from the operator API credential; missing configuration disables issuance rather than creating unsigned authority. |
 | Ledger emission credentials | per `money-ledger` contract | P0 | Scoped to emission only. |
 
 No secret is held in `.vrooli/service.json`, environment defaults, or
@@ -100,15 +101,16 @@ scenario storage.
 
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
-| **Prompt injection raising a charge** — a counterparty page persuades the agent to authorize more, or to a different recipient. | Direct financial loss. | The mandate is signed *before* the agent reads untrusted content. Evaluation is server-side against stored state. Caller-supplied override fields are ignored. Approval and instrument scopes project from the stored mandate. | partial — authorization, approval projection, and instrument scoping verified; settlement pending |
+| **Prompt injection raising a charge** — a counterparty page persuades the agent to authorize more, or to a different recipient. | Direct financial loss. | The mandate is signed *before* the agent reads untrusted content. Evaluation is server-side against stored state. Caller-supplied outcome and rail fields are rejected. Approval, instrument and settlement scopes project from stored authority, with live identity rebound at execution. | verified for the P0 authorization and settlement path |
 | **Prompt injection disabling the gate** — the agent is persuaded to turn off approval. | Loss of the human checkpoint. | The method does not exist on the agent-facing service. The generated descriptor is pinned to an exact reviewed method allowlist, and every admin method rejects the agent realm. `TRS-P0-004`. | verified |
 | **Compromised agent token** — a valid token is stolen or a run is hijacked. | Bounded. The token's scopes are attenuated by `agent-manager` and can never widen; the mandate caps amount, counterparty and expiry; approval still gates. | Structural: the blast radius of a stolen token is exactly one mandate's cap. | designed |
-| **Replay of a charge request** — the same authorization is submitted repeatedly. | Double spending. | Caller-supplied idempotency key is required, not defaulted. A repeated key returns the first outcome. `TRS-P0-011`. | designed |
-| **Retrying an ambiguous settlement** — the rail was called, the response lost. | Double charge. | `unknown` is a first-class state resolved by querying the rail, never by retrying. `TRS-P0-012`, and the reason settlement targets formal-model maturity. | designed |
+| **Replay of a charge request** — the same authorization is submitted repeatedly. | Double spending. | Caller-supplied idempotency key is required, not defaulted. A unique durable claim commits before the rail call and a repeated key returns the first record. `TRS-P0-011`. | verified by concurrent SQLite and real-transport tests |
+| **Retrying an ambiguous settlement** — the rail was called, the response lost. | Double charge. | `unknown` is a first-class state resolved by querying the rail, never by retrying. `TRS-P0-011`; the generated Quint model checks this transition boundary and production tests replay it. | verified |
 | **Identity authority unavailable, treated as permissive** | Unattributable spend. | Fail closed. `TRS-P0-005`. Explicitly rejects the degraded-grade pattern used for ordinary attribution writes. | verified |
 | **Credential exfiltration through a response or log** | Card compromise. | Instrument storage contains a logical reference only; API responses redact even that reference; use-time resolution follows a revalidated live mandate. Schema and transport tests enforce these boundaries. | partial — storage and API boundaries verified; automated rail logging remains to be exercised |
-| **Third-party custody drift** — a feature quietly starts holding value for someone else. | Regulated activity entered without deciding to. | The schema admits exactly one beneficiary identity. `TRS-P0-010` tests the schema, not just the handler. | designed |
-| **Evidence tampering to hide a spend** | Loss of the audit property the scenario exists for. | Append-only store; update and delete refused by construction. No operator-facing purge exists. | designed |
+| **Third-party custody drift** — a feature quietly starts holding value for someone else. | Regulated activity entered without deciding to. | The schema admits exactly one beneficiary identity; subordinate tables have no beneficiary field; raw-SQL tests reject a second beneficiary and cross-book authority. `TRS-P0-010` tests the schema, not just the handler. | verified |
+| **Evidence tampering to hide a spend** | Loss of the audit property the scenario exists for. | Append-only SQLite triggers refuse update/delete; colliding identifiers with different content are rejected; no API, CLI, or UI purge/rewrite operation exists. | verified |
+| **Money Ledger unavailable after value moved** | Downstream financial position temporarily omits a real expense. | Terminal settlement, immutable evidence, and a durable idempotent outbox commit together. A background dispatcher retries; destination deduplication is `(adapter_id, external_id)`. | verified by automated tests and attended stop/settle/restart drill |
 | **Approval fatigue** — an operator approves without reading. | The human gate becomes ceremonial. | Partly a UX problem, addressed by making amount and counterparty the first thing read and by keeping the queue short through well-scoped budgets. **Not fully mitigated** — see gaps. | partial |
 | **Malicious or compromised rail adapter** | Funds diverted to an attacker-controlled counterparty. | Adapters are governed dependencies installed through `scenario-dependency-analyzer`; the mandate's counterparty scope bounds where money can go regardless of adapter behaviour. | designed |
 | Unsafe file upload handling | Malicious or oversized upload could affect storage. | Multipart handler validates metadata and BlobStore seam isolates bytes. | template-reference |
@@ -117,14 +119,13 @@ scenario storage.
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| Exactly-once settlement, automated rail execution and complete evidence replay are not implemented yet. Their mitigations remain `designed`, not verified. | high | Complete the owning plan phases and require passing requirement-linked tests before changing each status. |
+| The first automated provider remains later work; current production movement is operator-attested manual settlement. | high | Complete the first automated rail and repeat the attended transaction proof against its query semantics before claiming unattended production readiness. |
 | Approval fatigue is only partly addressed. | medium | Observe real queue depth once an automated rail is live. If operators approve in under a second, the gate is ceremonial and needs a design answer, not more copy. |
 | No rate limiting on the agent-facing authorization surface. | medium | Before the first automated rail. A compromised agent cannot exceed its mandate, but it can generate unbounded refusals and evidence rows. |
 | The operator realm uses one static bearer credential rather than short-lived per-operator sessions. | medium | Before remote or multi-operator deployment. Replace the `operatorauth.Authorizer` implementation without weakening the two-service descriptor boundary. |
 | Evidence read access is realm-scoped but not further partitioned. | low | Multi-operator use, which the operator-funds-only decision currently makes out of scope. |
 | Instrument revocation is local; propagating it to each rail is adapter-specific. | medium | Second automated rail, when the shared shape becomes visible. |
 | `agent-manager` is a single point of failure on the spend path. | accepted | Deliberate, per the fail-closed decision. Revisit only if a second independent verification path exists. |
-| No formal model exists yet for settlement. | medium | Settlement implementation. Its maturity target is level 5 precisely because hand-written tests are not convincing for exactly-once under concurrent retry. |
 
 ## Cross-References
 

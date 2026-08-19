@@ -3,6 +3,7 @@ package agentspend
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 	"time"
 
@@ -24,6 +25,36 @@ import (
 type handlerVerifier struct {
 	claims identity.Claims
 	err    error
+}
+
+type capturingVerifier struct{ token string }
+
+func (v *capturingVerifier) Verify(_ context.Context, token string) (identity.Claims, error) {
+	v.token = token
+	return identity.Claims{Subject: "agent:1"}, nil
+}
+
+type mandateLister struct{ values []mandate.Mandate }
+
+func (l mandateLister) List(context.Context) ([]mandate.Mandate, error) { return l.values, nil }
+
+func TestIdentityTokenHeadersSupportGeneratedCLIAndExplicitAgentRealm(t *testing.T) {
+	require.Equal(t, "cli-agent-token", identityTokenFromHeaders(http.Header{"Authorization": []string{"Bearer cli-agent-token"}}))
+	require.Equal(t, "explicit-agent-token", identityTokenFromHeaders(http.Header{identity.HeaderAgentIdentityToken: []string{"explicit-agent-token"}, "Authorization": []string{"Bearer ignored"}}))
+	require.Empty(t, identityTokenFromHeaders(http.Header{"Authorization": []string{"Basic nope"}}))
+}
+
+func TestListMandatesRequiresVerifiedAgentAndReturnsTypedGrants(t *testing.T) {
+	verifier := &capturingVerifier{}
+	now := time.Now().UTC()
+	handler := NewConnectHandler(mandateLister{values: []mandate.Mandate{{ID: "mandate-1", Authorizer: "local-operator", ExpiresAt: now.Add(time.Hour), IssuedAt: now, Status: mandateflow.MandateLive}}}, verifier).(*connectHandler)
+	request := connect.NewRequest(&authorizationv1.ListMandatesRequest{})
+	request.Header().Set("Authorization", "Bearer generated-cli-agent-token")
+	response, err := handler.ListMandates(context.Background(), request)
+	require.NoError(t, err)
+	require.Equal(t, "generated-cli-agent-token", verifier.token)
+	require.Len(t, response.Msg.GetMandates(), 1)
+	require.Equal(t, "mandate-1", response.Msg.GetMandates()[0].GetId())
 }
 
 func (v handlerVerifier) Verify(context.Context, string) (identity.Claims, error) {
