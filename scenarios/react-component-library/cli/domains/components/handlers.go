@@ -401,6 +401,84 @@ func (h *handlers) versionCreate(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) versionBegin(ctx cliapp.RunContext) error {
+	resp, err := h.client.BeginComponentVersion(context.Background(), connect.NewRequest(&componentsv1.BeginComponentVersionRequest{
+		Component: ctx.Positional("component"),
+		Bump:      ctx.Flag("bump"),
+		Version:   ctx.Flag("version"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("begin component version", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Version == nil || resp.Msg.Component == nil {
+		return fmt.Errorf("server returned no component draft")
+	}
+	results := append([]string(nil), resp.Msg.ArtifactPaths...)
+	results = append(results, "Preview: "+resp.Msg.PreviewPath)
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Began %s draft %s.", resp.Msg.Component.LibraryId, resp.Msg.Version.Version)},
+		ResultsHeading: "Draft artifacts",
+		Results:        results,
+		RetrievalHints: []string{fmt.Sprintf("`components check %s --version %s` — run the focused preflight", resp.Msg.Component.LibraryId, resp.Msg.Version.Version)},
+	})
+}
+
+func (h *handlers) versionCheck(ctx cliapp.RunContext) error {
+	resp, err := h.client.CheckComponentVersion(context.Background(), connect.NewRequest(&componentsv1.CheckComponentVersionRequest{
+		Component: ctx.Positional("component"),
+		Version:   ctx.Flag("version"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("check component version", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Component == nil {
+		return fmt.Errorf("server returned no component check")
+	}
+	results := make([]string, 0, len(resp.Msg.Checks)+1)
+	for _, check := range resp.Msg.Checks {
+		line := fmt.Sprintf("%s\t%s\t%s", check.Stage, check.Verdict, check.Message)
+		if check.Remediation != "" {
+			line += "\t" + check.Remediation
+		}
+		results = append(results, line)
+	}
+	results = append(results, "Preview: "+resp.Msg.PreviewPath)
+	summary := "Component preflight passed."
+	if !resp.Msg.Passed {
+		summary = "Component preflight failed."
+	}
+	if err := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Checks", Results: results}); err != nil {
+		return err
+	}
+	if !resp.Msg.Passed {
+		return fmt.Errorf("component preflight failed for %s@%s", resp.Msg.Component.LibraryId, resp.Msg.Version)
+	}
+	return nil
+}
+
+func (h *handlers) versionPublish(ctx cliapp.RunContext) error {
+	resp, err := h.client.PublishComponentVersion(context.Background(), connect.NewRequest(&componentsv1.PublishComponentVersionRequest{
+		Component:               ctx.Positional("component"),
+		DraftVersion:            ctx.Flag("draft-version"),
+		Version:                 ctx.Flag("version"),
+		ChangelogMd:             ctx.Flag("changelog"),
+		AcknowledgeParityWaiver: ctx.Flag("acknowledge-parity-waiver") != "",
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("publish component version", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Version == nil || resp.Msg.Component == nil {
+		return fmt.Errorf("server returned no published component version")
+	}
+	results := append([]string(nil), resp.Msg.ArtifactPaths...)
+	results = append(results, "Preview: "+resp.Msg.PreviewPath)
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Published %s@%s.", resp.Msg.Component.LibraryId, resp.Msg.Version.Version)},
+		ResultsHeading: "Published artifacts",
+		Results:        results,
+	})
+}
+
 func (h *handlers) manifestUpdate(ctx cliapp.RunContext) error {
 	req := &componentsv1.UpdateComponentManifestRequest{
 		ComponentId:   ctx.Positional("component-id"),

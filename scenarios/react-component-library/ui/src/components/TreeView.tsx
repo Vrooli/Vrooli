@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:TreeView
+ * @vrooliComponentSource data-display.tree-view
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption b85a3394-8053-4cef-b0de-91c45e767c85
  * @vrooliComponentAppliedAt 2026-08-17T23:22:46Z

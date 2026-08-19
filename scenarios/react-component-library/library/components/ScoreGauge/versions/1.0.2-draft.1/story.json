@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{
+    "id": "default",
+    "name": "Default",
+    "harness": "ScoreGaugeStory",
+    "args": {},
+    "expect": [{ "kind": "text", "value": "90%" }],
+    "mode": "live"
+  }]
+}

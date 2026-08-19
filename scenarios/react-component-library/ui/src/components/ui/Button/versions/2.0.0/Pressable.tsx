@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:Pressable
+ * @vrooliComponentSource controls.pressable
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 40e6ea2c-1740-46d9-9809-bb8402ee5287
  * @vrooliComponentAppliedAt 2026-08-18T01:12:42Z

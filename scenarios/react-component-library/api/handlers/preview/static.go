@@ -139,9 +139,12 @@ func writeHarnessError(w http.ResponseWriter, logger *log.Logger, id string, err
 		http.Error(w, fmt.Sprintf("preview: source_path escapes root for %q", id), http.StatusBadRequest)
 	case errors.As(err, &bundleErr):
 		// Render the diagnostic inside the iframe so the user sees the
-		// error in-place rather than a blank pane.
+		// error in-place rather than a blank pane. Keep the HTTP status
+		// truthful so automation cannot mistake this document for a ready
+		// preview.
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(renderBundleErrorHTML(bundleErr)))
 	default:
 		logger.Printf("preview.harness internal %q: %v", id, err)
@@ -307,7 +310,7 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSyste
     caret-color: transparent !important;
   }
   .rcl-preview-gallery,
-  .rcl-preview-gallery #root { min-height: 100%; height: 100%; overflow: hidden; }
+  .rcl-preview-gallery #root { min-height: 100%; height: 100%; overflow: auto; }
   .rcl-preview-gallery .rcl-preview-specimen { min-height: 100%; height: 100%; padding: 24px; }
   .rcl-preview-specimen {
     min-height: 100vh;

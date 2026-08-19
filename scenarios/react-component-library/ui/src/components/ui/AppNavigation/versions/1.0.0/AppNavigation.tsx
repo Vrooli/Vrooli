@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:AppNavigation
+ * @vrooliComponentSource navigation.app-navigation
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption c503e6de-f602-43df-bc0b-c2e5b9cce4cd
  * @vrooliComponentAppliedAt 2026-08-18T01:12:43Z

@@ -407,6 +407,7 @@ const literalSelectors = {
       storyPickerItem: "components-editor-story-picker-item",
       exampleCard: "components-editor-example-card",
       exampleTitle: "components-editor-example-title",
+      exampleDimensions: "components-editor-example-dimensions",
       storyDescription: "components-editor-story-description",
       exampleFocus: "components-editor-example-focus",
       exampleCompare: "components-editor-example-compare",

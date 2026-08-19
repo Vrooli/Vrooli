@@ -167,8 +167,11 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 		if entries, err := os.ReadDir(fromDir); err == nil {
 			files = files[:0]
 			for _, entry := range entries {
-				if entry.IsDir() || (!strings.HasSuffix(entry.Name(), ".ts") && !strings.HasSuffix(entry.Name(), ".tsx") && entry.Name() != "experience-contract.json") {
+				if entry.IsDir() {
 					continue
+				}
+				if entry.Type()&os.ModeSymlink != 0 {
+					return "", fmt.Errorf("copy version artifact %q: symbolic links are not supported", entry.Name())
 				}
 				raw, err := os.ReadFile(filepath.Join(fromDir, entry.Name()))
 				if err != nil {
@@ -190,9 +193,17 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	if err := os.MkdirAll(filepath.Dir(sourceAbs), 0o755); err != nil {
 		return "", fmt.Errorf("create component version dir: %w", err)
 	}
+	versionDir := filepath.Dir(sourceAbs)
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.RemoveAll(versionDir)
+		}
+	}()
 	for _, file := range files {
-		body := strings.TrimSpace(file.Content)
+		body := file.Content
 		if file.IsEntry {
+			body = strings.TrimSpace(body)
 			body = ensureHeaderFields(body, c.LibraryID, c.DisplayName, c.Description, version, c.Tags)
 		}
 		path := filepath.Join(filepath.Dir(sourceAbs), file.Path)
@@ -235,7 +246,37 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	if err := s.UpdateManifest(context.Background(), c, update); err != nil {
 		return "", err
 	}
+	committed = true
 	return sourcePath, nil
+}
+
+// RollbackVersion restores the prior manifest pointers and removes only the
+// exact version directory created by the failed operation.
+func (s *FSContentStore) RollbackVersion(ctx context.Context, c Component, version string) error {
+	if err := validateVersionToken(version); err != nil {
+		return err
+	}
+	if err := s.UpdateManifest(ctx, c, UpdateComponentManifestInput{
+		ComponentID:        c.ID,
+		DisplayName:        c.DisplayName,
+		Description:        c.Description,
+		Tags:               c.Tags,
+		LatestVersion:      c.LatestVersion,
+		DraftVersion:       c.DraftVersion,
+		DeprecatedVersions: nil,
+	}); err != nil {
+		return fmt.Errorf("restore manifest during version rollback: %w", err)
+	}
+	relativeGuard := filepath.ToSlash(filepath.Join(componentAssetRoot(c), c.Slug, "versions", version, "rollback.guard"))
+	resolvedGuard, err := s.resolveCreatable(relativeGuard)
+	if err != nil {
+		return err
+	}
+	versionDir := filepath.Dir(resolvedGuard)
+	if err := os.RemoveAll(versionDir); err != nil {
+		return fmt.Errorf("remove rolled-back version directory: %w", err)
+	}
+	return nil
 }
 
 // componentAssetRoot keeps source authoring aligned with the manifest that

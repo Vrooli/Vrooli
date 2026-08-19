@@ -19,6 +19,7 @@ import (
 
 	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/handlers/components"
+	previewhandlers "react-component-library/handlers/preview"
 	internalcomponents "react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
 	"react-component-library/internal/experience"
@@ -47,16 +48,53 @@ func setupModule(t *testing.T, opts ...components.ModuleOption) (*mux.Router, st
 	root := t.TempDir()
 	svc, repo := components.BuildService(d, schedule.System(), root)
 	internalcomponents.SetServiceJSONReader(svc, internalcomponents.NewFSServiceJSONReader(filepath.Dir(root)))
+	opts = append(opts, components.WithPreviewService(previewhandlers.BuildServiceAtRoot(svc, nil, root)))
 	m := components.ModuleFromService(svc, repo, root, log.New(io.Discard, "", 0), opts...)
 	r := mux.NewRouter()
 	m.Mount(r)
 	return r, root
 }
 
+func TestModule_AuthoringWorkflowUsesLibraryIDAndPublishesOnlyAfterCheck(t *testing.T) {
+	r, root := setupModule(t)
+
+	rw := callConnect(r, componentsconnect.ComponentsServiceInitializeComponentProcedure, `{
+		"slug":"Button",
+		"libraryId":"react-component-library:Button",
+		"displayName":"Button",
+		"initialVersion":"1.0.0",
+		"initialSource":"export function Button() { return <button>Save</button>; }"
+	}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+
+	rw = callConnect(r, componentsconnect.ComponentsServiceBeginComponentVersionProcedure,
+		`{"component":"react-component-library:Button","bump":"minor"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"version":"1.1.0-draft.1"`)
+	require.Contains(t, rw.Body.String(), `"previewPath":"/preview/react-component-library:Button/harness.html?version=1.1.0-draft.1"`)
+
+	rw = callConnect(r, componentsconnect.ComponentsServiceCheckComponentVersionProcedure,
+		`{"component":"react-component-library:Button"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"passed":true`)
+	require.Contains(t, rw.Body.String(), `"stage":"preview"`)
+	require.Contains(t, rw.Body.String(), `"verdict":"passed"`)
+
+	rw = callConnect(r, componentsconnect.ComponentsServicePublishComponentVersionProcedure,
+		`{"component":"react-component-library:Button","changelogMd":"Focused authoring workflow"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"version":"1.1.0"`)
+	require.FileExists(t, filepath.Join(root, "components", "Button", "versions", "1.1.0", "story.json"))
+	manifest, err := os.ReadFile(filepath.Join(root, "components", "Button", "component.json"))
+	require.NoError(t, err)
+	require.Contains(t, string(manifest), `"latest": "1.1.0"`)
+	require.NotContains(t, string(manifest), `1.1.0-draft.1`)
+}
+
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, components.Endpoints, 15, "components ships registry, ingest, style fit, styles, source authoring, content, versions, and story endpoints")
+	require.Len(t, components.Endpoints, 18, "components ships registry, authoring, ingest, style fit, styles, content, versions, and story endpoints")
 }
 
 func TestModule_InitializeComponentRoundTrip(t *testing.T) {

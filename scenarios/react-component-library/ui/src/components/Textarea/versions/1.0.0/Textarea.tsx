@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:Textarea
+ * @vrooliComponentSource forms.textarea
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 92d58798-3a73-4ac5-9bfe-6eef7c233d59
  * @vrooliComponentAppliedAt 2026-08-11T00:47:59Z

@@ -45,5 +45,9 @@ func ToConnectError(err error) error {
 	if errors.As(err, &behaviorLoss) {
 		return connect.NewError(connect.CodeFailedPrecondition, behaviorLoss)
 	}
+	var checkFailed ErrVersionCheckFailed
+	if errors.As(err, &checkFailed) {
+		return connect.NewError(connect.CodeFailedPrecondition, checkFailed)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

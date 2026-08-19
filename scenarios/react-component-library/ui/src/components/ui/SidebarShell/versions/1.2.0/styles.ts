@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:SidebarShell
+ * @vrooliComponentSource navigation.sidebar
  * @vrooliComponentVersion 1.2.0
  * @vrooliComponentAdoption dd1e7ab7-681b-46b4-aad9-ebc580c0e9a7
  * @vrooliComponentAppliedAt 2026-08-18T01:12:44Z

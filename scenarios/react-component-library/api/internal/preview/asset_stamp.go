@@ -73,6 +73,14 @@ func previewOwnedOpening(source string, start int) (int, int) {
 			position = open + 1
 			continue
 		}
+		// A JSX opening cannot immediately continue an identifier, while a
+		// TypeScript type-argument list commonly does (`forwardRef<Props>`).
+		// Treating that generic as JSX injects marker attributes into the type
+		// list and leaves esbuild with invalid syntax.
+		if open > 0 && isIdentifierContinuation(source[open-1]) {
+			position = open + 1
+			continue
+		}
 		nameEnd := open + 1
 		for nameEnd < len(source) && (source[nameEnd] == '.' || source[nameEnd] == ':' || source[nameEnd] == '_' || source[nameEnd] == '-' || source[nameEnd] >= 'A' && source[nameEnd] <= 'Z' || source[nameEnd] >= 'a' && source[nameEnd] <= 'z' || source[nameEnd] >= '0' && source[nameEnd] <= '9') {
 			nameEnd++
@@ -89,6 +97,10 @@ func previewOwnedOpening(source string, start int) (int, int) {
 		return open, end
 	}
 	return -1, -1
+}
+
+func isIdentifierContinuation(value byte) bool {
+	return value == '_' || value == '$' || value == '.' || value >= 'A' && value <= 'Z' || value >= 'a' && value <= 'z' || value >= '0' && value <= '9'
 }
 
 func jsxOpeningEnd(source string, start int) int {

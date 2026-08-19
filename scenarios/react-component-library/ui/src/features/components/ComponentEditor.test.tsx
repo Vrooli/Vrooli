@@ -963,7 +963,18 @@ describe("ComponentEditor", () => {
     await waitFor(() => expect(states).toContain("partial"));
   });
 
-  it("compares two selected stories and clears the comparison", async () => {
+  it("compares two canvas cases without switching to focus mode", async () => {
+    const boundsSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 420,
+      top: 0,
+      right: 640,
+      bottom: 420,
+      left: 0,
+      toJSON: () => ({}),
+    });
     const { componentsClient, listComponentStories } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-compare" }),
@@ -997,17 +1008,93 @@ describe("ComponentEditor", () => {
       />,
     );
     await screen.findByRole("button", { name: "Primary" });
+    await user.click(screen.getByTestId("components-editor-stage-mode"));
     const comparisonButtons = await screen.findAllByTestId(
       selectors.components.editor.exampleCompare,
     );
+    expect(screen.queryAllByTestId(selectors.components.editor.storyPickerItem)).toHaveLength(0);
+    expect(comparisonButtons[0]).toHaveAccessibleName("Compare Primary");
     await user.click(comparisonButtons[0]!);
-    await user.click(screen.getByRole("button", { name: "Disabled" }));
-    await user.click(
-      (await screen.findAllByTestId(selectors.components.editor.exampleCompare))[0]!,
+    expect(screen.getByTestId(selectors.components.editor.gallery)).toHaveAttribute(
+      "data-preview-stage-mode",
+      "false",
     );
+    const updatedComparisonButtons = await screen.findAllByTestId(
+      selectors.components.editor.exampleCompare,
+    );
+    await user.click(updatedComparisonButtons[1]!);
     expect(await screen.findAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(2);
     await user.click(screen.getByTestId(selectors.components.editor.comparisonClear));
+    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(2);
+    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)[0]).toHaveClass(
+      "resize",
+      "overflow-auto",
+      "min-h-[18rem]",
+      "max-h-[80vh]",
+    );
+    expect(
+      screen.getAllByTestId(selectors.components.editor.exampleDimensions)[0],
+    ).toHaveTextContent("640 × 420");
+
+    const caseTitles = () =>
+      screen
+        .getAllByTestId(selectors.components.editor.exampleTitle)
+        .map((title) => title.textContent);
+    const primaryMoveHandle = screen.getByRole("button", {
+      name: "Move Primary. Use arrow keys to reorder.",
+    });
+    fireEvent.keyDown(primaryMoveHandle, { key: "ArrowRight" });
+    expect(caseTitles()).toEqual(["Disabled", "Primary"]);
+
+    let draggedIdentity = "";
+    const dataTransfer = {
+      effectAllowed: "none",
+      dropEffect: "none",
+      setData: vi.fn((_type: string, value: string) => {
+        draggedIdentity = value;
+      }),
+      getData: vi.fn(() => draggedIdentity),
+    } as unknown as DataTransfer;
+    const disabledMoveHandle = screen.getByRole("button", {
+      name: "Move Disabled. Use arrow keys to reorder.",
+    });
+    const primaryCard = screen
+      .getAllByTestId(selectors.components.editor.exampleTitle)[1]
+      ?.closest("section");
+    expect(primaryCard).not.toBeNull();
+    vi.spyOn(primaryCard!, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      top: 0,
+      right: 100,
+      bottom: 100,
+      left: 0,
+      toJSON: () => ({}),
+    });
+    fireEvent.dragStart(disabledMoveHandle, { dataTransfer });
+    expect(dataTransfer.setData).toHaveBeenCalled();
+    expect(draggedIdentity).toBe(disabledMoveHandle.closest("section")?.dataset.specimen);
+    const canvasSurface = screen.getByLabelText("Preview canvas. Drag to pan, scroll to zoom.");
+    fireEvent.dragOver(canvasSurface, { dataTransfer, clientX: 900, clientY: 900 });
+    expect(primaryCard).toHaveAttribute("data-drop-placement", "after");
+    expect(disabledMoveHandle.closest("section")).toHaveClass(
+      "opacity-40",
+      "scale-[0.98]",
+      "border-dashed",
+    );
+    fireEvent.drop(canvasSurface, { dataTransfer, clientX: 900, clientY: 900 });
+    expect(dataTransfer.getData).toHaveBeenCalled();
+    expect(caseTitles()).toEqual(["Primary", "Disabled"]);
+
+    await user.click(screen.getByRole("button", { name: "Focus Disabled" }));
+    expect(screen.getByTestId(selectors.components.editor.gallery)).toHaveAttribute(
+      "data-preview-stage-mode",
+      "true",
+    );
     expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
+    boundsSpy.mockRestore();
   });
 
   it("marks the preview ready and posts the resolved theme on the desktop side-by-side layout", async () => {

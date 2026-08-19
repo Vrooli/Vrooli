@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:Input
+ * @vrooliComponentSource forms.input
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 570038a2-73af-4443-bf59-6951f9881e42
  * @vrooliComponentAppliedAt 2026-08-12T12:57:26Z

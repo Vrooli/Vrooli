@@ -1,4 +1,4 @@
-/** @vrooliComponentSource react-component-library:MasterDetail */
+/** @vrooliComponentSource navigation.master-detail */
 import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type Monaco } from "@monaco-editor/react";
@@ -1048,31 +1048,33 @@ export function ComponentEditorImpl({
                             aria-label="Preview controls"
                             className="absolute left-space-xs right-space-xs top-space-xs z-20 flex min-w-0 max-w-inline-overlay flex-wrap items-center gap-space-2xs rounded-panel border border-app-border/80 bg-app-surface/95 px-space-2xs py-space-2xs shadow-xl backdrop-blur"
                           >
-                            <nav
-                              className="order-last min-w-0 max-w-full basis-full overflow-x-auto border-t border-app-border/70 pt-space-2xs"
-                              aria-label={t(strings.components.editor.storiesLabel)}
-                            >
-                              <div className="flex w-max gap-space-3xs">
-                                {specimens.map((example) => {
-                                  const identity = specimenIdentity(example);
-                                  const selected = identity === activeSpecimen;
-                                  return (
-                                    <Button
-                                      key={identity}
-                                      data-testid={selectors.components.editor.storyPickerItem}
-                                      type="button"
-                                      variant={selected ? "primary" : "secondary"}
-                                      className="h-control-tight min-w-touch shrink-0 px-space-2xs text-xs"
-                                      aria-current={selected ? "true" : undefined}
-                                      title={example?.description}
-                                      onClick={() => activateSpecimen(identity)}
-                                    >
-                                      {example?.displayName || example?.name || "Default"}
-                                    </Button>
-                                  );
-                                })}
-                              </div>
-                            </nav>
+                            {stageMode && (
+                              <nav
+                                className="order-last min-w-0 max-w-full basis-full overflow-x-auto border-t border-app-border/70 pt-space-2xs"
+                                aria-label={t(strings.components.editor.storiesLabel)}
+                              >
+                                <div className="flex w-max gap-space-3xs">
+                                  {specimens.map((example) => {
+                                    const identity = specimenIdentity(example);
+                                    const selected = identity === activeSpecimen;
+                                    return (
+                                      <Button
+                                        key={identity}
+                                        data-testid={selectors.components.editor.storyPickerItem}
+                                        type="button"
+                                        variant={selected ? "primary" : "secondary"}
+                                        className="h-control-tight min-w-touch shrink-0 px-space-2xs text-xs"
+                                        aria-current={selected ? "true" : undefined}
+                                        title={example?.description}
+                                        onClick={() => activateSpecimen(identity)}
+                                      >
+                                        {example?.displayName || example?.name || "Default"}
+                                      </Button>
+                                    );
+                                  })}
+                                </div>
+                              </nav>
+                            )}
                             <IconButton
                               data-testid={selectors.components.editor.previewStageFullscreen}
                               type="button"

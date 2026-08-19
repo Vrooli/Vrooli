@@ -238,7 +238,7 @@ export const Broken = () => <div
 	req, _ := http.NewRequest(http.MethodGet, "/preview/"+id+"/harness.html", nil)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Code, "bundler errors render in-iframe as 200 HTML")
+	require.Equal(t, http.StatusBadRequest, rec.Code, "bundler errors must not report preview readiness")
 	require.Contains(t, rec.Body.String(), "bundle failed")
 }
 

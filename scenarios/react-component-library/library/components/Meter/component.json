@@ -1,0 +1,21 @@
+{
+  "libraryId": "react-component-library:Meter",
+  "displayName": "Meter",
+  "description": "A semantic bounded-value meter for capacity, quota, strength, and health.",
+  "tags": [
+    "primitive",
+    "token-bound",
+    "status",
+    "accessibility"
+  ],
+  "entry": "Meter.tsx",
+  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

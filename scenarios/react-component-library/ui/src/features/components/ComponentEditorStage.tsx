@@ -1,7 +1,19 @@
-/** @vrooliComponentSource react-component-library:SplitPane */
-import { useRef, useState, type PointerEvent, type ReactNode, type Ref } from "react";
+/** @vrooliComponentSource manipulation.split-pane */
+import { Columns2, GripVertical, Maximize2 } from "lucide-react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+  type Ref,
+} from "react";
 
 import { Button } from "../../components/Button";
+import { IconButton } from "../../components/IconButton";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { API_BASE } from "../../api/client";
@@ -99,6 +111,95 @@ export function ComponentEditorStage({
   const dragRef = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
   const identityFor = (example?: PreviewSpecimen): SpecimenIdentity =>
     `${example?.version || "__current__"}:${example?.name || "__default__"}`;
+  const specimenOrderKey = specimens.map(identityFor).join("\u0000");
+  const [caseOrder, setCaseOrder] = useState<SpecimenIdentity[]>(() => specimens.map(identityFor));
+  const [draggedCase, setDraggedCase] = useState<SpecimenIdentity | null>(null);
+  const [dropTarget, setDropTarget] = useState<{
+    identity: SpecimenIdentity;
+    placement: "before" | "after";
+  } | null>(null);
+  const dropTargetRef = useRef<typeof dropTarget>(null);
+
+  const clearCaseDrag = () => {
+    setDraggedCase(null);
+    dropTargetRef.current = null;
+    setDropTarget(null);
+  };
+
+  const updateCanvasDropTarget = (event: DragEvent<HTMLDivElement>) => {
+    if (!draggedCase) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+    const nextTarget = canvasDropTarget(
+      event.currentTarget,
+      draggedCase,
+      event.clientX,
+      event.clientY,
+    );
+    dropTargetRef.current = nextTarget;
+    setDropTarget(nextTarget);
+  };
+
+  useEffect(() => {
+    const sourceOrder = specimenOrderKey
+      ? (specimenOrderKey.split("\u0000") as SpecimenIdentity[])
+      : [];
+    setCaseOrder((current) => {
+      const available = new Set(sourceOrder);
+      const next = current.filter((identity) => available.has(identity));
+      for (const identity of sourceOrder) {
+        if (!next.includes(identity)) next.push(identity);
+      }
+      return next.length === current.length &&
+        next.every((identity, index) => identity === current[index])
+        ? current
+        : next;
+    });
+  }, [specimenOrderKey]);
+
+  const orderIndex = new Map(caseOrder.map((identity, index) => [identity, index]));
+  const orderedVisibleSpecimens = [...visibleSpecimens].sort(
+    (left, right) =>
+      (orderIndex.get(identityFor(left)) ?? Number.MAX_SAFE_INTEGER) -
+      (orderIndex.get(identityFor(right)) ?? Number.MAX_SAFE_INTEGER),
+  );
+
+  const moveCase = (
+    moving: SpecimenIdentity,
+    target: SpecimenIdentity,
+    placement: "before" | "after",
+  ) => {
+    if (moving === target) return;
+    setCaseOrder((current) => {
+      const next = current.filter((identity) => identity !== moving);
+      const targetIndex = next.indexOf(target);
+      if (targetIndex < 0) return current;
+      next.splice(targetIndex + (placement === "after" ? 1 : 0), 0, moving);
+      return next;
+    });
+  };
+
+  const moveCaseByKeyboard = (identity: SpecimenIdentity, event: KeyboardEvent) => {
+    const currentIndex = caseOrder.indexOf(identity);
+    if (currentIndex < 0) return;
+    let nextIndex = currentIndex;
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex--;
+    else if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex++;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = caseOrder.length - 1;
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+    nextIndex = Math.max(0, Math.min(caseOrder.length - 1, nextIndex));
+    if (nextIndex === currentIndex) return;
+    setCaseOrder((current) => {
+      const next = [...current];
+      next.splice(currentIndex, 1);
+      next.splice(nextIndex, 0, identity);
+      return next;
+    });
+  };
   return (
     <div id="component-preview-workbench" className="relative min-h-0 flex-1 pt-space-2xl">
       <div className="relative h-full min-h-0">
@@ -190,6 +291,35 @@ export function ComponentEditorStage({
             <div
               data-canvas-surface={!stageMode ? "true" : undefined}
               aria-label={!stageMode ? "Preview canvas. Drag to pan, scroll to zoom." : undefined}
+              onDragOver={!stageMode ? updateCanvasDropTarget : undefined}
+              onDragLeave={
+                !stageMode
+                  ? (event) => {
+                      const next = event.relatedTarget;
+                      if (!(next instanceof Node) || !event.currentTarget.contains(next)) {
+                        dropTargetRef.current = null;
+                        setDropTarget(null);
+                      }
+                    }
+                  : undefined
+              }
+              onDrop={
+                !stageMode
+                  ? (event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const moving =
+                        (event.dataTransfer.getData(
+                          "application/x-rcl-preview-case",
+                        ) as SpecimenIdentity) || draggedCase;
+                      const target = dropTargetRef.current;
+                      if (moving && target) {
+                        moveCase(moving, target.identity, target.placement);
+                      }
+                      clearCaseDrag();
+                    }
+                  : undefined
+              }
               style={
                 !stageMode
                   ? {
@@ -202,11 +332,11 @@ export function ComponentEditorStage({
                 stageMode
                   ? "flex min-w-0 justify-center"
                   : comparisonActive
-                    ? "grid min-w-0 grid-cols-1 gap-space-xs md:grid-cols-2"
-                    : "grid min-w-0 grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-space-xs"
+                    ? `relative grid min-h-full min-w-0 grid-cols-1 gap-space-xs rounded-md md:grid-cols-2 ${draggedCase ? "ring-1 ring-inset ring-app-primary/25" : ""}`
+                    : `relative grid min-h-full min-w-0 grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-space-xs rounded-md ${draggedCase ? "ring-1 ring-inset ring-app-primary/25" : ""}`
               }
             >
-              {visibleSpecimens.map((example) => {
+              {orderedVisibleSpecimens.map((example) => {
                 const identity = identityFor(example);
                 const title =
                   example?.displayName ||
@@ -222,36 +352,106 @@ export function ComponentEditorStage({
                     data-specimen={identity}
                     data-story={example?.storyId ?? "__default__"}
                     data-story-ready={readyExamples.has(identity) ? "true" : "false"}
-                    onClick={() => {
-                      if (!stageMode) onEnterSpecimen(identity);
-                    }}
-                    className={`min-w-0 overflow-hidden rounded-md border bg-app-surface ${stageMode ? "w-fit max-w-full" : "h-[24rem]"} ${isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}
+                    data-case-position={caseOrder.indexOf(identity) + 1}
+                    data-drop-placement={
+                      dropTarget?.identity === identity ? dropTarget.placement : undefined
+                    }
+                    className={`relative min-w-0 rounded-md border bg-app-surface transition-[border-color,box-shadow,opacity,transform] ${stageMode ? "w-fit max-w-full overflow-hidden" : "flex h-[clamp(22rem,60vh,48rem)] min-h-[18rem] max-h-[80vh] min-w-[18rem] max-w-full resize flex-col overflow-auto"} ${draggedCase === identity ? "scale-[0.98] border-dashed opacity-40 shadow-none" : "shadow-sm"} ${dropTarget?.identity === identity ? "border-app-primary ring-2 ring-app-primary/40" : isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}
                   >
+                    {dropTarget?.identity === identity && (
+                      <span
+                        aria-hidden
+                        className={`pointer-events-none absolute bottom-space-2xs top-space-2xs z-30 w-1 rounded-full bg-app-primary shadow-lg ${dropTarget.placement === "before" ? "left-0 -translate-x-1/2" : "right-0 translate-x-1/2"}`}
+                      />
+                    )}
+                    {draggedCase && !stageMode && (
+                      <span
+                        aria-hidden
+                        className="absolute inset-0 z-20 cursor-grabbing bg-app-primary/[0.02]"
+                      />
+                    )}
                     {!stageMode && (
                       <>
                         <header className="flex items-center justify-between gap-space-2xs border-b border-app-border px-space-xs py-space-2xs">
-                          <h3
-                            data-testid={selectors.components.editor.exampleTitle}
-                            title={example?.description}
-                            className="min-w-0 truncate text-sm font-semibold text-app-foreground"
-                          >
-                            {title}
-                          </h3>
-                          {examplesCanCompare(specimens) && (
-                            <Button
-                              data-testid={selectors.components.editor.exampleCompare}
-                              type="button"
-                              variant={comparedSpecimens.has(identity) ? "primary" : "secondary"}
-                              aria-pressed={comparedSpecimens.has(identity)}
-                              disabled={
-                                !comparedSpecimens.has(identity) && comparedSpecimens.size >= 2
-                              }
-                              className="h-control-compact px-space-2xs text-xs"
-                              onClick={() => onToggleComparison(identity)}
+                          <div className="flex min-w-0 items-baseline gap-space-2xs">
+                            <h3
+                              data-testid={selectors.components.editor.exampleTitle}
+                              title={example?.description}
+                              className="min-w-0 truncate text-sm font-semibold text-app-foreground"
                             >
-                              {t(strings.components.editor.compareStory)}
-                            </Button>
-                          )}
+                              {title}
+                            </h3>
+                            <CaseDimensions />
+                          </div>
+                          <div className="flex shrink-0 items-center gap-space-3xs">
+                            <IconButton
+                              type="button"
+                              draggable
+                              density="compact"
+                              variant="secondary"
+                              aria-label={`Move ${title}. Use arrow keys to reorder.`}
+                              className="h-control-compact min-h-control-compact min-w-control-compact cursor-grab active:cursor-grabbing"
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => moveCaseByKeyboard(identity, event)}
+                              onDragStart={(event) => {
+                                event.stopPropagation();
+                                event.dataTransfer.effectAllowed = "move";
+                                event.dataTransfer.setData(
+                                  "application/x-rcl-preview-case",
+                                  identity,
+                                );
+                                const card = event.currentTarget.closest("section");
+                                if (card && typeof event.dataTransfer.setDragImage === "function") {
+                                  event.dataTransfer.setDragImage(card, 24, 18);
+                                }
+                                setDraggedCase(identity);
+                              }}
+                              onDragEnd={(event) => {
+                                event.stopPropagation();
+                                clearCaseDrag();
+                              }}
+                            >
+                              <GripVertical aria-hidden className="h-icon-compact w-icon-compact" />
+                            </IconButton>
+                            <IconButton
+                              data-testid={selectors.components.editor.exampleFocus}
+                              type="button"
+                              density="compact"
+                              variant="secondary"
+                              aria-label={`Focus ${title}`}
+                              className="h-control-compact min-h-control-compact min-w-control-compact"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onEnterSpecimen(identity);
+                              }}
+                            >
+                              <Maximize2 aria-hidden className="h-icon-compact w-icon-compact" />
+                            </IconButton>
+                            {examplesCanCompare(specimens) && (
+                              <IconButton
+                                data-testid={selectors.components.editor.exampleCompare}
+                                type="button"
+                                variant={comparedSpecimens.has(identity) ? "primary" : "secondary"}
+                                aria-label={
+                                  comparedSpecimens.has(identity)
+                                    ? `Remove ${title} from comparison`
+                                    : `Compare ${title}`
+                                }
+                                aria-pressed={comparedSpecimens.has(identity)}
+                                disabled={
+                                  !comparedSpecimens.has(identity) && comparedSpecimens.size >= 2
+                                }
+                                density="compact"
+                                className="h-control-compact min-h-control-compact min-w-control-compact shrink-0"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onToggleComparison(identity);
+                                }}
+                              >
+                                <Columns2 aria-hidden className="h-icon-compact w-icon-compact" />
+                              </IconButton>
+                            )}
+                          </div>
                         </header>
                         {example?.description ? (
                           <p
@@ -310,7 +510,11 @@ export function ComponentEditorStage({
                           ...(stageMode ? { height: emulator.displayHeight } : { height: "100%" }),
                           backgroundColor: "var(--color-background)",
                         }}
-                        className={stageMode ? "block border-0" : "block max-w-full border-0"}
+                        className={
+                          stageMode
+                            ? "block border-0"
+                            : "block min-h-[18rem] max-w-full flex-1 border-0"
+                        }
                       />
                     )}
                   </section>
@@ -349,6 +553,88 @@ export function ComponentEditorStage({
         </aside>
       )}
     </div>
+  );
+}
+
+type CaseDropTarget = {
+  identity: SpecimenIdentity;
+  placement: "before" | "after";
+};
+
+function canvasDropTarget(
+  surface: HTMLDivElement,
+  moving: SpecimenIdentity,
+  pointerX: number,
+  pointerY: number,
+): CaseDropTarget | null {
+  const cards = Array.from(
+    surface.querySelectorAll<HTMLElement>(
+      `[data-testid="${selectors.components.editor.exampleCard}"]`,
+    ),
+  )
+    .filter((card) => card.dataset.specimen !== moving)
+    .map((card) => ({ card, bounds: card.getBoundingClientRect() }));
+  if (cards.length === 0) return null;
+
+  const first = cards[0]!;
+  const last = cards[cards.length - 1]!;
+  if (pointerY <= first.bounds.top) {
+    return { identity: first.card.dataset.specimen as SpecimenIdentity, placement: "before" };
+  }
+  if (pointerY >= last.bounds.bottom) {
+    return { identity: last.card.dataset.specimen as SpecimenIdentity, placement: "after" };
+  }
+
+  const nearest = cards.reduce((best, candidate) => {
+    const bestCenterX = best.bounds.left + best.bounds.width / 2;
+    const bestCenterY = best.bounds.top + best.bounds.height / 2;
+    const candidateCenterX = candidate.bounds.left + candidate.bounds.width / 2;
+    const candidateCenterY = candidate.bounds.top + candidate.bounds.height / 2;
+    const bestDistance = Math.hypot(pointerX - bestCenterX, pointerY - bestCenterY);
+    const candidateDistance = Math.hypot(pointerX - candidateCenterX, pointerY - candidateCenterY);
+    return candidateDistance < bestDistance ? candidate : best;
+  });
+  const centerX = nearest.bounds.left + nearest.bounds.width / 2;
+  const placement =
+    pointerY < nearest.bounds.top || (pointerY <= nearest.bounds.bottom && pointerX < centerX)
+      ? "before"
+      : "after";
+  return {
+    identity: nearest.card.dataset.specimen as SpecimenIdentity,
+    placement,
+  };
+}
+
+function CaseDimensions() {
+  const markerRef = useRef<HTMLSpanElement>(null);
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const card = markerRef.current?.closest<HTMLElement>(
+      `[data-testid="${selectors.components.editor.exampleCard}"]`,
+    );
+    if (!card) return;
+    const measure = () => {
+      const bounds = card.getBoundingClientRect();
+      const width = card.offsetWidth || Math.round(bounds.width);
+      const height = card.offsetHeight || Math.round(bounds.height);
+      if (width > 0 && height > 0) setDimensions({ width, height });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <span
+      ref={markerRef}
+      data-testid={selectors.components.editor.exampleDimensions}
+      className="shrink-0 font-mono text-[0.6875rem] tabular-nums text-app-muted-foreground"
+      aria-label="Case dimensions"
+    >
+      {dimensions ? `${dimensions.width} × ${dimensions.height}` : "— × —"}
+    </span>
   );
 }
 

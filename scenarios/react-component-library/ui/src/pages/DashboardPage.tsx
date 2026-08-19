@@ -1,4 +1,4 @@
-/** @vrooliComponentSource react-component-library:DashboardPage */
+/** @vrooliComponentSource templates.dashboard-page */
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,

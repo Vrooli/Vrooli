@@ -134,6 +134,7 @@ func TestRenderHarnessHTMLGalleryModeBoundsTheEmbeddedSurface(t *testing.T) {
 	require.Contains(t, html, `<body class="rcl-preview-gallery">`)
 	require.Contains(t, html, `.rcl-preview-gallery #root`)
 	require.Contains(t, html, `.rcl-preview-gallery .rcl-preview-specimen`)
+	require.Contains(t, html, `height: 100%; overflow: auto;`)
 }
 
 func TestRenderHarnessHTMLShowsImportMapDiagnostics(t *testing.T) {

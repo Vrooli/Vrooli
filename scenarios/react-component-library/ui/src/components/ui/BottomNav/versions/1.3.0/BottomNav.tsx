@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:BottomNav
+ * @vrooliComponentSource navigation.bottom-navigation
  * @vrooliComponentVersion 1.3.0
  * @vrooliComponentAdoption e04f2247-a68e-4422-bc62-ad7327be3ca7
  * @vrooliComponentAppliedAt 2026-08-12T11:40:32Z

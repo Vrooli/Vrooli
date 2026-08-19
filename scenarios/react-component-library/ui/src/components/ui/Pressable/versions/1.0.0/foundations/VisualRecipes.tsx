@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:VisualRecipes
+ * @vrooliComponentSource foundations.visual-recipes
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 87e1db9e-2394-48fe-9e56-a302efc09f0e
  * @vrooliComponentAppliedAt 2026-08-18T01:12:37Z

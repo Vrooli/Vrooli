@@ -1,4 +1,4 @@
-/** @vrooliComponentSource react-component-library:ResponsivePanel */
+/** @vrooliComponentSource overlays.responsive-panel */
 import { selectors } from "../../consts/selectors";
 
 /**

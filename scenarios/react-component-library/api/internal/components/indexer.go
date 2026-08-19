@@ -83,6 +83,33 @@ type IndexResult struct {
 	LibraryIDs []string // upserted IDs in walk order — useful for tests
 }
 
+// IndexManifest validates and upserts one known registry manifest without
+// walking or sweeping the rest of the catalog. Authoring operations use this
+// path so an unrelated component cannot block a draft or publication.
+func (idx *Indexer) IndexManifest(ctx context.Context, path string) (Component, error) {
+	if idx.fs == nil {
+		return Component{}, fmt.Errorf("indexer has no filesystem configured")
+	}
+	path = filepath.ToSlash(strings.TrimSpace(path))
+	if filepath.Base(path) != "component.json" || !registryAssetPath(path) {
+		return Component{}, fmt.Errorf("index manifest %q: expected a registry component.json path", path)
+	}
+	in, _, err := idx.buildManifestInput(path)
+	if err != nil {
+		return Component{}, err
+	}
+	component, err := idx.repo.UpsertManifest(ctx, in)
+	if err != nil {
+		return Component{}, fmt.Errorf("upsert %s: %w", path, err)
+	}
+	if idx.observer != nil {
+		if err := idx.observer.Observe(ctx, component, in); err != nil {
+			return Component{}, fmt.Errorf("observe %s: %w", path, err)
+		}
+	}
+	return component, nil
+}
+
 // Run walks the root, upserts every manifest with valid version folders,
 // and returns a result. Malformed manifests are recorded in Errors but
 // do not stop the walk — a single broken component should not hide an

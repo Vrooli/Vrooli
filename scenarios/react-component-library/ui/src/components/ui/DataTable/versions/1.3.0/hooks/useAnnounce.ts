@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:useAnnounce
+ * @vrooliComponentSource hooks.use-announce
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption ea21d62b-0215-49e0-8816-95046b0c66f5
  * @vrooliComponentAppliedAt 2026-08-18T01:12:39Z

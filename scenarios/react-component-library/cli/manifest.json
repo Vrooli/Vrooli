@@ -60,7 +60,7 @@
             {
               "name": "component-id",
               "required": true,
-              "description": "Catalog asset id"
+              "description": "Stable libraryId or catalog UUID"
             }
           ],
           "flags": [
@@ -650,7 +650,7 @@
             {
               "name": "component-id",
               "required": true,
-              "description": "Component id"
+              "description": "Stable libraryId or catalog UUID"
             },
             {
               "name": "scenario",
@@ -685,7 +685,7 @@
             {
               "name": "id",
               "required": true,
-              "description": "Component id"
+              "description": "Stable libraryId or catalog UUID"
             }
           ],
           "binding": {
@@ -974,13 +974,112 @@
           }
         },
         {
+          "name": "version-begin",
+          "description": "Begin one mutable component draft from the current release",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "bump",
+              "description": "Semver increment when --version is omitted",
+              "values": ["major", "minor", "patch"],
+              "default": "patch"
+            },
+            {
+              "name": "version",
+              "description": "Explicit target release version; the draft suffix is added automatically"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentsService",
+            "method": "BeginComponentVersion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "check",
+          "description": "Run source, dependency, story, and preview preflight for one component version",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Version to check; defaults to the active draft, then latest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentsService",
+            "method": "CheckComponentVersion"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read"]
+          }
+        },
+        {
+          "name": "version-publish",
+          "description": "Validate and atomically publish the active component draft",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "draft-version",
+              "description": "Draft to publish; defaults to the active draft"
+            },
+            {
+              "name": "version",
+              "description": "Release version; defaults to the draft version without its prerelease suffix"
+            },
+            {
+              "name": "changelog",
+              "description": "Changelog text for the release"
+            },
+            {
+              "name": "acknowledge-parity-waiver",
+              "description": "Explicitly waive recorded ingest behavior-loss findings"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentsService",
+            "method": "PublishComponentVersion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
           "name": "version-create",
-          "description": "Create a new component version folder",
+          "description": "Low-level compatibility command for creating an explicit component version folder",
           "positionals": [
             {
               "name": "component-id",
               "required": true,
-              "description": "Component id"
+              "description": "Stable libraryId or catalog UUID"
             },
             {
               "name": "version",
@@ -1102,7 +1201,7 @@
             {
               "name": "id",
               "required": true,
-              "description": "Component id"
+              "description": "Stable libraryId or catalog UUID"
             }
           ],
           "binding": {
@@ -1162,7 +1261,7 @@
             {
               "name": "component-id",
               "required": true,
-              "description": "Component id"
+              "description": "Stable libraryId or catalog UUID"
             }
           ],
           "flags": [
@@ -1191,7 +1290,7 @@
             {
               "name": "component-id",
               "required": true,
-              "description": "Component id"
+              "description": "Stable libraryId or catalog UUID"
             },
             {
               "name": "version",
@@ -1288,7 +1387,7 @@
             {
               "name": "component-id",
               "required": true,
-              "description": "Library component id"
+              "description": "Stable libraryId or catalog UUID"
             }
           ],
           "flags": [
@@ -1317,7 +1416,7 @@
             {
               "name": "component-id",
               "required": true,
-              "description": "Library component id"
+              "description": "Stable libraryId or catalog UUID"
             },
             {
               "name": "version",
@@ -1354,7 +1453,7 @@
             {
               "name": "component-id",
               "required": true,
-              "description": "Library component id"
+              "description": "Stable libraryId or catalog UUID"
             },
             {
               "name": "from",

@@ -1,4 +1,4 @@
-/** @vrooliComponentSource react-component-library:Page
+/** @vrooliComponentSource navigation.page
  *
  * ComponentDetailPage — full-width editor + preview for a component.
  *

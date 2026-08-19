@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -35,6 +39,12 @@ type Service interface {
 	IngestComponent(ctx context.Context, in IngestComponentInput) (IngestComponentResult, error)
 	CreateComponentVersion(ctx context.Context, in CreateComponentVersionInput) (CreateComponentVersionResult, error)
 	UpdateComponentManifest(ctx context.Context, in UpdateComponentManifestInput) (Component, error)
+}
+
+type AuthoringService interface {
+	BeginComponentVersion(ctx context.Context, in BeginComponentVersionInput) (AuthoringVersionResult, error)
+	CheckComponentVersion(ctx context.Context, componentID, version string) (CheckComponentVersionResult, error)
+	PublishComponentVersion(ctx context.Context, in PublishComponentVersionInput) (AuthoringVersionResult, error)
 }
 
 // ContentChangeListener is an optional sink the service invokes after a
@@ -181,6 +191,13 @@ func (s *service) ListStories(ctx context.Context, q StoryQuery) ([]ComponentSto
 	if q.Limit <= 0 {
 		q.Limit = defaultListLimit
 	}
+	if strings.TrimSpace(q.ComponentID) != "" {
+		component, err := s.Get(ctx, q.ComponentID)
+		if err != nil {
+			return nil, err
+		}
+		q.ComponentID = component.ID
+	}
 	return s.repo.ListStories(ctx, q)
 }
 
@@ -282,7 +299,7 @@ func (s *service) UpdateContentAt(ctx context.Context, id, path string, in Write
 	if s.content == nil {
 		return Content{}, errNoContentStore
 	}
-	c, err := s.repo.Get(ctx, id)
+	c, err := s.Get(ctx, id)
 	if err != nil {
 		return Content{}, err
 	}
@@ -335,11 +352,189 @@ func (s *service) InitializeComponent(ctx context.Context, in InitializeComponen
 	return InitializeComponentResult{Component: c, ManifestPath: manifestPath, SourcePath: sourcePath}, nil
 }
 
+func (s *service) BeginComponentVersion(ctx context.Context, in BeginComponentVersionInput) (AuthoringVersionResult, error) {
+	c, err := s.Get(ctx, strings.TrimSpace(in.Component))
+	if err != nil {
+		return AuthoringVersionResult{}, err
+	}
+	if c.DraftVersion != "" {
+		return AuthoringVersionResult{}, ErrInvalidHeader{SourcePath: c.ManifestPath, Field: "draft", Reason: fmt.Sprintf("active draft %s already exists; publish or discard it before beginning another", c.DraftVersion)}
+	}
+	releaseVersion := strings.TrimSpace(in.Version)
+	if releaseVersion == "" {
+		releaseVersion, err = bumpReleaseVersion(c.LatestVersion, in.Bump)
+		if err != nil {
+			return AuthoringVersionResult{}, err
+		}
+	}
+	if err := validateVersionToken(releaseVersion); err != nil {
+		return AuthoringVersionResult{}, err
+	}
+	if strings.Contains(releaseVersion, "-") {
+		return AuthoringVersionResult{}, ErrInvalidHeader{SourcePath: c.ManifestPath, Field: "version", Reason: "begin version must identify a release semver without a prerelease suffix"}
+	}
+	draftVersion := releaseVersion + "-draft.1"
+	created, err := s.CreateComponentVersion(ctx, CreateComponentVersionInput{
+		ComponentID: c.ID,
+		Version:     draftVersion,
+		FromVersion: c.LatestVersion,
+		Intent:      VersionIntentDraft,
+	})
+	if err != nil {
+		return AuthoringVersionResult{}, err
+	}
+	return s.authoringResult(created)
+}
+
+func (s *service) CheckComponentVersion(ctx context.Context, componentID, version string) (CheckComponentVersionResult, error) {
+	if s.source == nil {
+		return CheckComponentVersionResult{}, errNoSourceStore
+	}
+	c, err := s.Get(ctx, strings.TrimSpace(componentID))
+	if err != nil {
+		return CheckComponentVersionResult{}, err
+	}
+	version = firstNonEmpty(strings.TrimSpace(version), c.DraftVersion, c.LatestVersion)
+	result := CheckComponentVersionResult{Component: c, Version: version, Passed: true}
+	add := func(stage, verdict, message, remediation string) {
+		result.Checks = append(result.Checks, ComponentVersionCheck{Stage: stage, Verdict: verdict, Message: message, Remediation: remediation})
+		if verdict != "passed" {
+			result.Passed = false
+		}
+	}
+	v, err := s.repo.GetVersion(ctx, c.ID, version)
+	if err != nil {
+		return CheckComponentVersionResult{}, err
+	}
+	if strings.TrimSpace(v.Content) == "" {
+		add("source", "failed", "version entry source is empty", "restore the entry source before publishing")
+	} else {
+		add("source", "passed", "version entry source is present", "")
+	}
+	if _, err := ResolveDependencyClosure(ctx, s, c.ID, version); err != nil {
+		add("dependencies", "failed", err.Error(), "repair the version-pinned dependency closure")
+	} else {
+		add("dependencies", "passed", "version-pinned dependency closure resolved", "")
+	}
+	storyPath := filepath.Join(s.source.Root(), componentAssetRoot(c), c.Slug, "versions", version, "story.json")
+	story, err := os.ReadFile(storyPath)
+	if err != nil {
+		add("story", "failed", "story.json is missing or unreadable: "+err.Error(), "restore the version story contract")
+		return result, nil
+	}
+	contract, diagnostics := ParseStoryContract(story)
+	if len(diagnostics) > 0 || contract == nil {
+		messages := make([]string, 0, len(diagnostics))
+		for _, diagnostic := range diagnostics {
+			messages = append(messages, diagnostic.Error())
+		}
+		add("story", "failed", strings.Join(messages, "; "), "repair story.json before publishing")
+		return result, nil
+	}
+	if gaps := StoryCoverageGaps(contract); len(gaps) > 0 {
+		messages := make([]string, 0, len(gaps))
+		for _, gap := range gaps {
+			messages = append(messages, gap.Error())
+		}
+		add("story", "failed", strings.Join(messages, "; "), "add representative stories for the declared enum values")
+	} else {
+		add("story", "passed", "story contract parsed and declared enum coverage is complete", "")
+	}
+	return result, nil
+}
+
+func (s *service) PublishComponentVersion(ctx context.Context, in PublishComponentVersionInput) (AuthoringVersionResult, error) {
+	c, err := s.Get(ctx, strings.TrimSpace(in.Component))
+	if err != nil {
+		return AuthoringVersionResult{}, err
+	}
+	draftVersion := firstNonEmpty(strings.TrimSpace(in.DraftVersion), c.DraftVersion)
+	if draftVersion == "" || !strings.Contains(draftVersion, "-") {
+		return AuthoringVersionResult{}, ErrInvalidHeader{SourcePath: c.ManifestPath, Field: "draft", Reason: "an active prerelease draft is required"}
+	}
+	check, err := s.CheckComponentVersion(ctx, c.ID, draftVersion)
+	if err != nil {
+		return AuthoringVersionResult{}, err
+	}
+	if !check.Passed {
+		return AuthoringVersionResult{}, ErrVersionCheckFailed{LibraryID: c.LibraryID, Version: draftVersion, Checks: check.Checks}
+	}
+	releaseVersion := firstNonEmpty(strings.TrimSpace(in.Version), strings.SplitN(draftVersion, "-", 2)[0])
+	created, err := s.CreateComponentVersion(ctx, CreateComponentVersionInput{
+		ComponentID:             c.ID,
+		Version:                 releaseVersion,
+		FromVersion:             draftVersion,
+		Intent:                  VersionIntentRelease,
+		ChangelogMD:             in.ChangelogMD,
+		AcknowledgeParityWaiver: in.AcknowledgeParityWaiver,
+	})
+	if err != nil {
+		return AuthoringVersionResult{}, err
+	}
+	return s.authoringResult(created)
+}
+
+func (s *service) authoringResult(created CreateComponentVersionResult) (AuthoringVersionResult, error) {
+	paths, err := versionArtifactPaths(s.source, created.Component, created.Version.Version)
+	if err != nil {
+		return AuthoringVersionResult{}, err
+	}
+	return AuthoringVersionResult{Component: created.Component, Version: created.Version, SourcePath: created.SourcePath, ArtifactPaths: paths}, nil
+}
+
+func bumpReleaseVersion(current, bump string) (string, error) {
+	parts := strings.Split(strings.TrimSpace(current), ".")
+	if len(parts) != 3 {
+		return "", ErrInvalidHeader{SourcePath: "component.json", Field: "latest", Reason: "latest version must be x.y.z before it can be bumped"}
+	}
+	values := make([]int, 3)
+	for index, part := range parts {
+		value, err := strconv.Atoi(part)
+		if err != nil || value < 0 {
+			return "", ErrInvalidHeader{SourcePath: "component.json", Field: "latest", Reason: "latest version must be x.y.z before it can be bumped"}
+		}
+		values[index] = value
+	}
+	switch firstNonEmpty(strings.ToLower(strings.TrimSpace(bump)), "patch") {
+	case "major":
+		values[0]++
+		values[1], values[2] = 0, 0
+	case "minor":
+		values[1]++
+		values[2] = 0
+	case "patch":
+		values[2]++
+	default:
+		return "", ErrInvalidHeader{SourcePath: "component.json", Field: "bump", Reason: "must be major, minor, or patch"}
+	}
+	return fmt.Sprintf("%d.%d.%d", values[0], values[1], values[2]), nil
+}
+
+func versionArtifactPaths(source SourceStore, c Component, version string) ([]string, error) {
+	if source == nil {
+		return nil, errNoSourceStore
+	}
+	dir := filepath.Join(source.Root(), componentAssetRoot(c), c.Slug, "versions", version)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("list version artifacts: %w", err)
+	}
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		paths = append(paths, filepath.ToSlash(filepath.Join(componentAssetRoot(c), c.Slug, "versions", version, entry.Name())))
+	}
+	sort.Strings(paths)
+	return paths, nil
+}
+
 func (s *service) CreateComponentVersion(ctx context.Context, in CreateComponentVersionInput) (CreateComponentVersionResult, error) {
 	if s.source == nil {
 		return CreateComponentVersionResult{}, errNoSourceStore
 	}
-	c, err := s.repo.Get(ctx, in.ComponentID)
+	c, err := s.Get(ctx, in.ComponentID)
 	if err != nil {
 		return CreateComponentVersionResult{}, err
 	}
@@ -364,20 +559,34 @@ func (s *service) CreateComponentVersion(ctx context.Context, in CreateComponent
 			}
 		}
 	}
+	previous := c
 	sourcePath, err := s.source.CreateVersion(ctx, c, in)
 	if err != nil {
 		return CreateComponentVersionResult{}, err
 	}
-	if _, err := NewIndexer(s.repo, s.source.Root(), nil).Run(ctx); err != nil {
-		return CreateComponentVersionResult{}, err
+	rollback := func(cause error) error {
+		if store, ok := s.source.(interface {
+			RollbackVersion(context.Context, Component, string) error
+		}); ok {
+			if rollbackErr := store.RollbackVersion(ctx, previous, in.Version); rollbackErr != nil {
+				return errors.Join(cause, rollbackErr)
+			}
+			// Reconcile any rows written before the index failure. The original
+			// cause remains authoritative even when this best-effort sweep fails.
+			_, _ = NewIndexer(s.repo, s.source.Root(), nil).IndexManifest(ctx, previous.ManifestPath)
+		}
+		return cause
 	}
-	c, err = s.repo.Get(ctx, in.ComponentID)
+	if _, err := NewIndexer(s.repo, s.source.Root(), nil).IndexManifest(ctx, c.ManifestPath); err != nil {
+		return CreateComponentVersionResult{}, rollback(err)
+	}
+	c, err = s.Get(ctx, in.ComponentID)
 	if err != nil {
-		return CreateComponentVersionResult{}, err
+		return CreateComponentVersionResult{}, rollback(err)
 	}
 	v, err := s.repo.GetVersion(ctx, c.ID, in.Version)
 	if err != nil {
-		return CreateComponentVersionResult{}, err
+		return CreateComponentVersionResult{}, rollback(err)
 	}
 	return CreateComponentVersionResult{Component: c, Version: v, SourcePath: sourcePath}, nil
 }
@@ -386,17 +595,17 @@ func (s *service) UpdateComponentManifest(ctx context.Context, in UpdateComponen
 	if s.source == nil {
 		return Component{}, errNoSourceStore
 	}
-	c, err := s.repo.Get(ctx, in.ComponentID)
+	c, err := s.Get(ctx, in.ComponentID)
 	if err != nil {
 		return Component{}, err
 	}
 	if err := s.source.UpdateManifest(ctx, c, in); err != nil {
 		return Component{}, err
 	}
-	if _, err := NewIndexer(s.repo, s.source.Root(), nil).Run(ctx); err != nil {
+	if _, err := NewIndexer(s.repo, s.source.Root(), nil).IndexManifest(ctx, c.ManifestPath); err != nil {
 		return Component{}, err
 	}
-	return s.repo.Get(ctx, in.ComponentID)
+	return s.Get(ctx, in.ComponentID)
 }
 
 // errNoContentStore signals that the service was constructed without a

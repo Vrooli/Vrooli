@@ -244,6 +244,7 @@ func main() {
 	// the on-disk @deps headers.
 	depsSvc := depsH.BuildService(primaryDB, depsInternal.NewFSPackageJSONReader(scenariosRoot))
 	depsObserver := &componentsDepsObserver{svc: depsSvc, logger: log.Default()}
+	previewSvc := previewH.BuildServiceAtRoot(componentsSvc, depsSvc, filepath.Dir(scenariosRoot))
 	adoptionsInternal.SetValidationGates(adoptionsSvc, depsSvc, componentsSvc)
 	adoptionsInternal.SetMaturityReader(adoptionsSvc, adoptionsInternal.NewCatalogMaturityReader(filepath.Dir(scenariosRoot), catalogcoverageInternal.NewEvidenceStore(primaryDB)))
 
@@ -276,13 +277,13 @@ func main() {
 			),
 			adoptionsH.WithSuggestions(componentsSvc, depsSvc, inventoryScanner, scenariosRoot),
 		),
-		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot))), componentsH.WithVersionLedger(versionLedger)),
+		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot))), componentsH.WithVersionLedger(versionLedger), componentsH.WithPreviewService(previewSvc)),
 		componentTestsH.ModuleWithGeneratedFixture(primaryDB, componentsSvc, adoptionsSvc, sourceRoot, log.Default()),
 		catalogH.Module(filepath.Dir(scenariosRoot), primaryDB),
 		depsH.ModuleFromService(depsSvc, log.Default()),
 		healthH.Module(primaryDB, "react-component-library-api", "1.0.0"),
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
-		previewH.ModuleWithDepsAtRoot(componentsSvc, depsSvc, log.Default(), filepath.Dir(scenariosRoot)),
+		previewH.ModuleFromService(previewSvc, componentsSvc, log.Default(), filepath.Dir(scenariosRoot)),
 		themesH.ModuleFromService(themesSvc, log.Default()),
 		versionsH.ModuleWithLedger(primaryDB, schedule.System(), versionsResolver, log.Default(), versionLedger),
 		workflowsH.ModuleWithReadiness(primaryDB, schedule.System(), workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), log.Default()),

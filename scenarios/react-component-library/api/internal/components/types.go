@@ -525,6 +525,51 @@ type CreateComponentVersionResult struct {
 	SourcePath string
 }
 
+type BeginComponentVersionInput struct {
+	Component string
+	Bump      string
+	Version   string
+}
+
+type ComponentVersionCheck struct {
+	Stage       string
+	Verdict     string
+	Message     string
+	Remediation string
+}
+
+type CheckComponentVersionResult struct {
+	Component Component
+	Version   string
+	Passed    bool
+	Checks    []ComponentVersionCheck
+}
+
+type PublishComponentVersionInput struct {
+	Component               string
+	DraftVersion            string
+	Version                 string
+	ChangelogMD             string
+	AcknowledgeParityWaiver bool
+}
+
+type AuthoringVersionResult struct {
+	Component     Component
+	Version       ComponentVersion
+	SourcePath    string
+	ArtifactPaths []string
+}
+
+type ErrVersionCheckFailed struct {
+	LibraryID string
+	Version   string
+	Checks    []ComponentVersionCheck
+}
+
+func (e ErrVersionCheckFailed) Error() string {
+	return fmt.Sprintf("component version check failed for %s@%s", e.LibraryID, e.Version)
+}
+
 type UpdateComponentManifestInput struct {
 	ComponentID        string
 	DisplayName        string

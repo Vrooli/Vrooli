@@ -37,6 +37,9 @@ type componentsService struct {
 	initResp       *componentsv1.InitializeComponentResponse
 	ingestResp     *componentsv1.IngestComponentResponse
 	versionResp    *componentsv1.CreateComponentVersionResponse
+	beginResp      *componentsv1.BeginComponentVersionResponse
+	checkResp      *componentsv1.CheckComponentVersionResponse
+	publishResp    *componentsv1.PublishComponentVersionResponse
 	manifestResp   *componentsv1.UpdateComponentManifestResponse
 	storiesResp    *componentsv1.ListComponentStoriesResponse
 	styleFitResp   *componentsv1.ValidateStyleFitResponse
@@ -173,6 +176,27 @@ func (s *componentsService) CreateComponentVersion(_ context.Context, req *conne
 		s.versionResp = &componentsv1.CreateComponentVersionResponse{Version: &componentsv1.ComponentVersion{Version: req.Msg.Version}}
 	}
 	return connect.NewResponse(s.versionResp), nil
+}
+
+func (s *componentsService) BeginComponentVersion(_ context.Context, req *connect.Request[componentsv1.BeginComponentVersionRequest]) (*connect.Response[componentsv1.BeginComponentVersionResponse], error) {
+	if s.beginResp == nil {
+		s.beginResp = &componentsv1.BeginComponentVersionResponse{Component: sampleComponent(), Version: &componentsv1.ComponentVersion{Version: "1.1.0-draft.1"}}
+	}
+	return connect.NewResponse(s.beginResp), nil
+}
+
+func (s *componentsService) CheckComponentVersion(_ context.Context, req *connect.Request[componentsv1.CheckComponentVersionRequest]) (*connect.Response[componentsv1.CheckComponentVersionResponse], error) {
+	if s.checkResp == nil {
+		s.checkResp = &componentsv1.CheckComponentVersionResponse{Component: sampleComponent(), Version: req.Msg.Version, Passed: true}
+	}
+	return connect.NewResponse(s.checkResp), nil
+}
+
+func (s *componentsService) PublishComponentVersion(_ context.Context, req *connect.Request[componentsv1.PublishComponentVersionRequest]) (*connect.Response[componentsv1.PublishComponentVersionResponse], error) {
+	if s.publishResp == nil {
+		s.publishResp = &componentsv1.PublishComponentVersionResponse{Component: sampleComponent(), Version: &componentsv1.ComponentVersion{Version: "1.1.0"}}
+	}
+	return connect.NewResponse(s.publishResp), nil
 }
 
 func (s *componentsService) UpdateComponentManifest(_ context.Context, req *connect.Request[componentsv1.UpdateComponentManifestRequest]) (*connect.Response[componentsv1.UpdateComponentManifestResponse], error) {

@@ -46,12 +46,19 @@ type Finding struct {
 // Result makes runner coverage observable. A gate that reports no findings
 // after inspecting zero inputs is not a passing gate; it is a broken runner.
 type Result struct {
-	Findings          []Finding
-	Inspected         int
-	InspectedAssets   []string
-	RunnerError       []Finding
-	SurfaceCounts     map[string]int
-	UnmeasuredAssets  []string
+	Findings         []Finding
+	Inspected        int
+	InspectedAssets  []string
+	RunnerError      []Finding
+	SurfaceCounts    map[string]int
+	UnmeasuredAssets []string
+	// UnstampedAssets and UncapturedAssets partition UnmeasuredAssets by root
+	// cause. An unstamped asset rendered without an identity marker, so its
+	// evidence exists but cannot be attributed — a build-config fix. An
+	// uncaptured asset carries a marker but no browser ever recorded it — a
+	// capture-coverage fix. Collapsing the two hides which lever to pull.
+	UnstampedAssets   []string
+	UncapturedAssets  []string
 	CompositionScores map[string]float64
 	CompositionMedian float64
 	BespokeEscapes    []CompositionEscape

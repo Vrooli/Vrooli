@@ -108,6 +108,25 @@ func ValidateComposition(root string) (Result, error) {
 	if len(result.UnmeasuredAssets) == result.Inspected {
 		result.Status = "unmeasured"
 	}
+	stampReport, stampErr := LoadStampReport(root)
+	if stampErr != nil {
+		return Result{}, stampErr
+	}
+	result.UnstampedAssets, result.UncapturedAssets = classifyUnmeasured(stampReport, result.UnmeasuredAssets)
+	if result.SurfaceCounts == nil {
+		result.SurfaceCounts = map[string]int{}
+	}
+	result.SurfaceCounts["measured"] = len(result.CompositionScores)
+	result.SurfaceCounts["unstamped"] = len(result.UnstampedAssets)
+	result.SurfaceCounts["uncaptured"] = len(result.UncapturedAssets)
+	// Coverage gaps are reported as a census, not as one blocking finding per
+	// asset. Composition is a quality gate: a median computed over 10 of 153
+	// assets is the misleading result to guard against, and the census in the
+	// summary line ("measured=10 unstamped=113 uncaptured=24") states that
+	// plainly. Emitting 113 identical "not measured" errors would instead bury
+	// the assets that were measured and scored badly, and NormalizeResult would
+	// file an asset-less finding as a runner malfunction, which it is not. The
+	// per-asset burn-down is the stamp report, which names every asset and why.
 	return nonEmpty(result, "composition"), nil
 }
 

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "args": {
+    "fields": [
+      { "name": "label", "type": "string", "default": "Capacity" },
+      { "name": "value", "type": "number", "default": 72 },
+      { "name": "max", "type": "number", "default": 100 },
+      { "name": "valueText", "type": "string", "default": "72%" },
+      { "name": "description", "type": "string", "default": "72% used" }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [{
+    "id": "default",
+    "name": "Default",
+    "harness": "Default",
+    "args": {},
+    "expect": [{ "kind": "text", "value": "72% used" }],
+    "mode": "live"
+  }]
+}

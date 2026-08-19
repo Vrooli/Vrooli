@@ -62,6 +62,100 @@ func TestService_GetAcceptsLibraryIDOrInternalID(t *testing.T) {
 	require.Equal(t, byID.ID, byLibraryID.ID)
 }
 
+func TestAuthoringWorkflowBeginsChecksAndPublishesByLibraryID(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	authoring := svc.(components.AuthoringService)
+
+	created, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+		LibraryID:        "react-component-library:Button",
+		Slug:             "Button",
+		DisplayName:      "Button",
+		InitialVersion:   "1.0.0",
+		InitialSource:    `export function Button() { return <button>Save</button>; }`,
+		ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+	baselineDir := filepath.Join(root, "components", "Button", "versions", "1.0.0")
+	companions := map[string][]byte{
+		"story.tsx":                []byte("export function ButtonStory() { return null; }\n"),
+		"experience-contract.json": []byte("{\"kind\":\"experience-component\"}\n"),
+		"styles.css":               []byte(".button { display: inline-flex; }\n"),
+		"focus-ring.svg":           []byte("<svg><circle r=\"2\" /></svg>\n"),
+		"LICENSE":                  []byte("Button fixture license\n"),
+	}
+	for name, body := range companions {
+		require.NoError(t, os.WriteFile(filepath.Join(baselineDir, name), body, 0o600))
+	}
+
+	baselineStory, err := os.ReadFile(filepath.Join(baselineDir, "story.json"))
+	require.NoError(t, err)
+	draft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{
+		Component: created.Component.LibraryID,
+		Bump:      "minor",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "1.1.0-draft.1", draft.Version.Version)
+	require.Equal(t, "1.1.0-draft.1", draft.Component.DraftVersion)
+	draftStoryPath := filepath.Join(root, "components", "Button", "versions", draft.Version.Version, "story.json")
+	draftStory, err := os.ReadFile(draftStoryPath)
+	require.NoError(t, err)
+	require.Equal(t, baselineStory, draftStory, "begin must preserve authored companion artifacts")
+	for name, body := range companions {
+		copied, readErr := os.ReadFile(filepath.Join(root, "components", "Button", "versions", draft.Version.Version, name))
+		require.NoError(t, readErr)
+		require.Equal(t, body, copied, "begin must preserve %s byte-for-byte", name)
+	}
+
+	authoredStory := []byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id":"primary","name":"Primary","args":{},"expect":[]}]
+}
+`)
+	require.NoError(t, os.WriteFile(draftStoryPath, authoredStory, 0o600))
+	checked, err := authoring.CheckComponentVersion(context.Background(), created.Component.LibraryID, draft.Version.Version)
+	require.NoError(t, err)
+	require.True(t, checked.Passed, checked.Checks)
+
+	released, err := authoring.PublishComponentVersion(context.Background(), components.PublishComponentVersionInput{Component: created.Component.LibraryID})
+	require.NoError(t, err)
+	require.Equal(t, "1.1.0", released.Version.Version)
+	require.Equal(t, "1.1.0", released.Component.LatestVersion)
+	require.Empty(t, released.Component.DraftVersion)
+	releaseStory, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", "1.1.0", "story.json"))
+	require.NoError(t, err)
+	require.Equal(t, authoredStory, releaseStory, "publish must preserve the exact checked story contract")
+	for name, body := range companions {
+		copied, readErr := os.ReadFile(filepath.Join(root, "components", "Button", "versions", "1.1.0", name))
+		require.NoError(t, readErr)
+		require.Equal(t, body, copied, "publish must preserve %s byte-for-byte", name)
+	}
+}
+
+func TestAuthoringBeginRollsBackFilesystemAndManifestWhenIndexingFails(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	authoring := svc.(components.AuthoringService)
+	created, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+		LibraryID: "react-component-library:Button", Slug: "Button", DisplayName: "Button", InitialVersion: "1.0.0", ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+
+	repo.UpsertErr = errors.New("injected index failure")
+	_, err = authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{Component: created.Component.LibraryID, Bump: "minor"})
+	require.ErrorContains(t, err, "injected index failure")
+	require.NoDirExists(t, filepath.Join(root, "components", "Button", "versions", "1.1.0-draft.1"))
+	manifest, readErr := os.ReadFile(filepath.Join(root, "components", "Button", "component.json"))
+	require.NoError(t, readErr)
+	require.Contains(t, string(manifest), `"latest": "1.0.0"`)
+	require.NotContains(t, string(manifest), `1.1.0-draft.1`)
+}
+
 func TestService_ValidateStyleFitFoldsAffinityVerdicts(t *testing.T) {
 	tests := []struct {
 		name     string

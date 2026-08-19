@@ -10,6 +10,10 @@
     {
       "libraryId": "react-component-library:Pressable",
       "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:Icon",
+      "version": "1.1.0"
     }
   ],
   "designStyles": [
@@ -26,7 +30,7 @@
       "affinity": "compatible"
     }
   ],
-  "latest": "2.0.0",
+  "latest": "2.2.0",
   "draft": "",
   "deprecatedVersions": []
 }

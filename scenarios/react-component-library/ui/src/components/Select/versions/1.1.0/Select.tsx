@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:Select
+ * @vrooliComponentSource forms.select
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 0644f753-16ab-4fa7-b831-dd99d549f010
  * @vrooliComponentAppliedAt 2026-08-11T00:47:56Z

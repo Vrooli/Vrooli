@@ -95,6 +95,21 @@ func TestIndexer_RunWalksAndUpserts(t *testing.T) {
 	require.Equal(t, []string{"layout", "container"}, got2.Tags)
 }
 
+func TestIndexer_IndexManifestIsolatesAuthoringFromUnrelatedComponents(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+		"components/Broken/component.json":            {Data: []byte(`{"displayName":"Broken","latest":"1.0.0"}`)},
+	}
+	repo := mocks.NewFakeRepository()
+	indexed, err := components.NewIndexer(repo, ".", fs).IndexManifest(context.Background(), "components/Button/component.json")
+	require.NoError(t, err)
+	require.Equal(t, "react-component-library:Button", indexed.LibraryID)
+	_, err = repo.GetByLibraryID(context.Background(), "react-component-library:Broken")
+	var notFound components.ErrComponentNotFound
+	require.ErrorAs(t, err, &notFound)
+}
+
 func TestIndexer_RunIndexesEntryAndCompanionFiles(t *testing.T) {
 	fs := fstest.MapFS{
 		"components/FocusTrap/component.json": {Data: []byte(`{"libraryId":"react-component-library:FocusTrap","displayName":"Focus Trap","slot":"ui-pattern","entry":"FocusTrap.tsx","latest":"1.0.0","deprecatedVersions":[]}`)},

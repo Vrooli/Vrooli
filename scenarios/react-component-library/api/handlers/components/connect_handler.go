@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
 
 	"connectrpc.com/connect"
 
 	"react-component-library/internal/components"
 	"react-component-library/internal/experience"
+	previewdomain "react-component-library/internal/preview"
 	"react-component-library/internal/versionledger"
 
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
@@ -21,6 +23,7 @@ import (
 // policy).
 type Deps struct {
 	Service    components.Service
+	Authoring  components.AuthoringService
 	Repo       components.Repository
 	SourceRoot string
 	Logger     *log.Logger
@@ -31,6 +34,7 @@ type Deps struct {
 	IndexObserver    components.UpsertObserver
 	ExperienceReader experience.Reader
 	VersionLedger    *versionledger.Repository
+	Preview          previewdomain.Service
 }
 
 type connectHandler struct {
@@ -194,6 +198,97 @@ func (h *connectHandler) IngestComponent(ctx context.Context, req *connect.Reque
 		ParityReport:  parityReportToProto(out.ParityReport),
 		ChecklistPath: out.ChecklistPath,
 	}), nil
+}
+
+func (h *connectHandler) BeginComponentVersion(ctx context.Context, req *connect.Request[componentsv1.BeginComponentVersionRequest]) (*connect.Response[componentsv1.BeginComponentVersionResponse], error) {
+	if h.deps.Authoring == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("component authoring service is not configured"))
+	}
+	out, err := h.deps.Authoring.BeginComponentVersion(ctx, components.BeginComponentVersionInput{
+		Component: req.Msg.GetComponent(),
+		Bump:      req.Msg.GetBump(),
+		Version:   req.Msg.GetVersion(),
+	})
+	if err != nil {
+		return nil, components.ToConnectError(err)
+	}
+	return connect.NewResponse(&componentsv1.BeginComponentVersionResponse{
+		Component:     domainToProto(out.Component),
+		Version:       versionToProto(out.Version),
+		SourcePath:    out.SourcePath,
+		ArtifactPaths: append([]string(nil), out.ArtifactPaths...),
+		PreviewPath:   authoringPreviewPath(out.Component.LibraryID, out.Version.Version),
+	}), nil
+}
+
+func (h *connectHandler) CheckComponentVersion(ctx context.Context, req *connect.Request[componentsv1.CheckComponentVersionRequest]) (*connect.Response[componentsv1.CheckComponentVersionResponse], error) {
+	if h.deps.Authoring == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("component authoring service is not configured"))
+	}
+	out, err := h.deps.Authoring.CheckComponentVersion(ctx, req.Msg.GetComponent(), req.Msg.GetVersion())
+	if err != nil {
+		return nil, components.ToConnectError(err)
+	}
+	if h.deps.Preview == nil {
+		out.Passed = false
+		out.Checks = append(out.Checks, components.ComponentVersionCheck{Stage: "preview", Verdict: "failed", Message: "preview compiler is not configured", Remediation: "restart the scenario with the preview service enabled"})
+	} else if _, err := h.deps.Preview.GetBundleVersion(ctx, out.Component.ID, out.Version); err != nil {
+		out.Passed = false
+		out.Checks = append(out.Checks, components.ComponentVersionCheck{Stage: "preview", Verdict: "failed", Message: err.Error(), Remediation: "fix the component or harness bundle before publishing"})
+	} else {
+		out.Checks = append(out.Checks, components.ComponentVersionCheck{Stage: "preview", Verdict: "passed", Message: "component and story harness bundled successfully"})
+	}
+	checks := make([]*componentsv1.ComponentVersionCheck, 0, len(out.Checks))
+	for _, check := range out.Checks {
+		checks = append(checks, &componentsv1.ComponentVersionCheck{Stage: check.Stage, Verdict: check.Verdict, Message: check.Message, Remediation: check.Remediation})
+	}
+	return connect.NewResponse(&componentsv1.CheckComponentVersionResponse{
+		Component:   domainToProto(out.Component),
+		Version:     out.Version,
+		Passed:      out.Passed,
+		Checks:      checks,
+		PreviewPath: authoringPreviewPath(out.Component.LibraryID, out.Version),
+	}), nil
+}
+
+func (h *connectHandler) PublishComponentVersion(ctx context.Context, req *connect.Request[componentsv1.PublishComponentVersionRequest]) (*connect.Response[componentsv1.PublishComponentVersionResponse], error) {
+	if h.deps.Authoring == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("component authoring service is not configured"))
+	}
+	checked, err := h.deps.Authoring.CheckComponentVersion(ctx, req.Msg.GetComponent(), req.Msg.GetDraftVersion())
+	if err != nil {
+		return nil, components.ToConnectError(err)
+	}
+	if !checked.Passed {
+		return nil, components.ToConnectError(components.ErrVersionCheckFailed{LibraryID: checked.Component.LibraryID, Version: checked.Version, Checks: checked.Checks})
+	}
+	if h.deps.Preview == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("preview compiler is not configured"))
+	}
+	if _, err := h.deps.Preview.GetBundleVersion(ctx, checked.Component.ID, checked.Version); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("preview check failed for %s@%s: %w", checked.Component.LibraryID, checked.Version, err))
+	}
+	out, err := h.deps.Authoring.PublishComponentVersion(ctx, components.PublishComponentVersionInput{
+		Component:               req.Msg.GetComponent(),
+		DraftVersion:            checked.Version,
+		Version:                 req.Msg.GetVersion(),
+		ChangelogMD:             req.Msg.GetChangelogMd(),
+		AcknowledgeParityWaiver: req.Msg.GetAcknowledgeParityWaiver(),
+	})
+	if err != nil {
+		return nil, components.ToConnectError(err)
+	}
+	return connect.NewResponse(&componentsv1.PublishComponentVersionResponse{
+		Component:     domainToProto(out.Component),
+		Version:       versionToProto(out.Version),
+		SourcePath:    out.SourcePath,
+		ArtifactPaths: append([]string(nil), out.ArtifactPaths...),
+		PreviewPath:   authoringPreviewPath(out.Component.LibraryID, out.Version.Version),
+	}), nil
+}
+
+func authoringPreviewPath(libraryID, version string) string {
+	return "/preview/" + url.PathEscape(libraryID) + "/harness.html?version=" + url.QueryEscape(version)
 }
 
 func (h *connectHandler) CreateComponentVersion(ctx context.Context, req *connect.Request[componentsv1.CreateComponentVersionRequest]) (*connect.Response[componentsv1.CreateComponentVersionResponse], error) {

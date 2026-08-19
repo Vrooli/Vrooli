@@ -35,7 +35,15 @@ func ModuleWithDeps(comp components.Service, depsSvc deps.Service, logger *log.L
 }
 
 func ModuleWithDepsAtRoot(comp components.Service, depsSvc deps.Service, logger *log.Logger, repoRoot string) module.Module {
-	svc := preview.NewServiceWithDepsAtRoot(comp, preview.NewEsbuilder(), depsSvc, repoRoot)
+	svc := BuildServiceAtRoot(comp, depsSvc, repoRoot)
+	return ModuleFromService(svc, comp, logger, repoRoot)
+}
+
+func BuildServiceAtRoot(comp components.Service, depsSvc deps.Service, repoRoot string) preview.Service {
+	return preview.NewServiceWithDepsAtRoot(comp, preview.NewEsbuilder(), depsSvc, repoRoot)
+}
+
+func ModuleFromService(svc preview.Service, comp components.Service, logger *log.Logger, repoRoot string) module.Module {
 	connectPath, connectHandler := previewconnect.NewPreviewServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,

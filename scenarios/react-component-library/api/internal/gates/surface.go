@@ -100,6 +100,13 @@ func ValidateSurfaceDiscipline(root string) (Result, error) {
 	if result.Inspected == 0 || len(captures) == 0 {
 		result.Status = "unmeasured"
 	}
+	stampReport, stampErr := LoadStampReport(root)
+	if stampErr != nil {
+		return Result{}, stampErr
+	}
+	result.UnstampedAssets, result.UncapturedAssets = classifyUnmeasured(stampReport, result.UnmeasuredAssets)
+	result.SurfaceCounts["unstamped"] = len(result.UnstampedAssets)
+	result.SurfaceCounts["uncaptured"] = len(result.UncapturedAssets)
 	return result, nil
 }
 

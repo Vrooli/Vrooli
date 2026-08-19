@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:AppShell
+ * @vrooliComponentSource navigation.app-shell
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 2c80bd09-6377-45af-9f5d-83bce616b8d9
  * @vrooliComponentAppliedAt 2026-08-17T23:22:40Z

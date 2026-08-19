@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:IconButton
+ * @vrooliComponentSource controls.icon-button
  * @vrooliComponentVersion 2.0.0
  * @vrooliComponentAdoption 863eaaab-f7a2-436a-8be6-b79623789b44
  * @vrooliComponentAppliedAt 2026-08-18T01:12:40Z

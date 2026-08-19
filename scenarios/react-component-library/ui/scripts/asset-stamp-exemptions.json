@@ -1,138 +1,173 @@
 [
   {
-    "asset": "react-component-library:AssetDetailShell",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:AsyncPanel",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:CommandCenterShell",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:ControlBase",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:DrawerShell",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:ExperienceSurface",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:FocusTrapPanel",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:InspectorLayout",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:PageFrame",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:StatusBadge",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:VoiceInputButton",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:WorkspaceHeader",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:markdown-renderer",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:mermaid-diagram",
-    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
-  },
-  {
-    "asset": "react-component-library:useVoiceInput",
-    "reason": "The hook has no DOM-owned root and its supplemental manifest has no catalog id."
-  },
-  {
     "asset": "hooks.*",
+    "kind": "permanent",
     "reason": "Hooks are behavior-only assets and do not own a DOM root."
   },
   {
-    "asset": "monetization.auth-section",
-    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
-  },
-  {
-    "asset": "monetization.entitlement-error-card",
-    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
-  },
-  {
-    "asset": "monetization.pending-sync-badge",
-    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
-  },
-  {
-    "asset": "monetization.subscription-status-card",
-    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
-  },
-  {
-    "asset": "monetization.upgrade-prompt",
-    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
-  },
-  {
     "asset": "foundations.contracts",
+    "kind": "permanent",
     "reason": "The foundation exports types and contracts only; it has no DOM-owned root."
   },
   {
     "asset": "foundations.icon-registry",
+    "kind": "permanent",
     "reason": "The foundation exports icon data and helpers only; it has no DOM-owned root."
   },
   {
     "asset": "foundations.tokens",
+    "kind": "permanent",
     "reason": "The foundation exports token data only; it has no DOM-owned root."
   },
   {
     "asset": "foundations.visual-recipes",
+    "kind": "permanent",
     "reason": "The foundation exports recipes and token maps only; it has no DOM-owned root."
   },
   {
     "asset": "primitives.slot",
+    "kind": "permanent",
     "reason": "Slot clones a consumer-owned element and does not own a DOM root to stamp."
   },
   {
     "asset": "services.command-registry",
+    "kind": "permanent",
     "reason": "The service exports an imperative registry and does not render a DOM root."
   },
   {
     "asset": "services.drag-drop-store",
+    "kind": "permanent",
     "reason": "The service exports store state and does not render a DOM root."
   },
   {
     "asset": "services.form-store",
+    "kind": "permanent",
     "reason": "The service exports form state and does not render a DOM root."
   },
   {
     "asset": "services.layer-manager",
+    "kind": "permanent",
     "reason": "The service exports layer coordination and does not render a DOM root."
   },
   {
-    "asset": "navigation.scroll-restoration",
-    "reason": "The service exports a scroll effect and does not render a DOM root."
-  },
-  {
     "asset": "services.selection-store",
+    "kind": "permanent",
     "reason": "The service exports selection state and does not render a DOM root."
   },
   {
     "asset": "services.shortcut-registry",
+    "kind": "permanent",
     "reason": "The service exports keyboard registry state and does not render a DOM root."
   },
   {
     "asset": "services.create-scoped-store",
+    "kind": "permanent",
     "reason": "The service exports a store factory and does not render a DOM root."
+  },
+  {
+    "asset": "navigation.scroll-restoration",
+    "kind": "permanent",
+    "reason": "The service exports a scroll effect and does not render a DOM root."
+  },
+  {
+    "asset": "react-component-library:useVoiceInput",
+    "kind": "permanent",
+    "reason": "The hook has no DOM-owned root; behavior-only assets never carry a stamp."
+  },
+  {
+    "asset": "monetization.auth-section",
+    "kind": "permanent",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.entitlement-error-card",
+    "kind": "permanent",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.pending-sync-badge",
+    "kind": "permanent",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.subscription-status-card",
+    "kind": "permanent",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.upgrade-prompt",
+    "kind": "permanent",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+
+  {
+    "asset": "react-component-library:AssetDetailShell",
+    "kind": "backlog",
+    "reason": "Workbench shell with no owned catalog asset yet; catalogue it as a page-template so its rendered tree can be scored."
+  },
+  {
+    "asset": "react-component-library:AsyncPanel",
+    "kind": "backlog",
+    "reason": "Workbench async boundary with no owned catalog asset yet; catalogue it under feedback."
+  },
+  {
+    "asset": "react-component-library:CommandCenterShell",
+    "kind": "backlog",
+    "reason": "Workbench shell with no owned catalog asset yet; catalogue it as a page-template."
+  },
+  {
+    "asset": "react-component-library:ControlBase",
+    "kind": "backlog",
+    "reason": "Shared control substrate with no owned catalog asset yet; catalogue it under controls."
+  },
+  {
+    "asset": "react-component-library:DrawerShell",
+    "kind": "backlog",
+    "reason": "Overlay shell with no owned catalog asset yet; catalogue it under overlays."
+  },
+  {
+    "asset": "react-component-library:ExperienceSurface",
+    "kind": "backlog",
+    "reason": "Experience surface with no owned catalog asset yet; catalogue it under patterns."
+  },
+  {
+    "asset": "react-component-library:FocusTrapPanel",
+    "kind": "backlog",
+    "reason": "Focus management panel with no owned catalog asset yet; catalogue it under overlays."
+  },
+  {
+    "asset": "react-component-library:InspectorLayout",
+    "kind": "backlog",
+    "reason": "Inspector layout with no owned catalog asset yet; catalogue it as a page-template."
+  },
+  {
+    "asset": "react-component-library:PageFrame",
+    "kind": "backlog",
+    "reason": "Page frame with no owned catalog asset yet; catalogue it as a page-template."
+  },
+  {
+    "asset": "react-component-library:StatusBadge",
+    "kind": "backlog",
+    "reason": "Status badge with no owned catalog asset yet; catalogue it under feedback."
+  },
+  {
+    "asset": "react-component-library:VoiceInputButton",
+    "kind": "backlog",
+    "reason": "Voice input control with no owned catalog asset yet; catalogue it under controls."
+  },
+  {
+    "asset": "react-component-library:WorkspaceHeader",
+    "kind": "backlog",
+    "reason": "Workspace header with no owned catalog asset yet; catalogue it under navigation."
+  },
+  {
+    "asset": "react-component-library:markdown-renderer",
+    "kind": "backlog",
+    "reason": "Markdown renderer with no owned catalog asset yet; catalogue it under data-display."
+  },
+  {
+    "asset": "react-component-library:mermaid-diagram",
+    "kind": "backlog",
+    "reason": "Diagram renderer with no owned catalog asset yet; catalogue it under visualization."
   }
 ]

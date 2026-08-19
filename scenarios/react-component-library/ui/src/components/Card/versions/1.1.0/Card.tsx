@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:Card
+ * @vrooliComponentSource primitives.card
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 5c10e008-e3b8-4f5e-a99c-c4d3b022ce19
  * @vrooliComponentAppliedAt 2026-08-11T00:47:49Z

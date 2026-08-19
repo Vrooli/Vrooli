@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:Drawer
+ * @vrooliComponentSource overlays.drawer
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption af7d2d72-40c6-4f05-83f5-5374630bdd5c
  * @vrooliComponentAppliedAt 2026-08-17T23:22:48Z

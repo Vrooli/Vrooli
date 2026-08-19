@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:NavigationTree
+ * @vrooliComponentSource navigation.navigation-tree
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 4a5e1190-da32-4358-91b8-d20fc9cf5dfa
  * @vrooliComponentAppliedAt 2026-08-17T23:22:49Z

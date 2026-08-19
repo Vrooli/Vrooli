@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:useEscapeKey
+ * @vrooliComponentSource hooks.use-escape-key
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption e149b4c5-b7ec-40be-9efa-4943fe378e4a
  * @vrooliComponentAppliedAt 2026-08-11T01:05:38Z

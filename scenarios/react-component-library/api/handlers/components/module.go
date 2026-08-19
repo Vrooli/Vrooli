@@ -27,6 +27,7 @@ import (
 	"react-component-library/internal/components"
 	"react-component-library/internal/experience"
 	"react-component-library/internal/module"
+	previewdomain "react-component-library/internal/preview"
 	"react-component-library/internal/versionledger"
 
 	"github.com/vrooli/api-core/schedule"
@@ -73,12 +74,19 @@ func WithExperienceReader(reader experience.Reader) ModuleOption {
 	return func(d *Deps) { d.ExperienceReader = reader }
 }
 
+func WithPreviewService(service previewdomain.Service) ModuleOption {
+	return func(d *Deps) { d.Preview = service }
+}
+
 func ModuleFromService(svc components.Service, repo components.Repository, sourceRoot string, logger *log.Logger, opts ...ModuleOption) module.Module {
 	d := Deps{
 		Service:    svc,
 		Repo:       repo,
 		SourceRoot: sourceRoot,
 		Logger:     logger,
+	}
+	if authoring, ok := svc.(components.AuthoringService); ok {
+		d.Authoring = authoring
 	}
 	for _, opt := range opts {
 		opt(&d)
@@ -262,6 +270,45 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Invalid scenario, source file, or component metadata"},
 			{Status: 409, Code: "already_exists", Description: "Component libraryId or slug already exists"},
 			{Status: 500, Code: "internal", Description: "Filesystem or repository failure"},
+		},
+	},
+	{
+		ID:          "components_version_begin",
+		Path:        componentsconnect.ComponentsServiceBeginComponentVersionProcedure,
+		Method:      "POST",
+		Summary:     "Begin a mutable component draft",
+		Description: "Resolves a stable libraryId or UUID, computes the requested semver bump, copies the complete current version artifact set, indexes the draft, and returns its edit paths and preview path.",
+		Category:    "components",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"component": "string (libraryId or UUID)", "bump": "major|minor|patch", "version": "explicit release semver"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"component": "Component", "version": "ComponentVersion", "artifact_paths": "array<string>", "preview_path": "string"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Invalid bump/version or an active draft already exists"},
+			{Status: 404, Code: "not_found", Description: "No component with that selector"},
+		},
+	},
+	{
+		ID:          "components_version_check",
+		Path:        componentsconnect.ComponentsServiceCheckComponentVersionProcedure,
+		Method:      "POST",
+		Summary:     "Check one component version",
+		Description: "Runs source, dependency-closure, story-contract, enum-coverage, and preview-bundle checks for one explicit component version without scanning unrelated catalog assets.",
+		Category:    "components",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"component": "string (libraryId or UUID)", "version": "string (defaults draft then latest)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"component": "Component", "version": "string", "passed": "bool", "checks": "array<ComponentVersionCheck>", "preview_path": "string"}},
+		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "No component or version with that selector"}},
+	},
+	{
+		ID:          "components_version_publish",
+		Path:        componentsconnect.ComponentsServicePublishComponentVersionProcedure,
+		Method:      "POST",
+		Summary:     "Publish a validated component draft",
+		Description: "Checks the active draft, compiles its preview, preserves every version artifact, updates the release pointers, and rolls back the filesystem mutation if indexing fails.",
+		Category:    "components",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"component": "string (libraryId or UUID)", "draft_version": "string", "version": "release semver", "changelog_md": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"component": "Component", "version": "ComponentVersion", "artifact_paths": "array<string>", "preview_path": "string"}},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No component or draft with that selector"},
+			{Status: 412, Code: "failed_precondition", Description: "Draft checks, preview compilation, or parity policy failed"},
 		},
 	},
 	{

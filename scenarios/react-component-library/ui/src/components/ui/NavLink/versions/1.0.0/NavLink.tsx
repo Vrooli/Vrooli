@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:NavLink
+ * @vrooliComponentSource navigation.nav-link
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 2ff0a768-e91f-4729-b46a-cb025d3c42a4
  * @vrooliComponentAppliedAt 2026-08-12T11:41:02Z

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Button 2.2",
+  "args": {
+    "fields": [
+      {
+        "path": "children",
+        "label": "Label",
+        "kind": "structured",
+        "required": true,
+        "default": { "$text": "Save changes" },
+        "format": "renderable-text"
+      },
+      {
+        "path": "disabled",
+        "label": "Disabled",
+        "kind": "boolean",
+        "default": false
+      }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "primary",
+      "name": "Primary",
+      "harness": "ButtonStory",
+      "args": { "children": { "$text": "Save changes" }, "variant": "primary" },
+      "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }],
+      "mode": "live"
+    },
+    {
+      "id": "start-icon",
+      "name": "Governed start icon",
+      "harness": "ButtonStory",
+      "args": {
+        "children": { "$text": "Continue" },
+        "iconName": "arrowEnd",
+        "size": "lg"
+      },
+      "expect": [{ "kind": "role", "role": "button", "name": "Continue" }],
+      "mode": "live"
+    },
+    {
+      "id": "disabled-long-label",
+      "name": "Disabled",
+      "harness": "ButtonStory",
+      "args": { "children": { "$text": "Save changes" }, "disabled": true },
+      "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }],
+      "mode": "live"
+    }
+  ]
+}

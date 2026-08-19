@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:Dialog
+ * @vrooliComponentSource overlays.dialog
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 08c09296-b3da-4860-9b64-edd801000ae1
  * @vrooliComponentAppliedAt 2026-08-11T00:47:48Z

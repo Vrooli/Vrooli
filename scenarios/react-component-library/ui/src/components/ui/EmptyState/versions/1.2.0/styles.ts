@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:EmptyState
+ * @vrooliComponentSource feedback.empty-state
  * @vrooliComponentVersion 1.2.0
  * @vrooliComponentAdoption de9529c6-47c8-432e-9c05-37aeca4c5a20
  * @vrooliComponentAppliedAt 2026-08-12T12:59:54Z

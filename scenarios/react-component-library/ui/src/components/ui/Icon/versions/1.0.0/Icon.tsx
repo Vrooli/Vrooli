@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:Icon
+ * @vrooliComponentSource primitives.icon
  * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 3300c045-811e-474a-8de2-3994ae86b436
  * @vrooliComponentAppliedAt 2026-08-18T01:12:35Z

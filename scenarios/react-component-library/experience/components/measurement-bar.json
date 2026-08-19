@@ -6,7 +6,7 @@
     "id": "measurement-bar",
     "title": "MeasurementBar",
     "purpose": "Make observed and required values comparable in the testing surface.",
-    "storyRef": "../../library/components/MeasurementBar/versions/1.0.4/story.json"
+    "storyRef": "../../library/components/MeasurementBar/versions/1.0.6/story.json"
   },
   "states": [
     {

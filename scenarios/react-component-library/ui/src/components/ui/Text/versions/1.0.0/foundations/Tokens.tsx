@@ -1,5 +1,5 @@
 /**
- * @vrooliComponentSource react-component-library:Tokens
+ * @vrooliComponentSource foundations.tokens
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 62b28b9a-0042-4245-ad96-d8012e4a9d4f
  * @vrooliComponentAppliedAt 2026-08-12T12:59:52Z
