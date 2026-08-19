@@ -7,7 +7,7 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "treasury",
-  "description": "Experience contract for Treasury. The operator console has one job that outranks the rest: let a human judge a pending charge quickly and correctly. Approvals is therefore the landing surface, and every other page exists to answer a question that judgement raises \u2014 what may be spent (budgets), what authority exists (mandates), what actually happened (activity), and whether a spend could physically occur (rails). Claims are aspirational until the UI has stable roles and testids; they state intent the validator cannot yet check.",
+  "description": "Experience contract for Treasury. The operator console has one job that outranks the rest: let a human judge a pending charge quickly and correctly. Approvals is therefore the landing surface, and every other page exists to answer a question that judgement raises — what may be spent (budgets), what authority exists (mandates), what actually happened (activity), and whether a spend could physically occur (rails). Claims are aspirational until the UI has stable roles and testids; they state intent the validator cannot yet check.",
   "pages": [
     {
       "id": "approvals",
@@ -43,12 +43,6 @@
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",
-      "status": "active"
-    },
-    {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
       "status": "active"
     }
   ],

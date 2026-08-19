@@ -45,16 +45,6 @@ limitation:**
 | Agent workload identity and signing keys | `agent-manager` | This scenario verifies and cannot mint. It cannot forge the identity it checks. |
 | Financial position, runway, tax treatment | `money-ledger` | Limits the blast radius of a read compromise to authorization data rather than complete financial posture. |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `template-manager detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Auth And Authorization
 
 **Two Connect services, two realms.** This is the load-bearing security
@@ -72,6 +62,14 @@ call it likes; it cannot invoke an RPC that does not exist. A permission
 check, by contrast, is code that could be misconfigured, bypassed by a
 future convenience endpoint, or argued past by a sufficiently creative
 payload.
+
+`TreasuryAdmin` separately fails closed behind an operator credential. It
+accepts `X-Vrooli-Operator-Token` (or an equivalent bearer token) matching
+`TREASURY_OPERATOR_TOKEN`, with `API_TOKEN` as a fallback. Missing
+configuration disables the admin surface rather than opening it. Any request
+that also carries `X-Agent-Identity-Token` is rejected before the operator
+credential is considered, so a mixed-realm request cannot borrow ambient
+operator authority.
 
 **Authorization is always server-side.** `TRS-P0-002` requires the
 evaluator to derive its verdict only from stored state. Caller-supplied
@@ -92,6 +90,7 @@ translation layers over the API.
 | Card and issuer credentials | `secrets-manager` | P1 (`TRS-P1-003`) | Resolved by reference at use time. Never persisted here, never returned in a response body, never logged. |
 | x402 facilitator keys | `secrets-manager` | P1 (`TRS-P1-001`, `TRS-P1-002`) | Same handling. A self-hosted facilitator's signing material is the highest-value secret in the system. |
 | `agent-manager` verification | none held | P0 | Verification is a live call; this scenario holds no signing secret and therefore cannot mint an identity token. |
+| Operator API credential | `TREASURY_OPERATOR_TOKEN` or `API_TOKEN` | P0 | Read only at composition time and compared in constant time. Never persisted or returned. Missing configuration disables `TreasuryAdmin`. |
 | Ledger emission credentials | per `money-ledger` contract | P0 | Scoped to emission only. |
 
 No secret is held in `.vrooli/service.json`, environment defaults, or
@@ -101,13 +100,13 @@ scenario storage.
 
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
-| **Prompt injection raising a charge** — a counterparty page persuades the agent to authorize more, or to a different recipient. | Direct financial loss. | The mandate is signed *before* the agent reads untrusted content. Evaluation is server-side against stored state. Caller-supplied override fields are ignored. The amount and counterparty in the approval prompt come from the mandate, not from the agent's request. | designed |
-| **Prompt injection disabling the gate** — the agent is persuaded to turn off approval. | Loss of the human checkpoint. | The method does not exist on the agent-facing service. `TRS-P0-004`. | designed |
+| **Prompt injection raising a charge** — a counterparty page persuades the agent to authorize more, or to a different recipient. | Direct financial loss. | The mandate is signed *before* the agent reads untrusted content. Evaluation is server-side against stored state. Caller-supplied override fields are ignored. Approval and instrument scopes project from the stored mandate. | partial — authorization, approval projection, and instrument scoping verified; settlement pending |
+| **Prompt injection disabling the gate** — the agent is persuaded to turn off approval. | Loss of the human checkpoint. | The method does not exist on the agent-facing service. The generated descriptor is pinned to an exact reviewed method allowlist, and every admin method rejects the agent realm. `TRS-P0-004`. | verified |
 | **Compromised agent token** — a valid token is stolen or a run is hijacked. | Bounded. The token's scopes are attenuated by `agent-manager` and can never widen; the mandate caps amount, counterparty and expiry; approval still gates. | Structural: the blast radius of a stolen token is exactly one mandate's cap. | designed |
 | **Replay of a charge request** — the same authorization is submitted repeatedly. | Double spending. | Caller-supplied idempotency key is required, not defaulted. A repeated key returns the first outcome. `TRS-P0-011`. | designed |
 | **Retrying an ambiguous settlement** — the rail was called, the response lost. | Double charge. | `unknown` is a first-class state resolved by querying the rail, never by retrying. `TRS-P0-012`, and the reason settlement targets formal-model maturity. | designed |
-| **Identity authority unavailable, treated as permissive** | Unattributable spend. | Fail closed. `TRS-P0-005`. Explicitly rejects the degraded-grade pattern used for ordinary attribution writes. | designed |
-| **Credential exfiltration through a response or log** | Card compromise. | Credentials never enter this scenario; only references. `TRS-P1-003` asserts non-leakage. The rails page carries an `element-absent` experience claim for credential material. | designed |
+| **Identity authority unavailable, treated as permissive** | Unattributable spend. | Fail closed. `TRS-P0-005`. Explicitly rejects the degraded-grade pattern used for ordinary attribution writes. | verified |
+| **Credential exfiltration through a response or log** | Card compromise. | Instrument storage contains a logical reference only; API responses redact even that reference; use-time resolution follows a revalidated live mandate. Schema and transport tests enforce these boundaries. | partial — storage and API boundaries verified; automated rail logging remains to be exercised |
 | **Third-party custody drift** — a feature quietly starts holding value for someone else. | Regulated activity entered without deciding to. | The schema admits exactly one beneficiary identity. `TRS-P0-010` tests the schema, not just the handler. | designed |
 | **Evidence tampering to hide a spend** | Loss of the audit property the scenario exists for. | Append-only store; update and delete refused by construction. No operator-facing purge exists. | designed |
 | **Approval fatigue** — an operator approves without reading. | The human gate becomes ceremonial. | Partly a UX problem, addressed by making amount and counterparty the first thing read and by keeping the queue short through well-scoped budgets. **Not fully mitigated** — see gaps. | partial |
@@ -118,9 +117,10 @@ scenario storage.
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| Nothing is implemented yet. Every mitigation above is `designed`, not `verified`. | high | Implementation. No claim here should be repeated as fact until its requirement's validation is earned by a passing test rather than asserted. |
+| Exactly-once settlement, automated rail execution and complete evidence replay are not implemented yet. Their mitigations remain `designed`, not verified. | high | Complete the owning plan phases and require passing requirement-linked tests before changing each status. |
 | Approval fatigue is only partly addressed. | medium | Observe real queue depth once an automated rail is live. If operators approve in under a second, the gate is ceremonial and needs a design answer, not more copy. |
 | No rate limiting on the agent-facing authorization surface. | medium | Before the first automated rail. A compromised agent cannot exceed its mandate, but it can generate unbounded refusals and evidence rows. |
+| The operator realm uses one static bearer credential rather than short-lived per-operator sessions. | medium | Before remote or multi-operator deployment. Replace the `operatorauth.Authorizer` implementation without weakening the two-service descriptor boundary. |
 | Evidence read access is realm-scoped but not further partitioned. | low | Multi-operator use, which the operator-funds-only decision currently makes out of scope. |
 | Instrument revocation is local; propagating it to each rail is adapter-specific. | medium | Second automated rail, when the shared shape becomes visible. |
 | `agent-manager` is a single point of failure on the spend path. | accepted | Deliberate, per the fail-closed decision. Revisit only if a second independent verification path exists. |

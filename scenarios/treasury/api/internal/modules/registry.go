@@ -19,16 +19,20 @@ package modules
 import (
 	"treasury/internal/module"
 
+	agentspendH "treasury/handlers/agentspend"
+	bookH "treasury/handlers/book"
+	budgetH "treasury/handlers/budget"
 	capsH "treasury/handlers/capabilities"
+	evidenceH "treasury/handlers/evidence"
+	mandateH "treasury/handlers/mandate"
+	treasuryadminH "treasury/handlers/treasuryadmin"
 
 	apidb "github.com/vrooli/api-core/database"
+	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "treasury/handlers/health"
-	notesH "treasury/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "treasury/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +43,8 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, agentspendH.Endpoints...)
+	out = append(out, treasuryadminH.Endpoints...)
 	return out
 }
 
@@ -66,7 +71,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_treasury_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "agentspend", File: authorizationv1.File_treasury_v1_authorization_authorization_proto},
 	}
 }
 
@@ -81,6 +86,11 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(bookH.Schema),
+		apidb.SchemaProviderFunc(budgetH.Schema),
+		apidb.SchemaProviderFunc(mandateH.Schema),
+		apidb.SchemaProviderFunc(agentspendH.Schema),
+		apidb.SchemaProviderFunc(treasuryadminH.Schema),
+		apidb.SchemaProviderFunc(evidenceH.Schema),
 	}
 }

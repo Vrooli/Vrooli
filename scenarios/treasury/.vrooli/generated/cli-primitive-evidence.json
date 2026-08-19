@@ -1,0 +1,16 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "treasury",
+  "generator": "v1.0.0",
+  "manifest_hash": "6f45c8cc5adac9d1490c680452c048e55adbd3c318c60139e0514249e5f19c72",
+  "commands": [
+    {
+      "path": "safety invariants",
+      "group": "safety",
+      "command": "invariants",
+      "binding": "."
+    }
+  ]
+}

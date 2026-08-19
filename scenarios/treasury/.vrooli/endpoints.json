@@ -49,212 +49,413 @@
       "path": "/api/v1/capabilities/describe",
       "method": "GET",
       "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
-    },
-    {
-      "id": "notes_list",
-      "path": "/vrooli.treasury.v1.notes.NotesService/ListNotes",
-      "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.treasury.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.treasury.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.treasury.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.treasury.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.treasury.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.treasury.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.treasury.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
-      "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
+      "description": "",
+      "category": "capabilities",
       "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+        "reason": "ops_probe",
+        "note": "The capability descriptor is a plain operational JSON probe used by the control plane.",
         "proto_payloads": {
           "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
+            "transport": "none",
+            "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.treasury.v1.notes.UploadAttachmentResponse",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           },
           "error": {
-            "proto_full_name": "vrooli.treasury.v1.shared.ErrorEnvelope",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           }
         }
       }
+    },
+    {
+      "id": "agentspend_propose_charge",
+      "path": "/vrooli.treasury.v1.authorization.AgentSpend/ProposeCharge",
+      "method": "POST",
+      "summary": "Evaluate and reserve a proposed charge",
+      "description": "",
+      "category": "authorization",
+      "request": {
+        "type": "ProposeChargeRequest"
+      },
+      "response": {
+        "type": "ProposeChargeResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Malformed proposal"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Fail-closed dependency or persistence failure"
+        }
+      ]
+    },
+    {
+      "id": "agentspend_get_authorization",
+      "path": "/vrooli.treasury.v1.authorization.AgentSpend/GetAuthorization",
+      "method": "POST",
+      "summary": "Read an authorization decision",
+      "description": "",
+      "category": "authorization",
+      "request": {
+        "type": "GetAuthorizationRequest"
+      },
+      "response": {
+        "type": "GetAuthorizationResponse"
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Authorization does not exist"
+        }
+      ]
+    },
+    {
+      "id": "agentspend_list_mandates",
+      "path": "/vrooli.treasury.v1.authorization.AgentSpend/ListMandates",
+      "method": "POST",
+      "summary": "List mandates visible to the verified agent",
+      "description": "",
+      "category": "mandate",
+      "request": {
+        "type": "ListMandatesRequest"
+      },
+      "response": {
+        "type": "ListMandatesResponse"
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Introduced with the governed agent CLI surface"
+        }
+      ]
+    },
+    {
+      "id": "agentspend_report_outcome",
+      "path": "/vrooli.treasury.v1.authorization.AgentSpend/ReportOutcome",
+      "method": "POST",
+      "summary": "Execute an approved charge once and return its durable rail outcome",
+      "description": "",
+      "category": "settlement",
+      "request": {
+        "type": "ReportOutcomeRequest"
+      },
+      "response": {
+        "type": "ReportOutcomeResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid, unauthorized, expired, or idempotency-aliased settlement"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Settlement dependency not found"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Settlement execution or durable outcome recording failed"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_create_mandate",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateMandate",
+      "method": "POST",
+      "summary": "Create a signed mandate",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "CreateMandateRequest"
+      },
+      "response": {
+        "type": "CreateMandateResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Method behavior lands with its owning domain phase"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_revoke_mandate",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/RevokeMandate",
+      "method": "POST",
+      "summary": "Revoke a mandate",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "RevokeMandateRequest"
+      },
+      "response": {
+        "type": "RevokeMandateResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Method behavior lands with its owning domain phase"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_set_budget_caps",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/SetBudgetCaps",
+      "method": "POST",
+      "summary": "Set budget caps",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "SetBudgetCapsRequest"
+      },
+      "response": {
+        "type": "SetBudgetCapsResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Method behavior lands with its owning domain phase"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_set_gating",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/SetGating",
+      "method": "POST",
+      "summary": "Set budget approval gating",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "SetGatingRequest"
+      },
+      "response": {
+        "type": "SetGatingResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Method behavior lands with its owning domain phase"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_resolve_approval",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ResolveApproval",
+      "method": "POST",
+      "summary": "Resolve a pending approval",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ResolveApprovalRequest"
+      },
+      "response": {
+        "type": "ResolveApprovalResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Method behavior lands with its owning domain phase"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_freeze_budget",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/FreezeBudget",
+      "method": "POST",
+      "summary": "Freeze a budget",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "FreezeBudgetRequest"
+      },
+      "response": {
+        "type": "FreezeBudgetResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Method behavior lands with its owning domain phase"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_unfreeze_budget",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/UnfreezeBudget",
+      "method": "POST",
+      "summary": "Unfreeze a budget",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "UnfreezeBudgetRequest"
+      },
+      "response": {
+        "type": "UnfreezeBudgetResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Method behavior lands with its owning domain phase"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_register_instrument",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/RegisterInstrument",
+      "method": "POST",
+      "summary": "Register an instrument reference",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "RegisterInstrumentRequest"
+      },
+      "response": {
+        "type": "RegisterInstrumentResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Method behavior lands with its owning domain phase"
+        }
+      ]
     }
   ]
 }

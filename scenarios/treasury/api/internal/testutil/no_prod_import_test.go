@@ -28,6 +28,14 @@ func TestNoProductionImports(t *testing.T) {
 			}
 			t.Fatalf("decode go list package: %v", err)
 		}
+		// flow-verifier owns the generated replay shim beneath each
+		// <domain>/flow/generated package. The shim is test infrastructure
+		// emitted as replay.go so the parent flow test can import it; no
+		// runtime package imports it. Keep the exception constrained to that
+		// tool-owned location while enforcing the boundary everywhere else.
+		if strings.Contains(pkg.ImportPath, "/flow/generated") {
+			continue
+		}
 		for _, imported := range pkg.Imports {
 			if strings.HasPrefix(imported, prefix) {
 				t.Errorf("production package %s imports %s", pkg.ImportPath, imported)

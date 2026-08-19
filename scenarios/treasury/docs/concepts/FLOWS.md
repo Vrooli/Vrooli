@@ -30,7 +30,7 @@ workflow model.
 |---|---|---|---|---|---|
 | Mandate lifecycle | mandate | An operator issues a grant. | A mandate that is live, exhausted, expired or revoked. | States; expiry is time-driven and needs no actor; revocation is terminal. | Level 4 target |
 | Spend authorization | authorization | An agent proposes a charge. | A verdict, and a hold when approved. | States; holds must release on every terminal path including crash recovery. | Level 4 target |
-| Approval resolution | approval | An authorization requires a human. | Approved, declined or expired. | States; retries on relay only; stale completion is real because humans are slow. | Level 4 target |
+| Approval resolution | approval | An authorization requires a human. | Approved, declined or expired. | States; retries on relay only; stale completion is real because humans are slow. | Level 4 measured |
 | Settlement | settlement | An approved authorization is executed. | Settled, failed or abandoned. | States; exactly-once under retry; the hard case is the unknown-outcome window. | Level 5 target |
 | Standing mandate recurrence | mandate | A recurrence boundary is reached. | A new authorization, or a stopped obligation. | States; cancellation must beat the next charge. | Level 3 target |
 | Ledger emission | ledger | A charge reaches a terminal outcome. | A money event accepted downstream. | Retries; idempotent; must not block settlement. | Level 3 target |
@@ -168,9 +168,6 @@ workflow model.
   stopped, which is what makes it a kill switch rather than a policy edit.
 - **Tests:** `TRS-P1-006`.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## State Machines
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
@@ -202,11 +199,13 @@ to add a standalone formal document.
 | 4 | Declarative contract | A domain-local `*.flow.json` declares states, events, transitions, invariants, and named traces. |
 | 5 | Checked formal model | Quint/TLA+ or an equivalent tool is generated from the contract, checked, and replayed by production tests. |
 
-**Current level: 1 (inventory) for every flow.** Nothing is implemented
-yet, so every flow above is listed and none is modeled. That is the honest
-reading and it is recorded here rather than left implied — a maturity table
-whose levels are aspirations reads identically to one whose levels are
-measurements, which is how these ladders become misleading.
+**Current measured levels:** mandate, authorization, and approval lifecycles are level 4:
+their declarative contracts, complete state/event matrices, generated models,
+named traces, and production-transition replays live under their respective
+`api/internal/<domain>/flow/` directories and pass `flow-verifier verify
+check`. Every other flow remains level 1 (inventory) until its executable
+artifacts land. This is intentionally a measurement, not a restatement of the
+targets below.
 
 Targets and their justification:
 

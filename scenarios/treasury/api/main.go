@@ -8,9 +8,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"treasury/internal/approval"
 	"treasury/internal/capabilities"
+	"treasury/internal/identity"
+	"treasury/internal/instrument"
 	"treasury/internal/modules"
+	"treasury/internal/operatorauth"
+	"treasury/internal/rail"
+	"treasury/internal/rail/manual"
 	"treasury/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
@@ -22,11 +29,14 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	_ "modernc.org/sqlite"
 
+	agentspendH "treasury/handlers/agentspend"
 	capsH "treasury/handlers/capabilities"
 	healthH "treasury/handlers/health"
-	notesH "treasury/handlers/notes" // EXAMPLE-DOMAIN:notes
+	treasuryadminH "treasury/handlers/treasuryadmin"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -151,11 +161,54 @@ func main() {
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 
+	clock := schedule.System()
+	var identityVerifier identity.Verifier
+	identityVerifier, err = identity.NewHTTPVerifier(os.Getenv("AGENT_MANAGER_API_URL"), &http.Client{Timeout: 5 * time.Second})
+	if err != nil {
+		log.Printf("agent-manager identity verification unavailable; automated spend will fail closed: %v", err)
+		identityVerifier = identity.UnavailableVerifier{Cause: err}
+	}
+
+	operatorToken := strings.TrimSpace(os.Getenv("TREASURY_OPERATOR_TOKEN"))
+	if operatorToken == "" {
+		operatorToken = strings.TrimSpace(os.Getenv("API_TOKEN"))
+	}
+	var operatorAuthorizer operatorauth.Authorizer
+	operatorAuthorizer, err = operatorauth.NewStaticToken(operatorToken)
+	if err != nil {
+		log.Printf("operator realm unavailable; TreasuryAdmin will fail closed: %v", err)
+		operatorAuthorizer = operatorauth.Unavailable{Cause: err}
+	}
+	var approvalRelay approval.Relay
+	approvalRelay, err = approval.NewNotificationRelay(os.Getenv("NOTIFICATION_HUB_API_URL"), &http.Client{Timeout: 5 * time.Second})
+	if err != nil {
+		log.Printf("notification relay unavailable; approvals remain local and relay attempts will record failure: %v", err)
+		approvalRelay = approval.UnavailableRelay{Cause: err}
+	}
+	railRegistry, err := rail.NewRegistry(manual.New())
+	if err != nil {
+		log.Fatalf("rail registry configuration failed: %v", err)
+	}
+	var credentialResolver instrument.CredentialResolver
+	authority, authorityErr := credentialauthority.Default()
+	if authorityErr == nil {
+		var client credentialclient.Client
+		client, authorityErr = credentialclient.NewInProcess(credentialclient.InProcessOptions{Authority: authority})
+		if authorityErr == nil {
+			credentialResolver, authorityErr = instrument.NewCredentialClientResolver(client)
+		}
+	}
+	if authorityErr != nil {
+		log.Printf("instrument credential resolution unavailable; instrument use will fail closed: %v", authorityErr)
+		credentialResolver = instrument.UnavailableResolver{Cause: authorityErr}
+	}
+
 	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		server.Deps{Clock: clock, Logger: log.Default()},
 		healthH.Module(db, "treasury-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
+		agentspendH.Module(db, identityVerifier, clock, approvalRelay, railRegistry, credentialResolver),
+		treasuryadminH.Module(db, operatorAuthorizer, clock, approvalRelay, railRegistry, credentialResolver),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -163,19 +216,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 

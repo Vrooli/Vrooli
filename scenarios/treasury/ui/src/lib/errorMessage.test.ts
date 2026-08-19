@@ -22,7 +22,17 @@ describe("errorMessage", () => {
     expect(errorMessage(err, i18n.t)).toContain("Invalid input:");
   });
 
+  it("maps an unknown REST error code to the generic error catalog entry", () => {
+    const err = makeApiError("new_provider_code", "rail refused", 502);
+
+    expect(errorMessage(err, i18n.t)).toBe("An unknown error occurred.");
+  });
+
   it("falls back to ordinary error messages", () => {
     expect(errorMessage(new Error("boom"), i18n.t)).toBe("boom");
+  });
+
+  it("stringifies non-Error rejection values", () => {
+    expect(errorMessage({ reason: "unknown" }, i18n.t)).toBe("[object Object]");
   });
 });

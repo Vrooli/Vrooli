@@ -1,9 +1,9 @@
 package domains
 
 import (
-	"treasury/cli/domains/notes" // EXAMPLE-DOMAIN:notes
-
 	"github.com/vrooli/cli-core/cliapp"
+
+	"treasury/cli/domains/safety"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -36,13 +36,8 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	_ = core
+	_ = manifest
+	groups := []cliapp.SubcommandGroup{safety.Register()}
 	return groups, nil
 }

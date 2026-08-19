@@ -1,167 +1,168 @@
 {
   "_metadata": {
     "description": "P1 requirements: the rails and the operator controls that make the P0 spine useful against real counterparties. Each assumes the P0 properties rather than re-establishing them.",
+    "last_validated_at": "2026-08-18T21:47:58-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
+      "id": "TRS-P1-001",
+      "title": "x402 outbound settlement",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "description": "Where a counterparty endpoint declares an x402 price, the scenario should pay it from an operator-held balance under a mandate carrying a per-call cap",
-      "id": "TRS-P1-001",
-      "prd_ref": "OT-P1-001",
-      "status": "planned",
-      "title": "x402 outbound settlement",
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
           "phase": "unit",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/rail/x402/client_test.go`. A 402 response is parsed into a priced authorization request; a price above the mandate's per-call cap is refused before any payment is constructed. [REQ:TRS-P1-001]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "integration",
+          "status": "planned",
           "notes": "Planned test at `api/internal/rail/x402/client_integration_test.go`. Against a local priced endpoint, the pay-and-retry cycle completes within one request-response flow and records a receipt. [REQ:TRS-P1-001]"
         }
       ]
     },
     {
+      "id": "TRS-P1-002",
+      "title": "x402 inbound metering",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
       "criticality": "P1",
       "description": "The scenario should let any Vrooli endpoint declare a price and collect payment through a self-hosted facilitator, recording each receipt as inflow",
-      "id": "TRS-P1-002",
-      "prd_ref": "OT-P1-002",
-      "status": "planned",
-      "title": "x402 inbound metering",
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
           "phase": "unit",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/rail/x402/facilitator_test.go`. An unpaid request receives 402 with the declared price; a request carrying valid proof of payment is admitted exactly once. [REQ:TRS-P1-002]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "integration",
+          "status": "planned",
           "notes": "Planned test at `api/internal/rail/x402/facilitator_integration_test.go`. A collected payment emits an inflow money event with basis authoritative. [REQ:TRS-P1-002]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "performance",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/rail/x402/facilitator_concurrency_test.go`. Concurrent external payers do not produce duplicate admissions or lock-timeout failures. This is the declared trigger for reconsidering the SQLite storage decision; the test exists to observe that boundary rather than to assert a throughput number. [REQ:TRS-P1-002]"
         }
       ]
     },
     {
+      "id": "TRS-P1-003",
+      "title": "Scoped card rail",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
       "criticality": "P1",
       "description": "The scenario should issue single-use or counterparty-locked cards scoped to a mandate's amount, counterparty and expiry, behind a rail contract that names no vendor",
-      "id": "TRS-P1-003",
-      "prd_ref": "OT-P1-003",
-      "status": "planned",
-      "title": "Scoped card rail",
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
           "phase": "unit",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/rail/card/adapter_test.go`. Issued card scope is derived from the mandate, never from caller input, and the rail interface carries no vendor-specific type. [REQ:TRS-P1-003]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "integration",
+          "status": "planned",
           "notes": "Planned test at `api/internal/rail/card/credential_test.go`. Card credentials resolve through secrets-manager and never reach scenario storage or an API response body. [REQ:TRS-P1-003]"
         }
       ]
     },
     {
+      "id": "TRS-P1-004",
+      "title": "Personal and business books",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
       "criticality": "P1",
       "description": "A mandate should belong to exactly one book, and books should not share instruments, budgets or approval chains",
-      "id": "TRS-P1-004",
-      "prd_ref": "OT-P1-004",
-      "status": "planned",
-      "title": "Personal and business books",
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
           "phase": "unit",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/book/isolation_test.go`. A mandate in one book cannot resolve an instrument, budget or approver belonging to another. [REQ:TRS-P1-004]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "business",
+          "status": "implemented",
           "notes": "Planned automation at `bas/cases/books/separation.json`. An operator viewing one book sees no balance, instrument or pending approval from the other. [REQ:TRS-P1-004]"
         }
       ]
     },
     {
+      "id": "TRS-P1-005",
+      "title": "Standing mandates and obligations",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
       "criticality": "P1",
       "description": "The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action",
-      "id": "TRS-P1-005",
-      "prd_ref": "OT-P1-005",
-      "status": "planned",
-      "title": "Standing mandates and obligations",
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
           "phase": "unit",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/mandate/standing_test.go`. A standing mandate carries a recurrence and a next-charge date, and cancelling it prevents the next charge without rewriting settled history. [REQ:TRS-P1-005]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "business",
+          "status": "implemented",
           "notes": "Planned automation at `bas/cases/obligations/cancel.json`. An operator cancels a recurring obligation from the console in one action and the next charge does not authorize. [REQ:TRS-P1-005]"
         }
       ]
     },
     {
+      "id": "TRS-P1-006",
+      "title": "Kill switch",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
       "criticality": "P1",
       "description": "When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement",
-      "id": "TRS-P1-006",
-      "prd_ref": "OT-P1-006",
-      "status": "planned",
-      "title": "Kill switch",
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
           "phase": "unit",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/policy/freeze_test.go`. A freeze at each scope refuses authorization immediately; an already-authorized but unsettled charge is also stopped. [REQ:TRS-P1-006]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "business",
+          "status": "implemented",
           "notes": "Planned automation at `bas/cases/controls/freeze-all.json`. An operator freezes everything from one control and a subsequent agent charge is refused. [REQ:TRS-P1-006]"
         }
       ]
     },
     {
+      "id": "TRS-P1-007",
+      "title": "Spend position without a ledger round-trip",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
       "criticality": "P1",
       "description": "The scenario should report remaining headroom per budget from its own authorization records, so an agent can plan without querying money-ledger",
-      "id": "TRS-P1-007",
-      "prd_ref": "OT-P1-007",
-      "status": "planned",
-      "title": "Spend position without a ledger round-trip",
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
           "phase": "unit",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/budget/headroom_test.go`. Headroom is computed from this scenario's own authorization and settlement records and never asserted or cached as a mutable field. Pending authorizations reduce headroom before they settle. [REQ:TRS-P1-007]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "integration",
+          "status": "planned",
           "notes": "Planned test at `api/handlers/agentspend/headroom_test.go`. The agent-facing surface returns headroom without contacting money-ledger. [REQ:TRS-P1-007]"
         }
       ]

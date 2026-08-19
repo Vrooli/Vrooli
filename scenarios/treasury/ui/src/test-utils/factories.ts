@@ -5,8 +5,8 @@
  * tests selectively override via `MessageInitShape<Schema>`. Defaults
  * are picked so the most common test path is `makeX()` with no args.
  *
- * Domain-specific factories live next to the feature they double for
- * (e.g. `features/notes/mocks/factories.ts`); only truly cross-domain
+ * Domain-specific factories live next to the feature they double for;
+ * only truly cross-domain
  * shapes (HealthResponse, error envelopes) live here. Deleting a feature
  * folder takes its factories with it — no central residue.
  *

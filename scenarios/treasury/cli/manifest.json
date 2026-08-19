@@ -1,150 +1,90 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "treasury",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Typed operator and agent command surface for Treasury's spend-and-earn authority.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "safety",
+      "description": "Inspect Treasury's non-negotiable financial safety invariants.",
       "commands": [
         {
-          "name": "list",
-          "description": "List all notes",
+          "name": "invariants",
+          "description": "Show the structural constraints every Treasury implementation must preserve.",
           "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
+            "run_eligible": true
           }
         }
       ]
     }
   ],
   "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
+    "domains": []
   },
-  "exceptions": [
+  "exceptions": [],
+  "omitted": [
     {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
+      "service": "AgentSpend",
+      "method": "ProposeCharge",
+      "reason": "The API authorization spine lands in Phase 3; the governed agent CLI binding is introduced in the dedicated CLI surface phase."
+    },
+    {
+      "service": "AgentSpend",
+      "method": "GetAuthorization",
+      "reason": "The API authorization spine lands in Phase 3; the governed agent CLI binding is introduced in the dedicated CLI surface phase."
+    },
+    {
+      "service": "AgentSpend",
+      "method": "ListMandates",
+      "reason": "The RPC is structurally declared in Phase 4; behavior and its governed agent CLI binding land in the dedicated CLI surface phase."
+    },
+    {
+      "service": "AgentSpend",
+      "method": "ReportOutcome",
+      "reason": "The RPC is structurally declared in Phase 4; behavior and its governed agent CLI binding land with settlement and the dedicated CLI surface phase."
+    },
+    {
+      "service": "TreasuryAdmin",
+      "method": "CreateMandate",
+      "reason": "The operator RPC is structurally declared in Phase 4; its governed CLI binding lands in the dedicated CLI surface phase."
+    },
+    {
+      "service": "TreasuryAdmin",
+      "method": "RevokeMandate",
+      "reason": "The operator RPC is structurally declared in Phase 4; its governed CLI binding lands in the dedicated CLI surface phase."
+    },
+    {
+      "service": "TreasuryAdmin",
+      "method": "SetBudgetCaps",
+      "reason": "The operator RPC is structurally declared in Phase 4; its governed CLI binding lands in the dedicated CLI surface phase."
+    },
+    {
+      "service": "TreasuryAdmin",
+      "method": "SetGating",
+      "reason": "The operator RPC is structurally declared in Phase 4; its governed CLI binding lands in the dedicated CLI surface phase."
+    },
+    {
+      "service": "TreasuryAdmin",
+      "method": "ResolveApproval",
+      "reason": "The local operator resolution behavior lands with the approval phase; its governed CLI binding lands in the dedicated CLI surface phase."
+    },
+    {
+      "service": "TreasuryAdmin",
+      "method": "FreezeBudget",
+      "reason": "The operator RPC is structurally declared in Phase 4; behavior lands with the kill switch and its CLI binding lands in the dedicated CLI surface phase."
+    },
+    {
+      "service": "TreasuryAdmin",
+      "method": "UnfreezeBudget",
+      "reason": "The operator RPC is structurally declared in Phase 4; behavior lands with the kill switch and its CLI binding lands in the dedicated CLI surface phase."
+    },
+    {
+      "service": "TreasuryAdmin",
+      "method": "RegisterInstrument",
+      "reason": "The operator RPC is structurally declared in Phase 4; behavior lands with rails and its CLI binding lands in the dedicated CLI surface phase."
     }
-  ],
-  "omitted": []
+  ]
 }

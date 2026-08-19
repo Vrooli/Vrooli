@@ -1,0 +1,1 @@
+-- Ledger emission records are introduced with the emission implementation.

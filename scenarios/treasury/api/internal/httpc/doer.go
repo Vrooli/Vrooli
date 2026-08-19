@@ -7,8 +7,8 @@
 //
 // # Why ship the seam unwired in production
 //
-// The template has no production consumer of Doer (the notes
-// endpoints are internal-only). Defining the seam *before* the first
+// Treasury has no production consumer of Doer yet. Defining the seam
+// *before* the first
 // outbound call means the first scenario to need one — a webhook
 // dispatcher, an upstream-API client, an OAuth handshake — copies the
 // reference test's substitution pattern instead of inventing one. The

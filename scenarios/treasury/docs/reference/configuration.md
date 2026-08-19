@@ -29,8 +29,15 @@ ports as outbound source ports. See the project-level port allocation reference
 | Variable | Default | Purpose |
 |---|---|---|
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/treasury.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
-| `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
+| `TREASURY_OPERATOR_TOKEN` | falls back to `API_TOKEN` | Required credential for every `TreasuryAdmin` RPC. When neither variable is set, the admin service remains mounted but fails closed with `failed_precondition`; an agent identity token is always rejected. |
+| `NOTIFICATION_HUB_API_URL` | unset | Optional approval-relay base URL supplied by scenario dependency discovery. Missing or unreachable relay records a failed attempt while the local approval queue remains authoritative. |
+| `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth and fallback `TreasuryAdmin` operator credential. Prefer `TREASURY_OPERATOR_TOKEN` when the two authorities should rotate independently. |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+
+Instrument credentials require no Treasury environment variable. The API uses
+the repository-standard typed credential client backed by the lifecycle-managed
+Vrooli credential authority. Instrument rows contain a namespaced logical
+identity only; the client resolves its `value` field in memory at use time.
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

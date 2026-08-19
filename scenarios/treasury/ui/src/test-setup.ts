@@ -23,8 +23,15 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
+import { createElement } from "react";
+import { configureTestProviders } from "@vrooli/api-base/testing";
 import { afterEach, beforeEach, vi } from "vitest";
+import { Providers } from "./app/providers";
 import { i18n } from "./i18n";
+
+// Keep scenario-owned contexts on the shared render path. This makes every
+// component test exercise the same theme composition as a production mount.
+configureTestProviders((children) => createElement(Providers, null, children));
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;

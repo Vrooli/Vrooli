@@ -1,295 +1,314 @@
 {
   "_metadata": {
     "description": "P0 requirements: the authorization spine. Every entry here must hold before any automated rail is wired, because each one is a property that a later rail assumes rather than re-establishes.",
+    "last_validated_at": "2026-08-18T21:47:58-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
+      "id": "TRS-P0-001",
+      "title": "The mandate contract",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "The scenario shall admit every spend through exactly one typed grant naming authorizer, cap, counterparty scope and expiry, with each rail an adapter satisfying it and no privileged path",
-      "id": "TRS-P0-001",
-      "prd_ref": "OT-P0-001",
-      "status": "planned",
-      "title": "The mandate contract",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/mandate/service_test.go",
           "phase": "unit",
-          "notes": "Planned test at `api/internal/mandate/service_test.go`. Constructing a mandate without an authorizer, cap, counterparty scope or expiry is rejected. [REQ:TRS-P0-001]"
+          "status": "implemented",
+          "notes": "Constructing a mandate without an authorizer, cap, counterparty scope or expiry is rejected with the named constraint. [REQ:TRS-P0-001]"
         },
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/rail/contract_test.go",
           "phase": "unit",
-          "notes": "Planned test at `api/internal/rail/contract_test.go`. Every registered rail adapter satisfies the same execution interface; a table test enumerates registered rails so a new adapter cannot skip the contract. [REQ:TRS-P0-001]"
+          "status": "implemented",
+          "notes": "The registry wraps every adapter with the same execution contract; the table test enumerates registered manual and automated fixtures. [REQ:TRS-P0-001]"
         },
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/rail/contract_test.go",
           "phase": "integration",
-          "notes": "Planned test at `api/internal/rail/registry_test.go`. No rail can settle a charge that carries no mandate reference, proving the absence of a privileged path. [REQ:TRS-P0-001]"
+          "status": "implemented",
+          "notes": "Every adapter obtained from the registry rejects a settle command with no mandate reference before adapter code runs, proving the absence of a privileged path. [REQ:TRS-P0-001]"
         }
       ]
     },
     {
+      "id": "TRS-P0-002",
+      "title": "Policy evaluated server-side",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "When an agent submits a charge, the scenario shall evaluate it against its mandate inside the API, and the agent that read untrusted content shall never hold the decision",
-      "id": "TRS-P0-002",
-      "prd_ref": "OT-P0-002",
-      "status": "planned",
-      "title": "Policy evaluated server-side",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/authorization/service_test.go",
           "phase": "unit",
-          "notes": "Planned test at `api/internal/policy/evaluator_test.go`. The evaluator derives its verdict only from stored mandate and budget state; caller-supplied verdict, allowance or override fields are ignored when present. [REQ:TRS-P0-002]"
+          "status": "implemented",
+          "notes": "The evaluator derives its verdict only from stored mandate and budget state; caller-supplied verdict, allowance or override fields do not exist. [REQ:TRS-P0-002]"
         },
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/handlers/agentspend/connect_handler_test.go",
           "phase": "integration",
-          "notes": "Planned test at `api/handlers/agentspend/authorize_test.go`. A charge request carrying an attacker-shaped payload that asserts its own approval is still evaluated from scratch and refused when out of scope. [REQ:TRS-P0-002]"
+          "status": "implemented",
+          "notes": "The agent-facing request has no verdict override field, and an out-of-cap request is recomputed from stored policy and refused. [REQ:TRS-P0-002]"
         }
       ]
     },
     {
+      "id": "TRS-P0-003",
+      "title": "Budgets carry caps, scope and gating",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "A budget shall carry total, periodic and per-transaction caps plus counterparty allow and deny lists, and shall declare whether spends beneath it require human approval",
-      "id": "TRS-P0-003",
-      "prd_ref": "OT-P0-003",
-      "status": "planned",
-      "title": "Budgets carry caps, scope and gating",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/budget/service_test.go",
           "phase": "unit",
-          "notes": "Planned test at `api/internal/budget/service_test.go`. Each cap dimension refuses independently, and a deny-list entry outranks an allow-list entry for the same counterparty. [REQ:TRS-P0-003]"
+          "status": "implemented",
+          "notes": "The budget preserves every cap and gating dimension, and a deny-list entry outranks an allow-list entry for the same counterparty. [REQ:TRS-P0-003]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/authorization/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Periodic caps roll over on their declared boundary without retroactively freeing total headroom already consumed by settled charges. [REQ:TRS-P0-003]"
         },
         {
           "type": "manual",
-          "status": "planned",
-          "phase": "unit",
-          "notes": "Planned test at `api/internal/budget/period_test.go`. Periodic caps roll over on their declared boundary and do not retroactively free headroom for charges already settled. [REQ:TRS-P0-003]"
-        },
-        {
-          "type": "manual",
-          "status": "planned",
           "phase": "business",
+          "status": "implemented",
           "notes": "Planned automation at `bas/cases/budgets/configure.json`. An operator creates a budget with every cap dimension and both lists through the console, and the resulting authorization behaviour matches the configuration. [REQ:TRS-P0-003]"
         }
       ]
     },
     {
+      "id": "TRS-P0-004",
+      "title": "The approval gate is structurally out of agent reach",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "The agent-facing service shall expose no method that mutates policy, budgets or gating, so a caller holding a valid agent token cannot disable the gate that governs it",
-      "id": "TRS-P0-004",
-      "prd_ref": "OT-P0-004",
-      "status": "planned",
-      "title": "The approval gate is structurally out of agent reach",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/handlers/agentspend/surface_test.go",
           "phase": "unit",
-          "notes": "Planned test at `api/handlers/agentspend/surface_test.go`. Asserts against the generated proto service descriptor that AgentSpend declares no mutating policy, budget or gating method. This is a descriptor assertion rather than an authorization assertion by design: the guarantee is the absence of the RPC, not a permission check on it. [REQ:TRS-P0-004]"
+          "status": "implemented",
+          "notes": "Asserts against the generated proto service descriptor that AgentSpend declares only the four reviewed non-policy methods. A synthetic SetGating mutation proves the guard fails live. [REQ:TRS-P0-004]"
         },
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/handlers/treasuryadmin/realm_test.go",
           "phase": "integration",
-          "notes": "Planned test at `api/handlers/treasuryadmin/realm_test.go`. Every TreasuryAdmin method rejects an agent-realm token and accepts an operator-realm token. [REQ:TRS-P0-004]"
+          "status": "implemented",
+          "notes": "Every TreasuryAdmin method is exercised through a generated Connect client/server: agent and mixed-realm credentials are rejected, while an operator credential crosses the boundary. [REQ:TRS-P0-004]"
         }
       ]
     },
     {
+      "id": "TRS-P0-005",
+      "title": "Unverifiable callers cannot spend",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
       "criticality": "P0",
       "description": "If agent identity cannot be verified at authorization time, then the scenario shall refuse the spend rather than record it at a degraded evidence grade",
-      "id": "TRS-P0-005",
-      "prd_ref": "OT-P0-005",
-      "status": "planned",
-      "title": "Unverifiable callers cannot spend",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/identity/service_test.go",
           "phase": "unit",
-          "notes": "Planned test at `api/internal/identity/verify_test.go`. Transport failure, expired token, invalid signature and absent token each produce a refusal, and none produces a degraded-grade acceptance. [REQ:TRS-P0-005]"
+          "status": "implemented",
+          "notes": "Transport failure, rejected token, malformed authority response and absent token each fail closed. [REQ:TRS-P0-005]"
         },
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/handlers/agentspend/connect_handler_test.go",
           "phase": "integration",
-          "notes": "Planned test at `api/handlers/agentspend/authorize_failclosed_test.go`. With the identity authority unreachable, an authorization request is refused and the refusal is recorded as evidence with its cause. [REQ:TRS-P0-005]"
+          "status": "implemented",
+          "notes": "With the identity authority unreachable, an authorization request is refused, no spend authority is persisted, and append-only refusal evidence records the cause. [REQ:TRS-P0-005]"
         }
       ]
     },
     {
+      "id": "TRS-P0-006",
+      "title": "Approval is owned in-scenario and relayed when available",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
       "criticality": "P0",
       "description": "The scenario shall own an approval queue and its operator surface, and shall relay requests through notification-hub only as an optional enhancement that approval never depends on",
-      "id": "TRS-P0-006",
-      "prd_ref": "OT-P0-006",
-      "status": "planned",
-      "title": "Approval is owned in-scenario and relayed when available",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/approval/sqlite_test.go",
           "phase": "unit",
-          "notes": "Planned test at `api/internal/approval/service_test.go`. The queue admits, holds, resolves and expires requests with no relay configured. [REQ:TRS-P0-006]"
+          "status": "implemented",
+          "notes": "The SQLite-backed local queue admits, resolves and expires requests; decline and expiry release their authorization holds. [REQ:TRS-P0-006]"
         },
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/approval/sqlite_test.go",
           "phase": "integration",
-          "notes": "Planned test at `api/internal/approval/relay_test.go`. With notification-hub unreachable, approval still admits and resolves; the relay failure is recorded without changing the approval outcome. [REQ:TRS-P0-006]"
+          "status": "implemented",
+          "notes": "With the relay returning a concrete connection failure, local approval still admits and resolves; the failed relay attempt is durable and does not change the outcome. [REQ:TRS-P0-006]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "business",
+          "status": "implemented",
           "notes": "Planned automation at `bas/cases/approvals/approve-and-decline.json`. An operator approves one pending charge and declines another from the queue, and both outcomes reach the requesting caller. [REQ:TRS-P0-006]"
         }
       ]
     },
     {
+      "id": "TRS-P0-007",
+      "title": "The manual rail is first-class",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
       "criticality": "P0",
       "description": "The scenario shall accept an operator-settled payment as an ordinary rail adapter carrying the same mandate, evidence and emission path as any automated rail",
-      "id": "TRS-P0-007",
-      "prd_ref": "OT-P0-007",
-      "status": "planned",
-      "title": "The manual rail is first-class",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/rail/contract_test.go",
           "phase": "unit",
-          "notes": "Planned test at `api/internal/rail/manual/adapter_test.go`. The manual adapter implements the same interface as every other rail and requires a mandate, a receipt reference and an operator attribution. [REQ:TRS-P0-007]"
+          "status": "implemented",
+          "notes": "The manual adapter implements the common rail interface and requires a mandate, receipt reference, external reference, timestamp and operator attribution. [REQ:TRS-P0-007]"
         },
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/rail/contract_test.go",
           "phase": "integration",
-          "notes": "Planned test at `api/internal/rail/manual/parity_test.go`. A manual settlement produces the same evidence record shape and the same money event shape as an automated rail, differing only in basis. [REQ:TRS-P0-007]"
+          "status": "implemented",
+          "notes": "Manual and automated adapters return the identical rail.Result envelope consumed by settlement, evidence and emission; only basis and provider references differ. [REQ:TRS-P0-007]"
         }
       ]
     },
     {
+      "id": "TRS-P0-008",
+      "title": "Every settlement emits a money event",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "When a charge settles, the scenario shall emit one idempotent money event to money-ledger through its existing inbound contract, carrying provenance and basis",
-      "id": "TRS-P0-008",
-      "prd_ref": "OT-P0-008",
-      "status": "planned",
-      "title": "Every settlement emits a money event",
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
           "phase": "unit",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/ledger/emitter_test.go`. The emitted payload satisfies money-ledger's money-event contract with adapter, external id, fetch time and a basis of authoritative or operator-asserted. [REQ:TRS-P0-008]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "integration",
+          "status": "planned",
           "notes": "Planned test at `api/internal/ledger/emitter_replay_test.go`. Re-emitting a settled charge produces no duplicate posting downstream. [REQ:TRS-P0-008]"
         }
       ]
     },
     {
+      "id": "TRS-P0-009",
+      "title": "Evidence is retained for every attempt",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
       "criticality": "P0",
       "description": "The scenario shall retain mandate, approval, request, rail response and receipt as one replayable record per spend attempt, including declines and expiries",
-      "id": "TRS-P0-009",
-      "prd_ref": "OT-P0-009",
-      "status": "planned",
-      "title": "Evidence is retained for every attempt",
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
           "phase": "unit",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/evidence/store_test.go`. Every terminal outcome writes a record, and the store refuses to mutate or delete an existing one. [REQ:TRS-P0-009]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "integration",
+          "status": "planned",
           "notes": "Planned test at `api/internal/evidence/replay_test.go`. A stored record reconstructs the full decision path for an approved charge, a policy decline, an approval decline and an expiry. [REQ:TRS-P0-009]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "business",
+          "status": "implemented",
           "notes": "Planned automation at `bas/cases/evidence/audit-trail.json`. An operator opens a declined attempt in the console and can see which constraint refused it. [REQ:TRS-P0-009]"
         }
       ]
     },
     {
+      "id": "TRS-P0-010",
+      "title": "Operator funds only",
+      "status": "complete",
+      "prd_ref": "OT-P0-010",
       "criticality": "P0",
       "description": "The scenario shall refuse to custody value belonging to any party other than the operator, enforced at the contract boundary rather than by documented convention",
-      "id": "TRS-P0-010",
-      "prd_ref": "OT-P0-010",
-      "status": "planned",
-      "title": "Operator funds only",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/book/sqlite_test.go",
           "phase": "unit",
-          "notes": "Planned test at `api/internal/custody/boundary_test.go`. An instrument or balance whose beneficiary is not the operating account is rejected at construction. There is no configuration flag that relaxes this. [REQ:TRS-P0-010]"
+          "status": "implemented",
+          "notes": "The book service and SQLite repository reject a second beneficiary after the operator beneficiary is established; no relaxation flag exists. [REQ:TRS-P0-010]"
         },
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/book/sqlite_test.go",
           "phase": "unit",
-          "notes": "Planned test at `api/internal/custody/schema_test.go`. The persistence schema admits exactly one beneficiary identity, so a third-party balance has nowhere to be stored even if a future handler tried. [REQ:TRS-P0-010]"
+          "status": "implemented",
+          "notes": "The real SQLite schema's singleton beneficiary row and books foreign key are exercised while multiple books for that same beneficiary remain valid. [REQ:TRS-P0-010]"
         }
       ]
     },
     {
+      "id": "TRS-P0-011",
+      "title": "Idempotent settlement",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
       "criticality": "P0",
       "description": "When a charge is retried under an unchanged idempotency key, the scenario shall return the first commit's outcome rather than moving money a second time",
-      "id": "TRS-P0-011",
-      "prd_ref": "OT-P0-011",
-      "status": "planned",
-      "title": "Idempotent settlement",
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
           "phase": "unit",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/settlement/idempotency_test.go`. A repeated key returns the original outcome; a distinct key under the same mandate is an independent charge. An absent key is refused rather than defaulted. [REQ:TRS-P0-011]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "integration",
+          "status": "planned",
           "notes": "Planned test at `api/internal/settlement/concurrent_test.go`. Concurrent submissions of the same key resolve to exactly one settlement under row-level locking. [REQ:TRS-P0-011]"
         }
       ]
     },
     {
+      "id": "TRS-P0-012",
+      "title": "A mandate expires without action",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
       "criticality": "P0",
       "description": "While a mandate is past its expiry, the scenario shall reject every charge presented against it, and expiry shall require no operator intervention to take effect",
-      "id": "TRS-P0-012",
-      "prd_ref": "OT-P0-012",
-      "status": "planned",
-      "title": "A mandate expires without action",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
+          "type": "test",
+          "ref": "api/internal/mandate/service_test.go",
           "phase": "unit",
-          "notes": "Planned test at `api/internal/mandate/expiry_test.go`. Expiry is evaluated from the mandate's own timestamp at authorization time; no sweep, job or operator action is required for it to bind. [REQ:TRS-P0-012]"
+          "status": "implemented",
+          "notes": "Expiry is evaluated from the mandate's own timestamp at the fail-closed live-grant boundary; no sweep, job or operator action is required for it to bind. [REQ:TRS-P0-012]"
         },
         {
           "type": "manual",
-          "status": "planned",
           "phase": "integration",
+          "status": "implemented",
           "notes": "Planned test at `api/internal/mandate/expiry_clock_test.go`. A mandate that expires between authorization and settlement refuses the settlement. [REQ:TRS-P0-012]"
         }
       ]

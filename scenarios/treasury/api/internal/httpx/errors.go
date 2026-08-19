@@ -45,9 +45,9 @@ const (
 // because protojson.Marshal returns canonical JSON, not protobuf binary.
 //
 // Handlers reach for WriteError on every non-2xx path so the wire
-// vocabulary stays consistent. Translation from typed sentinels (e.g.,
-// notes.ErrNoteNotFound, notes.ErrInvalidNote) to (status, code,
-// message) tuples is the handler's responsibility — this writer just
+// vocabulary stays consistent. Translation from domain-specific typed
+// sentinels to (status, code, message) tuples is the handler's
+// responsibility — this writer just
 // emits.
 //
 // # Why no logger seam here

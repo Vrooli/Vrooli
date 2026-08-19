@@ -4,8 +4,7 @@ Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.
 
-This file ships empty in newly generated scenarios. Append entries as
-they appear.
+Append entries as they appear.
 
 ## What belongs here
 
@@ -81,7 +80,12 @@ fleet and are outside the scope of authoring one scenario's documentation.
 
 **Refs:** scenario-qa bug `knw-1787080554065889915`
 (`bug-inbox/code-defect/every-newly-generated-react-vite-scenario-fails-build`);
-`/home/matthalloran8/.vrooli/logs/treasury.log`.
+runtime evidence is available through `vrooli scenario logs treasury`.
+
+**Resolution:** On 2026-08-18, the scenario-local React Query version was aligned
+to 5.59.0 through Scenario Dependency Analyzer. Treasury now builds and Test
+Genie executes all 22 phases. The fleet-level generator defect remains tracked
+by the referenced scenario-qa bug.
 
 ### 2026-08-18 — Experience pages have no BAS observer cases
 
@@ -128,6 +132,42 @@ evidence rather than assertion.
 
 **Refs:** `docs/internal/SECURITY.md`, `requirements/01-must-ship/module.json`.
 
+**Progress:** Phase 2 now verifies the mandate's named grant constraints,
+signed immutable representation, read-time expiry, and the schema-level
+single-beneficiary boundary. Phase 3 now verifies live fail-closed identity,
+server-side policy evaluation, named refusals, derived headroom and concurrent
+pending holds. Phase 4 now verifies the exact agent-facing descriptor and the
+operator-realm boundary on every admin method. Phase 5 now verifies the local
+approval queue, optional relay failure isolation, and release on decline or
+expiry. Phase 6 verifies rail uniformity, the no-mandate refusal, manual-rail
+parity, mandate-derived instrument scope, and reference-only credential
+storage. Exactly-once settlement and end-to-end retained evidence remain
+designed until their owning phases.
+
+### 2026-08-18 — governed install and tidy validation disagree
+
+**Symptom:** Test Genie run `20260819-014547-256280ab` fails only the
+dependency package-readiness check added in Phase 6, while dependency
+governance itself passes.
+
+**Root cause:** `scenario-dependency-analyzer deps install` successfully adds
+the approved in-repo credential-client dependency but leaves its owning module
+annotated `// indirect`. The same analyzer's health provider runs
+`GOWORK=off go mod tidy -diff`, which requires moving that module into the
+direct block. Re-running the governed root and subpackage installs does not
+reach the enforced tidy fixpoint; `deps reconcile` owns missing replaces only.
+
+**Workaround:** none inside Treasury. The repository rule correctly forbids a
+raw package-manager command or hand edit of `go.mod`.
+
+**Real fix:** make the governed install gateway finish at the tidy fixpoint its
+own validator enforces, then rerun the Treasury comprehensive suite.
+
+**Owner:** Scenario Dependency Analyzer.
+
+**Refs:** scenario-qa `knw-1787104257680826857`, run
+`20260819-014547-256280ab`, `scenarios/treasury/api/go.mod`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -137,7 +177,6 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| _None yet._ |  |  |  |
 
 ## Cross-references
 
@@ -145,3 +184,10 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Work ladder
+
+- Rung: W3 / R0
+- Evidence: goal `treasury-full-implementation` points to the active implementation plan and agrees with the PRD's P0/P1 capability set. Test Genie run `20260819-012010-335b29e5` executes all 22 phases (19 pass, 3 fail); contracts, API, architecture, dependencies, docs, unit, storage, business, security, proto, and agent conformance pass. The grant spine, authorization boundary, exact agent descriptor, operator realm, and local approval gate have passing focused, race, real-transport, generated-flow, stopped-dependency, and requirement-linked evidence.
+- Blocker: exactly-once settlement, complete evidence and replay, ledger emission, operator UI, and live-transaction proof remain in the active plan before the final R1/9-of-9 gate. The three comprehensive failures are UI health, workflow, and branding; each maps to a later owning phase rather than a failed financial invariant.
+- Measured: 2026-08-18
