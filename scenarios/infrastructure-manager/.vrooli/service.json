@@ -1,0 +1,262 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "infrastructure-manager",
+    "displayName": "Infrastructure Manager",
+    "description": "Reliability instrument for the infra-health team: joins the sensor-map setpoint against live plant readings and emits one ranked, trust-qualified error surface",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-17T20:04:57Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "a03095c2f8c1ca51deeaa91182a4d7de08db6b7744aff3d0b58eaef9017de936",
+    "content_sha": "a8b2a3025441b1e658f96935a24e446e45a3524fa138824c99d642e5d51506e9"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "infrastructure-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "infrastructure-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/infrastructure-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "infrastructure-manager"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o infrastructure-manager-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./infrastructure-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/infrastructure-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "build": {},
+    "deploy": {},
+    "clean": {},
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "check-temporal-models",
+          "run": "flow-verifier verify check --root .",
+          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
+        },
+        {
+          "name": "run-tests",
+          "run": "test-genie execute infrastructure-manager --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "backup": {},
+    "restore": {},
+    "production": {},
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'infrastructure-manager-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "vrooli-autoheal": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Primary sensor source: uptime, alarm flood, restart frequency, heal outcomes and heal-loop incidence, plus the check registry that `supervision` reconciles and two of four trust rules. Read-only; this scenario never shelves, restarts, retires or remediates.",
+        "degraded_behavior": "Five targets report UNAVAILABLE with a stated reason and their trust verdicts degrade to UNTRUSTED; the remaining targets keep ranking."
+      },
+      "storage-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Device census, growth slope and declared-ceiling coverage via `storage-manager infra-health --json`. Read-only; never triggers cleanup.",
+        "degraded_behavior": "The storage growth-slope target reports UNAVAILABLE with a stated reason."
+      },
+      "test-genie": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Validation cost and cache-reliability aggregate via `runs cost`. Phase semantics stay with test-genie.",
+        "degraded_behavior": "The validation-cost target reports UNAVAILABLE with a stated reason."
+      },
+      "system-monitor": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Process attribution over a saturation window grouped by source scenario, plus investigation records. Read-only; never triggers an investigation.",
+        "degraded_behavior": "Burst attribution reports UNAVAILABLE with a stated reason."
+      },
+      "data-backup-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Backup freshness, coverage and verified-restore drill outcomes. Read-only; never runs a backup or a restore.",
+        "degraded_behavior": "Backup targets report UNAVAILABLE with a stated reason."
+      },
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Run statistics and durable error patterns backing the agent spawn-success target. Read-only.",
+        "degraded_behavior": "The spawn-success target reports UNAVAILABLE with a stated reason."
+      },
+      "scenario-dependency-analyzer": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Core-set closure for the derived should-be-supervised set. Read-only derivation query executed per read.",
+        "degraded_behavior": "Supervision reconcile reports UNAVAILABLE. It must never fall back to a cached or enumerated roster — operating-model rule 6."
+      }
+    }
+  },
+  "credentials": {},
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/infrastructure-manager.db"
+  }
+}

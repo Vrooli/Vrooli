@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "infrastructure-manager",
+  "description": "Experience contract for Infrastructure Manager, the infra-health team's instrument. The UI is deliberately the last surface to be built (OT-P2-001) — the programmatic CLI and Connect surfaces come first — so these specs are authored ahead of implementation to fix the honesty obligations before pixels harden around them. Every page here inherits one rule: no number is shown without the qualifier that makes it honest, and no unreadable source is ever allowed to look healthy.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Board",
+      "status": "planned"
+    },
+    {
+      "id": "targets",
+      "path": "pages/targets.json",
+      "title": "Setpoint",
+      "status": "planned"
+    },
+    {
+      "id": "readings",
+      "path": "pages/readings.json",
+      "title": "Readings",
+      "status": "planned"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "planned"
+    },
+    {
+      "id": "notes",
+      "path": "pages/notes.json",
+      "title": "Notes",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "triage-next-finding",
+      "path": "journeys/triage-next-finding.json",
+      "title": "Triage the next finding",
+      "status": "planned"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": ["/settings"],
+    "purpose": "Expose the minimum configuration surface needed to understand and operate Infrastructure Manager safely: read deadlines, retention floor, theme and locale. Configuration here tunes how the instrument reads — never what it reads against.",
+    "prd_refs": ["OT-P2-001"]
+  },
+  "priorities": [
+    {
+      "statement": "Nothing on this page can change the setpoint.",
+      "notes": "Deadbands, actuators and targets are operator decisions made through an approved reliability-target-update in the team's plan of record. A settings control that touched them would let the instrument grade itself against a bar it chose."
+    },
+    {
+      "statement": "The retention floor is presented as a correctness constraint, not a preference.",
+      "notes": "Retention below the longest declared target window silently converts a measurable target into an unmeasurable one. The page must say so rather than offering it as a free choice."
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-setpoint-controls",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "Settings exposes no control that creates, edits or deletes a target, deadband or actuator.",
+      "rationale": "The setpoint is owned by the team and the operator. Deviation D6 — an observer authoring its own reference model — is confirming itself.",
+      "elements": []
+    },
+    {
+      "id": "retention-floor-warned",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "Lowering retention below the longest declared target window warns that specific targets will become unmeasurable, and names them.",
+      "rationale": "Silently trimming evidence below the window a target is banded on is indistinguishable from the target passing.",
+      "elements": []
+    }
+  ]
+}

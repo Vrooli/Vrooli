@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "triage-next-finding",
+    "title": "Triage the next finding",
+    "purpose": "The primary loop: a member arrives with no prior context, gets one ranked answer to 'what should I do next?', and can audit that answer back to the evidence and the setpoint that produced it — including deciding whether the problem is the platform or the instrument.",
+    "prd_refs": ["OT-P0-004", "OT-P0-003", "OT-P0-001"]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "ready-ranked",
+      "intent": "Read the top-ranked finding, and read the setpoint confidence and open-loop count beside it so the ranking is understood as partial rather than complete.",
+      "via": "direct navigation to /"
+    },
+    {
+      "page": "dashboard",
+      "state": "partial",
+      "intent": "Check the source-availability region before trusting the ranking. If a source is unreadable, the absence of findings from it is not evidence of health.",
+      "via": "same page"
+    },
+    {
+      "page": "readings",
+      "state": "untrusted-present",
+      "intent": "Open the finding's reading and decide the question that determines everything downstream: is this a plant fault or an instrument fault? A non-VALID trust verdict routes to the instrument, never to plant-side work.",
+      "via": "finding drill-down"
+    },
+    {
+      "page": "readings",
+      "state": "detail",
+      "intent": "Read the target's history, re-graded against the current deadband, to distinguish a transient excursion from a sustained one.",
+      "via": "target link"
+    },
+    {
+      "page": "targets",
+      "state": "ready",
+      "intent": "Audit the deadband and actuator the finding was judged against, confirming the target is the right one to act on and that its honesty flag supports the claim.",
+      "via": "sensor reference link"
+    }
+  ],
+  "claims": [
+    {
+      "id": "one-address-start",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "The journey begins at the board and never requires the member to know which underlying scenario holds the answer.",
+      "rationale": "Invariant 1 of the instrument contract: a member starts at the board, not at the tools. Members read different rows of one surface, never different surfaces.",
+      "states": ["ready-ranked"]
+    },
+    {
+      "id": "auditable-to-evidence",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "Every ranked finding can be traced from the board to its reading, its trust verdict, and the target and deadband it was judged against.",
+      "rationale": "A headline that cannot be audited to evidence is inferred rather than measured, and the board's whole claim is that it measures.",
+      "states": ["ready-ranked", "detail", "ready"]
+    },
+    {
+      "id": "fault-attribution-before-action",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "The journey surfaces the trust verdict before it surfaces any suggested action, so instrument fault is separated from plant fault before work is routed.",
+      "rationale": "Operating-model rule 5 — discriminate sensor fault from plant fault before routing plant-side work. Getting this backwards spends real effort on an imaginary problem.",
+      "states": ["untrusted-present"]
+    },
+    {
+      "id": "no-action-affordance",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "No step in this journey offers a control that would restart, shelve, remediate, or otherwise change the state of a supervised element.",
+      "rationale": "Supervise, don't operate. The journey ends at a decision the member makes elsewhere; the instrument carries no authority to act.",
+      "states": ["ready-ranked", "untrusted-present", "detail"]
+    }
+  ]
+}

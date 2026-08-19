@@ -1,0 +1,70 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Report the two-direction diff between the autoheal check registry and the derived should-be-supervised set: ghost checks and unsupervised plant. The set is computed at read time from the core-set closure and load-bearing declarations, never held as an enumerated roster.",
+      "id": "IFM-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Supervised-set reconcile",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Persist readings and never verdicts, so in-band status is recomputed against the current deadband at query time and a target change re-grades history instead of stranding stale judgments.",
+      "id": "IFM-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Reading history and trend",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Re-read a finding's named sensor after its downstream work lands and record whether the reading returned in band. A fix that does not move its sensor re-opens the finding, so the sensor grades the fix rather than its author.",
+      "id": "IFM-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Actuation efficacy",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Diff the sensor map against the fleet's live command surface and report targets whose named sensor no longer resolves, plus open cells whose gap a shipped verb could already close.",
+      "id": "IFM-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Setpoint drift detection",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Board",
+    "routes": ["/"],
+    "purpose": "Be the one address a member starts from: the ranked error surface, with enough qualification visible that no number can be read as more confident than it is.",
+    "prd_refs": ["OT-P0-004", "OT-P2-001"]
+  },
+  "regions": [
+    {
+      "id": "confidence-header",
+      "purpose": "State the setpoint's own confidence and the open-loop count before any ranked finding is shown, so completeness is never implied by omission.",
+      "required": true,
+      "component": {
+        "library": {"component": "experience-surface", "version": "1.0.0"}
+      },
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "error"]}
+    },
+    {
+      "id": "ranked-findings",
+      "purpose": "Present the merged error surface in rank order — out-of-band readings, untrusted readings, supervision gaps and uninstrumented targets — each labelled with the named source it came from.",
+      "required": true,
+      "component": {
+        "library": {"component": "experience-surface", "version": "1.0.0"}
+      },
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error", "partial"]}
+    },
+    {
+      "id": "source-availability",
+      "purpose": "Show every degraded or unreadable source with its stated reason, so a short board reads as a partial board rather than a healthy one.",
+      "required": true,
+      "component": {
+        "library": {"component": "experience-surface", "version": "1.0.0"}
+      },
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    }
+  ],
+  "states": [
+    {
+      "id": "ready-clean",
+      "description": "Every source readable and every target in band. The header still shows setpoint confidence and the open-loop count, because in-band is not the same as fully measured.",
+      "setup": {"route": "/"}
+    },
+    {
+      "id": "ready-ranked",
+      "description": "Findings present and ordered, with trust findings ranked above plant findings per the cascade rule.",
+      "setup": {"route": "/"}
+    },
+    {
+      "id": "partial",
+      "description": "One or more sources unreadable. Healthy sources keep ranking; each unreadable source appears in the availability region with its reason verbatim.",
+      "setup": {"route": "/", "query": "state=partial"}
+    },
+    {
+      "id": "empty",
+      "description": "No findings. Must be distinguishable at a glance from 'nothing could be read' — an empty board and a blind board are different claims.",
+      "setup": {"route": "/", "query": "state=empty"}
+    },
+    {
+      "id": "error",
+      "description": "The setpoint itself could not be read or parsed. The board reports the failure and refuses to show a target count it does not have.",
+      "setup": {"route": "/", "query": "state=error"}
+    }
+  ],
+  "priorities": [
+    {
+      "statement": "A reader must never mistake an unavailable source for a healthy one.",
+      "notes": "The single most consequential failure this surface can have. Degradation is always visible and always carries its stated reason."
+    },
+    {
+      "statement": "No ratio appears without the confidence or trust qualifier that makes it honest.",
+      "notes": "Mirrors the recursive-honesty rule in SETPOINT-MODEL.md: 'X of Y in band, against a PARTIAL setpoint'."
+    },
+    {
+      "statement": "Status is never carried by colour alone.",
+      "notes": "The whole surface is status, so the accessibility floor matters more here than on a typical page. Every verdict pairs a hue with a label or shape."
+    }
+  ],
+  "claims": [
+    {
+      "id": "degraded-source-is-visible",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "When any sensor source is unreadable, the availability region names that source and its stated reason, and the board does not present its targets as in band.",
+      "rationale": "The degradation contract in TARGET_MODEL.md: an unreadable source becomes a visible availability entry, never a zero and never a silently dropped row.",
+      "states": ["partial"],
+      "elements": ["source-availability"]
+    },
+    {
+      "id": "untrusted-never-counted",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "A reading with a non-VALID trust verdict is shown as untrusted and is excluded from any in-band aggregate on the page.",
+      "rationale": "TRUST-MODEL.md honesty invariant — an untrusted reading is not evidence and must not be totalled as if it were.",
+      "states": ["ready-ranked"],
+      "elements": ["ranked-findings"]
+    },
+    {
+      "id": "empty-is-not-blind",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "The empty state is visually and textually distinct from the error state.",
+      "rationale": "'No findings' and 'nothing could be read' are opposite claims; conflating them is the exact failure the availability region exists to prevent.",
+      "states": ["empty", "error"],
+      "elements": ["ranked-findings", "source-availability"]
+    },
+    {
+      "id": "status-not-colour-alone",
+      "type": "accessibility",
+      "tier": "required",
+      "statement": "Every status indicator pairs its colour with a text label or distinct shape, and meets WCAG 2.1 AA contrast in both themes.",
+      "rationale": "The page is entirely status; colour-only encoding would make it unusable for colour-blind operators.",
+      "states": ["ready-ranked", "partial"]
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "confidence-header": {"testid": "board-confidence-header"},
+      "ranked-findings": {"testid": "board-ranked-findings"},
+      "source-availability": {"testid": "board-source-availability"}
+    }
+  }
+}

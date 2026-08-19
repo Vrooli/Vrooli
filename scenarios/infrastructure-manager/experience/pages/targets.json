@@ -1,0 +1,104 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "targets",
+    "title": "Setpoint",
+    "routes": ["/targets"],
+    "purpose": "Show the setpoint as it actually is — every target with its sensor, deadband, actuator and honesty flag, and every open-loop cell with the date it was declared and how long it has stood.",
+    "prd_refs": ["OT-P0-001", "OT-P0-005", "OT-P1-004"]
+  },
+  "regions": [
+    {
+      "id": "target-map",
+      "purpose": "List every authored target with its sensor reference, deadband, actuator and honesty flag.",
+      "required": true,
+      "component": {
+        "library": {"component": "experience-surface", "version": "1.0.0"}
+      },
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "error"]}
+    },
+    {
+      "id": "open-loop",
+      "purpose": "Separate the targets that have no working sensor, each with gap_opened_on and gap_open_days, so an intentionally visible hole can be told from an overdue one.",
+      "required": true,
+      "component": {
+        "library": {"component": "experience-surface", "version": "1.0.0"}
+      },
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    },
+    {
+      "id": "integrity",
+      "purpose": "Report setpoint integrity findings — a target missing a sensor, deadband or actuator — and drift findings where a named sensor no longer resolves or an open cell could already be closed by a shipped verb.",
+      "required": true,
+      "component": {
+        "library": {"component": "experience-surface", "version": "1.0.0"}
+      },
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    }
+  ],
+  "states": [
+    {
+      "id": "ready",
+      "description": "Setpoint parsed. Targets, open-loop cells and integrity findings all shown.",
+      "setup": {"route": "/targets"}
+    },
+    {
+      "id": "integrity-findings",
+      "description": "The setpoint parses but one or more targets are malformed. The map still loads; the malformed rows are called out rather than dropped.",
+      "setup": {"route": "/targets", "query": "state=integrity"}
+    },
+    {
+      "id": "error",
+      "description": "The setpoint document is missing, unreadable or unparseable. A hard, loud failure — no target count is shown.",
+      "setup": {"route": "/targets", "query": "state=error"}
+    }
+  ],
+  "priorities": [
+    {
+      "statement": "The setpoint is read-only here, and the page must look it.",
+      "notes": "No edit affordance of any kind. Changing a deadband is an operator decision made through a reliability-target-update, not a UI action. An edit control here would be deviation D6 rendered in pixels."
+    },
+    {
+      "statement": "An open-loop target is presented as a declared state, not as missing data.",
+      "notes": "Empty sensor cells are honest declarations. They are counted and dated, never hidden or shown as a failure."
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-edit-affordance",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "The page exposes no control that would create, edit or delete a target, deadband or actuator.",
+      "rationale": "The instrument may not author its own setpoint. This is the most likely place for that boundary to be eroded by a well-meaning UI addition.",
+      "states": ["ready"],
+      "elements": ["target-map"]
+    },
+    {
+      "id": "open-loop-is-dated",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "Every open-loop target displays the date its gap was declared and the number of days it has stood.",
+      "rationale": "Without the dates, 'declared and dated' degrades into 'declared once and forgotten' — the state three framework-health targets sat in indefinitely.",
+      "states": ["ready"],
+      "elements": ["open-loop"]
+    },
+    {
+      "id": "setpoint-error-is-loud",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "When the setpoint cannot be parsed, the page states the failure and its reason and shows no target count.",
+      "rationale": "An empty map rendered as zero targets would read as a scenario with nothing to measure rather than an instrument that lost its reference.",
+      "states": ["error"],
+      "elements": ["target-map", "integrity"]
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "target-map": {"testid": "targets-map"},
+      "open-loop": {"testid": "targets-open-loop"},
+      "integrity": {"testid": "targets-integrity"}
+    }
+  }
+}

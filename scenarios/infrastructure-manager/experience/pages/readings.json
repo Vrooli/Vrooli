@@ -1,0 +1,126 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "readings",
+    "title": "Readings",
+    "routes": ["/readings", "/readings/:targetId"],
+    "purpose": "Show what each sensor currently says, whether that reading can be believed, and how the target has trended — with the trust distribution always visible beside the numbers.",
+    "prd_refs": ["OT-P0-002", "OT-P0-003", "OT-P1-002"]
+  },
+  "regions": [
+    {
+      "id": "trust-distribution",
+      "purpose": "Present the trust triple — verdict distribution, of checked readings, of total readings — so unchecked readings can never be mistaken for valid ones.",
+      "required": true,
+      "component": {
+        "library": {"component": "experience-surface", "version": "1.0.0"}
+      },
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "error"]}
+    },
+    {
+      "id": "reading-list",
+      "purpose": "List the current reading per target with its band evaluation, source, timestamp and trust verdict.",
+      "required": true,
+      "component": {
+        "library": {"component": "experience-surface", "version": "1.0.0"}
+      },
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error", "partial"]}
+    },
+    {
+      "id": "target-history",
+      "purpose": "On the detail route, show the target's reading history re-graded against the current deadband, with untrusted readings marked and excluded from the trend.",
+      "required": false,
+      "component": {
+        "library": {"component": "experience-surface", "version": "1.0.0"}
+      },
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    }
+  ],
+  "states": [
+    {
+      "id": "ready",
+      "description": "All sources readable; readings banded and trust-qualified.",
+      "setup": {"route": "/readings"}
+    },
+    {
+      "id": "untrusted-present",
+      "description": "One or more readings carry a non-VALID verdict. They are shown, labelled with the specific verdict, and excluded from aggregates.",
+      "setup": {"route": "/readings", "query": "state=untrusted"}
+    },
+    {
+      "id": "unmeasurable",
+      "description": "A target whose every reading is untrusted. Reported as unmeasurable with its verdict distribution — never silently absent, never shown as in band.",
+      "setup": {"route": "/readings", "query": "state=unmeasurable"}
+    },
+    {
+      "id": "detail",
+      "description": "Single-target history view, re-graded against the current deadband.",
+      "setup": {"route": "/readings/scenario-uptime"}
+    },
+    {
+      "id": "error",
+      "description": "No source could be read at all.",
+      "setup": {"route": "/readings", "query": "state=error"}
+    }
+  ],
+  "priorities": [
+    {
+      "statement": "A verdict never appears bare.",
+      "notes": "A DEGRADED or untrusted verdict must name the offending signal and its value. TRUST-MODEL.md and CONDITION-MODEL.md agree: a bare verdict is not a valid verdict."
+    },
+    {
+      "statement": "Instrument fault reads differently from plant fault.",
+      "notes": "An untrusted reading is a finding about the sensor, not about the platform. The two must never share a visual treatment, or an operator will schedule plant work for an instrument defect."
+    },
+    {
+      "statement": "History is re-graded, never replayed.",
+      "notes": "Band evaluation is computed against the current deadband at view time, so a tightened target re-grades its own history rather than showing stale judgments."
+    }
+  ],
+  "claims": [
+    {
+      "id": "trust-triple-always-shown",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "The trust distribution is displayed as a triple — verdicts, of checked readings, of total readings — whenever any reading is shown.",
+      "rationale": "TRUST-MODEL.md: the board reports its own blindness alongside its findings, or it is worse than having no axis.",
+      "states": ["ready", "untrusted-present"],
+      "elements": ["trust-distribution"]
+    },
+    {
+      "id": "unmeasurable-is-reported",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "A target whose readings are all untrusted appears as unmeasurable with its verdict distribution, and never as in band or absent.",
+      "rationale": "A target that vanishes when its sensor breaks is the exact failure the trust axis exists to catch.",
+      "states": ["unmeasurable"],
+      "elements": ["reading-list"]
+    },
+    {
+      "id": "verdict-names-its-signal",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "Every out-of-band or untrusted verdict displays the offending signal and its observed value.",
+      "rationale": "A bare verdict cannot be acted on and cannot be audited back to evidence.",
+      "states": ["untrusted-present"],
+      "elements": ["reading-list"]
+    },
+    {
+      "id": "instrument-vs-plant-distinct",
+      "type": "accessibility",
+      "tier": "required",
+      "statement": "Instrument-fault and plant-fault entries are distinguishable by label and shape, not only by colour, in both themes.",
+      "rationale": "Routing a plant fix at an instrument defect is the most expensive mistake this surface can cause.",
+      "states": ["untrusted-present"]
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "trust-distribution": {"testid": "readings-trust-distribution"},
+      "reading-list": {"testid": "readings-list"},
+      "target-history": {"testid": "readings-target-history"}
+    }
+  }
+}

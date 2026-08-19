@@ -1,0 +1,25 @@
+{
+  "id": ".",
+  "name": "Infrastructure Manager",
+  "short_name": "infrastructure-manager",
+  "description": "Reliability instrument for the infra-health team: joins the sensor-map setpoint against live plant readings and emits one ranked, trust-qualified error surface",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
