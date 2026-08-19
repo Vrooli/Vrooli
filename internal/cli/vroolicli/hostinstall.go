@@ -80,10 +80,32 @@ func (app *App) runHostSafeguardCommand(ctx *CommandContext, args []string) erro
 		return fmt.Errorf("host safeguard %q: %w", name, err)
 	}
 	renderHostInstallText(ctx.Stdout, status)
-	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent && status.ExecutionState != hostreqkit.ExecutionNotApplicable && status.ExecutionState != hostreqkit.ExecutionWouldApply {
+	if !hostSafeguardOK(status) {
 		return rootcli.ExitCodeError{Code: 1, Silent_: true}
 	}
 	return nil
+}
+
+// hostSafeguardOK reports whether a safeguard run should exit zero. It is the
+// safeguard twin of hostInstallOK; the two are kept adjacent because they
+// previously drifted. The inline predicate this replaced omitted
+// ExecutionApplied, so a safeguard that successfully did its work exited 1
+// while the same command with --dry-run exited 0 — an inversion that reads as
+// a failure exactly when the repair succeeded.
+//
+// ExecutionRebootRequired is deliberately NOT success: the safeguard's whole
+// point in that case is to refuse to pretend the host is ready. Likewise
+// ExecutionManualActionRequired, where the operator still has work to do.
+func hostSafeguardOK(status hostreqkit.ItemStatus) bool {
+	switch status.ExecutionState {
+	case hostreqkit.ExecutionApplied,
+		hostreqkit.ExecutionAlreadyPresent,
+		hostreqkit.ExecutionWouldApply,
+		hostreqkit.ExecutionNotApplicable:
+		return true
+	default:
+		return false
+	}
 }
 
 func (app *App) runHostInstallCommand(ctx *CommandContext, args []string) error {

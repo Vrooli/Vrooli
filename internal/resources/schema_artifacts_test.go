@@ -1,11 +1,14 @@
 package resources
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/santhosh-tekuri/jsonschema/v5"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
@@ -15,6 +18,7 @@ import (
 
 func TestSyncAndValidateSchemaArtifacts(t *testing.T) {
 	root := t.TempDir()
+	testresource.WriteResourcesSchema(t, root)
 	testresource.WriteResourceManifest(t, root, "postgres", testresource.ResourceManifest(
 		"postgres",
 		testresource.WithResourceTemplate("docker-service"),
@@ -85,8 +89,103 @@ func TestSyncAndValidateSchemaArtifacts(t *testing.T) {
 	}
 }
 
+// TestGeneratedCatalogAcceptsSharedDependencyKeys is the regression test for two
+// defects that together made every scenario manifest unvalidatable.
+//
+// First, the catalog emitted "../resources.schema.json#/…", which resolves one
+// directory above where that file lives, so no standards-compliant validator
+// could compile any schema reaching the catalog — service.schema.json included.
+//
+// Second, each catalog entry composes resourceConfig with a resource-specific
+// schema through allOf. JSON Schema evaluates allOf branches independently, so a
+// resource schema closed with additionalProperties:false rejected the shared
+// governance keys the other branch supplies. 162 of the repository's 405
+// manifest violations came from that single composition mistake.
+//
+// The fixture's postgres dependency_schema is closed, so this exercises both.
+func TestGeneratedCatalogAcceptsSharedDependencyKeys(t *testing.T) {
+	root := t.TempDir()
+	testresource.WriteResourcesSchema(t, root)
+	testresource.WriteResourceManifest(t, root, "postgres", testresource.ResourceManifest(
+		"postgres",
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{Image: "postgres:16-alpine"}),
+		testresource.WithResourceDependencySchema(json.RawMessage(`{
+  "type": "object",
+  "properties": {
+    "database": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}`)),
+	))
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"postgres": {Enabled: true},
+			},
+		}),
+	))
+	if _, err := SyncSchemaArtifacts(root); err != nil {
+		t.Fatalf("SyncSchemaArtifacts: %v", err)
+	}
+
+	schemaDir := filepath.Join(root, ".vrooli", "schemas")
+	catalogBytes, err := os.ReadFile(filepath.Join(schemaDir, "resource-definitions.json"))
+	if err != nil {
+		t.Fatalf("read resource-definitions: %v", err)
+	}
+	if strings.Contains(string(catalogBytes), "../resources.schema.json") {
+		t.Fatalf("catalog emitted a parent-relative ref; it must point at the sibling schema")
+	}
+
+	// Register each schema only under its canonical id. An extra alias that
+	// swallows a parent-relative ref is exactly what hid the broken ref before.
+	compiler := jsonschema.NewCompiler()
+	for _, name := range []string{"resource-definitions.json", "resources.schema.json"} {
+		data, readErr := os.ReadFile(filepath.Join(schemaDir, name))
+		if readErr != nil {
+			t.Fatalf("read %s: %v", name, readErr)
+		}
+		if addErr := compiler.AddResource("https://vrooli.com/schemas/"+name, bytes.NewReader(data)); addErr != nil {
+			t.Fatalf("add %s: %v", name, addErr)
+		}
+	}
+	catalog, err := compiler.Compile("https://vrooli.com/schemas/resource-definitions.json#/resourceCatalog")
+	if err != nil {
+		t.Fatalf("compile catalog: %v", err)
+	}
+
+	// A real dependency declaration: governance keys from resourceConfig plus a
+	// resource-specific key from the closed per-resource schema.
+	valid := map[string]any{
+		"postgres": map[string]any{
+			"enabled":  true,
+			"required": true,
+			"type":     "postgres",
+			"purpose":  "primary store",
+			"database": "alpha",
+		},
+	}
+	if err := catalog.Validate(valid); err != nil {
+		t.Fatalf("catalog rejected a valid dependency declaration: %v", err)
+	}
+
+	// Strictness must survive the fix: an unknown key is still a violation.
+	unknown := map[string]any{
+		"postgres": map[string]any{"enabled": true, "definitely_not_a_key": true},
+	}
+	if err := catalog.Validate(unknown); err == nil {
+		t.Fatalf("catalog accepted an unknown resource key; per-resource schemas must stay closed")
+	}
+}
+
 func TestValidateSchemaArtifactsDetectsMissingScenarioResourceReferences(t *testing.T) {
 	root := t.TempDir()
+	testresource.WriteResourcesSchema(t, root)
 	testresource.WriteResourceManifest(t, root, "postgres", testresource.ResourceManifest(
 		"postgres",
 		testresource.WithResourceTemplate("docker-service"),
@@ -128,6 +227,7 @@ func TestValidateSchemaArtifactsDetectsMissingScenarioResourceReferences(t *test
 
 func TestValidateSchemaArtifactsDetectsStaleFiles(t *testing.T) {
 	root := t.TempDir()
+	testresource.WriteResourcesSchema(t, root)
 	testresource.WriteResourceManifest(t, root, "postgres", testresource.ResourceManifest(
 		"postgres",
 		testresource.WithResourceTemplate("docker-service"),

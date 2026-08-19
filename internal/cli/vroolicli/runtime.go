@@ -1009,7 +1009,8 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Root:         func(ctx *CommandContext) string { return ctx.Root },
 			OutputFormat: projectOutputFormat,
 		}),
-		topcli.CommandHost: func(ctx *CommandContext, args []string) error { return ctx.app.runHostCommand(ctx, args) },
+		topcli.CommandHost:  func(ctx *CommandContext, args []string) error { return ctx.app.runHostCommand(ctx, args) },
+		topcli.CommandAgent: func(ctx *CommandContext, args []string) error { return ctx.app.runAgentCommand(ctx, args) },
 		topcli.CommandCapacity: capacityhandlers.RootHandler(capacityhandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,
 			OutputFormat: projectOutputFormat,
@@ -1051,6 +1052,8 @@ func (app *App) runHostCommand(ctx *CommandContext, args []string) error {
 			hostInventorySpec(),
 			hostInstallSpec(),
 			hostSafeguardSpec(),
+			hostVolumeSpec(),
+			hostStorageCandidatesSpec(),
 		})
 		return nil
 	}
@@ -1061,8 +1064,12 @@ func (app *App) runHostCommand(ctx *CommandContext, args []string) error {
 		return app.runHostInstallCommand(ctx, args[1:])
 	case "safeguard":
 		return app.runHostSafeguardCommand(ctx, args[1:])
+	case "volume":
+		return app.runHostVolumeCommand(ctx, args[1:])
+	case "storage":
+		return app.runHostStorageCommand(ctx, args[1:])
 	default:
-		return rootcli.NewUnknownCommandError(args[0], []string{"inventory", "install", "safeguard"})
+		return rootcli.NewUnknownCommandError(args[0], []string{"inventory", "install", "safeguard", "volume", "storage"})
 	}
 }
 

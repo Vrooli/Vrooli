@@ -114,9 +114,21 @@ func (b *Broker) Execute(ctx context.Context, req Request, callerUID uint32) Res
 	if err := Validate(req); err != nil {
 		return NewFailure(req.RequestID, req.Action, err.Error())
 	}
-	result := executeUFW(ctx, b.config.Executor, req)
+	result := b.dispatch(ctx, req)
 	b.audit(callerUID, req, result)
 	return result
+}
+
+// dispatch routes a validated request to its action family's adapter. There is
+// no default branch that executes anything: an action Validate did not
+// recognise never reaches here.
+func (b *Broker) dispatch(ctx context.Context, req Request) Result {
+	switch req.Action {
+	case ActionVolumeFilesystemCheck, ActionVolumeFilesystemRepair:
+		return executeVolume(ctx, b.config.Executor, req)
+	default:
+		return executeUFW(ctx, b.config.Executor, req)
+	}
 }
 
 func (b *Broker) audit(uid uint32, req Request, result Result) {

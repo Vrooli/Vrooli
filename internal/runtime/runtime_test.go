@@ -627,6 +627,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 		"edac_modules", "host_hardening", "kernel_config", "login_keyring_unlock", "model_policy_drift", "nat_protection", "netconsole", "onboarding_apply_privileges",
 		"nvidia_driver",
 		"ollama_resource_controls",
+		"path_hygiene",
 		"pstore_native", "pstore_observability", "pstore_ramoops", "remote_desktop_access", "remote_session_protection", "tcp_tuning",
 		"tpm_credential_access",
 		"vrooli_launcher", "workspace_sandbox_userns",

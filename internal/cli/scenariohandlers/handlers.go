@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -17,9 +18,11 @@ import (
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
+	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 )
 
@@ -404,6 +407,49 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				},
 			),
 			WriteLifecycleItems,
+		),
+		CommandDelete: bindGlobal(deps.Stdout,
+			func(ctx C, args []string) (DeleteRequest, error) {
+				return ParseDeleteRequest(deps.Globals(ctx).JSON, args)
+			},
+			func(ctx C, req DeleteRequest) (cliout.Format, DeleteResponse, error) {
+				format, err := deps.OutputFormat(ctx)
+				if err != nil {
+					return "", DeleteResponse{}, err
+				}
+				root := filepath.Clean(deps.Root(ctx))
+				canonical := filepath.Join(root, "scenarios", req.Name)
+				resolved, redirected := scenariomodel.ResolveScenarioPath(root, req.Name, scenariomodel.SandboxEnv{})
+				if redirected || filepath.Clean(resolved) != canonical {
+					return format, DeleteResponse{}, fmt.Errorf("scenario delete refuses redirected scenario path %q", resolved)
+				}
+				if _, statErr := os.Stat(canonical); statErr == nil {
+					runner, runnerErr := deps.LifecycleRunner(ctx)
+					if runnerErr != nil {
+						return format, DeleteResponse{}, runnerErr
+					}
+					if _, stopErr := NewRunnerService(runner).Stop(scenarioapp.StopRequest{Name: req.Name}); stopErr != nil {
+						return format, DeleteResponse{}, stopErr
+					}
+				}
+				if err := os.RemoveAll(canonical); err != nil {
+					return format, DeleteResponse{}, fmt.Errorf("delete scenario source: %w", err)
+				}
+				home, err := deps.HomeDir(ctx)
+				if err != nil {
+					return format, DeleteResponse{}, err
+				}
+				manager, err := cliinstall.NewManager(root, home)
+				if err != nil {
+					return format, DeleteResponse{}, err
+				}
+				removal, err := manager.RemoveScenarioCLIReport(req.Name)
+				if err != nil {
+					return format, DeleteResponse{}, err
+				}
+				return format, DeleteResponse{Name: req.Name, ScenarioPath: canonical, RemovedArtifacts: removal.Removed, SkippedArtifacts: removal.Skipped}, nil
+			},
+			RenderDeleteResponse,
 		),
 		CommandStopAll: bindGlobal(deps.Stdout,
 			func(ctx C, args []string) (StopAllRequest, error) {

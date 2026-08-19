@@ -18,8 +18,9 @@ type packageJSON struct {
 }
 
 type DiscoveryReport struct {
-	Dependents []Dependent       `json:"dependents"`
-	Issues     []ValidationIssue `json:"issues"`
+	Dependents      []Dependent              `json:"dependents"`
+	Issues          []ValidationIssue        `json:"issues"`
+	ClassViolations []ConsumerClassViolation `json:"consumer_class_violations,omitempty"`
 }
 
 type consumerScope string
@@ -35,7 +36,12 @@ func DiscoverDependents(root string, pkg Package) (DiscoveryReport, error) {
 	if err != nil {
 		return DiscoveryReport{}, err
 	}
-	return inv.reportFor(pkg), nil
+	report := inv.reportFor(pkg)
+	report.ClassViolations = ValidateConsumerClassBoundary(pkg, report.Dependents)
+	for _, violation := range report.ClassViolations {
+		report.Issues = append(report.Issues, violation.ValidationIssue())
+	}
+	return report, nil
 }
 
 func walkPackageJSONs(root string, fn func(path string) error) error {

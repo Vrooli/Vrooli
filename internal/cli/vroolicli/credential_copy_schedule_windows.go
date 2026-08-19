@@ -3,31 +3,11 @@
 package vroolicli
 
 import (
-	"fmt"
-	"os/exec"
-	"strconv"
-	"strings"
+	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"time"
 )
 
-const credentialCopyTask = "VrooliCredentialStoreCopy"
-
 func installCredentialCopySchedule(executable string, interval time.Duration, enabled bool) error {
-	if !enabled {
-		output, err := exec.Command("schtasks", "/Delete", "/TN", credentialCopyTask, "/F").CombinedOutput()
-		if err != nil && !strings.Contains(strings.ToLower(string(output)), "does not exist") {
-			return fmt.Errorf("remove credential-store copy task: %w: %s", err, output)
-		}
-		return nil
-	}
-	minutes := int64(interval / time.Minute)
-	if minutes < 1 {
-		minutes = 1
-	}
-	command := `"` + strings.ReplaceAll(executable, `"`, `\"`) + `" credentials store copy scheduled --format json`
-	output, err := exec.Command("schtasks", "/Create", "/TN", credentialCopyTask, "/SC", "MINUTE", "/MO", strconv.FormatInt(minutes, 10), "/TR", command, "/F").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("enable credential-store copy task: %w: %s", err, output)
-	}
-	return nil
+	_, err := securestore.InstallCopySchedule(executable, interval, enabled)
+	return err
 }

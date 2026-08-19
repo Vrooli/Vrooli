@@ -16,7 +16,7 @@ import (
 
 const (
 	projectCLIName        = "vrooli"
-	projectPrimitiveGroup = "scenario-primitives"
+	projectPrimitiveGroup = "scenario"
 	projectDefaultAPIPort = "8092"
 )
 

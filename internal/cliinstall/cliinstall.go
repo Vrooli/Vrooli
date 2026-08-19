@@ -50,6 +50,15 @@ type Manager struct {
 	Home       string
 	installDir string // resolved once from the runtime_home authority (bin entry)
 	Installer  Installer
+	removeFile func(string) error
+}
+
+// ScenarioCLIRemovalReport describes the installed artifacts removed during
+// scenario deletion. A locked artifact is reported as skipped so source
+// deletion can still complete and the operator has an explicit residue list.
+type ScenarioCLIRemovalReport struct {
+	Removed int
+	Skipped []string
 }
 
 type InstallMetadata struct {
@@ -99,6 +108,7 @@ func NewManager(root, home string) (*Manager, error) {
 		Home:       cleanHome,
 		installDir: installDir,
 		Installer:  GoInstaller{},
+		removeFile: os.Remove,
 	}, nil
 }
 
@@ -355,6 +365,54 @@ func (m *Manager) DiscoverEnabledResourceCLIReport() (DiscoveryReport, error) {
 
 func (m *Manager) InstallDir() string {
 	return m.installDir
+}
+
+// RemoveScenarioCLI removes the canonical installed triple for a scenario.
+// It is intentionally idempotent: scenario deletion may be retried after the
+// binary or either sidecar has already disappeared. Resource binaries and the
+// root control-plane binaries are never accepted by this helper.
+func (m *Manager) RemoveScenarioCLI(name string) (int, error) {
+	report, err := m.RemoveScenarioCLIReport(name)
+	return report.Removed, err
+}
+
+// RemoveScenarioCLIReport is the reporting form of RemoveScenarioCLI. It is
+// intentionally idempotent and treats permission/locking failures as
+// operator-visible skips instead of failing deletion of the scenario source.
+func (m *Manager) RemoveScenarioCLIReport(name string) (ScenarioCLIRemovalReport, error) {
+	name = ScenarioBinaryName(name)
+	if name == "" || filepath.Base(name) != name || strings.ContainsAny(name, `/\\`) {
+		return ScenarioCLIRemovalReport{}, fmt.Errorf("invalid scenario CLI name %q", name)
+	}
+	if _, root := rootBinaryNames[name]; root || strings.HasPrefix(name, "resource-") {
+		return ScenarioCLIRemovalReport{}, fmt.Errorf("refusing to remove non-scenario CLI %q", name)
+	}
+	removeFile := m.removeFile
+	if removeFile == nil {
+		removeFile = os.Remove
+	}
+	report := ScenarioCLIRemovalReport{}
+	for _, binaryName := range []string{name, name + ".exe"} {
+		for _, path := range []string{
+			filepath.Join(m.InstallDir(), binaryName),
+			installedBuildMetadataPath(filepath.Join(m.InstallDir(), binaryName)),
+			installedManifestPath(filepath.Join(m.InstallDir(), binaryName)),
+		} {
+			err := removeFile(path)
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+			if err != nil {
+				if os.IsPermission(err) || errors.Is(err, fs.ErrPermission) || strings.Contains(strings.ToLower(err.Error()), "sharing violation") || strings.Contains(strings.ToLower(err.Error()), "used by another process") {
+					report.Skipped = append(report.Skipped, path)
+					continue
+				}
+				return report, fmt.Errorf("remove scenario CLI artifact %s: %w", path, err)
+			}
+			report.Removed++
+		}
+	}
+	return report, nil
 }
 
 func (m *Manager) InstalledBinaryPath(item InstallableCLI) string {

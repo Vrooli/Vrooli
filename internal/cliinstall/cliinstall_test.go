@@ -722,6 +722,57 @@ func TestInstalledScenarioCLINamesMissingDir(t *testing.T) {
 	}
 }
 
+func TestRemoveScenarioCLIRemovesTripleIdempotently(t *testing.T) {
+	manager := mustManager(t, t.TempDir(), t.TempDir())
+	if err := os.MkdirAll(manager.InstallDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(manager.InstallDir(), "rcl-fixture-positive")
+	for _, path := range []string{binary, binary + ".build.meta", binary + ".manifest.json"} {
+		if err := os.WriteFile(path, []byte("fixture"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	removed, err := manager.RemoveScenarioCLI("rcl-fixture-positive")
+	if err != nil || removed != 3 {
+		t.Fatalf("RemoveScenarioCLI = removed %d, err %v; want 3", removed, err)
+	}
+	removed, err = manager.RemoveScenarioCLI("rcl-fixture-positive")
+	if err != nil || removed != 0 {
+		t.Fatalf("idempotent RemoveScenarioCLI = removed %d, err %v; want 0", removed, err)
+	}
+}
+
+func TestRemoveScenarioCLISkipsLockedArtifact(t *testing.T) {
+	manager := mustManager(t, t.TempDir(), t.TempDir())
+	if err := os.MkdirAll(manager.InstallDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(manager.InstallDir(), "locked-fixture")
+	for _, path := range []string{binary, binary + ".build.meta", binary + ".manifest.json"} {
+		if err := os.WriteFile(path, []byte("fixture"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	manager.removeFile = func(path string) error {
+		if path == binary {
+			return fs.ErrPermission
+		}
+		return os.Remove(path)
+	}
+
+	report, err := manager.RemoveScenarioCLIReport("locked-fixture")
+	if err != nil {
+		t.Fatalf("RemoveScenarioCLIReport error = %v", err)
+	}
+	if report.Removed != 2 || !reflect.DeepEqual(report.Skipped, []string{binary}) {
+		t.Fatalf("report = %+v, want two removed and %q skipped", report, binary)
+	}
+	if _, err := os.Stat(binary); err != nil {
+		t.Fatalf("locked binary should remain for operator remediation: %v", err)
+	}
+}
+
 func writeInstallMetadataFixture(t *testing.T, path string, meta InstallMetadata) {
 	t.Helper()
 	data, err := json.Marshal(meta)

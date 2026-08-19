@@ -3,10 +3,11 @@
 package vroolicli
 
 import (
-	"errors"
+	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"time"
 )
 
-func installCredentialCopySchedule(string, time.Duration, bool) error {
-	return errors.New("credential-store copy scheduling is unsupported on this operating system")
+func installCredentialCopySchedule(executable string, interval time.Duration, enabled bool) error {
+	_, err := securestore.InstallCopySchedule(executable, interval, enabled)
+	return err
 }

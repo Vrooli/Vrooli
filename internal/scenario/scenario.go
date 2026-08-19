@@ -15,9 +15,11 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/credentialspec"
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
@@ -68,20 +70,21 @@ type Scenario struct {
 }
 
 type ServiceManifest struct {
-	Schema         string                     `json:"$schema,omitempty"`
-	Version        string                     `json:"version,omitempty"`
-	Service        ServiceMetadata            `json:"service"`
-	Generation     *GenerationMetadata        `json:"generation,omitempty"`
-	CLI            *CLIConfig                 `json:"cli,omitempty"`
-	Ports          map[string]Port            `json:"ports,omitempty"`
-	Lifecycle      Lifecycle                  `json:"lifecycle,omitempty"`
-	Health         *HealthConfig              `json:"health,omitempty"`
-	Dependencies   Dependencies               `json:"dependencies,omitempty"`
-	Credentials    credentialspec.Declaration `json:"credentials,omitempty"`
-	TrustSigning   *TrustSigningConfig        `json:"trust_signing,omitempty"`
-	Environment    map[string]string          `json:"environment,omitempty"`
-	HostTools      []hostreqspec.Declaration  `json:"hostTools,omitempty"`
-	HostSafeguards []hostreqspec.Declaration  `json:"hostSafeguards,omitempty"`
+	Schema         string                                 `json:"$schema,omitempty"`
+	Version        string                                 `json:"version,omitempty"`
+	Service        ServiceMetadata                        `json:"service"`
+	Generation     *GenerationMetadata                    `json:"generation,omitempty"`
+	CLI            *CLIConfig                             `json:"cli,omitempty"`
+	Ports          map[string]Port                        `json:"ports,omitempty"`
+	Lifecycle      Lifecycle                              `json:"lifecycle,omitempty"`
+	Health         *HealthConfig                          `json:"health,omitempty"`
+	Dependencies   Dependencies                           `json:"dependencies,omitempty"`
+	Credentials    credentialspec.Declaration             `json:"credentials,omitempty"`
+	Capabilities   []operatorcapability.ManifestReference `json:"operator_capabilities,omitempty"`
+	TrustSigning   *TrustSigningConfig                    `json:"trust_signing,omitempty"`
+	Environment    map[string]string                      `json:"environment,omitempty"`
+	HostTools      []hostreqspec.Declaration              `json:"hostTools,omitempty"`
+	HostSafeguards []hostreqspec.Declaration              `json:"hostSafeguards,omitempty"`
 }
 
 // TrustSigningConfig is a declarative lifecycle contract for a scenario that
@@ -456,6 +459,9 @@ func ReadService(path string) (ServiceManifest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return ServiceManifest{}, err
+	}
+	if err := repocontract.ValidateCredentialDescriptorUniqueness(data, path); err != nil {
+		return ServiceManifest{}, fmt.Errorf("validate credentials in %s: %w", path, err)
 	}
 
 	var manifest ServiceManifest

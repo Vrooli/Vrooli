@@ -11,8 +11,10 @@ import (
 	"slices"
 	"strings"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/credentialspec"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/safeguards"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -40,42 +42,43 @@ var (
 )
 
 type ResourceManifest struct {
-	Schema                string                       `json:"$schema,omitempty"`
-	Name                  string                       `json:"name"`
-	DisplayName           string                       `json:"display_name,omitempty"`
-	Description           string                       `json:"description,omitempty"`
-	CLI                   *scenario.CLIConfig          `json:"cli"`
-	LegacyRepoDataAllowed bool                         `json:"legacy_repo_data_allowed,omitempty"`
-	Storage               *ResourceStorage             `json:"storage,omitempty"`
-	DurableData           *ResourceDurableData         `json:"durable_data,omitempty"`
-	Template              string                       `json:"template,omitempty"`
-	Driver                string                       `json:"driver"`
-	ComposeFile           string                       `json:"compose_file,omitempty"`
-	Binary                string                       `json:"binary,omitempty"`
-	VersionArgs           []string                     `json:"version_args,omitempty"`
-	Endpoint              string                       `json:"endpoint,omitempty"`
-	Credentials           ResourceCredentials          `json:"credentials,omitempty"`
-	Privilege             hostreqspec.Privilege        `json:"privilege"`
-	Bundling              hostreqspec.Bundling         `json:"bundling"`
-	Category              string                       `json:"category,omitempty"`
-	Requirements          ResourceRequirements         `json:"requirements"`
-	Platforms             ResourcePlatforms            `json:"platforms,omitempty"`
-	Dependencies          []string                     `json:"dependencies,omitempty"`
-	Ports                 []ResourcePort               `json:"ports,omitempty"`
-	HealthChecks          []ResourceHealthCheck        `json:"health_checks,omitempty"`
-	Install               ResourceInstall              `json:"install,omitempty"`
-	Runtime               ResourceRuntime              `json:"runtime,omitempty"`
-	DependencySchema      json.RawMessage              `json:"dependency_schema,omitempty"`
-	EnvironmentExports    ResourceEnvironmentExports   `json:"environment_exports,omitempty"`
-	Orchestration         ResourceOrchestration        `json:"orchestration,omitempty"`
-	Lifecycle             ResourceLifecycle            `json:"lifecycle,omitempty"`
-	Capabilities          ResourceManifestCapabilities `json:"capabilities,omitempty"`
-	TemplateVersion       string                       `json:"template_version,omitempty"`
-	HostTools             []hostreqspec.Declaration    `json:"hostTools,omitempty"`
-	HostSafeguards        []hostreqspec.Declaration    `json:"hostSafeguards,omitempty"`
-	GPU                   *ResourceGPU                 `json:"gpu,omitempty"`
-	Deployment            ResourceDeployment           `json:"deployment,omitempty"`
-	ManagedService        *ResourceManagedService      `json:"managed_service,omitempty"`
+	Schema                string                                 `json:"$schema,omitempty"`
+	Name                  string                                 `json:"name"`
+	DisplayName           string                                 `json:"display_name,omitempty"`
+	Description           string                                 `json:"description,omitempty"`
+	CLI                   *scenario.CLIConfig                    `json:"cli"`
+	LegacyRepoDataAllowed bool                                   `json:"legacy_repo_data_allowed,omitempty"`
+	Storage               *ResourceStorage                       `json:"storage,omitempty"`
+	DurableData           *ResourceDurableData                   `json:"durable_data,omitempty"`
+	Template              string                                 `json:"template,omitempty"`
+	Driver                string                                 `json:"driver"`
+	ComposeFile           string                                 `json:"compose_file,omitempty"`
+	Binary                string                                 `json:"binary,omitempty"`
+	VersionArgs           []string                               `json:"version_args,omitempty"`
+	Endpoint              string                                 `json:"endpoint,omitempty"`
+	Credentials           ResourceCredentials                    `json:"credentials,omitempty"`
+	OperatorCapabilities  []operatorcapability.ManifestReference `json:"operator_capabilities,omitempty"`
+	Privilege             hostreqspec.Privilege                  `json:"privilege"`
+	Bundling              hostreqspec.Bundling                   `json:"bundling"`
+	Category              string                                 `json:"category,omitempty"`
+	Requirements          ResourceRequirements                   `json:"requirements"`
+	Platforms             ResourcePlatforms                      `json:"platforms,omitempty"`
+	Dependencies          []string                               `json:"dependencies,omitempty"`
+	Ports                 []ResourcePort                         `json:"ports,omitempty"`
+	HealthChecks          []ResourceHealthCheck                  `json:"health_checks,omitempty"`
+	Install               ResourceInstall                        `json:"install,omitempty"`
+	Runtime               ResourceRuntime                        `json:"runtime,omitempty"`
+	DependencySchema      json.RawMessage                        `json:"dependency_schema,omitempty"`
+	EnvironmentExports    ResourceEnvironmentExports             `json:"environment_exports,omitempty"`
+	Orchestration         ResourceOrchestration                  `json:"orchestration,omitempty"`
+	Lifecycle             ResourceLifecycle                      `json:"lifecycle,omitempty"`
+	Capabilities          ResourceManifestCapabilities           `json:"capabilities,omitempty"`
+	TemplateVersion       string                                 `json:"template_version,omitempty"`
+	HostTools             []hostreqspec.Declaration              `json:"hostTools,omitempty"`
+	HostSafeguards        []hostreqspec.Declaration              `json:"hostSafeguards,omitempty"`
+	GPU                   *ResourceGPU                           `json:"gpu,omitempty"`
+	Deployment            ResourceDeployment                     `json:"deployment,omitempty"`
+	ManagedService        *ResourceManagedService                `json:"managed_service,omitempty"`
 	// ProviderPolicy declares verified reuse policy for non-service resources
 	// such as host tools. It has no lifecycle authority and is intentionally
 	// separate from managed_service.provider_policy.
@@ -360,6 +363,9 @@ func Load(path string) (ResourceManifest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return ResourceManifest{}, fmt.Errorf("read resource manifest %s: %w", path, err)
+	}
+	if err := repocontract.ValidateCredentialDescriptorUniqueness(data, path); err != nil {
+		return ResourceManifest{}, fmt.Errorf("validate credentials in %s: %w", path, err)
 	}
 	var manifest ResourceManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {

@@ -162,7 +162,13 @@ func credentialsStoreCopy(ctx *CommandContext, args []string) error {
 			Region: objectStoreRegion, Endpoint: objectStoreEndpoint, Credentials: credentials, RepositorySinks: repositorySinks,
 		})
 	} else {
-		copyStatus, err = securestore.CopyStore(status.Path, sink, receiptPath, repositoryPaths)
+		home, homeErr := config.VrooliHome()
+		if homeErr != nil {
+			return homeErr
+		}
+		copyStatus, err = securestore.CopyStoreWithPolicy(status.Path, sink, receiptPath, securestore.CopyPolicy{
+			RepositoryPaths: repositoryPaths, ProtectedRoots: []string{home}, RequireIndependentDevice: true,
+		})
 	}
 	if err != nil {
 		return err

@@ -64,6 +64,31 @@ func TestCopyStoreWritesEncryptedFileAndReceiptAtomically(t *testing.T) {
 	if info.Mode().Perm()&0o077 != 0 {
 		t.Fatalf("copy mode = %o, want owner-only", info.Mode().Perm())
 	}
+	if status.Checksum == "" || status.Verification != "readback" || status.VerifiedAt.IsZero() {
+		t.Fatalf("copy lacks verification evidence: %+v", status)
+	}
+}
+
+func TestCopyStoreWithPolicyRejectsSinkInsideCredentialSource(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "store", "secrets.enc.json")
+	newDrillEncryptedStore(t, source, "copy-passphrase")
+	_, err := CopyStoreWithPolicy(source, filepath.Join(root, "store", "copies"), filepath.Join(root, "receipt.json"), CopyPolicy{ProtectedRoots: []string{filepath.Dir(source)}})
+	var conflict *SinkConflictError
+	if !errors.As(err, &conflict) {
+		t.Fatalf("CopyStoreWithPolicy error = %v, want source containment conflict", err)
+	}
+}
+
+func TestCopyStoreWithPolicyRejectsSamePhysicalDevice(t *testing.T) {
+	sourceRoot := t.TempDir()
+	sinkRoot := t.TempDir()
+	source := filepath.Join(sourceRoot, "secrets.enc.json")
+	newDrillEncryptedStore(t, source, "copy-passphrase")
+	_, err := CopyStoreWithPolicy(source, filepath.Join(sinkRoot, "sibling"), filepath.Join(sinkRoot, "receipt.json"), CopyPolicy{RequireIndependentDevice: true})
+	if err == nil || !strings.Contains(err.Error(), "physical device") {
+		t.Fatalf("same-device policy error = %v", err)
+	}
 }
 
 func TestChangePassphraseAdvancesStoreGeneration(t *testing.T) {

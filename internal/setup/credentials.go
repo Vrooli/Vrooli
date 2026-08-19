@@ -10,6 +10,7 @@ import (
 
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/operatorinput"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
@@ -171,13 +172,18 @@ func initializeEncryptedBackend(stdout, stderr io.Writer) error {
 
 func enqueueCredentialStoreInput(initialized bool, stdout io.Writer) error {
 	request := operatorinput.Request{
-		ID:          "credential-store-passphrase",
-		Kind:        operatorinput.KindSecret,
-		Title:       "Protect the encrypted credential store",
-		Description: "Choose one passphrase in vrooli-onboarding; it is never printed or placed in a command argument.",
-		Unblocks:    []string{"credential-store-initialization", "unattended-credential-access"},
-		Validation:  "non-empty",
-		Required:    true,
+		ID:              "credential-store-passphrase",
+		Kind:            operatorinput.KindSecret,
+		ContractVersion: operatorcapability.ContractVersion,
+		Owner:           "vrooli.control-plane",
+		CapabilityID:    "credential-store-access",
+		ActionID:        "apply",
+		InputID:         "passphrase",
+		Title:           "Protect the encrypted credential store",
+		Description:     "Choose one passphrase in vrooli-onboarding; it is never printed or placed in a command argument.",
+		Unblocks:        []string{"credential-store-initialization", "unattended-credential-access"},
+		Validation:      "non-empty",
+		Required:        true,
 	}
 	if initialized {
 		request.Description = "Enter the existing encrypted-store passphrase in vrooli-onboarding; it is never printed or placed in a command argument."

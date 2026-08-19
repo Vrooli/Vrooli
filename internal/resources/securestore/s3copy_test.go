@@ -26,7 +26,13 @@ func TestCopyStoreS3UploadsEncryptedObjectAndReceipt(t *testing.T) {
 	var gotBody []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
-		gotBody, _ = io.ReadAll(r.Body)
+		body, _ := io.ReadAll(r.Body)
+		if r.Method == http.MethodPut {
+			gotBody = body
+		} else {
+			_, _ = w.Write(gotBody)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -51,6 +57,27 @@ func TestCopyStoreS3UploadsEncryptedObjectAndReceipt(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "state", "receipt.json")); err != nil {
 		t.Fatalf("receipt: %v", err)
+	}
+}
+
+func TestUploadS3ArtifactReadsBackArbitraryEncryptedArtifact(t *testing.T) {
+	var stored []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			stored, _ = io.ReadAll(r.Body)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		_, _ = w.Write(stored)
+	}))
+	defer server.Close()
+	want := []byte(`{"version":1,"ciphertext":"opaque"}`)
+	path, checksum, err := UploadS3Artifact("s3://bucket/escrow", "recovery/credentials.bundle.json", want, S3CopyOptions{Region: serverRegion, Endpoint: server.URL, Credentials: ObjectStoreCredentials{AccessKey: "access", SecretKey: "secret"}, Now: func() time.Time { return time.Date(2026, 8, 18, 20, 0, 0, 0, time.UTC) }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "s3://bucket/escrow/recovery/credentials.bundle.json" || checksum == "" || !bytes.Equal(stored, want) {
+		t.Fatalf("path=%q checksum=%q stored=%q", path, checksum, stored)
 	}
 }
 

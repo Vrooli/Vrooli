@@ -70,6 +70,7 @@ func (c Collector) collectAppleToolchain(ctx context.Context, snap *Snapshot, ob
 		// A present-but-unusable xcodebuild is the common "license not
 		// accepted" or "command line tools only" state. Report it rather than
 		// letting a version-less tool read as a working toolchain.
+		snap.RuntimeTools[ToolXcodebuild] = Tool{Present: false, Path: xcodebuildPath}
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf("xcodebuild -version: %v", err))
 		snap.ProbeStatuses[ProbeAppleToolchain] = "failed"
 		return

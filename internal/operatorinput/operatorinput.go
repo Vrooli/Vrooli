@@ -20,21 +20,50 @@ import (
 type Kind string
 
 const (
-	KindSecret  Kind = "secret"
-	KindChoice  Kind = "choice"
-	KindConfirm Kind = "confirm"
+	KindSecret       Kind = "secret"
+	KindChoice       Kind = "choice"
+	KindConfirm      Kind = "confirm"
+	KindPath         Kind = "path"
+	KindEnum         Kind = "enum"
+	KindBoolean      Kind = "boolean"
+	KindDuration     Kind = "duration"
+	KindConfirmation Kind = "confirmation"
 )
 
+// Candidate is metadata only. It is safe to persist in the operator-input
+// queue because it identifies a possible destination without carrying a
+// credential, token, or passphrase.
+type Candidate struct {
+	ID             string            `json:"id"`
+	Kind           string            `json:"kind"`
+	Label          string            `json:"label"`
+	Location       string            `json:"location,omitempty"`
+	StableIdentity string            `json:"stable_identity,omitempty"`
+	DeviceIdentity string            `json:"device_identity,omitempty"`
+	Writable       bool              `json:"writable"`
+	Status         string            `json:"status"`
+	Risk           string            `json:"risk,omitempty"`
+	Remediation    string            `json:"remediation,omitempty"`
+	Metadata       map[string]string `json:"metadata,omitempty"`
+}
+
 type Request struct {
-	ID          string   `json:"id"`
-	Kind        Kind     `json:"kind"`
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	Default     string   `json:"default,omitempty"`
-	Options     []string `json:"options,omitempty"`
-	Unblocks    []string `json:"unblocks,omitempty"`
-	Validation  string   `json:"validation,omitempty"`
-	Required    bool     `json:"required"`
+	ID              string      `json:"id"`
+	Kind            Kind        `json:"kind"`
+	ContractVersion string      `json:"contract_version,omitempty"`
+	Owner           string      `json:"owner,omitempty"`
+	CapabilityID    string      `json:"capability_id,omitempty"`
+	ActionID        string      `json:"action_id,omitempty"`
+	InputID         string      `json:"input_id,omitempty"`
+	Title           string      `json:"title"`
+	Description     string      `json:"description,omitempty"`
+	Default         string      `json:"default,omitempty"`
+	Options         []string    `json:"options,omitempty"`
+	Candidates      []Candidate `json:"candidates,omitempty"`
+	Remediation     string      `json:"remediation,omitempty"`
+	Unblocks        []string    `json:"unblocks,omitempty"`
+	Validation      string      `json:"validation,omitempty"`
+	Required        bool        `json:"required"`
 }
 
 type Pending struct {
@@ -62,12 +91,15 @@ func Validate(request Request) error {
 		return errors.New("operator input id and title are required")
 	}
 	switch request.Kind {
-	case KindSecret, KindChoice, KindConfirm:
+	case KindSecret, KindChoice, KindConfirm, KindPath, KindEnum, KindBoolean, KindDuration, KindConfirmation:
 	default:
 		return fmt.Errorf("operator input %q has unsupported kind %q", request.ID, request.Kind)
 	}
-	if request.Kind == KindChoice && len(request.Options) == 0 {
+	if (request.Kind == KindChoice || request.Kind == KindEnum) && len(request.Options) == 0 {
 		return fmt.Errorf("operator input %q choice has no options", request.ID)
+	}
+	if (request.Kind == KindConfirm || request.Kind == KindConfirmation) && !request.Required {
+		return fmt.Errorf("operator input %q confirmation must be required", request.ID)
 	}
 	return nil
 }
@@ -112,6 +144,30 @@ func Enqueue(request Request) error {
 		}
 	}
 	return Replace(append(queue.Requests, request))
+}
+
+// RemoveCapability removes only metadata requests owned by capabilityID after
+// the generic provider has returned verified success. It never accepts or
+// receives an answer value, so queue reconciliation cannot persist secrets.
+func RemoveCapability(capabilityID string) error {
+	capabilityID = strings.TrimSpace(capabilityID)
+	if capabilityID == "" {
+		return errors.New("capability ID is required")
+	}
+	queue, err := Load()
+	if err != nil {
+		return err
+	}
+	remaining := queue.Requests[:0]
+	for _, request := range queue.Requests {
+		if request.CapabilityID != capabilityID {
+			remaining = append(remaining, request)
+		}
+	}
+	if len(remaining) == len(queue.Requests) {
+		return nil
+	}
+	return Replace(remaining)
 }
 
 func Load() (Pending, error) {
@@ -170,11 +226,19 @@ func ResolveWith(answers []Answer, apply func(map[string]string) error) (map[str
 		if request.Required && strings.TrimSpace(value) == "" {
 			return nil, fmt.Errorf("operator input %q is required", request.ID)
 		}
-		if request.Kind == KindChoice && value != "" && !contains(request.Options, value) {
+		if (request.Kind == KindChoice || request.Kind == KindEnum) && value != "" && !contains(request.Options, value) {
 			return nil, fmt.Errorf("operator input %q has invalid choice %q", request.ID, value)
 		}
-		if request.Kind == KindConfirm && value != "" && value != "true" && value != "false" {
+		if (request.Kind == KindConfirm || request.Kind == KindConfirmation) && value != "" && value != "true" && value != "false" {
 			return nil, fmt.Errorf("operator input %q must be true or false", request.ID)
+		}
+		if request.Kind == KindConfirmation && value != "true" {
+			return nil, fmt.Errorf("operator input %q must be true", request.ID)
+		}
+		if request.Kind == KindDuration && value != "" {
+			if duration, durationErr := time.ParseDuration(value); durationErr != nil || duration <= 0 {
+				return nil, fmt.Errorf("operator input %q must be a positive duration", request.ID)
+			}
 		}
 		values[request.ID] = value
 	}
@@ -191,7 +255,11 @@ func ResolveWith(answers []Answer, apply func(map[string]string) error) (map[str
 	if err := Replace(nil); err != nil {
 		return nil, err
 	}
-	return values, nil
+	// Values are returned only for backwards-compatible callers that need the
+	// callback result during this invocation. Clear the map before returning so
+	// a passphrase cannot survive in a caller-owned result after resolution.
+	clear(values)
+	return nil, nil
 }
 
 func contains(values []string, want string) bool {

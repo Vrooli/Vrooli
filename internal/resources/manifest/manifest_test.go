@@ -67,6 +67,26 @@ func TestValidateRejectsMissingRequiredFields(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsDuplicateCredentialDescriptors(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "resource.json")
+	data, err := json.Marshal(ResourceManifest{
+		Name:        "fixture",
+		CLI:         validCLI("resource-fixture"),
+		Driver:      "manual",
+		Credentials: ResourceCredentials{Descriptors: []CredentialDescriptor{{LogicalID: "vrooli/demo"}, {LogicalID: "vrooli/demo"}}},
+	})
+	if err != nil {
+		t.Fatalf("marshal resource manifest: %v", err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("write resource manifest: %v", err)
+	}
+
+	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "declares credential vrooli/demo:value more than once") {
+		t.Fatalf("Load error = %v", err)
+	}
+}
+
 func TestValidateRejectsInvalidDriver(t *testing.T) {
 	err := Validate(ResourceManifest{
 		Name:   "redis",

@@ -68,6 +68,26 @@ const (
 	DefaultMaxHealthResponseBytes = 64 * 1024
 )
 
+// SchemaCompatibilityError reports that the runtime registry was written by a
+// newer control-plane schema than this binary understands. Callers can use
+// errors.As instead of parsing the human-readable message, which lets transport
+// adapters return a typed, actionable precondition failure.
+type SchemaCompatibilityError struct {
+	DatabaseVersion int
+	BinaryVersion   int
+}
+
+func (e *SchemaCompatibilityError) Error() string {
+	if e == nil {
+		return "runtime registry schema is newer than the control-plane binary"
+	}
+	return fmt.Sprintf(
+		"runtime registry schema_version %d > supported %d: control-plane binary is older than database",
+		e.DatabaseVersion,
+		e.BinaryVersion,
+	)
+}
+
 var (
 	activeInstanceStatuses        = []string{StatusStarting, StatusRunning}
 	stopCandidateInstanceStatuses = []string{StatusStarting, StatusRunning, StatusFailed, StatusExpired}

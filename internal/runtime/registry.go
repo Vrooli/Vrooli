@@ -27,6 +27,7 @@ import (
 	nvidiadriver "github.com/vrooli/vrooli/internal/safeguards/nvidia-driver"
 	ollamaresourcecontrols "github.com/vrooli/vrooli/internal/safeguards/ollama-resource-controls"
 	onboardingapplyprivileges "github.com/vrooli/vrooli/internal/safeguards/onboarding-apply-privileges"
+	pathhygiene "github.com/vrooli/vrooli/internal/safeguards/path-hygiene"
 	pstorenative "github.com/vrooli/vrooli/internal/safeguards/pstore-native"
 	pstoreobservability "github.com/vrooli/vrooli/internal/safeguards/pstore-observability"
 	pstoreramoops "github.com/vrooli/vrooli/internal/safeguards/pstore-ramoops"
@@ -77,6 +78,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"autoheal_recovery_privileges": autohealrecoveryprivileges.NewHandler,
 	"onboarding_apply_privileges":  onboardingapplyprivileges.NewHandler,
 	"model_policy_drift":           modelpolicydrift.NewHandler,
+	"path_hygiene":                 pathhygiene.NewHandler,
 	"crashkernel_reserve":          crashkernelreserve.NewHandler,
 	"dns_resolution":               dnsresolution.NewHandler,
 	"docker_host_firewall":         dockerhostfirewall.NewHandler,

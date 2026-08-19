@@ -45,7 +45,14 @@ func compileRepoSchema(t *testing.T, name string) *jsonschema.Schema {
 		if readErr != nil {
 			t.Fatalf("read %s: %v", e.Name(), readErr)
 		}
-		for _, id := range []string{e.Name(), "https://vrooli.com/schemas/" + e.Name(), "https://vrooli.com/" + e.Name()} {
+		// Bare filename plus the canonical $id base only. A third alias rooted
+		// at https://vrooli.com/ (no /schemas/ segment) used to be registered
+		// here, which silently absorbed a generated "../resources.schema.json"
+		// ref that resolves one directory above where the file actually lives.
+		// That alias made this test pass while every standards-compliant
+		// validator — IDEs included — failed to compile service.schema.json.
+		// Keep it out so a reintroduced parent-relative ref fails here.
+		for _, id := range []string{e.Name(), "https://vrooli.com/schemas/" + e.Name()} {
 			if addErr := compiler.AddResource(id, bytes.NewReader(data)); addErr != nil {
 				t.Fatalf("add %s as %s: %v", e.Name(), id, addErr)
 			}

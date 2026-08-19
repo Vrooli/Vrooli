@@ -230,7 +230,7 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 		return fmt.Errorf("read runtime registry schema version: %w", err)
 	}
 	if current > SchemaVersion {
-		return fmt.Errorf("runtime registry schema_version %d > expected %d: binary is older than database", current, SchemaVersion)
+		return &SchemaCompatibilityError{DatabaseVersion: current, BinaryVersion: SchemaVersion}
 	}
 	if current == SchemaVersion {
 		return nil

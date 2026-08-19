@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	cliv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1/cliv1connect"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -59,12 +61,23 @@ func (h *scenarioControlPlaneHandler) GetScenarioStatus(_ context.Context, req *
 	}
 	result, err := (scenarioapp.Service{Scenarios: h.app.Scenarios}).Status(scenarioapp.StatusRequest{Name: req.Msg.GetName()})
 	if err != nil {
-		return nil, controlPlaneInternalError("get scenario status", err)
+		return nil, controlPlaneScenarioStatusError(err)
 	}
 	if result.Single == nil {
 		return nil, controlPlaneInternalError("get scenario status returned no single scenario")
 	}
 	return connect.NewResponse(statusSingleMessage(*result.Single)), nil
+}
+
+func controlPlaneScenarioStatusError(cause error) error {
+	var compatibilityErr *scenarioruntime.SchemaCompatibilityError
+	if errors.As(cause, &compatibilityErr) {
+		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf(
+			"get scenario status: %w; rebuild and restart the root control plane through the supported `vrooli develop` lifecycle",
+			cause,
+		))
+	}
+	return controlPlaneInternalError("get scenario status", cause)
 }
 
 func (h *scenarioControlPlaneHandler) GetScenarioLogs(_ context.Context, req *connect.Request[cliv1.GetScenarioLogsRequest]) (*connect.Response[cliv1.ScenarioLogsResponse], error) {

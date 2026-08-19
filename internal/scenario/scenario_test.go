@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -221,6 +222,20 @@ func TestReadServiceRejectsDuplicateHostRequirements(t *testing.T) {
 	})
 
 	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), `duplicate tool declaration "docker"`) {
+		t.Fatalf("ReadService error = %v", err)
+	}
+}
+
+func TestReadServiceRejectsDuplicateCredentialDescriptors(t *testing.T) {
+	servicePath := filepath.Join(t.TempDir(), ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
+		t.Fatalf("mkdir service directory: %v", err)
+	}
+	if err := os.WriteFile(servicePath, []byte(`{"version":"1.0.0","service":{"name":"alpha"},"credentials":{"descriptors":[{"logical_id":"vrooli/demo"},{"logical_id":"vrooli/demo"}]}}`), 0o600); err != nil {
+		t.Fatalf("write service manifest: %v", err)
+	}
+
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "declares credential vrooli/demo:value more than once") {
 		t.Fatalf("ReadService error = %v", err)
 	}
 }

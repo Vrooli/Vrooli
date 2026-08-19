@@ -43,6 +43,35 @@ type S3CopyOptions struct {
 	RepositorySinks []string
 }
 
+// UploadS3Artifact writes and reads back an arbitrary encrypted artifact under
+// an S3-compatible sink. It shares the SigV4 and repository-containment seam
+// with encrypted root copies, so recovery bundles cannot bypass verification.
+func UploadS3Artifact(sink, key string, data []byte, options S3CopyOptions) (string, string, error) {
+	if err := rejectS3RepositoryContainment(sink, options.RepositorySinks); err != nil {
+		return "", "", err
+	}
+	if strings.TrimSpace(options.Region) == "" || options.Credentials.AccessKey == "" || options.Credentials.SecretKey == "" {
+		return "", "", errors.New("object-store region and credentials are required")
+	}
+	objectURL, objectURI, err := s3ArtifactURL(sink, key, options.Region, options.Endpoint)
+	if err != nil {
+		return "", "", err
+	}
+	now := time.Now
+	if options.Now != nil {
+		now = options.Now
+	}
+	observed := now().UTC()
+	if err := putS3Object(options.HTTPClient, objectURL, data, options.Region, options.Credentials, observed); err != nil {
+		return "", "", err
+	}
+	checksum, err := verifyS3Object(options.HTTPClient, objectURL, data, options.Region, options.Credentials, observed)
+	if err != nil {
+		return "", "", err
+	}
+	return objectURI, checksum, nil
+}
+
 // CopyStoreS3 uploads the already encrypted store as one PUT object. Object
 // PUT replacement is atomic from the perspective of S3 readers. The receipt
 // is written only after the service acknowledges the object.
@@ -80,11 +109,42 @@ func CopyStoreS3(source, sink, receiptPath string, options S3CopyOptions) (CopyS
 	if err := putS3Object(options.HTTPClient, objectURL, data, options.Region, options.Credentials, copiedAt); err != nil {
 		return CopyStatus{}, err
 	}
-	status := CopyStatus{Path: objectURI, Sink: sink, CopiedAt: copiedAt, Generation: generation}
+	verified, err := verifyS3Object(options.HTTPClient, objectURL, data, options.Region, options.Credentials, copiedAt)
+	if err != nil {
+		return CopyStatus{}, err
+	}
+	status := CopyStatus{Path: objectURI, Sink: sink, SinkIdentity: sha256Hex([]byte(sink)), CopiedAt: copiedAt, Generation: generation, Checksum: verified, VerifiedAt: copiedAt, Verification: "readback"}
 	if err := writeCopyReceipt(receiptPath, status); err != nil {
 		return CopyStatus{}, err
 	}
 	return status, nil
+}
+
+func verifyS3Object(client *http.Client, objectURL string, expected []byte, region string, credentials ObjectStoreCredentials, now time.Time) (string, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	req, err := signedS3Request(http.MethodGet, objectURL, nil, region, credentials, now)
+	if err != nil {
+		return "", err
+	}
+	response, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("read back encrypted credential store from object store: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		detail, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
+		return "", fmt.Errorf("object-store readback returned %s: %s", response.Status, strings.TrimSpace(string(detail)))
+	}
+	actual, err := io.ReadAll(response.Body)
+	if err != nil {
+		return "", fmt.Errorf("read object-store readback: %w", err)
+	}
+	if !bytes.Equal(actual, expected) {
+		return "", errors.New("object-store readback checksum mismatch")
+	}
+	return sha256Hex(actual), nil
 }
 
 func rejectS3RepositoryContainment(sink string, repositories []string) error {
@@ -137,16 +197,25 @@ func canonicalS3Location(value *url.URL) string {
 }
 
 func s3ObjectURL(raw, region, endpoint string) (string, string, error) {
+	return s3ArtifactURL(raw, "secrets.enc.json", region, endpoint)
+}
+
+func s3ArtifactURL(raw, key, region, endpoint string) (string, string, error) {
 	parsed, err := parseS3Location(raw)
 	if err != nil {
 		return "", "", fmt.Errorf("invalid object-store sink %q: %w", raw, err)
 	}
 	bucket := parsed.Host
-	key := strings.Trim(parsed.Path, "/")
-	if key == "" {
-		key = "secrets.enc.json"
+	prefix := strings.Trim(parsed.Path, "/")
+	key = strings.Trim(key, "/")
+	if prefix == "" {
+		if key == "" {
+			key = "secrets.enc.json"
+		}
+	} else if key == "" {
+		key = prefix
 	} else {
-		key = path.Join(key, "secrets.enc.json")
+		key = path.Join(prefix, key)
 	}
 	base := strings.TrimRight(strings.TrimSpace(endpoint), "/")
 	if base == "" {
@@ -164,10 +233,27 @@ func putS3Object(client *http.Client, objectURL string, data []byte, region stri
 	if client == nil {
 		client = http.DefaultClient
 	}
-	payloadHash := sha256Hex(data)
-	req, err := http.NewRequest(http.MethodPut, objectURL, bytes.NewReader(data))
+	req, err := signedS3Request(http.MethodPut, objectURL, data, region, credentials, now)
 	if err != nil {
 		return fmt.Errorf("create object-store upload request: %w", err)
+	}
+	response, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("upload encrypted credential store to object store: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		detail, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
+		return fmt.Errorf("object-store upload returned %s: %s", response.Status, strings.TrimSpace(string(detail)))
+	}
+	return nil
+}
+
+func signedS3Request(method, objectURL string, data []byte, region string, credentials ObjectStoreCredentials, now time.Time) (*http.Request, error) {
+	payloadHash := sha256Hex(data)
+	req, err := http.NewRequest(method, objectURL, bytes.NewReader(data))
+	if err != nil {
+		return nil, err
 	}
 	stamp := now.UTC()
 	amzDate := stamp.Format("20060102T150405Z")
@@ -179,22 +265,13 @@ func putS3Object(client *http.Client, objectURL string, data []byte, region stri
 		req.Header.Set("X-Amz-Security-Token", credentials.SessionToken)
 	}
 	canonicalHeaders, signedHeaders := canonicalS3Headers(req)
-	canonicalRequest := strings.Join([]string{http.MethodPut, canonicalS3Path(req.URL), "", canonicalHeaders, signedHeaders, payloadHash}, "\n")
+	canonicalRequest := strings.Join([]string{method, canonicalS3Path(req.URL), "", canonicalHeaders, signedHeaders, payloadHash}, "\n")
 	scope := date + "/" + region + "/s3/aws4_request"
 	stringToSign := strings.Join([]string{"AWS4-HMAC-SHA256", amzDate, scope, sha256Hex([]byte(canonicalRequest))}, "\n")
 	signingKey := hmacSHA256(hmacSHA256(hmacSHA256(hmacSHA256([]byte("AWS4"+credentials.SecretKey), []byte(date)), []byte(region)), []byte("s3")), []byte("aws4_request"))
 	signature := hex.EncodeToString(hmacSHA256(signingKey, []byte(stringToSign)))
 	req.Header.Set("Authorization", "AWS4-HMAC-SHA256 Credential="+credentials.AccessKey+"/"+scope+", SignedHeaders="+signedHeaders+", Signature="+signature)
-	response, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("upload encrypted credential store to object store: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		detail, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
-		return fmt.Errorf("object-store upload returned %s: %s", response.Status, strings.TrimSpace(string(detail)))
-	}
-	return nil
+	return req, nil
 }
 
 func canonicalS3Headers(req *http.Request) (string, string) {

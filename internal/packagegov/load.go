@@ -38,6 +38,11 @@ func LoadAll(root string) ([]Package, []ValidationIssue, error) {
 		if !entry.IsDir() {
 			continue
 		}
+		// Hidden directories under packages are build staging areas (for
+		// example, .proto-gen-stage-*), not governed package roots.
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
 		rootPath := filepath.Join(packagesDir, entry.Name())
 		manifestPath := filepath.Join(rootPath, manifestRelPath)
 		if _, err := os.Stat(manifestPath); err != nil {

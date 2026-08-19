@@ -104,6 +104,9 @@ func TestAppleToolchainReportsFailureWhenXcodebuildIsUnusable(t *testing.T) {
 	if status := snap.ProbeStatuses[ProbeAppleToolchain]; status != "failed" {
 		t.Fatalf("expected failed probe status, got %q", status)
 	}
+	if xcodebuild := snap.RuntimeTools[ToolXcodebuild]; xcodebuild.Present {
+		t.Fatalf("an unusable xcodebuild must report absent, got %+v", xcodebuild)
+	}
 	if version := snap.RuntimeTools[ToolXcodebuild].Version; version != "" {
 		t.Fatalf("an unusable xcodebuild must report no version, got %q", version)
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/capabilitycatalog"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/dockerhost"
@@ -25,6 +26,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/privilegebroker"
@@ -125,6 +127,7 @@ type setupDeps struct {
 	installPrivilegeBroker      func(context.Context, string) (privilegebroker.SetupStatus, error)
 	inspectPrivilegeBroker      func() privilegebroker.SetupStatus
 	configureCredentialBackend  func(io.Writer, io.Writer) error
+	discoverCapabilities        func(context.Context, string, string) ([]operatorcapability.Status, error)
 }
 
 type setupService struct {
@@ -170,12 +173,16 @@ func defaultSetupDeps() setupDeps {
 		configureCredentialBackend: func(stdout, stderr io.Writer) error {
 			return configureCredentialBackend(stdout, stderr)
 		},
+		discoverCapabilities: capabilitycatalog.Discover,
 	}
 }
 
 func newSetupService(deps setupDeps) *setupService {
 	if deps.configureCredentialBackend == nil {
 		deps.configureCredentialBackend = func(io.Writer, io.Writer) error { return nil }
+	}
+	if deps.discoverCapabilities == nil {
+		deps.discoverCapabilities = func(context.Context, string, string) ([]operatorcapability.Status, error) { return nil, nil }
 	}
 	return &setupService{deps: deps}
 }
@@ -291,6 +298,10 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 			return err
 		}
 	} else if err := s.deps.configureCredentialBackend(stdout, stderr); err != nil {
+		return err
+	}
+	stage = "credential-capabilities"
+	if err := discoverAndQueueCapabilities(context.Background(), s.deps.discoverCapabilities, root, home, stdout); err != nil {
 		return err
 	}
 	stage = "privilege-broker"
@@ -595,6 +606,9 @@ func RunBuild(root, home string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli"), "./cmd/vrooli", []string{"cmd/vrooli", "internal"}, gitCommit, buildTime, stdout, stderr); err != nil {
+		return err
+	}
+	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli-agent-launcher"), "./cmd/vrooli-agent-launcher", []string{"cmd/vrooli-agent-launcher", "packages/cli-core"}, gitCommit, buildTime, stdout, stderr); err != nil {
 		return err
 	}
 	if err := buildNestedModuleBinary(filepath.Join(root, "cmd", "vrooli-policy-runner"), filepath.Join(buildDir, "vrooli-policy-runner"), stdout, stderr); err != nil {

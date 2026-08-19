@@ -62,6 +62,31 @@ func TestManagedServiceSupervisorStartsVerifiedArtifactAndStops(t *testing.T) {
 	}
 }
 
+func TestManagedServiceSupervisorDerivesIdentityForHostToolArtifact(t *testing.T) {
+	if testing.Short() {
+		t.Skip("uses a helper process")
+	}
+	dir := t.TempDir()
+	artifactPath := os.Args[0]
+	artifact := resourcedeployment.ServiceArtifact{
+		Path:         "fixture",
+		Version:      "1.0.0",
+		Verification: "host-tool",
+	}
+	supervisor := newManagedServiceSupervisor(filepath.Join(dir, "state.json"), filepath.Join(dir, "service.log"))
+	state, err := supervisor.Start(artifactPath, artifact, []string{"-test.run=TestManagedServiceFixtureProcess", "--"}, append(os.Environ(), "VROOLI_MANAGED_SERVICE_FIXTURE=1"), dir, nil)
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	defer func() { _ = supervisor.Stop(context.Background()) }()
+	if len(state.ArtifactSHA256) != sha256.Size*2 {
+		t.Fatalf("derived artifact identity = %q, want SHA-256 digest", state.ArtifactSHA256)
+	}
+	if _, running, err := supervisor.Status(); err != nil || !running {
+		t.Fatalf("Status() = running=%t err=%v, want live host-tool process", running, err)
+	}
+}
+
 func TestManagedServiceSupervisorRejectsTamperedArtifact(t *testing.T) {
 	dir := t.TempDir()
 	artifactPath := filepath.Join(dir, "fixture")

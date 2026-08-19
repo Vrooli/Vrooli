@@ -324,6 +324,34 @@ func WriteResourceRegistryEntry(t *testing.T, root, name string) {
 	})
 }
 
+// WriteResourcesSchema writes the resources.schema.json artifact that the
+// resource schema generator reads to learn the shared dependency governance
+// keys. Every catalog entry composes resourceConfig with a resource-specific
+// schema through allOf, so a per-resource schema that closes itself with
+// additionalProperties:false has to repeat these names or the composition
+// rejects them. Tests exercising Sync/ValidateSchemaArtifacts need the file
+// present; the default property set mirrors the repository schema.
+func WriteResourcesSchema(t *testing.T, root string, propertyNames ...string) {
+	t.Helper()
+	if len(propertyNames) == 0 {
+		propertyNames = []string{"description", "enabled", "purpose", "required", "startup_policy", "type"}
+	}
+	properties := make(map[string]any, len(propertyNames))
+	for _, name := range propertyNames {
+		properties[name] = map[string]any{}
+	}
+	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resources.schema.json"), map[string]any{
+		"$id": "https://vrooli.com/schemas/resources.schema.json",
+		"definitions": map[string]any{
+			"resourceConfig": map[string]any{
+				"type":                 "object",
+				"properties":           properties,
+				"additionalProperties": true,
+			},
+		},
+	})
+}
+
 func WriteResourceDefinitionsMetadata(t *testing.T, root string) {
 	t.Helper()
 	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{

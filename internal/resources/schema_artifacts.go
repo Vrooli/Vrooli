@@ -15,6 +15,14 @@ import (
 
 const (
 	resourceDefinitionsRelPath = ".vrooli/schemas/resource-definitions.json"
+	resourcesSchemaRelPath     = ".vrooli/schemas/resources.schema.json"
+
+	// resourceConfigRef points at a sibling file. resource-definitions.json and
+	// resources.schema.json both live in .vrooli/schemas, so a "../" prefix
+	// resolves one directory too high and leaves the ref unresolvable — which
+	// makes every schema that reaches it, service.schema.json included,
+	// uncompilable in a standards-compliant validator.
+	resourceConfigRef = "resources.schema.json#/definitions/resourceConfig"
 )
 
 type SchemaArtifactIssue struct {
@@ -129,6 +137,10 @@ func buildSchemaArtifacts(root string) ([]byte, int, error) {
 	if err != nil {
 		return nil, 0, err
 	}
+	sharedProperties, err := loadResourceConfigPropertyNames(root)
+	if err != nil {
+		return nil, 0, err
+	}
 	definitions := make(map[string]any, len(manifests))
 	catalogProperties := make(map[string]any, len(manifests))
 
@@ -151,6 +163,9 @@ func buildSchemaArtifacts(root string) ([]byte, int, error) {
 		if _, ok := schemaMap["additionalProperties"]; !ok {
 			schemaMap["additionalProperties"] = true
 		}
+		if closed, ok := schemaMap["additionalProperties"].(bool); ok && !closed {
+			allowSharedResourceConfigProperties(schemaMap, sharedProperties)
+		}
 		if title, _ := schemaMap["title"].(string); strings.TrimSpace(title) == "" {
 			schemaMap["title"] = firstNonEmpty(item.Manifest.DisplayName, item.Manifest.Name, item.Name)
 		}
@@ -161,7 +176,7 @@ func buildSchemaArtifacts(root string) ([]byte, int, error) {
 		definitions[item.Name] = schemaMap
 		catalogProperties[item.Name] = map[string]any{
 			"allOf": []any{
-				map[string]any{"$ref": "../resources.schema.json#/definitions/resourceConfig"},
+				map[string]any{"$ref": resourceConfigRef},
 				map[string]any{"$ref": "#/definitions/resourceSchemas/" + item.Name},
 			},
 		}
@@ -186,6 +201,68 @@ func buildSchemaArtifacts(root string) ([]byte, int, error) {
 	}
 	definitionBytes = append(definitionBytes, '\n')
 	return definitionBytes, len(manifests), nil
+}
+
+// loadResourceConfigPropertyNames returns the property names declared by
+// resources.schema.json#/definitions/resourceConfig — the shared dependency
+// governance keys (enabled, required, type, purpose, startup_policy, …) every
+// scenario may set on any resource dependency.
+//
+// A missing or empty definition is an error rather than a silent fallback: the
+// composition below is only correct when the generator knows the real key set,
+// and a quiet degradation here reproduces exactly the class of invisible schema
+// breakage this artifact already suffered.
+func loadResourceConfigPropertyNames(root string) ([]string, error) {
+	path := filepath.Join(root, filepath.FromSlash(resourcesSchemaRelPath))
+	raw, err := os.ReadFile(path) // #nosec G304 -- path is a fixed repository-relative schema artifact.
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", resourcesSchemaRelPath, err)
+	}
+	var doc struct {
+		Definitions struct {
+			ResourceConfig struct {
+				Properties map[string]json.RawMessage `json:"properties"`
+			} `json:"resourceConfig"`
+		} `json:"definitions"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", resourcesSchemaRelPath, err)
+	}
+	if len(doc.Definitions.ResourceConfig.Properties) == 0 {
+		return nil, fmt.Errorf("%s declares no resourceConfig properties", resourcesSchemaRelPath)
+	}
+	names := make([]string, 0, len(doc.Definitions.ResourceConfig.Properties))
+	for name := range doc.Definitions.ResourceConfig.Properties {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+// allowSharedResourceConfigProperties repeats the shared resourceConfig property
+// names inside a closed resource schema.
+//
+// Each catalog entry composes resourceConfig with a resource-specific schema
+// through allOf, and JSON Schema evaluates every allOf branch against the whole
+// instance independently — a branch's additionalProperties never sees the
+// sibling branch's properties. A resource schema that closes itself with
+// additionalProperties:false therefore rejects the governance keys the other
+// branch supplies, which is why most scenario manifests failed validation on
+// dependencies.resources.<name>.
+//
+// The placeholder is an empty schema, so resourceConfig still governs each
+// value's shape and genuinely unknown keys stay rejected.
+func allowSharedResourceConfigProperties(schemaMap map[string]any, shared []string) {
+	properties, ok := schemaMap["properties"].(map[string]any)
+	if !ok {
+		properties = map[string]any{}
+		schemaMap["properties"] = properties
+	}
+	for _, name := range shared {
+		if _, exists := properties[name]; !exists {
+			properties[name] = map[string]any{}
+		}
+	}
 }
 
 type loadedSchemaArtifactManifest struct {

@@ -259,8 +259,16 @@ const recoveryReceiptFile = "recovery-receipt.json"
 // a healthy host looks different from one whose credentials have never been
 // exported, so the gap is invisible right up to the moment it is permanent.
 type RecoveryReceipt struct {
-	Path       string    `json:"path"`
-	ExportedAt time.Time `json:"exported_at"`
+	Path             string    `json:"path"`
+	ArtifactIdentity string    `json:"artifact_identity,omitempty"`
+	SourceGeneration string    `json:"source_generation,omitempty"`
+	Checksum         string    `json:"checksum,omitempty"`
+	VerifiedAt       time.Time `json:"verified_at,omitempty"`
+	Verification     string    `json:"verification,omitempty"`
+	SinkIdentity     string    `json:"sink_identity,omitempty"`
+	ScheduleState    string    `json:"schedule_state,omitempty"`
+	Remediation      string    `json:"remediation,omitempty"`
+	ExportedAt       time.Time `json:"exported_at"`
 	// Entries names what the bundle covers, so a later reader can tell a
 	// current bundle from one taken before half these credentials existed.
 	Entries []RecoveryEntry `json:"entries"`
@@ -281,7 +289,16 @@ func (r RecoveryReceipt) Covers(identity Identity, field string) bool {
 // matters, and refusing to acknowledge a good backup because a note could not
 // be written would be the wrong trade.
 func WriteRecoveryReceipt(stateDir, bundlePath string, entries []RecoveryEntry, now time.Time) error {
-	receipt := RecoveryReceipt{Path: bundlePath, ExportedAt: now.UTC(), Entries: entries}
+	return WriteRecoveryReceiptWithMetadata(stateDir, bundlePath, entries, RecoveryReceipt{}, now)
+}
+
+// WriteRecoveryReceiptWithMetadata records a verified bundle and its
+// metadata-only evidence. Callers invoke it only after read-back verification.
+func WriteRecoveryReceiptWithMetadata(stateDir, bundlePath string, entries []RecoveryEntry, metadata RecoveryReceipt, now time.Time) error {
+	receipt := metadata
+	receipt.Path = bundlePath
+	receipt.ExportedAt = now.UTC()
+	receipt.Entries = append([]RecoveryEntry(nil), entries...)
 	encoded, err := json.MarshalIndent(receipt, "", "  ")
 	if err != nil {
 		return err

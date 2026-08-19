@@ -3,6 +3,7 @@ package scenariocli
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -72,6 +73,7 @@ const (
 	CommandSetup           CommandID = "setup"
 	CommandRestart         CommandID = "restart"
 	CommandStop            CommandID = "stop"
+	CommandDelete          CommandID = "delete"
 	CommandWait            CommandID = "wait"
 	CommandStopAll         CommandID = "stop-all"
 	CommandTest            CommandID = "test"
@@ -147,6 +149,10 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{
 			Name: string(CommandStop), Group: "Lifecycle and Utility Commands", Summary: "Stop a running scenario", Handler: CommandStop, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{commandtree.JSONOption(), instanceOption(), nodeOption()}},
+		},
+		{
+			Name: string(CommandDelete), Group: "Lifecycle and Utility Commands", Summary: "Delete a scenario and its installed CLI triple", Handler: CommandDelete, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--yes", Description: "Confirm deletion of the scenario source and installed CLI artifacts"}}},
 		},
 		{
 			Name: string(CommandStopAll), Group: "Lifecycle and Utility Commands", Summary: "Stop all running scenarios", Handler: CommandStopAll, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
@@ -264,7 +270,18 @@ type (
 	}
 	StartAllRequest struct{ JSON bool }
 	StopAllRequest  struct{ JSON bool }
-	PortRequest     struct {
+	DeleteRequest   struct {
+		Name string
+		JSON bool
+		Yes  bool
+	}
+	DeleteResponse struct {
+		Name             string   `json:"name"`
+		ScenarioPath     string   `json:"scenario_path,omitempty"`
+		RemovedArtifacts int      `json:"removed_artifacts"`
+		SkippedArtifacts []string `json:"skipped_artifacts,omitempty"`
+	}
+	PortRequest struct {
 		ScenarioName, PortName string
 		Path                   string
 		JSON                   bool
@@ -290,6 +307,17 @@ type (
 
 type ValidateEnvResponse struct {
 	Report resources.ScenarioEnvValidationReport
+}
+
+func RenderDeleteResponse(w io.Writer, format cliout.Format, resp DeleteResponse) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(w, resp)
+	}
+	_, err := fmt.Fprintf(w, "Deleted scenario %s; removed %d installed CLI artifact(s).\n", resp.Name, resp.RemovedArtifacts)
+	if err == nil && len(resp.SkippedArtifacts) > 0 {
+		_, err = fmt.Fprintf(w, "Skipped locked CLI artifact(s): %s\n", strings.Join(resp.SkippedArtifacts, ", "))
+	}
+	return err
 }
 
 func ParseScenarioNameAndJSON(command string, defaultJSON bool, args []string) (string, bool, error) {
@@ -414,6 +442,25 @@ func ParseStopRequest(globalsJSON bool, args []string) (StopRequest, error) {
 		return StopRequest{}, err
 	}
 	return StopRequest{Name: slug, JSON: globalsJSON || parsed.HasFlag("--json")}, nil
+}
+
+func ParseDeleteRequest(globalsJSON bool, args []string) (DeleteRequest, error) {
+	spec := commandSpec(CommandDelete)
+	parsed, err := commandtree.ParseArgs("scenario delete", commandHelpText(CommandDelete), spec.Args, args)
+	if err != nil {
+		return DeleteRequest{}, err
+	}
+	if len(parsed.Positionals) == 0 {
+		return DeleteRequest{}, clipolicy.UsageErrorf("scenario delete", "scenario delete requires a scenario name")
+	}
+	if !parsed.HasFlag("--yes") {
+		return DeleteRequest{}, clipolicy.UsageErrorf("scenario delete", "scenario delete requires --yes")
+	}
+	name := strings.TrimSpace(parsed.Positionals[0])
+	if name == "" || filepath.Base(name) != name || strings.ContainsAny(name, `/\\@`) {
+		return DeleteRequest{}, clipolicy.UsageErrorf("scenario delete", "scenario name must be a plain live scenario name")
+	}
+	return DeleteRequest{Name: name, JSON: globalsJSON || parsed.HasFlag("--json"), Yes: true}, nil
 }
 
 func ParseScreenshotRequest(globalsJSON bool, args []string) (ScreenshotRequest, error) {

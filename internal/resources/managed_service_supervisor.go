@@ -157,12 +157,20 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 			return ManagedServiceState{}, err
 		}
 	}
+	artifactDigest := strings.ToLower(strings.TrimSpace(artifact.SHA256))
+	if artifactDigest == "" {
+		artifactDigest, err = managedFileSHA256(launchPath)
+		if err != nil {
+			_ = s.terminate(cmd.Process.Pid)
+			return ManagedServiceState{}, fmt.Errorf("fingerprint managed-service artifact: %w", err)
+		}
+	}
 	state := ManagedServiceState{
 		InstanceID:              instanceID,
 		OwnershipTokenHash:      managedServiceTokenHash(ownershipToken),
 		PID:                     cmd.Process.Pid,
 		ArtifactPath:            artifactPath,
-		ArtifactSHA256:          strings.ToLower(strings.TrimSpace(artifact.SHA256)),
+		ArtifactSHA256:          artifactDigest,
 		ArtifactVersion:         artifact.Version,
 		PreviousArtifactSHA256:  existing.ArtifactSHA256,
 		PreviousArtifactVersion: existing.ArtifactVersion,
@@ -323,6 +331,16 @@ func (s *ManagedServiceSupervisor) readState() (ManagedServiceState, error) {
 	var state ManagedServiceState
 	if err := json.Unmarshal(data, &state); err != nil {
 		return ManagedServiceState{}, fmt.Errorf("parse managed-service state: %w", err)
+	}
+	// Host-tool artifacts are verified by executable presence/version rather
+	// than a manifest digest. The supervisor still needs a stable artifact
+	// identity for PID-reuse protection and ownership attestations, so derive
+	// it from the verified executable when older state lacks a digest.
+	if strings.TrimSpace(state.ArtifactSHA256) == "" && strings.TrimSpace(state.ArtifactPath) != "" {
+		digest, digestErr := managedFileSHA256(state.ArtifactPath)
+		if digestErr == nil {
+			state.ArtifactSHA256 = digest
+		}
 	}
 	if state.PID < 0 || strings.TrimSpace(state.InstanceID) == "" || strings.TrimSpace(state.OwnershipTokenHash) == "" || strings.TrimSpace(state.ArtifactSHA256) == "" || strings.TrimSpace(state.ArtifactVersion) == "" {
 		return ManagedServiceState{}, fmt.Errorf("managed-service state is incomplete")

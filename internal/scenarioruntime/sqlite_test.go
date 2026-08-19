@@ -246,8 +246,12 @@ func TestSQLiteStoreRejectsNewerDatabase(t *testing.T) {
 	if err == nil {
 		t.Fatalf("NewSQLiteStore should reject a newer database")
 	}
-	if !strings.Contains(err.Error(), "binary is older than database") {
-		t.Fatalf("NewSQLiteStore error = %v, want older-binary guard", err)
+	var compatibilityErr *SchemaCompatibilityError
+	if !errors.As(err, &compatibilityErr) {
+		t.Fatalf("NewSQLiteStore error = %v, want SchemaCompatibilityError", err)
+	}
+	if compatibilityErr.DatabaseVersion != SchemaVersion+1 || compatibilityErr.BinaryVersion != SchemaVersion {
+		t.Fatalf("SchemaCompatibilityError = %+v, want database=%d binary=%d", compatibilityErr, SchemaVersion+1, SchemaVersion)
 	}
 }
 

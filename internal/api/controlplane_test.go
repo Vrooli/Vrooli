@@ -2,13 +2,32 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	cliv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1/cliv1connect"
 )
+
+func TestScenarioStatusMapsNewerRegistryToActionablePrecondition(t *testing.T) {
+	cause := &scenarioruntime.SchemaCompatibilityError{DatabaseVersion: 8, BinaryVersion: 7}
+	err := controlPlaneScenarioStatusError(cause)
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("error code = %s, want failed_precondition; error = %v", connect.CodeOf(err), err)
+	}
+	if !errors.Is(err, cause) {
+		t.Fatalf("error = %v, want wrapped schema compatibility cause", err)
+	}
+	for _, fragment := range []string{"schema_version 8", "supported 7", "vrooli develop"} {
+		if !strings.Contains(err.Error(), fragment) {
+			t.Fatalf("error = %q, want actionable fragment %q", err, fragment)
+		}
+	}
+}
 
 func TestScenarioControlPlaneServiceIsMounted(t *testing.T) {
 	app := New(ResolveRepoRoot(), t.TempDir())
