@@ -20,30 +20,33 @@ import (
 
 // fakeService implements internalconfig.Service for handler tests.
 type fakeService struct {
-	getOut     internalconfig.TunnelConfig
-	ready      internalconfig.ConfigReadiness
-	getErr     error
-	credOut    internalconfig.CredentialStatus
-	credErr    error
-	verifyOut  internalconfig.CredentialVerification
-	verifyErr  error
-	setIn      internalconfig.CredentialUpdate
-	setCalls   int
-	clearIn    []string
-	clearCalls int
-	syncOut    internalconfig.SyncResult
-	syncErr    error
-	syncDry    bool
-	syncPrune  bool
-	syncCalls  int
-	swPrev     internalconfig.Mode
-	swCur      internalconfig.Mode
-	swErr      error
-	swTgt      internalconfig.Mode
-	swCalls    int
-	driftOut   internalconfig.DriftReport
-	driftErr   error
-	driftCalls int
+	getOut       internalconfig.TunnelConfig
+	ready        internalconfig.ConfigReadiness
+	getErr       error
+	credOut      internalconfig.CredentialStatus
+	credErr      error
+	verifyOut    internalconfig.CredentialVerification
+	verifyErr    error
+	bootstrapOut internalconfig.BootstrapResult
+	bootstrapErr error
+	bootstrapIn  internalconfig.BootstrapRequest
+	setIn        internalconfig.CredentialUpdate
+	setCalls     int
+	clearIn      []string
+	clearCalls   int
+	syncOut      internalconfig.SyncResult
+	syncErr      error
+	syncDry      bool
+	syncPrune    bool
+	syncCalls    int
+	swPrev       internalconfig.Mode
+	swCur        internalconfig.Mode
+	swErr        error
+	swTgt        internalconfig.Mode
+	swCalls      int
+	driftOut     internalconfig.DriftReport
+	driftErr     error
+	driftCalls   int
 
 	adoptOut      internalconfig.IngressEntry
 	adoptErr      error
@@ -87,6 +90,11 @@ func (f *fakeService) GetCredentialStatus(context.Context) (internalconfig.Crede
 
 func (f *fakeService) VerifyCredentials(context.Context) (internalconfig.CredentialVerification, error) {
 	return f.verifyOut, f.verifyErr
+}
+
+func (f *fakeService) BootstrapCloudflare(_ context.Context, request internalconfig.BootstrapRequest) (internalconfig.BootstrapResult, error) {
+	f.bootstrapIn = request
+	return f.bootstrapOut, f.bootstrapErr
 }
 
 func (f *fakeService) SetCloudflareCredentials(_ context.Context, values internalconfig.CredentialUpdate) (internalconfig.CredentialStatus, error) {

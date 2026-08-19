@@ -28,12 +28,13 @@ const (
 )
 
 // TunnelStatus is the composite health snapshot derived from the cloudflared
-// systemd unit state and its /ready probe. It is computed on demand and never
+// managed-resource state and its /ready probe. It is computed on demand and never
 // persisted — the metrics time-series is the durable record.
 type TunnelStatus struct {
 	// Status is "healthy", "degraded", or "unhealthy".
 	Status Status
-	// Systemd is the cloudflared unit state (e.g. "active", "inactive").
+	// Systemd is the legacy wire-compatible name for the cloudflared
+	// managed-resource state (e.g. "active", "inactive").
 	Systemd string
 	// Ready is the /ready probe result (e.g. "ok", "unreachable", "http_503").
 	Ready string

@@ -31,3 +31,28 @@ CREATE TABLE IF NOT EXISTS tm_port_assignments (
   scenario    TEXT PRIMARY KEY,
   assigned_at TEXT NOT NULL DEFAULT ''
 );
+
+-- Ingress ownership ledger — only records who owns each live ingress hostname.
+-- Absence of a row means UNMANAGED and is never auto-removed.
+CREATE TABLE IF NOT EXISTS ingress_ownership (
+  hostname    TEXT PRIMARY KEY,
+  owner       TEXT NOT NULL,
+  scenario    TEXT NOT NULL DEFAULT '',
+  note        TEXT NOT NULL DEFAULT '',
+  adopted_at  TEXT NOT NULL DEFAULT ''
+);
+
+-- DNS ownership ledger — only records proxied CNAMEs Tunnel Manager created.
+CREATE TABLE IF NOT EXISTS dns_ownership (
+  hostname    TEXT PRIMARY KEY,
+  record_id   TEXT NOT NULL DEFAULT '',
+  created_at  TEXT NOT NULL DEFAULT ''
+);
+
+-- Access ownership ledger — only records Access apps Tunnel Manager created.
+CREATE TABLE IF NOT EXISTS access_ownership (
+  host        TEXT PRIMARY KEY,
+  app_id      TEXT NOT NULL DEFAULT '',
+  policy_id   TEXT NOT NULL DEFAULT '',
+  created_at  TEXT NOT NULL DEFAULT ''
+);

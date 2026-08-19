@@ -16,3 +16,15 @@ CREATE TABLE IF NOT EXISTS metrics (
 );
 
 CREATE INDEX IF NOT EXISTS idx_metrics_scraped_at ON metrics(scraped_at);
+
+-- Tunnel management configuration — one logical row holding the management
+-- mode, Cloudflare tunnel coordinates, and the global public-exposure switch.
+CREATE TABLE IF NOT EXISTS tunnel_config (
+  id            TEXT PRIMARY KEY DEFAULT 'singleton',
+  mode          TEXT NOT NULL DEFAULT 'local',
+  tunnel_id     TEXT NOT NULL DEFAULT '',
+  account_id    TEXT NOT NULL DEFAULT '',
+  cred_ref      TEXT NOT NULL DEFAULT '',
+  prom_endpoint TEXT NOT NULL DEFAULT '127.0.0.1:20241',
+  public_exposure_enabled INTEGER NOT NULL DEFAULT 0
+);

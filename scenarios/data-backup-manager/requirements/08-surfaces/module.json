@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "API, CLI, and UI expose the same registration/destination/plan/run/restore model over one Connect-RPC contract.",
-    "last_validated_at": "2026-08-05T14:34:09-04:00",
+    "last_validated_at": "2026-08-18T18:00:40-04:00",
     "module": "surfaces",
     "prd_ref": "OT-P0-011",
     "priority": "P0",

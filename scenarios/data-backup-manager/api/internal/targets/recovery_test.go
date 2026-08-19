@@ -40,12 +40,15 @@ type recoveryTestRepository struct{}
 func (recoveryTestRepository) Create(context.Context, Target) (Target, error) {
 	return Target{}, errors.New("unexpected create")
 }
+
 func (recoveryTestRepository) Update(context.Context, Target) (Target, error) {
 	return Target{}, errors.New("unexpected update")
 }
+
 func (recoveryTestRepository) GetByOwnerName(context.Context, string, string) (Target, error) {
 	return Target{}, ErrTargetNotFound{}
 }
+
 func (recoveryTestRepository) GetByID(context.Context, string) (Target, error) {
 	return Target{}, ErrTargetNotFound{}
 }

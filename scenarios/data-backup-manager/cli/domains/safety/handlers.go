@@ -2,11 +2,13 @@ package safety
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	safetyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/safety"
 	safetyconnect "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/safety/safety_v1connect"
@@ -158,13 +160,35 @@ func (h *handlers) populateShadow(ctx cliapp.RunContext) error {
 	})
 }
 
-// parseShadowMappings parses a comma-separated `target_name=location` list into
-// the proto mapping slice. A filesystem location may itself contain no comma; a
-// path with an '=' is preserved (only the first '=' splits name from location).
+// parseShadowMappings parses the canonical JSON mapping array into the proto
+// mapping slice. The legacy comma-separated target_name=location form remains
+// accepted so existing operator scripts continue to work while the manifest's
+// structured binding advertises the lossless representation.
 func parseShadowMappings(raw string) ([]*safetyv1.ShadowTargetMapping, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil, fmt.Errorf("at least one target_name=location mapping is required")
+	}
+	if strings.HasPrefix(raw, "[") {
+		var values []json.RawMessage
+		if err := json.Unmarshal([]byte(raw), &values); err != nil {
+			return nil, fmt.Errorf("decode JSON mappings: %w", err)
+		}
+		if len(values) == 0 {
+			return nil, fmt.Errorf("at least one target_name=location mapping is required")
+		}
+		out := make([]*safetyv1.ShadowTargetMapping, 0, len(values))
+		for _, value := range values {
+			mapping := new(safetyv1.ShadowTargetMapping)
+			if err := protojson.Unmarshal(value, mapping); err != nil {
+				return nil, fmt.Errorf("decode JSON mapping: %w", err)
+			}
+			if strings.TrimSpace(mapping.GetTargetName()) == "" || strings.TrimSpace(mapping.GetLocation()) == "" {
+				return nil, fmt.Errorf("each mapping requires target_name and location")
+			}
+			out = append(out, mapping)
+		}
+		return out, nil
 	}
 	parts := strings.Split(raw, ",")
 	out := make([]*safetyv1.ShadowTargetMapping, 0, len(parts))

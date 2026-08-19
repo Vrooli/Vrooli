@@ -66,23 +66,24 @@ Fixed-port values (`UI_PORT`, `API_PORT` range) are declared in
 | `API_PORT` | `15000-19999` (range) | Go API server port (lifecycle-allocated). |
 | Tunnel mode | `local` on first boot | `remote` = programmatic ingress via Cloudflare API (hot-reload); `local` = generate/maintain `~/.cloudflared/config.yml` (restart on change). Persisted in the `tunnel_config` row; switch via `tunnel-manager config mode`. **Switching mode is pure — it never writes ingress; run `config sync` afterward to apply.** |
 | Local config path | `~/.cloudflared/config.yml` | Source of ingress in local mode, generated from the manifest. |
-| Prometheus endpoint | `127.0.0.1:20241` | cloudflared metrics endpoint scraped by the `tunnel` domain (HA connections, request errors, RTT, active streams). |
+| Prometheus endpoint | `${CLOUDFLARED_METRICS_URL}` from the managed resource | cloudflared metrics endpoint scraped by the `tunnel` domain (HA connections, request errors, RTT, active streams). Standalone fallback: `http://127.0.0.1:20241`. |
 | `TUNNEL_MANAGER_EXPOSURE_RECONCILE_INTERVAL` | `5m` | Periodic exposure scheduler cadence. The scheduler runs once at boot, then on this interval, reconciling CORE routes and reaping expired leases. Go duration syntax (`30s`, `5m`, `1h`) is accepted. |
 | `TUNNEL_MANAGER_EXPOSURE_SCHEDULER_DISABLED` | unset | Set to `1`, `true`, or `yes` to disable the background exposure scheduler for controlled maintenance/tests. Manual `tunnel-manager exposure reconcile` remains available. |
 | `TUNNEL_MANAGER_PROBE_INTERVAL` | `1m` | Periodic probe scheduler cadence. The scheduler runs once at boot, then on this interval, probing enabled routes and persisting internal/external reachability results. |
 | `TUNNEL_MANAGER_PROBE_SCHEDULER_DISABLED` | unset | Set to `1`, `true`, or `yes` to disable background probes. Manual `tunnel-manager probes run` remains available. |
-| `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED` | unset / disabled | Set to `1`, `true`, or `yes` to enable background recovery evaluation. Recovery is opt-in because an acted evaluation can run `sudo systemctl restart cloudflared`; manual `tunnel-manager recovery run` remains available. |
+| `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED` | unset / disabled | Set to `1`, `true`, or `yes` to enable background recovery evaluation. Recovery acts through the Vrooli-managed cloudflared resource; manual `tunnel-manager recovery run` remains available. |
 | `TUNNEL_MANAGER_RECOVERY_EVALUATE_INTERVAL` | `1m` | Recovery evaluation cadence when `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED` is set. The scheduler runs once at boot, then on this interval, and delegates thresholds/backoff/circuit-breaker behavior to the recovery service. |
-| `TUNNEL_READY_URL` | `http://127.0.0.1:20241/ready` | cloudflared readiness endpoint checked by the recovery engine before and after restart attempts. |
+| `TUNNEL_READY_URL` | `${CLOUDFLARED_METRICS_URL}/ready` | cloudflared readiness endpoint checked by the recovery engine before and after restart attempts. |
 | `TUNNEL_MANAGER_AUTHZ_ENFORCED` | unset / disabled | Set to `1`, `true`, or `yes` to require an operator token for privileged mutation RPCs. Default is local/operator-open for lifecycle-managed local use. |
 | `TUNNEL_MANAGER_OPERATOR_TOKEN` | unset | Preferred privileged-mutation token when authz enforcement is enabled. Falls back to `API_TOKEN` if unset. |
 | Default domain | `itsagitime.com` | Per-route `domain` is a **manifest field**, not a constant; this is the default. `public_url` = `https://<subdomain>.<domain>`. |
 | Lease default TTL | ≈ 1 week | Default lifetime of a LEASED exposure; extendable/revocable, auto-reaped on expiry. |
 | Core set | `packages/api-core/coreset` | SSOT for CORE-tier scenarios that are always exposed and never auto-expired. |
 
-The `cloudflared` daemon itself is managed by systemd and installed by
-setup — Tunnel Manager does not install or own it (it is the single
-authoritative owner of cloudflared *restarts* via the `recovery` domain).
+The `cloudflared` daemon is supervised by the Vrooli managed-service resource
+and its endpoint is exported to Tunnel Manager. Tunnel Manager does not
+install or own it; it remains the single authoritative owner of cloudflared
+*restarts* via the `recovery` domain.
 
 Cloudflare credentials resolve through the config-domain credential authority,
 not ad hoc env reads, plaintext files, or legacy aliases. The authority
@@ -105,7 +106,7 @@ variables:
 
 ```bash
 tunnel-manager config credentials-status
-tunnel-manager config credentials-set --account-id <id> --tunnel-id <id> --api-token <token>
+printf '%s' <token> | tunnel-manager config credentials-set --account-id <id> --tunnel-id <id> --api-token-stdin
 tunnel-manager config credentials-clear --field api_token
 ```
 

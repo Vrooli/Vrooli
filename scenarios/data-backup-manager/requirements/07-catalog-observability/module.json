@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Catalog and run history plus health/observability surfaces for backup state.",
-    "last_validated_at": "2026-08-05T14:34:09-04:00",
+    "last_validated_at": "2026-08-18T18:00:40-04:00",
     "module": "catalog-observability",
     "prd_ref": "OT-P0-009",
     "priority": "P0",

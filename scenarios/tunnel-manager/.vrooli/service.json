@@ -81,45 +81,6 @@
       "port": 21240
     }
   },
-  "deployment": {
-    "tiers": {
-      "tier-1-local": {
-        "secrets": [
-          {
-            "secret_id": "CLOUDFLARE_API_TOKEN",
-            "logical_id": "vrooli/tunnel-manager",
-            "field": "cloudflare-api-token",
-            "env": "CLOUDFLARE_API_TOKEN",
-            "classification": "service",
-            "label": "Cloudflare API Token",
-            "description": "API token used for remote Cloudflare tunnel operations.",
-            "required": false,
-            "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
-          },
-          {
-            "secret_id": "CLOUDFLARE_ACCOUNT_ID",
-            "logical_id": "vrooli/tunnel-manager",
-            "field": "cloudflare-account-id",
-            "env": "CLOUDFLARE_ACCOUNT_ID",
-            "classification": "service",
-            "label": "Cloudflare Account ID",
-            "description": "Cloudflare account identifier for remote tunnel operations.",
-            "required": false
-          },
-          {
-            "secret_id": "CLOUDFLARE_TUNNEL_ID",
-            "logical_id": "vrooli/tunnel-manager",
-            "field": "cloudflare-tunnel-id",
-            "env": "CLOUDFLARE_TUNNEL_ID",
-            "classification": "service",
-            "label": "Cloudflare Tunnel ID",
-            "description": "Managed tunnel identifier for remote operations.",
-            "required": false
-          }
-        ]
-      }
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -249,23 +210,14 @@
       ]
     }
   },
-  "hostTools": [
-    {
-      "name": "cloudflared",
-      "required": true,
-      "reason": "Core tunnel client managed by this scenario for all Cloudflare tunnel operations (health, recovery, ingress).",
-      "when": [
-        "develop"
-      ],
-      "platforms": [
-        "linux",
-        "macos",
-        "windows"
-      ]
-    }
-  ],
   "dependencies": {
     "resources": {
+      "cloudflared": {
+        "type": "cloudflared",
+        "enabled": true,
+        "required": true,
+        "description": "Vrooli-managed tunnel connector and its exported readiness/metrics endpoint."
+      },
       "redis": {
         "type": "redis",
         "enabled": false,
@@ -283,7 +235,9 @@
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/tunnel-manager.db"
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/tunnel-manager.db",
+    "TUNNEL_METRICS_URL": "${CLOUDFLARED_METRICS_URL}",
+    "TUNNEL_READY_URL": "${CLOUDFLARED_METRICS_URL}/ready"
   },
   "credentials": {
     "descriptors": [
@@ -293,6 +247,8 @@
         "label": "Cloudflare Account ID",
         "description": "Identifies the Cloudflare account that owns the tunnel. Resolved directly by this scenario through credential-authority-go, so it is never injected into the process environment.",
         "required": true,
+        "provisioning": "derived",
+        "derived_from": "cloudflare-api-token",
         "obtain_url": "https://dash.cloudflare.com/"
       },
       {
@@ -301,6 +257,8 @@
         "label": "Cloudflare Tunnel ID",
         "description": "Identifies the named tunnel this scenario manages.",
         "required": true,
+        "provisioning": "derived",
+        "derived_from": "cloudflare-api-token",
         "obtain_url": "https://one.dash.cloudflare.com/"
       },
       {
@@ -310,6 +268,15 @@
         "description": "Authorizes tunnel and DNS changes. Re-resolved per operation so a rotated token takes effect without restarting the scenario.",
         "required": true,
         "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-connector-token",
+        "label": "Cloudflare Connector Token",
+        "description": "Derived token used by the managed cloudflared connector; never requested from the operator.",
+        "required": true,
+        "provisioning": "derived",
+        "derived_from": "cloudflare-api-token"
       }
     ]
   }

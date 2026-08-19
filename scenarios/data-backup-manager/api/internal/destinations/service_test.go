@@ -223,3 +223,70 @@ func TestCreateDestinations_FsAndS3(t *testing.T) {
 		}
 	})
 }
+
+func TestReconcileCredentialReferencesRepairsCatalogAndBundle(t *testing.T) {
+	ctx := context.Background()
+	repo := mocks.NewFakeRepository()
+	legacy := destinations.Destination{
+		Name:                "elements-local",
+		BackendKind:         destinations.BackendFilesystem,
+		Location:            "/mnt/elements",
+		RepositoryLocation:  "/mnt/elements/repositories/elements-local.kopia",
+		EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256",
+		SecretRef:           "secret/resources/kopia/repo/elements-local/passphrase",
+	}
+	if _, err := repo.Create(ctx, legacy); err != nil {
+		t.Fatal(err)
+	}
+	bundle := mocks.NewFakeBundleWriter()
+	svc := destinations.NewService(repo, &enginemocks.FakeKopiaEngine{}, bundle, "/protected")
+	if err := svc.ReconcileCredentialReferences(ctx); err != nil {
+		t.Fatalf("ReconcileCredentialReferences: %v", err)
+	}
+	got, err := repo.GetByName(ctx, legacy.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "vrooli/kopia/elements-local:repository-passphrase"
+	if got.SecretRef != want {
+		t.Fatalf("catalog SecretRef = %q, want %q", got.SecretRef, want)
+	}
+	if len(bundle.Refreshed) != 1 || bundle.Refreshed[0].SecretRef != want {
+		t.Fatalf("bundle refreshes = %+v, want one canonical reference", bundle.Refreshed)
+	}
+	if err := svc.ReconcileCredentialReferences(ctx); err != nil {
+		t.Fatalf("idempotent reconciliation: %v", err)
+	}
+	if len(bundle.Refreshed) != 1 {
+		t.Fatalf("idempotent reconciliation refreshed bundle %d times", len(bundle.Refreshed))
+	}
+}
+
+func TestReconcileCredentialReferencesPersistsCatalogWhenBundleIsReadOnly(t *testing.T) {
+	ctx := context.Background()
+	repo := mocks.NewFakeRepository()
+	legacy := destinations.Destination{
+		Name:                "elements-local",
+		BackendKind:         destinations.BackendFilesystem,
+		Location:            "/media/elements",
+		RepositoryLocation:  "/media/elements/repositories/elements-local.kopia",
+		EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256",
+		SecretRef:           "secret/resources/kopia/repo/elements-local/passphrase",
+	}
+	if _, err := repo.Create(ctx, legacy); err != nil {
+		t.Fatal(err)
+	}
+	bundle := mocks.NewFakeBundleWriter()
+	bundle.RefreshErr = errors.New("read-only destination")
+	svc := destinations.NewService(repo, &enginemocks.FakeKopiaEngine{}, bundle, "/protected")
+	if err := svc.ReconcileCredentialReferences(ctx); err == nil {
+		t.Fatal("ReconcileCredentialReferences succeeded despite pending bundle refresh")
+	}
+	got, err := repo.GetByName(ctx, legacy.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.SecretRef != "vrooli/kopia/elements-local:repository-passphrase" {
+		t.Fatalf("catalog SecretRef = %q, want canonical reference", got.SecretRef)
+	}
+}

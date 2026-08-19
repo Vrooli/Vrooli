@@ -247,19 +247,19 @@ behavior. Use lifecycle commands for process control and the
 
 ### `cloudflared` not installed or not running
 
-Tunnel Manager monitors but does **not** install or own the
-`cloudflared` daemon — setup installs it and systemd runs it. If
-`tunnel-manager status` reports the tunnel down:
+Tunnel Manager monitors but does **not** own the host process mechanics for
+`cloudflared` — the Vrooli control plane manages the resource lifecycle. If
+`tunnel-manager tunnel status` reports the tunnel down:
 
 ```bash
-systemctl status cloudflared        # is the service running?
-sudo systemctl start cloudflared    # start it if stopped
+vrooli resource status cloudflared --json  # is the resource installed/running?
+vrooli resource start cloudflared         # start it through the control plane
 ```
 
-If `cloudflared` is missing entirely, re-run the workspace setup so the
-daemon and its systemd unit are installed. Do **not** restart
-`cloudflared` from a separate tool — Tunnel Manager's `recovery` domain
-is the single authoritative owner of cloudflared restarts (see below).
+If `cloudflared` is missing entirely, register or enable the managed resource
+through the normal Vrooli resource workflow. Do **not** restart `cloudflared`
+from a separate tool — Tunnel Manager's `recovery` domain is the single
+authoritative owner of cloudflared restart requests (see below).
 
 ### Cloudflare credentials missing → local mode remains active
 
@@ -272,7 +272,7 @@ on change instead of hot-reloading via the API.
 - Confirm the current mode and missing fields with
   `tunnel-manager config get` or the Settings page.
 - To enable remote mode, save credentials through Settings or
-  `tunnel-manager config credentials-set --account-id <id> --tunnel-id <id> --api-token <token>`.
+  `printf '%s' <token> | tunnel-manager config credentials-set --account-id <id> --tunnel-id <id> --api-token-stdin`.
 - Preview changes with `tunnel-manager config sync --dry-run true`, then
   switch with `tunnel-manager config mode --target remote`.
 - Credential status should report `credential-authority` or `missing`. If a
@@ -326,8 +326,8 @@ tunnel-manager recover        # inspect recovery state + event log
 ```
 
 When the breaker is open, resolve the underlying cause manually (token,
-DNS, Cloudflare outage) — confirm with `systemctl status cloudflared` and
-the external probe classification — then the breaker resets and live
+DNS, Cloudflare outage) — confirm with `vrooli resource status cloudflared`
+and the external probe classification — then the breaker resets and live
 recovery resumes. Do not work around it by restarting cloudflared from
 another tool.
 

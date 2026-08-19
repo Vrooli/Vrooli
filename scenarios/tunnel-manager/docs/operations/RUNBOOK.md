@@ -40,15 +40,15 @@ CLI verbs in [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md).
 
 | Goal | Command | Notes |
 |---|---|---|
-| Check tunnel status | `tunnel-manager tunnel status` | cloudflared systemd state, `/ready`, HA connections, degraded-mode signal. |
+| Check tunnel status | `tunnel-manager tunnel status` | cloudflared managed-resource state, `/ready`, HA connections, degraded-mode signal. |
 | List / inspect exposure | `tunnel-manager routes list` / `tunnel-manager exposure list` | Reads the exposure manifest (SSOT) or reconciled exposure state. |
 | Expose / lease a scenario | `tunnel-manager exposure expose <scenario>` | Creates a LEASED route, ensures the scenario is running, and requests ingress. Default TTL ≈ 1 week. |
 | Extend a lease | `tunnel-manager exposure extend <lease_id>` | Pushes out `expires_at`; expired leases are auto-reaped unless the scenario is also CORE. |
 | Revoke a lease | `tunnel-manager exposure revoke <lease_id>` | Removes the LEASED route + ingress (CORE routes are never revoked this way). |
 | Run probes | `tunnel-manager probes run` | Internal probes the local port; external probes the public URL end-to-end. |
 | Run port audit | `tunnel-manager audit run` | Verifies each exposed scenario's `service.json` fixed UI port matches the manifest; reports mismatches/missing/ranged ports. |
-| Manually trigger recovery | `tunnel-manager recovery run` | Forces a recovery cycle (`reset-failed` + restart cloudflared). Background recovery is **default-on** (opt out with `TUNNEL_MANAGER_RECOVERY_SCHEDULER_DISABLED=1`); use manual recovery when escalating an incident. |
-| Configure Cloudflare credentials | `tunnel-manager config credentials-status` / `credentials-set` / `credentials-clear` | Reads and writes the canonical Vrooli credential authority; environment variables are not accepted as credential sources. |
+| Manually trigger recovery | `tunnel-manager recovery run` | Forces a recovery cycle through `vrooli resource restart cloudflared`. Background recovery is **default-on** (opt out with `TUNNEL_MANAGER_RECOVERY_SCHEDULER_DISABLED=1`); use manual recovery when escalating an incident. |
+| Configure Cloudflare credentials | `tunnel-manager config credentials-status` / `credentials-set` / `credentials-clear` | Reads and writes the canonical Vrooli credential authority; environment variables are not accepted as credential sources. Supply API tokens with `--api-token-stdin`, never as a flag value. |
 | Switch remote/local mode | `tunnel-manager config mode --target <remote\|local>` | Remote = Cloudflare API ingress (needs complete credentials); local = generate `~/.cloudflared/config.yml`. **Pure — never writes ingress; run `config sync` after to apply.** |
 | Inspect / sync config | `tunnel-manager config get` / `tunnel-manager config sync` | Additive reconcile: adds desired hostnames, preserves unmanaged/foreign ones. Add `--prune true` to remove orphaned entries. |
 | Inspect ingress drift | `tunnel-manager drift list` | Classifies every live/desired/tracked hostname (managed/missing/external/orphaned/ignored/unmanaged). Read-only. |
@@ -57,37 +57,29 @@ CLI verbs in [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md).
 | Remove one ingress hostname | `tunnel-manager drift prune <host>` | The only per-entry removal path; clears live ingress + ledger. |
 | Add an external route | `tunnel-manager routes create --external --subdomain <s> --target <url>` | Exposes a non-scenario target through the tunnel; reconciles as `external`. |
 
-### Auto-recovery: default-on, presence-gated, sudoers-backed
+### Auto-recovery: default-on, managed-resource and presence-gated
 
 Background recovery is **default-on** (opt out with
 `TUNNEL_MANAGER_RECOVERY_SCHEDULER_DISABLED=1`, symmetric with the probe and
 exposure schedulers). Every minute the engine probes cloudflared's `/ready`
-(`http://127.0.0.1:20241/ready`); after 3 consecutive failures it runs
-`sudo systemctl reset-failed cloudflared && sudo systemctl restart cloudflared`
-and polls `/ready` back to 200.
+(`$TUNNEL_READY_URL`, exported from the managed cloudflared resource); after 3 consecutive failures it requests
+`vrooli resource restart cloudflared` through the control plane and polls
+`/ready` back to 200. The control plane owns platform-specific supervision,
+privilege, start-limit handling, and process lifecycle.
 
-- **`reset-failed` before `restart`** — once cloudflared flaps past systemd's
-  `StartLimitBurst` (5), systemd marks the unit failed and a bare
-  `systemctl restart` is *rejected* until the start-limit is cleared. The
-  `reset-failed` clears it; its own failure is non-fatal (a healthy unit has
-  nothing to reset). This is exactly the slow/hung/flap-exhausted case TM
-  covers that systemd's own `Restart=on-failure` cannot.
-- **Tunnel-presence self-gate** — on a host with **no** `cloudflared.service`
-  unit, recovery stays dormant (logs `no cloudflared unit present; recovery
+- **Managed lifecycle ownership** — tunnel-manager does not invoke an OS
+  service manager or privilege escalation directly. Resource registration and
+  restart errors are recorded as recovery failures and flow through the same
+  control-plane lifecycle used by every other managed resource.
+- **Tunnel-presence self-gate** — on a host with no registered `cloudflared`
+  resource, recovery stays dormant (logs `no managed cloudflared resource present; recovery
   dormant`, status stays idle, no failures counted, no restart attempted). A
-  cloudflared installed after start is picked up on the next tick without a
+  cloudflared resource enabled after start is picked up on the next tick without a
   scenario restart.
-- **The sudoers grant is provisioned once, at setup.** tunnel-manager runs
-  non-root; cloudflared is a root unit. `sudo vrooli setup` applies the
-  `cloudflared_recovery_privileges` safeguard, which writes
-  `/etc/sudoers.d/tunnel-manager` (mode 0440, visudo-validated) granting the
-  invoking user NOPASSWD `systemctl restart cloudflared` + `reset-failed
-  cloudflared` — exact argv, no wildcards. Without it the restart prompts for
-  a password and fails non-interactively. Re-running setup is idempotent.
-  - **Precondition:** `/ready` depends on cloudflared exposing metrics
-    (`--metrics`/`TUNNEL_METRICS` on `:20241`). A token tunnel started without
-    metrics makes `/ready` always-fail; the presence-gate still prevents
-    flapping (unit present but never ready → 3 fails → restart → still not
+- **Precondition:** `/ready` depends on the managed cloudflared resource
+  exposing metrics (`--metrics`/`TUNNEL_METRICS` on the managed resource endpoint). A token tunnel
+  started without metrics makes `/ready` always-fail; the presence-gate still
+  prevents flapping (resource registered but never ready → 3 fails → restart → still not
     ready → backoff → circuit), but recovery cannot confirm success. Ensure
     metrics are enabled on hosts that rely on auto-recovery.
 
@@ -179,23 +171,25 @@ stack data directory.
 
 ### Induced-failure soak (verify the recovery loop end-to-end)
 
-Proves detection → actuation → readiness end to end. Needs sudo and the
-`cloudflared_recovery_privileges` grant already applied (`sudo vrooli setup`).
+Proves detection → actuation → readiness end to end. Run it only on a host
+where the `cloudflared` managed resource is registered and its control-plane
+lifecycle is authorized.
 
 1. `vrooli scenario restart tunnel-manager`; confirm the recovery scheduler
-   started (API log; no `recovery dormant` line — the cloudflared unit is
-   present).
-2. `sudo systemctl stop cloudflared`. A **clean stop** is not an
-   `on-failure` exit, so systemd's `Restart=on-failure` won't mask it — this
-   isolates TM's recovery.
-3. Within ~3 evaluation ticks (~3 min) expect: detection → `reset-failed` +
+   started (API log; no `recovery dormant` line — the cloudflared resource is
+   registered).
+2. Stop the managed resource through the control plane:
+   `vrooli resource stop cloudflared`. This keeps the induced failure inside
+   the normal resource lifecycle and avoids a second supervisor.
+3. Within ~3 evaluation ticks (~3 min) expect: detection → managed-resource
    `restart` → `/ready` back to 200 → a new `recovery_events` row with
    `outcome=success` (`tunnel-manager recovery events` or the SQLite
    `recovery_events` table).
 4. Confirm a tunnel hostname is reachable end-to-end through Cloudflare again.
 
 If the breaker is open from prior testing, `tunnel-manager recovery run
---force true` resets it.
+--force true` resets it. Restore the resource to its intended enabled state
+with `vrooli resource enable cloudflared` after the soak.
 
 ## Escalation
 

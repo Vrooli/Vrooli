@@ -103,7 +103,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		// audit owns no table (computed/reporting domain) — no schema.
-		apidb.SchemaProviderFunc(configH.Schema),
 		apidb.SchemaProviderFunc(exposureH.Schema),
 		apidb.SchemaProviderFunc(probesH.Schema),
 		apidb.SchemaProviderFunc(recoveryH.Schema),

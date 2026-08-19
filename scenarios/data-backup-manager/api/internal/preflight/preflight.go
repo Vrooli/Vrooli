@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/failures"
 	"data-backup-manager/internal/sources"
@@ -29,7 +30,12 @@ type (
 )
 
 type (
-	Destination  struct{ ID, Name string }
+	Destination struct {
+		ID          string
+		Name        string
+		BackendKind string
+		Location    string
+	}
 	TargetLookup interface {
 		TargetForRun(context.Context, string) (Target, error)
 	}
@@ -47,6 +53,14 @@ type Input struct {
 	Sources          *sources.Registry
 	Clock            schedule.Clock
 	CheckSourcePaths bool
+	Readiness        DestinationReadiness
+}
+
+// DestinationReadiness is the read-only mounted-volume diagnosis used by
+// destination registration and backup preflight. Keeping it as a seam lets
+// preflight share the production rules without taking ownership of host repair.
+type DestinationReadiness interface {
+	Analyze(context.Context, destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error)
 }
 
 type Result struct {
@@ -116,6 +130,23 @@ func Check(ctx context.Context, in Input) Result {
 			cause.TargetIDs = append([]string(nil), in.Plan.TargetIDs...)
 			r.add(cause)
 		}
+		if in.Readiness != nil && dest.BackendKind == "filesystem" && strings.TrimSpace(dest.Location) != "" {
+			report, err := in.Readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{Location: dest.Location})
+			if err != nil {
+				cause := failures.Classify(err)
+				cause.DestinationID, cause.Scope = id, failures.ScopeDestination
+				if cause.Code == failures.Unknown {
+					cause.Code, cause.Category = failures.DestinationInaccessible, failures.CategoryDestination
+				}
+				cause.TargetIDs = append([]string(nil), in.Plan.TargetIDs...)
+				r.add(cause)
+			} else if report.OverallSeverity == destinationreadiness.SeverityFail {
+				cause := readinessFailure(report)
+				cause.DestinationID = id
+				cause.TargetIDs = append([]string(nil), in.Plan.TargetIDs...)
+				r.add(cause)
+			}
+		}
 	}
 
 	for _, id := range unique(in.Plan.TargetIDs) {
@@ -155,6 +186,46 @@ func Check(ctx context.Context, in Input) Result {
 		}
 	}
 	return r
+}
+
+func readinessFailure(report destinationreadiness.Report) failures.Cause {
+	for _, check := range report.Checks {
+		if check.Severity != destinationreadiness.SeverityFail {
+			continue
+		}
+		cause := failures.Cause{
+			Code:       failures.DestinationInaccessible,
+			Category:   failures.CategoryDestination,
+			Scope:      failures.ScopeDestination,
+			Message:    "destination readiness check failed",
+			NextAction: "inspect destination readiness and remediate the native filesystem state before retrying",
+		}
+		switch check.Code {
+		case "mounted_read_write":
+			cause.Code = failures.DestinationReadOnly
+			cause.Message = "destination is mounted read-only"
+			cause.NextAction = "inspect the filesystem and remount it read/write outside data-backup-manager"
+		case "destination_dirty":
+			cause.Code = failures.DestinationDirty
+			cause.Message = "destination filesystem reports a dirty or needs-check state"
+			cause.NextAction = "run the native filesystem check outside data-backup-manager, then recheck readiness"
+		case "destination_missing":
+			cause.Code = failures.DestinationUnmounted
+			cause.Message = "destination is not mounted or its path is absent"
+			cause.NextAction = "inspect and repair the destination with native operating-system tools, then recheck identity"
+		case "directory_inaccessible":
+			cause.Message = "destination directory is inaccessible"
+			cause.NextAction = "restore directory access and re-run destination readiness"
+		}
+		return cause
+	}
+	return failures.Cause{
+		Code:       failures.DestinationInaccessible,
+		Category:   failures.CategoryDestination,
+		Scope:      failures.ScopeDestination,
+		Message:    "destination readiness check failed",
+		NextAction: "inspect destination readiness and remediate the native filesystem state before retrying",
+	}
 }
 
 func (r *Result) add(c failures.Cause) {

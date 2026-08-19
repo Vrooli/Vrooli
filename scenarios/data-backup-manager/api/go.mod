@@ -18,7 +18,7 @@ require (
 )
 
 require (
-	github.com/klauspost/compress v1.17.4 // indirect
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 )
 

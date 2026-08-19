@@ -45,7 +45,25 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import {
+  renderWithProviders as renderWithApiProviders,
+  type ProviderRenderOptions,
+} from "@vrooli/api-base/testing";
+import type { ReactElement } from "react";
+import { i18n } from "../i18n";
+
+/**
+ * Render with the scenario's provider and i18n composition. The api-base
+ * helper supplies the generic QueryClient/router plumbing; this adapter keeps
+ * scenario tests on the same initialized locale singleton as production.
+ */
+export function renderWithProviders(
+  ui: ReactElement,
+  options: ProviderRenderOptions = {},
+) {
+  return renderWithApiProviders(ui, { ...options, i18n: options.i18n ?? i18n });
+}
+
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";

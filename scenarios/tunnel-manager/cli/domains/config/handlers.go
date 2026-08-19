@@ -3,6 +3,8 @@ package config
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -123,10 +125,65 @@ func (h *handlers) credentialsStatus(ctx cliapp.RunContext) error {
 		Results:        formatCredentialFields(resp.Msg.Status.Fields),
 		RetrievalHints: []string{
 			"`config credentials-status --verify` — run LIVE Cloudflare scope checks (token, account, tunnel, DNS:Edit)",
-			"`config credentials-set --account-id <id> --tunnel-id <id> --api-token <token>` — save missing credentials",
+			"`printf '%s' <token> | config credentials-set --account-id <id> --tunnel-id <id> --api-token-stdin` — save a missing API token without argv exposure",
 			"`config sync --dry-run` — preview ingress reconciliation after credentials are ready",
 		},
 	})
+}
+
+func (h *handlers) bootstrap(ctx cliapp.RunContext) error {
+	if !ctx.BoolFlag("api-token-stdin") {
+		return fmt.Errorf("--api-token-stdin is required; provide the token on standard input so it never appears in argv")
+	}
+	apiToken, err := readSecretFromStdin("Cloudflare API token")
+	if err != nil {
+		return err
+	}
+	request := &configv1.BootstrapCloudflareRequest{
+		ApiToken:   apiToken,
+		AccountId:  strings.TrimSpace(ctx.Flag("account-id")),
+		TunnelId:   strings.TrimSpace(ctx.Flag("tunnel-id")),
+		TunnelName: strings.TrimSpace(ctx.Flag("tunnel-name")),
+	}
+	request.DryRun = ctx.BoolFlag("dry-run")
+	resp, err := h.client.BootstrapCloudflare(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return cliapp.WrapAPIError("bootstrap Cloudflare tunnel", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no bootstrap response")
+	}
+	result := fmt.Sprintf("Cloudflare tunnel %s resolved in account %s.", resp.Msg.TunnelId, resp.Msg.AccountId)
+	if resp.Msg.Adopted {
+		result = "Adopted existing Cloudflare tunnel. " + result
+	} else if resp.Msg.Created {
+		result = "Created Cloudflare tunnel. " + result
+	}
+	if request.DryRun {
+		result = "Dry-run: " + result + " No credentials were written."
+	} else if resp.Msg.Written {
+		result += " Authority-backed credentials were written."
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{result}})
+}
+
+func readSecretFromStdin(label string) (string, error) {
+	return readSecret(os.Stdin, label)
+}
+
+func readSecret(reader io.Reader, label string) (string, error) {
+	raw, err := io.ReadAll(io.LimitReader(reader, 4097))
+	if err != nil {
+		return "", fmt.Errorf("read %s from standard input: %w", label, err)
+	}
+	value := strings.TrimSpace(string(raw))
+	if value == "" {
+		return "", fmt.Errorf("%s was empty on standard input", label)
+	}
+	if len(raw) > 4096 {
+		return "", fmt.Errorf("%s exceeds the maximum accepted length", label)
+	}
+	return value, nil
 }
 
 // credentialsVerify runs the live VerifyCredentials probe and renders the
@@ -149,16 +206,24 @@ func (h *handlers) credentialsVerify(ctx cliapp.RunContext) error {
 		ResultsHeading: "Credential checks",
 		Results:        formatCredentialChecks(resp.Msg.Checks),
 		RetrievalHints: []string{
-			"`config credentials-set --api-token <token>` — store a re-issued token with the missing scope",
+			"`printf '%s' <token> | config credentials-set --api-token-stdin` — store a re-issued token with the missing scope without argv exposure",
 		},
 	})
 }
 
 func (h *handlers) credentialsSet(ctx cliapp.RunContext) error {
+	apiToken := ""
+	if ctx.BoolFlag("api-token-stdin") {
+		var err error
+		apiToken, err = readSecretFromStdin("Cloudflare API token")
+		if err != nil {
+			return err
+		}
+	}
 	req := &configv1.SetCloudflareCredentialsRequest{
 		AccountId: strings.TrimSpace(ctx.Flag("account-id")),
 		TunnelId:  strings.TrimSpace(ctx.Flag("tunnel-id")),
-		ApiToken:  strings.TrimSpace(ctx.Flag("api-token")),
+		ApiToken:  apiToken,
 	}
 	if req.AccountId == "" && req.TunnelId == "" && req.ApiToken == "" {
 		return fmt.Errorf("at least one credential flag is required")

@@ -43,6 +43,11 @@ type BundleWriter interface {
 	// pre-existing files with conflicting content fail with an actionable error
 	// rather than overwriting unknown data.
 	WriteMetadata(ctx context.Context, meta BundleMetadata) error
+	// RefreshMetadata updates only Vrooli-owned recovery metadata for an
+	// existing destination whose identity has already been verified. It is
+	// separate from WriteMetadata so create remains fail-closed around unknown
+	// files while migrations can repair a stale credential reference.
+	RefreshMetadata(ctx context.Context, meta BundleMetadata) error
 }
 
 // BundleMetadata is the non-secret information rendered into the bundle files.
@@ -139,6 +144,105 @@ func (w *FSBundleWriter) WriteMetadata(_ context.Context, meta BundleMetadata) e
 		if err := w.writeIfAbsentOrMatching(filepath.Join(meta.BundleRoot, name), content); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// RefreshMetadata repairs generated recovery metadata without replacing the
+// repository or unrelated files. The manifest is the identity anchor: if it
+// is absent, malformed, or belongs to another destination, refuse the update
+// rather than guessing which files are safe to overwrite.
+func (w *FSBundleWriter) RefreshMetadata(_ context.Context, meta BundleMetadata) error {
+	manifestPath := filepath.Join(meta.BundleRoot, BundleManifestFile)
+	manifestBytes, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return fmt.Errorf("read destination manifest for metadata refresh: %w", err)
+	}
+	var existing bundleManifest
+	if err := json.Unmarshal(manifestBytes, &existing); err != nil {
+		return fmt.Errorf("decode destination manifest for metadata refresh: %w", err)
+	}
+	if err := validateManifestIdentity(existing, meta); err != nil {
+		return err
+	}
+
+	// Preserve all existing non-secret metadata. This migration owns only the
+	// credential-authority reference in the manifest.
+	existing.SecretRef = meta.SecretRef
+	updatedManifest, err := json.MarshalIndent(existing, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode refreshed destination manifest: %w", err)
+	}
+	updatedManifest = append(updatedManifest, '\n')
+	if err := w.replaceManagedFile(manifestPath, updatedManifest); err != nil {
+		return err
+	}
+
+	// RECOVERY.txt is the operator's executable procedure and is generated
+	// from the same metadata. Refresh it only after the identity check above.
+	recoveryPath := filepath.Join(meta.BundleRoot, BundleRecoveryFile)
+	if err := w.replaceManagedFile(recoveryPath, []byte(renderRecovery(meta))); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateManifestIdentity(existing bundleManifest, meta BundleMetadata) error {
+	if existing.Kind != "vrooli.data-backup-manager.destination" || existing.Producer != "data-backup-manager" {
+		return fmt.Errorf("refusing metadata refresh: destination manifest is not owned by data-backup-manager")
+	}
+	want := map[string]string{
+		"destination_id":   meta.DestinationID,
+		"destination_name": meta.Name,
+		"backend":          meta.Backend,
+		"bundle_root":      meta.BundleRoot,
+		"repository_path":  meta.RepositoryPath,
+	}
+	got := map[string]string{
+		"destination_id":   existing.DestinationID,
+		"destination_name": existing.DestinationName,
+		"backend":          existing.Backend,
+		"bundle_root":      existing.BundleRoot,
+		"repository_path":  existing.RepositoryPath,
+	}
+	for field, expected := range want {
+		if got[field] != expected {
+			return fmt.Errorf("refusing metadata refresh: manifest %s %q does not match destination %q", field, got[field], expected)
+		}
+	}
+	return nil
+}
+
+func (w *FSBundleWriter) replaceManagedFile(path string, content []byte) error {
+	mode := w.filePerm()
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect managed metadata %q: %w", path, err)
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".vrooli-metadata-*")
+	if err != nil {
+		return fmt.Errorf("create managed metadata temporary file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer func() { _ = os.Remove(tmpPath) }()
+	if err := tmp.Chmod(mode); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("set managed metadata permissions: %w", err)
+	}
+	if _, err := tmp.Write(content); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write managed metadata: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("sync managed metadata: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close managed metadata: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("replace managed metadata %q: %w", path, err)
 	}
 	return nil
 }

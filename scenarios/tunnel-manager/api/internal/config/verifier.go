@@ -109,7 +109,7 @@ func (v *cfVerifier) checkToken(ctx context.Context, token string) CredentialChe
 	c := CredentialCheck{Name: CheckNameToken}
 	if strings.TrimSpace(token) == "" {
 		c.State = CheckMissing
-		c.Remediation = "Set the Cloudflare API token via `config credentials-set --api-token <token>`."
+		c.Remediation = "Set the Cloudflare API token via `printf '%s' <token> | config credentials-set --api-token-stdin`."
 		return c
 	}
 	status, _, err := v.get(ctx, token, v.baseURL+"/user/tokens/verify")
@@ -120,7 +120,7 @@ func (v *cfVerifier) checkToken(ctx context.Context, token string) CredentialChe
 		c.Remediation = "Check network connectivity to api.cloudflare.com and retry."
 	case status == http.StatusUnauthorized || status == http.StatusForbidden:
 		c.State = CheckInvalid
-		c.Remediation = "The token is rejected (expired/revoked). Issue a new token and `config credentials-set --api-token <token>`."
+		c.Remediation = "The token is rejected (expired/revoked). Issue a new token and provide it with `printf '%s' <token> | config credentials-set --api-token-stdin`."
 	case status >= 400:
 		c.State = CheckInvalid
 		c.Detail = fmt.Sprintf("HTTP %d", status)

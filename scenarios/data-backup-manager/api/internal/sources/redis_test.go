@@ -43,6 +43,7 @@ func TestRedisSource_PrefixDumpRestore(t *testing.T) {
 
 // TestRedisSource_CaptureArgv asserts that Capture builds the expected argv.
 func TestRedisSource_CaptureArgv(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "data-backup-manager")
 	t.Setenv("VROOLI_SCENARIO", "data-backup-manager")
 
 	fake := &mocks.FakeCommandRunner{}
@@ -72,6 +73,7 @@ func TestRedisSource_CaptureArgv(t *testing.T) {
 
 // TestRedisSource_RestoreArgv asserts that Restore builds the expected argv.
 func TestRedisSource_RestoreArgv(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "data-backup-manager")
 	t.Setenv("VROOLI_SCENARIO", "data-backup-manager")
 
 	fake := &mocks.FakeCommandRunner{}

@@ -26,3 +26,11 @@ func TestClassify_ContextCancellationIsInterruptible(t *testing.T) {
 	require.Equal(t, failures.CategoryExecution, cause.Category)
 	require.Contains(t, cause.Message, "interrupted")
 }
+
+func TestClassify_ReadOnlySecretNamedSourceIsDestinationFailure(t *testing.T) {
+	cause := failures.Classify(errors.New("unable to write /tmp/secrets.enc.json: read-only file system"))
+
+	require.Equal(t, failures.DestinationReadOnly, cause.Code)
+	require.Equal(t, failures.CategoryDestination, cause.Category)
+	require.NotEqual(t, failures.CredentialUnreadable, cause.Code)
+}

@@ -60,23 +60,12 @@ func lookupEnvTrimmed(name string) (string, bool) {
 	return value, ok && value != ""
 }
 
-// sqliteDSN resolves the SQLite database file path and wraps it in a DSN
-// with the canonical pragma string. Resolution order:
-//
-//  1. SQLITE_PATH env — the canonical override.
-//  2. SQLITE_DB env — alias accepted for symmetry with other scenarios.
-//  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
-//     filesystem-safe-by-default location.
-//
-// The pragmas mirror agent-inbox; tweak in lockstep with
-// internal/testutil/db.NewSQLite so production and tests open files the
-// same way.
-func sqliteDSN() (string, error) {
+func sqlitePath() (string, error) {
 	if path, ok := lookupEnvTrimmed("SQLITE_PATH"); ok {
-		return sqliteFileDSN(path)
+		return path, nil
 	}
 	if path, ok := lookupEnvTrimmed("SQLITE_DB"); ok {
-		return sqliteFileDSN(path)
+		return path, nil
 	}
 
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
@@ -94,7 +83,44 @@ func sqliteDSN() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve data-backup-manager db path: %w", err)
 	}
-	return sqliteFileDSN(path)
+	return path, nil
+}
+
+// databasePreflight prevents a previously initialized catalog from silently
+// becoming a fresh empty catalog after a cleanup, retention, or mount mistake.
+// A genuinely new installation is still allowed to create its first database;
+// the marker makes subsequent absence a loud recovery condition.
+func databasePreflight(path string) error {
+	if strings.HasPrefix(path, "file:") {
+		return nil
+	}
+	info, err := os.Stat(path)
+	if err == nil {
+		if info.Size() == 0 {
+			return fmt.Errorf("data-backup-manager database %q is empty; refusing to initialize over a possible loss", path)
+		}
+		return nil
+	}
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect data-backup-manager database %q: %w", path, err)
+	}
+	if _, markerErr := os.Stat(path + ".initialized"); markerErr == nil {
+		return fmt.Errorf("data-backup-manager database %q is absent after prior initialization; restore it before starting", path)
+	}
+	return nil
+}
+
+func markDatabaseInitialized(path string) error {
+	if strings.HasPrefix(path, "file:") {
+		return nil
+	}
+	marker := path + ".initialized"
+	if _, err := os.Stat(marker); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return os.WriteFile(marker, []byte("data-backup-manager database initialized\n"), 0o600)
 }
 
 func sqliteFileDSN(path string) (string, error) {
@@ -126,7 +152,14 @@ func healthHandler(handler http.Handler) http.HandlerFunc {
 }
 
 func run(ctx context.Context) error {
-	dsn, err := sqliteDSN()
+	databasePath, err := sqlitePath()
+	if err != nil {
+		return fmt.Errorf("sqlite configuration failed: %w", err)
+	}
+	if err := databasePreflight(databasePath); err != nil {
+		return fmt.Errorf("database preflight failed: %w", err)
+	}
+	dsn, err := sqliteFileDSN(databasePath)
 	if err != nil {
 		return fmt.Errorf("sqlite configuration failed: %w", err)
 	}
@@ -144,6 +177,10 @@ func run(ctx context.Context) error {
 	if err := database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...); err != nil {
 		_ = db.Close()
 		return fmt.Errorf("schema initialization failed: %w", err)
+	}
+	if err := markDatabaseInitialized(databasePath); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("record database initialization marker: %w", err)
 	}
 
 	// Additive column migration for the destinations table (SQLite has no
@@ -198,6 +235,12 @@ func run(ctx context.Context) error {
 	// the backing for the cross-domain adapters the run orchestration needs.
 	targetsSvc := targetsint.NewService(targetsint.NewSQLiteRepository(db, clk))
 	destSvc := destint.NewService(destint.NewSQLiteRepository(db, clk), kopia, &destint.FSBundleWriter{}, protectedRoot)
+	if err := destSvc.ReconcileCredentialReferences(ctx); err != nil {
+		// A destination may be mounted read-only while the manager is still
+		// able to serve catalog/readiness requests. Keep the service available,
+		// surface the exact pending migration, and retry on the next boot.
+		logger.Printf("destination credential-reference reconciliation pending: %v", err)
+	}
 	planReadiness := destinationreadiness.NewService(
 		destinationreadiness.NewReadOnlyInspector(sysmounts.New()),
 		destinationreadiness.NewLocalPreparer(),
@@ -288,6 +331,7 @@ func run(ctx context.Context) error {
 		OverdueAfter:         overdueAfterDur,
 		NextSchedule:         nextSched,
 		PreflightSourcePaths: true,
+		Readiness:            planReadiness,
 		RoutedRoots:          fileRoots,
 	})
 

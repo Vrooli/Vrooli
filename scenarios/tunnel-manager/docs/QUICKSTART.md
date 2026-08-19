@@ -81,7 +81,7 @@ tunnel-manager audit run               # port-compliance findings
 tunnel-manager recovery state          # inspect recovery state
 tunnel-manager recovery run            # manually trigger recovery
 tunnel-manager config credentials-status
-tunnel-manager config credentials-set --account-id <id> --tunnel-id <id> --api-token <token>
+printf '%s' <token> | tunnel-manager config credentials-set --account-id <id> --tunnel-id <id> --api-token-stdin
 tunnel-manager config credentials-clear --field all
 tunnel-manager config sync --dry-run true  # preview ingress changes safely
 tunnel-manager config sync             # reconcile Cloudflare ingress with the manifest

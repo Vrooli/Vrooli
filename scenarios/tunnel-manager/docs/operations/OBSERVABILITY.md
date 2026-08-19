@@ -24,7 +24,7 @@ Use this document to answer:
 | UI health endpoint | health | UI server | UI bundle/server reachability | responds during lifecycle health check |
 | test-genie result | validation | `make test` | scenario correctness evidence | all required phases pass |
 | cloudflared `/ready` | health | cloudflared (via `tunnel` domain) | tunnel daemon readiness | `/ready` reachable |
-| HA connections | metric | cloudflared Prometheus (`127.0.0.1:20241`) | tunnel connection health | degraded if `< 4`; failure at `0` |
+| HA connections | metric | managed cloudflared Prometheus endpoint (standalone fallback `127.0.0.1:20241`) | tunnel connection health | degraded if `< 4`; failure at `0` |
 | Tunnel RTT | metric | cloudflared Prometheus | latency to Cloudflare edge | degraded on spike |
 | Request errors | metric | cloudflared Prometheus | tunnel-level error rate | alert on sustained rise |
 | Active streams | metric | cloudflared Prometheus | live request volume | informational |
@@ -38,7 +38,7 @@ Use this document to answer:
 |---|---|---|---|
 | API logs | lifecycle-managed API process | `make logs` | Scheduler, probe, recovery, config-sync, and request logs. |
 | UI logs | lifecycle-managed UI server | `make logs` | Production bundle server logs only. |
-| cloudflared logs | systemd journal | `journalctl -u cloudflared` | Tunnel daemon logs; consulted during recovery (not produced by this scenario). |
+| cloudflared logs | managed resource log | `vrooli resource logs cloudflared` | Tunnel daemon logs; consulted during recovery (not produced by this scenario). |
 
 ## Stored Telemetry
 

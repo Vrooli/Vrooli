@@ -14,6 +14,7 @@ import (
 	"tunnel-manager/internal/manifest"
 
 	"github.com/vrooli/api-core/schedule"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 // ProductionDB is the database surface required by the config service and
@@ -55,9 +56,17 @@ func NewProductionService(db ProductionDB, clk schedule.Clock, opts ProductionOp
 		opts.Doer = &http.Client{Timeout: 15 * time.Second}
 	}
 	store := opts.CredentialStore
+	authority := opts.CredentialAuthority
+	if authority == nil {
+		var err error
+		authority, err = credentialauthority.Default()
+		if err != nil {
+			authority = nil
+		}
+	}
 	if store == nil {
 		var err error
-		store, err = NewCloudflareCredentialStore(CredentialStoreOptions{Authority: opts.CredentialAuthority})
+		store, err = NewCloudflareCredentialStore(CredentialStoreOptions{Authority: authority})
 		if err != nil {
 			store = unavailableCredentialStore{err: err}
 		}
@@ -71,21 +80,23 @@ func NewProductionService(db ProductionDB, clk schedule.Clock, opts ProductionOp
 		ledger = NewSQLiteLedger(db, clk)
 	}
 	return NewService(Deps{
-		Repo:            NewSQLiteRepository(db),
-		Routes:          routesReader,
-		RoutesWriter:    opts.RoutesWriter,
-		Scenarios:       opts.Scenarios,
-		Ingress:         resolvingIngressClient{store: store, doer: opts.Doer},
-		Ledger:          ledger,
-		CredentialStore: store,
-		Verifier:        NewCFVerifier(opts.Doer),
-		DNS:             resolvingDNSClient{store: store, doer: opts.Doer},
-		DNSLedger:       NewSQLiteDNSLedger(db, clk),
-		Access:          resolvingAccessClient{store: store, doer: opts.Doer},
-		AccessLedger:    NewSQLiteAccessLedger(db, clk),
-		Runner:          opts.Runner,
-		Clock:           clk,
-		LocalConfigPath: opts.LocalConfigPath,
+		Repo:               NewSQLiteRepository(db),
+		Routes:             routesReader,
+		RoutesWriter:       opts.RoutesWriter,
+		Scenarios:          opts.Scenarios,
+		Ingress:            resolvingIngressClient{store: store, doer: opts.Doer},
+		Ledger:             ledger,
+		CredentialStore:    store,
+		BootstrapAPI:       NewCloudflareBootstrapAPI(opts.Doer, ""),
+		BootstrapAuthority: authority,
+		Verifier:           NewCFVerifier(opts.Doer),
+		DNS:                resolvingDNSClient{store: store, doer: opts.Doer},
+		DNSLedger:          NewSQLiteDNSLedger(db, clk),
+		Access:             resolvingAccessClient{store: store, doer: opts.Doer},
+		AccessLedger:       NewSQLiteAccessLedger(db, clk),
+		Runner:             opts.Runner,
+		Clock:              clk,
+		LocalConfigPath:    opts.LocalConfigPath,
 	})
 }
 

@@ -46,7 +46,11 @@ func TestCloudflareCredentialStoreUsesCanonicalAuthority(t *testing.T) {
 
 	status, err := store.Save(ctx, config.CredentialUpdate{AccountID: "acct", TunnelID: "tun", APIToken: "tok"})
 	require.NoError(t, err)
-	require.True(t, status.Ready)
+	// The write-only credentials endpoint intentionally cannot claim complete
+	// tunnel readiness until bootstrap has derived and stored the connector
+	// token as well.
+	require.False(t, status.Ready)
+	require.Contains(t, status.MissingFields, "CLOUDFLARE_CONNECTOR_TOKEN")
 	require.Equal(t, "credential-authority", status.Source)
 	require.NotContains(t, statusString(status), "tok-value-marker")
 
@@ -55,7 +59,7 @@ func TestCloudflareCredentialStoreUsesCanonicalAuthority(t *testing.T) {
 	require.Equal(t, "acct", resolved.AccountID)
 	require.Equal(t, "tun", resolved.TunnelID)
 	require.Equal(t, "tok", resolved.APIToken)
-	require.Empty(t, resolved.Missing)
+	require.ElementsMatch(t, []string{"CLOUDFLARE_CONNECTOR_TOKEN"}, resolved.Missing)
 }
 
 func TestCloudflareCredentialStoreDoesNotUseEnvironmentOverrides(t *testing.T) {
@@ -84,7 +88,7 @@ func TestCloudflareCredentialStoreDeleteUsesCanonicalFields(t *testing.T) {
 	status, err := store.Delete(ctx, []string{"api_token"})
 	require.NoError(t, err)
 	require.False(t, status.Ready)
-	require.ElementsMatch(t, []string{"CLOUDFLARE_API_TOKEN"}, status.MissingFields)
+	require.ElementsMatch(t, []string{"CLOUDFLARE_API_TOKEN", "CLOUDFLARE_CONNECTOR_TOKEN"}, status.MissingFields)
 }
 
 func statusString(status config.CredentialStatus) string {

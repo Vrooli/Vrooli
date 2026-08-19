@@ -68,6 +68,27 @@ func (h *connectHandler) VerifyCredentials(ctx context.Context, _ *connect.Reque
 	return connect.NewResponse(verificationToProto(verification)), nil
 }
 
+func (h *connectHandler) BootstrapCloudflare(ctx context.Context, req *connect.Request[configv1.BootstrapCloudflareRequest]) (*connect.Response[configv1.BootstrapCloudflareResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigCredentials, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
+	result, err := h.deps.Service.BootstrapCloudflare(ctx, internalconfig.BootstrapRequest{
+		APIToken: req.Msg.ApiToken, AccountID: req.Msg.AccountId, TunnelID: req.Msg.TunnelId,
+		TunnelName: req.Msg.TunnelName, DryRun: req.Msg.DryRun,
+	})
+	if err != nil {
+		connectErr := internalconfig.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("config.BootstrapCloudflare: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&configv1.BootstrapCloudflareResponse{
+		AccountId: result.AccountID, TunnelId: result.TunnelID, Adopted: result.Adopted,
+		Created: result.Created, Written: result.Written,
+	}), nil
+}
+
 func (h *connectHandler) SetCloudflareCredentials(ctx context.Context, req *connect.Request[configv1.SetCloudflareCredentialsRequest]) (*connect.Response[configv1.SetCloudflareCredentialsResponse], error) {
 	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigCredentials, req.Header()); err != nil {
 		return nil, authz.ToConnectError(err)

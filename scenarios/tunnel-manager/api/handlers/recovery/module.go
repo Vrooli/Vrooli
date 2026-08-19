@@ -28,8 +28,8 @@ import (
 //
 // The engine is a long-lived stateful singleton (it holds the circuit
 // breaker / backoff state machine), so it is constructed once here and
-// closed over by the handler. The readiness probe and the cloudflared
-// restart go through the httpc / cmdrunner seams.
+// closed over by the handler. The readiness probe and the managed
+// cloudflared-resource restart go through the httpc / cmdrunner seams.
 func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	return ModuleWithService(NewProductionService(db, clk), logger)
 }
@@ -43,8 +43,8 @@ func NewProductionService(db *database.RoutedDB, clk schedule.Clock) internalrec
 		readyURL = internalrecovery.DefaultReadyURL
 	}
 	health := internalrecovery.NewHTTPHealthChecker(&http.Client{Timeout: 5 * time.Second}, readyURL)
-	presence := internalrecovery.NewSystemctlUnitPresence(cmdrunner.Default)
-	return internalrecovery.NewService(repo, health, presence, cmdrunner.Default, clk, internalrecovery.Config{}, nil)
+	lifecycle := internalrecovery.NewControlPlaneLifecycle(cmdrunner.Default)
+	return internalrecovery.NewService(repo, health, lifecycle, lifecycle, clk, internalrecovery.Config{}, nil)
 }
 
 func ModuleWithService(svc internalrecovery.Service, logger *log.Logger) module.Module {

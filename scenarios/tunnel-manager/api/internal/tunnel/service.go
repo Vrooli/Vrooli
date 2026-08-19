@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,14 +22,14 @@ import (
 const DefaultMetricsEndpoint = "http://127.0.0.1:20241"
 
 // Health-score penalties and thresholds. Ported verbatim from the pre-1.0
-// tunnel-manager (api/service/tunnel_health.go): systemd-not-active costs 50,
+// tunnel-manager (api/service/tunnel_health.go): managed-resource-not-active costs 50,
 // a failing /ready probe costs 30; score <= 20 is unhealthy, <= 70 degraded.
 const (
-	scoreMax           = 100
-	penaltySystemdDown = 50
-	penaltyReadyFail   = 30
-	thresholdUnhealthy = 20
-	thresholdDegraded  = 70
+	scoreMax            = 100
+	penaltyResourceDown = 50
+	penaltyReadyFail    = 30
+	thresholdUnhealthy  = 20
+	thresholdDegraded   = 70
 )
 
 // Service is the application-layer surface the tunnel handlers depend on. Owns
@@ -37,7 +38,7 @@ const (
 // translate errors.
 type Service interface {
 	// GetStatus computes the current composite tunnel health (cloudflared
-	// systemd unit state + /ready probe) and returns it alongside the most
+	// managed-resource state + /ready probe) and returns it alongside the most
 	// recent persisted metrics sample. The latest sample is nil when none has
 	// been scraped yet (ErrNoMetrics is swallowed, not surfaced).
 	GetStatus(ctx context.Context) (TunnelStatus, *MetricsSample, error)
@@ -79,9 +80,9 @@ var _ Service = (*service)(nil)
 func (s *service) GetStatus(ctx context.Context) (TunnelStatus, *MetricsSample, error) {
 	score := scoreMax
 
-	systemd := s.checkSystemd(ctx)
-	if systemd != "active" {
-		score -= penaltySystemdDown
+	managedState := s.checkManagedResource(ctx)
+	if managedState != "active" {
+		score -= penaltyResourceDown
 	}
 
 	ready, readyLatency := s.checkReady(ctx)
@@ -102,7 +103,7 @@ func (s *service) GetStatus(ctx context.Context) (TunnelStatus, *MetricsSample, 
 
 	snapshot := TunnelStatus{
 		Status:         status,
-		Systemd:        systemd,
+		Systemd:        managedState,
 		Ready:          ready,
 		ReadyLatencyMS: readyLatency,
 		Score:          score,
@@ -135,19 +136,32 @@ func (s *service) Scrape(ctx context.Context) (MetricsSample, error) {
 	return s.repo.Store(ctx, sample)
 }
 
-// checkSystemd queries the cloudflared unit state via `systemctl is-active`. A
-// runner error (unit missing, systemctl absent) is reported as "inactive" so
-// the score penalty still applies.
-func (s *service) checkSystemd(ctx context.Context) string {
-	out, err := s.runner(ctx, "systemctl", "is-active", "cloudflared")
+// checkManagedResource queries the Vrooli-managed cloudflared resource. A runner error
+// (resource missing or control plane unavailable) is reported as "inactive".
+func (s *service) checkManagedResource(ctx context.Context) string {
+	out, err := s.runner(ctx, "vrooli", "resource", "status", "cloudflared", "--json")
 	if err != nil {
 		return "inactive"
 	}
-	result := strings.TrimSpace(string(out))
-	if result == "" {
+	var status struct {
+		Installed bool   `json:"installed"`
+		Running   bool   `json:"running"`
+		Healthy   *bool  `json:"healthy"`
+		Status    string `json:"status"`
+	}
+	if err := json.Unmarshal(out, &status); err != nil {
 		return "inactive"
 	}
-	return result
+	if !status.Installed && !status.Running && strings.TrimSpace(status.Status) == "" {
+		return "inactive"
+	}
+	if status.Healthy != nil && !*status.Healthy {
+		return "inactive"
+	}
+	if status.Running || strings.EqualFold(strings.TrimSpace(status.Status), "running") {
+		return "active"
+	}
+	return "inactive"
 }
 
 // checkReady probes the cloudflared /ready endpoint, returning a status token

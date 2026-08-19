@@ -23,7 +23,7 @@ optional dependencies are explicitly fallback-safe.
 |---|---|---|---|---|---|
 | SQLite | embedded storage | yes | API, all persistence-backed domains | `SQLITE_PATH` lifecycle env var; no external DB | API reports unhealthy if unreachable. |
 | Vrooli lifecycle (`internal/lifecycle`) | local platform + seam | yes | API, UI, CLI; `exposure` ensure-running | `.vrooli/service.json`, Makefile targets; ensure-running seam | Start through lifecycle commands; ensure-running failure surfaces as an Expose error (TM does not reimplement lifecycle). |
-| `cloudflared` daemon | host tool (required) | yes | `tunnel` (systemd + `/ready` + Prometheus), `config` (local mode), `recovery` (restart) | systemd unit + `/ready` + Prometheus endpoint (default `127.0.0.1:20241`); `systemctl` for restart | If down: `tunnel` reports unhealthy, `recovery` restarts it (single owner). TM does NOT install it (setup handles that). |
+| `cloudflared` daemon | managed resource (required) | yes | `tunnel` (resource status + `/ready` + Prometheus), `config` (local mode), `recovery` (resource restart) | Vrooli-managed service exports its `/ready` and Prometheus endpoint; standalone fallback is `127.0.0.1:20241` | If down: `tunnel` reports unhealthy, `recovery` restarts it (single owner). TM does NOT install it (setup handles that). |
 | Cloudflare API v4 | third-party service | remote mode only | `config` ingress push/sync | HTTPS API + account/tunnel id + API token (credential reference, not inlined) | Remote sync returns a typed setup/upstream error; local config mode remains available. Cloudflare-outage classification needs richer signals and is deferred. |
 | `api-core/coreset` | local package seam | yes | `exposure` core reconcile | Queryable SSOT of core scenarios | If unavailable: skip-and-alert; never tear down existing CORE routes. |
 | scenario `service.json` files | local files | yes | `audit` port compliance | Read each exposed scenario's fixed UI port | Missing/ranged/mismatched port → audit finding (does not crash TM). |
@@ -57,7 +57,7 @@ These are runtime seams / contracts, not hard build-time dependencies.
 | Service | Status | Reason | Contract |
 |---|---|---|---|
 | Cloudflare API v4 | implemented for remote mode | Programmatic ingress management replaces the manual dashboard step (OT-P0-002). | HTTPS API + account/tunnel id + API token; credentials resolve through the Vrooli credential authority and are never inlined in `tunnel_config`. |
-| `cloudflared` daemon | host tool | The tunnel itself; health via systemd + `/ready` + Prometheus, restart via `systemctl`. | Required host tool; installed by setup, not by TM. |
+| `cloudflared` daemon | managed resource | The tunnel itself; health via resource status + `/ready` + Prometheus, restart through the control plane. | Required managed resource; installed by setup, not by TM. |
 
 ## Failure Modes
 

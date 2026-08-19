@@ -43,7 +43,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 	updateDestSQL = `
 UPDATE destinations
-SET cap_bytes = ?, cap_policy = ?, updated_at = ?
+SET cap_bytes = ?, cap_policy = ?, secret_ref = ?, updated_at = ?
 WHERE id = ?
 `
 	selectDestByIDSQL = `
@@ -88,7 +88,7 @@ func (s *sqliteRepository) Create(ctx context.Context, d Destination) (Destinati
 func (s *sqliteRepository) Update(ctx context.Context, d Destination) (Destination, error) {
 	d.UpdatedAt = s.clock.Now().UTC()
 	_, err := s.db.ExecContext(ctx, updateDestSQL,
-		d.CapBytes, string(d.CapPolicy), d.UpdatedAt.Format(destTimeFormat), d.ID,
+		d.CapBytes, string(d.CapPolicy), d.SecretRef, d.UpdatedAt.Format(destTimeFormat), d.ID,
 	)
 	if err != nil {
 		return Destination{}, fmt.Errorf("update destination %q: %w", d.ID, err)

@@ -14,11 +14,13 @@ import (
 type FakeBundleWriter struct {
 	mu sync.Mutex
 
-	Prepared []PreparedRepo
-	Metadata []destinations.BundleMetadata
+	Prepared  []PreparedRepo
+	Metadata  []destinations.BundleMetadata
+	Refreshed []destinations.BundleMetadata
 
 	PrepareErr  error
 	MetadataErr error
+	RefreshErr  error
 }
 
 // PreparedRepo captures one PrepareRepository call.
@@ -50,5 +52,15 @@ func (f *FakeBundleWriter) WriteMetadata(_ context.Context, meta destinations.Bu
 		return f.MetadataErr
 	}
 	f.Metadata = append(f.Metadata, meta)
+	return nil
+}
+
+func (f *FakeBundleWriter) RefreshMetadata(_ context.Context, meta destinations.BundleMetadata) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.RefreshErr != nil {
+		return f.RefreshErr
+	}
+	f.Refreshed = append(f.Refreshed, meta)
 	return nil
 }

@@ -20,7 +20,7 @@ route/exposure manifest as the single source of truth, enforces fixed-port
 contracts, and auto-recovers the tunnel from failure. Architecturally it is
 a normal three-surface scenario (API/UI/CLI over proto contracts on SQLite)
 whose distinguishing trait is that its API reaches **outward** to real
-infrastructure: `cloudflared` (systemd + Prometheus + `/ready`), the
+infrastructure: the managed `cloudflared` resource (Prometheus + `/ready`), the
 Cloudflare API v4, scenario `service.json` files, the `api-core/coreset`
 seam, and the `internal/lifecycle` ensure-running seam. Those outward
 contracts are documented in [`INTEGRATIONS.md`](INTEGRATIONS.md); this file
@@ -93,7 +93,7 @@ production), not new surfaces:
         ┌──────────┐  api/internal/<domain> seams
         │  api/Go  │
         └────┬─────┘
-             ├──▶ cloudflared        systemd status + /ready + Prometheus (tunnel)
+             ├──▶ cloudflared        managed status + /ready + Prometheus (tunnel)
              ├──▶ Cloudflare API v4  remote ingress push/sync           (config)
              ├──▶ ~/.cloudflared/config.yml  local-mode generation      (config)
              ├──▶ scenario service.json      fixed-UI-port audit         (audit)
@@ -248,7 +248,7 @@ when they are deliberate and durable.
 
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
-| 2026-06-18 | API reaches outward to host infrastructure (`cloudflared`, Cloudflare API, `service.json`, `systemctl`) via per-domain seams. | This scenario *is* the external-access control plane; outward I/O is its product, not an accident. | Revisit if any outward call grows business logic that should be its own domain. |
+| 2026-06-18 | API reaches outward to host infrastructure (`cloudflared`, Cloudflare API, `service.json`, and the Vrooli resource lifecycle) via per-domain seams. | This scenario *is* the external-access control plane; outward I/O is its product, not an accident. | Revisit if any outward call grows business logic that should be its own domain. |
 | 2026-06-18 | `recovery` acts LIVE on foundational infra (restarts cloudflared) from day one. | Operator chose immediate self-healing over a monitor-only soak (see [`../internal/DECISIONS.md`](../internal/DECISIONS.md)). | Tighten circuit breaker if false-positive restarts occur. |
 | 2026-06-18 | Single-owner restart contract: TM is the only authority that restarts cloudflared; `vrooli-autoheal` downgrades to alert-only. | Avoid dueling restarters fighting over the same daemon. | Revisit if autoheal ownership model changes. |
 | 2026-06-18 | UI organized as exactly 5 surfaces, not score-chasing pages. | PRD mandates a minimal, glanceable operator dashboard. | Revisit per operator feedback. |

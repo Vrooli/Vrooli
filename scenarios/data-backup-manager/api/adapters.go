@@ -342,7 +342,12 @@ func (a destinationLookup) DestinationForRun(ctx context.Context, destID string)
 	if err != nil {
 		return runsint.DestinationForRun{}, err
 	}
-	return runsint.DestinationForRun{ID: d.ID, Name: d.Name}, nil
+	return runsint.DestinationForRun{
+		ID:          d.ID,
+		Name:        d.Name,
+		BackendKind: string(d.BackendKind),
+		Location:    d.Location,
+	}, nil
 }
 
 func (a destinationLookup) WouldBlock(ctx context.Context, destID string, pendingBytes int64) (bool, string, error) {

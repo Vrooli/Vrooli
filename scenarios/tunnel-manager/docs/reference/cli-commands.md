@@ -181,7 +181,7 @@ Manage Cloudflare ingress and mode.
 |---|---|---|
 | `config get` | Show browser-safe configuration readiness. | — |
 | `config credentials-status` | Show Cloudflare credential presence/source metadata without printing secrets; values come from the credential authority. | — |
-| `config credentials-set` | Store write-only Cloudflare credentials in the canonical Vrooli credential authority. | `--account-id`, `--tunnel-id`, `--api-token` |
+| `config credentials-set` | Store write-only Cloudflare credentials in the canonical Vrooli credential authority; read API tokens from stdin so they never appear in argv. | `--account-id`, `--tunnel-id`, `--api-token-stdin` |
 | `config credentials-clear` | Clear Cloudflare credentials from the credential authority. | `--field account_id\|tunnel_id\|api_token\|all` |
 | `config sync` | Reconcile ingress (remote API or local `config.yml`) with the manifest. | — |
 | `config mode` | Switch and migrate ingress mode. | `--target remote\|local` |

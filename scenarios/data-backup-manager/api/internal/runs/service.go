@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/failures"
 	"data-backup-manager/internal/preflight"
@@ -98,6 +99,13 @@ type Deps struct {
 	// SQLite locators. Production enables it; unit tests with synthetic locators
 	// can leave it false.
 	PreflightSourcePaths bool
+	// Readiness performs the shared read-only destination diagnosis during
+	// preflight. It must never perform host repair or filesystem mutation.
+	Readiness DestinationReadiness
+}
+
+type DestinationReadiness interface {
+	Analyze(context.Context, destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error)
 }
 
 type FileRootPicker interface {

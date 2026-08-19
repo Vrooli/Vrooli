@@ -2,6 +2,7 @@ package destinations
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,6 +53,12 @@ type Service interface {
 	// exceeds cap_bytes. CAP_POLICY_ALERT_ONLY never blocks; cap_bytes == 0
 	// (no cap) never blocks. WouldBlock never deletes anything.
 	WouldBlock(ctx context.Context, destinationID string, pendingBytes int64) (blocked bool, reason string, err error)
+
+	// ReconcileCredentialReferences upgrades legacy destination references and
+	// generated filesystem recovery metadata to the canonical authority
+	// identity. It is safe to run on every boot; a read-only destination remains
+	// pending for a later retry.
+	ReconcileCredentialReferences(ctx context.Context) error
 }
 
 // UsageReport is the result type returned by GetDestinationUsage.
@@ -249,6 +256,48 @@ func (s *service) UpdateDestination(ctx context.Context, in UpdateInput) (Destin
 		existing.CapPolicy = in.CapPolicy
 	}
 	return s.repo.Update(ctx, existing)
+}
+
+func (s *service) ReconcileCredentialReferences(ctx context.Context) error {
+	dests, err := s.repo.List(ctx, defaultListLimit)
+	if err != nil {
+		return fmt.Errorf("list destinations for credential-reference reconciliation: %w", err)
+	}
+	var failures []string
+	for _, d := range dests {
+		canonical := s.eng.PassphraseRef(d.Name)
+		if canonical == "" || d.SecretRef == canonical {
+			continue
+		}
+		// The catalog is the authoritative runtime record consumed by DBM's
+		// orchestration. Update it even when a read-only filesystem prevents the
+		// generated bundle metadata from being refreshed; leaving the catalog on
+		// a retired provider-shaped reference makes a healthy repository appear
+		// unavailable and keeps Vault paths alive in shipped/read APIs.
+		d.SecretRef = canonical
+		if _, err := s.repo.Update(ctx, d); err != nil {
+			failures = append(failures, fmt.Sprintf("%s catalog: %v", d.Name, err))
+			continue
+		}
+		if d.BackendKind == BackendFilesystem && s.bundle != nil {
+			if err := s.bundle.RefreshMetadata(ctx, BundleMetadata{
+				DestinationID:       d.ID,
+				Name:                d.Name,
+				Backend:             string(d.BackendKind),
+				BundleRoot:          d.Location,
+				RepositoryPath:      d.RepositoryLocation,
+				EncryptionAlgorithm: d.EncryptionAlgorithm,
+				SecretRef:           canonical,
+				CreatedAt:           d.CreatedAt,
+			}); err != nil {
+				failures = append(failures, fmt.Sprintf("%s metadata: %v", d.Name, err))
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return fmt.Errorf("destination credential-reference reconciliation incomplete: %s", strings.Join(failures, "; "))
+	}
+	return nil
 }
 
 func (s *service) DeleteDestination(ctx context.Context, id string, deleteRepository bool) (bool, error) {

@@ -43,6 +43,7 @@ func TestQdrantSource_SnapshotRestore(t *testing.T) {
 
 // TestQdrantSource_CaptureArgv asserts that Capture builds the expected argv.
 func TestQdrantSource_CaptureArgv(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "data-backup-manager")
 	t.Setenv("VROOLI_SCENARIO", "data-backup-manager")
 
 	fake := &mocks.FakeCommandRunner{}
@@ -73,6 +74,7 @@ func TestQdrantSource_CaptureArgv(t *testing.T) {
 
 // TestQdrantSource_RestoreArgv asserts that Restore builds the expected argv.
 func TestQdrantSource_RestoreArgv(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "data-backup-manager")
 	t.Setenv("VROOLI_SCENARIO", "data-backup-manager")
 
 	fake := &mocks.FakeCommandRunner{}

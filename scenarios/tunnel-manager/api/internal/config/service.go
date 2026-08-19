@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -13,6 +14,7 @@ import (
 	"tunnel-manager/internal/manifest"
 
 	"github.com/vrooli/api-core/schedule"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 // Service is the application-layer surface the config handlers depend on.
@@ -39,6 +41,11 @@ type Service interface {
 	// same probe gates expose so a present-but-unscoped token fails fast with a
 	// remediation instead of producing a dead public URL.
 	VerifyCredentials(ctx context.Context) (CredentialVerification, error)
+
+	// BootstrapCloudflare consumes one operator API token, adopts or creates
+	// the named tunnel, and writes the complete authority-backed credential set
+	// only after all remote reads succeed.
+	BootstrapCloudflare(ctx context.Context, request BootstrapRequest) (BootstrapResult, error)
 
 	// SetCloudflareCredentials stores write-only Cloudflare credentials in the
 	// configured credential store and returns redacted status metadata.
@@ -97,6 +104,14 @@ type Service interface {
 	GetAccessStatus(ctx context.Context) (AccessStatus, error)
 }
 
+// DerivedCredentialBootstrapper is an optional lifecycle seam for the
+// owning component. Generic onboarding only provisions operator credentials;
+// the component that owns a derived credential is responsible for obtaining
+// it when its normal lifecycle starts.
+type DerivedCredentialBootstrapper interface {
+	BootstrapConfiguredCloudflare(context.Context) (BootstrapResult, error)
+}
+
 // Deps wires the seams the config service depends on. IngressClient is nil
 // when Cloudflare credentials are absent — remote operations then return
 // ErrRemoteUnavailable instead of touching the network.
@@ -128,11 +143,13 @@ type Deps struct {
 	// AccessLedger tracks which Access apps TM created so prune only ever
 	// deletes TM-created apps. Nil disables Access removal (apps are still
 	// created, but never auto-deleted — the safe direction).
-	AccessLedger     AccessLedger
-	CF               CFConfig
-	CredentialStatus CredentialStatus
-	Runner           cmdrunner.Runner
-	Clock            schedule.Clock
+	AccessLedger       AccessLedger
+	CF                 CFConfig
+	CredentialStatus   CredentialStatus
+	BootstrapAPI       CloudflareBootstrapAPI
+	BootstrapAuthority CredentialAuthority
+	Runner             cmdrunner.Runner
+	Clock              schedule.Clock
 	// LocalConfigPath is where local mode writes the cloudflared config.yml.
 	// Defaults to ~/.cloudflared/config.yml when empty.
 	LocalConfigPath string
@@ -160,11 +177,18 @@ func NewService(d Deps) Service {
 var _ Service = (*service)(nil)
 
 func (s *service) GetConfig(ctx context.Context) (TunnelConfig, error) {
-	return s.deps.Repo.Get(ctx)
+	cfg, err := s.deps.Repo.Get(ctx)
+	if err != nil {
+		return TunnelConfig{}, err
+	}
+	if endpoint := metricsEndpointFromEnvironment(); endpoint != "" && (strings.TrimSpace(cfg.PromEndpoint) == "" || cfg.PromEndpoint == DefaultPromEndpoint) {
+		cfg.PromEndpoint = endpoint
+	}
+	return cfg, nil
 }
 
 func (s *service) GetConfigState(ctx context.Context) (ConfigState, error) {
-	cfg, err := s.deps.Repo.Get(ctx)
+	cfg, err := s.GetConfig(ctx)
 	if err != nil {
 		return ConfigState{}, err
 	}
@@ -176,6 +200,23 @@ func (s *service) GetConfigState(ctx context.Context) (ConfigState, error) {
 		Config:    cfg,
 		Readiness: readiness,
 	}, nil
+}
+
+// metricsEndpointFromEnvironment follows the endpoint exported by the
+// managed cloudflared resource through tunnel-manager's scenario environment.
+// The persisted default remains the standalone fallback for direct library
+// use, while a lifecycle-managed process always reports the actual resource
+// endpoint rather than stale legacy-port metadata.
+func metricsEndpointFromEnvironment() string {
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_METRICS_URL"))
+	if raw == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme != "http" || parsed.Host == "" || parsed.Path != "" && parsed.Path != "/" {
+		return ""
+	}
+	return parsed.Host
 }
 
 func (s *service) GetCredentialStatus(ctx context.Context) (CredentialStatus, error) {
@@ -197,6 +238,45 @@ func (s *service) VerifyCredentials(ctx context.Context) (CredentialVerification
 		accessRequired = persisted.PublicExposureEnabled
 	}
 	return s.deps.Verifier.Verify(ctx, cfg, s.routeApexes(ctx), accessRequired)
+}
+
+func (s *service) BootstrapCloudflare(ctx context.Context, request BootstrapRequest) (BootstrapResult, error) {
+	if s.deps.BootstrapAPI == nil || s.deps.BootstrapAuthority == nil {
+		return BootstrapResult{}, fmt.Errorf("Cloudflare bootstrap is not configured")
+	}
+	return BootstrapCloudflare(ctx, s.deps.BootstrapAPI, s.deps.BootstrapAuthority, request)
+}
+
+// BootstrapConfiguredCloudflare completes the derived Cloudflare credential
+// set after generic credential provisioning has supplied the API token. It is
+// intentionally owned by tunnel-manager rather than onboarding. Missing
+// operator credentials are a normal no-op so a fresh install can start and
+// report readiness without turning every scenario startup into an error.
+func (s *service) BootstrapConfiguredCloudflare(ctx context.Context) (BootstrapResult, error) {
+	if s.deps.BootstrapAPI == nil || s.deps.BootstrapAuthority == nil {
+		return BootstrapResult{}, nil
+	}
+	identity, err := credentialauthority.ParseIdentity(cloudflareCredentialID)
+	if err != nil {
+		return BootstrapResult{}, err
+	}
+	apiToken, err := s.deps.BootstrapAuthority.Resolve(identity, "cloudflare-api-token")
+	if err != nil || strings.TrimSpace(apiToken) == "" {
+		return BootstrapResult{}, nil
+	}
+	accountID, _ := s.deps.BootstrapAuthority.Resolve(identity, "cloudflare-account-id")
+	tunnelID, _ := s.deps.BootstrapAuthority.Resolve(identity, "cloudflare-tunnel-id")
+	connectorToken, _ := s.deps.BootstrapAuthority.Resolve(identity, "cloudflare-connector-token")
+	if strings.TrimSpace(accountID) != "" && strings.TrimSpace(tunnelID) != "" && strings.TrimSpace(connectorToken) != "" {
+		return BootstrapResult{AccountID: strings.TrimSpace(accountID), TunnelID: strings.TrimSpace(tunnelID), Written: true}, nil
+	}
+	name := strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_TUNNEL_NAME"))
+	if name == "" {
+		name = "vrooli"
+	}
+	return BootstrapCloudflare(ctx, s.deps.BootstrapAPI, s.deps.BootstrapAuthority, BootstrapRequest{
+		APIToken: apiToken, AccountID: accountID, TunnelID: tunnelID, TunnelName: name,
+	})
 }
 
 // resolveCFConfig returns the resolvable Cloudflare credentials (token in
@@ -592,8 +672,8 @@ func (s *service) applyAdditive(ctx context.Context, cfg TunnelConfig, desired [
 		if err := s.writeLocalIngress(cfg, merged); err != nil {
 			return err
 		}
-		if _, err := s.deps.Runner(ctx, "sudo", "systemctl", "restart", "cloudflared"); err != nil {
-			return fmt.Errorf("restart cloudflared: %w", err)
+		if _, err := s.deps.Runner(ctx, "vrooli", "resource", "restart", "cloudflared"); err != nil {
+			return fmt.Errorf("restart managed cloudflared resource: %w", err)
 		}
 	} else {
 		ingress, err := s.remoteIngress(ctx)

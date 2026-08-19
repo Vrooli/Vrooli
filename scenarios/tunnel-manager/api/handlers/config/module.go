@@ -89,10 +89,6 @@ func ModuleWithService(svc internalconfig.Service, logger *log.Logger) module.Mo
 	}
 }
 
-// Schema re-exports internalconfig.Schema so the modules registry collects
-// endpoint descriptors and schema from one symbol per handler package.
-func Schema() string { return internalconfig.Schema() }
-
 // Endpoints is the machine-readable description of the config module's
 // public surface. Connect-RPC method paths reference the generated
 // *Procedure constants from configconnect, so adding or renaming an RPC in
@@ -197,6 +193,26 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Verify credentials", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/VerifyCredentials -H 'Content-Type: application/json' -d '{}'"},
 		},
+	},
+	{
+		ID:          "config_bootstrap",
+		Path:        configconnect.ConfigServiceBootstrapCloudflareProcedure,
+		Method:      "POST",
+		Summary:     "Bootstrap Cloudflare tunnel",
+		Description: "Adopts or creates the named Cloudflare tunnel from one operator API token and writes the complete derived credential set only after the connector token is fetched.",
+		Category:    "config",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"api_token": "string (write-only)", "account_id": "string", "tunnel_id": "string", "tunnel_name": "string", "dry_run": "bool",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"account_id": "string", "tunnel_id": "string", "adopted": "bool", "created": "bool", "written": "bool",
+		}},
+		Errors: []module.ErrorDesc{
+			{Status: 401, Code: "unauthenticated", Description: "Operator token required when authz is enforced"},
+			{Status: 403, Code: "permission_denied", Description: "Cloudflare API token lacks the required account permission"},
+			{Status: 500, Code: "internal", Description: "Bootstrap or credential-authority failure"},
+		},
+		Examples: []module.Example{{Name: "Dry-run bootstrap", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/BootstrapCloudflare -H 'Content-Type: application/json' -d @- <<'JSON'\n{\"api_token\":\"<token>\",\"dry_run\":true}\nJSON"}},
 	},
 	{
 		ID:          "config_credentials_set",

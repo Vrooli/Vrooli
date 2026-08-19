@@ -23,6 +23,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
 		"ConfigService.GetConfig":                  h.get,
+		"ConfigService.BootstrapCloudflare":        h.bootstrap,
 		"ConfigService.GetCredentialStatus":        h.credentialsStatus,
 		"ConfigService.SetCloudflareCredentials":   h.credentialsSet,
 		"ConfigService.ClearCloudflareCredentials": h.credentialsClear,

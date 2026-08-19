@@ -61,10 +61,10 @@
     ],
     "arguments": [
       "--no-autoupdate",
+      "--metrics=127.0.0.1:${RESOURCE_PORT_HTTP}",
       "tunnel",
       "run",
-      "--token-file=${RESOURCE_STATE_DIR}/cloudflare-connector-token",
-      "--metrics=127.0.0.1:${RESOURCE_PORT_HTTP}"
+      "--token-file=${RESOURCE_STATE_DIR}/cloudflare-connector-token"
     ],
     "shutdown": {"signal": "terminate"}
   },
@@ -86,8 +86,18 @@
     "windows": "supported"
   },
   "ports": [
-    {"name": "http", "container": 20241, "host": 20241}
+    {"name": "http", "container": 20242, "host": 20242}
   ],
+  "environment_exports": {
+    "from_ports": {
+      "CLOUDFLARED_METRICS_PORT": "http"
+    },
+    "derived": {
+      "CLOUDFLARED_METRICS_URL": {
+        "template": "http://127.0.0.1:${CLOUDFLARED_METRICS_PORT}"
+      }
+    }
+  },
   "orchestration": {
     "startup_order": 850,
     "startup_timeout_seconds": 45,

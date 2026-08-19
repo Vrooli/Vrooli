@@ -6,6 +6,7 @@ import (
 
 	db "github.com/vrooli/api-core/databasetest"
 	"tunnel-manager/internal/config"
+	internaltunnel "tunnel-manager/internal/tunnel"
 
 	"github.com/stretchr/testify/require"
 
@@ -19,7 +20,7 @@ func newRepo(t *testing.T) config.ConfigRepository {
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
-		apidb.SchemaProviderFunc(config.Schema),
+		apidb.SchemaProviderFunc(internaltunnel.Schema),
 	))
 	return config.NewSQLiteRepository(d)
 }

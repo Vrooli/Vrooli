@@ -26,7 +26,12 @@ func (a preflightDestinations) DestinationForRun(ctx context.Context, id string)
 	if err != nil {
 		return preflight.Destination{}, err
 	}
-	return preflight.Destination{ID: d.ID, Name: d.Name}, nil
+	return preflight.Destination{
+		ID:          d.ID,
+		Name:        d.Name,
+		BackendKind: d.BackendKind,
+		Location:    d.Location,
+	}, nil
 }
 
 func (s *service) runPreflight(ctx context.Context, plan PlanForRun) preflight.Result {
@@ -39,6 +44,7 @@ func (s *service) runPreflight(ctx context.Context, plan PlanForRun) preflight.R
 		Sources:          s.deps.Sources,
 		Clock:            clk,
 		CheckSourcePaths: s.deps.PreflightSourcePaths,
+		Readiness:        s.deps.Readiness,
 	})
 	// Last-known-good is historical evidence, not a readiness probe. Attach
 	// the oldest known successful target backup to each grouped incident so a

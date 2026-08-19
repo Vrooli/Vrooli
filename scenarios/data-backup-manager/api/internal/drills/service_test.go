@@ -31,6 +31,7 @@ type fakeRestores struct{ done chan struct{} }
 func (f fakeRestores) VerifyTarget(context.Context, string, string, string) (drills.Restore, error) {
 	return drills.Restore{ID: "restore-1", Status: "requested"}, nil
 }
+
 func (f fakeRestores) GetRestore(context.Context, string) (drills.Restore, error) {
 	select {
 	case <-f.done:

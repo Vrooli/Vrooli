@@ -115,9 +115,6 @@ func (s *ResourceDataScanner) Scan(ctx context.Context) ([]TargetCandidate, erro
 			}
 			locator, resolveErr := storage.ResolveOwnerStoragePath(s.repoRoot, owner, entry, platform, s.platformSeams)
 			if resolveErr != nil {
-				if _, notApplicable := resolveErr.(*storage.NotApplicable); notApplicable {
-					continue
-				}
 				// Inventory already records declaration-level failures. A path
 				// that cannot be resolved at scan time is not a safe target.
 				continue

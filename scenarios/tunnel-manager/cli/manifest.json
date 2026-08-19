@@ -263,6 +263,27 @@
           }
         },
         {
+          "name": "bootstrap",
+          "description": "Adopt or create the named Cloudflare tunnel from one API token, then store all derived credentials",
+          "flags": [
+            {"name": "api-token-stdin", "bool": true, "description": "Read the Cloudflare API token from standard input; never place it in argv or shell history"},
+            {"name": "account-id", "description": "Optional account id when the token can access multiple accounts"},
+            {"name": "tunnel-id", "description": "Optional existing tunnel id to adopt"},
+            {"name": "tunnel-name", "description": "Tunnel name to adopt or create (default vrooli)"},
+            {"name": "dry-run", "bool": true, "description": "Discover the adoption/create plan without writing credentials or creating a tunnel"}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "BootstrapCloudflare"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:external", "admin"]
+          }
+        },
+        {
           "name": "credentials-status",
           "description": "Show Cloudflare credential readiness without printing secret values (use --verify for LIVE scope checks)",
           "flags": [
@@ -299,8 +320,9 @@
               "description": "Managed Cloudflare tunnel id"
             },
             {
-              "name": "api-token",
-              "description": "Cloudflare API token (write-only; prefer UI setup to avoid shell history)"
+              "name": "api-token-stdin",
+              "bool": true,
+              "description": "Read the Cloudflare API token from standard input"
             }
           ],
           "binding": {

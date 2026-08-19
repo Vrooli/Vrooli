@@ -58,7 +58,7 @@ are planned inputs, not currently part of `probes.Classify`.
 
 | Classification | Recovery action |
 |---|---|
-| `tunnel-down` | `sudo systemctl reset-failed cloudflared` (non-fatal) then `sudo systemctl restart cloudflared` via the `cmdrunner`/systemd seam, with exponential backoff + circuit breaker. Gated on cloudflared-unit presence. Tunnel Manager is the **single authoritative owner** of this restart ([`DECISIONS.md`](DECISIONS.md)). |
+| `tunnel-down` | Request `vrooli resource restart cloudflared` through the control-plane lifecycle, with exponential backoff + circuit breaker. Gated on managed-resource presence. Tunnel Manager is the **single authoritative owner** of this request ([`DECISIONS.md`](DECISIONS.md)). |
 | `scenario-down` | Ensure the scenario is running via the lifecycle seam (delegate, never reimplement); do **not** restart cloudflared. |
 | `cloudflare-outage` | Planned: do not actuate — alert/record only; restarting local infra cannot fix an upstream outage. |
 | `dns-failure` | Planned: surface a config/DNS error to the operator; do not restart cloudflared. |
@@ -77,19 +77,18 @@ fails safe across its own failure topography.
 
 | Failure mode | Scope / frequency / impact | Current behaviour (fail-safe) |
 |---|---|---|
-| **cloudflared down (`/ready` ≠ 200)** | systemic / common / high | After 3 consecutive ready-failures (~3 min), recovery runs `reset-failed` + `restart` and polls `/ready`. Success → `recovery_events` `outcome=success`, counters reset. The 3-failure threshold lets systemd's own `Restart=on-failure` win the *fast crash* case first (they layer, never duel). |
-| **systemd start-limit exhausted** (cloudflared flapped past `StartLimitBurst=5`) | systemic / rare / high | A bare `systemctl restart` is *rejected* here. The `reset-failed` issued first clears the start-limit so the restart can succeed — this is the precise gap TM covers over systemd. `reset-failed`'s own failure (healthy unit, nothing to reset) is non-fatal and recorded in the event `Details`. |
+| **cloudflared down (`/ready` ≠ 200)** | systemic / common / high | After 3 consecutive ready-failures (~3 min), recovery requests a managed-resource restart and polls `/ready`. Success → `recovery_events` `outcome=success`, counters reset. The control plane owns any platform-specific fast-crash or start-limit handling. |
+| **managed-resource restart cannot start** | systemic / rare / high | The control-plane lifecycle returns a typed restart error. Recovery records the failure, arms exponential backoff, and eventually opens the circuit; tunnel-manager does not bypass the lifecycle with a direct host-service command. |
 | **restart issued but tunnel never recovers** | systemic / occasional / high | After `ReadyPollAttempts` the attempt is `outcome=failure`; backoff arms (30s→15m), and after 5 failed recoveries the **circuit breaker opens** for a 1h cooldown so TM does not storm-restart a genuinely broken host. Operator clears with `recovery run --force true` once root cause is fixed. |
-| **no cloudflared unit on the host** | local / situational / none | The `UnitPresence` self-gate short-circuits `Evaluate()` *before* any failure is counted: status stays idle, no restart, circuit never opens, and a single `recovery dormant` line is logged. A cloudflared installed later is picked up on the next tick. |
-| **cloudflared lacks `--metrics`** (`/ready` always-fails) | systemic / rare / medium | The unit is present so the gate passes, but `/ready` never returns 200 → 3 fails → restart → still not ready → backoff → circuit. Recovery cannot manufacture readiness; flagged as a RUNBOOK precondition (enable metrics). |
-| **non-interactive sudo unavailable** (grant missing) | local / one-time / high | The restart errors (`sudo` would prompt); the attempt is `outcome=failure`. The fix is provisioning, not runtime: `sudo vrooli setup` applies the `cloudflared_recovery_privileges` sudoers grant once. |
+| **no cloudflared managed resource on the host** | local / situational / none | The `UnitPresence` self-gate short-circuits `Evaluate()` *before* any failure is counted: status stays idle, no restart, circuit never opens, and a single `recovery dormant` line is logged. A cloudflared resource registered later is picked up on the next tick. |
+| **cloudflared lacks `--metrics`** (`/ready` always-fails) | systemic / rare / medium | The managed resource is present so the gate passes, but `/ready` never returns 200 → 3 fails → restart → still not ready → backoff → circuit. Recovery cannot manufacture readiness; the resource manifest must keep its exported metrics listener enabled. |
+| **control-plane lifecycle unavailable** | local / one-time / high | The restart returns an error and the attempt is `outcome=failure`. The fix is control-plane/resource setup and authorization, not a direct host-service command from tunnel-manager. |
 
-**Layering with systemd `Restart=on-failure`:** systemd restarts cloudflared
-on a *non-zero exit / crash* within seconds. TM's recovery waits for 3
-consecutive `/ready` failures, so it does **not** race systemd on fast
-crashes; it acts only on the slow / hung / connected-but-unhealthy /
-flap-exhausted cases systemd's exit-code-only policy cannot see. The two are
-complementary, not redundant.
+**Layering with the control plane:** the resource supervisor owns process
+restart semantics. TM's recovery waits for 3 consecutive `/ready` failures,
+then requests one managed-resource restart; it does not create a second host
+supervisor. Backoff and the circuit breaker bound repeated requests while the
+control plane remains the single owner of platform-specific actuation.
 
 ## Connect Error Codes — Product Domains
 

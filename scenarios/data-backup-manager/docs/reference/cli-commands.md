@@ -162,6 +162,13 @@ raw mount root. `prepare-execute` is marked destructive governance and is
 not prompt-manager runnable; real non-dry-run execution requires the
 server-side plan identity checks and confirmation phrase to pass.
 
+On startup, the manager reconciles legacy destination credential references to
+the canonical credential-authority identity (`vrooli/kopia/<name>` plus
+`repository-passphrase`). For filesystem bundles it first verifies the
+destination manifest identity, then refreshes only the generated manifest and
+`RECOVERY.txt`. A read-only destination remains usable for inspection and is
+reported as a pending migration; it is retried after the volume is writable.
+
 ### `data-backup-manager discovery ...`
 
 Onboarding suggestions, discovered read-only from the local environment.

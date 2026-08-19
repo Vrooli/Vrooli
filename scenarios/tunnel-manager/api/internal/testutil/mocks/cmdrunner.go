@@ -15,7 +15,7 @@ type CmdCall struct {
 
 // FakeCmdRunner is the testutil counterpart to cmdrunner.Default. It
 // records every invocation and returns a scripted output/error so tests
-// assert the exact argv (e.g. "systemctl restart cloudflared") and drive
+// assert the exact argv (e.g. "resource restart cloudflared") and drive
 // failure paths without shelling out to the host.
 type FakeCmdRunner struct {
 	mu sync.Mutex

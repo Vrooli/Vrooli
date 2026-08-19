@@ -5,7 +5,9 @@ import (
 	"errors"
 	"testing"
 
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
+	"data-backup-manager/internal/failures"
 	"data-backup-manager/internal/sources"
 )
 
@@ -29,6 +31,15 @@ func (l destLookup) DestinationForRun(_ context.Context, id string) (Destination
 	return d, nil
 }
 
+type readinessFake struct {
+	report destinationreadiness.Report
+	err    error
+}
+
+func (f readinessFake) Analyze(context.Context, destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error) {
+	return f.report, f.err
+}
+
 type engineFake struct {
 	statusCalls int
 	statusErr   error
@@ -47,6 +58,7 @@ func (e *engineFake) RepoDelete(context.Context, string) error { return nil }
 func (e *engineFake) SnapshotCreate(context.Context, string, string, engine.SnapshotMetadata) (engine.Snapshot, error) {
 	return engine.Snapshot{}, nil
 }
+
 func (e *engineFake) SnapshotList(context.Context, string, string) ([]engine.Snapshot, error) {
 	return nil, nil
 }
@@ -88,6 +100,32 @@ func TestCheckGroupsOneSharedCredentialFailure(t *testing.T) {
 	}
 	if got := r.Summary(); got == "" || len(got) > 300 {
 		t.Fatalf("summary should be bounded and useful: %q", got)
+	}
+}
+
+func TestCheckBlocksReadOnlyFilesystemBeforeCapture(t *testing.T) {
+	registry := sources.NewRegistry(&captureFake{kind: sources.KindFilesystem})
+	r := Check(context.Background(), Input{
+		Plan: Plan{TargetIDs: []string{"t1"}, DestinationIDs: []string{"d1"}},
+		Targets: targetLookup{targets: map[string]Target{
+			"t1": {ID: "t1", Kind: sources.KindFilesystem},
+		}},
+		Destinations: destLookup{destinations: map[string]Destination{
+			"d1": {ID: "d1", Name: "primary", BackendKind: "filesystem", Location: "/mnt/elements"},
+		}},
+		Engine: &engineFake{}, Sources: registry,
+		Readiness: readinessFake{report: destinationreadiness.Report{
+			OverallSeverity: destinationreadiness.SeverityFail,
+			Checks: []destinationreadiness.CheckResult{{
+				Code: "mounted_read_write", Severity: destinationreadiness.SeverityFail,
+			}},
+		}},
+	})
+	if r.Ready || !r.Blocked {
+		t.Fatalf("preflight posture = ready=%v blocked=%v", r.Ready, r.Blocked)
+	}
+	if len(r.Incidents) != 1 || r.Incidents[0].Code != failures.DestinationReadOnly {
+		t.Fatalf("incidents = %+v, want destination_read_only", r.Incidents)
 	}
 }
 

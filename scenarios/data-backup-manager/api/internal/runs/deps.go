@@ -58,8 +58,10 @@ type ActiveTargetLookup interface {
 // DestinationForRun is the slice of a destination the runner needs to snapshot
 // into it. Name is the kopia repository name.
 type DestinationForRun struct {
-	ID   string
-	Name string
+	ID          string
+	Name        string
+	BackendKind string
+	Location    string
 }
 
 // DestinationLookup resolves a destination and enforces its storage cap.

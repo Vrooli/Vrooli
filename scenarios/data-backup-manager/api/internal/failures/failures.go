@@ -100,7 +100,9 @@ func Classify(err error) Cause {
 	case strings.Contains(text, "credential is not configured"), strings.Contains(text, "passphrase") && strings.Contains(text, "not configured"):
 		c.Code, c.Category, c.Scope = CredentialMissing, CategoryCredential, ScopeDestination
 		c.Message, c.NextAction = "repository credential is unavailable", "restore the repository credential in the credential authority, then run readiness again"
-	case strings.Contains(text, "credential"), strings.Contains(text, "secret") && strings.Contains(text, "read"):
+	case strings.Contains(text, "credential authority"),
+		strings.Contains(text, "read repository passphrase"),
+		strings.Contains(text, "repository credential"):
 		c.Code, c.Category, c.Scope = CredentialUnreadable, CategoryCredential, ScopeDestination
 		c.Message, c.NextAction = "repository credential could not be read", "restore credential-authority access and retry readiness"
 	case strings.Contains(text, "read-only"), strings.Contains(text, "read only"):

@@ -178,7 +178,7 @@ classify (probes): healthy | tunnel-down | scenario-down | config-drift
   ▼
 if circuit breaker OPEN → alert only, do not act
 else select action by class:
-    tunnel-down / HA=0   → restart cloudflared (systemctl)
+    tunnel-down / HA=0   → restart cloudflared (Vrooli resource lifecycle)
     config-drift         → re-push ingress (config Sync)
     scenario-down        → defer to exposure/lifecycle, not a tunnel restart
   │

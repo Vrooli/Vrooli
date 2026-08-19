@@ -120,7 +120,7 @@ method satisfies.
 
 | RPC | Purpose |
 |---|---|
-| `GetStatus` | Read cloudflared systemd status + `/ready` + degraded-mode signal. |
+| `GetStatus` | Read managed cloudflared resource status + `/ready` + degraded-mode signal. |
 | `ListMetrics` | Time-series metrics from the `metrics` table. |
 | `Scrape` | Scrape current cloudflared metrics and persist the sample. |
 

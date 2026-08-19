@@ -1026,14 +1026,14 @@ of the recovery engine MUST drive the `FakeCommandRunner` and
 `FakeCloudflareAPI` seams (see [`SEAMS.md`](SEAMS.md)) and assert on
 recorded invocations:
 
-- ✅ Assert "recovery issued `systemctl restart cloudflared` exactly
+- ✅ Assert "recovery issued `vrooli resource restart cloudflared` exactly
   once, then backed off, then circuit-broke after N attempts" against
   the fake's recorded argv log.
 - ✅ Drive failure classification with `FakeProber` / `FakeMetricsSource`
   canned results so every classification → action mapping is reached.
-- ❌ **Never** let a test invoke a real `systemctl restart`, push real
-  Cloudflare ingress, or probe a real public URL. Restarting host
-  cloudflared from a test would take down remote access for the whole
+- ❌ **Never** let a test invoke a real managed-resource restart, push real
+  Cloudflare ingress, or probe a real public URL. Restarting the managed
+  cloudflared resource from a test would take down remote access for the whole
   Vrooli instance — the exact blast radius the circuit breaker exists to
   bound (see [`SECURITY.md`](SECURITY.md)). The seams make the live path
   unreachable from tests by construction.

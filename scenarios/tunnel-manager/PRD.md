@@ -29,7 +29,7 @@
 - [x] OT-P0-005 | Exposure-request API | Other scenarios (and the operator) can request exposure of a scenario via API ("expose me, I'll be used soon")
 - [x] OT-P0-006 | Ensure-running delegation | When exposing a scenario, ensure it is running via the existing `internal/lifecycle` seam; Tunnel Manager does not reimplement lifecycle/process management
 - [x] OT-P0-007 | Port-compliance auditor | Verify each exposed scenario declares a fixed UI port in `service.json` matching the manifest; report violations
-- [x] OT-P0-008 | Tunnel health monitor | Monitor cloudflared via systemd status, Prometheus metrics endpoint, and `/ready`
+- [x] OT-P0-008 | Tunnel health monitor | Monitor the managed cloudflared resource, Prometheus metrics endpoint, and `/ready`
 - [x] OT-P0-009 | Internal liveness probes | HTTP-probe each exposed route's local port to verify the scenario is listening
 - [x] OT-P0-010 | External liveness probes | HTTP-probe each exposed route via its public URL to verify end-to-end connectivity
 - [x] OT-P0-011 | Auto-recovery engine (live) | Automatically restart cloudflared / re-push config on `/ready` failure or HA-connections=0, with exponential backoff + circuit breaker; Tunnel Manager is the single authoritative owner of cloudflared restart
@@ -60,13 +60,13 @@
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API on **Connect-RPC** (proto contracts under `packages/proto/schemas/tunnel-manager`), React + Vite + Tailwind UI (vrooli-default design kit), Go CLI via `cli-core`/`cliapp.ArgSchema`. Screaming-architecture domains: `routes`, `audit`, `tunnel`, `probes`, `recovery`, `config`, `exposure` (+ `health`).
 - Data + storage expectations: **SQLite only** (manifest, leases, metrics history, probe history, recovery log). No external database — foundational infra must keep working when other resources are down.
-- Integration strategy: Cloudflare API v4 for remote ingress config; scrape cloudflared Prometheus endpoint (default `127.0.0.1:20241`); read scenario `service.json` for port auditing; `api-core/coreset` for the core set; `internal/lifecycle` for ensure-running; `systemctl` for cloudflared service management.
+- Integration strategy: Cloudflare API v4 for remote ingress config; scrape the endpoint exported by the managed cloudflared resource (standalone fallback `127.0.0.1:20241`); read scenario `service.json` for port auditing; `api-core/coreset` for the core set; `internal/lifecycle` for ensure-running; the Vrooli control plane for cloudflared service management.
 - Non-goals / guardrails: will NOT reimplement scenario lifecycle (delegates to `internal/lifecycle`); will NOT replace app-monitor's reverse proxy (stays in `packages/api-base`; only the new-tab feature integrates); will NOT manage cloudflared installation (setup handles it); will NOT replace vrooli-autoheal — autoheal's cloudflared check downgrades to alert-only but remains as defense-in-depth.
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: none (SQLite, self-contained).
 - Optional resources: `redis` (UI pub/sub for real-time updates; fallback to HTTP polling).
-- External dependencies: `cloudflared` daemon (systemd); Cloudflare API token (remote mode only).
+- External dependencies: Vrooli-managed `cloudflared` resource; Cloudflare API token (remote mode only).
 - Scenario dependencies (runtime seams, not hard deps): `packages/api-core/coreset` (core set), `internal/lifecycle` (ensure-running).
 - Operational risks: live auto-recovery acting on foundational infra (mitigated by circuit breaker + single-owner restart contract with vrooli-autoheal); hostname-budget exhaustion (mitigated by tiering and, later, budget management/LRU eviction); Tunnel Manager must itself declare a fixed UI port — the very contract it enforces on others.
 - Launch sequencing: (1) CLI + API first, then the dashboard; (2) seed core-tier exposure; (3) enable leasing; (4) confirm the real Cloudflare hostname cap against the live plan; (5) flip vrooli-autoheal's cloudflared check to alert-only.

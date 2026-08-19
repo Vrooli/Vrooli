@@ -244,11 +244,11 @@ and use matrix/trace helpers from the relevant testutil package.
 
 | | |
 |---|---|
-| **Seam** | "Is there a cloudflared systemd unit to manage on this host?" |
-| **Interface** | `internal/recovery/presence.go::UnitPresence` (`CloudflaredUnitPresent(ctx) bool`) — declared at the recovery consumer so the engine never imports a host/systemd package directly (same discipline as `HealthChecker`). |
-| **Production wiring** | `recovery.NewSystemctlUnitPresence(cmdrunner.Default)`, wired in `handlers/recovery/module.go::NewProductionService`. Runs `systemctl list-unit-files --no-pager --no-legend cloudflared.service` and matches a non-empty line (catches units under both `/etc/systemd/system` and `/lib/systemd/system`). |
+| **Seam** | "Is there a Vrooli-managed cloudflared resource to manage on this host?" |
+| **Interface** | `internal/recovery/presence.go::UnitPresence` (`CloudflaredUnitPresent(ctx) bool`) — declared at the recovery consumer so the engine never imports a host-supervisor package directly (same discipline as `HealthChecker`). |
+| **Production wiring** | `recovery.NewControlPlaneLifecycle(cmdrunner.Default)`, wired in `handlers/recovery/module.go::NewProductionService`. Queries `vrooli resource status cloudflared --format json` and treats an installed or running managed resource as present. |
 | **Test fake** | `fakePresence{present: bool}` / `togglePresence` in `internal/recovery/service_test.go`; `NewService` also accepts `nil` (treated as always-present) for tests exercising the restart/backoff paths that don't care about the gate. |
-| **Why it exists** | Default-on recovery must stay dormant on a tunnel-less host — without the gate it would count `/ready` failures forever and flap a restart that can't help, eventually opening the circuit spuriously. Consulted at the **top of every `Evaluate()`** (not boot-time only) so a cloudflared installed after the scenario started is picked up on the next tick. The gate is unit **presence**, not live `/ready`, because readiness is false exactly when recovery is most needed. The `cloudflared_recovery_privileges` safeguard mirrors this same presence check at the host-provisioning layer. |
+| **Why it exists** | Default-on recovery must stay dormant on a tunnel-less host — without the gate it would count `/ready` failures forever and request restarts that cannot help, eventually opening the circuit spuriously. Consulted at the **top of every `Evaluate()`** (not boot-time only) so a cloudflared resource registered after the scenario started is picked up on the next tick. The gate is resource **presence**, not live `/ready`, because readiness is false exactly when recovery is most needed. |
 
 ## Product Seams
 
@@ -274,7 +274,7 @@ and use matrix/trace helpers from the relevant testutil package.
 > Tunnel Manager actuates live infrastructure (cloudflared, the Cloudflare
 > API, other scenarios' run state), so almost every product seam exists to
 > keep those side effects out of the test path entirely — no test touches
-> real cloudflared, the real Cloudflare API, or systemd. See
+> real cloudflared, the real Cloudflare API, or the host supervisor. See
 > [`DECISIONS.md`](DECISIONS.md) (auto-recovery LIVE) for why this
 > discipline is load-bearing.
 
@@ -298,21 +298,21 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/exposure/scheduler_test.go` uses a fake `Service` plus an injected tick channel to prove boot reconcile, periodic reconcile, retry-after-error, and context cancellation without sleeps or live Cloudflare calls. |
 | **Why it exists** | CORE routes and expired leases are temporal guarantees, not only manual RPCs. Keeping the scheduler on the exposure service seam makes it idempotent, serial, cancellable, and independent of HTTP transport while reusing the same config/ingress wiring as operator-triggered reconcile. OT-P0-003, OT-P0-004. |
 
-### Systemd / process-exec (`tunnel` + `recovery` domains)
+### Control-plane process lifecycle (`tunnel` + `recovery` domains)
 
 | | |
 |---|---|
-| **Seam** | Out-of-process command execution against the cloudflared systemd unit (`systemctl status/restart cloudflared`) and any cloudflared invocation |
+| **Seam** | Out-of-process control-plane command execution for the managed cloudflared resource (`vrooli resource status/restart cloudflared`) and any cloudflared invocation |
 | **Interface** | `internal/cmdrunner.Runner`, a function seam `func(context.Context, string, ...string) (Result, error)` returning exit code, stdout, and stderr. |
-| **Production wiring** | `handlers/recovery.NewProductionService` constructs the recovery engine over `cmdrunner.Default`. `api/main.go` constructs one recovery service and shares it between `RecoveryService` and the optional recovery scheduler. A real restart is issued only through `recovery.Service` after threshold/backoff/circuit checks. |
+| **Production wiring** | `handlers/recovery.NewProductionService` constructs the recovery engine over `cmdrunner.Default`. `api/main.go` constructs one recovery service and shares it between `RecoveryService` and the optional recovery scheduler. A managed-resource restart is requested only through `recovery.Service` after threshold/backoff/circuit checks. |
 | **Test fake** | `internal/testutil/mocks::FakeCmdRunner` records invocations and injects command errors. |
-| **Why it exists** | A test must NEVER restart real cloudflared — that is foundational infra for the whole host. The seam makes "on `/ready` failure → restart with backoff → circuit-break after N attempts" fully assertable against recorded fake invocations. Background recovery evaluation is opt-in with `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`; manual recovery remains available. OT-P0-008, OT-P0-011. |
+| **Why it exists** | A test must NEVER restart real cloudflared — that is foundational infra for the whole host. The seam makes "on `/ready` failure → managed-resource restart with backoff → circuit-break after N attempts" fully assertable against recorded fake invocations. Background recovery evaluation is default-on and can be disabled with `TUNNEL_MANAGER_RECOVERY_SCHEDULER_DISABLED`; manual recovery remains available. OT-P0-008, OT-P0-011. |
 
 ### Prometheus-scrape HTTP (`tunnel` domain)
 
 | | |
 |---|---|
-| **Seam** | Read of cloudflared's Prometheus metrics endpoint (default `127.0.0.1:20241/metrics`) and the `/ready` endpoint |
+| **Seam** | Read of the managed cloudflared resource's exported Prometheus metrics endpoint (standalone fallback `127.0.0.1:20241/metrics`) and the `/ready` endpoint |
 | **Interface** | The `internal/tunnel` service reads `/ready` and Prometheus text-format metrics through `internal/httpc.Doer`, then parses them into domain metrics. |
 | **Production wiring** | `handlers/tunnel/module.go::Module(...)` constructs the service over a timeout-bounded real HTTP client and the configured Prometheus endpoint from `tunnel_config`. |
 | **Test fake** | `internal/testutil/mocks::FakeDoer` supplies canned Prometheus text-format bodies and `/ready` responses. |
@@ -334,8 +334,8 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Boot + periodic recovery evaluation. |
 | **Interface** | `internal/recovery/scheduler.go::Scheduler`, configured with the existing `recovery.Service` interface and an injectable tick channel (`SchedulerConfig.Ticks`) for tests. |
-| **Production wiring** | `api/main.go` constructs one recovery service via `handlers/recovery.NewProductionService`, mounts that same service in `ModuleWithService`, and starts `Scheduler.Run` only when `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED` is truthy. Cleanup cancels the scheduler and waits for it before closing SQLite. `TUNNEL_MANAGER_RECOVERY_EVALUATE_INTERVAL` controls cadence. |
-| **Test fake** | `internal/recovery/scheduler_test.go` uses a fake `Service` plus an injected tick channel to prove boot evaluation, periodic evaluation, retry-after-error, action logging, and context cancellation without sleeps or systemd. |
+| **Production wiring** | `api/main.go` constructs one recovery service via `handlers/recovery.NewProductionService`, mounts that same service in `ModuleWithService`, and starts `Scheduler.Run` unless `TUNNEL_MANAGER_RECOVERY_SCHEDULER_DISABLED` is truthy. Cleanup cancels the scheduler and waits for it before closing SQLite. `TUNNEL_MANAGER_RECOVERY_EVALUATE_INTERVAL` controls cadence. |
+| **Test fake** | `internal/recovery/scheduler_test.go` uses a fake `Service` plus an injected tick channel to prove boot evaluation, periodic evaluation, retry-after-error, action logging, and context cancellation without sleeps or host supervision. |
 | **Why it exists** | Recovery evaluation is temporal but potentially destructive. Keeping it behind the service seam makes the scheduler lifecycle-owned and testable while leaving all restart decisions to the engine's threshold/backoff/circuit policy. OT-P0-011. |
 
 ### Clock (leases TTL + backoff)

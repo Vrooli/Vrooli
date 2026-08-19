@@ -68,7 +68,7 @@ func (h *fakeHealth) Ready(context.Context) bool {
 func noopSleep(time.Duration) {}
 
 // fakePresence is the injected UnitPresence seam. present=true mirrors a
-// host that has cloudflared.service (the default for every test that
+// host that has the managed cloudflared resource (the default for every test that
 // exercises recovery actuation); present=false drives the dormant self-gate.
 type fakePresence struct{ present bool }
 
@@ -77,7 +77,7 @@ func (f fakePresence) CloudflaredUnitPresent(context.Context) bool { return f.pr
 func newEngine(t *testing.T, health *fakeHealth, runner *mocks.FakeCmdRunner, repo *fakeRepo, cfg recovery.Config) recovery.Service {
 	t.Helper()
 	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
-	return recovery.NewService(repo, health, fakePresence{present: true}, runner.Run, clk, cfg, noopSleep)
+	return recovery.NewService(repo, health, fakePresence{present: true}, recovery.NewControlPlaneLifecycle(runner.Run), clk, cfg, noopSleep)
 }
 
 func TestRecover_SuccessRestartsAndResets(t *testing.T) {
@@ -91,11 +91,8 @@ func TestRecover_SuccessRestartsAndResets(t *testing.T) {
 	require.Equal(t, recovery.OutcomeSuccess, outcome)
 	require.Equal(t, recovery.TriggerManual, evt.Trigger)
 	require.Equal(t, recovery.ActionRestart, evt.Action)
-	// reset-failed precedes restart so recovery survives systemd's
-	// StartLimitBurst exhaustion (the case TM adds value over systemd).
-	require.Equal(t, 2, runner.CallCount(), "reset-failed then restart")
-	require.Equal(t, []string{"systemctl", "reset-failed", "cloudflared"}, runner.Calls[0].Args)
-	require.Equal(t, []string{"systemctl", "restart", "cloudflared"}, runner.Calls[1].Args)
+	require.Equal(t, 1, runner.CallCount(), "one managed-service restart")
+	require.Equal(t, []string{"resource", "restart", "cloudflared"}, runner.Calls[0].Args)
 
 	state, _ := svc.GetState(context.Background())
 	require.Equal(t, recovery.StatusIdle, state.Status)
@@ -139,10 +136,10 @@ func TestRecover_CircuitOpensAfterMaxFailures(t *testing.T) {
 	require.Equal(t, recovery.OutcomeSkipped, outcome)
 	require.Equal(t, restartsBefore, runner.CallCount(), "no restart while circuit open")
 
-	// Force bypasses the breaker and restarts (reset-failed + restart = 2).
+	// Force bypasses the breaker and requests one managed-service restart.
 	_, _, err = svc.Recover(context.Background(), true)
 	require.NoError(t, err)
-	require.Equal(t, restartsBefore+2, runner.CallCount())
+	require.Equal(t, restartsBefore+1, runner.CallCount())
 }
 
 func TestRecover_IdempotentWhileInFlight(t *testing.T) {
@@ -154,7 +151,7 @@ func TestRecover_IdempotentWhileInFlight(t *testing.T) {
 	release := make(chan struct{})
 	health := &gatedHealth{gate: release}
 	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
-	svc := recovery.NewService(repo, health, fakePresence{present: true}, runner.Run, clk, recovery.Config{ReadyPollAttempts: 100}, noopSleep)
+	svc := recovery.NewService(repo, health, fakePresence{present: true}, recovery.NewControlPlaneLifecycle(runner.Run), clk, recovery.Config{ReadyPollAttempts: 100}, noopSleep)
 
 	var firstOutcome recovery.EventOutcome
 	done := make(chan struct{})
@@ -172,7 +169,7 @@ func TestRecover_IdempotentWhileInFlight(t *testing.T) {
 	close(release)
 	<-done
 	require.Equal(t, recovery.OutcomeSuccess, firstOutcome)
-	require.Equal(t, 2, runner.CallCount(), "twice == once: a single recovery attempt (reset-failed + restart), not two")
+	require.Equal(t, 1, runner.CallCount(), "twice == once: a single recovery attempt, not two")
 }
 
 func TestListEvents_RejectsNegativeLimit(t *testing.T) {
@@ -200,7 +197,7 @@ func TestEvaluate_TriggersAfterThreshold(t *testing.T) {
 	_, acted, err := svc.Evaluate(context.Background())
 	require.NoError(t, err)
 	require.True(t, acted)
-	require.Equal(t, 2, runner.CallCount(), "reset-failed then restart")
+	require.Equal(t, 1, runner.CallCount(), "one managed-service restart")
 }
 
 func TestEvaluate_DormantWhenNoCloudflaredUnit(t *testing.T) {
@@ -211,7 +208,7 @@ func TestEvaluate_DormantWhenNoCloudflaredUnit(t *testing.T) {
 	// before any of that.
 	health := &fakeHealth{ready: false}
 	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
-	svc := recovery.NewService(repo, health, fakePresence{present: false}, runner.Run, clk, recovery.Config{ConsecutiveFailures: 1}, noopSleep)
+	svc := recovery.NewService(repo, health, fakePresence{present: false}, recovery.NewControlPlaneLifecycle(runner.Run), clk, recovery.Config{ConsecutiveFailures: 1}, noopSleep)
 
 	for i := 0; i < 5; i++ {
 		evt, acted, err := svc.Evaluate(context.Background())
@@ -237,7 +234,7 @@ func TestEvaluate_ResumesWhenUnitAppears(t *testing.T) {
 	// Presence flips to true after the first probe — a cloudflared installed
 	// after the scenario started must be picked up on the next tick.
 	presence := &togglePresence{}
-	svc := recovery.NewService(repo, health, presence, runner.Run, clk, recovery.Config{}, noopSleep)
+	svc := recovery.NewService(repo, health, presence, recovery.NewControlPlaneLifecycle(runner.Run), clk, recovery.Config{}, noopSleep)
 
 	_, acted, err := svc.Evaluate(context.Background())
 	require.NoError(t, err)
@@ -252,43 +249,30 @@ func TestEvaluate_ResumesWhenUnitAppears(t *testing.T) {
 	require.Equal(t, recovery.StatusIdle, state.Status)
 }
 
-func TestExecuteRecovery_ResetFailedIsNonFatal(t *testing.T) {
+func TestExecuteRecovery_UsesManagedLifecycle(t *testing.T) {
 	repo := &fakeRepo{}
-	// reset-failed errors (e.g. nothing to reset) but restart succeeds; the
-	// attempt must still report success.
-	runner := &mocks.FakeCmdRunner{ErrFn: func(_ string, args []string) error {
-		if len(args) >= 2 && args[1] == "reset-failed" {
-			return errors.New("cloudflared.service: no such unit to reset")
-		}
-		return nil
-	}}
+	runner := &mocks.FakeCmdRunner{}
 	health := &fakeHealth{ready: true}
 	svc := newEngine(t, health, runner, repo, recovery.Config{})
 
 	outcome, evt, err := svc.Recover(context.Background(), false)
 	require.NoError(t, err)
-	require.Equal(t, recovery.OutcomeSuccess, outcome, "failing reset-failed does not abort recovery")
-	require.Equal(t, []string{"systemctl", "reset-failed", "cloudflared"}, runner.Calls[0].Args)
-	require.Equal(t, []string{"systemctl", "restart", "cloudflared"}, runner.Calls[1].Args)
-	require.Contains(t, evt.Details, "reset-failed non-fatal", "the non-fatal reset is recorded for forensics")
+	require.Equal(t, recovery.OutcomeSuccess, outcome)
+	require.Equal(t, []string{"resource", "restart", "cloudflared"}, runner.Calls[0].Args)
+	require.Contains(t, evt.Details, "managed-service")
 }
 
 func TestExecuteRecovery_RestartFailureIsFatal(t *testing.T) {
 	repo := &fakeRepo{}
-	// reset-failed succeeds, restart fails — the recovery fails.
-	runner := &mocks.FakeCmdRunner{ErrFn: func(_ string, args []string) error {
-		if len(args) >= 2 && args[1] == "restart" {
-			return errors.New("boom")
-		}
-		return nil
-	}}
+	// The managed-resource restart fails — the recovery fails.
+	runner := &mocks.FakeCmdRunner{Err: errors.New("boom")}
 	health := &fakeHealth{ready: false}
 	svc := newEngine(t, health, runner, repo, recovery.Config{})
 
 	outcome, _, err := svc.Recover(context.Background(), false)
 	require.NoError(t, err)
 	require.Equal(t, recovery.OutcomeFailure, outcome)
-	require.Equal(t, 2, runner.CallCount(), "reset-failed attempted before the failing restart")
+	require.Equal(t, 1, runner.CallCount(), "managed-service restart attempted once")
 }
 
 // togglePresence reports its current `present` value; flipping the field

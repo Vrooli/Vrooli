@@ -51,9 +51,9 @@ const (
 )
 
 // ActionRestart is the one action the engine takes today: restart the
-// cloudflared systemd unit. Stored on every event for forward symmetry
+// cloudflared managed resource. Stored on every event for forward symmetry
 // with future actions (e.g. config_repush).
-const ActionRestart = "systemctl_restart"
+const ActionRestart = "managed_service_restart"
 
 // RecoveryState is the live state-machine snapshot returned by GetState.
 type RecoveryState struct {

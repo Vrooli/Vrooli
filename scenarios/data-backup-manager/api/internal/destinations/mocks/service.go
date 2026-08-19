@@ -45,6 +45,8 @@ type FakeService struct {
 	WouldBlockOut     bool
 	WouldBlockReason  string
 	WouldBlockErr     error
+
+	ReconcileErr error
 }
 
 // Compile-time guarantee.
@@ -104,4 +106,8 @@ func (f *FakeService) WouldBlock(_ context.Context, destinationID string, pendin
 		return false, "", f.WouldBlockErr
 	}
 	return f.WouldBlockOut, f.WouldBlockReason, nil
+}
+
+func (f *FakeService) ReconcileCredentialReferences(_ context.Context) error {
+	return f.ReconcileErr
 }

@@ -9,8 +9,10 @@ import (
 	db "github.com/vrooli/api-core/databasetest"
 	"tunnel-manager/internal/config"
 	localdb "tunnel-manager/internal/database"
+	internalexposure "tunnel-manager/internal/exposure"
 	internalroutes "tunnel-manager/internal/routes"
 	"tunnel-manager/internal/testutil/mocks"
+	internaltunnel "tunnel-manager/internal/tunnel"
 
 	"github.com/vrooli/api-core/scheduletest"
 
@@ -23,7 +25,8 @@ func TestNewProductionService_RemoteWiresCloudflareIngress(t *testing.T) {
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(ctx, d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
-		apidb.SchemaProviderFunc(config.Schema),
+		apidb.SchemaProviderFunc(internaltunnel.Schema),
+		apidb.SchemaProviderFunc(internalexposure.Schema),
 		apidb.SchemaProviderFunc(internalroutes.Schema),
 	))
 	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))

@@ -802,6 +802,16 @@ func TestGetConfig_PassesThrough(t *testing.T) {
 	require.Equal(t, config.ModeRemote, got.Mode)
 }
 
+func TestGetConfig_UsesManagedResourceEndpointWhenPersistedValueIsLegacyDefault(t *testing.T) {
+	t.Setenv("TUNNEL_METRICS_URL", "http://127.0.0.1:20242")
+	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote, PromEndpoint: config.DefaultPromEndpoint}}
+	svc := newSvc(repo, &fakeRoutes{}, &fakeIngress{}, &mocks.FakeCmdRunner{})
+
+	got, err := svc.GetConfig(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "127.0.0.1:20242", got.PromEndpoint)
+}
+
 func TestGetConfigState_ReportsLocalReadinessByDefault(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeLocal}}
 	svc := newSvc(repo, &fakeRoutes{}, nil, &mocks.FakeCmdRunner{})

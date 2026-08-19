@@ -20,7 +20,7 @@ Use this document to answer:
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Tier 1 local stack | supported | Vrooli lifecycle, Go, Node/pnpm, SQLite path, `cloudflared` (systemd), Cloudflare API token (remote mode) | Operator-attended live Cloudflare credential validation when deploying remote mode. |
+| Tier 1 local stack | supported | Vrooli lifecycle, Go, Node/pnpm, SQLite path, managed `cloudflared` resource, Cloudflare API token (remote mode) | Operator-attended live Cloudflare credential validation when deploying remote mode. |
 | Desktop/mobile app | deferred | Cross-platform runtime, packaged UI/API, storage resolver | Out of scope; see [Deployment Hub](../../../../docs/deployment/README.md) tiers. |
 | Managed cloud/SaaS | deferred | Hosted runtime, auth, observability, cost model | Foundational infra runs co-located with the host's cloudflared; no hosted target planned. See Deployment Hub. |
 | Enterprise/self-host | deferred | Install docs, backup/restore, support model | Future tier; see Deployment Hub. |
@@ -40,8 +40,8 @@ wherever the local stack and its tunnel daemon run.
   (default `${SCENARIO_DATA_DIR}/tunnel-manager.db`). No external
   database — foundational infra must keep working when other resources
   are down (see DECISIONS: "SQLite only").
-- External daemon: `cloudflared` running under systemd (installed by
-  `make setup`/Vrooli setup, **not** managed by this scenario).
+- External resource: Vrooli-managed `cloudflared` (the host tool is installed
+  by the governed setup path, **not** by this scenario).
 - Cloudflare credentials: required only for **remote mode**
   (programmatic ingress via Cloudflare API v4). Configure through
   Settings or `tunnel-manager config credentials-set` through the Vrooli
@@ -52,8 +52,8 @@ wherever the local stack and its tunnel daemon run.
 - Resources: none required; `redis` optional (UI pub/sub, falls back to
   HTTP polling).
 - Network: local API/UI communication plus outbound to the Cloudflare
-  API (remote mode) and reads of cloudflared's local Prometheus endpoint
-  (default `127.0.0.1:20241`).
+  API (remote mode) and reads of the managed resource's exported Prometheus
+  endpoint (standalone fallback `127.0.0.1:20241`).
 
 ## Lifecycle
 

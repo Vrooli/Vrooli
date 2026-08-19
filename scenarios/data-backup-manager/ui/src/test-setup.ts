@@ -23,8 +23,17 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
+import { createElement } from "react";
 import { afterEach, beforeEach, vi } from "vitest";
+import { configureTestProviders } from "@vrooli/api-base/testing";
 import { i18n } from "./i18n";
+import { Providers } from "./app/providers";
+
+// Keep the shared test renderer aligned with the production app composition.
+// Scenario-owned contexts belong here rather than in each individual test;
+// otherwise shell and route tests can accidentally exercise an impossible
+// provider tree.
+configureTestProviders((children) => createElement(Providers, null, children));
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;

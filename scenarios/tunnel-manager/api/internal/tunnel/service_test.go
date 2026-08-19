@@ -52,7 +52,7 @@ func newService(t *testing.T, repo tunnel.MetricsRepository, runner *mocks.FakeC
 
 func TestGetStatus_Healthy(t *testing.T) {
 	repo := &fakeRepo{latestErr: tunnel.ErrNoMetrics{}}
-	runner := &mocks.FakeCmdRunner{Out: []byte("active\n")}
+	runner := &mocks.FakeCmdRunner{Out: []byte(`{"success":true,"installed":true,"running":true,"healthy":true,"status":"running"}`)}
 	doer := &mocks.FakeDoer{}
 	doer.AddResponse(200, nil) // /ready -> ok
 	svc := newService(t, repo, runner, doer)
@@ -65,13 +65,16 @@ func TestGetStatus_Healthy(t *testing.T) {
 	require.Equal(t, 100, status.Score)
 	require.Empty(t, status.Message)
 	require.Nil(t, latest, "no metrics yet -> nil latest, ErrNoMetrics swallowed")
+	require.Len(t, runner.Calls, 1)
+	require.Equal(t, "vrooli", runner.Calls[0].Name)
+	require.Equal(t, []string{"resource", "status", "cloudflared", "--json"}, runner.Calls[0].Args)
 }
 
 func TestGetStatus_DegradedSystemdInactive(t *testing.T) {
 	repo := &fakeRepo{latestErr: tunnel.ErrNoMetrics{}}
-	runner := &mocks.FakeCmdRunner{Out: []byte("inactive\n")}
+	runner := &mocks.FakeCmdRunner{Out: []byte(`{"success":true,"installed":true,"running":false,"healthy":false,"status":"stopped"}`)}
 	doer := &mocks.FakeDoer{}
-	doer.AddResponse(200, nil) // /ready -> ok, so only the -50 systemd penalty applies
+	doer.AddResponse(200, nil) // /ready -> ok, so only the -50 resource penalty applies
 	svc := newService(t, repo, runner, doer)
 
 	status, _, err := svc.GetStatus(context.Background())
@@ -84,7 +87,7 @@ func TestGetStatus_DegradedSystemdInactive(t *testing.T) {
 func TestGetStatus_UnhealthyBothChecksFail(t *testing.T) {
 	sample := tunnel.MetricsSample{ID: "m1", HAConnections: 4}
 	repo := &fakeRepo{latestOut: sample}
-	runner := &mocks.FakeCmdRunner{Out: []byte("inactive\n")}
+	runner := &mocks.FakeCmdRunner{Out: []byte(`{"success":true,"installed":true,"running":false,"healthy":false,"status":"stopped"}`)}
 	doer := &mocks.FakeDoer{}
 	doer.AddResponse(503, nil) // /ready -> http_503 (not ok)
 	svc := newService(t, repo, runner, doer)

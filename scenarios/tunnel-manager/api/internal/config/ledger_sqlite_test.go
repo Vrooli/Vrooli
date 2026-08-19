@@ -7,6 +7,8 @@ import (
 
 	db "github.com/vrooli/api-core/databasetest"
 	"tunnel-manager/internal/config"
+	internalexposure "tunnel-manager/internal/exposure"
+	internaltunnel "tunnel-manager/internal/tunnel"
 
 	"github.com/vrooli/api-core/scheduletest"
 
@@ -22,7 +24,8 @@ func newLedger(t *testing.T) config.OwnershipLedger {
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
-		apidb.SchemaProviderFunc(config.Schema),
+		apidb.SchemaProviderFunc(internaltunnel.Schema),
+		apidb.SchemaProviderFunc(internalexposure.Schema),
 	))
 	return config.NewSQLiteLedger(d, scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)))
 }

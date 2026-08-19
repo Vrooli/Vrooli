@@ -1300,7 +1300,12 @@
             {
               "name": "mappings",
               "required": true,
-              "description": "Comma-separated target-to-shadow map, each `target_name=shadow_location` (e.g. postgres=vrooli_x_shadow,data=/path/to/shadow/data)"
+              "description": "JSON array of target-to-shadow mappings, each with `target_name` and `location` (e.g. [{\"target_name\":\"postgres\",\"location\":\"vrooli_x_shadow\"}])",
+              "bind": {
+                "field": "mappings",
+                "kind": "json_inline"
+              },
+              "bind_waiver": "The flag name intentionally remains mappings for CLI compatibility; the explicit JSON decoder is required because the request field is a repeated message."
             }
           ],
           "binding": {

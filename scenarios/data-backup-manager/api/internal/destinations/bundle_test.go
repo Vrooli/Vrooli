@@ -123,6 +123,69 @@ func TestFSBundleWriter_IdempotentAndConflictSafe(t *testing.T) {
 	}
 }
 
+func TestFSBundleWriter_RefreshMetadataRepairsOnlyManagedCredentialReference(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	repoPath := destinations.RepositoryPathFor(root, "elements-local")
+	w := &destinations.FSBundleWriter{}
+	meta := newMeta(root, repoPath)
+	if err := w.PrepareRepository(ctx, root, repoPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.WriteMetadata(ctx, meta); err != nil {
+		t.Fatal(err)
+	}
+
+	legacy := meta
+	legacy.SecretRef = "secret/resources/kopia/repo/elements-local/passphrase"
+	if err := w.RefreshMetadata(ctx, legacy); err != nil {
+		t.Fatalf("seed legacy metadata: %v", err)
+	}
+	updated := meta
+	updated.SecretRef = "vrooli/kopia/elements-local:repository-passphrase"
+	if err := w.RefreshMetadata(ctx, updated); err != nil {
+		t.Fatalf("RefreshMetadata: %v", err)
+	}
+
+	manifestBytes, err := os.ReadFile(filepath.Join(root, destinations.BundleManifestFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if got := manifest["secret_ref"]; got != updated.SecretRef {
+		t.Fatalf("manifest secret_ref = %v, want %q", got, updated.SecretRef)
+	}
+	recovery, err := os.ReadFile(filepath.Join(root, destinations.BundleRecoveryFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(recovery), "secret/resources/kopia") || !strings.Contains(string(recovery), updated.SecretRef) {
+		t.Fatalf("recovery document did not refresh authority reference: %s", recovery)
+	}
+}
+
+func TestFSBundleWriter_RefreshMetadataRejectsDifferentDestination(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	repoPath := destinations.RepositoryPathFor(root, "elements-local")
+	w := &destinations.FSBundleWriter{}
+	meta := newMeta(root, repoPath)
+	if err := w.PrepareRepository(ctx, root, repoPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.WriteMetadata(ctx, meta); err != nil {
+		t.Fatal(err)
+	}
+	other := meta
+	other.DestinationID = "other"
+	if err := w.RefreshMetadata(ctx, other); err == nil {
+		t.Fatal("RefreshMetadata accepted a different destination identity")
+	}
+}
+
 func TestFSBundleWriter_RejectsRepoAtBundleRoot(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()

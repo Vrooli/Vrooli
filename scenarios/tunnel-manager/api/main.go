@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	internalconfig "tunnel-manager/internal/config"
 	internalexposure "tunnel-manager/internal/exposure"
 	"tunnel-manager/internal/modules"
 	internalprobes "tunnel-manager/internal/probes"
@@ -134,6 +135,7 @@ func main() {
 	logger := log.Default()
 	routesSvc := internalroutes.NewService(internalroutes.NewSQLiteRepository(db, clk))
 	configSvc := configH.NewProductionService(db, clk, routesSvc)
+	bootstrapStop := startDerivedCredentialBootstrap(configSvc, logger)
 	exposureSvc := exposureH.NewProductionService(db, clk, routesSvc, configSvc)
 	probesSvc := probesH.NewProductionService(routesSvc, db, clk)
 	recoverySvc := recoveryH.NewProductionService(db, clk)
@@ -203,6 +205,7 @@ func main() {
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
+			bootstrapStop(ctx)
 			for i := len(schedulerStops) - 1; i >= 0; i-- {
 				schedulerStops[i](ctx)
 			}
@@ -210,6 +213,28 @@ func main() {
 		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
+	}
+}
+
+func startDerivedCredentialBootstrap(service internalconfig.Service, logger *log.Logger) func(context.Context) {
+	bootstrapper, ok := service.(internalconfig.DerivedCredentialBootstrapper)
+	if !ok {
+		return func(context.Context) {}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, err := bootstrapper.BootstrapConfiguredCloudflare(ctx); err != nil {
+			logger.Printf("derived credential bootstrap deferred: %v", err)
+		}
+	}()
+	return func(stopCtx context.Context) {
+		cancel()
+		select {
+		case <-done:
+		case <-stopCtx.Done():
+		}
 	}
 }
 

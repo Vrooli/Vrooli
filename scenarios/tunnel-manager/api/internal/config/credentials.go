@@ -46,6 +46,7 @@ var credentialFieldSpecs = []credentialFieldSpec{
 	{Name: cloudflareAccountIDField, Field: "cloudflare-account-id", UpdateVal: func(u CredentialUpdate) string { return u.AccountID }, SetConfig: func(c *CFConfig, v string) { c.AccountID = v }},
 	{Name: cloudflareTunnelIDField, Field: "cloudflare-tunnel-id", UpdateVal: func(u CredentialUpdate) string { return u.TunnelID }, SetConfig: func(c *CFConfig, v string) { c.TunnelID = v }},
 	{Name: cloudflareAPITokenField, Field: "cloudflare-api-token", UpdateVal: func(u CredentialUpdate) string { return u.APIToken }, SetConfig: func(c *CFConfig, v string) { c.APIToken = v }},
+	{Name: cloudflareConnectorTokenField, Field: "cloudflare-connector-token", UpdateVal: func(CredentialUpdate) string { return "" }, SetConfig: func(c *CFConfig, v string) { c.ConnectorToken = v }},
 }
 
 func NewCloudflareCredentialStore(opts CredentialStoreOptions) (CredentialStore, error) {
@@ -180,15 +181,17 @@ func buildCredentialStatus(fields []CredentialFieldStatus) CredentialStatus {
 func deleteStoreKeys(key string) []string {
 	switch strings.ToLower(key) {
 	case "", "all":
-		return []string{"cloudflare-account-id", "cloudflare-tunnel-id", "cloudflare-api-token"}
+		return []string{"cloudflare-account-id", "cloudflare-tunnel-id", "cloudflare-api-token", "cloudflare-connector-token"}
 	case "account_id", "cloudflare_account_id", cloudflareAccountIDField:
 		return []string{"cloudflare-account-id"}
 	case "tunnel_id", "cloudflare_tunnel_id", cloudflareTunnelIDField:
 		return []string{"cloudflare-tunnel-id"}
 	case "api_token", "cloudflare_api_token", cloudflareAPITokenField:
 		return []string{"cloudflare-api-token"}
+	case "connector_token", "cloudflare_connector_token", cloudflareConnectorTokenField:
+		return []string{"cloudflare-connector-token"}
 	default:
-		if slices.Contains([]string{"cloudflare-account-id", "cloudflare-tunnel-id", "cloudflare-api-token"}, key) {
+		if slices.Contains([]string{"cloudflare-account-id", "cloudflare-tunnel-id", "cloudflare-api-token", "cloudflare-connector-token"}, key) {
 			return []string{key}
 		}
 		return nil

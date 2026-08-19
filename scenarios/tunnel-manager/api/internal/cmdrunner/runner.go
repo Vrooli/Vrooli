@@ -1,12 +1,12 @@
-// Package cmdrunner declares the seam for executing local system
-// commands (systemctl, cloudflared restarts). Production wires
+// Package cmdrunner declares the seam for executing local control-plane
+// commands (resource operations, including cloudflared restarts). Production wires
 // cmdrunner.Default, which shells out via exec.CommandContext; tests
 // substitute testutil/mocks.FakeCmdRunner to assert the exact argv and
 // stub output without touching the host.
 //
 // The tunnel, config, and recovery domains all actuate the host through
-// this one boundary — restarting cloudflared, querying systemd unit
-// state — so it is declared once here rather than reinvented per domain.
+// this one boundary — querying and changing managed-resource state — so it is
+// declared once here rather than reinvented per domain.
 package cmdrunner
 
 import (

@@ -131,12 +131,14 @@ func formatTime(t time.Time) string {
 	}
 	return t.UTC().Format(drillTime)
 }
+
 func parseTime(raw string) (time.Time, error) {
 	if raw == "" {
 		return time.Time{}, nil
 	}
 	return time.Parse(drillTime, raw)
 }
+
 func boolInt(v bool) int {
 	if v {
 		return 1
