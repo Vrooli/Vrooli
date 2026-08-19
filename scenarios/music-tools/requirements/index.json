@@ -1,0 +1,17 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-capability-surface/module.json",
+    "02-model-registry/module.json",
+    "03-gpu-arbitration/module.json",
+    "04-analysis/module.json",
+    "05-composition/module.json",
+    "06-transformation/module.json",
+    "07-jobs-storage/module.json",
+    "08-licence-lanes/module.json"
+  ]
+}

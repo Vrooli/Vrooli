@@ -1,0 +1,63 @@
+{
+  "_metadata": {
+    "module": "decomposition",
+    "description": "Library-scale attribute extraction delegated to music-tools, with resumable progress.",
+    "prd_ref": "OT-P0-002",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MLIB-P0-005",
+      "title": "All audio understanding is delegated",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "This scenario computes no embeddings, stems, or musical attributes itself; every such value is obtained from music-tools. There is no local model execution path.",
+      "tags": ["decomposition", "boundary"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/decomposition/delegation_test.go", "phase": "unit", "status": "planned", "notes": "No direct model invocation exists; all attributes arrive via music-tools" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-006",
+      "title": "First-pass decomposition is resumable and reports progress",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Decomposing an existing library is a long batch operation that survives restart, reports meaningful progress and remaining work, and degrades to a partial but usable index rather than requiring completion before the product functions.",
+      "tags": ["decomposition", "durability"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/decomposition/batch_test.go", "phase": "integration", "status": "planned", "notes": "Batch resumes after restart; partial index is queryable" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-007",
+      "title": "Expensive layers are lazy",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Embeddings, tempo, key, loudness, and tags are computed for the whole library. Stem separation and notation are computed only on demand for a specific track, because library-wide production of those artifacts exceeds available disk.",
+      "tags": ["decomposition", "storage"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/decomposition/laziness_test.go", "phase": "unit", "status": "planned", "notes": "No batch path requests stems or notation library-wide" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-008",
+      "title": "Attribute search over the library",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "The listener can retrieve tracks by natural-language description and by structured attribute, and can ask for tracks similar to a given track — all before any preference model exists.",
+      "tags": ["decomposition", "retrieval"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/decomposition/search_test.go", "phase": "integration", "status": "planned", "notes": "Text, attribute, and similarity retrieval work on a freshly indexed library" }
+      ]
+    }
+  ]
+}

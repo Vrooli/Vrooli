@@ -1,0 +1,63 @@
+{
+  "_metadata": {
+    "module": "elicitation",
+    "description": "Label-efficient preference elicitation via informative pairwise comparison.",
+    "prd_ref": "OT-P0-005",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MLIB-P0-012",
+      "title": "Pairwise comparison is the primary elicitation surface",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Preference is elicited by asking which of two candidates is preferred, with an explicit no-preference option. Pairwise judgement is used because it carries more information per unit of listener effort than absolute rating, which matters acutely when exactly one person produces every label.",
+      "tags": ["elicitation"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/elicitation/pairwise_test.go", "phase": "unit", "status": "planned", "notes": "Comparisons update the model; ties are recorded rather than coerced" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-013",
+      "title": "Pairs are chosen for information, not at random",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "criticality": "P0",
+      "description": "The next pair is selected to maximise expected reduction in model uncertainty, so few judgements produce a usable model. Random pairing is available only as a measurable baseline.",
+      "tags": ["elicitation", "active-learning"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/elicitation/selection_test.go", "phase": "unit", "status": "planned", "notes": "Active selection reduces posterior uncertainty faster than random baseline" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-014",
+      "title": "Comparison is robust to a single inconsistent rater",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "criticality": "P0",
+      "description": "The rating scheme tolerates intransitive and mood-dependent judgements without destabilising, and does not let a small number of early comparisons permanently fix an item's standing.",
+      "tags": ["elicitation", "robustness"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/elicitation/robustness_test.go", "phase": "unit", "status": "planned", "notes": "Intransitive cycles and reversals converge without oscillation or lock-in" }
+      ]
+    },
+    {
+      "id": "MLIB-P1-003",
+      "title": "Component-level comparison",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Comparison can be scoped to an isolated element of a track rather than the whole mix, so the listener can express that they like a bassline without endorsing the vocal over it.",
+      "tags": ["elicitation", "stems"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/elicitation/component_test.go", "phase": "integration", "status": "planned", "notes": "Stem-scoped comparisons update attribute weights without endorsing the parent track" }
+      ]
+    }
+  ]
+}

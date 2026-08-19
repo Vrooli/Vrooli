@@ -1,0 +1,64 @@
+{
+  "_metadata": {
+    "module": "exploration",
+    "description": "Owner-controlled exploration and structural resistance to feedback-loop collapse.",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MLIB-P1-004",
+      "title": "Exploration is a control the listener owns",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "criticality": "P1",
+      "description": "A single control governs the balance between playing what the model expects to be liked and playing what it is unsure about. Its current setting visibly changes what is queued, so the control is verifiable rather than decorative.",
+      "tags": ["exploration", "control"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/exploration/dial_test.go", "phase": "unit", "status": "planned", "notes": "Dial settings produce measurably different uncertainty profiles in the queue" }
+      ]
+    },
+    {
+      "id": "MLIB-P1-005",
+      "title": "Recommendations are calibrated to the listener's own distribution",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Ranking reflects the breadth of what the listener actually listens to rather than repeatedly serving the single highest-scoring region. A taste held ten percent of the time appears about ten percent of the time.",
+      "tags": ["exploration", "calibration"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/exploration/calibration_test.go", "phase": "unit", "status": "planned", "notes": "Recommended distribution tracks the listening distribution within tolerance" }
+      ]
+    },
+    {
+      "id": "MLIB-P1-006",
+      "title": "Degeneracy is detected and resisted",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "core",
+      "criticality": "P1",
+      "description": "The system measures the diversity of what it serves over time and surfaces a warning when that diversity contracts persistently. Continuous exploration and an unbounded candidate pool are maintained as structural defences rather than relying on the ranking objective alone.",
+      "tags": ["exploration", "degeneracy"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/exploration/degeneracy_test.go", "phase": "integration", "status": "planned", "notes": "Simulated closed-loop sessions do not collapse below a diversity floor; contraction raises a warning" }
+      ]
+    },
+    {
+      "id": "MLIB-P1-007",
+      "title": "Behavioural signal requires corroboration",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Completion, replay, and skip inform the model, corrected for the tendency to abandon early regardless of content. Attributing a skip to the specific section that was playing is treated as an unproven hypothesis: it carries weight only after the same section is abandoned repeatedly across plays, and its contribution is measured against a model without it.",
+      "tags": ["implicit-feedback", "reliability"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/signals/attribution_test.go", "phase": "unit", "status": "planned", "notes": "Single skips do not move attribute weights; repeated same-section abandonment does; position bias corrected" },
+        { "type": "manual", "status": "planned", "notes": "Hold-out comparison establishes whether section attribution improves prediction before it is enabled by default" }
+      ]
+    }
+  ]
+}

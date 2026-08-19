@@ -1,0 +1,38 @@
+{
+  "_metadata": {
+    "module": "capability-surface",
+    "description": "Every operation family is reachable headlessly with report-shaped output; the UI enhances and never gates.",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P0-001",
+      "title": "Headless operation vocabulary",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Composition, transformation, and analysis operations draw their names from a single vocabulary SSOT and each completes from the CLI with no UI, no ComfyUI, and no interactive prompt, emitting report-shaped output.",
+      "tags": ["cli", "contract"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/operations/vocabulary_test.go", "phase": "unit", "status": "planned", "notes": "Operation vocabulary is declared once and every surface resolves against it" },
+        { "type": "test", "ref": "cli/domains/ops/headless_test.go", "phase": "integration", "status": "planned", "notes": "Each operation family completes headless and returns report-shaped output" }
+      ]
+    },
+    {
+      "id": "MUS-P0-002",
+      "title": "Deterministic ops need no model",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Trim, fade, concat, format and sample-rate conversion, silence trim, and loudness measurement run with zero model download and zero GPU, so the scenario is useful before any weights are installed.",
+      "tags": ["ops", "zero-download"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/ops/deterministic_test.go", "phase": "unit", "status": "planned", "notes": "Deterministic ops succeed with an empty model registry" }
+      ]
+    }
+  ]
+}
