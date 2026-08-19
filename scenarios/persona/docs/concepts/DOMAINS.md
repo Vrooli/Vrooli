@@ -39,34 +39,6 @@ belong in [`DATA.md`](DATA.md).
 | journal | Record every persona action append-only with its authorising human. | Make "who did this, as whom, on whose authority" always answerable. | Append-only action records. | reporting | audit, query | JournalEntry, Actor, Verb | `api/internal/journal/`, `api/handlers/journal/`, `cli/domains/journal/`, `ui/src/features/journal/`, `packages/proto/schemas/persona/v1/journal/` |
 | accounts | Track what a persona has created and owes out in the world. | Make retirement and renewal possible without relying on memory. | Account links, obligations, staleness findings. | crud | reporting, lifecycle | AccountLink, Obligation, Staleness | `api/internal/accounts/`, `api/handlers/accounts/`, `cli/domains/accounts/`, `ui/src/features/accounts/`, `packages/proto/schemas/persona/v1/accounts/` |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships `notes` as a worked CRUD vertical slice with a binary
-upload exception. Copy its shape for your own domains, then remove it.
-
-| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
-|---|---|---|---|---|---|---|---|
-| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | Note, Attachment | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/persona/v1/notes/` |
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Domain Details
 
 ### health

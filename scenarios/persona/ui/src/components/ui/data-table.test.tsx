@@ -80,4 +80,34 @@ describe("DataTable", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.queryByText("Beta")).not.toBeInTheDocument();
   });
+
+  it("filters by a named predicate and reports an empty result", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getRowKey={(row) => row.id}
+        caption="Demo rows"
+        emptyMessage="Nothing matched"
+        filters={[{ id: "alpha", label: "Alpha only", predicate: (row) => row.id === "a" }]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Alpha only" }));
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText("Search"), "missing");
+    expect(screen.getByText("Nothing matched")).toBeInTheDocument();
+  });
+
+  it("toggles sort direction and renders an empty table", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DataTable rows={[]} columns={columns} getRowKey={(row) => row.id} caption="Empty" />);
+    const nameSort = screen.getByRole("button", { name: /name/i });
+    await user.click(nameSort);
+    await user.click(nameSort);
+    expect(screen.getByText("No rows")).toBeInTheDocument();
+  });
 });

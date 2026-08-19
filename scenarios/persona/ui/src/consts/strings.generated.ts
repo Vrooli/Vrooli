@@ -22,7 +22,9 @@ export const strings = {
     bottomNavLabel: "layout.bottomNavLabel",
     nav: {
       dashboard: "layout.nav.dashboard",
-      notes: "layout.nav.notes",
+      personas: "layout.nav.personas",
+      handoffs: "layout.nav.handoffs",
+      journal: "layout.nav.journal",
       settings: "layout.nav.settings",
     },
   },
@@ -39,9 +41,6 @@ export const strings = {
       title: "pages.dashboard.title",
       description: "pages.dashboard.description",
       statPlaceholderLabel: "pages.dashboard.statPlaceholderLabel",
-    },
-    notes: {
-      title: "pages.notes.title",
     },
     settings: {
       title: "pages.settings.title",
@@ -64,31 +63,6 @@ export const strings = {
     summary: "notifications.summary",
     summary_zero: "notifications.summary_zero",
     summary_one: "notifications.summary_one",
-  },
-  notes: {
-    title: "notes.title",
-    loading: "notes.loading",
-    empty: "notes.empty",
-    create: "notes.create",
-    createdAtLabel: "notes.createdAtLabel",
-    attachmentsLabel: "notes.attachmentsLabel",
-    attachmentsLabel_one: "notes.attachmentsLabel_one",
-    table: {
-      title: "notes.table.title",
-      created: "notes.table.created",
-      attachments: "notes.table.attachments",
-      actions: "notes.table.actions",
-      search: "notes.table.search",
-    },
-    uploadAttachment: "notes.uploadAttachment",
-    attachmentFileLabel: "notes.attachmentFileLabel",
-    uploadSuccess: "notes.uploadSuccess",
-    noFileSelected: "notes.noFileSelected",
-    measure: {
-      title: "notes.measure.title",
-      loading: "notes.measure.loading",
-      thisWeek: "notes.measure.thisWeek",
-    },
   },
   errors: {
     canceled: "errors.canceled",

@@ -45,8 +45,22 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
-export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
+import {
+  renderWithProviders as renderWithBaseProviders,
+  type ProviderRenderOptions,
+  type ProviderRenderResult,
+} from "@vrooli/api-base/testing";
+import { i18n } from "../i18n";
+
+/** Render with the scenario's i18n singleton, plus the shared base providers. */
+export function renderWithProviders(
+  ui: Parameters<typeof renderWithBaseProviders>[0],
+  options: ProviderRenderOptions = {},
+): ProviderRenderResult {
+  return renderWithBaseProviders(ui, { ...options, i18n: options.i18n ?? i18n });
+}
+
+export type { ProviderRenderOptions, ProviderRenderResult };
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 // Note: HealthResponse is the *generated proto type* re-exported by
@@ -54,9 +68,9 @@ export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 // schema change is one-import-update; consuming the proto package
 // directly in tests fragments that contract.
 //
-// Domain-specific factories (Note, NotesListResponse, etc.) are NOT
+// Domain-specific factories are NOT
 // re-exported here — they live next to the feature they double for
-// (e.g. `features/notes/mocks/factories.ts`) so deleting a feature
+// (e.g. `features/<domain>/mocks/factories.ts`) so deleting a feature
 // folder takes them along.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";

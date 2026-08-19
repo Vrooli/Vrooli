@@ -61,119 +61,16 @@ multipart uploads) mounted at explicit REST paths. Document your
 domain's endpoints here as you build them — one section per RPC, with
 its auth, request/response proto shapes, error codes, and CLI mirror.
 
-The scaffold ships one fully worked CRUD vertical slice as a copyable
-reference (see the fenced example below); `template-manager detemplate
-<scenario>` removes it once your real domains are green.
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The `notes` domain is the canonical worked example. Copy its layering
-when adding the first non-trivial mutation in your scenario, then
-remove it.
-
-#### `POST /vrooli.persona.v1.notes.NotesService/ListNotes`
-
-List notes through the generated Connect-RPC service, newest-first.
-
-| | |
-|---|---|
-| **Auth** | None (template default; scenarios add auth as needed) |
-| **Response** | `ListNotesResponse { notes: Note[] }` (capped at 100 by `notes.Service`) |
-| **Errors** | `500 internal` — repository read failure |
-| **CLI** | `persona notes list` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.persona.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-
-UI and CLI code should normally use the generated client instead of
-calling this path by hand.
-
-#### `POST /vrooli.persona.v1.notes.NotesService/CreateNote`
-
-Create a note through the generated Connect-RPC service.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Request** | `CreateNoteRequest { title: string (required), body: string (optional) }` |
-| **Response** | `CreateNoteResponse { note: Note }` |
-| **Errors** | `invalid_argument` — missing/whitespace-only title<br>`internal` — repository write failure |
-| **CLI** | `persona notes create --title <title> [--body <body>]` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.persona.v1.notes.NotesService/CreateNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"first","body":"hello"}'
-```
-
-Title validation (non-empty after whitespace trim) lives in
-`internal/notes/service.go`, **not** the handler. The Connect handler
-only translates `notes.ErrInvalidNote` into `invalid_argument`.
-
-#### `POST /vrooli.persona.v1.notes.NotesService/GetNote`
-
-Fetch a note by id through the generated Connect-RPC service.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Request** | `GetNoteRequest { id: string }` |
-| **Response** | `GetNoteResponse { note: Note }` |
-| **Errors** | `not_found` — no note with that id<br>`internal` — repository read failure |
-| **CLI** | `persona notes get <id>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.persona.v1.notes.NotesService/GetNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"abc123"}'
-```
-
-`notes.ErrNoteNotFound` returned by the service is translated into the
-typed `not_found` Connect error at the handler edge.
-
-#### `POST /api/v1/notes/{id}/attachments`
-
-Upload opaque file bytes through the documented REST multipart exception.
-The response is still proto-typed metadata.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Path params** | `id` — note identifier |
-| **Request** | `multipart/form-data` with `file` part |
-| **Response** | `UploadAttachmentResponse { attachment: Attachment }` |
-| **Errors** | `400 invalid_request` — malformed multipart or missing file<br>`404 not_found` — no note with that id<br>`500 internal` — blob or metadata persistence failure |
-| **CLI** | `persona notes attach <id> --file <path>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
-  -F file=@./example.png
-```
-
-#### `Note` shape
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | string (UUID) | Server-generated |
-| `title` | string | Required, non-empty after trim |
-| `body` | string | Optional |
-| `created_at` | `google.protobuf.Timestamp` | Server-set on create |
-| `updated_at` | `google.protobuf.Timestamp` | Server-set on create / future update |
-| `attachment_keys` | `string[]` | Keys of uploaded note attachments |
-
-Defined in `packages/proto/schemas/persona/v1/notes/notes.proto`.
-<!-- EXAMPLE-DOMAIN:notes END -->
+The scenario ships seven product-domain vertical slices. Add endpoint
+documentation here as each domain evolves; there is no template example
+surface left to remove.
 
 ---
 
 ## Adding a new endpoint
 
-For a new domain, copy the worked vertical slice in the fenced example
-above first, then replace it once your real domain is green.
+For a new domain, follow the existing domain package and proto contract
+shape, then add the endpoint details here.
 
 For an endpoint inside an existing domain:
 

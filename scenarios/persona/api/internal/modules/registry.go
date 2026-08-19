@@ -19,16 +19,34 @@ package modules
 import (
 	"persona/internal/module"
 
+	accessH "persona/handlers/access"
+	accountsH "persona/handlers/accounts"
 	capsH "persona/handlers/capabilities"
+	channelsH "persona/handlers/channels"
+	documentsH "persona/handlers/documents"
+	handoffsH "persona/handlers/handoffs"
+	journalH "persona/handlers/journal"
+	personasH "persona/handlers/personas"
+	"persona/internal/access"
+	"persona/internal/accounts"
+	"persona/internal/channels"
+	"persona/internal/documents"
+	"persona/internal/handoffs"
+	"persona/internal/journal"
+	"persona/internal/personas"
 
 	apidb "github.com/vrooli/api-core/database"
+	accessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/access"
+	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/accounts"
+	channelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/channels"
+	documentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/documents"
+	handoffsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/handoffs"
+	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/journal"
+	personasv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/personas"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "persona/handlers/health"
-	notesH "persona/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "persona/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +57,13 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, accessH.Endpoints...)
+	out = append(out, accountsH.Endpoints...)
+	out = append(out, channelsH.Endpoints...)
+	out = append(out, documentsH.Endpoints...)
+	out = append(out, handoffsH.Endpoints...)
+	out = append(out, personasH.Endpoints...)
+	out = append(out, journalH.Endpoints...)
 	return out
 }
 
@@ -66,7 +90,13 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_persona_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "access", File: accessv1.File_persona_v1_access_access_proto},
+		{Module: "accounts", File: accountsv1.File_persona_v1_accounts_accounts_proto},
+		{Module: "channels", File: channelsv1.File_persona_v1_channels_channels_proto},
+		{Module: "documents", File: documentsv1.File_persona_v1_documents_documents_proto},
+		{Module: "handoffs", File: handoffsv1.File_persona_v1_handoffs_handoffs_proto},
+		{Module: "personas", File: personasv1.File_persona_v1_personas_personas_proto},
+		{Module: "journal", File: journalv1.File_persona_v1_journal_journal_proto},
 	}
 }
 
@@ -81,6 +111,12 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(personas.Schema),
+		apidb.SchemaProviderFunc(access.Schema),
+		apidb.SchemaProviderFunc(channels.Schema),
+		apidb.SchemaProviderFunc(handoffs.Schema),
+		apidb.SchemaProviderFunc(documents.Schema),
+		apidb.SchemaProviderFunc(journal.Schema),
+		apidb.SchemaProviderFunc(accounts.Schema),
 	}
 }

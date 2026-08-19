@@ -7,7 +7,10 @@ import {
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
-import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
+import { HandoffsPage } from "../pages/HandoffsPage";
+import { JournalPage } from "../pages/JournalPage";
+import { PersonaDetailPage } from "../pages/PersonaDetailPage";
+import { PersonasPage } from "../pages/PersonasPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
 /**
@@ -22,7 +25,11 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "notes", element: <NotesPage /> }, // EXAMPLE-DOMAIN:notes
+      { path: "personas", element: <PersonasPage /> },
+      { path: "personas/:personaId", element: <PersonaDetailPage /> },
+      { path: "handoffs", element: <HandoffsPage /> },
+      { path: "handoffs/:handoffId", element: <HandoffsPage /> },
+      { path: "journal", element: <JournalPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

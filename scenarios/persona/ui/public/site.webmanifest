@@ -1,13 +1,13 @@
 {
   "id": ".",
-  "name": "Persona",
+  "name": "Persona Identity Console",
   "short_name": "persona",
   "description": "Holds the identity an agent transacts as, retrieves the codes a machine cannot receive on its own, and turns every wall it cannot cross into a resumable handoff",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "theme_color": "#f8fafc",
   "icons": [
     {
       "src": "manifest-icon-192.maskable.png",

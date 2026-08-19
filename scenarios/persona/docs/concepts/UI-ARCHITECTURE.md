@@ -86,8 +86,8 @@ table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
   `experience/pages/*.json::bindings` once bindings exist.
 
 Run `experience-manager spec validate persona --json` after route or
-selector changes. The generated notes page spec is example-domain content and
-is removed by `template-manager detemplate persona`.
+selector changes. The generated example page spec was removed when the real
+persona routes were implemented.
 
 ## Extending The Manifest
 

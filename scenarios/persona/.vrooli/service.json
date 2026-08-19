@@ -4,7 +4,7 @@
   "service": {
     "parent": "vrooli",
     "name": "persona",
-    "displayName": "Persona",
+    "displayName": "Persona Identity Console",
     "description": "Holds the identity an agent transacts as, retrieves the codes a machine cannot receive on its own, and turns every wall it cannot cross into a resumable handoff",
     "version": "0.0.1",
     "type": "business-application",
@@ -157,9 +157,6 @@
         }
       ]
     },
-    "build": {},
-    "deploy": {},
-    "clean": {},
     "test": {
       "description": "Execute phased test suite via test-genie",
       "steps": [
@@ -172,24 +169,6 @@
           "name": "run-tests",
           "run": "test-genie execute persona --preset comprehensive",
           "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'persona-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
         }
       ]
     }

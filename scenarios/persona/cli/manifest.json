@@ -1,56 +1,59 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "persona",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Typed operator and agent commands for persona identity, controlled channels, human handoffs, document custody and account linkage.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "personas",
+      "description": "Create and inspect durable legal-person records.",
       "commands": [
         {
-          "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
           "name": "create",
-          "description": "Create a note",
+          "description": "Create a persona with an immutable legal basis.",
           "flags": [
             {
-              "name": "title",
+              "name": "kind",
               "required": true,
-              "description": "Note title"
+              "description": "PERSONA_KIND_PERSONAL or PERSONA_KIND_BUSINESS.",
+              "values": [
+                "PERSONA_KIND_PERSONAL",
+                "PERSONA_KIND_BUSINESS"
+              ]
             },
             {
-              "name": "body",
-              "description": "Note body"
+              "name": "legal-basis",
+              "required": true,
+              "description": "Inline JSON LegalBasis message.",
+              "bind": {
+                "field": "legal_basis",
+                "kind": "json_inline"
+              }
+            },
+            {
+              "name": "display-name",
+              "description": "Operator-facing display name."
+            },
+            {
+              "name": "identifiers",
+              "description": "Inline JSON array of Identifier messages.",
+              "bind": {
+                "field": "identifiers",
+                "kind": "json_inline"
+              }
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
+            "service": "PersonasService",
+            "method": "CreatePersona"
           },
           "governance": {
             "effect": "write",
             "run_eligible": true,
             "permissions": [
               "network:internal"
-            ]
+            ],
+            "requires_confirmation": true
           },
           "architecture": {
             "primitive": "proto_mutation"
@@ -58,18 +61,17 @@
         },
         {
           "name": "get",
-          "description": "Get a note by id",
+          "description": "Read one persona without exposing credentials or document bytes.",
           "positionals": [
             {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
+              "name": "persona-id",
+              "required": true
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
+            "service": "PersonasService",
+            "method": "GetPersona"
           },
           "governance": {
             "effect": "read",
@@ -83,18 +85,23 @@
           }
         },
         {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
+          "name": "list",
+          "description": "List active personas, optionally including archived records.",
           "flags": [
             {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+              "name": "limit",
+              "description": "Maximum records."
+            },
+            {
+              "name": "include-archived",
+              "bool": true,
+              "description": "Include archived personas."
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
+            "service": "PersonasService",
+            "method": "ListPersonas"
           },
           "governance": {
             "effect": "read",
@@ -105,46 +112,1084 @@
           },
           "architecture": {
             "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "archive",
+          "description": "Archive a persona; records are never deleted.",
+          "positionals": [
+            {
+              "name": "persona-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PersonasService",
+            "method": "ArchivePersona"
           },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
             ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "health",
+          "description": "Check persona dependencies and staleness findings.",
+          "positionals": [
+            {
+              "name": "persona-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PersonasService",
+            "method": "CheckHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "access",
+      "description": "Verify act-as authority, manage grants, resolve entitled metadata and issue attestations.",
+      "commands": [
+        {
+          "name": "act-as",
+          "description": "Act as a named persona through live agent-manager verification.",
+          "positionals": [
+            {
+              "name": "persona-id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "Named action being authorised."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccessService",
+            "method": "ActAs"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "resolve",
+          "description": "Resolve only the persona fields entitled to the caller.",
+          "positionals": [
+            {
+              "name": "persona-id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "field",
+              "repeatable": true,
+              "description": "Entitled field name; repeat as needed.",
+              "bind": {
+                "field": "fields"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccessService",
+            "method": "ResolvePersona"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "grant",
+          "description": "Grant a named human act or propose authority.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "human-subject",
+              "required": true
+            },
+            {
+              "name": "level",
+              "required": true,
+              "values": [
+                "GRANT_LEVEL_ACT",
+                "GRANT_LEVEL_PROPOSE"
+              ]
+            },
+            {
+              "name": "source"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccessService",
+            "method": "CreateGrant"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list-grants",
+          "description": "List the local ACL for one persona.",
+          "positionals": [
+            {
+              "name": "persona-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccessService",
+            "method": "ListGrants"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "remove-grant",
+          "description": "Remove one persona grant.",
+          "positionals": [
+            {
+              "name": "grant-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccessService",
+            "method": "RemoveGrant"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "attest",
+          "description": "Issue a signed, bounded identity attestation.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "audience",
+              "required": true
+            },
+            {
+              "name": "expires-at-unix",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccessService",
+            "method": "IssueAttestation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "channels",
+      "description": "Bind one controlled address per persona and retrieve one-time codes through the typed adapter seam.",
+      "commands": [
+        {
+          "name": "bind",
+          "description": "Bind a controlled email, SMS or device route without storing its secret.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "values": [
+                "CHANNEL_KIND_EMAIL",
+                "CHANNEL_KIND_SMS",
+                "CHANNEL_KIND_DEVICE"
+              ]
+            },
+            {
+              "name": "address",
+              "required": true
+            },
+            {
+              "name": "credential-ref"
+            },
+            {
+              "name": "adapter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChannelsService",
+            "method": "BindChannel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List a persona's controlled channels.",
+          "positionals": [
+            {
+              "name": "persona-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChannelsService",
+            "method": "ListChannels"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "send",
+          "description": "Send from the persona's controlled address through the named adapter.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "channel-id",
+              "required": true
+            },
+            {
+              "name": "recipient",
+              "required": true
+            },
+            {
+              "name": "subject"
+            },
+            {
+              "name": "body",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChannelsService",
+            "method": "SendMessage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "retrieve-code",
+          "description": "Retrieve a one-time code only through the channel's named adapter.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "channel-id",
+              "required": true
+            },
+            {
+              "name": "purpose",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChannelsService",
+            "method": "RetrieveCode"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "handoffs",
+      "description": "Open, complete and resume human-only work from durable checkpoints.",
+      "commands": [
+        {
+          "name": "open",
+          "description": "Open a human handoff with a checkpoint of completed work.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "kind",
+              "required": true
+            },
+            {
+              "name": "title",
+              "required": true
+            },
+            {
+              "name": "human-action",
+              "required": true
+            },
+            {
+              "name": "checkpoint",
+              "required": true,
+              "description": "Inline JSON Checkpoint message.",
+              "bind": {
+                "field": "checkpoint",
+                "kind": "json_inline"
               }
             },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
+            {
+              "name": "deadline",
+              "description": "RFC3339 deadline."
             }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HandoffsService",
+            "method": "OpenHandoff"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read one handoff and its current state.",
+          "positionals": [
+            {
+              "name": "handoff-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HandoffsService",
+            "method": "GetHandoff"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List pending or completed handoffs for a persona.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "limit"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HandoffsService",
+            "method": "ListHandoffs"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "complete",
+          "description": "Record the irreducible human step as completed.",
+          "flags": [
+            {
+              "name": "handoff-id",
+              "required": true
+            },
+            {
+              "name": "completed-by",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HandoffsService",
+            "method": "CompleteHandoff"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel a handoff without silently dropping it.",
+          "flags": [
+            {
+              "name": "handoff-id",
+              "required": true
+            },
+            {
+              "name": "cancelled-by",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HandoffsService",
+            "method": "CancelHandoff"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Resume a completed handoff from its durable checkpoint.",
+          "flags": [
+            {
+              "name": "handoff-id",
+              "required": true
+            },
+            {
+              "name": "run-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HandoffsService",
+            "method": "ResumeHandoff"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "prepare-enrolment",
+          "description": "Turn a blocked enrolment into an explicit human-only handoff.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "target",
+              "required": true
+            },
+            {
+              "name": "required-field",
+              "repeatable": true,
+              "required": true,
+              "bind": {
+                "field": "required_fields"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HandoffsService",
+            "method": "PrepareEnrolment"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "documents",
+      "description": "Bind document-manager records and release them only into named handoffs.",
+      "commands": [
+        {
+          "name": "bind",
+          "description": "Bind a document-manager record without copying content.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "document-id",
+              "required": true
+            },
+            {
+              "name": "document-kind",
+              "required": true
+            },
+            {
+              "name": "valid-until"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DocumentsService",
+            "method": "BindDocument"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List document bindings; content is never returned.",
+          "positionals": [
+            {
+              "name": "persona-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DocumentsService",
+            "method": "ListBindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "release",
+          "description": "Release one bound document into its pre-declared handoff.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "document-id",
+              "required": true
+            },
+            {
+              "name": "handoff-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DocumentsService",
+            "method": "ReleaseIntoHandoff"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "accounts",
+      "description": "Record credential linkage, addresses and recurring obligations without storing secrets or money.",
+      "commands": [
+        {
+          "name": "link",
+          "description": "Record an account's site, login seam and recovery path.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "site",
+              "required": true
+            },
+            {
+              "name": "login-seam",
+              "required": true
+            },
+            {
+              "name": "recovery-path",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "LinkAccount"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List accounts linked to a persona.",
+          "positionals": [
+            {
+              "name": "persona-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "ListAccounts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "add-address",
+          "description": "Add a billing or shipping address without money fields.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "address",
+              "required": true,
+              "description": "Inline JSON Address message.",
+              "bind": {
+                "field": "address",
+                "kind": "json_inline"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "AddAddress"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list-addresses",
+          "description": "List addresses held by a persona.",
+          "positionals": [
+            {
+              "name": "persona-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "ListAddresses"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "add-obligation",
+          "description": "Record a renewal and cancellation path without charging money.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "account-link-id"
+            },
+            {
+              "name": "description",
+              "required": true
+            },
+            {
+              "name": "renewal-at",
+              "required": true
+            },
+            {
+              "name": "cancel-path",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "AddObligation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list-obligations",
+          "description": "List recurring obligations for a persona.",
+          "positionals": [
+            {
+              "name": "persona-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "ListObligations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "cancel-obligation",
+          "description": "Record cancellation of an obligation through its named path.",
+          "positionals": [
+            {
+              "name": "obligation-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "CancelObligation"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "release-address",
+          "description": "Release an address only into a named handoff or entitled resolution.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "address-id",
+              "required": true
+            },
+            {
+              "name": "target-kind",
+              "required": true,
+              "values": [
+                "handoff",
+                "resolution"
+              ]
+            },
+            {
+              "name": "target-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "ReleaseAddress"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "journal",
+      "description": "Inspect and append the persona's durable, append-only evidence trail.",
+      "commands": [
+        {
+          "name": "append",
+          "description": "Append an evidence entry; corrections are new entries.",
+          "flags": [
+            {
+              "name": "entry",
+              "required": true,
+              "description": "Inline JSON JournalEntry message.",
+              "bind": {
+                "field": "entry",
+                "kind": "json_inline"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JournalService",
+            "method": "Append"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "Read the append-only evidence trail for a persona.",
+          "flags": [
+            {
+              "name": "persona-id",
+              "required": true
+            },
+            {
+              "name": "limit"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JournalService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         }
       ]
     }
   ],
   "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
+    "domains": []
   },
-  "exceptions": [
-    {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    }
-  ],
+  "exceptions": [],
   "omitted": []
 }

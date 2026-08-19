@@ -1,6 +1,8 @@
 import {
-  BarChart3, // EXAMPLE-DOMAIN:notes
   Home,
+  ClipboardCheck,
+  FileClock,
+  Fingerprint,
   Settings,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -46,10 +48,12 @@ export function BottomNav() {
 function iconForItem(item: NavItem) {
   const iconClass = "h-5 w-5";
   switch (item.key) {
-    // EXAMPLE-DOMAIN:notes START
-    case "notes":
-      return <BarChart3 aria-hidden className={iconClass} />;
-    // EXAMPLE-DOMAIN:notes END
+    case "personas":
+      return <Fingerprint aria-hidden className={iconClass} />;
+    case "handoffs":
+      return <ClipboardCheck aria-hidden className={iconClass} />;
+    case "journal":
+      return <FileClock aria-hidden className={iconClass} />;
     case "settings":
       return <Settings aria-hidden className={iconClass} />;
     case "dashboard":

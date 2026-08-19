@@ -31,4 +31,12 @@ describe("api/health.fetchHealth", () => {
       cache: "no-store",
     });
   });
+
+  it("raises the typed API error when health is unavailable", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: "unavailable", message: "database is down" }), { status: 503 }),
+    );
+
+    await expect(fetchHealth()).rejects.toMatchObject({ code: "unavailable", status: 503 });
+  });
 });

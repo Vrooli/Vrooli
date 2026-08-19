@@ -23,30 +23,30 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Persona is a durable object with a declared legal basis | Every persona names the human or legal entity it acts for at creation time; a persona with no declared basis cannot be created, and the basis is immutable thereafter
-- [ ] OT-P0-002 | The delegation chain is one chain, not two | A persona binds into agent-manager's signed claims through persona_id in Claims.Meta and the persona.act-as scope, so the chain runs legal person to persona to account subject to run token to child token without a second identity system
-- [ ] OT-P0-003 | Acting as a persona fails closed | Identity verification runs through agent-manager's live endpoint; an unverifiable or unreachable caller cannot act as any persona, and the refusal is recorded rather than downgraded to a weaker evidence grade
-- [ ] OT-P0-004 | Persona ACL governs who may act | Each persona declares which humans may act as it and which may only propose actions for approval; the ACL is evaluated server-side and is the one permission concept the existing scope machinery does not already provide
-- [ ] OT-P0-005 | A controlled email address per persona | A persona owns an address it can both send from and read, so verification mail is retrievable without an agent ever touching the operator's personal inbox
-- [ ] OT-P0-006 | One OTP retrieval seam, many adapters | Exactly one typed contract admits a one-time code into the system; email, an SMS provider, and device-control reading a leased phone are all ordinary adapters satisfying it, with no privileged path
-- [ ] OT-P0-007 | Handoff is a typed, resumable state and never an error | A step no machine may take produces a checkpoint naming exactly what a human must do, with every other field already filled in, and the flow resumes at that checkpoint once the human is done
-- [ ] OT-P0-008 | Identity documents are bound, never stored | Documents live in document-manager under its sensitivity class and custody journal; this scenario stores only which persona owns which document and never holds the bytes
-- [ ] OT-P0-009 | Document release requires a named handoff | A document is released only into a pre-declared handoff, evaluated server-side; there is no agent-readable read path for a passport or an incorporation record under any scope
-- [ ] OT-P0-010 | Personal and business personas are distinct kinds | Each kind carries its own identifier set and neither may borrow the other's documents, addresses, or legal basis
-- [ ] OT-P0-011 | Every persona action is attributable and append-only | Acting as, releasing, retrieving a code, opening and completing a handoff are all journaled with the verified run and the authorising human; no verb rewrites or deletes a journal row
-- [ ] OT-P0-012 | One typed resolution contract for consumers | A consumer such as treasury or a checkout driver resolves a persona through exactly one call that returns what it is entitled to see and nothing more, so entitlement is decided here rather than at each call site
-- [ ] OT-P0-013 | A persona is selected, never inferred | No default persona and no silent fallback; an outbound action names the persona it acts as or it is refused, because a wrong guess about identity is unrecoverable
+- [x] OT-P0-001 | Persona is a durable object with a declared legal basis | Every persona names the human or legal entity it acts for at creation time; a persona with no declared basis cannot be created, and the basis is immutable thereafter
+- [x] OT-P0-002 | The delegation chain is one chain, not two | A persona binds into agent-manager's signed claims through persona_id in Claims.Meta and the persona.act-as scope, so the chain runs legal person to persona to account subject to run token to child token without a second identity system
+- [x] OT-P0-003 | Acting as a persona fails closed | Identity verification runs through agent-manager's live endpoint; an unverifiable or unreachable caller cannot act as any persona, and the refusal is recorded rather than downgraded to a weaker evidence grade
+- [x] OT-P0-004 | Persona ACL governs who may act | Each persona declares which humans may act as it and which may only propose actions for approval; the ACL is evaluated server-side and is the one permission concept the existing scope machinery does not already provide
+- [x] OT-P0-005 | A controlled email address per persona | A persona owns an address it can both send from and read, so verification mail is retrievable without an agent ever touching the operator's personal inbox
+- [x] OT-P0-006 | One OTP retrieval seam, many adapters | Exactly one typed contract admits a one-time code into the system; email, an SMS provider, and device-control reading a leased phone are all ordinary adapters satisfying it, with no privileged path
+- [x] OT-P0-007 | Handoff is a typed, resumable state and never an error | A step no machine may take produces a checkpoint naming exactly what a human must do, with every other field already filled in, and the flow resumes at that checkpoint once the human is done
+- [x] OT-P0-008 | Identity documents are bound, never stored | Documents live in document-manager under its sensitivity class and custody journal; this scenario stores only which persona owns which document and never holds the bytes
+- [x] OT-P0-009 | Document release requires a named handoff | A document is released only into a pre-declared handoff, evaluated server-side; there is no agent-readable read path for a passport or an incorporation record under any scope
+- [x] OT-P0-010 | Personal and business personas are distinct kinds | Each kind carries its own identifier set and neither may borrow the other's documents, addresses, or legal basis
+- [x] OT-P0-011 | Every persona action is attributable and append-only | Acting as, releasing, retrieving a code, opening and completing a handoff are all journaled with the verified run and the authorising human; no verb rewrites or deletes a journal row
+- [x] OT-P0-012 | One typed resolution contract for consumers | A consumer such as treasury or a checkout driver resolves a persona through exactly one call that returns what it is entitled to see and nothing more, so entitlement is decided here rather than at each call site
+- [x] OT-P0-013 | A persona is selected, never inferred | No default persona and no silent fallback; an outbound action names the persona it acts as or it is refused, because a wrong guess about identity is unrecoverable
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Credential linkage register | Every account created as a persona is recorded with its site, login seam, and recovery path, which is the prerequisite for retiring a persona without orphaning what it created
-- [ ] OT-P1-002 | Address book per persona | Billing and shipping addresses held per persona and releasable into a named handoff or resolution, under the same entitlement rule as documents
-- [ ] OT-P1-003 | Obligation registry | What each persona has signed up for, its renewal date, and its cancel path; the identity half of a recurring commitment whose money half belongs to treasury
-- [ ] OT-P1-004 | Handoff delivery through notification-hub | When notification-hub is available a handoff reaches the operator on the right device; when it is absent the built-in queue still works, so the relay is an enhancement and never a dependency
-- [ ] OT-P1-005 | Persona health and staleness | A persona surfaces what is expiring or broken — a document past its validity date, a mailbox that no longer authenticates, an unreachable OTP route — before a flow discovers it mid-enrolment
-- [ ] OT-P1-006 | Act-as grants held in prompt-manager | Which team members may act as which persona is ordinary member configuration in prompt-manager, keeping organisational policy where teams already live rather than duplicating a roster here
-- [ ] OT-P1-007 | Signed identity attestation | Emit a token carrying the full delegation chain for a counterparty to verify, aligned to the DIF KYA-OS direction rather than inventing a private claim shape
-- [ ] OT-P1-008 | Enrolment preparation as a first-class flow | An enrolment assembles every field a target requires, reports exactly which remain human-only, and presents them as one handoff instead of many
+- [x] OT-P1-001 | Credential linkage register | Every account created as a persona is recorded with its site, login seam, and recovery path, which is the prerequisite for retiring a persona without orphaning what it created
+- [x] OT-P1-002 | Address book per persona | Billing and shipping addresses held per persona and releasable into a named handoff or resolution, under the same entitlement rule as documents
+- [x] OT-P1-003 | Obligation registry | What each persona has signed up for, its renewal date, and its cancel path; the identity half of a recurring commitment whose money half belongs to treasury
+- [x] OT-P1-004 | Handoff delivery through notification-hub | When notification-hub is available a handoff reaches the operator on the right device; when it is absent the built-in queue still works, so the relay is an enhancement and never a dependency
+- [x] OT-P1-005 | Persona health and staleness | A persona surfaces what is expiring or broken — a document past its validity date, a mailbox that no longer authenticates, an unreachable OTP route — before a flow discovers it mid-enrolment
+- [x] OT-P1-006 | Act-as grants held in prompt-manager | Which team members may act as which persona is ordinary member configuration in prompt-manager, keeping organisational policy where teams already live rather than duplicating a roster here
+- [x] OT-P1-007 | Signed identity attestation | Emit a token carrying the full delegation chain for a counterparty to verify, aligned to the DIF KYA-OS direction rather than inventing a private claim shape
+- [x] OT-P1-008 | Enrolment preparation as a first-class flow | An enrolment assembles every field a target requires, reports exactly which remain human-only, and presents them as one handoff instead of many
 
 ### 🟢 P2 – Future / expansion
 

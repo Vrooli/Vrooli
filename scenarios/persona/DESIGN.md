@@ -12,6 +12,9 @@ colors:
   error: "#dc2626"
   success: "#16a34a"
   warning: "#d97706"
+# brand-manager:theme-color-token-override
+# Install chrome follows the light app background and dark shell so browser
+# chrome remains continuous with the rendered page in both color schemes.
 typography:
   body-md:
     fontFamily: Inter

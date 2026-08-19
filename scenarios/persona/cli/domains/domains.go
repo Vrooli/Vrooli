@@ -1,7 +1,7 @@
 package domains
 
 import (
-	"persona/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"persona/cli/domains/remote"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -36,13 +36,14 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
-	if err != nil {
-		return nil, err
+	groupNames := []string{"personas", "access", "channels", "handoffs", "documents", "accounts", "journal"}
+	groups := make([]cliapp.SubcommandGroup, 0, len(groupNames))
+	for _, name := range groupNames {
+		group, err := remote.Register(core, manifest, name)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
 	return groups, nil
 }

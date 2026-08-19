@@ -4,12 +4,10 @@ Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.
 
-Three entries are open as of 2026-08-18, all recorded before any
-implementation exists: one inherited template defect that blocks the
-scenario from starting, one deliberate sequencing note about
-documentation preceding code, and one cross-scenario prerequisite in
-`agent-manager` that `PSN-P0-002` depends on. Append entries as they
-appear.
+This register contains inherited template history and current deferred
+issues. The implementation plan owns the active delivery sequence; append
+new defects here only when they are real, reproducible, and intentionally
+deferred.
 
 ## What belongs here
 
@@ -214,7 +212,7 @@ claim in this tree is evidence-backed yet, and nothing should be cited
 as implemented.
 
 **Real fix:** Build the first real vertical slice (orientation gate 6),
-then remove the fenced `notes` example domain (gate 7). Requirement
+then complete the first real vertical slice (gates 6 and 7). Requirement
 statuses become earned rather than asserted once tagged tests run and
 requirements-sync writes a snapshot; experience pages flip from `draft`
 to `active` as each route lands.
@@ -260,8 +258,8 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| Example domain | The fenced `notes` domain is still present across API, CLI, UI, proto, and experience specs. | Blocks the `example-domain-removed` orientation gate; five experience warnings are attributable to `notes` alone. | Run `template-manager detemplate persona` once the first real domains are green. Not before — removing it early leaves the scenario with no worked reference. |
-| UI surfaces | The generated shell still ships placeholder dashboard and notes content; the real route table (`handoffs`, `personas`, `persona-detail`, `journal`) exists only as experience specs. | Experience pages stay `draft`, so reconciliation is advisory and no machine-tier claim can gate. | Build the routes, add `data-testid` bindings, then promote each page to `active`. |
+| Product verticals | The template example surface has been removed and the seven persona domains now own their contracts. | No current orientation impact; preserve the domain boundary when extending the scenario. | Keep proto, service, handler, CLI, UI, and tests aligned per domain. |
+| UI surfaces | The console routes are implemented, while the UI health tool still reports inherited component/layout debt. | Advisory only; runtime rendering and experience validation pass. | Migrate governed components incrementally and record any deliberate exception. |
 
 ## Cross-references
 
@@ -269,3 +267,9 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+## Work ladder
+
+- Rung: W0
+- Evidence: `swarm-manager goals list --json` returned no goal whose name, title, or description names `persona`; the user-provided implementation plan and `PRD.md` are therefore the active contract evidence for this run. Its P0 targets explicitly name the seven product domains and the delegation/handoff/document boundaries now being implemented.
+- Blocker: No named swarm-manager goal was available to perform the normal bidirectional goal-to-PRD comparison; proceed under the user-provided plan and preserve this finding for the next run.
+- Measured: 2026-08-19

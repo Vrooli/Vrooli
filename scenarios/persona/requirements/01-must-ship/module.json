@@ -11,13 +11,15 @@
       "description": "Every persona names the human or legal entity it acts for at creation time; a persona with no declared basis cannot be created, and the basis is immutable thereafter",
       "id": "PSN-P0-001",
       "prd_ref": "OT-P0-001",
-      "status": "planned",
+      "status": "complete",
       "title": "Persona is a durable object with a declared legal basis",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-001] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Persona service tests cover missing legal basis and immutable legal-basis refusal [REQ:PSN-P0-001].",
+          "phase": "unit",
+          "ref": "api/internal/personas/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -26,13 +28,15 @@
       "description": "A persona binds into agent-manager's signed claims through persona_id in Claims.Meta and the persona.act-as scope, so the chain runs legal person to persona to account subject to run token to child token without a second identity system",
       "id": "PSN-P0-002",
       "prd_ref": "OT-P0-002",
-      "status": "planned",
+      "status": "complete",
       "title": "The delegation chain is one chain, not two",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-002] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Agent-manager attenuation tests cover persona scope narrowing and child-token widening refusal [REQ:PSN-P0-002].",
+          "phase": "unit",
+          "ref": "../agent-manager/api/internal/identity/attenuation_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -41,13 +45,15 @@
       "description": "Identity verification runs through agent-manager's live endpoint; an unverifiable or unreachable caller cannot act as any persona, and the refusal is recorded rather than downgraded to a weaker evidence grade",
       "id": "PSN-P0-003",
       "prd_ref": "OT-P0-003",
-      "status": "planned",
+      "status": "complete",
       "title": "Acting as a persona fails closed",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-003] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Access service tests cover live verification, invalid identity, authority refusal, and refusal journaling [REQ:PSN-P0-003].",
+          "phase": "unit",
+          "ref": "api/internal/access/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -56,13 +62,15 @@
       "description": "Each persona declares which humans may act as it and which may only propose actions for approval; the ACL is evaluated server-side and is the one permission concept the existing scope machinery does not already provide",
       "id": "PSN-P0-004",
       "prd_ref": "OT-P0-004",
-      "status": "planned",
+      "status": "complete",
       "title": "Persona ACL governs who may act",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-004] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Access service tests cover ACL act/propose decisions and unauthorized refusal [REQ:PSN-P0-004].",
+          "phase": "unit",
+          "ref": "api/internal/access/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -71,13 +79,15 @@
       "description": "A persona owns an address it can both send from and read, so verification mail is retrievable without an agent ever touching the operator's personal inbox",
       "id": "PSN-P0-005",
       "prd_ref": "OT-P0-005",
-      "status": "planned",
+      "status": "complete",
       "title": "A controlled email address per persona",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-005] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Channels service tests cover one controlled channel per persona and adapter routing [REQ:PSN-P0-005].",
+          "phase": "unit",
+          "ref": "api/internal/channels/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -86,13 +96,15 @@
       "description": "Exactly one typed contract admits a one-time code into the system; email, an SMS provider, and device-control reading a leased phone are all ordinary adapters satisfying it, with no privileged path",
       "id": "PSN-P0-006",
       "prd_ref": "OT-P0-006",
-      "status": "planned",
+      "status": "complete",
       "title": "One OTP retrieval seam, many adapters",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-006] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Channels service tests cover OTP retrieval through the typed adapter contract and refusal paths [REQ:PSN-P0-006].",
+          "phase": "unit",
+          "ref": "api/internal/channels/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -101,13 +113,15 @@
       "description": "A step no machine may take produces a checkpoint naming exactly what a human must do, with every other field already filled in, and the flow resumes at that checkpoint once the human is done",
       "id": "PSN-P0-007",
       "prd_ref": "OT-P0-007",
-      "status": "planned",
+      "status": "complete",
       "title": "Handoff is a typed, resumable state and never an error",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-007] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Handoffs service tests cover strict transitions, checkpoint persistence, and resumable completion [REQ:PSN-P0-007].",
+          "phase": "unit",
+          "ref": "api/internal/handoffs/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -116,13 +130,15 @@
       "description": "Documents live in document-manager under its sensitivity class and custody journal; this scenario stores only which persona owns which document and never holds the bytes",
       "id": "PSN-P0-008",
       "prd_ref": "OT-P0-008",
-      "status": "planned",
+      "status": "complete",
       "title": "Identity documents are bound, never stored",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-008] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Documents service tests cover reference-only bindings without document bytes [REQ:PSN-P0-008].",
+          "phase": "unit",
+          "ref": "api/internal/documents/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -131,13 +147,15 @@
       "description": "A document is released only into a pre-declared handoff, evaluated server-side; there is no agent-readable read path for a passport or an incorporation record under any scope",
       "id": "PSN-P0-009",
       "prd_ref": "OT-P0-009",
-      "status": "planned",
+      "status": "complete",
       "title": "Document release requires a named handoff",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-009] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Documents service tests cover release only into a named handoff and refusal otherwise [REQ:PSN-P0-009].",
+          "phase": "unit",
+          "ref": "api/internal/documents/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -146,13 +164,15 @@
       "description": "Each kind carries its own identifier set and neither may borrow the other's documents, addresses, or legal basis",
       "id": "PSN-P0-010",
       "prd_ref": "OT-P0-010",
-      "status": "planned",
+      "status": "complete",
       "title": "Personal and business personas are distinct kinds",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-010] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Persona service tests cover distinct personal and business identifier sets [REQ:PSN-P0-010].",
+          "phase": "unit",
+          "ref": "api/internal/personas/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -161,13 +181,15 @@
       "description": "Acting as, releasing, retrieving a code, opening and completing a handoff are all journaled with the verified run and the authorising human; no verb rewrites or deletes a journal row",
       "id": "PSN-P0-011",
       "prd_ref": "OT-P0-011",
-      "status": "planned",
+      "status": "complete",
       "title": "Every persona action is attributable and append-only",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-011] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Journal service tests cover append-only entries and complete attribution fields [REQ:PSN-P0-011].",
+          "phase": "unit",
+          "ref": "api/internal/journal/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -176,13 +198,15 @@
       "description": "A consumer such as treasury or a checkout driver resolves a persona through exactly one call that returns what it is entitled to see and nothing more, so entitlement is decided here rather than at each call site",
       "id": "PSN-P0-012",
       "prd_ref": "OT-P0-012",
-      "status": "planned",
+      "status": "complete",
       "title": "One typed resolution contract for consumers",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-012] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Access service tests cover the typed persona resolution contract and entitlement filtering [REQ:PSN-P0-012].",
+          "phase": "unit",
+          "ref": "api/internal/access/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -191,13 +215,15 @@
       "description": "No default persona and no silent fallback; an outbound action names the persona it acts as or it is refused, because a wrong guess about identity is unrecoverable",
       "id": "PSN-P0-013",
       "prd_ref": "OT-P0-013",
-      "status": "planned",
+      "status": "complete",
       "title": "A persona is selected, never inferred",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PSN-P0-013] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Access service tests cover refusal when persona_id is absent and forbid implicit persona selection [REQ:PSN-P0-013].",
+          "phase": "unit",
+          "ref": "api/internal/access/service_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     }

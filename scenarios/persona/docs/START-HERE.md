@@ -20,6 +20,11 @@ machine-readable progress check for these gates. It delegates to
 all required gates pass, run `template-manager orient persona
 --finalize` to remove only that temporary orientation metadata.
 
+Implementation status: the orientation gates are complete (`persona 9/9`),
+the template example has been removed, and the seven product domains are
+implemented under the API, CLI, proto, and console surfaces. Use the active
+implementation plan and the validation commands below for ongoing changes.
+
 The generated scaffold is intentionally not the product. Treat every
 generated UI surface as placeholder unless it is explicitly listed as
 durable infrastructure below. In particular:
@@ -33,8 +38,8 @@ durable infrastructure below. In particular:
   mobile, desktop sidebar navigation, theme controls, and Settings-owned
   locale switching. Keep those floors unless your scenario has an explicit
   experience-spec opt-out.
-- The starter page content and the `notes` domain remain illustrative. Replace
-  them with scenario-specific surfaces once the real product shape is known.
+- The starter page content has been replaced with persona, handoff, journal,
+  and settings surfaces.
 - Durable seams you should keep: i18n wiring (`SUPPORTED_LOCALES`,
   `useTranslation`, the locale switcher behavior), accessibility
   primitives (`role`, `aria-*`, `data-testid` selectors), the
@@ -365,10 +370,8 @@ becomes real:
 - [ ] Validate after every meaningful edit:
       `experience-manager spec validate persona --json`.
 
-The notes page spec is part of the removable example domain. When you
-run `template-manager detemplate persona`, the notes page spec
-and its registry entry should disappear with the notes UI/API/CLI
-example.
+The original example page spec was removed with the example API/CLI/proto
+surface. The remaining page specs are the scenario's real routes.
 
 **Exit criteria:** every real route has at least an L0 page spec, the
 registry has no stale route references, and `experience-manager spec
@@ -397,7 +400,7 @@ implementation hardens around them.
 **Exit criteria:** every generated documentation stub is either active,
 deferred, or explicitly not-applicable for a reason.
 
-### Gate 6 — First Real Vertical Slice
+### Gate 6 — First Real Vertical Slice (complete)
 
 - [ ] Add the first real domain beside the example domain.
 - [ ] **Start in proto.** Author `packages/proto/schemas/persona/v1/<domain>/<domain>.proto`
@@ -423,7 +426,7 @@ deferred, or explicitly not-applicable for a reason.
 **Exit criteria:** the first real domain is green across API, CLI, UI,
 and scenario tests.
 
-### Gate 7 — Remove The Example Domain
+### Gate 7 — Remove The Example Domain (complete)
 
 The example domain is removed by one idempotent command — no manual file
 deletion. It strips every fenced `EXAMPLE-DOMAIN` block (docs and code),

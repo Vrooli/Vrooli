@@ -24,5 +24,7 @@ describe("errorMessage", () => {
 
   it("falls back to ordinary error messages", () => {
     expect(errorMessage(new Error("boom"), i18n.t)).toBe("boom");
+    expect(errorMessage("unknown", i18n.t)).toBe("unknown");
+    expect(errorMessage(makeApiError("not-in-catalog", "opaque"), i18n.t)).toBe("An unknown error occurred.");
   });
 });

@@ -9,8 +9,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	"persona/internal/access"
+	"persona/internal/accounts"
 	"persona/internal/capabilities"
+	"persona/internal/channels"
+	"persona/internal/documents"
+	"persona/internal/handoffs"
+	"persona/internal/journal"
 	"persona/internal/modules"
+	"persona/internal/personas"
 	"persona/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
@@ -24,9 +31,15 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	accessH "persona/handlers/access"
+	accountsH "persona/handlers/accounts"
 	capsH "persona/handlers/capabilities"
+	channelsH "persona/handlers/channels"
+	documentsH "persona/handlers/documents"
+	handoffsH "persona/handlers/handoffs"
 	healthH "persona/handlers/health"
-	notesH "persona/handlers/notes" // EXAMPLE-DOMAIN:notes
+	journalH "persona/handlers/journal"
+	personasH "persona/handlers/personas"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -150,12 +163,50 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	clock := schedule.System()
+	var channelService channels.Service
+	var documentService documents.Service
+	healthProvider := personas.HealthProviderFunc(func(ctx context.Context, persona personas.Persona) ([]personas.HealthFinding, error) {
+		findings := make([]personas.HealthFinding, 0)
+		if channelService != nil {
+			channelFindings, err := channelService.CheckHealth(ctx, persona.ID)
+			if err != nil {
+				return nil, fmt.Errorf("channel health: %w", err)
+			}
+			findings = append(findings, channelFindings...)
+		}
+		if documentService != nil {
+			documentFindings, err := documentService.CheckHealth(ctx, persona.ID)
+			if err != nil {
+				return nil, fmt.Errorf("document health: %w", err)
+			}
+			findings = append(findings, documentFindings...)
+		}
+		return findings, nil
+	})
+	personaService := personas.NewServiceWithHealth(personas.NewSQLiteRepository(db, clock), healthProvider)
+	journalService := journal.NewService(journal.NewSQLiteRepository(db, clock))
+	handoffService := handoffs.NewServiceWithRelay(handoffs.NewSQLiteRepository(db, clock), personaService, journalService, notificationRelay(), clock)
+	channelService = channels.NewService(channels.NewSQLiteRepository(db, clock), personaService, defaultChannelAdapters(), journalService, clock)
+	authority := documents.NewUnavailableAuthority()
+	if base := strings.TrimSpace(os.Getenv("DOCUMENT_MANAGER_API_BASE")); base != "" {
+		authority = documents.HTTPAuthority{BaseURL: base}
+	}
+	documentService = documents.NewService(documents.NewSQLiteRepository(db, clock), personaService, handoffService, authority, journalService, clock)
+	accountService := accounts.NewService(accounts.NewSQLiteRepository(db, clock), personaService, handoffService, journalService, clock)
+	accessService := access.NewService(access.NewSQLiteRepository(db, clock), personaService, journalService, access.LiveVerifier{}, access.ServiceOptions{Clock: clock, Secret: []byte(os.Getenv("PERSONA_ATTESTATION_SECRET")), KeyID: "persona-local"})
 
 	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		server.Deps{Clock: clock, Logger: log.Default()},
 		healthH.Module(db, "persona-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
+		accessH.ModuleWithService(accessService),
+		accountsH.ModuleWithService(accountService),
+		channelsH.ModuleWithService(channelService),
+		documentsH.ModuleWithService(documentService),
+		handoffsH.ModuleWithService(handoffService),
+		personasH.ModuleWithService(personaService),
+		journalH.ModuleWithService(journalService),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -163,19 +214,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -190,4 +228,26 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func defaultChannelAdapters() channels.AdapterRegistry {
+	return channels.Registry{
+		"email":  channels.EmailAdapter{Source: channelSourceFromEnv("PERSONA_EMAIL_ADAPTER_URL", "email")},
+		"sms":    channels.SMSAdapter{Source: channelSourceFromEnv("PERSONA_SMS_ADAPTER_URL", "sms")},
+		"device": channels.DeviceAdapter{Source: channelSourceFromEnv("PERSONA_DEVICE_ADAPTER_URL", "device")},
+	}
+}
+
+func channelSourceFromEnv(key, name string) channels.CodeSource {
+	if baseURL := strings.TrimSpace(os.Getenv(key)); baseURL != "" {
+		return channels.HTTPSource{BaseURL: baseURL}
+	}
+	return channels.NewUnavailableSource(name)
+}
+
+func notificationRelay() handoffs.Relay {
+	if baseURL := strings.TrimSpace(os.Getenv("PERSONA_NOTIFICATION_HUB_API_BASE")); baseURL != "" {
+		return handoffs.HTTPRelay{BaseURL: baseURL}
+	}
+	return nil
 }
