@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "name": "holder-two-session-isolation",
+    "description": "Completes an earn-to-redeem loop with one authenticated holder while a second independently authenticated holder remains active in the same run. The proof checks exact subject-derived balances and histories in both directions, approves the first holder's redemption, then renders the first holder's phone view.",
+    "requirement": "TKE-P0-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "holder-view",
+      "sessions": "two-authenticated-principals",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open-authenticator",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "scenario-authenticator",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the authenticator for short-lived test sessions" }
+      }
+    },
+    {
+      "id": "prepare-authenticated-sessions",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "store_result": "auth_sessions",
+          "expression": "(async () => { const authBase = window.location.origin; const key = 'phase13-' + Date.now() + '-' + Math.floor(Math.random() * 1000000); const password = 'Phase13-Holder-Proof-2026!'; const rpc = async (method, body) => { const response = await fetch(authBase + '/vrooli.scenario_authenticator.v1.accounts.AccountsService/' + method, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Connect-Protocol-Version': '1' }, body: JSON.stringify(body) }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error('AccountsService/' + method + ' failed (' + response.status + '): ' + JSON.stringify(payload)); return payload; }; const register = async (role) => rpc('Register', { email: key + '-' + role + '@token-economy.test', password, username: 'Phase 13 ' + role }); const minter = await register('minter'); const holderA = await register('holder-a'); const holderB = await register('holder-b'); const grant = async (account, scope) => rpc('GrantScope', { accessToken: account.tokens.accessToken, principalId: account.account.id, scope }); await grant(minter, 'token-economy:minter'); await grant(holderA, 'token-economy:holder'); await grant(holderB, 'token-economy:holder'); const login = async (role) => rpc('Login', { email: key + '-' + role + '@token-economy.test', password }); const minterLogin = await login('minter'); const holderALogin = await login('holder-a'); const holderBLogin = await login('holder-b'); if (!(minterLogin.account.scopes || []).includes('token-economy:minter')) throw new Error('minter session was issued without its scope'); if (!(holderALogin.account.scopes || []).includes('token-economy:holder') || !(holderBLogin.account.scopes || []).includes('token-economy:holder')) throw new Error('holder session was issued without its scope'); window.name = JSON.stringify({ runKey: key, minterToken: minterLogin.tokens.accessToken, minterSubject: minter.account.id, holderAToken: holderALogin.tokens.accessToken, holderASubject: holderA.account.id, holderBToken: holderBLogin.tokens.accessToken, holderBSubject: holderB.account.id }); return true; })()"
+        },
+        "metadata": { "label": "Create two independently scoped holder sessions and one minter" }
+      }
+    },
+    {
+      "id": "open-holder-session-a",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "token-economy",
+          "scenario_path": "/me",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open holder A's authenticated phone session" }
+      }
+    },
+    {
+      "id": "complete-loop-and-prove-isolation",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const apiBase = window.location.origin; const sessions = JSON.parse(window.name || '{}'); const tokens = { minter: sessions.minterToken, a: sessions.holderAToken, b: sessions.holderBToken }; const subjects = { minter: sessions.minterSubject, a: sessions.holderASubject, b: sessions.holderBSubject }; const key = sessions.runKey; const rpc = async (service, method, token, body) => { const response = await fetch(apiBase + '/vrooli.token_economy.v1.access.' + service + '/' + method, { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', 'Connect-Protocol-Version': '1' }, body: JSON.stringify(body) }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(service + '/' + method + ' failed (' + response.status + '): ' + JSON.stringify(payload)); return payload; }; const tokenType = (await rpc('MinterService', 'CreateTokenType', tokens.minter, { name: 'Household ' + key, symbol: 'HT', color: '#2563eb', supplyPolicy: 'SUPPLY_POLICY_UNBOUNDED', minterSubject: subjects.minter })).tokenType; if (!tokenType?.id) throw new Error('token type was not created'); const holderA = (await rpc('MinterService', 'CreateHolder', tokens.minter, { displayName: 'Holder A ' + key, authenticatorSubject: subjects.a, idempotencyKey: key + '-holder-a' })).holder; const holderB = (await rpc('MinterService', 'CreateHolder', tokens.minter, { displayName: 'Holder B ' + key, authenticatorSubject: subjects.b, idempotencyKey: key + '-holder-b' })).holder; if (!holderA?.id || !holderB?.id || holderA.id === holderB.id) throw new Error('two distinct holders were not created'); const entryId = 'reward-' + key; const entry = (await rpc('MinterService', 'CreateCatalogEntry', tokens.minter, { entry: { id: entryId, tokenTypeId: tokenType.id, title: 'Choose the family movie', description: 'A shared reward that waits for a grown-up.', costAmount: '5', approvalPosture: 'APPROVAL_POSTURE_REQUIRES_APPROVAL' }, idempotencyKey: key + '-catalog' })).entry; const expiresAt = new Date(Date.now() + 86400000).toISOString(); const grantA = (await rpc('MinterService', 'CreateGrant', tokens.minter, { tokenTypeId: tokenType.id, grantSourceId: key + '-earned-a', authorizer: subjects.minter, holderId: holderA.id, amountMinor: '17', allowedCatalogScopes: [entry.id], expiresAt, idempotencyKey: key + '-grant-a' })).grant; await rpc('MinterService', 'CreateGrant', tokens.minter, { tokenTypeId: tokenType.id, grantSourceId: key + '-earned-b', authorizer: subjects.minter, holderId: holderB.id, amountMinor: '31', allowedCatalogScopes: [entry.id], expiresAt, idempotencyKey: key + '-grant-b' }); const beforeA = await rpc('HolderService', 'ViewEconomy', tokens.a, {}); const beforeB = await rpc('HolderService', 'ViewEconomy', tokens.b, {}); const amount = (view) => String((view.balances || []).find((balance) => balance.tokenTypeId === tokenType.id)?.amount ?? 'missing'); if (beforeA.holder?.authenticatorSubject !== subjects.a || beforeB.holder?.authenticatorSubject !== subjects.b) throw new Error('a holder session resolved the wrong subject'); if (amount(beforeA) !== '17' || amount(beforeB) !== '31') throw new Error('pre-redemption balances crossed: A=' + amount(beforeA) + ' B=' + amount(beforeB)); const serializedA = JSON.stringify(beforeA); const serializedB = JSON.stringify(beforeB); if (serializedA.includes(subjects.b) || serializedB.includes(subjects.a)) throw new Error('one holder response disclosed the other holder identity'); const requested = (await rpc('HolderService', 'RequestRedemption', tokens.a, { redemption: { catalogEntryId: entry.id, grantId: grantA.id }, idempotencyKey: key + '-redeem-a' })).redemption; if (requested?.state !== 'REDEMPTION_STATE_PENDING_APPROVAL') throw new Error('expected pending redemption, received ' + requested?.state); const pending = await rpc('MinterService', 'ListPendingRedemptions', tokens.minter, {}); if (!(pending.redemptions || []).some((item) => item.id === requested.id)) throw new Error('minter could not read the durable pending request'); await rpc('MinterService', 'ApproveRedemption', tokens.minter, { redemptionId: requested.id, reason: 'The work was completed.', idempotencyKey: key + '-approve-a' }); const finalA = await rpc('HolderService', 'ViewEconomy', tokens.a, {}); const finalB = await rpc('HolderService', 'ViewEconomy', tokens.b, {}); if (amount(finalA) !== '12' || amount(finalB) !== '31') throw new Error('post-redemption balances crossed: A=' + amount(finalA) + ' B=' + amount(finalB)); if (!(finalA.redemptions || []).some((item) => item.id === requested.id && item.state === 'REDEMPTION_STATE_SETTLED')) throw new Error('holder A cannot see the settled redemption'); if ((finalB.redemptions || []).some((item) => item.id === requested.id) || JSON.stringify(finalB).includes(key + '-earned-a')) throw new Error('holder B could read holder A history or redemption state'); localStorage.setItem('token-economy:isolation-proof', JSON.stringify({ tokenTypeId: tokenType.id, holderABalance: '12', holderBBalance: '31', redemptionId: requested.id })); return true; })()"
+        },
+        "metadata": { "label": "Earn, request, approve, and prove bidirectional holder isolation" }
+      }
+    },
+    {
+      "id": "wait-holder-view",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.holderHome",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the holder phone view" }
+      }
+    },
+    {
+      "id": "render-proof",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const proof = JSON.parse(localStorage.getItem('token-economy:isolation-proof') || 'null'); if (!proof || proof.holderABalance !== '12' || proof.holderBBalance !== '31') throw new Error('isolation proof was not recorded'); const output = document.createElement('output'); output.setAttribute('data-testid', 'holder-isolation-proof'); output.textContent = 'Two authenticated sessions stayed isolated: holder A ' + proof.holderABalance + '; holder B ' + proof.holderBBalance + '. Earn-to-redeem settled.'; output.style.cssText = 'display:block;margin:16px;padding:16px;border:2px solid currentColor;border-radius:12px'; const home = document.querySelector('[data-testid=\"page-holder-home\"]'); if (!home) throw new Error('holder home disappeared before evidence rendering'); document.body.append(output); return true; })()"
+        },
+        "metadata": { "label": "Render durable human-readable isolation evidence" }
+      }
+    },
+    {
+      "id": "assert-isolation-proof",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/holder.isolationProof",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "Earn-to-redeem settled" },
+          "case_sensitive": true,
+          "timeout_ms": 5000,
+          "failure_message": "The two-session isolation evidence was not rendered."
+        },
+        "metadata": { "label": "Capture the completed two-session proof" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "edge-auth-prepare", "source": "open-authenticator", "target": "prepare-authenticated-sessions", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-prepare-open", "source": "prepare-authenticated-sessions", "target": "open-holder-session-a", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-open-loop", "source": "open-holder-session-a", "target": "complete-loop-and-prove-isolation", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-loop-wait", "source": "complete-loop-and-prove-isolation", "target": "wait-holder-view", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-wait-proof", "source": "wait-holder-view", "target": "render-proof", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-proof-assert", "source": "render-proof", "target": "assert-isolation-proof", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

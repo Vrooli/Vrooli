@@ -46,7 +46,7 @@ not-yet-verified debt, a mismatch is a gating error, and a stale/missing artifac
 keeps declared primitives unverified. See the CLI architecture maturity
 reference (`path:scenarios/cli-health/docs/reference/cli-architecture-maturity.md`).
 
-Per-domain tests use `cliapp.RequireProtoServiceCoverage` to assert
+The manifest coverage test uses `cliapp.RequireProtoServiceCoverage` to assert
 that every RPC on the bound proto service either has a manifest command
 binding or appears in the manifest's `omitted[]` list with a reason —
 adding a new RPC without exposing it as a CLI command (or explicitly
@@ -110,71 +110,59 @@ Read values back without an argument:
 token-economy configure api_base
 ```
 
-## Scenario commands — `<domain>`
+## Scenario commands
 
-Each product domain exposes its commands as a subcommand group
-(`token-economy <domain> <verb>`). Every command calls a single API
-endpoint and renders the result through one of the three output
-contracts below. Document your domain's commands here as you build
-them, one row/section per command, mirroring the endpoints they call
-in [`api-endpoints.md`](api-endpoints.md).
+Each product domain is a subcommand group (`token-economy <domain> <verb>`).
+All data-returning commands accept `--json`; the same generated RPC is executed
+for human and JSON output.
 
-The scaffold ships one fully worked CRUD command group as a copyable
-reference (see the fenced example below); `template-manager detemplate
-<scenario>` removes it once your real domains are green.
+| Group | Commands | Authenticated service |
+|---|---|---|
+| `mints` | `create`, `show`, `list`, `retire`, `mint` | `MinterService` |
+| `holders` | `add`, `show`, `list` | `MinterService` |
+| `holders` | `view` | `HolderService` |
+| `earning` | `submit`, `list` | `EarningService` |
+| `grants` | `issue`, `show`, `list`, `revoke` | `MinterService` |
+| `journal` | `events`, `balance`, `export`, `reverse` | `MinterService` |
+| `catalog` | `add`, `update`, `show`, `list`, `retire` | `MinterService` |
+| `catalog` | `browse` | `HolderService` |
+| `redemption` | `redeem` | `HolderService` |
+| `redemption` | `approvals`, `approve`, `deny` | `MinterService` |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario, then remove
-it.
-
-#### `token-economy notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
+Representative JSON reads:
 
 ```bash
-token-economy notes list
-token-economy notes list --json
+token-economy mints list --json
+token-economy holders list --json
+token-economy earning list --json
+token-economy grants list --holder-id <holder-id> --json
+token-economy journal balance --holder-id <holder-id> --token-type-id <token-type-id> --json
+token-economy catalog browse --json
+token-economy redemption approvals --json
 ```
 
-#### `token-economy notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
+Structured request fields use inline proto JSON. `grants issue --expires-at`
+expects an RFC3339 timestamp encoded as a JSON string; catalog and redemption
+commands accept complete `CatalogEntry` and `Redemption` objects:
 
 ```bash
-token-economy notes create --title "First note" --body "Hello world"
+token-economy grants issue \
+  --token-type-id <type> --grant-source-id weekly --authorizer <subject> \
+  --holder-id <holder> --amount-minor 10 \
+  --expires-at '"2030-01-01T00:00:00Z"' \
+  --idempotency-key weekly-1
+
+token-economy catalog add \
+  --entry '{"id":"movie","tokenTypeId":"<type>","title":"Movie","costAmount":"4","approvalPosture":"APPROVAL_POSTURE_REQUIRES_APPROVAL"}' \
+  --idempotency-key catalog-movie-1
+
+token-economy redemption redeem \
+  --redemption '{"catalogEntryId":"movie","grantId":"<grant>"}' \
+  --idempotency-key redeem-movie-1
 ```
 
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-#### `token-economy notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-token-economy notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-#### `token-economy notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-token-economy notes attach abc123 --file ./example.png
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
+The environment variable `TOKEN_ECONOMY_API_TOKEN` supplies the bearer token
+for one invocation without persisting credentials in CLI configuration.
 
 ## Output contracts
 
@@ -222,14 +210,13 @@ For a command inside an existing domain:
    `architecture` block (`{ "primitive": "proto_list" | "proto_mutation"
    | "operational" | "action" }`) matching the command's renderer. The
    schema in `.vrooli/schemas/cli-manifest.schema.json` is authoritative.
-3. Implement the handler in `cli/domains/<domain>/handlers.go` (or a
-   focused sibling file) with signature
-   `func(ctx cliapp.RunContext) error`. Read values with
-   `ctx.Flag(...)`, `ctx.BoolFlag(...)`, `ctx.Positional(...)`, and
-   `ctx.JSON()`.
-4. Add the handler to the bindings map in
+3. Prefer `cliapp.ProtoPrimitiveBindings` so request construction, generated
+   Connect dispatch, authentication, human reporting, and `--json` remain shared
+   primitives. Add a custom handler only when the generic descriptor-driven
+   binding cannot express the transport contract.
+4. Select the generated primitive handler in
    `cli/domains/<domain>/register.go` keyed by `"<Service>.<Method>"`
-   so `cliapp.LoadFromManifest` can wire it. Missing handler or
+   so `cliapp.LoadFromManifestPrimitives` can wire it. Missing handler or
    dead handler both fail at startup.
 5. Handler implementation should:
    - Construct generated Connect clients with

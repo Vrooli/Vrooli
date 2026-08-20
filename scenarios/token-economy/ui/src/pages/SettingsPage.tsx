@@ -5,6 +5,11 @@ import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTra
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+const THEME_LABELS = {
+  light: strings.theme.choice.light,
+  dark: strings.theme.choice.dark,
+  system: strings.theme.choice.system,
+} as const satisfies Record<ThemeChoice, string>;
 
 /**
  * Settings page. Surfaces the locale and theme selectors as a real page (in
@@ -42,7 +47,7 @@ export function SettingsPage() {
               onClick={() => setTheme(c)}
               data-testid={selectors.settingsPage.themeOption({ choice: c })}
             >
-              {t(strings.theme.choice[c])}
+              {t(THEME_LABELS[c])}
             </Button>
           ))}
         </div>

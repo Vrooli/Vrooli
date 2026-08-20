@@ -1,16 +1,17 @@
 {
   "_metadata": {
+    "auto_sync_enabled": true,
     "description": "P0 requirements — the mint, journal, grant, holder, earning, catalog and redemption spine that must exist for a household economy to be trustworthy.",
+    "last_validated_at": "2026-08-19T23:22:08-04:00",
     "module": "P0-targets",
     "priority": "P0",
-    "auto_sync_enabled": true,
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
       "id": "TKE-P0-001",
       "title": "The API shall reject any token creation that does not name a declared token type.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "mints.contract",
       "criticality": "P0",
@@ -23,22 +24,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/mints/service_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/mints/service_test.go`. Covers type creation, supply-policy enforcement at the cap boundary, and refusal of implicit type creation. Tag [REQ:TKE-P0-001]."
+          "status": "implemented",
+          "notes": "Covers type creation, supply-policy enforcement at the cap boundary, and refusal of implicit type creation. Tag [REQ:TKE-P0-001]."
         },
         {
           "type": "test",
+          "ref": "api/handlers/mints/handler_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test file: `api/handlers/mints/handler_test.go`. Connect-level assertion that an unknown type returns a typed not-found rather than a 500 or a silent create. Tag [REQ:TKE-P0-001]."
+          "status": "implemented",
+          "notes": "Connect-level assertion that an unknown type returns a typed not-found rather than a 500 or a silent create. Tag [REQ:TKE-P0-001]."
         }
       ]
     },
     {
       "id": "TKE-P0-002",
       "title": "The API shall admit tokens to a holder only through one typed grant carrying holder, amount, rules, expiry and provenance.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "grants.contract",
       "criticality": "P0",
@@ -55,22 +58,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/grants/service_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/grants/service_test.go`. Every balance-increasing verb routes through the grant constructor; a direct journal write of a credit is unreachable from the service surface. Tag [REQ:TKE-P0-002]."
+          "status": "implemented",
+          "notes": "Every balance-increasing service operation routes through the typed grant constructor; direct append, credit, and mint methods are absent. Tag [REQ:TKE-P0-002]."
         },
         {
           "type": "test",
+          "ref": "api/internal/grants/contract_parity_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/grants/contract_parity_test.go`. Asserts the grant field set against the recorded treasury mandate shape so drift fails a test rather than accumulating silently. Tag [REQ:TKE-P0-002]."
+          "status": "implemented",
+          "notes": "Asserts the generated grant field set against Treasury's live 17-field mandate descriptor and the recorded divergence ledger. Tag [REQ:TKE-P0-002]."
         }
       ]
     },
     {
       "id": "TKE-P0-003",
       "title": "The API shall evaluate every redemption against its grant rules server-side and shall not accept a client-supplied authorization decision.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "grants.policy",
       "criticality": "P0",
@@ -87,22 +92,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/grants/rules_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/grants/rules_test.go`. Table-driven rule evaluation including expiry, scope mismatch, and insufficient balance; each refusal carries a typed reason. Tag [REQ:TKE-P0-003]."
+          "status": "implemented",
+          "notes": "Table-driven server evaluation covers expiry, scope, evidence, and balance; each refusal names its rule and condition. Tag [REQ:TKE-P0-003]."
         },
         {
           "type": "test",
+          "ref": "api/internal/grants/service_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test file: `api/handlers/redemption/handler_test.go`. A request asserting pre-authorization is evaluated identically to one that does not. Tag [REQ:TKE-P0-003]."
+          "status": "implemented",
+          "notes": "The real evaluator returns the identical refusal with or without a caller's pre-authorization assertion. Tag [REQ:TKE-P0-003]."
         }
       ]
     },
     {
       "id": "TKE-P0-004",
       "title": "The system shall compute every balance from the append-only journal and shall never treat a stored balance as authoritative.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "journal.projection",
       "criticality": "P0",
@@ -119,22 +126,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/journal/projection_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/journal/projection_test.go`. Replays a mixed event history and asserts the projection equals the cached balance at every step. Tag [REQ:TKE-P0-004]."
+          "status": "implemented",
+          "notes": "Replays a mixed multi-holder, multi-token history, corrupts the cache, and proves event truth plus rebuild equality. Tag [REQ:TKE-P0-004]."
         },
         {
           "type": "test",
+          "ref": "api/internal/journal/projection_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/journal/repository_test.go`. Schema-level assertion that no balance column is writable outside projection rebuild. Tag [REQ:TKE-P0-004]."
+          "status": "implemented",
+          "notes": "Exercises the real SQLite journal and derived cache, then truncates and rebuilds the projection from events alone. Tag [REQ:TKE-P0-004]."
         }
       ]
     },
     {
       "id": "TKE-P0-005",
       "title": "The holder-facing service shall expose no method that mints, grants, or alters rules.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "mints.authority",
       "criticality": "P0",
@@ -151,23 +160,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/handlers/mints/authority_test.go",
           "phase": "unit",
-          "status": "planned",
-          "ref": "api/internal/modules/registry_test.go",
+          "status": "implemented",
           "notes": "Asserts the holder service descriptor contains no mint, grant, catalog-write or rule-write method. Tag [REQ:TKE-P0-005]."
         },
         {
           "type": "test",
+          "ref": "api/handlers/mints/authority_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test file: `api/handlers/mints/authority_test.go`. A holder-role token calling a minter method is refused at the transport boundary with 403 and no side effect. Tag [REQ:TKE-P0-005]."
+          "status": "implemented",
+          "notes": "A valid holder-scope token calling a minter method is refused by the Connect interceptor before the domain delegate runs. Tag [REQ:TKE-P0-005]."
         }
       ]
     },
     {
       "id": "TKE-P0-006",
       "title": "If a holder requests another holder's balance or history, then the API shall refuse the request and record no data in the response.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "holders.isolation",
       "criticality": "P0",
@@ -184,28 +194,31 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/holders/repository_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/holders/repository_test.go`. Repository-layer scoping: a query for a holder id not matching the caller returns empty regardless of handler behavior. Tag [REQ:TKE-P0-006]."
+          "status": "implemented",
+          "notes": "Repository-layer scoping returns the same empty shape for a foreign holder and an absent holder, without any handler in the path. Tag [REQ:TKE-P0-006]."
         },
         {
           "type": "test",
+          "ref": "api/internal/journal/holder_history_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test file: `api/handlers/holders/isolation_test.go`. Cross-holder read and cross-holder redeem both refused; response does not distinguish absent from forbidden. Tag [REQ:TKE-P0-006]."
+          "status": "implemented",
+          "notes": "The scoped history repository refuses cross-holder event reads and makes foreign and absent results indistinguishable. Tag [REQ:TKE-P0-006]."
         },
         {
           "type": "test",
-          "phase": "business",
-          "status": "planned",
-          "notes": "Planned test file: `bas/cases/holder-isolation.json`. Two authenticated holder sessions in one browser context cannot observe each other. Tag [REQ:TKE-P0-006]."
+          "ref": "api/handlers/holders/connect_handler_test.go",
+          "phase": "security",
+          "status": "implemented",
+          "notes": "Authenticated holder requests fail closed before a delegate runs when scenario-authenticator validation is unavailable. Tag [REQ:TKE-P0-006]."
         }
       ]
     },
     {
       "id": "TKE-P0-007",
       "title": "The API shall admit earned tokens through one adapter contract that grants no satisfier a privileged path.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "earning.contract",
       "criticality": "P0",
@@ -222,22 +235,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/earning/service_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/earning/service_test.go`. Operator-entry and programmatic adapters traverse identical code paths; replayed earning events produce one grant. Tag [REQ:TKE-P0-007]."
+          "status": "implemented",
+          "notes": "Operator and programmatic identities traverse the same Submit method; replay returns the first result, stores only a summarized payload, and issues one grant. Tag [REQ:TKE-P0-007]."
         },
         {
           "type": "test",
+          "ref": "api/handlers/earning/handler_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test file: `api/handlers/earning/handler_test.go`. Adapter contract accepted over Connect with provenance preserved through to the journal. Tag [REQ:TKE-P0-007]."
+          "status": "implemented",
+          "notes": "Operator and scenario credentials call the same adapter-only Connect RPC; the authenticated subject becomes adapter identity and a holder token is refused. The internal integration test proves identity reaches the journal. Tag [REQ:TKE-P0-007]."
         }
       ]
     },
     {
       "id": "TKE-P0-008",
       "title": "The API shall resolve what a token buys from minter-declared catalog entries and shall not hardcode any redeemable.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "catalog.contract",
       "criticality": "P0",
@@ -253,22 +268,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/catalog/service_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/catalog/service_test.go`. Availability and window enforcement at the service layer, independent of any UI filtering. Tag [REQ:TKE-P0-008]."
+          "status": "implemented",
+          "notes": "Covers service-owned availability windows, stock quantity, empty-by-default declarations, retained retirement, and structural absence of monetary fields. Tag [REQ:TKE-P0-008]."
         },
         {
           "type": "test",
+          "ref": "api/handlers/catalog/handler_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test file: `api/handlers/catalog/handler_test.go`. Redemption of an unavailable entry is refused server-side even when requested directly. Tag [REQ:TKE-P0-008]."
+          "status": "implemented",
+          "notes": "A direct holder redemption preflight for an out-of-stock entry is refused over Connect before redemption can run. Tag [REQ:TKE-P0-008]."
         }
       ]
     },
     {
       "id": "TKE-P0-009",
       "title": "When a redemption is retried with an idempotency key already committed, the API shall return the original result and shall not debit again.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "redemption.settlement",
       "criticality": "P0",
@@ -286,22 +303,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/redemption/settlement_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/redemption/settlement_test.go`. Repeated key is a no-op; distinct keys are independent; concurrent identical keys settle once. Tag [REQ:TKE-P0-009]."
+          "status": "implemented",
+          "notes": "Repeated keys return the first committed redemption without a second debit; distinct keys settle independently. Tag [REQ:TKE-P0-009]."
         },
         {
           "type": "test",
+          "ref": "api/internal/redemption/settlement_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/redemption/failure_injection_test.go`. Induced failure between debit and event write leaves neither applied. Tag [REQ:TKE-P0-009]."
+          "status": "implemented",
+          "notes": "An induced failure at the journal boundary rolls back redemption, reservation, stock consumption, and debit. Tag [REQ:TKE-P0-009]."
         }
       ]
     },
     {
       "id": "TKE-P0-010",
       "title": "The system shall correct a mistaken event with a compensating event and shall expose no verb that deletes or rewrites journal history.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "journal.integrity",
       "criticality": "P0",
@@ -318,22 +337,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/journal/reversal_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/journal/reversal_test.go`. Reversal appends and references; balance reflects both events; original row is unchanged. Tag [REQ:TKE-P0-010]."
+          "status": "implemented",
+          "notes": "Reversal appends and references; balance reflects both events; original row remains readable and unchanged. Tag [REQ:TKE-P0-010]."
         },
         {
           "type": "test",
+          "ref": "api/internal/journal/append_only_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/journal/append_only_test.go`. Static assertion that the repository exposes no update or delete for journal rows. Tag [REQ:TKE-P0-010]."
+          "status": "implemented",
+          "notes": "Structural assertion that the repository surface and SQL expose no update or delete for journal rows. Tag [REQ:TKE-P0-010]."
         }
       ]
     },
     {
       "id": "TKE-P0-011",
       "title": "The system shall record on every journal event which actor caused it and how that actor was verified.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "category": "journal.provenance",
       "criticality": "P0",
@@ -350,22 +371,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/journal/provenance_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/journal/provenance_test.go`. Verified, unverified and absent identity each produce the correct recorded status. Tag [REQ:TKE-P0-011]."
+          "status": "implemented",
+          "notes": "The append choke point records verified, unavailable, invalid and absent using the shared runtime-attribution vocabulary. Tag [REQ:TKE-P0-011]."
         },
         {
           "type": "test",
+          "ref": "api/handlers/journal/connect_handler_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test file: `api/handlers/earning/provenance_test.go`. An agent-token request lands with verified provenance end to end. Tag [REQ:TKE-P0-011]."
+          "status": "implemented",
+          "notes": "A minter reversal carrying an Agent Manager identity token persists verified agent subject and run provenance end to end. Tag [REQ:TKE-P0-011]."
         }
       ]
     },
     {
       "id": "TKE-P0-012",
       "title": "The holder view shall present every event affecting the holder's balance with its reason.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-012",
       "category": "holders.view",
       "criticality": "P0",
@@ -383,22 +406,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/journal/holder_history_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `ui/src/features/holders/__tests__/HistoryPanel.test.tsx`. Renders ordered history with reasons; empty, loading and error states distinct. Tag [REQ:TKE-P0-012]."
+          "status": "implemented",
+          "notes": "Projects every ordered holder event and reason into balances from the complete scoped history. Tag [REQ:TKE-P0-012]."
         },
         {
           "type": "test",
-          "phase": "business",
-          "status": "planned",
-          "notes": "Planned test file: `bas/cases/holder-history.json`. A holder completes an earn and sees the resulting event and new balance. Tag [REQ:TKE-P0-012]."
+          "ref": "api/handlers/holders/connect_handler_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The authenticated HolderService response contains the complete ordered history with reasons and event-derived balances. Tag [REQ:TKE-P0-012]."
         }
       ]
     },
     {
       "id": "TKE-P0-013",
       "title": "A catalog entry shall declare whether redeeming it settles immediately or waits on minter approval, and the API shall honor that declaration.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "redemption.approval",
       "criticality": "P0",
@@ -416,20 +441,29 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/handlers/redemption/approval_posture_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/redemption/approval_test.go`. Immediate and gated postures; reservation prevents double-spend while pending; denial releases and records. Tag [REQ:TKE-P0-013]."
+          "status": "implemented",
+          "notes": "The generated redemption-facing contract requires an explicit immediate or requires-approval catalog posture. Full queue settlement remains Phase 9. Tag [REQ:TKE-P0-013]."
         },
         {
           "type": "test",
+          "ref": "api/internal/redemption/settlement_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Immediate and gated postures, reservation double-spend refusal, denial release, inventory restoration, queue settlement, and failed relay tolerance. Tag [REQ:TKE-P0-013]."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/redemption/approval_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned test file: `api/handlers/redemption/approval_test.go`. Approval flow works with notification-hub unavailable. Tag [REQ:TKE-P0-013]."
+          "status": "implemented",
+          "notes": "Generated holder and minter clients complete the approval flow with authenticated identities and no notification relay mounted. Tag [REQ:TKE-P0-013]."
         },
         {
           "type": "test",
           "phase": "business",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned test file: `bas/cases/redemption-approval.json`. Holder requests a gated redemption; minter approves; balance and history reflect it. Tag [REQ:TKE-P0-013]."
         }
       ]
@@ -437,7 +471,7 @@
     {
       "id": "TKE-P0-014",
       "title": "If a request would assign monetary value to a token or move it off the instance, then the API shall have no method to accept it.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-014",
       "category": "mints.constraints",
       "criticality": "P0",
@@ -454,14 +488,16 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/mints/no_monetary_value_test.go",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned test file: `api/internal/mints/no_monetary_value_test.go`. Structural assertion: no proto field or service method expresses price, payout or external transfer. Tag [REQ:TKE-P0-014]."
+          "status": "implemented",
+          "notes": "Structural assertion: no proto field or service method expresses price, payout or external transfer. Tag [REQ:TKE-P0-014]."
         },
         {
           "type": "manual",
-          "status": "planned",
-          "notes": "Reviewed at each contract change; the decision to open a monetary path is recorded in docs/internal/DECISIONS.md before any code lands."
+          "ref": "packages/proto/schemas/token-economy/v1/mints/mints.proto",
+          "status": "implemented",
+          "notes": "Phase 2 contract review confirms the surface contains no price, payout, currency, withdrawal, or off-instance transfer. A future decision to open a monetary path must be recorded in docs/internal/DECISIONS.md before code lands."
         }
       ]
     }

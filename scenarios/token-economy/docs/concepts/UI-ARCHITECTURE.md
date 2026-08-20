@@ -86,8 +86,7 @@ table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
   `experience/pages/*.json::bindings` once bindings exist.
 
 Run `experience-manager spec validate token-economy --json` after route or
-selector changes. The generated notes page spec is example-domain content and
-is removed by `template-manager detemplate token-economy`.
+selector changes.
 
 ## Extending The Manifest
 

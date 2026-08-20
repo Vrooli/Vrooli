@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
 	"token-economy/internal/module"
 
 	"github.com/gorilla/mux"

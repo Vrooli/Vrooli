@@ -11,10 +11,16 @@ interface Row {
   count: number;
 }
 
+const betaName = "Beta";
+const alphaName = "Alpha";
+
 const rows: Row[] = [
-  { id: "b", name: "Beta", count: 2 },
-  { id: "a", name: "Alpha", count: 1 },
+  { id: "b", name: betaName, count: 2 },
+  { id: "a", name: alphaName, count: 1 },
 ];
+
+const searchPlaceholder = "Search demo";
+const noMatchingRows = "No matching demo rows";
 
 const columns: Array<DataTableColumn<Row>> = [
   {
@@ -46,8 +52,8 @@ describe("DataTable", () => {
     );
 
     expect(screen.getByTestId("demo-table")).toBeInTheDocument();
-    expect(screen.getByText("Alpha")).toBeInTheDocument();
-    expect(screen.getByText("Beta")).toBeInTheDocument();
+    expect(screen.getByText(alphaName)).toBeInTheDocument();
+    expect(screen.getByText(betaName)).toBeInTheDocument();
   });
 
   it("sorts by a sortable column", async () => {
@@ -71,13 +77,41 @@ describe("DataTable", () => {
         columns={columns}
         getRowKey={(row) => row.id}
         caption="Demo rows"
-        searchPlaceholder="Search demo"
+        searchPlaceholder={searchPlaceholder}
       />,
     );
 
-    await user.type(screen.getByPlaceholderText("Search demo"), "alp");
+    await user.type(screen.getByPlaceholderText(searchPlaceholder), "alp");
 
-    expect(screen.getByText("Alpha")).toBeInTheDocument();
-    expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+    expect(screen.getByText(alphaName)).toBeInTheDocument();
+    expect(screen.queryByText(betaName)).not.toBeInTheDocument();
+  });
+
+  it("applies named filters, toggles descending sort, and explains an empty result", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getRowKey={(row) => row.id}
+        caption="Demo rows"
+        searchPlaceholder={searchPlaceholder}
+        emptyMessage={noMatchingRows}
+        filters={[
+          { id: "all", label: "All", predicate: () => true },
+          { id: "large", label: "Large", predicate: (row) => row.count > 1 },
+        ]}
+        filterGroupLabel="Demo filters"
+        sortLabel={(header) => `Order by ${header}`}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Large" }));
+    expect(screen.getByText(betaName)).toBeInTheDocument();
+    expect(screen.queryByText(alphaName)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Order by Name" }));
+    await user.type(screen.getByPlaceholderText(searchPlaceholder), "missing");
+    expect(screen.getByText(noMatchingRows)).toBeInTheDocument();
   });
 });

@@ -29,7 +29,6 @@ export function TopBar() {
           data-testid={selectors.theme.switcher}
           className="flex items-center gap-2 text-xs text-app-muted-foreground"
         >
-          <span className="sr-only">{t(strings.theme.switcherLabel)}</span>
           <select
             value={choice}
             onChange={(e) => setTheme(e.target.value as ThemeChoice)}

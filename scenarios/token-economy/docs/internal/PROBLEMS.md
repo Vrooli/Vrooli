@@ -311,9 +311,16 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| Docs vs. code | Total, by construction. `DOMAINS.md` declares seven domains; `api/internal/` contains only the `notes` example and infrastructure. This is not drift in the usual sense — nothing has diverged, because nothing was built — but a drift audit run today would report it as such. | `measures.uncovered-domain` blocks the `measures` phase. Expected and correct while documentation leads implementation. | Build the domains in the PRD's launch order. Each landed domain removes one row of this gap. |
+| Docs vs. code | The seven declared domain package and proto boundaries exist; `mints` and the internal `journal` spine are implemented while the remaining five still carry placeholders. | Structural alignment and the first two behavioral slices are established; the broader product remains intentionally incomplete. | Continue in the PRD's launch order and keep each contract, repository, service, handler, and test owned by its domain. |
 | Declared dependencies vs. imports | `.vrooli/service.json` declares `scenario-authenticator`, `notification-hub` and `agent-manager`; no code imports any of them yet. | `dependency.declared-without-import-evidence` (INFO) blocks the `dependencies` phase. | Resolves when `holders` binds to the authenticator and `journal` resolves provenance. Reverting the declarations was rejected — it would put `service.json` in disagreement with `INTEGRATIONS.md`, trading an honest INFO finding for a silent inconsistency. |
-| Experience specs vs. built UI | 12 pages declared `draft`; only the scaffold's dashboard, notes and settings routes exist. | None — `draft` status makes reconciliation advisory by design, which is the correct use of the status. | Flip each page to `active` as its route is built and stable selectors land, then raise its claims from `aspirational` to `machine`. |
+| Experience specs vs. built UI | 12 pages are declared while only dashboard and settings routes exist. | Draft/aspirational claims remain honest, but UI-health still observes placeholder routes and chrome. | Implement each route in its owning phase, add stable selectors, then raise claims from `aspirational` to `machine`. |
+
+## Work ladder
+
+- Rung: W3 (R0 — runnable, acceptance slices green; full suite degraded)
+- Evidence: Goal `token-economy-full-implementation` and `PRD.md` still align on the complete P0/P1 set. Business and requirements validation pass. Orientation is 9/9; API/CLI/UI narrow suites are green. Test Genie run `20260819-221752-a7fa74c5` passes 17 of 22 phases, including unit, security, API, proto, storage, business, and structure; it freshly earns `TKE-P0-004` and `TKE-P0-010`, in addition to the previously earned mint requirements. Journal proof covers exact append/read surface shape, immutable compensating reversals, cache corruption immunity, and full multi-holder/multi-token rebuild equality.
+- Blocker: The full R0 suite is not yet green. Remaining failures are cross-cutting UI-health (scattered keydown, stale bundle, and visual debt), Scenario Dependency Analyzer's unscoped Go tidy drift, observer-workflow debt, and unavailable contracts/docs providers. None contradicts the completed mint-domain acceptance criteria, but all remain part of the full-plan validation burden.
+- Measured: 2026-08-19
 
 ## Cross-references
 

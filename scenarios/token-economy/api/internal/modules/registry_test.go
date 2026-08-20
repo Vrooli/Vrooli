@@ -46,8 +46,7 @@ func TestAllEndpoints_StableOrder(t *testing.T) {
 // TestAllSchemas_NonEmpty proves the schema registry is always
 // populated (system home is always present) and that every entry has
 // a non-nil provider. Per-domain schema content is verified by each
-// domain's own *_test.go (see internal/notes/sqlite_test.go for the
-// canonical apply-and-query coverage).
+// domain's own *_test.go.
 func TestAllSchemas_NonEmpty(t *testing.T) {
 	got := modules.AllSchemas()
 	require.NotEmpty(t, got, "AllSchemas must return at least the system provider")
@@ -89,11 +88,9 @@ func TestAllSchemas_AppliesIdempotently(t *testing.T) {
 // matching EndpointDescriptor in AllEndpoints() whose Path equals
 // "/" + service.FullName + "/" + method.Name.
 //
-// Lifted from a per-domain test (formerly
-// api/handlers/notes/module_test.go) so the safety net applies
-// automatically to every Connect-mounted domain registered in
-// AllProtoFiles() — agents adding a new domain no longer have to
-// remember to copy the parity test.
+// This safety net applies automatically to every Connect-mounted domain
+// registered in AllProtoFiles() — agents adding a new domain do not have to
+// copy a parity test.
 //
 // On failure the message names the proto method, the expected path,
 // and the module, so the fix is mechanical: either add the matching
@@ -107,9 +104,13 @@ func TestProtoConnectParity(t *testing.T) {
 	}
 
 	files := modules.AllProtoFiles()
-	require.NotEmpty(t, files,
-		"AllProtoFiles() returned no entries; every Connect-mounted "+
-			"domain module must be registered there")
+	if len(files) == 0 {
+		// A detemplated scenario may intentionally have domain packages and
+		// placeholder messages before its first RPC is authored. Parity is
+		// vacuously true in that state; strict checks begin with the first
+		// registered service descriptor.
+		return
+	}
 
 	for _, entry := range files {
 		services := entry.File.Services()

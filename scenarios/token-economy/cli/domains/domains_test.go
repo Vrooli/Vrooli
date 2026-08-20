@@ -3,6 +3,7 @@ package domains
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -37,6 +38,22 @@ func TestSubcommandGroups(t *testing.T) {
 	for i, g := range got {
 		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)
 		require.NotEmpty(t, g.Subcommands, "group[%d] (%s) must register at least one subcommand", i, g.Name)
+	}
+	names := make([]string, 0, len(got))
+	for _, group := range got {
+		names = append(names, group.Name)
+	}
+	sort.Strings(names)
+	require.Equal(t, []string{"catalog", "earning", "grants", "holders", "journal", "mints", "redemption"}, names)
+}
+
+func TestMintsGroupCannotAcquireHolderClientAuthority(t *testing.T) {
+	manifest, err := cliapp.ParseManifest(readManifestForTest(t))
+	require.NoError(t, err)
+	group := manifest.FindGroup("mints")
+	require.NotNil(t, group)
+	for _, command := range group.Commands {
+		require.Equal(t, "MinterService", command.Binding.Service, "mints/%s must never bind a holder client", command.Name)
 	}
 }
 

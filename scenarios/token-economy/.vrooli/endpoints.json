@@ -45,216 +45,252 @@
       }
     },
     {
-      "id": "capabilities_describe",
-      "path": "/api/v1/capabilities/describe",
-      "method": "GET",
-      "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
+      "id": "access_minter_create_token_type",
+      "path": "/vrooli.token_economy.v1.access.MinterService/CreateTokenType",
+      "method": "POST",
+      "summary": "Create token type",
+      "description": "Declares a token type, supply policy, and its sole named minter authority.",
+      "category": "minter"
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.token_economy.v1.notes.NotesService/ListNotes",
+      "id": "access_minter_get_token_type",
+      "path": "/vrooli.token_economy.v1.access.MinterService/GetTokenType",
       "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.token_economy.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
+      "summary": "Get token type",
+      "description": "Returns a declared token type, including retained retirement state.",
+      "category": "minter"
     },
     {
-      "id": "notes_create",
-      "path": "/vrooli.token_economy.v1.notes.NotesService/CreateNote",
+      "id": "access_minter_list_token_types",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListTokenTypes",
       "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.token_economy.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
+      "summary": "List token types",
+      "description": "Lists active token types, optionally including retired declarations.",
+      "category": "minter"
     },
     {
-      "id": "notes_get",
-      "path": "/vrooli.token_economy.v1.notes.NotesService/GetNote",
+      "id": "access_minter_retire_token_type",
+      "path": "/vrooli.token_economy.v1.access.MinterService/RetireTokenType",
       "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.token_economy.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
+      "summary": "Retire token type",
+      "description": "Retires a token type without deleting its identity or history.",
+      "category": "minter"
     },
     {
-      "id": "notes_count",
-      "path": "/vrooli.token_economy.v1.notes.NotesService/CountNotes",
+      "id": "access_minter_mint_supply",
+      "path": "/vrooli.token_economy.v1.access.MinterService/MintSupply",
       "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.token_economy.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
+      "summary": "Mint token supply",
+      "description": "Increases lifetime issued supply while enforcing the declared cap; it does not alter a holder balance.",
+      "category": "minter"
     },
     {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
+      "id": "access_minter_create_grant",
+      "path": "/vrooli.token_economy.v1.access.MinterService/CreateGrant",
       "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
-        "proto_payloads": {
-          "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.token_economy.v1.notes.UploadAttachmentResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "vrooli.token_economy.v1.shared.ErrorEnvelope",
-            "transport": "json",
-            "conformance": "protojson"
-          }
-        }
-      }
+      "summary": "Create grant",
+      "description": "Admits tokens through a mandate-shaped grant and an atomic journal credit.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_get_grant",
+      "path": "/vrooli.token_economy.v1.access.MinterService/GetGrant",
+      "method": "POST",
+      "summary": "Get grant",
+      "description": "Returns a retained grant and its server-evaluated rules.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_list_grants",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListGrants",
+      "method": "POST",
+      "summary": "List grants",
+      "description": "Lists grants with optional holder and token-type filters.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_revoke_grant",
+      "path": "/vrooli.token_economy.v1.access.MinterService/RevokeGrant",
+      "method": "POST",
+      "summary": "Revoke grant",
+      "description": "Revokes one grant idempotently while retaining its history.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_update_grant_rule",
+      "path": "/vrooli.token_economy.v1.access.MinterService/UpdateGrantRule",
+      "method": "POST",
+      "summary": "Update grant rule",
+      "description": "Changes a server-evaluated grant rule.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_create_holder",
+      "path": "/vrooli.token_economy.v1.access.MinterService/CreateHolder",
+      "method": "POST",
+      "summary": "Create holder",
+      "description": "Binds a household holder to one authenticator subject idempotently.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_get_holder",
+      "path": "/vrooli.token_economy.v1.access.MinterService/GetHolder",
+      "method": "POST",
+      "summary": "Get holder",
+      "description": "Returns one holder to the minter audience.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_list_holders",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListHolders",
+      "method": "POST",
+      "summary": "List holders",
+      "description": "Lists household holders for the minter audience.",
+      "category": "minter"
+    },
+    {
+      "id": "access_holder_view_economy",
+      "path": "/vrooli.token_economy.v1.access.HolderService/ViewEconomy",
+      "method": "POST",
+      "summary": "View economy",
+      "description": "Returns the authenticated holder's economy view.",
+      "category": "holder"
+    },
+    {
+      "id": "access_holder_submit_request",
+      "path": "/vrooli.token_economy.v1.access.HolderService/SubmitRequest",
+      "method": "POST",
+      "summary": "Submit request",
+      "description": "Submits a holder request without granting authority operations.",
+      "category": "holder"
+    },
+    {
+      "id": "catalog_create",
+      "path": "/vrooli.token_economy.v1.access.MinterService/CreateCatalogEntry",
+      "method": "POST",
+      "summary": "Create catalog entry",
+      "description": "Declares what a token type buys and its approval posture.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_update",
+      "path": "/vrooli.token_economy.v1.access.MinterService/UpdateCatalogEntry",
+      "method": "POST",
+      "summary": "Update catalog entry",
+      "description": "Updates a retained minter-declared catalog entry.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_get",
+      "path": "/vrooli.token_economy.v1.access.MinterService/GetCatalogEntry",
+      "method": "POST",
+      "summary": "Get catalog entry",
+      "description": "Returns one retained catalog declaration.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_list",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListCatalogEntries",
+      "method": "POST",
+      "summary": "List catalog entries",
+      "description": "Lists catalog declarations, optionally including retired entries.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_retire",
+      "path": "/vrooli.token_economy.v1.access.MinterService/RetireCatalogEntry",
+      "method": "POST",
+      "summary": "Retire catalog entry",
+      "description": "Retires an entry without deleting its identity.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_browse",
+      "path": "/vrooli.token_economy.v1.access.HolderService/BrowseCatalog",
+      "method": "POST",
+      "summary": "Browse available catalog",
+      "description": "Returns only entries currently available under server-owned policy.",
+      "category": "catalog"
+    },
+    {
+      "id": "earning_submit",
+      "path": "/vrooli.token_economy.v1.earning.EarningService/SubmitEarning",
+      "method": "POST",
+      "summary": "Submit earned tokens",
+      "description": "Admits work through the shared adapter contract with adapter-scoped replay protection.",
+      "category": "earning"
+    },
+    {
+      "id": "earning_list",
+      "path": "/vrooli.token_economy.v1.earning.EarningService/ListEarnings",
+      "method": "POST",
+      "summary": "List earning submissions",
+      "description": "Lists durable dedup outcomes and privacy-minimized payload summaries.",
+      "category": "earning"
+    },
+    {
+      "id": "journal_events_list",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListJournalEvents",
+      "method": "POST",
+      "summary": "List journal events",
+      "description": "Lists append-only events for one holder and token type.",
+      "category": "journal"
+    },
+    {
+      "id": "journal_balance_show",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ShowBalance",
+      "method": "POST",
+      "summary": "Show projected balance",
+      "description": "Projects the balance from journal events.",
+      "category": "journal"
+    },
+    {
+      "id": "journal_export",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ExportJournal",
+      "method": "POST",
+      "summary": "Export journal",
+      "description": "Returns the stable generated journal response for export.",
+      "category": "journal"
+    },
+    {
+      "id": "journal_reverse",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ReverseEvent",
+      "method": "POST",
+      "summary": "Reverse journal event",
+      "description": "Appends one idempotent compensating event while preserving the original.",
+      "category": "journal"
+    },
+    {
+      "id": "redemption_request",
+      "path": "/vrooli.token_economy.v1.access.HolderService/RequestRedemption",
+      "method": "POST",
+      "summary": "Request redemption",
+      "description": "Reserves or immediately spends the authenticated holder's balance.",
+      "category": "redemption"
+    },
+    {
+      "id": "redemption_pending_list",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListPendingRedemptions",
+      "method": "POST",
+      "summary": "List pending redemptions",
+      "description": "Returns the durable minter approval queue.",
+      "category": "redemption"
+    },
+    {
+      "id": "redemption_approve",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ApproveRedemption",
+      "method": "POST",
+      "summary": "Approve redemption",
+      "description": "Settles one pending redemption exactly once.",
+      "category": "redemption"
+    },
+    {
+      "id": "redemption_deny",
+      "path": "/vrooli.token_economy.v1.access.MinterService/DenyRedemption",
+      "method": "POST",
+      "summary": "Deny redemption",
+      "description": "Denies one pending redemption and releases its reservations.",
+      "category": "redemption"
     }
   ]
 }

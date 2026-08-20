@@ -91,86 +91,6 @@
         }
       ],
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/token-economy-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "token-economy"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o token-economy-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./token-economy-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/token-economy-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute token-economy --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -200,7 +120,16 @@
         "startup_policy": "ignore",
         "purpose": "Verified actor provenance on journal events (TKE-P0-011), so an agent-initiated grant is distinguishable from an operator-initiated one after the fact.",
         "description": "Read-only verification through the shared packages/cli-core verifier. This scenario does not spawn agents and does not invent a second attribution model.",
-        "degraded_behavior": "Degrade honestly. The event is written with the actor recorded as unverified \u2014 never promoted, never dropped, never blocking the write."
+        "degraded_behavior": "Degrade honestly. The event is written with the actor recorded as unverified — never promoted, never dropped, never blocking the write."
+      },
+      "treasury": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "purpose": "Typed contract parity for grant rules derived from Treasury mandate semantics.",
+        "description": "Compile-time protobuf parity only; Token Economy does not call Treasury at runtime.",
+        "degraded_behavior": "No runtime effect. Contract drift is rejected by the Token Economy test suite."
       }
     },
     "resources": {}
@@ -208,5 +137,36 @@
   "credentials": {},
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/token-economy.db"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
   }
 }

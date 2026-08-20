@@ -80,12 +80,6 @@
       "path": "pages/settings.json",
       "title": "Settings",
       "status": "draft"
-    },
-    {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
-      "status": "active"
     }
   ],
   "journeys": [

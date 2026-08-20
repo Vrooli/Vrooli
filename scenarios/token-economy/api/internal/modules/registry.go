@@ -19,16 +19,22 @@ package modules
 import (
 	"token-economy/internal/module"
 
-	capsH "token-economy/handlers/capabilities"
+	accessH "token-economy/handlers/access"
+	catalogH "token-economy/handlers/catalog"
+	earningH "token-economy/handlers/earning"
+	grantsH "token-economy/handlers/grants"
+	holdersH "token-economy/handlers/holders"
+	journalH "token-economy/handlers/journal"
+	mintsH "token-economy/handlers/mints"
+	redemptionH "token-economy/handlers/redemption"
 
 	apidb "github.com/vrooli/api-core/database"
+	accessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/access"
+	earningv1 "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/earning"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "token-economy/handlers/health"
-	notesH "token-economy/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "token-economy/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -38,8 +44,11 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, accessH.Endpoints...)
+	out = append(out, catalogH.Endpoints...)
+	out = append(out, earningH.Endpoints...)
+	out = append(out, journalH.Endpoints...)
+	out = append(out, redemptionH.Endpoints...)
 	return out
 }
 
@@ -66,7 +75,8 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_token_economy_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "access", File: accessv1.File_token_economy_v1_access_access_proto},
+		{Module: "earning", File: earningv1.File_token_economy_v1_earning_earning_proto},
 	}
 }
 
@@ -81,6 +91,12 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(catalogH.Schema),
+		apidb.SchemaProviderFunc(earningH.Schema),
+		apidb.SchemaProviderFunc(grantsH.Schema),
+		apidb.SchemaProviderFunc(holdersH.Schema),
+		apidb.SchemaProviderFunc(journalH.Schema),
+		apidb.SchemaProviderFunc(mintsH.Schema),
+		apidb.SchemaProviderFunc(redemptionH.Schema),
 	}
 }

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 
 export type ThemeChoice = "light" | "dark" | "system";
 
@@ -25,7 +25,8 @@ const readStoredChoice = (): ThemeChoice => {
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
-  if (typeof window === "undefined" || !window.matchMedia) return "light";
+  // DOM typings guarantee matchMedia, but jsdom and older embedded webviews do not.
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
@@ -40,6 +41,15 @@ const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
   }
 };
 
+const syncChromeColor = () => {
+  if (typeof document === "undefined" || typeof window === "undefined") return;
+  const color = window.getComputedStyle(document.documentElement).getPropertyValue("--color-surface").trim();
+  if (!color) return;
+  document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
+    meta.content = color;
+  });
+};
+
 interface ThemeProviderProps {
   children: ReactNode;
   /** Test override — skips localStorage and media-query reads. */
@@ -50,12 +60,14 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   const [choice, setChoice] = useState<ThemeChoice>(() => initialChoice ?? readStoredChoice());
   const [resolved, setResolved] = useState<"light" | "dark">(() => resolveChoice(initialChoice ?? readStoredChoice()));
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyTheme(resolved, choice);
+    syncChromeColor();
   }, [resolved, choice]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    // DOM typings guarantee matchMedia, but jsdom and older embedded webviews do not.
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
     if (choice !== "system") return undefined;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => setResolved(mq.matches ? "dark" : "light");

@@ -1,16 +1,21 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Token Economy are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Token Economy",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Token Economy"
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
+      "tokens": "Token types",
+      "holders": "Holders",
+      "earning": "Earning",
+      "grants": "Grants",
+      "catalog": "Catalog",
+      "approvals": "Approvals",
+      "journal": "Journal",
       "settings": "Settings"
     }
   },
@@ -25,11 +30,7 @@
   "pages": {
     "dashboard": {
       "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
-    },
-    "notes": {
-      "title": "Notes"
+      "description": "A current operating view of this household economy."
     },
     "settings": {
       "title": "Settings",
@@ -37,6 +38,24 @@
       "localeHeading": "Language"
     }
   },
+  "common": {
+    "status": "Status", "actions": "Actions", "amount": "Amount", "active": "Active", "inactive": "Inactive", "retired": "Retired", "retire": "Retire", "pending": "Pending", "name": "Name", "identifier": "Identifier", "description": "Description", "loading": "Loading current records…", "requestError": "The current records could not be loaded. Try again.", "search": "Search records"
+  },
+  "dashboard": { "current": "Current", "tokenTypes": "Token types", "holders": "Holders", "rewards": "Available rewards", "pendingApprovals": "Pending approvals" },
+  "mints": { "title": "Token types", "description": "Declare each economy, its identity, supply policy and minter authority.", "createTitle": "Declare a token type", "create": "Create token type", "identity": "Identity", "symbol": "Symbol", "color": "Color", "minterSubject": "Minter identity", "supplyPolicy": "Supply policy", "unbounded": "Unbounded", "capped": "Capped", "fixed": "Fixed", "capAmount": "Supply cap", "supply": "Minted / cap", "mintAmount": "Amount to mint", "mint": "Mint", "tableCaption": "Declared token types", "empty": "No token type exists yet. Declare one before issuing tokens." },
+  "holders": { "title": "Holders", "description": "Bind each participant to one verified authenticator identity.", "addTitle": "Add a holder", "add": "Add holder", "authenticatorSubject": "Authenticated identity", "tableCaption": "Holders and their identity bindings", "empty": "No holders exist yet. Add a participant to begin the economy." },
+  "holderView": {
+    "appTitle": "My Token Economy", "appDescription": "Your balance, history, and rewards", "mainLabel": "My economy", "navigationLabel": "Holder navigation", "nav": { "home": "Home", "history": "History", "rewards": "Rewards" },
+    "eyebrow": "Your economy", "title": "My tokens", "welcome": "Hello, {{name}}", "balanceExplanation": "Every balance comes from the history shown below.", "balances": "Current balances", "signInRequired": "Sign in with your holder account to see this economy.",
+    "noBalance": "No tokens yet", "noBalanceDescription": "Completed work and grants will appear here when they are recorded.", "recentHistory": "Recent history", "seeAll": "See all history", "journalEvent": "Token event", "noHistory": "No history yet", "noHistoryDescription": "Your first earning or redemption will appear here with its reason.", "historyTitle": "How my balance changed", "historyDescription": "This append-only history explains every token added or used.", "historyListLabel": "Token history",
+    "pendingTitle": "Waiting for a decision", "noPending": "No reward requests are waiting.", "rewardRequest": "Reward request for {{amount}} tokens",
+    "rewardsTitle": "Rewards", "rewardsDescription": "Choose what your tokens can buy. The server checks every rule before accepting a request.", "cost": "{{amount}} tokens", "redeem": "Request reward", "noEligibleGrant": "Earn tokens under an eligible grant before requesting this reward.", "noRewards": "No rewards are available", "noRewardsDescription": "The minter has not published an available reward yet.", "redemptionRecorded": "Your reward request was recorded.", "redemptionRefused": "This reward could not be requested: {{reason}}"
+  },
+  "grants": { "title": "Grants and rules", "description": "Issue mandate-shaped authority and explain every condition before it becomes active.", "issueTitle": "Issue a grant", "issue": "Issue grant", "tokenType": "Token type identifier", "holder": "Holder identifier", "source": "Grant source", "authorizer": "Authorizer identity", "catalogScope": "Allowed catalog scope", "rules": "Rules", "rule": "Rule", "noRules": "No rules", "condition": "Rule condition", "operand": "Rule value", "allowScope": "Allow catalog scope", "denyScope": "Deny catalog scope", "requireEvidence": "Require evidence", "rulePreview": "This grant applies the selected rule to {{operand}}.", "anyScope": "any scope", "tableCaption": "Issued grants and their rules", "empty": "No grants exist yet. Earnings and operator issuance appear here." },
+  "catalog": { "title": "Reward catalog", "description": "Define what tokens can buy and whether a redemption needs approval.", "createTitle": "Define a reward", "create": "Create reward", "tokenType": "Token type identifier", "cost": "Cost", "approval": "Approval posture", "needsApproval": "Needs approval", "immediate": "Settles immediately", "tableCaption": "Catalog rewards", "empty": "No rewards are available yet. Define the first thing tokens can buy." },
+  "approvals": { "title": "Approval queue", "description": "Review waiting redemptions with the evidence and reason needed for a clear decision.", "holder": "Holder", "reward": "Reward", "decision": "Decision", "reason": "Decision reason", "defaultApprovalReason": "Approved by the minter", "defaultDenialReason": "Denied by the minter", "approve": "Approve", "deny": "Deny", "tableCaption": "Redemptions waiting for a decision", "empty": "Nothing is waiting for approval." },
+  "journal": { "title": "Journal", "description": "Read the append-only evidence behind every balance and export the same records.", "kind": "Event", "reason": "Reason", "actor": "Actor and verification", "noActor": "No actor recorded", "verified": "Verified", "unverified": "Not verified", "holderFilter": "Holder identifier", "tokenFilter": "Token type identifier", "export": "Export journal", "tableCaption": "Append-only journal events", "empty": "No journal events match these filters." },
+  "earning": { "title": "Earning", "description": "Record offline work through the same earning contract used by programmatic adapters.", "submitTitle": "Record work completed", "submit": "Record earning", "holder": "Holder identifier", "tokenType": "Token type identifier", "reason": "What was completed", "path": "Adapter path", "operatorAdapter": "Operator entry", "replayed": "Replay returned", "recorded": "Recorded", "sharedPathNote": "Operator entry uses the ordinary earning service; it has no privileged shortcut.", "tableCaption": "Earning submissions", "empty": "No earnings have been submitted yet." },
   "health": {
     "title": "API Health",
     "loading": "Checking API status…",
@@ -44,7 +63,6 @@
     "refresh": "Refresh",
     "refreshCount": "Refreshed {{count}} times",
     "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
     "serviceLabel": "Service:",
     "timestampLabel": "Timestamp:"
   },
@@ -52,31 +70,6 @@
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "table": {
-      "title": "Title",
-      "created": "Created",
-      "attachments": "Attachments",
-      "actions": "Actions",
-      "search": "Search notes"
-    },
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

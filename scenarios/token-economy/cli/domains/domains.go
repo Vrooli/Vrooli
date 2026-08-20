@@ -1,7 +1,13 @@
 package domains
 
 import (
-	"token-economy/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"token-economy/cli/domains/catalog"
+	"token-economy/cli/domains/earning"
+	"token-economy/cli/domains/grants"
+	"token-economy/cli/domains/holders"
+	"token-economy/cli/domains/journal"
+	"token-economy/cli/domains/mints"
+	"token-economy/cli/domains/redemption"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -36,13 +42,17 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
-	if err != nil {
-		return nil, err
+	register := []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
+		mints.Register, holders.Register, earning.Register, grants.Register,
+		journal.Register, catalog.Register, redemption.Register,
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups := make([]cliapp.SubcommandGroup, 0, len(register))
+	for _, build := range register {
+		group, err := build(core, manifest)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
+	}
 	return groups, nil
 }

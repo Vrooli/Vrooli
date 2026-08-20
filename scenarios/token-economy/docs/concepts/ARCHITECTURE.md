@@ -71,6 +71,51 @@ business logic. UI and CLI translate user/operator intent into API
 calls. Proto types flow from one source of truth so wire-shape drift
 between surfaces is impossible.
 
+### Grant admission spine
+
+Grant creation is the only ordinary path that credits a holder. The grants
+domain owns a token-type lookup port and a transaction-bound credit port; it
+does not import the mints or journal domains. `api/main.go` adapts those ports
+at composition time. The grant repository opens one SQLite transaction, writes
+the grant and its rules, invokes the journal appender with that same
+transaction, and commits only after both writes succeed. A journal failure
+therefore rolls the grant back, while an idempotent retry returns the first
+grant without appending a second credit.
+
+Rule evaluation remains inside the grants service. Rules use a closed enum,
+and each refusal names the rule and condition that failed. Caller assertions
+of prior authorization are deliberately ignored.
+
+### Authenticated access boundary
+
+The API publishes exactly two audience services from the `access` transport
+package. `MinterService` owns mint, grant, catalog-mutation, and rule-mutation
+reachability; `HolderService` owns only view, browse, redemption-request, and
+general-request reachability. A separate `EarningService` integration surface
+contains only `SubmitEarning`, so an adapter credential never acquires minter
+or holder capability. A Connect interceptor validates RS256 access tokens
+against `scenario-authenticator`'s lifecycle-discovered local JWKS and
+requires the distinct `token-economy:minter`, `token-economy:holder`, or
+`token-economy:earning` scope.
+The authenticated `user_id`, roles, and scopes are installed in the request
+context; caller payloads never establish identity.
+
+The access proto owns public DTOs and handlers translate them into domain-owned
+messages. This deliberate boundary avoids coupling the seven bounded contexts
+through shared wire types while retaining domain-local generated contracts for
+tests and internal adapters. The authenticator is fail-closed: discovery or
+JWKS failure returns `unavailable`, invalid credentials return
+`unauthenticated`, and a valid token for the wrong surface returns
+`permission_denied` before a domain delegate executes.
+
+Holder identity crosses the access-to-holder seam as an explicit authenticated
+subject, not as access middleware state imported by the holder handler. The
+holder repository scopes record reads by both holder id and authenticator
+subject in SQL. The journal's holder-history repository requires the same
+subject and consults the holder repository's narrow ownership port before it
+queries events. Foreign and absent holders therefore return the identical empty
+history even when these repositories are invoked with no handler in the path.
+
 ## System Boundaries
 
 The scenario owns:
@@ -192,7 +237,7 @@ reference domains. Replace this table as the scenario becomes real.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Reference-ready | Domain-owned vertical-slice stack, module registry, per-domain schema, documented seams. | Starter domains must be replaced with scenario-specific capabilities. |
+| API | Spine implemented | Token types, append-only journal projection, mandate-shaped grants, transactional grant-to-credit admission, authenticated service separation, repository-layer holder isolation, and explainable holder history have executable tests. | Earning, catalog, and redemption remain. |
 | UI | Reference-ready | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Real scenarios may need routing/state patterns once multiple screens exist. |
 | CLI | Reference-ready | Domain command groups wrap API calls and render reports. | New domains must add commands intentionally; CLI should remain thin. |
 | Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. | Scenario-specific stubs must be filled or marked not-applicable. |
@@ -208,7 +253,8 @@ when they are deliberate and durable.
 
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
-| 2026-08-18 | None yet. | Generated from `react-vite`. | Update when the scenario intentionally diverges. |
+| 2026-08-19 | Cross-domain grant dependencies are adapted in `api/main.go` through grants-owned ports. | Keeps each domain and handler free of sibling imports while preserving one SQLite transaction for grant plus credit. | Revisit only if a neutral composition package becomes necessary for multiple cross-domain workflows. |
+| 2026-08-19 | The two public access services own transport DTOs and translate into domain messages. | Proto governance correctly rejects an access service that imports and re-exports wire types owned by several bounded contexts. | Revisit only if a fleet-governed neutral contract package replaces the local access DTOs. |
 
 ## Documentation Architecture
 

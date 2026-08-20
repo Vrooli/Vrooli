@@ -3,12 +3,14 @@ package health_test
 import (
 	"errors"
 	"fmt"
-	"github.com/vrooli/api-core/apihttptest"
-	httpx "github.com/vrooli/api-core/servertest"
 	"io"
 	"log"
 	"net/http"
 	"testing"
+
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
+
 	"token-economy/handlers/health"
 	"token-economy/internal/module"
 	"token-economy/internal/server"

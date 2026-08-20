@@ -143,9 +143,10 @@ export function DataTable<Row>({
     <div className={cn("min-w-0 rounded-panel border border-app-border bg-app-surface", className)}>
       <div className="flex flex-col gap-3 border-b border-app-border p-3 md:flex-row md:items-center md:justify-between">
         <label className="relative min-w-0 flex-1">
-          <span className="sr-only">{searchLabel}</span>
           <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted-foreground" />
           <input
+            data-testid={tableTestId ? `${tableTestId}-search` : undefined}
+            aria-label={searchLabel}
             type="search"
             value={query}
             placeholder={searchPlaceholder}
@@ -158,6 +159,7 @@ export function DataTable<Row>({
             {filters.map((filter) => (
               <button
                 key={filter.id}
+                data-testid={tableTestId ? `${tableTestId}-filter-${filter.id}` : undefined}
                 type="button"
                 className={cn(
                   "min-h-11 rounded-control border px-3 text-sm font-medium transition",
@@ -174,8 +176,7 @@ export function DataTable<Row>({
         )}
       </div>
       <div className="max-w-full overflow-x-auto">
-        <table data-testid={tableTestId} className="w-full table-fixed border-collapse text-left text-sm">
-          <caption className="sr-only">{caption}</caption>
+        <table data-testid={tableTestId} aria-label={caption} className="w-full table-fixed border-collapse text-left text-sm">
           <thead className="bg-app-surface-muted text-xs uppercase text-app-muted-foreground">
             <tr>
               {columns.map((column) => {
@@ -186,6 +187,7 @@ export function DataTable<Row>({
                     {column.sortValue ? (
                       <button
                         type="button"
+                        data-testid={tableTestId ? `${tableTestId}-sort-${column.id}` : undefined}
                         aria-label={sortLabel(column.header)}
                         className="inline-flex min-h-11 items-center gap-1 rounded-control text-left hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
                         onClick={() => toggleSort(column)}

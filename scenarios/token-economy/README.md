@@ -12,7 +12,7 @@ A real economy with money that isn't real: mint tokens, grant them with rules th
 
 **Read first:** [`docs/START-HERE.md`](docs/START-HERE.md) for the initialization gates, then [`PRD.md`](PRD.md) for the operational targets and [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) for the seven-domain map and build order.
 
-> **Status: documented, not implemented.** The PRD, requirements registry, domain map, design adaptation, experience contract and operations docs are complete and validating. **No product code exists yet** — `make orient` reports 7/9, and the outstanding gate is the first real vertical slice. Every requirement is `status: planned` and every new experience page is `status: draft`. See [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md), which says this first.
+> **Status: seven-domain skeleton in progress.** The removable template domain is gone, and the mints, journal, grants, holders, earning, catalog, and redemption package boundaries now exist. Product behavior and requirement evidence remain planned until their owning implementation phases land. See [`docs/internal/PROGRESS.md`](docs/internal/PROGRESS.md) for the measured frontier.
 
 ---
 
@@ -66,8 +66,6 @@ the standard full-stack Vrooli scenario shape:
 The generated scaffold is intentionally not the product. When you build
 the real UX, treat these as **placeholders** to replace:
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
 - Starter page content such as the dashboard metric placeholders.
 - The bare-minimum settings surface once your scenario needs more than
   theme and locale.
@@ -93,8 +91,7 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+`api/internal/module/module.go`.
 
 [`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
 workflow in full.

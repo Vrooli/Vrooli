@@ -45,8 +45,36 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
-export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
+import { createElement, type ReactElement, type ReactNode } from "react";
+import {
+  renderWithProviders as renderWithBaseProviders,
+  type ProviderRenderOptions,
+  type ProviderRenderResult,
+} from "@vrooli/api-base/testing";
+
+import { Providers } from "../app/providers";
+import { i18n } from "../i18n";
+
+const scenarioProviders = (children: ReactNode): ReactNode =>
+  createElement(Providers, null, children);
+
+/**
+ * Render through the shared harness with Token Economy's real cross-cutting
+ * providers. Tests still default the local i18n singleton to `cimode` in
+ * test-setup.ts, while real-locale tests can switch that same instance.
+ */
+export function renderWithProviders(
+  ui: ReactElement,
+  options: ProviderRenderOptions = {},
+): ProviderRenderResult {
+  return renderWithBaseProviders(ui, {
+    i18n,
+    extraProviders: scenarioProviders,
+    ...options,
+  });
+}
+
+export type { ProviderRenderOptions, ProviderRenderResult };
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 // Note: HealthResponse is the *generated proto type* re-exported by
@@ -54,10 +82,8 @@ export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 // schema change is one-import-update; consuming the proto package
 // directly in tests fragments that contract.
 //
-// Domain-specific factories (Note, NotesListResponse, etc.) are NOT
-// re-exported here — they live next to the feature they double for
-// (e.g. `features/notes/mocks/factories.ts`) so deleting a feature
-// folder takes them along.
+// Domain-specific factories are NOT re-exported here — they live next to the
+// feature they double for so deleting a feature folder takes them along.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";
 export {

@@ -1,11 +1,13 @@
 package server_test
 
 import (
-	httpx "github.com/vrooli/api-core/servertest"
 	"io"
 	"log"
 	"net/http"
 	"testing"
+
+	httpx "github.com/vrooli/api-core/servertest"
+
 	"token-economy/internal/module"
 	"token-economy/internal/server"
 
@@ -21,9 +23,8 @@ import (
 // through the Handler() chain (including recovery + logging
 // middleware).
 //
-// Per-module route coverage (notes list returns 200, notes get
-// returns 404, etc.) lives in each handler's module_test.go where
-// it belongs; this file owns the wiring guarantee.
+// Per-module route coverage lives in each handler's module_test.go where it
+// belongs; this file owns the wiring guarantee.
 func TestServer_MountsEachModule(t *testing.T) {
 	var aMounted, bMounted bool
 

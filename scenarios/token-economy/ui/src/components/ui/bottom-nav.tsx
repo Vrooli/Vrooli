@@ -38,7 +38,7 @@ export interface BottomNavProps {
 const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 const baseItemClass =
-  "touch-target flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-xs transition";
+  "touch-target flex min-w-20 flex-1 flex-col items-center justify-center gap-0.5 px-2 py-2 text-xs transition";
 const activeClass = "text-app-primary";
 const inactiveClass = "text-app-muted-foreground hover:text-app-foreground";
 const disabledClass = "cursor-not-allowed opacity-50 hover:text-app-muted-foreground";
@@ -56,7 +56,7 @@ export function BottomNav({
   const renderItemContent = (item: BottomNavItem) => (
     <>
       <span aria-hidden className="flex h-5 w-5 items-center justify-center">{item.icon}</span>
-      <span className="max-w-full truncate whitespace-nowrap">{item.label}</span>
+      <span className="whitespace-nowrap">{item.label}</span>
     </>
   );
 
@@ -65,7 +65,7 @@ export function BottomNav({
       data-testid={testId}
       aria-label={label}
       className={cn(
-        "fixed inset-x-0 bottom-safe z-30 flex border-t border-app-border bg-app-surface pl-safe pr-safe pb-safe pb-4 md:hidden",
+        "fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-app-border bg-app-surface pl-safe pr-safe pb-[calc(1rem+var(--safe-area-inset-bottom))] md:hidden",
         className,
       )}
     >

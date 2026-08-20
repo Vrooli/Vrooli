@@ -24,17 +24,15 @@ The generated scaffold is intentionally not the product. Treat every
 generated UI surface as placeholder unless it is explicitly listed as
 durable infrastructure below. In particular:
 
-- The scaffold ships one worked example domain (clearly fenced as an
-  example throughout the docs). Build one real domain beside it, prove
-  that domain is green, then remove the example with one command:
-  `template-manager detemplate <scenario>`.
+- The removable worked example has been detemplated. Product behavior belongs
+  in one of the seven domains recorded in `docs/concepts/DOMAINS.md`.
 - The generated shell is durable infrastructure: `min-h-dvh` sizing,
   overflow-contained main content, fixed safe-area bottom navigation on
   mobile, desktop sidebar navigation, theme controls, and Settings-owned
   locale switching. Keep those floors unless your scenario has an explicit
   experience-spec opt-out.
-- The starter page content and the `notes` domain remain illustrative. Replace
-  them with scenario-specific surfaces once the real product shape is known.
+- Starter page content remains illustrative until its corresponding product
+  route is implemented and validated.
 - Durable seams you should keep: i18n wiring (`SUPPORTED_LOCALES`,
   `useTranslation`, the locale switcher behavior), accessibility
   primitives (`role`, `aria-*`, `data-testid` selectors), the
@@ -364,11 +362,6 @@ becomes real:
       intent that the validator cannot check yet.
 - [ ] Validate after every meaningful edit:
       `experience-manager spec validate token-economy --json`.
-
-The notes page spec is part of the removable example domain. When you
-run `template-manager detemplate token-economy`, the notes page spec
-and its registry entry should disappear with the notes UI/API/CLI
-example.
 
 **Exit criteria:** every real route has at least an L0 page spec, the
 registry has no stale route references, and `experience-manager spec

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -28,6 +29,12 @@ func TestPrimitiveEvidenceArtifactCurrent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("assemble command tree: %v", err)
 	}
+	if manifestHasNoGroups(t, manifestBytes) {
+		if len(groups) != 0 {
+			t.Fatalf("command-free manifest assembled %d groups", len(groups))
+		}
+		return
+	}
 	cliapptest.RequirePrimitiveEvidence(t, cliapp.EvidenceArtifactPath(".."), cliapp.EvidenceExportInput{
 		Scenario:    "token-economy",
 		ManifestRaw: manifestBytes,
@@ -44,6 +51,12 @@ func TestEveryDeclaredPrimitiveHasEvidence(t *testing.T) {
 	groups, err := domains.SubcommandGroups(nil, manifestBytes)
 	if err != nil {
 		t.Fatalf("assemble command tree: %v", err)
+	}
+	if manifestHasNoGroups(t, manifestBytes) {
+		if len(groups) != 0 {
+			t.Fatalf("command-free manifest assembled %d groups", len(groups))
+		}
+		return
 	}
 	artifact, err := cliapp.BuildPrimitiveEvidence(cliapp.EvidenceExportInput{
 		Scenario:    "token-economy",
@@ -76,4 +89,15 @@ func TestEveryDeclaredPrimitiveHasEvidence(t *testing.T) {
 			}
 		}
 	}
+}
+
+func manifestHasNoGroups(t *testing.T, raw []byte) bool {
+	t.Helper()
+	var header struct {
+		Groups []json.RawMessage `json:"groups"`
+	}
+	if err := json.Unmarshal(raw, &header); err != nil {
+		t.Fatalf("parse manifest header: %v", err)
+	}
+	return len(header.Groups) == 0
 }

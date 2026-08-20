@@ -1,7 +1,13 @@
 import {
-  BarChart3, // EXAMPLE-DOMAIN:notes
+  BookOpenCheck,
+  Coins,
+  FileClock,
+  Gift,
   Home,
+  ShieldCheck,
+  Sparkles,
   Settings,
+  Users,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -46,10 +52,20 @@ export function BottomNav() {
 function iconForItem(item: NavItem) {
   const iconClass = "h-5 w-5";
   switch (item.key) {
-    // EXAMPLE-DOMAIN:notes START
-    case "notes":
-      return <BarChart3 aria-hidden className={iconClass} />;
-    // EXAMPLE-DOMAIN:notes END
+    case "tokens":
+      return <Coins aria-hidden className={iconClass} />;
+    case "holders":
+      return <Users aria-hidden className={iconClass} />;
+    case "earning":
+      return <Sparkles aria-hidden className={iconClass} />;
+    case "grants":
+      return <ShieldCheck aria-hidden className={iconClass} />;
+    case "catalog":
+      return <Gift aria-hidden className={iconClass} />;
+    case "approvals":
+      return <BookOpenCheck aria-hidden className={iconClass} />;
+    case "journal":
+      return <FileClock aria-hidden className={iconClass} />;
     case "settings":
       return <Settings aria-hidden className={iconClass} />;
     case "dashboard":

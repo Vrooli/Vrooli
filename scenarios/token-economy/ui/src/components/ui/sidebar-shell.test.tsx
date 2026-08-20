@@ -5,6 +5,8 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { SidebarShell } from "./sidebar-shell";
 
+const navigationLabel = "Navigation";
+
 describe("SidebarShell", () => {
   it("renders persistent desktop content", () => {
     renderWithProviders(
@@ -15,12 +17,12 @@ describe("SidebarShell", () => {
         mobileLabel="Menu"
         closeLabel="Close"
       >
-        <span>Navigation</span>
+        <span>{navigationLabel}</span>
       </SidebarShell>,
     );
 
     expect(screen.getByTestId("sidebar-shell")).toHaveAttribute("data-mode", "persistent");
-    expect(screen.getByText("Navigation")).toBeInTheDocument();
+    expect(screen.getByText(navigationLabel)).toBeInTheDocument();
   });
 
   it("closes an overlay from the backdrop and Escape key", async () => {
@@ -34,7 +36,7 @@ describe("SidebarShell", () => {
         mobileLabel="Menu"
         closeLabel="Close"
       >
-        <span>Navigation</span>
+        <span>{navigationLabel}</span>
       </SidebarShell>,
     );
 

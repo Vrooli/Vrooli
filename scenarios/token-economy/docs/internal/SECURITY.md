@@ -34,16 +34,6 @@ processor, no analytics vendor, no cloud sync — and no regulated identifier is
 collected. There is also no monetary value (`TKE-P0-014`), so no financial
 record about a minor exists to protect.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `template-manager detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Auth And Authorization
 
 Identity is owned by **`scenario-authenticator`** and is a hard, fail-closed
@@ -89,21 +79,19 @@ Ordered by what would actually hurt.
 | **A holder escalates to minter authority** | A child grants themselves tokens; the economy is meaningless. | Separate Connect services; the mutation RPCs do not exist on the holder service (`TKE-P0-005`). | planned |
 | **Double-spend under retry or partial failure** | Balance and journal diverge in an append-only store that has *no repair verb by design*. | Debit and event in one transaction under a row lock, keyed by a caller-supplied idempotency key; tested against **induced** failure, not assumed (`TKE-P0-009`). | planned |
 | **An earning adapter inflates a balance by replay or flood** | Economy debased; the reward loses meaning. | Dedup keys make replay a no-op (`TKE-P0-007`). Rate limiting is deliberately deferred until an adapter exists to abuse it; recorded in `PROBLEMS.md` rather than pre-built. | partial |
-| **A compromised or buggy agent issues grants** | Tokens appear with no accountable cause. | Every event carries actor provenance and verification status (`TKE-P0-011`); an unverified caller is recorded as unverified, never promoted. Grants are visible in the minter's journal. | planned |
+| **A compromised or buggy agent issues grants** | Tokens appear with no accountable cause. | Every event carries actor provenance and one of the shared `verified`, `unavailable`, `invalid`, or `absent` statuses (`TKE-P0-011`); weaker verification is recorded honestly, never promoted. Verified agent rows retain the runtime run id and remain distinguishable from operator-subject rows. | implemented — append choke point and transport matrix tested |
 | **Rule programs used as a code-execution surface** | Remote execution on the household machine. | Conditions come from a closed vocabulary; caller-supplied scripts are never accepted (`TKE-P1-002`). | planned |
-| **History rewritten to hide a mistake** | The audit property the product is built on is void. | The repository exposes no update or delete for journal rows, asserted structurally; corrections are compensating events (`TKE-P0-010`). | planned |
+| **History rewritten to hide a mistake** | The audit property the product is built on is void. | The repository exposes no update or delete for journal rows, asserted structurally; corrections are reason-bearing, idempotent compensating events and the original remains readable (`TKE-P0-010`). | implemented — mint, grant, and redemption-kind reversals tested |
 | **`scenario-authenticator` unavailable and the scenario degrades open** | Isolation becomes cosmetic exactly when nobody is watching. | Fail closed. Authenticated surfaces refuse; there is no unauthenticated fallback view. | planned |
 | **Behavioral data about a minor leaving the machine** | The privacy claim that is half the product's differentiation is false. | No third-party service exists in the dependency inventory; introducing one requires a recorded decision. | structural |
-| Unsafe file upload handling | Malicious or oversized upload could affect storage. | Not applicable to this scenario — no binary upload path exists. Inherited from the removable `notes` example. | template-reference |
+| Unsafe file upload handling | Malicious or oversized upload could affect storage. | Not applicable to this scenario — no binary upload path exists. | structural |
 
 ## Security Gaps
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| **Nothing is implemented.** Every mitigation above is `planned`; none is proven. | high | Gate 6 — the first real vertical slice. Until then this table states intent, not posture. |
 | No erasure path for a departing holder; removal tombstones so events stay attributable. | medium while self-hosted, **blocking for any hosted deployment** | Any deployment where the operator is not the sole data holder. Must be designed before launch, never retrofitted. |
 | Earning-adapter rate limiting deferred. | low | The first adapter that is not operator entry (`TKE-P1-009`). |
-| Earning-submission dedup window undefined — too short double-grants, too long grows unbounded. | medium | Must be fixed before `TKE-P0-007` ships. |
 | Adapter credential custody undecided. | low | Before `TKE-P1-009`, if adapters authenticate individually. |
 | Journal export is holder-scoped by design but the delivery mechanism is unspecified; a shared link would defeat the isolation boundary. | medium | Before `TKE-P1-010`. |
 

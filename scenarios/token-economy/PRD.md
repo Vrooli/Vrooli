@@ -23,33 +23,33 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | The token-type contract | Every token exists inside a declared type carrying a supply policy and a named minter authority; no token can be created outside one
-- [ ] OT-P0-002 | The grant contract is mandate-shaped | Exactly one typed grant admits tokens to a holder, carrying holder, amount, rules, expiry and provenance, in the same shape treasury uses to authorize real spend
-- [ ] OT-P0-003 | Rules are evaluated server-side | A redemption is validated against its grant inside the API; no client, holder surface or earning adapter ever holds the decision
-- [ ] OT-P0-004 | Balance is a query, never an assertion | Every mint, grant, redemption, transfer and reversal is an append-only event, and a balance is computed from them rather than stored as truth
-- [ ] OT-P0-005 | Minting authority is structurally separated from holding | The holder-facing service has no method to mint, grant, or alter rules; separation is a codegen-visible service boundary, not a runtime permission check
-- [ ] OT-P0-006 | Multiple holders on one instance | Distinct holders with distinct balances and separately authenticated views; a holder can never read, spend or infer another holder's balance
-- [ ] OT-P0-007 | Earning surfaces are ordinary adapters | One inbound contract admits earned tokens; a chore scenario, a habit tracker and an adult pressing a button all satisfy it with no privileged earner
-- [ ] OT-P0-008 | Redemption against a minter-controlled catalog | What a token buys is declared by the minter as catalog entries with their own availability and approval posture, never hardcoded in the product
-- [ ] OT-P0-009 | Idempotent settlement | A redemption retried with the same idempotency key is a successful no-op after first commit, making double-spend impossible under retry or partial failure
-- [ ] OT-P0-010 | Reversal is an event, never a deletion | A mistaken mint, grant or redemption is corrected by a compensating event that preserves the original; no verb rewrites or removes history
-- [ ] OT-P0-011 | Every event carries actor provenance | Each journal entry records who caused it and how that actor was verified, so an agent-initiated grant is distinguishable from an operator-initiated one
-- [ ] OT-P0-012 | Holder-visible history | A holder can see exactly why their balance is what it is — every earn, grant, redemption and reversal affecting them, in their own view
-- [ ] OT-P0-013 | Approval posture is per-catalog-entry | A catalog entry declares whether redeeming it settles immediately or waits on minter approval, and the queue is a first-class surface rather than a notification
-- [ ] OT-P0-014 | No real value, enforced structurally | No redemption path produces money, no external transfer exists, and no token carries a price; the constraint is enforced by the absence of the capability, not by policy text
+- [x] OT-P0-001 | The token-type contract | Every token exists inside a declared type carrying a supply policy and a named minter authority; no token can be created outside one
+- [x] OT-P0-002 | The grant contract is mandate-shaped | Exactly one typed grant admits tokens to a holder, carrying holder, amount, rules, expiry and provenance, in the same shape treasury uses to authorize real spend
+- [x] OT-P0-003 | Rules are evaluated server-side | A redemption is validated against its grant inside the API; no client, holder surface or earning adapter ever holds the decision
+- [x] OT-P0-004 | Balance is a query, never an assertion | Every mint, grant, redemption, transfer and reversal is an append-only event, and a balance is computed from them rather than stored as truth
+- [x] OT-P0-005 | Minting authority is structurally separated from holding | The holder-facing service has no method to mint, grant, or alter rules; separation is a codegen-visible service boundary, not a runtime permission check
+- [x] OT-P0-006 | Multiple holders on one instance | Distinct holders with distinct balances and separately authenticated views; a holder can never read, spend or infer another holder's balance
+- [x] OT-P0-007 | Earning surfaces are ordinary adapters | One inbound contract admits earned tokens; a chore scenario, a habit tracker and an adult pressing a button all satisfy it with no privileged earner
+- [x] OT-P0-008 | Redemption against a minter-controlled catalog | What a token buys is declared by the minter as catalog entries with their own availability and approval posture, never hardcoded in the product
+- [x] OT-P0-009 | Idempotent settlement | A redemption retried with the same idempotency key is a successful no-op after first commit, making double-spend impossible under retry or partial failure
+- [x] OT-P0-010 | Reversal is an event, never a deletion | A mistaken mint, grant or redemption is corrected by a compensating event that preserves the original; no verb rewrites or removes history
+- [x] OT-P0-011 | Every event carries actor provenance | Each journal entry records who caused it and how that actor was verified, so an agent-initiated grant is distinguishable from an operator-initiated one
+- [x] OT-P0-012 | Holder-visible history | A holder can see exactly why their balance is what it is — every earn, grant, redemption and reversal affecting them, in their own view
+- [x] OT-P0-013 | Approval posture is per-catalog-entry | A catalog entry declares whether redeeming it settles immediately or waits on minter approval, and the queue is a first-class surface rather than a notification
+- [x] OT-P0-014 | No real value, enforced structurally | No redemption path produces money, no external transfer exists, and no token carries a price; the constraint is enforced by the absence of the capability, not by policy text
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Non-fungible tokens | Badges, one-off rewards and collectibles as a distinct token class sharing the mint, grant and journal spine rather than a parallel system
-- [ ] OT-P1-002 | Rule programs | Declared conditions that mint or release automatically when satisfied — the smart-contract shape with no chain underneath and no arbitrary code execution
-- [ ] OT-P1-003 | Scheduled and recurring grants | A weekly allowance is a standing grant with a next-issue date and a one-action cancel, not a reminder someone has to act on
-- [ ] OT-P1-004 | Holder-to-holder transfer | Peer exchange within the instance, permitted, restricted or forbidden by minter policy per token type
-- [ ] OT-P1-005 | Goals and reservations | A holder can reserve balance toward a catalog entry, making saving visible and making the reserved portion unspendable until released
-- [ ] OT-P1-006 | Household console | A minter dashboard showing every holder, pending approvals and economy health, beside a holder view built for someone who is not an operator
-- [ ] OT-P1-007 | Multiple token types in play | More than one economy on one instance with distinct rules, catalogs and holders, without either economy leaking into the other
-- [ ] OT-P1-008 | Grant expiry and decay | A grant may expire or decay on a declared schedule, so unspent balance can be use-it-or-lose-it where the minter wants that pressure
+- [x] OT-P1-001 | Non-fungible tokens | Badges, one-off rewards and collectibles as a distinct token class sharing the mint, grant and journal spine rather than a parallel system
+- [x] OT-P1-002 | Rule programs | Declared conditions that mint or release automatically when satisfied — the smart-contract shape with no chain underneath and no arbitrary code execution
+- [x] OT-P1-003 | Scheduled and recurring grants | A weekly allowance is a standing grant with a next-issue date and a one-action cancel, not a reminder someone has to act on
+- [x] OT-P1-004 | Holder-to-holder transfer | Peer exchange within the instance, permitted, restricted or forbidden by minter policy per token type
+- [x] OT-P1-005 | Goals and reservations | A holder can reserve balance toward a catalog entry, making saving visible and making the reserved portion unspendable until released
+- [x] OT-P1-006 | Household console | A minter dashboard showing every holder, pending approvals and economy health, beside a holder view built for someone who is not an operator
+- [x] OT-P1-007 | Multiple token types in play | More than one economy on one instance with distinct rules, catalogs and holders, without either economy leaking into the other
+- [x] OT-P1-008 | Grant expiry and decay | A grant may expire or decay on a declared schedule, so unspent balance can be use-it-or-lose-it where the minter wants that pressure
 - [ ] OT-P1-009 | A first real earning adapter | One concrete Vrooli scenario wired as an earning surface end to end, proving the adapter contract against something that is not a test double
-- [ ] OT-P1-010 | Statement and export | A minter or holder can export the journal for a period in a stable machine-readable shape, with the same event semantics the API exposes
+- [x] OT-P1-010 | Statement and export | A minter or holder can export the journal for a period in a stable machine-readable shape, with the same event semantics the API exposes
 
 ### 🟢 P2 – Future / expansion
 

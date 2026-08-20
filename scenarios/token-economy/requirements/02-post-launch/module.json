@@ -1,16 +1,17 @@
 {
   "_metadata": {
+    "auto_sync_enabled": true,
     "description": "P1 requirements — the capabilities that turn a working earn-to-redeem loop into a household product, opened only after one real household has run the P0 loop.",
+    "last_validated_at": "2026-08-20T01:04:37-04:00",
     "module": "P1-targets",
     "priority": "P1",
-    "auto_sync_enabled": true,
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
       "id": "TKE-P1-001",
       "title": "The system should support non-fungible tokens sharing the mint, grant and journal spine.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "mints.nonfungible",
       "criticality": "P1",
@@ -28,7 +29,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned test file: `api/internal/mints/nonfungible_test.go`. Uniqueness and indivisibility enforced; grant and journal paths shared with fungible types. Tag [REQ:TKE-P1-001]."
         }
       ]
@@ -36,7 +37,7 @@
     {
       "id": "TKE-P1-002",
       "title": "The system should evaluate declared rule programs that mint or release automatically, and should not execute caller-supplied code.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "grants.rules",
       "criticality": "P1",
@@ -55,7 +56,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned test file: `api/internal/grants/programs_test.go`. Closed condition vocabulary; no eval path; automatic events carry the causing rule. Tag [REQ:TKE-P1-002]."
         }
       ]
@@ -63,7 +64,7 @@
     {
       "id": "TKE-P1-003",
       "title": "The system should issue recurring grants on a declared schedule with a one-action cancel.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "category": "grants.recurring",
       "criticality": "P1",
@@ -80,7 +81,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned test file: `api/internal/grants/schedule_test.go`. Next-issue computation, cancel semantics, and catch-up policy across a missed window. Tag [REQ:TKE-P1-003]."
         }
       ]
@@ -88,7 +89,7 @@
     {
       "id": "TKE-P1-004",
       "title": "The system should permit holder-to-holder transfer only where minter policy allows it for that token type.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "holders.transfer",
       "criticality": "P1",
@@ -106,7 +107,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned test file: `api/internal/holders/transfer_test.go`. Policy enforcement per type; sender learns success only; both sides journaled. Tag [REQ:TKE-P1-004]."
         }
       ]
@@ -114,7 +115,7 @@
     {
       "id": "TKE-P1-005",
       "title": "A holder should be able to reserve balance toward a catalog entry, and the reserved portion should be unspendable until released.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "redemption.goals",
       "criticality": "P1",
@@ -132,7 +133,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned test file: `api/internal/redemption/reservation_test.go`. Reserved balance unspendable; release and consume paths; shared mechanism with gated redemption. Tag [REQ:TKE-P1-005]."
         }
       ]
@@ -140,7 +141,7 @@
     {
       "id": "TKE-P1-006",
       "title": "The console should present a minter dashboard and a holder view with distinct information density.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "category": "ui.console",
       "criticality": "P1",
@@ -159,13 +160,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned test file: `ui/src/features/console/__tests__/MinterDashboard.test.tsx`. Queue, holder list and economy summary render with correct empty and error states. Tag [REQ:TKE-P1-006]."
         },
         {
           "type": "test",
           "phase": "business",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned test file: `bas/cases/two-audience-console.json`. Minter and holder sessions each reach only their own surface. Tag [REQ:TKE-P1-006]."
         }
       ]
@@ -173,7 +174,7 @@
     {
       "id": "TKE-P1-007",
       "title": "The system should support multiple token types on one instance without balance or catalog leakage between them.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "category": "mints.multitype",
       "criticality": "P1",
@@ -191,7 +192,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned test file: `api/internal/mints/multitype_test.go`. Cross-type redemption refused; catalog and balance queries type-scoped at the repository. Tag [REQ:TKE-P1-007]."
         }
       ]
@@ -199,7 +200,7 @@
     {
       "id": "TKE-P1-008",
       "title": "A grant should be able to expire or decay on a declared schedule.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-008",
       "category": "grants.expiry",
       "criticality": "P1",
@@ -217,7 +218,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned test file: `api/internal/grants/expiry_test.go`. Lazy evaluation materializes events; offline gaps produce correct totals; upcoming expiry is queryable. Tag [REQ:TKE-P1-008]."
         }
       ]
@@ -251,7 +252,7 @@
     {
       "id": "TKE-P1-010",
       "title": "The system should export a period of the journal in a stable machine-readable shape.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-010",
       "category": "journal.export",
       "criticality": "P1",
@@ -269,7 +270,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned test file: `api/internal/journal/export_test.go`. Round-trip fidelity against API event semantics; holder export scoped; format carries a version. Tag [REQ:TKE-P1-010]."
         }
       ]

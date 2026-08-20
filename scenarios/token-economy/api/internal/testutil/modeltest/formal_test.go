@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
 	"token-economy/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

@@ -6,8 +6,18 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
+import { ApprovalsPage } from "../features/redemption/ApprovalsPage";
+import { CatalogPage } from "../features/catalog/CatalogPage";
+import { EarningPage } from "../features/earning/EarningPage";
+import { GrantsPage } from "../features/grants/GrantsPage";
+import { HoldersPage } from "../features/holders/HoldersPage";
+import { HolderHistoryPage } from "../features/holders/HolderHistoryPage";
+import { HolderHomePage } from "../features/holders/HolderHomePage";
+import { HolderRewardsPage } from "../features/holders/HolderRewardsPage";
+import { HolderShell } from "../features/holders/HolderShell";
+import { JournalPage } from "../features/journal/JournalPage";
+import { MintsPage } from "../features/mints/MintsPage";
 import { DashboardPage } from "../pages/DashboardPage";
-import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
 import { SettingsPage } from "../pages/SettingsPage";
 
 /**
@@ -22,8 +32,23 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "notes", element: <NotesPage /> }, // EXAMPLE-DOMAIN:notes
+      { path: "tokens", element: <MintsPage /> },
+      { path: "holders", element: <HoldersPage /> },
+      { path: "earning", element: <EarningPage /> },
+      { path: "grants", element: <GrantsPage /> },
+      { path: "catalog", element: <CatalogPage /> },
+      { path: "approvals", element: <ApprovalsPage /> },
+      { path: "journal", element: <JournalPage /> },
       { path: "settings", element: <SettingsPage /> },
+    ],
+  },
+  {
+    path: "/me",
+    element: <HolderShell />,
+    children: [
+      { index: true, element: <HolderHomePage /> },
+      { path: "history", element: <HolderHistoryPage /> },
+      { path: "rewards", element: <HolderRewardsPage /> },
     ],
   },
 ];

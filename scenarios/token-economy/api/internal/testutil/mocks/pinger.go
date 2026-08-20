@@ -3,6 +3,7 @@ package mocks
 import (
 	"context"
 	"sync/atomic"
+
 	"token-economy/internal/database"
 )
 

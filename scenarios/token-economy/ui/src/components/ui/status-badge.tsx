@@ -34,14 +34,13 @@ export function StatusBadge({ children, className, tone = "neutral", ...props }:
   return (
     <span
       className={cn(
-        "inline-flex min-h-7 max-w-full items-center rounded-pill border px-2.5 text-xs font-semibold leading-none",
+        "inline-flex min-h-7 items-center rounded-pill border px-2.5 text-xs font-semibold leading-none",
         toneClasses[tone],
         className,
       )}
       {...props}
     >
-      <span className="truncate whitespace-nowrap">{children}</span>
+      <span className="whitespace-nowrap">{children}</span>
     </span>
   );
 }
-

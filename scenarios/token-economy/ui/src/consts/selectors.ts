@@ -308,29 +308,6 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
-  // EXAMPLE-DOMAIN:notes START
-  notes: {
-    surface: "notes-surface",
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
-    measure: {
-      card: "notes-measure-card",
-      value: "notes-measure-value",
-      loading: "notes-measure-loading",
-      error: "notes-measure-error",
-    },
-  },
-  // EXAMPLE-DOMAIN:notes END
   layout: {
     shell: "layout-shell",
     topBar: "layout-top-bar",
@@ -344,8 +321,21 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
-    notes: "page-notes", // EXAMPLE-DOMAIN:notes
+    tokens: "page-token-types",
+    holders: "page-holders",
+    earning: "page-earning",
+    grants: "page-grants",
+    catalog: "page-catalog",
+    approvals: "page-approvals",
+    journal: "page-journal",
     settings: "page-settings",
+    holderHome: "page-holder-home",
+    holderHistory: "page-holder-history",
+    holderRewards: "page-holder-rewards",
+  },
+  holder: {
+    shell: "holder-shell",
+    isolationProof: "holder-isolation-proof",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -363,7 +353,13 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
+            "tokens",
+            "holders",
+            "earning",
+            "grants",
+            "catalog",
+            "approvals",
+            "journal",
             "settings",
           ] as const,
         },
@@ -377,7 +373,13 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
+            "tokens",
+            "holders",
+            "earning",
+            "grants",
+            "catalog",
+            "approvals",
+            "journal",
             "settings",
           ] as const,
         },
@@ -394,6 +396,13 @@ const dynamicSelectorDefinitions = {
       description: "Locale choice radio button on the settings page",
       testIdPattern: "page-settings-locale-${code}",
       params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
+  holder: {
+    balance: defineDynamicSelector({
+      description: "Holder balance by token type identifier",
+      testIdPattern: "holder-balance-${tokenTypeId}",
+      params: { tokenTypeId: { type: "string" } },
     }),
   },
 } satisfies DynamicSelectorTree;

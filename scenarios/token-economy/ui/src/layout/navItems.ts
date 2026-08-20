@@ -10,7 +10,13 @@ export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
     | "dashboard"
-    | "notes" // EXAMPLE-DOMAIN:notes
+    | "tokens"
+    | "holders"
+    | "earning"
+    | "grants"
+    | "catalog"
+    | "approvals"
+    | "journal"
     | "settings";
   /** Router path. */
   path: string;
@@ -22,6 +28,12 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes }, // EXAMPLE-DOMAIN:notes
+  { key: "tokens", path: "/tokens", labelKey: strings.layout.nav.tokens },
+  { key: "holders", path: "/holders", labelKey: strings.layout.nav.holders },
+  { key: "earning", path: "/earning", labelKey: strings.layout.nav.earning },
+  { key: "grants", path: "/grants", labelKey: strings.layout.nav.grants },
+  { key: "catalog", path: "/catalog", labelKey: strings.layout.nav.catalog },
+  { key: "approvals", path: "/approvals", labelKey: strings.layout.nav.approvals },
+  { key: "journal", path: "/journal", labelKey: strings.layout.nav.journal },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

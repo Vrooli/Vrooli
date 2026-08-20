@@ -12,6 +12,7 @@ package server
 import (
 	"log"
 	"net/http"
+
 	"token-economy/internal/middleware"
 	"token-economy/internal/module"
 

@@ -52,7 +52,7 @@ domain needs them. Document those decisions in
 | Grant rules | grants | SQLite | `api/internal/grants/schema.sql` | Same lifetime as the grant | Declared conditions from a closed vocabulary. Never caller-supplied code (`TKE-P1-002`). |
 | Grant schedules | grants | SQLite | `api/internal/grants/schema.sql` | Until cancelled; cancellation stops future issuance only | P1. Carries the catch-up policy for a missed window. |
 | Holders | holders | SQLite | `api/internal/holders/schema.sql` | Tombstoned on removal, never erased — their events must remain readable | Binds to an authenticator subject. See Privacy Notes. |
-| Earning submissions | earning | SQLite | `api/internal/earning/schema.sql` | Retained for the dedup window, then prunable | Dedup keys make adapter retries idempotent. Payload is summarized, not stored whole. |
+| Earning submissions | earning | SQLite | `api/internal/earning/schema.sql` | Permanent at household scale | Adapter-scoped dedup keys make retries idempotent forever. The row stores a payload summary and reason digest, not the raw payload. |
 | Catalog entries | catalog | SQLite | `api/internal/catalog/schema.sql` | Retired, never deleted — redemptions reference them | Carries availability, quantity and approval posture. |
 | Redemptions | redemption | SQLite | `api/internal/redemption/schema.sql` | Permanent | Carries the idempotency key, decision, decider and reason. |
 | Reservations | redemption | SQLite | `api/internal/redemption/schema.sql` | Until released or consumed | One mechanism, two uses: pending redemptions and P1 savings goals. |
@@ -69,34 +69,6 @@ domain needs them. Document those decisions in
 | `catalog_entries` | catalog | `api/internal/catalog/schema.sql` | catalog repository/service/handlers |
 | `redemptions`, `reservations` | redemption | `api/internal/redemption/schema.sql` | redemption repository/service/handlers |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships the `notes` domain as a worked CRUD slice with a
-binary attachment-upload exception, showing how a real domain owns its
-tables, metadata, and opaque blob bytes. Copy its shape, then remove it.
-
-Its Data Ownership rows:
-
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
-
-Its Schema Map row:
-
-| Table/File/Object | Owner | Defined In | Used By |
-|---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
-
-Its Retention And Deletion row:
-
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## The append-only contract
 
@@ -152,7 +124,7 @@ scenario-specific migration plan here and record the tradeoff in
 | Balance projections | Rebuild. | Derived; safe to truncate at any time. | None — truncation is a supported operation. |
 | Holders | Tombstone on removal. | Record retained so their events stay attributable. | Hard-delete semantics for a departing holder are undefined; see Privacy Notes. |
 | Token types, catalog entries | Retire, never delete. | Retained because events and redemptions reference them. | None. |
-| Earning submissions | Prune after the dedup window. | Window length is a product decision, not yet fixed. | Set the window before `TKE-P0-007` ships. |
+| Earning submissions | None. | Permanent dedup outcome plus a non-reversible reason digest; the raw payload is not retained. | Household volume makes permanent keys safer and simpler than an expiry window. Revisit only with non-household adapter volume. |
 | Grants, redemptions, reservations | None (state transitions only). | Permanent. | None. |
 
 ## Privacy Notes

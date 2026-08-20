@@ -5,12 +5,14 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { Select } from "./select";
 
+const choiceLabel = "Choice";
+
 describe("Select", () => {
   it("renders options and forwards native selection", async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <Select
-        aria-label="Choice"
+        aria-label={choiceLabel}
         options={[
           { value: "a", label: "Alpha" },
           { value: "b", label: "Beta" },
@@ -18,8 +20,8 @@ describe("Select", () => {
       />,
     );
 
-    await user.selectOptions(screen.getByLabelText("Choice"), "b");
+    await user.selectOptions(screen.getByLabelText(choiceLabel), "b");
 
-    expect(screen.getByLabelText<HTMLSelectElement>("Choice").value).toBe("b");
+    expect(screen.getByLabelText<HTMLSelectElement>(choiceLabel).value).toBe("b");
   });
 });
