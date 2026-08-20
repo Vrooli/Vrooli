@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // pnpmAuditScanner runs `pnpm audit` against each pnpm-lock.yaml and normalizes
@@ -23,6 +24,9 @@ func newPnpmAuditScanner(cmd Commander) Scanner { return &pnpmAuditScanner{cmd: 
 func (p *pnpmAuditScanner) Name() string             { return "pnpm-audit" }
 func (p *pnpmAuditScanner) Binary() string           { return "pnpm" }
 func (p *pnpmAuditScanner) Applies(s Substrate) bool { return s.PnpmUI }
+func (p *pnpmAuditScanner) EvidencePlan(ctx context.Context, scenarioDir string, sub Substrate, now time.Time) (ScannerEvidencePlan, error) {
+	return scannerEvidencePlan(ctx, p.cmd, p.Name(), p.Binary(), scenarioDir, sub, now)
+}
 
 type pnpmAuditReport struct {
 	Advisories map[string]pnpmAdvisory `json:"advisories"`

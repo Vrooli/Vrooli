@@ -133,9 +133,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/security-health.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

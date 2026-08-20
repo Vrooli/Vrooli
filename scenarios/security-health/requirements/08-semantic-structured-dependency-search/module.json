@@ -9,7 +9,7 @@
       "title": "AI search with TEXT fallback",
       "prd_ref": "OT-P1-002",
       "category": "core",
-      "status": "draft",
+      "status": "planned",
       "description": "SearchService.Search must embed the query via Ollama and rank Qdrant matches when both resources are available, and fall back to substring/keyword TEXT search when either is down; Status must report resource availability, indexed count, and last reconcile time.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "With embedder+vectorstore available, Search returns AI-mode ranked results." },
@@ -22,7 +22,7 @@
       "title": "Structured exposure filters",
       "prd_ref": "OT-P1-002",
       "category": "cli",
-      "status": "draft",
+      "status": "planned",
       "description": "`deps search` must support --ecosystem, --vulnerable-only, and --name <glob> so 'which scenarios use vulnerable golang.org/x/net?' is a one-line query.",
       "validation": [
         { "type": "test", "phase": "integration", "status": "pending", "notes": "deps search --vulnerable-only returns only records with non-empty vuln_ids." },

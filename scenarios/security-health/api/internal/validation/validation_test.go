@@ -604,8 +604,8 @@ func TestService_DegradedScannerIsInfo(t *testing.T) {
 	}
 }
 
-// gitAwareCommander scripts gitleaks output plus distinct `git check-ignore`
-// and `git ls-files` responses so the gitignore downgrade can be exercised.
+// gitAwareCommander scripts gitleaks output plus the exact commit-eligible
+// inventory returned by git ls-files.
 type gitAwareCommander struct {
 	gitleaks    []byte
 	checkIgnore []byte
@@ -626,9 +626,9 @@ func (c gitAwareCommander) Run(_ context.Context, _ string, name string, args ..
 	return nil, nil, 0, nil
 }
 
-func TestGitleaksScanner_GitignoredDowngradedToInfo(t *testing.T) {
-	// Three matches: a gitignored .env, a gitignored build artifact, and a
-	// tracked source file. Only the tracked file may gate.
+func TestGitleaksScanner_SnapshotFindingsGate(t *testing.T) {
+	// A scanner finding can only originate from the staged commit-eligible
+	// inventory, so every normalized secret is gating.
 	cmd := gitAwareCommander{
 		gitleaks: []byte(`[
 			{"Description":"Generic API Key","StartLine":5,"File":".env","RuleID":"generic-api-key"},
@@ -650,11 +650,11 @@ func TestGitleaksScanner_GitignoredDowngradedToInfo(t *testing.T) {
 	for _, f := range findings {
 		sev[f.FilePath] = f.Severity
 	}
-	if sev[".env:5"] != SeverityInfo {
-		t.Errorf("gitignored .env should be INFO, got %v", sev[".env:5"])
+	if sev[".env:5"] != SeverityError {
+		t.Errorf("snapshot finding should be ERROR, got %v", sev[".env:5"])
 	}
-	if sev[".build-fingerprint.json:21"] != SeverityInfo {
-		t.Errorf("gitignored build artifact should be INFO, got %v", sev[".build-fingerprint.json:21"])
+	if sev[".build-fingerprint.json:21"] != SeverityError {
+		t.Errorf("snapshot finding should be ERROR, got %v", sev[".build-fingerprint.json:21"])
 	}
 	if sev["api/cfg.go:2"] != SeverityError {
 		t.Errorf("tracked file must stay ERROR, got %v", sev["api/cfg.go:2"])
@@ -767,10 +767,10 @@ func containsSub(s, sub string) bool {
 	return false
 }
 
-// TestGitIgnoredSet_RealGit exercises gitIgnoredSet against a real git
-// work tree — the stubbed tests cannot catch git CLI contract errors (e.g.
-// `check-ignore -z` being invalid without `--stdin`).
-func TestGitIgnoredSet_RealGit(t *testing.T) {
+// TestCommitEligibleFiles_RealGit pins the actual source boundary against a
+// real worktree: tracked, force-added, and ordinary untracked files are in;
+// ignored local/runtime files are out.
+func TestCommitEligibleFiles_RealGit(t *testing.T) {
 	if _, err := NewExecCommander().LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
 	}
@@ -786,19 +786,25 @@ func TestGitIgnoredSet_RealGit(t *testing.T) {
 	writeFile(t, filepath.Join(dir, ".env"), "SECRET=x\n")
 	writeFile(t, filepath.Join(dir, "tracked.go"), "package x\n")
 	writeFile(t, filepath.Join(dir, "forced.txt"), "SECRET=y\n")
+	writeFile(t, filepath.Join(dir, "untracked.go"), "package x\n")
 	run("add", ".gitignore", "tracked.go")
 	run("add", "-f", "forced.txt") // tracked despite matching .gitignore
 
-	sc := &gitleaksScanner{cmd: NewExecCommander()}
-	raw := []gitleaksFinding{{File: ".env"}, {File: "tracked.go"}, {File: "forced.txt"}}
-	ignored := sc.gitIgnoredSet(context.Background(), dir, raw)
-	if !ignored[".env"] {
-		t.Error("untracked gitignored .env must be in the ignored set")
+	files, err := commitEligibleFiles(context.Background(), NewExecCommander(), dir)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if ignored["tracked.go"] {
-		t.Error("tracked file must not be in the ignored set")
+	got := map[string]bool{}
+	for _, path := range files {
+		rel, _ := filepath.Rel(dir, path)
+		got[filepath.ToSlash(rel)] = true
 	}
-	if ignored["forced.txt"] {
-		t.Error("force-added file matching .gitignore must not be in the ignored set (it is committed content)")
+	if got[".env"] {
+		t.Error("gitignored .env must not enter the scan inventory")
+	}
+	for _, want := range []string{".gitignore", "tracked.go", "forced.txt", "untracked.go"} {
+		if !got[want] {
+			t.Errorf("commit-eligible %s missing from inventory: %v", want, got)
+		}
 	}
 }

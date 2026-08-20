@@ -9,7 +9,7 @@
       "title": "Severity normalization mapping",
       "prd_ref": "OT-P0-002",
       "category": "core",
-      "status": "draft",
+      "status": "planned",
       "description": "Each scanner runner must map critical/high native severities to ERROR, medium/moderate to WARNING, and low/info to INFO. ERROR is the only level that gates R1. The mapping is the load-bearing contract and must be unit-covered per scanner output shape.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "gosec HIGH/MEDIUM/LOW map to ERROR/WARNING/INFO respectively." },

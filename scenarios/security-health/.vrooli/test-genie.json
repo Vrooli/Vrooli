@@ -12,7 +12,12 @@
   "validation": {
     "contract": "scenario-validation/v1"
   },
-  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "targets": {
+    "kinds": [
+      "scenario"
+    ],
+    "selection": "enumerate"
+  },
   "applicability": {
     "default": "applies"
   },
@@ -331,7 +336,7 @@
   },
   "determinism": {
     "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "reason": "Vulnerability findings depend on the OSV advisory database, which changes independently of any file in the scenario. The scan folds the scanner version and the day epoch into its own identity, so a result is reproducible within a day but not across advisory updates."
   },
   "dimensions": [
     "security"

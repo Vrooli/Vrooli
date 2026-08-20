@@ -1,6 +1,9 @@
 package validation
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // Scanner is one pluggable security tool. The Service resolves each scanner's
 // binary, asks whether it Applies to the detected substrate, and — when both
@@ -28,4 +31,23 @@ type Scanner interface {
 	// that into an INFO observation, never a hard failure, so one flaky
 	// scanner can't gate a scenario spuriously.
 	Scan(ctx context.Context, scenarioDir string, sub Substrate) ([]Finding, error)
+}
+
+// DOC: docs/internal/PERFORMANCE.md#incremental-validation-model
+// IncrementalScanner is the opt-in correctness contract for reusable scanner
+// evidence. Plan must fingerprint a conservative superset of every input that
+// can affect Scan's normalized findings. Scanners which do not implement this
+// interface still run through shared admission, but are never cached.
+type IncrementalScanner interface {
+	Scanner
+	EvidencePlan(ctx context.Context, scenarioDir string, sub Substrate, now time.Time) (ScannerEvidencePlan, error)
+}
+
+// ScannerEvidencePlan describes the cost and freshness of one scanner result.
+// Fingerprint includes source/manifests, tool identity, normalization policy,
+// and a freshness epoch for scanners backed by mutable advisory databases.
+type ScannerEvidencePlan struct {
+	Fingerprint string
+	Weight      int64
+	FreshFor    time.Duration
 }

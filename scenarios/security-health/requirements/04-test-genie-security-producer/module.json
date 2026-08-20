@@ -9,7 +9,7 @@
       "title": "test-genie delegation contract",
       "prd_ref": "OT-P0-004",
       "category": "integration",
-      "status": "draft",
+      "status": "planned",
       "description": "test-genie's security phase must locate the security-health CLI (exec.LookPath), call `validate scenario <name> --json`, and map each finding to FINDING_SOURCE_SECURITY. A missing CLI must yield a skip-class (FailureClassMissingDependency), never a hard failure, and honor TEST_GENIE_SKIP_SECURITY=1.",
       "validation": [
         { "type": "test", "phase": "integration", "status": "pending", "notes": "When security-health is on PATH, the test-genie security phase produces FINDING_SOURCE_SECURITY findings for a target with a planted secret." },
@@ -22,7 +22,7 @@
       "title": "Ecosystem-manager dimension wiring",
       "prd_ref": "OT-P0-004",
       "category": "integration",
-      "status": "draft",
+      "status": "planned",
       "description": "The ecosystem-manager dimensions.json must map FINDING_SOURCE_SECURITY -> security (testgenie_source_map) and security -> security (testgenie_phase_map); a critical/high security finding must make errPlus(security) != 0 so R1 reports the scenario non-clean.",
       "validation": [
         { "type": "test", "phase": "integration", "status": "pending", "notes": "A planted ERROR-severity security finding flows into EM diagnosis and R1's satisfied() returns false until resolved." },

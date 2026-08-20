@@ -2,11 +2,7 @@ package dependencies
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -57,15 +53,6 @@ type Annotator struct {
 	cmd      validation.Commander
 	cache    scanCache
 	clock    schedule.Clock
-
-	// scannerVersion + dayEpoch are folded into every cache key. scannerVersion
-	// invalidates the whole cache on an osv-scanner upgrade (a new scanner can
-	// surface new findings); dayEpoch (the UTC date) bounds cache staleness to a
-	// day so a scenario with unchanged dependencies still re-scans daily and
-	// picks up vulnerabilities newly published upstream. Computed once per
-	// Annotate call.
-	scannerVersion string
-	dayEpoch       string
 
 	// last run's scan counters (observability): how many scenarios re-ran the
 	// scanner vs. were served from cache.
@@ -130,11 +117,6 @@ func (a *Annotator) Annotate(ctx context.Context, records []DependencyRecord) {
 	for i, r := range records {
 		byScenario[r.Scenario] = append(byScenario[r.Scenario], i)
 	}
-
-	// Capture the scanner version + day epoch once for the whole pass: both are
-	// loop-invariant, and a per-scenario probe would add a subprocess per scan.
-	a.scannerVersion = validation.OSVScannerVersion(ctx, a.cmd)
-	a.dayEpoch = a.now()[:10] // UTC date YYYY-MM-DD → at most one re-scan/day
 
 	// Stable scenario order so the bounded pass is deterministic and tests can
 	// reason about it.
@@ -202,7 +184,7 @@ func (a *Annotator) concurrency() int {
 // failed and the scenario should be left unannotated.
 func (a *Annotator) scanScenario(ctx context.Context, scenario string) (report validation.OSVReport, served, ok bool) {
 	scenarioDir := filepath.Join(a.repoRoot, "scenarios", scenario)
-	key := a.scenarioCacheKey(scenarioDir)
+	key := a.scenarioCacheKey(ctx, scenarioDir)
 
 	if a.cache != nil && key != "" {
 		if payload, hit := a.cache.GetOSVScanCache(ctx, scenario, key); hit {
@@ -259,65 +241,15 @@ func (a *Annotator) now() string {
 // npm lockfiles must be covered — omitting any is a false-skip bug (a changed
 // package-lock.json would be masked by a stale cache hit). A superset here only
 // ever causes an extra (correct) re-scan, never a missed one.
-var osvLockfiles = map[string]struct{}{
-	"go.mod":              {},
-	"go.sum":              {},
-	"pnpm-lock.yaml":      {},
-	"package-lock.json":   {},
-	"yarn.lock":           {},
-	"npm-shrinkwrap.json": {},
-}
-
-// scenarioCacheKey hashes everything that can change a scenario's osv-scanner
-// result: every resolved-version lockfile's content (osvLockfiles) under the
-// scenario tree, plus the osv-scanner version and the UTC day epoch. The
-// lockfile walk mirrors DiscoverScenario (same skipDirs) so the key tracks
-// exactly the inputs the scan reads. Returns "" when the dir can't be walked, in
-// which case the caller bypasses the cache and always scans (fail-safe: never a
-// false skip).
-func (a *Annotator) scenarioCacheKey(scenarioDir string) string {
-	h := sha256.New()
-	fmt.Fprintf(h, "v1\x00scanner=%s\x00day=%s\n", a.scannerVersion, a.dayEpoch)
-
-	type lock struct {
-		rel  string
-		data []byte
-	}
-	var locks []lock
-	walkErr := filepath.WalkDir(scenarioDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if _, skip := skipDirs[d.Name()]; skip {
-				return filepath.SkipDir
-			}
-			if path != scenarioDir && strings.HasPrefix(d.Name(), ".") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if _, ok := osvLockfiles[d.Name()]; ok {
-			data, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return nil
-			}
-			rel, _ := filepath.Rel(scenarioDir, path)
-			locks = append(locks, lock{rel: filepath.ToSlash(rel), data: data})
-		}
-		return nil
-	})
-	if walkErr != nil {
+// scenarioCacheKey delegates to validation's canonical raw-OSV identity. Any
+// discovery, tool, policy, or advisory-epoch change therefore invalidates both
+// consumers together. Errors bypass the cache and force a real scan.
+func (a *Annotator) scenarioCacheKey(ctx context.Context, scenarioDir string) string {
+	key, err := validation.OSVEvidenceFingerprint(ctx, a.cmd, scenarioDir, a.clock.Now())
+	if err != nil {
 		return ""
 	}
-	// Deterministic order regardless of walk traversal.
-	sort.Slice(locks, func(i, j int) bool { return locks[i].rel < locks[j].rel })
-	for _, l := range locks {
-		fmt.Fprintf(h, "%s\x00%d\n", l.rel, len(l.data))
-		h.Write(l.data)
-		h.Write([]byte{'\n'})
-	}
-	return hex.EncodeToString(h.Sum(nil))
+	return key
 }
 
 // buildVulnIndex turns an OSV report into a per-dependency lookup keyed the

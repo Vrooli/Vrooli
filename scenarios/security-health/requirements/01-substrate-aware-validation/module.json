@@ -9,7 +9,7 @@
       "title": "Filesystem substrate detection",
       "prd_ref": "OT-P0-001",
       "category": "core",
-      "status": "draft",
+      "status": "planned",
       "description": "A detector must walk a scenario's api/, ui/src/, and cli/ directories plus lockfile presence (go.mod, pnpm-lock.yaml) and classify which substrates exist (Go, pnpm UI), returning a structured result that also lists substrates seen but unsupported (e.g. Python).",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "Given a scenario with go.mod, the detector reports the Go substrate present." },
@@ -22,7 +22,7 @@
       "title": "Applicable-scanner selection",
       "prd_ref": "OT-P0-001",
       "category": "core",
-      "status": "draft",
+      "status": "planned",
       "description": "ValidateScenario must run only the scanners whose Applies(substrate) returns true for the detected substrates, and must aggregate their findings into one normalized result set.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "A Go-only scenario invokes gosec/govulncheck but not pnpm audit." },

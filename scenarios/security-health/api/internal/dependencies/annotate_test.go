@@ -27,7 +27,7 @@ type countingCommander struct {
 }
 
 func (c *countingCommander) LookPath(name string) (string, error) {
-	return "/usr/bin/" + name, nil
+	return "/logical/" + name + "/" + c.version, nil
 }
 
 func (c *countingCommander) Run(ctx context.Context, _ string, name string, args ...string) ([]byte, []byte, int, error) {
@@ -70,7 +70,7 @@ func newCachingAnnotator(t *testing.T, repoRoot string, cmd *countingCommander) 
 	t.Helper()
 	store := newTestStore(t)
 	a := NewAnnotator(repoRoot, cmd).WithCache(store)
-	a.clock = schedule.System()
+	a.clock = schedule.NewFake(time.Date(2026, time.June, 24, 12, 0, 0, 0, time.UTC))
 	return a, store
 }
 
@@ -208,10 +208,10 @@ func TestAnnotate_DayEpochChangeForcesRescan(t *testing.T) {
 	// Day rollover → the previously-cached key no longer matches, forcing a
 	// re-scan that catches newly-published vulnerabilities.
 	scenarioDir := filepath.Join(repoRoot, "scenarios", "demo")
-	a.dayEpoch = "2026-06-24"
-	oldKey := a.scenarioCacheKey(scenarioDir)
-	a.dayEpoch = "2026-06-25"
-	newKey := a.scenarioCacheKey(scenarioDir)
+	clock := a.clock.(*schedule.Fake)
+	oldKey := a.scenarioCacheKey(ctx, scenarioDir)
+	clock.Advance(24 * time.Hour)
+	newKey := a.scenarioCacheKey(ctx, scenarioDir)
 	if oldKey == newKey {
 		t.Fatal("cache key did not change across a day boundary")
 	}

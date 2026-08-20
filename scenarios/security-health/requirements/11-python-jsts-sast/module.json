@@ -9,7 +9,7 @@
       "title": "Pluggable Python/JS-TS scanner runners",
       "prd_ref": "OT-P2-001",
       "category": "core",
-      "status": "deferred",
+      "status": "not_implemented",
       "description": "When a Python or additional JS/TS SAST substrate is detected, register bandit/pip-audit/semgrep runners behind the same Scanner interface and normalize their output to the ERROR/WARNING/INFO contract. Until then the detector records these substrates as Unsupported (INFO).",
       "validation": [
         { "type": "manual", "phase": "unit", "status": "deferred", "notes": "Deferred until a Python scenario exists; tracked in docs/internal/PROBLEMS.md." }

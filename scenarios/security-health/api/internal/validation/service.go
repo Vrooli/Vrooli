@@ -6,6 +6,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Service validates one scenario at a time. It owns the detector → scanner
@@ -18,6 +19,8 @@ type Service struct {
 	logger   *log.Logger
 	policy   RolloutProfile
 	facts    FactDiscovery
+	evidence *EvidenceCoordinator
+	clock    func() time.Time
 }
 
 // Deps wires the Service's seams. Commander and Scanners default to the real
@@ -34,6 +37,12 @@ type Deps struct {
 	// enforcing behavior explicitly; this keeps local development usable while
 	// making CI/release coverage fail closed.
 	PolicyMode RolloutProfile
+	// EvidenceCoordinator is shared across requests and scanners. When nil, New
+	// installs an in-memory admission coordinator; scanners never bypass it.
+	EvidenceCoordinator *EvidenceCoordinator
+	Clock               func() time.Time
+	// OSVReportCache shares raw advisory evidence with dependency reconciliation.
+	OSVReportCache OSVReportCache
 }
 
 // New constructs a Service. The scanner set defaults to DefaultScanners(cmd).
@@ -44,7 +53,7 @@ func New(d Deps) *Service {
 	}
 	scanners := d.Scanners
 	if len(scanners) == 0 {
-		scanners = DefaultScanners(cmd)
+		scanners = defaultScanners(cmd, d.OSVReportCache, d.Clock)
 	}
 	logger := d.Logger
 	if logger == nil {
@@ -54,19 +63,31 @@ func New(d Deps) *Service {
 	if policy == "" {
 		policy = RolloutAdvisory
 	}
-	return &Service{repoRoot: d.RepoRoot, cmd: cmd, scanners: scanners, logger: logger, policy: policy, facts: d.FactDiscovery}
+	clock := d.Clock
+	if clock == nil {
+		clock = time.Now
+	}
+	evidence := d.EvidenceCoordinator
+	if evidence == nil {
+		evidence = NewEvidenceCoordinator(EvidenceCoordinatorDeps{Clock: clock, Capacity: 4})
+	}
+	return &Service{repoRoot: d.RepoRoot, cmd: cmd, scanners: scanners, logger: logger, policy: policy, facts: d.FactDiscovery, evidence: evidence, clock: clock}
 }
 
 // DefaultScanners returns the v1 scanner set in stable order. gitleaks +
 // gosec + pnpm-audit are the always-available trio; govulncheck + osv-scanner
 // are install-gated and degrade to skipped when absent.
 func DefaultScanners(cmd Commander) []Scanner {
+	return defaultScanners(cmd, nil, nil)
+}
+
+func defaultScanners(cmd Commander, osvCache OSVReportCache, clock func() time.Time) []Scanner {
 	return []Scanner{
 		newGitleaksScanner(cmd),
 		newGosecScanner(cmd),
 		newGovulncheckScanner(cmd),
 		newPnpmAuditScanner(cmd),
-		newOSVScanner(cmd),
+		newOSVScannerWithCache(cmd, osvCache, clock),
 	}
 }
 
@@ -147,7 +168,9 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		if !sc.Applies(sub) {
 			continue
 		}
+		scannerStage := scan.Stage("scanner:" + sc.Name())
 		if _, lookErr := s.cmd.LookPath(sc.Binary()); lookErr != nil {
+			scannerStage.Gauge("available", 0).End()
 			skipped = append(skipped, sc.Name())
 			findings = append(findings, Finding{
 				RuleID:        "security-health.scanner-absent",
@@ -165,7 +188,40 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 			})
 			continue
 		}
-		scanFindings, scanErr := sc.Scan(ctx, scenarioDir, sub)
+		scannerStage.Gauge("available", 1)
+		run := func(runCtx context.Context) ([]Finding, error) { return sc.Scan(runCtx, scenarioDir, sub) }
+		var scanFindings []Finding
+		var scanErr error
+		var outcome EvidenceOutcome
+		fingerprintStarted := time.Now()
+		if incremental, ok := sc.(IncrementalScanner); ok {
+			plan, planErr := incremental.EvidencePlan(ctx, scenarioDir, sub, s.clock())
+			scannerStage.Gauge("fingerprint_ms", float64(time.Since(fingerprintStarted).Milliseconds()))
+			if planErr == nil {
+				scannerStage.Gauge("weight", float64(plan.Weight))
+				scanFindings, outcome, scanErr = s.evidence.Execute(ctx, EvidenceKey{Scenario: scenario, Scanner: sc.Name(), Fingerprint: plan.Fingerprint}, plan.Weight, plan.FreshFor, run)
+			} else {
+				s.logger.Printf("[security-health] scanner %q fingerprint degraded for %q; executing uncached: %v", sc.Name(), scenario, planErr)
+				scannerStage.Gauge("weight", 1)
+				scanFindings, outcome, scanErr = s.evidence.ExecuteUncached(ctx, sc.Name(), 1, run)
+			}
+		} else {
+			scannerStage.Gauge("fingerprint_ms", 0)
+			scannerStage.Gauge("weight", 1)
+			scanFindings, outcome, scanErr = s.evidence.ExecuteUncached(ctx, sc.Name(), 1, run)
+		}
+		scannerStage.
+			Gauge("cache_hit", boolGauge(outcome.Source == EvidenceSourceCache)).
+			Gauge("cache_miss", boolGauge(outcome.Source == EvidenceSourceExecution || outcome.Source == EvidenceSourceCoalesced)).
+			Gauge("coalesced", boolGauge(outcome.Source == EvidenceSourceCoalesced)).
+			Gauge("executed", boolGauge(outcome.Source == EvidenceSourceExecution || outcome.Source == EvidenceSourceUncached)).
+			Gauge("uncached", boolGauge(outcome.Source == EvidenceSourceUncached)).
+			Gauge("failed", boolGauge(scanErr != nil)).
+			Gauge("cache_error", boolGauge(outcome.CacheError)).
+			Gauge("admission_wait_ms", float64(outcome.AdmissionWait.Milliseconds())).
+			Gauge("execution_ms", float64(outcome.ExecutionTime.Milliseconds())).
+			Gauge("findings", float64(len(scanFindings)))
+		scannerStage.End()
 		if scanErr != nil {
 			s.logger.Printf("[security-health] scanner %q degraded for %q: %v", sc.Name(), scenario, scanErr)
 			findings = append(findings, Finding{
@@ -226,6 +282,13 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	report := finalize(scenario, findings, dedupeStrings(skipped))
 	report.PolicyMode = s.policy
 	return report, nil
+}
+
+func boolGauge(value bool) float64 {
+	if value {
+		return 1
+	}
+	return 0
 }
 
 func coverageSeverity(policy RolloutProfile) Severity {

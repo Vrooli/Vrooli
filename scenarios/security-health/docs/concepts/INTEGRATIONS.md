@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | validation (scan history), dependencies (structured dep table) | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | validation (scan history), dependencies (structured dep table) | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | qdrant | Vrooli resource | no (try_start) | dependencies | `dependencies.resources.qdrant` (collection `security-health-deps`, dimensions resolved from `embedding.default`, cosine) | Dependency search degrades to TEXT mode; reindex deferred. |
 | ollama | Vrooli resource | no (try_start) | dependencies | `dependencies.resources.ollama` (`embedding.default` role) | Embedding unavailable; TEXT-mode search still works. |

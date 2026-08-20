@@ -5,10 +5,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"security-health/internal/module"
 	"security-health/internal/validation"
+	"security-health/internal/validationcache"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -26,12 +28,35 @@ var ProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_prot
 // Module returns the validation domain's contribution to the API: a single
 // Connect-RPC service handler mounted at the generated procedure path. The
 // validator is constructed with the real exec/scanner seams rooted at repoRoot.
-func Module(logger *log.Logger, repoRoot string) module.Module {
+type ModuleDeps struct {
+	Logger         *log.Logger
+	RepoRoot       string
+	EvidenceStore  validation.EvidenceStore
+	OSVReportCache validation.OSVReportCache
+}
+
+const (
+	// DOC: docs/reference/configuration.md#optional-overrides
+	EnvScannerCapacity     = "SECURITY_HEALTH_SCANNER_CAPACITY"
+	DefaultScannerCapacity = int64(4)
+	MinScannerCapacity     = int64(3)
+	MaxScannerCapacity     = int64(32)
+)
+
+func Module(deps ModuleDeps) module.Module {
+	logger := deps.Logger
+	repoRoot := deps.RepoRoot
 	policy := validation.RolloutProfile(strings.ToLower(strings.TrimSpace(os.Getenv("SECURITY_HEALTH_POLICY_MODE"))))
 	if policy != validation.RolloutAdvisory && policy != validation.RolloutGuided && policy != validation.RolloutGuarded && policy != validation.RolloutEnforcing {
 		policy = validation.RolloutAdvisory
 	}
-	validator := validation.New(validation.Deps{RepoRoot: repoRoot, Logger: logger, PolicyMode: policy})
+	coordinator := validation.NewEvidenceCoordinator(validation.EvidenceCoordinatorDeps{
+		Store: deps.EvidenceStore, Capacity: scannerCapacity(logger),
+	})
+	validator := validation.New(validation.Deps{
+		RepoRoot: repoRoot, Logger: logger, PolicyMode: policy,
+		EvidenceCoordinator: coordinator, OSVReportCache: deps.OSVReportCache,
+	})
 	scenarioDir := filepath.Join(repoRoot, "scenarios", "security-health")
 	spec, err := assessment.LoadSpecFromScenario(scenarioDir)
 	if err != nil && logger != nil {
@@ -71,9 +96,23 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 	}
 }
 
-// Schema returns "" — validation is stateless (no tables). The registry
-// re-exports it anyway so the per-domain shape stays uniform.
-func Schema() string { return "" }
+func scannerCapacity(logger *log.Logger) int64 {
+	raw := strings.TrimSpace(os.Getenv(EnvScannerCapacity))
+	if raw == "" {
+		return DefaultScannerCapacity
+	}
+	capacity, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || capacity < MinScannerCapacity || capacity > MaxScannerCapacity {
+		if logger != nil {
+			logger.Printf("validation: invalid %s=%q; using %d", EnvScannerCapacity, raw, DefaultScannerCapacity)
+		}
+		return DefaultScannerCapacity
+	}
+	return capacity
+}
+
+// Schema returns the validation domain's bounded normalized-evidence cache.
+func Schema() string { return validationcache.Schema() }
 
 // Endpoints is the machine-readable description of the validation module's
 // public surface. References the generated *Procedure constant so renaming the

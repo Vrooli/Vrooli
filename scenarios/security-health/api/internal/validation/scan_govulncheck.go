@@ -8,6 +8,7 @@ import (
 	"io"
 	"path/filepath"
 	"sort"
+	"time"
 )
 
 // govulncheckScanner runs golang.org/x/vuln/cmd/govulncheck, which reports only
@@ -24,6 +25,9 @@ func newGovulncheckScanner(cmd Commander) Scanner { return &govulncheckScanner{c
 func (g *govulncheckScanner) Name() string             { return "govulncheck" }
 func (g *govulncheckScanner) Binary() string           { return "govulncheck" }
 func (g *govulncheckScanner) Applies(s Substrate) bool { return s.Go }
+func (g *govulncheckScanner) EvidencePlan(ctx context.Context, scenarioDir string, sub Substrate, now time.Time) (ScannerEvidencePlan, error) {
+	return scannerEvidencePlan(ctx, g.cmd, g.Name(), g.Binary(), scenarioDir, sub, now)
+}
 
 // govulncheck -json emits a stream of newline-delimited JSON message objects,
 // each carrying exactly one of these fields. We collect OSV metadata by id and

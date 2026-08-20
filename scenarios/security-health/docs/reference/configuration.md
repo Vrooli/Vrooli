@@ -29,11 +29,20 @@ for the full policy.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/security-health.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
+| _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 | `SECURITY_HEALTH_RECONCILE_INTERVAL` | `5m` | Base cadence of the background fleet reconcile loop (Go duration, e.g. `5m`, `10m`). A per-tick jitter of up to `interval/4` is added so a fleet of self-monitoring scenarios doesn't burst on an aligned boundary. Invalid/non-positive values fall back to the default. |
 | `SECURITY_HEALTH_SCAN_CONCURRENCY` | `4` | Max scenarios scanned in parallel during a fleet reconcile. Bounds peak CPU from the ~110 per-scenario `osv-scanner` runs; raise it to shorten a large changed-scenario pass at the cost of higher peak CPU. Minimum `1`; invalid values fall back to the default. |
+| `SECURITY_HEALTH_SCANNER_CAPACITY` | `4` | Shared weighted capacity for validation scanner subprocesses. Valid range is `3-32`; invalid values fall back to `4`. Higher values admit more expensive scanner work concurrently across requests and increase peak CPU/memory. |
+
+Scanner weights and evidence freshness are correctness policy, not operator
+preferences, so they are intentionally not configurable. Static scanners use
+weights `1-2`; advisory scanners use weights `2-3`. Advisory identities include
+the UTC calendar day, while static evidence remains valid until content, tool,
+or normalization policy changes. See
+[`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md) for input boundaries,
+metrics, failure behavior, and safe invalidation.
 
 The per-scenario `osv-scanner` result is content-cached (no flag — on by default): a
 reconcile re-scans a scenario only when its resolved-version lockfiles

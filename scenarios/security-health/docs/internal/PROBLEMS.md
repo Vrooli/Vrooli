@@ -254,3 +254,10 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Work ladder
+
+- Rung: W3
+- Evidence: W0 agrees with goal `security-health-validation-performance`. Plan `security-health-incremental-validation-performance` now composes the sanitized SQLite evidence store, exact scanner identities, keyed coalescing, shared weighted admission, per-scanner metrics, and canonical OSV reuse. The provider measured `num[sot]:28.60s` cold and `num[sot]:145ms` unchanged warm (`num[sot]:105ms` scan stage). Security-only Test Genie run `20260820-203812-8ae01d61` took `num[sot]:14s`; final comprehensive run `20260820-205634-7ca2265c` took `num[sot]:1s` for the warm security phase versus the immutable `num[sot]:33s` baseline. The full comparison was compatible/pre-existing, and Git Control Tower operation `ffb577e3-b778-4b45-9831-8ac3f5ec1d3e:1` independently classified the candidate clean/pre-existing.
+- Blocker: None for this rung. Existing UI, dependency, unit, storage, workflow, and security findings remain pre-existing and are not waived by this work.
+- Measured: 2026-08-20

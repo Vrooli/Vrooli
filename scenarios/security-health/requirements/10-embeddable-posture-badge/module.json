@@ -9,7 +9,7 @@
       "title": "Security posture badge widget",
       "prd_ref": "OT-P1-004",
       "category": "ui",
-      "status": "draft",
+      "status": "planned",
       "description": "An embeddable widget must declare itself via the JSDoc @vrooliWidget contract (slot INLINE) and render a severity rollup, top findings, and last-scan time for a given scenario.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "The widget exposes a valid WidgetDeclaration discoverable by ui-health." },

@@ -9,7 +9,7 @@
       "title": "validate scenario --json output shape",
       "prd_ref": "OT-P0-003",
       "category": "cli",
-      "status": "draft",
+      "status": "planned",
       "description": "The CLI command must emit JSON of the form {\"findings\":[{rule_id,severity,title,description,remediation,file_path}]} (plus a summary with error/warning/info counts) that maps cleanly onto the test-genie finding parser, exercised by a CLI↔proto parity binding.",
       "validation": [
         { "type": "test", "phase": "integration", "status": "pending", "notes": "validate scenario <name> --json against a known-clean scenario returns an empty findings array and exit code 0." },
@@ -22,7 +22,7 @@
       "title": "ValidateScenario Connect RPC",
       "prd_ref": "OT-P0-003",
       "category": "api",
-      "status": "draft",
+      "status": "planned",
       "description": "The ValidationService.ValidateScenario Connect RPC must run the detector then the applicable scanners and return the aggregated normalized findings; the CLI is a thin translation layer over this RPC.",
       "validation": [
         { "type": "test", "phase": "integration", "status": "pending", "notes": "ValidateScenario over Connect returns the same findings the CLI renders for the same target." }

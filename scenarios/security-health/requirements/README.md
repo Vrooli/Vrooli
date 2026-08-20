@@ -3,7 +3,7 @@
 This registry links the PRD operational targets (`../PRD.md` → `## 🎯 Operational Targets`) to implementation-facing technical requirements. Each `NN-<target>/module.json` mirrors one operational target via its `prd_ref` (e.g. `OT-P0-001`); numbers preserve ordering, not priority.
 
 ## Operational targets covered
-- **P0** — substrate-aware validation, normalized severity contract, delegation-ready CLI, test-genie security producer, actionable remediation, graceful scanner degradation.
+- **P0** — substrate-aware validation, normalized severity contract, delegation-ready CLI, test-genie security producer, actionable remediation, graceful scanner degradation, incremental resource-bounded validation.
 - **P1** — fleet dependency intelligence, semantic + structured dependency search, security posture UI, embeddable posture badge.
 - **P2** — Python & JS/TS SAST, continuous CVE alerting, secret rotation workflows.
 

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // gosecScanner runs the gosec Go SAST tool per Go module. gosec's own
@@ -30,6 +31,9 @@ func newGosecScanner(cmd Commander) Scanner { return &gosecScanner{cmd: cmd} }
 func (g *gosecScanner) Name() string             { return "gosec" }
 func (g *gosecScanner) Binary() string           { return "gosec" }
 func (g *gosecScanner) Applies(s Substrate) bool { return s.Go }
+func (g *gosecScanner) EvidencePlan(ctx context.Context, scenarioDir string, sub Substrate, now time.Time) (ScannerEvidencePlan, error) {
+	return scannerEvidencePlan(ctx, g.cmd, g.Name(), g.Binary(), scenarioDir, sub, now)
+}
 
 type gosecReport struct {
 	Issues []gosecIssue `json:"Issues"`

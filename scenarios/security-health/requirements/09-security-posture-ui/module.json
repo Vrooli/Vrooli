@@ -9,7 +9,7 @@
       "title": "Posture page",
       "prd_ref": "OT-P1-003",
       "category": "ui",
-      "status": "draft",
+      "status": "planned",
       "description": "A landing Posture page must let the user pick a scenario and view findings grouped by severity (Critical -> Info) with per-finding remediation, last-scan time, and a re-scan button.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "Findings render grouped by severity with stable data-testid selectors." },
@@ -21,7 +21,7 @@
       "title": "Dependencies and redacted Secrets pages",
       "prd_ref": "OT-P1-003",
       "category": "ui",
-      "status": "draft",
+      "status": "planned",
       "description": "A Dependencies page must surface the searchable SBOM index (AI/TEXT toggle, ecosystem + vulnerable-only filters); a Secrets page must show gitleaks findings redacted to file:line only with rotation guidance.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "The Dependencies page renders the vulnerable-only filter and ecosystem toggle." },

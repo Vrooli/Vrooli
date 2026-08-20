@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // osvScanner runs google/osv-scanner across the scenario's lockfiles
@@ -18,10 +19,28 @@ import (
 // Intelligence index (see internal/dependencies). The binary is install-gated;
 // when absent the Service records it as a skipped scanner.
 type osvScanner struct {
-	cmd Commander
+	cmd   Commander
+	cache OSVReportCache
+	clock func() time.Time
 }
 
 func newOSVScanner(cmd Commander) Scanner { return &osvScanner{cmd: cmd} }
+
+// OSVReportCache is the shared raw-report cache seam. The dependencies store
+// satisfies it directly, allowing reconciliation and validation to reuse one
+// authoritative scanner result without coupling the validation package to the
+// dependencies domain.
+type OSVReportCache interface {
+	GetOSVScanCache(ctx context.Context, scenario, key string) ([]byte, bool)
+	PutOSVScanCache(ctx context.Context, scenario, key string, report []byte, now string) error
+}
+
+func newOSVScannerWithCache(cmd Commander, cache OSVReportCache, clock func() time.Time) Scanner {
+	if clock == nil {
+		clock = time.Now
+	}
+	return &osvScanner{cmd: cmd, cache: cache, clock: clock}
+}
 
 // RunOSVScanner runs osv-scanner against scenarioDir and returns the parsed
 // report. Exposed so the dependencies domain can annotate its SBOM index with
@@ -64,6 +83,9 @@ func (o *osvScanner) Applies(s Substrate) bool {
 		}
 	}
 	return false
+}
+func (o *osvScanner) EvidencePlan(ctx context.Context, scenarioDir string, sub Substrate, now time.Time) (ScannerEvidencePlan, error) {
+	return scannerEvidencePlan(ctx, o.cmd, o.Name(), o.Binary(), scenarioDir, sub, now)
 }
 
 // OSVReport is the top-level shape of `osv-scanner --format json`. Exported so
@@ -168,6 +190,34 @@ func (o *osvScanner) Scan(ctx context.Context, scenarioDir string, _ Substrate) 
 // run executes osv-scanner and parses its JSON report. Exposed within the
 // package so the dependencies domain can call it for vuln annotation.
 func (o *osvScanner) run(ctx context.Context, scenarioDir string) (OSVReport, error) {
+	if o.cache != nil {
+		now := time.Now()
+		if o.clock != nil {
+			now = o.clock()
+		}
+		key, keyErr := OSVEvidenceFingerprint(ctx, o.cmd, scenarioDir, now)
+		if keyErr == nil {
+			scenario := filepath.Base(filepath.Clean(scenarioDir))
+			if payload, ok := o.cache.GetOSVScanCache(ctx, scenario, key); ok {
+				var cached OSVReport
+				if json.Unmarshal(payload, &cached) == nil {
+					return cached, nil
+				}
+			}
+			report, err := o.runUncached(ctx, scenarioDir)
+			if err != nil {
+				return OSVReport{}, err
+			}
+			if payload, marshalErr := json.Marshal(report); marshalErr == nil {
+				_ = o.cache.PutOSVScanCache(ctx, scenario, key, payload, now.UTC().Format(time.RFC3339Nano))
+			}
+			return report, nil
+		}
+	}
+	return o.runUncached(ctx, scenarioDir)
+}
+
+func (o *osvScanner) runUncached(ctx context.Context, scenarioDir string) (OSVReport, error) {
 	lockfiles, err := discoverOSVLockfiles(scenarioDir)
 	if err != nil {
 		return OSVReport{}, err

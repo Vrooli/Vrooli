@@ -80,6 +80,36 @@ and use matrix/trace helpers from the relevant testutil package.
 
 ## Current seams
 
+### validation.EvidenceStore
+
+| | |
+|---|---|
+| **Seam** | Sanitized scanner-evidence persistence |
+| **Interface** | `api/internal/validation/evidence.go::EvidenceStore` (`Load`, `Store`, `DeleteExpired`) |
+| **Production wiring** | `main.go` constructs `validationcache.New(db)` over the scenario-owned routed database and passes it through `handlers/validation.ModuleDeps`. |
+| **Test fake** | `internal/validation::memoryEvidenceStore`; SQLite contract tests use the real `validationcache.Store`. |
+| **Why it exists** | Validation owns freshness, coalescing, and admission policy; persistence owns bounded normalized storage. Cache failures degrade to real scans without coupling scanners to SQLite. |
+
+### validation.OSVReportCache
+
+| | |
+|---|---|
+| **Seam** | Shared raw OSV report reuse |
+| **Interface** | `api/internal/validation/scan_osv.go::OSVReportCache` (`GetOSVScanCache`, `PutOSVScanCache`) |
+| **Production wiring** | The dependencies `Store` is constructed once in `main.go` and passed to both dependency reconciliation and validation composition. |
+| **Test fake** | `internal/validation::rawOSVCache`; equivalence tests compare cold and cached normalization. |
+| **Why it exists** | Dependency intelligence and validation use one canonical OSV fingerprint without importing either domain into the other or duplicating equivalent advisory subprocesses. |
+
+### validation.IncrementalScanner
+
+| | |
+|---|---|
+| **Seam** | Scanner-specific correctness identity |
+| **Interface** | `api/internal/validation/scanner.go::IncrementalScanner` (`EvidencePlan`) layered over `Scanner` |
+| **Production wiring** | Every default scanner supplies its relevant-input fingerprint, weight, and freshness; `validation.Service` routes all scanners through the process-lifetime `EvidenceCoordinator`. |
+| **Test fake** | `internal/validation::incrementalTestScanner` with mutable fingerprints and call counters. |
+| **Why it exists** | Custom scanners without a trustworthy fingerprint still run through admission but never cache. Optimization is therefore opt-in and fail-safe rather than a hidden correctness assumption. |
+
 ### Clock
 
 | | |
@@ -417,6 +447,23 @@ Connect service metadata plus each handler module's
 The CI drift check (`make endpoints && git diff --exit-code
 .vrooli/endpoints.json`) fails the build if step 4 was skipped, with
 an actionable diff showing exactly which entries diverged.
+
+## Observability Surface
+
+Validation requests expose stable execution-metric stages without changing the
+Connect response contract. `detect-substrate`, `security-headers`, and `scan`
+tell the request-level story; `scan` contains one `scanner:<name>` child for
+each applicable scanner. Gauges distinguish availability, fingerprint cost,
+cache hit/miss, coalescing, admission wait, execution, failure, cache
+degradation, and finding count. Cache errors are deliberately paired with a
+real execution signal so operators can verify that optimization failure never
+became validation bypass. Aggregate process counters remain available from
+`EvidenceCoordinator.Metrics()` for internal diagnostics. Detailed field
+semantics and the measured budget live in [`PERFORMANCE.md`](PERFORMANCE.md).
+
+Remaining signal debt: aggregate counters are not exposed by a dedicated
+status RPC. Per-request evidence is sufficient for Test Genie; add a status
+surface only when an operator workflow needs longitudinal counters.
 
 ## Cross-references
 

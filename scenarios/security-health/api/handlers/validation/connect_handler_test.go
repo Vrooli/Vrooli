@@ -9,8 +9,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/vrooli/maturity-go/assessment"
 	"security-health/internal/validation"
+
+	"github.com/vrooli/maturity-go/assessment"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -137,6 +138,27 @@ func TestValidateScenarioAttachesMetrics(t *testing.T) {
 	}
 	if env.GetNumCpu() != int32(runtime.NumCPU()) {
 		t.Fatalf("env num_cpu = %d, want %d", env.GetNumCpu(), runtime.NumCPU())
+	}
+}
+
+func TestScannerCapacityIsBounded(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  int64
+	}{
+		{value: "", want: DefaultScannerCapacity},
+		{value: "3", want: 3},
+		{value: "12", want: 12},
+		{value: "2", want: DefaultScannerCapacity},
+		{value: "33", want: DefaultScannerCapacity},
+		{value: "invalid", want: DefaultScannerCapacity},
+	} {
+		t.Run(test.value, func(t *testing.T) {
+			t.Setenv(EnvScannerCapacity, test.value)
+			if got := scannerCapacity(nil); got != test.want {
+				t.Fatalf("scannerCapacity() = %d, want %d", got, test.want)
+			}
+		})
 	}
 }
 

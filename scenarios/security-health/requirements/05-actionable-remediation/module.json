@@ -9,7 +9,7 @@
       "title": "Per-finding remediation text",
       "prd_ref": "OT-P0-005",
       "category": "core",
-      "status": "draft",
+      "status": "planned",
       "description": "Each scanner runner must attach a concrete remediation string to every finding it emits (e.g. gitleaks -> 'rotate the exposed credential and purge it from history; move it to vault'; osv/govulncheck -> 'bump <module> to >= <patched version>').",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "A gitleaks finding's remediation references rotation and vault." },
@@ -22,7 +22,7 @@
       "title": "API security header validation",
       "prd_ref": "OT-P0-005",
       "category": "core",
-      "status": "draft",
+      "status": "planned",
       "description": "Security Health must validate that first-party Go API surfaces centralize baseline browser security headers at the router or middleware boundary, and must flag credentialed wildcard CORS without requiring a generic CORS policy.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "ref": "api/internal/validation/validation_test.go::TestService_SecurityHeadersMissingFailsScenario", "notes": "Missing centralized security headers produce an ERROR finding." },
@@ -35,7 +35,7 @@
       "title": "Safe security header autofix",
       "prd_ref": "OT-P0-005",
       "category": "core",
-      "status": "draft",
+      "status": "planned",
       "description": "Security Health's deterministic fixer must preview and apply only low-risk generated-Go API security-header middleware edits, and must return no-op guidance for unsupported shapes instead of guessing.",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "ref": "api/internal/validation/validation_test.go::TestSecurityHeadersFixPreviewAndApplyGeneratedServerShape", "notes": "Preview is dry-run; apply creates the middleware and registers it in the generated server shape." },

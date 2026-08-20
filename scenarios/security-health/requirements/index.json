@@ -18,7 +18,8 @@
     "10-embeddable-posture-badge/module.json",
     "11-python-jsts-sast/module.json",
     "12-continuous-cve-alerting/module.json",
-    "13-secret-rotation-workflows/module.json"
+    "13-secret-rotation-workflows/module.json",
+    "14-incremental-resource-bounded-validation/module.json"
   ],
   "modules": [
     { "id": "MOD-P0-001", "path": "01-substrate-aware-validation", "priority": "P0", "title": "Substrate-aware validation" },
@@ -33,6 +34,7 @@
     { "id": "MOD-P1-010", "path": "10-embeddable-posture-badge", "priority": "P1", "title": "Embeddable posture badge" },
     { "id": "MOD-P2-011", "path": "11-python-jsts-sast", "priority": "P2", "title": "Python & JS/TS SAST" },
     { "id": "MOD-P2-012", "path": "12-continuous-cve-alerting", "priority": "P2", "title": "Continuous CVE alerting" },
-    { "id": "MOD-P2-013", "path": "13-secret-rotation-workflows", "priority": "P2", "title": "Secret rotation workflows" }
+    { "id": "MOD-P2-013", "path": "13-secret-rotation-workflows", "priority": "P2", "title": "Secret rotation workflows" },
+    { "id": "MOD-P0-014", "path": "14-incremental-resource-bounded-validation", "priority": "P0", "title": "Incremental resource-bounded validation" }
   ]
 }

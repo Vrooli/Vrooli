@@ -20,6 +20,7 @@
 - [ ] OT-P0-004 | test-genie security producer | A delegating `security` phase emits `FINDING_SOURCE_SECURITY`, feeding the ecosystem-manager `security` dimension that hard-gates ladder rung R1
 - [ ] OT-P0-005 | Actionable remediation | Every finding carries a human-readable remediation string (rotate-and-purge for secrets, bump-to-patched for vulns)
 - [ ] OT-P0-006 | Graceful scanner degradation | Absent scanner binaries register as INFO observations; the scenario stays fully functional on the host-present subset
+- [ ] OT-P0-007 | Incremental resource-bounded validation | When security-relevant inputs are unchanged and advisory evidence is fresh, security-health shall reuse sanitized scanner evidence; when inputs change, it shall rerun affected scanners through shared host-resource limits
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Fleet dependency intelligence | A continuously-reconciled SBOM corpus across every scenario's lockfiles, annotated with vuln status, in Qdrant
@@ -34,7 +35,7 @@
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API on Connect-RPC, React + Vite + TypeScript + Tailwind UI, Go CLI on `cli-core` — cloning the `cli-health` / `ui-health` family verbatim.
-- Data + storage expectations: SQLite (`${SCENARIO_DATA_DIR}/security-health.db`) for scan history and the structured dependency table; Qdrant (`security-health-deps`, dimensions resolved from `embedding.default`, cosine) + Ollama role-policy embeddings for the semantic dependency index, both optional with TEXT fallback.
+- Data + storage expectations: Scenario-isolated SQLite storage for sanitized scanner evidence, scan history, and the structured dependency table; Qdrant (`security-health-deps`, dimensions resolved from `embedding.default`, cosine) + Ollama role-policy embeddings for the semantic dependency index, both optional with TEXT fallback.
 - Integration strategy: shell out to scanner CLIs (gitleaks, gosec, govulncheck, pnpm audit, osv-scanner) behind a `Scanner` interface; test-genie consumes us via CLI `--json` (matching cli/ui-health), not HTTP.
 - Non-goals / guardrails: no stack-specific scanner baked into test-genie; no broad auto-remediation or auto-PR; deterministic low-risk provider fixes are allowed when previewable and rule-scoped; no secret rotation in v1; no Python/semgrep scanners in v1; no committed `migrations/` folder; no `make breaking` on this branch.
 
@@ -42,7 +43,7 @@
 - Required resources: `qdrant` + `ollama` (both `required:false`, `startup_policy:"try_start"`; degrade to TEXT search when down).
 - Host tools: `gitleaks` + `gosec` (present); `govulncheck` + `osv-scanner` (optional, install-gated — absent ⇒ INFO observation, not failure); `pnpm audit` (ships with pnpm).
 - Scenario dependencies: `test-genie` (downstream consumer via the `security` phase); `ecosystem-manager` (consumes `FINDING_SOURCE_SECURITY` at R1).
-- Operational risks: SAST false-positive flood spuriously gating R1 (mitigated: only critical/high ⇒ ERROR; over-firing rules get scoped, never globally disabled); network-bound scanner latency (mitigated: longer phase timeout + pre-warmed reconcile index); secret leakage in reports (mitigated: redaction-first, file:line only).
+- Operational risks: SAST false-positive flood spuriously gating R1 (mitigated: only critical/high ⇒ ERROR; over-firing rules get scoped, never globally disabled); stale scanner evidence (mitigated: scanner-specific correctness keys, explicit advisory freshness, and audit reruns); scanner CPU saturation (mitigated: shared admission limits and in-flight request coalescing); secret leakage in reports or caches (mitigated: sanitize before persistence and retain file:line only).
 - Launch sequencing: proto `FINDING_SOURCE_SECURITY` → scenario scaffold → validation core → test-genie `security` phase + EM wiring → dependency intelligence → UI → live `balanced` vs `balanced-ladder` A/B proving R1 holds then advances.
 
 ## 🎨 UX & Branding
