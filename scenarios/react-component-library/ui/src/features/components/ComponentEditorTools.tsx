@@ -14,6 +14,7 @@ type ActiveStory = {
   storyId?: string;
   displayName?: string;
   name?: string;
+  description?: string;
   propsJson?: string;
   environment?: Record<string, string>;
 };
@@ -51,6 +52,7 @@ function PropsTool({
       key={activeSpecimen ?? "none"}
       storyId={activeExample?.storyId}
       storyName={activeSpecimenLabel}
+      storyDescription={activeExample?.description}
       initialArgs={initialArgs}
       initialEnvironment={activeExample?.environment}
       storyContract={storyContract}

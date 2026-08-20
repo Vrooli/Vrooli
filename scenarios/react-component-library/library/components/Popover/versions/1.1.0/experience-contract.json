@@ -1,0 +1,47 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Popover@1.0.0"
+  },
+  "component": {
+    "id": "overlays.popover",
+    "title": "Popover",
+    "purpose": "Keep secondary actions anchored to their trigger without losing focus, layer, or responsive discipline."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "An anchored menu is visible in its settled layout."
+    },
+    {
+      "id": "interactive",
+      "example": "interactive",
+      "description": "A consumer can open, navigate, and dismiss the menu."
+    }
+  ],
+  "claims": [
+    {
+      "id": "anchored-and-collision-aware",
+      "type": "manual-review",
+      "statement": "The surface measures its trigger, flips at viewport edges, clamps within safe margins, and keeps its arrow aligned to the trigger.",
+      "tier": "manual",
+      "states": ["default", "interactive"]
+    },
+    {
+      "id": "layered-focus-dismissal",
+      "type": "manual-review",
+      "statement": "The trigger exposes dialog relationships, the top layer owns Escape, outside interactions dismiss, keyboard focus is bounded, and focus returns to the trigger.",
+      "tier": "manual",
+      "states": ["default", "interactive"]
+    },
+    {
+      "id": "responsive-reduced-motion",
+      "type": "manual-review",
+      "statement": "The anchored surface becomes a mobile sheet with safe-area spacing and inherits shared Presence reduced-motion behavior.",
+      "tier": "manual",
+      "states": ["default", "interactive"]
+    }
+  ]
+}

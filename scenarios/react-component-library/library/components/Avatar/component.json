@@ -10,7 +10,7 @@
     "accessibility",
     "token-bound"
   ],
-  "latest": "1.1.1",
+  "latest": "1.3.0",
   "designStyles": [
     {
       "styleId": "vrooli-default",
@@ -36,7 +36,7 @@
     },
     {
       "libraryId": "react-component-library:ProgressiveImage",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
     {
       "libraryId": "react-component-library:Stack",
@@ -44,6 +44,14 @@
     },
     {
       "libraryId": "react-component-library:Text",
+      "version": "1.1.0"
+    },
+    {
+      "libraryId": "react-component-library:Tooltip",
+      "version": "1.0.1"
+    },
+    {
+      "libraryId": "react-component-library:Popover",
       "version": "1.1.0"
     }
   ],

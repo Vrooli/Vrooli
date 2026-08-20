@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Tooltip",
+  "args": {
+    "fields": [
+      {
+        "path": "label",
+        "label": "Tooltip label",
+        "kind": "text",
+        "required": true,
+        "default": "More details about this identity"
+      },
+      {
+        "path": "placement",
+        "label": "Placement",
+        "kind": "enum",
+        "required": true,
+        "default": "top",
+        "options": ["top", "bottom", "start", "end"]
+      },
+      {
+        "path": "delay",
+        "label": "Open delay (ms)",
+        "kind": "number",
+        "minimum": 0,
+        "maximum": 2000,
+        "default": 280
+      },
+      {
+        "path": "closeDelay",
+        "label": "Close delay (ms)",
+        "kind": "number",
+        "minimum": 0,
+        "maximum": 2000,
+        "default": 100
+      },
+      {
+        "path": "defaultOpen",
+        "label": "Open initially",
+        "kind": "boolean",
+        "default": false
+      }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "harness": "Default",
+      "args": { "label": "More details about this identity", "placement": "top" },
+      "expect": [{ "kind": "role", "role": "button", "name": "Show tooltip" }],
+      "mode": "pinned"
+    },
+    {
+      "id": "open",
+      "name": "Open on focus",
+      "harness": "Open",
+      "args": { "label": "Maya Chen · Online", "defaultOpen": true, "delay": 0 },
+      "expect": [
+        { "kind": "role", "role": "tooltip", "name": "Maya Chen · Online" },
+        { "kind": "role", "role": "button", "name": "Show tooltip" }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "placements",
+      "name": "Responsive placements",
+      "harness": "Placements",
+      "args": { "label": "Placement follows the trigger", "placement": "bottom", "defaultOpen": true },
+      "expect": [{ "kind": "text", "value": "Placement follows the trigger" }],
+      "mode": "pinned"
+    },
+    {
+      "id": "start",
+      "name": "Start placement",
+      "harness": "Placements",
+      "args": { "label": "Start placement", "placement": "start", "defaultOpen": true },
+      "expect": [{ "kind": "text", "value": "Start placement" }],
+      "mode": "pinned"
+    },
+    {
+      "id": "end",
+      "name": "End placement",
+      "harness": "Placements",
+      "args": { "label": "End placement", "placement": "end", "defaultOpen": true },
+      "expect": [{ "kind": "text", "value": "End placement" }],
+      "mode": "pinned"
+    }
+  ]
+}

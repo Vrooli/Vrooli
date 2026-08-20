@@ -1,0 +1,22 @@
+{
+  "libraryId": "react-component-library:Tooltip",
+  "displayName": "Tooltip",
+  "description": "A concise, accessible explanation attached to a focusable trigger.",
+  "tags": [
+    "overlay",
+    "accessible",
+    "interaction",
+    "token-bound"
+  ],
+  "entry": "Tooltip.tsx",
+  "latest": "1.0.1",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": ""
+}

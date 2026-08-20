@@ -5,14 +5,13 @@ import { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 import {
   ArrowLeft,
-  ChevronDown,
-  ChevronUp,
   Eye,
   Info,
   Maximize2,
   Menu,
   Minimize2,
   PanelsLeftRight,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
@@ -32,7 +31,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { EmulatorToolbar } from "./EmulatorChrome";
 import { ComponentEditorStage } from "./ComponentEditorStage";
 import { ComponentEditorSource } from "./ComponentEditorSource";
-import { ComponentEditorTools } from "./ComponentEditorTools";
+import { ComponentEditorMobileTools, ComponentEditorTools } from "./ComponentEditorTools";
 import { ThemeSwitcher, type PreviewKit } from "./ThemeSwitcher";
 import { DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplates";
 import { AssetWorkspace } from "../assets/AssetWorkspace";
@@ -1140,17 +1139,10 @@ export function ComponentEditorImpl({
                                 aria-controls="component-preview-tools"
                                 onClick={togglePreviewTools}
                               >
-                                {previewToolsCollapsed ? (
-                                  <ChevronUp
-                                    aria-hidden
-                                    className="h-icon-compact w-icon-compact"
-                                  />
-                                ) : (
-                                  <ChevronDown
-                                    aria-hidden
-                                    className="h-icon-compact w-icon-compact"
-                                  />
-                                )}
+                                <SlidersHorizontal
+                                  aria-hidden
+                                  className="h-icon-compact w-icon-compact"
+                                />
                               </IconButton>
                             )}
                           </div>
@@ -1175,7 +1167,7 @@ export function ComponentEditorImpl({
                             selectedVersion={selectedVersion}
                             resolvedPreviewTheme={resolvedPreviewTheme}
                             previewCanvasRef={previewCanvasRef}
-                            toolsOpen={!previewToolsCollapsed}
+                            toolsOpen={desktopLayout && !previewToolsCollapsed}
                             onClearComparison={() => setComparedSpecimens(new Set())}
                             onToggleComparison={toggleComparison}
                             onRetrySpecimen={retrySpecimen}
@@ -1198,6 +1190,13 @@ export function ComponentEditorImpl({
                             }}
                             tools={<ComponentEditorTools {...editorToolProps} />}
                           />
+                          {!desktopLayout && (
+                            <ComponentEditorMobileTools
+                              tool={previewToolsCollapsed ? null : "props"}
+                              onClose={() => setPreviewToolsCollapsed(true)}
+                              props={editorToolProps}
+                            />
+                          )}
                         </ExperienceSurface>
                       </div>
                     )}

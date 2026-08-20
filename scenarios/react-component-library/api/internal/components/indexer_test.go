@@ -135,6 +135,34 @@ export const FocusTrap = () => cycle();`)},
 	require.Equal(t, "focus.ts", version.Files[1].Path)
 }
 
+func TestIndexerMergesManifestTokenContractWithDerivedTokens(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/TokenBound/component.json": {Data: []byte(`{"libraryId":"react-component-library:TokenBound","displayName":"Token Bound","entry":"TokenBound.tsx","latest":"1.0.0","deprecatedVersions":[],"requiredTokens":["--tap-target-min","--space-sm","--tap-target-min"]}`)},
+		"components/TokenBound/versions/1.0.0/TokenBound.tsx": {Data: []byte(`/**
+ * @libraryId react-component-library:TokenBound
+ * @version 1.0.0
+ */
+export const TokenBound = () => <button style={{ color: "var(--color-foreground)" }} />;`)},
+	}
+	repo := mocks.NewFakeRepository()
+	_, err := components.NewIndexer(repo, ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	component, err := repo.GetByLibraryID(context.Background(), "react-component-library:TokenBound")
+	require.NoError(t, err)
+	version, err := repo.GetVersion(context.Background(), component.ID, "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-foreground", "--space-sm", "--tap-target-min"}, version.RequiredTokens)
+}
+
+func TestIndexerRejectsInvalidManifestTokenContract(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/TokenBound/component.json":                {Data: []byte(`{"libraryId":"react-component-library:TokenBound","displayName":"Token Bound","entry":"TokenBound.tsx","latest":"1.0.0","deprecatedVersions":[],"requiredTokens":["color-foreground"]}`)},
+		"components/TokenBound/versions/1.0.0/TokenBound.tsx": {Data: []byte(`/** @libraryId react-component-library:TokenBound @version 1.0.0 */`)},
+	}
+	_, err := components.NewIndexer(mocks.NewFakeRepository(), ".", fs).IndexManifest(context.Background(), "components/TokenBound/component.json")
+	require.ErrorContains(t, err, "requiredTokens")
+}
+
 func TestIndexer_RunIndexesHookAsNonRenderableAsset(t *testing.T) {
 	fs := fstest.MapFS{
 		"hooks/useFocusTrap/component.json":                     {Data: []byte(`{"libraryId":"react-component-library:useFocusTrap","displayName":"useFocusTrap","assetKind":"hook","latest":"1.0.0","dependencies":[]}`)},

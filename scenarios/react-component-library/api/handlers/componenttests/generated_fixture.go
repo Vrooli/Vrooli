@@ -14,12 +14,15 @@ import (
 
 	"react-component-library/internal/adoptions"
 	"react-component-library/internal/components"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const (
 	generatedFixtureLibraryID   = "react-component-library:Button"
 	generatedFixtureAdoptedPath = "ui/src/components/ui/button.tsx"
 	generatedFixtureTemplate    = "react-vite"
+	generatedFixtureNamePrefix  = "rcl-fixture-"
 )
 
 // GeneratedFixtureValidator is the narrow seam used by the Test Genie
@@ -41,10 +44,14 @@ func NewGeneratedFixtureValidator(adoptionService adoptions.Service, componentSe
 	return &generatedFixtureValidator{adoptions: adoptionService, components: componentService, sourceRoot: sourceRoot, logger: logger}
 }
 
-func (v *generatedFixtureValidator) Validate(ctx context.Context) error {
+func (v *generatedFixtureValidator) Validate(ctx context.Context) (err error) {
 	root, err := repositoryRoot(v.sourceRoot)
 	if err != nil {
 		return err
+	}
+	beforeBinaries, err := generatedFixtureBinaries(root)
+	if err != nil {
+		return fmt.Errorf("snapshot generated-fixture binaries: %w", err)
 	}
 	component, err := v.components.GetByLibraryID(ctx, generatedFixtureLibraryID)
 	if err != nil {
@@ -61,6 +68,19 @@ func (v *generatedFixtureValidator) Validate(ctx context.Context) error {
 	defer func() {
 		v.cleanup(context.Background(), root, positive, positiveAdoptionID)
 		v.cleanup(context.Background(), root, negative, "")
+		afterBinaries, countErr := generatedFixtureBinaries(root)
+		if countErr != nil && err == nil {
+			err = fmt.Errorf("snapshot generated-fixture binaries after cleanup: %w", countErr)
+			return
+		}
+		if countErr == nil {
+			v.logf("generated-fixture CLI entries before=%d after=%d", len(beforeBinaries), len(afterBinaries))
+			for name := range afterBinaries {
+				if _, existed := beforeBinaries[name]; !existed && err == nil {
+					err = fmt.Errorf("generated-fixture cleanup left installed CLI entry %q", name)
+				}
+			}
+		}
 	}()
 
 	if err := v.generate(ctx, root, positive, "RCL Generated Suite Positive"); err != nil {
@@ -114,6 +134,38 @@ func (v *generatedFixtureValidator) Validate(ctx context.Context) error {
 	return nil
 }
 
+// generatedFixtureBinaries snapshots only the entries this harness owns. The
+// shared bin directory may legitimately change while another managed test is
+// running, but an RCL fixture must never leave its own generated entry behind.
+func generatedFixtureBinaries(root string) (map[string]struct{}, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		return nil, err
+	}
+	entry, err := contract.RuntimeHomeEntry(home, repocontract.HomeKeyBin)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(entry.AbsPath)
+	if os.IsNotExist(err) {
+		return map[string]struct{}{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]struct{})
+	for _, item := range entries {
+		if strings.HasPrefix(item.Name(), generatedFixtureNamePrefix) {
+			result[item.Name()] = struct{}{}
+		}
+	}
+	return result, nil
+}
+
 func (v *generatedFixtureValidator) generate(ctx context.Context, root, name, displayName string) error {
 	return runControlPlane(ctx, root, "template-manager", "lifecycle", "generate", generatedFixtureTemplate,
 		"--id", name,
@@ -139,6 +191,15 @@ func (v *generatedFixtureValidator) cleanup(parent context.Context, root, name, 
 	output, err := runControlPlaneOutput(ctx, root, "template-manager", "lifecycle", "destroy", name, "--force", "--json")
 	if err != nil {
 		v.logf("generated fixture cleanup destroy %s: %v", name, err)
+	}
+	// Template Manager owns generated source cleanup; the control plane owns
+	// the installed scenario CLI triple. The delete command is idempotent when
+	// destroy already removed the source, so teardown remains net-zero even
+	// after a partial failure.
+	if deleteErr := runControlPlane(ctx, root, "vrooli", "scenario", "delete", name, "--yes", "--json"); deleteErr != nil {
+		v.logf("generated fixture cleanup installed CLI %s: %v", name, deleteErr)
+	}
+	if err != nil {
 		return
 	}
 	var result struct {

@@ -1,15 +1,49 @@
 package components
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 var (
 	cssVariableReferenceRE   = regexp.MustCompile(`var\(\s*(--[A-Za-z0-9_-]+)`)
 	cssVariableDeclarationRE = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
+	cssVariableNameRE        = regexp.MustCompile(`^--[A-Za-z0-9_-]+$`)
 	dynamicTokenPatternRE    = regexp.MustCompile(`var\(\s*(--[A-Za-z0-9_-]+)-\$\{`)
 )
+
+func normalizeManifestRequiredTokens(path string, properties []string) ([]string, error) {
+	result := make(map[string]struct{}, len(properties))
+	for _, property := range properties {
+		property = strings.TrimSpace(property)
+		if !cssVariableNameRE.MatchString(property) {
+			return nil, ErrInvalidHeader{SourcePath: path, Field: "requiredTokens", Reason: fmt.Sprintf("%q is not a CSS custom property", property)}
+		}
+		result[property] = struct{}{}
+	}
+	return sortedTokenSet(result), nil
+}
+
+func mergeRequiredTokens(sets ...[]string) []string {
+	merged := map[string]struct{}{}
+	for _, set := range sets {
+		for _, property := range set {
+			merged[property] = struct{}{}
+		}
+	}
+	return sortedTokenSet(merged)
+}
+
+func sortedTokenSet(properties map[string]struct{}) []string {
+	result := make([]string, 0, len(properties))
+	for property := range properties {
+		result = append(result, property)
+	}
+	sort.Strings(result)
+	return result
+}
 
 // ExtractRequiredTokens derives the external CSS custom-property contract for
 // one version. A property is required when the version references it through

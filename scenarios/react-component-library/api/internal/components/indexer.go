@@ -248,6 +248,7 @@ type manifestFile struct {
 	// (e.g. {"useFocusTrap.ts": "hook"}). Authoritative over the resolver's
 	// extension heuristic. Applies across all versions of the component.
 	FileSlots          map[string]string        `json:"fileSlots"`
+	RequiredTokens     []string                 `json:"requiredTokens"`
 	Tags               []string                 `json:"tags"`
 	DesignStyles       []manifestDesignAffinity `json:"designStyles"`
 	Latest             string                   `json:"latest"`
@@ -269,6 +270,10 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	var mf manifestFile
 	if err := json.Unmarshal(raw, &mf); err != nil {
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "component.json", Reason: err.Error()}
+	}
+	manifestRequiredTokens, err := normalizeManifestRequiredTokens(path, mf.RequiredTokens)
+	if err != nil {
+		return IndexManifestInput{}, nil, err
 	}
 	slug := filepath.Base(filepath.Dir(path))
 	assetKind, err := assetKindForManifestPath(path, mf.AssetKind)
@@ -489,7 +494,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			ContentSHA256:         digestBytes(src),
 			Headers:               headers,
 			Files:                 versionFiles,
-			RequiredTokens:        ExtractRequiredTokens(versionFiles),
+			RequiredTokens:        mergeRequiredTokens(ExtractRequiredTokens(versionFiles), manifestRequiredTokens),
 			RequiredTokenPatterns: ExtractRequiredTokenPatterns(versionFiles),
 			ExperienceContract:    experienceContract,
 			ParityReport:          parity,

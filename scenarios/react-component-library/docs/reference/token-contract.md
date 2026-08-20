@@ -12,11 +12,20 @@ The library has two related but distinct contracts:
 An adopted file must not silently retain a token class its Tailwind config
 cannot emit, nor a raw CSS property the target scenario does not declare.
 
-The derived `requiredTokens[]` and `requiredTokenPatterns[]` fields are
-computed from each indexed version's `.tsx`, `.ts`, and `.css` source. They
-are not authored in a manifest. Preflight unions those fields across the
-dependency closure and reports every target-side omission before apply or
-reapply.
+The `requiredTokens[]` and `requiredTokenPatterns[]` fields are computed from
+each indexed version's `.tsx`, `.ts`, and `.css` source. A component may also
+declare `requiredTokens` in `component.json` when its public runtime contract
+must include properties read through its dependency closure. The indexer
+validates those names and merges them with the source-derived set; source
+scanning remains the backstop against an incomplete declaration. Preflight
+unions the result across the dependency closure and reports every target-side
+omission before apply or reapply.
+
+Adoption resolves the target scenario's declared custom properties before it
+writes any copied source. A missing property fails the adoption and names the
+complete missing set. The adopter never writes values into the consumer token
+file during apply; the consumer chooses its own values. `tokens-sync` remains
+a separate, explicit operation for a managed token ramp.
 
 The current `app-*` contract is:
 

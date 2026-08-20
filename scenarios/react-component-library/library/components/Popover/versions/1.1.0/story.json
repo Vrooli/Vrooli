@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Popover",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Anchored workspace menu",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Workspace actions"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Open workspace menu"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "interactive",
+      "name": "Interactive dismissal",
+      "harness": "Interactive",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Open workspace menu"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
+}

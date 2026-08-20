@@ -1,0 +1,348 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "VoiceInputButton",
+  "args": {
+    "fields": [
+      {
+        "path": "state",
+        "label": "State",
+        "kind": "enum",
+        "required": true,
+        "default": "idle",
+        "options": [
+          "idle",
+          "preparing",
+          "recording",
+          "recovering",
+          "transcribing",
+          "unavailable",
+          "error"
+        ]
+      },
+      {
+        "path": "mode",
+        "label": "Mode",
+        "kind": "enum",
+        "required": true,
+        "default": "always-on",
+        "options": [
+          "always-on",
+          "timeout"
+        ]
+      },
+      {
+        "path": "size",
+        "label": "Size",
+        "kind": "enum",
+        "required": true,
+        "default": "sm",
+        "options": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ]
+      },
+      {
+        "path": "density",
+        "label": "Density",
+        "kind": "enum",
+        "required": true,
+        "default": "comfortable",
+        "options": [
+          "comfortable",
+          "compact"
+        ]
+      },
+      {
+        "path": "level",
+        "label": "Input level",
+        "kind": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.65
+      },
+      {
+        "path": "timeoutProgress",
+        "label": "Timeout progress",
+        "kind": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.5
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": [
+      {
+        "key": "voiceInput",
+        "adapter": "voice-input",
+        "options": [
+          "idle",
+          "recording",
+          "permission-denied"
+        ]
+      }
+    ]
+  },
+  "stories": [
+    {
+      "id": "idle",
+      "name": "Idle",
+      "mode": "live",
+      "harness": "Live",
+      "args": {
+        "state": "idle",
+        "size": "sm"
+      },
+      "environment": {
+        "voiceInput": "idle"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Start voice input"
+        }
+      ]
+    },
+    {
+      "id": "preparing",
+      "name": "Preparing",
+      "harness": "Live",
+      "args": {
+        "state": "preparing"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Preparing microphone"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "recording",
+      "name": "Recording",
+      "harness": "Live",
+      "args": {
+        "state": "recording",
+        "mode": "always-on",
+        "level": 0.65
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Stop voice input"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "recovering",
+      "name": "Recovering",
+      "harness": "Live",
+      "args": {
+        "state": "recovering",
+        "level": 0.35
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Listening for voice input"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "transcribing",
+      "name": "Transcribing",
+      "harness": "Live",
+      "args": {
+        "state": "transcribing"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Cancel transcription"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "unavailable",
+      "name": "Unavailable",
+      "harness": "Live",
+      "args": {
+        "state": "unavailable"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Voice input unavailable"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "error",
+      "name": "Error",
+      "harness": "Live",
+      "args": {
+        "state": "error"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Voice input error"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "timeout",
+      "name": "Timeout recording",
+      "harness": "Live",
+      "args": {
+        "state": "recording",
+        "mode": "timeout"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Stop voice input"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "size-xs",
+      "name": "Extra small",
+      "harness": "Live",
+      "args": {
+        "state": "idle",
+        "size": "xs"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Start voice input"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "size-md",
+      "name": "Medium",
+      "harness": "Live",
+      "args": {
+        "state": "idle",
+        "size": "md"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Start voice input"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "size-lg",
+      "name": "Large",
+      "harness": "Live",
+      "args": {
+        "state": "idle",
+        "size": "lg"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Start voice input"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "size-xl",
+      "name": "Extra large",
+      "harness": "Live",
+      "args": {
+        "state": "idle",
+        "size": "xl"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Start voice input"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "size-icon",
+      "name": "Icon only",
+      "harness": "Live",
+      "args": {
+        "state": "idle",
+        "size": "icon"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Start voice input"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "density-comfortable",
+      "name": "Comfortable density",
+      "harness": "Live",
+      "args": {
+        "state": "idle",
+        "density": "comfortable"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Start voice input"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "density-compact",
+      "name": "Compact density",
+      "harness": "Live",
+      "args": {
+        "state": "idle",
+        "density": "compact"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Start voice input"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
+}

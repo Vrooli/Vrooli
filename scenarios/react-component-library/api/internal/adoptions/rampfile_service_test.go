@@ -28,6 +28,10 @@ func (r rampTokenInventory) DeclaredTokens(_ context.Context, scenario string) (
 }
 
 func newRampService(ramp string) (adoptions.Service, *fakeFiles) {
+	return newRampServiceWithTokens(ramp, []string{"--color-primary"})
+}
+
+func newRampServiceWithTokens(ramp string, requiredTokens []string) (adoptions.Service, *fakeFiles) {
 	repo := adoptmocks.NewFakeRepository()
 	repo.Seed(adoptions.Adoption{
 		ID: "adoption-1", ComponentID: "cmp-button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx", AdoptedVersion: "1.0.0",
@@ -40,7 +44,7 @@ func newRampService(ramp string) (adoptions.Service, *fakeFiles) {
 			"cmp-button@1.0.0": {
 				ComponentID: "cmp-button", LibraryID: "rcl:Button", Version: "1.0.0",
 				Status: components.VersionStatusReleased, SourcePath: "Button.tsx",
-				RequiredTokens: []string{"--color-primary"},
+				RequiredTokens: append([]string(nil), requiredTokens...),
 			},
 		},
 	}
@@ -51,6 +55,28 @@ func newRampService(ramp string) (adoptions.Service, *fakeFiles) {
 	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
 	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: files})
 	return svc, files
+}
+
+func TestAdoptTokenContractAcceptsCompleteScenarioStylesheet(t *testing.T) {
+	svc, _ := newRampServiceWithTokens(":root { --color-primary: blue; --tap-target-min: 44px; }", []string{"--color-primary", "--tap-target-min"})
+	result, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+		ComponentID: "cmp-button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, result.Adoption.ID)
+}
+
+func TestAdoptTokenContractRejectsAndNamesEveryMissingProperty(t *testing.T) {
+	svc, files := newRampServiceWithTokens(":root { --color-primary: blue; }", []string{"--color-primary", "--space-sm", "--tap-target-min"})
+	_, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+		ComponentID: "cmp-button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
+	})
+	var unsatisfied adoptions.ErrAdoptionTokensUnsatisfied
+	require.ErrorAs(t, err, &unsatisfied)
+	require.Equal(t, []string{"--space-sm", "--tap-target-min"}, unsatisfied.Properties)
+	require.Contains(t, unsatisfied.Error(), "--space-sm")
+	require.Contains(t, unsatisfied.Error(), "--tap-target-min")
+	require.NotContains(t, files.bytes, "target::ui/src/Button.tsx")
 }
 
 func TestSyncScenarioTokensMissingFileIsIdempotent(t *testing.T) {

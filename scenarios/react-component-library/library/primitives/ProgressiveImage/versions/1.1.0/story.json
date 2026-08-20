@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "ProgressiveImage",
+  "args": {
+    "fields": [
+      {
+        "path": "displayState",
+        "label": "Display state",
+        "kind": "enum",
+        "default": "loaded",
+        "options": ["loading", "loaded", "error"]
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Loaded image",
+      "harness": "Default",
+      "args": { "displayState": "loaded" },
+      "expect": [
+        { "kind": "role", "role": "img", "name": "Abstract blue-green Aurora workspace landscape" }
+      ],
+      "interactions": [{ "kind": "settle" }],
+      "mode": "live"
+    },
+    {
+      "id": "loading",
+      "name": "Reserved loading frame",
+      "harness": "Loading",
+      "args": { "displayState": "loading" },
+      "expect": [
+        { "kind": "role", "role": "img", "name": "Abstract loading workspace preview" },
+        { "kind": "attribute", "selector": "[data-rcl-progressive-image]", "attribute": "aria-busy", "value": "true" }
+      ],
+      "interactions": [{ "kind": "settle" }],
+      "mode": "live"
+    },
+    {
+      "id": "responsive-sources",
+      "name": "Responsive sources",
+      "harness": "ResponsiveSources",
+      "args": { "displayState": "loaded" },
+      "expect": [
+        { "kind": "role", "role": "img", "name": "Abstract responsive art-directed landscape" }
+      ],
+      "interactions": [{ "kind": "settle" }],
+      "mode": "live"
+    },
+    {
+      "id": "error",
+      "name": "Legible error",
+      "harness": "ErrorState",
+      "args": { "displayState": "error" },
+      "expect": [
+        { "kind": "role", "role": "img", "name": "Unavailable workspace preview" },
+        { "kind": "role", "role": "alert" }
+      ],
+      "interactions": [{ "kind": "settle" }],
+      "mode": "live"
+    }
+  ]
+}
