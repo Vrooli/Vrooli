@@ -29,6 +29,7 @@ require (
 	github.com/pdfcpu/pdfcpu v0.6.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	golang.org/x/image v0.18.0 // indirect

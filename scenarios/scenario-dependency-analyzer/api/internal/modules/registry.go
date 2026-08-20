@@ -1,8 +1,8 @@
 package modules
 
 import (
-	localdb "scenario-dependency-analyzer/internal/database"
-	"scenario-dependency-analyzer/internal/store"
+	localdb "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/database"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
 
 	apidb "github.com/vrooli/api-core/database"
 )

@@ -22,15 +22,16 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/maturity-go/assessment"
 	repocontract "github.com/vrooli/repo-contract-go"
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	analysisapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/analysis"
+	dependenciesapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/dependencies"
+	dependencygovernanceapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/dependencygovernance"
+	dependencyhealthapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/dependencyhealth"
+	graphdomain "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graph"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/modules"
+	proposalapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/proposal"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 	_ "modernc.org/sqlite"
-	analysisapi "scenario-dependency-analyzer/internal/analysis"
-	dependenciesapi "scenario-dependency-analyzer/internal/dependencies"
-	dependencygovernanceapi "scenario-dependency-analyzer/internal/dependencygovernance"
-	dependencyhealthapi "scenario-dependency-analyzer/internal/dependencyhealth"
-	graphdomain "scenario-dependency-analyzer/internal/graph"
-	"scenario-dependency-analyzer/internal/modules"
-	proposalapi "scenario-dependency-analyzer/internal/proposal"
-	types "scenario-dependency-analyzer/internal/types"
 )
 
 func ensureTestEnvVars() {
@@ -174,23 +175,17 @@ func createTestScenario(t *testing.T, env *TestEnvironment, name string, resourc
 	}
 
 	// Create service.json
-	serviceConfig := types.ServiceConfig{
+	serviceConfig := types.Manifest{
 		Schema:  "https://schemas.vrooli.com/service/v2.0.0.json",
 		Version: "2.0.0",
-		Service: struct {
-			Name        string   `json:"name"`
-			DisplayName string   `json:"display_name"`
-			Description string   `json:"description"`
-			Version     string   `json:"version"`
-			Tags        []string `json:"tags"`
-		}{
+		Service: scenariomodel.ServiceMetadata{
 			Name:        name,
 			DisplayName: "Test " + name,
 			Description: "Test scenario for " + name,
 			Version:     "1.0.0",
 			Tags:        []string{"test"},
 		},
-		Resources: resources,
+		Dependencies: scenariomodel.Dependencies{Resources: resources},
 	}
 
 	serviceJSON, err := json.MarshalIndent(serviceConfig, "", "  ")
@@ -206,7 +201,7 @@ func createTestScenario(t *testing.T, env *TestEnvironment, name string, resourc
 	return &TestScenario{
 		Name: name,
 		ServiceJSON: map[string]interface{}{
-			"resources": resources,
+			"dependencies": map[string]interface{}{"resources": resources},
 		},
 		Files: map[string]string{
 			"service.json": serviceJSONPath,

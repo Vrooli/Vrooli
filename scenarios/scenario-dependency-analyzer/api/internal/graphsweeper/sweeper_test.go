@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"scenario-dependency-analyzer/internal/graphingest"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graphingest"
 )
 
 type manualClock struct {

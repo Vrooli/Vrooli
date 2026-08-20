@@ -158,7 +158,16 @@ func TestGenerationRecordsTemplateHashes(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dest, ".vrooli"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	stub := scenariomodel.ServiceManifest{Service: scenariomodel.ServiceMetadata{Name: "drift-probe"}}
+	stub := scenariomodel.ServiceManifest{
+		Service: scenariomodel.ServiceMetadata{Name: "drift-probe"},
+		Components: map[string]scenariomodel.Component{
+			"api": {
+				Role:  "api",
+				Build: scenariomodel.ComponentBuild{Kind: "go_module", Dir: "api"},
+				Run:   scenariomodel.ComponentRun{Argv: []string{"{{bin.api}}"}, Port: "api"},
+			},
+		},
+	}
 	stubBytes, _ := json.MarshalIndent(stub, "", "  ")
 	if err := os.WriteFile(filepath.Join(dest, ".vrooli", "service.json"), stubBytes, 0o644); err != nil {
 		t.Fatalf("write stub: %v", err)
@@ -179,5 +188,15 @@ func TestGenerationRecordsTemplateHashes(t *testing.T) {
 	}
 	if out.Generation.ManifestSha == "" || out.Generation.ContentSha == "" {
 		t.Fatalf("hashes missing in persisted manifest: %+v", out.Generation)
+	}
+	if component, ok := out.Components["api"]; !ok || component.Build.Kind != "go_module" {
+		t.Fatalf("components were not preserved by provenance injection: %+v", out.Components)
+	}
+	var persisted map[string]any
+	if err := json.Unmarshal(on, &persisted); err != nil {
+		t.Fatalf("decode persisted manifest: %v", err)
+	}
+	if lifecycle, exists := persisted["lifecycle"]; exists {
+		t.Fatalf("provenance injection synthesized an empty lifecycle contract: %#v", lifecycle)
 	}
 }

@@ -1,7 +1,10 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "parent": "vrooli",
     "name": "scenario-to-cloud",
@@ -102,87 +105,6 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-to-cloud-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "scenario-to-cloud",
-            "targets": [
-              "scenario-to-cloud"
-            ]
-          },
-          {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o scenario-to-cloud-api .",
-          "description": "Build Go API binary (api/scenario-to-cloud-api)"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and production UI bundle",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && exec ./scenario-to-cloud-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/scenario-to-cloud-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute scenario-to-cloud structure standards dependencies lint docs unit integration business",
-          "description": "Run test-genie orchestrated test suite (fast, deterministic phases)"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -227,6 +149,37 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

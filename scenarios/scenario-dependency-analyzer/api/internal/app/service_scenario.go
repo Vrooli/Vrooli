@@ -5,10 +5,10 @@ import (
 	"sort"
 	"time"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
-	"scenario-dependency-analyzer/internal/deployment"
-	"scenario-dependency-analyzer/internal/store"
-	types "scenario-dependency-analyzer/internal/types"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/deployment"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 type scenarioService struct {

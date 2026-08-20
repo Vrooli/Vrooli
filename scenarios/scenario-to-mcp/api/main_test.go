@@ -11,8 +11,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
+
+	mcpSchema "scenario-to-mcp/internal/mcp"
 )
 
 // TestHealthEndpoint tests the health check endpoint
@@ -541,6 +544,7 @@ func TestDefaultScenariosPathUsesContractRoot(t *testing.T) {
 		t.Fatalf("mkdir nested: %v", err)
 	}
 
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
 	t.Setenv("VROOLI_ROOT", nested)
 
 	got := defaultScenariosPath()
@@ -606,7 +610,7 @@ func newScenarioToMCPContractFixtureRepo(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/scenario-to-mcp-test\n\ngo 1.24.0\n"), 0o644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
-	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+	for _, dir := range []string{"templates", "scenarios", "resources", "packages", "cmd", "internal"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
@@ -831,6 +835,13 @@ func TestDatabaseErrors(t *testing.T) {
 			t.Error("Expected error with invalid database URL")
 		}
 	})
+}
+
+func TestEmbeddedSchemaDeclaresIdempotentDefaultTemplateSeeds(t *testing.T) {
+	schema := mcpSchema.Schema()
+	if !strings.Contains(schema, "ON CONFLICT (name) DO NOTHING") {
+		t.Fatal("embedded schema must make default template seeding idempotent by name")
+	}
 }
 
 // TestAPIResponseFormats tests various response formats

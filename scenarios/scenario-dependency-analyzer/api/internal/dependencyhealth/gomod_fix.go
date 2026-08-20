@@ -9,7 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"scenario-dependency-analyzer/internal/gomodreconcile"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/gomodreconcile"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )

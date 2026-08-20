@@ -726,9 +726,9 @@ func verifyGeneratedResourceGoModules(destination string) error {
 		if !resourceModuleHasGoFiles(moduleDir) {
 			return nil
 		}
-		cmd := exec.Command("bash", "-lc", "GOWORK=off go mod tidy")
+		cmd := exec.Command("go", "mod", "tidy")
 		cmd.Dir = moduleDir
-		cmd.Env = os.Environ()
+		cmd.Env, _ = templateHookEnv(os.Environ(), map[string]string{"GOWORK": "off"})
 		output, execErr := cmd.CombinedOutput()
 		if execErr != nil {
 			relPath, _ := filepath.Rel(destination, path)

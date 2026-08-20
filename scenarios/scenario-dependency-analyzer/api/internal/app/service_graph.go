@@ -3,8 +3,8 @@ package app
 import (
 	"fmt"
 
-	graphdomain "scenario-dependency-analyzer/internal/graph"
-	types "scenario-dependency-analyzer/internal/types"
+	graphdomain "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graph"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 type graphService struct {

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // TestScenarioBuilder provides a fluent interface for building test scenarios

@@ -252,7 +252,7 @@ func TestValidate_MissingIPCHost(t *testing.T) {
 	}
 }
 
-func TestValidate_MissingIPCPort(t *testing.T) {
+func TestValidate_AllocatorAssignedIPCPort(t *testing.T) {
 	m := Manifest{
 		SchemaVersion: "desktop.v0.1",
 		Target:        "desktop",
@@ -266,9 +266,28 @@ func TestValidate_MissingIPCPort(t *testing.T) {
 		}},
 	}
 
-	err := m.Validate("linux", "amd64")
-	if err == nil {
-		t.Fatal("Validate() expected error for missing ipc.port")
+	if err := m.Validate("linux", "amd64"); err != nil {
+		t.Fatalf("Validate() should accept allocator input port 0: %v", err)
+	}
+}
+
+func TestValidate_DiscoverPeerRequiresBindings(t *testing.T) {
+	m := Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           App{Name: "demo", Version: "1.0.0"},
+		IPC:           IPC{Host: "127.0.0.1"},
+		Peers:         []Peer{{Scenario: "authority", BundlePolicy: "discover"}},
+		Services: []Service{{
+			ID:        "api",
+			Binaries:  map[string]Binary{"linux-x64": {Path: "bin/api"}},
+			Health:    HealthCheck{Type: "tcp"},
+			Readiness: ReadinessCheck{Type: "port_open"},
+		}},
+	}
+	var missing MissingPeerDiscoveryPathError
+	if err := m.Validate("linux", "amd64"); !errors.As(err, &missing) {
+		t.Fatalf("Validate() error = %v, want MissingPeerDiscoveryPathError", err)
 	}
 }
 

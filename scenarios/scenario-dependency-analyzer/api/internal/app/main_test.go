@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"scenario-dependency-analyzer/internal/deployment"
-	graphdomain "scenario-dependency-analyzer/internal/graph"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/deployment"
+	graphdomain "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graph"
 
 	"github.com/vrooli/api-core/storage"
-	appoptimization "scenario-dependency-analyzer/internal/app/optimization"
-	appconfig "scenario-dependency-analyzer/internal/config"
+	appoptimization "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/app/optimization"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // TestHealthHandler tests the health endpoint
@@ -327,7 +327,7 @@ func TestGenerateOptimizationRecommendations(t *testing.T) {
 			Extra: []types.DependencyDrift{{Name: "redis"}},
 		},
 	}
-	recommendations := appoptimization.GenerateRecommendations("sample", analysis, nil)
+	recommendations := appoptimization.GenerateRecommendations("sample", analysis)
 	if len(recommendations) == 0 {
 		t.Fatalf("expected recommendation for unused resource")
 	}
@@ -363,7 +363,7 @@ func TestBuildTierBlockerRecommendations(t *testing.T) {
 		},
 	}
 	analysis := &types.DependencyAnalysisResponse{DeploymentReport: report}
-	recommendations := appoptimization.GenerateRecommendations("sample", analysis, nil)
+	recommendations := appoptimization.GenerateRecommendations("sample", analysis)
 	if len(recommendations) == 0 {
 		t.Fatalf("expected recommendation for blocker")
 	}
@@ -384,31 +384,12 @@ func TestBuildUnusedScenarioRecommendations(t *testing.T) {
 			Extra: []types.DependencyDrift{{Name: "legacy-tool"}},
 		},
 	}
-	recs := appoptimization.GenerateRecommendations("sample", analysis, nil)
+	recs := appoptimization.GenerateRecommendations("sample", analysis)
 	if len(recs) != 1 {
 		t.Fatalf("expected unused scenario recommendation")
 	}
 	if recs[0].RecommendedState["scenario_name"] != "legacy-tool" {
 		t.Fatalf("unexpected recommended scenario: %+v", recs[0])
-	}
-}
-
-func TestBuildSecretStrategyRecommendations(t *testing.T) {
-	cfg := &types.ServiceConfig{Deployment: &types.ServiceDeployment{Tiers: map[string]types.DeploymentTier{
-		"tier-2": {
-			Secrets: []types.DeploymentTierSecret{{SecretID: "api-key", StrategyRef: ""}},
-		},
-	}}}
-	recs := appoptimization.GenerateRecommendations("sample", &types.DependencyAnalysisResponse{}, cfg)
-	found := false
-	for _, rec := range recs {
-		if rec.RecommendedState["action"] == "annotate_secret_strategy" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected secret strategy recommendation")
 	}
 }
 
@@ -444,7 +425,7 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 			Required: true,
 		},
 	}
-	childCfg.Deployment = &types.ServiceDeployment{
+	childCfg.TierFeasibility = &types.TierFeasibility{
 		Tiers: map[string]types.DeploymentTier{
 			"tier-2-desktop": {
 				Requirements: &types.DeploymentRequirements{RAMMB: floatPtr(256), DiskMB: floatPtr(256), CPUCores: floatPtr(0.5)},
@@ -476,7 +457,7 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 			Required: true,
 		},
 	}
-	rootCfg.Deployment = &types.ServiceDeployment{
+	rootCfg.TierFeasibility = &types.TierFeasibility{
 		Tiers: map[string]types.DeploymentTier{
 			"tier-1-local": {
 				Requirements: &types.DeploymentRequirements{RAMMB: floatPtr(1024), DiskMB: floatPtr(2048), CPUCores: floatPtr(1)},
@@ -588,7 +569,7 @@ func canonicalDeploymentReportPath(scenario string) (string, error) {
 	)
 }
 
-func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *types.ServiceConfig) string {
+func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *types.Manifest) string {
 	t.Helper()
 	scenarioPath := filepath.Join(scenariosDir, name)
 	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
@@ -605,8 +586,8 @@ func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *types.
 	return scenarioPath
 }
 
-func newTestServiceConfig(name string) *types.ServiceConfig {
-	cfg := &types.ServiceConfig{Schema: "https://example.com/test.schema.json", Version: "1.0.0"}
+func newTestServiceConfig(name string) *types.Manifest {
+	cfg := &types.Manifest{Schema: "https://example.com/test.schema.json", Version: "1.0.0"}
 	cfg.Service.Name = name
 	cfg.Service.DisplayName = name
 	cfg.Service.Description = "test"

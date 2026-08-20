@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
-	types "scenario-dependency-analyzer/internal/types"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // TestNewDetector tests detector creation.
@@ -259,7 +259,7 @@ PGHOST=localhost
 	detector := New(cfg)
 	detector.RefreshCatalogs()
 
-	serviceConfig := &types.ServiceConfig{}
+	serviceConfig := &types.Manifest{}
 	deps, err := detector.ScanResources(scenarioPath, "test-scenario", serviceConfig)
 	if err != nil {
 		t.Fatalf("ScanResources error: %v", err)

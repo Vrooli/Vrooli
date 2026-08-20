@@ -75,12 +75,7 @@
       "version": "1.1.0"
     },
     "manifest_sha": "efce375640f074bcbd20e0463fd67d9b413778c930293dda319a6e2f21526fd5",
-    "content_sha": "f26ae1ea5fb267b746c6ab7966468b0f3cebd1fc6631e78cbf6eac20fce1244e",
-    "migration": {
-      "status": "aligned",
-      "plan": "/home/matthalloran8/.vrooli/plans/scenario-dependency-analyzer-react-vite-1-1-migration.md",
-      "notes": "React-Vite 1.1 migration obligations are complete for SDA's current architecture. Residual SDA-specific debt remains documented in docs/internal/PROBLEMS.md: REST compatibility surfaces, governance-only CLI manifest loading, intentional measures waivers, proto reachability info notes, and deeper backing-service ownership."
-    }
+    "content_sha": "f26ae1ea5fb267b746c6ab7966468b0f3cebd1fc6631e78cbf6eac20fce1244e"
   },
   "ports": {
     "api": {
@@ -131,93 +126,6 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 20000
-    },
-    "setup": {
-      "description": "Initialize Scenario Dependency Analyzer with all dependencies",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-dependency-analyzer-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "scenario-dependency-analyzer",
-            "targets": [
-              "scenario-dependency-analyzer"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o scenario-dependency-analyzer-api .",
-          "description": "Build Go dependency analysis API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "verify-cli",
-          "run": "echo '✅ CLI installed at:' && which scenario-dependency-analyzer || echo '  scenario-dependency-analyzer not found on PATH'",
-          "description": "Verify CLI installation"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start dependency analyzer with API server and visualization UI",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-dependency-analyzer-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/scenario-dependency-analyzer-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && NODE_ENV=production node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for scenario-dependency-analyzer",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute scenario-dependency-analyzer --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -287,6 +195,40 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui",
+        "env": {
+          "NODE_ENV": "production"
+        }
+      }
     }
   }
 }

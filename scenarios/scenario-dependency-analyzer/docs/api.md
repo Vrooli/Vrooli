@@ -282,15 +282,15 @@ Get full deployment readiness report including recursive DAG, tier fitness, and 
     "gaps_by_scenario": {
       "api-tools": {
         "scenario_name": "api-tools",
-        "has_deployment_block": false,
+        "has_tier_feasibility": false,
         "suggested_actions": [
-          "Add deployment block to .vrooli/service.json"
+          "Add tier_feasibility to .vrooli/service.json"
         ]
       }
     },
     "missing_tiers": ["mobile", "saas"],
     "recommendations": [
-      "2 scenario(s) missing deployment blocks entirely - run scan --apply to initialize",
+      "2 scenario(s) missing tier_feasibility entirely - author tier evidence before deployment analysis",
       "Add tier definitions for: [mobile, saas]"
     ]
   }

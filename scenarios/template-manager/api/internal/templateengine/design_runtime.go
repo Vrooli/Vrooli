@@ -352,6 +352,14 @@ func preflightDesignTemplateCollisions(templateDir, destination string, resolved
 		}
 		templatePath := filepath.Join(templateDir, rel)
 		if fileExists(templatePath) {
+			// The canonical scenario token ramp is deliberately present in
+			// React templates so static template consumers can inspect it. The
+			// selected design adapter remains the generator-time owner of that
+			// path, including its palette-specific values, so this overlap is
+			// intentional rather than a template/design collision.
+			if filepath.ToSlash(rel) == "ui/src/design-tokens.css" {
+				continue
+			}
 			return fmt.Errorf("design copy target %s collides with template file %s", copy.To, templatePath)
 		}
 	}

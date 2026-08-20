@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 type reverseEdge struct {

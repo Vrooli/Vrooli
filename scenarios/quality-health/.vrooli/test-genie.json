@@ -375,6 +375,20 @@
         "fix_class": "manual",
         "reason": "Runtime elevation must be covered by a setup-provisioned safeguard or a typed privilege-broker action."
       },
+      "SCENARIO_INTERACTIVE_BOUNDARY": {
+        "capability_id": "go_quality",
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "quality-health",
+          "scenario-work-ladder"
+        ],
+        "fix_class": "manual",
+        "reason": "First-run prompts must be owned by onboarding or the Bridge operator intake, with headless behavior and surface parity."
+      },
       "TESTING_CONFIG_LINT_STRICT": {
         "capability_id": "scenario_quality_gates",
         "local_level_impact": "L2",

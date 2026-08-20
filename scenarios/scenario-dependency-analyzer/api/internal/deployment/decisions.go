@@ -1,6 +1,6 @@
 package deployment
 
-import types "scenario-dependency-analyzer/internal/types"
+import types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 
 // IsTierBlocker treats an unknown or explicitly unsupported derived verdict as
 // blocking. A deployment report must never turn missing evidence into a pass.

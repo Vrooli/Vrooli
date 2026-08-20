@@ -22,19 +22,18 @@ func writeServiceJSON(t *testing.T, dir, scenario, body string) {
 }
 
 // TestUsageProviderInversion verifies the fleet scan inverts scenario->resources
-// into resource->consuming-scenarios, sorted + deduplicated, preferring
-// dependencies.resources over the legacy top-level resources, and skipping dirs
-// without a valid service.json.
+// into resource->consuming-scenarios, sorted + deduplicated, and skipping dirs
+// without a valid canonical service.json.
 func TestUsageProviderInversion(t *testing.T) {
 	dir := t.TempDir()
 	writeServiceJSON(t, dir, "agent-manager", `{
-		"resources": {"postgres": {"type": "postgres"}, "redis": {"type": "redis"}}
+		"dependencies": {"resources": {"postgres": {"type": "postgres"}, "redis": {"type": "redis"}}}
 	}`)
 	writeServiceJSON(t, dir, "plan-manager", `{
 		"dependencies": {"resources": {"postgres": {"type": "postgres"}, "qdrant": {"type": "qdrant"}}}
 	}`)
 	writeServiceJSON(t, dir, "search-hub", `{
-		"resources": {"qdrant": {"type": "qdrant"}}
+		"dependencies": {"resources": {"qdrant": {"type": "qdrant"}}}
 	}`)
 	// A directory without service.json must be skipped, not error the whole scan.
 	if err := os.MkdirAll(filepath.Join(dir, "not-a-scenario"), 0o755); err != nil {

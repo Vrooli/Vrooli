@@ -30,9 +30,9 @@ type dependencyResource struct {
 }
 
 type dependencyScenario struct {
-	Enabled       *bool  `json:"enabled"`
-	Required      bool   `json:"required"`
-	StartupPolicy string `json:"startup_policy"`
+	Enabled          *bool  `json:"enabled"`
+	Required         bool   `json:"required"`
+	StartupPolicy    string `json:"startup_policy"`
 	DegradedBehavior string `json:"degraded_behavior"`
 }
 

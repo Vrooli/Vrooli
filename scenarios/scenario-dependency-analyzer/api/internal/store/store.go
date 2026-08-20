@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // Store centralizes all persistence logic for the dependency analyzer.
@@ -226,7 +226,7 @@ func (s *Store) PersistOptimizationRecommendations(scenario string, recs []types
 }
 
 // UpdateScenarioMetadata upserts cached metadata about a scenario's service.json.
-func (s *Store) UpdateScenarioMetadata(name string, cfg *types.ServiceConfig, scenarioPath string) error {
+func (s *Store) UpdateScenarioMetadata(name string, cfg *types.Manifest, scenarioPath string) error {
 	if s.db == nil {
 		return nil
 	}

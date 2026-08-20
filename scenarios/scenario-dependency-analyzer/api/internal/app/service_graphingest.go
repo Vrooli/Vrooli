@@ -8,10 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"scenario-dependency-analyzer/internal/graphingest"
-	"scenario-dependency-analyzer/internal/graphsweeper"
-	"scenario-dependency-analyzer/internal/interfacegraph"
-	"scenario-dependency-analyzer/internal/store"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graphingest"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graphsweeper"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/interfacegraph"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
 )
 
 // graphIngestService owns the unified-graph ingest pipeline and its sweeper.

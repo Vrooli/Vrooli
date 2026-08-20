@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "test-scenario",
     "description": "Test scenario for Vrooli",
@@ -59,43 +62,6 @@
     }
   },
   "lifecycle": {
-    "setup": {
-      "description": "Prepare test-scenario binaries and CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/test-scenario-api"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o test-scenario-api .",
-          "description": "Build Go API binary",
-          "condition": {
-            "file_exists": "api/go.mod"
-          }
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start test-scenario API server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./test-scenario-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/test-scenario-api"
-          }
-        }
-      ]
-    },
     "health": {
       "endpoints": {
         "api": "/health"
@@ -115,17 +81,7 @@
       "interval": 30000,
       "startup_grace_period": 10000
     },
-    "version": "2.0.0",
-    "test": {
-      "description": "Comprehensive phased testing for test-scenario",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute test-scenario --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    }
+    "version": "2.0.0"
   },
   "dependencies": {
     "resources": {
@@ -137,5 +93,21 @@
       }
     },
     "scenarios": {}
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    }
   }
 }

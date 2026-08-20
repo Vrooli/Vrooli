@@ -28,7 +28,7 @@ func templateInfos() []TemplateInfo {
 			UseCases:    []string{"Any scenario needing desktop deployment", "Default choice", "Simple utilities", "Productivity apps", "Quick prototypes"},
 			Features:    []string{"Native menus", "Auto-updater", "File operations", "Clean splash screen"},
 			Complexity:  "low",
-			Examples:    []string{"picker-wheel", "qr-code-generator", "palette-gen", "nutrition-tracker"},
+			Examples:    []string{"picker-wheel", "qr-code-generator", "nutrition-tracker"},
 		},
 		{
 			Name:        "Advanced Desktop App",

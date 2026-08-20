@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"scenario-dependency-analyzer/internal/integrations/ollama"
-	"scenario-dependency-analyzer/internal/integrations/qdrant"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/integrations/ollama"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/integrations/qdrant"
 )
 
 // Integrate with Qdrant for semantic similarity matching

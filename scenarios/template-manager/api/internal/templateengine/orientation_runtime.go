@@ -6,15 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/shell"
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
@@ -350,13 +351,16 @@ func evaluateOrientationCommand[C any](report *templatecontracts.OrientationChec
 	commandCtx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	var stdout, stderr bytes.Buffer
-	err = shell.BashCommand(check.Run, shell.Spec{
-		Context: commandCtx,
-		Dir:     scenarioRoot,
-		Env:     deps.CommandEnv(ctx),
-		Stdout:  &stdout,
-		Stderr:  &stderr,
-	}).Run()
+	command := exec.CommandContext(commandCtx, check.Exec[0], check.Exec[1:]...)
+	command.Dir = scenarioRoot
+	command.Env = deps.CommandEnv(ctx)
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	if configureErr := platform.ConfigureCommand(command, platform.ProcessOptions{}); configureErr != nil {
+		report.Message = configureErr.Error()
+		return
+	}
+	err = command.Run()
 	report.Passed = err == nil
 	if err != nil {
 		report.Message = orientationCommandFailureMessage(commandCtx, check.Timeout, stdout.String(), stderr.String(), err)
@@ -396,7 +400,7 @@ func orientationCheckLabel(check templatecontracts.TemplateOrientationCheck) str
 	case "content_adapted":
 		return check.Path + " (adapted from template)"
 	case "command":
-		return check.Run
+		return strings.Join(check.Exec, " ")
 	default:
 		return check.Kind
 	}

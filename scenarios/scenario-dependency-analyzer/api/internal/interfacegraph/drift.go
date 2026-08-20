@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 )
 
 type DriftDetector struct {

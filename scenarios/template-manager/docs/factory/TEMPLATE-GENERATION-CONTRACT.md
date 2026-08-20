@@ -50,10 +50,15 @@ The template's `template.json` controls generation:
 - `relocations` copies rendered template content outside the scenario
   destination. The current template relocates `proto/` to
   `packages/proto/schemas/{{SCENARIO_ID}}/`.
-- `postHooks` are optional generation follow-up commands. They are
+- `postHooks` are optional generation follow-up processes declared as an
+  `argv` array, optional `env` overrides, and an optional `cwd`. Argument
+  boundaries are preserved and no command shell is involved. They are
   advertised after generation and run only when the user passes
   `--run-hooks`; template deep validation also runs them because it is
   the source of truth for first-run generated scenario health.
+  Hooks must not install or update dependencies; component builders and the
+  Scenario Dependency Analyzer own that work. Template sources must already be
+  formatted and lint-clean instead of relying on mutating formatter hooks.
 - `exampleDomain` declares the illustrative `notes` domain so it can be
   removed mechanically by `template-manager lifecycle detemplate`. `marker` is the
   domain slug (`notes`); `paths` enumerates the example-only files/dirs

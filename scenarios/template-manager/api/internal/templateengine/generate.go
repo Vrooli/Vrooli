@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -153,7 +154,11 @@ func writeGeneratedScenario[C any](deps HandlerDeps[C], ctx C, prepared prepared
 
 func validateGeneratedScenarioResult[C any](deps HandlerDeps[C], ctx C, prepared preparedGenerate) error {
 	issues := validateGeneratedScenario(prepared.destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
-		spec.Env = deps.CommandEnv(ctx)
+		var err error
+		spec.Env, err = templateHookEnv(deps.CommandEnv(ctx), map[string]string{"GOWORK": "off"})
+		if err != nil {
+			return err
+		}
 		spec.Stdout = io.Discard
 		spec.Stderr = deps.Stderr(ctx)
 		return deps.RunSubprocess(ctx, spec)
@@ -173,20 +178,24 @@ func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, man
 		return nil
 	}
 	for index, hook := range manifest.PostHooks {
-		description := strings.TrimSpace(hook.Description)
-		if description == "" {
-			description = hook.Cmd
+		name, args, description, err := resolveTemplateHook(hook)
+		if err != nil {
+			return fmt.Errorf("post hook %d: %w", index+1, err)
 		}
 		_, _ = fmt.Fprintf(output, "[Hook %d] %s\n", index+1, description)
 		cwd := destination
 		if strings.TrimSpace(hook.Cwd) != "" && hook.Cwd != "." {
 			cwd = filepath.Join(destination, filepath.FromSlash(hook.Cwd))
 		}
+		env, err := templateHookEnv(deps.CommandEnv(ctx), hook.Env)
+		if err != nil {
+			return fmt.Errorf("post hook %d: %w", index+1, err)
+		}
 		if err := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
-			Name:   "bash",
-			Args:   []string{"-lc", hook.Cmd},
+			Name:   name,
+			Args:   args,
 			Dir:    cwd,
-			Env:    deps.CommandEnv(ctx),
+			Env:    env,
 			Stdout: output,
 			Stderr: deps.Stderr(ctx),
 		}); err != nil {
@@ -194,4 +203,47 @@ func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, man
 		}
 	}
 	return nil
+}
+
+func resolveTemplateHook(hook templatecontracts.TemplateHook) (string, []string, string, error) {
+	if len(hook.Argv) == 0 {
+		return "", nil, "", fmt.Errorf("argv must declare an executable")
+	}
+	name := strings.TrimSpace(hook.Argv[0])
+	if name == "" {
+		return "", nil, "", fmt.Errorf("argv[0] must declare a non-empty executable")
+	}
+	args := append([]string(nil), hook.Argv[1:]...)
+	description := strings.TrimSpace(hook.Description)
+	if description == "" {
+		description = strings.Join(hook.Argv, " ")
+	}
+	return name, args, description, nil
+}
+
+func templateHookEnv(base []string, overrides map[string]string) ([]string, error) {
+	env := append([]string(nil), base...)
+	keys := make([]string, 0, len(overrides))
+	for key := range overrides {
+		if strings.TrimSpace(key) == "" || strings.Contains(key, "=") {
+			return nil, fmt.Errorf("environment key %q is invalid", key)
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		assignment := key + "=" + overrides[key]
+		replaced := false
+		for index, entry := range env {
+			existingKey, _, ok := strings.Cut(entry, "=")
+			if ok && existingKey == key {
+				env[index] = assignment
+				replaced = true
+			}
+		}
+		if !replaced {
+			env = append(env, assignment)
+		}
+	}
+	return env, nil
 }

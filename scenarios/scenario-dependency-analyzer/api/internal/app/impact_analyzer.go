@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // analyzeDependencyImpact performs impact analysis for removing a dependency using the provided catalog snapshot.

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"scenario-dependency-analyzer/internal/config"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // BuildTargetDAG resolves a repository target through repo-contract-go and

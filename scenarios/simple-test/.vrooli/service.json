@@ -86,68 +86,19 @@
     },
     "setup": {
       "description": "Initialize Simple Test App",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/simple-test-api"
-            ]
-          }
-        ]
-      },
       "steps": [
         {
           "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "exec": [
+            "vrooli",
+            "resource",
+            "qdrant",
+            "embeddings",
+            "refresh",
+            "--force"
+          ],
+          "on_error": "continue",
           "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o simple-test-api .",
-          "description": "Build Go API binary",
-          "condition": {
-            "file_exists": "api/go.mod"
-          }
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start development server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./simple-test-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/simple-test-api"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for simple-test",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute simple-test --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"simple-test-api\" || true; sleep 1; pkill -9 -f \"simple-test-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "true",
-          "description": "Stop UI process"
         }
       ]
     }
@@ -168,5 +119,23 @@
       }
     },
     "scenarios": {}
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "node_bundle",
+        "dir": ".",
+        "output": "server.js"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "port": "api",
+        "cwd": "."
+      }
+    }
   }
 }

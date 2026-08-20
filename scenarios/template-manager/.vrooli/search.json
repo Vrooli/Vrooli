@@ -4,6 +4,7 @@
   "providers": [
     {
       "provider_id": "template-manager.docs",
+      "lifecycle": "production",
       "provider_group": "template-manager",
       "bucket": "BUCKET_KNOW",
       "type": "doc",
@@ -158,6 +159,7 @@
     },
     {
       "provider_id": "template-manager.debt",
+      "lifecycle": "production",
       "provider_group": "template-manager",
       "bucket": "BUCKET_STATE",
       "type": "record",
@@ -250,7 +252,7 @@
             "id": "drift-storage-manager",
             "query": "cleanup manager template drift debt",
             "tags": ["weak-real", "debt-ledger"],
-            "expect_ids": ["drift.react-vite.storage-manager"],
+            "expect_ids": ["drift.react-vite.ai-gateway"],
             "expect_within_top_k": 10
           },
           {

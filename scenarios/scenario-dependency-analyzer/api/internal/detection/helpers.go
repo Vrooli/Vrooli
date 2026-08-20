@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // helpers.go - Utility functions and helper methods
@@ -110,17 +110,10 @@ func newScenarioDependency(source, target, purpose, method, file string) types.S
 
 // Service config utilities
 
-// resolvedResourceMap extracts the resource map from a service config,
-// handling both old and new config formats
-func resolvedResourceMap(cfg *types.ServiceConfig) map[string]types.Resource {
-	if cfg == nil {
+// resolvedResourceMap extracts the canonical dependency resource map.
+func resolvedResourceMap(cfg *types.Manifest) map[string]types.Resource {
+	if cfg == nil || cfg.Dependencies.Resources == nil {
 		return map[string]types.Resource{}
 	}
-	if len(cfg.Dependencies.Resources) > 0 {
-		return cfg.Dependencies.Resources
-	}
-	if cfg.Resources == nil {
-		return map[string]types.Resource{}
-	}
-	return cfg.Resources
+	return cfg.Dependencies.Resources
 }

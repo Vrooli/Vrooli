@@ -104,8 +104,8 @@ func validateRelocationProtoSources[C any](deps HandlerDeps[C], ctx C, info temp
 			relTmp = tmpDir
 		}
 		err = deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
-			Name:   "bash",
-			Args:   []string{"-lc", fmt.Sprintf("buf lint --path %s", shellQuote(relTmp))},
+			Name:   "buf",
+			Args:   []string{"lint", "--path", relTmp},
 			Dir:    protoPackageDir,
 			Env:    deps.CommandEnv(ctx),
 			Stdout: &stdout,
@@ -152,11 +152,4 @@ func directoryContainsProto(path string) bool {
 		return nil
 	})
 	return found
-}
-
-// shellQuote returns a single-quoted shell argument that survives buf's
-// `bash -lc` invocation. Used for absolute paths that may contain
-// shell-special characters; deliberately conservative.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

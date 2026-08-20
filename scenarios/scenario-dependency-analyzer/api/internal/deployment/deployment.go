@@ -5,7 +5,7 @@
 //   - Dependency DAG construction (resource + scenario trees)
 //   - Tier fitness scoring (desktop, server, mobile, saas, enterprise)
 //   - Bundle manifest generation (files, services, swaps, secrets)
-//   - Metadata gap analysis (missing deployment blocks, tier definitions)
+//   - Metadata gap analysis (missing tier-feasibility blocks and tier definitions)
 //
 // The main entry point is BuildReport, which orchestrates the full analysis workflow.
 package deployment
@@ -23,11 +23,11 @@ import (
 	"time"
 
 	deployability "github.com/vrooli/vrooli/packages/deployability"
-	"scenario-dependency-analyzer/internal/config"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 
 	"github.com/vrooli/api-core/storage"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 const (
@@ -38,7 +38,7 @@ const (
 // BuildReport orchestrates the full deployment analysis workflow.
 // It builds the dependency DAG, computes tier aggregates, generates bundle manifests,
 // and identifies metadata gaps.
-func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.ServiceConfig) *types.DeploymentAnalysisReport {
+func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.Manifest) *types.DeploymentAnalysisReport {
 	if cfg == nil {
 		return nil
 	}
@@ -60,8 +60,8 @@ func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.Ser
 		knownTiers = append(knownTiers, tier)
 	}
 	// Also check the config for tier definitions
-	if cfg.Deployment != nil && cfg.Deployment.Tiers != nil {
-		for tier := range cfg.Deployment.Tiers {
+	if cfg.TierFeasibility != nil && cfg.TierFeasibility.Tiers != nil {
+		for tier := range cfg.TierFeasibility.Tiers {
 			found := false
 			for _, kt := range knownTiers {
 				if kt == tier {
@@ -104,8 +104,8 @@ func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.Ser
 	}
 }
 
-func buildRootScenarioNode(scenarioName, scenarioPath string, cfg *types.ServiceConfig) *types.DeploymentDependencyNode {
-	if cfg == nil || cfg.Deployment == nil {
+func buildRootScenarioNode(scenarioName, scenarioPath string, cfg *types.Manifest) *types.DeploymentDependencyNode {
+	if cfg == nil || cfg.TierFeasibility == nil {
 		return nil
 	}
 
@@ -120,8 +120,8 @@ func buildRootScenarioNode(scenarioName, scenarioPath string, cfg *types.Service
 		Source:   "root",
 	}
 
-	if len(cfg.Deployment.Tiers) > 0 {
-		node.TierSupport = convertTierTierMap(cfg.Deployment.Tiers)
+	if len(cfg.TierFeasibility.Tiers) > 0 {
+		node.TierSupport = convertTierTierMap(cfg.TierFeasibility.Tiers)
 	}
 
 	if node.Requirements == nil && len(node.TierSupport) == 0 {

@@ -1,8 +1,8 @@
 package app
 
 import (
-	graphdomain "scenario-dependency-analyzer/internal/graph"
-	types "scenario-dependency-analyzer/internal/types"
+	graphdomain "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graph"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // generateDependencyGraph generates a dependency graph using the active analyzer runtime (or fallback globals).

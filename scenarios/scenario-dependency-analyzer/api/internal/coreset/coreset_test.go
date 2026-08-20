@@ -18,7 +18,7 @@ func writeService(t *testing.T, root, name string, deps map[string]bool) {
 	}
 
 	var b []byte
-	b = append(b, []byte(`{"name":"`+name+`","dependencies":{"scenarios":{`)...)
+	b = append(b, []byte(`{"service":{"name":"`+name+`"},"dependencies":{"scenarios":{`)...)
 	first := true
 	for dep, required := range deps {
 		if !first {
@@ -56,15 +56,15 @@ func TestEmptyDirKeepsSeed(t *testing.T) {
 	if res.Source != "computed" {
 		t.Errorf("Source = %q, want computed", res.Source)
 	}
-	if len(res.CoreSet) != 9 {
-		t.Errorf("expected 9 (seed-only) core members, got %d: %v", len(res.CoreSet), res.CoreSet)
+	if len(res.CoreSet) != len(res.Seed) {
+		t.Errorf("expected %d seed-only core members, got %d: %v", len(res.Seed), len(res.CoreSet), res.CoreSet)
 	}
 	for _, want := range res.Seed {
 		if !has(res.CoreSet, want) {
 			t.Errorf("seed member %q dropped from core set", want)
 		}
 	}
-	if len(res.LoadErrors) != 9 {
+	if len(res.LoadErrors) != len(res.Seed) {
 		t.Errorf("expected a non-fatal load error for each missing seed, got %d", len(res.LoadErrors))
 	}
 	if len(res.AddedByClosure) != 0 {
@@ -79,8 +79,8 @@ func TestEmptyStringDirFallsBack(t *testing.T) {
 	if res.Source != "fallback" {
 		t.Errorf("Source = %q, want fallback", res.Source)
 	}
-	if len(res.CoreSet) != 9 {
-		t.Errorf("fallback core set must be the 9-seed, got %d", len(res.CoreSet))
+	if len(res.CoreSet) != len(res.Seed) {
+		t.Errorf("fallback core set must equal the %d-member seed, got %d", len(res.Seed), len(res.CoreSet))
 	}
 }
 
@@ -105,8 +105,8 @@ func TestRequiredClosureAddsTransitively(t *testing.T) {
 		t.Errorf("AddedByClosure should list foo+bar, got %v", res.AddedByClosure)
 	}
 	// The seed remains fully present.
-	if len(res.CoreSet) != 11 { // 9 seed + foo + bar
-		t.Errorf("expected 11 members (9 seed + foo + bar), got %d: %v", len(res.CoreSet), res.CoreSet)
+	if len(res.CoreSet) != len(res.Seed)+2 {
+		t.Errorf("expected %d members (seed + foo + bar), got %d: %v", len(res.Seed)+2, len(res.CoreSet), res.CoreSet)
 	}
 }
 

@@ -21,7 +21,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gin-gonic/gin"
 
-	"scenario-dependency-analyzer/internal/aisearch"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/aisearch"
 
 	aisearchpkg "github.com/vrooli/ai-go/search"
 	searchregister "github.com/vrooli/searchregister-go"

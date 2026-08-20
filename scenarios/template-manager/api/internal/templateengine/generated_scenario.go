@@ -46,8 +46,8 @@ func validateGeneratedScenario(destination string, runCommands bool, run func(sc
 		}
 		if runCommands && moduleHasGoFiles(moduleDir) {
 			if execErr := run(scenarioexec.SubprocessSpec{
-				Name: "bash",
-				Args: []string{"-lc", "GOWORK=off go mod tidy"},
+				Name: "go",
+				Args: []string{"mod", "tidy"},
 				Dir:  moduleDir,
 			}); execErr != nil {
 				issues = append(issues, templatecontracts.TemplateValidationIssue{

@@ -15,9 +15,9 @@ package app
 import (
 	"fmt"
 
-	"scenario-dependency-analyzer/internal/detection"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/detection"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // detectorInstance returns the detector from the active analyzer, constructing via runtime when absent.
@@ -50,7 +50,7 @@ func scanForResourceUsage(scenarioPath, scenarioName string) ([]types.ScenarioDe
 	return scanForResourceUsageWithConfig(scenarioPath, scenarioName, nil)
 }
 
-func scanForResourceUsageWithConfig(scenarioPath, scenarioName string, cfg *types.ServiceConfig) ([]types.ScenarioDependency, error) {
+func scanForResourceUsageWithConfig(scenarioPath, scenarioName string, cfg *types.Manifest) ([]types.ScenarioDependency, error) {
 	det := detectorInstance()
 	if det == nil {
 		return nil, fmt.Errorf("detector not initialized")

@@ -61,7 +61,7 @@ func resolveRelocations(root string, info templatecontracts.TemplateInfo, values
 
 // runRelocations writes each resolved relocation to disk, substituting
 // {{...}} placeholders in both file content and path components, and
-// then invokes Post commands at the repo root. It must run AFTER
+// then invokes Post hooks at the repo root. It must run AFTER
 // copyTemplate so the in-tree skip-list has already filtered the
 // relocated source dirs out of the scenario destination.
 func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, relocations []templatecontracts.ResolvedRelocation, values map[string]string, output io.Writer) error {
@@ -87,36 +87,36 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, reloc
 			return fmt.Errorf("relocate %s -> %s: %w", reloc.From, reloc.To, err)
 		}
 	}
-	// Post commands run from the repo root, NOT the scenario destination —
+	// Post hooks run from the repo root, NOT the scenario destination —
 	// this is the structural difference from runTemplateHooks. They're
 	// declared per-relocation but executed in declaration order after every
 	// relocation has been written, so a single `make generate` covers all
 	// of them when multiple relocations are siblings.
 	repoRoot := deps.Root(ctx)
 	for _, reloc := range relocations {
-		for _, hook := range reloc.Post {
-			cmd := strings.TrimSpace(hook.Cmd)
-			if cmd == "" {
-				continue
+		for index, hook := range reloc.Post {
+			name, args, description, err := resolveTemplateHook(hook)
+			if err != nil {
+				return fmt.Errorf("relocation post hook %d: %w", index+1, err)
 			}
 			cwd := repoRoot
 			if hookCwd := strings.TrimSpace(hook.Cwd); hookCwd != "" && hookCwd != "." {
 				cwd = filepath.Join(repoRoot, filepath.FromSlash(hookCwd))
 			}
-			description := strings.TrimSpace(hook.Description)
-			if description == "" {
-				description = cmd
+			env, err := templateHookEnv(deps.CommandEnv(ctx), hook.Env)
+			if err != nil {
+				return fmt.Errorf("relocation post hook %d: %w", index+1, err)
 			}
 			_, _ = fmt.Fprintf(output, "[Relocation post] %s\n", description)
 			if err := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
-				Name:   "bash",
-				Args:   []string{"-lc", cmd},
+				Name:   name,
+				Args:   args,
 				Dir:    cwd,
-				Env:    deps.CommandEnv(ctx),
+				Env:    env,
 				Stdout: output,
 				Stderr: deps.Stderr(ctx),
 			}); err != nil {
-				return fmt.Errorf("relocation post-command %q: %w", cmd, err)
+				return fmt.Errorf("relocation post hook %q: %w", description, err)
 			}
 		}
 	}
@@ -124,7 +124,7 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, reloc
 }
 
 // cleanupRelocationTargets removes the resolved To paths and any artifacts
-// each post-command would have produced under packages/proto/gen/ for the
+// each post hook would have produced under packages/proto/gen/ for the
 // validation scenario. Best-effort: errors are swallowed because the
 // validation flow has already completed by the time cleanup runs.
 //

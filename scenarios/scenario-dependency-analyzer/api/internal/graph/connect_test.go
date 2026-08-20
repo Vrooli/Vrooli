@@ -3,7 +3,7 @@ package graph
 import (
 	"testing"
 
-	"scenario-dependency-analyzer/internal/interfacegraph"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/interfacegraph"
 
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/graph"
 )
@@ -23,7 +23,7 @@ func TestInterfaceGraphToProto(t *testing.T) {
 				Evidence: []interfacegraph.Evidence{
 					{
 						Source:     interfacegraph.EvidenceProtoImport,
-						ImportPath: "scenario-dependency-analyzer/v1/graph/graph.proto",
+						ImportPath: "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/v1/graph/graph.proto",
 						FromFile:   "consumer/api/main.go",
 						ToFile:     "packages/proto/schemas/scenario-dependency-analyzer/v1/graph/graph.proto",
 						Path:       "consumer -> producer",

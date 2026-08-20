@@ -5,8 +5,8 @@ import (
 	"log"
 	"path/filepath"
 
-	"scenario-dependency-analyzer/internal/deployment"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/deployment"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 type deploymentService struct {

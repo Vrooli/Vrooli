@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"scenario-dependency-analyzer/internal/interfacegraph"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/interfacegraph"
 )
 
 type InterfaceGraphCacheEntry struct {

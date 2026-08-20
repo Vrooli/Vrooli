@@ -3,7 +3,7 @@ package app
 import (
 	"errors"
 
-	"scenario-dependency-analyzer/internal/app/services"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/app/services"
 )
 
 var errScenarioNotFound = errors.New("scenario not found")

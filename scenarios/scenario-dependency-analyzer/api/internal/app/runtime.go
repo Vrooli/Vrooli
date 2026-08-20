@@ -3,11 +3,11 @@ package app
 import (
 	"database/sql"
 
-	"scenario-dependency-analyzer/internal/store"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // Package-level state for the analyzer process.
@@ -22,7 +22,7 @@ var (
 
 	// applyDiffsHook is an optional callback invoked during config sync operations.
 	// Used primarily for testing to observe or modify apply behavior.
-	applyDiffsHook func(string, *types.ServiceConfig)
+	applyDiffsHook func(string, *types.Manifest)
 )
 
 // Runtime encapsulates shared state for the analyzer process.

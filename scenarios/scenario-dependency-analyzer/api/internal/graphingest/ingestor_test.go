@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"scenario-dependency-analyzer/internal/interfacegraph"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/interfacegraph"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 type fakeGraphSource struct {

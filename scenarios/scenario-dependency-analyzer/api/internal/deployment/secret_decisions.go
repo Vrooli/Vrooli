@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 type declaredCredentials struct {
@@ -41,12 +41,12 @@ func ReadSecretRequirements(manifestPath, resourceName, resourceType string) ([]
 			secretType = descriptor.Field
 		}
 		result = append(result, types.SecretRequirement{
-			DependencyName: resourceName,
-			DependencyType: resourceType,
-			SecretType: secretType,
-			RequiredSecrets: []string{descriptor.LogicalID},
+			DependencyName:    resourceName,
+			DependencyType:    resourceType,
+			SecretType:        secretType,
+			RequiredSecrets:   []string{descriptor.LogicalID},
 			PlaybookReference: descriptor.Description,
-			Priority: priority(descriptor.Required),
+			Priority:          priority(descriptor.Required),
 		})
 	}
 	return result, nil

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	deployability "github.com/vrooli/vrooli/packages/deployability"
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 type resourceManifestInput struct {

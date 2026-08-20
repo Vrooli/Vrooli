@@ -20,6 +20,7 @@ type Manifest struct {
 	Telemetry     Telemetry  `json:"telemetry"`
 	Ports         *PortRules `json:"ports,omitempty"`
 	Swaps         []Swap     `json:"swaps,omitempty"`
+	Peers         []Peer     `json:"peers,omitempty"`
 	Secrets       []Secret   `json:"secrets,omitempty"`
 	Services      []Service  `json:"services"`
 	// CatalogRequirements are immutable catalog paths the bundled application
@@ -36,10 +37,25 @@ func (e InvalidIPCHostError) Error() string {
 	return fmt.Sprintf("ipc.host %q is not a loopback address", e.Host)
 }
 
+// MissingPeerDiscoveryPathError identifies a discover edge that cannot
+// produce any runtime binding and would otherwise be silently discarded.
+type MissingPeerDiscoveryPathError struct{ Scenario string }
+
+func (e MissingPeerDiscoveryPathError) Error() string {
+	return fmt.Sprintf("peer %q declares bundle_policy discover but has no discovery bindings", e.Scenario)
+}
+
+type MissingEmbeddedPeerError struct{ Scenario string }
+
+func (e MissingEmbeddedPeerError) Error() string {
+	return fmt.Sprintf("peer %q declares bundle_policy embed but contributes no bundled services", e.Scenario)
+}
+
 type App struct {
 	Name        string `json:"name"`
 	Version     string `json:"version"`
 	Description string `json:"description,omitempty"`
+	Scenario    string `json:"scenario,omitempty"`
 }
 
 type IPC struct {
@@ -69,6 +85,21 @@ type Swap struct {
 	Replacement string `json:"replacement"`
 	Reason      string `json:"reason,omitempty"`
 	Limitations string `json:"limitations,omitempty"`
+}
+
+type Peer struct {
+	Scenario         string        `json:"scenario"`
+	BundlePolicy     string        `json:"bundle_policy"`
+	StartupPolicy    string        `json:"startup_policy,omitempty"`
+	DegradedBehavior string        `json:"degraded_behavior,omitempty"`
+	Bindings         []PeerBinding `json:"bindings"`
+}
+
+type PeerBinding struct {
+	EnvVar          string `json:"env_var"`
+	Form            string `json:"form"`
+	Port            string `json:"port"`
+	WhenUnavailable string `json:"when_unavailable"`
 }
 
 type Secret struct {
@@ -249,10 +280,55 @@ func (m *Manifest) Validate(targetOS, targetArch string) error {
 	if len(m.Services) == 0 {
 		return errors.New("services must not be empty")
 	}
+	if err := validatePeers(m.Peers, m.Services); err != nil {
+		return err
+	}
 	keys := PlatformKeys(targetOS, targetArch)
 	for _, svc := range m.Services {
 		if err := validateService(svc, keys); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func validatePeers(peers []Peer, services []Service) error {
+	for _, peer := range peers {
+		if strings.TrimSpace(peer.Scenario) == "" {
+			return errors.New("peer.scenario is required")
+		}
+		switch peer.BundlePolicy {
+		case "embed":
+			prefix := peer.Scenario + "--"
+			found := false
+			for _, service := range services {
+				if strings.HasPrefix(service.ID, prefix) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return MissingEmbeddedPeerError{Scenario: peer.Scenario}
+			}
+		case "discover", "either":
+			if len(peer.Bindings) == 0 {
+				return MissingPeerDiscoveryPathError{Scenario: peer.Scenario}
+			}
+		default:
+			return fmt.Errorf("peer %q has unsupported bundle_policy %q", peer.Scenario, peer.BundlePolicy)
+		}
+		for _, binding := range peer.Bindings {
+			if binding.EnvVar == "" || binding.Port == "" {
+				return fmt.Errorf("peer %q has an incomplete discovery binding", peer.Scenario)
+			}
+			switch binding.Form {
+			case "http_base_url", "ws_base_url", "host_port", "port_number":
+			default:
+				return fmt.Errorf("peer %q binding %s has unsupported form %q", peer.Scenario, binding.EnvVar, binding.Form)
+			}
+			if binding.WhenUnavailable != "omit" && binding.WhenUnavailable != "fail" {
+				return fmt.Errorf("peer %q binding %s has unsupported when_unavailable %q", peer.Scenario, binding.EnvVar, binding.WhenUnavailable)
+			}
 		}
 	}
 	return nil
@@ -269,8 +345,8 @@ func (m *Manifest) validateHeader() error {
 	if m.App.Name == "" || m.App.Version == "" {
 		return errors.New("app.name and app.version are required")
 	}
-	if m.IPC.Host == "" || m.IPC.Port == 0 {
-		return errors.New("ipc.host and ipc.port are required")
+	if m.IPC.Host == "" || m.IPC.Port < 0 {
+		return errors.New("ipc.host and a non-negative ipc.port allocator input are required")
 	}
 	if !isLoopbackHost(m.IPC.Host) {
 		return InvalidIPCHostError{Host: m.IPC.Host}

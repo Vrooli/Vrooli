@@ -1,6 +1,6 @@
 package services
 
-import types "scenario-dependency-analyzer/internal/types"
+import types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 
 // AnalysisService exposes dependency analysis operations.
 type AnalysisService interface {
@@ -42,7 +42,7 @@ type DependencyService interface {
 	StoredDependencies(name string) (map[string][]types.ScenarioDependency, error)
 	DependencyImpact(name string) (*types.DependencyImpactReport, error)
 	AnalysisMetrics() (map[string]interface{}, error)
-	UpdateScenarioMetadata(name string, cfg *types.ServiceConfig, scenarioPath string) error
+	UpdateScenarioMetadata(name string, cfg *types.Manifest, scenarioPath string) error
 	RefreshCatalogs()
 	CleanupInvalidDependencies()
 }

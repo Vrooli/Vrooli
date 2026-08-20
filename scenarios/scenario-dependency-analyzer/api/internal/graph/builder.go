@@ -3,8 +3,8 @@ package graph
 import (
 	"fmt"
 
-	"scenario-dependency-analyzer/internal/seams"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/seams"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // DependencyStore loads the persisted unified, evidence-tagged graph store used

@@ -162,7 +162,11 @@ func validateTemplateShallowGeneratedCopy[C any](deps HandlerDeps[C], ctx C, inf
 		if deps.RunSubprocess == nil {
 			return nil
 		}
-		spec.Env = deps.CommandEnv(ctx)
+		var err error
+		spec.Env, err = templateHookEnv(deps.CommandEnv(ctx), map[string]string{"GOWORK": "off"})
+		if err != nil {
+			return err
+		}
 		spec.Stdout = io.Discard
 		spec.Stderr = deps.Stderr(ctx)
 		return deps.RunSubprocess(ctx, spec)

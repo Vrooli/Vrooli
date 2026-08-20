@@ -265,7 +265,8 @@ const server = new Server({
 // Tools go here
 
 server.start();',
-'{"name": "scenario_name", "version": "1.0.0", "tools": []}'::jsonb);
+'{"name": "scenario_name", "version": "1.0.0", "tools": []}'::jsonb)
+ON CONFLICT (name) DO NOTHING;
 
 -- Grant permissions
 GRANT ALL ON SCHEMA mcp TO PUBLIC;

@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // Service exposes stored dependency and impact operations needed by HTTP routes.

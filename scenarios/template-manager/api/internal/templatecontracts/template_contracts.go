@@ -11,9 +11,10 @@ type TemplateVar struct {
 }
 
 type TemplateHook struct {
-	Description string `json:"description,omitempty"`
-	Cmd         string `json:"cmd,omitempty"`
-	Cwd         string `json:"cwd,omitempty"`
+	Description string            `json:"description,omitempty"`
+	Argv        []string          `json:"argv"`
+	Env         map[string]string `json:"env,omitempty"`
+	Cwd         string            `json:"cwd,omitempty"`
 }
 
 // TemplateRelocation declares an out-of-tree placement performed by the
@@ -21,7 +22,7 @@ type TemplateHook struct {
 // is rendered (with placeholder substitution applied to both file content
 // and path components) into To (repo-root-relative; may contain placeholders).
 //
-// Post commands run from the repo root after every relocation in the manifest
+// Post hooks run from the repo root after every relocation in the manifest
 // has been applied — useful for codegen steps that depend on the relocated
 // content (e.g., regenerating proto artifacts in packages/proto/).
 //
@@ -118,15 +119,15 @@ type TemplateOrientationStep struct {
 }
 
 type TemplateOrientationCheck struct {
-	Kind     string `json:"kind"`
-	Path     string `json:"path,omitempty"`
-	Pattern  string `json:"pattern,omitempty"`
-	Query    string `json:"query,omitempty"`
-	Text     string `json:"text,omitempty"`
-	MinCount int    `json:"minCount,omitempty"`
-	Run      string `json:"run,omitempty"`
-	Timeout  string `json:"timeout,omitempty"`
-	Optional bool   `json:"optional,omitempty"`
+	Kind     string   `json:"kind"`
+	Path     string   `json:"path,omitempty"`
+	Pattern  string   `json:"pattern,omitempty"`
+	Query    string   `json:"query,omitempty"`
+	Text     string   `json:"text,omitempty"`
+	MinCount int      `json:"minCount,omitempty"`
+	Exec     []string `json:"exec,omitempty"`
+	Timeout  string   `json:"timeout,omitempty"`
+	Optional bool     `json:"optional,omitempty"`
 }
 
 type TemplateInfo struct {

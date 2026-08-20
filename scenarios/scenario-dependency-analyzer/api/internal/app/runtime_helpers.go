@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"sync"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 )
 
 var (

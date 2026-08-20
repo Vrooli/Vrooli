@@ -10,7 +10,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -114,9 +116,11 @@ func TestRunGenerateReactViteHooksWritePrimitiveEvidenceArtifact(t *testing.T) {
 	var sawEvidenceHook bool
 	capture := &capturedSubprocess{
 		onRun: func(spec scenarioexec.SubprocessSpec) error {
-			cmd := strings.Join(spec.Args, " ")
-			if !strings.Contains(cmd, "UPDATE_CLI_EVIDENCE=1") || !strings.Contains(cmd, "TestPrimitiveEvidenceArtifactCurrent") {
+			if spec.Name != "go" || !reflect.DeepEqual(spec.Args, []string{"test", "-run", "TestPrimitiveEvidenceArtifactCurrent", "."}) {
 				return nil
+			}
+			if !slices.Contains(spec.Env, "UPDATE_CLI_EVIDENCE=1") || !slices.Contains(spec.Env, "GOWORK=off") {
+				t.Fatalf("evidence hook environment = %#v, want UPDATE_CLI_EVIDENCE=1 and GOWORK=off", spec.Env)
 			}
 			sawEvidenceHook = true
 			if got, want := filepath.Clean(spec.Dir), filepath.Join(destination, "cli"); got != want {
@@ -359,7 +363,7 @@ func TestRunTemplateValidateRoutesHookOutputToStderr(t *testing.T) {
     {
       "from": "proto/",
       "to": "packages/proto/schemas/{{SCENARIO_ID}}/",
-      "post": [{"cmd": "printf hook-output", "cwd": "."}]
+      "post": [{"argv": ["printf", "hook-output"], "cwd": "."}]
     }
   ]
 }`)
@@ -1095,6 +1099,23 @@ func TestPreflightDesignTemplateCollisionsRejectsTemplateOwnedTargets(t *testing
 	}
 }
 
+func TestPreflightDesignTemplateCollisionsAllowsCanonicalTokenRamp(t *testing.T) {
+	root := t.TempDir()
+	templateDir := filepath.Join(root, "templates", "scenarios", "react-vite")
+	destination := filepath.Join(root, "scenarios", "react-vite")
+	writeTestFile(t, filepath.Join(templateDir, "ui", "src", "design-tokens.css"), ":root { --template-token: 1; }\n")
+
+	err := preflightDesignTemplateCollisions(templateDir, destination, scenariocli.ResolvedDesign{
+		KitID: "vrooli-default",
+		Copies: []scenariocli.ResolvedDesignCopy{
+			{From: filepath.Join(root, "tokens.css"), To: filepath.Join(destination, "ui", "src", "design-tokens.css")},
+		},
+	})
+	if err != nil {
+		t.Fatalf("canonical design token ramp should be design-managed: %v", err)
+	}
+}
+
 // --------------------------------------------------------------------------
 // Relocation tests
 // --------------------------------------------------------------------------
@@ -1237,7 +1258,7 @@ func writeRelocationTemplate(t *testing.T, templateName string, extraManifest ma
 				"from":        "proto/",
 				"to":          "packages/proto/schemas/{{SCENARIO_ID}}/",
 				"post": []map[string]any{
-					{"description": "regen", "cmd": "make generate", "cwd": "packages/proto"},
+					{"description": "regen", "argv": []string{"make", "generate"}, "cwd": "packages/proto"},
 				},
 			},
 		},
@@ -1364,8 +1385,49 @@ func TestRelocations_PostCommandsRunAtRepoRoot(t *testing.T) {
 	if got.Dir != wantCwd {
 		t.Fatalf("post.Dir = %q, want %q (must run at repo root + Cwd, NOT scenario destination)", got.Dir, wantCwd)
 	}
-	if !strings.Contains(strings.Join(got.Args, " "), "make generate") {
-		t.Fatalf("post.Args = %#v, want to contain 'make generate'", got.Args)
+	if got.Name != "make" || !reflect.DeepEqual(got.Args, []string{"generate"}) {
+		t.Fatalf("post command = %q %#v, want native argv %q %#v", got.Name, got.Args, "make", []string{"generate"})
+	}
+}
+
+func TestRunTemplateHooksPreservesArgvAndOverlaysEnvironmentWithoutShell(t *testing.T) {
+	repoRoot := t.TempDir()
+	destination := filepath.Join(repoRoot, "scenarios", "native-hooks")
+	capture := &capturedSubprocess{}
+	deps := newRelocationTestDeps(repoRoot, io.Discard, io.Discard, capture)
+	deps.CommandEnv = func(struct{}) []string {
+		return []string{"PATH=/usr/bin", "GOWORK=on", "BASE=kept"}
+	}
+	manifest := scenariocli.TemplateManifest{PostHooks: []scenariocli.TemplateHook{{
+		Argv: []string{"go", "test", "-run", "Test Name", "."},
+		Env:  map[string]string{"UPDATE_EVIDENCE": "1", "GOWORK": "off"},
+		Cwd:  "cli",
+	}}}
+
+	if err := runTemplateHooks(deps, struct{}{}, destination, manifest, io.Discard); err != nil {
+		t.Fatalf("runTemplateHooks: %v", err)
+	}
+	if len(capture.calls) != 1 {
+		t.Fatalf("captured %d calls, want 1", len(capture.calls))
+	}
+	got := capture.calls[0]
+	if got.Name != "go" || !reflect.DeepEqual(got.Args, []string{"test", "-run", "Test Name", "."}) {
+		t.Fatalf("hook command = %q %#v, want native argv with argument boundaries preserved", got.Name, got.Args)
+	}
+	if got.Dir != filepath.Join(destination, "cli") {
+		t.Fatalf("hook dir = %q, want %q", got.Dir, filepath.Join(destination, "cli"))
+	}
+	wantEnv := map[string]string{"PATH": "/usr/bin", "GOWORK": "off", "BASE": "kept", "UPDATE_EVIDENCE": "1"}
+	for _, entry := range got.Env {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok {
+			if want, exists := wantEnv[key]; exists && value == want {
+				delete(wantEnv, key)
+			}
+		}
+	}
+	if len(wantEnv) != 0 {
+		t.Fatalf("hook environment missing overrides/base values: %#v; env=%#v", wantEnv, got.Env)
 	}
 }
 
@@ -1577,14 +1639,14 @@ func TestValidateRelocationProtoSources_DetectsProtoDir(t *testing.T) {
 	if len(capture.calls) != 1 {
 		t.Fatalf("captured %d calls, want 1 buf lint invocation", len(capture.calls))
 	}
-	args := strings.Join(capture.calls[0].Args, " ")
-	if !strings.Contains(args, "buf lint") {
-		t.Fatalf("call args = %q, want to contain 'buf lint'", args)
+	call := capture.calls[0]
+	if call.Name != "buf" || len(call.Args) != 3 || call.Args[0] != "lint" || call.Args[1] != "--path" {
+		t.Fatalf("call = %q %#v, want native buf lint argv", call.Name, call.Args)
 	}
 	// The path is a temp subdirectory under schemas/ — it should be a
 	// relative path beginning with `schemas/.tmp-validate-reloc-lint-`.
-	if !strings.Contains(args, "schemas/.tmp-validate-reloc-lint-") {
-		t.Fatalf("call args = %q, want to lint a temp dir under schemas/", args)
+	if !strings.Contains(call.Args[2], "schemas/.tmp-validate-reloc-lint-") {
+		t.Fatalf("call path = %q, want a temp dir under schemas/", call.Args[2])
 	}
 	if capture.calls[0].Dir != filepath.Join(repoRoot, "packages", "proto") {
 		t.Fatalf("call dir = %q, want packages/proto", capture.calls[0].Dir)

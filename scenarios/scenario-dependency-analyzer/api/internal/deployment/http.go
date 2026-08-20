@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // Reporter exposes computed deployment reports to presentation adapters.

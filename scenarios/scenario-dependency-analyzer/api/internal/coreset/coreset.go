@@ -20,8 +20,8 @@ import (
 	"sort"
 	"strings"
 
-	"scenario-dependency-analyzer/internal/config"
-	"scenario-dependency-analyzer/internal/deployment"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/deployment"
 
 	apicoreset "github.com/vrooli/api-core/coreset"
 )

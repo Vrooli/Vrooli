@@ -9,9 +9,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	"scenario-dependency-analyzer/internal/aisearch"
-	"scenario-dependency-analyzer/internal/interfacegraph"
-	"scenario-dependency-analyzer/internal/store"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/aisearch"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/interfacegraph"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
 
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/graph"
 )

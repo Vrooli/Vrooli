@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // resource_scanner.go - Resource dependency detection
@@ -32,7 +32,7 @@ func newResourceScanner(catalog *catalogManager) *resourceScanner {
 }
 
 // scan walks the scenario directory and detects all resource dependencies
-func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.ServiceConfig) ([]types.ScenarioDependency, error) {
+func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.Manifest) ([]types.ScenarioDependency, error) {
 	results := map[string]types.ScenarioDependency{}
 
 	err := filepath.WalkDir(scenarioPath, func(path string, entry fs.DirEntry, walkErr error) error {

@@ -6,8 +6,8 @@ import (
 	"sort"
 	"time"
 
-	"scenario-dependency-analyzer/internal/interfacegraph"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/interfacegraph"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 
 	"github.com/vrooli/api-core/metrics"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"

@@ -4,15 +4,15 @@ import (
 	"database/sql"
 	"fmt"
 
-	"scenario-dependency-analyzer/internal/app/services"
-	"scenario-dependency-analyzer/internal/detection"
-	graphdomain "scenario-dependency-analyzer/internal/graph"
-	"scenario-dependency-analyzer/internal/seams"
-	"scenario-dependency-analyzer/internal/store"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/app/services"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/detection"
+	graphdomain "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graph"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/seams"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // Analyzer coordinates scenario analysis capabilities and shared state.

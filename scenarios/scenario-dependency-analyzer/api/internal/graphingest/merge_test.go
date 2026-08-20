@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 func TestMergeDedupKeepsHighestConfidenceAndUnionsEvidence(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"log"
 	"strings"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 func analyzeProposedScenario(req types.ProposedScenarioRequest) (map[string]interface{}, error) {

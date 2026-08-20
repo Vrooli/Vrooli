@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"scenario-dependency-analyzer/internal/gomodreconcile"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/gomodreconcile"
 
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health"
 )

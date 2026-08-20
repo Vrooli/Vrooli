@@ -4,14 +4,14 @@ import (
 	"context"
 	"log"
 
-	"scenario-dependency-analyzer/internal/app"
-	"scenario-dependency-analyzer/internal/modules"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/app"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/modules"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	_ "modernc.org/sqlite"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"scenario-dependency-analyzer/internal/interfacegraph"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/interfacegraph"
 
 	_ "modernc.org/sqlite"
 )

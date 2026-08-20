@@ -17,8 +17,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gin-gonic/gin"
 
-	"scenario-dependency-analyzer/internal/aisearch"
-	"scenario-dependency-analyzer/internal/config"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/aisearch"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 
 	resourceusagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/resource_usage"
 	resourceusageconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/resource_usage/resource_usage_v1connect"

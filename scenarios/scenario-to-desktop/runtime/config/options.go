@@ -14,10 +14,11 @@ import (
 
 // Options configures the Supervisor.
 type Options struct {
-	AppDataDir string             // Override for app data directory (default: user config dir)
-	Manifest   *manifest.Manifest // Bundle manifest (required)
-	BundlePath string             // Root path of the unpacked bundle
-	DryRun     bool               // Skip actual service launches (for testing)
+	AppDataDir  string             // Override for app data directory (default: user config dir)
+	PeerHomeDir string             // Override for the shared ~/.vrooli/peers registry root (tests only)
+	Manifest    *manifest.Manifest // Bundle manifest (required)
+	BundlePath  string             // Root path of the unpacked bundle
+	DryRun      bool               // Skip actual service launches (for testing)
 	// SharedResourceResolver is optional and may be supplied only after explicit
 	// user consent. Nil preserves the private bundled-service default.
 	SharedResourceResolver resourceplan.SharedServiceResolver

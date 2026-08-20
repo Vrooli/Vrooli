@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"scenario-dependency-analyzer/internal/app/services"
-	"scenario-dependency-analyzer/internal/store"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/app/services"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 type optimizationService struct {

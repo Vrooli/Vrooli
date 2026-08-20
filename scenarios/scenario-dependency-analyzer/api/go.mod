@@ -1,4 +1,4 @@
-module scenario-dependency-analyzer
+module github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api
 
 go 1.25.11
 
@@ -47,6 +47,7 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/platform-go v0.0.0 // indirect
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
@@ -80,3 +81,7 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 replace github.com/vrooli/vrooli => ../../..
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go
+
+replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime

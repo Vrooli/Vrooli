@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"scenario-dependency-analyzer/internal/deployment"
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/deployment"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 func TestBuildBundleManifestSkeletonValidatesAgainstSchema(t *testing.T) {
@@ -18,11 +19,12 @@ func TestBuildBundleManifestSkeletonValidatesAgainstSchema(t *testing.T) {
 	writeBuildableUIFolder(t, scenarioDir)
 	writeBuildableAPIFolder(t, scenarioDir, "test-scenario-api")
 
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.DisplayName = "Test Scenario"
 	cfg.Service.Description = "Example scenario for bundle skeleton"
 	cfg.Service.Version = "1.2.3"
+	declareComponents(cfg, true)
 
 	nodes := []types.DeploymentDependencyNode{
 		{
@@ -58,7 +60,7 @@ func TestBuildBundleManifestSkeletonValidatesAgainstSchema(t *testing.T) {
 				t.Fatalf("ui skeleton should use /health for health checks")
 			}
 		}
-		if svc.ID == "test-scenario-api" {
+		if svc.ID == "api" {
 			if svc.Health.PortName != "api" {
 				t.Fatalf("api skeleton should expose api port health check")
 			}
@@ -77,9 +79,10 @@ func TestBuildBundleManifestWithoutUI(t *testing.T) {
 
 	writeBuildableAPIFolder(t, scenarioDir, "test-scenario-api")
 
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.Version = "1.0.0"
+	declareComponents(cfg, false)
 
 	manifest := deployment.BuildBundleManifest("test-scenario", scenarioDir, time.Now(), nil, cfg)
 
@@ -122,9 +125,10 @@ func TestBuildBundleManifestDependencyFlattening(t *testing.T) {
 		t.Fatalf("failed to create api dir: %v", err)
 	}
 
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.Version = "1.0.0"
+	declareComponents(cfg, true)
 
 	// Create nested dependency tree
 	nodes := []types.DeploymentDependencyNode{
@@ -177,7 +181,7 @@ func TestBuildBundleManifestSwapsGeneration(t *testing.T) {
 		t.Fatalf("failed to create api dir: %v", err)
 	}
 
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.Version = "1.0.0"
 
@@ -241,9 +245,10 @@ func TestBuildBundleManifestFilesDiscovery(t *testing.T) {
 	writeBuildableAPIFolder(t, scenarioDir, "test-scenario-api")
 	writeBuildableUIFolder(t, scenarioDir)
 
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.Version = "1.0.0"
+	declareComponents(cfg, true)
 
 	manifest := deployment.BuildBundleManifest("test-scenario", scenarioDir, time.Now(), nil, cfg)
 
@@ -259,14 +264,11 @@ func TestBuildBundleManifestFilesDiscovery(t *testing.T) {
 	if !fileExists["api-source"] {
 		t.Error("expected api-source to be found")
 	}
-	if !fileExists["api-binary"] {
-		t.Error("expected api-binary to be found")
+	if !fileExists["api-artifact"] {
+		t.Error("expected declared api artifact to be found")
 	}
 	if !fileExists["ui-bundle"] {
 		t.Error("expected ui-bundle to be found")
-	}
-	if !fileExists["ui-entry"] {
-		t.Error("expected ui-entry to be found")
 	}
 }
 
@@ -355,7 +357,7 @@ func TestBuildBundleManifestVersionDefaults(t *testing.T) {
 	}
 
 	// Config without version
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "test-scenario"
 	cfg.Service.Version = "" // Empty version
 
@@ -409,7 +411,7 @@ func TestBuildBundleManifestAppNameFallbacks(t *testing.T) {
 				t.Fatalf("failed to create api dir: %v", err)
 			}
 
-			cfg := &types.ServiceConfig{}
+			cfg := &types.Manifest{}
 			cfg.Service.DisplayName = tt.displayName
 			cfg.Service.Name = tt.serviceName
 			cfg.Service.Version = "1.0.0"
@@ -427,8 +429,35 @@ func TestBuildBundleManifestAppNameFallbacks(t *testing.T) {
 	}
 }
 
-// writeBuildableAPIFolder creates an api/ folder with Go markers so the folder
-// scanner detects it as a Go API component.
+func declareComponents(cfg *types.Manifest, includeUI bool) {
+	cfg.Lifecycle.Health = &scenariomodel.HealthConfig{
+		Endpoints: scenariomodel.HealthEndpoints{API: "/health", UI: "/health"},
+		Checks: []scenariomodel.HealthCheck{
+			{Type: "http", Target: "http://localhost:${API_PORT}/health"},
+			{Type: "http", Target: "http://localhost:${UI_PORT}/health"},
+		},
+	}
+	cfg.Ports = map[string]scenariomodel.Port{
+		"api": {EnvVar: "API_PORT", Range: "15000-19999"},
+		"ui":  {EnvVar: "UI_PORT", Range: "20000-24999"},
+	}
+	cfg.Components = map[string]scenariomodel.Component{
+		"api": {
+			Role:  "api",
+			Build: scenariomodel.ComponentBuild{Kind: "go_module", Dir: "api", Output: "api/test-scenario-api"},
+			Run:   scenariomodel.ComponentRun{Argv: []string{"{{bin.api}}"}, CWD: "api", Port: "api"},
+		},
+	}
+	if includeUI {
+		cfg.Components["ui"] = scenariomodel.Component{
+			Role:  "ui",
+			Build: scenariomodel.ComponentBuild{Kind: "pnpm_vite", Dir: "ui", Output: "ui/dist/index.html"},
+			Run:   scenariomodel.ComponentRun{Argv: []string{"node", "server.js"}, CWD: "ui", Port: "ui"},
+		}
+	}
+}
+
+// writeBuildableAPIFolder creates the declared API source and output.
 func writeBuildableAPIFolder(t *testing.T, scenarioDir, binaryName string) {
 	t.Helper()
 	apiDir := filepath.Join(scenarioDir, "api")
@@ -441,13 +470,12 @@ func writeBuildableAPIFolder(t *testing.T, scenarioDir, binaryName string) {
 	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
 		t.Fatalf("failed to write api main.go: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(apiDir, binaryName), []byte("#!/bin/bash\necho ok\n"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(apiDir, binaryName), []byte("binary"), 0o755); err != nil {
 		t.Fatalf("failed to write api binary placeholder: %v", err)
 	}
 }
 
-// writeBuildableUIFolder creates a ui/ folder with package.json and a built
-// dist/index.html so the scanner classifies it as a UI component.
+// writeBuildableUIFolder creates the declared UI source and output.
 func writeBuildableUIFolder(t *testing.T, scenarioDir string) {
 	t.Helper()
 	uiDir := filepath.Join(scenarioDir, "ui")

@@ -77,7 +77,6 @@
     }
   },
   "generation": {
-    "adopted": true,
     "content_sha": "532fcf8d6300617b7f2b220739859c7a09615c0990b7d89839bd699f0a44c45d",
     "generated_at": "2026-07-26T19:20:20Z",
     "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
@@ -167,29 +166,6 @@
     }
   ],
   "lifecycle": {
-    "develop": {
-      "description": "Start scenario-to-desktop services",
-      "steps": [
-        {
-          "background": true,
-          "condition": {
-            "file_exists": "api/scenario-to-desktop-api"
-          },
-          "description": "Start Go API server in background",
-          "name": "start-api",
-          "run": "cd api && ./scenario-to-desktop-api"
-        },
-        {
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          },
-          "description": "Start UI server in background (serves ui/dist production bundle)",
-          "name": "start-ui",
-          "run": "cd ui && node server.js"
-        }
-      ]
-    },
     "health": {
       "checks": [
         {
@@ -217,86 +193,6 @@
       "interval": 30000,
       "startup_grace_period": 10000,
       "timeout": 5000
-    },
-    "setup": {
-      "condition": {
-        "checks": [
-          {
-            "targets": [
-              "api/scenario-to-desktop-api"
-            ],
-            "type": "binaries"
-          },
-          {
-            "bundle_path": "ui/dist/index.html",
-            "note": "Vite build output",
-            "source_dir": "ui/src",
-            "type": "ui-bundle"
-          },
-          {
-            "command": "scenario-to-desktop",
-            "targets": [
-              "scenario-to-desktop"
-            ],
-            "type": "cli"
-          },
-          {
-            "paths": [
-              "ui/package.json"
-            ],
-            "type": "files"
-          }
-        ]
-      },
-      "description": "Initialize scenario-to-desktop",
-      "steps": [
-        {
-          "description": "Build Go API binary",
-          "name": "build-api",
-          "run": "cd api && go build -o scenario-to-desktop-api ."
-        },
-        {
-          "condition": {
-            "file_exists": "ui/package.json"
-          },
-          "description": "Install UI dependencies",
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace"
-        },
-        {
-          "condition": {
-            "file_exists": "ui/package.json"
-          },
-          "description": "Build production UI with Vite",
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "description": "Stop API process",
-          "name": "stop-api",
-          "run": "pkill -f \"scenario-to-desktop-api\" || true; sleep 1; pkill -9 -f \"scenario-to-desktop-api\" 2>/dev/null || true"
-        },
-        {
-          "description": "Stop UI server process",
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/scenario-to-desktop/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop/ui/server.js\" 2>/dev/null || true"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for scenario-to-desktop",
-      "steps": [
-        {
-          "description": "Execute phased scenario test suite",
-          "name": "run-phased-tests",
-          "run": "test-genie execute scenario-to-desktop --preset comprehensive"
-        }
-      ]
     }
   },
   "ports": {
@@ -363,7 +259,6 @@
         "class": "state",
         "regenerable": true,
         "rationale": "Scenario runtime artifacts observed in the canonical runtime directory.",
-        "subpath": "",
         "budget": {
           "max_age": "30d",
           "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
@@ -371,5 +266,36 @@
       }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
   }
 }

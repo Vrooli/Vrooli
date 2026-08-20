@@ -85,6 +85,18 @@ func (p *Manager) Allocate() error {
 		}
 	}
 
+	// Port zero is an allocator request, not a fixed well-known port. Allocate
+	// the authenticated control API from the same namespace as service ports so
+	// independently installed bundles cannot collide with each other or with a
+	// declared service.
+	if p.manifest.IPC.Port == 0 && p.manifest.IPC.Host != "" {
+		ipcPort, err := p.pickPort(defaultRange, reserved, &nextPort)
+		if err != nil {
+			return fmt.Errorf("allocate IPC port: %w", err)
+		}
+		p.manifest.IPC.Port = ipcPort
+	}
+
 	return nil
 }
 

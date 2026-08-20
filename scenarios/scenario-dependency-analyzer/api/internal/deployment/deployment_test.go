@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/storage"
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // TestBuildReport tests the main report building function.
@@ -25,7 +25,7 @@ func TestBuildReport(t *testing.T) {
 		scenariosDir := filepath.Dir(scenarioDir)
 		scenarioName := filepath.Base(scenarioDir)
 
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Service.Name = scenarioName
 		cfg.Service.Version = "1.0.0"
 
@@ -49,7 +49,7 @@ func TestBuildReport(t *testing.T) {
 		scenariosDir := filepath.Dir(scenarioDir)
 		scenarioName := filepath.Base(scenarioDir)
 
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Service.Name = scenarioName
 		cfg.Dependencies.Resources = map[string]types.Resource{
 			"postgres": {Type: "database", Required: true},
@@ -70,9 +70,9 @@ func TestBuildReport(t *testing.T) {
 		scenariosDir := filepath.Dir(scenarioDir)
 		scenarioName := filepath.Base(scenarioDir)
 
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Service.Name = scenarioName
-		cfg.Deployment = &types.ServiceDeployment{
+		cfg.TierFeasibility = &types.TierFeasibility{
 			Tiers: map[string]types.DeploymentTier{
 				"desktop": {},
 				"server":  {},
@@ -94,9 +94,9 @@ func TestBuildReport(t *testing.T) {
 		disk := 2048.0
 		cpu := 1.5
 
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Service.Name = scenarioName
-		cfg.Deployment = &types.ServiceDeployment{
+		cfg.TierFeasibility = &types.TierFeasibility{
 			Tiers: map[string]types.DeploymentTier{
 				"server": {
 					Requirements: &types.DeploymentRequirements{RAMMB: &ram, DiskMB: &disk, CPUCores: &cpu},
@@ -127,12 +127,12 @@ func TestBuildReport(t *testing.T) {
 			t.Fatalf("mkdir .vrooli: %v", err)
 		}
 
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Service.Name = scenarioName
 		cfg.Dependencies.Resources = map[string]types.Resource{
 			"postgres": {Type: "postgres", Required: true},
 		}
-		cfg.Deployment = &types.ServiceDeployment{
+		cfg.TierFeasibility = &types.TierFeasibility{
 			Tiers: map[string]types.DeploymentTier{
 				"tier-1-local": {},
 			},
@@ -602,7 +602,7 @@ func TestBundleManifestIntegration(t *testing.T) {
 	os.MkdirAll(filepath.Join(scenarioDir, "api"), 0o755)
 	os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755)
 
-	cfg := &types.ServiceConfig{}
+	cfg := &types.Manifest{}
 	cfg.Service.Name = "integration-test"
 	cfg.Service.Version = "2.0.0"
 	cfg.Service.Description = "Integration test scenario"

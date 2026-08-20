@@ -8,7 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"scenario-dependency-analyzer/internal/installgateway"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/installgateway"
 
 	governancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance"
 )

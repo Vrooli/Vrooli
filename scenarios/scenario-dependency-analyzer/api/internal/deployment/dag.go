@@ -6,23 +6,23 @@ import (
 	"sort"
 	"strings"
 
-	"scenario-dependency-analyzer/internal/config"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // BuildDependencyNodeList recursively builds a list of dependency nodes (resources + scenarios)
 // from a scenario's service.json configuration. The visited map prevents infinite recursion
 // when circular dependencies exist.
-func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.ServiceConfig, visited map[string]struct{}) []types.DeploymentDependencyNode {
+func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Manifest, visited map[string]struct{}) []types.DeploymentDependencyNode {
 	nodes := []types.DeploymentDependencyNode{}
 	if cfg == nil {
 		return nodes
 	}
 
 	var dependencyCatalog types.DeploymentDependencyCatalog
-	if cfg.Deployment != nil {
-		dependencyCatalog = cfg.Deployment.Dependencies
+	if cfg.TierFeasibility != nil {
+		dependencyCatalog = cfg.TierFeasibility.Dependencies
 	}
 
 	resources := config.ResolvedResourceMap(cfg)
@@ -161,9 +161,9 @@ func buildScenarioDependencyNode(scenariosDir, scenarioName string, parentMeta *
 	}
 
 	var scenarioTierSupport map[string]types.TierSupportSummary
-	if cfg.Deployment != nil {
-		scenarioTierSupport = convertTierTierMap(cfg.Deployment.Tiers)
-		node.Alternatives = append(node.Alternatives, collectAdaptationAlternatives(cfg.Deployment.Tiers)...)
+	if cfg.TierFeasibility != nil {
+		scenarioTierSupport = convertTierTierMap(cfg.TierFeasibility.Tiers)
+		node.Alternatives = append(node.Alternatives, collectAdaptationAlternatives(cfg.TierFeasibility.Tiers)...)
 	}
 
 	if node.Requirements == nil && parentMeta != nil {

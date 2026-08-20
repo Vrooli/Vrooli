@@ -6,16 +6,16 @@ import (
 	"sort"
 
 	"github.com/vrooli/vrooli/packages/deployability"
-	"scenario-dependency-analyzer/internal/config"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // Note: config import retained for config.LoadServiceConfig and config.ResolvedResourceMap in AnalyzeGaps
 
 // AnalyzeGaps crawls the dependency tree and identifies missing deployment metadata.
 // It checks for:
-// - Missing deployment blocks in service.json
+// - Missing tier_feasibility blocks in service.json
 // - Missing dependency catalogs
 // - Missing tier definitions
 // - Resource dependencies without metadata
@@ -92,26 +92,26 @@ func buildScenarioGap(node types.DeploymentDependencyNode, scenariosDir string, 
 	gap := types.ScenarioGapInfo{
 		ScenarioName:            node.Name,
 		ScenarioPath:            scenarioPath,
-		HasDeploymentBlock:      cfg.Deployment != nil,
+		HasTierFeasibility:      cfg.TierFeasibility != nil,
 		MissingTierDefinitions:  []string{},
 		MissingResourceMetadata: []string{},
 		MissingScenarioMetadata: []string{},
 		SuggestedActions:        []string{},
 	}
 
-	if cfg.Deployment == nil {
-		gap.SuggestedActions = append(gap.SuggestedActions, "Add deployment block to .vrooli/service.json")
+	if cfg.TierFeasibility == nil {
+		gap.SuggestedActions = append(gap.SuggestedActions, "Add tier_feasibility to .vrooli/service.json")
 		return gap, gapHasFindings(gap)
 	}
 
-	hasResourceCatalog := len(cfg.Deployment.Dependencies.Resources) > 0
-	hasScenarioCatalog := len(cfg.Deployment.Dependencies.Scenarios) > 0
+	hasResourceCatalog := len(cfg.TierFeasibility.Dependencies.Resources) > 0
+	hasScenarioCatalog := len(cfg.TierFeasibility.Dependencies.Scenarios) > 0
 	gap.MissingDependencyCatalog = !hasResourceCatalog && !hasScenarioCatalog
 	if gap.MissingDependencyCatalog {
 		gap.SuggestedActions = append(gap.SuggestedActions, "Add deployment.dependencies catalog for resources/scenarios")
 	}
 
-	if len(cfg.Deployment.Tiers) == 0 {
+	if len(cfg.TierFeasibility.Tiers) == 0 {
 		for tier := range tierSet {
 			gap.MissingTierDefinitions = append(gap.MissingTierDefinitions, tier)
 		}
@@ -120,7 +120,7 @@ func buildScenarioGap(node types.DeploymentDependencyNode, scenariosDir string, 
 		}
 	} else {
 		for tier := range tierSet {
-			if _, exists := cfg.Deployment.Tiers[tier]; !exists {
+			if _, exists := cfg.TierFeasibility.Tiers[tier]; !exists {
 				gap.MissingTierDefinitions = append(gap.MissingTierDefinitions, tier)
 			}
 		}
@@ -131,9 +131,9 @@ func buildScenarioGap(node types.DeploymentDependencyNode, scenariosDir string, 
 		if !(resource.Required || resource.Enabled) {
 			continue
 		}
-		if cfg.Deployment.Dependencies.Resources == nil {
+		if cfg.TierFeasibility.Dependencies.Resources == nil {
 			gap.MissingResourceMetadata = append(gap.MissingResourceMetadata, resName)
-		} else if _, exists := cfg.Deployment.Dependencies.Resources[resName]; !exists {
+		} else if _, exists := cfg.TierFeasibility.Dependencies.Resources[resName]; !exists {
 			gap.MissingResourceMetadata = append(gap.MissingResourceMetadata, resName)
 		}
 	}
@@ -143,9 +143,9 @@ func buildScenarioGap(node types.DeploymentDependencyNode, scenariosDir string, 
 			if !(dep.Required || dep.Enabled) {
 				continue
 			}
-			if cfg.Deployment.Dependencies.Scenarios == nil {
+			if cfg.TierFeasibility.Dependencies.Scenarios == nil {
 				gap.MissingScenarioMetadata = append(gap.MissingScenarioMetadata, scenName)
-			} else if _, exists := cfg.Deployment.Dependencies.Scenarios[scenName]; !exists {
+			} else if _, exists := cfg.TierFeasibility.Dependencies.Scenarios[scenName]; !exists {
 				gap.MissingScenarioMetadata = append(gap.MissingScenarioMetadata, scenName)
 			}
 		}
@@ -159,7 +159,7 @@ func buildScenarioGap(node types.DeploymentDependencyNode, scenariosDir string, 
 }
 
 func gapHasFindings(gap types.ScenarioGapInfo) bool {
-	return !gap.HasDeploymentBlock || gap.MissingDependencyCatalog ||
+	return !gap.HasTierFeasibility || gap.MissingDependencyCatalog ||
 		len(gap.MissingTierDefinitions) > 0 ||
 		len(gap.MissingResourceMetadata) > 0 ||
 		len(gap.MissingScenarioMetadata) > 0
@@ -171,7 +171,7 @@ func summarizeGaps(gapsByScenario map[string]types.ScenarioGapInfo) (int, int, m
 	missingTiersSet := make(map[string]struct{})
 
 	for _, gap := range gapsByScenario {
-		if !gap.HasDeploymentBlock {
+		if !gap.HasTierFeasibility {
 			totalGaps += 10 // Weight heavily
 			scenariosMissingAll++
 		} else {
@@ -202,7 +202,7 @@ func buildGapRecommendations(
 
 	if scenariosMissingAll > 0 {
 		recommendations = append(recommendations,
-			fmt.Sprintf("%d scenario(s) missing deployment blocks entirely - run scan --apply to initialize", scenariosMissingAll))
+			fmt.Sprintf("%d scenario(s) missing tier_feasibility entirely - author tier evidence before deployment analysis", scenariosMissingAll))
 	}
 	if len(missingTiersSet) > 0 {
 		recommendations = append(recommendations,

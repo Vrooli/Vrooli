@@ -70,7 +70,6 @@ Single source of truth for everything the lifecycle needs to know.
 | `lifecycle.health` | `/health` endpoint, startup grace period, periodic checks |
 | `lifecycle.setup` | build steps + idempotency conditions (binary present, UI bundle fresh) |
 | `lifecycle.develop` | how to start the running scenario |
-| `lifecycle.test` | which test command to invoke |
 | `lifecycle.stop` | how to shut down cleanly |
 | `environment` | static env vars set for every lifecycle step |
 | `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |

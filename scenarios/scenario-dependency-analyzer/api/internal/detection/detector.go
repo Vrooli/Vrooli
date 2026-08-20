@@ -1,8 +1,8 @@
 package detection
 
 import (
-	appconfig "scenario-dependency-analyzer/internal/config"
-	types "scenario-dependency-analyzer/internal/types"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // detector.go - Main detector coordinator
@@ -64,7 +64,7 @@ func (d *Detector) ScenarioCatalog() map[string]struct{} {
 //   - Resource usage patterns via heuristics (connection strings, env vars)
 //
 // Returns a list of detected resource dependencies.
-func (d *Detector) ScanResources(scenarioPath, scenarioName string, cfg *types.ServiceConfig) ([]types.ScenarioDependency, error) {
+func (d *Detector) ScanResources(scenarioPath, scenarioName string, cfg *types.Manifest) ([]types.ScenarioDependency, error) {
 	return d.resourceScanner.scan(scenarioPath, scenarioName, cfg)
 }
 

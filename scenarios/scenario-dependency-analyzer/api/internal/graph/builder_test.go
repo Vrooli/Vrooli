@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"scenario-dependency-analyzer/internal/seams"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/seams"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 type fakeDependencyStore struct {

@@ -44,10 +44,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/peerrecord"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/config"
@@ -142,6 +144,8 @@ type Supervisor struct {
 	instanceID     string
 	manifestHash   string
 	startedAt      time.Time
+	peerHome       string
+	peerPublished  bool
 	resourcePlan   *resourceplan.Plan
 	resourceServer *resourceplan.ServiceSupervisor
 
@@ -194,6 +198,7 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 		portAllocator: deps.portAllocator,
 		secretStore:   deps.secretStore,
 		appData:       appData,
+		peerHome:      opts.PeerHomeDir,
 		serviceStatus: make(map[string]ServiceStatus),
 		procs:         make(map[string]*serviceProcess),
 		instanceID:    newInstanceID(),
@@ -306,6 +311,10 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		return err
 	}
 
+	if err := s.resolvePeerEnvironment(); err != nil {
+		return err
+	}
+
 	// Initialize service status.
 	for _, svc := range s.opts.Manifest.Services {
 		s.serviceStatus[svc.ID] = ServiceStatus{Ready: false, Message: "pending start"}
@@ -324,6 +333,10 @@ func (s *Supervisor) Start(ctx context.Context) error {
 
 	s.started = true
 	s.startedAt = s.clock.Now()
+	if err := s.publishPeerRecord(); err != nil {
+		_ = ln.Close()
+		return err
+	}
 
 	runtimeCtx, cancel := context.WithCancel(ctx)
 	s.runtimeCtx = runtimeCtx
@@ -433,6 +446,125 @@ func (s *Supervisor) initAuthAndPorts() error {
 	return s.portAllocator.Allocate()
 }
 
+// PeerDiscoveryUnavailableError makes a required discover edge actionable
+// instead of starting a bundle with a silently wrong environment.
+type PeerDiscoveryUnavailableError struct {
+	Scenario string
+	Binding  string
+}
+
+func (e PeerDiscoveryUnavailableError) Error() string {
+	return fmt.Sprintf("peer discovery unavailable for %s binding %s", e.Scenario, e.Binding)
+}
+
+func (s *Supervisor) resolvePeerEnvironment() error {
+	if len(s.opts.Manifest.Peers) == 0 {
+		return nil
+	}
+	home, err := s.resolvePeerHome()
+	if err != nil {
+		return err
+	}
+	resolved := map[string]string{}
+	for _, peer := range s.opts.Manifest.Peers {
+		if peer.BundlePolicy == "embed" {
+			continue
+		}
+		record, readErr := peerrecord.Read(home, peer.Scenario)
+		for _, binding := range peer.Bindings {
+			port, available := record.Ports[binding.Port]
+			if readErr != nil || !available || port <= 0 {
+				if binding.WhenUnavailable == "omit" {
+					continue
+				}
+				return PeerDiscoveryUnavailableError{Scenario: peer.Scenario, Binding: binding.EnvVar}
+			}
+			if _, exists := resolved[binding.EnvVar]; exists {
+				return fmt.Errorf("peer env collision for %s", binding.EnvVar)
+			}
+			value, formatErr := formatPeerBinding(binding.Form, port)
+			if formatErr != nil {
+				return formatErr
+			}
+			resolved[binding.EnvVar] = value
+		}
+	}
+	for serviceIndex := range s.opts.Manifest.Services {
+		service := &s.opts.Manifest.Services[serviceIndex]
+		if service.Env == nil {
+			service.Env = map[string]string{}
+		}
+		for key, value := range resolved {
+			if _, exists := service.Env[key]; exists {
+				return fmt.Errorf("peer env collision for %s in service %s", key, service.ID)
+			}
+			service.Env[key] = value
+		}
+	}
+	return nil
+}
+
+func formatPeerBinding(form string, port int) (string, error) {
+	switch form {
+	case "http_base_url":
+		return fmt.Sprintf("http://127.0.0.1:%d", port), nil
+	case "ws_base_url":
+		return fmt.Sprintf("ws://127.0.0.1:%d", port), nil
+	case "host_port":
+		return fmt.Sprintf("127.0.0.1:%d", port), nil
+	case "port_number":
+		return strconv.Itoa(port), nil
+	default:
+		return "", fmt.Errorf("unsupported peer binding form %q", form)
+	}
+}
+
+func (s *Supervisor) resolvePeerHome() (string, error) {
+	if s.peerHome != "" {
+		return s.peerHome, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve peer registry home: %w", err)
+	}
+	s.peerHome = home
+	return home, nil
+}
+
+func (s *Supervisor) publishPeerRecord() error {
+	scenarioName := strings.TrimSpace(s.opts.Manifest.App.Scenario)
+	if scenarioName == "" {
+		return nil
+	}
+	home, err := s.resolvePeerHome()
+	if err != nil {
+		return err
+	}
+	flattened := map[string]int{"ipc": s.opts.Manifest.IPC.Port}
+	for _, servicePorts := range s.portAllocator.Map() {
+		for name, port := range servicePorts {
+			if prior, exists := flattened[name]; exists && prior != port {
+				return fmt.Errorf("cannot publish peer %s: port name %s is ambiguous", scenarioName, name)
+			}
+			flattened[name] = port
+		}
+	}
+	tokenPath := manifest.ResolvePath(s.appData, s.opts.Manifest.IPC.AuthTokenRel)
+	if err := peerrecord.Write(home, peerrecord.Record{
+		Scenario:      scenarioName,
+		Instance:      "live",
+		Tier:          2,
+		OwnerPID:      os.Getpid(),
+		StartedAt:     s.startedAt,
+		Ports:         flattened,
+		AuthTokenPath: tokenPath,
+	}); err != nil {
+		return fmt.Errorf("publish peer record: %w", err)
+	}
+	s.peerPublished = true
+	return nil
+}
+
 // initGPUAndDomainObjects detects GPU and creates cached domain objects.
 func (s *Supervisor) initGPUAndDomainObjects() {
 	s.gpuStatus = s.gpuDetector.Detect()
@@ -517,9 +649,16 @@ func (s *Supervisor) Shutdown(ctx context.Context) error {
 	}
 
 	_ = s.recordTelemetry("runtime_shutdown", nil)
+	var peerErr error
+	if s.peerPublished {
+		peerErr = peerrecord.Remove(s.peerHome, s.opts.Manifest.App.Scenario)
+		s.peerPublished = false
+	}
 
 	if s.server != nil {
-		return s.server.Shutdown(ctx)
+		if err := s.server.Shutdown(ctx); err != nil {
+			return err
+		}
 	}
-	return nil
+	return peerErr
 }

@@ -3,7 +3,7 @@ package graph
 import (
 	"fmt"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // CycleDetectionResult represents the outcome of circular dependency analysis.

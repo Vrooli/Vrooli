@@ -1,7 +1,10 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "parent": "vrooli",
     "name": "tidiness-manager",
@@ -72,78 +75,6 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/tidiness-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "tidiness-manager"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o tidiness-manager-api .",
-          "description": "Build Go API binary (tidiness-manager-api) in api/ directory for reuse by start-api step"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and production UI bundle",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./tidiness-manager-api",
-          "background": true,
-          "condition": {
-            "file_exists": "api/tidiness-manager-api"
-          },
-          "description": "Start Go API server"
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node --preserve-symlinks server.js",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          },
-          "description": "Serve production UI bundle"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute tidiness-manager --preset comprehensive",
-          "description": "Run structure/unit/integration/business/performance phases"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -195,6 +126,38 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "--preserve-symlinks",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

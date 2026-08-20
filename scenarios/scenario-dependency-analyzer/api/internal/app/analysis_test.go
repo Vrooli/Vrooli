@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"scenario-dependency-analyzer/internal/seams"
-	"scenario-dependency-analyzer/internal/store"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/seams"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // TestAnalyzeScenario tests scenario analysis functionality
@@ -305,7 +305,7 @@ func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
 	}
 
 	var captured int
-	applyDiffsHook = func(name string, cfg *types.ServiceConfig) {
+	applyDiffsHook = func(name string, cfg *types.Manifest) {
 		if name == scenarioName {
 			captured = len(cfg.Dependencies.Resources)
 		}
@@ -582,7 +582,7 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 		t.Fatalf("Failed to read service.json: %v", err)
 	}
 
-	var cfg types.ServiceConfig
+	var cfg types.Manifest
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		t.Fatalf("Failed to parse service.json: %v", err)
 	}
@@ -598,9 +598,6 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 	scenarioDep, ok := cfg.Dependencies.Scenarios["support-scenario"]
 	if !ok || !scenarioDep.Required {
 		t.Fatalf("support-scenario not added correctly: %+v", cfg.Dependencies.Scenarios)
-	}
-	if scenarioDep.Version != "1.0.0" {
-		t.Fatalf("expected version to be propagated, got %q", scenarioDep.Version)
 	}
 	if scenarioDep.VersionRange != ">=1.0.0" {
 		t.Fatalf("expected version range to track detected version, got %q", scenarioDep.VersionRange)
@@ -788,7 +785,7 @@ func TestExtractDeclaredResourcesWithSeams(t *testing.T) {
 	testSeams := newTestSeams()
 
 	t.Run("EmptyResources", func(t *testing.T) {
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Dependencies.Resources = map[string]types.Resource{}
 
 		result := extractDeclaredResourcesWithSeams("test-scenario", cfg, testSeams)
@@ -799,7 +796,7 @@ func TestExtractDeclaredResourcesWithSeams(t *testing.T) {
 	})
 
 	t.Run("SingleResource", func(t *testing.T) {
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Dependencies.Resources = map[string]types.Resource{
 			"postgres": {
 				Type:     "database",
@@ -834,7 +831,7 @@ func TestExtractDeclaredResourcesWithSeams(t *testing.T) {
 	})
 
 	t.Run("MultipleResourcesSorted", func(t *testing.T) {
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Dependencies.Resources = map[string]types.Resource{
 			"redis":    {Type: "cache", Enabled: true},
 			"postgres": {Type: "database", Enabled: true},
@@ -858,12 +855,12 @@ func TestExtractDeclaredResourcesWithSeams(t *testing.T) {
 	})
 
 	t.Run("ConfigurationPreserved", func(t *testing.T) {
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Dependencies.Resources = map[string]types.Resource{
 			"ollama": {
 				Type:    "ai",
 				Enabled: true,
-				Models:  []string{"fixture-chat-model", "fixture-code-model"},
+				Config:  json.RawMessage(`{"models":["fixture-chat-model","fixture-code-model"]}`),
 			},
 		}
 
@@ -1006,7 +1003,7 @@ func TestBuildResourceDiff(t *testing.T) {
 func TestBuildScenarioDiff(t *testing.T) {
 	t.Run("ScenarioDetailsPreserved", func(t *testing.T) {
 		declared := map[string]types.ScenarioDependencySpec{
-			"auth-service": {Required: true, Version: "2.0.0"},
+			"auth-service": {Required: true, VersionRange: ">=2.0.0"},
 		}
 		detected := []types.ScenarioDependency{}
 
@@ -1020,8 +1017,8 @@ func TestBuildScenarioDiff(t *testing.T) {
 		if details["required"] != true {
 			t.Errorf("Expected required=true, got %v", details["required"])
 		}
-		if details["version"] != "2.0.0" {
-			t.Errorf("Expected version '2.0.0', got %v", details["version"])
+		if details["version_range"] != ">=2.0.0" {
+			t.Errorf("Expected version range '>=2.0.0', got %v", details["version_range"])
 		}
 	})
 }
@@ -1124,7 +1121,6 @@ func TestConvertDeclaredScenariosToDependenciesWithSeams(t *testing.T) {
 		specs := map[string]types.ScenarioDependencySpec{
 			"auth-service": {
 				Required:     true,
-				Version:      "1.0.0",
 				VersionRange: ">=1.0.0",
 				Description:  "Authentication service",
 			},
@@ -1157,9 +1153,6 @@ func TestConvertDeclaredScenariosToDependenciesWithSeams(t *testing.T) {
 		}
 
 		config := dep.Configuration
-		if config["version"] != "1.0.0" {
-			t.Errorf("Expected version '1.0.0', got %v", config["version"])
-		}
 		if config["version_range"] != ">=1.0.0" {
 			t.Errorf("Expected version_range '>=1.0.0', got %v", config["version_range"])
 		}

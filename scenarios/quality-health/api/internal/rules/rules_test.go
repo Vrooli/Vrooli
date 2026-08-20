@@ -61,6 +61,7 @@ func TestRegistryDerivesSurfaceAndScenarioApplicability(t *testing.T) {
 		rules.RuleGoLintRequiredLinters,
 		rules.RuleGoDangerousPatterns,
 		rules.RuleScenarioPrivilegeBoundary,
+		rules.RuleScenarioInteractiveBoundary,
 	}, ids(goRules))
 
 	scenarioRules := rules.ScenarioRules()
@@ -103,6 +104,10 @@ func defaultFindingPath(t *testing.T, ruleID string) (string, string) {
 		write(t, filepath.Join(root, "api", "main.go"), "package main\nfunc main(){}\n")
 		path := filepath.Join(root, "api", ".golangci.yml")
 		write(t, path, "linters:\n  enable:\n    - govet\n")
+		return root, path
+	case rules.RuleScenarioInteractiveBoundary:
+		path := filepath.Join(root, "main.go")
+		write(t, path, "package main\nimport \"os\"\nfunc main() { os.Open(\"/dev/tty\") }\n")
 		return root, path
 	case rules.RuleMakefileQualityGates:
 		write(t, filepath.Join(root, "ui", "package.json"), `{"scripts":{"build":"vite build"}}`)

@@ -33,8 +33,7 @@
       "id": "react-vite",
       "version": "1.6.5"
     },
-    "generated_at": "2026-07-23T02:42:50Z",
-    "adopted": true
+    "generated_at": "2026-07-23T02:42:50Z"
   },
   "service": {
     "parent": "vrooli",
@@ -154,100 +153,16 @@
     },
     "setup": {
       "description": "Install CLI, build API, initialize database, and produce a production UI bundle",
-      "condition": {
-        "description": "Check if binaries, CLI, and UI bundle exist",
-        "checks": [
-          {
-            "type": "binaries",
-            "paths": [
-              "api/secrets-manager-api"
-            ],
-            "description": "API binary produced by build-api step"
-          },
-          {
-            "type": "cli",
-            "command": "secrets-manager",
-            "targets": [
-              "secrets-manager"
-            ],
-            "description": "CLI must be installed"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src",
-            "description": "Production UI bundle built from source"
-          }
-        ]
-      },
       "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o secrets-manager-api .",
-          "description": "Build the Go API server binary (secrets-manager-api) inside api/ directory for lifecycle execution"
-        },
         {
           "name": "create-database",
-          "run": "resource-postgres content create-database ${POSTGRES_DB:-vrooli_secrets_manager}",
+          "exec": [
+            "resource-postgres",
+            "content",
+            "create-database",
+            "vrooli_secrets_manager"
+          ],
           "description": "Ensure the scenario's database exists (idempotent)"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; fi",
-          "description": "Build production UI bundle against the lifecycle-assigned API port"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start the Go API and serve production UI bundle",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./secrets-manager-api",
-          "background": true,
-          "description": "Run the API server",
-          "condition": {
-            "file_exists": "api/secrets-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "if [ -z \"${API_PORT:-}\" ] || [ -z \"${UI_PORT:-}\" ]; then echo 'API_PORT and UI_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && node server.cjs",
-          "background": true,
-          "description": "Serve production UI bundle via Express server",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Run phased scenario tests",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute secrets-manager --preset comprehensive",
-          "description": "Execute structure/unit/integration tests"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'secrets-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'pnpm run dev' || true",
-          "description": "Stop Vite dev server"
         }
       ]
     }
@@ -258,7 +173,8 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "description": "Secrets metadata and scan history"
+        "description": "Secrets metadata and scan history",
+        "database": "vrooli_secrets_manager"
       },
       "claude-code": {
         "type": "claude-code",
@@ -290,6 +206,37 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.cjs"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"scenario-dependency-analyzer/internal/aisearch"
-	"scenario-dependency-analyzer/internal/interfacegraph"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/aisearch"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/interfacegraph"
 )
 
 // TestInvertGraph verifies the interface graph's directed edges invert into

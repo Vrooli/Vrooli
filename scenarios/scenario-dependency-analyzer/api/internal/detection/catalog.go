@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 )
 
 // catalog.go - Catalog management and caching

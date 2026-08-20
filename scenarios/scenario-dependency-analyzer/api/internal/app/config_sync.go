@@ -11,8 +11,8 @@ import (
 
 	orderedmap "github.com/iancoleman/orderedmap"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
-	types "scenario-dependency-analyzer/internal/types"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 func applyDetectedDiffs(scenarioName string, analysis *types.DependencyAnalysisResponse, applyResources, applyScenarios bool, depSvc *dependencyService) (map[string]interface{}, error) {
@@ -57,7 +57,7 @@ func applyDetectedDiffs(scenarioName string, analysis *types.DependencyAnalysisR
 type dependencyApplyContext struct {
 	scenarioName string
 	scenarioPath string
-	cfg          *types.ServiceConfig
+	cfg          *types.Manifest
 	rawConfig    *orderedmap.OrderedMap
 	rawResources *orderedmap.OrderedMap
 	rawScenarios *orderedmap.OrderedMap
@@ -212,17 +212,16 @@ func (c *dependencyApplyContext) addInterfaceGraphScenario(dependencyName, evide
 		return "", false
 	}
 	description := fmt.Sprintf("Import-level dependency detected via %s", evidenceSource)
-	version, versionRange := resolveScenarioVersionSpec(dependencyName)
+	versionRange := resolveScenarioVersionRange(dependencyName)
 	c.cfg.Dependencies.Scenarios[dependencyName] = types.ScenarioDependencySpec{
 		Required:     true,
-		Version:      version,
 		VersionRange: versionRange,
 		Description:  description,
 	}
 	if c.rawScenarios == nil {
 		c.rawScenarios = orderedmap.New()
 	}
-	c.rawScenarios.Set(dependencyName, orderedScenarioEntry(version, versionRange, description))
+	c.rawScenarios.Set(dependencyName, orderedScenarioEntry(versionRange, description))
 	return dependencyName, true
 }
 
@@ -267,10 +266,9 @@ func (c *dependencyApplyContext) addDetectedScenario(dep types.ScenarioDependenc
 	}
 
 	description := fmt.Sprintf("Auto-detected dependency via %s", dep.AccessMethod)
-	version, versionRange := resolveScenarioVersionSpec(dep.DependencyName)
+	versionRange := resolveScenarioVersionRange(dep.DependencyName)
 	c.cfg.Dependencies.Scenarios[dep.DependencyName] = types.ScenarioDependencySpec{
 		Required:     true,
-		Version:      version,
 		VersionRange: versionRange,
 		Description:  description,
 	}
@@ -278,7 +276,7 @@ func (c *dependencyApplyContext) addDetectedScenario(dep types.ScenarioDependenc
 	if c.rawScenarios == nil {
 		c.rawScenarios = orderedmap.New()
 	}
-	c.rawScenarios.Set(dep.DependencyName, orderedScenarioEntry(version, versionRange, description))
+	c.rawScenarios.Set(dep.DependencyName, orderedScenarioEntry(versionRange, description))
 
 	return dep.DependencyName, true
 }
@@ -455,17 +453,17 @@ func reorderTopLevelKeys(cfg *orderedmap.OrderedMap) *orderedmap.OrderedMap {
 	return reordered
 }
 
-func resolveScenarioVersionSpec(dependencyName string) (string, string) {
+func resolveScenarioVersionRange(dependencyName string) string {
 	scenarioPath := filepath.Join(appconfig.Load().ScenariosDir, dependencyName)
 	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
-		return "", ">=0.0.0"
+		return ">=0.0.0"
 	}
 	version := strings.TrimSpace(cfg.Service.Version)
 	if version == "" {
-		return "", ">=0.0.0"
+		return ">=0.0.0"
 	}
-	return version, fmt.Sprintf(">=%s", version)
+	return fmt.Sprintf(">=%s", version)
 }
 
 func orderedMapFromStruct(value interface{}) *orderedmap.OrderedMap {
@@ -525,10 +523,9 @@ func orderedResourceEntry(typeHint, description string) *orderedmap.OrderedMap {
 	return entry
 }
 
-func orderedScenarioEntry(version, versionRange, description string) *orderedmap.OrderedMap {
+func orderedScenarioEntry(versionRange, description string) *orderedmap.OrderedMap {
 	entry := orderedmap.New()
 	entry.Set("required", true)
-	entry.Set("version", version)
 	entry.Set("versionRange", versionRange)
 	entry.Set("description", description)
 	return entry

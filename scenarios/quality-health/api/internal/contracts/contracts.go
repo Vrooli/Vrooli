@@ -7,20 +7,21 @@ import (
 )
 
 const (
-	RuleTSConfigStrict            = rules.RuleTSConfigStrict
-	RuleESLintSafetyRules         = rules.RuleESLintSafetyRules
-	RuleTSDangerousPatterns       = rules.RuleTSDangerousPatterns
-	RuleESLintTypedConfig         = rules.RuleESLintTypedConfig
-	RuleNodeBuildTypecheck        = rules.RuleNodeBuildTypecheck
-	RuleTestingConfigStrict       = rules.RuleTestingConfigStrict
-	RuleGoModPresent              = rules.RuleGoModPresent
-	RuleGoLintConfigPresent       = rules.RuleGoLintConfigPresent
-	RuleGoLintRequiredLinters     = rules.RuleGoLintRequiredLinters
-	RuleGoDangerousPatterns       = rules.RuleGoDangerousPatterns
-	RuleScenarioPrivilegeBoundary = rules.RuleScenarioPrivilegeBoundary
-	RuleMakefileQualityGates      = rules.RuleMakefileQualityGates
-	RuleShellSyntaxLint           = rules.RuleShellSyntaxLint
-	RuleCoverageGap               = rules.RuleCoverageGap
+	RuleTSConfigStrict              = rules.RuleTSConfigStrict
+	RuleESLintSafetyRules           = rules.RuleESLintSafetyRules
+	RuleTSDangerousPatterns         = rules.RuleTSDangerousPatterns
+	RuleESLintTypedConfig           = rules.RuleESLintTypedConfig
+	RuleNodeBuildTypecheck          = rules.RuleNodeBuildTypecheck
+	RuleTestingConfigStrict         = rules.RuleTestingConfigStrict
+	RuleGoModPresent                = rules.RuleGoModPresent
+	RuleGoLintConfigPresent         = rules.RuleGoLintConfigPresent
+	RuleGoLintRequiredLinters       = rules.RuleGoLintRequiredLinters
+	RuleGoDangerousPatterns         = rules.RuleGoDangerousPatterns
+	RuleScenarioPrivilegeBoundary   = rules.RuleScenarioPrivilegeBoundary
+	RuleScenarioInteractiveBoundary = rules.RuleScenarioInteractiveBoundary
+	RuleMakefileQualityGates        = rules.RuleMakefileQualityGates
+	RuleShellSyntaxLint             = rules.RuleShellSyntaxLint
+	RuleCoverageGap                 = rules.RuleCoverageGap
 )
 
 const (

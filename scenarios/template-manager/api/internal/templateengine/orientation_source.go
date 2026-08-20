@@ -169,8 +169,8 @@ func validateOrientationRequiredText(checkPath, text string, add orientationSour
 }
 
 func validateOrientationCommandSource(checkPath string, check templatecontracts.TemplateOrientationCheck, add orientationSourceIssue) {
-	if strings.TrimSpace(check.Run) == "" {
-		add(checkPath+".run", "run is required")
+	if len(check.Exec) == 0 || strings.TrimSpace(check.Exec[0]) == "" {
+		add(checkPath+".exec", "exec requires an executable")
 	}
 	if strings.TrimSpace(check.Timeout) == "" {
 		add(checkPath+".timeout", "timeout is required")

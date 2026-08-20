@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"scenario-dependency-analyzer/internal/app/services"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/app/services"
 
 	"github.com/gin-gonic/gin"
 )
