@@ -6,12 +6,14 @@ package hostreq
 
 import internalhostreq "github.com/vrooli/vrooli/internal/hostreq"
 
-type ResolveOptions = internalhostreq.ResolveOptions
-type Resolution = internalhostreq.Resolution
-type ResolvedRequirement = internalhostreq.ResolvedRequirement
-type Eligibility = internalhostreq.Eligibility
-type EligibilityVerdict = internalhostreq.EligibilityVerdict
-type DeploymentTier = internalhostreq.DeploymentTier
+type (
+	ResolveOptions      = internalhostreq.ResolveOptions
+	Resolution          = internalhostreq.Resolution
+	ResolvedRequirement = internalhostreq.ResolvedRequirement
+	Eligibility         = internalhostreq.Eligibility
+	EligibilityVerdict  = internalhostreq.EligibilityVerdict
+	DeploymentTier      = internalhostreq.DeploymentTier
+)
 
 const (
 	TierDesktop           = internalhostreq.TierDesktop

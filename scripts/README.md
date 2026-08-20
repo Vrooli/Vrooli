@@ -9,7 +9,7 @@ Resource lifecycle, configuration, diagnostics, and tests are Go-owned.
 ## Contents
 
 - `scripts/package-vrooli-release.sh` — release packaging, invoked by `.github/workflows/vrooli-release.yml`.
-- `scripts/emergency-watchdog.sh`, `scripts/perf/` — operator tools referenced from runbooks.
+- `scripts/perf/` — operator tools referenced from runbooks.
 - `scripts/validate-go-cli-consumers.sh` — standalone validator.
 
 Resource structure and validation are governed by `.vrooli/schemas/resource.schema.json` (enforced by `internal/resources/validate.go`), not by anything in this directory.

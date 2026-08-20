@@ -1,0 +1,67 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "emergency_watchdog",
+  "storage": {
+    "entries": {},
+    "rationale": "The safeguard installs a script and two systemd user units under the invoking user's own home; it writes no host-level state and needs no privilege."
+  },
+  "description": "Install the Go-independent emergency watchdog and its systemd user timer so setup owns the last line of defense instead of a hand-placed unit",
+  "handler": "emergency_watchdog",
+  "platforms": [
+    "linux"
+  ],
+  "risk": "low",
+  "privilege": "user",
+  "bundling": "prohibited",
+  "capability": "process-containment",
+  "capability_role": "primary",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "disk_floor_mb": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 10240,
+        "description": "Free space in MiB below which the watchdog treats the host as unhealthy and asks storage-manager to reclaim. The default reserves room for the supervisor to write, the journal to rotate, and the watchdog to log."
+      },
+      "unit_threshold_seconds": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 600,
+        "description": "How long a watched unit must stay inactive before the watchdog restarts it."
+      },
+      "cpu_pressure_avg10": {
+        "type": "number",
+        "minimum": 0,
+        "default": 50,
+        "description": "CPU PSI some.avg10 at or above which the host is treated as saturated. While saturated the watchdog reports but does not restart: restarting into a host that cannot schedule makes the outage worse."
+      }
+    }
+  },
+  "notes": "Replaces scripts/emergency-watchdog.sh, which was referenced by three runbooks and installed by nothing — its systemd user unit was hand-created and hard-coded a single operator's repository path. Setup now owns the script, the unit, and the timer. The 2026-08-19 outage added the saturation brake: autoheal restarted itself into a host at load 110 on 32 CPUs, which is precisely when a restart cannot help.",
+  "verificationCheck": {
+    "files": []
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  }
+}

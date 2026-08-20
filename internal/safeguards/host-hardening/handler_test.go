@@ -48,24 +48,40 @@ func linuxHost() hostreqkit.Host {
 	}
 }
 
-// readSysctlsAtTarget makes ReadFileFn return the desired live values for
-// every managed sysctl. Tests that exercise drift override this.
-func readSysctlsAtTarget() func(string) ([]byte, error) {
+// defaultPolicy is what an unconfigured requirement resolves to.
+func defaultPolicy() policy { return resolvePolicy(nil) }
+
+// withArmedKdump serves the crash-kernel probe as armed and delegates the rest.
+// Tests about sysctl behaviour would otherwise be short-circuited by the
+// prerequisite check, which has its own dedicated tests.
+func withArmedKdump(next func(string) ([]byte, error)) func(string) ([]byte, error) {
 	return func(path string) ([]byte, error) {
+		if path == kexecCrashLoadedPath {
+			return []byte("1\n"), nil
+		}
+		return next(path)
+	}
+}
+
+// readSysctlsAtTarget makes ReadFileFn return the desired live values for
+// every managed sysctl under the given policy. Tests that exercise drift
+// override this.
+func readSysctlsAtTarget(pol policy) func(string) ([]byte, error) {
+	return withArmedKdump(func(path string) ([]byte, error) {
 		switch path {
 		case sysctlPath:
-			return []byte(buildSysctlContent()), nil
+			return []byte(buildSysctlContent(pol)), nil
 		case journaldPath:
 			return []byte(buildJournaldContent()), nil
 		}
-		for _, p := range managedSysctls {
-			procPath := "/proc/sys/" + strings.ReplaceAll(p.Name, ".", "/")
+		for _, setting := range managedSysctls(pol) {
+			procPath := "/proc/sys/" + strings.ReplaceAll(setting.Name, ".", "/")
 			if path == procPath {
-				return []byte(fmt.Sprintf("%d\n", p.Value)), nil
+				return []byte(fmt.Sprintf("%d\n", setting.Value)), nil
 			}
 		}
 		return nil, os.ErrNotExist
-	}
+	})
 }
 
 func TestNameAndKind(t *testing.T) {
@@ -112,7 +128,7 @@ func TestInspectNoSysctlNotApplicable(t *testing.T) {
 func TestInspectAllInPlace(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
-	hostreqkit.ReadFileFn = readSysctlsAtTarget()
+	hostreqkit.ReadFileFn = readSysctlsAtTarget(defaultPolicy())
 
 	h := newTestHandler()
 	status := h.Inspect(linuxHost(), linuxReq())
@@ -127,15 +143,15 @@ func TestInspectAllInPlace(t *testing.T) {
 func TestInspectSysctlDrift(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
-	target := readSysctlsAtTarget()
-	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
+	target := readSysctlsAtTarget(defaultPolicy())
+	hostreqkit.ReadFileFn = withArmedKdump(func(path string) ([]byte, error) {
 		// Pretend kernel.panic_on_oops is still 0 even though the drop-in is
 		// in place — drift after a one-shot sysctl -w from somewhere.
 		if path == "/proc/sys/kernel/panic_on_oops" {
 			return []byte("0\n"), nil
 		}
 		return target(path)
-	}
+	})
 
 	h := newTestHandler()
 	status := h.Inspect(linuxHost(), linuxReq())
@@ -151,13 +167,13 @@ func TestInspectSysctlDrift(t *testing.T) {
 func TestInspectMissingSysctlFile(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
-	target := readSysctlsAtTarget()
-	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
+	target := readSysctlsAtTarget(defaultPolicy())
+	hostreqkit.ReadFileFn = withArmedKdump(func(path string) ([]byte, error) {
 		if path == sysctlPath {
 			return nil, os.ErrNotExist
 		}
 		return target(path)
-	}
+	})
 
 	h := newTestHandler()
 	status := h.Inspect(linuxHost(), linuxReq())
@@ -172,13 +188,13 @@ func TestInspectMissingSysctlFile(t *testing.T) {
 func TestInspectMissingJournaldFile(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
-	target := readSysctlsAtTarget()
-	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
+	target := readSysctlsAtTarget(defaultPolicy())
+	hostreqkit.ReadFileFn = withArmedKdump(func(path string) ([]byte, error) {
 		if path == journaldPath {
 			return nil, os.ErrNotExist
 		}
 		return target(path)
-	}
+	})
 
 	h := newTestHandler()
 	status := h.Inspect(linuxHost(), linuxReq())
@@ -193,7 +209,7 @@ func TestInspectMissingJournaldFile(t *testing.T) {
 func TestApplyDryRunDoesNotMutate(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
-	hostreqkit.ReadFileFn = func(string) ([]byte, error) { return nil, os.ErrNotExist }
+	hostreqkit.ReadFileFn = withArmedKdump(func(string) ([]byte, error) { return nil, os.ErrNotExist })
 
 	calls := 0
 	hostreqkit.RunCommandFn = func(string, []string, hostreqkit.EnsureOptions) error {
@@ -246,7 +262,7 @@ func TestApplyRunsSysctlAndRestartsJournald(t *testing.T) {
 	defer restore()
 	// Files do not exist yet; sysctls drift; Apply should write everything
 	// and run both commands.
-	hostreqkit.ReadFileFn = func(string) ([]byte, error) { return nil, os.ErrNotExist }
+	hostreqkit.ReadFileFn = withArmedKdump(func(string) ([]byte, error) { return nil, os.ErrNotExist })
 
 	type call struct {
 		name string
@@ -293,7 +309,7 @@ func TestApplyRunsSysctlAndRestartsJournald(t *testing.T) {
 func TestApplySysctlFailureSurfaced(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
-	hostreqkit.ReadFileFn = func(string) ([]byte, error) { return nil, os.ErrNotExist }
+	hostreqkit.ReadFileFn = withArmedKdump(func(string) ([]byte, error) { return nil, os.ErrNotExist })
 
 	hostreqkit.RunCommandFn = func(name string, args []string, _ hostreqkit.EnsureOptions) error {
 		// With SudoMode "ask" the program is `sudo`; check args for the
@@ -320,8 +336,8 @@ func TestApplySysctlFailureSurfaced(t *testing.T) {
 }
 
 func TestBuildSysctlContentIncludesAllParams(t *testing.T) {
-	content := buildSysctlContent()
-	for _, p := range managedSysctls {
+	content := buildSysctlContent(defaultPolicy())
+	for _, p := range managedSysctls(defaultPolicy()) {
 		want := fmt.Sprintf("%s = %d", p.Name, p.Value)
 		if !strings.Contains(content, want) {
 			t.Errorf("missing %q", want)

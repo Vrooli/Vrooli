@@ -1,0 +1,99 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "kdump_observability",
+  "storage": {
+    "entries": {
+      "collector": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/usr/local/libexec/vrooli/kdump-collector",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "class": "state",
+        "sensitive": false,
+        "rationale": "The safeguard installs the Linux kdump summary collector executable.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable state storage budget; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      },
+      "systemd_service": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/system/vrooli-kdump-collector.service",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard installs the Linux kdump collector service."
+      },
+      "systemd_timer": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/system/vrooli-kdump-collector.timer",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard installs the Linux kdump collector timer."
+      }
+    },
+    "rationale": "Linux-only system configuration and executable files are verified by the safeguard file check."
+  },
+  "description": "Export kdump panic summaries into the Vrooli host-observability directory so unprivileged scenarios can report a crash without reading root-only vmcores",
+  "handler": "kdump_observability",
+  "platforms": [
+    "linux"
+  ],
+  "risk": "medium",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "retain_vmcores": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 2,
+        "description": "How many of the newest kdump vmcore directories to keep under /var/crash. A vmcore is roughly the size of system RAM, so an unbounded crash directory is itself an outage risk. Exported summaries are small and are never pruned, so crash history survives even when the raw dumps do not."
+      }
+    }
+  },
+  "verificationCheck": {
+    "files": [
+      "/usr/local/libexec/vrooli/kdump-collector",
+      "/etc/systemd/system/vrooli-kdump-collector.service",
+      "/etc/systemd/system/vrooli-kdump-collector.timer"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "crash-forensics",
+  "capability_role": "primary",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  }
+}

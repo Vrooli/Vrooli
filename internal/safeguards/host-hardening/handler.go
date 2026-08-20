@@ -5,20 +5,29 @@
 //
 //     kernel.sysrq                  enables manual `echo c > /proc/sysrq-trigger`
 //     for kdump validation testing.
-//     kernel.hung_task_timeout_secs flag tasks blocked >120s in dmesg.
-//     kernel.softlockup_panic       panic on a CPU softlockup so kdump fires
-//     instead of the kernel sitting wedged
-//     until a hardware watchdog hard-resets.
+//     kernel.hung_task_timeout_secs flag tasks blocked in D state for this many
+//     seconds in dmesg. Configurable.
+//     kernel.softlockup_panic       whether a CPU soft lockup panics the host.
+//     Configurable via softlockup_policy;
+//     defaults to warn.
 //     kernel.unknown_nmi_panic      panic on unknown NMIs (firmware/IPMI
-//     watchdog NMIs). Same diagnostic
-//     motivation: silent hard resets defeat
-//     debugging.
-//     kernel.panic_on_oops          turn an oops into a panic so kdump
-//     captures a vmcore. Without this, the
-//     kernel logs the oops and limps onward.
+//     watchdog NMIs). Silent hard resets
+//     defeat debugging.
+//     kernel.panic_on_oops          whether an oops becomes a panic so kdump
+//     captures a vmcore. Configurable via
+//     oops_policy.
 //     kernel.panic                  reboot 10s after panic if vmcore capture
 //     succeeded (or failed) — so the box
 //     doesn't sit dead at 4am.
+//
+// The two panic policies are operator configuration rather than fixed values,
+// because the right answer differs by role. On a fleet node that can be drained
+// and replaced, failing fast and capturing a vmcore is right. On a workstation
+// that is also somebody's daily driver, converting every single-task kernel
+// fault into a full outage is a poor trade — and `softlockup_panic` in
+// particular fires on ordinary saturation, which the 2026-08-19 incident on
+// this host showed is not a rare event. The defaults reflect that: oops still
+// panics and dumps, soft lockups only warn.
 //
 //  2. Journald rate-limit drop-in at
 //     /etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf that raises the
@@ -27,12 +36,15 @@
 //     dominated by UFW lines that made post-crash log inspection slow and
 //     could legitimately rate-limit panic messages.
 //
-// Ordering: this safeguard depends on kdump-tools being armed (Phase 2 of
-// the 2026-05-07 work). Without a working kdump capture, panic_on_oops=1
-// turns previously-survivable oopses into reboots that produce nothing —
-// strictly worse than the status quo. The kdump-tools handler verifies the
-// arm state; deploy this safeguard only after that handler reports
-// already_present.
+// Ordering: with oops_policy=panic-and-dump this safeguard depends on a loaded
+// crash kernel. Without one, panic_on_oops=1 turns previously-survivable oopses
+// into reboots that produce nothing — strictly worse than the status quo.
+//
+// That dependency used to be documented here and enforced nowhere. Inspect now
+// checks it directly against /sys/kernel/kexec_crash_loaded and reports
+// BlockingPrerequisiteMissing rather than applying a policy the host cannot
+// honour, so the ordering holds even when an operator applies this safeguard on
+// its own.
 package hosthardening
 
 import (
@@ -48,20 +60,91 @@ const (
 	sysctlPath   = "/etc/sysctl.d/99-vrooli-host-hardening.conf"
 	journaldDir  = "/etc/systemd/journald.conf.d"
 	journaldPath = journaldDir + "/99-vrooli-ratelimit.conf"
+
+	// kexecCrashLoadedPath is the kernel's own statement that a crash kernel is
+	// loaded and will run on panic. It is a more direct answer than parsing
+	// `kdump-config status`: this file is what the panic path actually consults.
+	kexecCrashLoadedPath = "/sys/kernel/kexec_crash_loaded"
+
+	oopsPolicyPanicAndDump   = "panic-and-dump"
+	oopsPolicyLogAndContinue = "log-and-continue"
+	softlockupPolicyPanic    = "panic"
+	softlockupPolicyWarn     = "warn"
 )
 
-// managedSysctls lists kernel parameters and their desired values. Each
-// must be readable from /proc/sys/<name with dots → slashes>.
-var managedSysctls = []struct {
+// policy is the resolved operator configuration for this safeguard.
+type policy struct {
+	OopsPolicy       string
+	SoftlockupPolicy string
+	HungTaskTimeout  int
+}
+
+// resolvePolicy reads declared config, falling back to the manifest defaults.
+// The defaults are duplicated here rather than read from the manifest because a
+// handler must still behave correctly when invoked with no resolved config at
+// all; the invariant is covered by TestDefaultsMatchManifest.
+func resolvePolicy(config map[string]any) policy {
+	p := policy{
+		OopsPolicy:       oopsPolicyPanicAndDump,
+		SoftlockupPolicy: softlockupPolicyWarn,
+		HungTaskTimeout:  120,
+	}
+	if config == nil {
+		return p
+	}
+	if v, ok := config["oops_policy"].(string); ok && strings.TrimSpace(v) != "" {
+		p.OopsPolicy = strings.TrimSpace(v)
+	}
+	if v, ok := config["softlockup_policy"].(string); ok && strings.TrimSpace(v) != "" {
+		p.SoftlockupPolicy = strings.TrimSpace(v)
+	}
+	// JSON numbers decode as float64; accept int for programmatic callers.
+	switch v := config["hung_task_timeout_secs"].(type) {
+	case float64:
+		p.HungTaskTimeout = int(v)
+	case int:
+		p.HungTaskTimeout = v
+	}
+	return p
+}
+
+type sysctlSetting struct {
 	Name  string
 	Value int
-}{
-	{"kernel.sysrq", 1},
-	{"kernel.hung_task_timeout_secs", 120},
-	{"kernel.softlockup_panic", 1},
-	{"kernel.unknown_nmi_panic", 1},
-	{"kernel.panic_on_oops", 1},
-	{"kernel.panic", 10},
+}
+
+// managedSysctls lists kernel parameters and their desired values for a
+// resolved policy. Each must be readable from /proc/sys/<name with dots →
+// slashes>.
+//
+// kernel.sysrq, kernel.unknown_nmi_panic and kernel.panic are not configurable:
+// sysrq is a diagnostic entry point with no downside, an unknown NMI is always
+// a hardware-level event worth capturing, and the 10-second post-panic reboot
+// only matters once a panic has already happened.
+func managedSysctls(p policy) []sysctlSetting {
+	boolToInt := func(b bool) int {
+		if b {
+			return 1
+		}
+		return 0
+	}
+	return []sysctlSetting{
+		{"kernel.sysrq", 1},
+		{"kernel.hung_task_timeout_secs", p.HungTaskTimeout},
+		{"kernel.softlockup_panic", boolToInt(p.SoftlockupPolicy == softlockupPolicyPanic)},
+		{"kernel.unknown_nmi_panic", 1},
+		{"kernel.panic_on_oops", boolToInt(p.OopsPolicy == oopsPolicyPanicAndDump)},
+		{"kernel.panic", 10},
+	}
+}
+
+// kdumpArmed reports whether a crash kernel is loaded. Stubbed in tests.
+var kdumpArmed = func() bool {
+	data, err := hostreqkit.ReadFileFn(kexecCrashLoadedPath)
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(data)) == "1"
 }
 
 type handler struct {
@@ -99,18 +182,32 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
+	resolved := resolvePolicy(requirement.Config)
+
+	// panic_on_oops without an armed crash kernel is strictly worse than the
+	// default: it converts survivable oopses into reboots that produce no
+	// vmcore. Refuse to apply the policy rather than silently degrading the
+	// host's ability to explain its own crashes.
+	if resolved.OopsPolicy == oopsPolicyPanicAndDump && !kdumpArmed() {
+		status.BlockingReason = hostreqkit.BlockingPrerequisiteMissing
+		status.Notes = append(status.Notes,
+			"oops_policy=panic-and-dump requires an armed crash kernel, but "+kexecCrashLoadedPath+
+				" does not report one; apply the kdump_tools requirement first, or set oops_policy=log-and-continue")
+		return status
+	}
+
 	pending := []string{}
 
 	// Live sysctl values reflect what the kernel actually uses, not what's
 	// in the drop-in. Drift is possible (operator did a one-shot sysctl -w
 	// that didn't get persisted; a subsequent reboot flipped them back).
-	for _, p := range managedSysctls {
+	for _, p := range managedSysctls(resolved) {
 		if got := readSysctlValue(p.Name); got != p.Value {
 			pending = append(pending, fmt.Sprintf("%s=%d (current: %d)", p.Name, p.Value, got))
 		}
 	}
 
-	if !hostreqkit.FileContentMatches(sysctlPath, buildSysctlContent()) {
+	if !hostreqkit.FileContentMatches(sysctlPath, buildSysctlContent(resolved)) {
 		pending = append(pending, sysctlPath+" needs update")
 	}
 
@@ -161,7 +258,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, err.Error())
 		return status, nil
 	}
-	if err := hostreqkit.InstallManagedContent(sysctlPath, buildSysctlContent(), opts.SudoMode, opts); err != nil {
+	if err := hostreqkit.InstallManagedContent(sysctlPath, buildSysctlContent(resolvePolicy(status.Config)), opts.SudoMode, opts); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, err.Error())
 		return status, nil
@@ -216,13 +313,14 @@ func readSysctlValue(param string) int {
 	return v
 }
 
-func buildSysctlContent() string {
+func buildSysctlContent(p policy) string {
 	var b strings.Builder
 	b.WriteString("# Managed by Vrooli -- do not edit manually\n")
 	b.WriteString("# Make kernel hangs and oopses produce diagnostics rather than silent hard resets.\n")
 	b.WriteString("# See internal/safeguards/host-hardening/handler.go for rationale.\n")
-	for _, p := range managedSysctls {
-		fmt.Fprintf(&b, "%s = %d\n", p.Name, p.Value)
+	fmt.Fprintf(&b, "# oops_policy=%s softlockup_policy=%s\n", p.OopsPolicy, p.SoftlockupPolicy)
+	for _, setting := range managedSysctls(p) {
+		fmt.Fprintf(&b, "%s = %d\n", setting.Name, setting.Value)
 	}
 	return b.String()
 }
