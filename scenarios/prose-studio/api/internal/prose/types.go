@@ -71,6 +71,27 @@ type Constraints struct {
 	MaxGrade       float64  `json:"max_grade,omitempty"`
 	BannedLexicon  []string `json:"banned_lexicon,omitempty"`
 	RequiredFormat string   `json:"required_format,omitempty"`
+	// MinSectionNovelty is the share of a section's content terms that must not
+	// already appear in the section before it. It is the one constraint here
+	// that a candidate cannot be judged against on its own: a passage is only
+	// redundant relative to something, so it is evaluated against the committed
+	// prior text a continuation carries and is skipped where there is none.
+	//
+	// It exists because the length, grade, and format constraints beside it are
+	// all satisfiable by a section that re-argues its predecessor in fresh
+	// words, and that is the failure this scenario's own long-form output was
+	// measured to have.
+	MinSectionNovelty float64 `json:"min_section_novelty,omitempty"`
+	// MinArtifacts is how many distinct declared artifacts a passage must
+	// quote. It is a policy about how concrete prose has to be, which is why it
+	// lives on the profile, while the artifacts themselves arrive on the
+	// request: what is available to quote is editorial content the consumer
+	// owns, and this scenario decides no brief.
+	//
+	// Without it, "do not invent implementation details" is satisfiable only by
+	// writing nothing specific, and an accuracy rule silently becomes a
+	// vagueness rule.
+	MinArtifacts int `json:"min_artifacts,omitempty"`
 }
 
 type Budget struct {
@@ -184,15 +205,19 @@ type SelectionEvent struct {
 }
 
 type Document struct {
-	ID                    string           `json:"id"`
-	Title                 string           `json:"title"`
-	ProfileKey            string           `json:"profile_key"`
-	OutlineProfileKey     string           `json:"outline_profile_key,omitempty"`
-	StyleKey              string           `json:"style_key"`
-	OutlineID             string           `json:"outline_id,omitempty"`
-	OutlineText           string           `json:"outline_text,omitempty"`
-	Outline               []OutlineSection `json:"outline,omitempty"`
-	OutlineProfileVersion string           `json:"outline_profile_version,omitempty"`
+	ID                string           `json:"id"`
+	Title             string           `json:"title"`
+	ProfileKey        string           `json:"profile_key"`
+	OutlineProfileKey string           `json:"outline_profile_key,omitempty"`
+	StyleKey          string           `json:"style_key"`
+	OutlineID         string           `json:"outline_id,omitempty"`
+	OutlineText       string           `json:"outline_text,omitempty"`
+	Outline           []OutlineSection `json:"outline,omitempty"`
+	// Artifacts are the literals every section of this document may quote. They
+	// belong to the document rather than to a section because a command named
+	// once in the opening is still available to the conclusion.
+	Artifacts             []string `json:"artifacts,omitempty"`
+	OutlineProfileVersion string   `json:"outline_profile_version,omitempty"`
 	// SectionCount overrides the profile's composition policy for this document.
 	SectionCount          int       `json:"section_count,omitempty"`
 	SectionProfileVersion string    `json:"section_profile_version,omitempty"`
@@ -245,6 +270,12 @@ type OutlineSection struct {
 type CoherenceThresholds struct {
 	MaxCrossSectionRepetition float64 `json:"max_cross_section_repetition,omitempty"`
 	MaxStyleDrift             float64 `json:"max_style_drift,omitempty"`
+	// MinSectionNovelty is the per-section floor enforced at generation time,
+	// as distinct from the whole-document repetition measures beside it. Those
+	// report after assembly, when the only remaining move is repair; this one
+	// makes a section that added nothing ineligible while a reroll is still
+	// cheap.
+	MinSectionNovelty float64 `json:"min_section_novelty,omitempty"`
 	// MaxSemanticSectionRepetition bounds mean pairwise cosine similarity over
 	// section embeddings. It exists because the lexical measure passes text that
 	// paraphrases itself: three sections restating one argument in different
@@ -405,6 +436,11 @@ type GenerateRequest struct {
 	// policy needs. It is nil for instance-level generation, where a candidate
 	// set has no position in anything.
 	Selection *SelectionContext `json:"selection_context,omitempty"`
+	// Artifacts are the literals this request is permitted to quote: commands,
+	// paths, identifiers, figures. They are carried per request rather than on
+	// the profile because they are the caller's brief, and a style record that
+	// pinned them would make one voice usable for exactly one subject.
+	Artifacts []string `json:"artifacts,omitempty"`
 }
 
 // SelectionContext is what a policy needs in order to choose a candidate for a

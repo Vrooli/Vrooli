@@ -845,7 +845,7 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 		if capValue == 0 && capSource == "" {
 			capValue, capSource = effectiveCap, "profile"
 		}
-		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, SetIndex: i, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints, response.Text), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: capValue, MaxOutputTokensSource: capSource, InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: estimateContextTokens(req.Query)}}}
+		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, SetIndex: i, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints, response.Text, gateInputs{Selection: req.Selection, Artifacts: req.Artifacts}), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: capValue, MaxOutputTokensSource: capSource, InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: estimateContextTokens(req.Query)}}}
 		if resolved.Profile.Sampler.Kind == samplerVSStandard {
 			candidate.VerbalizedHint = &VerbalizedHint{Ordinal: response.HintOrdinal, Calibrated: false}
 		}
@@ -1654,6 +1654,7 @@ func (s *Service) produceSection(ctx context.Context, doc Document, sectionProfi
 	sectionProfile.Constraints.MinWords = sectionMinWords
 	sectionProfile.Constraints.MaxWords = sectionMaxWords
 	sectionProfile.Constraints.RequiredFormat = sectionRequiredFormat(sectionProfile)
+	sectionProfile.Constraints.MinSectionNovelty = sectionProfile.Coherence.MinSectionNovelty
 	sectionProfile.Sampler.MaxOutputTokens = sectionOutputCap(sectionProfile, sectionMaxWords)
 	sectionProfile.Budget.MaxOutputTokens = sectionProfile.Sampler.MaxOutputTokens
 	// Continuation is not variation. Selecting the section candidate most
@@ -1663,7 +1664,7 @@ func (s *Service) produceSection(ctx context.Context, doc Document, sectionProfi
 	sectionProfile.Sampler.Kind, sectionProfile.Sampler.K = sectionSampler(sectionProfile)
 	sectionQuery := fmt.Sprintf("%s\n\n%s\n\n%s\n\nHARD SECTION LENGTH: write between %d and %d words; aim for approximately %d words. A section materially shorter than the floor is rejected.", doc.Title, planned.Intent, contextText, sectionMinWords, sectionMaxWords, sectionTargetWords)
 	selectionContext := &SelectionContext{PriorText: s.committedSectionTexts(ctx, prior), TargetWords: sectionTargetWords}
-	generated, err := s.generateWithRetry(ctx, GenerateRequest{ProfileKey: sectionProfile.Key, Query: sectionQuery, IncludeCandidates: true, Negative: negative, Selection: selectionContext}, sectionProfile, fmt.Sprintf("section %d generation", position))
+	generated, err := s.generateWithRetry(ctx, GenerateRequest{ProfileKey: sectionProfile.Key, Query: sectionQuery, IncludeCandidates: true, Negative: negative, Selection: selectionContext, Artifacts: doc.Artifacts}, sectionProfile, fmt.Sprintf("section %d generation", position))
 	if err != nil {
 		return Section{}, err
 	}
@@ -1675,9 +1676,11 @@ func (s *Service) produceSection(ctx context.Context, doc Document, sectionProfi
 		// not usable: models undershoot a stated word target routinely, and the
 		// useful response is to say by how much and ask for development rather
 		// than to abandon the article or to widen the band until it passes.
-		shortfall := closestMiss(generated.Candidates)
-		retryQuery := sectionQuery + fmt.Sprintf("\n\nThe previous attempt was rejected: it produced %d words against a floor of %d. Write a longer section by developing the point with a concrete example and its consequence, not by adding adjectives or restating the same sentence.", shortfall, sectionMinWords)
-		generated, err = s.generateWithRetry(ctx, GenerateRequest{ProfileKey: sectionProfile.Key, Query: retryQuery, IncludeCandidates: true, Negative: negative, SessionID: generated.Session.ID, Selection: selectionContext}, sectionProfile, fmt.Sprintf("section %d length retry", position))
+		// The retry has to name the constraint that actually failed. Telling a
+		// model its section was too short when it was rejected for repeating
+		// its predecessor asks for more of exactly what was rejected.
+		retryQuery := sectionQuery + "\n\n" + sectionRetryDirective(generated.Candidates, sectionMinWords)
+		generated, err = s.generateWithRetry(ctx, GenerateRequest{ProfileKey: sectionProfile.Key, Query: retryQuery, IncludeCandidates: true, Negative: negative, SessionID: generated.Session.ID, Selection: selectionContext, Artifacts: doc.Artifacts}, sectionProfile, fmt.Sprintf("section %d retry", position))
 		if err != nil {
 			return Section{}, err
 		}
@@ -1705,6 +1708,26 @@ func (s *Service) produceSection(ctx context.Context, doc Document, sectionProfi
 // candidate. The previous form fell back to candidates[0] whenever the policy
 // declined to choose, which silently committed a candidate the constraint gate
 // had already rejected.
+// sectionRetryDirective states what to fix, chosen from the reason the first
+// attempt was actually rejected for. A novelty rejection and a length
+// rejection call for opposite corrections, and the previous single directive
+// answered both with "write more", which is the wrong instruction for a
+// section whose fault was that it had already said everything it contained.
+func sectionRetryDirective(candidates []Candidate, minWords int) string {
+	for _, candidate := range candidates {
+		if candidate.Eligibility.Eligible {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(candidate.Eligibility.Reason, "min_section_novelty:"):
+			return "The previous attempt was rejected: it restated the preceding section instead of advancing past it. Most of what it said was already established. Write this section about what only it carries -- the next step, the consequence, the case the previous section does not cover -- and do not re-explain, re-introduce, or re-summarise any point the reader has already been given."
+		case strings.HasPrefix(candidate.Eligibility.Reason, "min_artifacts:"):
+			return "The previous attempt was rejected: it described the mechanism without ever showing it. Quote the specific commands, paths, or identifiers from the artifact list verbatim, in the sentences that explain what they do, rather than referring to them in general terms."
+		}
+	}
+	return fmt.Sprintf("The previous attempt was rejected: it produced %d words against a floor of %d. Write a longer section by developing the point with a concrete example and its consequence, not by adding adjectives or restating the same sentence.", closestMiss(candidates), minWords)
+}
+
 func eligibleCandidate(generated GenerateResponse) *Candidate {
 	if generated.Selected != nil && generated.Selected.Eligibility.Eligible {
 		return generated.Selected
@@ -2327,6 +2350,14 @@ func (s *Service) assembleSectionContext(ctx context.Context, doc Document, outl
 	if len(section.Context.FollowingIntents) > 0 {
 		parts = append(parts, "Following section intents: "+strings.Join(section.Context.FollowingIntents, "; "))
 	}
+	// Artifacts are supplied as permission, not as decoration. A brief that
+	// forbids invention without offering anything specific to quote leaves
+	// abstraction as the only compliant register, which is how an accuracy
+	// rule turns into a vagueness rule.
+	if len(doc.Artifacts) > 0 {
+		parts = append(parts, "Artifacts you may quote verbatim, and the only specifics you may state: "+strings.Join(doc.Artifacts, " | ")+
+			"\nQuote the ones this section actually needs, exactly as written, in the sentence that explains them. Do not invent commands, paths, identifiers, figures, or numbers that are not in this list, and do not describe an artifact in words instead of showing it.")
+	}
 	// Prior text alone is not an instruction. Supplying it without saying what
 	// to do with it produces a section that re-derives the same argument in new
 	// words, which reads as repetition and measures as low lexical overlap.
@@ -2712,7 +2743,18 @@ func (s *Service) saveDeclaration(ctx context.Context, d Declaration) error {
 	return err
 }
 
-func gate(measurement any, c Constraints, text string) Eligibility {
+// gateInputs carries what a constraint needs beyond the candidate's own text.
+// Most constraints need nothing here: word count, grade, and format are
+// properties a passage has by itself. Redundancy and concreteness are not --
+// one is relative to what precedes the passage, the other to what the caller
+// made available to quote.
+type gateInputs struct {
+	Selection *SelectionContext
+	Artifacts []string
+}
+
+// gate evaluates the deterministic constraints.
+func gate(measurement any, c Constraints, text string, in gateInputs) Eligibility {
 	raw, _ := json.Marshal(measurement)
 	var m textmetrics.Metrics
 	_ = json.Unmarshal(raw, &m)
@@ -2743,6 +2785,23 @@ func gate(measurement any, c Constraints, text string) Eligibility {
 	}
 	if c.RequiredFormat != "" && !matchesRequiredFormat(c.RequiredFormat, m, text) {
 		return Eligibility{false, "required_format:" + c.RequiredFormat}
+	}
+	// An opening section has nothing to be redundant against, so the absence of
+	// prior text is not a pass to record: the constraint simply does not apply.
+	if c.MinSectionNovelty > 0 && in.Selection != nil && len(in.Selection.PriorText) > 0 {
+		previous := in.Selection.PriorText[len(in.Selection.PriorText)-1]
+		if novelty := textmetrics.SectionNovelty(text, previous); novelty < c.MinSectionNovelty {
+			return Eligibility{false, fmt.Sprintf("min_section_novelty:%.2f:measured:%.2f", c.MinSectionNovelty, novelty)}
+		}
+	}
+	// Concreteness is gated only where something concrete was actually offered.
+	// Failing a passage for quoting no artifacts when the caller declared none
+	// would blame the writer for the brief.
+	if c.MinArtifacts > 0 && len(in.Artifacts) > 0 {
+		present := textmetrics.ArtifactsPresent(text, in.Artifacts)
+		if len(present) < c.MinArtifacts {
+			return Eligibility{false, fmt.Sprintf("min_artifacts:%d:measured:%d", c.MinArtifacts, len(present))}
+		}
 	}
 	return Eligibility{Eligible: true}
 }

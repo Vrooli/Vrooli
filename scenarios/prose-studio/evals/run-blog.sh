@@ -39,7 +39,14 @@ evidence_path="$root/$(jq -r '.evidence_source' "$spec")"
 evidence_text="$(cat "$evidence_path")"
 evidence_claims="$(jq -r '.evidence_claims | join("; ")' "$spec")"
 
-generation_instruction="Use only factual claims supported by this evidence brief. Do not invent metrics, infrastructure, failure incidents, implementation details, or outcomes; every number you write must appear in the brief. Explain each evidence claim once, with distinct section purposes; do not restate the same workflow or conclusion in multiple sections. Evidence claims: $evidence_claims. Evidence source: $evidence_text. Explicitly use these exact terms where they fit naturally: $claims_prompt."
+# Artifacts are the specifics the article is permitted to show. The previous
+# instruction forbade inventing implementation details while supplying none,
+# which left abstraction as the only compliant register and put the accuracy
+# rule in direct conflict with the concreteness the judge was scoring.
+artifact_values="$(jq -r '[.evidence_artifacts[]?.value] | join(" | ")' "$spec")"
+artifact_lines="$(jq -r '[.evidence_artifacts[]? | "\(.value) -- \(.gloss)"] | join("; ")' "$spec")"
+
+generation_instruction="Use only factual claims supported by this evidence brief. Do not invent metrics, infrastructure, failure incidents, or outcomes. Every number, command, path, and identifier you write must appear either in the brief or in the artifact list below; anything else is invention. Show the artifacts rather than describing them: quote them verbatim inside the sentence that explains what they do. Artifacts: $artifact_lines. Explain each evidence claim once, with distinct section purposes; do not restate the same workflow or conclusion in multiple sections. Evidence claims: $evidence_claims. Evidence source: $evidence_text. Explicitly use these exact terms where they fit naturally: $claims_prompt."
 
 # The single-call agent path (PS-P0-016) is exercised as its own probe. Its cost
 # and provider belong to that request and are recorded separately: reporting a
@@ -47,15 +54,36 @@ generation_instruction="Use only factual claims supported by this evidence brief
 # different request entirely.
 probe="$(post /api/v1/prose/generate "$(jq -nc --arg p "$profile" --arg q "$subject" --arg instruction "$generation_instruction" '{profile_key:$p,query:($q+" "+$instruction),include_candidates:true}')")"
 
-document="$(post /api/v1/prose/documents "$(jq -nc --arg p "$profile" --arg q "$subject" --arg instruction "$generation_instruction" '{document:{title:($q+" "+$instruction),profile_key:$p},sections:[]}')")"
-document="$(jq -c '.document // .' <<<"$document")"
-jq -r '.assembled_text // ""' <<<"$document" > "$work/assembled.txt"
+# The scenario side is sampled, not drawn once. A single document is one draw
+# from a stochastic writer: the same configuration produced argument scores of
+# 5 and then 3 on consecutive runs, which is larger than most of the effects
+# this eval is asked to detect.
+scenario_samples="$(jq -r '.samples.scenario // 3' "$spec")"
+documents='[]'
+for ((sample = 1; sample <= scenario_samples; sample++)); do
+  doc="$(post /api/v1/prose/documents "$(jq -nc --arg p "$profile" --arg q "$subject" --arg instruction "$generation_instruction" --argjson artifacts "$(jq -c '[.evidence_artifacts[]?.value]' "$spec")" '{document:{title:($q+" "+$instruction),profile_key:$p,artifacts:$artifacts},sections:[]}')")"
+  doc="$(jq -c '.document // .' <<<"$doc")"
+  jq -r '.assembled_text // ""' <<<"$doc" > "$work/scenario-$sample.txt"
+  documents="$(jq -c --argjson d "$doc" '. + [$d]' <<<"$documents")"
+  printf 'scenario sample %s: %s words\n' "$sample" "$(wc -w < "$work/scenario-$sample.txt")" >&2
+done
+document="$(jq -c '.[0]' <<<"$documents")"
+cp "$work/scenario-1.txt" "$work/assembled.txt"
 cp "$evidence_path" "$work/evidence.txt"
+
+# The control set is read from disk, never regenerated here, so the comparison
+# target is identical across runs even though both sides are now distributions.
+mapfile -t baseline_paths < <(cd "$root" && ls $(jq -r '.baseline_glob' "$spec") 2>/dev/null | sed "s|^|$root/|")
+if (( ${#baseline_paths[@]} == 0 )); then
+  echo "no baseline drafts matched $(jq -r '.baseline_glob' "$spec")" >&2
+  echo "Generate them with AI_GATEWAY_URL=... evals/make-baseline.sh" >&2
+  exit 2
+fi
 
 # ---------------------------------------------------------------------------
 # Independent measurement. Nothing below imports the service's textmetrics.
 # ---------------------------------------------------------------------------
-python3 - "$work/assembled.txt" "$work/evidence.txt" "$spec" > "$work/measurements.json" <<'PY'
+measure_one() { python3 - "$1" "$work/evidence.txt" "$spec" <<'PY'
 import json, re, sys, itertools
 
 text = open(sys.argv[1], encoding="utf-8").read()
@@ -88,8 +116,20 @@ for i, j in itertools.combinations(range(len(paragraphs)), 2):
 def numbers(s):
     return set(re.findall(r"\d+(?:\.\d+)?", s))
 
-evidence_numbers = numbers(evidence)
-unsupported_numbers = sorted(numbers(text) - evidence_numbers)
+# Artifacts widen what counts as grounded. A version number or flag that only
+# exists in a declared command was previously indistinguishable from a
+# fabricated metric, so the grounding gate and the concreteness goal pulled in
+# opposite directions and abstraction was the only way to satisfy both.
+artifacts = [a["value"] for a in spec.get("evidence_artifacts", [])]
+grounded_numbers = numbers(evidence) | numbers(" ".join(artifacts))
+unsupported_numbers = sorted(numbers(text) - grounded_numbers)
+
+# Distinct artifacts that reached the article. Counted distinctly on purpose:
+# repeating one command does not make prose more concrete, and counting
+# occurrences would report that it does.
+lowered_text = text.lower()
+artifacts_used = [a for a in artifacts if a.lower() in lowered_text]
+artifacts_missing = [a for a in artifacts if a.lower() not in lowered_text]
 
 # Coverage runs from the declared evidence claims to the article, not from the
 # article back to itself. A claim counts as present when most of its
@@ -124,6 +164,24 @@ for claim in spec.get("evidence_claims", []):
         "span": best_span,
     })
 
+# Adjacent novelty: the share of a paragraph's content words that did not
+# appear in the paragraph before it. The service now gates the same phenomenon
+# at section granularity with its own implementation; this measures it at
+# paragraph granularity with a different stop list, so agreement between them
+# is evidence and not an artefact of shared code. Low novelty means the text
+# moved on to nothing, which is invisible to the duplication measure above --
+# a paragraph that re-argues its predecessor in fresh words scores near zero
+# on Jaccard overlap and near zero here, for opposite reasons.
+novelty_stop = stop | set(words("we our you your they their be been being by from at can will would could has have had than then so such those these there here what which who when where how all any both each more most other some only own same too very just"))
+def content_terms(s):
+    return {w for w in words(s) if len(w) > 2 and w not in novelty_stop}
+
+adjacent_novelty = []
+for i in range(1, len(paragraphs)):
+    current = content_terms(paragraphs[i])
+    prior = content_terms(paragraphs[i - 1])
+    adjacent_novelty.append(round(len(current - prior) / len(current), 4) if current else 0.0)
+
 required = spec["mechanical_gates"].get("required_claim_terms", [])
 lowered = text.lower()
 
@@ -133,6 +191,13 @@ json.dump({
     "paragraph_count": len(paragraphs),
     "max_paragraph_duplication": round(max_dup, 4),
     "most_duplicated_pair": dup_pair,
+    "artifacts_declared": len(artifacts),
+    "artifacts_used": artifacts_used,
+    "artifacts_missing": artifacts_missing,
+    "distinct_artifacts_used": len(artifacts_used),
+    "adjacent_paragraph_novelty": adjacent_novelty,
+    "min_adjacent_novelty": round(min(adjacent_novelty), 4) if adjacent_novelty else 1.0,
+    "median_adjacent_novelty": round(sorted(adjacent_novelty)[len(adjacent_novelty) // 2], 4) if adjacent_novelty else 1.0,
     "unsupported_numbers": unsupported_numbers,
     "required_terms_present": {term: (term.lower() in lowered) for term in required},
     "evidence_claims": claim_hits,
@@ -140,7 +205,29 @@ json.dump({
     "basis": "independent measurement in evals/run-blog.sh; shares no implementation with packages/textmetrics",
 }, sys.stdout, indent=2)
 PY
-measurements="$(cat "$work/measurements.json")"
+}
+
+# Every sampled document is measured, and the gates below read the worst value
+# across the set rather than the first document's. Sampling the scenario side
+# while gating only one of its samples would have quietly loosened every
+# deterministic gate in this file.
+sample_measurements='[]'
+for ((sample = 1; sample <= scenario_samples; sample++)); do
+  sample_measurements="$(jq -c --argjson m "$(measure_one "$work/scenario-$sample.txt")" '. + [$m]' <<<"$sample_measurements")"
+done
+measurements="$(jq -c '{
+  samples: .,
+  word_count: ([.[].word_count] | min),
+  sentence_count: ([.[].sentence_count] | min),
+  max_paragraph_duplication: ([.[].max_paragraph_duplication] | max),
+  min_adjacent_novelty: ([.[].min_adjacent_novelty] | min),
+  distinct_artifacts_used: ([.[].distinct_artifacts_used] | min),
+  evidence_claim_coverage: ([.[].evidence_claim_coverage] | min),
+  unsupported_numbers: ([.[].unsupported_numbers[]] | unique),
+  required_terms_present: (map(.required_terms_present) | add // {}),
+  worst_word_count_max: ([.[].word_count] | max),
+  basis: "worst value across sampled scenario documents; per-document values retained under samples"
+}' <<<"$sample_measurements")"
 
 # ---------------------------------------------------------------------------
 # Content Desk remains the claim authority for the declared evidence claims.
@@ -183,49 +270,162 @@ fi
 # selection, which stays mechanical.
 # ---------------------------------------------------------------------------
 blind_status="skipped"
-blind_verdict="null"
-blind_rationale=""
-blind_label_a="baseline"
-blind_label_b="scenario"
+blind_scores='[]'
+blind_scoring='{}'
+blind_scenario_wins=0
+blind_baseline_wins=0
+blind_calibrated=0
+judge_provider=""
+judge_model=""
+baseline_shas="$(for b in "${baseline_paths[@]}"; do sha256sum "$b" | cut -d' ' -f1; done | jq -R . | jq -sc .)"
 if [[ "$(jq -r '.mechanical_gates.blind_comparison_required // false' "$spec")" == "true" ]]; then
   gateway="${AI_GATEWAY_URL:-}"
+  for b in "${baseline_paths[@]}"; do
+    # The control must be a separate artifact from the brief. When these were
+    # the same file the judge was asked to prefer a 1000-word article over the
+    # 182-word summary it had been expanded from.
+    if [[ "$(readlink -f "$b")" == "$(readlink -f "$evidence_path")" ]]; then
+      echo "a baseline draft resolves to the evidence source: $b" >&2
+      exit 2
+    fi
+    [[ -s "$b" ]] || { echo "baseline draft is empty: $b" >&2; exit 2; }
+  done
   if [[ -z "$gateway" ]]; then
     blind_status="unavailable_no_gateway"
   else
-    # Order is decided by the run stamp so a reader can reproduce which text was
-    # which, while the judge sees no authorship signal.
-    if (( $(printf '%s' "$stamp" | cksum | cut -d' ' -f1) % 2 == 0 )); then
-      blind_label_a="scenario"; blind_label_b="baseline"
-      a_text="$(cat "$work/assembled.txt")"; b_text="$(cat "$evidence_path")"
+    # Calibration anchor, derived from the first scenario sample: same topic,
+    # vocabulary, register and length, with nothing to say after two paragraphs.
+    python3 - "$work/scenario-1.txt" > "$work/degraded.txt" <<'PYDEG'
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+target = len(re.findall(r"[A-Za-z0-9']+", text))
+seed = paragraphs[:2] or paragraphs
+out, total, i = [], 0, 0
+while total < target and seed:
+    p = seed[i % len(seed)]
+    out.append(p)
+    total += len(re.findall(r"[A-Za-z0-9']+", p))
+    i += 1
+sys.stdout.write("\n\n".join(out))
+PYDEG
+
+    score_schema='{"type":"object","properties":{"score":{"type":"string","enum":["1","2","3","4","5"]},"quote":{"type":"string"},"rationale":{"type":"string"}},"required":["score","quote","rationale"]}'
+    trial_failures=0
+
+    score_one() { # rubric_key instruction subject_key text_file
+      local rubric_key="$1" instruction="$2" subject_key="$3" file="$4"
+      local request response value score quote rationale
+      request="$(jq -nc --arg a "$(cat "$file")" --arg schema "$score_schema" --arg instruction "$instruction" '{source:("ARTICLE:\n"+$a),schemaJson:$schema,instruction:$instruction,role:"judge.default",profile:"PROFILE_REMOTE_ONLY",maxOutputTokens:1024}')"
+      response="$(curl --fail-with-body --silent --show-error -X POST "$gateway/vrooli.ai_gateway.v1.inference.InferenceService/Run" -H 'content-type: application/json' -d "$request" || echo '{}')"
+      [[ -z "$judge_provider" ]] && judge_provider="$(jq -r '.provider // ""' <<<"$response")"
+      [[ -z "$judge_model" ]] && judge_model="$(jq -r '.model // ""' <<<"$response")"
+      value="$(jq -r '.valueJson // .value_json // ""' <<<"$response")"
+      score="null"; quote=""; rationale=""
+      if [[ -n "$value" && "$value" != "null" ]]; then
+        score="$(jq -r '.score // "null"' <<<"$value" 2>/dev/null || echo null)"
+        quote="$(jq -r '.quote // ""' <<<"$value" 2>/dev/null || echo "")"
+        rationale="$(jq -r '.rationale // ""' <<<"$value" 2>/dev/null || echo "")"
+      fi
+      [[ "$score" == "null" || -z "$score" ]] && { score="null"; trial_failures=$(( trial_failures + 1 )); }
+      blind_scores="$(jq -c --arg r "$rubric_key" --arg s "$subject_key" --arg f "$(basename "$file")" \
+        --argjson sc "$score" --arg q "$quote" --arg ra "$rationale" \
+        '. + [{rubric:$r,side:$s,source:$f,score:$sc,quote:(if $q=="" then null else $q end),rationale:(if $ra=="" then null else $ra end)}]' \
+        <<<"$blind_scores")"
+    }
+
+    while read -r rubric_json; do
+      rubric_key="$(jq -r '.key' <<<"$rubric_json")"
+      question="$(jq -r '.question' <<<"$rubric_json")"
+      levels="$(jq -r '.levels | to_entries | sort_by(.key) | reverse | map("Level \(.key): \(.value)") | join(" ")' <<<"$rubric_json")"
+      score_instruction="Score this one article against a fixed rubric. $question $levels Quote one short passage from the article that justifies the level you choose, then give a one-sentence rationale. Judge only the article in front of you."
+      for ((sample = 1; sample <= scenario_samples; sample++)); do
+        score_one "$rubric_key" "$score_instruction" scenario "$work/scenario-$sample.txt"
+      done
+      for b in "${baseline_paths[@]}"; do
+        score_one "$rubric_key" "$score_instruction" baseline "$b"
+      done
+      score_one "$rubric_key" "$score_instruction" degraded "$work/degraded.txt"
+    done < <(jq -c '.judge_protocol.rubrics[]' "$spec")
+
+    if (( trial_failures > 0 )); then
+      blind_status="partial_${trial_failures}_scores_unavailable"
     else
-      a_text="$(cat "$evidence_path")"; b_text="$(cat "$work/assembled.txt")"
-    fi
-    # additionalProperties, like minItems, is outside the gateway's enforceable
-    # schema subset and is refused rather than ignored.
-    schema='{"type":"object","properties":{"winner":{"type":"string","enum":["A","B","tie"]},"rationale":{"type":"string"}},"required":["winner","rationale"]}'
-    instruction='You are comparing two articles on the same subject. Decide which reads as the better article for a technical audience: which one argues something, progresses rather than restating itself, and is concrete. Ignore length and formatting differences. Answer with the winning label and a one-sentence rationale.'
-    blind_request="$(jq -nc --arg a "$a_text" --arg b "$b_text" --arg schema "$schema" --arg instruction "$instruction" '{source:("ARTICLE A:\n"+$a+"\n\nARTICLE B:\n"+$b),schemaJson:$schema,instruction:$instruction,role:"judge.default",profile:"PROFILE_REMOTE_ONLY",maxOutputTokens:512}')"
-    blind_response="$(curl --fail-with-body --silent --show-error -X POST "$gateway/vrooli.ai_gateway.v1.inference.InferenceService/Run" -H 'content-type: application/json' -d "$blind_request" || echo '{}')"
-    blind_value="$(jq -r '.valueJson // .value_json // ""' <<<"$blind_response")"
-    if [[ -n "$blind_value" && "$blind_value" != "null" ]]; then
-      winner="$(jq -r '.winner // ""' <<<"$blind_value")"
-      blind_rationale="$(jq -r '.rationale // ""' <<<"$blind_value")"
-      case "$winner" in
-        A) blind_verdict="\"$blind_label_a\"" ;;
-        B) blind_verdict="\"$blind_label_b\"" ;;
-        tie) blind_verdict='"tie"' ;;
-        *) blind_verdict="null" ;;
-      esac
       blind_status="judged"
-    else
-      blind_status="unavailable_no_verdict"
     fi
   fi
 fi
 
-coherence="$(jq -c '.coherence // {}' <<<"$document")"
-provenance="$(jq -c '.document_provenance // {}' <<<"$document")"
-section_count="$(jq '(.outline // []) | length' <<<"$document")"
+# Aggregation over pairs rather than over averages. A 1-5 rubric score has no
+# meaningful mean, and a median would discard the spread that made single-sample
+# results untrustworthy. Every scenario document is compared with every baseline
+# draft; the rubric goes to whichever side wins more of those pairs.
+blind_scoring="$(python3 - "$blind_scores" <<'PYAGG'
+import json, sys
+rows = json.loads(sys.argv[1])
+rubrics, out = {}, []
+for r in rows:
+    rubrics.setdefault(r["rubric"], {"scenario": [], "baseline": [], "degraded": []})
+    if r["score"] is not None:
+        rubrics[r["rubric"]][r["side"]].append(int(r["score"]))
+scenario_rubrics = baseline_rubrics = tied_rubrics = 0
+calibrated_names, uncalibrated_names = [], []
+for name, sides in rubrics.items():
+    scen, base, deg = sides["scenario"], sides["baseline"], sides["degraded"]
+    best = max(scen + base) if (scen or base) else None
+    calibrated = bool(deg) and best is not None and max(deg) < best
+    wins = sum(1 for a in scen for b in base if a > b)
+    losses = sum(1 for a in scen for b in base if a < b)
+    ties = sum(1 for a in scen for b in base if a == b)
+    winner = "scenario" if wins > losses else "baseline" if losses > wins else "tie"
+    if calibrated:
+        calibrated_names.append(name)
+        if winner == "scenario": scenario_rubrics += 1
+        elif winner == "baseline": baseline_rubrics += 1
+        else: tied_rubrics += 1
+    else:
+        uncalibrated_names.append(name)
+    out.append({
+        "rubric": name, "calibrated": calibrated, "winner": winner,
+        "scenario_scores": sorted(scen), "baseline_scores": sorted(base), "degraded_scores": sorted(deg),
+        "pair_wins": wins, "pair_losses": losses, "pair_ties": ties,
+        "scenario_spread": (max(scen) - min(scen)) if scen else None,
+        "baseline_spread": (max(base) - min(base)) if base else None,
+    })
+json.dump({
+    "per_rubric": out,
+    "calibrated_rubrics": calibrated_names,
+    "uncalibrated_rubrics": uncalibrated_names,
+    "scenario_wins": scenario_rubrics,
+    "baseline_wins": baseline_rubrics,
+    "ties": tied_rubrics,
+    "basis": "all-pairs win count per rubric over sampled documents; calibrated rubrics only",
+}, sys.stdout)
+PYAGG
+)"
+blind_scenario_wins="$(jq -r '.scenario_wins' <<<"$blind_scoring")"
+blind_baseline_wins="$(jq -r '.baseline_wins' <<<"$blind_scoring")"
+blind_calibrated="$(jq -r '.calibrated_rubrics | length' <<<"$blind_scoring")"
+
+# Coherence and section count are taken at their worst across the sampled set,
+# for the same reason the text measurements are: reporting the first document's
+# numbers while three were generated would describe a sample, not the run.
+coherence="$(jq -c '{
+  semantic_measured: (map(.coherence.semantic_measured // false) | all),
+  semantic_section_repetition: ([.[].coherence.semantic_section_repetition // 1] | max),
+  cross_section_repetition: ([.[].coherence.cross_section_repetition // 0] | max),
+  verdict: {coherent: (map(.coherence.verdict.coherent // false) | all)},
+  per_sample: map(.coherence // {}),
+  basis: "worst value across sampled scenario documents"
+}' <<<"$documents")"
+provenance="$(jq -c '{
+  per_sample: map(.document_provenance // {}),
+  total_cost_micros: ([.[].document_provenance.total_cost_micros // 0] | add),
+  providers: ([.[].document_provenance.providers[]?] | unique),
+  models: ([.[].document_provenance.models[]?] | unique)
+}' <<<"$documents")"
+section_count="$(jq '[.[] | (.outline // []) | length] | min' <<<"$documents")"
+section_count_max="$(jq '[.[] | (.outline // []) | length] | max' <<<"$documents")"
 
 gates="$(jq -nc \
   --argjson spec "$(jq '.mechanical_gates' "$spec")" \
@@ -233,31 +433,36 @@ gates="$(jq -nc \
   --argjson m "$measurements" \
   --argjson coherence "$coherence" \
   --argjson sections "$section_count" \
+  --argjson sections_max "$section_count_max" \
   --arg blind_status "$blind_status" \
-  --argjson blind_verdict "$blind_verdict" \
-  --arg scenario_label "scenario" '
+  --argjson blind_scenario_wins "$blind_scenario_wins" \
+  --argjson blind_baseline_wins "$blind_baseline_wins" \
+  --argjson blind_calibrated "$blind_calibrated" '
 {
-  word_count: ($m.word_count >= $spec.min_words and $m.word_count <= $spec.max_words),
+  word_count: ($m.word_count >= $spec.min_words and $m.worst_word_count_max <= $spec.max_words),
   sentence_count: ($m.sentence_count >= $spec.min_sentences),
-  section_count: ($sections >= $range[0] and $sections <= $range[1]),
+  section_count: ($sections >= $range[0] and $sections_max <= $range[1]),
   paragraph_duplication: ($m.max_paragraph_duplication <= $spec.max_paragraph_duplication),
-  required_claim_terms: (([$m.required_terms_present[] | select(. == false)] | length) == 0),
+  adjacent_paragraph_novelty: ($m.min_adjacent_novelty >= $spec.min_adjacent_paragraph_novelty),
+  distinct_artifacts_used: ($m.distinct_artifacts_used >= $spec.min_distinct_artifacts_used),
+  required_claim_terms: (([$m.samples[].required_terms_present[] | select(. == false)] | length) == 0),
   evidence_grounding: (($m.unsupported_numbers | length) == 0),
   evidence_claim_coverage: ($m.evidence_claim_coverage >= 1.0),
   semantic_measured: (($coherence.semantic_measured // false) == true),
   semantic_section_repetition: (($coherence.semantic_measured // false) == true and ($coherence.semantic_section_repetition // 1) <= $spec.max_semantic_section_repetition),
   coherence: ($coherence.verdict.coherent // false),
-  blind_comparison: ($blind_status == "judged" and ($blind_verdict == $scenario_label or $blind_verdict == "tie"))
+  blind_judge_calibrated: ($blind_status == "judged" and $blind_calibrated > 0),
+  blind_comparison: ($blind_status == "judged" and $blind_calibrated > 0 and $blind_scenario_wins > $blind_baseline_wins)
 }')"
 passed="$(jq -r '[to_entries[] | select(.value == false)] | length == 0' <<<"$gates")"
 
 jq -n \
-  --arg generated "$(cat "$work/assembled.txt")" \
-  --arg baseline "$(cat "$root/$(jq -r '.baseline' "$spec")")" \
+  --argjson generated_texts "$(for ((i=1;i<=scenario_samples;i++)); do jq -Rs . < "$work/scenario-$i.txt"; done | jq -sc .)" \
+  --argjson baseline_texts "$(for b in "${baseline_paths[@]}"; do jq -Rs . < "$b"; done | jq -sc .)" \
+  --argjson documents "$documents" \
   --arg evidence_source "$evidence_path" \
   --arg draft_id "$draft_id" \
   --argjson probe "$probe" \
-  --argjson document "$document" \
   --argjson provenance "$provenance" \
   --argjson measurements "$measurements" \
   --argjson claim_coverage "$claim_coverage" \
@@ -265,27 +470,36 @@ jq -n \
   --argjson passed "$passed" \
   --arg run_id "$stamp" \
   --arg blind_status "$blind_status" \
-  --argjson blind_verdict "$blind_verdict" \
-  --arg blind_rationale "$blind_rationale" \
-  --arg blind_label_a "$blind_label_a" \
-  --arg blind_label_b "$blind_label_b" '
+  --argjson blind_scoring "$blind_scoring" \
+  --argjson blind_scores "$blind_scores" \
+  --arg judge_provider "$judge_provider" \
+  --arg judge_model "$judge_model" \
+  --argjson baseline_shas "$baseline_shas" \
+  --argjson scenario_samples "$scenario_samples" \
+  --arg baseline_glob "$(jq -r '.baseline_glob' "$spec")" '
 {
   run_id: $run_id,
   passed: $passed,
   gates: $gates,
   measurements: $measurements,
-  generated_text: $generated,
-  baseline_text: $baseline,
+  generated_texts: $generated_texts,
+  baseline_texts: $baseline_texts,
   evidence_source: $evidence_source,
   content_desk_draft_id: $draft_id,
-  document: $document,
+  documents: $documents,
+  coherence: $coherence,
   document_provenance: $provenance,
   claim_coverage: $claim_coverage,
   blind_comparison: {
     status: $blind_status,
-    verdict: $blind_verdict,
-    rationale: (if $blind_rationale == "" then null else $blind_rationale end),
-    labels: {A: $blind_label_a, B: $blind_label_b}
+    control: "unaided agent: same model, same brief, same artifacts, one call per draft, none of the machinery",
+    baseline_glob: $baseline_glob,
+    baseline_sha256s: $baseline_shas,
+    scenario_samples: $scenario_samples,
+    judge: {provider: $judge_provider, model: $judge_model, temperature: 0, basis: "role judge.default; fixed temperature makes repeated identical requests redundant, which is why the sampling is of documents rather than of judgements"},
+    tally_basis: "Both sides are sampled and compared over every scenario-baseline pair per rubric. A rubric counts only when the judge scored the restatement-maximal anchor below the better of the two sides on it. Single-sample comparison was retired after the same configuration produced argument scores of 5 and 3 on consecutive runs.",
+    scoring: $blind_scoring,
+    scores: $blind_scores
   },
   single_call_probe: {
     round: $probe.round,

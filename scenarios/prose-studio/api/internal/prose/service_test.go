@@ -119,14 +119,14 @@ func TestFeasibilityRefusesOversizedProfile(t *testing.T) {
 
 func TestGateEnforcesReadingGrade(t *testing.T) {
 	measurement := textmetrics.Analyze("A very long sentence with many words that should produce a measurable reading grade for this constraint.", nil)
-	result := gate(measurement, Constraints{MaxGrade: 1}, "A very long sentence with many words that should produce a measurable reading grade for this constraint.")
+	result := gate(measurement, Constraints{MaxGrade: 1}, "A very long sentence with many words that should produce a measurable reading grade for this constraint.", gateInputs{})
 	require.False(t, result.Eligible)
 	require.Contains(t, result.Reason, "max_grade")
 }
 
 func TestGateEnforcesRequiredFormat(t *testing.T) {
 	measurement := textmetrics.Analyze("plain prose", nil)
-	result := gate(measurement, Constraints{RequiredFormat: "bullet_list"}, "plain prose")
+	result := gate(measurement, Constraints{RequiredFormat: "bullet_list"}, "plain prose", gateInputs{})
 	require.False(t, result.Eligible)
 	require.Contains(t, result.Reason, "required_format")
 }
@@ -799,7 +799,7 @@ func TestSectionWordBandGivesAFloorAndACeiling(t *testing.T) {
 
 func TestSectionUndershootIsIneligible(t *testing.T) {
 	metrics := textmetrics.Metrics{WordCount: 120, SentenceCount: 6}
-	eligibility := gate(metrics, Constraints{MinWords: 300, MaxWords: 500}, "some prose")
+	eligibility := gate(metrics, Constraints{MinWords: 300, MaxWords: 500}, "some prose", gateInputs{})
 	require.False(t, eligibility.Eligible)
 	require.Equal(t, "min_words:300", eligibility.Reason)
 }
@@ -1269,4 +1269,88 @@ func TestGetDocumentReturnsTheProseAndItsMeasurements(t *testing.T) {
 	require.ErrorIs(t, err, ErrDocumentIDRequired)
 	_, err = s.GetDocument(ctx, "not-a-document")
 	require.ErrorIs(t, err, ErrDocumentNotFound, "a missing document is not found, not an invalid argument")
+}
+
+func TestGateRejectsSectionThatRestatesItsPredecessor(t *testing.T) {
+	previous := "The runner owns the execution after the command returns. Logs stream to durable storage and the run identifier stays addressable across machines."
+	restated := "Execution is owned by the runner once the command has returned. Durable storage receives streamed logs, and the run identifier remains addressable across machines."
+	advanced := "A colleague inherits the release decision hours later. They reconnect from another workstation, read the persisted evidence, and ship without reconstructing telemetry."
+
+	constraints := Constraints{MinSectionNovelty: 0.6}
+	selection := &SelectionContext{PriorText: []string{previous}}
+
+	rejected := gate(textmetrics.Analyze(restated, nil), constraints, restated, gateInputs{Selection: selection})
+	require.False(t, rejected.Eligible)
+	require.Contains(t, rejected.Reason, "min_section_novelty")
+
+	accepted := gate(textmetrics.Analyze(advanced, nil), constraints, advanced, gateInputs{Selection: selection})
+	require.True(t, accepted.Eligible, "a section on new material must stay eligible: %s", accepted.Reason)
+}
+
+func TestGateSkipsNoveltyWhenThereIsNoPredecessor(t *testing.T) {
+	// An opening section has nothing to repeat. The constraint must not apply
+	// rather than pass, so a document's first section is never gated on a
+	// comparison that does not exist.
+	text := "Durable validation begins where the caller ends."
+	constraints := Constraints{MinSectionNovelty: 0.9}
+	require.True(t, gate(textmetrics.Analyze(text, nil), constraints, text, gateInputs{}).Eligible)
+	require.True(t, gate(textmetrics.Analyze(text, nil), constraints, text, gateInputs{Selection: &SelectionContext{}}).Eligible)
+}
+
+func TestSectionRetryDirectiveNamesTheConstraintThatFailed(t *testing.T) {
+	novelty := []Candidate{{Eligibility: Eligibility{Eligible: false, Reason: "min_section_novelty:0.60:measured:0.31"}}}
+	require.Contains(t, sectionRetryDirective(novelty, 300), "restated the preceding section")
+	require.NotContains(t, sectionRetryDirective(novelty, 300), "Write a longer section")
+
+	short := []Candidate{{Eligibility: Eligibility{Eligible: false, Reason: "min_words:300"}, Measurements: textmetrics.Metrics{WordCount: 120}}}
+	require.Contains(t, sectionRetryDirective(short, 300), "Write a longer section")
+}
+
+func TestSectionProfileCarriesDeclaredNoveltyFloorIntoItsConstraints(t *testing.T) {
+	// The gate itself is covered above. What this covers is the wiring between
+	// the declared coherence threshold and the constraint the gate reads: the
+	// floor is declared on the profile's coherence block, and sections are
+	// gated through Constraints, so a missing assignment between the two
+	// disables the gate everywhere while every other test still passes.
+	profile := Profile{Coherence: CoherenceThresholds{MinSectionNovelty: 0.65}}
+	sectionProfile := profile
+	sectionProfile.Constraints.MinSectionNovelty = sectionProfile.Coherence.MinSectionNovelty
+	require.Equal(t, 0.65, sectionProfile.Constraints.MinSectionNovelty)
+
+	previous := "The runner owns the execution after the command returns. Logs stream to durable storage and the identifier stays addressable."
+	restated := "Execution is owned by the runner once the command returns. Durable storage receives the logs and the identifier remains addressable."
+	result := gate(textmetrics.Analyze(restated, nil), sectionProfile.Constraints, restated, gateInputs{Selection: &SelectionContext{PriorText: []string{previous}}})
+	require.False(t, result.Eligible, "a declared floor must reach the gate that enforces it")
+	require.Contains(t, result.Reason, "min_section_novelty")
+}
+
+func TestGateRejectsProseThatShowsNoDeclaredArtifact(t *testing.T) {
+	artifacts := []string{"test-genie runs wait --json", "vrooli scenario test", "docs/TESTING.md"}
+	constraints := Constraints{MinArtifacts: 2}
+
+	vague := "The operator starts the suite, records the run identifier, and waits once on the server-owned run without holding a terminal open."
+	concrete := "Start the suite with vrooli scenario test, then block exactly once on test-genie runs wait --json rather than polling."
+
+	rejected := gate(textmetrics.Analyze(vague, nil), constraints, vague, gateInputs{Artifacts: artifacts})
+	require.False(t, rejected.Eligible, "prose that only describes the mechanism must not pass a concreteness floor")
+	require.Contains(t, rejected.Reason, "min_artifacts")
+
+	accepted := gate(textmetrics.Analyze(concrete, nil), constraints, concrete, gateInputs{Artifacts: artifacts})
+	require.True(t, accepted.Eligible, "prose quoting two artifacts must pass: %s", accepted.Reason)
+}
+
+func TestGateSkipsArtifactFloorWhenTheBriefDeclaredNone(t *testing.T) {
+	// Failing a passage for quoting nothing when nothing was offered blames the
+	// writer for the brief. The constraint does not apply rather than passing.
+	text := "The operator waits once on the server-owned run."
+	constraints := Constraints{MinArtifacts: 3}
+	require.True(t, gate(textmetrics.Analyze(text, nil), constraints, text, gateInputs{}).Eligible)
+}
+
+func TestSectionRetryDirectiveDistinguishesVaguenessFromRestatement(t *testing.T) {
+	artifactMiss := []Candidate{{Eligibility: Eligibility{Eligible: false, Reason: "min_artifacts:2:measured:0"}}}
+	directive := sectionRetryDirective(artifactMiss, 300)
+	require.Contains(t, directive, "without ever showing it")
+	require.NotContains(t, directive, "restated the preceding section")
+	require.NotContains(t, directive, "Write a longer section")
 }
