@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "confidence": {
     "level": "SKETCH",
-    "rationale": "The ten reliability spaces now exist, but the obligation list they should derive from has not been approved as a separate registry. Bars are therefore resolvable and operator-authored, but the setpoint denominator remains SKETCH.",
+    "rationale": "The eleven reliability spaces exist and every gradeable bar carries a unit, but the obligation list they should derive from has not been approved as a separate registry. Four of the seven original substrate bars were ratified on 2026-08-20 against live host readings (decision 2026-08-20-substrate-ratification-round-1); three remain provisional with stated, specific defects, and five new device-layer bars (decision 2026-08-20-substrate-device-cells) are provisional pending both an operator review and the join their cells need. The setpoint denominator remains SKETCH: confidence is lifted by naming obligations, not by ratifying bars, and the substrate cell set growing from eight to thirteen without a single new sensor is evidence the spaces are still under-declared.",
     "recorded_on": "2026-08-20"
   },
   "constants": {
@@ -22,7 +22,9 @@
       "min": 99.5,
       "sustain": "24h",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-23-round-2"
+      "decision_ref": "2026-07-23-round-2",
+      "unit": "percent",
+      "gradeable": true
     },
     {
       "id": "supervision-alarm-channel-flood",
@@ -32,7 +34,10 @@
       "deadband": "criticalEvents <= 500 / 24h",
       "sustain": "24h",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-23-round-2"
+      "decision_ref": "2026-07-23-round-2",
+      "unit": "critical events / 24h",
+      "max": 500.0,
+      "gradeable": true
     },
     {
       "id": "availability-restart-frequency",
@@ -42,7 +47,9 @@
       "deadband": "target exceeded in fewer than 2 consecutive windows",
       "sustain": "2 windows",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-23-round-2"
+      "decision_ref": "2026-07-23-round-2",
+      "gradeable": false,
+      "not_gradeable_reason": "The deadband states a sustain rule ('fewer than 2 consecutive windows') but no value threshold for restart frequency. The value bar was never authored."
     },
     {
       "id": "availability-cold-start-latency",
@@ -52,7 +59,9 @@
       "deadband": "instrumentation gap until scenario stats provides a durable latency sensor",
       "sustain": "pending telemetry",
       "actuator": "instrumentation-gap",
-      "decision_ref": "2026-07-23-round-2"
+      "decision_ref": "2026-07-23-round-2",
+      "gradeable": false,
+      "not_gradeable_reason": "Open-loop cell: no durable cold-start latency sensor exists, so there is nothing to grade."
     },
     {
       "id": "commissioning-setup-time",
@@ -62,7 +71,10 @@
       "deadband": "<= 15m from make setup to all critical scenarios green",
       "sustain": "one clean-host run",
       "actuator": "instrumentation-gap",
-      "decision_ref": "2026-07-23-round-2"
+      "decision_ref": "2026-07-23-round-2",
+      "unit": "seconds",
+      "max": 900.0,
+      "gradeable": true
     },
     {
       "id": "recovery-heal-success-rate",
@@ -72,7 +84,10 @@
       "deadband": ">= 92% during bootstrap; target 95%",
       "sustain": "30d",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-23-round-2"
+      "decision_ref": "2026-07-23-round-2",
+      "unit": "percent",
+      "min": 92.0,
+      "gradeable": true
     },
     {
       "id": "recovery-heal-loop-incidence",
@@ -82,7 +97,10 @@
       "deadband": "single-scenario, single-day occurrence",
       "sustain": "24h",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-23-round-2"
+      "decision_ref": "2026-07-23-round-2",
+      "unit": "heal-loop occurrences / scenario / day",
+      "max": 1.0,
+      "gradeable": true
     },
     {
       "id": "capacity-claim-coverage",
@@ -92,7 +110,10 @@
       "deadband": "one-off UNCLAIMED; same owner unclaimed across 2+ heartbeats is out of band",
       "sustain": "2 heartbeats",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-23-round-2"
+      "decision_ref": "2026-07-23-round-2",
+      "unit": "owners unclaimed across the sustain window",
+      "max": 0.0,
+      "gradeable": true
     },
     {
       "id": "capacity-declared-observed-drift",
@@ -102,7 +123,10 @@
       "deadband": "reserve <= 2x observed peak, or excursion not sustained >=7d",
       "sustain": "7d",
       "actuator": "runtime-health-finding or reliability-target-update",
-      "decision_ref": "2026-07-23-round-2"
+      "decision_ref": "2026-07-23-round-2",
+      "unit": "reserve / observed peak",
+      "max": 2.0,
+      "gradeable": true
     },
     {
       "id": "supervision-set-coverage",
@@ -112,7 +136,10 @@
       "deadband": "zero unsupervised members of the derived should-be-supervised set",
       "sustain": "one reconcile read",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-24-round-3"
+      "decision_ref": "2026-07-24-round-3",
+      "unit": "unsupervised members",
+      "max": 0.0,
+      "gradeable": true
     },
     {
       "id": "supervision-ghost-checks",
@@ -122,7 +149,10 @@
       "deadband": "zero registered checks point at retired plant elements",
       "sustain": "one reconcile read",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-23-round-2"
+      "decision_ref": "2026-07-23-round-2",
+      "unit": "checks targeting retired elements",
+      "max": 0.0,
+      "gradeable": true
     },
     {
       "id": "supervision-expiring-shelves",
@@ -132,7 +162,10 @@
       "deadband": "every deliberate stop has a reason and a mandatory expiry",
       "sustain": "one shelf read",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-23-round-2"
+      "decision_ref": "2026-07-23-round-2",
+      "unit": "shelves lacking a reason or expiry",
+      "max": 0.0,
+      "gradeable": true
     },
     {
       "id": "attribution-burst-attribution",
@@ -142,7 +175,10 @@
       "deadband": "sustained host CPU/RAM saturation is attributable to an owning scenario or run",
       "sustain": "sustained window",
       "actuator": "instrumentation-gap",
-      "decision_ref": "2026-07-24-round-4"
+      "decision_ref": "2026-07-24-round-4",
+      "unit": "unattributable saturation windows",
+      "max": 0.0,
+      "gradeable": true
     },
     {
       "id": "headroom-device-census",
@@ -152,7 +188,10 @@
       "deadband": "every load-bearing device is represented in the closed census",
       "sustain": "one census read",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-08-03-storage-growth-slope"
+      "decision_ref": "2026-08-03-storage-growth-slope",
+      "unit": "load-bearing devices absent from the census",
+      "max": 0.0,
+      "gradeable": true
     },
     {
       "id": "headroom-storage-growth-slope",
@@ -162,7 +201,10 @@
       "deadband": "measured bytes under a declared ceiling; investigate sustained positive slope or falling coverage",
       "sustain": "sustained positive slope",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-08-03-storage-growth-slope"
+      "decision_ref": "2026-08-03-storage-growth-slope",
+      "unit": "percent of declared ceiling",
+      "max": 100.0,
+      "gradeable": true
     },
     {
       "id": "validation-cost-test-genie",
@@ -172,7 +214,9 @@
       "deadband": "reliable samples only; investigate missing calibration, low cache-hit rate, or net saving <= audit cost",
       "sustain": "7d",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-08-08-test-genie-validation-cost"
+      "decision_ref": "2026-08-08-test-genie-validation-cost",
+      "gradeable": false,
+      "not_gradeable_reason": "The deadband combines calibration freshness, cache-hit rate and net-saving-versus-audit-cost. No single scalar threshold was authored for it."
     },
     {
       "id": "validation-cost-phase-terminality",
@@ -182,7 +226,10 @@
       "deadband": "every declared phase produces a terminal result",
       "sustain": "one catalog read",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-08-08-test-genie-validation-cost"
+      "decision_ref": "2026-08-08-test-genie-validation-cost",
+      "unit": "phases without a terminal result",
+      "max": 0.0,
+      "gradeable": true
     },
     {
       "id": "durability-plan-coverage",
@@ -192,7 +239,10 @@
       "deadband": "every declared backup target is covered by a plan",
       "sustain": "one plan read",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-08-03-storage-growth-slope"
+      "decision_ref": "2026-08-03-storage-growth-slope",
+      "unit": "declared targets without a plan",
+      "max": 0.0,
+      "gradeable": true
     },
     {
       "id": "durability-freshness",
@@ -202,7 +252,9 @@
       "deadband": "backup freshness remains within target",
       "sustain": "one run-history read",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-08-03-storage-growth-slope"
+      "decision_ref": "2026-08-03-storage-growth-slope",
+      "gradeable": false,
+      "not_gradeable_reason": "The deadband defers to a per-target freshness target held by data-backup-manager. No threshold is authored here."
     },
     {
       "id": "agent-throughput-spawn",
@@ -212,7 +264,10 @@
       "deadband": "agent runs spawn successfully",
       "sustain": "one terminal-run read",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-24-round-4"
+      "decision_ref": "2026-07-24-round-4",
+      "unit": "failed spawns",
+      "max": 0.0,
+      "gradeable": true
     },
     {
       "id": "agent-throughput-errors",
@@ -222,7 +277,184 @@
       "deadband": "recurring error patterns are attributable by run class",
       "sustain": "one error-pattern read",
       "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-24-round-4"
+      "decision_ref": "2026-07-24-round-4",
+      "unit": "error patterns not attributable to a run class",
+      "max": 0.0,
+      "gradeable": true
+    },
+    {
+      "id": "substrate-host-kernel-error-signals",
+      "cell_ref": "substrate/SB1",
+      "projection": "substrate",
+      "target_kind": "host-kernel-error-signals",
+      "deadband": "severity 0 (OK); any WARNING or CRITICAL on a contributing check is out of band",
+      "unit": "severity",
+      "max": 0.0,
+      "sustain": "one read",
+      "gradeable": true,
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-20-substrate-ratification-round-1",
+      "ratification_note": "Ratified 2026-08-20. `severity <= 0` is the definitional floor for an ordered-severity cell, not a transcription of the current reading: on the same host and the same read, SB2 graded `CRITICAL` and SB8 graded `WARNING` against this identical bar, so the bar demonstrably discriminates. A Xid, MCE, AER/PCIe, DRM or I/O signal is a latched event, so `sustain: one read` is correct — waiting for a second read only delays a fact that already happened. `runtime-health-finding` is the right actuator: the fault is in the plant."
+    },
+    {
+      "id": "substrate-crash-evidence-readable",
+      "cell_ref": "substrate/SB2",
+      "projection": "substrate",
+      "target_kind": "crash-evidence-readable",
+      "deadband": "severity 0 (OK); any WARNING or CRITICAL on a contributing check is out of band",
+      "unit": "severity",
+      "max": 0.0,
+      "sustain": "one read",
+      "gradeable": true,
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-20-substrate-ratification-round-1",
+      "ratification_note": "Ratified 2026-08-20. Read `CRITICAL` on the ratifying read (`system-panic-evidence`: kernel BUG at fs/iomap captured by kdump), which is the strongest possible evidence that this bar is not set to the current reading and that its excursion is real and actionable. A captured panic is a latched, dated fact, so `sustain: one read` is correct."
+    },
+    {
+      "id": "substrate-machine-check-telemetry",
+      "cell_ref": "substrate/SB3",
+      "projection": "substrate",
+      "target_kind": "machine-check-telemetry",
+      "deadband": "severity 0 (OK); any WARNING or CRITICAL on a contributing check is out of band",
+      "unit": "severity",
+      "max": 0.0,
+      "sustain": "one read",
+      "gradeable": true,
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-20-substrate-provisional",
+      "provisional": true,
+      "provisional_reason": "Not ratified. The contributing check `system-mce-recent` read `WARNING` on 2026-08-20 with the message \"ras-mc-ctl --summary failed: exit status 1\" — an unreadable channel, not a machine-check event. One severity therefore carries both a plant fault and a sensor-channel-integrity fault, and grading it with actuator `runtime-health-finding` files an instrument defect as plant work, which is the axis merge COVERAGE-MODEL.md forbids. Ratify only once the check separates \"no MCEs\" from \"MCE channel unreadable\", or once this cell carries a second bar whose actuator is `instrumentation-gap`."
+    },
+    {
+      "id": "substrate-accelerator-device-usable",
+      "cell_ref": "substrate/SB4",
+      "projection": "substrate",
+      "target_kind": "accelerator-device-usable",
+      "deadband": "severity 0 (OK); any WARNING or CRITICAL on a contributing check is out of band",
+      "unit": "severity",
+      "max": 0.0,
+      "sustain": "one read",
+      "gradeable": true,
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-20-substrate-provisional",
+      "provisional": true,
+      "provisional_reason": "Not ratified. `system-gpu` (device presence and health) and `resource-gpu-access` (claimant access to /dev/nvidiactl) are distinct failure modes collapsed into one worst-of severity, so an unreadable presence probe and a real EPERM on a claimant grade identically. `sustain: one read` is also not defensible for a device that legitimately transitions during a driver reload. The sustain window and whether presence and access get separate bars are operator judgment, not transcription."
+    },
+    {
+      "id": "substrate-kernel-driver-coherence",
+      "cell_ref": "substrate/SB5",
+      "projection": "substrate",
+      "target_kind": "kernel-driver-coherence",
+      "deadband": "severity 0 (OK); any WARNING or CRITICAL on a contributing check is out of band",
+      "unit": "severity",
+      "max": 0.0,
+      "sustain": "one read",
+      "gradeable": true,
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-20-substrate-ratification-round-1",
+      "ratification_note": "Ratified 2026-08-20. Kernel/module inventory drift and driver-binding divergence are discrete, latched divergences between two enumerable sets, not trends, so `severity <= 0` over `one read` is the only sustain that matches the signal. Drift here precedes device-access failures that present as application faults, so `runtime-health-finding` routes it to the layer that can act."
+    },
+    {
+      "id": "substrate-clean-boot",
+      "cell_ref": "substrate/SB7",
+      "projection": "substrate",
+      "target_kind": "clean-boot",
+      "deadband": "severity 0 (OK); any WARNING or CRITICAL on a contributing check is out of band",
+      "unit": "severity",
+      "max": 0.0,
+      "sustain": "one read",
+      "gradeable": true,
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-20-substrate-provisional",
+      "provisional": true,
+      "provisional_reason": "Not ratified. `system-boot-history` read `OK` on 2026-08-20 with the message \"Only the current boot is recorded — no history yet\". The bar therefore grades absence of history as in band, which inverts the rule that a cell without a reading is never rendered as healthy. Ratify once the check reports no-history as `NOT_APPLICABLE` (contributing no severity) or once this bar declares a `NEEDS_BASELINE` path."
+    },
+    {
+      "id": "substrate-watchdog-and-host-capabilities",
+      "cell_ref": "substrate/SB8",
+      "projection": "substrate",
+      "target_kind": "watchdog-and-host-capabilities",
+      "deadband": "severity 0 (OK); any WARNING or CRITICAL on a contributing check is out of band",
+      "unit": "severity",
+      "max": 0.0,
+      "sustain": "one read",
+      "gradeable": true,
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-20-substrate-ratification-round-1",
+      "ratification_note": "Ratified 2026-08-20. Read `WARNING` on the ratifying read (`os-watchdog`: \"Watchdog installed but not enabled\") — a standing, named, operator-actionable cause, so the bar is neither dead nor aspirational. The watchdog is the last line under every other substrate cell, so any degradation of it is out of band by construction and `one read` is the correct sustain."
+    },
+    {
+      "id": "substrate-device-identity",
+      "cell_ref": "substrate/SB9",
+      "projection": "substrate",
+      "target_kind": "device-identity-resolution",
+      "deadband": "every attached device resolves to a vendor, model and bound driver; no numeric-id-only device",
+      "sustain": "one read",
+      "gradeable": false,
+      "not_gradeable_reason": "The sensor degrades to raw numeric ids by design when the PCI/USB id database is absent, so an unidentified-device count measures database completeness as much as host health. The operator has not chosen which of those two the bar grades, and a threshold set before that choice would fire on a missing pci.ids file and call it a hardware fault.",
+      "actuator": "instrumentation-gap",
+      "decision_ref": "2026-08-20-substrate-device-cells",
+      "provisional": true,
+      "provisional_reason": "The cell is IN-REACH: its sensor ships in system-monitor's device graph but this projection does not join it, so the bar grades nothing until the join lands. What an operator review must settle here is scope, not threshold: whether this cell grades the host's hardware or the completeness of the id database used to name it. Those are different questions and only one of them is substrate health."
+    },
+    {
+      "id": "substrate-storage-predictive-health",
+      "cell_ref": "substrate/SB10",
+      "projection": "substrate",
+      "target_kind": "storage-predictive-failure",
+      "deadband": "no storage device reports a SMART pre-fail attribute below its threshold; a blocked or absent SMART read is a gap, never a pass",
+      "unit": "pre-fail attributes below threshold",
+      "max": 0.0,
+      "sustain": "one read",
+      "gradeable": true,
+      "actuator": "instrumentation-gap",
+      "decision_ref": "2026-08-20-substrate-device-cells",
+      "provisional": true,
+      "provisional_reason": "The cell is IN-REACH: its sensor ships in system-monitor's device graph but this projection does not join it, so the bar grades nothing until the join lands. The threshold itself is the least doubtful of the five — a SMART pre-fail attribute below its vendor threshold is a latched, unambiguous, single-read fact. What needs review is the escalation: this is the only substrate cell that can warn before a fault, so routing it to the same actuator as an already-broken device may under-serve it."
+    },
+    {
+      "id": "substrate-thermal-telemetry",
+      "cell_ref": "substrate/SB11",
+      "projection": "substrate",
+      "target_kind": "thermal-telemetry",
+      "deadband": "no thermal sensor sits at or above its critical trip point for the sustain window; an unreadable sensor is a gap, never a pass",
+      "unit": "sensors at or above their critical trip point",
+      "max": 0.0,
+      "sustain": "5m",
+      "gradeable": true,
+      "actuator": "instrumentation-gap",
+      "decision_ref": "2026-08-20-substrate-device-cells",
+      "provisional": true,
+      "provisional_reason": "The cell is IN-REACH: its sensor ships in system-monitor's device graph but this projection does not join it, so the bar grades nothing until the join lands. The 5m sustain is the specific judgment call: a single sample above a trip point is a transient and a host under legitimate sustained load runs hot on purpose. How long a host may sit at its critical trip before that is a finding is an operator decision, not a transcription."
+    },
+    {
+      "id": "substrate-memory-error-telemetry",
+      "cell_ref": "substrate/SB12",
+      "projection": "substrate",
+      "target_kind": "memory-error-telemetry",
+      "deadband": "zero uncorrectable ECC errors; correctable errors are counted and trended but carry no threshold yet. No registered EDAC controller is unmeasurable, never zero errors",
+      "unit": "uncorrectable ECC errors",
+      "max": 0.0,
+      "sustain": "one read",
+      "gradeable": true,
+      "actuator": "instrumentation-gap",
+      "decision_ref": "2026-08-20-substrate-device-cells",
+      "provisional": true,
+      "provisional_reason": "The cell is IN-REACH: its sensor ships in system-monitor's device graph but this projection does not join it, so the bar grades nothing until the join lands. This bar deliberately covers only uncorrectable errors, where zero is the only defensible target. The correctable-error rate is the earlier and more useful warning, and it needs a rate threshold nobody has set — so a DIMM degrading through correctable errors is currently counted and not graded. Ratifying this bar as written would freeze that half-coverage in place."
+    },
+    {
+      "id": "substrate-network-interface-health",
+      "cell_ref": "substrate/SB13",
+      "projection": "substrate",
+      "target_kind": "network-interface-health",
+      "deadband": "every hardware interface carries traffic with no growth in error or drop counters across the window",
+      "sustain": "2 reads",
+      "gradeable": false,
+      "not_gradeable_reason": "The sensor exposes cumulative lifetime counters, not a rate. A long-running host legitimately holds a nonzero rx_errors total, so any threshold on the cumulative value fires forever and grades uptime rather than health. This becomes gradeable when a per-window delta is derived, not before.",
+      "actuator": "instrumentation-gap",
+      "decision_ref": "2026-08-20-substrate-device-cells",
+      "provisional": true,
+      "provisional_reason": "The cell is IN-REACH: its sensor ships in system-monitor's device graph but this projection does not join it, so the bar grades nothing until the join lands. This one additionally cannot be ratified as a value bar at all until the sensor grows a per-window delta; a review that approved it today would be approving a deadband that has no readable quantity behind it."
     }
   ],
   "unmapped": [
@@ -234,8 +466,8 @@
   ],
   "migration": {
     "status": "partial",
-    "source": "docs/infra-health/strategy/RELIABILITY_TARGETS.md",
+    "source": "docs/infra-health/governance/changelog.md — the team's hand-maintained target list, retired and deleted 2026-08-20",
     "note": "Phase-6 space docs now resolve twelve target kinds. Capability availability remains explicitly unmapped pending Gap 11 rather than being assigned to an unrelated owner. The setpoint parser and integrity join must keep this exception visible.",
-    "on_completion": "docs/infra-health/strategy/RELIABILITY_TARGETS.md keeps its operating-model and governance content and points here for the bars; docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md is replaced by the computed open-loop set."
+    "on_completion": "The team plan of record keeps only its operating model and governance and points here for the bars; the hand-maintained gap list is replaced by the computed open-loop set."
   }
 }

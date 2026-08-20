@@ -1,0 +1,402 @@
+package portability
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/vrooli/vrooli/internal/deployability"
+)
+
+// repoRoot walks up from the test's working directory to the repository root,
+// identified by the capability vocabulary the grid is computed against. It is
+// resolved rather than hard-coded so the tests keep working if the scenario
+// moves in the tree.
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if _, statErr := os.Stat(filepath.Join(dir, ".vrooli", "capability-vocabulary.json")); statErr == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("no repository root with .vrooli/capability-vocabulary.json was found above the test directory")
+		}
+		dir = parent
+	}
+}
+
+func liveReader(t *testing.T) *Reader {
+	t.Helper()
+	reader, err := NewReader(repoRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return reader
+}
+
+func liveGrid(t *testing.T) Grid {
+	t.Helper()
+	grid, err := liveReader(t).Grid(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return grid
+}
+
+func TestGridCoversEveryVocabularyCapabilityOnEveryHostOS(t *testing.T) {
+	reader := liveReader(t)
+	vocabulary, err := reader.Vocabulary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	grid, err := reader.Grid(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(grid.Capabilities) == 0 {
+		t.Fatal("grid is empty")
+	}
+	if len(grid.Capabilities) != len(vocabulary.Capabilities) {
+		t.Fatalf("grid has %d rows for %d vocabulary capabilities", len(grid.Capabilities), len(vocabulary.Capabilities))
+	}
+	for _, entry := range grid.Capabilities {
+		if len(entry.Platforms) != len(operatingSystems) {
+			t.Fatalf("%s has %d platform entries, want %d", entry.Capability, len(entry.Platforms), len(operatingSystems))
+		}
+		for _, hostOS := range operatingSystems {
+			if _, ok := entry.Platform(hostOS); !ok {
+				t.Fatalf("%s has no entry for %s", entry.Capability, hostOS)
+			}
+		}
+	}
+	if grid.ManifestRoot != repoRoot(t) {
+		t.Fatalf("grid reports manifest root %q, want %q", grid.ManifestRoot, repoRoot(t))
+	}
+	if grid.ManifestsRead == 0 {
+		t.Fatal("grid reports zero manifests read; the readout would be vacuous")
+	}
+	if grid.ComputedAt.IsZero() {
+		t.Fatal("grid carries no computed_at")
+	}
+}
+
+func TestGridClassifiesAllFourCapabilitySituations(t *testing.T) {
+	grid := liveGrid(t)
+	seen := map[CapabilitySituation]bool{}
+	for _, entry := range grid.Capabilities {
+		seen[entry.Situation] = true
+	}
+	for _, situation := range Situations() {
+		if !seen[situation] {
+			t.Errorf("grid did not classify any capability as %s", situation)
+		}
+	}
+}
+
+func TestGridNeverEmitsAnInvalidPlatformStatus(t *testing.T) {
+	grid := liveGrid(t)
+	for _, entry := range grid.Capabilities {
+		for _, platform := range entry.Platforms {
+			if platform.Status == deployability.CapabilityStatusInvalid {
+				t.Errorf("%s/%s resolved to an invalid platform status: %s", entry.Capability, platform.HostOS, platform.Reason)
+			}
+			if platform.Qualification == "" {
+				t.Errorf("%s/%s carries no honesty qualification", entry.Capability, platform.HostOS)
+			}
+			if platform.QualificationReason == "" {
+				t.Errorf("%s/%s carries no qualification reason", entry.Capability, platform.HostOS)
+			}
+			if platform.HasImplementation != platform.Status.HasImplementation() {
+				t.Errorf("%s/%s reports has_implementation=%v for status %s", entry.Capability, platform.HostOS, platform.HasImplementation, platform.Status)
+			}
+		}
+	}
+}
+
+// TestBuildVerifiedDeclarationsAreNotReportedUnwired drives the grid over the
+// real repository manifests. system-monitor declares build-verified macOS and
+// Windows collectors backed by real darwin and windows code; the grid must not
+// call that "no implementation is declared".
+func TestBuildVerifiedDeclarationsAreNotReportedUnwired(t *testing.T) {
+	grid := liveGrid(t)
+	buildVerified := 0
+	for _, entry := range grid.Capabilities {
+		for _, platform := range entry.Platforms {
+			if platform.Qualification != deployability.QualificationBuildVerified {
+				continue
+			}
+			buildVerified++
+			if platform.Status == deployability.CapabilityUnwired {
+				t.Errorf("%s/%s is build-verified but reported unwired", entry.Capability, platform.HostOS)
+			}
+			if !platform.Status.HasImplementation() {
+				t.Errorf("%s/%s is build-verified but reports no implementation: %+v", entry.Capability, platform.HostOS, platform)
+			}
+			if platform.Implementer == "" {
+				t.Errorf("%s/%s is build-verified but names no implementer", entry.Capability, platform.HostOS)
+			}
+		}
+	}
+	if buildVerified == 0 {
+		t.Fatal("no build-verified declaration resolved; the repository census says there are twelve")
+	}
+}
+
+// TestRepoManifestPlatformStatusContract is the repository gate: a tool.json,
+// safeguard.json or service.json authoring a platform status outside the
+// vocabulary fails this scenario's standard test run without anyone invoking
+// a CLI verb.
+func TestRepoManifestPlatformStatusContract(t *testing.T) {
+	reader := liveReader(t)
+	vocabulary, err := reader.Vocabulary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifests, err := reader.CapabilityManifests()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifests) == 0 {
+		t.Fatal("no capability manifests were discovered; the gate would pass vacuously")
+	}
+	if err := deployability.ValidateManifestDeclarations(manifestDeclarations(manifests), vocabulary.Capabilities); err != nil {
+		t.Fatalf("repository capability manifests violate the platform status contract: %v", err)
+	}
+}
+
+func TestRepoManifestGateNamesTheOffendingFileAndToken(t *testing.T) {
+	declarations := []deployability.ManifestDeclaration{{
+		Path: "internal/tools/git/tool.json", Name: "git", Capability: "source-control", Role: "primary",
+		Platforms: map[string]deployability.PlatformDeclaration{"macos": {Status: "available"}},
+	}}
+	err := deployability.ValidateManifestDeclarations(declarations, []string{"source-control"})
+	if err == nil {
+		t.Fatal("the gate accepted a platform status outside the vocabulary")
+	}
+	for _, fragment := range []string{"internal/tools/git/tool.json", "available", "macos"} {
+		if !strings.Contains(err.Error(), fragment) {
+			t.Fatalf("gate error %q does not name %q", err, fragment)
+		}
+	}
+}
+
+// TestEveryPlatformStatusResolvesThroughTheGrid drives one fixture manifest
+// per vocabulary token through the whole grid and pins the (status,
+// qualification) pair each token lands on.
+//
+// The pairs are asserted individually rather than merely for distinctness,
+// because two tokens deliberately share one outcome: `experimental` and
+// `unqualified` both mean "wired, unproven" and the platform status vocabulary
+// maps both onto QualificationUnqualified. A distinctness assertion would fail
+// on that intentional synonym while saying nothing about the token this test
+// exists for — `build-verified`, which must resolve as an implementation like
+// `supported` does, carry a strictly lower honesty rung than it, and never
+// collapse into `unwired`.
+func TestEveryPlatformStatusResolvesThroughTheGrid(t *testing.T) {
+	type outcome struct {
+		status        deployability.CapabilityResolutionStatus
+		qualification deployability.Qualification
+	}
+	want := map[deployability.PlatformStatus]outcome{
+		deployability.StatusSupported:     {deployability.CapabilityImplemented, deployability.QualificationQualified},
+		deployability.StatusBuildVerified: {deployability.CapabilityImplemented, deployability.QualificationBuildVerified},
+		deployability.StatusExperimental:  {deployability.CapabilityImplemented, deployability.QualificationUnqualified},
+		deployability.StatusUnqualified:   {deployability.CapabilityImplemented, deployability.QualificationUnqualified},
+		deployability.StatusPartial:       {deployability.CapabilityDegraded, deployability.QualificationDegraded},
+		deployability.StatusUnsupported:   {deployability.CapabilityIneligible, deployability.QualificationIneligible},
+	}
+	if len(want) != len(deployability.PlatformStatuses()) {
+		t.Fatalf("the expectation table covers %d tokens; the vocabulary has %d", len(want), len(deployability.PlatformStatuses()))
+	}
+
+	got := make(map[deployability.PlatformStatus]outcome, len(want))
+	for _, status := range deployability.PlatformStatuses() {
+		root := t.TempDir()
+		writeVocabulary(t, root, []string{"probe"}, nil)
+		writeToolFixture(t, root, "probe-tool", "probe", map[string]string{"linux": string(status)})
+		reader, err := NewReader(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		grid, err := reader.Grid(time.Now())
+		if err != nil {
+			t.Fatalf("%s: %v", status, err)
+		}
+		entry, ok := grid.Capability("probe")
+		if !ok {
+			t.Fatalf("%s: capability probe is missing from the grid", status)
+		}
+		platform, ok := entry.Platform(deployability.HostOSLinux)
+		if !ok {
+			t.Fatalf("%s: capability probe has no linux entry", status)
+		}
+		result := outcome{status: platform.Status, qualification: platform.Qualification}
+		if result != want[status] {
+			t.Errorf("platform status %s resolved %+v, want %+v", status, result, want[status])
+		}
+		got[status] = result
+	}
+
+	buildVerified := got[deployability.StatusBuildVerified]
+	supported := got[deployability.StatusSupported]
+	if !buildVerified.status.HasImplementation() {
+		t.Errorf("build-verified resolved to %s, which reports no implementation", buildVerified.status)
+	}
+	if buildVerified.status == deployability.CapabilityUnwired {
+		t.Error("build-verified collapsed into unwired")
+	}
+	if buildVerified == supported {
+		t.Error("build-verified is indistinguishable from supported")
+	}
+	if buildVerified.qualification.AtLeast(supported.qualification) {
+		t.Errorf("build-verified qualification %s is not below supported's %s", buildVerified.qualification, supported.qualification)
+	}
+}
+
+// TestCapabilityWithNoImplementationStaysInTheGrid is the difference between
+// "nobody has built this" and "nobody has named this". A vocabulary
+// capability nothing implements must still appear, resolved peerless.
+func TestCapabilityWithNoImplementationStaysInTheGrid(t *testing.T) {
+	root := t.TempDir()
+	writeVocabulary(t, root, []string{"orphaned", "probe"}, nil)
+	writeToolFixture(t, root, "probe-tool", "probe", map[string]string{"linux": "supported"})
+	reader, err := NewReader(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grid, err := reader.Grid(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, ok := grid.Capability("orphaned")
+	if !ok {
+		t.Fatal("a vocabulary capability with no implementation was dropped from the grid")
+	}
+	for _, hostOS := range operatingSystems {
+		platform, ok := entry.Platform(hostOS)
+		if !ok {
+			t.Fatalf("orphaned has no entry for %s", hostOS)
+		}
+		if platform.Status != deployability.CapabilityPeerless {
+			t.Errorf("orphaned/%s resolved %s, want peerless", hostOS, platform.Status)
+		}
+	}
+	if entry.Situation == SituationBuiltEverywhere {
+		t.Error("a capability nobody implements was classified as built everywhere")
+	}
+}
+
+func TestGridChangesWhenManifestCapabilityChanges(t *testing.T) {
+	root := t.TempDir()
+	writeVocabulary(t, root, []string{"probe", "renamed"}, nil)
+	writeToolFixture(t, root, "probe-tool", "probe", map[string]string{"linux": "supported"})
+	reader, err := NewReader(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := reader.Grid(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	probe, ok := before.Capability("probe")
+	if !ok {
+		t.Fatal("probe is missing from the grid")
+	}
+	if platform, _ := probe.Platform(deployability.HostOSLinux); !platform.Status.HasImplementation() {
+		t.Fatalf("probe/linux resolved %s before the edit", platform.Status)
+	}
+
+	writeToolFixture(t, root, "probe-tool", "renamed", map[string]string{"linux": "supported"})
+	after, err := reader.Grid(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	probeAfter, ok := after.Capability("probe")
+	if !ok {
+		t.Fatal("probe is missing from the grid after the edit")
+	}
+	if platform, _ := probeAfter.Platform(deployability.HostOSLinux); platform.Status.HasImplementation() {
+		t.Error("the grid still reports probe as implemented after the manifest moved to another capability")
+	}
+	renamed, ok := after.Capability("renamed")
+	if !ok {
+		t.Fatal("renamed is missing from the grid after the edit")
+	}
+	if platform, _ := renamed.Platform(deployability.HostOSLinux); !platform.Status.HasImplementation() {
+		t.Error("the grid does not report renamed as implemented after the manifest moved to it")
+	}
+}
+
+func TestUnreachableManifestRootIsAnErrorNotAnEmptyGrid(t *testing.T) {
+	t.Run("empty root", func(t *testing.T) {
+		if _, err := NewReader("   "); err == nil {
+			t.Fatal("an empty manifest root was accepted")
+		} else if !IsUnresolvedRoot(err) {
+			t.Fatalf("empty root produced %T, want UnresolvedRootError", err)
+		}
+	})
+
+	t.Run("root without a vocabulary", func(t *testing.T) {
+		root := filepath.Join(t.TempDir(), "not-a-repository")
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		_, err := NewReader(root)
+		if err == nil {
+			t.Fatal("a root with no capability vocabulary was accepted; the grid would have been empty and looked complete")
+		}
+		if !IsUnresolvedRoot(err) {
+			t.Fatalf("missing vocabulary produced %T, want UnresolvedRootError", err)
+		}
+		for _, fragment := range []string{root, "capability-vocabulary.json"} {
+			if !strings.Contains(err.Error(), fragment) {
+				t.Errorf("error %q does not name %q", err, fragment)
+			}
+		}
+	})
+}
+
+func writeVocabulary(t *testing.T, root string, capabilities []string, policies map[string]map[string]string) {
+	t.Helper()
+	dir := filepath.Join(root, ".vrooli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(Vocabulary{Capabilities: capabilities, PlatformPolicies: policies})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "capability-vocabulary.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeToolFixture(t *testing.T, root, name, capability string, platforms map[string]string) {
+	t.Helper()
+	dir := filepath.Join(root, "internal", "tools", name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	declarations := make(map[string]PlatformDeclaration, len(platforms))
+	for hostOS, status := range platforms {
+		declarations[hostOS] = PlatformDeclaration{Status: status}
+	}
+	data, err := json.Marshal(Manifest{
+		Name: name, Capability: capability, Role: "primary",
+		PlatformDeclarations: declarations,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "tool.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}

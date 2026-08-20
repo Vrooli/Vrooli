@@ -63,7 +63,7 @@ Three rules govern every row below:
 
 Rule 2 is the one deliberate divergence from `meta-optimization-manager`, which
 never stores a numerator at all. Uptime over thirty days *is* history, and
-`INSTRUMENTATION_ROADMAP.md` Gap 11 names the failure of not keeping it:
+The team's retired instrumentation roadmap named the failure of not keeping it in its Gap 11:
 *"an outage is indistinguishable from missing data after the fact."*
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |

@@ -25,6 +25,7 @@ The plant is the layered platform stack defined in `docs/infra-health/operating/
 
 | Layer | Timescale | This scenario's relationship |
 |---|---|---|
+| Host substrate — kernel, devices, drivers, crash evidence | continuous | The `substrate` projection. Reads kernel/device error signals, machine-check telemetry, crash evidence, accelerator health, kernel/driver coherence, boot integrity and watchdog liveness as ordered severities. Never mutates any of it. |
 | Commissioning — `vrooli setup`, host tools, safeguards | per host change | Observes outcomes; never invokes. Sudo exists only here. |
 | Capacity broker — `vrooli capacity` | ms–minutes | Reads claim coverage and reserve drift. Never changes a policy lever. |
 | Autoheal — `vrooli-autoheal` | seconds–minutes | Primary sensor source. Reads uptime, restarts, heal outcomes, the check registry. Never shelves, restarts, or reconciles. |
@@ -50,12 +51,17 @@ Platform reliability decomposes into **projections**, each owned by the control 
 | **validation-cost** | Is the validation loop affordable and reliable? | `test-genie` | `runs cost` | phase |
 | **agent-throughput** | Can agents be spawned, and do failures cluster? | `agent-manager` | `measures runs stats` / `error-patterns` | run class |
 | **commissioning** | Can a clean host reach green, reproducibly and in time? | control plane (`vrooli setup`) | — (open-loop) | host bring-up |
+| **substrate** | Is the host, kernel and device layer sound? | `vrooli-autoheal` | `ActionsService.GetPerCheckTrends` (per-check status) | host subsystem |
 
-Ten projections, authored at **ideal maturity**. That is deliberate and matches how every other denominator in this system is written: the model is authored at full maturity so the distance between it and reality is *measurable* rather than invisible. Current adoption is recorded in [§ Current State](#current-state) as data, never by trimming the model down to what already works.
+Eleven projections, authored at **ideal maturity**. That is deliberate and matches how every other denominator in this system is written: the model is authored at full maturity so the distance between it and reality is *measurable* rather than invisible. Current adoption is recorded in [§ Current State](#current-state) as data, never by trimming the model down to what already works.
 
 ### Why these are projections and not domains
 
-`supervision` was originally modelled as a domain of this scenario. It is not — it is one projection among ten, distinguished only by being the projection whose numerator is a two-direction reconcile rather than a scalar read. Modelling it as a domain would have given one reliability dimension a structural privilege the other nine do not have, and would have made the tenth projection harder to add than the second.
+`supervision` was originally modelled as a domain of this scenario. It is not — it is one projection among eleven, distinguished only by being the projection whose numerator is a two-direction reconcile rather than a scalar read. Modelling it as a domain would have given one reliability dimension a structural privilege the others do not have, and would have made each new projection harder to add than the last. `substrate` was added on 2026-08-20 at the cost of one space document, one owner-map entry and one sensor table, which is the test that framing was right.
+
+### Units do not compose across projections
+
+A projection's leg unit is part of its identity. `availability` is a percentage over a window; `substrate` is an **ordered severity** (`0` OK, `1` WARNING, `2` CRITICAL) at an instant. Before `substrate` existed, host and device faults were reachable only through `availability`, where a GPU falling off the bus, a machine-check storm and a slow scenario restart were all "a dip in an uptime figure" — a unit in which the fault that matters most is the one that shows least. Bars carry their unit and a reading whose unit disagrees with its bar is `NOT_GRADEABLE`, never silently compared.
 
 ### Denominator, numerator, confidence
 
@@ -102,7 +108,7 @@ Two derived fields let an *intentionally visible* hole be told apart from an *ov
 
 Without them, "declared and dated" degrades into "declared once and forgotten."
 
-**The instrumentation roadmap is the open-loop set, computed.** The retired `docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md` is historical context only. The gap list falls out of the cell grid: every `MISSING` cell is a roadmap entry with a date attached, and there is no second list to drift.
+**The instrumentation roadmap is the open-loop set, computed.** The team's hand-maintained roadmap was retired for exactly this reason. The gap list falls out of the cell grid: every `MISSING` cell is a roadmap entry with a date attached, and there is no second list to drift.
 
 ### Cell status is never inferred from silence
 
@@ -146,20 +152,41 @@ Explicitly **not** measured here, and not to be turned into a metric later:
 
 ## Current State
 
-Recorded as of 2026-08-19, as data. This section is the measured distance from the model above and is expected to change; the model is not expected to change with it.
+Recorded as of 2026-08-20, as data. This section is the measured distance from the model above and is expected to change; the model is not expected to change with it. Every figure below is readable from the instrument itself — do not hand-maintain a second copy.
 
-| Fact | Value |
-|---|---|
-| Projections authored | 10 |
-| Projections with an owner-authored space doc | 0 — no control layer has authored one yet |
-| Owners exposing `space --projection <p> --json` | 0 of 6 |
-| Sensor sources with a typed Connect surface | 4 of 6 — `system-monitor`, `test-genie`, `storage-manager`, `data-backup-manager` |
-| Sensor sources with **no** proto surface at all | 1 — `vrooli-autoheal`, which backs three projections |
-| Sensor sources unreachable by discovery by construction | 1 — `vrooli capacity` is control-plane `internal/`, not a scenario |
-| Target kinds in the legacy sensor map | 14 — 9 sensored, 5 open-loop |
-| Denominator confidence | `SKETCH` for every projection — no owner space doc exists yet |
-| Open-loop count reported anywhere today | none; nothing counts them |
-| Team loop status | `paused-manual` since 2026-07-24 — no reading is a live baseline until it resumes |
+| Fact | Value | Read it with |
+|---|---|---|
+| Projections authored | 11 | `coverage status` |
+| Projections with an owner-authored space doc | 11 | `coverage cells` |
+| Owners registering `space --projection <p> --json` | 11 of 11. `capacity` and `commissioning` are served by this scenario as interim holder; its verb refuses the other nine. | `<owner> space --projection <p> --json` |
+| Projections this scenario reads through the typed verb | 0 — `coverage` still resolves every space by file path through `FileSpaceReader`. The verb is published; the reader has not been switched to it. | — |
+| Projections with a live typed reader | 2 of 11 — `availability` and `substrate`, both from `vrooli-autoheal` | `condition status` |
+| Setpoint bars | 33 — 27 gradeable with a unit and threshold, 6 declared not-gradeable with stated reasons | `coverage validate` |
+| Substrate bars ratified | 4 of 12 (`SB1`, `SB2`, `SB5`, `SB8`) on 2026-08-20 against live host readings. `SB3`, `SB4` and `SB7` stay provisional with per-bar stated defects; the five device-layer bars are provisional pending both operator review and the join their cells need. | `coverage validate` |
+| Denominator confidence | `SKETCH` overall; `PARTIAL` on most projections | `coverage status` |
+| Open-loop cells | computed and dated | `coverage open-loop` |
+| Team loop status | `paused-manual` since 2026-07-24 — no reading is a live baseline until it resumes | `prompt-manager team heartbeat-control infra-health status` |
+
+The load-bearing remaining gap is the same one it has always been: nine of eleven
+projections have an authored denominator but no live numerator, so their cells report an
+honest `IN-REACH` rather than a reading. That distance is visible in `coverage status`
+rather than hidden by trimming the model to what already works.
+
+The second gap is narrower and newer. All eleven denominators are now published through
+the typed `space` verb, but this scenario still reads all eleven by file path. Until
+`FileSpaceReader` is replaced by a verb-backed reader the contract is one-sided: owners
+publish a typed denominator and the only consumer ignores it, so a document that stops
+parsing through the verb still reads fine here. Nothing blocks the switch any more — it
+is unstarted work, not a dependency.
+
+The third is the one this cycle uncovered. The `substrate` cell set grew from eight cells
+to thirteen without a single new sensor being written: every one of `SB9`-`SB13` names a
+device-layer sensor that `system-monitor` already ships and emits on a 60s collector, and
+that no projection joined. They are `IN-REACH`, not `MISSING`, and the distinction is the
+measurement — five closable gaps counted as honest blindness would have been *unowned
+work wearing honesty's clothes*. That five cells appeared from one sweep of an existing
+scenario is the strongest available evidence that the spaces are still under-declared, and
+it is why substrate confidence stays `PARTIAL` after growing by 62%.
 
 ## Governing Principles
 

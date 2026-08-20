@@ -49,7 +49,7 @@ flowchart TB
     end
 
     subgraph External["External Systems"]
-        PW_DRIVER["Playwright Driver\n(Node.js/TypeScript)\n• HTTP server :39400\n• Session management\n• 28 instruction handlers\n• Telemetry collection"]
+        PW_DRIVER["Playwright Driver\n(Node.js/TypeScript)\n• HTTP server on allocated PLAYWRIGHT_DRIVER_PORT\n• Session management\n• 28 instruction handlers\n• Telemetry collection"]
 
         CHROMIUM["Chromium Browser\n• Playwright automation\n• CDP protocol\n• Screenshot/DOM capture"]
     end
@@ -277,7 +277,7 @@ Real-time streaming:
 
 ### 5. Playwright Driver (`playwright-driver/`)
 
-**TypeScript HTTP server** (port 39400):
+**TypeScript HTTP server** (port allocated from the scenario range 24400-24499 as `PLAYWRIGHT_DRIVER_PORT`):
 - Session management (browser/context/page lifecycle)
 - 28 instruction handlers (navigation, interaction, assertions, etc.)
 - Telemetry collection (console, network, screenshots, DOM)

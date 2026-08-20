@@ -1,12 +1,13 @@
 @import "./design-tokens.css";
 @import "./theme/tokens.css";
+@import "./theme/annunciator.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   --safe-area-inset-top: env(safe-area-inset-top);
   --safe-area-inset-right: env(safe-area-inset-right);
   --safe-area-inset-bottom: env(safe-area-inset-bottom);
@@ -77,8 +78,9 @@ body {
 .ratio-confidence__rationale { grid-column: 1 / -1; }
 
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: 2px solid var(--signal-covered);
+  outline-offset: 3px;
+  border-radius: var(--radius-control);
 }
 
 @layer utilities {

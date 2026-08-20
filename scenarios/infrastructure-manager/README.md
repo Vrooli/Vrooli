@@ -7,9 +7,15 @@ surface.
 
 ## The Model In One Screen
 
-Platform reliability decomposes into **ten projections**, each owned by the
+Platform reliability decomposes into **eleven projections**, each owned by the
 control layer that holds its ground truth. A projection is a grid of **cells**;
 a cell is one answerable fact.
+
+The innermost projection is `substrate` — host, kernel and device condition —
+because it is the second rung of the infra-health cascade ladder and everything
+outside it is unreadable while it is broken. Its readings are ordered severities
+(`0` OK, `1` WARNING, `2` CRITICAL), not percentages: a device falling off the
+bus and a slow scenario restart are different failures and must not share a unit.
 
 | Axis | Question | Document |
 |---|---|---|

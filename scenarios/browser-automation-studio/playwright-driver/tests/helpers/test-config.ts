@@ -91,6 +91,7 @@ export function createTestConfig(overrides?: DeepPartial<Config>): Config {
     frameStreaming: {
       useScreencast: true,
       fallbackToPolling: true,
+      directPort: 24401,
       cdp: {
         ackTimeoutMs: 1000,
         maxAckFailures: 5,

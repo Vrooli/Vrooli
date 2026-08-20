@@ -342,9 +342,11 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "substrate",
             "coverage",
             "condition",
             "focus",
+            "designLanguage",
             "settings",
           ] as const,
         },
@@ -358,9 +360,11 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "substrate",
             "coverage",
             "condition",
             "focus",
+            "designLanguage",
             "settings",
           ] as const,
         },

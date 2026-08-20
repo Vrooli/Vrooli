@@ -24,7 +24,7 @@ import (
 
 	gen "github.com/vrooli/api-core/endpoints/gen"
 
-	"infrastructure-manager/internal/modules"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/modules"
 )
 
 func main() {

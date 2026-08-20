@@ -389,6 +389,222 @@
           }
         }
       ]
+    },
+    {
+      "name": "portability",
+      "description": "Read-only capability portability grid, situations and fleet blockers",
+      "commands": [
+        {
+          "name": "grid",
+          "description": "Show the capability grid with resolution status and qualification rung",
+          "flags": [
+            {
+              "name": "capability",
+              "description": "Optional capability filter; repeatable",
+              "bind": {
+                "field": "capabilities"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PortabilityService",
+            "method": "GetGrid"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "capability",
+          "description": "Show one capability's per-platform row",
+          "positionals": [
+            {
+              "name": "capability",
+              "required": true,
+              "description": "Capability name from the capability vocabulary"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PortabilityService",
+            "method": "GetCapability"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "situations",
+          "description": "List capabilities by situation classification",
+          "flags": [
+            {
+              "name": "situation",
+              "description": "Optional situation filter: built-everywhere, no-work-required, no-equivalent-ever, real-peer-nobody-wired"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PortabilityService",
+            "method": "ListSituations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "fleet",
+          "description": "Show computed fleet portability blockers",
+          "flags": [
+            {
+              "name": "view",
+              "description": "Optional view: blocked, docker, peerless, upgrades, desktop"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PortabilityService",
+            "method": "GetFleet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ladder",
+      "description": "Read-only device-layer capability ladder, its sources and its cascade-ranked findings",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show the whole ladder readout: cells, sources and ranked findings",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LadderService",
+            "method": "GetLadder"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "cells",
+          "description": "List ladder cells, optionally filtered by class, rung, host OS or substrate cell",
+          "flags": [
+            {
+              "name": "device-class",
+              "description": "Optional device class filter"
+            },
+            {
+              "name": "rung",
+              "description": "Optional rung filter: identity, telemetry, evidence, control, anticipation"
+            },
+            {
+              "name": "host-os",
+              "description": "Optional host OS filter: linux, macos, windows"
+            },
+            {
+              "name": "cell-ref",
+              "description": "Optional substrate cell filter, for example substrate/SB11"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LadderService",
+            "method": "ListCells"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "sources",
+          "description": "Show each ladder source's availability and the reason it was unreadable",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LadderService",
+            "method": "ListSources"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "findings",
+          "description": "Show cascade-ranked ladder findings and the stage that placed each one",
+          "flags": [
+            {
+              "name": "stage",
+              "description": "Optional cascade stage filter: sensor-channel-integrity, host-substrate, capability-availability, efficiency, measurement-improvement"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LadderService",
+            "method": "RankFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
     }
   ],
   "measures": {

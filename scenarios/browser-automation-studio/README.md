@@ -26,7 +26,7 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 
 ### Engine selection (Playwright driver)
 - Default: the in-repo Playwright driver (`ENGINE=playwright` or unset). The legacy Browserless engine has been removed.
-- Playwright: `ENGINE=playwright` is the default. If `PLAYWRIGHT_DRIVER_URL` is unset, the lifecycle starts the local Playwright driver (`playwright-driver/`, a Node HTTP server) automatically and exports `PLAYWRIGHT_DRIVER_URL=http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT:-39400}`. Stop hooks clean it up.
+- Playwright: `ENGINE=playwright` is the default. If `PLAYWRIGHT_DRIVER_URL` is unset, the lifecycle starts the local Playwright driver (`playwright-driver/`, a Node HTTP server) automatically and exports `PLAYWRIGHT_DRIVER_URL=http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}` (allocated from 24400-24499). Stop hooks clean it up.
 - Desktop/Electron: bundle `resources/playwright/driver/server.js`, spawn it from Electron main (allowing `PORT=0` for a free port), capture the port, and launch the bundled API with `ENGINE=playwright` and `PLAYWRIGHT_DRIVER_URL=<captured>`. To avoid bundling another Chromium (~80–120 MB), align Playwright with the Electron Chromium version and set `PLAYWRIGHT_CHROMIUM_PATH` to that binary.
 
 ### Database storage (SQLite)

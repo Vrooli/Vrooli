@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"infrastructure-manager/internal/testutil/modeltest"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"
 )

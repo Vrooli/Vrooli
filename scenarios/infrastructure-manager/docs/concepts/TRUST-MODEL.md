@@ -108,7 +108,7 @@ Sensor-channel integrity is the innermost layer. A performance finding raised wh
 
 ## Load-Bearing Constants
 
-Following the discipline in `RELIABILITY_TARGETS.md` — judgment constants are named, documented, and auditable rather than buried in code:
+Judgment constants are named, documented, and auditable rather than buried in code:
 
 - **`saturationWindow = 24h`** — inherited directly from the team's sensor-integrity rules. A check pinned at one status for a full window carries no information.
 - **`shelfExpiryRequired = true`** — permanent suppression is prohibited by the team's shelving rule. A shelf with no expiry is itself a finding, and an expired shelf reverts to live alarming.
@@ -143,7 +143,5 @@ Recorded as of 2026-08-17, as data. This section is the measured distance from t
 - [`CONDITION-MODEL.md`](CONDITION-MODEL.md) — the parent axis; banding depends on every verdict here.
 - [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md) — the deadbands and honesty flags this document builds on.
 - [`DOMAINS.md`](DOMAINS.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`INTEGRATIONS.md`](INTEGRATIONS.md).
-- `docs/infra-health/strategy/RELIABILITY_TARGETS.md` — retired historical context; the typed condition surface now owns the live trust projection.
-- `docs/infra-health/operating/OPERATING_MODEL.md` rule 5 — the sensor-integrity routing rule.
-- `docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md` — retired historical gap context; autoheal Gap 10 is shipped and covered by typed checks tests.
+- `docs/infra-health/operating/OPERATING_MODEL.md` rule 5 — the sensor-integrity routing rule, and the source of the `saturationWindow` and `shelfExpiryRequired` constants above.
 - `scenarios/meta-optimization-manager/docs/concepts/CONDITION-MODEL.md` — the sibling instrument's condition axis; the precedent for derived populations and the uninstrumented-is-not-healthy rule.

@@ -2,19 +2,17 @@ import { Button } from "../components/ui/button";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
-import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
-
-const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
 /**
- * Settings page. Surfaces the locale and theme selectors as a real page (in
- * addition to the compact controls in the top bar). Add scenario-specific
- * preferences here as they're needed.
+ * Settings page.
+ *
+ * Locale only. This scenario has no theme preference: `vrooli-annunciator` is a
+ * committed single-world design language (see `DESIGN.md`), so there is nothing
+ * for a theme control to choose between.
  */
 export function SettingsPage() {
   const { t } = useTranslation();
   const currentLocale = getCurrentLocale();
-  const { choice, setTheme } = useTheme();
 
   return (
     <section
@@ -25,28 +23,6 @@ export function SettingsPage() {
       <h2 id="settings-heading" className="text-2xl font-semibold">
         {t(strings.pages.settings.title)}
       </h2>
-
-      <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
-          {t(strings.pages.settings.themeHeading)}
-        </h3>
-        <div role="radiogroup" aria-label={t(strings.theme.switcherLabel)} className="flex flex-wrap gap-2">
-          {THEME_CHOICES.map((c) => (
-            <Button
-              key={c}
-              type="button"
-              variant={choice === c ? "primary" : "secondary"}
-              size="sm"
-              role="radio"
-              aria-checked={choice === c}
-              onClick={() => setTheme(c)}
-              data-testid={selectors.settingsPage.themeOption({ choice: c })}
-            >
-              {t(strings.theme.choice[c])}
-            </Button>
-          ))}
-        </div>
-      </div>
 
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">

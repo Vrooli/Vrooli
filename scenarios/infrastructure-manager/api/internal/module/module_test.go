@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"infrastructure-manager/internal/module"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"

@@ -209,7 +209,7 @@ func (s *playwrightSession) Run(ctx context.Context, instruction contracts.Compi
 - Output: HTTP JSON → `StepOutcome` (decodes base64 screenshots, normalizes timestamps)
 
 **Configuration**:
-- `PLAYWRIGHT_DRIVER_URL` (default: `http://127.0.0.1:39400`)
+- `PLAYWRIGHT_DRIVER_URL` (set by the lifecycle from the allocated `PLAYWRIGHT_DRIVER_PORT`, range 24400-24499)
 
 ### Node.js Driver: `playwright-driver/server.js`
 

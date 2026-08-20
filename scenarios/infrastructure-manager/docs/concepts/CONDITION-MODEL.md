@@ -43,7 +43,7 @@ Three consequences follow, and they are why the axis is shaped this way:
 2. **Condition only ever asks about things claimed to be instrumented.** A `MISSING` or `IN-REACH` cell has no leg to be in bad condition. Coverage owns the "we cannot see this" case; Condition never duplicates it.
 3. **The axis is honest by construction about its own scope.** Its population is exactly the set of claims the board is currently making.
 
-> **A cached leg population is an architectural defect, not an optimization.** Operating-model rule 6 forbids enumeration anywhere in this team's surfaces, and a stored leg list is the central capability-health roster `INSTRUMENTATION_ROADMAP.md` Gap 11 explicitly rejects. If the derivation is slow, the fix is a faster derivation.
+> **A cached leg population is an architectural defect, not an optimization.** Operating-model rule 6 forbids enumeration anywhere in this team's surfaces, and a stored leg list is the central capability-health roster the team's retired instrumentation roadmap explicitly rejected in its Gap 11. If the derivation is slow, the fix is a faster derivation.
 
 ## Signals Are Owner-Measured, Never Self-Declared
 
@@ -85,7 +85,7 @@ Some targets band on a trend across cycles rather than an absolute level. A sing
 
 Uptime over thirty days *is* history. It cannot be computed from a live probe, which is why this scenario persists readings where `meta-optimization-manager` persists nothing.
 
-`INSTRUMENTATION_ROADMAP.md` Gap 11 names the cost of not storing them: **an outage becomes indistinguishable from missing data after the fact.** A board that cannot tell "the element was down" from "we were not looking" cannot support any windowed target at all.
+The team's retired instrumentation roadmap named the cost of not storing them in its Gap 11: **an outage becomes indistinguishable from missing data after the fact.** A board that cannot tell "the element was down" from "we were not looking" cannot support any windowed target at all.
 
 Retention is therefore a **correctness constraint, not housekeeping**: the floor is the longest window any cell declares, plus margin, and it is derived from the setpoint rather than hardcoded. Trimming below that floor silently converts a measurable cell into an unmeasurable one — which must then be *reported* as unmeasurable, never quietly reported as in band. See [`DATA.md`](DATA.md) § Retention And Deletion.
 

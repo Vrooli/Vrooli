@@ -334,6 +334,16 @@ const ConfigSchema = z.object({
     /** Fall back to polling if screencast fails */
     fallbackToPolling: z.boolean().default(true),
     /**
+     * Port for the direct frame WebSocket, which lets UI clients stream frames
+     * from the driver without relaying through the API hub.
+     *
+     * Allocated from the scenario port range like every other listener. It used
+     * to be derived as `server.port + 1`, which silently left the declared
+     * range when the driver drew the last port in it, and made two driver
+     * instances collide on startup.
+     */
+    directPort: z.number().min(1).max(65535),
+    /**
      * CDP-specific tuning options.
      * These control the behavior of the CDP screencast strategy.
      */
@@ -599,6 +609,13 @@ export function loadConfig(): Config {
     frameStreaming: {
       useScreencast: process.env.FRAME_STREAMING_USE_SCREENCAST !== 'false', // Default true
       fallbackToPolling: process.env.FRAME_STREAMING_FALLBACK !== 'false', // Default true
+      // Fall back to the historical server.port + 1 only when the scenario did
+      // not allocate a port, so a bundle running the driver standalone still
+      // comes up.
+      directPort: parseEnvInt(
+        process.env.FRAME_STREAM_DIRECT_PORT,
+        parseEnvInt(process.env.PLAYWRIGHT_DRIVER_PORT, 24400) + 1
+      ),
       cdp: {
         ackTimeoutMs: parseEnvInt(process.env.FRAME_STREAMING_CDP_ACK_TIMEOUT_MS, 1000),
         maxAckFailures: parseEnvInt(process.env.FRAME_STREAMING_CDP_MAX_ACK_FAILURES, 5),

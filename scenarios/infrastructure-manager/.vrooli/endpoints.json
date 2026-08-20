@@ -119,6 +119,14 @@
       "category": "coverage"
     },
     {
+      "id": "coverage_open_loop",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/ListOpenLoopCells",
+      "method": "POST",
+      "summary": "List dated open-loop cells",
+      "description": "",
+      "category": "coverage"
+    },
+    {
       "id": "coverage_projection",
       "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/GetProjection",
       "method": "POST",
@@ -173,6 +181,70 @@
       "summary": "Read efficacy evidence",
       "description": "",
       "category": "focus"
+    },
+    {
+      "id": "ladder_get",
+      "path": "/vrooli.infrastructure_manager.v1.ladder.LadderService/GetLadder",
+      "method": "POST",
+      "summary": "Read the device-layer capability ladder",
+      "description": "",
+      "category": "ladder"
+    },
+    {
+      "id": "ladder_cells",
+      "path": "/vrooli.infrastructure_manager.v1.ladder.LadderService/ListCells",
+      "method": "POST",
+      "summary": "List ladder cells",
+      "description": "",
+      "category": "ladder"
+    },
+    {
+      "id": "ladder_sources",
+      "path": "/vrooli.infrastructure_manager.v1.ladder.LadderService/ListSources",
+      "method": "POST",
+      "summary": "List ladder source availability",
+      "description": "",
+      "category": "ladder"
+    },
+    {
+      "id": "ladder_findings",
+      "path": "/vrooli.infrastructure_manager.v1.ladder.LadderService/RankFindings",
+      "method": "POST",
+      "summary": "Read cascade-ranked ladder findings",
+      "description": "",
+      "category": "ladder"
+    },
+    {
+      "id": "portability_grid",
+      "path": "/vrooli.infrastructure_manager.v1.portability.PortabilityService/GetGrid",
+      "method": "POST",
+      "summary": "Read the capability portability grid",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_capability",
+      "path": "/vrooli.infrastructure_manager.v1.portability.PortabilityService/GetCapability",
+      "method": "POST",
+      "summary": "Read one capability's platform row",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_situations",
+      "path": "/vrooli.infrastructure_manager.v1.portability.PortabilityService/ListSituations",
+      "method": "POST",
+      "summary": "List capabilities by situation classification",
+      "description": "",
+      "category": "portability"
+    },
+    {
+      "id": "portability_fleet",
+      "path": "/vrooli.infrastructure_manager.v1.portability.PortabilityService/GetFleet",
+      "method": "POST",
+      "summary": "Read the computed fleet portability view",
+      "description": "",
+      "category": "portability"
     }
   ]
 }

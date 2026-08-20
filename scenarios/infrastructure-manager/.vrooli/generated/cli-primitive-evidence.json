@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "infrastructure-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "b44f8287b48b89e5f98d8208d12c7a250f128a04f8e7215d5965a4ae697a9caa",
+  "manifest_hash": "48bc3dd3d3c5cc3156f8c0cd0b295132157e0d52950cf14cd7fb490e711d4577",
   "commands": [
     {
       "path": "condition explain",
@@ -115,6 +115,70 @@
       "group": "focus",
       "command": "sources",
       "binding": "FocusService.ListSources",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ladder cells",
+      "group": "ladder",
+      "command": "cells",
+      "binding": "LadderService.ListCells",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ladder findings",
+      "group": "ladder",
+      "command": "findings",
+      "binding": "LadderService.RankFindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ladder sources",
+      "group": "ladder",
+      "command": "sources",
+      "binding": "LadderService.ListSources",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ladder status",
+      "group": "ladder",
+      "command": "status",
+      "binding": "LadderService.GetLadder",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "portability capability",
+      "group": "portability",
+      "command": "capability",
+      "binding": "PortabilityService.GetCapability",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "portability fleet",
+      "group": "portability",
+      "command": "fleet",
+      "binding": "PortabilityService.GetFleet",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "portability grid",
+      "group": "portability",
+      "command": "grid",
+      "binding": "PortabilityService.GetGrid",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "portability situations",
+      "group": "portability",
+      "command": "situations",
+      "binding": "PortabilityService.ListSituations",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     }

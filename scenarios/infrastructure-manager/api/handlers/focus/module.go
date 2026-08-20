@@ -10,17 +10,27 @@ import (
 	"github.com/vrooli/api-core/database"
 	focusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/focus"
 	focusconnect "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/focus/focus_v1connect"
+	internalfocus "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/focus"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	internalfocus "infrastructure-manager/internal/focus"
-	"infrastructure-manager/internal/module"
 )
 
-func Module(root string) module.Module { return ModuleWithDeps(root, nil) }
+func Module(root string) module.Module { return ModuleWithDeps(root, nil, nil) }
 
 func Schema() string { return internalfocus.Schema() }
 
-func ModuleWithDeps(root string, db *database.RoutedDB) module.Module {
-	service := &internalfocus.Service{Source: internalfocus.NewCoverageSource(root)}
+// ModuleWithDeps composes the ranked surface from both joins. The condition
+// reader is passed in rather than constructed here so focus reads the same
+// configured condition service the condition domain serves, instead of a
+// second one that could drift from it.
+func ModuleWithDeps(root string, db *database.RoutedDB, condition internalfocus.ConditionReader) module.Module {
+	merged := internalfocus.MergedSource{Sources: []internalfocus.Source{internalfocus.NewCoverageSource(root)}}
+	if condition != nil {
+		merged.Sources = append(merged.Sources, internalfocus.ConditionSource{Condition: condition})
+	} else {
+		merged.Sources = append(merged.Sources, internalfocus.ConditionSource{})
+	}
+	service := &internalfocus.Service{Source: merged}
 	if db != nil {
 		service.Repository = internalfocus.NewSQLiteRepository(db)
 	}

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"infrastructure-manager/internal/httpc"
-	"infrastructure-manager/internal/testutil/mocks"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/httpc"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
 )

@@ -16,6 +16,13 @@ type Observation struct {
 	Trust             TrustVerdict
 	Band              Band
 	UnavailableReason string
+	// BandVerdict is recomputed on every read and never persisted, so
+	// tightening a target re-grades its own history.
+	BandVerdict BandVerdict
+	// OutOfScope marks a reading whose target exists but is outside the
+	// derived should-be-supervised set. It stays in every aggregate; only the
+	// supervision projection cares about it.
+	OutOfScope bool
 }
 
 type SourceAvailability struct {
@@ -81,6 +88,7 @@ func (s *Service) Read(ctx context.Context, projection string) Snapshot {
 		if s.BandResolver != nil {
 			readings[i].Band = s.BandResolver(readings[i])
 		}
+		readings[i].BandVerdict = EvaluateBand(readings[i].Value, readings[i].Trust, readings[i].Band)
 		triple.Distribution[readings[i].Trust]++
 		if readings[i].Trust != TrustUntrusted && readings[i].Trust != TrustUnavailable {
 			triple.CheckedDenominator++
@@ -128,6 +136,7 @@ func (s *Service) History(ctx context.Context, cellRef string, limit int) Histor
 	if s.BandResolver != nil {
 		for i := range readings {
 			readings[i].Band = s.BandResolver(readings[i])
+			readings[i].BandVerdict = EvaluateBand(readings[i].Value, readings[i].Trust, readings[i].Band)
 		}
 	}
 	return HistorySnapshot{Readings: readings, Measurable: true}

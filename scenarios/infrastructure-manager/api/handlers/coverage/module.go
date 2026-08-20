@@ -14,9 +14,9 @@ import (
 	coveragev1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/coverage"
 	coveragev1connect "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/coverage/coverage_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/shared"
+	internalcoverage "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/coverage"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	internalcoverage "infrastructure-manager/internal/coverage"
-	"infrastructure-manager/internal/module"
 )
 
 func Module(root string) module.Module {
@@ -178,15 +178,19 @@ func requestedProjections(values []coveragev1.Projection) ([]spacedoc.Projection
 	return out, nil
 }
 
+// protoProjection resolves a projection identifier against the proto enum's own
+// value table rather than a hand-maintained parallel list. The parallel list is
+// how the `substrate` projection shipped on 2026-08-20 and then rendered as
+// `unspecified` on every typed surface: the map had ten entries, a miss returns
+// the zero value, and an unlabelled projection is indistinguishable from a
+// deliberate one. Deriving the number from the enum means adding a projection to
+// the proto is the only step there is.
 func protoProjection(projection spacedoc.Projection) coveragev1.Projection {
-	return coveragev1.Projection(projectionNumber[projection])
-}
-
-var projectionNumber = map[spacedoc.Projection]int32{
-	spacedoc.ProjectionSupervision: 1, spacedoc.ProjectionAvailability: 2, spacedoc.ProjectionRecovery: 3,
-	spacedoc.ProjectionCapacity: 4, spacedoc.ProjectionHeadroom: 5, spacedoc.ProjectionDurability: 6,
-	spacedoc.ProjectionAttribution: 7, spacedoc.ProjectionValidationCost: 8, spacedoc.ProjectionAgentThroughput: 9,
-	spacedoc.ProjectionCommissioning: 10,
+	name := "PROJECTION_" + strings.ToUpper(strings.ReplaceAll(string(projection), "-", "_"))
+	if value, ok := coveragev1.Projection_value[name]; ok {
+		return coveragev1.Projection(value)
+	}
+	return coveragev1.Projection_PROJECTION_UNSPECIFIED
 }
 
 func protoCell(projection spacedoc.Projection, def *spacedoc.SpaceDefinition, cell spacedoc.Cell) *sharedv1.Cell {

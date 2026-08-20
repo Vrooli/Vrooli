@@ -28,8 +28,25 @@ type Bar struct {
 	Sustain     string   `json:"sustain"`
 	Actuator    string   `json:"actuator"`
 	DecisionRef string   `json:"decision_ref"`
+	Unit        string   `json:"unit,omitempty"`
 	Min         *float64 `json:"min,omitempty"`
 	Max         *float64 `json:"max,omitempty"`
+	// Gradeable records whether the operator authored a threshold this bar can
+	// be graded against. A prose-only deadband is not a defect in itself, but
+	// it must say so rather than letting every reading fall through to
+	// "not evaluated" with no stated reason.
+	Gradeable          bool   `json:"gradeable"`
+	NotGradeableReason string `json:"not_gradeable_reason,omitempty"`
+	// Provisional marks a bar authored alongside its projection and not yet
+	// ratified by an operator setpoint review.
+	Provisional       bool   `json:"provisional,omitempty"`
+	ProvisionalReason string `json:"provisional_reason,omitempty"`
+	// RatificationNote records the evidence a setpoint review accepted when it
+	// cleared Provisional. It is carried on the typed surface rather than kept
+	// in a document, because a reader deciding whether to trust a bar needs the
+	// reason beside the number: a ratification whose evidence is one hop away
+	// is indistinguishable from a bar nobody ever looked at.
+	RatificationNote string `json:"ratification_note,omitempty"`
 }
 
 type Unmapped struct {
@@ -88,6 +105,7 @@ var projectionOwners = map[spacedoc.Projection]string{
 	spacedoc.ProjectionValidationCost:  "test-genie",
 	spacedoc.ProjectionAgentThroughput: "agent-manager",
 	spacedoc.ProjectionCommissioning:   "infrastructure-manager",
+	spacedoc.ProjectionSubstrate:       "vrooli-autoheal",
 }
 
 func NewFileSpaceReader() (FileSpaceReader, error) {
@@ -114,6 +132,19 @@ func LoadSetpoint(root string) (setpointFile, error) {
 	for i, bar := range file.Bars {
 		if strings.TrimSpace(bar.ID) == "" || strings.TrimSpace(bar.CellRef) == "" || strings.TrimSpace(bar.DecisionRef) == "" {
 			return file, fmt.Errorf("setpoint: bar %d requires id, cell_ref and decision_ref", i)
+		}
+		// A bar that is neither gradeable nor explains why is the failure this
+		// check exists to catch: it reads as a target while grading nothing.
+		if !bar.Gradeable && strings.TrimSpace(bar.NotGradeableReason) == "" {
+			return file, fmt.Errorf("setpoint: bar %q is not gradeable and states no reason", bar.ID)
+		}
+		if bar.Gradeable {
+			if bar.Min == nil && bar.Max == nil {
+				return file, fmt.Errorf("setpoint: bar %q is marked gradeable but authors no min or max", bar.ID)
+			}
+			if strings.TrimSpace(bar.Unit) == "" {
+				return file, fmt.Errorf("setpoint: bar %q is marked gradeable but names no unit", bar.ID)
+			}
 		}
 	}
 	return file, nil

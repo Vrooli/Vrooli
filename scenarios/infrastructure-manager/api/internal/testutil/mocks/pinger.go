@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
-	"infrastructure-manager/internal/database"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/database"
 )
 
 // FakePinger satisfies database.Pinger for tests that don't want a real

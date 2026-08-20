@@ -11,7 +11,7 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
-	localdb "infrastructure-manager/internal/database"
+	localdb "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/database"
 )
 
 // TestSystemSchema_IsEmpty is a deliberate tripwire. The system file

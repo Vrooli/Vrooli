@@ -10,10 +10,10 @@ import (
 
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
-	"infrastructure-manager/handlers/health"
-	"infrastructure-manager/internal/module"
-	"infrastructure-manager/internal/server"
-	"infrastructure-manager/internal/testutil/mocks"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/handlers/health"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/server"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/testutil/mocks"
 
 	"github.com/vrooli/api-core/schedule"
 

@@ -3,8 +3,8 @@ package capabilities
 import (
 	"net/http"
 
-	"infrastructure-manager/internal/capabilities"
-	"infrastructure-manager/internal/module"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/capabilities"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
 
 	"github.com/gorilla/mux"
 )

@@ -54,10 +54,10 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ## Domain endpoints — `<domain>`
 
-### Planned surface
+### Shipped surface
 
-Designed, not yet implemented. Every method is a **read**; there is deliberately
-no mutating procedure anywhere in this scenario's contract.
+Every method is a **read**; there is deliberately no mutating procedure anywhere
+in this scenario's contract. All of the below are implemented and served.
 
 | Service | Method | Serves |
 |---|---|---|

@@ -10,9 +10,11 @@ export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
     | "dashboard"
+    | "substrate"
     | "coverage"
     | "condition"
     | "focus"
+    | "designLanguage"
     | "settings";
   /** Router path. */
   path: string;
@@ -25,8 +27,13 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "coverage", path: "/coverage", label: "Coverage" },
-  { key: "condition", path: "/condition", label: "Condition" },
-  { key: "focus", path: "/focus", label: "Focus" },
+  // Substrate leads the projections: operating-model rule 7 orders the cascade
+  // innermost-first, and the host substrate is the layer to resolve before any
+  // outer projection's reading can be trusted.
+  { key: "substrate", path: "/substrate", labelKey: strings.layout.nav.substrate },
+  { key: "coverage", path: "/coverage", labelKey: strings.layout.nav.coverage },
+  { key: "condition", path: "/condition", labelKey: strings.layout.nav.condition },
+  { key: "focus", path: "/focus", labelKey: strings.layout.nav.focus },
+  { key: "designLanguage", path: "/design-language", labelKey: strings.layout.nav.designLanguage },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

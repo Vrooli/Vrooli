@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"infrastructure-manager/internal/httpc"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/httpc"
 )
 
 // FakeDoer satisfies httpc.Doer for tests that don't want real network

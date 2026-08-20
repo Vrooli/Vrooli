@@ -1,6 +1,6 @@
 package health
 
-import "infrastructure-manager/internal/module"
+import "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
 
 // Endpoints is the machine-readable description of every route this
 // module mounts. The codegen at api/cmd/gen-endpoints reads this slice

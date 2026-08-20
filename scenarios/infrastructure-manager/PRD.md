@@ -64,7 +64,6 @@ Canon this scenario implements or depends on:
 
 - `docs/agent-system/TARGET_MODEL.md` — the instrument contract: the control chain, the six invariants, and the deviation catalogue this scenario is built to satisfy.
 - `docs/infra-health/operating/OPERATING_MODEL.md` — the Platform Under Control layer map and the routing rules, including "supervise, don't operate".
-- `docs/infra-health/strategy/RELIABILITY_TARGETS.md` — retired historical context; the setpoint is now checked-in data here.
-- `docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md` — retired historical context; open-loop cells are computed by coverage.
+- `docs/infra-health/governance/changelog.md` — the record of the team's hand-maintained target list, instrumentation roadmap and cross-platform ledger being retired onto computed surfaces. The setpoint is now checked-in data here; open-loop cells are computed by `coverage`.
 - `docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md` § Control topology — how this loop sits beside meta-optimization and above the fast platform loops.
 - `scenarios/meta-optimization-manager/docs/concepts/{COVERAGE-MODEL,CONDITION-MODEL}.md` — the sibling instrument's models; the worked precedent for owner-held denominators, derived populations, and denominator-confidence.

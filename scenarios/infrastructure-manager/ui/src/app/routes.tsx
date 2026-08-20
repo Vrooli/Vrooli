@@ -8,10 +8,11 @@ import {
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { InstrumentLanguagePage } from "../pages/InstrumentLanguagePage";
+import { SubstrateBoardPage } from "../features/substrate/SubstrateBoardPage";
 import { CoveragePage } from "../features/coverage/CoveragePage";
 import { ConditionPage } from "../features/condition/ConditionPage";
 import { FocusPage } from "../features/focus/FocusPage";
-import { ThemeProvider } from "../theme/ThemeProvider";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -25,10 +26,12 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "substrate", element: <SubstrateBoardPage /> },
       { path: "coverage", element: <CoveragePage /> },
       { path: "condition", element: <ConditionPage /> },
       { path: "focus", element: <FocusPage /> },
       { path: "settings", element: <SettingsPage /> },
+      { path: "design-language", element: <InstrumentLanguagePage /> },
     ],
   },
 ];
@@ -59,5 +62,5 @@ export function AppRouter() {
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
   const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
-  return <ThemeProvider initialChoice="light"><RouterProvider router={router} future={routerProviderFuture} /></ThemeProvider>;
+  return <RouterProvider router={router} future={routerProviderFuture} />;
 }

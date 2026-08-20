@@ -1,6 +1,6 @@
 package capabilities
 
-import "infrastructure-manager/internal/module"
+import "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
 
 var Endpoints = []module.EndpointDescriptor{
 	{

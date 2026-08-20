@@ -74,6 +74,10 @@ const (
 	BandPendingSustain BandVerdict = "PENDING_SUSTAIN"
 	BandNeedsBaseline  BandVerdict = "NEEDS_BASELINE"
 	BandNotEvaluated   BandVerdict = "NOT_EVALUATED"
+	// BandNotGradeable means a bar exists but authors no threshold. It is
+	// distinct from NOT_EVALUATED, which means the reading itself could not be
+	// trusted, and from NEEDS_BASELINE, which means no bar was found at all.
+	BandNotGradeable BandVerdict = "NOT_GRADEABLE"
 )
 
 type Band struct {
@@ -81,13 +85,25 @@ type Band struct {
 	Max              *float64
 	SustainSatisfied bool
 	NeedsBaseline    bool
+	// NotGradeableReason is set when the bar was found but authors no
+	// threshold. Carrying the reason keeps an ungraded cell explainable
+	// instead of indistinguishable from an untrusted one.
+	NotGradeableReason string
+	Unit               string
+	Provisional        bool
 }
 
 func EvaluateBand(value float64, trust TrustVerdict, band Band) BandVerdict {
 	if trust != TrustValid {
 		return BandNotEvaluated
 	}
+	if band.NotGradeableReason != "" {
+		return BandNotGradeable
+	}
 	if band.NeedsBaseline {
+		return BandNeedsBaseline
+	}
+	if band.Min == nil && band.Max == nil {
 		return BandNeedsBaseline
 	}
 	inBand := (band.Min == nil || value >= *band.Min) && (band.Max == nil || value <= *band.Max)

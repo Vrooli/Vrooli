@@ -1,148 +1,205 @@
 ---
-id: vrooli-default
-version: 0.2.0
-name: Vrooli Operational Console
-description: Dense, responsive, customizable operational UI for generated Vrooli scenarios.
+id: vrooli-annunciator
+version: 1.0.0
+name: Vrooli Annunciator Panel
+description: Control-room annunciator language for instrument scenarios — lit lamps on a dark panel, where the unlit regions are the content.
 colors:
-  primary: "#2563eb"
-  secondary: "#0891b2"
-  neutral: "#f8fafc"
-  surface: "#ffffff"
-  on-surface: "#0f172a"
-  error: "#dc2626"
-  success: "#16a34a"
-  warning: "#d97706"
+  primary: "#F2A93B"
+  secondary: "#4FC7D9"
+  neutral: "#0E1214"
+  surface: "#151B1E"
+  on-surface: "#DDE5E4"
+  error: "#E3543C"
+  success: "#F2A93B"
+  warning: "#4FC7D9"
 typography:
+  display-lg:
+    fontFamily: Barlow Condensed
+    fontSize: 44px
+    fontWeight: "600"
+    lineHeight: 0.95
+    letterSpacing: -0.012em
+  display-md:
+    fontFamily: Barlow Condensed
+    fontSize: 26px
+    fontWeight: "600"
+    lineHeight: 1.04
+    letterSpacing: 0.002em
+  legend-md:
+    fontFamily: Barlow Condensed
+    fontSize: 19px
+    fontWeight: "600"
+    lineHeight: 1.2
+    letterSpacing: 0.13em
   body-md:
-    fontFamily: Inter
-    fontSize: 16px
+    fontFamily: IBM Plex Sans
+    fontSize: 15.5px
     fontWeight: "400"
-    lineHeight: 1.5
+    lineHeight: 1.62
     letterSpacing: 0em
   body-sm:
-    fontFamily: Inter
-    fontSize: 14px
-    fontWeight: "400"
-    lineHeight: 1.45
-    letterSpacing: 0em
-  label-md:
-    fontFamily: Inter
-    fontSize: 14px
-    fontWeight: "600"
-    lineHeight: 1.25
-    letterSpacing: 0em
-  code-md:
-    fontFamily: JetBrains Mono
-    fontSize: 14px
+    fontFamily: IBM Plex Sans
+    fontSize: 13px
     fontWeight: "400"
     lineHeight: 1.5
     letterSpacing: 0em
+  label-md:
+    fontFamily: IBM Plex Sans
+    fontSize: 13px
+    fontWeight: "600"
+    lineHeight: 1.25
+    letterSpacing: 0.02em
+  tag-sm:
+    fontFamily: IBM Plex Mono
+    fontSize: 12.5px
+    fontWeight: "500"
+    lineHeight: 1.45
+    letterSpacing: 0.1em
+  telemetry-md:
+    fontFamily: IBM Plex Mono
+    fontSize: 14px
+    fontWeight: "500"
+    lineHeight: 1.4
+    letterSpacing: 0.02em
 rounded:
-  sm: 0.375rem
-  md: 0.5rem
-  lg: 1rem
+  sm: 0.125rem
+  md: 0.1875rem
+  lg: 0.25rem
   full: 9999px
 spacing:
   unit: 0.25rem
   touch: 44px
   sidebar: 20rem
-  panel-gap: 1rem
+  panel-gap: 1px
+  hairline: 1px
 components:
   button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "#ffffff"
+    backgroundColor: "rgba(242,169,59,0.14)"
+    textColor: "{colors.primary}"
     typography: "{typography.label-md}"
-    rounded: "{rounded.sm}"
+    rounded: "{rounded.md}"
     height: "{spacing.touch}"
     padding: 0 1rem
   button-primary-loading:
-    backgroundColor: "{colors.primary}"
-    textColor: "#ffffff"
+    backgroundColor: "rgba(242,169,59,0.08)"
+    textColor: "#93A3A3"
     typography: "{typography.label-md}"
-    rounded: "{rounded.sm}"
+    rounded: "{rounded.md}"
     height: "{spacing.touch}"
     padding: 0 1rem
   button-disabled:
-    backgroundColor: "#cbd5e1"
-    textColor: "#64748b"
+    backgroundColor: "#1B2327"
+    textColor: "#637374"
     typography: "{typography.label-md}"
-    rounded: "{rounded.sm}"
+    rounded: "{rounded.md}"
     height: "{spacing.touch}"
     padding: 0 1rem
   input-error:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.on-surface}"
+    backgroundColor: "#151B1E"
+    textColor: "{colors.error}"
     typography: "{typography.body-md}"
-    rounded: "{rounded.sm}"
+    rounded: "{rounded.md}"
     padding: 0.75rem
   alert-error:
-    backgroundColor: "#fef2f2"
+    backgroundColor: "rgba(227,84,60,0.13)"
     textColor: "{colors.error}"
     typography: "{typography.body-sm}"
     rounded: "{rounded.md}"
     padding: 1rem
   toast-success:
-    backgroundColor: "#ecfdf5"
-    textColor: "{colors.success}"
+    backgroundColor: "rgba(242,169,59,0.14)"
+    textColor: "{colors.primary}"
     typography: "{typography.body-sm}"
     rounded: "{rounded.md}"
     padding: 0.75rem
   empty-state:
-    backgroundColor: "#f1f5f9"
-    textColor: "#64748b"
+    backgroundColor: "#151B1E"
+    textColor: "#637374"
     typography: "{typography.body-md}"
     rounded: "{rounded.md}"
     padding: 1.5rem
   skeleton:
-    backgroundColor: "#e2e8f0"
+    backgroundColor: "#1B2327"
     rounded: "{rounded.sm}"
     height: 1rem
   inline-progress:
-    backgroundColor: "#dbeafe"
-    textColor: "{colors.primary}"
+    backgroundColor: "rgba(79,199,217,0.13)"
+    textColor: "{colors.secondary}"
     typography: "{typography.body-sm}"
-    rounded: "{rounded.full}"
+    rounded: "{rounded.sm}"
     padding: 0.25rem 0.625rem
   retry-action:
     backgroundColor: "transparent"
-    textColor: "{colors.primary}"
+    textColor: "{colors.secondary}"
     typography: "{typography.label-md}"
-    rounded: "{rounded.sm}"
+    rounded: "{rounded.md}"
     height: "{spacing.touch}"
     padding: 0 0.75rem
+  legend-plate:
+    backgroundColor: "transparent"
+    textColor: "{colors.on-surface}"
+    typography: "{typography.legend-md}"
+    rounded: "0"
+    padding: 0.55rem 0
+  lamp-cell:
+    backgroundColor: "#202A2E"
+    textColor: "#637374"
+    typography: "{typography.tag-sm}"
+    rounded: "{rounded.sm}"
+    height: 26px
+    padding: 0 0.35rem
+  stat-plate:
+    backgroundColor: "#151B1E"
+    textColor: "{colors.on-surface}"
+    typography: "{typography.display-md}"
+    rounded: "0"
+    padding: 1.4rem 1.5rem 1.5rem
 tokens:
   color:
-    background: "#f8fafc"
-    shell: "#020617"
-    surface: "#ffffff"
-    surfaceMuted: "#f1f5f9"
-    surfaceRaised: "#ffffff"
-    foreground: "#0f172a"
-    mutedForeground: "#64748b"
-    border: "#cbd5e1"
-    primary: "#2563eb"
-    primaryForeground: "#ffffff"
-    accent: "#0891b2"
-    success: "#16a34a"
-    danger: "#dc2626"
-    warning: "#d97706"
-    info: "#0284c7"
-    darkBackground: "#020617"
-    darkSurface: "#0f172a"
-    darkSurfaceMuted: "#1e293b"
-    darkForeground: "#f8fafc"
-    darkMutedForeground: "#94a3b8"
-    darkBorder: "#334155"
+    background: "#0E1214"
+    shell: "#0B0F10"
+    surface: "#151B1E"
+    surfaceMuted: "#131A1D"
+    surfaceRaised: "#1B2327"
+    foreground: "#DDE5E4"
+    mutedForeground: "#93A3A3"
+    subtleForeground: "#637374"
+    border: "#263033"
+    borderLit: "#3A484D"
+    primary: "#F2A93B"
+    primaryForeground: "#0E1214"
+    accent: "#4FC7D9"
+    success: "#F2A93B"
+    danger: "#E3543C"
+    warning: "#4FC7D9"
+    info: "#4FC7D9"
+    blind: "#202A2E"
+    darkBackground: "#0E1214"
+    darkSurface: "#151B1E"
+    darkSurfaceMuted: "#131A1D"
+    darkForeground: "#DDE5E4"
+    darkMutedForeground: "#93A3A3"
+    darkBorder: "#263033"
+  signal:
+    covered: "#F2A93B"
+    coveredSoft: "rgba(242,169,59,0.14)"
+    partial: "#4FC7D9"
+    partialSoft: "rgba(79,199,217,0.13)"
+    excursion: "#E3543C"
+    excursionSoft: "rgba(227,84,60,0.13)"
+    blind: "#202A2E"
+    blindEdge: "#3A484D"
   radius:
-    control: "0.375rem"
-    panel: "0.5rem"
-    sheet: "1rem"
+    control: "0.1875rem"
+    panel: "0.1875rem"
+    sheet: "0.25rem"
     pill: "9999px"
   typography:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    monoFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace"
-    baseSize: "16px"
-    lineHeight: "1.5"
+    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif"
+    displayFamily: "Barlow Condensed, Bahnschrift, Avenir Next Condensed, Liberation Sans Narrow, DejaVu Sans Condensed, Arial Narrow, ui-sans-serif, system-ui, sans-serif"
+    monoFamily: "IBM Plex Mono, JetBrains Mono, ui-monospace, SF Mono, DejaVu Sans Mono, Consolas, Liberation Mono, Menlo, monospace"
+    baseSize: "15.5px"
+    lineHeight: "1.62"
   spacing:
     unit: "0.25rem"
     touchTarget: "44px"
@@ -151,226 +208,176 @@ tokens:
     desktopSidebarMax: "30rem"
 constraints:
   letterSpacing: "0"
-  cardRadiusMaximum: "0.5rem"
-  defaultMode: "light"
-  supportedModes: ["light", "dark", "system"]
+  cardRadiusMaximum: "0.25rem"
+  defaultMode: "dark"
+  supportedModes: ["dark"]
   responsiveBaseline: "mobile-first"
-  dominantPalette: "neutral-operational-with-blue-cyan-and-semantic-status"
+  dominantPalette: "instrument-dark-with-amber-lamp-cyan-partial-and-rare-vermilion-excursion"
 ---
 
-# Vrooli Operational Console Design
+# Vrooli Annunciator Panel
 
-`DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
+`DESIGN.md` is the source of truth for this scenario's UI decisions. Stack-specific
+adapters may translate these tokens into CSS, Tailwind, or future targets, but
+adapters must not redefine the design language.
 
-**Why this design language fits Infrastructure Manager, unmodified.**
+## Why this scenario has its own language
 
-The Vrooli Operational Console language is adopted whole, with no scenario
-overrides. It is an unusually close fit here, and the reasons are worth stating
-so a future contributor does not "improve" the surface away from them:
+Infrastructure Manager previously adopted the `vrooli-default` Operational Console
+kit whole and unmodified. Three of the four arguments for doing so were correct and
+are carried forward here unchanged:
 
-- **The users are operators and agents, not consumers.** The daily readers are
-  the `infra-health` team's members and the operator at the morning vision walk.
-  They arrive to answer one question — what should I do next? — and leave. Calm,
-  dense, and technical is exactly right; a decorative dashboard would add reading
-  cost to the surface whose entire purpose is to reduce it.
-- **Density is the product.** This scenario exists to replace hand-walked triage
-  across four sensor sources with one ranked list. Compact information surfaces
-  and precise status color are the mechanism by which that saves time. Large tiles
-  and generous whitespace would defeat the consolidation the scenario is for.
-- **Status color semantics carry real meaning here, and more of it than usual.**
-  Nearly every element on every page is a status: in band, out of band, untrusted,
-  unavailable, unmeasurable, open-loop. The language's precise status palette and
-  its rule that status is never encoded by color alone are load-bearing rather
-  than stylistic. See the `status-not-colour-alone` and
-  `instrument-vs-plant-distinct` claims in `experience/pages/`.
-- **The workflow is long-running and repeated.** Members read this at every
-  heartbeat, and findings persist across cycles. Durable chrome and strong support
-  for long-running workflows match that cadence better than a session-oriented app
-  shell would.
-- **Accessibility floor: WCAG 2.1 AA, with contrast mattering more than usual.**
-  Because the surface is entirely status, a color-blind operator would lose most
-  of the page's information if any verdict were encoded by hue alone. Every
-  status pairs color with a label or shape, in both themes.
+- **The users are operators and agents, not consumers.** They arrive to answer one
+  question — what should I do next? — and leave.
+- **Density is the product.** This scenario replaces hand-walked triage across
+  several sensor sources with one ranked list. Compact information surfaces are the
+  mechanism by which that saves time.
+- **Status semantics carry real meaning, and more of it than usual.** Nearly every
+  element on every page is a status: in band, out of band, untrusted, unavailable,
+  unmeasurable, open-loop. The rule that **status is never encoded by colour alone**
+  is load-bearing rather than stylistic, and it survives into this language intact.
+  See the `status-not-colour-alone` and `instrument-vs-plant-distinct` claims in
+  `experience/pages/`.
 
-One scenario-specific emphasis within the language, not a deviation from it:
-**this UI must never grow an action affordance.** No restart, shelve, or
-remediate control, and no control that edits a target or deadband. That is the
-"supervise, don't operate" boundary rendered in pixels, and it is asserted as
-required experience claims (`no-edit-affordance`, `no-action-affordance`) rather
+The fourth argument — that a generic operational console was therefore the right
+*visual* language — did not follow. Density and calm are properties of information
+design, not of a palette. The stock kit is a light, blue, rounded admin surface: a
+reasonable default for a CRUD scenario and a poor fit for an instrument whose entire
+subject is what a machine cannot see about itself.
 
-## Instrument-panel tokens and composite contracts
+## The thesis: blindness is the figure, not the ground
 
-The status vocabulary is implemented in `ui/src/theme/instrument.ts` and styled
-by `ui/src/theme/tokens.css` plus `styles.css`:
+This scenario renders one idea that almost no monitoring product renders: **declared
+blindness**. A region that is dark is not empty and is not "no data" — it is a
+first-class, dated, aged measurement meaning *nobody is watching this, and here is
+how long that has been true*.
 
-- Trust tokens: `VALID`, `GHOST`, `SATURATED`, `SHELVED`, `UNIT_MISMATCH`,
-  `UNAVAILABLE`, and `UNTRUSTED`.
-- Band tokens: `IN_BAND`, `OUT_OF_BAND`, `PENDING_SUSTAIN`, `NEEDS_BASELINE`,
-  and `NOT_EVALUATED`.
+A conventional dashboard cannot express that. It has no visual vocabulary for
+absence, so absence renders as a blank card, a zero, or a green tick — which is the
+precise dishonesty this instrument exists to remove.
 
-Every token has a light/dark semantic colour, a human-readable label, and a
-non-colour mark. `UNTRUSTED` and `NOT_EVALUATED` use dashed treatment so they
-cannot be mistaken for either a pass or a failure.
+A control-room annunciator does have that vocabulary, natively. On a real annunciator
+panel the unlit lamps are the most important thing in the room. That is why this
+language is drawn from one, and it is why the visual treatment is not decoration
+here: it is the only part of the surface that makes the model legible to somebody who
+will never read the architecture.
 
-`TrustTriple` accepts one `TrustTripleValue` object containing the distribution,
-checked count, and total. `RatioConfidence` accepts one `RatioConfidenceValue`
-containing the ratio, confidence level, and rationale. These APIs prevent the
-three parts of either claim from being rendered as unrelated numbers.
+The reference vernacular is already the codebase's own. `infrastructure-manager`
+cites ISA-18.2 and EEMUA 191 and uses instrumentation tag letters. Lit lamps on a
+dark panel, engraved legend plates, precise hairlines, and monospace tag numbers are
+this domain's native visual language, not a borrowed aesthetic.
 
-The cell-grid primitive will be a horizontally scrollable, keyboard-navigable
-region with visible focus. Empty findings and unread sources use separate
-structures (`nothing-to-report` and `nothing-could-be-read`) and never share a
-generic empty-state component.
+## The committed dark world
 
-## How To Read This Document
+`constraints.supportedModes` is `["dark"]`. This is a deliberate single-world
+commitment, not an unfinished light theme.
 
-This file mixes two kinds of guidance, and the distinction matters.
+The lit-lamp metaphor inverts under a light theme: on a light ground, an unlit lamp
+is the *brightest* region on the page, which reverses the one relationship the whole
+surface is built to communicate. A light variant would therefore need a completely
+different encoding for blindness — texture rather than darkness — which is a second
+design language, not a mode of this one.
 
-- **Binding contract** (must follow): the tokens, color roles, typography scale, spacing, radius, motion rules, status-color semantics, responsive transformations, accessibility floors, and the overall "calm/dense/operational" feel target. These define the design language and must be respected.
-- **Illustrative examples** (shape, not checklist): any concrete list of components, layouts, page surfaces, settings controls, or copy. These exist to communicate *shape and feel*, not to enumerate the features your scenario must (or must not) ship. If a section lists "preferred primitives" or sketches an example settings page, treat that as a representative sample — your scenario should implement every feature its users actually need, even if it is not listed here.
+Because the commitment is deliberate, two rules follow and are enforced:
 
-Concrete rule of thumb: this design tells you *how* a control should look, behave, and feel — not *which* controls your scenario must include. Match the design's visual and behavioral floor; do not constrain your scenario's feature set to whatever examples appear below.
+1. **Every colour is painted explicitly.** No element inherits a ground, a text
+   colour, or a border from the host shell or from browser chrome. A surface that
+   renders correctly only because something behind it happened to be dark is a bug.
+2. **No colour is defined only inside a media query or a `[data-theme]` block.**
+   Tokens are defined once on `:root` and consumed by name.
 
-## Intent
+## Type roles
 
-Vrooli Operational Console is the default design language for scenario applications. It is built for operators, agents, reviewers, maintainers, and builders who need to understand system state quickly and act repeatedly without friction.
+Three roles, each with a full fallback stack, because **no web font is loaded**.
+Vrooli scenarios run locally and must render correctly offline, and no font package
+is currently approved through `scenario-dependency-analyzer`. The stacks below are
+ordered so that if the operator later approves `@fontsource` packages for the first
+name in each stack, the language upgrades with no other change.
 
-The interface should feel calm, technical, dense, legible, and durable. It should borrow the strongest patterns from Swarm Manager and Git Control Tower: dark operational chrome, precise status color, compact information surfaces, resizable desktop panels, mobile-first navigation adaptations, and strong support for long-running workflows. It should not feel like a marketing site, decorative dashboard, consumer social app, or generic purple-gradient AI product.
+| Role | Stack | Used for |
+|---|---|---|
+| **Display** | `Barlow Condensed` → `Bahnschrift` → `Avenir Next Condensed` → `Liberation Sans Narrow` → `DejaVu Sans Condensed` → `Arial Narrow` | Legend plates, headings, stat numerals |
+| **Body** | `IBM Plex Sans` → system sans | Prose, descriptions, labels |
+| **Mono** | `IBM Plex Mono` → `JetBrains Mono` → `ui-monospace` → `DejaVu Sans Mono` | All data, all tags, all cell references, every numeral in a column |
 
-## Layout
+Every fallback in the display stack is a genuine condensed face present by default on
+at least one of Linux, macOS, or Windows, so the condensed voice survives on a host
+with no webfont. `Liberation Sans Narrow` and `DejaVu Sans Condensed` cover Linux;
+`Bahnschrift` covers Windows 10+; `Avenir Next Condensed` covers macOS.
 
-Use full-width application surfaces. Prefer navigation, toolbars, tables, forms, split panes, file/code viewers, graph canvases, command bars, and compact panels over oversized hero sections or decorative cards.
+All tabular data sets `font-variant-numeric: tabular-nums`.
 
-Desktop layouts should maximize screen space. Sidebars and inspector panels sit beside the main content and reduce the main content width when opened. Resizable sidebars and split panes are preferred for work surfaces where users compare lists, details, diffs, logs, previews, or execution output. Preserve enough adjacent content width that opening a panel never makes the workspace unusable.
+## The semantic signal system
 
-Mobile layouts are not shrunken desktop layouts. Sidebars become full-width drawers or route-level panels. Main route navigation may become bottom navigation when it replaces desktop sidebar or header navigation. Complex dialogs become full-screen panels or bottom sheets, especially when they contain forms, review steps, filters, file actions, or multi-step decisions. Mobile primary actions should live near the bottom edge, respect safe-area insets, and support optional left-handed or right-handed placement when the action is frequent.
+Four states, and they are a *system*, not an accent palette. Colour is supplementary
+in every one: each state also carries a distinct mark and a text label, per the
+existing closed vocabulary in `src/theme/instrument.ts`.
 
-Use cards only for repeated records, focused tools, modals, and intentionally framed objects. Do not wrap whole page sections in floating cards. Keep page-level structure unframed unless the content is a true object or tool.
+| State | Token | Colour | Meaning |
+|---|---|---|---|
+| **Covered** | `--signal-covered` | `#F2A93B` amber | The rung is instrumented and read |
+| **Partial** | `--signal-partial` | `#4FC7D9` cyan | Instrumented with a stated limit |
+| **Blind** | `--signal-blind` | `#202A2E` unlit | Declared blindness, dated |
+| **Excursion** | `--signal-excursion` | `#E3543C` vermilion | Out of band, or a claim contradicted by evidence |
 
-## Color
+**The excursion colour stays rare.** If more than a few vermilion elements appear on
+one screen the alarm has lost its meaning — which is exactly the failure mode
+EEMUA 191 exists to prevent. It is reserved for a genuine out-of-band condition or a
+declaration proven false; it is never used for "missing" or "unknown".
 
-Default presentation is light mode with a neutral work surface and optional dark shell chrome. Dark mode is first-class and should preserve the deep slate operational feel of existing Vrooli tools. System mode should follow the platform preference.
+Two further facts are distinct from all four above and must never be rendered as any
+of them:
 
-Use neutral slate surfaces as the dominant base. Use blue for primary commands and selected navigation, cyan for technical emphasis, green for success or completed work, amber for warnings or pending attention, and red for destructive, failed, or blocked states. Do not rely on color alone for status; pair it with labels, icons, position, or shape.
+- **`unmeasurable`** — the device exists and the platform cannot read this signal
+  from it, with a stated reason (for example, `smartctl` present but permission
+  denied). Rendered as a lamp with a struck-through field and its reason adjacent.
+  It is *not* blind, because it is declared and understood; it is not zero; it is not
+  healthy.
+- **`UNAVAILABLE`** — the sensor source could not be reached at read time. This is a
+  fact about the *instrument*, not about the *plant*. Rendered on the instrument
+  chrome rather than in the plant data, so an owner outage can never read as a
+  coverage collapse.
 
-Avoid one-note palettes dominated by a single hue family. Avoid decorative gradient blobs, bokeh, and atmospheric backgrounds. Gradients may be used sparingly for product-specific hero metrics or specialized visualizations, but not as the default application background.
+## Structural devices encode real data
 
-## Typography
+- Section headers are **engraved legend plates**: a mono tag, an uppercase condensed
+  legend, a hairline rule running to the panel edge, and an optional right-aligned
+  aside.
+- **A plate's tag is a real reference** — an actual substrate cell id such as `SB1`,
+  a rung number, or a device address. It is never a decorative counter. If a section
+  has no real reference to carry, it gets no tag.
+- Hairlines are `1px` at `--color-border`. Panels are separated by a 1px gap over a
+  border-coloured ground, so the seams read as machined joints rather than as
+  shadowed cards. Radii stay at or below `0.25rem`; this language has no soft cards.
 
-Use Inter or the platform sans stack for application UI. Use a monospace stack for code, diffs, hashes, paths, identifiers, logs, tabular metrics, and command output.
+## Motion
 
-Base body text is 16px for mobile input safety and accessibility. Dense desktop panels may use 14px body text when the interaction benefits from scanning, but controls must remain legible and targets must remain usable. Support user font-size scaling. Letter spacing is zero by default except for rare compact labels where local implementation has a clear reason.
+Motion is used once, for one reason: lamps come up in sequence on first paint, the
+way an annunciator panel self-tests at power-on. It runs for well under a second, it
+never loops, and it never repeats on re-render.
 
-Reserve hero-scale type for true landing or product-identity screens. Scenario applications should usually use compact page titles, section headers, labels, and status text sized to their container.
-
-## Components
-
-Controls should be predictable, stable, and optimized for repeated work. Use icon buttons for familiar tool actions, segmented controls for modes, toggles or checkboxes for binary settings, sliders or inputs for numeric values, menus for option sets, tabs for sibling views, and command bars for high-frequency workflow actions.
-
-Example primitives (illustrative, not a feature checklist — include whatever your scenario actually needs, styled to match these patterns):
-
-- **Shells:** desktop sidebars, collapsible panes, resizable inspectors, bottom mobile navigation, route-level mobile panels.
-- **Dialogs:** compact modal on desktop; bottom sheet or full-screen panel on mobile when content is more than a short confirmation.
-- **Lists and tables:** dense rows, sticky headers when useful, clear selected state, empty/loading/error states, and bulk action affordances.
-- **Status:** semantic chips, health indicators, badges, progress bars, and validation summaries with both text and color.
-- **Code and files:** monospace text, stable line height, visible focus, preserved whitespace, horizontal scroll affordances, and clear added/modified/deleted states.
-- **Actions:** primary action near the active work surface; destructive actions separated, confirmed, and visually distinct.
-
-Text must not overflow or overlap at mobile or desktop sizes. Fixed-format controls such as boards, tiles, counters, toolbars, nav items, and badges need stable dimensions or responsive constraints so dynamic content cannot shift the surrounding layout.
-
-## Responsiveness
-
-Design mobile first, then expand to tablet and desktop. Mobile should provide complete capability, not a read-only fallback. If a workflow is important on desktop, define the mobile equivalent deliberately.
-
-Breakpoints should be treated as behavior changes, not only width changes. Common transformations:
-
-- Desktop sidebar -> mobile full-width drawer.
-- Desktop modal -> mobile bottom sheet or full-screen panel.
-- Desktop header/sidebar route navigation -> mobile bottom navigation where appropriate.
-- Desktop split panes -> mobile stepwise panels or tabs with preserved context.
-- Desktop hover affordance -> mobile visible affordance or long-press-safe alternative.
-
-Use safe-area padding for mobile bottom and top chrome. Primary touch targets should be at least 44px. Avoid hiding essential actions behind hover-only UI.
-
-## Customization
-
-Every generated scenario should be able to support light, dark, and system mode unless the product explicitly documents a different reason. Font size scaling, reduced motion, and RTL layout should be planned from the start. For mobile-heavy workflows with frequent bottom actions, support optional left-handed and right-handed action placement when feasible.
-
-Build a full settings/preferences surface covering everything your scenario actually needs — theme, font scale, locale, accessibility preferences, account or workspace controls, notification toggles, and scenario-specific options. Do not treat any specific subset of preferences mentioned elsewhere in this document as the complete set; those are illustrative. Style and behavior of the settings surface are governed by this design; *which* settings exist is governed by your scenario's users.
-
-Customization should be implemented through tokens and stateful preferences, not one-off component rewrites. Local product themes may extend this design, but they should keep semantic color roles, focus behavior, responsive transformations, and accessibility guarantees intact.
-
-## Workflow Ergonomics
-
-Design from the user's flow, not from component inventory. For each major screen, identify the primary repeated action, the highest-risk action, the most common comparison, and the first thing a new user needs to understand.
-
-Experienced users should be able to move quickly with short pointer travel, predictable keyboard focus, visible shortcuts where appropriate, persisted panel sizes, remembered filters, and stable navigation state. New users should see enough structure, labels, and progressive disclosure to understand what is actionable without reading documentation.
-
-## Feedback & State
-
-Every user-triggered operation needs visible state. Loading, submitting, saving, syncing, refreshing, empty, partial, stale, success, validation-error, request-error, permission-denied, offline, and retry states are part of the design contract, not implementation polish.
-
-Buttons that start asynchronous work should acknowledge the click immediately, show a busy state, prevent duplicate submission when duplicate work would be harmful, and restore a usable state when the operation finishes. Forms should preserve user input on failure, place field-level validation near the affected control, and show a form-level summary when the submit action fails. Lists, tables, panels, and dashboards should have purposeful loading, empty, partial, and error states instead of blank space.
-
-Use inline feedback near the action when the user needs to continue working in context. Use toasts only for transient confirmation or background results. Use alert panels for failures that need reading, retry, or escalation. Error messages should explain what happened, what is still safe, and the next available action without exposing stack traces, secrets, raw tokens, or irrelevant internals.
-
-## UX-State Contract
-
-Every major surface declares the lifecycle states that users can encounter:
-`idle`, `pending`, `success`, `loading`, `saving`, `syncing`, `refreshing`,
-`empty`, `partial`, `stale`, `validation-error`, `request-error`, `retrying`,
-`permission-denied`, and `offline`. A scenario may add a more specific state,
-but it must keep the generic state legible and actionable. The state must be
-represented in the accessibility tree with a role, name, status, or alert that
-explains what changed and what the user can do next.
-
-Experience-manager's state coverage check uses this section as the contract
-source. Pages that do not encounter a state may omit it with a documented
-reason in their experience spec; a blank or silent state is never an omission
-reason.
-
-## Baseline Capture Matrix
-
-The default machine-evidence run uses a bounded covering set of at most 12
-captures per active surface. It includes every declared viewport, light and
-dark desktop coverage, English and Arabic direction coverage, both motion
-preferences, and rest/hover/focus-visible/pressed interaction states. The
-matrix is a covering set rather than a Cartesian product so capture cost stays
-predictable; a claim scoped to an additional axis opts into the smallest
-targets needed for that claim.
-
-## Request Lifecycle
-
-For every network call, long-running local task, file operation, generation step, or resource mutation, design the lifecycle deliberately: idle, pending, success, failure, retrying, and disabled/unavailable. Slow operations should show progress, skeletons, spinners, streaming output, or queued status appropriate to the surface. If exact progress is unknown, show an indeterminate but visible pending state with stable layout.
-
-Optimistic updates are allowed only when rollback is clear. If an optimistic change fails, restore the previous state or mark the item as unsynced with a retry action. Background sync should expose freshness, last-updated time, stale data, and reconnection status when the result affects decisions.
+Everything else is still. There are no hover animations, no sliding panels, and no
+ambient effects. All motion is wrapped in
+`@media (prefers-reduced-motion: no-preference)` and the panel is fully legible with
+motion disabled.
 
 ## Accessibility
 
-Interactive controls need visible focus states, disabled states, hover/active states where supported, and readable contrast in both light and dark modes. Do not rely on color alone to communicate status. Keep target sizes usable for mouse, keyboard, touch, and remote/TV-like pointer input when relevant.
+- Every interactive element has a visible focus state: a `2px` `--signal-covered`
+  outline at `3px` offset. Focus is never removed without replacement.
+- Status is never colour alone. Every lamp carries a mark and an accessible label.
+- The device constellation is an `<svg role="img">` with a `<title>` and a `<desc>`
+  that states what the shape shows, plus an adjacent text alternative listing the
+  same devices and rung states. A screen-reader user gets the finding, not the
+  picture.
+- Contrast: `--color-foreground` on `--color-background` is well above 4.5:1, as is
+  every signal colour on both `--color-background` and `--color-surface`. The
+  subtlest token, `--color-subtle-foreground`, is reserved for non-essential
+  supporting text and never carries a status.
 
-Respect reduced-motion preferences. Animations should clarify spatial change, such as drawers and sheets entering from their origin, and should never block task completion. Scrollbars and overflow regions must be discoverable on pointer-based devices.
+## What this language is not
 
-## Do's and Don'ts
-
-### Do
-
-- Start UI work by reading this file and mapping the main user flows.
-- Prefer compact operational surfaces over decorative composition.
-- Support light, dark, and system mode from the beginning.
-- Use responsive behavior changes for sidebars, dialogs, navigation, and split panes.
-- Use semantic status colors consistently and pair them with text or icons.
-- Preserve user preferences for theme, font scale, panel sizing, filters, and active views when useful.
-- Design loading, empty, partial, success, validation-error, request-error, and retry states for every asynchronous workflow.
-- Preserve user input and provide a clear next step when a form submission or mutation fails.
-
-### Don't
-
-- Create a marketing-style landing page as the first screen of a scenario application.
-- Make mobile a cramped version of desktop.
-- Hide important mobile actions behind hover-only affordances.
-- Use decorative gradients, orbs, or background effects as the default visual identity.
-- Let component libraries or adapter assets become a separate source of design truth.
-- Introduce a new product theme without updating the scenario's root `DESIGN.md`.
-- Leave users without visible feedback after they submit, save, generate, refresh, or delete something.
-- Use silent failure, blank panels, disabled controls without explanation, or toasts as the only record of a blocking error.
+It is not a war-room kiosk. `vrooli-command-display` exists for ambient TV and
+fullscreen display surfaces and optimises for legibility at three metres with 84px
+type. This is a desk instrument read at arm's length, and it optimises for density
+and precision instead. The two share a dark-first world and nothing else.

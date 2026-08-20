@@ -3,8 +3,8 @@ package health
 import (
 	"net/http"
 
-	"infrastructure-manager/internal/database"
-	"infrastructure-manager/internal/module"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/database"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
 
 	"github.com/gorilla/mux"
 )

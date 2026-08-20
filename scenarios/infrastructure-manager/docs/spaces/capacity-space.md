@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Projection | capacity |
-| Owner | control plane (`vrooli capacity`) |
+| Owner | `control-plane` — the `vrooli capacity` broker; no scenario holds this space |
 | Denominator confidence | `SKETCH` — instrument-held pending a control-plane space owner; revisit when capacity gains a typed space service |
 | Leg unit | claim |
 

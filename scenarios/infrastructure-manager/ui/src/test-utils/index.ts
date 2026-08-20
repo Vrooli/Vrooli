@@ -47,22 +47,12 @@
  */
 import { renderWithProviders as renderWithApiBaseProviders } from "@vrooli/api-base/testing";
 import type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
-import { ThemeProvider } from "../theme/ThemeProvider";
 import { i18n } from "../i18n";
-import { createElement, type ReactElement, type ReactNode } from "react";
+import { type ReactElement } from "react";
 
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export function renderWithProviders(ui: ReactElement, options: ProviderRenderOptions = {}): ProviderRenderResult {
-  const extraProviders = options.extraProviders;
-  return renderWithApiBaseProviders(ui, {
-    ...options,
-    i18n,
-    extraProviders: (children: ReactNode) => createElement(
-      ThemeProvider,
-      null,
-      extraProviders ? extraProviders(children) : children,
-    ),
-  });
+  return renderWithApiBaseProviders(ui, { ...options, i18n });
 }
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";

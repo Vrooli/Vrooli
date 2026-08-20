@@ -2,6 +2,7 @@ package supervisor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -113,13 +114,34 @@ func (s *ProcessSupervisor) waitForHealthy(ctx context.Context) error {
 }
 
 // monitorLoop watches for process exit and triggers restarts.
+//
+// ExitChan reports exit by closing its channel, and a closed channel stays
+// ready forever. The loop may therefore only continue once the process has
+// handed back a fresh channel, which happens only when Start succeeds. Waiting
+// on the same closed channel re-arms the select immediately and spins a core at
+// 100% while logging the same failure on every pass.
 func (s *ProcessSupervisor) monitorLoop() {
 	for {
+		exitCh := s.process.ExitChan()
+
 		select {
 		case <-s.stopCh:
 			return
-		case <-s.process.ExitChan():
-			s.handleProcessExit()
+		case <-exitCh:
+		}
+
+		s.handleProcessExit()
+
+		if s.State().IsTerminal() {
+			return
+		}
+
+		if s.process.ExitChan() == exitCh {
+			// The restart never produced a live process, so the channel we
+			// woke on is still the closed one and there is nothing left to
+			// watch. Report it rather than looping on a dead channel.
+			s.setState(StateUnrecoverable, errors.New("process exited and could not be restarted; supervisor stopped monitoring"))
+			return
 		}
 	}
 }

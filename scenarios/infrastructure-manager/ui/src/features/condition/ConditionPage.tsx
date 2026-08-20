@@ -5,6 +5,8 @@ import { EmptyState } from "../../components/ui/empty-state";
 import { StatusToken, TrustTriple } from "../../components/ui/instrument-status";
 import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
 import { fetchCondition, fetchTrust } from "../../api/reliability";
+import { BandVerdict as BandVerdictEnum, TrustVerdict as TrustVerdictEnum } from "@vrooli/proto-types/infrastructure-manager/v1/condition/condition_pb";
+import { BAND_VERDICTS, TRUST_VERDICTS, type BandVerdict, type TrustVerdict } from "../../theme/instrument";
 
 export function ConditionPage() {
   const condition = useQuery({ queryKey: ["reliability", "condition"], queryFn: fetchCondition });
@@ -40,5 +42,15 @@ export function ConditionPage() {
   );
 }
 
-function trustName(value: number): "VALID" | "GHOST" | "SATURATED" | "SHELVED" | "UNIT_MISMATCH" | "UNAVAILABLE" | "UNTRUSTED" { return ["UNTRUSTED", "VALID", "GHOST", "SATURATED", "SHELVED", "UNIT_MISMATCH", "UNAVAILABLE", "UNTRUSTED"][value] as never; }
-function bandName(value: number): "IN_BAND" | "OUT_OF_BAND" | "PENDING_SUSTAIN" | "NEEDS_BASELINE" | "NOT_EVALUATED" { return ["NOT_EVALUATED", "IN_BAND", "OUT_OF_BAND", "PENDING_SUSTAIN", "NEEDS_BASELINE", "NOT_EVALUATED"][value] as never; }
+// Resolve verdicts through the generated enum rather than by array position.
+// A positional list silently yields `undefined` for any value added to the
+// proto later, which renders as a blank token instead of a verdict.
+function trustName(value: number): TrustVerdict {
+  const name = (TrustVerdictEnum[value] ?? "").replace("TRUST_VERDICT_", "");
+  return name in TRUST_VERDICTS ? (name as TrustVerdict) : "UNTRUSTED";
+}
+
+function bandName(value: number): BandVerdict {
+  const name = (BandVerdictEnum[value] ?? "").replace("BAND_VERDICT_", "");
+  return name in BAND_VERDICTS ? (name as BandVerdict) : "NOT_EVALUATED";
+}

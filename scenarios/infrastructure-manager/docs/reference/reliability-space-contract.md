@@ -17,11 +17,9 @@ following shape:
 | | |
 |---|---|
 | Projection | supervision |
-| Owner | vrooli-autoheal |
+| Owner | `vrooli-autoheal` |
+| Denominator confidence | `PARTIAL` — registry is complete for configured checks; host surfaces are not swept |
 | Leg unit | check |
-| Denominator confidence | PARTIAL |
-| Confidence rationale | Registry is complete for configured checks; host surfaces are not swept. |
-| Legend | NOW · IN-REACH · MISSING |
 
 ## Coverage Grid
 
@@ -31,11 +29,26 @@ following shape:
 | SUP-002 | Shelf hygiene | vrooli-autoheal | check | MISSING | | 2026-08-20 |
 ```
 
-The metadata table is mandatory. `Projection`, `Owner`, `Leg unit`,
-`Denominator confidence`, and `Confidence rationale` must each be present.
-The grid must contain a stable cell ID, a question, a leg unit, and one of the
-three status values. A `MISSING` cell must carry `gap_opened_on`; it is never
-silently inferred from a failed read.
+The metadata table is mandatory. `Projection`, `Owner`, `Denominator
+confidence` and `Leg unit` must each be present, and those are the only four
+rows the parser reads — a fifth row is documentation, not data.
+
+Two shapes are load-bearing and are easy to get wrong:
+
+- **`Owner` is read as its first whitespace-delimited token.** `control plane
+  (`vrooli capacity`)` parses to the owner `control`. Write a single token —
+  `vrooli-autoheal`, `storage-manager`, `control-plane` — and put any
+  qualification after it in the same cell, where it stays readable to a human
+  and is dropped from the typed response.
+- **Level and rationale share the `Denominator confidence` cell.** The parser
+  takes the level from the first recognised keyword and the rationale from the
+  whole cell, so the convention is `` `PARTIAL` — <why> ``. There is no separate
+  rationale row.
+
+The grid must contain a stable cell ID, a question, and one of the three status
+values. A `MISSING` cell must carry `gap_opened_on`; it is never silently
+inferred from a failed read. An unstated confidence defaults to `SKETCH`,
+because the least confident reading is the honest one to assume.
 
 `AUTHORITATIVE`, `PARTIAL`, and `SKETCH` describe the completeness of the
 denominator, not the health of any reading. Health and trust are separate
@@ -49,50 +62,65 @@ The equivalent CLI command is:
 <owner> space --projection <projection> --json
 ```
 
-Its JSON shape is the proto-JSON encoding of the following logical object:
+It emits `space-definition/v1` — the `spacedoc.SpaceDefinition` encoding, whose
+schema is `.vrooli/schemas/space-definition.schema.json`. Keys are snake_case,
+status and confidence values are lower-cased on the wire, and `source` carries
+the repo-relative document the denominator was read from so a reader can always
+find the authority behind a number:
 
 ```json
 {
+  "schema_version": "v1",
   "projection": "supervision",
   "owner": "vrooli-autoheal",
-  "legUnit": "check",
-  "confidence": {
-    "level": "PARTIAL",
-    "rationale": "Registry is complete for configured checks; host surfaces are not swept."
-  },
+  "denominator_confidence": "partial",
+  "confidence_rationale": "`PARTIAL` — registry is complete for configured checks; host surfaces are not swept",
+  "leg_unit": "check",
+  "source": "scenarios/vrooli-autoheal/docs/spaces/supervision-space.md",
   "cells": [
     {
       "id": "SUP-001",
       "question": "Registry coverage",
       "owner": "vrooli-autoheal",
-      "legUnit": "check",
-      "status": "NOW",
-      "sensorRef": "checks list"
+      "status": "now",
+      "notes": ["checks list"]
     },
     {
       "id": "SUP-002",
       "question": "Shelf hygiene",
       "owner": "vrooli-autoheal",
-      "legUnit": "check",
-      "status": "MISSING",
-      "gapOpenedOn": "2026-08-20"
+      "status": "missing",
+      "gap_opened_on": "2026-08-20"
     }
   ]
 }
 ```
 
-The service may return `available=false` and a verbatim `unavailableReason`
-when its source cannot be read. Consumers must preserve authored cell status
-in that case: an unavailable space is not an empty space and never converts
+Omitting `--json` renders a counted text summary instead; it is for humans and
+carries no cell detail.
+
+A source that cannot be read fails loudly rather than emitting a partial
+document. Consumers must preserve authored cell status when an owner is
+unreachable: an unavailable space is not an empty space and never converts
 cells to `MISSING`.
 
 ## Projection vocabulary
 
-The ten projection identifiers are `supervision`, `availability`, `recovery`,
-`capacity`, `headroom`, `durability`, `attribution`, `validation-cost`,
-`agent-throughput`, and `commissioning`. The first eight are owner-authored by
-the control layers named in the plan; `capacity` and `commissioning` are
-temporarily instrument-held control-plane spaces with a dated revisit trigger.
+The eleven projection identifiers are `supervision`, `availability`,
+`recovery`, `substrate`, `capacity`, `headroom`, `durability`, `attribution`,
+`validation-cost`, `agent-throughput`, and `commissioning`. Nine are
+owner-authored by the control layers named in
+[`../concepts/COVERAGE-MODEL.md`](../concepts/COVERAGE-MODEL.md) § The
+Projections. `capacity` and `commissioning` are held by
+`infrastructure-manager` itself, because the control plane is not a scenario
+and has nowhere to put a space document; both carry a dated revisit trigger and
+are the only two projections this scenario's own `space` verb will serve.
+
+Registration is per owner, in that scenario's `cli/domains/domains.go`, via
+`spacecli.CommandGroup`. An owner that authors a space document but does not
+register its projection publishes a denominator no typed caller can read — the
+document is then reachable only by file path, which is the coupling this
+contract exists to remove.
 
 ## Conformance rules
 

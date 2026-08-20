@@ -335,3 +335,87 @@ func eventually(t *testing.T, timeout time.Duration, condition func() bool) {
 	}
 	t.Fatal("condition not met within timeout")
 }
+
+// TestProcessSupervisor_NoSpinOnClosedExitChannel guards the defect where
+// monitorLoop re-armed its select on an already-closed exit channel and called
+// handleProcessExit forever. A closed channel is permanently ready, so every
+// path that returns from handleProcessExit without leaving the loop turns into
+// a hot loop: one observed instance logged the same error 23.9 million times
+// and held 2.25 cores while every health signal still reported healthy.
+//
+// The observable signature is restart bookkeeping that never stops growing, so
+// that is what these tests assert on.
+func TestProcessSupervisor_NoSpinOnClosedExitChannel(t *testing.T) {
+	t.Run("stops monitoring once max restarts are exceeded", func(t *testing.T) {
+		mock := NewMockProcess()
+		healthCheck := func(ctx context.Context) error { return nil }
+
+		cfg := testConfig()
+		cfg.MaxRestarts = 1
+		cfg.InitialBackoff = 5 * time.Millisecond
+
+		sup := NewProcessSupervisor(cfg, mock, healthCheck, testLogger())
+		require.NoError(t, sup.Start(context.Background()))
+
+		for i := 0; i < 3 && sup.State() != StateUnrecoverable; i++ {
+			eventually(t, 3*time.Second, func() bool {
+				state := sup.State()
+				return state == StateRunning || state == StateUnrecoverable
+			})
+			if sup.State() == StateUnrecoverable {
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+			mock.TriggerCrash()
+		}
+
+		eventually(t, 3*time.Second, func() bool {
+			return sup.State() == StateUnrecoverable
+		})
+
+		// The loop must be gone, not merely slow. Sampling twice across a
+		// window that the buggy build would have used for tens of thousands of
+		// iterations is enough to tell the two apart.
+		restartsAtTerminal := sup.RestartCount()
+		startsAtTerminal := mock.StartCalled.Load()
+		time.Sleep(200 * time.Millisecond)
+
+		assert.Equal(t, restartsAtTerminal, sup.RestartCount(),
+			"supervisor kept recording restarts after reaching an unrecoverable state")
+		assert.Equal(t, startsAtTerminal, mock.StartCalled.Load(),
+			"supervisor kept trying to start the process after giving up")
+
+		_ = sup.Stop(context.Background())
+	})
+
+	t.Run("stops monitoring when the process cannot be restarted", func(t *testing.T) {
+		mock := NewMockProcess()
+		healthCheck := func(ctx context.Context) error { return nil }
+
+		cfg := testConfig()
+		cfg.InitialBackoff = 5 * time.Millisecond
+
+		sup := NewProcessSupervisor(cfg, mock, healthCheck, testLogger())
+		require.NoError(t, sup.Start(context.Background()))
+
+		// A restart that fails leaves the old, already-closed exit channel in
+		// place. That is the case the original loop could not survive.
+		mock.StartErr = errors.New("port already in use")
+		mock.TriggerCrash()
+
+		eventually(t, 3*time.Second, func() bool {
+			return sup.State().IsTerminal()
+		})
+
+		restartsAtTerminal := sup.RestartCount()
+		startsAtTerminal := mock.StartCalled.Load()
+		time.Sleep(200 * time.Millisecond)
+
+		assert.Equal(t, restartsAtTerminal, sup.RestartCount(),
+			"supervisor spun on a closed exit channel after a failed restart")
+		assert.Equal(t, startsAtTerminal, mock.StartCalled.Load(),
+			"supervisor retried a failed start without bound")
+
+		_ = sup.Stop(context.Background())
+	})
+}

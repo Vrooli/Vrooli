@@ -4,19 +4,33 @@ import (
 	"infrastructure-manager/cli/domains/condition"
 	"infrastructure-manager/cli/domains/coverage"
 	"infrastructure-manager/cli/domains/focus"
+	"infrastructure-manager/cli/domains/ladder"
+	"infrastructure-manager/cli/domains/portability"
 
+	"github.com/vrooli/api-core/spacecli"
+	"github.com/vrooli/api-core/spacedoc"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
 //
-// Keep app.go focused on CLI metadata and cli-core wiring. As the scenario
-// grows, add domains like domains/tasks or domains/projects and append their
-// registrations here. For greenfield scenarios, domain packages are the
-// default architecture; do not treat flat command files as the long-term plan.
+// This scenario is the reliability instrument, and it is also the interim
+// space owner for the two projections whose control layer has no scenario to
+// hold them: `capacity` (`vrooli capacity`) and `commissioning` (`vrooli
+// setup`). Registering `spacecli` here is what makes those two denominators
+// readable through the same typed verb every other owner exposes, rather than
+// only as a file path this scenario happens to know. The other nine
+// projections are registered by their own owners and are deliberately refused
+// here — an instrument that could serve another layer's space could also
+// change it.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	_ = core
-	return nil
+	return []cliapp.CommandGroup{
+		spacecli.CommandGroup(spacecli.Config{Owner: "infrastructure-manager", Projections: []spacedoc.Projection{
+			spacedoc.ProjectionCapacity,
+			spacedoc.ProjectionCommissioning,
+		}}),
+	}
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.
@@ -54,5 +68,15 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, coverageGroup)
+	portabilityGroup, err := portability.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, portabilityGroup)
+	ladderGroup, err := ladder.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, ladderGroup)
 	return groups, nil
 }

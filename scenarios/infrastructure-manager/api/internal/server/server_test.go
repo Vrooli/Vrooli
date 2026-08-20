@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	httpx "github.com/vrooli/api-core/servertest"
-	"infrastructure-manager/internal/module"
-	"infrastructure-manager/internal/server"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
 

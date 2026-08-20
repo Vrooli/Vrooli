@@ -17,22 +17,26 @@
 package modules
 
 import (
-	"infrastructure-manager/internal/module"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
 
-	capsH "infrastructure-manager/handlers/capabilities"
-	conditionH "infrastructure-manager/handlers/condition"
-	coverageH "infrastructure-manager/handlers/coverage"
-	focusH "infrastructure-manager/handlers/focus"
+	capsH "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/handlers/capabilities"
+	conditionH "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/handlers/condition"
+	coverageH "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/handlers/coverage"
+	focusH "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/handlers/focus"
+	ladderH "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/handlers/ladder"
+	portabilityH "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/handlers/portability"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	healthH "infrastructure-manager/handlers/health"
-	localdb "infrastructure-manager/internal/database"
+	healthH "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/handlers/health"
+	localdb "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/database"
 
 	conditionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/condition"
 	coveragev1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/coverage"
 	focusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/focus"
+	ladderv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/ladder"
+	portabilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/portability"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -46,6 +50,8 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, conditionH.Endpoints...)
 	out = append(out, coverageH.Endpoints...)
 	out = append(out, focusH.Endpoints...)
+	out = append(out, ladderH.Endpoints...)
+	out = append(out, portabilityH.Endpoints...)
 	return out
 }
 
@@ -75,6 +81,8 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "condition", File: conditionv1.File_infrastructure_manager_v1_condition_condition_proto},
 		{Module: "coverage", File: coveragev1.File_infrastructure_manager_v1_coverage_coverage_proto},
 		{Module: "focus", File: focusv1.File_infrastructure_manager_v1_focus_focus_proto},
+		{Module: "ladder", File: ladderv1.File_infrastructure_manager_v1_ladder_ladder_proto},
+		{Module: "portability", File: portabilityv1.File_infrastructure_manager_v1_portability_portability_proto},
 	}
 }
 

@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Projection | commissioning |
-| Owner | control plane (`vrooli setup`) |
+| Owner | `control-plane` — `vrooli setup`; no scenario holds this space |
 | Denominator confidence | `SKETCH` — instrument-held pending a commissioning owner; revisit when setup exposes a typed space service |
 | Leg unit | host bring-up |
 

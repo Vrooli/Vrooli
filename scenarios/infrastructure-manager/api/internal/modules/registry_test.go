@@ -7,13 +7,13 @@ import (
 	"testing"
 
 	db "github.com/vrooli/api-core/databasetest"
-	"infrastructure-manager/internal/modules"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/modules"
 
 	"github.com/stretchr/testify/require"
 
 	apidb "github.com/vrooli/api-core/database"
 
-	localdb "infrastructure-manager/internal/database"
+	localdb "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/database"
 )
 
 // TestAllEndpoints_NonEmpty pins the smoke contract: at minimum the

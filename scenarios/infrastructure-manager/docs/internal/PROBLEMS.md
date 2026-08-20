@@ -222,3 +222,71 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+### 2026-08-20 — Four sensor-channel defects fixed; two model corrections
+
+**Symptom:** The instrument ran green while reporting almost nothing. Trust
+returned an empty distribution, 62–69% of readings were `UNTRUSTED`
+non-deterministically, 24 live scenarios were classified as ghosts, and the
+ranked surface could only ever emit coverage gaps.
+
+**Root causes, all now fixed:**
+
+1. **N+1 saturation reads.** The autoheal reader issued one `GetSaturation` per
+   check inside a 10s per-source deadline. Whatever did not fit was marked
+   `UNTRUSTED` — a deadline reported as a verdict about the plant. Replaced by
+   `ChecksService.ListSaturation`, one tally for the whole registry.
+2. **Sequential qualifiers.** `GetReconcile` derives the core set through a
+   subprocess taking ~4s, and ran ahead of the cheap reads, pushing them past
+   the same deadline. The three qualifier reads are now concurrent, and a
+   failure is scoped to the readings that qualifier actually governs —
+   reconcile only classifies `scenario-*` checks, so an unreadable reconcile no
+   longer blanks the substrate readings.
+3. **Ghost meant the wrong thing.** `reconcile.Compare` flagged a check as a
+   ghost when its target was absent from the *core set*, not when the target
+   was *gone*. Ghost readings are excluded from every aggregate, so 24 running
+   scenarios were silently dropped from uptime. Existence and
+   should-be-supervised are now separate questions with separate inputs, and
+   `out_of_scope` is its own answer.
+4. **`plainNameSet` over-stripped.** Normalizing the name side with the same
+   `scenario-` TrimPrefix used on the id side turned `scenario-authenticator`
+   into `authenticator`, so scenarios genuinely named `scenario-*` were
+   reported as ghosts *and* as unsupervised plant at once.
+
+**Model corrections:**
+
+- **Saturation is not quietness.** It was derived from `!transitioned`, which is
+  also true of every check steadily at OK — 61 of 79 here. Since saturated
+  readings are excluded from aggregates, that emptied the uptime figure of
+  exactly the checks that were fine. Saturation now requires a non-normal
+  current status as well as no transition.
+- **Ungraded is not one state.** 20 of 21 bars carried prose-only deadbands, so
+  every reading fell through to `NOT_EVALUATED` with no stated reason.
+  `NOT_GRADEABLE` now distinguishes "the bar authors no threshold" from "the
+  reading could not be trusted", and `LoadSetpoint` rejects a bar that is
+  neither gradeable nor explains why.
+
+**Refs:** `scenarios/vrooli-autoheal/api/internal/reconcile/reconcile.go`,
+`scenarios/vrooli-autoheal/api/internal/handlers/typed_connect.go`,
+`api/internal/sources/autoheal.go`, `api/internal/focus/condition_source.go`,
+`api/internal/coverage/service.go`, `api/internal/condition/banding.go`.
+
+### 2026-08-20 — `substrate/SB6`: no core-dump sensor exists anywhere
+
+**Symptom:** A userspace process crash loop is invisible to every reliability
+surface unless it also fails a liveness check.
+
+**Root cause:** Nothing in the platform reads `core_pattern`,
+`systemd-coredump` or `coredumpctl`. A repo-wide search for those terms returns
+zero hits. `system-panic-evidence` and `system-pstore-evidence` cover *kernel*
+panics via kdump and pstore; neither sees a userspace core dump.
+
+**Workaround:** None. The gap is declared as `substrate/SB6` (`MISSING`,
+`gap_opened_on: 2026-08-20`) so it is counted and aged by
+`coverage open-loop` rather than being silently absent.
+
+**Real fix:** A crash-accounting sensor owned by `vrooli-autoheal`, reading the
+coredump journal and attributing each crash to an owning scenario or run. Then
+`SB6` moves to `NOW` and gains a bar.
+
+**Owner:** unassigned.

@@ -85,7 +85,7 @@ async function main(): Promise<void> {
   let metricsServer: ReturnType<typeof createServer> | null = null;
   if (config.metrics.enabled) {
     try {
-      metricsServer = await createMetricsServer(config.metrics.port);
+      metricsServer = await createMetricsServer(config.metrics.port, config.server.host);
     } catch (error) {
       logger.warn('server: metrics server failed to start, continuing without metrics', {
         error: error instanceof Error ? error.message : String(error),
@@ -123,10 +123,11 @@ async function main(): Promise<void> {
   server.keepAliveTimeout = config.server.requestTimeout + 5000; // Slightly longer than request timeout
   server.headersTimeout = config.server.requestTimeout + 10000; // Slightly longer than keepAlive
 
-  // Start direct frame server for latency research spike
-  // Uses main server port + 1 (e.g., 39401 if main is 39400)
-  const directFramePort = config.server.port + 1;
-  const directFrameServer = createDirectFrameServer(directFramePort);
+  // Direct frame server: lets UI clients stream frames from the driver without
+  // relaying through the API hub. Its port is allocated by the scenario, not
+  // derived from the main port.
+  const directFramePort = config.frameStreaming.directPort;
+  const directFrameServer = createDirectFrameServer(directFramePort, config.server.host);
   directFrameServer.start();
 
   // Make direct frame server available globally for frame manager

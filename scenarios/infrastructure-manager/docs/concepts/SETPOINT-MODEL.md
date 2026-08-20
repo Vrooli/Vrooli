@@ -25,7 +25,7 @@ The setpoint is a set of **bars**, one per cell, expressed as data.
 
 **The setpoint is a checked-in declarative file inside this scenario, parsed at query time.**
 
-This replaces the arrangement in which it lived in the team's plan of record at `docs/infra-health/strategy/RELIABILITY_TARGETS.md`. That location was residue from the instrument not existing yet: the same way `meta-optimization-manager` holds its own models rather than leaving them in `docs/meta-optimization/`, the reliability model belongs with the instrument that computes it. The team plan of record keeps its operating model and governance, and points here.
+This replaces the arrangement in which it lived as a prose target table in the team's plan of record, since retired. That location was residue from the instrument not existing yet: the same way `meta-optimization-manager` holds its own models rather than leaving them in `docs/meta-optimization/`, the reliability model belongs with the instrument that computes it. The team plan of record keeps its operating model and governance, and points here.
 
 ### Why a file and not a table
 
@@ -107,16 +107,17 @@ Naming those obligations is what lifts confidence. It is judgment owned by the t
 
 ## Current State
 
-Recorded as of 2026-08-19, as data.
+Recorded as of 2026-08-20, as data.
 
 | Fact | Value |
 |---|---|
-| Setpoint location | Migrated from the retired `docs/infra-health/strategy/RELIABILITY_TARGETS.md` into this scenario as checked-in data |
-| Entries authored | 14 target kinds at operation granularity, pre-migration |
-| Entries carrying a `decision_ref` | 0 — the field does not exist in the prose form |
-| Bars whose value may equal the reading at authoring time | unaudited — the dead-deadband check has never run |
-| Setpoint confidence | `SKETCH` — no obligation list has been authored |
-| Update-protocol enforcement | none; the protocol is prose with no mechanism |
+| Setpoint location | `setpoint/reliability-setpoint.json` in this scenario. The team's prose target table it replaced is retired. |
+| Bars authored | 33 across eleven projections — 27 gradeable with a unit and a numeric threshold, 6 declared not-gradeable with stated reasons |
+| Bars carrying a `decision_ref` | 33 of 33 — `LoadSetpoint` refuses a bar without one |
+| Bars still provisional | 8 — `substrate/SB3`, `SB4` and `SB7` with per-bar stated defects, plus the five device-layer bars `SB9`-`SB13`, whose cells are IN-REACH and therefore grade nothing until their join lands. Four substrate bars were ratified 2026-08-20 against live host readings. |
+| Bars whose value may equal the reading at authoring time | audited for the seven original `substrate` bars only, on live readings taken 2026-08-20. The other 20 gradeable bars are unaudited, and the five device-layer bars cannot be audited at all until their cells are joined; no automated dead-deadband check exists. |
+| Setpoint confidence | `SKETCH` — no obligation list has been authored, and ratifying bars does not lift it |
+| Update-protocol enforcement | partial. `LoadSetpoint` enforces that every bar is gradeable-with-a-unit or explains why, that every bar carries a `decision_ref`, that every `cell_ref` resolves to a declared cell, that every open-loop bar routes to `instrumentation-gap`, that every `NOW` cell has a bar, and that a provisional bar states a reason no other bar repeats verbatim. The tighten/loosen hysteresis and the anti-windup rules remain prose with no mechanism. |
 
 ## Governing Principles
 

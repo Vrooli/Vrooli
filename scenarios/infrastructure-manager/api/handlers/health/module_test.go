@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"infrastructure-manager/handlers/health"
-	"infrastructure-manager/internal/testutil/mocks"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/handlers/health"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/testutil/mocks"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"

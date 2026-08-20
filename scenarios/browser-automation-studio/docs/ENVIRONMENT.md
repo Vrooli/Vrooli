@@ -137,7 +137,7 @@ Keep inner timeouts smaller than outers to get actionable errors.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PLAYWRIGHT_DRIVER_URL` | Driver HTTP URL | `http://127.0.0.1:39400` |
+| `PLAYWRIGHT_DRIVER_URL` | Driver HTTP URL | `http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}` (port allocated from 24400-24499) |
 
 ## Entitlement Configuration (optional)
 

@@ -120,7 +120,10 @@ func (h *handlers) historyReport(_ cliapp.OperationContext, msg *conditionv1.Get
 func projectionFlag(raw string) (coveragev1.Projection, error) {
 	name := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(raw), "-", "_"))
 	if name == "" {
-		return coveragev1.Projection_PROJECTION_AVAILABILITY, nil
+		// Unspecified means every projection with a live reader, not one
+		// hard-coded default. Defaulting to availability hid the substrate
+		// readings from anyone who did not already know to ask for them.
+		return coveragev1.Projection_PROJECTION_UNSPECIFIED, nil
 	}
 	value, ok := coveragev1.Projection_value["PROJECTION_"+name]
 	if !ok || value == 0 {

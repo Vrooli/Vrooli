@@ -13,8 +13,8 @@ import (
 	"log"
 	"net/http"
 
-	"infrastructure-manager/internal/middleware"
-	"infrastructure-manager/internal/module"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/middleware"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
 
 	"github.com/vrooli/api-core/schedule"
 
