@@ -190,6 +190,18 @@
 }
 
 /*
+ * `UNAUTHORED` means nobody has declared a cell for this rung on this class.
+ * There is nothing to grade, so it must read as ABSENCE OF A QUESTION rather
+ * than as a gap: the faintest treatment on the panel, quieter even than
+ * not-applicable, so it never competes with a real hole for attention.
+ */
+.lamp--unauthored {
+  border-color: transparent;
+  background: transparent;
+  color: var(--signal-blind-text);
+}
+
+/*
  * `SOURCE_DOWN` is a fact about the INSTRUMENT. It borrows no signal colour and
  * takes a dotted border so it is visibly a different KIND of statement from
  * every plant-side state beside it.

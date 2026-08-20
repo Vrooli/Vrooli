@@ -13,6 +13,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	bindings := map[string]cliapp.PrimitiveHandler{
 		"LadderService.GetLadder":    cliapp.ProtoList(h.statusCall, h.statusReport),
 		"LadderService.ListCells":    cliapp.ProtoList(h.cellsCall, h.cellsReport),
+		"LadderService.ListDevices":  cliapp.ProtoList(h.devicesCall, h.devicesReport),
 		"LadderService.ListSources":  cliapp.ProtoList(h.sourcesCall, h.sourcesReport),
 		"LadderService.RankFindings": cliapp.ProtoList(h.findingsCall, h.findingsReport),
 	}

@@ -15,7 +15,8 @@
       "condition": "الحالة",
       "focus": "التركيز",
       "designLanguage": "لغة الأجهزة"
-    }
+    },
+    "mainLabel": "المحتوى الرئيسي"
   },
   "pages": {
     "dashboard": {
@@ -101,14 +102,6 @@
       "drilldownSection": "تفاصيل الجهاز",
       "drilldownHeading": "الهوية والسلّم",
       "ladderHeading": "سلّم الرصد",
-      "fieldIdentity": "الطراز",
-      "fieldVendor": "المورّد",
-      "fieldDriver": "المشغّل",
-      "fieldParent": "الأصل",
-      "fieldNodes": "عقد النواة",
-      "fieldProvenance": "المصدر",
-      "fieldDiscoveredBy": "اكتُشف بواسطة",
-      "fieldEnrichedBy": "أُثري بواسطة",
       "reasonHeading": "السبب",
       "remediationHeading": "للإغلاق",
       "noRemediation": "لم يُعلن بعد أي إجراء لإغلاق هذه الفجوة.",
@@ -121,7 +114,19 @@
       "hubClasses": "{{count}} فئات",
       "nodeSummary": "{{members}} · {{covered}} من {{rungs}}",
       "nothingDeclaredShort": "OFF",
-      "nothingDeclaredLabel": "{{capability}} على {{os}}: لا شيء مُعلَن"
+      "nothingDeclaredLabel": "{{capability}} على {{os}}: لا شيء مُعلَن",
+      "drilldownDevices": "الأجهزة المُحصاة",
+      "drilldownBlindDevices": "بلا أي درجة مغطّاة",
+      "mechanismHeading": "يُقرأ من",
+      "ungraded": "غير مُقيَّم مقابل أي حدّ في نقطة الضبط",
+      "provisional": "الحدّ خلف هذه الخلية ما زال مبدئياً.",
+      "blockedByRung": "مكبوت لأن {{rung}} تحته عمياء؛ عالِج تلك الدرجة أولاً.",
+      "notRead": "لم يقرأ المصدر هذا، فلا يُدَّعى أي عدد.",
+      "checkPlatformsHeading": "استشعار الركيزة حسب المنصّة",
+      "checkPlatformsNote": "كم فحصاً مسجّلاً في وحدة الإصلاح الذاتي ينطبق على كل نظام تشغيل، من أصل كم فحصاً موجوداً. الفحص الذي لا يعلن منصّة ينطبق في كل مكان، ولهذا قد تكون لمنصّة فحوص منطبقة لا يسمّيها أي فحص صراحةً.",
+      "checkPlatformRow": "ينطبق {{applicable}} من {{total}} فحصاً، منها {{universal}} عام",
+      "statUngraded": "خلايا بلا حدّ",
+      "denominatorUnread": "تعذّرت قراءة وثيقة فضاء الركيزة، فلا تحمل أي خلية هنا حالة مؤلَّفة."
     },
     "coverage": {
       "eyebrow": "صحة البنية التحتية · إسقاط التغطية",
@@ -171,7 +176,9 @@
       "integrityNote": "نتائج رُصدت أثناء تحليل نقطة الضبط نفسها. هذه أعطال في تعريف الجهاز للمصنع، لذا تُذكر قبل أي رقم محسوب منه.",
       "integrityEmptyTitle": "لا نتائج لسلامة نقطة الضبط",
       "integrityEmptyBody": "حُلِّلت نقطة الضبط ولم تُرصد أي نتيجة. هذا الجهاز يُبلِّغ عن نفسه؛ ولا يقول شيئاً عن المصنع.",
-      "integrityUnavailable": "تعذّر التحقق من نقطة الضبط لفشل مصدر التغطية. ولا يُعرض أي عدد خلايا."
+      "integrityUnavailable": "تعذّر التحقق من نقطة الضبط لفشل مصدر التغطية. ولا يُعرض أي عدد خلايا.",
+      "noSpacesTitle": "لا مساحات تغطية معلنة",
+      "noSpacesBody": "استجاب مصدر التغطية ولم يُعلن أي مساحة للتقييم. هذه نقطة ضبط فارغة، لا آلة لا شيء فيها لمراقبته."
     },
     "condition": {
       "eyebrow": "صحة البنية التحتية · الحالة والثقة",
@@ -244,7 +251,8 @@
     "refreshCount": "تم التحديث {{count}} مرات",
     "refreshCount_one": "تم التحديث مرة واحدة",
     "serviceLabel": "الخدمة:",
-    "timestampLabel": "الطابع الزمني:"
+    "timestampLabel": "الطابع الزمني:",
+    "description": "حياة الواجهة التي تقرأها هذه اللوحة، ومتى استجابت آخر مرة."
   },
   "notifications": {
     "summary": "{{count}} إشعارات",

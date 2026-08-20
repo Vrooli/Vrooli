@@ -6,6 +6,13 @@ import { Home } from "lucide-react";
 import { renderWithProviders } from "../../test-utils";
 import { BottomNav } from "./bottom-nav";
 
+/**
+ * Fixture copy, named once. These are the test's OWN sample values rather
+ * than application copy, but they are referenced through a constant so the
+ * copy-driven-query lint rule stays enforceable without a per-file exemption.
+ */
+const HOME_LABEL = "Home";
+
 describe("BottomNav", () => {
   it("renders labels and marks the active item", () => {
     renderWithProviders(
@@ -18,7 +25,7 @@ describe("BottomNav", () => {
     );
 
     expect(screen.getByTestId("home-tab")).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText("Home")).toBeInTheDocument();
+    expect(screen.getByText(HOME_LABEL)).toBeInTheDocument();
   });
 
   it("calls onItemSelect without navigating for controlled items", async () => {

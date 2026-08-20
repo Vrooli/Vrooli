@@ -4,8 +4,8 @@ import { strings } from "../../consts/strings.generated";
 import { useTranslation } from "../../i18n";
 
 import { RungRing, describeRungStates } from "../../components/instrument/RungRing";
-import { RUNG_ORDER, type SignalState } from "../../theme/instrument";
-import { type DeviceClassGroup } from "./model";
+import { RUNG_ORDER } from "../../theme/instrument";
+import { isUnseen, rungStates, type DeviceClassNode } from "./model";
 
 /**
  * The device constellation.
@@ -31,7 +31,7 @@ const HUB_RADIUS = 46;
 
 export interface DeviceConstellationProps {
   hostName: string;
-  groups: readonly DeviceClassGroup[];
+  classes: readonly DeviceClassNode[];
   /** Invoked when a class node is activated. */
   onSelectClass?: (deviceClass: string) => void;
   selectedClass?: string | null;
@@ -40,7 +40,7 @@ export interface DeviceConstellationProps {
 }
 
 interface PlacedGroup {
-  group: DeviceClassGroup;
+  group: DeviceClassNode;
   x: number;
   y: number;
   /** True when no rung on this class is covered — the shape's holes. */
@@ -53,7 +53,7 @@ interface PlacedGroup {
  * would make the ring's shape depend on the reading, and the reader would lose
  * the ability to find the same device in the same place twice.
  */
-function place(groups: readonly DeviceClassGroup[]): readonly PlacedGroup[] {
+function place(groups: readonly DeviceClassNode[]): readonly PlacedGroup[] {
   const count = Math.max(groups.length, 1);
   return groups.map((group, index) => {
     const angle = (index / count) * Math.PI * 2 - Math.PI / 2;
@@ -61,7 +61,7 @@ function place(groups: readonly DeviceClassGroup[]): readonly PlacedGroup[] {
       group,
       x: CENTRE.x + Math.cos(angle) * ORBIT,
       y: CENTRE.y + Math.sin(angle) * ORBIT,
-      unseen: RUNG_ORDER.every((rung) => group.rungs[rung] !== "COVERED"),
+      unseen: isUnseen(group),
     };
   });
 }
@@ -82,7 +82,7 @@ function nodeTag(value: string): string {
 
 export function DeviceConstellation({
   hostName,
-  groups,
+  classes: groups,
   onSelectClass,
   selectedClass,
   summary,
@@ -92,10 +92,19 @@ export function DeviceConstellation({
   const descId = useId();
   const placed = place(groups);
 
+  /*
+   * With nothing to place, the constellation collapses to a short band instead
+   * of holding a full-height empty field. A large blank panel reads as a broken
+   * chart; a compact one reads as what it is — the instrument stating that it
+   * read nothing. The `<desc>` below carries that sentence either way.
+   */
+  const height = groups.length === 0 ? 220 : VIEWBOX.height;
+  const centre = groups.length === 0 ? { x: CENTRE.x, y: height / 2 } : CENTRE;
+
   return (
     <div className="panel p-space-sm">
       <svg
-        viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
+        viewBox={`0 0 ${VIEWBOX.width} ${height}`}
         role="img"
         aria-labelledby={`${titleId} ${descId}`}
         preserveAspectRatio="xMidYMid meet"
@@ -115,7 +124,7 @@ export function DeviceConstellation({
           {placed.map((entry) => (
             <path
               key={`edge-${entry.group.deviceClass}`}
-              d={`M${CENTRE.x} ${CENTRE.y} L${entry.x} ${entry.y}`}
+              d={`M${centre.x} ${centre.y} L${entry.x} ${entry.y}`}
               stroke={entry.unseen ? "var(--color-border-lit)" : "var(--color-border)"}
               strokeDasharray={entry.unseen ? "3 5" : undefined}
             />
@@ -124,15 +133,15 @@ export function DeviceConstellation({
 
         {/* The hub: the machine itself. */}
         <circle
-          cx={CENTRE.x}
-          cy={CENTRE.y}
+          cx={centre.x}
+          cy={centre.y}
           r={HUB_RADIUS}
           fill="var(--color-surface-raised)"
           stroke="var(--color-border-lit)"
         />
         <text
-          x={CENTRE.x}
-          y={CENTRE.y - 2}
+          x={centre.x}
+          y={centre.y - 2}
           textAnchor="middle"
           fill="var(--color-foreground)"
           fontFamily="var(--font-display)"
@@ -143,8 +152,8 @@ export function DeviceConstellation({
           {hostName.toUpperCase()}
         </text>
         <text
-          x={CENTRE.x}
-          y={CENTRE.y + 16}
+          x={centre.x}
+          y={centre.y + 16}
           textAnchor="middle"
           fill="var(--color-subtle-foreground)"
           fontFamily="var(--font-mono)"
@@ -162,8 +171,10 @@ export function DeviceConstellation({
             selected={selectedClass === entry.group.deviceClass}
             onSelect={onSelectClass}
             summaryLabel={t(strings.pages.substrate.nodeSummary, {
-              members: entry.group.members.length,
-              covered: RUNG_ORDER.filter((rung) => entry.group.rungs[rung] === "COVERED").length,
+              members: entry.group.deviceCount ?? "—",
+              covered: RUNG_ORDER.filter(
+                (rung) => entry.group.rungs[rung].state === "COVERED",
+              ).length,
               rungs: RUNG_ORDER.length,
             })}
           />
@@ -184,7 +195,8 @@ interface ConstellationNodeProps {
 
 function ConstellationNode({ entry, index, selected, onSelect, summaryLabel }: ConstellationNodeProps) {
   const { group, x, y, unseen } = entry;
-  const label = describeRungStates(group.deviceClass, group.rungs);
+  const states = rungStates(group);
+  const label = describeRungStates(group.deviceClass, states);
   const lines = splitLabel(group.deviceClass);
   const interactive = Boolean(onSelect);
 
@@ -208,13 +220,7 @@ function ConstellationNode({ entry, index, selected, onSelect, summaryLabel }: C
       className={interactive ? "cursor-pointer focus:outline-none" : undefined}
       style={interactive ? { outlineOffset: 4 } : undefined}
     >
-      <RungRing
-        cx={x}
-        cy={y}
-        radius={NODE_RADIUS}
-        states={group.rungs}
-        animationDelay={index * 0.06}
-      />
+      <RungRing cx={x} cy={y} radius={NODE_RADIUS} states={states} animationDelay={index * 0.06} />
 
       {/*
         An unseen class gets a dashed outline instead of a solid disc. This is
@@ -284,14 +290,12 @@ function ConstellationNode({ entry, index, selected, onSelect, summaryLabel }: C
  */
 export function describeConstellation(
   hostName: string,
-  groups: readonly DeviceClassGroup[],
+  groups: readonly DeviceClassNode[],
 ): string {
   if (groups.length === 0) {
     return `No device classes were enumerated for ${hostName}. The board has read nothing, which is not the same as the machine having nothing attached.`;
   }
-  const unseen = groups.filter((group) =>
-    RUNG_ORDER.every((rung) => group.rungs[rung] !== "COVERED"),
-  );
+  const unseen = groups.filter(isUnseen);
   const head =
     `${groups.length} device classes are arranged around host ${hostName}. ` +
     `Each carries a five-segment ring showing which rungs of the observability ladder are covered.`;
@@ -301,12 +305,7 @@ export function describeConstellation(
       : ` ${unseen.length} of them have no covered rung at all and appear as dashed outlines: ` +
         `${unseen.map((group) => group.deviceClass).join(", ")}.`;
   const detail = groups
-    .map((group) => describeRungStates(group.deviceClass, group.rungs))
+    .map((group) => describeRungStates(group.deviceClass, rungStates(group)))
     .join(" ");
   return `${head}${holes} ${detail}`;
-}
-
-/** Re-exported so callers can reason about node state without re-deriving it. */
-export function classIsUnseen(rungs: Readonly<Record<string, SignalState>>): boolean {
-  return RUNG_ORDER.every((rung) => rungs[rung] !== "COVERED");
 }

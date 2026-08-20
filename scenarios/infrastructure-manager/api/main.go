@@ -117,7 +117,7 @@ func main() {
 	// reported as a sensor-channel finding rather than as a coverage collapse.
 	ladderService := &internalladder.Service{
 		Coverage:    internalcoverage.NewService(repoRoot, nil),
-		DeviceGraph: sources.DeviceGraphReader{},
+		DeviceGraph: sources.DeviceGraphReader{Transport: sources.ConnectDeviceGraphTransport{}},
 		Portability: sources.PortabilityReader{Grid: internalportability.NewService(repoRoot, nil)},
 		Checks:      sources.CheckPlatformsReader{},
 		HostOS:      hostOSToken(runtime.GOOS),

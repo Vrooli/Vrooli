@@ -43,7 +43,7 @@ export function HealthCard() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <CardTitle>{t(strings.health.title)}</CardTitle>
-            <CardDescription>{t(strings.pages.dashboard.description)}</CardDescription>
+            <CardDescription>{t(strings.health.description)}</CardDescription>
           </div>
           {data && (
             <StatusBadge tone={data.status === "ok" ? "success" : "warning"}>

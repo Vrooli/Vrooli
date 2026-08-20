@@ -136,6 +136,15 @@ export const RUNG_ORDER: readonly Rung[] = [
  *                measurement, not an absence of one, and it is the state the
  *                whole board is built to make visible.
  *
+ * A fact about the DENOMINATOR — about what anybody has thought to ask:
+ * - UNAUTHORED   the owner's space document declares no cell for this rung on
+ *                this class, so there is nothing to grade and nothing to be
+ *                blind about. It is NOT blindness (nobody declared a gap), NOT
+ *                inapplicable (nobody said the rung is meaningless here), and
+ *                emphatically NOT a source outage. It means the question has
+ *                not been asked yet, which is a fact about the SPACE rather
+ *                than about the machine or the instrument.
+ *
  * A fact about the INSTRUMENT, never about the plant:
  * - SOURCE_DOWN  the sensor source could not be reached at read time. Kept
  *                rigidly separate from every state above, and rendered on the
@@ -154,6 +163,7 @@ export const SIGNAL_STATES = {
   UNAVAILABLE: { label: "Mechanism absent", mark: "\u2205", tone: "unavailable", short: "NONE" },
   NOT_APPLICABLE: { label: "Not applicable", mark: "\u2013", tone: "not-applicable", short: "N/A" },
   BLIND: { label: "Blind", mark: "\u25cb", tone: "blind", short: "OFF" },
+  UNAUTHORED: { label: "No cell authored", mark: "\u00b7", tone: "unauthored", short: "\u2014" },
   SOURCE_DOWN: { label: "Source unreachable", mark: "?", tone: "source-down", short: "SRC?" },
 } as const;
 

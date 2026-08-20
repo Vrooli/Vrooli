@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,9 @@ type SourceState struct {
 	ID        string
 	Available bool
 	Reason    string
+	// Trust is the source's own trust verdict. A source that could not be read
+	// is UNAVAILABLE — a gap in the fan-out, not a verdict about the plant.
+	Trust     internalcondition.TrustVerdict
 	CheckedAt time.Time
 }
 
@@ -38,6 +42,35 @@ type Snapshot struct {
 	// and the readout says so rather than inventing a grid.
 	CoverageAvailable bool
 	CoverageReason    string
+	// CheckPlatforms aggregates the autoheal check registry's platform
+	// declarations onto the host OS axis, in the registry's own order.
+	CheckPlatforms []CheckPlatformCoverage
+	// Devices is the graded hardware inventory the cells were computed from.
+	// It is carried so a reader can see the evidence behind a cell rather than
+	// only the verdict.
+	Devices []Device
+	// Confidence is the substrate space's denominator confidence. No ratio
+	// computed over these cells may be reported without it.
+	Confidence Confidence
+}
+
+// CheckPlatformCoverage is the substrate sensing declared for one host OS: how
+// many registered checks apply there, out of how many exist.
+//
+// It is a triple rather than a bare count for the same reason every trust
+// number is: "4 checks apply on windows" is unreadable without knowing whether
+// the registry holds five checks or fifty. Applicable is derived from the
+// owner's own declarations, read live — never from parsing its source.
+type CheckPlatformCoverage struct {
+	HostOS     string
+	Applicable int
+	Total      int
+	// Universal counts checks declaring no platform at all, which apply
+	// everywhere. They are named separately because they are the reason a host
+	// OS can have applicable checks while no check names it.
+	Universal int
+	Available bool
+	Reason    string
 }
 
 // DeviceGraphSource is the ladder's view of the device graph reader.
@@ -111,7 +144,11 @@ func (s *Service) Snapshot(ctx context.Context) Snapshot {
 		{gridResult.ID, gridResult.Available, gridResult.Reason, gridResult.CheckedAt},
 		{checkResult.ID, checkResult.Available, checkResult.Reason, checkResult.CheckedAt},
 	} {
-		snapshot.Sources = append(snapshot.Sources, SourceState{ID: result.id, Available: result.available, Reason: result.reason, CheckedAt: result.checkedAt})
+		trust := internalcondition.TrustValid
+		if !result.available {
+			trust = internalcondition.TrustUnavailable
+		}
+		snapshot.Sources = append(snapshot.Sources, SourceState{ID: result.id, Available: result.available, Reason: result.reason, Trust: trust, CheckedAt: result.checkedAt})
 	}
 
 	definition, bars, coverageErr := s.substrate(ctx)
@@ -121,6 +158,9 @@ func (s *Service) Snapshot(ctx context.Context) Snapshot {
 		snapshot.CoverageAvailable = true
 	}
 
+	snapshot.CheckPlatforms = checkPlatformCoverage(checkResult)
+	snapshot.Confidence = confidenceOf(definition, coverageErr)
+	snapshot.Devices = ladderDevices(graphResult)
 	snapshot.Cells = s.buildCells(definition, bars, graphResult, gridResult, checkResult, now)
 	snapshot.Findings = rank(snapshot)
 	return snapshot
@@ -179,10 +219,12 @@ func (s *Service) buildCells(
 	cells := make([]Cell, 0, len(SubstrateJoins)*len(HostOSes)*2)
 
 	for _, join := range SubstrateJoins {
-		status, question, authored := authoredStatus(definition, join.CellRef)
+		authoredCell, authored := authoredStatus(definition, join.CellRef)
+		question := authoredCell.Question
 		if question == "" {
 			question = join.Question
 		}
+		gapDays, gapDated := gapAge(authoredCell.GapOpenedOn, now)
 		for _, class := range join.Classes {
 			for _, hostOS := range HostOSes {
 				cell := Cell{
@@ -190,7 +232,7 @@ func (s *Service) buildCells(
 					CellRef:    join.CellRef,
 					Question:   question,
 					Capability: join.Capability,
-					Status:     status,
+					Status:     authoredCell.Status,
 					// Silence keeps the authored status. This assignment is
 					// the rule: nothing below ever downgrades a cell to
 					// MISSING because a source did not answer.
@@ -198,6 +240,9 @@ func (s *Service) buildCells(
 					Observation:  ObservationUnread,
 					Reason:       "no live join produced a grade for this cell",
 					Trust:        internalcondition.TrustUntrusted,
+					GapOpenedOn:  authoredCell.GapOpenedOn,
+					GapOpenDays:  gapDays,
+					GapDated:     gapDated,
 					ObservedAt:   now,
 				}
 				if !authored {
@@ -206,7 +251,7 @@ func (s *Service) buildCells(
 				}
 				s.applyDeviceJoin(&cell, join, class, hostOS, devices, graph)
 				applyCapabilityJoin(&cell, grid, checks, hostOS)
-				applyBar(&cell, byBar)
+				applyBar(&cell, join, devices[class], byBar)
 				cells = append(cells, cell)
 			}
 		}
@@ -348,27 +393,61 @@ func applyCapabilityJoin(cell *Cell, grid sources.TypedResult[portability.Grid],
 	if !checks.Available {
 		return
 	}
-	// A check that does not apply on this host OS is a declared absence, read
-	// live from the owner. It is the one path allowed to say a cell is not
-	// served here, and only because a declaration was actually read.
-	if !anyCheckApplies(checks.Value, hostOS) {
-		cell.CapabilityReason = fmt.Sprintf("no registered check declares %s, so this cell has no sensor there", hostOS)
-	}
-}
-
-func anyCheckApplies(checks []sources.CheckPlatforms, hostOS string) bool {
-	for _, check := range checks {
-		if check.AppliesTo(hostOS) {
-			return true
+	// A host OS that no registered check declares is a declared absence, read
+	// live from the owner. It is the one path allowed to say a cell has no
+	// sensor on a platform, and only because a declaration was actually read —
+	// never because a source went quiet.
+	for _, coverage := range checkPlatformCoverage(checks) {
+		if coverage.HostOS != hostOS || coverage.Applicable > 0 {
+			continue
 		}
+		cell.CapabilityReason = fmt.Sprintf(
+			"none of the %d registered autoheal checks declares %s, so the substrate projection has no host sensor there",
+			coverage.Total, hostOS)
 	}
-	return false
 }
 
-// applyBar resolves the cell's setpoint bar. Every ladder cell either grades
-// against a bar or is reported UNGRADED with a reason — never silently
-// ungraded, which reads identically to in-band.
-func applyBar(cell *Cell, byBar map[string]internalcoverage.Bar) {
+// checkPlatformCoverage folds the registry's declarations onto the host OS
+// axis. A check declaring no platforms applies everywhere, so it counts toward
+// every host OS: reading an empty declaration as "unknown" would turn the
+// registry's universally applicable checks into a platform-wide gap.
+func checkPlatformCoverage(checks sources.TypedResult[[]sources.CheckPlatforms]) []CheckPlatformCoverage {
+	out := make([]CheckPlatformCoverage, 0, len(HostOSes))
+	for _, hostOS := range HostOSes {
+		coverage := CheckPlatformCoverage{HostOS: hostOS, Available: checks.Available, Reason: checks.Reason}
+		if !checks.Available {
+			out = append(out, coverage)
+			continue
+		}
+		coverage.Total = len(checks.Value)
+		for _, check := range checks.Value {
+			if len(check.Platforms) == 0 {
+				coverage.Universal++
+			}
+			if check.AppliesTo(hostOS) {
+				coverage.Applicable++
+			}
+		}
+		out = append(out, coverage)
+	}
+	return out
+}
+
+// applyBar resolves the cell's setpoint bar and grades the authored quantity.
+//
+// Every ladder cell either grades against a bar or is reported UNGRADED with a
+// reason — never silently ungraded, which reads identically to in band. Four
+// distinct refusals are kept apart, because they have four different owners:
+//
+//  1. no bar resolves for the cell at all;
+//  2. the bar authors no threshold (the operator has not decided yet);
+//  3. the bar's unit and the quantity this join can compute disagree, which is
+//     UNIT_MISMATCH — the reading is real and is not evidence for THIS claim;
+//  4. the contributing population is not fully readable, so any count over it
+//     understates the fault it is supposed to detect.
+func applyBar(cell *Cell, join SubstrateJoin, devices []sources.GraphDevice, byBar map[string]internalcoverage.Bar) {
+	cell.FaultUnit = join.FaultUnit
+
 	bar, ok := byBar[cell.CellRef]
 	if !ok {
 		cell.Graded = false
@@ -387,20 +466,77 @@ func applyBar(cell *Cell, byBar map[string]internalcoverage.Bar) {
 		cell.Band = internalcondition.BandNotGradeable
 		return
 	}
+
+	// The unit check runs before the trust check. A reading used for a claim
+	// its unit cannot support is untrustworthy for that claim however sound
+	// the reading itself is, and reporting it as merely untrusted would hide
+	// which of the two problems the operator has.
+	if join.FaultUnit == "" || join.FaultUnit != bar.Unit {
+		cell.Trust = internalcondition.TrustUnitMismatch
+		cell.Graded = false
+		cell.UngradedReason = fmt.Sprintf(
+			"bar %s grades %q but this join computes %s; grading one against the other would fire on a quantity the operator never authored",
+			bar.ID, bar.Unit, describeUnit(join.FaultUnit))
+		cell.Band = internalcondition.BandNotEvaluated
+		return
+	}
+
 	if cell.Trust != internalcondition.TrustValid {
 		cell.Graded = false
 		cell.UngradedReason = fmt.Sprintf("the reading carries trust %s, so bar %s is not evaluated", cell.Trust, bar.ID)
 		cell.Band = internalcondition.BandNotEvaluated
 		return
 	}
+	if cell.BlindDevices > 0 {
+		cell.Graded = false
+		cell.UngradedReason = fmt.Sprintf(
+			"%d of %d %s could not be graded at the %s rung, so a count of %q over the remainder would understate it",
+			cell.BlindDevices, cell.DeviceCount, cell.Key.DeviceClass, cell.Key.Rung, bar.Unit)
+		cell.Band = internalcondition.BandNotEvaluated
+		return
+	}
+
+	value, counted, reason := join.Fault(devices)
+	if !counted {
+		cell.Graded = false
+		cell.Trust = internalcondition.TrustUnitMismatch
+		cell.UngradedReason = reason
+		cell.Band = internalcondition.BandNotEvaluated
+		return
+	}
+	cell.FaultCount, cell.FaultCounted = value, true
 	cell.Graded = true
-	// The graded quantity is the count of contributing devices that could not
-	// be graded at this rung. Zero blind devices is the only in-band reading:
-	// a rung the instrument cannot read is a gap whatever the hardware is
-	// doing.
-	cell.Band = internalcondition.EvaluateBand(float64(cell.BlindDevices), cell.Trust, internalcondition.Band{
+	cell.Band = internalcondition.EvaluateBand(value, cell.Trust, internalcondition.Band{
 		Min: bar.Min, Max: bar.Max, SustainSatisfied: true, Unit: bar.Unit, Provisional: bar.Provisional,
 	})
+	cell.Severity, cell.SeverityKnown = severityFor(cell.Band)
+}
+
+func describeUnit(unit string) string {
+	if unit == "" {
+		return "no quantity at all"
+	}
+	return strconv.Quote(unit)
+}
+
+// severityFor projects a band verdict onto the substrate projection's ordered
+// severity, which is how a device-layer cell becomes comparable with the
+// projection's check-backed cells.
+//
+// An ungraded cell has NO severity. Defaulting it to 0 would read as OK, which
+// is the exact failure the substrate space document exists to prevent: a
+// blocked probe reported as a healthy drive.
+func severityFor(band internalcondition.BandVerdict) (int, bool) {
+	switch band {
+	case internalcondition.BandInBand:
+		return 0, true
+	case internalcondition.BandPendingSustain:
+		return 1, true
+	case internalcondition.BandOutOfBand:
+		return 2, true
+	default:
+		return 0, false
+	}
 }
 
 func rungReadings(device sources.GraphDevice) map[Rung]RungReading {
@@ -469,6 +605,64 @@ func observationRank(observation Observation) int {
 	default:
 		return 6
 	}
+}
+
+// confidenceOf carries the space's denominator confidence onto the readout. A
+// space that could not be read has NO confidence rather than a defaulted one:
+// claiming AUTHORITATIVE about a document nobody opened is the worst available
+// answer.
+func confidenceOf(definition *spacedoc.SpaceDefinition, err error) Confidence {
+	if definition == nil {
+		reason := "the substrate space document was not read"
+		if err != nil {
+			reason = err.Error()
+		}
+		return Confidence{Reason: reason}
+	}
+	return Confidence{
+		Level:     strings.ToUpper(string(definition.DenominatorConfidence)),
+		Rationale: definition.ConfidenceRationale,
+		Available: true,
+	}
+}
+
+// ladderDevices projects the graph's devices onto the readout, carrying both
+// the owner's verbatim grade and this instrument's dependency verdict for
+// every rung.
+func ladderDevices(graph sources.TypedResult[sources.DeviceGraph]) []Device {
+	if !graph.Available {
+		return nil
+	}
+	out := make([]Device, 0, len(graph.Value.Devices))
+	for _, device := range graph.Value.Devices {
+		raw := rungReadings(device)
+		ordered := ApplyDependency(raw)
+		rungs := make([]DeviceRung, 0, len(ordered))
+		for _, reading := range ordered {
+			own := raw[reading.Rung]
+			observation := own.Observation
+			if observation == "" {
+				observation = ObservationUnread
+			}
+			rungs = append(rungs, DeviceRung{
+				Rung:              reading.Rung,
+				Observation:       observation,
+				LadderObservation: reading.Observation,
+				Reason:            reading.Reason,
+				Mechanism:         reading.Mechanism,
+				Remediation:       reading.Remediation,
+				BlockedBy:         reading.BlockedBy,
+			})
+		}
+		out = append(out, Device{
+			ID: device.ID, Class: device.Class, ParentID: device.ParentID,
+			Vendor: device.Vendor, Model: device.Model, Driver: device.Driver,
+			SysPath: device.SysPath, Attributes: device.Attributes,
+			Readings: device.Readings, Rungs: rungs,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
 }
 
 func groupDevices(graph sources.TypedResult[sources.DeviceGraph]) map[string][]sources.GraphDevice {

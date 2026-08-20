@@ -15,7 +15,8 @@
       "condition": "状態",
       "focus": "焦点",
       "designLanguage": "計器の言語"
-    }
+    },
+    "mainLabel": "メインコンテンツ"
   },
   "pages": {
     "dashboard": {
@@ -101,14 +102,6 @@
       "drilldownSection": "デバイス詳細",
       "drilldownHeading": "識別とラダー",
       "ladderHeading": "観測ラダー",
-      "fieldIdentity": "型番",
-      "fieldVendor": "ベンダー",
-      "fieldDriver": "ドライバ",
-      "fieldParent": "親",
-      "fieldNodes": "カーネルノード",
-      "fieldProvenance": "由来",
-      "fieldDiscoveredBy": "発見元",
-      "fieldEnrichedBy": "補完元",
       "reasonHeading": "理由",
       "remediationHeading": "解消策",
       "noRemediation": "このギャップに対する解消策はまだ宣言されていない。",
@@ -121,7 +114,19 @@
       "hubClasses": "{{count}} クラス",
       "nodeSummary": "{{members}} · {{rungs}} 中 {{covered}}",
       "nothingDeclaredShort": "OFF",
-      "nothingDeclaredLabel": "{{os}} 上の {{capability}}: 宣言なし"
+      "nothingDeclaredLabel": "{{os}} 上の {{capability}}: 宣言なし",
+      "drilldownDevices": "列挙されたデバイス",
+      "drilldownBlindDevices": "被覆ラングが皆無",
+      "mechanismHeading": "読み取り元",
+      "ungraded": "セットポイントのバーで評価されていない",
+      "provisional": "このセルの背後のバーはまだ暫定である。",
+      "blockedByRung": "下位の {{rung}} が盲点のため抑制されている。まずそのラングを解消すること。",
+      "notRead": "ソースがこれを読まなかったため、件数は主張しない。",
+      "checkPlatformsHeading": "プラットフォーム別の基盤センシング",
+      "checkPlatformsNote": "各ホストOSに適用される登録済み autoheal チェックの数と、その母数。プラットフォームを宣言しないチェックはあらゆる環境に適用されるため、どのチェックも明示しないのに適用チェックを持つプラットフォームが生じる。",
+      "checkPlatformRow": "{{total}} 件中 {{applicable}} 件が適用、うち {{universal}} 件は汎用",
+      "statUngraded": "バーの無いセル",
+      "denominatorUnread": "基盤スペース文書を読めなかったため、この盤のどのセルも著された状態を持たない。"
     },
     "coverage": {
       "eyebrow": "インフラ健全性 · 被覆プロジェクション",
@@ -171,7 +176,9 @@
       "integrityNote": "設定値そのものの解析中に上がった所見。これは計器自身のプラント定義における欠陥なので、そこから算出されるどの数値よりも先に述べる。",
       "integrityEmptyTitle": "設定値整合性の所見なし",
       "integrityEmptyBody": "設定値は解析され、所見は上がらなかった。これは計器の自己報告であり、プラントについては何も語らない。",
-      "integrityUnavailable": "被覆ソースの失敗により設定値を検証できなかった。セル数は表示しない。"
+      "integrityUnavailable": "被覆ソースの失敗により設定値を検証できなかった。セル数は表示しない。",
+      "noSpacesTitle": "宣言された被覆空間がない",
+      "noSpacesBody": "被覆ソースは応答し、評価対象の空間を一つも宣言しなかった。これは中身のない設定値であって、見るべきものがないマシンではない。"
     },
     "condition": {
       "eyebrow": "インフラ健全性 · 状態と信頼",
@@ -243,7 +250,8 @@
     "refresh": "再読み込み",
     "refreshCount": "{{count}} 回更新しました",
     "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
+    "timestampLabel": "タイムスタンプ:",
+    "description": "このボードが読み取るAPIの生存と、最後に応答した時刻。"
   },
   "notifications": {
     "summary": "{{count}} 件の通知"

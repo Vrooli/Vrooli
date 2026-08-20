@@ -1,14 +1,15 @@
 import {
   ConfidenceLevel,
   Projection,
-  type CellStatus,
 } from "@vrooli/proto-types/infrastructure-manager/v1/coverage/coverage_pb";
-// A Cell carries the SHARED projection enum, which is a different generated
-// type from the coverage domain's own Projection even though the two share
-// their wire numbers. Importing both under distinct names keeps the comparison
-// type-safe instead of casting the difference away.
-import { Projection as CellProjection } from "@vrooli/proto-types/infrastructure-manager/v1/shared/cell_pb";
-
+import {
+  BandVerdict as WireBand,
+  CellStatus,
+  Observation,
+  Rung as WireRung,
+  TrustVerdict as WireTrust,
+  type LadderCell,
+} from "@vrooli/proto-types/infrastructure-manager/v1/ladder/ladder_pb";
 import {
   HostOS,
   Qualification,
@@ -16,75 +17,294 @@ import {
   type PlatformEntry,
 } from "@vrooli/proto-types/infrastructure-manager/v1/portability/portability_pb";
 
-import { coverageClient, fetchPortabilityGrid } from "./reliability";
-import {
-  type DeviceNode,
-  type PortabilityRow,
-  type SourceStatus,
-  type SubstrateBoard,
+import { coverageClient, fetchLadder, fetchPortabilityGrid } from "./reliability";
+import { RUNG_ORDER, type Rung, type SignalState } from "../theme/instrument";
+import type {
+  CheckPlatformCoverage,
+  DeviceClassNode,
+  PortabilityRow,
+  RungDetail,
+  SourceStatus,
+  SubstrateBoard,
 } from "../features/substrate/model";
 
 /**
  * Assembles the Substrate Board from the instrument's read surfaces.
  *
- * The board is a JOIN across three sources with different owners:
- *
- *  1. the substrate COVERAGE cells — authored by `vrooli-autoheal` in
- *     `docs/spaces/substrate-space.md`, read here through this scenario's
- *     coverage domain. This is where the denominator, its confidence, and the
- *     `gap_open_days` that date every declared blindness come from.
- *  2. the DEVICE GRAPH — collected by `system-monitor`, read through the
- *     substrate device source.
- *  3. the PORTABILITY grid — this scenario's `portability` domain.
- *
  * THE CONTRACT THIS FILE ENFORCES: a source that does not answer produces a
  * `SourceStatus` with a non-VALID verdict and a reason. It NEVER produces an
- * empty device list that the board would then render as "nothing attached", and
- * it never substitutes a default. That distinction is the scenario's entire
- * trust model — an owner outage must not read as a coverage collapse — so it is
- * enforced here at the boundary rather than left to each component.
+ * empty class list the board would then render as "nothing attached", and it
+ * never substitutes a default for a value it did not read. That distinction is
+ * the scenario's entire trust model — an owner outage must not read as a
+ * coverage collapse — so it is enforced here at the boundary rather than left
+ * to each component to remember.
  */
 
-/** Trust verdicts this adapter can assign. Mirrors `docs/concepts/TRUST-MODEL.md`. */
 const VERDICT_VALID = "VALID";
 const VERDICT_UNAVAILABLE = "UNAVAILABLE";
 
-const CONFIDENCE_NAMES: Record<number, SubstrateBoard["denominator"]["confidence"]> = {
-  [ConfidenceLevel.AUTHORITATIVE]: "AUTHORITATIVE",
-  [ConfidenceLevel.PARTIAL]: "PARTIAL",
+/** Wire rung -> the view model's rung key. */
+const RUNG_NAMES: Record<number, Rung> = {
+  [WireRung.IDENTITY]: "IDENTITY",
+  [WireRung.TELEMETRY]: "TELEMETRY",
+  [WireRung.EVIDENCE]: "EVIDENCE",
+  [WireRung.CONTROL]: "CONTROL",
+  [WireRung.ANTICIPATION]: "ANTICIPATION",
 };
 
-function confidenceName(level: number | undefined): SubstrateBoard["denominator"]["confidence"] {
-  // Anything the enum does not name resolves to SKETCH rather than to the most
-  // flattering value. An unrecognised confidence is not evidence of a good
-  // denominator; it is evidence that nobody stated one.
-  return (level !== undefined && CONFIDENCE_NAMES[level]) || "SKETCH";
+const TRUST_NAMES: Record<number, string> = {
+  [WireTrust.VALID]: "VALID",
+  [WireTrust.GHOST]: "GHOST",
+  [WireTrust.SATURATED]: "SATURATED",
+  [WireTrust.SHELVED]: "SHELVED",
+  [WireTrust.UNIT_MISMATCH]: "UNIT_MISMATCH",
+  [WireTrust.UNAVAILABLE]: "UNAVAILABLE",
+  [WireTrust.UNTRUSTED]: "UNTRUSTED",
+};
+
+/**
+ * Projects one graded ladder cell onto a lamp state.
+ *
+ * The ORDER of these tests is the honesty rule made executable, and this is the
+ * most load-bearing function in the board:
+ *
+ *  1. An UNREAD observation means the source stayed silent. That is a fact
+ *     about the INSTRUMENT and outranks everything else, because reporting the
+ *     plant from a source that did not answer is exactly the failure the trust
+ *     model exists to stop.
+ *  2. NOT_APPLICABLE means the rung is meaningless for this class and is graded
+ *     elsewhere. It must not read as a gap, or the board manufactures blindness
+ *     that nobody declared.
+ *  3. An authored MISSING status is DECLARED BLINDNESS — dated, owned, and the
+ *     single thing this whole surface was built to make visible.
+ *  4. UNMEASURABLE and UNAVAILABLE stay distinct: "the host refused the read"
+ *     is a different fact, with a different fix, from "the mechanism is absent
+ *     on this host".
+ *  5. BLOCKED means a lower rung is blind, so this rung's claim is unsupported
+ *     rather than false. PARTIAL, never COVERED.
+ *  6. Only a MEASURED observation may light, and a measured reading that is out
+ *     of band is an EXCURSION rather than coverage.
+ */
+function cellState(cell: LadderCell): SignalState {
+  if (cell.observation === Observation.UNREAD) return "SOURCE_DOWN";
+  if (cell.observation === Observation.NOT_APPLICABLE) return "NOT_APPLICABLE";
+  if (cell.trust === WireTrust.UNAVAILABLE) return "SOURCE_DOWN";
+  if (cell.status === CellStatus.MISSING) return "BLIND";
+  if (cell.observation === Observation.UNMEASURABLE) return "UNMEASURABLE";
+  if (cell.observation === Observation.UNAVAILABLE) return "UNAVAILABLE";
+  if (cell.observation === Observation.BLOCKED) return "PARTIAL";
+  if (cell.observation === Observation.MEASURED) {
+    // `graded` gates the excursion: a cell with no bar has nothing to be out
+    // of, so it cannot be an excursion however its value reads.
+    if (cell.graded && cell.band === WireBand.OUT_OF_BAND) return "EXCURSION";
+    if (cell.status === CellStatus.IN_REACH) return "PARTIAL";
+    return "COVERED";
+  }
+  // An observation this UI does not recognise renders as an excursion so it is
+  // VISIBLE, never as the most flattering state on the list.
+  return "EXCURSION";
+}
+
+/** An empty proto string means "not supplied"; it must not render as content. */
+const text = (value: string): string | null => (value.trim() === "" ? null : value);
+
+function toRungDetail(cell: LadderCell): RungDetail {
+  return {
+    state: cellState(cell),
+    cellRef: text(cell.cellRef),
+    question: text(cell.question),
+    reason: text(cell.reason) ?? text(cell.unavailableReason),
+    mechanism: text(cell.mechanism),
+    remediation: text(cell.remediation),
+    blockedBy: RUNG_NAMES[cell.blockedBy] ?? null,
+    trust: TRUST_NAMES[cell.trust] ?? null,
+    graded: cell.graded,
+    ungradedReason: text(cell.ungradedReason),
+    provisional: cell.provisional,
+    blindDays: null,
+  };
+}
+
+/**
+ * A rung the ladder authored no cell for.
+ *
+ * This is NOT a source outage, and calling it one would assert an instrument
+ * fault that is not happening. The owner's space document simply declares no
+ * cell for this rung on this class: the question has not been asked. That is a
+ * fact about the DENOMINATOR, which is exactly why the substrate space reports
+ * `PARTIAL` confidence — the cell set is known to be under-declared.
+ */
+function unauthoredRung(): RungDetail {
+  return {
+    state: "UNAUTHORED",
+    cellRef: null,
+    question: null,
+    reason: "the substrate space authors no cell for this rung on this class",
+    mechanism: null,
+    remediation: null,
+    blockedBy: null,
+    trust: null,
+    graded: false,
+    ungradedReason: "no cell is authored for this rung, so there is nothing to grade",
+    provisional: false,
+    blindDays: null,
+  };
 }
 
 export async function fetchSubstrateBoard(): Promise<SubstrateBoard> {
   const sources: SourceStatus[] = [];
+  const [ladder, portability, coverage] = await Promise.all([
+    readLadder(sources),
+    readPortability(sources),
+    readSubstrateDenominator(),
+  ]);
 
-  const coverage = await readSubstrateCoverage(sources);
-  const devices = readDeviceGraph(sources);
-  const portability = await readPortability(sources);
+  // Blindness dates come from the coverage cells, keyed by the authored cell
+  // reference each ladder rung answers. A dated gap is the differentiator of
+  // this whole surface; a gap with no age is the failure it exists to prevent.
+  const classes = ladder.classes.map((node) => ({
+    ...node,
+    rungs: RUNG_ORDER.reduce(
+      (acc, rung) => {
+        const detail = node.rungs[rung];
+        acc[rung] = {
+          ...detail,
+          blindDays: detail.cellRef === null ? null : (coverage.gapDaysByCell[detail.cellRef] ?? null),
+        };
+        return acc;
+      },
+      {} as Record<Rung, RungDetail>,
+    ),
+  }));
 
   return {
-    host: coverage.host,
-    devices,
+    host: ladder.host,
+    classes,
     portability,
     sources,
+    checkPlatforms: ladder.checkPlatforms,
+    coverageAvailable: ladder.coverageAvailable,
+    coverageReason: ladder.coverageReason,
     denominator: coverage.denominator,
   };
 }
 
-interface CoverageRead {
+interface LadderRead {
   host: SubstrateBoard["host"];
+  classes: readonly DeviceClassNode[];
+  checkPlatforms: readonly CheckPlatformCoverage[];
+  coverageAvailable: boolean;
+  coverageReason: string | null;
+}
+
+const EMPTY_LADDER: LadderRead = {
+  host: { name: "host", os: "" },
+  classes: [],
+  checkPlatforms: [],
+  coverageAvailable: false,
+  coverageReason: null,
+};
+
+async function readLadder(sources: SourceStatus[]): Promise<LadderRead> {
+  try {
+    const response = await fetchLadder();
+    const ladder = response.ladder;
+    if (!ladder) {
+      sources.push({
+        name: "ladder",
+        verdict: VERDICT_UNAVAILABLE,
+        reason: "the ladder domain answered without a ladder",
+      });
+      return EMPTY_LADDER;
+    }
+
+    // Every source the ladder itself read is surfaced verbatim, so an outage in
+    // any one of them stays attributable instead of being folded into a single
+    // undifferentiated failure.
+    for (const source of ladder.sources) {
+      sources.push({
+        name: source.id,
+        verdict: source.available ? VERDICT_VALID : VERDICT_UNAVAILABLE,
+        reason: text(source.reason),
+      });
+    }
+
+    // Only cells for the host this instrument runs on can be refined by a live
+    // device read; other platforms are reasoned about from declarations alone,
+    // so mixing them into one constellation would blend two kinds of evidence.
+    const local = ladder.cells.filter(
+      (cell) => cell.hostOs === "" || cell.hostOs === ladder.hostOs,
+    );
+    const byClass = new Map<string, LadderCell[]>();
+    for (const cell of local) {
+      const bucket = byClass.get(cell.deviceClass);
+      if (bucket) bucket.push(cell);
+      else byClass.set(cell.deviceClass, [cell]);
+    }
+
+    const classes: DeviceClassNode[] = [...byClass.entries()]
+      .map(([deviceClass, cells]) => {
+        const byRung = new Map<Rung, LadderCell>();
+        for (const cell of cells) {
+          const rung = RUNG_NAMES[cell.rung];
+          if (rung) byRung.set(rung, cell);
+        }
+        const rungs = RUNG_ORDER.reduce(
+          (acc, rung) => {
+            const cell = byRung.get(rung);
+            acc[rung] = cell ? toRungDetail(cell) : unauthoredRung();
+            return acc;
+          },
+          {} as Record<Rung, RungDetail>,
+        );
+        // Counts are taken only from cells that actually read. A `0` from an
+        // unread cell is a wire default, not a measurement, so a class whose
+        // every cell is unread reports `null` rather than claiming it
+        // enumerated nothing.
+        const read = cells.filter((cell) => cell.observation !== Observation.UNREAD);
+        return {
+          deviceClass,
+          rungs,
+          deviceCount: read.length === 0 ? null : Math.max(...read.map((cell) => cell.deviceCount)),
+          blindDevices: read.length === 0 ? null : Math.max(...read.map((cell) => cell.blindDevices)),
+        };
+      })
+      .sort((left, right) => left.deviceClass.localeCompare(right.deviceClass));
+
+    return {
+      host: { name: ladder.hostOs || "host", os: ladder.hostOs },
+      classes,
+      checkPlatforms: ladder.checkPlatforms.map((entry) => ({
+        hostOs: entry.hostOs,
+        applicable: entry.applicable,
+        total: entry.total,
+        universal: entry.universal,
+        available: entry.available,
+        reason: text(entry.reason),
+      })),
+      coverageAvailable: ladder.coverageAvailable,
+      coverageReason: text(ladder.coverageReason),
+    };
+  } catch (error) {
+    sources.push({ name: "ladder", verdict: VERDICT_UNAVAILABLE, reason: describeError(error) });
+    return EMPTY_LADDER;
+  }
+}
+
+interface DenominatorRead {
   denominator: SubstrateBoard["denominator"];
-  /** `gap_open_days` keyed by cell id, so a blind region can be dated. */
   gapDaysByCell: Readonly<Record<string, number>>;
 }
 
-async function readSubstrateCoverage(sources: SourceStatus[]): Promise<CoverageRead> {
+/**
+ * Reads the substrate projection's authored denominator and the dated ages of
+ * its open-loop cells.
+ *
+ * On failure the confidence reports SKETCH — the honest floor. An unread
+ * denominator is not a good one; it is an unknown one, and the board prints
+ * this qualifier beside every ratio so the reader can see which they have.
+ */
+async function readSubstrateDenominator(): Promise<DenominatorRead> {
   try {
     const [coverage, cells] = await Promise.all([
       coverageClient.getCoverage({}),
@@ -93,16 +313,17 @@ async function readSubstrateCoverage(sources: SourceStatus[]): Promise<CoverageR
     const substrate = coverage.projections.find(
       (projection) => projection.projection === Projection.SUBSTRATE,
     );
+    // Keyed both bare and projection-qualified, because a ladder cell may cite
+    // either form and a missed key would silently drop a gap's age — which is
+    // the one field on this board that must never go quiet.
     const gapDaysByCell: Record<string, number> = {};
     for (const cell of cells.cells) {
-      if (cell.projection !== CellProjection.SUBSTRATE) continue;
       if (cell.gapOpenDays > 0) {
         gapDaysByCell[cell.id] = cell.gapOpenDays;
+        gapDaysByCell[`substrate/${cell.id}`] = cell.gapOpenDays;
       }
     }
-    sources.push({ name: "coverage", verdict: VERDICT_VALID, reason: null });
     return {
-      host: hostIdentity(),
       denominator: {
         confidence: confidenceName(substrate?.confidence?.level),
         rationale:
@@ -112,18 +333,9 @@ async function readSubstrateCoverage(sources: SourceStatus[]): Promise<CoverageR
       },
       gapDaysByCell,
     };
-  } catch (error) {
-    sources.push({
-      name: "coverage",
-      verdict: VERDICT_UNAVAILABLE,
-      reason: describeError(error),
-    });
+  } catch {
     return {
-      host: hostIdentity(),
       denominator: {
-        // The denominator is UNKNOWN, not good. Reporting SKETCH here is the
-        // honest floor: no ratio computed against it should be trusted, and the
-        // board prints the confidence beside every figure so the reader knows.
         confidence: "SKETCH",
         rationale:
           "The coverage source did not answer, so the substrate denominator could not be read. No ratio on this board is graded against an authored denominator.",
@@ -133,32 +345,18 @@ async function readSubstrateCoverage(sources: SourceStatus[]): Promise<CoverageR
   }
 }
 
-/**
- * Reads the device graph through the substrate device source.
- *
- * NOT YET WIRED. `system-monitor` collects the device graph on a 30s cached
- * provider (`api/internal/collectors/devicegraph.go`) and publishes it as
- * metrics, but exposes no typed read verb for it yet; the join is tracked as
- * cells `SB9`-`SB13` in `scenarios/vrooli-autoheal/docs/spaces/substrate-space.md`,
- * which are `IN-REACH` precisely because the sensor ships and the JOIN does not.
- *
- * Until that verb exists this reports the source as UNAVAILABLE with that
- * reason. It deliberately does NOT return an empty device list as though the
- * machine had nothing attached, and it deliberately does not carry fixture data
- * — a board that shows plausible devices it did not read would be the exact
- * dishonesty the whole scenario exists to remove.
- */
-function readDeviceGraph(sources: SourceStatus[]): readonly DeviceNode[] {
-  sources.push({
-    name: "device-graph",
-    verdict: VERDICT_UNAVAILABLE,
-    reason:
-      "system-monitor collects the device graph but exposes no typed read verb for it yet; substrate cells SB9-SB13 are IN-REACH pending that join.",
-  });
-  return [];
+const CONFIDENCE_NAMES: Record<number, SubstrateBoard["denominator"]["confidence"]> = {
+  [ConfidenceLevel.AUTHORITATIVE]: "AUTHORITATIVE",
+  [ConfidenceLevel.PARTIAL]: "PARTIAL",
+};
+
+function confidenceName(level: number | undefined): SubstrateBoard["denominator"]["confidence"] {
+  // Anything the enum does not name resolves to SKETCH, never to the most
+  // flattering value. An unrecognised confidence is not evidence of a good
+  // denominator; it is evidence that nobody stated one.
+  return (level !== undefined && CONFIDENCE_NAMES[level]) || "SKETCH";
 }
 
-/** Wire enum -> the qualification rung name the matrix renders. */
 const QUALIFICATION_NAMES: Record<number, string> = {
   [Qualification.QUALIFIED]: "qualified",
   [Qualification.BUILD_VERIFIED]: "build-verified",
@@ -168,7 +366,6 @@ const QUALIFICATION_NAMES: Record<number, string> = {
   [Qualification.UNDECLARED]: "undeclared",
 };
 
-/** Wire enum -> the resolution status name. */
 const STATUS_NAMES: Record<number, string> = {
   [ResolutionStatus.IMPLEMENTED]: "implemented",
   [ResolutionStatus.DEGRADED]: "degraded",
@@ -187,10 +384,10 @@ const HOST_OS_NAMES: Record<number, string> = {
 /**
  * Reads the capability grid from this scenario's `portability` domain.
  *
- * An UNSPECIFIED qualification is mapped to the literal string "unspecified"
- * rather than to any valid rung. The matrix renders an unrecognised rung with
- * the excursion treatment, so a wire value nobody handled becomes VISIBLE
- * instead of quietly rendering as the most flattering thing on the list.
+ * An unrecognised qualification maps to the literal "unspecified" rather than
+ * to any valid rung. The matrix renders an unrecognised rung with the excursion
+ * treatment, so a wire value nobody handled becomes visible instead of quietly
+ * rendering as the most flattering thing on the list.
  */
 async function readPortability(sources: SourceStatus[]): Promise<readonly PortabilityRow[]> {
   try {
@@ -200,7 +397,7 @@ async function readPortability(sources: SourceStatus[]): Promise<readonly Portab
       sources.push({
         name: "portability",
         verdict: VERDICT_UNAVAILABLE,
-        reason: "the portability domain answered without a grid.",
+        reason: "the portability domain answered without a grid",
       });
       return [];
     }
@@ -213,7 +410,10 @@ async function readPortability(sources: SourceStatus[]): Promise<readonly Portab
       capability: entry.capability,
       platforms: Object.fromEntries(
         entry.platforms
-          .map((platform: PlatformEntry) => [HOST_OS_NAMES[platform.hostOs], toCell(platform)] as const)
+          .map(
+            (platform: PlatformEntry) =>
+              [HOST_OS_NAMES[platform.hostOs], toCell(platform)] as const,
+          )
           .filter(([os]) => Boolean(os)),
       ),
     }));
@@ -231,28 +431,12 @@ function toCell(platform: PlatformEntry) {
   return {
     status: STATUS_NAMES[platform.status] ?? "unspecified",
     qualification: QUALIFICATION_NAMES[platform.qualification] ?? "unspecified",
-    implementer: platform.implementer || null,
-    mechanism: platform.mechanism || null,
+    implementer: text(platform.implementer),
+    mechanism: text(platform.mechanism),
     reason: [platform.reason, platform.qualificationReason].filter(Boolean).join(" — "),
   };
 }
 
-/**
- * The host this board describes.
- *
- * Identity comes from the coverage read's own context rather than from the
- * browser, which knows nothing about the machine the instrument is watching.
- * Until the device source supplies it, this names the instrument's own host in
- * the only terms the UI can honestly claim.
- */
-function hostIdentity(): SubstrateBoard["host"] {
-  return { name: "host", os: "", arch: "" };
-}
-
 function describeError(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
+  return error instanceof Error ? error.message : String(error);
 }
-
-/** Re-exported for tests that need to assert on cell status without the enum. */
-export type { CellStatus };

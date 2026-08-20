@@ -48,7 +48,7 @@ and should be challenged.
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, `condition`, `focus` | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, `condition`, `focus` | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | Setpoint file | checked-in data | yes | `coverage` | `setpoint/reliability-setpoint.json` in this scenario | Unparseable setpoint is a hard, loud failure — the board has nothing to measure against and must say so rather than report an empty map as zero targets. |
 | `vrooli-autoheal` | scenario (read-only) | no | `coverage`, `condition` | Typed Connect over checks, actions, incidents and healing; `space --projection supervision\|availability\|recovery --json`. **No proto surface exists today — it is built as part of this work.** | Per-source `UNAVAILABLE` with stated reason. Three projections lose their readings and two of four trust rules go `UNTRUSTED`; the rest keep ranking. |

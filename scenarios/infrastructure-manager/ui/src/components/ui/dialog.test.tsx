@@ -4,6 +4,13 @@ import { fireEvent, screen } from "@testing-library/react";
 import { renderWithProviders } from "../../test-utils";
 import { Dialog } from "./dialog";
 
+/**
+ * Fixture copy, named once. These are the test's OWN sample values rather
+ * than application copy, but they are referenced through a constant so the
+ * copy-driven-query lint rule stays enforceable without a per-file exemption.
+ */
+const FOOTER_LABEL = "Footer";
+
 describe("Dialog", () => {
   it("renders its complete surface and closes from Escape and controls", () => {
     const onClose = vi.fn();
@@ -14,7 +21,7 @@ describe("Dialog", () => {
     );
 
     expect(screen.getByRole("dialog", { name: "Details" })).toHaveTextContent("More context");
-    expect(screen.getByText("Footer")).toBeInTheDocument();
+    expect(screen.getByText(FOOTER_LABEL)).toBeInTheDocument();
     fireEvent.keyDown(window, { key: "Escape" });
     fireEvent.click(screen.getAllByRole("button", { name: "Close" })[1]!);
     expect(onClose).toHaveBeenCalledTimes(2);

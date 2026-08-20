@@ -19,6 +19,7 @@ const SEGMENT_STROKE: Record<SignalState, string> = {
   UNMEASURABLE: "var(--color-border-lit)",
   UNAVAILABLE: "var(--color-border)",
   NOT_APPLICABLE: "var(--signal-blind)",
+  UNAUTHORED: "var(--signal-blind)",
   BLIND: "var(--signal-blind)",
   SOURCE_DOWN: "var(--color-border)",
 };

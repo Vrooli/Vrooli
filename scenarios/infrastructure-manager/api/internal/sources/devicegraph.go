@@ -20,7 +20,7 @@ const deviceGraphScenario = "system-monitor"
 // reporting a bare transport failure — "system-monitor is unreachable" and
 // "system-monitor publishes no device-graph verb" are different problems with
 // different owners.
-const deviceGraphVerb = "system-monitor DeviceGraphService/GetDeviceGraph"
+const deviceGraphVerb = "vrooli.system_monitor.v1.devicegraph.DeviceGraphService/GetDeviceGraph"
 
 // RungState is one rung's grade for one device or subsystem, carried across
 // the transport boundary exactly as the owner graded it. The tokens are the
@@ -38,19 +38,29 @@ type RungState struct {
 
 // GraphDevice is one graded hardware device.
 type GraphDevice struct {
-	ID     string
-	Class  string
-	Vendor string
-	Model  string
-	Driver string
-	Rungs  map[string]RungState
+	ID       string
+	Class    string
+	ParentID string
+	Vendor   string
+	Model    string
+	Driver   string
+	// SysPath is the platform path the device was enumerated from. It is
+	// provenance, not identity.
+	SysPath string
+	// Attributes carry the owner's per-class facts, including kernel node
+	// names. They are passed through whole rather than filtered to a known key
+	// list, because a filter drops every attribute the owner adds later.
+	Attributes map[string]string
+	Readings   map[string]float64
+	Rungs      map[string]RungState
 }
 
 // GraphSubsystem is a host-wide graded fact not attached to a single device,
 // such as "no EDAC memory controller registers on this host".
 type GraphSubsystem struct {
-	Name  string
-	Rungs map[string]RungState
+	Name       string
+	Attributes map[string]string
+	Rungs      map[string]RungState
 }
 
 // DeviceGraph is one complete observation of the host's device topology.

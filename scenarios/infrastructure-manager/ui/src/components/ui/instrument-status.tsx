@@ -112,6 +112,42 @@ export function TrustTriple({ value }: { value: TrustTripleValue }) {
 }
 
 /**
+ * A figure that could not be computed.
+ *
+ * `StatPlate` already applies this rule to headline figures; this is the same
+ * rule for a figure sitting inline in a table row or a definition list. A
+ * caller passes `null` for "not computable" and NEVER `"0"`: on this surface a
+ * fabricated zero is the specific dishonesty the instrument exists to remove.
+ */
+export function Figure({ value }: { value: string | null }) {
+  const { t } = useTranslation();
+  if (value === null) {
+    return (
+      <span className="text-app-subtle-foreground" aria-label={t(strings.instrument.notAvailable)}>
+        —
+      </span>
+    );
+  }
+  return <span className="tabular-nums">{value}</span>;
+}
+
+/** The denominator-confidence chip, rendered wherever a ratio is qualified. */
+export function ConfidenceChip({ level }: { level: ConfidenceLevel }) {
+  const { t } = useTranslation();
+  return (
+    <span
+      className={cn(
+        "inline-block rounded-control border border-current px-space-2xs py-space-3xs",
+        TOKEN_TYPE,
+        CONFIDENCE_TONE[level],
+      )}
+    >
+      {t(CONFIDENCE_LABEL_KEYS[level])}
+    </span>
+  );
+}
+
+/**
  * A ratio and the confidence of the denominator it was measured against, in
  * one visual unit, with the rationale for that confidence beneath.
  *
@@ -138,14 +174,8 @@ export function RatioConfidence({ value }: { value: RatioConfidenceValue }) {
       <strong className="ratio-confidence__ratio stat__value">
         {ratio ?? <span aria-label={t(strings.instrument.notAvailable)}>—</span>}
       </strong>
-      <span
-        className={cn(
-          "self-center justify-self-start rounded-control border border-current px-space-2xs py-space-3xs",
-          TOKEN_TYPE,
-          CONFIDENCE_TONE[value.confidence],
-        )}
-      >
-        {confidence}
+      <span className="self-center justify-self-start">
+        <ConfidenceChip level={value.confidence} />
       </span>
       <span className="ratio-confidence__rationale">{value.rationale}</span>
     </section>

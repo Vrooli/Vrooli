@@ -49,7 +49,13 @@ const SOURCE_EXTS = new Set([".ts", ".tsx"]);
 const SKIP_FILES = new Set([
   "strings.generated.ts",
 ]);
-const SKIP_DIRS = new Set(["node_modules", "dist", "build", "coverage", ".vite"]);
+// Build artefacts that could appear inside the scanned tree. The scan is
+// rooted at `src/`, and every build output this project emits (`dist/`,
+// `coverage/`, `.vite/`) lands beside `src/` rather than inside it — so a
+// directory named `coverage` UNDER src/ is source, not a report. It is
+// `src/features/coverage/`, a real feature, and skipping it made every string
+// used only by the coverage page report as an orphan.
+const SKIP_DIRS = new Set(["node_modules", "dist", "build", ".vite"]);
 
 const isSentinelSegment = (segment) => segment.startsWith("_");
 

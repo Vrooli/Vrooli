@@ -4,49 +4,61 @@ import { RUNG_ORDER, type Rung, type SignalState } from "../../theme/instrument"
  * The Substrate Board's view model.
  *
  * This is deliberately a separate layer from the wire types. The board renders
- * a JOIN across three sources — the device graph in `system-monitor`, the
- * portability grid in this scenario's `portability` domain, and the substrate
- * coverage cells authored by `vrooli-autoheal` — and a presentational component
- * that had to understand three proto packages would be impossible to reason
- * about. `api/substrate.ts` owns the translation; everything under
+ * a JOIN across three owners — the device graph collected by `system-monitor`,
+ * the substrate cells authored by `vrooli-autoheal`, and the capability grid
+ * served by this scenario's `portability` domain — and a presentational
+ * component that had to understand three proto packages would be impossible to
+ * reason about. `api/substrate.ts` owns the translation; everything under
  * `features/substrate/` speaks only the types below.
  *
- * One rule governs every type here: an absent value is never `0` and never
- * `false`. It is `null` with a reason, or an explicit state. The board exists to
+ * The unit is the DEVICE CLASS, not the individual device, because that is the
+ * unit the instrument actually grades: a ladder cell is
+ * `(device class, rung, host OS)`. It is also the only unit that reads — this
+ * host alone reports 58 PCI functions, and 58 nodes around a hub is decoration
+ * rather than a finding. Per-class device counts carry the population so a
+ * class is never quoted without it.
+ *
+ * ONE RULE GOVERNS EVERY TYPE HERE: an absent value is never `0` and never
+ * `false`. It is `null`, or an explicit state with a reason. The board exists to
  * make blindness visible, so its view model must be incapable of hiding it.
  */
 
-/** A device class as the board groups it. Free-form: the collector owns the set. */
-export type DeviceClass = string;
+/** Per-rung detail for one class. Every field may be absent; none defaults. */
+export interface RungDetail {
+  state: SignalState;
+  /** The authored substrate cell this rung answers, e.g. `substrate/SB10`. */
+  cellRef: string | null;
+  /** The question the cell asks, from the owner's space document. */
+  question: string | null;
+  /** Why the state is what it is. Required for every non-covered state. */
+  reason: string | null;
+  /** The interface the reading was, or would be, taken from. */
+  mechanism: string | null;
+  /** The declared host change that would close the gap. */
+  remediation: string | null;
+  /** The lower rung whose blindness suppressed this grade, if any. */
+  blockedBy: Rung | null;
+  /** Trust verdict on the reading behind this rung. */
+  trust: string | null;
+  /** Whether a setpoint bar actually graded this cell. */
+  graded: boolean;
+  /** When `graded` is false, why. Never empty when `graded` is false. */
+  ungradedReason: string | null;
+  /** Whether the bar behind this cell is still provisional. */
+  provisional: boolean;
+  /** How long this has been blind, from the coverage model's `gap_open_days`. */
+  blindDays: number | null;
+}
 
-export interface DeviceNode {
-  /** Platform-durable identity, e.g. `pci:0000:01:00.0`. Stable across reboots. */
-  id: string;
-  /** Display name, e.g. "AD103 [GeForce RTX 4070 Ti SUPER]". */
-  name: string;
-  /** Device class, e.g. "graphics-device". */
-  deviceClass: DeviceClass;
-  /** Identity of the parent bus or controller; `null` at a tree root. */
-  parent: string | null;
-  vendor: string | null;
-  driver: string | null;
-  /** One state per ladder rung. */
-  rungs: Readonly<Record<Rung, SignalState>>;
-  /**
-   * Per-rung reason. REQUIRED wherever a rung is `UNMEASURABLE` or
-   * `UNAVAILABLE` — those states are only honest when they carry their reason.
-   */
-  reasons: Readonly<Partial<Record<Rung, string>>>;
-  /** Per-rung remediation, where the collector names one. */
-  remediation: Readonly<Partial<Record<Rung, string>>>;
-  /** Per-rung blindness age in days, from the coverage model's `gap_open_days`. */
-  blindDays: Readonly<Partial<Record<Rung, number>>>;
-  /** How this device was discovered. A vendor tool here would be a defect. */
-  discoveredBy: string | null;
-  /** Probes that enriched an already-discovered device. */
-  enrichedBy: readonly string[];
-  /** Kernel-visible nodes, e.g. `card1`, `renderD128`. */
-  nodes: readonly string[];
+export interface DeviceClassNode {
+  /** Stable key: the device class as the collector names it. */
+  deviceClass: string;
+  /** One graded detail per ladder rung. */
+  rungs: Readonly<Record<Rung, RungDetail>>;
+  /** How many devices of this class the graph enumerated; `null` if unread. */
+  deviceCount: number | null;
+  /** How many of those have no covered rung; `null` if unread. */
+  blindDevices: number | null;
 }
 
 /** One row of the portability matrix: a capability across operating systems. */
@@ -57,9 +69,7 @@ export interface PortabilityRow {
 }
 
 export interface PortabilityCell {
-  /** implemented | degraded | ineligible | unwired | peerless | status_invalid */
   status: string;
-  /** qualified | build-verified | unqualified | degraded | ineligible | undeclared */
   qualification: string;
   implementer: string | null;
   mechanism: string | null;
@@ -69,9 +79,9 @@ export interface PortabilityCell {
 /**
  * A source the board read from, and whether it answered.
  *
- * This is instrument state, not plant state, and the board renders it on the
- * chrome rather than in the data. An owner outage must never read as a
- * coverage collapse — the distinction is the scenario's whole trust model.
+ * This is INSTRUMENT state, not plant state, and the board renders it on the
+ * chrome rather than in the data. An owner outage must never read as a coverage
+ * collapse — that distinction is the scenario's whole trust model.
  */
 export interface SourceStatus {
   name: string;
@@ -80,20 +90,33 @@ export interface SourceStatus {
   reason: string | null;
 }
 
+/** Substrate sensing declared for one host OS, always with its denominator. */
+export interface CheckPlatformCoverage {
+  hostOs: string;
+  applicable: number;
+  total: number;
+  /**
+   * Checks declaring no platform at all. An empty platform declaration means
+   * the check applies EVERYWHERE, not that its platform is unknown, so these
+   * are the reason a host OS can have applicable checks while no check names it.
+   */
+  universal: number;
+  available: boolean;
+  reason: string | null;
+}
+
 export interface SubstrateBoard {
-  /** The machine this board describes. */
-  host: {
-    name: string;
-    os: string;
-    arch: string;
-  };
-  devices: readonly DeviceNode[];
+  host: { name: string; os: string };
+  classes: readonly DeviceClassNode[];
   portability: readonly PortabilityRow[];
   sources: readonly SourceStatus[];
+  checkPlatforms: readonly CheckPlatformCoverage[];
   /**
-   * The authored denominator's confidence. A ratio printed without this is
-   * exactly the unqualified number this instrument refuses to produce.
+   * Whether the substrate space document itself could be read. When false, no
+   * cell carries an authored status and no ratio on the board is meaningful.
    */
+  coverageAvailable: boolean;
+  coverageReason: string | null;
   denominator: {
     confidence: "AUTHORITATIVE" | "PARTIAL" | "SKETCH";
     rationale: string;
@@ -101,32 +124,38 @@ export interface SubstrateBoard {
 }
 
 /**
- * Counts covered rungs over total rungs across every device.
+ * Counts covered rungs over gradeable rungs across every class.
  *
  * Returns `null` — never `0` — when there is nothing to count, because a board
  * that prints "0%" when it read nothing is indistinguishable from a board that
  * read everything and found nothing, and those are opposite facts.
  *
  * Only `COVERED` counts toward the numerator. `PARTIAL` deliberately does not:
- * a headline figure that counts partial coverage as coverage is the kind of
- * flattering arithmetic this surface exists to remove. Rungs whose state
- * describes the instrument rather than the plant (`UNAVAILABLE`) are excluded
- * from BOTH numerator and denominator, so an outage moves the figure to a
- * smaller denominator rather than silently depressing the percentage.
+ * counting partial coverage as coverage is the flattering arithmetic this
+ * surface exists to remove.
+ *
+ * Three states are excluded from BOTH numerator and denominator, for three
+ * different reasons, and keeping them straight is the whole job:
+ *  - `NOT_APPLICABLE` — the rung is meaningless for this class and is graded
+ *    elsewhere, so counting it would manufacture a gap nobody has.
+ *  - `UNAUTHORED` — nobody has declared a cell for it, so there is no question
+ *    to be right or wrong about. This is a fact about the DENOMINATOR, and it
+ *    is why the space reports PARTIAL confidence rather than a clean ratio.
+ *  - `SOURCE_DOWN` — the source did not answer, so it says nothing about the
+ *    plant at all.
+ * Excluding rather than zero-counting means an outage or an under-declared
+ * space shrinks the denominator, instead of silently depressing the percentage
+ * as though the machine itself had got worse.
  */
 export function ladderCoverage(
-  devices: readonly DeviceNode[],
+  classes: readonly DeviceClassNode[],
 ): { covered: number; total: number; ratio: number } | null {
   let covered = 0;
   let total = 0;
-  for (const device of devices) {
+  for (const node of classes) {
     for (const rung of RUNG_ORDER) {
-      const state = device.rungs[rung];
-      // Excluded from BOTH numerator and denominator: a rung that cannot apply
-      // to this device class is not a gap, and a source that did not answer
-      // tells us nothing about the plant. Counting either would move the
-      // headline figure for a reason that has nothing to do with coverage.
-      if (state === "NOT_APPLICABLE" || state === "SOURCE_DOWN") continue;
+      const state = node.rungs[rung].state;
+      if (state === "NOT_APPLICABLE" || state === "UNAUTHORED" || state === "SOURCE_DOWN") continue;
       total += 1;
       if (state === "COVERED") covered += 1;
     }
@@ -135,94 +164,74 @@ export function ladderCoverage(
   return { covered, total, ratio: covered / total };
 }
 
-/** Devices with no covered rung at all — the ones the board must make obvious. */
-export function unseenDevices(devices: readonly DeviceNode[]): readonly DeviceNode[] {
-  return devices.filter((device) => {
-    const gradeable = RUNG_ORDER.filter((rung) => device.rungs[rung] !== "NOT_APPLICABLE");
-    // A device every one of whose rungs is inapplicable is graded elsewhere,
-    // not unseen. Counting it as unseen would inflate the one figure on this
-    // board that must never be inflated.
-    if (gradeable.length === 0) return false;
-    return gradeable.every((rung) => device.rungs[rung] !== "COVERED");
-  });
+/** Classes with no covered rung at all — the holes the board must make obvious. */
+export function unseenClasses(
+  classes: readonly DeviceClassNode[],
+): readonly DeviceClassNode[] {
+  return classes.filter(isUnseen);
 }
 
-/** The longest-standing blindness on a device, in days, or `null` if none is dated. */
-export function worstBlindDays(device: DeviceNode): number | null {
-  const ages = RUNG_ORDER.map((rung) => device.blindDays[rung]).filter(
-    (value): value is number => typeof value === "number",
+export function isUnseen(node: DeviceClassNode): boolean {
+  const gradeable = RUNG_ORDER.filter(
+    (rung) => node.rungs[rung].state !== "NOT_APPLICABLE" && node.rungs[rung].state !== "UNAUTHORED",
+  );
+  // A class with no gradeable rung at all is either graded elsewhere or not yet
+  // declared — neither is blindness. Counting it would inflate the one figure
+  // on this board that must never inflate.
+  if (gradeable.length === 0) return false;
+  return gradeable.every((rung) => node.rungs[rung].state !== "COVERED");
+}
+
+/** The longest-standing blindness on a class, in days, or `null` if undated. */
+export function worstBlindDays(node: DeviceClassNode): number | null {
+  const ages = RUNG_ORDER.map((rung) => node.rungs[rung].blindDays).filter(
+    (value): value is number => typeof value === "number" && value > 0,
   );
   return ages.length === 0 ? null : Math.max(...ages);
 }
 
-/**
- * Groups devices by class for the constellation.
- *
- * The board arranges CLASSES around the host, not individual devices: this host
- * alone reports 58 PCI functions, and 58 nodes in a ring is a decoration rather
- * than a finding. Each class node carries the worst state per rung across its
- * members, so a single unmeasurable disk cannot be averaged away by a healthy one.
- */
-export function groupByClass(devices: readonly DeviceNode[]): readonly DeviceClassGroup[] {
-  const byClass = new Map<DeviceClass, DeviceNode[]>();
-  for (const device of devices) {
-    const bucket = byClass.get(device.deviceClass);
-    if (bucket) {
-      bucket.push(device);
-    } else {
-      byClass.set(device.deviceClass, [device]);
-    }
-  }
-  return [...byClass.entries()]
-    .map(([deviceClass, members]) => ({
-      deviceClass,
-      members,
-      rungs: worstRungStates(members),
-    }))
-    .sort((a, b) => a.deviceClass.localeCompare(b.deviceClass));
-}
-
-export interface DeviceClassGroup {
-  deviceClass: DeviceClass;
-  members: readonly DeviceNode[];
-  rungs: Readonly<Record<Rung, SignalState>>;
-}
-
-/**
- * Ordered worst-first. A class's rung is only as good as its weakest member,
- * because the point of the board is to surface the device that is unwatched,
- * not to report the average of the ones that are.
- */
-const STATE_SEVERITY: Record<SignalState, number> = {
-  // NOT_APPLICABLE ranks BELOW covered on purpose: a rung that is meaningless
-  // for a class must never win a worst-of roll-up, or every class would look
-  // worse than it is because one of its rungs is graded elsewhere.
-  NOT_APPLICABLE: -1,
-  COVERED: 0,
-  PARTIAL: 1,
-  UNAVAILABLE: 2,
-  UNMEASURABLE: 3,
-  BLIND: 4,
-  // SOURCE_DOWN outranks every plant state because it invalidates them: if the
-  // source did not answer, the other readings on that class are stale, and
-  // presenting a stale reading as current is the failure the trust model names.
-  SOURCE_DOWN: 5,
-  EXCURSION: 6,
-};
-
-function worstRungStates(devices: readonly DeviceNode[]): Record<Rung, SignalState> {
+/** The rung states of a class, flattened for the ring and the grid. */
+export function rungStates(node: DeviceClassNode): Record<Rung, SignalState> {
   return RUNG_ORDER.reduce(
     (acc, rung) => {
-      let worst: SignalState = "NOT_APPLICABLE";
-      for (const device of devices) {
-        const state = device.rungs[rung];
-        if (STATE_SEVERITY[state] > STATE_SEVERITY[worst]) {
-          worst = state;
-        }
-      }
-      acc[rung] = worst;
+      acc[rung] = node.rungs[rung].state;
       return acc;
     },
     {} as Record<Rung, SignalState>,
   );
+}
+
+/** Per-rung reasons, for the lamp's accessible name. */
+export function rungReasons(node: DeviceClassNode): Partial<Record<Rung, string>> {
+  return RUNG_ORDER.reduce<Partial<Record<Rung, string>>>((acc, rung) => {
+    const reason = node.rungs[rung].reason;
+    if (reason) acc[rung] = reason;
+    return acc;
+  }, {});
+}
+
+/** Per-rung blindness ages, for the lamp's dated label. */
+export function rungBlindDays(node: DeviceClassNode): Partial<Record<Rung, number>> {
+  return RUNG_ORDER.reduce<Partial<Record<Rung, number>>>((acc, rung) => {
+    const days = node.rungs[rung].blindDays;
+    if (typeof days === "number" && days > 0) acc[rung] = days;
+    return acc;
+  }, {});
+}
+
+/**
+ * How many cells the instrument could not grade, and therefore how much of the
+ * board is a statement about the SETPOINT rather than about the machine.
+ */
+export function ungradedCells(classes: readonly DeviceClassNode[]): number {
+  let count = 0;
+  for (const node of classes) {
+    for (const rung of RUNG_ORDER) {
+      const detail = node.rungs[rung];
+      if (!detail.graded && detail.state !== "NOT_APPLICABLE" && detail.state !== "UNAUTHORED") {
+        count += 1;
+      }
+    }
+  }
+  return count;
 }

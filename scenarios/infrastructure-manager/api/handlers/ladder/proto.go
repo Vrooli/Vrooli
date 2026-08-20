@@ -93,6 +93,59 @@ func protoCell(cell internalladder.Cell) *ladderv1.LadderCell {
 		CapabilityStatus:  cell.CapabilityStatus,
 		CapabilityReason:  cell.CapabilityReason,
 		ObservedAt:        timestamppb.New(cell.ObservedAt),
+		FaultUnit:         cell.FaultUnit,
+		FaultCount:        cell.FaultCount,
+		FaultCounted:      cell.FaultCounted,
+		Severity:          int32(cell.Severity),
+		SeverityKnown:     cell.SeverityKnown,
+		GapOpenedOn:       cell.GapOpenedOn,
+		GapOpenDays:       int32(cell.GapOpenDays),
+		GapDated:          cell.GapDated,
+	}
+}
+
+func protoConfidence(confidence internalladder.Confidence) *ladderv1.Confidence {
+	return &ladderv1.Confidence{
+		Level:     protoEnum[ladderv1.ConfidenceLevel](ladderv1.ConfidenceLevel_value, "CONFIDENCE_LEVEL_", confidence.Level),
+		Rationale: confidence.Rationale,
+		Available: confidence.Available,
+		Reason:    confidence.Reason,
+	}
+}
+
+func protoDeviceRung(rung internalladder.DeviceRung) *ladderv1.DeviceRung {
+	return &ladderv1.DeviceRung{
+		Rung:              protoRung(rung.Rung),
+		Observation:       protoObservation(rung.Observation),
+		LadderObservation: protoObservation(rung.LadderObservation),
+		Reason:            rung.Reason,
+		Mechanism:         rung.Mechanism,
+		Remediation:       rung.Remediation,
+		BlockedBy:         protoRung(rung.BlockedBy),
+	}
+}
+
+func protoDevice(device internalladder.Device) *ladderv1.Device {
+	out := &ladderv1.Device{
+		Id: device.ID, Class: device.Class, ParentId: device.ParentID,
+		Vendor: device.Vendor, Model: device.Model, Driver: device.Driver,
+		SysPath: device.SysPath, Attributes: device.Attributes, Readings: device.Readings,
+		Rungs: make([]*ladderv1.DeviceRung, 0, len(device.Rungs)),
+	}
+	for _, rung := range device.Rungs {
+		out.Rungs = append(out.Rungs, protoDeviceRung(rung))
+	}
+	return out
+}
+
+func protoCheckPlatform(coverage internalladder.CheckPlatformCoverage) *ladderv1.CheckPlatformCoverage {
+	return &ladderv1.CheckPlatformCoverage{
+		HostOs:     coverage.HostOS,
+		Applicable: int32(coverage.Applicable),
+		Total:      int32(coverage.Total),
+		Universal:  int32(coverage.Universal),
+		Available:  coverage.Available,
+		Reason:     coverage.Reason,
 	}
 }
 
@@ -101,6 +154,7 @@ func protoSource(source internalladder.SourceState) *ladderv1.SourceState {
 		Id:        source.ID,
 		Available: source.Available,
 		Reason:    source.Reason,
+		Trust:     protoTrust(source.Trust),
 		CheckedAt: timestamppb.New(source.CheckedAt),
 	}
 }
@@ -131,6 +185,15 @@ func protoLadder(snapshot internalladder.Snapshot) *ladderv1.Ladder {
 		Cells:             make([]*ladderv1.LadderCell, 0, len(snapshot.Cells)),
 		Sources:           make([]*ladderv1.SourceState, 0, len(snapshot.Sources)),
 		Findings:          make([]*ladderv1.RankedFinding, 0, len(snapshot.Findings)),
+		CheckPlatforms:    make([]*ladderv1.CheckPlatformCoverage, 0, len(snapshot.CheckPlatforms)),
+		Devices:           make([]*ladderv1.Device, 0, len(snapshot.Devices)),
+		Confidence:        protoConfidence(snapshot.Confidence),
+	}
+	for _, device := range snapshot.Devices {
+		out.Devices = append(out.Devices, protoDevice(device))
+	}
+	for _, coverage := range snapshot.CheckPlatforms {
+		out.CheckPlatforms = append(out.CheckPlatforms, protoCheckPlatform(coverage))
 	}
 	for _, cell := range snapshot.Cells {
 		out.Cells = append(out.Cells, protoCell(cell))

@@ -28,6 +28,7 @@ const ALL_STATES: readonly SignalState[] = [
   "UNMEASURABLE",
   "UNAVAILABLE",
   "NOT_APPLICABLE",
+  "UNAUTHORED",
   "BLIND",
   "SOURCE_DOWN",
 ];

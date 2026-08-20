@@ -38,7 +38,7 @@ never makes the manual path illegal.
 
 - API port: assigned by lifecycle as `API_PORT`.
 - UI port: assigned by lifecycle as `UI_PORT`.
-- Storage: `SQLITE_PATH` local file by default.
+- Storage: embedded SQLite, resolved from the scenario id by `api-core/storage`.
 - Resources: none external by default.
 - Network: local API/UI communication.
 

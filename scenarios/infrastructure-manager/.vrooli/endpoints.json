@@ -199,6 +199,14 @@
       "category": "ladder"
     },
     {
+      "id": "ladder_devices",
+      "path": "/vrooli.infrastructure_manager.v1.ladder.LadderService/ListDevices",
+      "method": "POST",
+      "summary": "List graded hardware devices",
+      "description": "",
+      "category": "ladder"
+    },
+    {
       "id": "ladder_sources",
       "path": "/vrooli.infrastructure_manager.v1.ladder.LadderService/ListSources",
       "method": "POST",

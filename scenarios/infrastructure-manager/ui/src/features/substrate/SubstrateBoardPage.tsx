@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { strings } from "../../consts/strings.generated";
 import { useTranslation } from "../../i18n";
 import { LegendPlate } from "../../components/instrument/LegendPlate";
-import { LampLegend } from "../../components/instrument/Lamp";
+import { Lamp, LampLegend } from "../../components/instrument/Lamp";
 import { StatPlate, StatStrip } from "../../components/instrument/StatPlate";
 import { AnnunciatorGrid, type AnnunciatorRow } from "../../components/instrument/AnnunciatorGrid";
 import { EmptyState } from "../../components/ui/empty-state";
@@ -12,7 +12,16 @@ import { RUNG_ORDER, type SignalState } from "../../theme/instrument";
 import { DeviceConstellation, describeConstellation } from "./DeviceConstellation";
 import { DeviceDrilldown, type DeviceDrilldownLabels } from "./DeviceDrilldown";
 import { PortabilityLegend, PortabilityMatrix, QUALIFICATION_ORDER } from "./PortabilityMatrix";
-import { groupByClass, ladderCoverage, unseenDevices, type SubstrateBoard } from "./model";
+import {
+  isUnseen,
+  ladderCoverage,
+  rungBlindDays,
+  rungReasons,
+  rungStates,
+  ungradedCells,
+  unseenClasses,
+  type SubstrateBoard,
+} from "./model";
 import { useSubstrateBoard } from "./useSubstrateBoard";
 
 /**
@@ -69,64 +78,66 @@ export function SubstrateBoardPage() {
         ? t(strings.pages.substrate.sourceUnavailable)
         : undefined;
 
+  // Memoised so the derived reads below do not recompute on every render: a
+  // bare `?? []` allocates a new array each time and invalidates every
+  // dependent memo.
+  const classes = useMemo(() => board?.classes ?? [], [board]);
+
   /**
-   * Whether the device-graph source actually answered.
+   * Whether the ladder actually returned any graded class.
    *
-   * This gates every device-derived FIGURE. `board.devices.length` is `0` both
-   * when the machine has no devices and when the source did not answer, and
-   * printing "0 devices enumerated" for the second case is precisely the
-   * fabricated zero this instrument exists to remove. When the source is not
-   * VALID the plates render an em dash instead.
+   * This gates every class-derived FIGURE. An empty list means the same thing
+   * as `0` on the wire — and "the machine has nothing" versus "the source did
+   * not answer" are opposite facts. Printing "0 classes" for the second case is
+   * precisely the fabricated zero this instrument exists to remove, so when
+   * nothing was read the plates render an em dash instead.
    */
-  const deviceSourceAnswered = useMemo(
-    () => board?.sources.some((source) => source.name === "device-graph" && source.verdict === "VALID") ?? false,
-    [board],
+  const ladderRead = classes.length > 0;
+  const coverage = useMemo(() => ladderCoverage(classes), [classes]);
+  const unseen = useMemo(() => unseenClasses(classes), [classes]);
+  const ungraded = useMemo(() => ungradedCells(classes), [classes]);
+
+  const visible = useMemo(
+    () => (selectedClass ? classes.filter((node) => node.deviceClass === selectedClass) : classes),
+    [classes, selectedClass],
   );
 
-  const groups = useMemo(() => (board ? groupByClass(board.devices) : []), [board]);
-  const coverage = useMemo(() => (board ? ladderCoverage(board.devices) : null), [board]);
-  const unseen = useMemo(() => (board ? unseenDevices(board.devices) : []), [board]);
-
-  const visibleDevices = useMemo(() => {
-    if (!board) return [];
-    if (!selectedClass) return board.devices;
-    return board.devices.filter((device) => device.deviceClass === selectedClass);
-  }, [board, selectedClass]);
-
-  const selectedDevice = useMemo(
-    () => visibleDevices.find((device) => device.id === selectedDeviceId) ?? null,
-    [visibleDevices, selectedDeviceId],
+  const selectedNode = useMemo(
+    () => visible.find((node) => node.deviceClass === selectedDeviceId) ?? null,
+    [visible, selectedDeviceId],
   );
 
   const rows: readonly AnnunciatorRow[] = useMemo(
     () =>
-      visibleDevices.map((device) => ({
-        id: device.id,
-        name: device.name,
-        tag: device.id,
-        states: device.rungs,
-        reasons: device.reasons,
-        blindDays: device.blindDays,
-        onSelect: () => setSelectedDeviceId(device.id),
+      visible.map((node) => ({
+        id: node.deviceClass,
+        name: node.deviceClass,
+        tag:
+          node.deviceCount === null
+            ? t(strings.pages.substrate.notRead)
+            : `${node.deviceCount} · ${isUnseen(node) ? "unseen" : "seen"}`,
+        states: rungStates(node),
+        reasons: rungReasons(node),
+        blindDays: rungBlindDays(node),
+        onSelect: () => setSelectedDeviceId(node.deviceClass),
       })),
-    [visibleDevices],
+    [visible, t],
   );
 
   const drilldownLabels: DeviceDrilldownLabels = {
     heading: t(strings.pages.substrate.drilldownHeading),
-    identity: t(strings.pages.substrate.fieldIdentity),
     ladder: t(strings.pages.substrate.ladderHeading),
-    provenance: t(strings.pages.substrate.fieldProvenance),
-    vendor: t(strings.pages.substrate.fieldVendor),
-    driver: t(strings.pages.substrate.fieldDriver),
-    parent: t(strings.pages.substrate.fieldParent),
-    nodes: t(strings.pages.substrate.fieldNodes),
-    discoveredBy: t(strings.pages.substrate.fieldDiscoveredBy),
-    enrichedBy: t(strings.pages.substrate.fieldEnrichedBy),
+    devices: t(strings.pages.substrate.drilldownDevices),
+    blindDevices: t(strings.pages.substrate.drilldownBlindDevices),
     reasonHeading: t(strings.pages.substrate.reasonHeading),
     remediationHeading: t(strings.pages.substrate.remediationHeading),
+    mechanismHeading: t(strings.pages.substrate.mechanismHeading),
     noRemediation: t(strings.pages.substrate.noRemediation),
+    ungraded: t(strings.pages.substrate.ungraded),
+    provisional: t(strings.pages.substrate.provisional),
+    blockedBy: (rung: string) => t(strings.pages.substrate.blockedByRung, { rung }),
     blindFor: (days: number) => t(strings.pages.substrate.blindForDays, { days }),
+    notRead: t(strings.pages.substrate.notRead),
   };
 
   return (
@@ -147,11 +158,19 @@ export function SubstrateBoardPage() {
 
       {/* Instrument chrome: source trust, rendered SEPARATELY from plant data so
           an owner outage can never read as a coverage collapse. */}
-      <ExperienceSurface surfaceId="source-trust" state={state} statusMessage={statusMessage}>
+      <ExperienceSurface surfaceId="source-trust" data-testid="substrate-source-trust" state={state} statusMessage={statusMessage}>
         <SourceTrustStrip board={board} unavailableLabel={t(strings.pages.substrate.sourceUnavailable)} />
+        {/* When the space document itself could not be read, NO cell on this
+            board carries an authored status — so the board says that outright
+            rather than letting the reader assume the statuses are authored. */}
+        {board && !board.coverageAvailable ? (
+          <p className="blind-note mt-space-2xs">
+            {board.coverageReason ?? t(strings.pages.substrate.denominatorUnread)}
+          </p>
+        ) : null}
       </ExperienceSurface>
 
-      <ExperienceSurface surfaceId="headline" state={state} statusMessage={statusMessage}>
+      <ExperienceSurface surfaceId="headline" data-testid="substrate-headline" state={state} statusMessage={statusMessage}>
         {state === "error" || !board ? (
           <EmptyState
             title={t(strings.pages.substrate.unavailableTitle)}
@@ -169,13 +188,18 @@ export function SubstrateBoardPage() {
               label={t(strings.pages.substrate.statRungsCovered)}
             />
             <StatPlate
-              value={deviceSourceAnswered ? String(unseen.length) : null}
+              value={ladderRead ? String(unseen.length) : null}
               label={t(strings.pages.substrate.statUnseenDevices)}
-              tone={deviceSourceAnswered && unseen.length > 0 ? "excursion" : "neutral"}
+              tone={ladderRead && unseen.length > 0 ? "excursion" : "neutral"}
             />
             <StatPlate
-              value={deviceSourceAnswered ? String(board.devices.length) : null}
+              value={ladderRead ? String(classes.length) : null}
               label={t(strings.pages.substrate.statDevices)}
+            />
+            <StatPlate
+              value={ladderRead ? String(ungraded) : null}
+              label={t(strings.pages.substrate.statUngraded)}
+              tone={ungraded > 0 ? "excursion" : "neutral"}
             />
             <StatPlate
               value={board.denominator.confidence}
@@ -192,26 +216,26 @@ export function SubstrateBoardPage() {
           id="substrate-constellation"
           tag="SB9"
           legend={t(strings.pages.substrate.constellationHeading)}
-          aside={board ? `${groups.length} ${t(strings.pages.substrate.classesSuffix)}` : undefined}
+          aside={board ? `${classes.length} ${t(strings.pages.substrate.classesSuffix)}` : undefined}
         />
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">
           {t(strings.pages.substrate.constellationNote)}
         </p>
-        <ExperienceSurface surfaceId="constellation" state={state} statusMessage={statusMessage}>
+        <ExperienceSurface surfaceId="constellation" data-testid="substrate-constellation" state={state} statusMessage={statusMessage}>
           {board ? (
             <>
               <DeviceConstellation
                 hostName={board.host.name}
-                groups={groups}
+                classes={classes}
                 selectedClass={selectedClass}
                 onSelectClass={(deviceClass) => {
                   setSelectedClass((current) => (current === deviceClass ? null : deviceClass));
                   setSelectedDeviceId(null);
                 }}
-                summary={describeConstellation(board.host.name, groups)}
+                summary={describeConstellation(board.host.name, classes)}
               />
               <p className="mt-space-sm text-body-sm text-app-muted-foreground">
-                {describeConstellation(board.host.name, groups)}
+                {describeConstellation(board.host.name, classes)}
               </p>
               <div className="mt-space-sm">
                 <LampLegend states={STATES_RENDERED} />
@@ -235,7 +259,7 @@ export function SubstrateBoardPage() {
           aside={selectedClass ?? undefined}
         />
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">{t(strings.pages.substrate.matrixNote)}</p>
-        <ExperienceSurface surfaceId="rung-matrix" state={state} statusMessage={statusMessage}>
+        <ExperienceSurface surfaceId="rung-matrix" data-testid="substrate-rung-matrix" state={state} statusMessage={statusMessage}>
           {rows.length > 0 ? (
             <AnnunciatorGrid
               rows={rows}
@@ -257,14 +281,61 @@ export function SubstrateBoardPage() {
       </section>
 
       {/* ------------------------------------------------------------ drilldown -- */}
-      {selectedDevice ? (
+      {selectedNode ? (
         <section aria-labelledby="substrate-drilldown" className="flex flex-col gap-space-sm">
           <LegendPlate id="substrate-drilldown" legend={t(strings.pages.substrate.drilldownSection)} />
           <div className="panel p-space-md">
-            <DeviceDrilldown device={selectedDevice} labels={drilldownLabels} />
+            <DeviceDrilldown node={selectedNode} labels={drilldownLabels} />
           </div>
         </section>
       ) : null}
+
+      {/* ------------------------------------------------- substrate sensing -- */}
+      <section aria-labelledby="substrate-checks" className="flex flex-col gap-space-sm">
+        <LegendPlate
+          id="substrate-checks"
+          legend={t(strings.pages.substrate.checkPlatformsHeading)}
+          aside={board ? String(board.checkPlatforms.length) : undefined}
+        />
+        <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">
+          {t(strings.pages.substrate.checkPlatformsNote)}
+        </p>
+        <ExperienceSurface surfaceId="check-platforms" data-testid="substrate-check-platforms" state={state} statusMessage={statusMessage}>
+          {board && board.checkPlatforms.length > 0 ? (
+            <ul className="flex flex-col gap-px bg-app-border border border-app-border rounded-panel overflow-hidden list-none p-0 m-0">
+              {board.checkPlatforms.map((entry) => (
+                <li
+                  key={entry.hostOs}
+                  className="bg-app-surface p-space-sm flex flex-wrap items-center gap-space-sm"
+                >
+                  <Lamp
+                    state={entry.available ? "COVERED" : "SOURCE_DOWN"}
+                    subject={entry.hostOs}
+                    reason={entry.available ? undefined : (entry.reason ?? undefined)}
+                  />
+                  <span className="font-mono text-body-sm uppercase tracking-[0.08em]">
+                    {entry.hostOs}
+                  </span>
+                  {/* Always with its denominator: "4 checks apply on windows"
+                      is unreadable without the population it came from. */}
+                  <span className="text-body-sm text-app-muted-foreground tabular-nums">
+                    {t(strings.pages.substrate.checkPlatformRow, {
+                      applicable: entry.applicable,
+                      total: entry.total,
+                      universal: entry.universal,
+                    })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              title={t(strings.pages.substrate.unavailableTitle)}
+              description={t(strings.pages.substrate.unavailableBody)}
+            />
+          )}
+        </ExperienceSurface>
+      </section>
 
       {/* ---------------------------------------------------------- portability -- */}
       <section aria-labelledby="substrate-portability" className="flex flex-col gap-space-sm">
@@ -276,7 +347,7 @@ export function SubstrateBoardPage() {
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">
           {t(strings.pages.substrate.portabilityNote)}
         </p>
-        <ExperienceSurface surfaceId="portability" state={state} statusMessage={statusMessage}>
+        <ExperienceSurface surfaceId="portability" data-testid="substrate-portability" state={state} statusMessage={statusMessage}>
           {board && board.portability.length > 0 ? (
             <>
               <PortabilityMatrix

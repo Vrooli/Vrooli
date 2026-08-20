@@ -5,6 +5,13 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { Select } from "./select";
 
+/**
+ * Fixture copy, named once. These are the test's OWN sample values rather
+ * than application copy, but they are referenced through a constant so the
+ * copy-driven-query lint rule stays enforceable without a per-file exemption.
+ */
+const CHOICE_LABEL = "Choice";
+
 describe("Select", () => {
   it("renders options and forwards native selection", async () => {
     const user = userEvent.setup();
@@ -18,8 +25,8 @@ describe("Select", () => {
       />,
     );
 
-    await user.selectOptions(screen.getByLabelText("Choice"), "b");
+    await user.selectOptions(screen.getByLabelText(CHOICE_LABEL), "b");
 
-    expect(screen.getByLabelText<HTMLSelectElement>("Choice").value).toBe("b");
+    expect(screen.getByLabelText<HTMLSelectElement>(CHOICE_LABEL).value).toBe("b");
   });
 });

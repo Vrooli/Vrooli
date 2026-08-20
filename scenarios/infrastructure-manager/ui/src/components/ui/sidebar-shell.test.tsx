@@ -5,6 +5,13 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { SidebarShell } from "./sidebar-shell";
 
+/**
+ * Fixture copy, named once. These are the test's OWN sample values rather
+ * than application copy, but they are referenced through a constant so the
+ * copy-driven-query lint rule stays enforceable without a per-file exemption.
+ */
+const NAV_LABEL = "Navigation";
+
 describe("SidebarShell", () => {
   it("renders persistent desktop content", () => {
     renderWithProviders(
@@ -20,7 +27,7 @@ describe("SidebarShell", () => {
     );
 
     expect(screen.getByTestId("sidebar-shell")).toHaveAttribute("data-mode", "persistent");
-    expect(screen.getByText("Navigation")).toBeInTheDocument();
+    expect(screen.getByText(NAV_LABEL)).toBeInTheDocument();
   });
 
   it("closes an overlay from the backdrop and Escape key", async () => {

@@ -89,6 +89,69 @@ func (h *handlers) cellsReport(_ cliapp.OperationContext, msg *ladderv1.ListCell
 	}
 }
 
+func (h *handlers) devicesCall(ctx cliapp.OperationContext) (*ladderv1.ListDevicesResponse, error) {
+	resp, err := h.client.ListDevices(context.Background(), connect.NewRequest(&ladderv1.ListDevicesRequest{
+		DeviceClass: strings.TrimSpace(ctx.Flag("device-class")),
+		DeviceId:    strings.TrimSpace(ctx.Flag("device-id")),
+	}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("ladder devices", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no devices response")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) devicesReport(_ cliapp.OperationContext, msg *ladderv1.ListDevicesResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.GetDevices())*2)
+	for _, device := range msg.GetDevices() {
+		results = append(results, formatDevice(device)...)
+	}
+	summary := []string{fmt.Sprintf("%d device(s).", len(msg.GetDevices()))}
+	if !msg.GetAvailable() {
+		// An empty list from an unread source is a failure to observe, never a
+		// host with no hardware, and the summary says which.
+		summary = []string{"Device graph UNAVAILABLE: " + msg.GetUnavailableReason()}
+	}
+	return cliapp.ListReport{Summary: summary, ResultsHeading: "Devices", Results: results}
+}
+
+// formatDevice renders one device and its whole ladder. Every rung is printed,
+// including the ones that could not be graded: a rung that disappears when its
+// probe fails is the failure this board exists to catch.
+func formatDevice(device *ladderv1.Device) []string {
+	out := make([]string, 0, len(device.GetRungs())+1)
+	out = append(out, fmt.Sprintf("%-28s %-20s %s %s (%s)",
+		device.GetId(), device.GetClass(),
+		firstNonEmpty(device.GetVendor(), "unknown-vendor"),
+		firstNonEmpty(device.GetModel(), "unknown-model"),
+		firstNonEmpty(device.GetDriver(), "no driver bound")))
+	for _, rung := range device.GetRungs() {
+		grade := enumToken(rung.GetObservation().String(), "OBSERVATION_")
+		ladder := enumToken(rung.GetLadderObservation().String(), "OBSERVATION_")
+		if ladder != grade {
+			grade = fmt.Sprintf("%s->%s", grade, ladder)
+		}
+		detail := rung.GetReason()
+		if rung.GetRemediation() != "" {
+			detail = detail + " | fix: " + rung.GetRemediation()
+		}
+		out = append(out, fmt.Sprintf("  %-13s %-26s %-14s %s",
+			enumToken(rung.GetRung().String(), "RUNG_"), grade, rung.GetMechanism(), detail))
+	}
+	return out
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func (h *handlers) sourcesCall(_ cliapp.OperationContext) (*ladderv1.ListSourcesResponse, error) {
 	resp, err := h.client.ListSources(context.Background(), connect.NewRequest(&ladderv1.ListSourcesRequest{}))
 	if err != nil {
@@ -109,11 +172,34 @@ func (h *handlers) sourcesReport(_ cliapp.OperationContext, msg *ladderv1.ListSo
 		}
 		results = append(results, formatSource(source))
 	}
+	for _, coverage := range msg.GetCheckPlatforms() {
+		results = append(results, formatCheckPlatform(coverage))
+	}
+	// The denominator confidence travels with the cells it qualifies. A ratio
+	// over this denominator printed without it is not a valid response.
+	confidence := msg.GetConfidence()
+	denominator := "Denominator confidence UNAVAILABLE: " + confidence.GetReason()
+	if confidence.GetAvailable() {
+		denominator = fmt.Sprintf("Denominator confidence %s — %s",
+			enumToken(confidence.GetLevel().String(), "CONFIDENCE_LEVEL_"), confidence.GetRationale())
+	}
 	return cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%d source(s), %d unavailable.", len(results), unavailable)},
-		ResultsHeading: "Sources",
+		Summary:        []string{fmt.Sprintf("%d source(s), %d unavailable.", len(msg.GetSources()), unavailable), denominator},
+		ResultsHeading: "Sources and declared host-OS sensing",
 		Results:        results,
 	}
+}
+
+// formatCheckPlatform renders the declared substrate sensing per host OS as a
+// triple. A bare "4 checks apply on windows" is unreadable without knowing the
+// registry holds five checks or fifty.
+func formatCheckPlatform(coverage *ladderv1.CheckPlatformCoverage) string {
+	if !coverage.GetAvailable() {
+		return fmt.Sprintf("%-38s %-12s %s", "autoheal checks on "+coverage.GetHostOs(), "UNAVAILABLE", coverage.GetReason())
+	}
+	return fmt.Sprintf("%-38s %d of %d registered check(s) apply (%d declare no platform and apply everywhere)",
+		"autoheal checks on "+coverage.GetHostOs(),
+		coverage.GetApplicable(), coverage.GetTotal(), coverage.GetUniversal())
 }
 
 func (h *handlers) findingsCall(ctx cliapp.OperationContext) (*ladderv1.RankFindingsResponse, error) {
@@ -149,29 +235,31 @@ func (h *handlers) findingsReport(_ cliapp.OperationContext, msg *ladderv1.RankF
 func formatCell(cell *ladderv1.LadderCell) string {
 	grade := "ungraded"
 	if cell.GetGraded() {
-		grade = enumToken(cell.GetBand().String(), "BAND_VERDICT_")
+		grade = fmt.Sprintf("%s sev=%d", enumToken(cell.GetBand().String(), "BAND_VERDICT_"), cell.GetSeverity())
+	}
+	age := "undated"
+	if cell.GetGapDated() {
+		age = fmt.Sprintf("%dd", cell.GetGapOpenDays())
 	}
 	detail := cell.GetReason()
 	if !cell.GetGraded() && cell.GetUngradedReason() != "" {
 		detail = cell.GetUngradedReason()
 	}
-	return fmt.Sprintf("%-14s %-46s %-12s %-13s %-12s %-14s %d/%d blind — %s",
+	return fmt.Sprintf("%-14s %-46s %-12s %-13s %-14s %-22s %-8s %d/%d blind — %s",
 		cell.GetCellRef(),
 		cell.GetKey(),
 		enumToken(cell.GetStatus().String(), "CELL_STATUS_"),
 		enumToken(cell.GetObservation().String(), "OBSERVATION_"),
 		enumToken(cell.GetTrust().String(), "TRUST_VERDICT_"),
 		grade,
+		age,
 		cell.GetBlindDevices(), cell.GetDeviceCount(),
 		detail)
 }
 
 func formatSource(source *ladderv1.SourceState) string {
-	state := "AVAILABLE"
-	if !source.GetAvailable() {
-		state = "UNAVAILABLE"
-	}
-	return fmt.Sprintf("%-38s %-12s %s", source.GetId(), state, source.GetReason())
+	return fmt.Sprintf("%-38s %-12s %s", source.GetId(),
+		enumToken(source.GetTrust().String(), "TRUST_VERDICT_"), source.GetReason())
 }
 
 func formatFinding(finding *ladderv1.RankedFinding) string {

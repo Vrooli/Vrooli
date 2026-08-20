@@ -561,6 +561,35 @@
           }
         },
         {
+          "name": "devices",
+          "description": "List graded hardware devices with per-rung state and the reason each rung is blind",
+          "flags": [
+            {
+              "name": "device-class",
+              "description": "Optional device class filter"
+            },
+            {
+              "name": "device-id",
+              "description": "Optional device id filter, for example pci:0000:01:00.0"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LadderService",
+            "method": "ListDevices"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
           "name": "sources",
           "description": "Show each ladder source's availability and the reason it was unreadable",
           "binding": {

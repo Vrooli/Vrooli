@@ -14,6 +14,7 @@ import (
 	ladderv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/ladder/ladder_v1connect"
 	internalladder "github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/ladder"
 	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/module"
+	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/sources"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -54,12 +55,43 @@ func (h *connectHandler) ListCells(ctx context.Context, req *connect.Request[lad
 	return connect.NewResponse(response), nil
 }
 
+// ListDevices returns the graded hardware inventory. When the device-graph
+// source could not be read the response is explicitly unavailable rather than
+// an empty list: an empty list served OK is a claim that the host has no
+// hardware.
+func (h *connectHandler) ListDevices(ctx context.Context, req *connect.Request[ladderv1.ListDevicesRequest]) (*connect.Response[ladderv1.ListDevicesResponse], error) {
+	snapshot := h.service.Snapshot(ctx)
+	response := &ladderv1.ListDevicesResponse{ComputedAt: timestamppb.New(snapshot.ComputedAt), Available: true}
+	for _, source := range snapshot.Sources {
+		if source.ID == sources.DeviceGraphSourceID && !source.Available {
+			response.Available = false
+			response.UnavailableReason = source.Reason
+		}
+	}
+	class := strings.TrimSpace(req.Msg.GetDeviceClass())
+	id := strings.TrimSpace(req.Msg.GetDeviceId())
+	for _, device := range snapshot.Devices {
+		if class != "" && class != device.Class {
+			continue
+		}
+		if id != "" && id != device.ID {
+			continue
+		}
+		response.Devices = append(response.Devices, protoDevice(device))
+	}
+	return connect.NewResponse(response), nil
+}
+
 func (h *connectHandler) ListSources(ctx context.Context, _ *connect.Request[ladderv1.ListSourcesRequest]) (*connect.Response[ladderv1.ListSourcesResponse], error) {
 	snapshot := h.service.Snapshot(ctx)
 	response := &ladderv1.ListSourcesResponse{ComputedAt: timestamppb.New(snapshot.ComputedAt)}
 	for _, source := range snapshot.Sources {
 		response.Sources = append(response.Sources, protoSource(source))
 	}
+	for _, coverage := range snapshot.CheckPlatforms {
+		response.CheckPlatforms = append(response.CheckPlatforms, protoCheckPlatform(coverage))
+	}
+	response.Confidence = protoConfidence(snapshot.Confidence)
 	return connect.NewResponse(response), nil
 }
 
@@ -101,6 +133,7 @@ func Schema() string { return "" }
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "ladder_get", Path: ladderv1connect.LadderServiceGetLadderProcedure, Method: "POST", Summary: "Read the device-layer capability ladder", Category: "ladder"},
 	{ID: "ladder_cells", Path: ladderv1connect.LadderServiceListCellsProcedure, Method: "POST", Summary: "List ladder cells", Category: "ladder"},
+	{ID: "ladder_devices", Path: ladderv1connect.LadderServiceListDevicesProcedure, Method: "POST", Summary: "List graded hardware devices", Category: "ladder"},
 	{ID: "ladder_sources", Path: ladderv1connect.LadderServiceListSourcesProcedure, Method: "POST", Summary: "List ladder source availability", Category: "ladder"},
 	{ID: "ladder_findings", Path: ladderv1connect.LadderServiceRankFindingsProcedure, Method: "POST", Summary: "Read cascade-ranked ladder findings", Category: "ladder"},
 }

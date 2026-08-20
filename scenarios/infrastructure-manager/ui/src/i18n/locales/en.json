@@ -15,7 +15,8 @@
       "condition": "Condition",
       "focus": "Focus",
       "designLanguage": "Instrument language"
-    }
+    },
+    "mainLabel": "Main content"
   },
   "pages": {
     "dashboard": {
@@ -101,14 +102,6 @@
       "drilldownSection": "Device detail",
       "drilldownHeading": "Identity and ladder",
       "ladderHeading": "Observability ladder",
-      "fieldIdentity": "Model",
-      "fieldVendor": "Vendor",
-      "fieldDriver": "Driver",
-      "fieldParent": "Parent",
-      "fieldNodes": "Kernel nodes",
-      "fieldProvenance": "Provenance",
-      "fieldDiscoveredBy": "Discovered by",
-      "fieldEnrichedBy": "Enriched by",
       "reasonHeading": "WHY",
       "remediationHeading": "TO CLOSE",
       "noRemediation": "No remediation is declared for this gap yet.",
@@ -121,7 +114,19 @@
       "hubClasses": "{{count}} classes",
       "nodeSummary": "{{members}} · {{covered}} of {{rungs}}",
       "nothingDeclaredShort": "OFF",
-      "nothingDeclaredLabel": "{{capability}} on {{os}}: nothing declared"
+      "nothingDeclaredLabel": "{{capability}} on {{os}}: nothing declared",
+      "drilldownDevices": "Devices enumerated",
+      "drilldownBlindDevices": "With no covered rung",
+      "mechanismHeading": "READ FROM",
+      "ungraded": "Not graded against a setpoint bar",
+      "provisional": "The bar behind this cell is still provisional.",
+      "blockedByRung": "Suppressed because {{rung}} below it is blind; fix that rung first.",
+      "notRead": "The source did not read this, so no count is claimed.",
+      "checkPlatformsHeading": "Substrate sensing by platform",
+      "checkPlatformsNote": "How many registered autoheal checks apply on each host OS, out of how many exist. A check declaring no platform applies everywhere, which is why a platform can have applicable checks that no check names explicitly.",
+      "checkPlatformRow": "{{applicable}} of {{total}} checks apply, {{universal}} of them universal",
+      "statUngraded": "Cells with no bar",
+      "denominatorUnread": "The substrate space document could not be read, so no cell on this board carries an authored status."
     },
     "coverage": {
       "eyebrow": "infra-health · coverage projection",
@@ -171,7 +176,9 @@
       "integrityNote": "Findings raised while parsing the setpoint itself. These are faults in the instrument's own definition of the plant, so they are stated ahead of any figure computed from it.",
       "integrityEmptyTitle": "No setpoint-integrity findings",
       "integrityEmptyBody": "The setpoint parsed and raised no findings. That is the instrument reporting on itself; it says nothing about the plant.",
-      "integrityUnavailable": "The setpoint could not be validated because the coverage source failed. No cell count is shown."
+      "integrityUnavailable": "The setpoint could not be validated because the coverage source failed. No cell count is shown.",
+      "noSpacesTitle": "No coverage spaces declared",
+      "noSpacesBody": "The coverage source answered and declared no spaces to grade. That is a setpoint with nothing in it, not a machine with nothing to watch."
     },
     "condition": {
       "eyebrow": "infra-health · condition and trust",
@@ -244,7 +251,8 @@
     "refreshCount": "Refreshed {{count}} times",
     "refreshCount_one": "Refreshed once",
     "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
+    "timestampLabel": "Timestamp:",
+    "description": "Liveness of the API this board reads, and when it last answered."
   },
   "notifications": {
     "summary": "{{count}} notifications",

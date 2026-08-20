@@ -91,6 +91,18 @@ func fullyMeasured(id, class string) sources.GraphDevice {
 	return measuredDevice(id, class, rungs)
 }
 
+// healthyThermalSensor is fully graded AND publishes the readings the SB11 bar
+// is authored in, so it exercises the grading path rather than stopping at the
+// unit check.
+func healthyThermalSensor(id string, celsius, critical float64) sources.GraphDevice {
+	device := fullyMeasured(id, "thermal-sensor")
+	device.Readings = map[string]float64{
+		"temperature_celsius":       celsius,
+		"setpoint_critical_celsius": critical,
+	}
+	return device
+}
+
 func newService(t *testing.T, graph DeviceGraphSource, grid PortabilitySource, checks CheckPlatformSource) *Service {
 	t.Helper()
 	root := repoRoot(t)
@@ -132,7 +144,7 @@ func cellFor(t *testing.T, snapshot Snapshot, cellRef, class, hostOS string) Cel
 // rule for the grading side: silently ungraded reads identically to in band.
 func TestEveryLadderCellResolvesToABarOrIsUngradedWithAReason(t *testing.T) {
 	service := newService(t,
-		stubGraph{graph: sources.DeviceGraph{Devices: []sources.GraphDevice{fullyMeasured("pci:0000:01:00.0", "thermal-sensor")}}},
+		stubGraph{graph: sources.DeviceGraph{Devices: []sources.GraphDevice{healthyThermalSensor("thermal:0", 41, 95)}}},
 		stubGrid{grid: liveGrid(t)},
 		stubChecks{checks: []sources.CheckPlatforms{{CheckID: "system-gpu", Platforms: []string{"linux"}}}})
 	snapshot := service.Snapshot(context.Background())
@@ -256,7 +268,7 @@ func TestLiveJoinRefinesTheAuthoredStatusToNow(t *testing.T) {
 	service := newService(t,
 		stubGraph{graph: sources.DeviceGraph{
 			CollectedAt: time.Date(2026, 8, 20, 11, 59, 0, 0, time.UTC),
-			Devices:     []sources.GraphDevice{fullyMeasured("thermal:0", "thermal-sensor")},
+			Devices:     []sources.GraphDevice{healthyThermalSensor("thermal:0", 41, 95)},
 		}},
 		stubGrid{grid: liveGrid(t)},
 		stubChecks{checks: []sources.CheckPlatforms{{CheckID: "system-gpu", Platforms: []string{"linux"}}}})
@@ -277,6 +289,12 @@ func TestLiveJoinRefinesTheAuthoredStatusToNow(t *testing.T) {
 	}
 	if cell.Band != internalcondition.BandInBand {
 		t.Errorf("a fully measured cell graded %s, want IN_BAND", cell.Band)
+	}
+	if cell.FaultUnit != "sensors at or above their critical trip point" || !cell.FaultCounted || cell.FaultCount != 0 {
+		t.Errorf("the cell graded %v %q (counted=%v); it must grade the bar's own unit", cell.FaultCount, cell.FaultUnit, cell.FaultCounted)
+	}
+	if !cell.SeverityKnown || cell.Severity != 0 {
+		t.Errorf("an in-band cell reports severity %d (known=%v), want an ordered 0", cell.Severity, cell.SeverityKnown)
 	}
 	if !cell.ObservedAt.Equal(time.Date(2026, 8, 20, 11, 59, 0, 0, time.UTC)) {
 		t.Errorf("the cell reports observed_at %s; it should carry the graph's collection time, not the read time", cell.ObservedAt)
@@ -398,21 +416,15 @@ func TestUnconfiguredSourcesStillProduceAFullGrid(t *testing.T) {
 	}
 }
 
-// TestAbsentMechanismIsATrustedSubstrateFinding is the other half of
-// TestUnreadableDeviceIsUntrustedNotMissing, and it is what keeps the
-// host-substrate cascade stage reachable at all.
-//
-// A host with no SMART reader installed is not an unreadable sensor — it is a
-// believable measurement of a real, fixable host condition. Classifying it
-// UNTRUSTED alongside "the host refused the read" would exclude it from every
-// aggregate and make a commissioning gap permanently invisible.
-func TestAbsentMechanismIsATrustedSubstrateFinding(t *testing.T) {
+// TestSensorAtItsCriticalTripIsATrustedSubstrateFinding is what keeps the
+// HOST_SUBSTRATE cascade stage reachable: a fully readable population whose
+// authored quantity is out of band is a real plant fault, and it is the ONLY
+// thing that may raise plant-side work here.
+func TestSensorAtItsCriticalTripIsATrustedSubstrateFinding(t *testing.T) {
 	service := newService(t,
 		stubGraph{graph: sources.DeviceGraph{Devices: []sources.GraphDevice{
-			measuredDevice("thermal:0", "thermal-sensor", map[Rung]Observation{
-				RungIdentity:  ObservationMeasured,
-				RungTelemetry: ObservationUnavailable,
-			}),
+			healthyThermalSensor("thermal:0", 96, 95),
+			healthyThermalSensor("thermal:1", 40, 95),
 		}}},
 		stubGrid{grid: liveGrid(t)},
 		stubChecks{checks: []sources.CheckPlatforms{{CheckID: "system-gpu", Platforms: []string{"linux"}}}})
@@ -420,16 +432,19 @@ func TestAbsentMechanismIsATrustedSubstrateFinding(t *testing.T) {
 
 	cell := cellFor(t, snapshot, "substrate/SB11", "thermal-sensor", "linux")
 	if cell.Trust != internalcondition.TrustValid {
-		t.Fatalf("an absent mechanism produced trust %s, want VALID", cell.Trust)
+		t.Fatalf("a fully readable population produced trust %s, want VALID", cell.Trust)
 	}
 	if !cell.Graded {
-		t.Fatalf("a trusted reading was not graded: %s", cell.UngradedReason)
+		t.Fatalf("a trusted, fully readable population was not graded: %s", cell.UngradedReason)
+	}
+	if cell.FaultCount != 1 {
+		t.Errorf("the cell counted %v sensors at their critical trip, want 1", cell.FaultCount)
 	}
 	if cell.Band != internalcondition.BandOutOfBand {
-		t.Fatalf("a cell with a blind device graded %s, want OUT_OF_BAND", cell.Band)
+		t.Fatalf("a sensor at its critical trip graded %s, want OUT_OF_BAND", cell.Band)
 	}
-	if cell.Status == spacedoc.StatusNow {
-		t.Error("a cell with a blind device was promoted to NOW")
+	if !cell.SeverityKnown || cell.Severity != 2 {
+		t.Errorf("an out-of-band cell reports severity %d (known=%v), want an ordered 2", cell.Severity, cell.SeverityKnown)
 	}
 
 	found := false
@@ -446,6 +461,75 @@ func TestAbsentMechanismIsATrustedSubstrateFinding(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("an out-of-band trusted substrate cell produced no host-substrate finding; the cascade stage is unreachable")
+	}
+}
+
+// TestPartiallyReadablePopulationIsNotGraded pins the denominator rule: a
+// fault count over a population that could not be fully read understates the
+// very fault it exists to detect, so it is refused rather than reported.
+func TestPartiallyReadablePopulationIsNotGraded(t *testing.T) {
+	blind := measuredDevice("thermal:1", "thermal-sensor", map[Rung]Observation{
+		RungIdentity:  ObservationMeasured,
+		RungTelemetry: ObservationUnavailable,
+	})
+	service := newService(t,
+		stubGraph{graph: sources.DeviceGraph{Devices: []sources.GraphDevice{
+			healthyThermalSensor("thermal:0", 40, 95), blind,
+		}}},
+		stubGrid{grid: liveGrid(t)},
+		stubChecks{checks: []sources.CheckPlatforms{{CheckID: "system-gpu", Platforms: []string{"linux"}}}})
+	snapshot := service.Snapshot(context.Background())
+
+	cell := cellFor(t, snapshot, "substrate/SB11", "thermal-sensor", "linux")
+	if cell.Graded {
+		t.Fatalf("a partially readable population was graded %v", cell.FaultCount)
+	}
+	if cell.Band != internalcondition.BandNotEvaluated {
+		t.Errorf("a partially readable population graded %s, want NOT_EVALUATED", cell.Band)
+	}
+	if cell.SeverityKnown {
+		t.Error("an ungraded cell reported a severity; defaulting it would read as OK")
+	}
+	if !strings.Contains(cell.UngradedReason, "understate") {
+		t.Errorf("the refusal reads %q; it does not say why a partial count is refused", cell.UngradedReason)
+	}
+	for _, finding := range snapshot.Findings {
+		if finding.Stage == focus.StageSubstrate && finding.CellRef == "substrate/SB11" {
+			t.Error("an ungraded cell produced a plant-side substrate finding")
+		}
+	}
+}
+
+// TestUnitMismatchIsRefusedRatherThanSubstituted is the SB10 case. The
+// operator authored the bar in "pre-fail attributes below threshold" and the
+// shipped sensor publishes no such quantity. Substituting a nearby SMART
+// counter would fire on a quantity nobody authorised.
+func TestUnitMismatchIsRefusedRatherThanSubstituted(t *testing.T) {
+	disk := fullyMeasured("block:nvme0n1", "block-device")
+	disk.Readings = map[string]float64{"smart_reallocated_sectors": 4, "smart_media_errors": 2}
+	service := newService(t,
+		stubGraph{graph: sources.DeviceGraph{Devices: []sources.GraphDevice{disk}}},
+		stubGrid{grid: liveGrid(t)},
+		stubChecks{checks: []sources.CheckPlatforms{{CheckID: "system-gpu", Platforms: []string{"linux"}}}})
+	snapshot := service.Snapshot(context.Background())
+
+	cell := cellFor(t, snapshot, "substrate/SB10", "block-device", "linux")
+	if cell.Graded {
+		t.Fatal("a bar was graded against a quantity the sensor does not publish")
+	}
+	if cell.Trust != internalcondition.TrustUnitMismatch {
+		t.Errorf("trust = %s, want UNIT_MISMATCH", cell.Trust)
+	}
+	if cell.SeverityKnown {
+		t.Error("a unit-mismatched cell reported a severity")
+	}
+	if !strings.Contains(cell.UngradedReason, "pre-fail") {
+		t.Errorf("the refusal reads %q; it does not name the authored unit", cell.UngradedReason)
+	}
+	for _, finding := range snapshot.Findings {
+		if finding.Stage == focus.StageSubstrate && finding.CellRef == "substrate/SB10" {
+			t.Error("a unit mismatch produced a plant-side substrate finding; it is instrument work")
+		}
 	}
 }
 
@@ -484,5 +568,114 @@ func TestBlockedRungInheritsItsCauseRatherThanItsOwnGrade(t *testing.T) {
 				t.Errorf("a rung blocked by %s carries trust %s, want %s", testCase.identity, cell.Trust, testCase.wantTrust)
 			}
 		})
+	}
+}
+
+// TestBlindnessAgeDistinguishesUndatedFromZeroDay is the board's differentiator.
+// gap_open_days is 0 both for a gap opened today and for a gap nobody ever
+// dated, so an undated gap must be reported as undated rather than as a
+// zero-day gap — it is the one cell nobody can put a clock on.
+func TestBlindnessAgeDistinguishesUndatedFromZeroDay(t *testing.T) {
+	service := newService(t, nil, nil, nil)
+	snapshot := service.Snapshot(context.Background())
+	for _, cell := range snapshot.Cells {
+		if cell.GapOpenedOn == "" && cell.GapDated {
+			t.Errorf("%s reports a dated gap with no date", cell.Key)
+		}
+		if cell.GapOpenedOn != "" && !cell.GapDated {
+			t.Errorf("%s carries gap date %q but reports undated", cell.Key, cell.GapOpenedOn)
+		}
+		if !cell.GapDated && cell.GapOpenDays != 0 {
+			t.Errorf("%s reports %d days for an undated gap", cell.Key, cell.GapOpenDays)
+		}
+	}
+}
+
+// TestDenominatorConfidenceTravelsWithTheCells pins that no ratio over these
+// cells can be reported without the confidence in their denominator.
+func TestDenominatorConfidenceTravelsWithTheCells(t *testing.T) {
+	snapshot := newService(t, nil, nil, nil).Snapshot(context.Background())
+	if !snapshot.Confidence.Available {
+		t.Fatalf("the substrate space confidence was not read: %s", snapshot.Confidence.Reason)
+	}
+	if snapshot.Confidence.Level != "PARTIAL" {
+		t.Errorf("confidence level = %q; the substrate space declares PARTIAL", snapshot.Confidence.Level)
+	}
+	if snapshot.Confidence.Rationale == "" {
+		t.Error("the confidence carries no rationale; a level without one claims nothing")
+	}
+}
+
+// TestUnreadSpaceHasNoConfidenceRatherThanADefaultedOne — claiming
+// AUTHORITATIVE about a document nobody opened is the worst available answer.
+func TestUnreadSpaceHasNoConfidenceRatherThanADefaultedOne(t *testing.T) {
+	service := &Service{HostOS: "linux", Now: func() time.Time { return time.Now() }}
+	snapshot := service.Snapshot(context.Background())
+	if snapshot.Confidence.Available {
+		t.Fatal("an unread space reported a confidence level")
+	}
+	if snapshot.Confidence.Level != "" {
+		t.Errorf("an unread space reported level %q", snapshot.Confidence.Level)
+	}
+	if snapshot.Confidence.Reason == "" {
+		t.Error("an unread space gives no reason")
+	}
+}
+
+// TestDeviceInventoryCarriesBothGrades pins that the owner's verbatim grade and
+// the ladder's dependency verdict are both reported. They answer different
+// questions and the UI renders them differently.
+func TestDeviceInventoryCarriesBothGrades(t *testing.T) {
+	service := newService(t,
+		stubGraph{graph: sources.DeviceGraph{Devices: []sources.GraphDevice{
+			measuredDevice("thermal:0", "thermal-sensor", map[Rung]Observation{
+				RungIdentity:  ObservationUnavailable,
+				RungTelemetry: ObservationMeasured,
+			}),
+		}}},
+		stubGrid{grid: liveGrid(t)},
+		stubChecks{})
+	snapshot := service.Snapshot(context.Background())
+
+	if len(snapshot.Devices) != 1 {
+		t.Fatalf("got %d devices, want 1", len(snapshot.Devices))
+	}
+	device := snapshot.Devices[0]
+	if len(device.Rungs) != len(Rungs) {
+		t.Fatalf("device reports %d rungs, want the full ladder of %d", len(device.Rungs), len(Rungs))
+	}
+	byRung := map[Rung]DeviceRung{}
+	for _, rung := range device.Rungs {
+		byRung[rung.Rung] = rung
+	}
+	telemetry := byRung[RungTelemetry]
+	if telemetry.Observation != ObservationMeasured {
+		t.Errorf("the owner graded telemetry %s; the verbatim grade was rewritten to %s", ObservationMeasured, telemetry.Observation)
+	}
+	if telemetry.LadderObservation != ObservationBlocked {
+		t.Errorf("telemetry's ladder verdict is %s above a blind identity rung, want blocked", telemetry.LadderObservation)
+	}
+	if telemetry.BlockedBy != RungIdentity {
+		t.Errorf("telemetry reports blocked by %q, want identity", telemetry.BlockedBy)
+	}
+}
+
+// TestDeviceInventoryIsEmptyOnlyWhenTheSourceWasRead guards the claim an empty
+// inventory would make: that the host has no hardware.
+func TestDeviceInventoryIsEmptyOnlyWhenTheSourceWasRead(t *testing.T) {
+	snapshot := newService(t, stubGraph{err: errors.New("connection refused")}, nil, nil).Snapshot(context.Background())
+	if len(snapshot.Devices) != 0 {
+		t.Fatal("an unread device graph produced devices")
+	}
+	for _, source := range snapshot.Sources {
+		if source.ID != sources.DeviceGraphSourceID {
+			continue
+		}
+		if source.Trust != internalcondition.TrustUnavailable {
+			t.Errorf("an unread source carries trust %s, want UNAVAILABLE", source.Trust)
+		}
+		if source.Reason == "" {
+			t.Error("an unread source carries no reason")
+		}
 	}
 }

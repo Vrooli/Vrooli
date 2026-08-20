@@ -11,6 +11,10 @@ import {
   type GetTrustDistributionResponse,
 } from "@vrooli/proto-types/infrastructure-manager/v1/condition/condition_pb";
 import {
+  LadderService,
+  type GetLadderResponse,
+} from "@vrooli/proto-types/infrastructure-manager/v1/ladder/ladder_pb";
+import {
   PortabilityService,
   type GetGridResponse,
 } from "@vrooli/proto-types/infrastructure-manager/v1/portability/portability_pb";
@@ -26,6 +30,7 @@ export const coverageClient = createClient(CoverageService, transport);
 export const conditionClient = createClient(ConditionService, transport);
 export const focusClient = createClient(FocusService, transport);
 export const portabilityClient = createClient(PortabilityService, transport);
+export const ladderClient = createClient(LadderService, transport);
 
 export function fetchCoverage(): Promise<GetCoverageResponse> {
   return coverageClient.getCoverage({});
@@ -61,4 +66,15 @@ export function fetchEfficacy(findingId: string): Promise<GetEfficacyResponse> {
  */
 export function fetchPortabilityGrid(): Promise<GetGridResponse> {
   return portabilityClient.getGrid({});
+}
+
+/**
+ * Reads the whole five-rung ladder over the substrate projection.
+ *
+ * The response carries its own source list, so a caller can attribute an
+ * outage to the specific owner that did not answer rather than reporting one
+ * undifferentiated failure.
+ */
+export function fetchLadder(): Promise<GetLadderResponse> {
+  return ladderClient.getLadder({});
 }
