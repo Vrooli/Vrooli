@@ -1,11 +1,13 @@
 package server_test
 
 import (
-	httpx "github.com/vrooli/api-core/servertest"
 	"io"
 	"log"
 	"net/http"
 	"testing"
+
+	httpx "github.com/vrooli/api-core/servertest"
+
 	"music-library/internal/module"
 	"music-library/internal/server"
 

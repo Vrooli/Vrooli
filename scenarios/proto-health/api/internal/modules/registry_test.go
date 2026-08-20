@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"proto-health/internal/modules"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/reflect/protoreflect"

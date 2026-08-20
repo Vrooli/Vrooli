@@ -4,7 +4,6 @@
 
 | Variable | Purpose | Required |
 |---|---|---|
-| `SQLITE_PATH` | Optional local database path if run history or generated scaffold persistence is used. | no for stateless v1 |
 | `API_PORT` | Lifecycle-assigned API port. | yes |
 | `UI_PORT` | Lifecycle-assigned UI port. | yes |
 

@@ -6,12 +6,13 @@ import (
 	"runtime"
 	"testing"
 
+	"proto-health/internal/protosurface"
+	internal "proto-health/internal/validation"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/maturity-go/assessment"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
-	"proto-health/internal/protosurface"
-	internal "proto-health/internal/validation"
 )
 
 type fakeValidator struct {

@@ -7,14 +7,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
-	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
-	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"scenario-to-ios/internal/builds"
 	"scenario-to-ios/internal/distribution"
 	"scenario-to-ios/internal/journeys"
 	"scenario-to-ios/internal/targets"
+
+	"github.com/stretchr/testify/require"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 )
 
 type fakeProber struct {

@@ -14,6 +14,7 @@ type skipInferenceContextKey struct{}
 func WithInferenceDeferred(ctx context.Context) context.Context {
 	return context.WithValue(ctx, skipInferenceContextKey{}, true)
 }
+
 func InferenceDeferred(ctx context.Context) bool {
 	value, _ := ctx.Value(skipInferenceContextKey{}).(bool)
 	return value

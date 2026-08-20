@@ -7,12 +7,13 @@ import (
 	"path/filepath"
 	"sort"
 
-	"connectrpc.com/connect"
-	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	"react-component-library/internal/assetgraph"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/graphreconcile"
 	"react-component-library/internal/portcontract"
+
+	"connectrpc.com/connect"
+	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 )
 
 func (h *handler) graph() (*assetgraph.Index, error) {

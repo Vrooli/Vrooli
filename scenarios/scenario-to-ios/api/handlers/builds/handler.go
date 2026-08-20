@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/gorilla/mux"
-	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-ios/internal/builds"
 	"scenario-to-ios/internal/module"
+
+	"github.com/gorilla/mux"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 )
 
 type request struct {

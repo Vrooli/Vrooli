@@ -29,7 +29,7 @@ cross-origin browser calls anywhere in the model.**
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite (via `api-core/storage` seam) | embedded storage | yes | API, all persistence-backed domains | `SQLITE_PATH` lifecycle env var; seam keeps it swappable to a managed DB at scale | API reports unhealthy if unreachable. |
+| SQLite (via `api-core/storage` seam) | embedded storage | yes | API, all persistence-backed domains | resolved by `api-core/storage` from the scenario id; seam keeps it swappable to a managed DB at scale | API reports unhealthy if unreachable. |
 | Redis | hot-state store | **yes** | sessions, tokens (revocation), federation (OAuth CSRF), rate limiting | resource declared in `.vrooli/service.json` | Session-revocation correctness and distributed rate-limit accuracy degrade; treat as required, not optional. |
 | Signing keypair (`private.pem`/`public.pem`) | persisted secret | yes | tokens (RS256 sign + JWKS) | load-or-generate in the storage root (carried over verbatim) | Regenerating it invalidates every live token — persistence is deliberate. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |

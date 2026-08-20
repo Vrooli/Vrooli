@@ -1,8 +1,9 @@
 package access
 
 import (
-	accessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/access/access_v1connect"
 	"persona/internal/module"
+
+	accessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/access/access_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	dbtest "github.com/vrooli/api-core/databasetest"
 	"scenario-authenticator/internal/authorization"
+
+	dbtest "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 

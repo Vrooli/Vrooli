@@ -2,6 +2,7 @@ package flow
 
 import (
 	"testing"
+
 	"music-tools/internal/notes/flow/generated"
 	"music-tools/internal/testutil/modeltest"
 )

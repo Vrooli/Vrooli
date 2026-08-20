@@ -8,9 +8,10 @@ import (
 
 	"connectrpc.com/connect"
 
-	facetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets"
 	internalfacets "source-ledger/internal/facets"
 	"source-ledger/internal/policy"
+
+	facetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets"
 )
 
 type connectHandler struct {

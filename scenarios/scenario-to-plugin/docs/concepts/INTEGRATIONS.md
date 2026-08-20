@@ -21,7 +21,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, all pipeline domains | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, all pipeline domains | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Capture store | local filesystem | yes | `composition`, `attestation`, `rehearsal` | Scenario-owned artifact directory | Artifact writes fail closed; no package advances. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | `deployment-manager` | scenario | yes | `distribution` | Release-gate request; `EvidenceService.ReportTargetVerdict` | Publication and revocation refused; upstream stages unaffected. |

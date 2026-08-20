@@ -595,9 +595,18 @@ func (s *Supervisor) startControlAPI() (net.Listener, error) {
 	actualAddr := ln.Addr().(*net.TCPAddr)
 	s.opts.Manifest.IPC.Port = actualAddr.Port
 
+	// The published port is a contract, not a diagnostic: the desktop shell and
+	// vrooli-shim both learn the control API address only from this file. Failing
+	// to publish it leaves them unable to reach a runtime that is otherwise up, so
+	// surface the error instead of starting unreachable.
 	portPath := filepath.Join(s.appData, "runtime", "ipc_port")
-	if err := s.fs.MkdirAll(filepath.Dir(portPath), 0o700); err == nil {
-		_ = s.fs.WriteFile(portPath, []byte(fmt.Sprintf("%d", actualAddr.Port)), 0o600)
+	if err := s.fs.MkdirAll(filepath.Dir(portPath), 0o700); err != nil {
+		_ = ln.Close()
+		return nil, fmt.Errorf("publish IPC port: create %s: %w", filepath.Dir(portPath), err)
+	}
+	if err := s.fs.WriteFile(portPath, []byte(fmt.Sprintf("%d", actualAddr.Port)), 0o600); err != nil {
+		_ = ln.Close()
+		return nil, fmt.Errorf("publish IPC port: write %s: %w", portPath, err)
 	}
 
 	s.server = &http.Server{

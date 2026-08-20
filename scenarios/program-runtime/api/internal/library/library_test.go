@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"program-runtime/internal/programs"
+
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	dbtest "github.com/vrooli/api-core/databasetest"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
-	"program-runtime/internal/programs"
 )
 
 func TestPromoteAndSetCurrentAreExplicitAndVersioned(t *testing.T) {

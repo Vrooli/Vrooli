@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"strings"
 
-	"connectrpc.com/connect"
 	"prose-studio/internal/module"
 	internal "prose-studio/internal/prose"
+
+	"connectrpc.com/connect"
 
 	"github.com/gorilla/mux"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/prose-studio/v1/prose"

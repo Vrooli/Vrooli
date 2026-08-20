@@ -11,8 +11,9 @@ import (
 	"sync"
 	"time"
 
-	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	"program-runtime/internal/sessions"
+
+	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 )
 
 // SQLExecutor is shared with the sessions domain so repositories stay behind

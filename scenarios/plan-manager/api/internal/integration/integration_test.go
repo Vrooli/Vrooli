@@ -16,13 +16,14 @@ import (
 	"testing"
 	"time"
 
-	db "github.com/vrooli/api-core/databasetest"
 	internalauthoring "plan-manager/internal/authoring"
 	internalexecution "plan-manager/internal/execution"
 	internalplanlog "plan-manager/internal/planlog"
 	planmodel "plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
 	internalvalidation "plan-manager/internal/validation"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

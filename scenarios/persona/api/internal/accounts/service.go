@@ -6,10 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/schedule"
 	"persona/internal/handoffs"
 	"persona/internal/journal"
 	"persona/internal/personas"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 var (

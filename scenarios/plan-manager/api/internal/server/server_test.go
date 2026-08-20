@@ -7,9 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	httpx "github.com/vrooli/api-core/servertest"
 	"plan-manager/internal/module"
 	"plan-manager/internal/server"
+
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

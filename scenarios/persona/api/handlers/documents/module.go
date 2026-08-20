@@ -26,6 +26,7 @@ func Module(db *database.RoutedDB, clock schedule.Clock) module.Module {
 	}
 	return ModuleWithService(documents.NewService(documents.NewSQLiteRepository(db, clock), p, h, authority, j, clock))
 }
+
 func ModuleWithService(service documents.Service) module.Module {
 	path, handler := documentsconnect.NewDocumentsServiceHandler(NewConnectHandler(service))
 	return module.Module{Name: "documents", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) }, Endpoints: Endpoints}

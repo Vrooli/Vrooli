@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"scenario-to-plugin/internal/capabilities"
 	"scenario-to-plugin/internal/module"
 

@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"signal-inbox/internal/signals"
+
+	"github.com/google/uuid"
 )
 
 const timeFormat = time.RFC3339Nano

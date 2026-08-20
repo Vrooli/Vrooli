@@ -631,6 +631,67 @@ func TestStart_PersistsAuthTokenAndIpcPort(t *testing.T) {
 	}
 }
 
+// ipcPortPublishFailureFS fails exactly the ipc_port write so the supervisor's
+// publish path can be exercised without disturbing any other file operation.
+type ipcPortPublishFailureFS struct {
+	*testutil.MockFileSystem
+	failSuffix string
+}
+
+func (f *ipcPortPublishFailureFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+	if strings.HasSuffix(path, f.failSuffix) {
+		return errors.New("disk full")
+	}
+	return f.MockFileSystem.WriteFile(path, data, perm)
+}
+
+// The desktop shell and vrooli-shim learn the control API address only from
+// runtime/ipc_port. A runtime that binds but cannot publish is unreachable, so
+// Start must fail rather than report success.
+func TestStart_FailsWhenIpcPortCannotBePublished(t *testing.T) {
+	tmp := t.TempDir()
+	appDataDir := filepath.Join(tmp, "appdata")
+	mockFS := &ipcPortPublishFailureFS{
+		MockFileSystem: testutil.NewMockFileSystem(),
+		failSuffix:     filepath.Join("runtime", "ipc_port"),
+	}
+
+	m := &manifest.Manifest{
+		App:       manifest.App{Name: "test-app", Version: "1.0.0"},
+		IPC:       manifest.IPC{Host: "127.0.0.1", Port: 0, AuthTokenRel: "runtime/auth-token"},
+		Telemetry: manifest.Telemetry{File: "telemetry.jsonl"},
+	}
+
+	s, err := NewSupervisor(Options{
+		Manifest:      m,
+		BundlePath:    tmp,
+		AppDataDir:    appDataDir,
+		Clock:         testutil.NewMockClock(time.Now()),
+		FileSystem:    mockFS,
+		SecretStore:   testutil.NewMockSecretStore(nil),
+		PortAllocator: testutil.NewMockPortAllocator(),
+		HealthChecker: testutil.NewMockHealthChecker(),
+	})
+	if err != nil {
+		t.Fatalf("NewSupervisor() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err = s.Start(ctx)
+	if err == nil {
+		_ = s.Shutdown(context.Background())
+		t.Fatal("Start() should fail when the IPC port cannot be published")
+	}
+	if !strings.Contains(err.Error(), "publish IPC port") {
+		t.Fatalf("Start() error = %v, want it to name the IPC port publish failure", err)
+	}
+	if s.started {
+		t.Fatal("Start() must not mark the supervisor started when the port was never published")
+	}
+}
+
 func TestStart_FailsOnMigrationStateError(t *testing.T) {
 	tmp := t.TempDir()
 	appDataDir := filepath.Join(tmp, "appdata")

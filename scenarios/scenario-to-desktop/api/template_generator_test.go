@@ -160,7 +160,6 @@ func TestTemplateGeneratorInjectsBundledRuntimeConfig(t *testing.T) {
 	expectedSnippets := []string{
 		`ROOT: "custom-bundle-root"`,
 		`IPC_HOST: "10.0.0.5"`,
-		`IPC_PORT: 49100`,
 		`TOKEN_REL: "runtime/custom-token"`,
 		`UI_SERVICE: "ui-service"`,
 		`UI_PORT_NAME: "ui-port"`,
@@ -170,5 +169,12 @@ func TestTemplateGeneratorInjectsBundledRuntimeConfig(t *testing.T) {
 		if !strings.Contains(mainContent, snippet) {
 			t.Fatalf("expected bundled runtime snippet missing: %q", snippet)
 		}
+	}
+
+	// The bundle manifest is the only IPC port declaration. Baking one into the
+	// generated shell turned a manifest's "0 = allocate" into a fixed number, so
+	// the shell must not carry a port constant at all.
+	if strings.Contains(mainContent, "IPC_PORT") {
+		t.Fatalf("generated shell must not bake an IPC port constant: %s", mainContent)
 	}
 }

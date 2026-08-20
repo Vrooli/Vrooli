@@ -84,7 +84,7 @@ custodian for mailbox and provider credentials; a channel binding holds
 a reference, and the credential is fetched at use time and never cached
 to disk.
 
-The scenario's own `SQLITE_PATH` database is not a secret store and must
+The scenario's own database is not a secret store and must
 never become one. A pull request that adds a credential-shaped column is
 a design error, not a convenience.
 

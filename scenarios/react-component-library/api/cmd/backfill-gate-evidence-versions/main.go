@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 )
 
 type manifest struct{ CatalogID, Latest string }
@@ -18,9 +19,13 @@ func main() {
 	dbPath := flag.String("db", "../data/react-component-library.db", "SQLite database path")
 	root := flag.String("scenario-root", "..", "React Component Library scenario root")
 	flag.Parse()
+	dsn, err := storage.SQLiteDSNAt(*dbPath, storage.SQLiteTuning{})
+	if err != nil {
+		log.Fatal(err)
+	}
 	db, err := apidb.Open(context.Background(), apidb.Config{
 		Driver:       apidb.DriverSQLite,
-		DSN:          fmt.Sprintf("file:%s?_pragma=busy_timeout(10000)", *dbPath),
+		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})

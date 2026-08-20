@@ -5,13 +5,14 @@ import (
 	"strings"
 	"time"
 
+	"program-runtime/internal/library"
+	"program-runtime/internal/module"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
-	"program-runtime/internal/library"
-	"program-runtime/internal/module"
 )
 
 type handler struct {

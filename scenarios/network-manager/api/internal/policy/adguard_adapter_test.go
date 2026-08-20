@@ -109,9 +109,9 @@ func newTestAdGuardPolicyAdapter(t *testing.T, server *httptest.Server) AdGuardR
 	t.Helper()
 	repo := resolvermocks.NewRepository()
 	_, err := repo.SaveBackend(context.Background(), resolver.BackendConfig{
-		Backend:  resolver.AdGuardHomeBackend,
-		BaseURL:  server.URL,
-		Username: "admin",
+		Backend:       resolver.AdGuardHomeBackend,
+		BaseURL:       server.URL,
+		Username:      "admin",
 		CredentialRef: "vrooli/adguard-home",
 	})
 	require.NoError(t, err)

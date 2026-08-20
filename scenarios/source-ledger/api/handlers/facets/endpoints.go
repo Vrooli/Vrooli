@@ -1,8 +1,9 @@
 package facets
 
 import (
-	facetsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets/facets_v1connect"
 	"source-ledger/internal/module"
+
+	facetsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets/facets_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

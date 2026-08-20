@@ -7,13 +7,14 @@ import (
 	"net/http"
 	"strings"
 
+	"money-ledger/internal/ledger"
+	"money-ledger/internal/module"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
 	ledgerpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
 	ledgerconnect "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger/ledger_v1connect"
-	"money-ledger/internal/ledger"
-	"money-ledger/internal/module"
 )
 
 type Service struct {

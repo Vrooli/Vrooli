@@ -2,6 +2,7 @@ package modeltest_test
 
 import (
 	"testing"
+
 	"scenario-to-plugin/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

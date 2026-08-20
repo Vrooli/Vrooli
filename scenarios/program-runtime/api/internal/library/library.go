@@ -15,10 +15,11 @@ import (
 	"strings"
 	"time"
 
+	"program-runtime/internal/sessions"
+
 	"github.com/google/uuid"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared"
-	"program-runtime/internal/sessions"
 )
 
 //go:embed schema.sql

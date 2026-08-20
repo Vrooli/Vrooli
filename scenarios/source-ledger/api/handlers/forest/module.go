@@ -3,15 +3,16 @@ package forest
 import (
 	"log"
 
+	internalforest "source-ledger/internal/forest"
+	"source-ledger/internal/inference"
+	"source-ledger/internal/module"
+	"source-ledger/internal/policy"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	forestv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/forest"
 	forestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/forest/forest_v1connect"
-	internalforest "source-ledger/internal/forest"
-	"source-ledger/internal/inference"
-	"source-ledger/internal/module"
-	"source-ledger/internal/policy"
 )
 
 // NewService builds the compaction service. The composition root owns the

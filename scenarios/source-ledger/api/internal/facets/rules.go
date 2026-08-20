@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"source-ledger/internal/policy"
+
+	"github.com/google/uuid"
 )
 
 type Rule struct {

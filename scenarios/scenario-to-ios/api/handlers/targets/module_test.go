@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-ios/internal/targets"
+
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"

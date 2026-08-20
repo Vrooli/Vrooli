@@ -1,8 +1,9 @@
 package handoffs
 
 import (
-	handoffsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/handoffs/handoffs_v1connect"
 	"persona/internal/module"
+
+	handoffsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/handoffs/handoffs_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

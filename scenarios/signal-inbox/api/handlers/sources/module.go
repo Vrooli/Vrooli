@@ -1,11 +1,12 @@
 package sources
 
 import (
+	"signal-inbox/internal/module"
+	internal "signal-inbox/internal/sources"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	sourcesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/sources/sources_v1connect"
-	"signal-inbox/internal/module"
-	internal "signal-inbox/internal/sources"
 )
 
 func Module(service *internal.Service) module.Module {

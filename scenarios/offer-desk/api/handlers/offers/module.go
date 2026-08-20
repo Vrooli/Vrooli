@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"offer-desk/internal/catalog"
+	"offer-desk/internal/module"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
@@ -20,8 +23,6 @@ import (
 	offerspb "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
 	offersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers/offers_v1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"offer-desk/internal/catalog"
-	"offer-desk/internal/module"
 )
 
 type Service struct {

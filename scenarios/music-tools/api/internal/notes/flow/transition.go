@@ -6,8 +6,10 @@ import (
 	"music-tools/internal/notes/flow/generated"
 )
 
-type AttachmentUploadStatus = generated.AttachmentUploadStatus
-type AttachmentUploadEvent = generated.AttachmentUploadEvent
+type (
+	AttachmentUploadStatus = generated.AttachmentUploadStatus
+	AttachmentUploadEvent  = generated.AttachmentUploadEvent
+)
 
 const (
 	AttachmentUploadReceived         = generated.AttachmentUploadReceived

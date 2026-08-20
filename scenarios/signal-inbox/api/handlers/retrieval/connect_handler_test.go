@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"signal-inbox/internal/categories"
 	localdb "signal-inbox/internal/database"
 	internal "signal-inbox/internal/retrieval"
 	"signal-inbox/internal/signals"
 	"signal-inbox/internal/triage"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"

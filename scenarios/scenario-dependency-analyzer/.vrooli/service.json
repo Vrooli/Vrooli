@@ -173,9 +173,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/scenario-dependency-analyzer.db"
-  },
+  "environment": {},
   "cli": {
     "enabled": true,
     "command": "scenario-dependency-analyzer",

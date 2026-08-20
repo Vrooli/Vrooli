@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"strings"
 
-	"connectrpc.com/connect"
-	"github.com/vrooli/api-core/discovery"
 	internalexecution "plan-manager/internal/execution"
 	internalvalidation "plan-manager/internal/validation"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
 
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
 	baselinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines/baselines_v1connect"

@@ -5,9 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"measures-health/internal/validation"
+
 	"github.com/vrooli/api-core/discovery"
 	measures "github.com/vrooli/measures-go"
-	"measures-health/internal/validation"
 )
 
 // Provider is the federated measures provider: the indexed corpus + the shared

@@ -11,13 +11,14 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/sessions"
 
-	dbtest "github.com/vrooli/api-core/databasetest"
 	"scenario-authenticator/internal/accounts"
 	"scenario-authenticator/internal/audit"
 	"scenario-authenticator/internal/authcrypto"
 	"scenario-authenticator/internal/realm"
 	"scenario-authenticator/internal/redisstate"
 	intsessions "scenario-authenticator/internal/sessions"
+
+	dbtest "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 )

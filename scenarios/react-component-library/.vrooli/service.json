@@ -149,9 +149,7 @@
       "kind": "go_module"
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/react-component-library.db"
-  },
+  "environment": {},
   "hostTools": [
     {
       "name": "java",

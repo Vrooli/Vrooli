@@ -26,8 +26,7 @@ Persistence is **SQLite through the `api-core/storage` seam** — not
 shared Postgres. Moving off the shared database is the reason for the
 rewrite: a fleet-wide shared DB was a fleet-wide blast radius. The seam
 keeps the store swappable to a managed DB for cloud scale, so SQLite is
-the default, not a lock-in. The lifecycle sets `SQLITE_PATH` through
-`.vrooli/service.json`, and the API applies domain schemas on startup
+the default, not a lock-in. The path is resolved from the scenario id by `api-core/storage`, and the API applies domain schemas on startup
 through the seam.
 
 Two substrates back the data model, by access pattern:

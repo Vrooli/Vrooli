@@ -5,11 +5,12 @@ import (
 	"errors"
 	"time"
 
+	domain "persona/internal/handoffs"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliutil"
 	handoffs_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/handoffs"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	domain "persona/internal/handoffs"
 )
 
 type connectHandler struct{ service domain.Service }

@@ -147,9 +147,7 @@
     }
   },
   "credentials": {},
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/persona.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

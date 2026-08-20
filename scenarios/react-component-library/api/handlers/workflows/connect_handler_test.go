@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	workflowspb "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workflows"
 	internal "react-component-library/internal/workflows"
+
+	workflowspb "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workflows"
 )
 
 func TestWorkflowProtoMappingPreservesControlState(t *testing.T) {

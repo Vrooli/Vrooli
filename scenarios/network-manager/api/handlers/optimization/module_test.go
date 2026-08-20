@@ -9,11 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	db "github.com/vrooli/api-core/databasetest"
 	domainadapters "network-manager/internal/adapters"
 	domainoptimization "network-manager/internal/optimization"
 	domainresolver "network-manager/internal/resolver"
 	domainsnapshot "network-manager/internal/snapshot"
+
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func TestModuleExposesEndpoints(t *testing.T) {

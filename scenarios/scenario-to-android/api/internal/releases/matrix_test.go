@@ -8,11 +8,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"scenario-to-android/internal/targets"
+
 	"github.com/stretchr/testify/require"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
-	"scenario-to-android/internal/targets"
 )
 
 func TestCatalogPublishesConformanceJourneyAndTargetContract(t *testing.T) {

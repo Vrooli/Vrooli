@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"time"
 
+	"scenario-to-android/internal/targets"
+
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
-	"scenario-to-android/internal/targets"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {

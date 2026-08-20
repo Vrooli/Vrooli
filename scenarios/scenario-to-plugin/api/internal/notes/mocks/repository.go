@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
 	"scenario-to-plugin/internal/notes"
 
 	"github.com/google/uuid"

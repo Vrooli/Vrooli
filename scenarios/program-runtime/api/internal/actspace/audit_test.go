@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/vrooli/api-core/spacedoc"
-	"github.com/vrooli/repo-contract-go"
-	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	internalbindings "program-runtime/internal/bindings"
+
+	"github.com/vrooli/api-core/spacedoc"
+	repocontract "github.com/vrooli/repo-contract-go"
+	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 )
 
 func liveActDefinition(t *testing.T) (*internalbindings.Registry, *spacedoc.SpaceDefinition) {

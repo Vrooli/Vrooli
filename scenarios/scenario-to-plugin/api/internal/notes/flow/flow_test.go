@@ -2,6 +2,7 @@ package flow
 
 import (
 	"testing"
+
 	"scenario-to-plugin/internal/notes/flow/generated"
 	"scenario-to-plugin/internal/testutil/modeltest"
 )

@@ -932,7 +932,7 @@ payload shapes. See `SEAMS.md::Wire contracts live in proto, not seams`.
 that:
 
 1. `go build -o <tmp> .` from the api directory
-2. Boots the binary with `API_PORT`, `SQLITE_PATH`, and
+2. Boots the binary with `API_PORT` and
    `VROOLI_LIFECYCLE_MANAGED=true` set
 3. Polls `/health` over a real socket
 4. Sends `SIGTERM` and asserts clean exit within 5s

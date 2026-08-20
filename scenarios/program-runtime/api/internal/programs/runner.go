@@ -14,9 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vrooli/pyenv-go"
 	"program-runtime/internal/budgets"
 	"program-runtime/internal/pydeps"
+
+	"github.com/vrooli/pyenv-go"
 )
 
 type kernelProcess struct {

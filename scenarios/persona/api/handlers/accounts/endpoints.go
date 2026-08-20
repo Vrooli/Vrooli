@@ -1,8 +1,9 @@
 package accounts
 
 import (
-	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/accounts/accounts_v1connect"
 	"persona/internal/module"
+
+	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/accounts/accounts_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

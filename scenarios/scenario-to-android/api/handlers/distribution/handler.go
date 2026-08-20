@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-android/internal/distribution"
+
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {

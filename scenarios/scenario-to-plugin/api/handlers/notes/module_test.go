@@ -2,13 +2,15 @@ package notes_test
 
 import (
 	"context"
-	db "github.com/vrooli/api-core/databasetest"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	db "github.com/vrooli/api-core/databasetest"
+
 	"scenario-to-plugin/handlers/notes"
 
 	"github.com/gorilla/mux"

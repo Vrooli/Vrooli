@@ -8,8 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	db "github.com/vrooli/api-core/databasetest"
 	localdb "network-manager/internal/database"
+
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func TestSQLiteRepositoryPersistsMonitoringRecords(t *testing.T) {

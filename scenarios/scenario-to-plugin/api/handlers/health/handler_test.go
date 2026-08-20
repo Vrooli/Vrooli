@@ -3,12 +3,14 @@ package health_test
 import (
 	"errors"
 	"fmt"
-	"github.com/vrooli/api-core/apihttptest"
-	httpx "github.com/vrooli/api-core/servertest"
 	"io"
 	"log"
 	"net/http"
 	"testing"
+
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
+
 	"scenario-to-plugin/handlers/health"
 	"scenario-to-plugin/internal/module"
 	"scenario-to-plugin/internal/server"

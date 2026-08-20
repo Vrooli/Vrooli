@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"source-ledger/internal/policy"
 	vectorcodec "source-ledger/internal/vector"
+
+	"github.com/google/uuid"
 )
 
 type SQLiteRepository struct{ db *sql.DB }

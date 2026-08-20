@@ -10,12 +10,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	schema "lifestyle-dashboard/internal/lifestyle"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
+
+	schema "lifestyle-dashboard/internal/lifestyle"
 
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -25,6 +24,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/retry"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
 
 	"lifestyle-dashboard/handlers"
 	"lifestyle-dashboard/repository"
@@ -191,6 +191,10 @@ func corsMiddleware(next http.Handler) http.Handler {
 // Main
 // =============================================================================
 
+// lifestyleDatabaseFile is this scenario's database file name. It predates the
+// "<scenario>.db" convention and is kept so the existing database is found.
+const lifestyleDatabaseFile = "lifestyle.db"
+
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -199,30 +203,27 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Ensure SQLITE_PATH is set with WAL mode and busy timeout
-	// The api-core/database package will read this automatically
-	dbPath := os.Getenv("SQLITE_PATH")
-	if dbPath == "" {
-		dbPath = os.Getenv("SQLITE_DB")
+	// Resolve this scenario's own database. The path derives from the scenario
+	// slug, so nothing in the environment can redirect it, and the parent
+	// directory is created by the seam.
+	//
+	// This replaces a DSN written in the pre-"_pragma" grammar
+	// ("?_journal_mode=WAL&_busy_timeout=5000"), which the modernc driver
+	// ignores: despite the comment that used to sit here, this scenario had
+	// never actually run in WAL mode. It also replaces an os.Setenv of
+	// SQLITE_PATH, which published a database path into the process
+	// environment for any child process to inherit.
+	dbPath, err := storage.SQLitePath(storage.SQLiteConfig{
+		Scenario: "lifestyle-dashboard",
+		Filename: lifestyleDatabaseFile,
+	})
+	if err != nil {
+		log.Fatalf("Failed to resolve database path: %v", err)
 	}
-	if dbPath == "" {
-		// Default to data directory
-		dataDir := os.Getenv("SCENARIO_DATA_DIR")
-		if dataDir == "" {
-			dataDir = "."
-		}
-		dbPath = filepath.Join(dataDir, "lifestyle.db")
+	dsn, err := storage.SQLiteDSNAt(dbPath, storage.SQLiteTuning{})
+	if err != nil {
+		log.Fatalf("Failed to build database DSN: %v", err)
 	}
-
-	// Ensure directory exists
-	dir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		log.Fatalf("Failed to create data directory: %v", err)
-	}
-
-	// Add SQLite-specific options to path for api-core
-	dbPathWithOptions := dbPath + "?_journal_mode=WAL&_busy_timeout=5000"
-	os.Setenv("SQLITE_PATH", dbPathWithOptions)
 
 	log.Printf("Opening SQLite database at: %s", dbPath)
 
@@ -231,6 +232,7 @@ func main() {
 	ctx := context.Background()
 	db, err := database.Connect(ctx, database.Config{
 		Driver:       database.DriverSQLite,
+		DSN:          dsn,
 		MaxOpenConns: 1, // SQLite single-writer constraint
 		MaxIdleConns: 1,
 		// Use minimal retry for SQLite (local file, no network issues)

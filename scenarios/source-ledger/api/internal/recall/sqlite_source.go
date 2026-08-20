@@ -31,6 +31,7 @@ WHERE e.scope=?
 		Scan(&result.UnsummarizedLeafCount, &result.OldestUnsummarizedLeafAt, &result.LastSummaryAt)
 	return result, err
 }
+
 func (s *SQLiteSource) Nodes(ctx context.Context) ([]Node, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	scope := policy.ScopeFromContext(ctx)

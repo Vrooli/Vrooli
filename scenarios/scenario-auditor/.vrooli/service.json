@@ -117,81 +117,6 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize Scenario Auditor",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-auditor-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "scenario-auditor"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o scenario-auditor-api .",
-          "description": "Build API server binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Scenario Auditor services in development mode",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-auditor-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/scenario-auditor-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && NODE_ENV=production node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for scenario-auditor",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute scenario-auditor --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -261,6 +186,40 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui",
+        "env": {
+          "NODE_ENV": "production"
+        }
+      }
     }
   }
 }

@@ -1,8 +1,9 @@
 package personas
 
 import (
-	personasconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/personas/personas_v1connect"
 	"persona/internal/module"
+
+	personasconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/personas/personas_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

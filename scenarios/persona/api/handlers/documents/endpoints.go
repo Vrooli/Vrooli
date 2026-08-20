@@ -1,8 +1,9 @@
 package documents
 
 import (
-	documentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/documents/documents_v1connect"
 	"persona/internal/module"
+
+	documentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/documents/documents_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

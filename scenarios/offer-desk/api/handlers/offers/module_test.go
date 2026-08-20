@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"offer-desk/internal/catalog"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
@@ -13,7 +15,6 @@ import (
 	"github.com/vrooli/api-core/schedule"
 	offerspb "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"offer-desk/internal/catalog"
 )
 
 func testOfferService(t *testing.T, clock *schedule.Fake) (*Service, context.Context) {

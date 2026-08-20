@@ -3,9 +3,9 @@ package facets
 import (
 	"context"
 	"fmt"
-)
 
-import "source-ledger/internal/inference"
+	"source-ledger/internal/inference"
+)
 
 type Service struct {
 	repo       Repository

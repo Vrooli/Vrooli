@@ -4,9 +4,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
-	categoriesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/categories/categories_v1connect"
 	internal "signal-inbox/internal/categories"
 	"signal-inbox/internal/module"
+
+	categoriesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/categories/categories_v1connect"
 )
 
 func Module(service *internal.Service) module.Module {

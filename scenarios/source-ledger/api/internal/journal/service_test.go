@@ -6,13 +6,14 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
-	db "github.com/vrooli/api-core/databasetest"
 	localdb "source-ledger/internal/database"
 	"source-ledger/internal/facets"
 	"source-ledger/internal/inference"
 	"source-ledger/internal/testutil/mocks"
+
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func journalDB(t *testing.T) *SQLiteRepository {

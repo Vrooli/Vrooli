@@ -1,6 +1,6 @@
 # Configuration — Scenario Authenticator
 
-> **Current configuration reference.** `API_PORT`, `UI_PORT`, `SQLITE_PATH`,
+> **Current configuration reference.** `API_PORT`, `UI_PORT`,
 > `REDIS_URL`, and the persisted signing-key settings are wired through the
 > lifecycle and API composition. Values marked planned or deferred below are
 > intentionally not runtime knobs yet (for example managed DB, automated key
@@ -44,7 +44,6 @@ stateless and never touches SQLite.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/scenario-authenticator.db` | SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
 | `DATABASE_DSN` | unset | *(planned, P2)* Managed-DB DSN for cloud/HA deployments. When set, the storage seam backs onto the managed DB instead of SQLite (OT-P2-006). Referenced by secret name in production, never inlined. |
 
 SQLite is single-writer — that is the authenticator's own write-throughput

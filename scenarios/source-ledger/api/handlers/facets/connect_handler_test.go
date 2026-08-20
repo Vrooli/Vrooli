@@ -9,10 +9,11 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 
-	facetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets"
 	localdb "source-ledger/internal/database"
 	internalfacets "source-ledger/internal/facets"
 	"source-ledger/internal/journal"
+
+	facetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets"
 )
 
 func newHandler(t *testing.T) (*connectHandler, *journal.SQLiteRepository) {

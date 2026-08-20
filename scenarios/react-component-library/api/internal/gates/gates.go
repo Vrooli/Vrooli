@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/database"
 	"react-component-library/internal/graphreconcile"
 )
 
@@ -293,12 +292,7 @@ func ValidateTokenRampComplete(root string) (Result, error) {
 // edits remain observable.
 func ValidateReleasedVersionImmutable(root string) (Result, error) {
 	dbPath := filepath.Join(root, "scenarios", "react-component-library", "data", "react-component-library.db")
-	db, err := database.Open(context.Background(), database.Config{
-		Driver:       database.DriverSQLite,
-		DSN:          fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)", dbPath),
-		MaxOpenConns: 1,
-		MaxIdleConns: 1,
-	})
+	db, err := openGateDB(context.Background(), dbPath)
 	if err != nil {
 		return Result{}, fmt.Errorf("open component index: %w", err)
 	}

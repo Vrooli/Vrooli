@@ -3,6 +3,7 @@ package mocks
 import (
 	"context"
 	"sync/atomic"
+
 	"scenario-to-plugin/internal/database"
 )
 

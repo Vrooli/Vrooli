@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"money-ledger/internal/ledger"
+
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
@@ -12,7 +14,6 @@ import (
 	ledgerpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
 	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/shared"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"money-ledger/internal/ledger"
 )
 
 func newIngestStore(t *testing.T) (*Store, context.Context) {

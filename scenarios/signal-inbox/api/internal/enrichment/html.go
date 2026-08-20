@@ -7,8 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"golang.org/x/net/html"
 	"signal-inbox/internal/signals"
+
+	"golang.org/x/net/html"
 )
 
 const maxHTMLBytes = 2 << 20

@@ -66,7 +66,7 @@ The IdP's identity files live in the storage root:
 
 ```bash
 # SQLite identity store (realms, users, credential hashes, token families, audit):
-echo "${SQLITE_PATH:-${SCENARIO_DATA_DIR}/scenario-authenticator.db}"
+echo "${SCENARIO_DATA_DIR}/scenario-authenticator.db"
 # Signing keypair (load-or-generate, RS256) — BACK THIS UP; losing it invalidates all tokens:
 #   ${storage-root}/private.pem  and  public.pem
 ```

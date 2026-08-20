@@ -16,16 +16,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"connectrpc.com/connect"
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/discovery"
-	"github.com/vrooli/api-core/spacedoc"
-	"github.com/vrooli/repo-contract-go"
-	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
-	bindingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings/bindings_v1connect"
-	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
-	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
-	"google.golang.org/protobuf/encoding/protojson"
 	"program-runtime/internal/actspace"
 	"program-runtime/internal/bindings"
 	"program-runtime/internal/budgets"
@@ -33,6 +23,17 @@ import (
 	"program-runtime/internal/module"
 	"program-runtime/internal/programs"
 	"program-runtime/internal/sessions"
+
+	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/spacedoc"
+	repocontract "github.com/vrooli/repo-contract-go"
+	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
+	bindingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings/bindings_v1connect"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (

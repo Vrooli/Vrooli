@@ -6,11 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"react-component-library/internal/catalogcoverage"
+	domain "react-component-library/internal/componenttests"
+
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
-	"react-component-library/internal/catalogcoverage"
-	domain "react-component-library/internal/componenttests"
 )
 
 func TestRecordContractEvidencePersistsOnlyContractGates(t *testing.T) {

@@ -3,10 +3,12 @@ package notes_test
 import (
 	"context"
 	"errors"
-	db "github.com/vrooli/api-core/databasetest"
 	"testing"
 	"time"
+
 	"music-library/internal/notes"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

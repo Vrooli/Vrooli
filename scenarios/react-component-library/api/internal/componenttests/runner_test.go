@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"react-component-library/internal/components"
+
+	"github.com/stretchr/testify/require"
 )
 
 type assets struct {

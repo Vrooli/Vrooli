@@ -155,7 +155,8 @@ const BUNDLED_RUNTIME = {
     SUPPORTED: {{BUNDLED_RUNTIME_SUPPORTED}},
     ROOT: "{{BUNDLED_RUNTIME_ROOT}}",
     IPC_HOST: "{{BUNDLED_RUNTIME_IPC_HOST}}",
-    IPC_PORT: {{BUNDLED_RUNTIME_IPC_PORT}},
+    // No baked control port: the bundle manifest is the only declaration, and
+    // the runtime publishes the port it actually bound to runtime/ipc_port.
     TOKEN_REL: "{{BUNDLED_RUNTIME_TOKEN_PATH}}",
     UI_SERVICE: "{{BUNDLED_RUNTIME_UI_SERVICE}}",
     UI_PORT_NAME: "{{BUNDLED_RUNTIME_UI_PORT_NAME}}",
@@ -341,7 +342,9 @@ let demoRecordingEnded = false;
 const POST_SUCCESS_STABILITY_DELAY_MS = 2000;
 const STABILITY_CHECK_INTERVAL_MS = 200;
 
-// Runtime control configuration (mutable for port allocation)
+// Runtime control configuration. In bundled mode PORT is a placeholder until
+// startBundledRuntime reads the port the runtime published; only the
+// RUNTIME_CONTROL_PORT path (attaching to an already-running runtime) uses it.
 const RUNTIME_CONTROL = {
     ENABLED: (isBundledMode && BUNDLED_RUNTIME.SUPPORTED) || Boolean(
         process.env.RUNTIME_CONTROL_HOST ||
@@ -350,7 +353,7 @@ const RUNTIME_CONTROL = {
         process.env.RUNTIME_TELEMETRY_UPLOAD_URL
     ),
     HOST: process.env.RUNTIME_CONTROL_HOST || BUNDLED_RUNTIME.IPC_HOST || "127.0.0.1",
-    PORT: Number(process.env.RUNTIME_CONTROL_PORT || BUNDLED_RUNTIME.IPC_PORT || 47710),
+    PORT: Number(process.env.RUNTIME_CONTROL_PORT) || 0,
     TOKEN_PATH_ENV: process.env.RUNTIME_CONTROL_TOKEN_PATH || "",
     TELEMETRY_UPLOAD_URL: process.env.RUNTIME_TELEMETRY_UPLOAD_URL || BUNDLED_RUNTIME.TELEMETRY_UPLOAD_URL || "",
     LOG_LINES: Number(process.env.RUNTIME_CONTROL_LOG_LINES || 200),
@@ -484,6 +487,12 @@ async function resolveRuntimeTokenPath(): Promise<string | null> {
 
 async function initializeRuntimeControlClient(): Promise<void> {
     if (!RUNTIME_CONTROL.ENABLED) return;
+    // The bundled path fills PORT from the port the runtime published. Anything
+    // else must be told the port explicitly: guessing a well-known one dials
+    // whatever happens to be listening there instead of failing.
+    if (!Number.isInteger(RUNTIME_CONTROL.PORT) || RUNTIME_CONTROL.PORT <= 0 || RUNTIME_CONTROL.PORT > 65535) {
+        throw new Error("Runtime control is enabled but no control port is known; set RUNTIME_CONTROL_PORT or start the bundled runtime.");
+    }
     const tokenPath = await resolveRuntimeTokenPath();
     // DOC: docs/internal/SEAMS.md#runtime-control-client
     // Factory order: (http, fs, timer, config) - matches control-client.ts signature
@@ -851,16 +860,27 @@ async function isPortFree(host: string, port: number): Promise<boolean> {
     });
 }
 
-async function allocateIpcPort(host: string, preferred: number): Promise<{ port: number; changed: boolean }> {
-    return new Promise((resolve, reject) => {
-        const server = nodeNet.createServer();
-        server.once("error", reject);
-        server.listen(0, host, () => {
-            const address = server.address();
-            const port = typeof address === "object" && address ? address.port : 0;
-            server.close(() => resolve({ port, changed: port !== preferred }));
-        });
-    });
+// The runtime owns IPC port selection: it binds the control API and publishes the
+// bound port to runtime/ipc_port. Reading that file is the only way to learn the
+// port that is actually listening — a port this process picked and released would
+// be free again by the time the runtime tried to bind it, and the runtime's own
+// fallback (bind :0 on conflict) would leave this process pointing at nothing.
+async function waitForRuntimeIpcPort(portPath: string, timeoutMs: number): Promise<number> {
+    const deadline = Date.now() + timeoutMs;
+    let lastRaw = "";
+    while (Date.now() < deadline) {
+        try {
+            lastRaw = (await fs.promises.readFile(portPath, "utf-8")).trim();
+            const port = Number(lastRaw);
+            if (Number.isInteger(port) && port > 0 && port <= 65535) return port;
+        } catch {
+            // Not published yet; the runtime writes this after it binds.
+        }
+        await delay(100);
+    }
+    const detail = lastRaw ? ` (last value: ${JSON.stringify(lastRaw)})` : "";
+    if (isSmokeTest) SmokeTestProtocol.error("runtime", `Timed out waiting for runtime IPC port at ${portPath}`);
+    throw new Error(`runtime did not publish its IPC port at ${portPath} within ${timeoutMs}ms${detail}`);
 }
 
 async function resolveBundleRoot(): Promise<{ found: boolean; path: string | null; candidatesChecked: string[] }> {
@@ -908,22 +928,26 @@ async function startBundledRuntime(): Promise<string> {
     try { manifestContent = JSON.parse(await fs.promises.readFile(manifestPath, "utf-8")); } catch (err) { throw new Error(`Failed to read bundle manifest: ${err}`); }
 
     updateSplashStatus("allocating-ports", "Allocating network ports...", 15);
-    const ipcHost = manifestContent?.ipc?.host || "127.0.0.1";
-    const preferredPort = Number(manifestContent?.ipc?.port) || 39200;
-    const { port: runtimePort, changed } = await allocateIpcPort(ipcHost, preferredPort);
-    if (changed) console.log(`[Desktop App] IPC port ${preferredPort} was busy; using ${runtimePort} instead`);
+    // ipc.port is passed through untouched. 0 asks the runtime's allocator for an
+    // unused port from the same namespace as the service ports, so two installed
+    // Vrooli apps cannot collide; a non-zero value pins the port deliberately.
+    const declaredIpcPort = Number(manifestContent?.ipc?.port);
     manifestContent.ipc = manifestContent.ipc || {};
-    manifestContent.ipc.port = runtimePort;
-    RUNTIME_CONTROL.PORT = runtimePort;
+    manifestContent.ipc.port = Number.isInteger(declaredIpcPort) && declaredIpcPort > 0 ? declaredIpcPort : 0;
+    console.log(manifestContent.ipc.port === 0
+        ? "[Desktop App] IPC port will be allocated by the runtime"
+        : `[Desktop App] IPC port pinned to ${manifestContent.ipc.port} by the bundle manifest`);
 
     const appData = path.join(app.getPath("userData"), "runtime");
     await fs.promises.mkdir(appData, { recursive: true });
     runtimeAppDataRoot = appData;
     const stagedManifestPath = path.join(appData, "bundle.json");
     await fs.promises.writeFile(stagedManifestPath, JSON.stringify(manifestContent, null, 2), "utf-8");
+    // Remove any port published by a previous launch so the value read below can
+    // only be the one this runtime binds.
     const portPath = path.join(appData, "runtime", "ipc_port");
     await fs.promises.mkdir(path.dirname(portPath), { recursive: true });
-    await fs.promises.writeFile(portPath, `${runtimePort}`, "utf-8");
+    await fs.promises.rm(portPath, { force: true });
 
     // Pre-flight validation
     // DOC: docs/internal/SEAMS.md#bundle-module
@@ -997,6 +1021,12 @@ async function startBundledRuntime(): Promise<string> {
     console.log(`[Desktop App] Waiting for runtime auth token at: ${tokenPath}`);
     await waitForFile(tokenPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
     await launchTrace.emit("runtime_token_available", "bundled-runtime", "bundled_runtime", { available: "true" });
+
+    // The token is written before the control API binds, so the published port is
+    // awaited separately rather than assumed to exist alongside it.
+    RUNTIME_CONTROL.PORT = await waitForRuntimeIpcPort(portPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+    console.log(`[Desktop App] Runtime IPC listening on ${RUNTIME_CONTROL.HOST}:${RUNTIME_CONTROL.PORT}`);
+    await launchTrace.emit("runtime_ipc_port_published", "bundled-runtime", "bundled_runtime", { port: String(RUNTIME_CONTROL.PORT) });
 
     await initializeRuntimeControlClient();
 

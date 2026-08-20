@@ -18,7 +18,7 @@ Use `vrooli scenario test scenario-dependency-analyzer` for full validation and 
 
 ## Storage
 
-Check `SQLITE_PATH` and the API logs when persistence fails.
+Check that the scenario data directory is writable and read the API logs when persistence fails.
 
 ## Proto codegen
 

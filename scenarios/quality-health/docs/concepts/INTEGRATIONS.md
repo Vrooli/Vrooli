@@ -13,7 +13,7 @@ This document names Quality Health's scenario dependencies, resource posture, an
 | Tidiness Manager | scenario context | no runtime dependency after cutover | migration only | old type-safety rules are superseded | No runtime call from Quality Health v1. |
 | Scenario Auditor | scenario context | no runtime dependency after cutover | migration only | old external rule registration is superseded | No runtime call from Quality Health v1. |
 | Vrooli lifecycle | platform | required | all surfaces | Makefile and `.vrooli/service.json` | Scenario should be managed through lifecycle commands. |
-| SQLite | embedded storage | optional | future run history | `SQLITE_PATH` if used | Live audits can continue without history. |
+| SQLite | embedded storage | optional | future run history | resolved by `api-core/storage` from the scenario id | Live audits can continue without history. |
 
 ## Vrooli Resources
 

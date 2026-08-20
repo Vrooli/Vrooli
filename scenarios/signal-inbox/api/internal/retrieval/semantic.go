@@ -6,9 +6,10 @@ import (
 	"os"
 	"strings"
 
+	"signal-inbox/internal/inference"
+
 	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/storage"
-	"signal-inbox/internal/inference"
 )
 
 // QdrantSemanticSearch keeps semantic recall behind the shared ai-go vector

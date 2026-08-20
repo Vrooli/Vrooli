@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 )
 
@@ -38,7 +37,7 @@ func TestReleasedVersionImmutableRejectsSyntheticDrift(t *testing.T) {
 		t.Fatal(err)
 	}
 	hash := sha256.Sum256(released)
-	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: "file:" + filepath.Join(dbDir, "react-component-library.db") + "?_pragma=foreign_keys(ON)"})
+	db, err := openGateDB(context.Background(), filepath.Join(dbDir, "react-component-library.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

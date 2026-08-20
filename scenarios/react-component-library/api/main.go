@@ -103,32 +103,18 @@ func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class sto
 	return filepath.Join(root, rel), nil
 }
 
+// sqliteDSN returns the DSN for react-component-library's own database.
+//
+// The path comes from the routed roots rather than from storage.SQLitePath,
+// because Test Genie may lease this scenario an isolated data root for the
+// duration of a run; RoutedRoots.Pick is what honours that lease. The pragmas
+// still come from the one owned seam.
 func sqliteDSN(roots *filerouting.RoutedRoots) (string, error) {
-	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
-		return sqliteFileDSN(path)
-	}
-
 	path, err := fileRootPath(context.Background(), roots, storage.ClassData, "react-component-library.db")
 	if err != nil {
 		return "", fmt.Errorf("resolve react-component-library db path through routed roots: %w", err)
 	}
-	return sqliteFileDSN(path)
-}
-
-func sqliteFileDSN(path string) (string, error) {
-	if strings.HasPrefix(path, "file:") {
-		return path, nil
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
-		path,
-	), nil
+	return storage.SQLiteDSNAt(path, storage.SQLiteTuning{})
 }
 
 // scenarioStorageRoots resolves every storage class once at startup. Any

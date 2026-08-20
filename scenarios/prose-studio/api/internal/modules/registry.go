@@ -24,9 +24,10 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	prosev1 "github.com/vrooli/vrooli/packages/proto/gen/go/prose-studio/v1/prose"
 	healthH "prose-studio/handlers/health"
 	localdb "prose-studio/internal/database"
+
+	prosev1 "github.com/vrooli/vrooli/packages/proto/gen/go/prose-studio/v1/prose"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a

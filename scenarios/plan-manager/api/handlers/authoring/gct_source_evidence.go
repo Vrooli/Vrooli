@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"net/http"
 
+	internalauthoring "plan-manager/internal/authoring"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
-	internalauthoring "plan-manager/internal/authoring"
 
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
 	baselinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines/baselines_v1connect"

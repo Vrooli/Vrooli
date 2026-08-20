@@ -194,9 +194,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/meta-optimization-manager.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

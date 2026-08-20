@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	"program-runtime/internal/budgets"
+
+	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 )
 
 // slowRunner blocks until released, so a test can hold a program in a

@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, persistence-backed domains | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, persistence-backed domains | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | `packages/delivery-ramp-go` | shared Go module | yes | targets, builds, journeys, releases, distribution | Exported `Prober`, `Builder`, `Driver`, `Distributor` interfaces | Compile-time. A ramp that reaches into spine internals is a design error, not a runtime failure. |
 | `device-control` | scenario | yes | journeys, targets | Connect-RPC: device inventory, lease acquire/release, device verbs | Journey cell reports `unavailable` naming device-control as the missing capability. Never falls back to driving the device directly. |

@@ -5,10 +5,11 @@ import (
 	"errors"
 	"log"
 
-	"connectrpc.com/connect"
-	scopesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes"
 	internalpolicy "source-ledger/internal/policy"
 	internalrecall "source-ledger/internal/recall"
+
+	"connectrpc.com/connect"
+	scopesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes"
 )
 
 type livenessProvider interface {

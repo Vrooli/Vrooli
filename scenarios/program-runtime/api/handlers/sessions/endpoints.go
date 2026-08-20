@@ -1,8 +1,9 @@
 package sessions
 
 import (
-	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions/sessions_v1connect"
 	"program-runtime/internal/module"
+
+	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions/sessions_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

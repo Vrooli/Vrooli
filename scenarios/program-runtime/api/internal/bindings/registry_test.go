@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vrooli/repo-contract-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	"google.golang.org/protobuf/reflect/protodesc"

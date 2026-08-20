@@ -1,8 +1,9 @@
 package programs
 
 import (
-	programsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs/programs_v1connect"
 	"program-runtime/internal/module"
+
+	programsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs/programs_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

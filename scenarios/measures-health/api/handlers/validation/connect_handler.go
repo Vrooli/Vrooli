@@ -11,11 +11,12 @@ import (
 
 	"connectrpc.com/connect"
 
+	"measures-health/internal/runhistory"
+	internal "measures-health/internal/validation"
+
 	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/measures-go/manifestscan"
-	"measures-health/internal/runhistory"
-	internal "measures-health/internal/validation"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation"

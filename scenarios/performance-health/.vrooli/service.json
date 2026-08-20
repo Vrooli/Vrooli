@@ -112,9 +112,7 @@
   "dependencies": {
     "resources": {}
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/performance-health.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

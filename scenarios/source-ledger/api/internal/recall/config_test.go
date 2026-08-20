@@ -3,8 +3,9 @@ package recall
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"source-ledger/internal/policy"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfigFromPolicyCarriesDualUnitDefaults(t *testing.T) {

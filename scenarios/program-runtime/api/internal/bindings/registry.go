@@ -19,7 +19,7 @@ import (
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/repo-contract-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	"google.golang.org/protobuf/encoding/protojson"

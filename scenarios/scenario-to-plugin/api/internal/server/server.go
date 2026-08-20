@@ -12,6 +12,7 @@ package server
 import (
 	"log"
 	"net/http"
+
 	"scenario-to-plugin/internal/middleware"
 	"scenario-to-plugin/internal/module"
 

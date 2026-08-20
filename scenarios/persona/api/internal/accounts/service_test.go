@@ -30,6 +30,7 @@ func (j *accountJournal) Append(_ context.Context, entry journal.Entry) (journal
 	j.entries = append(j.entries, entry)
 	return entry, nil
 }
+
 func (j *accountJournal) List(context.Context, string, int) ([]journal.Entry, error) {
 	return j.entries, nil
 }

@@ -82,7 +82,7 @@ Always-on, declared and started by the lifecycle:
 - **React + Vite UI** — admin console, end-user self-service, and hosted
   login/consent screens. Port assigned as `UI_PORT`.
 - **SQLite via `api-core/storage`** — realms, users, credential hashes,
-  refresh-token families, roles/scopes, audit events. At `SQLITE_PATH`
+  refresh-token families, roles/scopes, audit events. In the scenario database
   locally; pointed at a managed DB through the same seam at scale.
   Schema changes are **additive migrations only**, never recreation.
 - **Redis (required)** — sessions, token/family revocation, OAuth CSRF

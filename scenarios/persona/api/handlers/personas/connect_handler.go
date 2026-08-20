@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 
+	domain "persona/internal/personas"
+
 	"connectrpc.com/connect"
 	personasv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/personas"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	domain "persona/internal/personas"
 )
 
 type connectHandler struct{ service domain.Service }

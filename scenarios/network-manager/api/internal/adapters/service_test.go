@@ -122,8 +122,8 @@ func TestResolverAwareRegistryReportsConfiguredAdGuardResolver(t *testing.T) {
 			return time.Date(2026, 6, 24, 18, 0, 0, 0, time.UTC)
 		}},
 		ResolverBackends: fakeResolverBackends{cfg: resolver.BackendConfig{
-			Backend:  resolver.AdGuardHomeBackend,
-			BaseURL:  "http://localhost:3000",
+			Backend:       resolver.AdGuardHomeBackend,
+			BaseURL:       "http://localhost:3000",
 			CredentialRef: "vrooli/adguard-home",
 		}},
 	}

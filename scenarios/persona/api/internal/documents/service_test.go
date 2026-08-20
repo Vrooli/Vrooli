@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	documentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/documents"
 	"persona/internal/handoffs"
 	"persona/internal/journal"
 	"persona/internal/personas"
+
+	documentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/documents"
 )
 
 type documentPersonaFunc func(context.Context, string) (personas.Persona, error)

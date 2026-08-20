@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
 	"music-tools/internal/notes"
 
 	"github.com/google/uuid"

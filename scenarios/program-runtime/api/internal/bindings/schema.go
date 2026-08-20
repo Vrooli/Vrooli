@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"program-runtime/internal/sessions"
-)
 
-import _ "embed"
+	_ "embed"
+)
 
 //go:embed schema.sql
 var schema string

@@ -9,10 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
 	"react-component-library/internal/versions"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 )

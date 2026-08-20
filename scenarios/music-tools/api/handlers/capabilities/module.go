@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"music-tools/internal/capabilities"
 	"music-tools/internal/module"
 

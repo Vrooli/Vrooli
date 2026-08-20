@@ -13,8 +13,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/vrooli/api-core/database"
 )
 
 type CalibrationFixture struct {
@@ -441,7 +439,7 @@ func copyDataOverlay(source, dest string) error {
 }
 
 func createCalibrationDatabase(sourcePath, targetPath string) error {
-	source, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)", sourcePath), MaxOpenConns: 1, MaxIdleConns: 1})
+	source, err := openGateDB(context.Background(), sourcePath)
 	if err != nil {
 		return err
 	}
@@ -454,7 +452,7 @@ func createCalibrationDatabase(sourcePath, targetPath string) error {
 		return err
 	}
 	_ = os.Remove(targetPath)
-	target, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)", targetPath), MaxOpenConns: 1, MaxIdleConns: 1})
+	target, err := openGateDB(context.Background(), targetPath)
 	if err != nil {
 		return err
 	}
@@ -470,7 +468,7 @@ func createConsoleWarningDatabase(targetPath, assetID string) error {
 	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)", targetPath), MaxOpenConns: 1, MaxIdleConns: 1})
+	db, err := openGateDB(context.Background(), targetPath)
 	if err != nil {
 		return err
 	}
@@ -503,7 +501,7 @@ func createPerformanceBudgetDatabase(targetPath, assetID string) error {
 	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)", targetPath), MaxOpenConns: 1, MaxIdleConns: 1})
+	db, err := openGateDB(context.Background(), targetPath)
 	if err != nil {
 		return err
 	}
@@ -539,7 +537,7 @@ func createDifferentialCalibrationDatabase(targetPath, gate, assetID string) err
 	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)", targetPath), MaxOpenConns: 1, MaxIdleConns: 1})
+	db, err := openGateDB(context.Background(), targetPath)
 	if err != nil {
 		return err
 	}
@@ -581,7 +579,7 @@ func createCompositionCalibrationDatabase(targetPath, assetID string) error {
 	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)", targetPath), MaxOpenConns: 1, MaxIdleConns: 1})
+	db, err := openGateDB(context.Background(), targetPath)
 	if err != nil {
 		return err
 	}

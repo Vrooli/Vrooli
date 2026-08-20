@@ -11,16 +11,17 @@ import (
 	"strings"
 	"sync"
 
-	"connectrpc.com/connect"
-	"github.com/vrooli/api-core/metrics"
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
-	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/catalogexperience"
 	"react-component-library/internal/catalogvalidate"
 	"react-component-library/internal/components"
 	domain "react-component-library/internal/componenttests"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/metrics"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
 // sharedHandler turns the catalog suite into a Test Genie provider phase.

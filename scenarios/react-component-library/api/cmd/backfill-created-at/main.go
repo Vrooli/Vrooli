@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
 	"react-component-library/internal/components"
@@ -18,9 +19,13 @@ func main() {
 	repoRoot := flag.String("repo", ".", "repository root used for git history")
 	flag.Parse()
 
+	dsn, err := storage.SQLiteDSNAt(*dbPath, storage.SQLiteTuning{})
+	if err != nil {
+		log.Fatalf("build database dsn: %v", err)
+	}
 	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          fmt.Sprintf("file:%s?_pragma=busy_timeout(10000)", *dbPath),
+		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})

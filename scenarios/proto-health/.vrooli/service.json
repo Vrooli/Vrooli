@@ -124,9 +124,7 @@
     },
     "resources": {}
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/proto-health.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

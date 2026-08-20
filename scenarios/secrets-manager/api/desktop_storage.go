@@ -22,9 +22,13 @@ func openDesktopDatabase(ctx context.Context) (*database.RoutedDB, error) {
 	if err != nil {
 		return nil, err
 	}
+	dsn, err := storage.SQLiteDSNAt(path, storage.SQLiteTuning{})
+	if err != nil {
+		return nil, err
+	}
 	db, err := database.Open(ctx, database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)",
+		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})

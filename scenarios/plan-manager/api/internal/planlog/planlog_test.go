@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"plan-manager/internal/planlog"
 	planmodel "plan-manager/internal/planmodel"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

@@ -10,17 +10,20 @@ import (
 	"time"
 	"unicode"
 
+	"program-runtime/internal/bindings"
+	"program-runtime/internal/library"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry/registry_v1connect"
-	"program-runtime/internal/bindings"
-	"program-runtime/internal/library"
 )
 
-const bindingProviderID = "program-runtime.bindings"
-const libraryProviderID = "program-runtime.library"
+const (
+	bindingProviderID = "program-runtime.bindings"
+	libraryProviderID = "program-runtime.library"
+)
 
 type corpusRecord struct {
 	ID               string   `json:"id"`

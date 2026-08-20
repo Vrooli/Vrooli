@@ -7,13 +7,14 @@ import (
 
 	"connectrpc.com/connect"
 
+	"program-runtime/internal/budgets"
+	"program-runtime/internal/module"
+	internalprograms "program-runtime/internal/programs"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	programsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs/programs_v1connect"
-	"program-runtime/internal/budgets"
-	"program-runtime/internal/module"
-	internalprograms "program-runtime/internal/programs"
 )
 
 type handler struct {

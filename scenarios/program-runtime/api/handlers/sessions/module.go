@@ -6,13 +6,14 @@ import (
 	"sort"
 	"time"
 
+	"program-runtime/internal/module"
+	internalsessions "program-runtime/internal/sessions"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions"
 	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions/sessions_v1connect"
-	"program-runtime/internal/module"
-	internalsessions "program-runtime/internal/sessions"
 )
 
 type handler struct {

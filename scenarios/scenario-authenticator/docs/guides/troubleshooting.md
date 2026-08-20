@@ -46,7 +46,7 @@ Check the storage-root keypair:
 
 ```bash
 # The keypair lives in the storage root alongside the SQLite DB:
-echo "${SQLITE_PATH:-${SCENARIO_DATA_DIR}/scenario-authenticator.db}"
+echo "${SCENARIO_DATA_DIR}/scenario-authenticator.db"
 #   expect: ${storage-root}/private.pem  and  public.pem  to PERSIST across restarts
 ```
 
@@ -282,8 +282,8 @@ Increase open-file limits or check that loopback is reachable.
 ### API E2E test (`go test -tags=e2e`) hangs
 
 The E2E harness boots the actual binary and waits for `/health`. If
-schema bootstrap fails (corrupt SQLite file, unwritable
-`SQLITE_PATH`), `/health` never returns ready and the test times out.
+schema bootstrap fails (corrupt SQLite file, unwritable data
+directory), `/health` never returns ready and the test times out.
 Wipe the test data dir and retry. The default lives under
 `${XDG_DATA_HOME:-~/.local/share}/vrooli/scenario-authenticator/`.
 
@@ -295,14 +295,17 @@ file the report names — never to lower the threshold. Floors live in
 
 ## Storage
 
-### `SQLITE_PATH` resolves to an unwritable directory
+### The resolved database directory is not writable
 
 The default route is `${SCENARIO_DATA_DIR}/scenario-authenticator.db` via
 `api-core/storage`. If your filesystem is unusual (read-only home,
 strict sandboxing), override:
 
 ```bash
-export SQLITE_PATH=/tmp/scenario-authenticator.db
+# Redirect the whole storage tree, not one database file. The root is
+# scenario-agnostic, so every scenario beneath it still resolves to its own
+# separate path.
+export VROOLI_STORAGE_ROOT=/tmp/vrooli-storage
 make start
 ```
 
@@ -315,7 +318,7 @@ SQLite single-writer behaviour. If two processes (e.g., a stale API
 plus a new one) hold the file, find and kill the older one:
 
 ```bash
-fuser "$(echo "${SQLITE_PATH:-${SCENARIO_DATA_DIR}/scenario-authenticator.db}")"
+fuser "${SCENARIO_DATA_DIR}/scenario-authenticator.db"
 ```
 
 `make stop` followed by `make start` is usually sufficient.

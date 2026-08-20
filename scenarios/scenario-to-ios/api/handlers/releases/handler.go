@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"scenario-to-ios/internal/module"
+
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
-	"scenario-to-ios/internal/module"
 
 	"github.com/gorilla/mux"
 )

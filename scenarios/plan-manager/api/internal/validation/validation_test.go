@@ -535,7 +535,7 @@ func TestDeriveBaselineScopeWithoutPhaseAreasFallsBackToPlan(t *testing.T) {
 	scope, err := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}}).DeriveBaselineScope(context.Background(), "p1", "phase-1")
 	require.NoError(t, err)
 	require.Equal(t, "plan", scope.Provenance)
-	}
+}
 
 func TestDeriveBaselineScopeDoesNotFabricateGCTCommandWithoutName(t *testing.T) {
 	plan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/x.go"}}, nil)

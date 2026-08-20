@@ -5,9 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"program-runtime/internal/programs"
+
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
-	"program-runtime/internal/programs"
 )
 
 type eventRunner struct{}

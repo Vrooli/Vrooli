@@ -1,8 +1,9 @@
 package channels
 
 import (
-	channelsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/channels/channels_v1connect"
 	"persona/internal/module"
+
+	channelsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/channels/channels_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

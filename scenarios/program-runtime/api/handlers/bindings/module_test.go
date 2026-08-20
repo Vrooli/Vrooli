@@ -5,12 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	internalbindings "program-runtime/internal/bindings"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	"github.com/vrooli/repo-contract-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
-	internalbindings "program-runtime/internal/bindings"
 )
 
 func TestEndpointsAreDeclared(t *testing.T) {

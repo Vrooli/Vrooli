@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/gorilla/mux"
-	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-ios/internal/module"
 	"scenario-to-ios/internal/targets"
+
+	"github.com/gorilla/mux"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 )
 
 // Module exposes Apple target probing.

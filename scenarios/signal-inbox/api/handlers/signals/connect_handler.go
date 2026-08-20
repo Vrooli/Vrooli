@@ -8,9 +8,10 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	internal "signal-inbox/internal/signals"
+
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/shared"
 	signalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals"
-	internal "signal-inbox/internal/signals"
 )
 
 type (

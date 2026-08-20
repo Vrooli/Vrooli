@@ -7,14 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
-	db "github.com/vrooli/api-core/databasetest"
 	internalbindings "program-runtime/internal/bindings"
 	internallibrary "program-runtime/internal/library"
 	internalprograms "program-runtime/internal/programs"
 	"program-runtime/internal/sessions"
 	internaltelemetry "program-runtime/internal/telemetry"
+
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func newRetentionDB(t *testing.T) *sql.DB {

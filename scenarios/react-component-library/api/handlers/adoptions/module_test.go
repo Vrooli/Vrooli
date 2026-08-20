@@ -19,11 +19,12 @@ import (
 
 	adoptionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions/adoptions_v1connect"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/handlers/adoptions"
 	internaladoptions "react-component-library/internal/adoptions"
 	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 )

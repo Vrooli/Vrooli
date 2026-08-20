@@ -9,11 +9,12 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 
-	"github.com/vrooli/api-core/provenance"
-	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 	localdb "source-ledger/internal/database"
 	internaljournal "source-ledger/internal/journal"
 	"source-ledger/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/provenance"
+	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 )
 
 func newHandler(t *testing.T) *connectHandler {

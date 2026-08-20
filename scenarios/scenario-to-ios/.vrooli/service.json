@@ -134,9 +134,7 @@
     }
   },
   "credentials": {},
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/scenario-to-ios.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

@@ -125,9 +125,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/scenario-authenticator.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

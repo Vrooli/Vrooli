@@ -3,10 +3,11 @@ package journal
 import (
 	"context"
 
+	domain "persona/internal/journal"
+
 	"connectrpc.com/connect"
 	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/journal"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	domain "persona/internal/journal"
 )
 
 type connectHandler struct{ service domain.Service }

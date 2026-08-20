@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"source-ledger/internal/capabilities"
 	"source-ledger/internal/facets"
@@ -45,28 +43,6 @@ import (
 	scopesH "source-ledger/handlers/scopes"
 )
 
-func sqliteDSN() (string, error) {
-	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
-	if err != nil {
-		return "", fmt.Errorf("create storage resolver: %w", err)
-	}
-	scenarioID, err := storage.ScenarioNamespace("source-ledger")
-	if err != nil {
-		return "", fmt.Errorf("resolve source-ledger storage namespace: %w", err)
-	}
-	path, err := resolver.Path(storage.Options{ScenarioID: scenarioID}, storage.ClassData, "source-ledger.db")
-	if err != nil {
-		return "", fmt.Errorf("resolve source-ledger db path: %w", err)
-	}
-	return sqliteFileDSN(path)
-}
-
 func scenarioStorageRoots() (storage.Paths, error) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
 	if err != nil {
@@ -79,21 +55,11 @@ func scenarioStorageRoots() (storage.Paths, error) {
 	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
-func sqliteFileDSN(path string) (string, error) {
-	if strings.HasPrefix(path, "file:") {
-		return path, nil
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-	return fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)", path), nil
-}
-
 func main() {
 	if preflight.Run(preflight.Config{ScenarioName: "source-ledger"}) {
 		return
 	}
-	dsn, err := sqliteDSN()
+	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{Scenario: "source-ledger"})
 	if err != nil {
 		log.Fatalf("sqlite configuration failed: %v", err)
 	}

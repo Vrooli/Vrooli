@@ -2,7 +2,7 @@
 
 ## Environment variables
 
-Key variables include `API_PORT`, `UI_PORT`, `SQLITE_PATH`, `VROOLI_SCENARIOS_DIR`, and API base variables consumed by the UI.
+Key variables include `API_PORT`, `UI_PORT`, `VROOLI_SCENARIOS_DIR`, and API base variables consumed by the UI.
 
 ## Service manifest (`.vrooli/service.json`)
 

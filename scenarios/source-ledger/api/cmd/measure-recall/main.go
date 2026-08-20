@@ -15,10 +15,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/vrooli/api-core/database"
-	_ "modernc.org/sqlite"
 	"source-ledger/internal/recall"
 	vectorcodec "source-ledger/internal/vector"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
 )
 
 type fixedEmbedder struct{ vector []float64 }
@@ -107,7 +109,11 @@ func copyDatabase(path string) (string, error) {
 }
 
 func open(path string) (*database.RoutedDB, error) {
-	return database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: "file:" + path + "?_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)", MaxOpenConns: 1, MaxIdleConns: 1})
+	dsn, err := storage.SQLiteDSNAt(path, storage.SQLiteTuning{})
+	if err != nil {
+		return nil, err
+	}
+	return database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: dsn, MaxOpenConns: 1, MaxIdleConns: 1})
 }
 
 func scaleCorpus(path, scope string, scale int) error {

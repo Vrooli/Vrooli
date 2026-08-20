@@ -6,8 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/internal/themes"
+
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func newSQLiteThemeRepo(t *testing.T) themes.Repository {

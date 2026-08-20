@@ -137,9 +137,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/signal-inbox.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

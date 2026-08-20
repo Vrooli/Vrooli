@@ -52,10 +52,10 @@ type ErrorCode string
 
 // Validation error codes
 const (
-	CodeInvalidJSON       ErrorCode = "INVALID_JSON"
-	CodeMissingField      ErrorCode = "MISSING_FIELD"
-	CodeInvalidField      ErrorCode = "INVALID_FIELD"
-	CodeInvalidTimeRange  ErrorCode = "INVALID_TIME_RANGE"
+	CodeInvalidJSON      ErrorCode = "INVALID_JSON"
+	CodeMissingField     ErrorCode = "MISSING_FIELD"
+	CodeInvalidField     ErrorCode = "INVALID_FIELD"
+	CodeInvalidTimeRange ErrorCode = "INVALID_TIME_RANGE"
 )
 
 // Not found error codes

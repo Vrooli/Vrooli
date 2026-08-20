@@ -14,8 +14,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/santhosh-tekuri/jsonschema/v5"
 	"react-component-library/internal/assetrung"
+
+	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
 type Finding struct {

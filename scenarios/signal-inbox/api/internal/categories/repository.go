@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"signal-inbox/internal/signals"
+
+	"github.com/google/uuid"
 )
 
 const timestampFormat = time.RFC3339Nano

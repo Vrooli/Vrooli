@@ -17,9 +17,10 @@ package measureindex
 import (
 	"context"
 
+	"measures-health/internal/validation"
+
 	measures "github.com/vrooli/measures-go"
 	"github.com/vrooli/measures-go/manifestscan"
-	"measures-health/internal/validation"
 )
 
 // ManifestSource reads a scenario's raw cli/manifest.json bytes. A scenario with

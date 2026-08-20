@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
-	_ "modernc.org/sqlite"
 	"source-ledger/internal/facets"
 	"source-ledger/internal/journal"
 	vectorcodec "source-ledger/internal/vector"
+
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	_ "modernc.org/sqlite"
 )
 
 func TestSummaryAndEdgesCommitAtomicallyAndRebuild(t *testing.T) { // [REQ:VMEM-P0-007]

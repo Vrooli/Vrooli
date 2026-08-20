@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, all persistence-backed domains | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, all persistence-backed domains | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario is started through lifecycle commands only. |
 | ai-gateway | scenario | yes | `generation` | Typed inference `Run`; roles `write.default` and `write.diverse` | Generation refuses with a named error; every read path stays available. |
 | Consumer declaration files | filesystem | no | `declarations` | `.vrooli/prose-studio/*.json` in a consuming scenario | A malformed file registers `invalid` with its parse error; the service still starts. |

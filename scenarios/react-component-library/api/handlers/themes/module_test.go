@@ -15,10 +15,11 @@ import (
 
 	themesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/themes/themes_v1connect"
 
-	db "github.com/vrooli/api-core/databasetest"
 	themesH "react-component-library/handlers/themes"
 	localdb "react-component-library/internal/database"
 	"react-component-library/internal/themes"
+
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 type fakeDesignReader struct {

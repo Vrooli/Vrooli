@@ -32,7 +32,7 @@ func Load() Config {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
 
-	dbDSN, err := sqliteDSN()
+	dbDSN, err := storage.SQLiteDSN(storage.SQLiteConfig{Scenario: "scenario-dependency-analyzer"})
 	if err != nil {
 		log.Fatalf("❌ SQLite configuration failed: %v", err)
 	}
@@ -84,50 +84,6 @@ func InitDatabase(dsn string) (*database.RoutedDB, error) {
 
 	log.Println("🎉 SQLite database opened successfully!")
 	return db, nil
-}
-
-func sqliteDSN() (string, error) {
-	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
-		return sqliteFileDSN(path)
-	}
-
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		return "", fmt.Errorf("create storage resolver: %w", err)
-	}
-	scenarioID, err := storage.ScenarioNamespace("scenario-dependency-analyzer")
-	if err != nil {
-		return "", fmt.Errorf("resolve scenario-dependency-analyzer storage namespace: %w", err)
-	}
-	path, err := resolver.Path(
-		storage.Options{ScenarioID: scenarioID},
-		storage.ClassData,
-		"scenario-dependency-analyzer.db",
-	)
-	if err != nil {
-		return "", fmt.Errorf("resolve scenario-dependency-analyzer db path: %w", err)
-	}
-	return sqliteFileDSN(path)
-}
-
-func sqliteFileDSN(path string) (string, error) {
-	if strings.HasPrefix(path, "file:") {
-		return path, nil
-	}
-	dbDir := filepath.Clean(filepath.Dir(path))
-	if err := os.MkdirAll(dbDir, 0o750); err != nil { // #nosec G703 -- dbDir is resolved by api-core storage or an operator-provided SQLITE_PATH.
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
-		path,
-	), nil
 }
 
 func absolutePath(path string) (string, error) {

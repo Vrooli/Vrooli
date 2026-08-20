@@ -8,10 +8,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
-	recallv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
 	internaljournal "source-ledger/internal/journal"
 	"source-ledger/internal/journal/mocks"
 	internalrecall "source-ledger/internal/recall"
+
+	recallv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
 )
 
 type handlerSource []internalrecall.Node

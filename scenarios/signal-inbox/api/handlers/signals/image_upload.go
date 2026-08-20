@@ -10,8 +10,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vrooli/api-core/blobstore"
 	"signal-inbox/internal/httpx"
+
+	"github.com/vrooli/api-core/blobstore"
 
 	signalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals"
 )

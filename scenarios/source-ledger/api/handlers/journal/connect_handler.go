@@ -9,10 +9,11 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/vrooli/api-core/provenance"
-	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 	internaljournal "source-ledger/internal/journal"
 	"source-ledger/internal/policy"
+
+	"github.com/vrooli/api-core/provenance"
+	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 )
 
 type connectHandler struct {

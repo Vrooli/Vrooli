@@ -5,10 +5,11 @@ import (
 	"errors"
 	"log"
 
-	"connectrpc.com/connect"
-	rulesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/rules"
 	internalfacets "source-ledger/internal/facets"
 	"source-ledger/internal/policy"
+
+	"connectrpc.com/connect"
+	rulesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/rules"
 )
 
 type connectHandler struct {

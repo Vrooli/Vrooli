@@ -30,7 +30,7 @@ an existing scenario rather than by a new resource.
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, all persistence-backed domains | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, all persistence-backed domains | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | `agent-manager` | scenario | **yes** | access | Live identity-verification endpoint; `persona_id` in `Claims.Meta`; `persona.act-as:<id>` scope | **Fails closed.** Act-as is refused and journaled. Read-only surfaces stay available. |
 | `document-manager` | scenario | **yes** (from `PSN-P0-008`) | documents | Document reference plus release-into-handoff | Binding and release refused; existing bindings remain listable. |

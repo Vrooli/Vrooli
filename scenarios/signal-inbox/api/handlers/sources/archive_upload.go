@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"strings"
 
-	sourcesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/sources"
 	"signal-inbox/internal/httpx"
 	internal "signal-inbox/internal/sources"
+
+	sourcesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/sources"
 )
 
 // Archive uploads use multipart because Connect byte messages are intentionally

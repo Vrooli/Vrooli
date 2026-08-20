@@ -29,7 +29,7 @@ with its security rationale before implementing it.
 
 | Requirement | Detail |
 |---|---|
-| Storage | Embedded SQLite via `SQLITE_PATH`. No shared resource. |
+| Storage | Embedded SQLite, resolved by `api-core/storage`. No shared resource. |
 | Required scenarios | `agent-manager`, `document-manager`, `secrets-manager` — see [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) |
 | Optional scenarios | `prompt-manager`, `device-control`, `notification-hub` |
 | Network egress | Only what a configured channel adapter needs (mailbox, SMS provider). No outbound call is made by default. |

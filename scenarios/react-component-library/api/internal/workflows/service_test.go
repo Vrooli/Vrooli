@@ -8,11 +8,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/internal/adoptions"
 	adoptionmocks "react-component-library/internal/adoptions/mocks"
 	"react-component-library/internal/components"
 	componentmocks "react-component-library/internal/components/mocks"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 )

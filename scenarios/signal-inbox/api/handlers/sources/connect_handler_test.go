@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
-	db "github.com/vrooli/api-core/databasetest"
 	localdb "signal-inbox/internal/database"
 	"signal-inbox/internal/signals"
 	internal "signal-inbox/internal/sources"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"

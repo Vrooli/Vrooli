@@ -9,11 +9,12 @@ import (
 	"sync"
 	"time"
 
+	"program-runtime/internal/sessions"
+
 	"github.com/google/uuid"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"program-runtime/internal/sessions"
 )
 
 type outboxRow struct {

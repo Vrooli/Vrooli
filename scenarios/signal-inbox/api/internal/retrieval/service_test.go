@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"signal-inbox/internal/categories"
 	localdb "signal-inbox/internal/database"
 	"signal-inbox/internal/inference"
 	"signal-inbox/internal/signals"
 	"signal-inbox/internal/triage"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 	aisearch "github.com/vrooli/ai-go/search"

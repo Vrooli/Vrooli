@@ -1,8 +1,9 @@
 package forest
 
 import (
-	forestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/forest/forest_v1connect"
 	"source-ledger/internal/module"
+
+	forestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/forest/forest_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

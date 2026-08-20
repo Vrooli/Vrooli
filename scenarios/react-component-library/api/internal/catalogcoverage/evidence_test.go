@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"react-component-library/internal/gates"
+
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
-	"react-component-library/internal/gates"
 
 	db "github.com/vrooli/api-core/databasetest"
 )

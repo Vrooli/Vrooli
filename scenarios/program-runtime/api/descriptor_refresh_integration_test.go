@@ -12,15 +12,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
-	"github.com/vrooli/repo-contract-go"
-	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/descriptorpb"
 	"program-runtime/handlers/health"
 	"program-runtime/internal/bindings"
 	"program-runtime/internal/programs"
 	"program-runtime/internal/testutil/mocks"
+
+	"github.com/gorilla/mux"
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 // TestProgramRuntimeDescriptorRefreshUpdatesRegistryKernelAndHealth exercises

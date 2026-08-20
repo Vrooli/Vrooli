@@ -146,12 +146,12 @@ Persistence is SQLite via the `api-core/storage` seam (no shared
 Postgres). Default path:
 
 ```bash
-echo "${SQLITE_PATH:-${SCENARIO_DATA_DIR}/scenario-authenticator.db}"
+echo "${SCENARIO_DATA_DIR}/scenario-authenticator.db"
 ```
 
 | Data | Backup | Restore |
 |---|---|---|
-| SQLite identity store (realms, users, credential hashes, refresh-token families, roles/scopes, audit events) | Snapshot `SQLITE_PATH` via the **data-backup-manager** scenario backup (storage namespace). | Restore the snapshot, then `make restart`. |
+| SQLite identity store (realms, users, credential hashes, refresh-token families, roles/scopes, audit events) | Snapshot the scenario database via the **data-backup-manager** scenario backup (storage namespace). | Restore the snapshot, then `make restart`. |
 | **Signing keypair** (`private.pem`/`public.pem`) | Backed up as part of the storage namespace — **back it up with the DB, not separately**. | Restore the *same* keypair so issued tokens still verify. A different key invalidates all live tokens. |
 | Redis hot state (sessions, CSRF, rate-limit counters) | Not backed up — reconstructable/ephemeral. | None needed; sessions re-establish on next sign-in. |
 

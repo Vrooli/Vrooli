@@ -9,8 +9,9 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/vrooli/api-core/blobstore"
 	"signal-inbox/internal/signals"
+
+	"github.com/vrooli/api-core/blobstore"
 )
 
 type CommandRunner interface {

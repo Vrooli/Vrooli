@@ -21,7 +21,7 @@ Use this document to answer:
 ## Storage Overview
 
 Storage is embedded SQLite through `modernc.org/sqlite`. The lifecycle
-sets `SQLITE_PATH` through `.vrooli/service.json`, and the API applies
+is resolved by `api-core/storage` from the scenario id, and the API applies
 schemas on startup through `api-core/database`.
 
 A second store — the **capture store**, a scenario-owned filesystem
@@ -188,4 +188,4 @@ ever published, which is the opposite of what an incident response needs.
 - [`INTEGRATIONS.md`](INTEGRATIONS.md) — why no shared resource is declared
 - [`FLOWS.md`](FLOWS.md) — when each record is written
 - [`../internal/SECURITY.md`](../internal/SECURITY.md) — redaction and credential handling
-- [`../reference/configuration.md`](../reference/configuration.md) — `SQLITE_PATH` and capture-store configuration
+- [`../reference/configuration.md`](../reference/configuration.md) — storage and capture-store configuration

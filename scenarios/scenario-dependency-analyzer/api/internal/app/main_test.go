@@ -655,20 +655,11 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("ValidConfig", func(t *testing.T) {
 		// Save and set required env vars
-		originalPort := os.Getenv("API_PORT")
-		originalSQLiteDB := os.Getenv("SQLITE_DB")
-		defer func() {
-			if originalPort != "" {
-				os.Setenv("API_PORT", originalPort)
-			}
-			if originalSQLiteDB != "" {
-				os.Setenv("SQLITE_DB", originalSQLiteDB)
-			}
-		}()
-
-		// Set test values
-		os.Setenv("API_PORT", "8080")
-		os.Setenv("SQLITE_DB", filepath.Join(t.TempDir(), "scenario-dependency-analyzer.db"))
+		// Isolate storage by redirecting the whole class tree, not by naming a
+		// database file. The root is scenario-agnostic, so every scenario
+		// beneath it still resolves to its own separate path.
+		t.Setenv("API_PORT", "8080")
+		t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 
 		// Note: loadConfig calls log.Fatal on error, so we can't easily test
 		// the error paths without refactoring. We'll just verify it works with valid config.

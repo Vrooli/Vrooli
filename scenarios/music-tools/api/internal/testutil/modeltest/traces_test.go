@@ -2,6 +2,7 @@ package modeltest_test
 
 import (
 	"testing"
+
 	"music-tools/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

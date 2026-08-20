@@ -80,9 +80,7 @@
   "dependencies": {
     "resources": {}
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/lifestyle.db"
-  },
+  "environment": {},
   "cli": {
     "enabled": true,
     "command": "lifestyle-dashboard",

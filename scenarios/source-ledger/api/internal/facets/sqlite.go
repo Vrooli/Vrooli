@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"source-ledger/internal/policy"
+
+	"github.com/google/uuid"
 )
 
 const pinReviewInterval = 90 * 24 * time.Hour

@@ -143,9 +143,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/scenario-to-android.db"
-  },
+  "environment": {},
   "credentials": {
     "descriptors": [
       {

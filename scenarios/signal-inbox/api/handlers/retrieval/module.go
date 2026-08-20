@@ -4,9 +4,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
-	retrievalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/retrieval/retrieval_v1connect"
 	"signal-inbox/internal/module"
 	internal "signal-inbox/internal/retrieval"
+
+	retrievalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/retrieval/retrieval_v1connect"
 )
 
 func Module(service *internal.Service) module.Module {

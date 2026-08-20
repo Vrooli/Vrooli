@@ -25,7 +25,7 @@ Use this document to answer:
 ## Storage Overview
 
 The template default is embedded SQLite through `modernc.org/sqlite`.
-The lifecycle sets `SQLITE_PATH` through `.vrooli/service.json`, and
+The database path is resolved from the scenario id by `api-core/storage`, and
 the API applies schemas on startup through `api-core/database`.
 
 External storage resources should be introduced only when a real

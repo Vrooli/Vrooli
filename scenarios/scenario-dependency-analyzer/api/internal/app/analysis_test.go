@@ -252,7 +252,7 @@ func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
 	defer env.Cleanup()
 
 	setEnvAndCleanup(t, "API_PORT", "12345")
-	setEnvAndCleanup(t, "SQLITE_DB", filepath.Join(env.TempDir, "scenario-dependency-analyzer.db"))
+	setEnvAndCleanup(t, "VROOLI_STORAGE_ROOT", env.TempDir)
 	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", env.ScenariosDir)
 
 	resourcesDir := filepath.Join(env.TempDir, "resources")
@@ -536,7 +536,7 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 	defer env.Cleanup()
 
 	t.Setenv("API_PORT", "19999")
-	t.Setenv("SQLITE_DB", filepath.Join(env.TempDir, "scenario-dependency-analyzer.db"))
+	t.Setenv("VROOLI_STORAGE_ROOT", env.TempDir)
 
 	configureTestScenariosDir(t, env)
 	createTestResourceDirs(t, env, "postgres")

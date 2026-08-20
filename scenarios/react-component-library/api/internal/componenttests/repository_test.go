@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	internalcomponents "react-component-library/internal/components"
+	localdb "react-component-library/internal/database"
+
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
-	internalcomponents "react-component-library/internal/components"
-	localdb "react-component-library/internal/database"
 )
 
 func TestSQLiteRepositoryPersistsNormalizedReportsNewestFirst(t *testing.T) {

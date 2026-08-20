@@ -12,16 +12,17 @@ import (
 	"sync"
 	"time"
 
-	"connectrpc.com/connect"
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/connectx"
-	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
-	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog/catalog_v1connect"
 	"react-component-library/internal/capabilities"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/catalogexperience"
 	"react-component-library/internal/gates"
 	"react-component-library/internal/module"
+
+	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
+	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog/catalog_v1connect"
 )
 
 type handler struct {

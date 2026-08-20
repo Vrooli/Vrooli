@@ -11,12 +11,13 @@ import (
 	"strings"
 	"testing"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"react-component-library/handlers/components"
 	componenttests "react-component-library/handlers/componenttests"
 	internalcomponents "react-component-library/internal/components"
 	domain "react-component-library/internal/componenttests"
 	localdb "react-component-library/internal/database"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"

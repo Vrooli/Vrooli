@@ -6,11 +6,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	internalvalidation "plan-manager/internal/validation"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
 	baselinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines/baselines_v1connect"
-	internalvalidation "plan-manager/internal/validation"
 )
 
 type fixedGCTResolver struct{ url string }

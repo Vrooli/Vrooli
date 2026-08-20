@@ -1,8 +1,9 @@
 package library
 
 import (
-	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
 	"program-runtime/internal/module"
+
+	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

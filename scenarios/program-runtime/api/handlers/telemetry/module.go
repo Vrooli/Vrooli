@@ -5,12 +5,13 @@ import (
 
 	"connectrpc.com/connect"
 
+	"program-runtime/internal/module"
+	internaltelemetry "program-runtime/internal/telemetry"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 	telemetryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry/telemetry_v1connect"
-	"program-runtime/internal/module"
-	internaltelemetry "program-runtime/internal/telemetry"
 )
 
 type handler struct {

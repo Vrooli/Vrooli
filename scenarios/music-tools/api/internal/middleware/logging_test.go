@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
 	"music-tools/internal/middleware"
 
 	"github.com/vrooli/api-core/scheduletest"

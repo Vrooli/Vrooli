@@ -6,8 +6,9 @@ import (
 	"io"
 	"strings"
 
-	"golang.org/x/net/html"
 	"signal-inbox/internal/signals"
+
+	"golang.org/x/net/html"
 )
 
 const ChromeBookmarksAdapterID = "chrome-bookmarks-html"

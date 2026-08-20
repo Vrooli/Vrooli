@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 )
 
@@ -175,12 +176,13 @@ func main() {
 }
 
 func openSQLite(ctx context.Context, path string) (*database.RoutedDB, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dsn, err := storage.SQLiteDSNAt(path, storage.SQLiteTuning{})
+	if err != nil {
 		return nil, err
 	}
 	return database.Open(ctx, database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          "file:" + path + "?_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)",
+		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})

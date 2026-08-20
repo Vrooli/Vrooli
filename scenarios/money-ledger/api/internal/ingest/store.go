@@ -10,13 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"money-ledger/internal/ledger"
+
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/database"
 	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/shared"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"money-ledger/internal/ledger"
 )
 
 type Store struct {

@@ -3,12 +3,14 @@ package health_test
 import (
 	"errors"
 	"fmt"
-	"github.com/vrooli/api-core/apihttptest"
-	httpx "github.com/vrooli/api-core/servertest"
 	"io"
 	"log"
 	"net/http"
 	"testing"
+
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
+
 	"music-tools/handlers/health"
 	"music-tools/internal/module"
 	"music-tools/internal/server"

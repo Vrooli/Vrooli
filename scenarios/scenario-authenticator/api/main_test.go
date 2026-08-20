@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/api-core/trustposture"
 	"scenario-authenticator/internal/realm"
+
+	"github.com/vrooli/api-core/trustposture"
 )
 
 // TestBreakGlassIssuersConform proves the authenticated scenario issuer and

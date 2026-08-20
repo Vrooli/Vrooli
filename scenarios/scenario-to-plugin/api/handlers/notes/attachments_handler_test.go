@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/vrooli/api-core/apihttptest"
-	db "github.com/vrooli/api-core/databasetest"
 	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/vrooli/api-core/apihttptest"
+	db "github.com/vrooli/api-core/databasetest"
+
 	"scenario-to-plugin/handlers/notes"
 
 	"github.com/vrooli/api-core/schedule"

@@ -21,7 +21,7 @@ This scenario uses **SQLite** (embedded) as its primary storage backend. This is
 | Item | Status | Notes |
 |------|--------|-------|
 | postgres declared in service.json | N/A | SQLite used instead (by design) |
-| schema field uses scenario slug | N/A | SQLite uses SQLITE_PATH env var |
+| schema field uses scenario slug | N/A | SQLite path resolved from the scenario id |
 | schema provider referenced | Yes | Schema embedded by the API domain provider |
 | redis/qdrant properly configured | N/A | Not used (P0 scope) |
 
@@ -29,7 +29,7 @@ This scenario uses **SQLite** (embedded) as its primary storage backend. This is
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Environment variables used | **Yes** | `SQLITE_PATH`, `SCENARIO_DATA_DIR` |
+| Environment variables used | **Yes** | `SCENARIO_DATA_DIR` |
 | Uses api-core/database | **Yes** | `database.Connect()` with `DriverSQLite` |
 | Connection retry with backoff | **Yes** | 3 attempts, 100ms base, 500ms max |
 | Connection pool configured | **Yes** | `MaxOpenConns=1`, `MaxIdleConns=1` (SQLite single-writer) |
@@ -133,10 +133,10 @@ db, err := database.Connect(ctx, database.Config{
 ```
 
 **Key configuration choices:**
-- `DriverSQLite`: Uses api-core's SQLite support with SQLITE_PATH env var
+- `DriverSQLite`: Uses api-core's SQLite support; the path is resolved by `api-core/storage` from the scenario id
 - `MaxOpenConns=1`: SQLite single-writer constraint (by design)
 - Minimal retry: 3 attempts with 100ms base (SQLite is local, no network issues)
-- WAL mode + busy_timeout: Set via SQLITE_PATH query params
+- WAL mode + busy_timeout: applied by `api-core/storage` in the canonical DSN
 
 ## Known Limitations
 
@@ -220,7 +220,7 @@ db, err := database.Connect(ctx, database.Config{
 **Decision:**
 - Migrate from `sql.Open("sqlite3", dsn)` to `database.Connect(ctx, cfg)`
 - Use minimal retry config (3 attempts, 100ms base) for robustness
-- Set SQLITE_PATH env var for api-core to read
+- Pass the scenario id to `api-core/storage`
 
 **Consequences:**
 - HIGH severity auditor violation resolved

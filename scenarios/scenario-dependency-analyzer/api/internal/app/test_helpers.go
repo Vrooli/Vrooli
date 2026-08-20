@@ -38,8 +38,14 @@ func ensureTestEnvVars() {
 	if os.Getenv("API_PORT") == "" {
 		os.Setenv("API_PORT", "0")
 	}
-	if os.Getenv("SQLITE_PATH") == "" && os.Getenv("SQLITE_DB") == "" {
-		os.Setenv("SQLITE_DB", ":memory:")
+	// Storage is isolated by redirecting the class-root tree rather than by
+	// naming a database file: the root is scenario-agnostic, so it isolates
+	// every store this scenario opens instead of only its SQLite file.
+	if os.Getenv("VROOLI_STORAGE_ROOT") == "" {
+		dir, err := os.MkdirTemp("", "sda-test-storage-*")
+		if err == nil {
+			os.Setenv("VROOLI_STORAGE_ROOT", dir)
+		}
 	}
 }
 

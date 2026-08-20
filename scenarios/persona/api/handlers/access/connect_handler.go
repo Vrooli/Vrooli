@@ -6,12 +6,13 @@ import (
 	"strings"
 	"time"
 
+	domain "persona/internal/access"
+	"persona/internal/personas"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliutil"
 	accessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/access"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	domain "persona/internal/access"
-	"persona/internal/personas"
 )
 
 type connectHandler struct{ service domain.Service }

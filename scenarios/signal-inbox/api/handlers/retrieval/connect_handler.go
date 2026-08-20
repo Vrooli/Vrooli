@@ -7,10 +7,11 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	retrievalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/retrieval"
-	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/shared"
 	internal "signal-inbox/internal/retrieval"
 	"signal-inbox/internal/signals"
+
+	retrievalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/retrieval"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/shared"
 )
 
 type connectHandler struct{ service *internal.Service }

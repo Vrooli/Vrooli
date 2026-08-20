@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/vrooli/api-core/database"
 )
 
 type persistedStoryReport struct {
@@ -97,7 +95,7 @@ func loadStoryEvidence(root string, kinds ...string) (Result, error) {
 		}
 		return Result{}, err
 	}
-	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: fmt.Sprintf("file:%s?_pragma=busy_timeout(10000)", dbPath), MaxOpenConns: 1, MaxIdleConns: 1})
+	db, err := openGateDB(context.Background(), dbPath)
 	if err != nil {
 		return Result{}, err
 	}

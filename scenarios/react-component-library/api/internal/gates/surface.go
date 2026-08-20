@@ -6,8 +6,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/vrooli/api-core/database"
 )
 
 // SurfaceVerdict is the reconciliation of the author-facing static oracle and
@@ -281,7 +279,7 @@ func loadSurfaceCaptures(root string) (map[string]string, error) {
 		}
 		return nil, err
 	}
-	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: "file:" + path + "?_pragma=busy_timeout(10000)", MaxOpenConns: 1, MaxIdleConns: 1})
+	db, err := openGateDB(context.Background(), path)
 	if err != nil {
 		return nil, err
 	}

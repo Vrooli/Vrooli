@@ -7,9 +7,10 @@ import (
 
 	"connectrpc.com/connect"
 
+	internal "measures-health/internal/validation"
+
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/measures-go/manifestscan"
-	internal "measures-health/internal/validation"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation"

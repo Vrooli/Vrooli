@@ -3,6 +3,7 @@ package notes
 import (
 	"fmt"
 	"log"
+
 	"scenario-to-plugin/internal/module"
 
 	"github.com/vrooli/api-core/schedule"

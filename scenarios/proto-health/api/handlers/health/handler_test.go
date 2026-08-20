@@ -10,12 +10,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/vrooli/api-core/apihttptest"
-	httpx "github.com/vrooli/api-core/servertest"
 	"proto-health/handlers/health"
 	"proto-health/internal/module"
 	"proto-health/internal/server"
 	"proto-health/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

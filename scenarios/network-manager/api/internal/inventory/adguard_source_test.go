@@ -59,8 +59,8 @@ func TestAdGuardClientDiscoverySourceImportsConfiguredClients(t *testing.T) {
 
 	source := AdGuardClientDiscoverySource{
 		Backends: fakeResolverRepo{cfg: resolver.BackendConfig{
-			Backend:  resolver.AdGuardHomeBackend,
-			BaseURL:  server.URL,
+			Backend:       resolver.AdGuardHomeBackend,
+			BaseURL:       server.URL,
 			CredentialRef: "vrooli/adguard-home",
 		}},
 		Secrets: fakeInventorySecretResolver{creds: resolver.Credentials{Username: "admin", Password: "secret"}},
@@ -92,8 +92,8 @@ func TestAdGuardClientDiscoverySourceKeepsAutoIPOnlyWeak(t *testing.T) {
 
 	source := AdGuardClientDiscoverySource{
 		Backends: fakeResolverRepo{cfg: resolver.BackendConfig{
-			Backend:  resolver.AdGuardHomeBackend,
-			BaseURL:  server.URL,
+			Backend:       resolver.AdGuardHomeBackend,
+			BaseURL:       server.URL,
 			CredentialRef: "vrooli/adguard-home",
 		}},
 		Secrets: fakeInventorySecretResolver{creds: resolver.Credentials{Username: "admin", Password: "secret"}},
@@ -122,8 +122,8 @@ func TestAdGuardClientDiscoverySourceAuthFailureDoesNotInventDevices(t *testing.
 
 	source := AdGuardClientDiscoverySource{
 		Backends: fakeResolverRepo{cfg: resolver.BackendConfig{
-			Backend:  resolver.AdGuardHomeBackend,
-			BaseURL:  server.URL,
+			Backend:       resolver.AdGuardHomeBackend,
+			BaseURL:       server.URL,
 			CredentialRef: "vrooli/adguard-home",
 		}},
 		Secrets: fakeInventorySecretResolver{creds: resolver.Credentials{Username: "admin", Password: "wrong"}},

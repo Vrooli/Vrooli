@@ -64,7 +64,7 @@ func actDef() *spacedoc.SpaceDefinition {
 		Owner:                 "program-runtime",
 		DenominatorConfidence: spacedoc.ConfidencePartial,
 		Source:                "scenarios/program-runtime/docs/spaces/act-space.md",
-		Cells: []spacedoc.Cell{{ID: "A1", Question: "Act", Owner: "program-runtime.bindings", Status: spacedoc.StatusInReach}},
+		Cells:                 []spacedoc.Cell{{ID: "A1", Question: "Act", Owner: "program-runtime.bindings", Status: spacedoc.StatusInReach}},
 	}
 }
 

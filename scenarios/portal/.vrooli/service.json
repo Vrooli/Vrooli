@@ -141,7 +141,6 @@
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/portal.db",
     "OPENROUTER_API_KEY": "${OPENROUTER_API_KEY}"
   },
   "components": {

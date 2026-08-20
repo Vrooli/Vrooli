@@ -23,7 +23,7 @@ func TestLoadNormalizesScenariosDir(t *testing.T) {
 	})
 
 	t.Setenv("API_PORT", "15413")
-	t.Setenv("SQLITE_PATH", filepath.Join(tempDir, "sda.db"))
+	t.Setenv("VROOLI_STORAGE_ROOT", tempDir)
 	t.Setenv("VROOLI_SCENARIOS_DIR", filepath.Join("workspace", "scenarios"))
 
 	cfg := Load()

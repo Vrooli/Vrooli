@@ -8,8 +8,9 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	triagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/triage"
 	internal "signal-inbox/internal/triage"
+
+	triagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/triage"
 )
 
 type connectHandler struct{ service *internal.Service }

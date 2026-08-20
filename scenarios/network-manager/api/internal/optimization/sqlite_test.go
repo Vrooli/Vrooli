@@ -7,8 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"network-manager/internal/adapters"
+
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func TestSQLiteRepositoryPersistsRunAndCandidates(t *testing.T) {

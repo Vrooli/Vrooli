@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/vrooli/api-core/database"
 )
 
 // compositionCapture is the newest persisted rendered tree for one catalog
@@ -147,7 +145,7 @@ func loadCompositionCaptures(root string) (map[string]compositionCapture, error)
 		}
 		return nil, err
 	}
-	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: "file:" + path + "?_pragma=busy_timeout(10000)", MaxOpenConns: 1, MaxIdleConns: 1})
+	db, err := openGateDB(context.Background(), path)
 	if err != nil {
 		return nil, err
 	}

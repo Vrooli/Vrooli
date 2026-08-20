@@ -4,9 +4,10 @@ import (
 	"context"
 	"strings"
 
-	"github.com/vrooli/api-core/provenance"
 	"source-ledger/internal/inference"
 	"source-ledger/internal/policy"
+
+	"github.com/vrooli/api-core/provenance"
 )
 
 type Service struct {

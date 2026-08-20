@@ -3,13 +3,14 @@ package scopes
 import (
 	"log"
 
+	"source-ledger/internal/module"
+	internalpolicy "source-ledger/internal/policy"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	scopesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes"
 	scopesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes/scopesv1connect"
-	"source-ledger/internal/module"
-	internalpolicy "source-ledger/internal/policy"
 )
 
 func Module(db *database.RoutedDB, registry *internalpolicy.Registry, registerProvider func(string) error, logger *log.Logger, liveness ...livenessProvider) module.Module {

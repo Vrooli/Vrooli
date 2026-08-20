@@ -1,8 +1,9 @@
 package journal
 
 import (
-	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 	"source-ledger/internal/module"
+
+	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

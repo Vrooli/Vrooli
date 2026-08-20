@@ -26,7 +26,7 @@ Use this document to answer:
 
 - API port: assigned by lifecycle as `API_PORT`.
 - UI port: assigned by lifecycle as `UI_PORT`.
-- Storage: `SQLITE_PATH` local file by default.
+- Storage: embedded SQLite, resolved from the scenario id by `api-core/storage`.
 - Resources: governed `android-sdk` owns SDK, JDK 17, Gradle, platform-tools, emulator, and system images; ffmpeg and `/dev/kvm` remain host capabilities that are probed.
 - Network: local API/UI communication.
 

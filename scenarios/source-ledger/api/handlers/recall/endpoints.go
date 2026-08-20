@@ -1,8 +1,9 @@
 package recall
 
 import (
-	recallconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
 	"source-ledger/internal/module"
+
+	recallconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

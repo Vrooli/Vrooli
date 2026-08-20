@@ -6,14 +6,15 @@ import (
 	"log"
 	"net/http"
 
+	"money-ledger/internal/ingest"
+	"money-ledger/internal/module"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
 	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	ingestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest/ingest_v1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"money-ledger/internal/ingest"
-	"money-ledger/internal/module"
 )
 
 type Service struct {
