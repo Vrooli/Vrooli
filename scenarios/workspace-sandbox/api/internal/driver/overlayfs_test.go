@@ -8,8 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
+
+	"github.com/google/uuid"
 )
 
 // [REQ:P0-003] Overlayfs Mount Configuration - Verify mount options.

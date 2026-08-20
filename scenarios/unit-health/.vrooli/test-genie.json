@@ -14,7 +14,11 @@
     "includeExecution": true
   },
   "targets": {
-    "kinds": ["scenario", "package", "control-plane"],
+    "kinds": [
+      "scenario",
+      "package",
+      "control-plane"
+    ],
     "selection": "enumerate"
   },
   "applicability": {
@@ -655,8 +659,10 @@
     "mode": "provider-serial"
   },
   "determinism": {
-    "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "default": "file-determined",
+    "inputs": [
+      "**"
+    ]
   },
   "dimensions": [
     "tests",

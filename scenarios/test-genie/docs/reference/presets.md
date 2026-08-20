@@ -83,9 +83,10 @@ test-genie execute my-scenario --preset comprehensive
 | Proto | Validates proto contracts through proto-health. | 2m |
 | AI Conformance | Validates AI-using scenarios for provider-neutral routing, resource boundary hygiene, embedding metadata safety, and AI Gateway adoption readiness. | 90s |
 | Branding | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. | 2m |
+| Monetization Conformance | Validates monetization trust boundaries, declarations, and local metering posture. | 90s |
 | Search | Validates search-enabled scenarios through Search Hub's search maturity contract. | 90s |
 | Provider Conformance | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. | 90s |
-| Component Tests | Runs version-pinned React component and hook contracts through the React Component Library provider. | 5m |
+| Component Tests | Runs version-pinned React component and hook contracts through the React Component Library provider. | 10m |
 | Agent Conformance | Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles. | 45s |
 | Templates | Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager. | 90s |
 | Event Capture Conformance | Validates opt-in receipt-capture declarations against published protobuf contracts and the reconciled global policy snapshot. | 45s |
@@ -115,6 +116,7 @@ test-genie execute my-scenario --preset comprehensive
 | Proto | Adaptive | Adaptive | Yes | Yes |
 | AI Conformance | Adaptive | Adaptive | No | Yes |
 | Branding | Adaptive | Adaptive | No | Yes |
+| Monetization Conformance | Adaptive | Adaptive | No | Yes |
 | Search | Adaptive | Adaptive | No | Yes |
 | Provider Conformance | Adaptive | Adaptive | No | Yes |
 | Component Tests | Adaptive | Adaptive | No | Yes |

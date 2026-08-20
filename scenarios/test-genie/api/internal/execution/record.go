@@ -39,8 +39,11 @@ type SuiteExecutionRecord struct {
 	TerminalOutcome   TerminalOutcome
 	Phases            []phases.ExecutionResult
 	PreparationStages []orchestrator.PreparationStage
-	StartedAt         time.Time
-	CompletedAt       time.Time
+	// RequestedAt is when the run was asked for. It differs from StartedAt by
+	// however long the run waited for a concurrency slot. Zero means unknown.
+	RequestedAt time.Time
+	StartedAt   time.Time
+	CompletedAt time.Time
 }
 
 // ToExecutionResult converts the repository record into the orchestrator payload shared with callers.

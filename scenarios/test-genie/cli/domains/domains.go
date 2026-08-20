@@ -23,7 +23,10 @@ func CommandGroups(runtime deps.Runtime) []cliapp.CommandGroup {
 		// test-genie owns the Validate projection denominator
 		// (docs/spaces/validate-space.md); `space` is the cross-scenario read
 		// contract meta-optimization-manager consumes.
-		spacecli.CommandGroup(spacecli.Config{Owner: "test-genie", Projection: spacedoc.ProjectionValidate}),
+		spacecli.CommandGroup(spacecli.Config{Owner: "test-genie", Projections: []spacedoc.Projection{
+			spacedoc.ProjectionValidate,
+			spacedoc.ProjectionValidationCost,
+		}}),
 	}
 }
 

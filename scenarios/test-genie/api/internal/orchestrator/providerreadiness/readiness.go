@@ -110,6 +110,31 @@ type Lifecycle interface {
 	Restart(context.Context, string, io.Writer) error
 }
 
+// DefaultProbeTimeout bounds discovery plus the provider contract probe. A
+// readiness check is a prerequisite for a run, so a provider or the local
+// control plane must not be able to strand the server-owned run indefinitely.
+const DefaultProbeTimeout = 2 * time.Minute
+
+// DefaultLifecycleTimeout bounds the control-plane command used to start or
+// restart a provider. The command owns its child process through
+// exec.CommandContext, so cancellation also terminates a stuck lifecycle
+// operation rather than merely returning control to the caller.
+const DefaultLifecycleTimeout = 2 * time.Minute
+
+var (
+	defaultProbeTimeout     = DefaultProbeTimeout
+	defaultLifecycleTimeout = DefaultLifecycleTimeout
+)
+
+// resolveScenarioURL is a narrow seam for proving timeout behavior without
+// invoking a live CLI. Production calls use the api-core resolver directly.
+var resolveScenarioURL = discovery.ResolveScenarioURLDefault
+
+// commandContext is a narrow seam for testing lifecycle cancellation. It is
+// deliberately kept at the exec.Cmd boundary so production behavior remains
+// exactly exec.CommandContext.
+var commandContext = exec.CommandContext
+
 // DefaultMaxStaleRestarts bounds how many providers one run may restart because
 // their binaries no longer match source.
 //
@@ -426,15 +451,28 @@ func DefaultProbe(ctx context.Context, in Input) (ProbeResult, error) {
 	if strings.TrimSpace(in.TargetScenario) == "" {
 		return ProbeResult{}, errors.New("target scenario is required")
 	}
-	if err := acquireProviderDiscoverySlot(ctx); err != nil {
+	probeCtx, cancel := context.WithTimeout(ctx, defaultProbeTimeout)
+	defer cancel()
+	if err := acquireProviderDiscoverySlot(probeCtx); err != nil {
 		return ProbeResult{}, fmt.Errorf("wait for provider discovery capacity: %w", err)
 	}
 	defer releaseProviderDiscoverySlot()
-	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, in.ProviderScenario)
+	baseURL, err := resolveScenarioURL(probeCtx, in.ProviderScenario)
 	if err != nil {
+		if readinessTimedOut(ctx, probeCtx) {
+			return ProbeResult{}, fmt.Errorf("provider readiness timed out after %s while resolving %s: %w", defaultProbeTimeout, in.ProviderScenario, probeCtx.Err())
+		}
 		return ProbeResult{}, fmt.Errorf("resolve %s URL: %w", in.ProviderScenario, err)
 	}
-	return probeAt(ctx, baseURL, in)
+	result, err := probeAt(probeCtx, baseURL, in)
+	if err != nil && readinessTimedOut(ctx, probeCtx) {
+		return ProbeResult{}, fmt.Errorf("provider readiness timed out after %s for %s: %w", defaultProbeTimeout, in.ProviderScenario, probeCtx.Err())
+	}
+	return result, err
+}
+
+func readinessTimedOut(parent, child context.Context) bool {
+	return errors.Is(child.Err(), context.DeadlineExceeded) && parent.Err() == nil
 }
 
 func acquireProviderDiscoverySlot(ctx context.Context) error {
@@ -578,7 +616,9 @@ func run(ctx context.Context, logWriter io.Writer, args ...string) error {
 	if len(args) < 3 || strings.TrimSpace(args[2]) == "" {
 		return errors.New("provider scenario is required")
 	}
-	cmd := exec.CommandContext(ctx, "vrooli", args...)
+	lifecycleCtx, cancel := context.WithTimeout(ctx, defaultLifecycleTimeout)
+	defer cancel()
+	cmd := commandContext(lifecycleCtx, "vrooli", args...)
 	cmd.Env = os.Environ()
 	var output bytes.Buffer
 	var writer io.Writer = &output
@@ -588,6 +628,9 @@ func run(ctx context.Context, logWriter io.Writer, args ...string) error {
 	cmd.Stdout = writer
 	cmd.Stderr = writer
 	if err := cmd.Run(); err != nil {
+		if readinessTimedOut(ctx, lifecycleCtx) {
+			return fmt.Errorf("vrooli %s timed out after %s: %w", strings.Join(args, " "), defaultLifecycleTimeout, lifecycleCtx.Err())
+		}
 		detail := strings.TrimSpace(output.String())
 		if len(detail) > 2000 {
 			detail = detail[:2000] + "...(truncated)"

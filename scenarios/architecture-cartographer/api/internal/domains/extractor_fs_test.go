@@ -167,3 +167,40 @@ type fakeSurfaceProvider struct {
 func (f fakeSurfaceProvider) Inspect(context.Context, string) (SurfaceInventory, error) {
 	return f.inv, f.err
 }
+
+type countingSurfaceProvider struct {
+	inv   SurfaceInventory
+	calls *int
+}
+
+func (p countingSurfaceProvider) Inspect(context.Context, string) (SurfaceInventory, error) {
+	(*p.calls)++
+	return p.inv, nil
+}
+
+func TestRunLadderMemoizesSurfaceInspectionPerRun(t *testing.T) {
+	dir := t.TempDir()
+	mkdirs(t, dir,
+		"api/internal/graph",
+		"cli",
+		"ui/src/features/analytics",
+	)
+	writeFile(t, dir, "cli/manifest.json", `{"groups": []}`)
+
+	calls := 0
+	provider := countingSurfaceProvider{
+		calls: &calls,
+		inv: SurfaceInventory{Surfaces: []Surface{
+			{ID: "api", Kind: "api", Path: filepath.Join(dir, "api"), Status: "known"},
+			{ID: "cli", Kind: "cli", Path: filepath.Join(dir, "cli"), Status: "known"},
+			{ID: "ui", Kind: "ui", Path: filepath.Join(dir, "ui"), Status: "known"},
+		}},
+	}
+
+	if _, err := RunLadder(context.Background(), dir, ExtractorsForWithSurfaceProvider(nil, nil, provider)); err != nil {
+		t.Fatalf("run ladder: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("surface inspections = %d, want one per reconcile run", calls)
+	}
+}

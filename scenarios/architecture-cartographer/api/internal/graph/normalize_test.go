@@ -48,3 +48,29 @@ func TestNormalizeInfersTestOnlyImportsFromTestFileSource(t *testing.T) {
 		t.Fatalf("prod-file import should not be inferred test-only: %+v", got)
 	}
 }
+
+func TestNormalizePreservesProfileOmissionsAndHashesTheirContract(t *testing.T) {
+	base := graph.RawGraph{
+		Languages:          []graph.Language{graph.LanguageGo},
+		ExtractionProfiles: []string{"structural"},
+		Files:              []graph.FileNode{{ID: "file:a", Path: "a.go"}},
+		OmittedInformation: []graph.InformationOmission{{
+			Capability: "resolved_type_information",
+			Reason:     "structural profile does not run Go type checking",
+		}},
+	}
+	withMetadata := graph.Normalize("demo", base)
+	withoutMetadata := graph.Normalize("demo", graph.RawGraph{
+		Languages: base.Languages,
+		Files:     base.Files,
+	})
+	if len(withMetadata.ExtractionProfiles) != 1 || withMetadata.ExtractionProfiles[0] != "structural" {
+		t.Fatalf("profiles=%v", withMetadata.ExtractionProfiles)
+	}
+	if len(withMetadata.OmittedInformation) != 1 {
+		t.Fatalf("omissions=%v", withMetadata.OmittedInformation)
+	}
+	if withMetadata.ContentHash == withoutMetadata.ContentHash {
+		t.Fatal("profile metadata did not participate in snapshot identity")
+	}
+}

@@ -6,14 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"treasury/handlers/treasuryadmin"
+	"treasury/internal/instrument"
+	"treasury/internal/operatorauth"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
 	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 	instrumentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/instrument"
-	"treasury/handlers/treasuryadmin"
-	"treasury/internal/instrument"
-	"treasury/internal/operatorauth"
 )
 
 type instrumentRegistrar struct{ input instrument.RegisterInput }

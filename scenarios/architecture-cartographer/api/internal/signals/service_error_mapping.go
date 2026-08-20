@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"architecture-cartographer/internal/graph"
+
 	"connectrpc.com/connect"
 )
 

@@ -9,12 +9,13 @@ import (
 	"workflow-health/internal/module"
 	internalvalidation "workflow-health/internal/validation"
 
+	workflowrun "workflow-health/internal/validationrun"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	corevalidationrun "github.com/vrooli/api-core/validationrun"
 	"github.com/vrooli/maturity-go/assessment"
-	workflowrun "workflow-health/internal/validationrun"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"

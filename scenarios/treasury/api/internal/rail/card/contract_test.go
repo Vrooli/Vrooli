@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"treasury/internal/rail/card"
+
+	"github.com/stretchr/testify/require"
 )
 
 type fixtureIssuer struct{ scope card.Scope }

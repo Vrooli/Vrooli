@@ -53,7 +53,7 @@ suggestion.
 
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|
-| SQLite database (`SQLITE_PATH`) | Stop the scenario, copy the database file, restart. The file is the only copy of the journal and therefore of every balance. | Stop the scenario, replace the file, restart, then rebuild the projection and verify it against a full replay before allowing writes. | **required before first real use** |
+| SQLite database | Stop the scenario, copy the database file, restart. The file is the only copy of the journal and therefore of every balance. | Stop the scenario, replace the file, restart, then rebuild the projection and verify it against a full replay before allowing writes. | **required before first real use** |
 | Projection cache | Not backed up. Derived and rebuildable from events at any time. | Rebuild from the journal. | by design |
 | Blob files | not-applicable | not-applicable | This scenario stores no binary payloads. |
 
@@ -69,7 +69,7 @@ sequence that could silently produce a wrong balance.
 | Inspect logs | as needed | `make logs` |
 | Regenerate endpoints | after API endpoint changes | `make endpoints` |
 | Regenerate UI strings | after i18n changes | `cd ui && pnpm strings:gen` |
-| **Back up the database** | before any upgrade, and on a routine schedule | Copy `SQLITE_PATH` while stopped. The only recovery path for corruption. |
+| **Back up the database** | before any upgrade, and on a routine schedule | Copy the scenario database while stopped. The only recovery path for corruption. |
 | **Verify projection against a full replay** | routinely, and always after a restore | The integrity check that catches a correctness bug before a human notices a wrong balance. |
 | Validate the business contract | after PRD or requirements edits | `vrooli scenario requirements validate token-economy --json` |
 | Validate the experience contract | after `experience/` edits | `experience-manager spec validate token-economy --json` |

@@ -1,3 +1,18 @@
+// Package sqlitedb resolves where Test Genie's own run ledger lives.
+//
+// Test Genie is both a scenario with a database and the process that starts
+// other scenarios, which makes it the worst possible place to trust an
+// environment variable for a database path. It previously accepted
+// TEST_GENIE_SQLITE_PATH, then SQLITE_PATH, then SQLITE_DB, all ahead of its
+// own identity. The generic pair is what let a supervisor's inherited
+// environment redirect this ledger into another scenario's file: 146 Test Genie
+// runs were recorded inside vrooli-autoheal's 9.35 GB database, behind that
+// database's single writer lock.
+//
+// Resolution now reads no database-path variable at all. The path is a function
+// of this scenario's own identity, resolved by the one owned seam in
+// api-core/storage. A caller that needs an explicit file — a test, a cutover,
+// an isolated run — passes it as an argument to ResolveExplicit.
 package sqlitedb
 
 import (
@@ -6,15 +21,25 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/api-core/storage"
 )
 
-const (
-	// PrimaryPathEnvVar is the scenario-specific override for Test Genie's
-	// embedded SQLite database.
-	PrimaryPathEnvVar = "TEST_GENIE_SQLITE_PATH"
+// scenarioID is this scenario naming itself. It is the identity the database
+// path derives from, and the reason no environment variable can redirect it.
+const scenarioID = "test-genie"
 
-	defaultDatabaseFile = "test-genie.db"
-)
+// databaseFile is the ledger's file name within the resolved data class.
+const databaseFile = "test-genie.db"
+
+// tuning states Test Genie's two deviations from the fleet defaults in typed
+// form. The ledger is read far more often than it is written — every cost
+// query, every cache lookup, every run listing — so it takes a 4 KiB page size
+// and a 256 MiB memory map.
+var tuning = storage.SQLiteTuning{
+	PageSizeBytes: 4096,
+	MMapSizeBytes: 268435456,
+}
 
 // Config captures the resolved SQLite location for runtime consumers.
 type Config struct {
@@ -22,42 +47,22 @@ type Config struct {
 	DSN  string
 }
 
-// Resolve returns the SQLite file path and DSN for Test Genie runtime storage.
+// Resolve returns the file path and DSN for Test Genie's own runtime storage.
 func Resolve() (Config, error) {
-	for _, key := range []string{PrimaryPathEnvVar, "SQLITE_PATH", "SQLITE_DB"} {
-		if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
-			expanded, ok := expandConfiguredPath(raw)
-			if !ok {
-				continue
-			}
-			return ResolveExplicit(expanded)
-		}
+	path, err := storage.SQLitePath(storage.SQLiteConfig{
+		Scenario: scenarioID,
+		Filename: databaseFile,
+	})
+	if err != nil {
+		return Config{}, fmt.Errorf("resolve test-genie database path: %w", err)
 	}
-
-	root := defaultDataRoot()
-	if root == "" {
-		return Config{}, fmt.Errorf("%s, SCENARIO_DATA_DIR, or SQLITE_DATABASE_PATH must be set", PrimaryPathEnvVar)
-	}
-	return ResolveExplicit(filepath.Join(root, defaultDatabaseFile))
+	return ResolveExplicit(path)
 }
 
-func defaultDataRoot() string {
-	// storage-manager:allow-no-writer data — the lifecycle supplies this class
-	// root through environment variables; the owner does not hard-code a host
-	// directory to create.
-	if dir := strings.TrimSpace(os.Getenv("SCENARIO_DATA_DIR")); dir != "" {
-		return dir
-	}
-	if dir := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH")); dir != "" {
-		return dir
-	}
-	if dir := strings.TrimSpace(os.Getenv("VROOLI_DATA")); dir != "" {
-		return filepath.Join(dir, "sqlite", "databases")
-	}
-	return ""
-}
-
-// ResolveExplicit resolves a sqlite path or DSN supplied directly by a caller.
+// ResolveExplicit resolves a SQLite path or DSN supplied directly by a caller.
+//
+// Passing the location as an argument is the deliberate alternative to reading
+// it from the environment: an argument cannot leak into a child process.
 func ResolveExplicit(raw string) (Config, error) {
 	if strings.HasPrefix(raw, "file:") {
 		path, err := extractPathFromDSN(raw)
@@ -74,22 +79,19 @@ func ResolveExplicit(raw string) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("resolve sqlite path: %w", err)
 	}
-	if err := ensureDir(path); err != nil {
-		return Config{}, err
+	dsn, err := storage.SQLiteDSNAt(path, tuning)
+	if err != nil {
+		return Config{}, fmt.Errorf("build sqlite dsn: %w", err)
 	}
-
-	return Config{
-		Path: path,
-		DSN:  BuildDSN(path),
-	}, nil
+	return Config{Path: path, DSN: dsn}, nil
 }
 
-// BuildDSN applies the default pragmas used for portable SQLite-backed scenarios.
-func BuildDSN(path string) string {
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)",
-		path,
-	)
+// BuildDSN applies Test Genie's pragmas to an explicit path.
+//
+// It reports an error rather than returning a best-effort string, because a
+// silently malformed DSN opens a DIFFERENT database instead of failing.
+func BuildDSN(path string) (string, error) {
+	return storage.SQLiteDSNAt(path, tuning)
 }
 
 func extractPathFromDSN(dsn string) (string, error) {
@@ -128,21 +130,4 @@ func ensureDir(path string) error {
 		return fmt.Errorf("prepare sqlite directory %s: %w", dir, err)
 	}
 	return nil
-}
-
-func expandConfiguredPath(raw string) (string, bool) {
-	expanded := raw
-	for _, key := range []string{"SCENARIO_DATA_DIR", "SQLITE_DATABASE_PATH", "VROOLI_DATA"} {
-		token := "${" + key + "}"
-		if !strings.Contains(expanded, token) {
-			continue
-		}
-
-		value := strings.TrimSpace(os.Getenv(key))
-		if value == "" {
-			return "", false
-		}
-		expanded = strings.ReplaceAll(expanded, token, value)
-	}
-	return expanded, true
 }

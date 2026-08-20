@@ -25,7 +25,7 @@ Use this document to answer:
 
 - **API port**: assigned by lifecycle as `API_PORT` (range 15000-19999 per `.vrooli/service.json`).
 - **UI port**: assigned by lifecycle as `UI_PORT` (range 20000-24999).
-- **Storage**: `SQLITE_PATH` local file by default.
+- **Storage**: embedded SQLite resolved by `api-core/storage` by default.
 - **Required scenarios on same host**:
   - `go-code-graph` — must be running for any Go target scenario.
   - `typescript-code-graph` — must be running for any TS target scenario.

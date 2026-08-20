@@ -13,9 +13,6 @@ import (
 	db "github.com/vrooli/api-core/databasetest"
 	"github.com/vrooli/api-core/schedule"
 
-	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
-	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
-	settlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/settlement"
 	"treasury/internal/authorization"
 	"treasury/internal/book"
 	"treasury/internal/budget"
@@ -26,6 +23,10 @@ import (
 	"treasury/internal/mandate"
 	"treasury/internal/rail"
 	"treasury/internal/settlement"
+
+	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
+	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
+	settlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/settlement"
 )
 
 // [REQ:TRS-P0-011] The generated AgentSpend client executes the server-owned

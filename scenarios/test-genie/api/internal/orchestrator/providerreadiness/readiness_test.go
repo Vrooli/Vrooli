@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"os/exec"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -195,6 +197,62 @@ func TestCheckSerializesSameProviderAcrossConcurrentRuns(t *testing.T) {
 	}
 	close(releaseFirst)
 	wg.Wait()
+}
+
+func TestDefaultProbeBoundsDiscovery(t *testing.T) {
+	original := resolveScenarioURL
+	originalTimeout := defaultProbeTimeout
+	resolveScenarioURL = func(ctx context.Context, _ string) (string, error) {
+		<-ctx.Done()
+		return "", ctx.Err()
+	}
+	defaultProbeTimeout = 10 * time.Millisecond
+	t.Cleanup(func() {
+		resolveScenarioURL = original
+		defaultProbeTimeout = originalTimeout
+	})
+
+	started := time.Now()
+	_, err := DefaultProbe(context.Background(), Input{
+		ProviderScenario: "provider",
+		TargetScenario:   "target",
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error = %v, want deadline exceeded", err)
+	}
+	if elapsed := time.Since(started); elapsed > defaultProbeTimeout+time.Second {
+		t.Fatalf("probe took %s, exceeded timeout %s", elapsed, defaultProbeTimeout)
+	}
+}
+
+func TestRunBoundsLifecycleCommand(t *testing.T) {
+	original := commandContext
+	originalTimeout := defaultLifecycleTimeout
+	commandContext = func(ctx context.Context, _ string, _ ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, os.Args[0], "-test.run=TestProviderReadinessCommandHelper", "--")
+	}
+	defaultLifecycleTimeout = 10 * time.Millisecond
+	t.Setenv("GO_WANT_PROVIDER_READINESS_HELPER", "1")
+	t.Cleanup(func() {
+		commandContext = original
+		defaultLifecycleTimeout = originalTimeout
+	})
+
+	started := time.Now()
+	err := run(context.Background(), io.Discard, "scenario", "start", "provider")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error = %v, want deadline exceeded", err)
+	}
+	if elapsed := time.Since(started); elapsed > defaultLifecycleTimeout+time.Second {
+		t.Fatalf("lifecycle command took %s, exceeded timeout %s", elapsed, defaultLifecycleTimeout)
+	}
+}
+
+func TestProviderReadinessCommandHelper(t *testing.T) {
+	if os.Getenv("GO_WANT_PROVIDER_READINESS_HELPER") != "1" {
+		return
+	}
+	time.Sleep(time.Hour)
 }
 
 func inputWithPolicy(policy phasepolicy.Policy) Input {

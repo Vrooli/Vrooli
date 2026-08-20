@@ -45,8 +45,8 @@ func TestHealthHandlerAdditional(t *testing.T) {
 func TestResourcesHandlerAdditional(t *testing.T) {
 	t.Run("Returns_Resource_Details", func(t *testing.T) {
 		config := &Config{
-			Port:      "8080",
-			RedisURL:  "http://localhost:6379",
+			Port:     "8080",
+			RedisURL: "http://localhost:6379",
 		}
 
 		server := NewServer(config)
@@ -145,7 +145,7 @@ func TestResourceMonitoring(t *testing.T) {
 
 	t.Run("Check_All_Resources", func(t *testing.T) {
 		config := &Config{
-			Port:      "8080",
+			Port: "8080",
 		}
 
 		rm := NewResourceManager(config)

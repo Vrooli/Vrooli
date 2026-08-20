@@ -139,6 +139,8 @@ func (s *service) ExtractGraph(ctx context.Context, in ExtractGraphInput) (Graph
 		combined.Packages = append(combined.Packages, raw.Packages...)
 		combined.Symbols = append(combined.Symbols, raw.Symbols...)
 		combined.Imports = append(combined.Imports, raw.Imports...)
+		combined.ExtractionProfiles = append(combined.ExtractionProfiles, raw.ExtractionProfiles...)
+		combined.OmittedInformation = append(combined.OmittedInformation, raw.OmittedInformation...)
 		combined.ExtractionMS += raw.ExtractionMS
 	}
 	combined.ExtractionMS = time.Since(start).Milliseconds()

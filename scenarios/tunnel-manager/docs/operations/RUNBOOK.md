@@ -150,13 +150,13 @@ backed up to `config.yml.backup.<timestamp>` on write.
 
 ## Backup / Restore
 
-Tunnel Manager uses local SQLite state under `SQLITE_PATH`. Back up the
+Tunnel Manager keeps local SQLite state at the path `api-core/storage` resolves for it. Back up the
 database before major host maintenance or before replacing the local
 stack data directory.
 
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|
-| SQLite database | Stop the scenario, copy the file referenced by `SQLITE_PATH` or `${SCENARIO_DATA_DIR}/tunnel-manager.db`, then restart. | Stop the scenario, restore the copied DB file to the configured path, ensure ownership/permissions match the runtime user, then `make start`. | active |
+| SQLite database | Stop the scenario, copy the database file under `${SCENARIO_DATA_DIR}/tunnel-manager.db`, then restart. | Stop the scenario, restore the copied DB file to the configured path, ensure ownership/permissions match the runtime user, then `make start`. | active |
 | Blob files | n/a | n/a | No blob domains today. |
 
 ## Maintenance Tasks

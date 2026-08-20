@@ -11,11 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/freshness-go/treedigest"
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
+
+	"github.com/vrooli/freshness-go/treedigest"
 )
 
 // fakeExecutor is a scriptable stand-in for *execution.SuiteExecutionService. It

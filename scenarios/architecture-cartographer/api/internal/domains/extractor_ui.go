@@ -46,7 +46,7 @@ func (e *UIFeatureExtractor) Extract(ctx context.Context, scenarioDir string) (E
 	if provider == nil {
 		provider = NewLocalSurfaceProvider()
 	}
-	inv, err := provider.Inspect(ctx, scenarioDir)
+	inv, err := inspectSurfaceProvider(ctx, provider, scenarioDir)
 	if err != nil {
 		return Extraction{}, fmt.Errorf("inspect surfaces: %w", err)
 	}

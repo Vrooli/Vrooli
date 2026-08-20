@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
+
+	"github.com/google/uuid"
 )
 
 // [REQ:P2-004-002] CopyDriver Implementation - Basic functionality tests

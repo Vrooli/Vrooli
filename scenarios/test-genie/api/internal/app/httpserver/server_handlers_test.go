@@ -540,13 +540,17 @@ func TestServer_handleHealthDegradesForCachedSweepFailure(t *testing.T) {
 
 func TestServer_handleHealthDoesNotWaitForHeldRuntimeSQLitePool(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test-genie.db")
-	runtimeDB, err := sql.Open("sqlite", sqlitedb.BuildDSN(path))
+	dsn, err := sqlitedb.BuildDSN(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer runtimeDB.Close()
 	runtimeDB.SetMaxOpenConns(1)
-	healthDB, err := sql.Open("sqlite", sqlitedb.BuildDSN(path))
+	healthDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

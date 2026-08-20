@@ -11,11 +11,12 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/maturity-go/assessment"
 
+	"unit-health/internal/discovery"
+	internalvalidation "unit-health/internal/validation"
+
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
-	"unit-health/internal/discovery"
-	internalvalidation "unit-health/internal/validation"
 )
 
 // commonStage aliases the generated stage proto so the stage-name helpers read

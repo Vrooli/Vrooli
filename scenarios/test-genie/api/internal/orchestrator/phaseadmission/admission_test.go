@@ -1,0 +1,112 @@
+package phaseadmission
+
+import (
+	"context"
+	"testing"
+
+	"test-genie/internal/orchestrator/phases"
+
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
+)
+
+type schedulerCostStub struct {
+	// unsizable names phases the estimator has no reliable size for. Empty
+	// means every phase is sizable.
+	unsizable map[string]bool
+}
+
+func (s schedulerCostStub) PhaseCostEstimate(_ context.Context, _, phase string) (int64, int64, bool) {
+	if s.unsizable[phase] {
+		return 0, 0, false
+	}
+	return 64, 100, true
+}
+
+// schedulerBrokerStub grants the first grantCount acquisitions and then answers
+// with kind/reason, so a case can describe a host that fills up mid-batch.
+type schedulerBrokerStub struct {
+	kind       string
+	reason     string
+	grantCount int
+	granted    int
+	acquires   int
+}
+
+func (s *schedulerBrokerStub) Acquire(context.Context, string, int64, int64) (sharedcapacity.Lease, sharedcapacity.Verdict, error) {
+	s.acquires++
+	if s.granted < s.grantCount {
+		s.granted++
+		return stubLease{}, sharedcapacity.Verdict{Kind: "grant"}, nil
+	}
+	return nil, sharedcapacity.Verdict{Kind: s.kind, Reason: s.reason}, nil
+}
+
+type stubLease struct{}
+
+func (stubLease) Release(context.Context) error { return nil }
+
+func TestAdmitPhaseBatchDenialFallsBackWithReason(t *testing.T) {
+	deps := Deps{Broker: &schedulerBrokerStub{kind: "deny", reason: "insufficient ram"}, Estimator: schedulerCostStub{}}
+	defs := []phases.Definition{
+		{Name: phases.Name("one"), Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
+		{Name: phases.Name("two"), Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
+	}
+	leases, reason, admitted, _ := Admit(context.Background(), deps, "demo", "run-1", defs)
+	if admitted != 1 {
+		t.Fatalf("admitted = %d, want a serial fallback of 1", admitted)
+	}
+	if len(leases) != 0 {
+		t.Fatalf("held %d leases after falling back to serial", len(leases))
+	}
+	if reason != "insufficient ram" {
+		t.Fatalf("fallback reason = %q, want broker reason", reason)
+	}
+}
+
+func TestAdmitPhaseBatchUsesConservativeReservationWhenEstimateMissing(t *testing.T) {
+	deps := Deps{Broker: &schedulerBrokerStub{kind: "grant", grantCount: 2}, Estimator: schedulerCostStub{unsizable: map[string]bool{"unknown": true}}}
+	defs := []phases.Definition{
+		{Name: phases.Name("unknown"), Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
+		{Name: phases.Name("known"), Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
+	}
+	leases, reason, admitted, _ := Admit(context.Background(), deps, "demo", "run-1", defs)
+	if admitted != 2 || len(leases) != 2 || reason != "" {
+		t.Fatalf("estimated admission = leases:%d reason:%q admitted:%d, want two granted leases without serial fallback", len(leases), reason, admitted)
+	}
+}
+
+// A host that fills up part-way through a batch should run what fits. Releasing
+// the grants already held and dropping to serial throws away admitted capacity
+// and makes the run pay for the denial twice.
+func TestAdmitPhaseBatchRunsTheGrantedPrefix(t *testing.T) {
+	deps := Deps{Broker: &schedulerBrokerStub{kind: "queue", reason: "host full", grantCount: 3}, Estimator: schedulerCostStub{}}
+	defs := make([]phases.Definition, 0, 5)
+	for _, name := range []string{"one", "two", "three", "four", "five"} {
+		defs = append(defs, phases.Definition{Name: phases.Name(name), Concurrency: phases.Concurrency{Mode: "parallel-safe"}})
+	}
+
+	leases, reason, admitted, _ := Admit(context.Background(), deps, "demo", "run-1", defs)
+	if admitted != 3 {
+		t.Fatalf("admitted = %d, want the three granted phases", admitted)
+	}
+	if len(leases) != 3 {
+		t.Fatalf("held %d leases, want one per admitted phase", len(leases))
+	}
+	if reason != "host full" {
+		t.Fatalf("reason = %q, want the broker's stopping reason recorded", reason)
+	}
+}
+
+// The whole batch fitting is the ordinary case and must not be reported as a
+// partial admission.
+func TestAdmitPhaseBatchAdmitsFullBatch(t *testing.T) {
+	deps := Deps{Broker: &schedulerBrokerStub{grantCount: 10}, Estimator: schedulerCostStub{}}
+	defs := []phases.Definition{
+		{Name: phases.Name("one"), Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
+		{Name: phases.Name("two"), Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
+	}
+	_, reason, admitted, _ := Admit(context.Background(), deps, "demo", "run-1", defs)
+	if admitted != len(defs) || reason != "" {
+		t.Fatalf("admitted = %d reason = %q, want the full batch with no reason", admitted, reason)
+	}
+}

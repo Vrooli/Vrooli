@@ -13,8 +13,9 @@ import (
 	"test-genie/internal/shared"
 	"test-genie/internal/targetmodel"
 
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	sharedartifacts "test-genie/internal/shared/artifacts"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 var validScenarioName = regexp.MustCompile(`^[a-zA-Z0-9\-_]+$`)

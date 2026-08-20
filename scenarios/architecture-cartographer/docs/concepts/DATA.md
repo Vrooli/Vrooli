@@ -17,7 +17,7 @@ Use this document to answer:
 ## Storage Overview
 
 Cartographer stores all data in local SQLite via `modernc.org/sqlite`.
-The lifecycle sets `SQLITE_PATH` through `.vrooli/service.json`; the
+The database path is resolved from the scenario id by `api-core/storage`; the
 API applies schemas on startup through `api-core/database`. **No
 external storage resource is added in v1.** This is a deliberate
 choice — the cartographer must remain runnable against a single

@@ -16,7 +16,7 @@ Use this document to answer:
 
 TypeScript Code Graph is a **stateless** scenario in v1. `Extract` calls do not persist anything. `Rewrite plan` stores plans in an in-process registry with a 5-minute TTL. The Node sidecar holds `ts-morph` Project state in memory during a call; nothing crosses process restarts.
 
-The optional **Operation Log** (P1, REQ-P1-002) is the only persisted data. It lives in embedded SQLite via `modernc.org/sqlite`, with `SQLITE_PATH` provided by the lifecycle's `.vrooli/service.json`.
+The optional **Operation Log** (P1, REQ-P1-002) is the only persisted data. It lives in embedded SQLite via `modernc.org/sqlite`, at a path resolved from the scenario id by `api-core/storage`.
 
 External storage resources (Postgres, Qdrant, Ollama, etc.) are **not** required and **not** anticipated.
 

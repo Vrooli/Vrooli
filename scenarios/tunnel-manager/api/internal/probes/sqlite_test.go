@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"tunnel-manager/internal/probes"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

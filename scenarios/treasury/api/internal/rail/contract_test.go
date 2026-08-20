@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"treasury/internal/rail"
 	"treasury/internal/rail/manual"
+
+	"github.com/stretchr/testify/require"
 )
 
 // [REQ:TRS-P0-001] [REQ:TRS-P0-007] The registry is the conformance

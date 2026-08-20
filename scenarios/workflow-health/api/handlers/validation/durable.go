@@ -6,8 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"workflow-health/internal/execution"
+	internalvalidation "workflow-health/internal/validation"
+	workflowrun "workflow-health/internal/validationrun"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/metrics"
 	core "github.com/vrooli/api-core/validationrun"
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -16,9 +21,6 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"workflow-health/internal/execution"
-	internalvalidation "workflow-health/internal/validation"
-	workflowrun "workflow-health/internal/validationrun"
 )
 
 func (h *connectHandler) StartValidationRun(ctx context.Context, req *connect.Request[scenariovalidationv1.StartValidationRunRequest]) (*connect.Response[scenariovalidationv1.StartValidationRunResponse], error) {
@@ -136,12 +138,19 @@ func (h *connectHandler) launch(id string) {
 			opts.Selector.FlowPaths = []string{workflowPath}
 			opts.AllowFlowExecution = true
 		}
+		// Measure the durable run. This path is the one that produces the
+		// workflow phase records Test Genie costs, and it used to report an
+		// empty &commonv1.ExecutionMetrics{} — non-nil, so the metrics_present
+		// column read 1 over no data for every record. The static path beside
+		// it has always collected properly; this simply does the same.
+		collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
 		report, err := h.run(ctx, record.Run.Target.Scenario, record.Run.Target.Path, opts)
 		if err != nil {
+			collector.Stop()
 			h.finish(record, core.EventFail, nil, nil, err)
 			return
 		}
-		terminal, err := h.responseForReport(report)
+		terminal, err := h.responseForReport(report, collector.Stop())
 		if err != nil {
 			h.finish(record, core.EventFail, nil, nil, err)
 			return
@@ -202,7 +211,7 @@ func (h *connectHandler) finish(record workflowrun.Record, event core.Event, ter
 	h.signal(record.Run.ID)
 }
 
-func (h *connectHandler) responseForReport(report providerReport) (*scenariovalidationv1.ValidateScenarioResponse, error) {
+func (h *connectHandler) responseForReport(report providerReport, execMetrics *commonv1.ExecutionMetrics) (*scenariovalidationv1.ValidateScenarioResponse, error) {
 	if h.deps.MaturitySpec == nil {
 		return nil, fmt.Errorf("maturity spec is required")
 	}
@@ -214,7 +223,7 @@ func (h *connectHandler) responseForReport(report providerReport) (*scenariovali
 	if err != nil {
 		return nil, err
 	}
-	return assessment.BuildValidationResponse(report.Scenario, maturity, native, &commonv1.ExecutionMetrics{}, validationStatusOptions(report)...)
+	return assessment.BuildValidationResponse(report.Scenario, maturity, native, execMetrics, validationStatusOptions(report)...)
 }
 
 func (h *connectHandler) notice(id string) <-chan struct{} {

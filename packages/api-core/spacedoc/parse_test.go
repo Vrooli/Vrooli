@@ -184,6 +184,36 @@ func TestParseUnknownProjection(t *testing.T) {
 	}
 }
 
+func TestParseReliabilityProjection(t *testing.T) {
+	md := []byte(`# Reliability Space
+
+## This Space
+
+| | |
+|---|---|
+| Projection | supervision |
+| Owner | vrooli-autoheal |
+| Denominator confidence | SKETCH — owner obligation list is pending |
+| Leg unit | check |
+
+## Coverage Grid
+
+| ID | Question | Owner | Status |
+|---|---|---|---|
+| S1 | Check registry is reconciled | vrooli-autoheal | NOW |
+`)
+	def, err := Parse(ProjectionSupervision, md)
+	if err != nil {
+		t.Fatalf("Parse reliability space: %v", err)
+	}
+	if def.Projection != ProjectionSupervision || len(def.Cells) != 1 {
+		t.Fatalf("unexpected definition: %+v", def)
+	}
+	if def.LegUnit != "check" {
+		t.Fatalf("leg unit = %q, want check", def.LegUnit)
+	}
+}
+
 func TestNormalizeStatus(t *testing.T) {
 	cases := map[string]CellStatus{
 		"NOW":                            StatusNow,

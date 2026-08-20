@@ -23,10 +23,20 @@ import (
 const (
 	RelPath       = ".vrooli/test-genie.json"
 	SchemaVersion = "1.0.0"
-	// BoilerplateDeterminismReason is rejected for static providers because it
-	// does not state which external observation makes a file-bound result
-	// non-deterministic. Revisit if the descriptor contract gains a structured
-	// observation list that makes this prose unnecessary.
+	// BoilerplateDeterminismReason is rejected for EVERY runtime class because
+	// it does not state which external observation makes a file-bound result
+	// non-deterministic — it merely restates the definition of "observational".
+	//
+	// The rejection used to apply to static providers only, which is why ten of
+	// the eleven observational providers carried this exact sentence. An
+	// unexamined "observational" is the most expensive declaration in the
+	// system: it makes a phase permanently ineligible for the cache, and 57% of
+	// all phase-hours sat behind one. Naming the observation is what lets a
+	// reader tell a phase that genuinely watches external state from one that
+	// was never analysed.
+	//
+	// Revisit if the descriptor contract gains a structured observation list
+	// that makes this prose unnecessary.
 	BoilerplateDeterminismReason = "Provider inputs and external observations are not proven to be completely represented by a file digest."
 )
 
@@ -208,8 +218,9 @@ type Policy struct {
 }
 
 // Comparison is the provider's explicit declaration for a same-key oracle
-// revision. The default is changed-unreviewed: a changed validator must be
-// reviewed instead of silently being treated as behavior evidence.
+// revision or an intentionally additive phase. The default is
+// changed-unreviewed: a changed validator must be reviewed instead of
+// silently being treated as behavior evidence.
 type Comparison struct {
 	Mode string `json:"mode,omitempty"`
 }
@@ -726,8 +737,8 @@ func validateOrchestration(d *Descriptor) []Diagnostic {
 		if d.RuntimeClass == "static" && d.Determinism.Default == "observational" {
 			add("static_provider_declared_observational", "runtimeClass=static must declare file-determined determinism or explain a concrete external observation")
 		}
-		if d.RuntimeClass == "static" && d.Determinism.Reason == BoilerplateDeterminismReason {
-			add("boilerplate_determinism_reason", "static providers must name the external observation that prevents file-determined caching")
+		if d.Determinism.Reason == BoilerplateDeterminismReason {
+			add("boilerplate_determinism_reason", "name the external observation that prevents file-determined caching; the boilerplate reason restates the definition of observational without identifying anything")
 		}
 		for capability, override := range d.Determinism.Capabilities {
 			if !oneOf(override.Mode, "file-determined", "observational") {
@@ -741,8 +752,8 @@ func validateOrchestration(d *Descriptor) []Diagnostic {
 			}
 		}
 	}
-	if !oneOf(d.Comparison.Mode, "compatible", "changed-unreviewed", "invalidated", "superseded") {
-		add("invalid_comparison_mode", "comparison.mode must be compatible, changed-unreviewed, invalidated, or superseded")
+	if !oneOf(d.Comparison.Mode, "compatible", "changed-unreviewed", "invalidated", "superseded", "additive") {
+		add("invalid_comparison_mode", "comparison.mode must be compatible, changed-unreviewed, invalidated, superseded, or additive")
 	}
 	seenDims := map[string]struct{}{}
 	for _, raw := range d.Dimensions {

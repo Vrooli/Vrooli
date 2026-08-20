@@ -6,9 +6,10 @@ import (
 	"context"
 	"errors"
 
+	internalaccess "token-economy/internal/access"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/provenance"
-	internalaccess "token-economy/internal/access"
 
 	accessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/access"
 	accessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/access/accessv1connect"

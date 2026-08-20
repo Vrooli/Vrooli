@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator/phasecache"
+	"test-genie/internal/orchestrator/phasecacheidentity"
 	phasespkg "test-genie/internal/orchestrator/phases"
 	reqsync "test-genie/internal/orchestrator/requirements"
 	"test-genie/internal/orchestrator/runnability"
@@ -81,7 +82,7 @@ func TestFileDeterminedProviderPhasesAreCacheEligible(t *testing.T) {
 		eligible++
 		if digest, digestErr := phasecache.ScopedDigest(env.ScenarioDir, def.Determinism.Inputs); digestErr != nil {
 			t.Errorf("phase %s scoped digest: %v", def.Name, digestErr)
-		} else if _, ok := o.phaseCacheIdentity(env, def, nil); !ok {
+		} else if _, ok := phasecacheidentity.Identity(env, def, nil); !ok {
 			t.Errorf("file-determined phase %s was not cache eligible (digest %q provider %q)", def.Name, digest, def.ProviderScenario)
 		}
 	}
@@ -107,7 +108,7 @@ func TestLoadCachedPhaseResultWritesLogToCurrentRunDirectory(t *testing.T) {
 		ProviderScenario: "structure-health",
 		Determinism:      phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}},
 	}
-	identity, ok := (&SuiteOrchestrator{}).phaseCacheIdentity(env, phase, nil)
+	identity, ok := phasecacheidentity.Identity(env, phase, nil)
 	if !ok {
 		t.Fatal("phase should be cache eligible")
 	}
@@ -118,7 +119,7 @@ func TestLoadCachedPhaseResultWritesLogToCurrentRunDirectory(t *testing.T) {
 	if err := os.MkdirAll(runLogDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	result, audit, found, _ := (&SuiteOrchestrator{}).loadCachedPhaseResult(env, "current-run", runLogDir, phase, nil)
+	result, audit, found, _ := phasecacheidentity.Load("", env, "current-run", filepath.Join(runLogDir, "structure.log"), phase, nil)
 	if !found || audit || !result.CacheHit || result.CacheSourceRunID != "source-run" {
 		t.Fatalf("cache lookup = found=%t audit=%t result=%+v", found, audit, result)
 	}
@@ -140,7 +141,7 @@ func TestRunSelectedPhasesServesCacheBeforeAdmission(t *testing.T) {
 	phase.ProviderScenario = "structure-health"
 	phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}}
 	phase.Concurrency = phasespkg.Concurrency{Mode: "parallel-safe"}
-	identity, ok := (&SuiteOrchestrator{}).phaseCacheIdentity(env, phase, nil)
+	identity, ok := phasecacheidentity.Identity(env, phase, nil)
 	if !ok {
 		t.Fatal("phase should be cache eligible")
 	}

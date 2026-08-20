@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/vrooli/api-core/apihttptest"
-	httpx "github.com/vrooli/api-core/servertest"
 	"unit-health/handlers/health"
 	"unit-health/internal/module"
 	"unit-health/internal/server"
 	"unit-health/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

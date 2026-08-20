@@ -13,11 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/storage/sqlitedb"
-
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/vrooli/api-core/storage"
 )
 
 // Config controls how isolation resources are provisioned for Playbooks.
@@ -266,18 +265,56 @@ func (m *Manager) startRedis(ctx context.Context, runID string) (*startResult, f
 	return &startResult{env: env, info: info}, cleanup, nil
 }
 
+// startSQLite leases the scenario under test an isolated storage tree for the
+// duration of a run.
+//
+// Isolation is expressed as a storage ROOT rather than a database PATH, and the
+// difference is the whole point. Injecting SQLITE_PATH and SQLITE_DB named one
+// specific file, which meant (a) every scenario that inherited the pair opened
+// that one file, and (b) the mechanism only isolated SQLite, leaving the
+// scenario's other storage classes pointed at production. VROOLI_STORAGE_ROOT
+// is scenario-agnostic: every scenario beneath it resolves to its OWN path
+// within the tree, so a leaked value isolates rather than collides, and the
+// whole storage surface moves together.
 func (m *Manager) startSQLite(ctx context.Context, runID string) (*startResult, func(context.Context) error, error) {
 	rootDir, err := os.MkdirTemp("", fmt.Sprintf("test-genie-playbooks-%s-", sanitize(m.cfg.ScenarioName)))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create sqlite temp dir: %w", err)
 	}
-	dbPath := filepath.Join(rootDir, fmt.Sprintf("%s-%s.db", sanitize(m.cfg.ScenarioName), randomSuffix(runID)))
-	dsn := sqlitedb.BuildDSN(dbPath)
+
+	cleanup := func(context.Context) error {
+		if m.cfg.Retain {
+			return nil
+		}
+		return os.RemoveAll(rootDir)
+	}
+
+	// Resolve the path the scenario under test will itself resolve, using the
+	// same seam it uses. Reporting a path derived any other way would let the
+	// two drift, and an inspect command that opens the wrong file is worse than
+	// no inspect command.
+	//
+	// ScenarioName is sanitized first: it may arrive as a display name
+	// ("Test Genie"), and the storage seam requires a scenario identifier —
+	// alphanumerics plus '-', '_' and '.'. sanitize is the same normalization
+	// used for the temp directory above, so the two agree.
+	dbPath, err := storage.SQLitePath(storage.SQLiteConfig{
+		Scenario:     sanitize(m.cfg.ScenarioName),
+		RootOverride: rootDir,
+	})
+	if err != nil {
+		_ = cleanup(context.Background())
+		return nil, nil, fmt.Errorf("resolve isolated sqlite path: %w", err)
+	}
+	dsn, err := storage.SQLiteDSNAt(dbPath, storage.SQLiteTuning{})
+	if err != nil {
+		_ = cleanup(context.Background())
+		return nil, nil, fmt.Errorf("build isolated sqlite dsn: %w", err)
+	}
 
 	env := map[string]string{
-		"SQLITE_PATH":           dbPath,
-		"SQLITE_DB":             dbPath,
-		"SQLITE_DATABASE_PATH":  rootDir,
+		"VROOLI_STORAGE_ROOT":   rootDir,
+		"SQLITE_DATABASE_PATH":  filepath.Dir(dbPath),
 		"PLAYBOOKS_SQLITE_PATH": dbPath,
 		"PLAYBOOKS_SQLITE_DSN":  dsn,
 	}
@@ -285,6 +322,9 @@ func (m *Manager) startSQLite(ctx context.Context, runID string) (*startResult, 
 		env["DATABASE_URL"] = dsn
 		env["PLAYBOOKS_DATABASE_URL"] = dsn
 	}
+	// A scenario may declare its own explicitly named path variable. Those are
+	// scenario-scoped by construction, so they cannot collide across scenarios
+	// the way the generic pair did.
 	for _, key := range m.cfg.SQLiteEnvVars {
 		env[key] = dbPath
 	}
@@ -295,13 +335,6 @@ func (m *Manager) startSQLite(ctx context.Context, runID string) (*startResult, 
 		InspectCommands: []string{
 			fmt.Sprintf("sqlite3 %s", dbPath),
 		},
-	}
-
-	cleanup := func(context.Context) error {
-		if m.cfg.Retain {
-			return nil
-		}
-		return os.RemoveAll(rootDir)
 	}
 
 	select {

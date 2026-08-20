@@ -283,6 +283,7 @@ func (e *ExecutionModeUnavailableError) Code() string      { return "EXECUTION_M
 func (e *ExecutionModeUnavailableError) Hint() string {
 	return "Request tracking mode for copy-only execution, or select a driver and host that provide the requested protected containment."
 }
+
 func (e *ExecutionModeUnavailableError) Details() map[string]interface{} {
 	return map[string]interface{}{"mode": e.Mode, "driver": e.Driver, "reason": e.Reason}
 }

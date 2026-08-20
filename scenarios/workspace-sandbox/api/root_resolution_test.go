@@ -112,27 +112,47 @@ func chdirForTest(t *testing.T, dir string) {
 
 func TestResolveSQLiteDSNUsesAuthoritativeStorage(t *testing.T) {
 	tmp := t.TempDir()
-	customPath := filepath.Join(tmp, "nested", "custom.db")
-	t.Setenv("SQLITE_PATH", customPath)
+	// Storage is isolated by redirecting the class-root tree. This lever is
+	// scenario-agnostic — every scenario beneath the root still resolves to its
+	// own path — which is why it is safe where a database path variable was not.
+	t.Setenv("VROOLI_STORAGE_ROOT", tmp)
 
 	dsn, err := resolveSQLiteDSN()
 	if err != nil {
 		t.Fatalf("resolveSQLiteDSN: %v", err)
 	}
-	if got := dsn; len(got) == 0 || got[0] != '/' && got[1] != ':' {
-		t.Fatalf("unexpected DSN prefix: %q", dsn)
+	if !strContains(dsn, tmp) {
+		t.Fatalf("DSN did not resolve under the authoritative storage root %q: %q", tmp, dsn)
 	}
-	if pathHasSuffix(dsn, "custom.db") {
-		t.Fatalf("DSN used prohibited SQLite override: %q", dsn)
+	if !strContains(dsn, "workspace-sandbox") {
+		t.Fatalf("DSN is not scoped to this scenario: %q", dsn)
 	}
-	if !strContains(dsn, "_pragma=journal_mode(WAL)") {
-		t.Errorf("DSN missing WAL pragma: %q", dsn)
+	for _, want := range []string{"_pragma=journal_mode(WAL)", "_txlock=immediate", "_pragma=foreign_keys(ON)"} {
+		if !strContains(dsn, want) {
+			t.Errorf("DSN missing %s: %q", want, dsn)
+		}
 	}
-	if !strContains(dsn, "_txlock=immediate") {
-		t.Errorf("DSN missing _txlock=immediate: %q", dsn)
+}
+
+// TestResolveSQLiteDSNIgnoresInheritedDatabasePath is the regression test for
+// the cross-scenario database hijack: a database path arriving in the
+// environment must not be able to redirect this scenario's storage.
+func TestResolveSQLiteDSNIgnoresInheritedDatabasePath(t *testing.T) {
+	tmp := t.TempDir()
+	prohibited := filepath.Join(tmp, "inherited", "autoheal.sqlite")
+	t.Setenv("VROOLI_STORAGE_ROOT", tmp)
+	t.Setenv("SQLITE_PATH", prohibited)
+	t.Setenv("SQLITE_DB", prohibited)
+
+	dsn, err := resolveSQLiteDSN()
+	if err != nil {
+		t.Fatalf("resolveSQLiteDSN: %v", err)
 	}
-	if _, err := os.Stat(filepath.Dir(customPath)); err == nil {
-		t.Errorf("prohibited override parent was created")
+	if strContains(dsn, "autoheal") || strContains(dsn, "inherited") {
+		t.Fatalf("an inherited database path redirected this scenario: %q", dsn)
+	}
+	if _, err := os.Stat(filepath.Dir(prohibited)); err == nil {
+		t.Errorf("the prohibited override's parent directory was created")
 	}
 }
 

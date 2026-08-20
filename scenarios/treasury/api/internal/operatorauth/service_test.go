@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"treasury/internal/operatorauth"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestStaticTokenSeparatesAgentAndOperatorRealms(t *testing.T) {

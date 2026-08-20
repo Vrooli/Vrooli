@@ -46,7 +46,7 @@ func (s *Server) DiffHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 	// Process diff (v1 logic)
 	response := s.processDiffV1(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -67,7 +67,7 @@ func (s *Server) SearchHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 	// Process search (v1 logic)
 	response := s.processSearchV1(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -88,7 +88,7 @@ func (s *Server) TransformHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 	// Process transformation (v1 logic)
 	response := s.processTransformV1(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -109,7 +109,7 @@ func (s *Server) ExtractHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 	// Process extraction (v1 logic)
 	response := s.processExtractV1(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -130,7 +130,7 @@ func (s *Server) AnalyzeHandlerV1(w http.ResponseWriter, r *http.Request) {
 
 	// Process analysis (v1 logic)
 	response := s.processAnalyzeV1(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -153,7 +153,7 @@ func (s *Server) DiffHandlerV2(w http.ResponseWriter, r *http.Request) {
 
 	// Process diff with v2 enhancements
 	response := s.processDiffV2(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-API-Version", "2.0")
 	json.NewEncoder(w).Encode(response)
@@ -175,7 +175,7 @@ func (s *Server) SearchHandlerV2(w http.ResponseWriter, r *http.Request) {
 
 	// Process search with v2 enhancements (including vector search)
 	response := s.processSearchV2(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-API-Version", "2.0")
 	json.NewEncoder(w).Encode(response)
@@ -197,7 +197,7 @@ func (s *Server) TransformHandlerV2(w http.ResponseWriter, r *http.Request) {
 
 	// Process transformation with v2 chaining support
 	response := s.processTransformV2(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-API-Version", "2.0")
 	json.NewEncoder(w).Encode(response)
@@ -219,7 +219,7 @@ func (s *Server) ExtractHandlerV2(w http.ResponseWriter, r *http.Request) {
 
 	// Process extraction with v2 streaming support
 	response := s.processExtractV2(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-API-Version", "2.0")
 	json.NewEncoder(w).Encode(response)
@@ -241,7 +241,7 @@ func (s *Server) AnalyzeHandlerV2(w http.ResponseWriter, r *http.Request) {
 
 	// Process analysis with v2 AI enhancements
 	response := s.processAnalyzeV2(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-API-Version", "2.0")
 	json.NewEncoder(w).Encode(response)
@@ -263,7 +263,7 @@ func (s *Server) PipelineHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Process pipeline
 	response := s.processPipeline(req)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-API-Version", "2.0")
 	json.NewEncoder(w).Encode(response)
@@ -357,8 +357,8 @@ func (s *Server) processDiffV1(req DiffRequest) DiffResponse {
 func (s *Server) processDiffV2(req DiffRequestV2) DiffResponseV2 {
 	// V2 includes additional features like visual diff, patch generation, etc.
 	response := DiffResponseV2{
-		DiffResponse: s.processDiffV1(req.DiffRequest),
-		RequestID:    uuid.New().String(),
+		DiffResponse:   s.processDiffV1(req.DiffRequest),
+		RequestID:      uuid.New().String(),
 		ProcessingTime: 0, // Will be calculated
 	}
 
@@ -411,7 +411,7 @@ func (s *Server) processTransformV1(req TransformRequest) TransformResponse {
 	}
 
 	return TransformResponse{
-		Result:                result,
+		Result:                 result,
 		TransformationsApplied: applied,
 	}
 }

@@ -6,16 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"connectrpc.com/connect"
-	approvalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/approval"
-	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
-	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
-	bookv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book"
-	budgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget"
-	instrumentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/instrument"
-	mandatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate"
-	settlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/settlement"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"treasury/internal/approval"
 	"treasury/internal/authorization"
 	"treasury/internal/book"
@@ -26,6 +16,17 @@ import (
 	"treasury/internal/operatorauth"
 	"treasury/internal/rail"
 	"treasury/internal/settlement"
+
+	"connectrpc.com/connect"
+	approvalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/approval"
+	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
+	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
+	bookv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book"
+	budgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget"
+	instrumentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/instrument"
+	mandatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate"
+	settlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/settlement"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Approvals interface {

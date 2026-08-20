@@ -11,9 +11,10 @@
  *
  * # What lives here
  *
- *   - `renderWithProviders` — render an element wrapped in QueryClient
- *     and i18n providers. Use this instead of bare `render()` so future
- *     provider additions (router, theme) propagate to every test.
+ *   - `renderWithProviders` — render an element wrapped in QueryClient,
+ *     router, i18n, and this scenario's ThemeProvider. Use this instead
+ *     of bare `render()`, and instead of importing the api-base helper
+ *     directly, so provider additions propagate to every test.
  *   - `make<Domain>` factories — stable typed default test data with
  *     `Partial<Domain>` overrides.
  *   - `mocks/` — shared mock builders for external SDKs (e.g. the
@@ -45,8 +46,12 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
-export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
+// `renderWithProviders` comes from the local wrapper, NOT straight from
+// api-base: the shared helper deliberately knows nothing about this
+// scenario's ThemeProvider, and components under the shell call `useTheme()`.
+// See ./renderWithProviders.tsx for why that binding lives there.
+export { renderWithProviders } from "./renderWithProviders";
+export type { ProviderRenderOptions, ProviderRenderResult } from "./renderWithProviders";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 // Note: HealthResponse is the *generated proto type* re-exported by

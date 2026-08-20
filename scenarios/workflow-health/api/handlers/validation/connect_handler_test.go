@@ -9,10 +9,12 @@ import (
 
 	"connectrpc.com/connect"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"workflow-health/internal/execution"
 	internalvalidation "workflow-health/internal/validation"
 	workflowrun "workflow-health/internal/validationrun"
+
+	db "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/metrics"
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
@@ -75,9 +77,15 @@ func TestValidateScenarioExecutionFailureReturnsSharedFinding(t *testing.T) {
 
 	report, err := handler.run(context.Background(), "failed-workflow", target, execution.Options{IncludeExecution: true})
 	require.NoError(t, err)
-	terminal, err := handler.responseForReport(report)
+	// The durable path measures its own run and passes the result through, so
+	// the response carries real metrics rather than the empty struct that made
+	// metrics_present read 1 over no data.
+	collector := metrics.Start()
+	terminal, err := handler.responseForReport(report, collector.Stop())
 	require.NoError(t, err)
 	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, terminal.GetStatus())
+	require.NotNil(t, terminal.GetMetrics().GetResources(),
+		"a durable validation must report measured resources, not an empty metrics struct")
 	require.NotNil(t, terminal.GetAssessment())
 	finding := requireAssessmentFindingCode(t, terminal.GetAssessment().GetFindings(), internalvalidation.CodeExecutionFailed)
 	require.Equal(t, internalvalidation.CodeExecutionFailed, finding.GetCode())

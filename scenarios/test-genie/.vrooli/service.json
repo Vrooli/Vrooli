@@ -61,6 +61,9 @@
       "port": 21223
     }
   },
+  "environment": {
+    "TEST_GENIE_SQLITE_PATH": "${SCENARIO_DATA_DIR}/test-genie.db"
+  },
   "hostTools": [
     {
       "name": "bats",
@@ -102,97 +105,7 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/test-genie-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "test-genie"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o test-genie-api .",
-          "description": "Build the Go API binary at api/test-genie-api so lifecycle setup checks and start-api reuse the same executable"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./test-genie-api",
-          "background": true,
-          "condition": {
-            "file_exists": "api/test-genie-api"
-          },
-          "description": "Start Go API server"
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute test-genie --preset comprehensive",
-          "description": "Run structure/unit/integration/business/performance phases"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'test-genie-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
-  },
-  "environment": {
-    "TEST_GENIE_SQLITE_PATH": "${SCENARIO_DATA_DIR}/test-genie.db"
   },
   "dependencies": {
     "scenarios": {
@@ -240,6 +153,37 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

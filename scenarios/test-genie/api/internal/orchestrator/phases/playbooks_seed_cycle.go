@@ -226,14 +226,15 @@ func applyPostgresMigrations(ctx context.Context, env workspace.Environment, fil
 }
 
 func applySQLiteMigrations(ctx context.Context, env workspace.Environment, files []string, logWriter io.Writer) error {
+	// Only the playbooks-scoped variables are read. The generic pair used to be
+	// accepted here as a fallback, which made this migration path a consumer of
+	// whatever database path happened to be in the environment.
 	sqliteDSN := strings.TrimSpace(firstNonEmpty(
 		os.Getenv("PLAYBOOKS_SQLITE_DSN"),
 		os.Getenv("PLAYBOOKS_SQLITE_PATH"),
-		os.Getenv("SQLITE_PATH"),
-		os.Getenv("SQLITE_DB"),
 	))
 	if sqliteDSN == "" {
-		return fmt.Errorf("SQLITE_PATH is not set for playbooks migrations")
+		return fmt.Errorf("PLAYBOOKS_SQLITE_DSN is not set for playbooks migrations; the isolation manager supplies it")
 	}
 	db, err := database.Connect(ctx, database.Config{
 		Driver:       database.DriverSQLite,

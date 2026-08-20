@@ -86,9 +86,6 @@ func TestCodeFactsSurfaceProviderRequestsSliceProofFamilies(t *testing.T) {
 	want := []factsv1.FactFamily{
 		factsv1.FactFamily_FACT_FAMILY_SURFACES,
 		factsv1.FactFamily_FACT_FAMILY_PARSE_UNITS,
-		factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
-		factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
-		factsv1.FactFamily_FACT_FAMILY_CLI_PROOFS,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("include = %v, want %v", got, want)

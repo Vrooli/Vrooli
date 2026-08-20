@@ -146,6 +146,22 @@ func TestLoadRejectsDescriptorErrors(t *testing.T) {
 				`"source":"validation-provider",`, `"source":"validation-provider","runtimeClass":"static","determinism":{"default":"file-determined","inputs":["**/*.go"],"reason":"Provider inputs and external observations are not proven to be completely represented by a file digest."},`, 1),
 			want: "boilerplate_determinism_reason", scenario: "search-hub",
 		},
+		// The rejection applies to EVERY runtime class. It used to fire for
+		// "static" alone, which is why ten of the eleven observational
+		// providers carried this exact sentence — and each one made its phase
+		// permanently ineligible for the cache without anyone stating why.
+		{
+			name: "execution boilerplate reason is rejected",
+			body: strings.Replace(validDescriptor("search-hub", "search"),
+				`"source":"validation-provider",`, `"source":"validation-provider","runtimeClass":"execution","determinism":{"default":"observational","reason":"Provider inputs and external observations are not proven to be completely represented by a file digest."},`, 1),
+			want: "boilerplate_determinism_reason", scenario: "search-hub",
+		},
+		{
+			name: "lifecycle boilerplate reason is rejected",
+			body: strings.Replace(validDescriptor("search-hub", "search"),
+				`"source":"validation-provider",`, `"source":"validation-provider","runtimeClass":"lifecycle","determinism":{"default":"observational","reason":"Provider inputs and external observations are not proven to be completely represented by a file digest."},`, 1),
+			want: "boilerplate_determinism_reason", scenario: "search-hub",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -155,6 +171,20 @@ func TestLoadRejectsDescriptorErrors(t *testing.T) {
 				t.Fatalf("diagnostics = %#v, want code %s", result.Diagnostics, tc.want)
 			}
 		})
+	}
+}
+
+// TestLoadAcceptsConcreteObservation is the other half of the widened bar: an
+// observational declaration that NAMES what it watches must pass. The rule
+// exists to force analysis, not to ban observational providers.
+func TestLoadAcceptsConcreteObservation(t *testing.T) {
+	body := strings.Replace(validDescriptor("search-hub", "search"),
+		`"source":"validation-provider",`,
+		`"source":"validation-provider","runtimeClass":"execution","determinism":{"default":"observational","reason":"Findings depend on the OSV advisory database, which changes independently of any file in the scenario."},`, 1)
+	path := writeDescriptor(t, "search-hub", body)
+	result := Load(LoadOptions{Paths: []string{path}})
+	if hasDiagnostic(result.Diagnostics, "boilerplate_determinism_reason") {
+		t.Fatalf("a concrete named observation must be accepted: %#v", result.Diagnostics)
 	}
 }
 

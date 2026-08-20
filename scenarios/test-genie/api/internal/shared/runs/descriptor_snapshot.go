@@ -81,8 +81,10 @@ type PhaseDescriptorSnapshot struct {
 	// execution policy, never from presentation metadata. It lets comparison
 	// distinguish an oracle change from a change in observed behavior.
 	ComparisonFingerprint string `json:"comparison_fingerprint,omitempty"`
-	// ComparisonMode declares how a changed fingerprint is handled:
-	// compatible | changed-unreviewed | invalidated | superseded.
+	// ComparisonMode declares how a changed fingerprint or an additive phase is
+	// handled: compatible | changed-unreviewed | invalidated | superseded |
+	// additive. Additive is only non-blocking when the new phase passes; a new
+	// phase failure remains a hard new failure.
 	ComparisonMode         string                        `json:"comparison_mode,omitempty"`
 	ValidationContract     string                        `json:"validation_contract,omitempty"`
 	ValidationDeliveryMode string                        `json:"validation_delivery_mode,omitempty"`

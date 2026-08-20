@@ -13,13 +13,14 @@ import (
 	db "github.com/vrooli/api-core/databasetest"
 	"github.com/vrooli/api-core/schedule"
 
-	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
 	"treasury/internal/authorization"
 	"treasury/internal/budget"
 	"treasury/internal/evidence"
 	"treasury/internal/identity"
 	"treasury/internal/mandate"
 	mandateflow "treasury/internal/mandate/flow"
+
+	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
 )
 
 type handlerVerifier struct {

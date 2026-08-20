@@ -56,6 +56,10 @@ type Config struct {
 	URLResolver URLResolver
 	ProjectPath ProjectPathFn
 	HTTPClient  connect.HTTPClient
+	// Profile is the explicit information contract for Go extraction. Zero
+	// preserves the producer's full compatibility profile for library users;
+	// production wiring selects the cheapest profile that its detectors need.
+	Profile graphv1.ExtractionProfile
 }
 
 // Client is the production CodeGraphAdapter for Go. It resolves the
@@ -66,6 +70,7 @@ type Client struct {
 	urls       URLResolver
 	projectOf  ProjectPathFn
 	httpClient connect.HTTPClient
+	profile    graphv1.ExtractionProfile
 }
 
 // New builds a Client from Config.
@@ -74,7 +79,7 @@ func New(cfg Config) *Client {
 	if hc == nil {
 		hc = http.DefaultClient
 	}
-	return &Client{urls: cfg.URLResolver, projectOf: cfg.ProjectPath, httpClient: hc}
+	return &Client{urls: cfg.URLResolver, projectOf: cfg.ProjectPath, httpClient: hc, profile: cfg.Profile}
 }
 
 var _ graph.CodeGraphAdapter = (*Client)(nil)
@@ -106,6 +111,7 @@ func (c *Client) Extract(ctx context.Context, scenario string) (graph.RawGraph, 
 			rpc := graph_v1connect.NewGoCodeGraphServiceClient(c.httpClient, baseURL)
 			resp, err := rpc.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{
 				ModulePath: projectPath,
+				Profile:    c.profile,
 			}))
 			if err != nil {
 				return graph.RawGraph{}, graph.ClassifyConnectError(err, ScenarioName)
@@ -145,6 +151,20 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 		return out
 	}
 	out.ExtractionMS = resp.GetExtractionMs()
+	profile := resp.GetProfile()
+	out.ExtractionProfiles = []string{profileName(profile)}
+	for _, omission := range resp.GetOmittedInformation() {
+		if omission == nil {
+			continue
+		}
+		out.OmittedInformation = append(out.OmittedInformation, graph.InformationOmission{
+			Capability: omission.GetCapability(),
+			Reason:     omission.GetReason(),
+		})
+	}
+	if len(out.OmittedInformation) == 0 {
+		out.OmittedInformation = omissionsForProfile(profile)
+	}
 	g := resp.GetGraph()
 	if g == nil {
 		return out
@@ -200,4 +220,34 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 		out.Imports = append(out.Imports, graph.ImportEdgeFromProto(e))
 	}
 	return out
+}
+
+func profileName(profile graphv1.ExtractionProfile) string {
+	switch profile {
+	case graphv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC:
+		return "semantic"
+	case graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL:
+		return "structural"
+	default:
+		return "full"
+	}
+}
+
+func omissionsForProfile(profile graphv1.ExtractionProfile) []graph.InformationOmission {
+	switch profile {
+	case graphv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC:
+		return []graph.InformationOmission{
+			{Capability: "test_variants", Reason: "semantic profile excludes test packages"},
+			{Capability: "test_only_relationships", Reason: "test packages were not loaded"},
+		}
+	case graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL:
+		return []graph.InformationOmission{
+			{Capability: "resolved_type_information", Reason: "structural profile does not run Go type checking"},
+			{Capability: "resolved_usage_facts", Reason: "structural profile cannot resolve references, calls, or type usages"},
+			{Capability: "test_variants", Reason: "structural profile excludes test packages"},
+			{Capability: "test_only_relationships", Reason: "test packages were not loaded"},
+		}
+	default:
+		return nil
+	}
 }

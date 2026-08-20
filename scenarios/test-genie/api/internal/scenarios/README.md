@@ -81,9 +81,9 @@ Describes available test entrypoints for a scenario:
 
 ```go
 type TestingCapabilities struct {
+    Genie     bool             // Test Genie executable resolved
     HasTests  bool             // Any test method available
     Phased    bool             // Has coverage/run-tests.sh
-    Lifecycle bool             // Has lifecycle.test in service.json
     Legacy    bool             // Has scenario-test.yaml
     Preferred string           // Recommended test type
     Commands  []TestingCommand // Executable commands
@@ -96,7 +96,7 @@ Captures how to run a specific test mode:
 
 ```go
 type TestingCommand struct {
-    Type        string   // "phased", "lifecycle", or "legacy"
+    Type        string   // "genie", "phased", or "legacy"
     Command     []string // Executable + args
     WorkingDir  string   // Execution directory
     Description string   // Human-readable explanation
@@ -141,18 +141,18 @@ The `DetectTestingCapabilities()` function inspects a scenario directory for tes
 
 | Check | File/Condition | Type |
 |-------|----------------|------|
+| Genie | The Test Genie executable resolves from the repository | `genie` |
 | Phased | `coverage/run-tests.sh` is executable | `phased` |
-| Lifecycle | `service.json` has `lifecycle.test` | `lifecycle` |
 | Legacy | `scenario-test.yaml` exists | `legacy` |
 
-Priority order: phased > lifecycle > legacy
+Priority order: genie > phased > legacy
 
 ## Running Scenario Tests
 
 The service can execute scenario-local tests via `RunScenarioTests()`:
 
 ```go
-cmd, result, err := scenarioSvc.RunScenarioTests(ctx, "my-scenario", "phased")
+cmd, result, err := scenarioSvc.RunScenarioTests(ctx, "my-scenario", "genie", nil, "")
 // cmd contains the command that was executed
 // result contains the log path
 ```

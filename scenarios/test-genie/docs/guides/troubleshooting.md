@@ -214,17 +214,13 @@ declare -x | grep -E "DATABASE|SQLITE|REDIS|API"
 
 **Solutions:**
 ```bash
-# Embedded SQLite scenarios
-export TEST_GENIE_SQLITE_PATH="$PWD/data/test-genie.db"
-
-# Generic SQLite fallback
-export SQLITE_PATH="$PWD/data/test-genie.db"
+# Embedded SQLite scenarios resolve their own database from the scenario id,
+# so there is nothing to point at a file. To isolate storage for a run,
+# redirect the whole class tree instead:
+export VROOLI_STORAGE_ROOT="$PWD/.tmp/isolated-storage"
 
 # Networked database scenarios
 export DATABASE_URL="postgresql://localhost:5432/testdb"
-
-# Use .env file
-echo "TEST_GENIE_SQLITE_PATH=$PWD/data/test-genie.db" >> .env
 ```
 
 ### Path Resolution Issues
@@ -345,8 +341,9 @@ ulimit -n
 # Proper cleanup in tests
 trap 'cleanup_resources' EXIT
 
-# Kill orphaned processes
-pkill -f test-process-name
+# Reconcile scenario-owned processes through the control plane
+vrooli scenario stop my-scenario
+vrooli scenario start my-scenario --clean-stale
 
 # Clean up containers
 docker ps -q | xargs -r docker rm -f
@@ -943,8 +940,8 @@ def db_session():
 # Check if scenario exists in catalog
 test-genie scenarios list | grep my-scenario
 
-# Verify scenario configuration
-cat scenarios/my-scenario/.vrooli/service.json | jq '.lifecycle.test'
+# Verify Test Genie configuration when the scenario customizes it
+jq . scenarios/my-scenario/.vrooli/testing.json
 ```
 
 **Solutions:**

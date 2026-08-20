@@ -1,11 +1,6 @@
 package treasuryadmin
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/connectx"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/schedule"
-	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 	"treasury/internal/approval"
 	"treasury/internal/authorization"
 	"treasury/internal/book"
@@ -18,6 +13,12 @@ import (
 	"treasury/internal/rail"
 	"treasury/internal/rail/card"
 	"treasury/internal/settlement"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
+	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 )
 
 func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock schedule.Clock, relay approval.Relay, rails *rail.Registry, cardIssuers *card.Registry, credentials instrument.CredentialResolver, signer mandate.Signer) module.Module {

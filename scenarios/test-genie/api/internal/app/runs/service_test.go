@@ -10,7 +10,6 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/vrooli/freshness-go/treedigest"
 	"test-genie/internal/execution"
 	"test-genie/internal/executionevidence"
 	"test-genie/internal/orchestrator"
@@ -18,6 +17,8 @@ import (
 	"test-genie/internal/orchestrator/providerreadiness"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
+
+	"github.com/vrooli/freshness-go/treedigest"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -714,6 +715,78 @@ func TestCompareRunsResolvedAdvisorySkippedProviderGapIsCurrentOnlyEvidence(t *t
 	phase := resp.Msg.GetPhases()[0]
 	if phase.GetCoverage() != "current-only" || !hasComparisonDiagnostic(phase, "provider_recovered") {
 		t.Fatalf("resolved advisory provider gap comparison = %+v", phase)
+	}
+}
+
+func TestCompareRunsAdditivePassingPhaseDoesNotPoisonAggregate(t *testing.T) {
+	svc, root := newTestService(t)
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{{Name: "unit", Status: "passed"}},
+	})
+	seedDescriptorSnapshot(t, root, "base", capturedPhase("unit", "Unit"))
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{
+			{Name: "unit", Status: "passed"},
+			{Name: "monetization-conformance", Status: "passed"},
+		},
+	})
+	additive := capturedPhase("monetization-conformance", "Monetization Conformance")
+	additive.ComparisonMode = "additive"
+	seedDescriptorSnapshot(t, root, "cur", capturedPhase("unit", "Unit"), additive)
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if got := resp.Msg.GetVerdict(); got != verdictClean {
+		t.Fatalf("overall verdict: want %s, got %s", verdictClean, got)
+	}
+	if got := resp.Msg.GetCoverage(); got != "measured" {
+		t.Fatalf("aggregate coverage: want measured, got %s", got)
+	}
+	var phase *runspb.PhaseDiff
+	for _, candidate := range resp.Msg.GetPhases() {
+		if candidate.GetPhase() == "monetization-conformance" {
+			phase = candidate
+			break
+		}
+	}
+	if phase == nil || phase.GetVerdict() != verdictClean || phase.GetBehavior() != "clean" || phase.GetCoverage() != "current-only" || phase.GetCompatibility() != "additive" || !hasComparisonDiagnostic(phase, "additive_phase") {
+		t.Fatalf("additive phase comparison = %+v", phase)
+	}
+}
+
+func TestCompareRunsAdditiveFailingPhaseIsNewFailure(t *testing.T) {
+	svc, root := newTestService(t)
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{{Name: "unit", Status: "passed"}},
+	})
+	seedDescriptorSnapshot(t, root, "base", capturedPhase("unit", "Unit"))
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusFailed,
+		Phases: []sharedruns.PhaseRecord{
+			{Name: "unit", Status: "passed"},
+			{Name: "monetization-conformance", Status: "failed"},
+		},
+	})
+	additive := capturedPhase("monetization-conformance", "Monetization Conformance")
+	additive.ComparisonMode = "additive"
+	seedDescriptorSnapshot(t, root, "cur", capturedPhase("unit", "Unit"), additive)
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if got := resp.Msg.GetVerdict(); got != verdictNewFailure {
+		t.Fatalf("overall verdict: want %s, got %s", verdictNewFailure, got)
+	}
+	for _, phase := range resp.Msg.GetPhases() {
+		if phase.GetPhase() == "monetization-conformance" && phase.GetVerdict() != verdictNewFailure {
+			t.Fatalf("additive failure comparison = %+v", phase)
+		}
 	}
 }
 

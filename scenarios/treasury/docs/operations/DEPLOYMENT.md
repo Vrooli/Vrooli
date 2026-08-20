@@ -25,7 +25,7 @@ Use this document to answer:
 
 - API port: assigned by lifecycle as `API_PORT`.
 - UI port: assigned by lifecycle as `UI_PORT`.
-- Storage: `SQLITE_PATH` local file by default.
+- Storage: embedded SQLite, resolved from the scenario id by `api-core/storage`.
 - Resources: none external by default. A self-hosted x402 facilitator
   becomes a managed resource at P1; the implementation choice is an open
   decision in `../internal/DECISIONS.md`.

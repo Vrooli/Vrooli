@@ -60,10 +60,11 @@ INSERT INTO suite_executions (
 	fail_fast,
 	success,
 	terminal_outcome,
+		requested_at,
 		started_at,
 		completed_at
 ) VALUES (
-	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )`
 
 	// terminal_outcome is the run-level classification. A caller that did not
@@ -102,6 +103,7 @@ INSERT INTO suite_executions (
 		boolToInt(record.FailFast),
 		boolToInt(record.Success),
 		outcome.String(),
+		nullIfZeroTime(record.RequestedAt),
 		sqliteutil.FormatTimestamp(record.StartedAt),
 		sqliteutil.FormatTimestamp(record.CompletedAt),
 	)
@@ -567,4 +569,16 @@ func maxInt(left, right int) int {
 		return left
 	}
 	return right
+}
+
+// nullIfZeroTime stores NULL rather than a formatted zero time.
+//
+// A zero timestamp means "not known", and writing it as a real value would let
+// queue-latency arithmetic treat the epoch as a request time and report a
+// latency of decades. NULL propagates as unknown instead.
+func nullIfZeroTime(t time.Time) any {
+	if t.IsZero() {
+		return nil
+	}
+	return sqliteutil.FormatTimestamp(t)
 }

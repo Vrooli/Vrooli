@@ -235,6 +235,13 @@ a migration handoff with a planned retirement path back into
 |---|---|---|---|
 | _None yet._ |  |  |  |
 
+## Work ladder
+
+- Rung: W3
+- Evidence: `GOWORK=off go test ./...` passes for the API. Surface-family reduction and per-run provider memoization regression tests pass. The scenario-owned suite completed 16/21 phases; its failures are existing maturity/contract/quality gates outside this performance change.
+- Blocker: Full scenario-suite green status remains blocked by the pre-existing findings listed by test-genie.
+- Measured: 2026-08-20
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

@@ -124,6 +124,12 @@ provided capture template (inherited from the react-vite template).
   `source_fingerprint` and checks it before calling language graph
   adapters. Bypassing that cache without a reason is a regression in
   itself.
+- **Requesting facts the consumer does not use.** Cartographer's
+  production Go adapter requests the `structural` go-code-graph profile.
+  The returned profile and `omitted_information` metadata are persisted
+  with the snapshot, so missing resolved facts are explainable rather than
+  mistaken for extraction errors. Consumers needing type resolution or test
+  variants must choose `semantic` or `full` explicitly.
 - **Decoding graph payloads for metadata checks.** Audit freshness uses
   `LatestSnapshotMeta`; latest-snapshot existence checks must not load
   or decode the graph JSON payload.

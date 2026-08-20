@@ -12,7 +12,12 @@
   "validation": {
     "contract": "scenario-validation/v1"
   },
-  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "targets": {
+    "kinds": [
+      "scenario"
+    ],
+    "selection": "enumerate"
+  },
   "applicability": {
     "default": "not_applicable",
     "any": [
@@ -483,7 +488,7 @@
   },
   "determinism": {
     "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "reason": "Provider conformance calls each provider's live Connect endpoint to read its descriptor, build identity, and metrics adoption. The verdict describes the running provider fleet, so it cannot be derived from a file digest."
   },
   "dimensions": [
     "operational-targets"

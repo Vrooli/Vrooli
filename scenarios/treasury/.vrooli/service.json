@@ -182,9 +182,7 @@
     },
     "rationale": "Treasury owns one durable SQLite database; Money Ledger journals and facilitator state remain externally owned and are not claimed here."
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/treasury.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

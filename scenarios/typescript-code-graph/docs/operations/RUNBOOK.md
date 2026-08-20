@@ -61,7 +61,7 @@ The scenario is **stateless in v1**. There is nothing to back up unless the Oper
 
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|
-| Operation Log SQLite database (P1 only) | Copy the `$SQLITE_PATH` file | Replace the `$SQLITE_PATH` file | Define schema migration policy before deployment. |
+| Operation Log SQLite database (P1 only) | Copy the scenario database file | Replace the scenario database file | Define schema migration policy before deployment. |
 | Plan registry | n/a — in-process and ephemeral | n/a | By design — plans expire on restart. |
 | Sidecar process state | n/a — ephemeral by design | n/a | By design — sidecar holds no durable state. |
 | Recent-calls telemetry | n/a — in-memory ring buffer | n/a | By design. |

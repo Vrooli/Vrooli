@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API (all cartographer domains) | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API (all cartographer domains) | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
 | `go-code-graph` (scenario) | scenario, runtime | yes — for any target scenario with Go code | `graph`, `apply` domains | Connect-RPC; service `GoCodeGraphService` with methods `Extract`, `Rewrite` (planned) | Graph extraction for Go scenarios fails; cartographer reports degraded; agent prompted to start dependency. |
 | `typescript-code-graph` (scenario) | scenario, runtime | yes — for any target scenario with TS code | `graph`, `apply` domains | Connect-RPC; service `TypeScriptCodeGraphService` with methods `Extract`, `Rewrite` (planned) | Graph extraction for TS scenarios fails; cartographer reports degraded; agent prompted to start dependency. |

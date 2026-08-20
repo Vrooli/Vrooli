@@ -39,4 +39,16 @@ type RawGraph struct {
 	// milliseconds. Cartographer also measures its own wall-clock for
 	// cross-checking.
 	ExtractionMS int64
+	// ExtractionProfiles are the effective producer profiles. They are
+	// preserved for explainability when lighter profiles intentionally omit
+	// facts.
+	ExtractionProfiles []string
+	OmittedInformation []InformationOmission
+}
+
+// InformationOmission explains a capability intentionally excluded by an
+// adapter's extraction profile. It is informational, not an error.
+type InformationOmission struct {
+	Capability string
+	Reason     string
 }

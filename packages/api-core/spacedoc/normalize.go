@@ -86,6 +86,8 @@ func classifyHeader(h string) string {
 		return "owner"
 	case strings.Contains(l, "status"):
 		return "status"
+	case strings.Contains(l, "gap") && strings.Contains(l, "open"):
+		return "gap_opened_on"
 	case strings.Contains(l, "basis"):
 		return "basis"
 	case strings.Contains(l, "note"), strings.Contains(l, "approach"):
@@ -97,18 +99,11 @@ func classifyHeader(h string) string {
 
 // normalizeProjection maps a "This Space" projection cell to a Projection.
 func normalizeProjection(s string) Projection {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "answer":
-		return ProjectionAnswer
-	case "validate":
-		return ProjectionValidate
-	case "guide":
-		return ProjectionGuide
-	case "act":
-		return ProjectionAct
-	default:
-		return ""
+	p := Projection(strings.ToLower(strings.TrimSpace(s)))
+	if p.Valid() {
+		return p
 	}
+	return ""
 }
 
 // normalizeConfidence finds the first of AUTHORITATIVE/PARTIAL/SKETCH in the

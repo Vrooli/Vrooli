@@ -29,10 +29,10 @@ func testSandbox() *types.Sandbox {
 func TestDefaultAttributionPolicy_GetCommitAuthor(t *testing.T) {
 	sandbox := testSandbox()
 	cases := []struct {
-		name string
-		mode string
+		name  string
+		mode  string
 		actor string
-		want string
+		want  string
 	}{
 		{name: "agent", mode: "agent", want: "agent-one <noreply@workspace-sandbox.local>"},
 		{name: "reviewer", mode: "reviewer", actor: "reviewer", want: "reviewer <noreply@workspace-sandbox.local>"},
@@ -185,8 +185,8 @@ func TestBuildHookEnv(t *testing.T) {
 		"SANDBOX_SCOPE_PATH":    sandbox.ScopePath,
 		"SANDBOX_PROJECT_ROOT":  sandbox.ProjectRoot,
 		"SANDBOX_UPPER_DIR":     sandbox.UpperDir,
-		"SANDBOX_MERGED_DIR":     sandbox.MergedDir,
-		"SANDBOX_CHANGE_COUNT":   "2",
+		"SANDBOX_MERGED_DIR":    sandbox.MergedDir,
+		"SANDBOX_CHANGE_COUNT":  "2",
 		"SANDBOX_CHANGED_FILES": "a.go,b.go",
 	} {
 		if values[key] != want {

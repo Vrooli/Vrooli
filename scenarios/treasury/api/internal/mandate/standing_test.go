@@ -5,14 +5,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	"github.com/vrooli/api-core/database"
-	db "github.com/vrooli/api-core/databasetest"
-	"github.com/vrooli/api-core/schedule"
 	"treasury/internal/book"
 	"treasury/internal/budget"
 	"treasury/internal/mandate"
 	mandateflow "treasury/internal/mandate/flow"
+
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // [REQ:TRS-P1-005] A standing mandate exposes its next charge, advances each

@@ -28,19 +28,58 @@ func Normalize(scenario string, raw RawGraph) GraphSnapshot {
 		return imports[i].ToPackageID < imports[j].ToPackageID
 	})
 
-	hash := contentHash(scenario, raw.Languages, files, packages, symbols, imports)
+	profiles := uniqueStrings(raw.ExtractionProfiles)
+	omissions := uniqueOmissions(raw.OmittedInformation)
+	hash := contentHash(scenario, raw.Languages, files, packages, symbols, imports, profiles, omissions)
 
 	return GraphSnapshot{
-		ID:           "snap:" + scenario + ":" + hash,
-		Scenario:     scenario,
-		ContentHash:  hash,
-		Languages:    uniqueLanguages(raw.Languages),
-		ExtractionMS: raw.ExtractionMS,
-		Files:        files,
-		Packages:     packages,
-		Symbols:      symbols,
-		Imports:      imports,
+		ID:                 "snap:" + scenario + ":" + hash,
+		Scenario:           scenario,
+		ContentHash:        hash,
+		Languages:          uniqueLanguages(raw.Languages),
+		ExtractionMS:       raw.ExtractionMS,
+		Files:              files,
+		Packages:           packages,
+		Symbols:            symbols,
+		Imports:            imports,
+		ExtractionProfiles: profiles,
+		OmittedInformation: omissions,
 	}
+}
+
+func uniqueStrings(in []string) []string {
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, value := range in {
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func uniqueOmissions(in []InformationOmission) []InformationOmission {
+	seen := make(map[string]struct{}, len(in))
+	out := make([]InformationOmission, 0, len(in))
+	for _, omission := range in {
+		key := omission.Capability + "\x00" + omission.Reason
+		if omission.Capability == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, omission)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Capability < out[j].Capability })
+	return out
 }
 
 func dedupeFiles(in []FileNode) []FileNode {
@@ -194,14 +233,18 @@ func contentHash(
 	pkgs []PackageNode,
 	syms []SymbolNode,
 	imps []ImportEdge,
+	profiles []string,
+	omissions []InformationOmission,
 ) string {
 	payload := struct {
-		Scenario  string        `json:"scenario"`
-		Languages []Language    `json:"languages"`
-		Files     []FileNode    `json:"files"`
-		Packages  []PackageNode `json:"packages"`
-		Symbols   []SymbolNode  `json:"symbols"`
-		Imports   []ImportEdge  `json:"imports"`
+		Scenario  string                `json:"scenario"`
+		Languages []Language            `json:"languages"`
+		Files     []FileNode            `json:"files"`
+		Packages  []PackageNode         `json:"packages"`
+		Symbols   []SymbolNode          `json:"symbols"`
+		Imports   []ImportEdge          `json:"imports"`
+		Profiles  []string              `json:"profiles,omitempty"`
+		Omissions []InformationOmission `json:"omissions,omitempty"`
 	}{
 		Scenario:  scenario,
 		Languages: uniqueLanguages(langs),
@@ -209,6 +252,8 @@ func contentHash(
 		Packages:  pkgs,
 		Symbols:   syms,
 		Imports:   imps,
+		Profiles:  profiles,
+		Omissions: omissions,
 	}
 	b, _ := json.Marshal(payload)
 	sum := sha256.Sum256(b)

@@ -3,6 +3,7 @@ package targetruntime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -57,6 +58,8 @@ type (
 )
 
 const maxLifecycleDiagnosticBytes = 8 * 1024
+
+const defaultStartTimeout = 2 * time.Minute
 
 // lifecycleDiagnostics retains the tail of lifecycle command output. Startup
 // failures frequently put the actionable compiler or configuration error last;
@@ -226,7 +229,18 @@ func (m *Manager) validate() error {
 	return nil
 }
 
+func (m *Manager) startTimeout() time.Duration {
+	if m.StartTimeout > 0 {
+		return m.StartTimeout
+	}
+	return defaultStartTimeout
+}
+
 func (m *Manager) runLifecycle(ctx context.Context, env map[string]string, logWriter io.Writer, action string) error {
+	lifecycleTimeout := m.startTimeout()
+	lifecycleCtx, cancel := context.WithTimeout(ctx, lifecycleTimeout)
+	defer cancel()
+
 	args := []string{"scenario", action, m.Name, "--clean-stale"}
 	if action == "stop" {
 		args = []string{"scenario", "stop", m.Name}
@@ -239,7 +253,10 @@ func (m *Manager) runLifecycle(ctx context.Context, env map[string]string, logWr
 	if logWriter != nil {
 		writer = io.MultiWriter(logWriter, &diagnostics)
 	}
-	if err := m.runCommand(ctx, "", env, writer, "vrooli", args...); err != nil {
+	if err := m.runCommand(lifecycleCtx, "", env, writer, "vrooli", args...); err != nil {
+		if errors.Is(lifecycleCtx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf("lifecycle %s timed out after %s: %w", action, lifecycleTimeout, lifecycleCtx.Err())
+		}
 		if detail := diagnostics.String(); detail != "" {
 			return fmt.Errorf("%w; lifecycle %s output: %s", err, action, detail)
 		}
@@ -249,10 +266,7 @@ func (m *Manager) runLifecycle(ctx context.Context, env map[string]string, logWr
 }
 
 func (m *Manager) waitForURLs(ctx context.Context, needs Needs) (URLs, error) {
-	timeout := m.StartTimeout
-	if timeout <= 0 {
-		timeout = 2 * time.Minute
-	}
+	timeout := m.startTimeout()
 	interval := m.PollInterval
 	if interval <= 0 {
 		interval = 500 * time.Millisecond

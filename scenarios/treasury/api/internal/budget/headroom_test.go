@@ -5,14 +5,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	"github.com/vrooli/api-core/database"
-	db "github.com/vrooli/api-core/databasetest"
-	"github.com/vrooli/api-core/schedule"
 	"treasury/internal/authorization"
 	"treasury/internal/book"
 	"treasury/internal/budget"
 	"treasury/internal/mandate"
+
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/schedule"
 )
 
 // [REQ:TRS-P1-007] Headroom is derived entirely from Treasury's own

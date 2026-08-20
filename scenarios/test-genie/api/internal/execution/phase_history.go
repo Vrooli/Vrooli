@@ -60,7 +60,7 @@ func insertPhaseHistory(ctx context.Context, tx *sql.Tx, executionID uuid.UUID, 
 		if _, err := tx.ExecContext(ctx, insertPhaseHistorySQL,
 			executionID.String(), ordinal, name, strings.ToLower(strings.TrimSpace(result.Status)), durationMs, predicted, durationSeconds,
 			result.Error, result.Classification, result.ClassificationSource, result.Remediation, result.RunnabilityVerdict,
-			result.RunnabilityReason, result.FindingSource, boolToInt(result.Metrics != nil), summary.GetBlockers(), summary.GetErrors(),
+			result.RunnabilityReason, result.FindingSource, boolToInt(metricsAreMeasured(result.Metrics)), summary.GetBlockers(), summary.GetErrors(),
 			summary.GetWarnings(), summary.GetInfos(), summary.GetTotal(), wallClock, cpuUser, cpuSys,
 			peakRSS, cpuReliability, memoryReliability, gpuReliability, boolToInt(result.CacheHit), result.CacheSourceRunID,
 			boolToInt(result.CacheAudit), boolToInt(result.CacheAuditMismatch), boolToInt(result.CacheNoSaving),
@@ -69,6 +69,32 @@ func insertPhaseHistory(ctx context.Context, tx *sql.Tx, executionID uuid.UUID, 
 		}
 	}
 	return nil
+}
+
+// metricsAreMeasured reports whether a phase actually measured its resource
+// usage, and is the source of the metrics_present column.
+//
+// The column used to be derived from `Metrics != nil`, which made it a
+// statement about a POINTER rather than about measurement. workflow-health
+// returned a non-nil but empty &ExecutionMetrics{}, so 1,733 phase records
+// claimed measurement over no data — and cost estimation, which filters on
+// `metrics_present = 1`, trusted them.
+//
+// Presence now means the provider reported a reliability enum. That keeps the
+// distinction that matters: a provider which genuinely cannot measure reports
+// UNAVAILABLE, which is honest, distinguishable, and still present; a provider
+// that reports nothing at all is absent. It also makes the column consistent
+// with the reliability columns beside it — metricColumns writes those only when
+// Resources is set — so a row can no longer claim presence while its
+// cpu_reliability is null.
+func metricsAreMeasured(metrics *commonv1.ExecutionMetrics) bool {
+	resources := metrics.GetResources()
+	if resources == nil {
+		return false
+	}
+	return resources.GetCpu() != commonv1.Reliability_RELIABILITY_UNSPECIFIED ||
+		resources.GetMemory() != commonv1.Reliability_RELIABILITY_UNSPECIFIED ||
+		resources.GetGpu() != commonv1.Reliability_RELIABILITY_UNSPECIFIED
 }
 
 func metricColumns(metrics *commonv1.ExecutionMetrics) (any, any, any, any, any, any, any) {

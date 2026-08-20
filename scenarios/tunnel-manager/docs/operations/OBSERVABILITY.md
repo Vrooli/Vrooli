@@ -43,7 +43,7 @@ Use this document to answer:
 ## Stored Telemetry
 
 All time-series and history are persisted in **SQLite** (DECISIONS:
-"SQLite only"), co-located with the manifest under `SQLITE_PATH`. There
+"SQLite only"), co-located with the manifest in the scenario data directory. There
 is no external metrics store — foundational infra keeps working when
 other resources are down.
 

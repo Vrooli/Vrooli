@@ -647,6 +647,13 @@ func snapshotToProto(s graph.GraphSnapshot) *graphv1.GraphSnapshot {
 			TestOnly:    e.TestOnly,
 		})
 	}
+	out.ExtractionProfiles = append([]string(nil), s.ExtractionProfiles...)
+	for _, omission := range s.OmittedInformation {
+		out.OmittedInformation = append(out.OmittedInformation, &commonv1.CodeGraphOmission{
+			Capability: omission.Capability,
+			Reason:     omission.Reason,
+		})
+	}
 	return out
 }
 

@@ -11,10 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"treasury/internal/ledger"
+
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
-	"treasury/internal/ledger"
 )
 
 // [REQ:TRS-P1-002] An unpaid caller receives a complete v2 challenge, while a

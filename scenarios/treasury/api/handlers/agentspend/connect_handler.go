@@ -10,17 +10,18 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
-	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
-	budgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget"
-	mandatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate"
-	settlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/settlement"
 	"treasury/internal/authorization"
 	"treasury/internal/budget"
 	"treasury/internal/identity"
 	"treasury/internal/mandate"
 	mandateflow "treasury/internal/mandate/flow"
 	"treasury/internal/settlement"
+
+	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
+	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
+	budgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget"
+	mandatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate"
+	settlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/settlement"
 )
 
 type MandateLister interface {

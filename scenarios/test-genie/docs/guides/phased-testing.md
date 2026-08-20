@@ -77,8 +77,11 @@ The phase inspection and plan surfaces expose provider, descriptor path, docs pa
 
 Every run freezes a descriptor snapshot. Each phase carries a semantic
 comparison fingerprint and a `comparison.mode`: `compatible`,
-`changed-unreviewed` (the default), `invalidated`, or `superseded`. Display
-copy and ordering do not affect this fingerprint; validation policy, provider,
+`changed-unreviewed` (the default), `invalidated`, `superseded`, or `additive`.
+An `additive` phase is intentionally new after an older baseline: a passing
+current-only result remains visible as evidence without poisoning the aggregate
+comparison, while a failing result is still a hard new failure. Display copy
+and ordering do not affect this fingerprint; validation policy, provider,
 applicability, and evidence semantics do. Therefore a same-key validator edit
 cannot silently turn a pass-to-fail result into a regression: it is reported as
 an explicit contract change until the provider declares compatibility.
@@ -310,7 +313,7 @@ Scenarios should have this test structure:
 ```
 scenario/
 ├── .vrooli/
-│   ├── service.json      # Scenario configuration (lifecycle.test.steps invokes test-genie)
+│   ├── service.json      # Scenario runtime and component declaration
 │   └── testing.json      # Test-genie configuration (optional)
 ├── test/                  # Test artifacts directory
 │   └── playbooks/        # BAS workflow tests (optional)
@@ -320,7 +323,9 @@ scenario/
     └── *.test.ts         # Vitest/Jest tests
 ```
 
-> **Note**: Testing is orchestrated via `.vrooli/service.json` `lifecycle.test.steps` which invokes `test-genie execute`. The legacy `coverage/run-tests.sh` + `coverage/phases/*` pattern is deprecated.
+> **Note**: Run tests with `vrooli scenario test <name>`. The control plane
+> submits the run directly to Test Genie; testing is not a scenario lifecycle
+> phase. The `coverage/run-tests.sh` + `coverage/phases/*` pattern is legacy.
 
 ## Configuration with `.vrooli/testing.json`
 
@@ -416,7 +421,7 @@ UI_URL="http://localhost:$UI_PORT"
 
 Before considering a scenario test-ready:
 
-- [ ] `.vrooli/service.json` properly configured with `lifecycle.test.steps` invoking `test-genie execute`
+- [ ] `.vrooli/testing.json` declares any scenario-specific Test Genie configuration
 - [ ] Test directory exists for artifacts (playbooks, fixtures, logs)
 - [ ] Unit tests with coverage > 70%
 - [ ] `[REQ:ID]` tags on tests matching PRD requirements

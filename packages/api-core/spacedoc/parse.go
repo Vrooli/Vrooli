@@ -31,6 +31,7 @@ func Parse(projection Projection, md []byte) (*SpaceDefinition, error) {
 		Owner:                 firstToken(meta["owner"]),
 		DenominatorConfidence: normalizeConfidence(meta["denominator confidence"]),
 		ConfidenceRationale:   strings.TrimSpace(meta["denominator confidence"]),
+		LegUnit:               strings.TrimSpace(meta["leg unit"]),
 		Cells:                 cells,
 	}
 	if def.DenominatorConfidence == "" {
@@ -147,11 +148,12 @@ func buildCell(row []string, colIdx map[string]int, group string, projection Pro
 		return Cell{}, false, fmt.Errorf("spacedoc cell %q: %w", id, err)
 	}
 	cell := Cell{
-		ID:       id,
-		Group:    group,
-		Question: question,
-		Owner:    cleanInline(get("owner")),
-		Status:   status,
+		ID:          id,
+		Group:       group,
+		Question:    question,
+		Owner:       cleanInline(get("owner")),
+		Status:      status,
+		GapOpenedOn: cleanInline(get("gap_opened_on")),
 	}
 	if projection == ProjectionAnswer {
 		cell.Basis = normalizeBasis(get("basis"))

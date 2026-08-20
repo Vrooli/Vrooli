@@ -30,27 +30,6 @@ func TestDetectTestingCapabilitiesPrefersPhased(t *testing.T) {
 	}
 }
 
-func TestDetectTestingCapabilitiesLifecycle(t *testing.T) {
-	t.Setenv("TEST_GENIE_BIN", "")
-	t.Setenv("TEST_GENIE_DISABLE", "")
-	dir := t.TempDir()
-	manifest := `{"lifecycle":{"test":"./scripts/run.sh"}}`
-	if err := os.MkdirAll(filepath.Join(dir, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, ".vrooli", "service.json"), []byte(manifest), 0o644); err != nil {
-		t.Fatalf("write service.json: %v", err)
-	}
-
-	caps := DetectTestingCapabilities(dir)
-	if caps.Phased || !caps.Lifecycle || caps.Preferred != "lifecycle" {
-		t.Fatalf("expected lifecycle detection, got %#v", caps)
-	}
-	if len(caps.Commands) == 0 {
-		t.Fatalf("expected lifecycle command, got %#v", caps.Commands)
-	}
-}
-
 func TestDetectTestingCapabilitiesLegacy(t *testing.T) {
 	t.Setenv("TEST_GENIE_BIN", "")
 	t.Setenv("TEST_GENIE_DISABLE", "")
@@ -78,20 +57,14 @@ func TestDetectTestingCapabilitiesMultipleModes(t *testing.T) {
 	t.Setenv("TEST_GENIE_BIN", "")
 	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
-	// Lifecycle + legacy but no phased should prefer lifecycle
-	if err := os.MkdirAll(filepath.Join(dir, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, ".vrooli", "service.json"), []byte(`{"lifecycle":{"test":"./run"}}`), 0o644); err != nil {
-		t.Fatalf("write service.json: %v", err)
-	}
+	// Legacy is the only local fallback when no phased suite is present.
 	if err := os.WriteFile(filepath.Join(dir, "scenario-test.yaml"), []byte("legacy: true"), 0o644); err != nil {
 		t.Fatalf("write scenario-test.yaml: %v", err)
 	}
 
 	caps := DetectTestingCapabilities(dir)
-	if !caps.Lifecycle || !caps.Legacy || caps.Preferred != "lifecycle" {
-		t.Fatalf("expected lifecycle preference, got %#v", caps)
+	if !caps.Legacy || caps.Preferred != "legacy" {
+		t.Fatalf("expected legacy preference, got %#v", caps)
 	}
 
 	// Add phased runner and ensure preference flips

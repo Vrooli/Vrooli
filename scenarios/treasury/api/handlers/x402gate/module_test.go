@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/require"
 	"treasury/internal/operatorauth"
 	x402rail "treasury/internal/rail/x402"
+
+	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/require"
 )
 
 // [REQ:TRS-P1-002] Price mutation is operator-only, while the interoperable

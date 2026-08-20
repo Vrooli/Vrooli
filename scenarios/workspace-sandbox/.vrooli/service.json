@@ -111,97 +111,10 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/workspace-sandbox-api",
-              "api/workspace-sandbox-launcher"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "workspace-sandbox"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o workspace-sandbox-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "build-launcher",
-          "run": "cd api && GOWORK=off go build -o workspace-sandbox-launcher ./cmd/workspace-sandbox-launcher",
-          "description": "Build portable API launcher"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && exec ./workspace-sandbox-launcher ./workspace-sandbox-api",
-          "background": true,
-          "description": "Start Go API server through the portable launcher, which applies the selected driver launch policy before API boot.",
-          "condition": {
-            "file_exists": "api/workspace-sandbox-launcher"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute workspace-sandbox --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes through Vrooli's tracked process-group lifecycle"
     }
   },
   "dependencies": {
     "resources": {}
-  },
-  "notes": {
-    "storage_strategy": "Embedded SQLite via modernc.org/sqlite (pure Go, CGO-free); no shared database resource. The SQLite file is resolved through the service-owned api-core/storage contract; application-level database-path overrides are not supported."
   },
   "cli": {
     "enabled": true,
@@ -222,6 +135,38 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "./workspace-sandbox-launcher",
+          "./workspace-sandbox-api"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

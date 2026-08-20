@@ -21,7 +21,7 @@ optional dependencies are explicitly fallback-safe.
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, all persistence-backed domains | `SQLITE_PATH` lifecycle env var; no external DB | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, all persistence-backed domains | resolved by `api-core/storage` from the scenario id; no external DB | API reports unhealthy if unreachable. |
 | Vrooli lifecycle (`internal/lifecycle`) | local platform + seam | yes | API, UI, CLI; `exposure` ensure-running | `.vrooli/service.json`, Makefile targets; ensure-running seam | Start through lifecycle commands; ensure-running failure surfaces as an Expose error (TM does not reimplement lifecycle). |
 | `cloudflared` daemon | managed resource (required) | yes | `tunnel` (resource status + `/ready` + Prometheus), `config` (local mode), `recovery` (resource restart) | Vrooli-managed service exports its `/ready` and Prometheus endpoint; standalone fallback is `127.0.0.1:20241` | If down: `tunnel` reports unhealthy, `recovery` restarts it (single owner). TM does NOT install it (setup handles that). |
 | Cloudflare API v4 | third-party service | remote mode only | `config` ingress push/sync | HTTPS API + account/tunnel id + API token (credential reference, not inlined) | Remote sync returns a typed setup/upstream error; local config mode remains available. Cloudflare-outage classification needs richer signals and is deferred. |

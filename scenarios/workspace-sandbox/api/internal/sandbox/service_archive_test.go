@@ -30,7 +30,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/storage"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/blobstore"
 	"workspace-sandbox/internal/diff"
@@ -38,6 +37,8 @@ import (
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 )

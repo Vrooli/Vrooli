@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"test-genie/internal/executionevidence"
+
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
-	"test-genie/internal/executionevidence"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )

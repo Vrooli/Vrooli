@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"architecture-cartographer/internal/domains"
+
 	"connectrpc.com/connect"
 )
 

@@ -9,10 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	"github.com/vrooli/api-core/database"
-	db "github.com/vrooli/api-core/databasetest"
-	"github.com/vrooli/api-core/schedule"
 	"treasury/internal/book"
 	"treasury/internal/budget"
 	"treasury/internal/instrument"
@@ -20,6 +16,11 @@ import (
 	"treasury/internal/rail"
 	"treasury/internal/rail/card"
 	"treasury/internal/rail/manual"
+
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/schedule"
 )
 
 type credentialResolver struct {

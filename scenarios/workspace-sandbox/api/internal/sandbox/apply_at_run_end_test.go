@@ -10,8 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
+
+	"github.com/google/uuid"
 )
 
 func TestValidateApplyAtRunEndRequest_HappyPath(t *testing.T) {

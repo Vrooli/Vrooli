@@ -34,7 +34,7 @@ with `treasury` absent. That congruence is maintained by a parity test
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, all persistence-backed domains | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, all persistence-backed domains | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario is started through lifecycle commands only. |
 | `scenario-authenticator` | scenario | **yes** | holders, and every authenticated read/write | Slug resolution; tokens verified locally against published JWKS | Fail closed. Without a verifiable identity the holder boundary cannot be enforced, so authenticated surfaces refuse rather than degrade. Health reports the dependency. |
 | `notification-hub` | scenario | no | redemption (approval requests) | Slug resolution; best-effort relay | Degrade silently to in-scenario queue only. The approval queue is first-class and works unchanged; only out-of-band reach is lost. |

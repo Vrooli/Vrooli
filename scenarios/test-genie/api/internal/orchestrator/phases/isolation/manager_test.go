@@ -54,6 +54,8 @@ func TestMergeAndSanitize(t *testing.T) {
 
 func TestStartSQLiteProvisioning(t *testing.T) {
 	manager := NewManager(Config{
+		// A display name, not a slug: the manager must normalize it before
+		// handing it to the storage seam, which requires a scenario identifier.
 		ScenarioName:  "Test Genie",
 		RequireSQLite: true,
 		SQLiteEnvVars: []string{"APP_SQLITE_PATH"},
@@ -66,23 +68,47 @@ func TestStartSQLiteProvisioning(t *testing.T) {
 	if result == nil {
 		t.Fatal("expected sqlite start result")
 	}
-	if result.env["SQLITE_PATH"] == "" || result.env["APP_SQLITE_PATH"] == "" {
-		t.Fatalf("expected sqlite env vars to be populated: %#v", result.env)
+
+	// Isolation is expressed as a storage ROOT, not a database path. The root
+	// is scenario-agnostic, so every scenario beneath it still resolves its own
+	// separate file — which is why a leaked value isolates instead of colliding.
+	root := result.env["VROOLI_STORAGE_ROOT"]
+	if root == "" {
+		t.Fatalf("expected an isolated storage root: %#v", result.env)
 	}
-	if result.env["SQLITE_PATH"] != result.env["APP_SQLITE_PATH"] {
-		t.Fatalf("expected scenario-specific sqlite env to reuse sqlite path: %#v", result.env)
+	if _, err := os.Stat(root); err != nil {
+		t.Fatalf("expected the isolated storage root to exist: %v", err)
 	}
-	if filepath.Ext(result.env["SQLITE_PATH"]) != ".db" {
-		t.Fatalf("expected sqlite path to point at a db file, got %s", result.env["SQLITE_PATH"])
+
+	// A scenario-scoped variable is still supplied: its name carries its owner,
+	// so it cannot capture a sibling's database.
+	scoped := result.env["APP_SQLITE_PATH"]
+	if scoped == "" {
+		t.Fatalf("expected the declared scenario-scoped variable to be set: %#v", result.env)
 	}
-	if _, err := os.Stat(filepath.Dir(result.env["SQLITE_PATH"])); err != nil {
-		t.Fatalf("expected sqlite temp dir to exist: %v", err)
+	if !strings.HasPrefix(scoped, root) {
+		t.Fatalf("declared path %q is not inside the isolated root %q", scoped, root)
+	}
+	if filepath.Ext(scoped) != ".db" {
+		t.Fatalf("expected a .db file, got %s", scoped)
+	}
+	if scoped != result.info.Endpoint {
+		t.Fatalf("the reported endpoint %q disagrees with the provisioned path %q", result.info.Endpoint, scoped)
+	}
+
+	// The generic pair must NOT be injected. Injecting it is what let a single
+	// value redirect every scenario that inherited it.
+	for _, key := range []string{"SQLITE_PATH", "SQLITE_DB"} {
+		if v, ok := result.env[key]; ok {
+			t.Fatalf("%s must not be injected (got %q): a generic database path is "+
+				"inherited by every child process and redirects siblings", key, v)
+		}
 	}
 
 	if err := cleanup(context.Background()); err != nil {
 		t.Fatalf("cleanup returned error: %v", err)
 	}
-	if _, err := os.Stat(filepath.Dir(result.env["SQLITE_PATH"])); !os.IsNotExist(err) {
-		t.Fatalf("expected sqlite temp dir to be removed, got err=%v", err)
+	if _, err := os.Stat(root); !os.IsNotExist(err) {
+		t.Fatalf("expected the isolated storage root to be removed, got err=%v", err)
 	}
 }

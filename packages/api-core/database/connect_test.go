@@ -168,45 +168,48 @@ func TestBuildPostgresDSN_MissingRequired(t *testing.T) {
 // SQLite DSN Building Tests
 // ============================================================================
 
-func TestBuildSQLiteDSN(t *testing.T) {
+func TestBuildSQLiteDSN_ResolvesFromScenarioIdentity(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name     string
-		env      map[string]string
-		expected string
-	}{
-		{
-			name:     "SQLITE_PATH",
-			env:      map[string]string{"SQLITE_PATH": "/data/app.db"},
-			expected: "/data/app.db",
-		},
-		{
-			name:     "SQLITE_DB",
-			env:      map[string]string{"SQLITE_DB": "/tmp/test.db"},
-			expected: "/tmp/test.db",
-		},
-		{
-			name: "SQLITE_PATH takes precedence",
-			env: map[string]string{
-				"SQLITE_PATH": "/primary.db",
-				"SQLITE_DB":   "/secondary.db",
-			},
-			expected: "/primary.db",
-		},
+	dsn, err := buildSQLiteDSN(Config{
+		Driver:    DriverSQLite,
+		Scenario:  "test-genie",
+		EnvGetter: func(string) string { return "" },
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
+	if !strings.HasPrefix(dsn, "file:") {
+		t.Fatalf("expected a file DSN, got %q", dsn)
+	}
+	if !strings.Contains(dsn, "test-genie") {
+		t.Fatalf("expected the DSN to be scoped to the scenario, got %q", dsn)
+	}
+	if !strings.Contains(dsn, "journal_mode(WAL)") {
+		t.Fatalf("expected the canonical pragmas, got %q", dsn)
+	}
+}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			getenv := func(key string) string { return tc.env[key] }
-			dsn, err := buildSQLiteDSN(getenv)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if dsn != tc.expected {
-				t.Fatalf("expected %q, got %q", tc.expected, dsn)
-			}
-		})
+// TestBuildSQLiteDSN_IgnoresGenericPathEnvironment is the regression test for
+// the cross-scenario database hijack. A supervisor that exports a generic
+// database path and then starts a child must not redirect the child's storage.
+func TestBuildSQLiteDSN_IgnoresGenericPathEnvironment(t *testing.T) {
+	t.Parallel()
+
+	inherited := map[string]string{
+		"SQLITE_PATH": "/inherited/autoheal.sqlite",
+		"SQLITE_DB":   "/inherited/autoheal.sqlite",
+	}
+	dsn, err := buildSQLiteDSN(Config{
+		Driver:    DriverSQLite,
+		Scenario:  "test-genie",
+		EnvGetter: func(key string) string { return inherited[key] },
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(dsn, "autoheal") || strings.Contains(dsn, "inherited") {
+		t.Fatalf("an inherited environment redirected the database: %q", dsn)
 	}
 }
 
@@ -214,19 +217,15 @@ func TestBuildDSNFromEnv_SupportsModernCSQLiteDriver(t *testing.T) {
 	t.Parallel()
 
 	dsn, err := buildDSNFromEnv(Config{
-		Driver: DriverSQLite,
-		EnvGetter: func(key string) string {
-			if key == "SQLITE_PATH" {
-				return "/data/test-genie.db"
-			}
-			return ""
-		},
+		Driver:    DriverSQLite,
+		Scenario:  "test-genie",
+		EnvGetter: func(string) string { return "" },
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if dsn != "/data/test-genie.db" {
-		t.Fatalf("expected sqlite path to round-trip, got %q", dsn)
+	if !strings.Contains(dsn, "test-genie") {
+		t.Fatalf("expected the scenario's own database, got %q", dsn)
 	}
 }
 
@@ -234,32 +233,27 @@ func TestBuildDSNFromEnv_SupportsLegacySQLiteDriverAlias(t *testing.T) {
 	t.Parallel()
 
 	dsn, err := buildDSNFromEnv(Config{
-		Driver: DriverSQLiteLegacy,
-		EnvGetter: func(key string) string {
-			if key == "SQLITE_DB" {
-				return "/tmp/legacy.db"
-			}
-			return ""
-		},
+		Driver:    DriverSQLiteLegacy,
+		Scenario:  "legacy-scenario",
+		EnvGetter: func(string) string { return "" },
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if dsn != "/tmp/legacy.db" {
-		t.Fatalf("expected sqlite DB path to round-trip, got %q", dsn)
+	if !strings.Contains(dsn, "legacy-scenario") {
+		t.Fatalf("expected the scenario's own database, got %q", dsn)
 	}
 }
 
-func TestBuildSQLiteDSN_Missing(t *testing.T) {
+func TestBuildSQLiteDSN_RequiresScenario(t *testing.T) {
 	t.Parallel()
 
-	getenv := func(key string) string { return "" }
-	_, err := buildSQLiteDSN(getenv)
+	_, err := buildSQLiteDSN(Config{Driver: DriverSQLite, EnvGetter: func(string) string { return "" }})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(err.Error(), "SQLITE_PATH") {
-		t.Errorf("expected error to mention SQLITE_PATH, got: %v", err)
+	if !strings.Contains(err.Error(), "Config.Scenario") {
+		t.Errorf("expected the error to name Config.Scenario, got: %v", err)
 	}
 }
 

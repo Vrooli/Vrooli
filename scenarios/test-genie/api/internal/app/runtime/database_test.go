@@ -91,7 +91,11 @@ func TestEnsureDatabaseSchemaExecutesSchema(t *testing.T) {
 
 func TestOpenHealthDatabaseUsesIndependentSQLiteHandle(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "health.db")
-	db, err := openHealthDatabase(sqlitedb.BuildDSN(path))
+	dsn, err := sqlitedb.BuildDSN(path)
+	if err != nil {
+		t.Fatalf("BuildDSN: %v", err)
+	}
+	db, err := openHealthDatabase(dsn)
 	if err != nil {
 		t.Fatalf("openHealthDatabase: %v", err)
 	}
@@ -109,7 +113,11 @@ func openSQLite(t *testing.T) *sql.DB {
 	t.Helper()
 
 	dbPath := filepath.Join(t.TempDir(), "runtime-test.db")
-	db, err := sql.Open("sqlite", sqlitedb.BuildDSN(dbPath))
+	dsn, err := sqlitedb.BuildDSN(dbPath)
+	if err != nil {
+		t.Fatalf("BuildDSN: %v", err)
+	}
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}

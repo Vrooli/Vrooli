@@ -29,6 +29,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/maturity-go/assessment"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
+
 	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
 )

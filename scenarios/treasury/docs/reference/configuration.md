@@ -28,7 +28,7 @@ ports as outbound source ports. See the project-level port allocation reference
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/treasury.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
+| _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
 | `TREASURY_OPERATOR_TOKEN` | falls back to `API_TOKEN` | Required credential for every `TreasuryAdmin` RPC. When neither variable is set, the admin service remains mounted but fails closed with `failed_precondition`; an agent identity token is always rejected. |
 | `TREASURY_MANDATE_SIGNING_KEY` | unset | HMAC key used only to sign canonical immutable mandate payloads. Missing configuration leaves reads available but makes mandate creation fail closed. Keep it independent from the operator API credential so either authority can rotate without changing the other. |
 | `NOTIFICATION_HUB_API_URL` | unset | Optional approval-relay base URL supplied by scenario dependency discovery. Missing or unreachable relay records a failed attempt while the local approval queue remains authoritative. |

@@ -12,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/storage"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing/routing_v1connect"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -206,6 +207,10 @@ func disposableSQLiteDSN(leaseID string) (string, func(), error) {
 	}
 	name := strings.NewReplacer("/", "-", "\\", "-").Replace(leaseID)
 	path := filepath.Join(dir, name+".db")
-	dsn := "file:" + path + "?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)"
+	dsn, err := storage.SQLiteDSNAt(path, storage.SQLiteTuning{})
+	if err != nil {
+		_ = os.RemoveAll(dir)
+		return "", nil, err
+	}
 	return dsn, func() { _ = os.RemoveAll(dir) }, nil
 }

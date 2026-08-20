@@ -31,7 +31,7 @@ would require re-deciding what the product is.
 
 - API port: assigned by lifecycle as `API_PORT`.
 - UI port: assigned by lifecycle as `UI_PORT`.
-- Storage: `SQLITE_PATH` local file. **Back this up** — it is the only copy of
+- Storage: an embedded SQLite file. **Back this up** — it is the only copy of
   the journal, and the journal is the only authority on every balance.
 - Resources: **none external**, deliberately. See `../concepts/INTEGRATIONS.md`
   for each candidate resource and why it was rejected.
@@ -79,7 +79,7 @@ property the product cannot be trusted without:
       transfer** (`TKE-P0-014`).
 - [ ] **The journal repository exposes no update or delete** (`TKE-P0-010`).
 - [ ] **Approval works with `notification-hub` unavailable** (`TKE-P0-013`).
-- [ ] **A backup of `SQLITE_PATH` exists and has been restored once**, because
+- [ ] **A backup of the scenario database exists and has been restored once**, because
       an append-only journal with no repair verb makes backup the only recovery.
 
 ## Rollback
@@ -99,7 +99,7 @@ they are in:
    the product; both the mistake and its fix remain visible, which is the
    intended behavior.
 2. **The database is corrupt or a migration went wrong.** Restore
-   `SQLITE_PATH` from backup and replay any events recorded since. This is the
+   the scenario database from backup and replay any events recorded since. This is the
    only true rollback, and it is why backup is a release gate rather than a
    maintenance suggestion.
 

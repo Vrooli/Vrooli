@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-)
 
-import runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+)
 
 func TestScenariosFromPaths(t *testing.T) {
 	got := ScenariosFromPaths([]string{

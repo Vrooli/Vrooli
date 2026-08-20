@@ -5,10 +5,11 @@ import (
 	"testing"
 	"time"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"tunnel-manager/internal/config"
 	internalexposure "tunnel-manager/internal/exposure"
 	internaltunnel "tunnel-manager/internal/tunnel"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

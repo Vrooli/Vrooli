@@ -268,6 +268,7 @@ func TestSuiteExecutionRepositoryAggregation(t *testing.T) {
 	// A completed run with a passing + failing phase (the failing one carries metrics).
 	insert("demo", "failed", false, []phases.ExecutionResult{
 		{Name: "proto", Status: "passed", DurationSeconds: 12},
+		// An empty, non-nil metrics struct: measurement was NOT attempted.
 		{Name: "unit", Status: "failed", DurationSeconds: 7, Metrics: &commonv1.ExecutionMetrics{}},
 	}, time.Hour)
 	// A passing run.
@@ -299,17 +300,24 @@ func TestSuiteExecutionRepositoryAggregation(t *testing.T) {
 	if len(observations) != 3 {
 		t.Fatalf("expected 3 phase observations, got %d: %#v", len(observations), observations)
 	}
-	var unitMetrics bool
+	var sawUnit bool
 	for _, o := range observations {
 		if o.PhaseName == "unit" {
-			unitMetrics = o.MetricsPresent
+			sawUnit = true
 			if o.Status != "failed" || o.DurationSeconds != 7 {
 				t.Fatalf("unexpected unit observation: %#v", o)
 			}
+			// metrics_present means MEASURED, not "a struct pointer was
+			// non-nil". This phase reported an empty struct, so it measured
+			// nothing and must not claim otherwise — 1,733 stored records
+			// carried that false claim, and cost estimation trusted them.
+			if o.MetricsPresent {
+				t.Fatalf("an empty metrics struct must not report metrics present: %#v", o)
+			}
 		}
 	}
-	if !unitMetrics {
-		t.Fatalf("expected unit observation to report metrics present")
+	if !sawUnit {
+		t.Fatal("expected a unit phase observation")
 	}
 }
 

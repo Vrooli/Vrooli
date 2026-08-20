@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"tunnel-manager/internal/config"
+
 	"github.com/stretchr/testify/require"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
-	"tunnel-manager/internal/config"
 )
 
 type fakeAuthority struct{ values map[string]string }

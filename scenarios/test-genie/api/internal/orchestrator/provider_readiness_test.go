@@ -241,3 +241,24 @@ func (noOpProviderLifecycle) Start(context.Context, string, io.Writer) error {
 func (noOpProviderLifecycle) Restart(context.Context, string, io.Writer) error {
 	return nil
 }
+
+// TestSlowProviderCheckThresholdIsGenerousButBounded pins the alarm's calibration.
+//
+// The alarm exists because a 41-minute template-manager start passed unnoticed:
+// a slow readiness check is indistinguishable from a fast one in a duration
+// column nobody reads. It must be generous enough that ordinary variance never
+// fires it — an alarm that cries wolf is an alarm that gets ignored — and tight
+// enough that a cold start cannot hide behind it.
+func TestSlowProviderCheckThresholdIsGenerousButBounded(t *testing.T) {
+	if slowProviderCheckThreshold < 30*time.Second {
+		t.Fatalf("threshold %s is tight enough to fire on ordinary variance", slowProviderCheckThreshold)
+	}
+	if slowProviderCheckThreshold > 5*time.Minute {
+		t.Fatalf("threshold %s would let a multi-minute cold start pass unnoticed", slowProviderCheckThreshold)
+	}
+	// The case that motivated the alarm must trip it by a wide margin.
+	const observedPathologicalStart = 41 * time.Minute
+	if observedPathologicalStart < slowProviderCheckThreshold {
+		t.Fatal("the 41-minute start that motivated this alarm would not fire it")
+	}
+}

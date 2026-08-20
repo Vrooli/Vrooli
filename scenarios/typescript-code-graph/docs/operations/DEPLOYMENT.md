@@ -24,7 +24,7 @@ Use this document to answer:
 
 - **API port**: assigned by lifecycle as `API_PORT`.
 - **UI port**: assigned by lifecycle as `UI_PORT`.
-- **Storage**: `SQLITE_PATH` local file (only required if/when P1 Operation Log lands).
+- **Storage**: embedded SQLite resolved by `api-core/storage` (only required if/when P1 Operation Log lands).
 - **Go toolchain**: required for the API + CLI binaries to build.
 - **Node runtime ≥20.x**: required to run the sidecar. Provided by the react-vite template's lifecycle.
 - **pnpm**: required to install the sidecar's `ts-morph` dependency.

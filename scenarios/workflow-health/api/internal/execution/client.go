@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"workflow-health/internal/workflows"
+
 	"connectrpc.com/connect"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
@@ -18,7 +20,6 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
-	"workflow-health/internal/workflows"
 )
 
 type ConnectClient struct {

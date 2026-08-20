@@ -4,12 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"git-control-tower/internal/dbschema"
+
 	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"
 )
@@ -94,58 +92,17 @@ func tableColumns(ctx context.Context, db *sql.DB, table string) (map[string]boo
 	return cols, nil
 }
 
+// sqliteDSN returns the DSN for git-control-tower's own database.
+//
+// The tuning deviates from the fleet default in two typed ways, both suited to
+// a repository index that is read far more than it is written: a 4 KiB page
+// size, and a 256 MiB memory map so reads bypass the page cache.
 func sqliteDSN() (string, error) {
-	if path := strings.TrimSpace(os.Getenv("GCT_SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	if dsn := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(dsn, "file:") {
-		return dsn, nil
-	}
-
-	path, err := scenarioDBPath()
-	if err != nil {
-		return "", fmt.Errorf("resolve git-control-tower db path: %w", err)
-	}
-	return sqliteFileDSN(path)
-}
-
-func sqliteFileDSN(path string) (string, error) {
-	if strings.HasPrefix(path, "file:") {
-		return path, nil
-	}
-
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)",
-		path,
-	), nil
-}
-
-func scenarioDBPath() (string, error) {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
+	return storage.SQLiteDSN(storage.SQLiteConfig{
+		Scenario: "git-control-tower",
+		Tuning: storage.SQLiteTuning{
+			PageSizeBytes: 4096,
+			MMapSizeBytes: 268435456,
+		},
 	})
-	if err != nil {
-		return "", err
-	}
-	scenarioID := "git-control-tower"
-	variant := strings.ToLower(strings.TrimSpace(os.Getenv(storage.EnvVariant)))
-	if strings.TrimSpace(os.Getenv(storage.EnvScenario)) == scenarioID && variant != "" && variant != "live" {
-		namespace, err := storage.ScenarioNamespace(scenarioID)
-		if err != nil {
-			return "", fmt.Errorf("resolve variant-aware storage namespace: %w", err)
-		}
-		scenarioID = namespace
-	}
-	return resolver.Path(storage.Options{ScenarioID: scenarioID}, storage.ClassData, "git-control-tower.db")
 }

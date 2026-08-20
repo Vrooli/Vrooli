@@ -375,8 +375,11 @@ setup_test_database() {
 
     mkdir -p "$test_db_dir"
 
-    # Export for test use
-    export SQLITE_PATH="$test_db_path"
+    # Redirect the whole storage tree rather than naming one database file.
+    # This variable is scenario-agnostic, so every scenario beneath it still
+    # resolves to its own separate path; a database-path variable would be
+    # inherited by each child process and point them all at one file.
+    export VROOLI_STORAGE_ROOT="$test_db_dir"
 }
 
 # Cleanup only test database

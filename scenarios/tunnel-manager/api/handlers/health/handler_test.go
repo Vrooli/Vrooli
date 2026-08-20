@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/vrooli/api-core/apihttptest"
-	httpx "github.com/vrooli/api-core/servertest"
 	"tunnel-manager/handlers/health"
 	"tunnel-manager/internal/module"
 	"tunnel-manager/internal/server"
 	"tunnel-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

@@ -7,6 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"treasury/handlers/treasuryadmin"
+	"treasury/internal/book"
+	"treasury/internal/budget"
+	"treasury/internal/mandate"
+	"treasury/internal/operatorauth"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
@@ -18,11 +24,6 @@ import (
 	budgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget"
 	mandatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"treasury/handlers/treasuryadmin"
-	"treasury/internal/book"
-	"treasury/internal/budget"
-	"treasury/internal/mandate"
-	"treasury/internal/operatorauth"
 )
 
 // [REQ:TRS-P0-004] Every TreasuryAdmin method rejects the agent realm before

@@ -8,6 +8,7 @@ import (
 
 	"architecture-cartographer/internal/module"
 	"architecture-cartographer/internal/server"
+
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"

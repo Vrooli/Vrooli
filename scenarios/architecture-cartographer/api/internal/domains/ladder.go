@@ -13,6 +13,7 @@ import (
 // errors aborts the ladder (a malformed present source is a hard error);
 // an absent source contributes an empty extraction.
 func RunLadder(ctx context.Context, scenarioDir string, extractors []DomainSourceExtractor) ([]Extraction, error) {
+	ctx = withSurfaceInspectionCache(ctx)
 	out := make([]Extraction, 0, len(extractors))
 	scenario := scenarioNameFromDir(scenarioDir)
 	for _, ex := range extractors {

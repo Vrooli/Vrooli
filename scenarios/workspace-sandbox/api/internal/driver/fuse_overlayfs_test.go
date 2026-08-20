@@ -7,8 +7,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
+
+	"github.com/google/uuid"
 )
 
 func TestFuseOverlayfsGetChangedFilesSkipsOpaqueAndMapsWhiteouts(t *testing.T) {

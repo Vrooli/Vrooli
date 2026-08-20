@@ -154,18 +154,18 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 	})
 
 	return &types.TurnCheckpointResult{
-		SandboxID:      sandbox.ID,
-		Status:         sandbox.Status,
-		Success:        true,
-		Applied:        len(applyResult.Changes),
-		Remaining:      applyResult.Remaining,
-		IsPartial:      applyResult.Remaining > 0,
-		CommitHash:     applyResult.CommitHash,
-		BaseCommitHash: sandbox.BaseCommitHash,
-		CheckpointID:   checkpointID,
-		AppliedAt:      now,
+		SandboxID:        sandbox.ID,
+		Status:           sandbox.Status,
+		Success:          true,
+		Applied:          len(applyResult.Changes),
+		Remaining:        applyResult.Remaining,
+		IsPartial:        applyResult.Remaining > 0,
+		CommitHash:       applyResult.CommitHash,
+		BaseCommitHash:   sandbox.BaseCommitHash,
+		CheckpointID:     checkpointID,
+		AppliedAt:        now,
 		AppliedSizeBytes: appliedSizeBytes,
-		DiffPath: fmt.Sprintf("/api/v1/sandboxes/%s/diff", sandbox.ID),
+		DiffPath:         fmt.Sprintf("/api/v1/sandboxes/%s/diff", sandbox.ID),
 	}, nil
 }
 

@@ -166,9 +166,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/architecture-cartographer.db"
-  },
+  "environment": {},
   "retention": {
     "budgets": {
       "graph_snapshots": {

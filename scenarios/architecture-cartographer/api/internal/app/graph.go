@@ -11,6 +11,8 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/discovery"
+
+	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
 )
 
 func GraphService(primary graph.SQLExecutor, clk schedule.Clock, repoRoot string, resolver *discovery.Resolver) graph.Service {
@@ -22,8 +24,12 @@ func GraphService(primary graph.SQLExecutor, clk schedule.Clock, repoRoot string
 	return graph.NewServiceWithFingerprinter(
 		graph.NewSQLiteRepository(primary, clk),
 		clk,
-		graph.NewFileSystemFingerprinter(repoRoot),
-		gocodegraph.New(gocodegraph.Config{URLResolver: resolver, ProjectPath: goProjects.Resolve}),
+		graph.NewFileSystemFingerprinterWithOptions(repoRoot, "go-profile=structural"),
+		gocodegraph.New(gocodegraph.Config{
+			URLResolver: resolver,
+			ProjectPath: goProjects.Resolve,
+			Profile:     graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL,
+		}),
 		tscodegraph.New(tscodegraph.Config{URLResolver: resolver, ProjectPath: tsProjects.Resolve}),
 	)
 }

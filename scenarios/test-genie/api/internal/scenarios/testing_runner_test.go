@@ -29,15 +29,15 @@ func TestTestingRunnerExecutesPreferredCommand(t *testing.T) {
 	}
 }
 
-func TestTestingRunnerFallsBackToLifecycle(t *testing.T) {
+func TestTestingRunnerFallsBackToLegacy(t *testing.T) {
 	dir := t.TempDir()
 	script := filepath.Join(dir, "run.sh")
 	writeExecutable(t, script, "exit 0")
 
 	caps := TestingCapabilities{
-		Lifecycle: true,
+		Legacy: true,
 		Commands: []TestingCommand{
-			{Type: "lifecycle", Command: []string{script}},
+			{Type: "legacy", Command: []string{script}},
 		},
 	}
 

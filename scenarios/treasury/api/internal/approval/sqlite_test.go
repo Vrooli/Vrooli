@@ -9,15 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	"github.com/vrooli/api-core/database"
-	db "github.com/vrooli/api-core/databasetest"
-	"github.com/vrooli/api-core/schedule"
 	"treasury/internal/approval"
 	"treasury/internal/authorization"
 	"treasury/internal/book"
 	"treasury/internal/budget"
 	"treasury/internal/mandate"
+
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/schedule"
 )
 
 func ensureApprovalSchemas(ctx context.Context, handle *sql.DB) error {

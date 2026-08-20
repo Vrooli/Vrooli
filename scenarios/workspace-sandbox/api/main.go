@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -416,41 +414,25 @@ func (s *Server) Cleanup() error {
 	return nil
 }
 
-// resolveSQLiteDSN returns the modernc.org/sqlite DSN for the embedded
-// store. The location is resolved exclusively through api-core/storage. The DSN appends the
-// pragmas every connection needs (WAL, busy_timeout, foreign_keys) and sets
-// _txlock=immediate so BeginTx acquires the SQLite reserved lock up front
-// for write-ordered Create + CheckScopeOverlap flows.
+// resolveSQLiteDSN returns the DSN for workspace-sandbox's own database.
+//
+// _txlock=immediate is the one deviation that matters here: BeginTx takes the
+// SQLite reserved lock up front, so the write-ordered Create +
+// CheckScopeOverlap flow cannot upgrade a read transaction mid-flight and lose
+// the race under contention.
+//
+// This also picks up variant-aware scoping, which the previous hand-rolled
+// resolution lacked — it passed the bare slug as the scenario ID, so a shadow
+// instance would have opened live's database.
 func resolveSQLiteDSN() (string, error) {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
+	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{
+		Scenario: "workspace-sandbox",
+		Tuning:   storage.SQLiteTuning{TxLock: "immediate"},
 	})
 	if err != nil {
-		return "", fmt.Errorf("create storage resolver: %w", err)
+		return "", err
 	}
-	dataDir, err := storage.EnsureClassDir(resolver,
-		storage.Options{ScenarioID: "workspace-sandbox"},
-		storage.ClassData,
-		0o755,
-	)
-	if err != nil {
-		return "", fmt.Errorf("ensure data dir: %w", err)
-	}
-	path := filepath.Join(dataDir, "workspace-sandbox.db")
-
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("create db parent dir: %w", err)
-	}
-
-	dsn := path +
-		"?_pragma=journal_mode(WAL)" +
-		"&_pragma=foreign_keys(1)" +
-		"&_pragma=busy_timeout(5000)" +
-		"&_pragma=synchronous(NORMAL)" +
-		"&_txlock=immediate"
-
-	log.Printf("workspace-sandbox: using SQLite database at %s", path)
+	log.Printf("workspace-sandbox: using SQLite database %s", dsn)
 	return dsn, nil
 }
 

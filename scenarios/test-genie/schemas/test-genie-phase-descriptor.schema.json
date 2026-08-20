@@ -34,6 +34,13 @@
     "orderHint": { "type": "integer" },
     "timeout": { "type": "string", "minLength": 1 },
     "findingSource": { "type": ["string", "null"] },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["compatible", "changed-unreviewed", "invalidated", "superseded", "additive"] }
+      }
+    },
     "profileMembership": {
       "type": "array",
       "items": { "enum": ["architecture-audit"] },

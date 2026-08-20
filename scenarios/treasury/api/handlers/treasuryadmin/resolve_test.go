@@ -6,14 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"treasury/handlers/treasuryadmin"
+	"treasury/internal/approval"
+	"treasury/internal/operatorauth"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	approvalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/approval"
 	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
 	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
-	"treasury/handlers/treasuryadmin"
-	"treasury/internal/approval"
-	"treasury/internal/operatorauth"
 )
 
 type approvalResolver struct{ gotResolver string }

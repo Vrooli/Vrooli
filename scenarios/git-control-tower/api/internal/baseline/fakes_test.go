@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"git-control-tower/internal/git"
+
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 

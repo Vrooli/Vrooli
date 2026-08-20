@@ -50,7 +50,7 @@ history is the substrate for calibration over time.
 
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|
-| SQLite database | `cp $SQLITE_PATH $SQLITE_PATH.backup-$(date +%Y%m%d)` before destructive ops | `cp $SQLITE_PATH.backup-<date> $SQLITE_PATH` (with scenario stopped) | Manual in v1; automated rotation deferred to P1. |
+| SQLite database | `cp "$SCENARIO_DATA_DIR"/*.db{,.backup-$(date +%Y%m%d)}` before destructive ops | `cp "$SCENARIO_DATA_DIR"/*.db.backup-<date> "$SCENARIO_DATA_DIR"/architecture-cartographer.db` (with scenario stopped) | Manual in v1; automated rotation deferred to P1. |
 | Graph snapshots | Subset of SQLite backup. | Same restore path. | Same. |
 | Analytics event log | Subset of SQLite backup; critical for calibration history. | Same restore path. | Recommend backing up monthly until automated retention lands. |
 | Manifest source | Owned by target scenarios, not cartographer. | n/a — target scenario's git history. | n/a |
@@ -65,7 +65,7 @@ history is the substrate for calibration over time.
 | Regenerate UI strings | after i18n changes | `cd ui && pnpm strings:gen` |
 | Validate own architecture | weekly (manual until CI gate lands) | `arch-cart conflicts list architecture-cartographer` |
 | Calibration review | monthly | `arch-cart calibrate --dry-run` and review proposed weight changes against override history |
-| Backup analytics DB | monthly | `cp $SQLITE_PATH $SQLITE_PATH.backup-$(date +%Y%m)` |
+| Backup analytics DB | monthly | `cp "$SCENARIO_DATA_DIR"/*.db{,.backup-$(date +%Y%m)}` |
 | Force-note audit | quarterly | `arch-cart analytics events --filter force-notes` — review every `--force --note` justification for legitimacy |
 
 ## Escalation

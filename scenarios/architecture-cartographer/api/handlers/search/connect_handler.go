@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect"
 
 	"architecture-cartographer/internal/aisearch"
+
 	pkg "github.com/vrooli/ai-go/search"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/search"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"

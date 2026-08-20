@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/schedule"
 	approvalflow "treasury/internal/approval/flow"
 	"treasury/internal/authorization"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 var (

@@ -11,8 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"treasury/internal/rail"
+
+	"github.com/stretchr/testify/require"
 )
 
 // [REQ:TRS-P1-001] A quoted x402 amount above the authorization's

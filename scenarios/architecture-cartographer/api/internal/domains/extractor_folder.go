@@ -89,7 +89,7 @@ func (e *FolderExtractor) Extract(ctx context.Context, scenarioDir string) (Extr
 	if provider == nil {
 		provider = NewLocalSurfaceProvider()
 	}
-	inv, err := provider.Inspect(ctx, scenarioDir)
+	inv, err := inspectSurfaceProvider(ctx, provider, scenarioDir)
 	if err != nil {
 		return Extraction{}, fmt.Errorf("inspect surfaces: %w", err)
 	}

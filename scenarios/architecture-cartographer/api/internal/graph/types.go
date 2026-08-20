@@ -103,6 +103,10 @@ type GraphSnapshot struct {
 	// consults this to mark `outcome=partial` when an adapter was
 	// skipped but other layers ran clean.
 	SkippedAdapters []string
+	// ExtractionProfiles records the effective profile for each producer.
+	// OmittedInformation explains intentionally unavailable capabilities.
+	ExtractionProfiles []string
+	OmittedInformation []InformationOmission
 }
 
 // Chunks derives the canonical Chunk list from the snapshot's file

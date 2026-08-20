@@ -38,8 +38,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/vrooli/api-core/apihttptest"
-	httpx "github.com/vrooli/api-core/servertest"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/handlers"
@@ -48,6 +46,9 @@ import (
 	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 )

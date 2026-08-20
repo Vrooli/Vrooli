@@ -9,7 +9,7 @@ require (
 	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
-	golang.org/x/term v0.37.0
+	golang.org/x/term v0.45.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.50.1
 	test-genie v0.0.0
@@ -38,7 +38,7 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/klauspost/compress v1.16.0 // indirect
+	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -60,6 +60,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.31.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/freshness-go v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/vrooli v0.0.0 // indirect
@@ -69,10 +70,10 @@ require (
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/metric v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect

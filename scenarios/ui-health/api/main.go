@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"ui-health/internal/aisearch"
@@ -19,7 +16,6 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
-	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
 	searchregister "github.com/vrooli/searchregister-go"
 	_ "modernc.org/sqlite"
@@ -31,58 +27,14 @@ import (
 	visualhealthH "ui-health/handlers/visualhealth"
 )
 
-func sqliteDSN() (string, error) {
-	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
-		return sqliteFileDSN(path)
-	}
-
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		return "", fmt.Errorf("create storage resolver: %w", err)
-	}
-	path, err := resolver.Path(
-		storage.Options{ScenarioID: "ui-health"},
-		storage.ClassData,
-		"ui-health.db",
-	)
-	if err != nil {
-		return "", fmt.Errorf("resolve ui-health db path: %w", err)
-	}
-	return sqliteFileDSN(path)
-}
-
-func sqliteFileDSN(path string) (string, error) {
-	if strings.HasPrefix(path, "file:") {
-		return path, nil
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
-		path,
-	), nil
-}
-
 func main() {
 	if preflight.Run(preflight.Config{ScenarioName: "ui-health"}) {
 		return
 	}
 
-	dsn, err := sqliteDSN()
-	if err != nil {
-		log.Fatalf("sqlite configuration failed: %v", err)
-	}
-
 	db, err := database.Connect(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          dsn,
+		Scenario:     "ui-health",
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})

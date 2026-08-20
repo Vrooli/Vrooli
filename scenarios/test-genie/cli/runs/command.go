@@ -91,6 +91,10 @@ Commands:
   pin      --scenario <s> <runID> --by <id> [--reason <text>]    Pin a run (protect from GC)
   unpin    --scenario <s> <runID> --by <id>                      Remove a pin
   compare  --scenario <s> <runID-a> <runID-b> [--phase <name>]   Compare two runs
+  cost     [--scenario <s>] [--window 168h] [--fleet] [--json]   Measured phase cost. --fleet
+                                                                 aggregates by phase across every
+                                                                 scenario, with provider attribution,
+                                                                 queue latency, and repeat-failure cost
   wait     <scenario> <runID> [--timeout N] [--json]             Block until the run is terminal
                                                                  (exit 0 passed, 1 failed/aborted,
                                                                  124 if --timeout elapses first).
@@ -145,6 +149,7 @@ func costReportCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) 
 			Scenario:             ctx.Flag("scenario"),
 			WindowSeconds:        int64(window.Seconds()),
 			CompareWindowSeconds: int64(compareWindow.Seconds()),
+			Fleet:                ctx.Flag("fleet") == "true",
 		}))
 		if err != nil {
 			return nil, err
@@ -155,13 +160,61 @@ func costReportCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) 
 
 func costReportReport(_ cliapp.OperationContext, msg *runspb.GetCostReportResponse) cliapp.ListReport {
 	results := make([]string, 0, len(msg.GetPhases()))
+	var totalWall, totalRepeat int64
 	for _, phase := range msg.GetPhases() {
-		results = append(results, fmt.Sprintf("%s/%s samples=%d reliable=%d excluded=%d total=%dms median=%dms p90=%dms cpu=%dms peak_rss=%d change=%dms (%.1f%%) prediction=%d mae=%dms (%.1f%%)", phase.GetScenario(), phase.GetPhase(), phase.GetSampleCount(), phase.GetReliableSampleCount(), phase.GetExcludedSampleCount(), phase.GetTotalWallClockMs(), phase.GetMedianWallClockMs(), phase.GetP90WallClockMs(), phase.GetTotalCpuUserMs(), phase.GetMaxPeakRssBytes(), phase.GetChangeWallClockMs(), phase.GetChangePercent(), phase.GetPredictionSampleCount(), phase.GetPredictionMeanAbsoluteErrorMs(), phase.GetPredictionMeanAbsoluteErrorPercent()))
+		totalWall += phase.GetTotalWallClockMs()
+		totalRepeat += phase.GetRepeatFailureWallClockMs()
+		results = append(results, formatCostRow(phase))
+	}
+	summary := []string{fmt.Sprintf("Measured phase cost: %d phase(s), window=%ds, compare=%ds", len(results), msg.GetWindowSeconds(), msg.GetCompareWindowSeconds())}
+	if totalWall > 0 && totalRepeat > 0 {
+		summary = append(summary, fmt.Sprintf(
+			"Repeat-failure cost: %s of %s (%.1f%%) spent re-deriving failures already produced",
+			formatCostDuration(totalRepeat), formatCostDuration(totalWall),
+			float64(totalRepeat)/float64(totalWall)*100))
 	}
 	return cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Measured phase cost: %d phase(s), window=%ds, compare=%ds", len(results), msg.GetWindowSeconds(), msg.GetCompareWindowSeconds())},
+		Summary:        summary,
 		ResultsHeading: "Phase cost",
 		Results:        results,
+	}
+}
+
+// formatCostRow renders one cost row. Provider attribution and queue latency
+// appear only when they are known, so a line never asserts a fact the data does
+// not contain.
+func formatCostRow(phase *runspb.CostPhaseSummary) string {
+	name := phase.GetScenario() + "/" + phase.GetPhase()
+	if provider := phase.GetProviderScenario(); provider != "" {
+		name += " [" + provider + "]"
+	}
+	line := fmt.Sprintf("%s samples=%d reliable=%d excluded=%d total=%dms median=%dms p90=%dms cpu=%dms peak_rss=%d change=%dms (%.1f%%) prediction=%d mae=%dms (%.1f%%) cache_hit=%.1f%%",
+		name, phase.GetSampleCount(), phase.GetReliableSampleCount(), phase.GetExcludedSampleCount(),
+		phase.GetTotalWallClockMs(), phase.GetMedianWallClockMs(), phase.GetP90WallClockMs(),
+		phase.GetTotalCpuUserMs(), phase.GetMaxPeakRssBytes(), phase.GetChangeWallClockMs(), phase.GetChangePercent(),
+		phase.GetPredictionSampleCount(), phase.GetPredictionMeanAbsoluteErrorMs(), phase.GetPredictionMeanAbsoluteErrorPercent(),
+		phase.GetCacheHitRatePercent())
+	if phase.GetQueueLatencyMedianMs() >= 0 {
+		line += fmt.Sprintf(" queue_median=%dms queue_p90=%dms", phase.GetQueueLatencyMedianMs(), phase.GetQueueLatencyP90Ms())
+	} else {
+		line += " queue=unknown"
+	}
+	if phase.GetRepeatFailureSampleCount() > 0 {
+		line += fmt.Sprintf(" repeat_failure=%dms over %d sample(s)", phase.GetRepeatFailureWallClockMs(), phase.GetRepeatFailureSampleCount())
+	}
+	return line
+}
+
+// formatCostDuration renders milliseconds in the unit a reader can act on.
+func formatCostDuration(ms int64) string {
+	d := time.Duration(ms) * time.Millisecond
+	switch {
+	case d >= time.Hour:
+		return fmt.Sprintf("%.1fh", d.Hours())
+	case d >= time.Minute:
+		return fmt.Sprintf("%.1fm", d.Minutes())
+	default:
+		return fmt.Sprintf("%.1fs", d.Seconds())
 	}
 }
 
@@ -171,6 +224,7 @@ func runCost(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	scenario := fs.String("scenario", "", "scenario")
 	windowText := fs.String("window", "168h", "look-back window (for example 168h or 7d)")
 	compareText := fs.String("compare-window", "0", "preceding comparison window (for example 168h)")
+	fleet := fs.Bool("fleet", false, "aggregate by phase across every scenario instead of one row per scenario/phase")
 	jsonOutput := fs.Bool("json", false, "JSON output")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -189,6 +243,7 @@ func runCost(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	}
 	resp, err := cl.GetCostReport(context.Background(), connect.NewRequest(&runspb.GetCostReportRequest{
 		Scenario: *scenario, WindowSeconds: int64(window.Seconds()), CompareWindowSeconds: int64(compareWindow.Seconds()),
+		Fleet: *fleet,
 	}))
 	if err != nil {
 		return err

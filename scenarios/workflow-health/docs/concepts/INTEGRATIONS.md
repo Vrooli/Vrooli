@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, catalog, validation, execution, search, remediation | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable; static validation can still explain missing persistence if implemented. |
+| SQLite | embedded storage | yes | API, catalog, validation, execution, search, remediation | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable; static validation can still explain missing persistence if implemented. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
 | Browser Automation Studio | scenario | yes for execution | execution, artifacts, validation | BAS workflow execute by file, schema/lint contracts, artifact output directories | Static validation/search still run; execution returns skipped or failed findings depending on request strictness. |
 | Test Genie | scenario | yes for phase orchestration | validation provider consumer | `scenario-validation/v1` delegated provider contract | Provider-contract tests fail; workflow phase migration is blocked. |

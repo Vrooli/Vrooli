@@ -15,7 +15,12 @@
     "execution": true,
     "runService": "scenario-validation/v1.DurableValidationRunService"
   },
-  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "targets": {
+    "kinds": [
+      "scenario"
+    ],
+    "selection": "enumerate"
+  },
   "applicability": {
     "default": "applies"
   },
@@ -396,7 +401,7 @@
   },
   "determinism": {
     "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "reason": "Workflow validation drives Browser Automation Studio flows against a running scenario and a live browser. The verdict depends on what that session actually rendered and responded, which no file digest represents."
   },
   "dimensions": [
     "visual"

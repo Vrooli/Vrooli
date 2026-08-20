@@ -21,7 +21,10 @@ import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { renderWithProviders } from "@vrooli/api-base/testing";
+import { renderWithProviders as renderWithScenarioProviders } from ".";
 import { strings } from "../consts/strings";
+import { i18n as scenarioI18n } from "../i18n";
+import { useTheme } from "../theme/ThemeProvider";
 
 afterEach(() => cleanup());
 
@@ -108,6 +111,55 @@ describe("renderWithProviders QueryClient identity", () => {
     await waitFor(() => {
       expect(screen.getByTestId("seeded")).toHaveTextContent("hello");
     });
+  });
+});
+
+/**
+ * The contracts above pin the *shared* api-base helper. These pin the barrel
+ * export, which is what component tests actually import — and which must add
+ * this scenario's ThemeProvider on top.
+ *
+ * This regression exists because the two were assumed interchangeable. When the
+ * barrel re-exported api-base directly, every shell test failed with "useTheme
+ * must be called inside <ThemeProvider>", and nothing in this file caught it:
+ * it only ever exercised the shared helper.
+ */
+describe("test-utils barrel supplies scenario providers", () => {
+  const ThemeProbe = () => {
+    const { choice, resolved } = useTheme();
+    return <span data-testid="theme-probe">{`${choice}:${resolved}`}</span>;
+  };
+
+  it("renders a useTheme consumer without throwing", () => {
+    renderWithScenarioProviders(<ThemeProbe />);
+    expect(screen.getByTestId("theme-probe")).toBeInTheDocument();
+  });
+
+  it("honors a seeded initialTheme so theme assertions are not jsdom-dependent", () => {
+    renderWithScenarioProviders(<ThemeProbe />, { initialTheme: "dark" });
+    expect(screen.getByTestId("theme-probe")).toHaveTextContent("dark:dark");
+  });
+
+  it("still exposes the shared QueryClient contract through the barrel", () => {
+    const { queryClient } = renderWithScenarioProviders(<div />);
+    expect(queryClient.getDefaultOptions().queries?.retry).toBe(false);
+  });
+
+  /**
+   * Identity, not key-echo. api-base defaults to an i18n instance it creates
+   * itself in `cimode` with no resources; under cimode a key-path assertion
+   * renders identically whichever instance is wired, so only identity can tell
+   * them apart. Getting this wrong breaks exactly the tests that assert real
+   * translated copy — and nothing else notices.
+   */
+  it("wires the scenario i18n singleton, not api-base's default instance", () => {
+    const I18nProbe = () => {
+      const { i18n: active } = useTranslation();
+      return <span data-testid="i18n-probe">{active === scenarioI18n ? "singleton" : "foreign"}</span>;
+    };
+
+    renderWithScenarioProviders(<I18nProbe />);
+    expect(screen.getByTestId("i18n-probe")).toHaveTextContent("singleton");
   });
 });
 

@@ -1,8 +1,9 @@
 package baseline
 
 import (
-	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	"testing"
+
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 func TestGateDecisionForComparisonKeepsAxesIndependent(t *testing.T) {

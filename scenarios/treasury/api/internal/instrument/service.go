@@ -9,9 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/schedule"
 	"treasury/internal/mandate"
 	"treasury/internal/rail/card"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 var (

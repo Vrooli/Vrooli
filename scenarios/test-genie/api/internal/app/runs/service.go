@@ -19,16 +19,18 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/vrooli/freshness-go/treedigest"
 	"test-genie/internal/execution"
 	"test-genie/internal/executionevidence"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/orchestrator/providerdescriptor"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/selfhealthsnapshots"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/targetmodel"
+
+	"github.com/vrooli/freshness-go/treedigest"
 
 	"github.com/vrooli/api-core/discovery"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -154,13 +156,33 @@ func (s *Service) GetCostReport(ctx context.Context, req *connect.Request[runspb
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	}
+	// Attribute each phase to the scenario whose provider owns it, so a cost row
+	// names something ownable rather than a bare phase name.
+	providers := s.phaseProviders()
+	for i := range current {
+		current[i].ProviderScenario = providers[strings.ToLower(strings.TrimSpace(current[i].Phase))]
+	}
+	for i := range previous {
+		previous[i].ProviderScenario = providers[strings.ToLower(strings.TrimSpace(previous[i].Phase))]
+	}
+
+	// Fleet mode collapses per-scenario rows into one row per phase. The
+	// comparison window is folded the same way so a change figure still
+	// compares like with like.
+	if req.Msg.GetFleet() {
+		current = execution.FoldFleet(current)
+		if previous != nil {
+			previous = execution.FoldFleet(previous)
+		}
+	}
+
 	prior := make(map[string]execution.CostSummary, len(previous))
 	for _, p := range previous {
 		prior[p.Scenario+"\x00"+p.Phase] = p
 	}
 	out := make([]*runspb.CostPhaseSummary, 0, len(current))
 	for _, c := range current {
-		row := &runspb.CostPhaseSummary{Scenario: c.Scenario, Phase: c.Phase, SampleCount: int32(c.SampleCount), PassingSampleCount: int32(c.PassingSampleCount), FailingSampleCount: int32(c.FailingSampleCount), ReliableSampleCount: int32(c.ReliableSampleCount), ExcludedSampleCount: int32(c.ExcludedSampleCount), TotalWallClockMs: c.TotalWallClockMs, MedianWallClockMs: c.MedianWallClockMs, P90WallClockMs: c.P90WallClockMs, PassingMedianWallClockMs: c.PassingMedianWallClockMs, PassingP90WallClockMs: c.PassingP90WallClockMs, FailingMedianWallClockMs: c.FailingMedianWallClockMs, FailingP90WallClockMs: c.FailingP90WallClockMs, TotalCpuUserMs: c.TotalCPUUserMs, MaxPeakRssBytes: c.MaxPeakRSSBytes, PredictionSampleCount: int32(c.PredictionSampleCount), PredictionErrorTotalMs: c.PredictionErrorTotalMs, PredictionMeanAbsoluteErrorMs: c.PredictionMeanAbsoluteErrorMs, PredictionMeanAbsoluteErrorPercent: c.PredictionMeanAbsoluteErrorPercent, CacheHitCount: int32(c.CacheHitCount), ExecutedSampleCount: int32(c.ExecutedSampleCount), CacheHitRatePercent: c.CacheHitRatePercent, CacheAuditCount: int32(c.CacheAuditCount), CacheAuditMismatchCount: int32(c.CacheAuditMismatchCount), CacheNoSavingCount: int32(c.CacheNoSavingCount), CacheAuditWallClockMs: c.CacheAuditWallClockMs, EstimatedGrossSavedWallClockMs: c.EstimatedGrossSavedWallClockMs, EstimatedNetSavedWallClockMs: c.EstimatedNetSavedWallClockMs}
+		row := &runspb.CostPhaseSummary{Scenario: c.Scenario, Phase: c.Phase, SampleCount: int32(c.SampleCount), PassingSampleCount: int32(c.PassingSampleCount), FailingSampleCount: int32(c.FailingSampleCount), ReliableSampleCount: int32(c.ReliableSampleCount), ExcludedSampleCount: int32(c.ExcludedSampleCount), TotalWallClockMs: c.TotalWallClockMs, MedianWallClockMs: c.MedianWallClockMs, P90WallClockMs: c.P90WallClockMs, PassingMedianWallClockMs: c.PassingMedianWallClockMs, PassingP90WallClockMs: c.PassingP90WallClockMs, FailingMedianWallClockMs: c.FailingMedianWallClockMs, FailingP90WallClockMs: c.FailingP90WallClockMs, TotalCpuUserMs: c.TotalCPUUserMs, MaxPeakRssBytes: c.MaxPeakRSSBytes, PredictionSampleCount: int32(c.PredictionSampleCount), PredictionErrorTotalMs: c.PredictionErrorTotalMs, PredictionMeanAbsoluteErrorMs: c.PredictionMeanAbsoluteErrorMs, PredictionMeanAbsoluteErrorPercent: c.PredictionMeanAbsoluteErrorPercent, CacheHitCount: int32(c.CacheHitCount), ExecutedSampleCount: int32(c.ExecutedSampleCount), CacheHitRatePercent: c.CacheHitRatePercent, CacheAuditCount: int32(c.CacheAuditCount), CacheAuditMismatchCount: int32(c.CacheAuditMismatchCount), CacheNoSavingCount: int32(c.CacheNoSavingCount), CacheAuditWallClockMs: c.CacheAuditWallClockMs, EstimatedGrossSavedWallClockMs: c.EstimatedGrossSavedWallClockMs, EstimatedNetSavedWallClockMs: c.EstimatedNetSavedWallClockMs, ProviderScenario: c.ProviderScenario, QueueLatencyMedianMs: c.QueueLatencyMedianMs, QueueLatencyP90Ms: c.QueueLatencyP90Ms, RepeatFailureWallClockMs: c.RepeatFailureWallClockMs, RepeatFailureSampleCount: int32(c.RepeatFailureSampleCount)}
 		if p, ok := prior[c.Scenario+"\x00"+c.Phase]; ok {
 			row.ChangeWallClockMs = c.TotalWallClockMs - p.TotalWallClockMs
 			if p.TotalWallClockMs != 0 {
@@ -171,6 +193,40 @@ func (s *Service) GetCostReport(ctx context.Context, req *connect.Request[runspb
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].TotalWallClockMs > out[j].TotalWallClockMs })
 	return connect.NewResponse(&runspb.GetCostReportResponse{Phases: out, WindowSeconds: int64(window.Seconds()), CompareWindowSeconds: int64(compareWindow.Seconds())}), nil
+}
+
+// phaseProviders maps a phase name to the scenario whose provider descriptor
+// declares it.
+//
+// The mapping is read from the descriptors on disk rather than stored on the
+// cost rows, because provider ownership is a property of the current fleet: a
+// phase that changed hands should be attributed to whoever owns it now, not to
+// whoever owned it when a run was recorded. A phase with no descriptor is
+// native to Test Genie and maps to the empty string.
+func (s *Service) phaseProviders() map[string]string {
+	root := strings.TrimSpace(s.scenariosRoot)
+	if root == "" {
+		return map[string]string{}
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return map[string]string{}
+	}
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			paths = append(paths, filepath.Join(root, entry.Name(), providerdescriptor.RelPath))
+		}
+	}
+	out := map[string]string{}
+	for _, d := range providerdescriptor.Load(providerdescriptor.LoadOptions{Paths: paths}).Descriptors {
+		phase := strings.ToLower(strings.TrimSpace(d.Phase))
+		if phase == "" {
+			continue
+		}
+		out[phase] = strings.TrimSpace(d.Scenario)
+	}
+	return out
 }
 
 // NewService returns a Service. scenariosRoot resolves each request's scenario

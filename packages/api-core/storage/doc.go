@@ -43,9 +43,12 @@
 // can be developed and validated while its last-known-good version keeps
 // serving. For that to be safe, EVERY store a scenario writes must be scoped to
 // its variant. The filesystem classes above isolate automatically because the
-// lifecycle hands each variant its own data/config/cache roots; Postgres and
-// SQLite isolate because the lifecycle injects a variant-aware POSTGRES_DB /
-// SQLITE_PATH (see the database package). Redis and Qdrant have no such built-in
+// lifecycle hands each variant its own data/config/cache roots. Postgres
+// isolates because the lifecycle injects a variant-aware POSTGRES_DB. SQLite
+// isolates through this package: SQLiteDSN takes the scenario's own slug and
+// resolves the path from it plus the variant-aware namespace, reading NO
+// database-path environment variable — see sqlite.go for the cross-scenario
+// hijack that made that a hard rule. Redis and Qdrant have no such built-in
 // scoping, so scenarios MUST compose their key prefixes and collection names
 // through the helpers in namespace.go:
 //

@@ -66,12 +66,18 @@ func SourceTokens(profiles []Profile) []string {
 // what evidence counts for each DB.
 func DefaultProfiles() []Profile {
 	postgresTokens := []string{"POSTGRES_URL", "DriverPostgres"}
+	// Source tokens follow the code, not history. Scenarios resolve SQLite
+	// through the one owned seam in api-core/storage now, so the tokens that
+	// evidence a SQLite dependency are the seam's entry points. The former
+	// tokens — the generic SQLITE_PATH / SQLITE_DB pair and the per-scenario
+	// sqliteDSN( helper — no longer appear in a migrated scenario, and leaving
+	// them here would report a SQLite user as having no evidence.
 	sqliteTokens := []string{
 		`sql.Open("sqlite"`,
 		`sqlx.Connect("sqlite"`,
-		"SQLITE_PATH",
-		"SQLITE_DB",
-		"sqliteDSN(",
+		"storage.SQLiteDSN(",
+		"storage.SQLiteDSNAt(",
+		"storage.SQLitePath(",
 		"DriverSQLite",
 		"BAS_SQLITE_PATH",
 	}

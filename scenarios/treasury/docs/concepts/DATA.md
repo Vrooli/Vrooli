@@ -23,7 +23,7 @@ Use this document to answer:
 ## Storage Overview
 
 Embedded SQLite through `modernc.org/sqlite`. The lifecycle sets
-`SQLITE_PATH` through `.vrooli/service.json`, and the API applies schemas
+and the API applies schemas
 on startup through `api-core/database`.
 
 **Why SQLite and not a shared database.** Custody is single-operator and

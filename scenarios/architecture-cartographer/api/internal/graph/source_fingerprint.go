@@ -19,12 +19,23 @@ type SourceFingerprinter interface {
 
 // FileSystemFingerprinter hashes graph-affecting source files under a scenario.
 type FileSystemFingerprinter struct {
-	RepoRoot string
+	RepoRoot           string
+	OptionsFingerprint string
 }
 
 // NewFileSystemFingerprinter constructs the production source fingerprinter.
 func NewFileSystemFingerprinter(repoRoot string) *FileSystemFingerprinter {
 	return &FileSystemFingerprinter{RepoRoot: repoRoot}
+}
+
+// NewFileSystemFingerprinterWithOptions includes adapter configuration in the
+// cache key so changing a consumer profile cannot reuse a snapshot produced
+// under a different information contract.
+func NewFileSystemFingerprinterWithOptions(repoRoot, optionsFingerprint string) *FileSystemFingerprinter {
+	return &FileSystemFingerprinter{
+		RepoRoot:           repoRoot,
+		OptionsFingerprint: optionsFingerprint,
+	}
 }
 
 var _ SourceFingerprinter = (*FileSystemFingerprinter)(nil)
@@ -65,7 +76,7 @@ func (f *FileSystemFingerprinter) Fingerprint(ctx context.Context, in ExtractGra
 	sort.Strings(files)
 
 	h := sha256.New()
-	fmt.Fprintf(h, "scenario=%s\nskip_ts=%t\n", scenario, in.SkipTS)
+	fmt.Fprintf(h, "scenario=%s\nskip_ts=%t\noptions=%s\n", scenario, in.SkipTS, f.OptionsFingerprint)
 	for _, lang := range in.Languages {
 		fmt.Fprintf(h, "lang=%s\n", lang)
 	}

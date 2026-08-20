@@ -9,6 +9,12 @@ func (s GraphSnapshot) Clone() GraphSnapshot {
 	if s.Languages != nil {
 		out.Languages = append([]Language(nil), s.Languages...)
 	}
+	if s.ExtractionProfiles != nil {
+		out.ExtractionProfiles = append([]string(nil), s.ExtractionProfiles...)
+	}
+	if s.OmittedInformation != nil {
+		out.OmittedInformation = append([]InformationOmission(nil), s.OmittedInformation...)
+	}
 	if s.Files != nil {
 		out.Files = append([]FileNode(nil), s.Files...)
 	}

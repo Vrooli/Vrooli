@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"git-control-tower/internal/testutil/fixtures"
+
 	"github.com/vrooli/api-core/apihttptest"
 )
 

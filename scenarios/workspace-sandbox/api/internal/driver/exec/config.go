@@ -84,8 +84,8 @@ type BwrapConfig struct {
 	// HostHome is the host-side $HOME, used to bind the per-sandbox
 	// HOME overlay at the same path inside the namespace. Set by
 	// CaptureEnv().ApplyTo. Empty disables the home bind.
-	HostHome string
-	HostUser string
+	HostHome       string
+	HostUser       string
 	HostVrooliRoot string
 
 	// MirrorProjectRoot, when true, also binds the merged dir at

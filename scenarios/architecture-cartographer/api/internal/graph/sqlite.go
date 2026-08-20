@@ -113,6 +113,8 @@ func (r *sqliteRepository) SaveSnapshot(ctx context.Context, s GraphSnapshot) (G
 		Symbols:   s.Symbols,
 		Imports:   s.Imports,
 		Skipped:   s.SkippedAdapters,
+		Profiles:  s.ExtractionProfiles,
+		Omissions: s.OmittedInformation,
 	})
 	if err != nil {
 		return GraphSnapshot{}, fmt.Errorf("encode snapshot %q: %w", s.ID, err)
@@ -239,12 +241,14 @@ type rowScanner interface {
 }
 
 type snapshotPayload struct {
-	Languages []Language    `json:"languages"`
-	Files     []FileNode    `json:"files"`
-	Packages  []PackageNode `json:"packages"`
-	Symbols   []SymbolNode  `json:"symbols"`
-	Imports   []ImportEdge  `json:"imports"`
-	Skipped   []string      `json:"skipped_adapters,omitempty"`
+	Languages []Language            `json:"languages"`
+	Files     []FileNode            `json:"files"`
+	Packages  []PackageNode         `json:"packages"`
+	Symbols   []SymbolNode          `json:"symbols"`
+	Imports   []ImportEdge          `json:"imports"`
+	Skipped   []string              `json:"skipped_adapters,omitempty"`
+	Profiles  []string              `json:"extraction_profiles,omitempty"`
+	Omissions []InformationOmission `json:"omitted_information,omitempty"`
 }
 
 func scanSnapshot(s rowScanner) (GraphSnapshot, error) {
@@ -281,6 +285,8 @@ func scanSnapshot(s rowScanner) (GraphSnapshot, error) {
 		snap.Symbols = p.Symbols
 		snap.Imports = p.Imports
 		snap.SkippedAdapters = p.Skipped
+		snap.ExtractionProfiles = p.Profiles
+		snap.OmittedInformation = p.Omissions
 	}
 	return snap, nil
 }

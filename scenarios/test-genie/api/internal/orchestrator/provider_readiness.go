@@ -26,6 +26,14 @@ type providerReadinessPlan struct {
 
 const defaultProviderReadinessConcurrency = 4
 
+// slowProviderCheckThreshold is the point at which a provider readiness check
+// stops looking like a health probe and starts looking like a cold start.
+//
+// It is deliberately generous. The alarm exists to make a pathological case
+// visible — a 41-minute start went unnoticed — not to flag ordinary variance,
+// and an alarm that fires on ordinary variance is one that gets ignored.
+const slowProviderCheckThreshold = 2 * time.Minute
+
 func providerReadinessConcurrency() int {
 	value := strings.TrimSpace(os.Getenv("TEST_GENIE_PROVIDER_READINESS_CONCURRENCY"))
 	if strings.EqualFold(value, "serial") || value == "0" || strings.EqualFold(value, "false") {
@@ -135,6 +143,16 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 		if provider != "" {
 			stages = append(stages, PreparationStage{Name: "provider_check", Parent: "provider_readiness", Subject: provider, Status: string(outcome.Status), DurationMilliseconds: result.duration.Milliseconds()})
 			emitPreparationProgress(emit, "provider_readiness", fmt.Sprintf("checked %s: %s in %s", provider, outcome.Status, result.duration.Round(time.Millisecond)))
+			// A readiness check is a health probe against an already-running
+			// provider; it should take seconds. One template-manager start took
+			// 41 MINUTES and passed unnoticed, because a slow check is
+			// indistinguishable from a fast one in a duration column nobody
+			// reads. Say it out loud instead.
+			if result.duration >= slowProviderCheckThreshold {
+				emitPreparationProgress(emit, "provider_readiness", fmt.Sprintf(
+					"SLOW provider check: %s took %s (threshold %s) — the provider is probably starting up rather than responding; this is provider uptime, not a Test Genie scheduling problem",
+					provider, result.duration.Round(time.Second), slowProviderCheckThreshold))
+			}
 		}
 		if def.ProviderScenario != "" || outcome.Status != providerreadiness.OutcomeReady {
 			outcomes = append(outcomes, outcome)

@@ -103,6 +103,7 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 		Success:                  result.Success,
 		Phases:                   compactPhaseResults(result.Phases),
 		PreparationStages:        compactPreparationStages(result.PreparationStages),
+		RequestedAt:              result.RequestedAt,
 		StartedAt:                result.StartedAt,
 		CompletedAt:              result.CompletedAt,
 	}

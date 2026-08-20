@@ -13,10 +13,11 @@ import (
 	"strings"
 	"sync"
 
+	"test-genie/internal/orchestrator/phases"
+
 	"github.com/vrooli/freshness-go/treedigest"
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
-	"test-genie/internal/orchestrator/phases"
 )
 
 // Identity is the four-part cache identity. Each field is supplied by the
@@ -36,6 +37,37 @@ type Entry struct {
 }
 
 type Store struct{ root string }
+
+// cacheableStatuses are the phase verdicts the cache may reuse.
+//
+// "passed" and "failed" are both DETERMINED by the cache identity: the scoped
+// input digest, the provider build identity, the descriptor snapshot, and the
+// execution configuration together cover everything that could change the
+// verdict. A failure under an unchanged identity is exactly as reusable as a
+// pass, and re-deriving it was 36% of all phase time — 44.5 hours over the
+// measured window — spent reproducing byte-identical failures.
+//
+// The counter-argument is that a failure may be caused by external state the
+// digest does not cover, so a cached failure could hide a fix. The audit
+// sampler is the answer: it already re-runs a sampled fraction of hits, and a
+// phase whose cached failure has gone stale is demoted on the next audit. That
+// is the same trust model the cache already applies to passes — and a stale
+// cached PASS is the more dangerous of the two, because it reports success that
+// was never verified.
+//
+// Every other status is excluded deliberately. "skipped", "missing",
+// "not_executable", "not_run", and "provider_unavailable" describe the state of
+// the RUN rather than the verdict of the phase; they say the phase did not
+// happen, which is not a result to reuse.
+var cacheableStatuses = map[string]bool{
+	"passed": true,
+	"failed": true,
+}
+
+// Cacheable reports whether a phase verdict may be stored and reused.
+func Cacheable(status string) bool {
+	return cacheableStatuses[strings.ToLower(strings.TrimSpace(status))]
+}
 
 var demotionMu sync.Mutex
 
@@ -62,7 +94,7 @@ func (s *Store) Load(key string) (Entry, bool, error) {
 	if err := json.Unmarshal(data, &entry); err != nil {
 		return Entry{}, false, fmt.Errorf("decode phase cache entry: %w", err)
 	}
-	if entry.Key != key || entry.Phase.Status != "passed" {
+	if entry.Key != key || !Cacheable(entry.Phase.Status) {
 		return Entry{}, false, nil
 	}
 	if s.IsDemoted(key) {
@@ -163,6 +195,102 @@ func Equivalent(a, b phases.ExecutionResult) bool {
 	return reflect.DeepEqual(normalized(a), normalized(b))
 }
 
+// Diff describes what changed between a cached result and a freshly executed
+// one, for an audit that found them not Equivalent.
+//
+// The audit used to record only that a mismatch happened. That is enough to
+// demote the entry and no help at all in deciding whether the cache was wrong
+// or the world moved — the two questions an operator actually has when a
+// mismatch appears. A count of mismatches tells you a number; naming the
+// difference tells you where to look.
+//
+// The output is deliberately bounded: a verdict flip and a standing change are
+// stated in full, and finding churn is summarised as counts plus a few example
+// identities, so a phase that emits hundreds of findings does not produce an
+// unreadable finding message.
+func Diff(cached, fresh phases.ExecutionResult) string {
+	before, after := normalized(cached), normalized(fresh)
+	var parts []string
+
+	if before.Status != after.Status {
+		parts = append(parts, fmt.Sprintf("verdict %s -> %s", quoteOrNone(before.Status), quoteOrNone(after.Status)))
+	}
+	if before.Standing != after.Standing {
+		parts = append(parts, "maturity standing changed")
+	}
+
+	added, removed := diffSets(before.FindingSet, after.FindingSet)
+	if len(added) > 0 {
+		parts = append(parts, fmt.Sprintf("%d finding(s) appeared (%s)", len(added), summarizeIdentities(added)))
+	}
+	if len(removed) > 0 {
+		parts = append(parts, fmt.Sprintf("%d finding(s) disappeared (%s)", len(removed), summarizeIdentities(removed)))
+	}
+
+	if len(parts) == 0 {
+		// Equivalent compares the normalized verdict, so reaching here means
+		// the two differ in a field normalization deliberately ignores. Say so
+		// rather than emitting an empty explanation.
+		return "results differ in a field the verdict comparison normalizes away"
+	}
+	return strings.Join(parts, "; ")
+}
+
+// diffSets returns the elements added and removed between two SORTED sets.
+func diffSets(before, after []string) (added, removed []string) {
+	inBefore := make(map[string]bool, len(before))
+	for _, v := range before {
+		inBefore[v] = true
+	}
+	inAfter := make(map[string]bool, len(after))
+	for _, v := range after {
+		inAfter[v] = true
+		if !inBefore[v] {
+			added = append(added, v)
+		}
+	}
+	for _, v := range before {
+		if !inAfter[v] {
+			removed = append(removed, v)
+		}
+	}
+	return added, removed
+}
+
+// maxDiffExamples bounds how many finding identities a diff names.
+const maxDiffExamples = 3
+
+// summarizeIdentities renders a few finding identities readably. A finding
+// identity packs several fields behind unit separators; only the leading token
+// (the stable id) is useful in a message.
+func summarizeIdentities(identities []string) string {
+	shown := identities
+	suffix := ""
+	if len(shown) > maxDiffExamples {
+		shown = shown[:maxDiffExamples]
+		suffix = fmt.Sprintf(", and %d more", len(identities)-maxDiffExamples)
+	}
+	tokens := make([]string, 0, len(shown))
+	for _, id := range shown {
+		token := id
+		if idx := strings.IndexAny(token, "\x1e\x1f\n"); idx > 0 {
+			token = token[:idx]
+		}
+		if token == "" {
+			token = "(unnamed)"
+		}
+		tokens = append(tokens, token)
+	}
+	return strings.Join(tokens, ", ") + suffix
+}
+
+func quoteOrNone(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return "(none)"
+	}
+	return strconv.Quote(s)
+}
+
 func normalized(result phases.ExecutionResult) normalizedVerdict {
 	verdict := normalizedVerdict{Status: strings.TrimSpace(result.Status), Standing: assessmentStanding(result)}
 	for _, finding := range result.Findings {
@@ -213,7 +341,7 @@ func assessmentStanding(result phases.ExecutionResult) string {
 // can legitimately differ between runs under queue pressure; allowing that
 // warning to poison a cache audit would demote deterministic provider results.
 func (s *Store) Save(key, runID string, phase phases.ExecutionResult) error {
-	if s == nil || strings.TrimSpace(key) == "" || phase.Status != "passed" {
+	if s == nil || strings.TrimSpace(key) == "" || !Cacheable(phase.Status) {
 		return nil
 	}
 	if err := os.MkdirAll(s.root, 0o755); err != nil {

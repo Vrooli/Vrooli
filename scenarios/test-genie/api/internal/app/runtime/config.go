@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	goruntime "runtime"
 	"strings"
 
 	"test-genie/internal/storage/sqlitedb"
 
-	apistorage "github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -54,22 +52,17 @@ func requireEnv(key string) (string, error) {
 	return value, nil
 }
 
+// resolveDatabaseConfig returns the location of Test Genie's own run ledger.
+//
+// There is deliberately no fallback here. Resolution used to try a chain of
+// environment variables, then a second hand-rolled storage-resolver path, then
+// a routine that MOVED an existing database to wherever that second path
+// landed. Every extra branch was another way for the ledger to end up somewhere
+// unexpected — and the move could relocate a live database out from under a
+// running process. sqlitedb.Resolve is deterministic from this scenario's own
+// identity, so one call is the whole answer.
 func resolveDatabaseConfig() (sqlitedb.Config, error) {
-	cfg, err := sqlitedb.Resolve()
-	if err == nil {
-		return cfg, nil
-	}
-
-	fallbackPath, fallbackErr := resolveFallbackDatabasePath()
-	if fallbackErr == nil {
-		fallbackCfg, fallbackResolveErr := sqlitedb.ResolveExplicit(fallbackPath)
-		if fallbackResolveErr == nil {
-			return fallbackCfg, nil
-		}
-		return sqlitedb.Config{}, fmt.Errorf("sqlite configuration failed: %w (fallback path %s also failed: %v)", err, fallbackPath, fallbackResolveErr)
-	}
-
-	return sqlitedb.Config{}, fmt.Errorf("sqlite configuration failed: %w (storage fallback error: %v)", err, fallbackErr)
+	return sqlitedb.Resolve()
 }
 
 func resolveScenariosRoot() (string, error) {
@@ -92,55 +85,4 @@ func resolveScenariosRoot() (string, error) {
 		return "", fmt.Errorf("resolve scenarios dir: %w", err)
 	}
 	return scenariosRoot, nil
-}
-
-func resolveFallbackDatabasePath() (string, error) {
-	resolver, err := apistorage.NewResolver(apistorage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: apistorage.ProfileAuto,
-	})
-	if err != nil {
-		return "", fmt.Errorf("create storage resolver: %w", err)
-	}
-	dbPath, err := resolver.Path(
-		apistorage.Options{ScenarioID: "test-genie"},
-		apistorage.ClassData,
-		"test-genie.db",
-	)
-	if err != nil {
-		return "", fmt.Errorf("resolve storage-backed database path: %w", err)
-	}
-	if err := migrateLegacyDatabase(dbPath); err != nil {
-		return "", err
-	}
-	return dbPath, nil
-}
-
-func migrateLegacyDatabase(dst string) error {
-	root, err := scenarioRoot()
-	if err != nil {
-		return nil
-	}
-	legacy := filepath.Join(root, "data", "test-genie.db")
-	if _, err := os.Stat(legacy); err != nil {
-		return nil
-	}
-	if _, err := os.Stat(dst); err == nil {
-		return nil
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return fmt.Errorf("ensure fallback database dir: %w", err)
-	}
-	if err := os.Rename(legacy, dst); err != nil {
-		return fmt.Errorf("migrate legacy test-genie database: %w", err)
-	}
-	return nil
-}
-
-func scenarioRoot() (string, error) {
-	_, file, _, ok := goruntime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("resolve runtime source path")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..")), nil
 }

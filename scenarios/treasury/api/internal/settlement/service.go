@@ -10,13 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vrooli/api-core/schedule"
 	"treasury/internal/authorization"
 	"treasury/internal/budget"
 	"treasury/internal/identity"
 	"treasury/internal/instrument"
 	"treasury/internal/rail"
 	settlementflow "treasury/internal/settlement/flow"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 var ErrInvalid = errors.New("invalid settlement")

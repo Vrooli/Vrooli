@@ -460,7 +460,7 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 		// A phase that was deliberately inapplicable on both sides is visible in
 		// the phase detail but contributes no behavioral measurement. It must not
 		// turn an otherwise comparable baseline into an unusable comparison.
-		if !bestEffortProviderOutageIsNeutral(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB) && !symmetricNeutralAbsence(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB) && !providerReadinessGapNeutral(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB) {
+		if !bestEffortProviderOutageIsNeutral(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB) && !symmetricNeutralAbsence(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB) && !providerReadinessGapNeutral(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB) && !additivePhaseAdditionNeutral(diff, descriptorA, descriptorB) {
 			response.Behavior = aggregateBehavior(response.Behavior, diff.Behavior)
 			response.Coverage = aggregateDimension(response.Coverage, diff.Coverage, "measured")
 			response.Compatibility = aggregateDimension(response.Compatibility, diff.Compatibility, "compatible")
@@ -558,6 +558,9 @@ func classifyPhaseComparison(diff *runspb.PhaseDiff, a, b runProjection, recordA
 	if diff.Coverage == "measured" && (isUnmeasuredStatus(recordA.Status) || isUnmeasuredStatus(recordB.Status)) {
 		diff.Coverage = "unmeasured"
 	}
+	if additivePhasePassedWithoutBaseline(diff, recordB, okB, hasDescriptorA, hasDescriptorB, descriptorB) {
+		return
+	}
 	if (diff.Coverage != "measured" && diff.Coverage != "current-only") || (diff.Compatibility != "compatible" && diff.Compatibility != "new") {
 		diff.Verdict = verdictNotComparable
 		return
@@ -579,6 +582,30 @@ func classifyPhaseComparison(diff *runspb.PhaseDiff, a, b runProjection, recordA
 	default:
 		diff.Behavior, diff.Verdict = "clean", verdictClean
 	}
+}
+
+// additivePhasePassedWithoutBaseline is the explicit escape hatch for a phase
+// introduced after an immutable baseline was captured. It is deliberately
+// narrow: only a current-only additive phase with a measured pass is neutral.
+// A failed additive phase continues through the normal new-failure path, and
+// an absent/unknown result remains incomparable.
+func additivePhasePassedWithoutBaseline(diff *runspb.PhaseDiff, recordB sharedruns.PhaseRecord, okB, hasDescriptorA, hasDescriptorB bool, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
+	if hasDescriptorA || !hasDescriptorB || descriptorB == nil || descriptorB.ComparisonMode != "additive" || !okB || recordB.Status != "passed" {
+		return false
+	}
+	diff.Coverage = "current-only"
+	diff.Compatibility = "additive"
+	diff.Behavior = "clean"
+	diff.Verdict = verdictClean
+	diff.Diagnostics = append(diff.Diagnostics, &runspb.ComparisonDiagnostic{
+		Side: "comparison", Code: "additive_phase",
+		Detail: "phase was introduced after the baseline and passed as an explicitly additive validator; current-only evidence is retained without claiming before coverage",
+	})
+	return true
+}
+
+func additivePhaseAdditionNeutral(diff *runspb.PhaseDiff, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
+	return descriptorA == nil && descriptorB != nil && descriptorB.ComparisonMode == "additive" && diff.Behavior == "clean" && diff.Coverage == "current-only" && diff.Compatibility == "additive"
 }
 
 func appendReadinessDiagnostic(diff *runspb.PhaseDiff, side string, result *orchestrator.SuiteExecutionResult, phase string) {

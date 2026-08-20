@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"treasury/internal/book"
+	"treasury/internal/budget"
+
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
 	"github.com/vrooli/api-core/schedule"
-	"treasury/internal/book"
-	"treasury/internal/budget"
 )
 
 // [REQ:TRS-P1-006] The kill switch composes budget, book, and scenario scope,

@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS suite_executions (
     -- errored | aborted | timeout. Nullable so the brownfield migration can
     -- add it to an existing table and backfill from success.
     terminal_outcome TEXT,
+    -- requested_at is when the run was ASKED for; started_at is when it got a
+    -- concurrency slot. The gap between them is queue latency, which is the
+    -- part of "why was my suite slow" that execution timings cannot see.
+    requested_at TEXT,
     started_at TEXT NOT NULL,
     completed_at TEXT NOT NULL
 );

@@ -2,10 +2,13 @@ package phasecache
 
 import (
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 
-	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	"test-genie/internal/orchestrator/phases"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 func TestKeyChangesForEachIdentityPart(t *testing.T) {
@@ -111,20 +114,150 @@ func TestEquivalentDetectsFindingVerdictChanges(t *testing.T) {
 	}
 }
 
-func TestStoreOnlyServesPassedResultsAndPreservesFindings(t *testing.T) {
+func TestStoreServesBothDeterminedVerdicts(t *testing.T) {
 	store := New(t.TempDir())
-	phase := phases.ExecutionResult{Name: "structure", Status: "passed", Findings: nil}
-	if err := store.Save("pc:test", "run-1", phase); err != nil {
+
+	// A pass under an unchanged identity is reusable.
+	pass := phases.ExecutionResult{Name: "structure", Status: "passed", Findings: nil}
+	if err := store.Save("pc:passed", "run-1", pass); err != nil {
 		t.Fatal(err)
 	}
-	entry, ok, err := store.Load("pc:test")
+	entry, ok, err := store.Load("pc:passed")
 	if err != nil || !ok || entry.RunID != "run-1" || entry.Phase.Status != "passed" {
-		t.Fatalf("load = %+v, %v, %v", entry, ok, err)
+		t.Fatalf("load passed = %+v, %v, %v", entry, ok, err)
 	}
-	if err := store.Save("pc:failed", "run-2", phases.ExecutionResult{Name: "structure", Status: "failed"}); err != nil {
+
+	// So is a failure. The cache identity covers everything that could change
+	// the verdict, so re-deriving a byte-identical failure buys nothing — and
+	// that re-derivation was 36% of all phase time.
+	fail := phases.ExecutionResult{
+		Name:   "structure",
+		Status: "failed",
+		Findings: []*architecturev1.ArchitectureFinding{
+			{Code: "rule", Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR},
+		},
+	}
+	if err := store.Save("pc:failed", "run-2", fail); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok, err := store.Load("pc:failed"); err != nil || ok {
-		t.Fatalf("failed result should not be cacheable: ok=%v err=%v", ok, err)
+	entry, ok, err = store.Load("pc:failed")
+	if err != nil || !ok {
+		t.Fatalf("a failure under an unchanged identity must be reusable: ok=%v err=%v", ok, err)
+	}
+	if entry.Phase.Status != "failed" {
+		t.Fatalf("cached verdict = %q, want failed", entry.Phase.Status)
+	}
+	if len(entry.Phase.Findings) != 1 || entry.Phase.Findings[0].GetCode() != "rule" {
+		t.Fatalf("findings must survive the round trip, got %+v", entry.Phase.Findings)
+	}
+}
+
+// TestStoreRejectsNonVerdictStatuses keeps the extension narrow. These statuses
+// describe the state of the RUN rather than the verdict of the phase — they say
+// the phase did not happen, which is not a result to reuse.
+func TestStoreRejectsNonVerdictStatuses(t *testing.T) {
+	store := New(t.TempDir())
+	for _, status := range []string{"skipped", "missing", "not_executable", "not_run", "provider_unavailable", ""} {
+		key := "pc:" + status
+		if err := store.Save(key, "run-x", phases.ExecutionResult{Name: "structure", Status: status}); err != nil {
+			t.Fatalf("save %q: %v", status, err)
+		}
+		if _, ok, err := store.Load(key); err != nil || ok {
+			t.Fatalf("status %q must not be cacheable: ok=%v err=%v", status, ok, err)
+		}
+	}
+}
+
+func TestCacheableIsCaseAndSpaceInsensitive(t *testing.T) {
+	for _, status := range []string{"passed", "PASSED", " failed ", "Failed"} {
+		if !Cacheable(status) {
+			t.Fatalf("%q should be cacheable", status)
+		}
+	}
+	for _, status := range []string{"skipped", "pass", "fail", ""} {
+		if Cacheable(status) {
+			t.Fatalf("%q should not be cacheable", status)
+		}
+	}
+}
+
+// --- audit diagnosis ----------------------------------------------------
+//
+// A mismatch count tells an operator a number. Naming the difference tells
+// them whether the cache was wrong or the world moved — the only question
+// worth asking when an audit fails.
+
+func TestDiffNamesAVerdictFlip(t *testing.T) {
+	cached := phases.ExecutionResult{Name: "unit", Status: "passed"}
+	fresh := phases.ExecutionResult{Name: "unit", Status: "failed"}
+
+	diff := Diff(cached, fresh)
+	if !strings.Contains(diff, "passed") || !strings.Contains(diff, "failed") {
+		t.Fatalf("a verdict flip must be named, got %q", diff)
+	}
+}
+
+func TestDiffNamesAppearingAndDisappearingFindings(t *testing.T) {
+	cached := phases.ExecutionResult{
+		Name:   "quality",
+		Status: "failed",
+		Findings: []*architecturev1.ArchitectureFinding{
+			{Code: "kept", StableId: "kept"},
+			{Code: "gone", StableId: "gone"},
+		},
+	}
+	fresh := phases.ExecutionResult{
+		Name:   "quality",
+		Status: "failed",
+		Findings: []*architecturev1.ArchitectureFinding{
+			{Code: "kept", StableId: "kept"},
+			{Code: "new", StableId: "new"},
+		},
+	}
+
+	diff := Diff(cached, fresh)
+	if !strings.Contains(diff, "appeared") || !strings.Contains(diff, "new") {
+		t.Fatalf("appearing findings must be named, got %q", diff)
+	}
+	if !strings.Contains(diff, "disappeared") || !strings.Contains(diff, "gone") {
+		t.Fatalf("disappearing findings must be named, got %q", diff)
+	}
+	if strings.Contains(diff, "kept") {
+		t.Fatalf("an unchanged finding must not be reported as churn: %q", diff)
+	}
+}
+
+// TestDiffIsBounded keeps the message readable for a phase that emits hundreds
+// of findings: an unreadable diagnosis is no better than a count.
+func TestDiffIsBounded(t *testing.T) {
+	fresh := phases.ExecutionResult{Name: "quality", Status: "failed"}
+	for i := 0; i < 50; i++ {
+		id := "finding-" + strconv.Itoa(i)
+		fresh.Findings = append(fresh.Findings, &architecturev1.ArchitectureFinding{Code: id, StableId: id})
+	}
+
+	diff := Diff(phases.ExecutionResult{Name: "quality", Status: "failed"}, fresh)
+	if !strings.Contains(diff, "50 finding(s) appeared") {
+		t.Fatalf("the full count must be reported, got %q", diff)
+	}
+	if !strings.Contains(diff, "more") {
+		t.Fatalf("expected the example list to be truncated, got %q", diff)
+	}
+	if len(diff) > 300 {
+		t.Fatalf("diff is %d chars; it must stay readable: %q", len(diff), diff)
+	}
+}
+
+// TestDiffOnEquivalentResultsIsHonest covers the case where two results compare
+// equal under Equivalent. Reaching Diff then means they differ only in a field
+// normalization ignores, and saying so beats an empty explanation.
+func TestDiffOnEquivalentResultsIsHonest(t *testing.T) {
+	a := phases.ExecutionResult{Name: "unit", Status: "passed"}
+	b := phases.ExecutionResult{Name: "unit", Status: "passed", DurationMilliseconds: 900}
+	if !Equivalent(a, b) {
+		t.Fatal("these should compare equivalent")
+	}
+	if diff := Diff(a, b); diff == "" {
+		t.Fatal("Diff must never return an empty explanation")
 	}
 }

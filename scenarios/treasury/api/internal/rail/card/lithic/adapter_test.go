@@ -12,12 +12,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
-	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	"treasury/internal/rail"
 	"treasury/internal/rail/card"
 	"treasury/internal/rail/card/lithic"
+
+	"github.com/stretchr/testify/require"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 )
 
 type sandboxState struct {

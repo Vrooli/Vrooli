@@ -42,9 +42,13 @@ func openRouted(t *testing.T, includeSeed bool) *database.RoutedDB {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "test-genie.db")
+	dsn, err := sqlitedb.BuildDSN(path)
+	if err != nil {
+		t.Fatalf("build sqlite dsn: %v", err)
+	}
 	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          sqlitedb.BuildDSN(path),
+		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})
@@ -64,9 +68,13 @@ func open(t *testing.T, includeSeed bool) *sql.DB {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "test-genie.db")
+	dsn, err := sqlitedb.BuildDSN(path)
+	if err != nil {
+		t.Fatalf("build sqlite dsn: %v", err)
+	}
 	db, err := database.Connect(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          sqlitedb.BuildDSN(path),
+		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})

@@ -26,7 +26,11 @@ func TestPlanIsReadOnlyAndApplyRequiresConfirmation(t *testing.T) {
 	archive := filepath.Join(dir, "archive")
 	database := filepath.Join(dir, "test-genie.db")
 	databaseArchive := filepath.Join(dir, "archive.db")
-	db, err := sql.Open("sqlite", sqlitedb.BuildDSN(database))
+	dsn, err := sqlitedb.BuildDSN(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

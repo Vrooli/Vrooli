@@ -12,12 +12,33 @@ const (
 	ProjectionValidate Projection = "validate"
 	ProjectionGuide    Projection = "guide"
 	ProjectionAct      Projection = "act"
+	// Reliability projections are the platform-instrument denominator owned by
+	// infrastructure-manager and its six control-layer owners. They share the
+	// same space-definition/v1 wire shape as the original readiness spaces.
+	ProjectionSupervision     Projection = "supervision"
+	ProjectionAvailability    Projection = "availability"
+	ProjectionRecovery        Projection = "recovery"
+	ProjectionCapacity        Projection = "capacity"
+	ProjectionHeadroom        Projection = "headroom"
+	ProjectionDurability      Projection = "durability"
+	ProjectionAttribution     Projection = "attribution"
+	ProjectionValidationCost  Projection = "validation-cost"
+	ProjectionAgentThroughput Projection = "agent-throughput"
+	ProjectionCommissioning   Projection = "commissioning"
+	// ProjectionSubstrate is the host/kernel/device tier. It is the second
+	// rung of the infra-health cascade ladder, so it must be readable before
+	// any outer-tier finding can be honoured.
+	ProjectionSubstrate Projection = "substrate"
 )
 
 // Valid reports whether p is one of the known projections.
 func (p Projection) Valid() bool {
 	switch p {
-	case ProjectionAnswer, ProjectionValidate, ProjectionGuide, ProjectionAct:
+	case ProjectionAnswer, ProjectionValidate, ProjectionGuide, ProjectionAct,
+		ProjectionSupervision, ProjectionAvailability, ProjectionRecovery,
+		ProjectionCapacity, ProjectionHeadroom, ProjectionDurability,
+		ProjectionAttribution, ProjectionValidationCost, ProjectionAgentThroughput,
+		ProjectionCommissioning, ProjectionSubstrate:
 		return true
 	default:
 		return false
@@ -60,6 +81,7 @@ type SpaceDefinition struct {
 	Owner                 string                `json:"owner"`
 	DenominatorConfidence DenominatorConfidence `json:"denominator_confidence"`
 	ConfidenceRationale   string                `json:"confidence_rationale,omitempty"`
+	LegUnit               string                `json:"leg_unit,omitempty"`
 	Source                string                `json:"source,omitempty"`
 	Cells                 []Cell                `json:"cells"`
 	Axes                  *Axes                 `json:"axes,omitempty"`
@@ -94,6 +116,7 @@ type Cell struct {
 	Question    string     `json:"question"`
 	Owner       string     `json:"owner,omitempty"`
 	Status      CellStatus `json:"status"`
+	GapOpenedOn string     `json:"gap_opened_on,omitempty"`
 	Basis       Basis      `json:"basis,omitempty"`
 	Sufficiency string     `json:"sufficiency,omitempty"`
 	Notes       []string   `json:"notes,omitempty"`

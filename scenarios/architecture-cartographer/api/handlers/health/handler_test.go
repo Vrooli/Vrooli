@@ -12,6 +12,7 @@ import (
 	"architecture-cartographer/internal/module"
 	"architecture-cartographer/internal/server"
 	"architecture-cartographer/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

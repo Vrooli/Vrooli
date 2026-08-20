@@ -21,8 +21,8 @@ type URLResolver interface {
 	ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string, error)
 }
 
-// CodeFactsSurfaceProvider consumes code-facts' surface, parse-unit, and
-// proof substrate. If code-facts is unreachable, it returns a local inventory
+// CodeFactsSurfaceProvider consumes code-facts' surface and parse-unit
+// substrate. If code-facts is unreachable, it returns a local inventory
 // plus a warning so downstream audit output can mark the run partial/lower
 // confidence instead of silently deriving from heuristics.
 type CodeFactsSurfaceProvider struct {
@@ -47,6 +47,12 @@ func NewCodeFactsSurfaceProvider(resolver URLResolver, httpClient connect.HTTPCl
 var _ SurfaceProvider = (*CodeFactsSurfaceProvider)(nil)
 
 func (p *CodeFactsSurfaceProvider) Inspect(ctx context.Context, scenarioDir string) (SurfaceInventory, error) {
+	return inspectSurfaceCached(ctx, scenarioDir, func() (SurfaceInventory, error) {
+		return p.inspectUncached(ctx, scenarioDir)
+	})
+}
+
+func (p *CodeFactsSurfaceProvider) inspectUncached(ctx context.Context, scenarioDir string) (SurfaceInventory, error) {
 	baseURL, err := p.resolver.ResolveScenarioURLDefault(ctx, codeFactsScenario)
 	if err != nil {
 		return p.fallbackWithWarning(ctx, scenarioDir, fmt.Errorf("resolve code-facts: %w", err))
@@ -57,9 +63,6 @@ func (p *CodeFactsSurfaceProvider) Inspect(ctx context.Context, scenarioDir stri
 		Include: []factsv1.FactFamily{
 			factsv1.FactFamily_FACT_FAMILY_SURFACES,
 			factsv1.FactFamily_FACT_FAMILY_PARSE_UNITS,
-			factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
-			factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
-			factsv1.FactFamily_FACT_FAMILY_CLI_PROOFS,
 		},
 		UseCache: true,
 	}))

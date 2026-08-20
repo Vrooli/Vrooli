@@ -1,8 +1,9 @@
 package agentspend
 
 import (
-	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 	"treasury/internal/module"
+
+	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

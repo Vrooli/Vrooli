@@ -12,10 +12,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/mux"
 	"treasury/internal/module"
 	"treasury/internal/operatorauth"
 	x402rail "treasury/internal/rail/x402"
+
+	"github.com/gorilla/mux"
 )
 
 const maxRequestBytes = 64 << 10

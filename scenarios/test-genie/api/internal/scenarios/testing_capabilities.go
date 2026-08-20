@@ -1,7 +1,6 @@
 package scenarios
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,7 +14,6 @@ type TestingCapabilities struct {
 	Genie     bool             `json:"genie"`
 	HasTests  bool             `json:"hasTests"`
 	Phased    bool             `json:"phased"`
-	Lifecycle bool             `json:"lifecycle"`
 	Legacy    bool             `json:"legacy"`
 	Preferred string           `json:"preferred,omitempty"`
 	Commands  []TestingCommand `json:"commands,omitempty"`
@@ -56,17 +54,6 @@ func DetectTestingCapabilities(scenarioDir string) TestingCapabilities {
 			Description: "Runs the scenario-local phased suite (legacy format; prefer test-genie).",
 		})
 	}
-	if hasLifecycleTest(filepath.Join(scenarioDir, ".vrooli", "service.json")) {
-		caps.Lifecycle = true
-		if appRoot != "" {
-			caps.Commands = append(caps.Commands, TestingCommand{
-				Type:        "lifecycle",
-				Command:     []string{filepath.Join(appRoot, "scripts", "manage.sh"), "test"},
-				WorkingDir:  scenarioDir,
-				Description: "Runs lifecycle-managed tests declared in service.json.",
-			})
-		}
-	}
 	if fileExists(filepath.Join(scenarioDir, "scenario-test.yaml")) {
 		caps.Legacy = true
 		if appRoot != "" {
@@ -78,14 +65,12 @@ func DetectTestingCapabilities(scenarioDir string) TestingCapabilities {
 			})
 		}
 	}
-	caps.HasTests = caps.Genie || caps.Phased || caps.Lifecycle || caps.Legacy
+	caps.HasTests = caps.Genie || caps.Phased || caps.Legacy
 	switch {
 	case caps.Genie:
 		caps.Preferred = "genie"
 	case caps.Phased:
 		caps.Preferred = "phased"
-	case caps.Lifecycle:
-		caps.Preferred = "lifecycle"
 	case caps.Legacy:
 		caps.Preferred = "legacy"
 	}
@@ -114,7 +99,7 @@ func (caps TestingCapabilities) PreferredCommand() *TestingCommand {
 			return cmd
 		}
 	}
-	for _, kind := range []string{"genie", "phased", "lifecycle", "legacy"} {
+	for _, kind := range []string{"genie", "phased", "legacy"} {
 		if cmd := caps.CommandByType(kind); cmd != nil {
 			return cmd
 		}
@@ -139,22 +124,6 @@ func hasExecutable(path string) bool {
 		return true
 	}
 	return info.Mode()&0o111 != 0
-}
-
-func hasLifecycleTest(path string) bool {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return false
-	}
-	var manifest struct {
-		Lifecycle struct {
-			Test string `json:"test"`
-		} `json:"lifecycle"`
-	}
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return false
-	}
-	return strings.TrimSpace(manifest.Lifecycle.Test) != ""
 }
 
 func fileExists(path string) bool {

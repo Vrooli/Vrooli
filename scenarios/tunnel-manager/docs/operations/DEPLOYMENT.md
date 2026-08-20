@@ -36,7 +36,7 @@ wherever the local stack and its tunnel daemon run.
 - UI port: **fixed at `21240`** (`service.json` `ports.ui`). Tunnel
   Manager enforces the fixed-UI-port contract on others, so it pins its
   own — see [`../internal/DECISIONS.md`](../internal/DECISIONS.md).
-- Storage: SQLite only, at `SQLITE_PATH`
+- Storage: SQLite only, resolved by `api-core/storage`
   (default `${SCENARIO_DATA_DIR}/tunnel-manager.db`). No external
   database — foundational infra must keep working when other resources
   are down (see DECISIONS: "SQLite only").

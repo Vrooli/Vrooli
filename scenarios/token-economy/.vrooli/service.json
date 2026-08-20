@@ -135,9 +135,7 @@
     "resources": {}
   },
   "credentials": {},
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/token-economy.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

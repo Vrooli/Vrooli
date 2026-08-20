@@ -244,7 +244,7 @@ func (s *ScenarioDirectoryService) decorateScenario(summary *ScenarioSummary) {
 	}
 	dir := filepath.Join(s.scenariosRoot, summary.ScenarioName)
 	caps := s.detectTesting(dir)
-	if !caps.HasTests && !caps.Lifecycle && !caps.Legacy && !caps.Phased {
+	if !caps.HasTests {
 		summary.Testing = nil
 		return
 	}

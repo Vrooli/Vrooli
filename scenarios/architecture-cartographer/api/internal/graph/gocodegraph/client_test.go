@@ -34,6 +34,14 @@ func newClient(baseURL string) *gocodegraph.Client {
 	})
 }
 
+func newClientWithProfile(baseURL string, profile graphv1.ExtractionProfile) *gocodegraph.Client {
+	return gocodegraph.New(gocodegraph.Config{
+		URLResolver: discovery.NewStaticResolver(baseURL),
+		ProjectPath: passthroughProject,
+		Profile:     profile,
+	})
+}
+
 // failingResolver returns a fixed discovery error.
 type failingResolver struct{ err error }
 
@@ -114,6 +122,34 @@ func TestClient_Extract_HappyPath(t *testing.T) {
 		t.Fatalf("Extract: %v", err)
 	}
 	assertHappyRawGraph(t, raw)
+}
+
+func TestClient_Extract_SendsProfileAndPreservesOmissions(t *testing.T) {
+	c := newClientWithProfile(startServer(t,
+		func(_ context.Context, req *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
+			if got := req.Msg.GetProfile(); got != graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL {
+				t.Fatalf("Profile=%v want structural", got)
+			}
+			return connect.NewResponse(&graphv1.ExtractResponse{
+				Profile: graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL,
+				OmittedInformation: []*commonv1.CodeGraphOmission{{
+					Capability: "resolved_type_information",
+					Reason:     "structural profile does not run Go type checking",
+				}},
+			}), nil
+		},
+	), graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL)
+
+	raw, err := c.Extract(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if len(raw.ExtractionProfiles) != 1 || raw.ExtractionProfiles[0] != "structural" {
+		t.Fatalf("profiles=%v want [structural]", raw.ExtractionProfiles)
+	}
+	if len(raw.OmittedInformation) != 1 || raw.OmittedInformation[0].Capability != "resolved_type_information" {
+		t.Fatalf("omissions=%+v", raw.OmittedInformation)
+	}
 }
 
 func goExtractResponse() *graphv1.ExtractResponse {

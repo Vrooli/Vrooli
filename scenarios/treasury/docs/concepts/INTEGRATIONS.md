@@ -24,7 +24,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, persistence-backed domains | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, persistence-backed domains | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | `agent-manager` | scenario | yes, on the spend path | `identity` | Live verification call; `X-Agent-Identity-Token` header | **Fail closed** — automated spend is refused and the cause recorded. Console and read paths stay available. |
 | `money-ledger` | scenario | yes, eventually | `ledger` | Its existing money-event contract | Emission queues and retries. Settlement is never blocked; money that moved is still recorded locally. |

@@ -9,8 +9,7 @@ These are normally provided by the Vrooli lifecycle system:
 | Variable | Scope | Default | Purpose |
 |----------|-------|---------|---------|
 | `API_PORT` | API runtime | lifecycle | Port the Test Genie API listens on |
-| `TEST_GENIE_SQLITE_PATH` | API runtime | `${SCENARIO_DATA_DIR}/test-genie.db` | Scenario-local SQLite database path |
-| `SQLITE_PATH` / `SQLITE_DB` | API runtime | unset | Generic SQLite path override used by maintenance tooling |
+| `VROOLI_STORAGE_ROOT` | API runtime | unset | Redirects every storage class root, isolating a run. Scenario-agnostic: each scenario still resolves its own path beneath it. There is deliberately no per-database path variable — a generic one is inherited by every child process and redirects siblings. |
 | `SCENARIO_DATA_DIR` | API runtime | lifecycle | Default root for embedded persistent state |
 | `SCENARIOS_ROOT` | API runtime | inferred from cwd | Root directory for scenario discovery |
 | `VROOLI_ROOT` | API + CLI | environment | Repo root for docs, scenario lookup, and path resolution |

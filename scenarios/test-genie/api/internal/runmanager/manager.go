@@ -158,10 +158,16 @@ type activeRun struct {
 	admissionKey string
 	caller       string
 	resources    []string
-	startedAt    time.Time
-	cancel       context.CancelFunc
-	bc           *broadcaster
-	done         chan struct{}
+	// requestedAt is stamped once at admission and NEVER re-stamped. startedAt
+	// is re-stamped when a concurrency slot opens so elapsed/ETA measure
+	// execution; the difference between the two is the queue wait, which was
+	// previously erased by that re-stamp and therefore invisible to every cost
+	// query.
+	requestedAt time.Time
+	startedAt   time.Time
+	cancel      context.CancelFunc
+	bc          *broadcaster
+	done        chan struct{}
 	// runCtx and input are retained so a run admitted in StatusQueued can be
 	// driven later by the dispatcher when a global concurrency slot frees. They
 	// are unused for runs that start immediately.
@@ -477,6 +483,7 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 		admissionKey: key,
 		caller:       caller,
 		resources:    exclusiveResources(opts.Input.Request.AdmissionResources),
+		requestedAt:  now,
 		startedAt:    now,
 		bc:           newBroadcaster(),
 		done:         make(chan struct{}),
@@ -488,6 +495,10 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	ar.cancel = cancel
 	ar.runCtx = runCtx
 	ar.input = opts.Input
+	// Stamp the request time on BOTH admission paths. A run that starts
+	// immediately reports a queue wait of zero, which is true; a run that waits
+	// has this value re-attached by the dispatcher when its slot opens.
+	ar.input.Request.RequestedAt = now
 
 	m.mu.Lock()
 	// Enumerate in-progress runs of this scenario (ignoring terminal lingerers).
@@ -636,8 +647,12 @@ func (m *Manager) dispatch() {
 		// adaptive selection or failing before durable phase evidence exists.
 		next.input.Request.AdmissionQueued = true
 		// Re-stamp so elapsed/ETA measure execution, not the time spent queued.
+		// requestedAt is deliberately left alone: it is the only record of how
+		// long this run waited, and re-stamping it here is what used to make
+		// queue latency unmeasurable.
 		next.startedAt = time.Now().UTC()
 		next.lastEventAt = next.startedAt
+		next.input.Request.RequestedAt = next.requestedAt
 		next.mu.Unlock()
 		toStart = append(toStart, next)
 	}

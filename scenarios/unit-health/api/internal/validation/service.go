@@ -303,8 +303,11 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	if resolver == nil {
 		resolver = sdaDependencyResolver{}
 	}
+	// A failed resolve is not fatal and must not silently weaken the companion
+	// rules: each workspace widens this closure with its own go.mod before
+	// matching, so reachability stays provable when the analyzer is unavailable.
 	if resolved, resolveErr := resolver.Resolve(ctx, targetKind, scenario, inv.RootPath); resolveErr == nil {
-		closure = mergeModuleClosure(inv.RootPath, resolved)
+		closure = resolved
 	}
 	var suppressedFindings []Finding
 	var projectionChecks []ProjectionCheck

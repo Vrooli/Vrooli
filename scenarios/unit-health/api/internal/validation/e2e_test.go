@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	uhdb "github.com/vrooli/api-core/databasetest"
 	"unit-health/internal/discovery"
 	"unit-health/internal/runhistory"
+
+	uhdb "github.com/vrooli/api-core/databasetest"
 )
 
 // TestEndToEndGoWorkspaceThroughValidate is a true pipeline test: it builds a

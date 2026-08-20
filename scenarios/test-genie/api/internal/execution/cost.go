@@ -24,6 +24,11 @@ type CostSample struct {
 	CacheAudit           bool
 	CacheAuditMismatch   bool
 	CacheNoSaving        bool
+	// QueueLatencyMs is the wait between the run being requested and it getting
+	// a concurrency slot. -1 means unknown: rows recorded before requested_at
+	// existed genuinely cannot say, and reporting 0 for them would understate
+	// fleet queue latency by claiming measured immediacy.
+	QueueLatencyMs int64
 }
 
 type CostSummary struct {
@@ -58,6 +63,17 @@ type CostSummary struct {
 	CacheAuditWallClockMs              int64
 	EstimatedGrossSavedWallClockMs     int64
 	EstimatedNetSavedWallClockMs       int64
+	// ProviderScenario names the scenario whose provider owns this phase, so a
+	// cost row points at something ownable rather than at a phase name.
+	ProviderScenario string
+	// Queue latency percentiles over the samples that know their request time.
+	// -1 when no sample in the bucket does.
+	QueueLatencyMedianMs int64
+	QueueLatencyP90Ms    int64
+	// RepeatFailureWallClockMs is wall-clock spent re-deriving a failure this
+	// phase had already produced. See CostReport for how it is attributed.
+	RepeatFailureWallClockMs int64
+	RepeatFailureSampleCount int
 }
 
 type CostSource interface {
@@ -357,7 +373,8 @@ func (r *SuiteExecutionRepository) CostReport(ctx context.Context, scenario stri
 		       COALESCE(p.wall_clock_ms, p.duration_ms),
 		       p.cpu_user_ms, p.peak_rss_bytes, p.cpu_reliability, p.memory_reliability,
 		       p.cache_hit, p.cache_audit, p.cache_audit_mismatch, p.cache_no_saving,
-		       p.predicted_duration_ms
+		       p.predicted_duration_ms,
+		       e.requested_at, e.started_at
 FROM suite_execution_phases p
 JOIN suite_executions e ON e.id = p.execution_id
 WHERE e.completed_at >= ? AND e.completed_at < ?`
@@ -375,9 +392,13 @@ WHERE e.completed_at >= ? AND e.completed_at < ?`
 	type bucket struct {
 		key string
 		CostSummary
-		reliableWall []int64
-		passingWall  []int64
-		failingWall  []int64
+		reliableWall   []int64
+		passingWall    []int64
+		failingWall    []int64
+		queueLatencies []int64
+		// sawFirstFailure marks that one honest derivation of this phase's
+		// failure has already been counted, so subsequent ones are repeats.
+		sawFirstFailure bool
 	}
 	buckets := map[string]*bucket{}
 	for rows.Next() {
@@ -385,9 +406,11 @@ WHERE e.completed_at >= ? AND e.completed_at < ?`
 		var cpuUser, peak sql.NullInt64
 		var cpuRel, memRel sql.NullString
 		var cacheHit, cacheAudit, cacheAuditMismatch, cacheNoSaving int
-		if err := rows.Scan(&s.Scenario, &s.Phase, &s.Status, &s.WallClockMs, &cpuUser, &peak, &cpuRel, &memRel, &cacheHit, &cacheAudit, &cacheAuditMismatch, &cacheNoSaving, &s.PredictedWallClockMs); err != nil {
+		var requestedAt, startedAt sql.NullString
+		if err := rows.Scan(&s.Scenario, &s.Phase, &s.Status, &s.WallClockMs, &cpuUser, &peak, &cpuRel, &memRel, &cacheHit, &cacheAudit, &cacheAuditMismatch, &cacheNoSaving, &s.PredictedWallClockMs, &requestedAt, &startedAt); err != nil {
 			return nil, err
 		}
+		s.QueueLatencyMs = queueLatencyMs(requestedAt, startedAt)
 		s.CacheHit = cacheHit != 0
 		s.CacheAudit = cacheAudit != 0
 		s.CacheAuditMismatch = cacheAuditMismatch != 0
@@ -434,6 +457,23 @@ WHERE e.completed_at >= ? AND e.completed_at < ?`
 		} else if isFailingPhaseStatus(s.Status) {
 			b.FailingSampleCount++
 			b.failingWall = append(b.failingWall, maxInt64(0, s.WallClockMs))
+			// Repeat-failure cost: wall-clock spent EXECUTING a failure this
+			// phase had already produced. The first execution in the window is
+			// the honest derivation and is not counted; every later one repeats
+			// work whose answer was already known. Cache hits are excluded
+			// because they cost nothing to serve — they are the saving, not the
+			// cost. Rows are read in completed_at order, so "first" is the
+			// earliest in the window.
+			if !s.CacheHit {
+				if b.sawFirstFailure {
+					b.RepeatFailureWallClockMs += maxInt64(0, s.WallClockMs)
+					b.RepeatFailureSampleCount++
+				}
+				b.sawFirstFailure = true
+			}
+		}
+		if s.QueueLatencyMs >= 0 {
+			b.queueLatencies = append(b.queueLatencies, s.QueueLatencyMs)
 		}
 		// Prediction accuracy is a wall-clock comparison and does not depend on
 		// optional CPU/memory metrics being reliable. Keep it visible even when
@@ -495,9 +535,16 @@ WHERE e.completed_at >= ? AND e.completed_at < ?`
 			b.EstimatedGrossSavedWallClockMs = int64(b.CacheHitCount) * b.MedianWallClockMs
 		}
 		b.EstimatedNetSavedWallClockMs = b.EstimatedGrossSavedWallClockMs - b.CacheAuditWallClockMs
+		b.QueueLatencyMedianMs, b.QueueLatencyP90Ms = -1, -1
+		if n := len(b.queueLatencies); n > 0 {
+			sort.Slice(b.queueLatencies, func(i, j int) bool { return b.queueLatencies[i] < b.queueLatencies[j] })
+			b.QueueLatencyMedianMs = b.queueLatencies[(n-1)/2]
+			b.QueueLatencyP90Ms = b.queueLatencies[(n*9+9)/10-1]
+		}
 		b.reliableWall = nil
 		b.passingWall = nil
 		b.failingWall = nil
+		b.queueLatencies = nil
 		result = append(result, b.CostSummary)
 	}
 	sort.Slice(result, func(i, j int) bool {
@@ -525,4 +572,130 @@ func isFailingPhaseStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+// queueLatencyMs computes the wait between request and start, in milliseconds.
+//
+// It returns -1 when either timestamp is missing or unparseable, and when the
+// arithmetic comes out negative. -1 means UNKNOWN and is propagated as such:
+// substituting 0 would report measured immediacy for a run whose wait was never
+// recorded, which is exactly the kind of confident-wrong number this plan set
+// out to remove.
+func queueLatencyMs(requestedAt, startedAt sql.NullString) int64 {
+	if !requestedAt.Valid || !startedAt.Valid {
+		return -1
+	}
+	requested, ok := parseCostTimestamp(requestedAt.String)
+	if !ok {
+		return -1
+	}
+	started, ok := parseCostTimestamp(startedAt.String)
+	if !ok {
+		return -1
+	}
+	delta := started.Sub(requested).Milliseconds()
+	if delta < 0 {
+		return -1
+	}
+	return delta
+}
+
+// costTimestampLayouts are the formats timestamps have been written in over the
+// life of this table. Accepting all of them keeps historical rows readable
+// instead of silently dropping them from the projection.
+var costTimestampLayouts = []string{time.RFC3339Nano, time.RFC3339, "2006-01-02T15:04:05.999999999Z07:00", "2006-01-02 15:04:05"}
+
+func parseCostTimestamp(raw string) (time.Time, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, false
+	}
+	for _, layout := range costTimestampLayouts {
+		if parsed, err := time.Parse(layout, raw); err == nil {
+			return parsed.UTC(), true
+		}
+	}
+	return time.Time{}, false
+}
+
+// FoldFleet merges per-scenario rows into one row per PHASE.
+//
+// A fleet-wide answer to "where does suite time go" is a per-phase question.
+// Reported per scenario it is several hundred rows, which is why every such
+// question was previously answered with hand-written SQL instead of a command.
+//
+// Counts and totals sum. Percentiles do NOT: a median of medians is not a
+// median, so they are recomputed as a sample-count-weighted mean of the inputs
+// and named as such. Peak RSS takes the maximum, because the fleet's peak is
+// the largest single observation, not their sum.
+func FoldFleet(rows []CostSummary) []CostSummary {
+	byPhase := map[string]*CostSummary{}
+	weights := map[string]int{}
+	queueWeights := map[string]int{}
+	order := []string{}
+
+	for _, row := range rows {
+		agg := byPhase[row.Phase]
+		if agg == nil {
+			agg = &CostSummary{Phase: row.Phase, Scenario: "*", ProviderScenario: row.ProviderScenario, QueueLatencyMedianMs: -1, QueueLatencyP90Ms: -1}
+			byPhase[row.Phase] = agg
+			order = append(order, row.Phase)
+		}
+		if agg.ProviderScenario == "" {
+			agg.ProviderScenario = row.ProviderScenario
+		}
+		agg.SampleCount += row.SampleCount
+		agg.PassingSampleCount += row.PassingSampleCount
+		agg.FailingSampleCount += row.FailingSampleCount
+		agg.ReliableSampleCount += row.ReliableSampleCount
+		agg.ExcludedSampleCount += row.ExcludedSampleCount
+		agg.ExecutedSampleCount += row.ExecutedSampleCount
+		agg.TotalWallClockMs += row.TotalWallClockMs
+		agg.TotalCPUUserMs += row.TotalCPUUserMs
+		agg.ChangeWallClockMs += row.ChangeWallClockMs
+		agg.CacheHitCount += row.CacheHitCount
+		agg.CacheAuditCount += row.CacheAuditCount
+		agg.CacheAuditMismatchCount += row.CacheAuditMismatchCount
+		agg.CacheNoSavingCount += row.CacheNoSavingCount
+		agg.CacheAuditWallClockMs += row.CacheAuditWallClockMs
+		agg.EstimatedGrossSavedWallClockMs += row.EstimatedGrossSavedWallClockMs
+		agg.EstimatedNetSavedWallClockMs += row.EstimatedNetSavedWallClockMs
+		agg.RepeatFailureWallClockMs += row.RepeatFailureWallClockMs
+		agg.RepeatFailureSampleCount += row.RepeatFailureSampleCount
+		if row.MaxPeakRSSBytes > agg.MaxPeakRSSBytes {
+			agg.MaxPeakRSSBytes = row.MaxPeakRSSBytes
+		}
+		if row.ReliableSampleCount > 0 {
+			agg.MedianWallClockMs += row.MedianWallClockMs * int64(row.ReliableSampleCount)
+			agg.P90WallClockMs += row.P90WallClockMs * int64(row.ReliableSampleCount)
+			weights[row.Phase] += row.ReliableSampleCount
+		}
+		if row.QueueLatencyMedianMs >= 0 && row.SampleCount > 0 {
+			if agg.QueueLatencyMedianMs < 0 {
+				agg.QueueLatencyMedianMs, agg.QueueLatencyP90Ms = 0, 0
+			}
+			agg.QueueLatencyMedianMs += row.QueueLatencyMedianMs * int64(row.SampleCount)
+			agg.QueueLatencyP90Ms += row.QueueLatencyP90Ms * int64(row.SampleCount)
+			queueWeights[row.Phase] += row.SampleCount
+		}
+	}
+
+	out := make([]CostSummary, 0, len(order))
+	for _, phase := range order {
+		agg := byPhase[phase]
+		if w := weights[phase]; w > 0 {
+			agg.MedianWallClockMs /= int64(w)
+			agg.P90WallClockMs /= int64(w)
+		}
+		if w := queueWeights[phase]; w > 0 {
+			agg.QueueLatencyMedianMs /= int64(w)
+			agg.QueueLatencyP90Ms /= int64(w)
+		}
+		if agg.SampleCount > 0 {
+			agg.CacheHitRatePercent = float64(agg.CacheHitCount) / float64(agg.SampleCount) * 100
+		}
+		out = append(out, *agg)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].TotalWallClockMs > out[j].TotalWallClockMs })
+	return out
 }

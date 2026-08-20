@@ -17,7 +17,7 @@ Use this document to answer:
 ## Storage Overview
 
 Embedded SQLite through `modernc.org/sqlite`, via the routed scenario storage
-seam so test isolation is honored per request. The lifecycle sets `SQLITE_PATH`
+seam so test isolation is honored per request. The path is resolved by `api-core/storage` from the scenario id
 through `.vrooli/service.json`, and the API applies schemas on startup through
 `api-core/database`.
 

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // SurfaceProvider supplies the code-facts-owned view of scenario execution
@@ -16,6 +17,54 @@ import (
 // hardcode which top-level surfaces exist.
 type SurfaceProvider interface {
 	Inspect(ctx context.Context, scenarioDir string) (SurfaceInventory, error)
+}
+
+type surfaceInspectionCacheContextKey struct{}
+
+type surfaceInspectionCache struct {
+	mu      sync.Mutex
+	entries map[string]surfaceInspectionResult
+}
+
+type surfaceInspectionResult struct {
+	inventory SurfaceInventory
+	err       error
+}
+
+func withSurfaceInspectionCache(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, surfaceInspectionCacheContextKey{}, &surfaceInspectionCache{
+		entries: make(map[string]surfaceInspectionResult),
+	})
+}
+
+func inspectSurfaceCached(ctx context.Context, scenarioDir string, load func() (SurfaceInventory, error)) (SurfaceInventory, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cache, _ := ctx.Value(surfaceInspectionCacheContextKey{}).(*surfaceInspectionCache)
+	if cache == nil {
+		return load()
+	}
+
+	key := filepath.Clean(scenarioDir)
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if result, ok := cache.entries[key]; ok {
+		return result.inventory, result.err
+	}
+	result := surfaceInspectionResult{}
+	result.inventory, result.err = load()
+	cache.entries[key] = result
+	return result.inventory, result.err
+}
+
+func inspectSurfaceProvider(ctx context.Context, provider SurfaceProvider, scenarioDir string) (SurfaceInventory, error) {
+	return inspectSurfaceCached(ctx, scenarioDir, func() (SurfaceInventory, error) {
+		return provider.Inspect(ctx, scenarioDir)
+	})
 }
 
 // SurfaceInventory is the narrow code-facts shape cartographer needs for

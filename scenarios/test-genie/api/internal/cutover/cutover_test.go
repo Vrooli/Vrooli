@@ -22,7 +22,11 @@ func TestApplyOfflineArchivesBothStores(t *testing.T) {
 		t.Fatal(err)
 	}
 	liveDB, archiveDB := filepath.Join(dir, "live.db"), filepath.Join(dir, "archive.db")
-	db, err := sql.Open("sqlite", sqlitedb.BuildDSN(liveDB))
+	liveDSN, err := sqlitedb.BuildDSN(liveDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", liveDSN)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +49,7 @@ func TestApplyOfflineArchivesBothStores(t *testing.T) {
 	if _, err := os.Stat(archiveDB + ".cutover-receipt.json"); err != nil {
 		t.Fatal(err)
 	}
-	db, err = sql.Open("sqlite", sqlitedb.BuildDSN(liveDB))
+	db, err = sql.Open("sqlite", liveDSN)
 	if err != nil {
 		t.Fatal(err)
 	}

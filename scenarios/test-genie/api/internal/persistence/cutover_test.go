@@ -14,7 +14,11 @@ import (
 func TestDatabaseCutoverArchivesAndRebuilds(t *testing.T) {
 	live := filepath.Join(t.TempDir(), "live.db")
 	archive := filepath.Join(t.TempDir(), "archive.db")
-	db, err := sql.Open("sqlite", sqlitedb.BuildDSN(live))
+	liveDSN, err := sqlitedb.BuildDSN(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", liveDSN)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +47,7 @@ func TestDatabaseCutoverArchivesAndRebuilds(t *testing.T) {
 	if _, err := os.Stat(archive + ".cutover-receipt.json"); err != nil {
 		t.Fatal(err)
 	}
-	db, err = sql.Open("sqlite", sqlitedb.BuildDSN(live))
+	db, err = sql.Open("sqlite", liveDSN)
 	if err != nil {
 		t.Fatal(err)
 	}

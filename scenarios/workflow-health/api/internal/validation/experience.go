@@ -8,11 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"workflow-health/internal/workflows"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 	contractconnect "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract/contract_v1connect"
-	"workflow-health/internal/workflows"
 )
 
 // ReadinessProfileFetcher is the only contract boundary Workflow Health uses.

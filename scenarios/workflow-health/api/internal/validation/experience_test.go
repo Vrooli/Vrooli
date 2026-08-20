@@ -3,8 +3,9 @@ package validation
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"workflow-health/internal/workflows"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestExperienceCoverageFindingsProgressivelyEnforcesAdoptedRoutes(t *testing.T) {

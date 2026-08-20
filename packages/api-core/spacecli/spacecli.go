@@ -5,9 +5,9 @@
 // denominator only). meta-optimization-manager joins the numerator live; this
 // verb never computes coverage.
 //
-// Each owner registers exactly one projection (the one it owns); the
+// Each owner registers one or more projections (the ones it owns); the
 // --projection flag exists so the call site is uniform across owners and is
-// validated against the registered projection.
+// validated against the registered projections.
 package spacecli
 
 import (
@@ -32,6 +32,9 @@ type Config struct {
 	Owner string
 	// Projection is the projection this owner owns.
 	Projection spacedoc.Projection
+	// Projections lists all projections this owner owns. When set, it takes
+	// precedence over Projection and keeps one flat `space` verb per owner.
+	Projections []spacedoc.Projection
 	// DocPath, when set, is read directly instead of resolving the canonical
 	// scenario doc path. Primarily for tests.
 	DocPath string
@@ -62,18 +65,23 @@ func run(cfg Config, args []string) error {
 	}
 	fs := flag.NewFlagSet("space", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	projection := fs.String("projection", string(cfg.Projection), "projection (answer|validate|guide|act); must match this owner")
+	configured := configuredProjections(cfg)
+	defaultProjection := ""
+	if len(configured) > 0 {
+		defaultProjection = string(configured[0])
+	}
+	projection := fs.String("projection", defaultProjection, "projection (readiness or reliability space); must match this owner")
 	asJSON := fs.Bool("json", false, "emit JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	requested := spacedoc.Projection(strings.TrimSpace(*projection))
-	if requested != cfg.Projection {
-		return fmt.Errorf("space: this scenario owns the %q projection, not %q", cfg.Projection, requested)
+	if !containsProjection(configured, requested) {
+		return fmt.Errorf("space: this scenario owns %s, not %q", formatProjections(configured), requested)
 	}
 
-	docPath, err := resolveDocPath(cfg)
+	docPath, err := resolveDocPath(cfg, requested)
 	if err != nil {
 		return err
 	}
@@ -81,12 +89,12 @@ func run(cfg Config, args []string) error {
 	if err != nil {
 		return fmt.Errorf("space: read %s: %w", docPath, err)
 	}
-	def, err := spacedoc.Parse(cfg.Projection, md)
+	def, err := spacedoc.Parse(requested, md)
 	if err != nil {
 		return fmt.Errorf("space: parse %s: %w", docPath, err)
 	}
 	def.Source = relSource(docPath)
-	if cfg.Owner == "test-genie" && cfg.Projection == spacedoc.ProjectionValidate {
+	if cfg.Owner == "test-genie" && requested == spacedoc.ProjectionValidate {
 		if err := enrichValidateAxes(def); err != nil {
 			return err
 		}
@@ -138,7 +146,34 @@ func enrichValidateAxes(def *spacedoc.SpaceDefinition) error {
 	return nil
 }
 
-func resolveDocPath(cfg Config) (string, error) {
+func configuredProjections(cfg Config) []spacedoc.Projection {
+	if len(cfg.Projections) > 0 {
+		return cfg.Projections
+	}
+	if cfg.Projection == "" {
+		return nil
+	}
+	return []spacedoc.Projection{cfg.Projection}
+}
+
+func containsProjection(projections []spacedoc.Projection, requested spacedoc.Projection) bool {
+	for _, projection := range projections {
+		if projection == requested {
+			return true
+		}
+	}
+	return false
+}
+
+func formatProjections(projections []spacedoc.Projection) string {
+	values := make([]string, 0, len(projections))
+	for _, projection := range projections {
+		values = append(values, fmt.Sprintf("%q", projection))
+	}
+	return strings.Join(values, ", ")
+}
+
+func resolveDocPath(cfg Config, projection spacedoc.Projection) (string, error) {
 	if strings.TrimSpace(cfg.DocPath) != "" {
 		return cfg.DocPath, nil
 	}
@@ -150,7 +185,7 @@ func resolveDocPath(cfg Config) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("space: resolve scenario %s: %w", cfg.Owner, err)
 	}
-	return filepath.Join(scenarioRoot, "docs", "spaces", string(cfg.Projection)+"-space.md"), nil
+	return filepath.Join(scenarioRoot, "docs", "spaces", string(projection)+"-space.md"), nil
 }
 
 // relSource trims the doc path to a repo-relative locator for provenance.

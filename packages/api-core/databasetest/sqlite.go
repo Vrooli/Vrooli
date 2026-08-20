@@ -38,22 +38,35 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vrooli/api-core/storage"
+
 	// Register the pure-Go SQLite driver used by test handles.
 	_ "modernc.org/sqlite"
 )
 
-// NewSQLite returns a fresh, fully-initialized SQLite handle backed by
-// a file in the test's temp dir. The handle is closed automatically
-// via t.Cleanup. Connection pool is capped at 1 to mirror production
-// SQLite's single-writer constraint.
+// NewSQLite returns a fresh SQLite handle backed by a file in the test's temp
+// dir. The handle is closed automatically via t.Cleanup. The connection pool is
+// capped at 1 to mirror production SQLite's single-writer constraint.
+//
+// The DSN comes from api-core/storage, the same seam production uses, so a test
+// handle and a production handle open a file the same way. That property is the
+// entire justification for a file-backed test handle over ":memory:", and it
+// used to be maintained by hand: this helper carried its own pragma string, and
+// dozens of scenario copies bore a comment instructing the reader to "tweak in
+// lockstep with" it. They did not stay in lockstep. This helper had drifted to
+// foreign_keys(1) with no synchronous or temp_store setting, so tests ran under
+// different durability behaviour than the code they were validating.
+//
+// _txlock=immediate is kept deliberately: it makes BeginTx take the reserved
+// lock up front, which surfaces write-ordering bugs in a test rather than
+// leaving them to appear under production contention.
 func NewSQLite(t *testing.T) *sql.DB {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "test.db")
-	dsn := path +
-		"?_pragma=journal_mode(WAL)" +
-		"&_pragma=foreign_keys(1)" +
-		"&_pragma=busy_timeout(5000)" +
-		"&_txlock=immediate"
+	dsn, err := storage.SQLiteDSNAt(path, storage.SQLiteTuning{TxLock: "immediate"})
+	if err != nil {
+		t.Fatalf("build sqlite dsn: %v", err)
+	}
 
 	d, err := sql.Open("sqlite", dsn)
 	if err != nil {

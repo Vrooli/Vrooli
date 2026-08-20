@@ -283,8 +283,8 @@ provides_to:
     interface: API
 
 consumes_from:
-  - scenario: task-planner
-    capability: Task creation and tracking
+  - scenario: plan-manager
+    capability: Plan and phase creation and tracking
     fallback: Direct file writes to backlog
     
   - scenario: agent-dashboard

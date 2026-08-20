@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"git-control-tower/internal/testutil/fixtures"
+
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/discovery"

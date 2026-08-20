@@ -8,8 +8,9 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	schema "tidiness-manager/internal/tidiness"
 	"time"
+
+	schema "tidiness-manager/internal/tidiness"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"

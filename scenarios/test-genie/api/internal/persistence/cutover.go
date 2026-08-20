@@ -129,9 +129,13 @@ func RestoreDatabaseCutover(plan DatabaseCutoverPlan) error {
 }
 
 func createEmptyStore(path string) error {
+	dsn, err := sqlitedb.BuildDSN(path)
+	if err != nil {
+		return err
+	}
 	db, err := database.Connect(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          sqlitedb.BuildDSN(path),
+		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})
@@ -143,9 +147,13 @@ func createEmptyStore(path string) error {
 }
 
 func verifySQLite(path string) error {
+	dsn, err := sqlitedb.BuildDSN(path)
+	if err != nil {
+		return err
+	}
 	db, err := database.Connect(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          sqlitedb.BuildDSN(path),
+		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})

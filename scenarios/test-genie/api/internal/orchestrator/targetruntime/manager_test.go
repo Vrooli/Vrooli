@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestEnsureRunningStartsPathAwareScenarioAndResolvesPorts(t *testing.T) {
@@ -61,6 +62,26 @@ func TestEnsureRunningPreservesLifecycleFailureOutput(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("EnsureRunning() error = %q, want %q", err, want)
 		}
+	}
+}
+
+func TestEnsureRunningBoundsLifecycleStart(t *testing.T) {
+	manager := New("demo", t.TempDir())
+	manager.StartTimeout = 10 * time.Millisecond
+	manager.WithCommandRunner(func(ctx context.Context, dir string, env map[string]string, logWriter io.Writer, name string, args ...string) error {
+		<-ctx.Done()
+		return ctx.Err()
+	})
+
+	_, err := manager.EnsureRunning(context.Background(), Needs{UI: true}, io.Discard)
+	if err == nil {
+		t.Fatal("EnsureRunning() error = nil, want lifecycle timeout")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("EnsureRunning() error = %v, want context deadline exceeded", err)
+	}
+	if !strings.Contains(err.Error(), "lifecycle start timed out") {
+		t.Fatalf("EnsureRunning() error = %q, want timeout diagnosis", err)
 	}
 }
 
