@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package vrooli.vrooli_autoheal.v1.checks;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/checks;checks_v1";
+
+service ChecksService {
+  rpc ListChecks(ListChecksRequest) returns (ListChecksResponse);
+  rpc GetCheck(GetCheckRequest) returns (GetCheckResponse);
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc GetTransitions(GetTransitionsRequest) returns (GetTransitionsResponse);
+}
+
+enum CheckStatus {
+  CHECK_STATUS_UNSPECIFIED = 0;
+  CHECK_STATUS_OK = 1;
+  CHECK_STATUS_WARNING = 2;
+  CHECK_STATUS_CRITICAL = 3;
+  CHECK_STATUS_NOT_APPLICABLE = 4;
+}
+
+message CheckInfo {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  string importance = 4;
+  string category = 5;
+  int32 interval_seconds = 6;
+}
+
+message CheckResult {
+  string check_id = 1;
+  CheckStatus status = 2;
+  string message = 3;
+  google.protobuf.Timestamp observed_at = 4;
+  int64 duration_ms = 5;
+  string details_json = 6;
+}
+
+message Transition {
+  string check_id = 1;
+  CheckStatus from_status = 2;
+  CheckStatus to_status = 3;
+  string message = 4;
+  google.protobuf.Timestamp observed_at = 5;
+}
+
+message ListChecksRequest {}
+message ListChecksResponse { repeated CheckInfo checks = 1; }
+
+message GetCheckRequest { string check_id = 1; }
+message GetCheckResponse { CheckResult result = 1; }
+
+message GetHistoryRequest {
+  string check_id = 1;
+  int32 limit = 2;
+}
+message GetHistoryResponse { repeated CheckResult results = 1; }
+
+message GetStatusRequest {}
+message GetStatusResponse {
+  CheckStatus status = 1;
+  int32 total_count = 2;
+  int32 ok_count = 3;
+  int32 warning_count = 4;
+  int32 critical_count = 5;
+  int32 not_applicable_count = 6;
+  repeated CheckResult checks = 7;
+  google.protobuf.Timestamp computed_at = 8;
+}
+
+message GetTransitionsRequest {
+  int32 window_hours = 1;
+  int32 limit = 2;
+}
+message GetTransitionsResponse { repeated Transition transitions = 1; }

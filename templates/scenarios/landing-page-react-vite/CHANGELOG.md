@@ -4,6 +4,31 @@ All notable changes to the `landing-page-react-vite` template are documented her
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this template aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-08-19
+
+### Breaking
+
+- Durable API and UI execution now comes exclusively from the declared
+  `.vrooli/service.json::components` contract.
+- Template generation hooks use native `argv` arrays and optional `env`
+  overrides; Template Manager does not invoke a command shell.
+
+### Removed
+
+- Empty setup/develop lifecycle phases and the manifest-owned test phase.
+- The generated-CLI self-install path; `internal/cliinstall` owns installation
+  at control-plane command boundaries.
+- Generation-time dependency installation and module tidying; governed
+  component builders own dependency preparation.
+
+### Migration
+
+- [ ] Declare each process build, argv, port, readiness, storage, and
+      environment under `components`.
+- [ ] Delete empty setup/develop phases and the manifest test phase.
+- [ ] Run tests through `vrooli scenario test <name>`.
+- [ ] Set `.vrooli/service.json::generation.template.version` to `2.0.0`.
+
 ## [1.0.0] - 2026-07-15
 
 The Go API rewrite from gorilla/mux to **Proto + Connect-RPC** on the

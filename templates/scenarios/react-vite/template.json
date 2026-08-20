@@ -9,7 +9,7 @@
     "go",
     "cli"
   ],
-  "version": "1.6.5",
+  "version": "2.0.0",
   "startDocument": "docs/START-HERE.md",
   "design": {
     "adapter": "react-vite-tailwind",
@@ -38,7 +38,7 @@
         "checks": [
           {
             "kind": "command",
-            "run": "make test",
+            "exec": ["make", "test"],
             "timeout": "15m"
           }
         ]
@@ -342,33 +342,12 @@
   ],
   "postHooks": [
     {
-      "description": "Install UI dependencies (corepack pnpm install --ignore-workspace)",
-      "cmd": "corepack pnpm install --ignore-workspace",
-      "cwd": "ui"
-    },
-    {
-      "description": "Sync Go modules (go mod tidy)",
-      "cmd": "GOWORK=off go mod tidy",
-      "cwd": "api"
-    },
-    {
-      "description": "Format API Go sources (golangci-lint --fix)",
-      "cmd": "golangci-lint run --fix ./...",
-      "cwd": "api"
-    },
-    {
-      "description": "Format CLI Go sources (gofumpt)",
-      "cmd": "gofumpt -w .",
-      "cwd": "cli"
-    },
-    {
       "description": "Generate the static primitive-evidence artifact (.vrooli/generated/cli-primitive-evidence.json) so cli-health can verify command architecture from committed evidence",
-      "cmd": "UPDATE_CLI_EVIDENCE=1 GOWORK=off go test -run TestPrimitiveEvidenceArtifactCurrent .",
-      "cwd": "cli"
-    },
-    {
-      "description": "Install the generated CLI so runtime contract validation probes the fresh command surface",
-      "cmd": "bash ./install.sh",
+      "argv": ["go", "test", "-run", "TestPrimitiveEvidenceArtifactCurrent", "."],
+      "env": {
+        "GOWORK": "off",
+        "UPDATE_CLI_EVIDENCE": "1"
+      },
       "cwd": "cli"
     }
   ],
@@ -380,7 +359,7 @@
       "post": [
         {
           "description": "Regenerate proto artifacts (Go + TypeScript + Python)",
-          "cmd": "make generate",
+          "argv": ["make", "generate"],
           "cwd": "packages/proto"
         }
       ]

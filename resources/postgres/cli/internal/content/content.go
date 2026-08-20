@@ -2,16 +2,167 @@ package content
 
 import (
 	"context"
+	"database/sql"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/lib/pq"
 	"github.com/vrooli/cli-core/cliapp"
 )
+
+type DatabaseEnsureRequest struct {
+	Host, Port, User, Password, Database, Owner string
+}
+
+type (
+	DatabaseEnsurer func(context.Context, DatabaseEnsureRequest) (created bool, err error)
+	DatabaseDropper func(context.Context, DatabaseEnsureRequest) error
+)
+
+// EnsureCommandGroup registers the typed dependency-config reconciliation
+// surface used by the control plane after PostgreSQL is healthy.
+func EnsureCommandGroup(h *Handlers) cliapp.CommandGroup {
+	if h == nil {
+		h = Default()
+	}
+	return cliapp.CommandGroup{
+		Title: "Dependency Ensurance",
+		Commands: []cliapp.Command{{
+			Name:        "ensure",
+			Description: "Create the database explicitly declared by a scenario dependency",
+			Usage:       "resource-postgres ensure --config-base64 <base64-json>",
+			Run:         h.Ensure,
+		}},
+	}
+}
+
+// Ensure applies the resource-owned portion of a scenario's PostgreSQL
+// dependency declaration. Database creation is idempotent; schema migrations
+// remain owned by the scenario API.
+func (h *Handlers) Ensure(args []string) error {
+	fs := flag.NewFlagSet("ensure", flag.ContinueOnError)
+	fs.SetOutput(h.Stderr)
+	configB64 := fs.String("config-base64", "", "Base64-encoded PostgreSQL dependency config")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("unexpected positional arguments: %v", fs.Args())
+	}
+	if strings.TrimSpace(*configB64) == "" {
+		return fmt.Errorf("--config-base64 is required")
+	}
+	raw, err := base64.StdEncoding.DecodeString(*configB64)
+	if err != nil {
+		return fmt.Errorf("decode --config-base64: %w", err)
+	}
+	var cfg struct {
+		Database string `json:"database"`
+	}
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return fmt.Errorf("parse PostgreSQL dependency config: %w", err)
+	}
+	database := strings.TrimSpace(cfg.Database)
+	if database == "" {
+		fmt.Fprintln(h.Stdout, "postgres ensure: no database declared; nothing to do")
+		return nil
+	}
+	if err := validateIdentifier(database); err != nil {
+		return err
+	}
+	owner := h.resolveUser()
+	if err := validateIdentifier(owner); err != nil {
+		return err
+	}
+	ensurer := h.EnsureDatabase
+	if ensurer == nil {
+		ensurer = ensureManagedDatabase
+	}
+	created, err := ensurer(context.Background(), DatabaseEnsureRequest{
+		Host: h.resolveHost(defaultInstance), Port: h.resolvePort(), User: owner,
+		Password: h.resolvePassword(), Database: database, Owner: owner,
+	})
+	if err != nil {
+		return err
+	}
+	state := "already exists"
+	if created {
+		state = "created"
+	}
+	fmt.Fprintf(h.Stdout, "database %q %s\n", database, state)
+	return nil
+}
+
+func ensureManagedDatabase(parent context.Context, req DatabaseEnsureRequest) (bool, error) {
+	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
+	defer cancel()
+	db, err := openManagedAdminDatabase(ctx, req)
+	if err != nil {
+		return false, err
+	}
+	defer db.Close()
+	var exists bool
+	if err := db.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", req.Database).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check PostgreSQL database %q: %w", req.Database, err)
+	}
+	if exists {
+		return false, nil
+	}
+	if _, err := db.ExecContext(ctx, fmt.Sprintf("CREATE DATABASE %s OWNER %s", req.Database, req.Owner)); err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "42P04" {
+			return false, nil
+		}
+		return false, fmt.Errorf("create PostgreSQL database %q: %w", req.Database, err)
+	}
+	return true, nil
+}
+
+func dropManagedDatabase(parent context.Context, req DatabaseEnsureRequest) error {
+	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
+	defer cancel()
+	db, err := openManagedAdminDatabase(ctx, req)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if _, err := db.ExecContext(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %s", req.Database)); err != nil {
+		return fmt.Errorf("drop PostgreSQL database %q: %w", req.Database, err)
+	}
+	return nil
+}
+
+func openManagedAdminDatabase(ctx context.Context, req DatabaseEnsureRequest) (*sql.DB, error) {
+	dsn := (&url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(req.User, req.Password),
+		Host:   net.JoinHostPort(req.Host, req.Port),
+		Path:   "postgres",
+		RawQuery: url.Values{
+			"sslmode": []string{"disable"},
+		}.Encode(),
+	}).String()
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open PostgreSQL admin connection: %w", err)
+	}
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("connect to PostgreSQL admin database: %w", err)
+	}
+	return db, nil
+}
 
 const (
 	defaultInstance = "main"
@@ -21,12 +172,14 @@ const (
 // Handlers owns the runtime dependencies (Runner, env lookup, stdout) for the
 // content subcommand group. Tests inject fakes.
 type Handlers struct {
-	Runner    Runner
-	GetEnv    func(string) string
-	Stdout    io.Writer
-	Stderr    io.Writer
-	Stdin     io.Reader
-	LookupDir func(path string) ([]string, error) // hook for listing .sql files
+	Runner         Runner
+	EnsureDatabase DatabaseEnsurer
+	DropDatabase   DatabaseDropper
+	GetEnv         func(string) string
+	Stdout         io.Writer
+	Stderr         io.Writer
+	Stdin          io.Reader
+	LookupDir      func(path string) ([]string, error) // hook for listing .sql files
 }
 
 // Default returns Handlers wired to real OS/docker.
@@ -302,9 +455,15 @@ func (h *Handlers) Remove(args []string) error {
 	if err := validateIdentifier(dbName); err != nil {
 		return err
 	}
-	adminDB := h.resolveDatabase("")
-	sql := fmt.Sprintf("DROP DATABASE IF EXISTS %s;", dbName)
-	if err := h.runPSQL(*instance, adminDB, []string{"-c", sql}, nil); err != nil {
+	owner := h.resolveUser()
+	dropper := h.DropDatabase
+	if dropper == nil {
+		dropper = dropManagedDatabase
+	}
+	if err := dropper(context.Background(), DatabaseEnsureRequest{
+		Host: h.resolveHost(*instance), Port: h.resolvePort(), User: owner,
+		Password: h.resolvePassword(), Database: dbName, Owner: owner,
+	}); err != nil {
 		return err
 	}
 	fmt.Fprintf(h.Stdout, "database %q dropped\n", dbName)

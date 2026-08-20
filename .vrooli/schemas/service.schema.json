@@ -192,6 +192,16 @@
         "additionalProperties": false
       }
     },
+    "components": {
+      "type": "object",
+      "description": "Long-running processes owned by this scenario. Build describes the portable artifact; run describes the process launched from it.",
+      "patternProperties": {
+        "^[a-z0-9]+(?:-[a-z0-9]+)*$": {
+          "$ref": "#/definitions/component"
+        }
+      },
+      "additionalProperties": false
+    },
     "dependencies": {
       "type": "object",
       "description": "Scenario and resource dependencies",
@@ -303,8 +313,9 @@
         }
       }
     },
-    "deployment": {
+    "tier_feasibility": {
       "type": "object",
+      "description": "Authored evidence about which deployment tiers are feasible. Derived readiness and analyzer verdicts are never persisted in the scenario manifest.",
       "properties": {
         "metadata_version": {
           "type": "integer",
@@ -360,6 +371,9 @@
           "type": "string",
           "pattern": "^\\d+\\.\\d+\\.\\d+$"
         },
+        "defaults": {
+          "$ref": "#/definitions/phaseDefaults"
+        },
         "setup": {
           "$ref": "#/definitions/lifecyclePhase"
         },
@@ -373,9 +387,6 @@
           "$ref": "#/definitions/lifecyclePhase"
         },
         "clean": {
-          "$ref": "#/definitions/lifecyclePhase"
-        },
-        "test": {
           "$ref": "#/definitions/lifecyclePhase"
         },
         "backup": {
@@ -450,12 +461,137 @@
   "definitions": {
     "platformCapability": {
       "type": "object",
-      "required": ["status", "mechanism"],
+      "required": ["status", "mechanism", "evidence"],
       "additionalProperties": false,
       "properties": {
-        "status": {"enum": ["supported", "partial", "unsupported"]},
-        "mechanism": {"type": "string", "minLength": 1}
+        "status": {"enum": ["supported", "build-verified", "experimental", "unqualified"]},
+        "mechanism": {"type": "string", "minLength": 1},
+        "evidence": {"type": "string", "minLength": 1}
       }
+    },
+    "component": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["api", "ui", "worker", "sidecar"]
+        },
+        "build": {
+          "$ref": "#/definitions/componentBuild"
+        },
+        "run": {
+          "$ref": "#/definitions/componentRun"
+        }
+      },
+      "required": ["role", "build", "run"],
+      "additionalProperties": false
+    },
+    "componentBuild": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["go_module", "pnpm_vite", "node_bundle", "python_uv", "cargo"]
+        },
+        "dir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entry": {
+          "type": "string",
+          "minLength": 1
+        },
+        "output": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reuse": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["kind"],
+          "not": {"required": ["reuse"]}
+        },
+        {
+          "required": ["reuse"],
+          "not": {"required": ["kind"]}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "componentRun": {
+      "type": "object",
+      "properties": {
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"}
+        },
+        "cwd": {"type": "string"},
+        "env": {
+          "type": "object",
+          "additionalProperties": {"type": "string"}
+        },
+        "port": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "data_dirs": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "log_dir": {"type": "string", "minLength": 1},
+        "readiness": {"$ref": "#/definitions/componentReadiness"},
+        "depends_on": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/componentDependency"},
+          "uniqueItems": true
+        },
+        "supervised_by": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "condition": {"$ref": "#/definitions/conditionBlock"}
+      },
+      "required": ["argv"],
+      "additionalProperties": false
+    },
+    "componentReadiness": {
+      "type": "object",
+      "properties": {
+        "type": {"type": "string", "enum": ["http", "port_open"]},
+        "path": {"type": "string"},
+        "timeout_ms": {"type": "integer", "minimum": 1}
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "componentDependency": {
+      "type": "object",
+      "properties": {
+        "component": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "wait": {"type": "string", "enum": ["started", "ready"]}
+      },
+      "required": ["component", "wait"],
+      "additionalProperties": false
+    },
+    "scenarioBinding": {
+      "type": "object",
+      "properties": {
+        "env_var": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+        "form": {"type": "string", "enum": ["http_base_url", "ws_base_url", "host_port", "port_number"]},
+        "port": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "when_unavailable": {"type": "string", "enum": ["omit", "fail"]}
+      },
+      "required": ["env_var", "form", "port", "when_unavailable"],
+      "additionalProperties": false
     },
     "generationMetadata": {
       "type": "object",
@@ -699,14 +835,14 @@
         "required": {
           "type": "boolean"
         },
+        "min_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Minimum acceptable host-tool version. Version discovery remains owned by the host requirement implementation."
+        },
         "reason": {
           "type": "string",
           "minLength": 1
-        },
-        "rationale": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Why this requirement is part of the project floor when required is true."
         },
         "when": {
           "type": "array",
@@ -767,21 +903,6 @@
         "required",
         "reason"
       ],
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "required": {
-                "const": true
-              }
-            },
-            "required": ["required"]
-          },
-          "then": {
-            "required": ["rationale"]
-          }
-        }
-      ],
       "additionalProperties": false
     },
     "scenarioDependency": {
@@ -820,10 +941,6 @@
           ],
           "description": "How lifecycle orchestration should treat this dependency when it is running and healthy but its sources have changed (stale). Orthogonal to `startup_policy`. Defaults to `restart_when_stale` (rebuild and restart, gated so a byte-identical rebuild does not restart). `reuse_running` keeps the running process untouched; `rebuild_only` rebuilds the artifact without restarting. Per-edge policy may only reduce disruption on a shared dependency, never increase it. Invalid on `ignore` edges."
         },
-        "version": {
-          "$ref": "common.schema.json#/definitions/semver",
-          "description": "Exact scenario version required"
-        },
         "versionRange": {
           "type": "string",
           "description": "Semantic version range that is acceptable"
@@ -845,6 +962,16 @@
         "degraded_behavior": {
           "type": "string",
           "description": "Human explanation of the fallback behavior when this dependency is unavailable. Required for intentional degradation patterns such as `required=true` with `startup_policy=try_start`."
+        },
+        "bundle_policy": {
+          "type": "string",
+          "enum": ["embed", "discover", "either"],
+          "description": "How a Tier 2 bundle satisfies this scenario dependency edge."
+        },
+        "bindings": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/scenarioBinding"},
+          "description": "Environment values derived from the peer scenario's declared ports."
         },
         "config": {
           "type": "object",
@@ -897,15 +1024,8 @@
           "minimum": 0
         },
         "gpu": {
-          "type": "object",
-          "description": "Optional GPU requirement. An empty object requires a GPU; min_cuda_compute narrows the requirement.",
-          "properties": {
-            "min_cuda_compute": {
-              "type": "string",
-              "pattern": "^[0-9]+(\\.[0-9]+)?$"
-            }
-          },
-          "additionalProperties": false
+          "type": "boolean",
+          "description": "Whether this tier requires a GPU. Hardware-specific constraints belong in the target capability contract."
         },
         "network": {
           "type": "string",
@@ -975,12 +1095,6 @@
             "$ref": "#/definitions/deploymentAdaptation"
           }
         },
-        "secrets": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/deploymentTierSecret"
-          }
-        },
         "artifacts": {
           "type": "array",
           "items": {
@@ -1019,69 +1133,6 @@
         "notes": {"type": "string"}
       },
       "required": ["mechanism"],
-      "additionalProperties": false
-    },
-    "deploymentTierSecret": {
-      "type": "object",
-      "properties": {
-        "secret_id": {
-          "type": "string",
-          "description": "Unique identifier for the secret (e.g., 'ADMIN_DEFAULT_PASSWORD')"
-        },
-        "logical_id": {
-          "type": "string",
-          "description": "Credential-authority identity for this descriptor"
-        },
-        "field": {
-          "type": "string",
-          "description": "Credential-authority field for this descriptor"
-        },
-        "env": {
-          "type": "string",
-          "description": "Process injection name used by the lifecycle"
-        },
-        "obtain_url": {
-          "type": "string",
-          "format": "uri",
-          "description": "Operator surface for obtaining or provisioning the value"
-        },
-        "classification": {
-          "type": "string",
-          "enum": [
-            "infrastructure",
-            "service",
-            "user"
-          ],
-          "description": "Category of secret: infrastructure (system), service (scenario-specific), user (end-user provided)"
-        },
-        "strategy_ref": {
-          "type": "string",
-          "description": "Reference to a secret handling strategy"
-        },
-        "notes": {
-          "type": "string",
-          "description": "Internal notes about the secret"
-        },
-        "label": {
-          "type": "string",
-          "description": "Human-readable display name for UI (e.g., 'Admin Password')"
-        },
-        "description": {
-          "type": "string",
-          "description": "Detailed explanation of the secret's purpose for users"
-        },
-        "required": {
-          "type": "boolean",
-          "description": "Whether this secret is required for the scenario to function (default: true)"
-        },
-        "default_hint": {
-          "type": "string",
-          "description": "Hint for what value to provide (e.g., 'Generate a random 32-character string')"
-        }
-      },
-      "required": [
-        "secret_id"
-      ],
       "additionalProperties": false
     },
     "deploymentArtifact": {
@@ -1200,14 +1251,26 @@
       },
       "additionalProperties": false
     },
+    "phaseDefaults": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string",
+          "enum": [
+            "stop",
+            "continue",
+            "retry"
+          ],
+          "default": "stop"
+        }
+      },
+      "additionalProperties": false
+    },
     "lifecyclePhase": {
       "type": "object",
       "properties": {
         "description": {
           "type": "string"
-        },
-        "condition": {
-          "$ref": "#/definitions/conditionBlock"
         },
         "steps": {
           "type": "array",
@@ -1217,14 +1280,40 @@
               "name": {
                 "type": "string"
               },
-              "run": {
+              "exec": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "string"}
+              },
+              "cwd": {
                 "type": "string"
+              },
+              "env": {
+                "type": "object",
+                "additionalProperties": {"type": "string"}
+              },
+              "on_error": {
+                "type": "string",
+                "enum": ["stop", "continue", "retry"]
+              },
+              "timeout": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Maximum execution time in milliseconds."
               },
               "description": {
                 "type": "string"
               },
               "background": {
                 "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "enum": [
+                  "stop",
+                  "continue",
+                  "retry"
+                ]
               },
               "condition": {
                 "$ref": "#/definitions/conditionBlock"
@@ -1233,19 +1322,33 @@
                 "type": "object",
                 "properties": {
                   "max_attempts": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
                   },
                   "delay": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "backoff": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "linear",
+                      "exponential"
+                    ]
                   }
                 },
                 "additionalProperties": false
+              },
+              "environment": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
               }
             },
-            "required": [
-              "name",
-              "run"
-            ],
+            "required": ["name", "exec"],
             "additionalProperties": false
           }
         }
@@ -1280,6 +1383,12 @@
           "type": "string"
         },
         "env_var_set": {
+          "type": "string"
+        },
+        "env_set": {
+          "type": "string"
+        },
+        "env_not_set": {
           "type": "string"
         },
         "always": {

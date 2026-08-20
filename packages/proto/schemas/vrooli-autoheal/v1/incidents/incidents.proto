@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package vrooli.vrooli_autoheal.v1.incidents;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/incidents;incidents_v1";
+
+service IncidentsService {
+  rpc ListIncidents(ListIncidentsRequest) returns (ListIncidentsResponse);
+  rpc GetIncident(GetIncidentRequest) returns (GetIncidentResponse);
+  rpc ListObservations(ListObservationsRequest) returns (ListObservationsResponse);
+}
+
+message Incident {
+  string id = 1;
+  string fingerprint = 2;
+  string title = 3;
+  string severity = 4;
+  string status = 5;
+  string summary = 6;
+  google.protobuf.Timestamp first_seen_at = 7;
+  google.protobuf.Timestamp last_seen_at = 8;
+}
+
+message Observation {
+  string id = 1;
+  string incident_id = 2;
+  string kind = 3;
+  string payload_json = 4;
+  google.protobuf.Timestamp observed_at = 5;
+}
+
+message ListIncidentsRequest { string status = 1; string severity = 2; int32 limit = 3; }
+message ListIncidentsResponse { repeated Incident incidents = 1; }
+message GetIncidentRequest { string incident_id = 1; }
+message GetIncidentResponse { Incident incident = 1; }
+message ListObservationsRequest { string incident_id = 1; int32 limit = 2; }
+message ListObservationsResponse { repeated Observation observations = 1; }

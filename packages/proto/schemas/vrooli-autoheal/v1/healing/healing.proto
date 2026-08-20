@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package vrooli.vrooli_autoheal.v1.healing;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/healing;healing_v1";
+
+service HealingService {
+  rpc ListOutcomes(ListOutcomesRequest) returns (ListOutcomesResponse);
+  rpc GetEpisodes(GetEpisodesRequest) returns (GetEpisodesResponse);
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+}
+
+enum Outcome {
+  OUTCOME_UNSPECIFIED = 0;
+  OUTCOME_SUCCEEDED = 1;
+  OUTCOME_FAILED = 2;
+  OUTCOME_TIMED_OUT = 3;
+  OUTCOME_SKIPPED = 4;
+}
+
+message HealOutcome {
+  string check_id = 1;
+  string action_id = 2;
+  Outcome outcome = 3;
+  string message = 4;
+  google.protobuf.Timestamp observed_at = 5;
+  int64 duration_ms = 6;
+}
+
+message HealEpisode {
+  string id = 1;
+  string check_id = 2;
+  string trigger = 3;
+  Outcome outcome = 4;
+  int32 attempts = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+  string evidence_json = 8;
+}
+
+message ListOutcomesRequest { int32 window_hours = 1; }
+message ListOutcomesResponse { repeated HealOutcome outcomes = 1; }
+message GetEpisodesRequest { string check_id = 1; int32 limit = 2; }
+message GetEpisodesResponse { repeated HealEpisode episodes = 1; }
+message GetHistoryRequest { string check_id = 1; int32 limit = 2; }
+message GetHistoryResponse { repeated HealOutcome outcomes = 1; }

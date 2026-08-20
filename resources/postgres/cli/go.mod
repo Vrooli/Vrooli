@@ -2,13 +2,16 @@ module resource-postgres/cli
 
 go 1.25.0
 
-require github.com/vrooli/cli-core v0.0.0
+require (
+	github.com/lib/pq v1.10.9
+	github.com/vrooli/cli-core v0.0.0
+)
 
 require (
 	connectrpc.com/connect v1.19.2 // indirect
-github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
-github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect

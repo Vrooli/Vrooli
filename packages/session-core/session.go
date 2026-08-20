@@ -197,8 +197,10 @@ type SSHSession interface {
 	Close() error
 }
 
-type SSHOpener func(context.Context, LaunchSpec) (SSHSession, error)
-type sshBackend struct{ open SSHOpener }
+type (
+	SSHOpener  func(context.Context, LaunchSpec) (SSHSession, error)
+	sshBackend struct{ open SSHOpener }
+)
 
 func NewSSHBackend(open SSHOpener) Backend { return sshBackend{open: open} }
 func (sshBackend) Kind() BackendKind       { return BackendSSH }

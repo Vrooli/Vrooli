@@ -6,9 +6,8 @@
  *
  *   import { renderWithProviders, expectNoA11yViolations } from '../test-utils';
  */
-export { expectNoA11yViolations } from './a11y';
+export { expectNoA11yViolations, renderWithProviders } from '@vrooli/api-base/testing';
 export {
-  renderWithProviders,
   type ProviderRenderOptions,
   type ProviderRenderResult,
-} from './renderWithProviders';
+} from '@vrooli/api-base/testing';

@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-19T18:41:48.892425078Z",
+  "last_run": "2026-08-20T04:07:50.814330572Z",
   "status": "warning",
   "measured": 4,
   "total": 4,
@@ -8,7 +8,7 @@
       "runner": "codex",
       "type": "catalog_stale",
       "severity": "warning",
-      "message": "catalog age is 15 days; staleness budget is 14 days",
+      "message": "catalog age is 16 days; staleness budget is 14 days",
       "fingerprint": "model-policy-drift/codex/catalog_stale//"
     },
     {
@@ -31,14 +31,6 @@
       "runner": "codex",
       "type": "unnamed_live_model",
       "severity": "warning",
-      "model": "gpt-5.6-sol-wm",
-      "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/codex/unnamed_live_model//gpt-5.6-sol-wm"
-    },
-    {
-      "runner": "codex",
-      "type": "unnamed_live_model",
-      "severity": "warning",
       "model": "gpt-5.6-terra",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/codex/unnamed_live_model//gpt-5.6-terra"
@@ -47,14 +39,14 @@
       "runner": "claude-code",
       "type": "catalog_stale",
       "severity": "warning",
-      "message": "catalog age is 15 days; staleness budget is 14 days",
+      "message": "catalog age is 16 days; staleness budget is 14 days",
       "fingerprint": "model-policy-drift/claude-code/catalog_stale//"
     },
     {
       "runner": "opencode",
       "type": "catalog_stale",
       "severity": "warning",
-      "message": "catalog age is 15 days; staleness budget is 14 days",
+      "message": "catalog age is 16 days; staleness budget is 14 days",
       "fingerprint": "model-policy-drift/opencode/catalog_stale//"
     },
     {
@@ -896,14 +888,6 @@
       "model": "openrouter/liquid/lfm-2.5-2.6b:free",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/liquid/lfm-2.5-2.6b:free"
-    },
-    {
-      "runner": "opencode",
-      "type": "unnamed_live_model",
-      "severity": "warning",
-      "model": "openrouter/mancer/weaver",
-      "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/mancer/weaver"
     },
     {
       "runner": "opencode",
@@ -2893,7 +2877,7 @@
       "runner": "grok",
       "type": "catalog_stale",
       "severity": "warning",
-      "message": "catalog age is 15 days; staleness budget is 14 days",
+      "message": "catalog age is 16 days; staleness budget is 14 days",
       "fingerprint": "model-policy-drift/grok/catalog_stale//"
     }
   ],

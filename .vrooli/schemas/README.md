@@ -6,7 +6,6 @@
 
 - canonical authored schemas that define repo-owned manifest contracts
 - generated schema artifacts derived from active resource manifests
-- a small amount of older modular schema surface that should be treated as transitional until its live usage is confirmed
 
 The most important source-of-truth rule is:
 
@@ -19,7 +18,7 @@ The most important source-of-truth rule is:
 
 - `service.schema.json`
   Defines project-level and scenario-level `.vrooli/service.json` manifests.
-  The current top-level properties include `service`, `dependencies`, `deployment`, `hostTools`, `hostSafeguards`, `lifecycle`, `ports`, `runtime`, and `version`.
+  The current top-level properties include `service`, `dependencies`, `tier_feasibility`, `hostTools`, `hostSafeguards`, `lifecycle`, `ports`, `runtime`, and `version`.
 
 - `operator-state.schema.json`
   Defines the per-install operator-state document at `.vrooli/operator-state.json`. Holds mutable operator choices (which scenarios/resources are enabled, per-scenario auto-restart overrides, host-tool and safeguard opt-ins) written by `vrooli-onboarding`. See [`docs/configuration/architecture.md`](../../docs/configuration/architecture.md) for the manifest-vs-state separation.
@@ -69,14 +68,6 @@ The most important source-of-truth rule is:
 - `resource-definitions.json`
   Generated from active `resources/*/resource.json` manifests.
   Contains aggregated resource-specific dependency schemas plus the generated `resourceCatalog` object consumed by `service.schema.json`.
-
-### Transitional / Review Candidates
-
-- `deployment.schema.json`
-- `lifecycle.schema.json`
-- `scenarios.schema.json`
-
-These files still exist in the directory, but they are not currently part of the most obvious live schema-consumer path. Keep them until their remaining usage is either confirmed or intentionally retired.
 
 ## Generated Artifact Pipeline
 

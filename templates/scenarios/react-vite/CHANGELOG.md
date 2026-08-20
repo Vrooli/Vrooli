@@ -76,6 +76,42 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 2.0.0 — 2026-08-19
+
+Scenario execution now uses the declared component contract in both local and
+desktop runtimes.
+
+### Breaking
+
+- Long-running API and UI processes moved from lifecycle command steps to
+  `.vrooli/service.json::components`.
+- Template generation hooks now declare native `argv` arrays with optional
+  `env` overrides. Template Manager does not interpret hook strings through a
+  command shell.
+
+### Removed
+
+- Empty `lifecycle.setup` and `lifecycle.develop` declarations.
+- The manifest-owned test phase. `vrooli scenario test <name>` submits runs
+  directly to Test Genie.
+- The generated-CLI self-install hook. The control-plane command boundary and
+  `internal/cliinstall` are the sole installer.
+- Generation-time dependency installation, module tidying, and formatter
+  hooks. Governed component builders own dependency preparation, and template
+  source must already satisfy formatting and lint contracts.
+
+### Migration (for agents updating older scenarios)
+
+- [ ] Declare every durable process under `components` with a registered
+      `build.kind` (or `build.reuse`) and native `run.argv`.
+- [ ] Move port ownership, readiness, storage, peer dependencies, working
+      directory, and environment facts into the component declaration.
+- [ ] Delete empty setup/develop phases and the manifest test phase.
+- [ ] Keep only finite, non-component provisioning as lifecycle `exec` arrays.
+- [ ] Run `vrooli scenario test <name>` and validate the manifest with
+      Structure Health.
+- [ ] Set `.vrooli/service.json::generation.template.version` to `2.0.0`.
+
 ## 1.6.5 — 2026-07-11
 
 Makes the generated scenario baseline self-validating when Template Manager

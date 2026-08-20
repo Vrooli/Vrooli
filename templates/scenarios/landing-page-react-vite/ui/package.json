@@ -15,7 +15,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.1.0",
     "@bufbuild/protobuf": "^2.10.1",
     "@connectrpc/connect": "^2.1.1",

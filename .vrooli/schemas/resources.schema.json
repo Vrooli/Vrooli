@@ -71,6 +71,11 @@
           "enum": ["must_start", "try_start", "ignore"],
           "description": "How lifecycle orchestration should treat this dependency during startup. Defaults to `must_start` when `required=true`, otherwise `ignore`."
         },
+        "freshness_policy": {
+          "type": "string",
+          "enum": ["restart_when_stale", "reuse_running", "rebuild_only"],
+          "description": "How lifecycle orchestration treats a running dependency whose sources changed. Invalid on an ignored dependency."
+        },
         "version": {
           "type": "string",
           "description": "Resource version or tag"

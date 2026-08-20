@@ -3,6 +3,7 @@ package content
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"os"
@@ -10,6 +11,63 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestEnsureCreatesDeclaredDatabase(t *testing.T) {
+	h, stdout, _ := newHandlers(t, &fakeRunner{}, map[string]string{
+		"POSTGRES_HOST": "127.0.0.1", "POSTGRES_PORT": "5433",
+		"POSTGRES_USER": "vrooli", "POSTGRES_PASSWORD": "secret",
+	})
+	var request DatabaseEnsureRequest
+	h.EnsureDatabase = func(_ context.Context, got DatabaseEnsureRequest) (bool, error) {
+		request = got
+		return true, nil
+	}
+	payload := base64.StdEncoding.EncodeToString([]byte(`{"database":"vrooli_declared_app"}`))
+
+	if err := h.Ensure([]string{"--config-base64", payload}); err != nil {
+		t.Fatalf("Ensure: %v", err)
+	}
+	if request.Database != "vrooli_declared_app" || request.Owner != "vrooli" {
+		t.Fatalf("ensure request = %#v", request)
+	}
+	if request.Host != "127.0.0.1" || request.Port != "5433" || request.Password != "secret" {
+		t.Fatalf("connection request = %#v", request)
+	}
+	if !strings.Contains(stdout.String(), `"vrooli_declared_app" created`) {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestEnsureIgnoresNonDatabaseConfig(t *testing.T) {
+	runner := &fakeRunner{}
+	h, stdout, _ := newHandlers(t, runner, nil)
+	payload := base64.StdEncoding.EncodeToString([]byte(`{"schema":"scenario_name"}`))
+
+	if err := h.Ensure([]string{"--config-base64", payload}); err != nil {
+		t.Fatalf("Ensure: %v", err)
+	}
+	if len(runner.calls) != 0 {
+		t.Fatalf("runner calls = %d, want 0", len(runner.calls))
+	}
+	if !strings.Contains(stdout.String(), "nothing to do") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestEnsureRejectsInvalidDatabaseIdentifier(t *testing.T) {
+	h, _, _ := newHandlers(t, &fakeRunner{}, nil)
+	payload := base64.StdEncoding.EncodeToString([]byte(`{"database":"bad-name"}`))
+	if err := h.Ensure([]string{"--config-base64", payload}); err == nil || !strings.Contains(err.Error(), "invalid identifier") {
+		t.Fatalf("Ensure error = %v, want invalid identifier", err)
+	}
+}
+
+func TestEnsureRequiresConfig(t *testing.T) {
+	h, _, _ := newHandlers(t, &fakeRunner{}, nil)
+	if err := h.Ensure(nil); err == nil || !strings.Contains(err.Error(), "--config-base64 is required") {
+		t.Fatalf("Ensure error = %v, want required config", err)
+	}
+}
 
 // --- fake runner -------------------------------------------------------------
 
@@ -368,14 +426,17 @@ func TestList_IssuesSelect(t *testing.T) {
 // --- Remove ------------------------------------------------------------------
 
 func TestRemove_IssuesDrop(t *testing.T) {
-	runner := &fakeRunner{}
-	h, stdout, _ := newHandlers(t, runner, nil)
+	h, stdout, _ := newHandlers(t, &fakeRunner{}, nil)
+	var request DatabaseEnsureRequest
+	h.DropDatabase = func(_ context.Context, got DatabaseEnsureRequest) error {
+		request = got
+		return nil
+	}
 	if err := h.Remove([]string{"myapp"}); err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
-	got := strings.Join(runner.calls[0].args, " ")
-	if !strings.Contains(got, "DROP DATABASE IF EXISTS myapp;") {
-		t.Errorf("expected DROP DATABASE; got %q", got)
+	if request.Database != "myapp" || request.Owner != "vrooli" {
+		t.Errorf("drop request = %#v", request)
 	}
 	if !strings.Contains(stdout.String(), `"myapp" dropped`) {
 		t.Errorf("missing dropped message; got %q", stdout.String())

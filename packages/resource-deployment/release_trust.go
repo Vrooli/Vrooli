@@ -85,6 +85,7 @@ func (m ReleaseManifest) CanonicalBytes() ([]byte, error) {
 		Artifacts     []ReleaseArtifact `json:"artifacts"`
 	}{m.SchemaVersion, a})
 }
+
 func LoadReleaseManifest(root string) (ReleaseManifest, error) {
 	b, e := os.ReadFile(filepath.Join(root, "release-manifest.json"))
 	if e != nil {
@@ -99,6 +100,7 @@ func LoadReleaseManifest(root string) (ReleaseManifest, error) {
 	}
 	return m, nil
 }
+
 func VerifyReleaseDirectory(root string, mode ArtifactTrustMode, publicKeyPath string) (ReleaseManifest, *ReleaseSignature, error) {
 	if e := mode.Validate(); e != nil {
 		return ReleaseManifest{}, nil, e

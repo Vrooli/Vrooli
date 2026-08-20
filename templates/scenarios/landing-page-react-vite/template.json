@@ -9,7 +9,7 @@
     "go",
     "cli"
   ],
-  "version": "1.0.0",
+  "version": "2.0.0",
   "requiredVars": {
     "SCENARIO_ID": {
       "flag": "id",
@@ -61,18 +61,6 @@
   "copyExcludes": [
     "CHANGELOG.md"
   ],
-  "postHooks": [
-    {
-      "description": "Install UI dependencies (corepack pnpm install --ignore-workspace)",
-      "cmd": "corepack pnpm install --ignore-workspace",
-      "cwd": "ui"
-    },
-    {
-      "description": "Sync Go modules (go mod tidy)",
-      "cmd": "GOWORK=off go mod tidy",
-      "cwd": "api"
-    }
-  ],
   "orientation": {
     "version": "1.0.0",
     "copyTo": ".vrooli/orientation.json",
@@ -95,7 +83,7 @@
         "checks": [
           {
             "kind": "command",
-            "run": "make test",
+            "exec": ["make", "test"],
             "timeout": "15m"
           }
         ]

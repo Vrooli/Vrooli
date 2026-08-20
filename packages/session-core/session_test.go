@@ -19,6 +19,7 @@ func (f *fakeAgent) Receive(context.Context) (AgentFrame, error) {
 	f.in = f.in[1:]
 	return v, nil
 }
+
 func (f *fakeAgent) Send(_ context.Context, frame AgentFrame) error {
 	f.out = append(f.out, frame)
 	return nil

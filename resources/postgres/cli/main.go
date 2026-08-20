@@ -47,8 +47,9 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
+	groups := append(app.StandardLifecycleCommands(), content.EnsureCommandGroup(nil))
 	app.SetCommandsWithSubgroups(
-		app.StandardLifecycleCommands(),
+		groups,
 		[]cliapp.SubcommandGroup{content.Commands(nil)},
 	)
 	return app, nil

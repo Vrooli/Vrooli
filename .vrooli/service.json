@@ -11,10 +11,10 @@
         "required": false
       },
       "antigravity": {
-		"description": "Google Antigravity coding CLI (optional external-cli; sudo-free install, conversation/permission state backed up; agent-manager runner)",
-		"enabled": true,
-		"required": false
-	      },
+        "description": "Google Antigravity coding CLI (optional external-cli; sudo-free install, conversation/permission state backed up; agent-manager runner)",
+        "enabled": true,
+        "required": false
+      },
       "claude-code": {
         "description": "Claude Code development assistant",
         "enabled": true,
@@ -150,7 +150,7 @@
   "hostSafeguards": [
     {
       "name": "clock",
-      "notes": "Checks clock against remote HTTP time sources; syncs via hwclock/ntpdate/timedatectl if \u003e5 minutes off",
+      "notes": "Checks clock against remote HTTP time sources; syncs via hwclock/ntpdate/timedatectl if >5 minutes off",
       "reason": "Verify system clock accuracy for TLS certificate validation and JWT operations",
       "required": false,
       "when": [
@@ -252,7 +252,7 @@
     },
     {
       "name": "host_hardening",
-      "notes": "Writes /etc/sysctl.d/99-vrooli-host-hardening.conf and /etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf. Depends on the kdump-tools tool being armed (Phase 2 of 2026-05-07 work) — without that, panic_on_oops=1 turns survivable oopses into reboots that produce no diagnostics.",
+      "notes": "Writes /etc/sysctl.d/99-vrooli-host-hardening.conf and /etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf. Depends on the kdump-tools tool being armed (Phase 2 of 2026-05-07 work) \u2014 without that, panic_on_oops=1 turns survivable oopses into reboots that produce no diagnostics.",
       "reason": "Turn silent hard resets into observable kdump-able panics (sysrq, hung_task/softlockup/NMI/oops panic) and rate-limit journald so UFW BLOCK floods don't drown panic info",
       "required": false,
       "when": [
@@ -288,9 +288,18 @@
       ]
     },
     {
+      "name": "kdump_observability",
+      "notes": "Installs a root-owned collector service/timer that exports a bounded panic summary from each /var/crash dump into /var/lib/vrooli/host-observability/crashdumps. The vmcore itself is never copied. Retention prunes only kdump's own timestamp directories, only beyond the newest retain_vmcores, and only once that dump's summary exists; anything else in /var/crash is left alone. Requires the same vrooli-observability group as pstore_observability, so a logout/login may be needed before the current shell sees membership.",
+      "reason": "Make kernel panics visible to unprivileged scenarios: kdump writes a complete record to /var/crash but the dmesg is mode 0600 root and the vmcore is roughly the size of RAM, so on 2026-08-19 a host panic left perfect evidence that nothing in Vrooli could read",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
       "name": "pstore_ramoops",
-      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.\u003ctimestamp\u003e. REQUIRES OPERATOR REBOOT — Vrooli does NOT auto-run update-grub. Configure mem_address and mem_size in operator-state when native pstore is unavailable.",
-      "reason": "RAM-backed pstore fallback for hosts without native pstore — opt-in only, requires explicit memory-region configuration",
+      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.<timestamp>. REQUIRES OPERATOR REBOOT \u2014 Vrooli does NOT auto-run update-grub. Configure mem_address and mem_size in operator-state when native pstore is unavailable.",
+      "reason": "RAM-backed pstore fallback for hosts without native pstore \u2014 opt-in only, requires explicit memory-region configuration",
       "required": false,
       "when": [
         "setup"
@@ -317,7 +326,7 @@
     },
     {
       "name": "edac_modules",
-      "notes": "Detects CPU vendor/family and modprobes the matching EDAC driver (currently amd64_edac for AMD Family 15h–1Ah). Reports SupportNotApplicable on consumer Ryzen 7000 where ECC is not exposed by firmware.",
+      "notes": "Detects CPU vendor/family and modprobes the matching EDAC driver (currently amd64_edac for AMD Family 15h\u20131Ah). Reports SupportNotApplicable on consumer Ryzen 7000 where ECC is not exposed by firmware.",
       "reason": "Load EDAC drivers so memory error counters become readable under /sys/devices/system/edac/ on supported chipsets",
       "required": false,
       "when": [
@@ -327,8 +336,26 @@
     },
     {
       "name": "tpm_credential_access",
-      "notes": "Adds the invoking operator account to the group owning /dev/tpmrm0 (usually tss). Auto-skips on hosts with no TPM, or where the device grants its group nothing. The grant takes effect at the next login; `vrooli credentials store rewrap` then adds the unattended wrap.",
+      "notes": "Adds the invoking operator account to the group owning /dev/tpmrm0 (usually tss). Auto-skips on hosts with no TPM, or where the device grants its group nothing. Setup picks the grant up in its own credential stage and adds the unattended wrap in the same run; no logout and no second command.",
       "reason": "Let the encrypted credential store open itself from the TPM after a reboot, instead of requiring an operator to type a passphrase at every boot",
+      "required": true,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "emergency_watchdog",
+      "notes": "Installs ~/.vrooli/libexec/emergency-watchdog.sh plus a systemd user service and timer under the invoking user's home. Needs no privilege. Replaces scripts/emergency-watchdog.sh, which was referenced by runbooks, installed by nothing, and whose hand-created unit hard-coded one operator's repository path. Holds unit restarts while CPU PSI shows the host is saturated.",
+      "reason": "Give setup ownership of the last line of defense so every host has it, rather than depending on a hand-placed systemd unit that existed on exactly one machine",
+      "required": true,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "coding_agent_shims",
+      "notes": "Installs alias links (codex, claude, grok, opencode, agy) in ~/.vrooli/bin pointing at vrooli-agent-launcher, which attributes the run and then execs the real agent. Needs no privilege. Replaces the bash functions sourced from ~/.bashrc, which covered only interactive bash on Linux, had no installer, and could not be upgraded or removed.",
+      "reason": "Attribute coding-agent runs started from any shell, including non-interactive ones, instead of only from an interactive bash that happened to source a profile snippet",
       "required": false,
       "when": [
         "setup"
@@ -582,7 +609,7 @@
         "minimal"
       ],
       "name": "mcelog",
-      "notes": "Custom handler enables mcelog.service; on modern AMD systems mcelog is often masked because rasdaemon owns the MCE channel — that is treated as ExecutionAlreadyPresent, not a failure.",
+      "notes": "Custom handler enables mcelog.service; on modern AMD systems mcelog is often masked because rasdaemon owns the MCE channel \u2014 that is treated as ExecutionAlreadyPresent, not a failure.",
       "platforms": [
         "linux"
       ],

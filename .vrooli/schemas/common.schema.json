@@ -629,6 +629,15 @@
           "type": "string",
           "pattern": "^[a-zA-Z0-9._-]+$",
           "description": "Field that must be present before a derived credential can be provisioned."
+        },
+        "tiers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^tier-[1-5]-[a-z0-9-]+$"
+          },
+          "uniqueItems": true,
+          "description": "Deployment tiers where this credential is required. Empty or omitted means every tier."
         }
       }
     },

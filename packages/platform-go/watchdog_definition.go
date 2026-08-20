@@ -62,6 +62,16 @@ Environment=PATH=/usr/local/bin:/usr/bin:/bin:%s/.local/bin:%s/.vrooli/bin
 WorkingDirectory=%s
 TimeoutStopSec=30
 
+# The healer must outlive the condition it exists to fix. On 2026-08-19 this
+# host reached a load average of 110 on 32 CPUs; autoheal's own health ticks
+# timed out at five minutes each and it stopped reporting, precisely when its
+# reports mattered most. These three lines buy it scheduling priority, a
+# reclaim-protected memory floor, and near-immunity from the OOM killer — all
+# cheap for a supervisor whose steady-state footprint is small.
+CPUWeight=400
+MemoryMin=128M
+OOMScoreAdjust=-500
+
 [Install]
 WantedBy=%s
 `, options.LoopBinary, userDirective, options.Home, options.Root, options.VrooliBinary, options.Home, options.Home, filepath.Join(options.Root, "scenarios", "vrooli-autoheal"), wantedBy)

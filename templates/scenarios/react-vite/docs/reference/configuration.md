@@ -65,13 +65,16 @@ Single source of truth for everything the lifecycle needs to know.
 | `service` | name, display name, description, version, category, maintainers, repository URL |
 | `ports` | port-name → env-var + range mapping (lifecycle allocates from these) |
 | `cli` | command name, install scripts (per OS), invoke shape, freshness inputs |
+| `components` | portable process builds, argv, environment, port ownership, readiness, peers, and storage |
 | `lifecycle.health` | `/health` endpoint, startup grace period, periodic checks |
-| `lifecycle.setup` | build steps + idempotency conditions (binary present, UI bundle fresh) |
-| `lifecycle.develop` | how to start the running scenario |
-| `lifecycle.test` | which test command to invoke |
+| `lifecycle.setup` | exceptional ordered setup work expressed as native argv steps |
+| `lifecycle.develop` | exceptional ordered development work expressed as native argv steps |
 | `lifecycle.stop` | how to shut down cleanly |
 | `environment` | static env vars set for every lifecycle step |
 | `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |
+
+Testing is not a lifecycle phase. `.vrooli/testing.json` declares suites,
+and `vrooli scenario test <name>` delegates the run to Test Genie.
 
 The template ships with `dependencies.resources: {}` — SQLite is
 in-process, so no resource is required. Scenarios add resources here

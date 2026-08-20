@@ -132,6 +132,19 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	}
 
 	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "usermod", []string{"-aG", group, account}, opts); err != nil {
+		// A refused privilege and a failed usermod are different conditions
+		// with different operator actions, and collapsing them into one
+		// "failed" sends an operator who chose --sudo-mode=skip looking for a
+		// broken host. This safeguard is required, so either way setup reports
+		// that it did not reach the unattended state — but it names the reason
+		// the operator can act on.
+		if hostreqkit.IsSudoSkipped(err) {
+			status.ExecutionState = hostreqkit.ExecutionManualActionRequired
+			status.BlockingReason = hostreqkit.BlockingNeedsSudo
+			status.Notes = append(status.Notes, fmt.Sprintf(
+				"granting %s access to %s needs privilege; re-run as `sudo vrooli setup` to finish unattended credential access", account, device))
+			return status, nil
+		}
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, fmt.Sprintf("failed to add %s to group %s: %s", account, group, err.Error()))
 		return status, nil
@@ -139,11 +152,13 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 
 	status.Applied = true
 	status.ExecutionState = hostreqkit.ExecutionApplied
-	// The grant is real but this process cannot see it: group membership is
-	// fixed at login. Saying so is the difference between an operator who
-	// starts a new session and one who reports the safeguard as broken.
+	// The grant is real but this process cannot see it: supplementary groups
+	// are fixed at login. That is a fact about this process, not a task for the
+	// operator — setup's credential stage runs later in the same invocation and
+	// enters a group set that does include the grant, so it adds the unattended
+	// wrap without anyone logging out.
 	status.Notes = append(status.Notes, fmt.Sprintf(
-		"added %s to group %s; the grant takes effect in a new login session, after which `vrooli credentials store rewrap` adds the unattended wrap",
+		"added %s to group %s; setup's credential stage picks the grant up later in this same run and adds the unattended wrap",
 		account, group))
 	return status, nil
 }
