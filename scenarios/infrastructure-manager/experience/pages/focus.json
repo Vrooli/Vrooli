@@ -1,0 +1,108 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "focus",
+    "title": "Focus",
+    "routes": ["/focus"],
+    "purpose": "Give a member one ordered answer to 'what should I do next?' — every error term merged into a single ranked surface with its source named, and the record of whether past fixes actually moved their sensor.",
+    "prd_refs": ["OT-P0-004", "OT-P1-003"]
+  },
+  "regions": [
+    {
+      "id": "ranked-surface",
+      "purpose": "The ranked findings, cascade-ordered, each showing its source, the cell it concerns, and why it ranks where it does.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    },
+    {
+      "id": "ranking-rationale",
+      "purpose": "State the cascade order in force and any reordering it caused, so a reader can see why an integrity finding outranks a performance one.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "sync", "states": ["ready"]}
+    },
+    {
+      "id": "source-health",
+      "purpose": "Which gap sources contributed and which could not be read, so a short list is never mistaken for a quiet platform.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    },
+    {
+      "id": "efficacy",
+      "purpose": "For findings whose work has landed: the named sensor, the expected in-band return, what the sensor actually said, and the resulting verdict.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    }
+  ],
+  "states": [
+    {"id": "ready", "description": "All gap sources contributed. Findings ranked, rationale stated, efficacy records shown.", "setup": {"route": "/focus"}},
+    {"id": "degraded-sources", "description": "One or more gap sources unreadable. Their absence is shown as an availability entry that ranks like any other finding; healthy sources continue to contribute.", "setup": {"route": "/focus", "query": "state=degraded"}},
+    {"id": "integrity-first", "description": "Trust findings present alongside condition findings. Integrity outranks the plant, and the page says so.", "setup": {"route": "/focus", "query": "state=integrity-first"}},
+    {"id": "empty", "description": "No findings. Distinguished explicitly from 'no sources could be read'.", "setup": {"route": "/focus", "query": "state=empty"}}
+  ],
+  "priorities": [
+    {
+      "statement": "The page ranks; it never decides.",
+      "notes": "No control on this page repairs, defers, retires, restarts, shelves, or dismisses anything. Whether to act stays with the team and the operator, and the scenario has no actuation path to offer even if a button existed."
+    },
+    {
+      "statement": "An empty list and an unread list must never look the same.",
+      "notes": "Zero findings because the platform is quiet is the best possible state. Zero findings because every source was unreachable is the worst. These are the two states most likely to be conflated by a naive empty-state design."
+    },
+    {
+      "statement": "Ranking shows its work.",
+      "notes": "A reordering the reader cannot see is indistinguishable from a ranking bug. When cascade order promotes an integrity finding above a plant finding, that is stated in the surface, not buried."
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-actuation-affordance",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "The page exposes no control that restarts, shelves, retires, reconciles, dismisses or otherwise mutates any dependency or finding state on the plant.",
+      "rationale": "Operating-model rule 3 is 'supervise, don't operate'. This page is where an actuation shortcut would feel most natural and most useful, which is exactly why the prohibition is recorded against it.",
+      "states": ["ready", "integrity-first"],
+      "elements": ["ranked-surface"]
+    },
+    {
+      "id": "empty-distinguishes-from-unread",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "The empty state names how many gap sources were read successfully; when any source was unreadable the page renders the degraded state instead of the empty state.",
+      "rationale": "A quiet board and a blind board are opposite conclusions from identical pixels.",
+      "states": ["empty", "degraded-sources"],
+      "elements": ["ranked-surface", "source-health"]
+    },
+    {
+      "id": "cascade-order-is-stated",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "When trust findings are ranked above condition findings, the page states the cascade rule that caused it.",
+      "rationale": "Sensor-channel integrity is the innermost layer; a performance finding raised while the alarm channel is saturated is premature by construction, and the reader has to be able to see that reasoning.",
+      "states": ["integrity-first"],
+      "elements": ["ranking-rationale", "ranked-surface"]
+    },
+    {
+      "id": "efficacy-unmeasurable-is-not-pass",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "An efficacy record whose sensor became untrusted or unavailable between the finding and the re-read displays UNMEASURABLE, visually distinct from MOVED, and is attributed to the instrument.",
+      "rationale": "A fix graded by a sensor that stopped working is not a fix that worked. Silently treating it as a pass is the reliability theatre the efficacy axis exists to prevent.",
+      "states": ["ready"],
+      "elements": ["efficacy"]
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "ranked-surface": {"testid": "focus-surface"},
+      "ranking-rationale": {"testid": "focus-rationale"},
+      "source-health": {"testid": "focus-sources"},
+      "efficacy": {"testid": "focus-efficacy"}
+    }
+  }
+}

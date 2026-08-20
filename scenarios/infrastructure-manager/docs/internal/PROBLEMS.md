@@ -53,17 +53,23 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Status:** open · blocks honest coverage reporting · **owner:** the `infra-health` team, not this scenario
 
-The 14 authored target kinds in the sensor map are at *operation* granularity.
-The **obligation** list they should derive from — what the team must be able to
-do, from which the targets follow — has never been written. `TARGET_MODEL.md` § 4
-is direct that conflating the two is the most common modelling error and that a
-denominator built this way *"can never rise above `sketch` confidence."*
+The 14 authored target kinds are at *operation* granularity. The **obligation**
+list they should derive from — what the team must be able to do, from which the
+targets follow — has never been written. `TARGET_MODEL.md` § 4 is direct that
+conflating the two is the most common modelling error and that a denominator
+built this way *"can never rise above `sketch` confidence."*
 
-This is judgment that must be done by the team. It cannot be derived here, and
-building the board first does not resolve it — it just means every ratio the
-board reports carries `SKETCH` until it is done.
+The 2026-08-19 projection model narrows this substantially without closing it.
+The ten projections and their cell grids **are** the structural half of the
+missing obligation list: they name what the platform must be able to demonstrate,
+per layer, rather than which command happens to emit a number. What remains is
+the team's judgment call that the ten projections are the right ten — and each
+owner authoring the cells inside its own space doc. Until both exist, every
+denominator reports `SKETCH`, which is stated on every ratio rather than rounded
+away.
 
-**Revisit trigger:** the team authors six to ten obligations derived from `I2`.
+**Revisit trigger:** the team confirms the projection set against `I2`, and each
+control layer authors its `docs/spaces/<projection>-space.md`.
 
 ### P-002 — Every current-state reading is stale; the team loop is paused
 
@@ -82,16 +88,19 @@ first vertical slice reports anything as `measured`.
 
 **Status:** open · degrades safely · **owner:** `vrooli-autoheal`
 
-Ghost and shelved verdicts need `vrooli-autoheal check reconcile` and
-`check shelve`, neither of which exists. The scenario computes saturated and
-unit-mismatch, and marks the rest `UNTRUSTED` rather than assuming `VALID`, so
-the gap degrades conservatively — but declared blindness is wider than it will
-be, and the shelving record is a hand-maintained artifact in the meantime.
+Ghost and shelved verdicts need a two-direction `check reconcile` and a
+shelve-with-expiry verb on `vrooli-autoheal`, neither of which exists. The
+scenario computes saturated and unit-mismatch, and marks the rest `UNTRUSTED`
+rather than assuming `VALID`, so the gap degrades conservatively — but declared
+blindness is wider than it will be, and the shelving record is a hand-maintained
+artifact in the meantime.
 
-Gap 10's priority signal has already fired twice and it is top of the team's own
-sensor queue.
+**Changed 2026-08-19:** this is no longer deferred upstream work. Closing Gap 10
+is a phase of this scenario's implementation plan, sequenced before the
+`condition` vertical, because shipping without it would launch the instrument
+with half its integrity vocabulary permanently uncomputable.
 
-**Revisit trigger:** Gap 10 ships.
+**Revisit trigger:** the autoheal phase lands.
 
 ### P-004 — Generated from a template whose registry status is `quarantined`
 
@@ -119,7 +128,7 @@ by review. Each is the kind of invariant a well-meaning caching or convenience
 change erodes silently.
 
 **Revisit trigger:** first vertical slice. Add architecture tests asserting that
-`targets` and `supervision` own no schema, and that no dependency client exposes
+`coverage` owns no schema, that no setpoint write path exists, and that no dependency client exposes
 a mutating verb.
 
 ### P-006 — `secrets-manager` exposes no typed read surface
@@ -134,6 +143,67 @@ board could consume.
 **Revisit trigger:** `secrets-manager` ships a manifest and a health/status verb.
 Do not compensate for the gap here with log scraping — that would breach the
 typed-read boundary that keeps credentials out of the reading store.
+
+### P-007 — `vrooli-autoheal` has no typed read surface at all
+
+**Status:** open · on the critical path · **owner:** this scenario's plan
+
+`vrooli-autoheal` ships no proto schemas — `packages/proto/schemas/` has no
+`vrooli-autoheal` directory — and `api/main.go` serves a plain `setupRouter`
+HTTP router rather than Connect handlers. It is simultaneously the single most
+important sensor source: it backs three of ten projections (`supervision`,
+`availability`, `recovery`), owns the check registry, and answers two of four
+trust rules.
+
+There is no honest way to join it typed today. The rejected shortcut was a
+minimal proto shim sufficient for the join, which would have locked in whatever
+shape was convenient in week one as the surface autoheal has to live with.
+
+**Real fix:** a proper read-only Connect surface over autoheal's existing
+domains (checks, actions, incidents, healing), with Measures declarations and
+its space docs. Scheduled as a plan phase before the `condition` vertical.
+
+**Refs:** `scenarios/vrooli-autoheal/api/main.go`, `api/internal/{checks,healing,incidents}/`
+
+### P-008 — No control layer has authored a reliability space doc
+
+**Status:** open · every denominator starts at `SKETCH` · **owner:** each control layer
+
+The coverage denominator is designed to be read from each owner's
+`docs/spaces/<projection>-space.md` through its `space --projection <p> --json`
+verb — the same contract `search-hub`, `test-genie`, `prompt-manager` and
+`program-runtime` already implement for `meta-optimization-manager`. **Zero of
+the six control layers have authored one.**
+
+Until they do, the coverage join has no denominator to read and every projection
+reports `SKETCH` confidence with the reason stated. The scenario must not
+compensate by asserting the cell sets itself: that would be a roster in all but
+name, would go stale on every owner change, and is the specific thing
+`INSTRUMENTATION_ROADMAP.md` Gap 11 rejects.
+
+**Real fix:** each owner authors its space doc and registers the verb. Sequenced
+per-projection in the plan, starting with autoheal's three.
+
+### P-009 — `vrooli capacity` cannot be read typed, by construction
+
+**Status:** open · accepted, fenced · **owner:** the control plane
+
+The capacity projection's sensor is `vrooli capacity reconcile|recommend`, and
+`vrooli capacity` lives in the repo-root `internal/capacity` package. Go's
+`internal/` visibility rule means a scenario — a separate module — cannot import
+it, and `api-core/discovery` resolves scenario ports, not control-plane
+subcommands. So this one source is read as a bounded CLI subprocess.
+
+This is accepted rather than fixed, but it is **fenced to one named source**. A
+second CLI read is a design smell and should be challenged in review, because
+the failure mode it reintroduces — a hung owner stalling the board — is the one
+`meta-optimization-manager` migrated away from CLI reads to escape.
+
+**Real fix:** the control plane exposes a typed local surface for capacity
+reads. Until then, the subprocess carries the same 10s deadline and
+`UNAVAILABLE` degradation as every typed source.
+
+**Refs:** `internal/capacity/`, `packages/api-core/discovery/resolve.go`
 
 ## Architecture Drift
 

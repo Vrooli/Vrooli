@@ -61,9 +61,9 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": [
-              "What You Get",
+              "What's In This Scenario",
               "Documentation Map",
-              "Customize Safely"
+              "Placeholders vs. Durable Scaffolding"
             ],
             "forbiddenPlaceholders": [
               "[TODO]",
@@ -166,11 +166,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "🎯 Overview",
-              "🎯 Operational Targets",
-              "🧱 Tech Direction Snapshot",
-              "🤝 Dependencies & Launch Plan",
-              "🎨 UX & Branding"
+              "\ud83c\udfaf Overview",
+              "\ud83c\udfaf Operational Targets",
+              "\ud83e\uddf1 Tech Direction Snapshot",
+              "\ud83e\udd1d Dependencies & Launch Plan",
+              "\ud83c\udfa8 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +245,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 — Setup",
-              "2 — Start",
-              "3 — Open",
-              "5 — Run the tests"
+              "1 \u2014 Setup",
+              "2 \u2014 Start",
+              "3 \u2014 Open",
+              "5 \u2014 Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -321,25 +321,27 @@
           }
         },
         {
-          "path": "concepts/SETPOINT-MODEL.md",
+          "path": "concepts/COVERAGE-MODEL.md",
           "docType": "concept",
-          "title": "Setpoint Model",
+          "title": "Coverage Model",
           "aliases": [
-            "setpoint",
-            "targets",
-            "target-model"
+            "coverage",
+            "projections",
+            "cells",
+            "denominator"
           ],
-          "description": "What a target is, where the setpoint lives, why this scenario may not author it, and how the five axes stay separate",
+          "description": "The Coverage axis: the ten projections, the cell grid, the split denominator, and denominator-confidence",
           "audience": [
             "developers",
             "agents",
             "operators"
           ],
           "canonicalFor": [
-            "setpoint",
-            "target-model",
-            "deadbands",
-            "denominator-confidence"
+            "coverage-axis",
+            "projections",
+            "cell-grid",
+            "denominator-confidence",
+            "open-loop"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -349,13 +351,109 @@
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
+              "The Instrument Contract, In One Sentence",
               "The Plant",
-              "The Target Model",
-              "Where The Setpoint Lives, And Why Not Here",
-              "Deadband Discipline",
-              "The Five Axes",
+              "The Projections",
+              "The Cell Grid",
+              "Setpoint Drift",
+              "Coverage Is Not The Only Axis",
               "What Stays Judgment",
+              "Current State",
+              "Governing Principles",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]",
+              "[Summarize]"
+            ]
+          }
+        },
+        {
+          "path": "concepts/CONDITION-MODEL.md",
+          "docType": "concept",
+          "title": "Condition Model",
+          "aliases": [
+            "condition",
+            "banding",
+            "legs",
+            "efficacy"
+          ],
+          "description": "The Condition axis: derived leg population, band evaluation, reading history, and actuation efficacy",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "condition-axis",
+            "banding",
+            "leg-population",
+            "reading-history",
+            "actuation-efficacy"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Why Condition Is A Distinct Axis",
+              "The Population Is Derived, Never Authored",
+              "Signals Are Owner-Measured, Never Self-Declared",
+              "Banding",
+              "Reading History",
+              "Actuation Efficacy",
+              "Cascade Discipline",
+              "Load-Bearing Constants",
+              "Current State",
+              "Governing Principles",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]",
+              "[Summarize]"
+            ]
+          }
+        },
+        {
+          "path": "concepts/SETPOINT-MODEL.md",
+          "docType": "concept",
+          "title": "Setpoint Model",
+          "aliases": [
+            "setpoint",
+            "deadbands",
+            "bar",
+            "target-model"
+          ],
+          "description": "The bar every cell is graded against, where it lives, and what structurally prevents this scenario from moving it",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "setpoint",
+            "deadbands",
+            "update-protocol",
+            "hysteresis"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "What A Setpoint Entry Is",
+              "Where The Setpoint Lives",
+              "Deadband Discipline",
+              "The Update Protocol",
+              "Setpoint Integrity",
               "Denominator Confidence",
+              "What Stays Judgment",
               "Current State",
               "Governing Principles",
               "Cross-References"
@@ -375,7 +473,7 @@
             "sensor-integrity",
             "alarm-hygiene"
           ],
-          "description": "The Trust axis: whether a reading is evidence or instrument fault, and the closed verdict vocabulary that decides",
+          "description": "The Trust sub-axis of Condition: whether a reading is evidence or instrument fault, and the closed verdict vocabulary that decides",
           "audience": [
             "developers",
             "agents",
@@ -1055,7 +1153,7 @@
           "validation": {
             "requiredHeadings": [
               "System",
-              "Notes (CRUD reference)",
+              "Example domain \u2014 `notes` (removed by `template-manager detemplate`)",
               "Adding a new endpoint",
               "Cross-references"
             ],
@@ -1095,7 +1193,7 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands — `notes` (CRUD reference)",
+              "Example domain \u2014 `notes` (removed by `template-manager detemplate`)",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1203,7 +1301,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry — every interface and its production / test fake",
+          "description": "Boundary registry \u2014 every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1313,7 +1411,7 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR — the canonical examples",
+              "TL;DR \u2014 the canonical examples",
               "API testing",
               "UI testing",
               "CLI testing",
@@ -1522,7 +1620,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log — append a row whenever work lands",
+          "description": "Lifecycle log \u2014 append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

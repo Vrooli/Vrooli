@@ -123,6 +123,34 @@ The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
+### Planned surface
+
+Designed, not yet implemented. Each verb is one API call rendered through an
+output contract; `--json` is available on every one.
+
+| Command | Domain | Answers |
+|---|---|---|
+| `coverage status` | coverage | How much of the platform is instrumented, per projection, with denominator-confidence |
+| `coverage show <projection>` | coverage | One projection's cell grid, each cell with status, bar and honesty flag |
+| `coverage cells` | coverage | The flat cell list across every projection |
+| `coverage open-loop` | coverage | Every `MISSING` cell with `gap_opened_on` and `gap_open_days` |
+| `coverage validate` | coverage | Setpoint-integrity findings: ungraded `NOW` cells, dead deadbands, hand-set honesty flags, missing decision refs |
+| `coverage drift` | coverage | Cells whose named sensor no longer resolves, and `MISSING` cells a shipped verb could already close |
+| `condition status` | condition | Every instrumented cell's current reading, trust verdict and band verdict |
+| `condition trust` | condition | The trust triple — distribution, of checked, of total |
+| `condition explain <cell>` | condition | Why one cell reads as it does: source, value, integrity rules applied, deadband compared |
+| `condition history <cell>` | condition | Stored readings re-banded against the *current* deadband |
+| `focus next` | focus | The ranked error surface — the one call a member makes |
+| `focus show <id>` | focus | One finding with its source, cell, and named sensor |
+| `focus sources` | focus | Which gap sources contributed and which could not be read |
+| `focus efficacy` | focus | Findings whose work landed, and whether the sensor moved |
+
+**No verb in this table mutates anything, here or upstream.** There is
+deliberately no `coverage set`, no `condition shelve`, no `focus dismiss`, and
+no setpoint write of any kind. A proposed command that changes state belongs in
+a different scenario — see [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md)
+§ Extension Rules.
+
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)
 

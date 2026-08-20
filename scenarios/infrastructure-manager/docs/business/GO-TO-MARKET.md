@@ -43,7 +43,7 @@ Internal only.
 
 Adoption is not a launch event; it is a substitution. The sequence matters:
 
-1. **Ship the setpoint read and the live join** (`targets` + `readings`), so the board can answer something real.
+1. **Ship the coverage grid and the live join** (`coverage` + `condition`), so the board can answer something real.
 2. **Point one member at it** — `runtime-health-scanner` first, since its heartbeat is the highest-frequency reader.
 3. **Delete the prose it replaced.** Roughly 25 of the 67 lines in `runtime-health-scanner/RESPONSIBILITIES.md` — the Sensor-First, Sensor-Integrity, Capacity Supervision, Validation-Cost Supervision and Capability Supervision sections — are sensor routing and duplicated deadbands that collapse to a board citation. The incident-surface and remediation-workflow sections stay; they are judgment.
 4. **Flip `team.json::instrument` to `live`** and name `coversScenarios`.

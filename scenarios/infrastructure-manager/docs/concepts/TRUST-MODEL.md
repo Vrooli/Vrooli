@@ -4,13 +4,13 @@
 
 This is the **single canonical source** for the **Trust axis**: the model that answers *"is this reading evidence, or is it instrument fault?"*
 
-It is the sibling of [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md), which owns what a target *is* and where the setpoint lives. Read that file first; the target model, deadband semantics, and honesty flags are defined there and are **not** restated here.
+It is a **sub-axis of Condition**, large enough to warrant its own document. [`CONDITION-MODEL.md`](CONDITION-MODEL.md) owns band evaluation and depends on this file completely: **an untrusted reading never produces a band verdict.** Read [`COVERAGE-MODEL.md`](COVERAGE-MODEL.md) first for the projections and cell grid, then `CONDITION-MODEL.md`, then this. Deadband values live in [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md) and are **not** restated here.
 
 This document describes the **ideal** instrumentation, not what exists today. That is deliberate and matches how `meta-optimization-manager`'s [`CONDITION-MODEL.md`](../../../meta-optimization-manager/docs/concepts/CONDITION-MODEL.md) is authored: the model is written at full maturity so the distance between it and reality is *measurable* rather than invisible. Current adoption is recorded in [§ Current State](#current-state) as data, never by trimming the model down to what already works.
 
 ## Why Trust Is A Distinct Axis
 
-`meta-optimization-manager` needs no equivalent of this document, and the reason is precise. Its numerators are joins over registries — a provider is declared or it is not, a binding resolves or it does not. Registries do not lie in interesting ways.
+`meta-optimization-manager` mirrors this scenario's Coverage and Condition axes but needs no equivalent of *this* document, and the reason is precise. Its numerators are joins over registries — a provider is declared or it is not, a binding resolves or it does not. Registries do not lie in interesting ways.
 
 This scenario's numerators are **alarms on running processes**, and alarms lie in four named ways. The evidence is not hypothetical:
 
@@ -29,7 +29,7 @@ Both halves of that sentence are load-bearing. The first says an untrusted readi
 
 The obvious objection is that this duplicates the Condition axis. It does not, and the boundary is precise:
 
-> **Condition asks whether the thing being measured still works. Trust asks whether the measurement itself can be believed.**
+> **Condition asks whether the thing being measured is in band. Trust asks whether the measurement itself can be believed.**
 
 A leg can be genuinely degraded and honestly measured (condition problem, plant-side). A leg can be perfectly healthy and reported through a saturated check (trust problem, instrument-side). Folding them means a plant fix gets scheduled for an instrument defect, and the fix cannot possibly move the sensor — which the `focus` domain's efficacy join would then correctly report as an unmoved finding, one cycle too late.
 
@@ -77,16 +77,16 @@ So a reader sees `3 GHOST, 1 SATURATED, 14 VALID of 18 checked, of 23 readings` 
 
 ## Where Trust Verdicts Come From
 
-**Trust is computed here; integrity primitives are owned upstream.** The distinction matters for the same reason the setpoint is owned elsewhere.
+**Trust is computed here; integrity primitives are owned upstream.** The split mirrors the coverage denominator: the owner exposes the raw integrity fact about the leg it operates, and this scenario turns it into a verdict. An instrument that manufactured its own integrity facts would be asserting the plant's state rather than observing it.
 
 | Rule | Who can answer it | Status |
 |---|---|---|
-| Ghost — does the check's target still exist? | `vrooli-autoheal check reconcile` (roadmap Gap 10) | Not shipped. Interim: derived-set membership from `scenario-dependency-analyzer` |
-| Saturated — did the check transition in the window? | `vrooli-autoheal actions transitions` | Ships today |
-| Shelved — is the element deliberately stopped? | `vrooli-autoheal check shelved` (roadmap Gap 10) | Not shipped. Interim: the team's runtime lessons artifact, read as `estimate` |
-| Unit mismatch — is this reading's unit valid for this target? | This scenario, from the target model | Computable today |
+| Ghost — does the check's target still exist? | `vrooli-autoheal` check reconcile (roadmap Gap 10) | **Not shipped; in plan.** Closing it is a phase of this scenario's implementation plan, not deferred upstream work. |
+| Saturated — did the check transition in the window? | `vrooli-autoheal` action transitions | Ships today |
+| Shelved — is the element deliberately stopped? | `vrooli-autoheal` shelve-with-expiry (roadmap Gap 10) | **Not shipped; in plan.** Same phase as reconcile. |
+| Unit mismatch — is this reading's unit valid for this cell? | This scenario, from the coverage model | Computable today |
 
-Two of the four depend on **Gap 10**, which is already top of the team's own sensor queue and whose priority signal has fired twice. Until it ships, this scenario computes what it can, marks the rest `UNTRUSTED` rather than assuming `VALID`, and reports the resulting instrumentation shortfall as a finding against itself.
+Two of the four depend on **Gap 10**, and that is why closing it is on this scenario's critical path rather than filed as someone else's backlog. Shipping the instrument without it would mean launching with half the integrity vocabulary permanently uncomputable — the board's loudest headline would be its own blindness. Until the phase lands, the scenario computes what it can, marks the rest `UNTRUSTED` rather than assuming `VALID`, and reports the shortfall as a finding against itself.
 
 **This scenario never mutates a check.** It does not shelve, unshelve, retire, or reconcile — those are autoheal's verbs and they change a running system. It reads their output and forms a verdict. A board that could shelve its own inconvenient alarms would be the purest possible form of an observer confirming itself.
 
@@ -112,7 +112,7 @@ Following the discipline in `RELIABILITY_TARGETS.md` — judgment constants are 
 
 - **`saturationWindow = 24h`** — inherited directly from the team's sensor-integrity rules. A check pinned at one status for a full window carries no information.
 - **`shelfExpiryRequired = true`** — permanent suppression is prohibited by the team's shelving rule. A shelf with no expiry is itself a finding, and an expired shelf reverts to live alarming.
-- **`readDeadline = 3s` per source** — a slower source is an honest `UNAVAILABLE`, not a hang. Mirrors `meta-optimization-manager`'s `numeratorDeadline`.
+- **`readDeadline = 10s` per source** — a slower source is an honest `UNAVAILABLE`, not a hang. Matches `meta-optimization-manager`'s live `numeratorDeadline`, which was widened from a shorter assumption after real owners legitimately took several seconds to aggregate a fleet read. A deadline tight enough to make healthy sources intermittently vanish manufactures exactly the false blindness this axis exists to prevent.
 - **`trustCheckCoverageFloor`** — deliberately unset. Setting it to whatever the current coverage happens to be would report in-band while the defect stands, which is precisely the dead-deadband failure `FRAMEWORK_HEALTH.md` § "Deadband rule" names.
 
 ## Current State
@@ -122,7 +122,8 @@ Recorded as of 2026-08-17, as data. This section is the measured distance from t
 | Fact | Value |
 |---|---|
 | Integrity rules computable today | 2 of 4 (saturated, unit mismatch) |
-| Integrity rules blocked on Gap 10 | 2 of 4 (ghost, shelved) |
+| Integrity rules blocked on Gap 10 | 2 of 4 (ghost, shelved) — scheduled in the autoheal phase of the implementation plan |
+| `vrooli-autoheal` typed read surface | none — no proto schemas exist; it serves a plain HTTP router |
 | Alarm-channel state at last reading | 1,058 critical events / 24h against a ≤500 deadband — out of band |
 | Prior decomposition | 4,624 / 24h on 2026-07-23; ~92% attributed to ghost and saturated checks |
 | Shelving record today | Hand-maintained rows in the team's runtime lessons artifact |
@@ -138,9 +139,11 @@ Recorded as of 2026-08-17, as data. This section is the measured distance from t
 
 ## Cross-References
 
-- [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md) — the target model, deadbands, and honesty flags this document builds on.
+- [`COVERAGE-MODEL.md`](COVERAGE-MODEL.md) — projections, cells, and denominator-confidence.
+- [`CONDITION-MODEL.md`](CONDITION-MODEL.md) — the parent axis; banding depends on every verdict here.
+- [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md) — the deadbands and honesty flags this document builds on.
 - [`DOMAINS.md`](DOMAINS.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`INTEGRATIONS.md`](INTEGRATIONS.md).
-- `docs/infra-health/strategy/RELIABILITY_TARGETS.md` § Sensor integrity — the ISA-18.2 / EEMUA 191 rules this axis mechanizes.
+- `docs/infra-health/strategy/RELIABILITY_TARGETS.md` § Sensor integrity — the ISA-18.2 / EEMUA 191 rules this axis mechanizes, pending migration of that document's sensor map into this scenario.
 - `docs/infra-health/operating/OPERATING_MODEL.md` rule 5 — the sensor-integrity routing rule.
 - `docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md` Gap 10 — check shelving and registry reconciliation, which unblocks two of the four rules.
 - `scenarios/meta-optimization-manager/docs/concepts/CONDITION-MODEL.md` — the sibling instrument's condition axis; the precedent for derived populations and the uninstrumented-is-not-healthy rule.

@@ -26,7 +26,51 @@ outcome, statefulness, and validation level.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| _(your flow)_ | _(owning domain)_ | What starts it. | What it produces. | States, retries, cancellation, stale completion. | Target maturity level. |
+| Board read | coverage + condition + focus | Any `focus next`, board load, or API query | One ranked error surface with coverage, condition, trust and efficacy all computed live | **Stateless by design.** Nothing is cached between reads; every conclusion is recomputed. The only durable state is the reading history and findings. | L1 — inventory. Statelessness is the invariant; a state machine here would be the defect. |
+| Finding lifecycle | focus | A cell resolves `OUT_OF_BAND`, `UNTRUSTED`, `MISSING`, or a drift check fires | A finding that opens, is worked, and is graded by its own sensor | Stateful: `open → work_recorded → awaiting_reread → moved` / `did_not_move` / `unmeasurable`, with `did_not_move` re-opening | L2 — workflow model. This is the one genuinely stateful flow and it owns durable transitions. |
+| Reading retention | condition | Rolling age-out against the derived floor | Readings older than the longest declared window + margin are trimmed | Stateful only in that trimming below the floor changes measurability, which must be reported | L1 — inventory, with a setpoint-integrity check as the guard. |
+
+### The board read is deliberately stateless
+
+Every read recomputes the spaces, the setpoint, the cell grid, the leg
+population and every verdict except trust. There is no job, no refresh cycle,
+and no materialized view — which is what makes "no conclusion is ever served
+that was not just computed" an architectural property rather than a policy.
+
+```mermaid
+flowchart TD
+    Q["focus next / board load"] --> COV[coverage domain]
+
+    subgraph COV_IN ["denominator — two owners"]
+      direction LR
+      SP["setpoint file<br/>(checked in, no write path)"]
+      SPACE["owner space docs<br/>space --projection p --json"]
+    end
+
+    COV --> COV_IN
+    COV_IN --> GRID["cell grid<br/>NOW / IN-REACH / MISSING<br/>+ denominator-confidence"]
+
+    GRID -->|"legs of every NOW cell"| CND[condition domain]
+    CND --> SRC{"typed Connect fan-out<br/>via api-core/discovery<br/>10s per-source deadline"}
+    SRC --> R["readings<br/>(persisted)"]
+    R --> T["trust verdict<br/>(persisted — not recomputable)"]
+    T -->|VALID only| B["band verdict<br/>(never persisted)"]
+    T -->|"not VALID"| NE["NOT_EVALUATED<br/>routes to the instrument"]
+
+    GRID -->|"MISSING cells, dated"| F[focus domain]
+    B --> F
+    NE --> F
+    SRC -->|"unreachable"| UA["UNAVAILABLE<br/>named source, stated reason"] --> F
+
+    F --> RANK["ranked surface<br/>cascade order: integrity first"]
+    RANK --> EFF["efficacy re-read<br/>sensor grades the fix"]
+```
+
+Two properties of the diagram are load-bearing rather than incidental. The
+`setpoint file` box has no inbound arrow from anywhere in the system — that
+absence is the `D6` defence. And `UNAVAILABLE` flows to `focus` rather than
+terminating: an unreadable source becomes a visible entry on the surface, never
+a silently dropped row.
 
 ## Flow Details
 

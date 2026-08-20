@@ -7,7 +7,7 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "infrastructure-manager",
-  "description": "Experience contract for Infrastructure Manager, the infra-health team's instrument. The UI is deliberately the last surface to be built (OT-P2-001) — the programmatic CLI and Connect surfaces come first — so these specs are authored ahead of implementation to fix the honesty obligations before pixels harden around them. Every page here inherits one rule: no number is shown without the qualifier that makes it honest, and no unreadable source is ever allowed to look healthy.",
+  "description": "Experience contract for Infrastructure Manager, the infra-health team's instrument. The board is a first-class surface (OT-P1-005) and ships vertical-by-vertical with the domain it presents \u2014 no page ships without its domain, and no domain ships without its page. These specs are authored ahead of implementation to fix the honesty obligations before pixels harden around them. Every page inherits three rules: no number is shown without the qualifier that makes it honest, no unreadable source is ever allowed to look healthy, and no page offers a control the scenario has no right to perform.",
   "pages": [
     {
       "id": "dashboard",
@@ -16,15 +16,21 @@
       "status": "planned"
     },
     {
-      "id": "targets",
-      "path": "pages/targets.json",
-      "title": "Setpoint",
+      "id": "coverage",
+      "path": "pages/coverage.json",
+      "title": "Coverage",
       "status": "planned"
     },
     {
-      "id": "readings",
-      "path": "pages/readings.json",
-      "title": "Readings",
+      "id": "condition",
+      "path": "pages/condition.json",
+      "title": "Condition",
+      "status": "planned"
+    },
+    {
+      "id": "focus",
+      "path": "pages/focus.json",
+      "title": "Focus",
       "status": "planned"
     },
     {

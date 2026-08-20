@@ -1,6 +1,34 @@
 # Infrastructure Manager
 
-Reliability instrument for the infra-health team: joins the sensor-map setpoint against live plant readings and emits one ranked, trust-qualified error surface
+Reliability instrument for the infra-health team: joins each control layer's
+authored reliability space against a checked-in operator setpoint, takes live
+trust-qualified readings on every instrumented cell, and emits one ranked error
+surface.
+
+## The Model In One Screen
+
+Platform reliability decomposes into **ten projections**, each owned by the
+control layer that holds its ground truth. A projection is a grid of **cells**;
+a cell is one answerable fact.
+
+| Axis | Question | Document |
+|---|---|---|
+| **Coverage** | Is this dimension instrumented *at all*? | [`docs/concepts/COVERAGE-MODEL.md`](docs/concepts/COVERAGE-MODEL.md) |
+| **Condition** | For what we can see, is it *in band*? | [`docs/concepts/CONDITION-MODEL.md`](docs/concepts/CONDITION-MODEL.md) |
+| **Trust** | Can the reading be *believed*? | [`docs/concepts/TRUST-MODEL.md`](docs/concepts/TRUST-MODEL.md) |
+| **Efficacy** | Did the fix actually *move the sensor*? | [`docs/concepts/CONDITION-MODEL.md`](docs/concepts/CONDITION-MODEL.md) |
+
+Three rules explain most of the design:
+
+1. **Owners define the space; the operator defines the bar.** Which cells exist
+   is authored by each control layer in its own `docs/spaces/<projection>-space.md`.
+   The deadbands live here, in [`setpoint/`](setpoint/), as a checked-in file
+   with **no write path** — that absence is what stops the instrument grading
+   itself.
+2. **Store readings, never band verdicts.** Tightening a target re-grades its own
+   history instead of stranding judgments made against a bar nobody uses.
+3. **Never actuate.** No restart, no shelve, no policy change. `FT` is a
+   transmitter and `FIC` is a controller; this scenario has no `C`.
 
 This scenario was generated from the `react-vite` template and packages
 the standard full-stack Vrooli scenario shape:

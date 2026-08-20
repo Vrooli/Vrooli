@@ -28,6 +28,48 @@ ui/src/
 └── theme/          # theme-token slot — ThemeProvider + tokens.css
 ```
 
+## The Board
+
+The UI is a **read-only instrument panel**, not a dashboard. Four routed pages,
+each paired one-to-one with a domain so no page ships without the domain behind
+it and no domain ships without its page.
+
+| Route | Page | Domain | Primary object |
+|---|---|---|---|
+| `/` | Board | all three | The merged ranked surface, with coverage and trust headlines above it |
+| `/coverage` | Coverage | coverage | The cell grid — projections down, cells across |
+| `/condition` | Condition | condition | Dense per-cell rows: value, trust verdict, band verdict |
+| `/focus` | Focus | focus | Ranked findings, the ranking rationale, and efficacy records |
+| `/settings` | Settings | — | Theme and locale only |
+
+### Design constraints that are correctness, not taste
+
+The entire surface is status, which changes what the usual accessibility and
+layout rules buy you:
+
+- **Status is never carried by colour alone.** Every verdict pairs a hue with a
+  label or a shape. On a page where every cell is a verdict, colour-only encoding
+  is not a degraded experience for some users — it is an unreadable page.
+- **The trust triple renders as one visual unit.** `3 GHOST, 1 SATURATED, 14
+  VALID of 18 checked, of 23 readings` is one fact. Splitting the verdict counts
+  from the checked denominator lets a reader mistake the unchecked remainder for
+  valid readings.
+- **Ratios render adjacent to their denominator-confidence**, in the same visual
+  unit — never in a tooltip. Recursive honesty defeated by progressive disclosure
+  is recursive honesty deleted.
+- **Untrusted readings need a third visual treatment.** Not green, not red. They
+  are not evidence, and both alternatives manufacture a claim.
+- **Empty and unread must not share a design.** Zero findings because the
+  platform is quiet is the best state; zero findings because every source was
+  unreachable is the worst. Identical pixels for opposite conclusions is the
+  single most likely UI defect in this scenario.
+- **No affordance the scenario cannot honour.** No edit control on a deadband,
+  no dismiss on a finding, no restart or shelve anywhere. There is deliberately
+  no API path behind such a control even if one were added.
+
+Density is the aesthetic: scannable rows over large tiles, because a member is
+looking for the one row that changed, not for a summary they already know.
+
 ## Slots Are A Contract
 
 Every directory above maps to a named slot in `ui/manifest.json`. The manifest

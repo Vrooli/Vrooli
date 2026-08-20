@@ -7,7 +7,7 @@
     "title": "Board",
     "routes": ["/"],
     "purpose": "Be the one address a member starts from: the ranked error surface, with enough qualification visible that no number can be read as more confident than it is.",
-    "prd_refs": ["OT-P0-004", "OT-P2-001"]
+    "prd_refs": ["OT-P0-004", "OT-P1-005"]
   },
   "regions": [
     {
@@ -21,7 +21,7 @@
     },
     {
       "id": "ranked-findings",
-      "purpose": "Present the merged error surface in rank order — out-of-band readings, untrusted readings, supervision gaps and uninstrumented targets — each labelled with the named source it came from.",
+      "purpose": "Present the merged error surface in rank order — out-of-band readings, untrusted readings, open-loop cells, coverage drift and source unavailability — each labelled with the named source it came from.",
       "required": true,
       "component": {
         "library": {"component": "experience-surface", "version": "1.0.0"}
@@ -84,7 +84,7 @@
       "id": "degraded-source-is-visible",
       "type": "behavior",
       "tier": "required",
-      "statement": "When any sensor source is unreadable, the availability region names that source and its stated reason, and the board does not present its targets as in band.",
+      "statement": "When any sensor source is unreadable, the availability region names that source and its stated reason, and the board does not present its cells as in band.",
       "rationale": "The degradation contract in TARGET_MODEL.md: an unreadable source becomes a visible availability entry, never a zero and never a silently dropped row.",
       "states": ["partial"],
       "elements": ["source-availability"]

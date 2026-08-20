@@ -1,0 +1,117 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "coverage",
+    "title": "Coverage",
+    "routes": ["/coverage"],
+    "purpose": "Show the cell grid as it actually is — every projection, every cell, its status, the bar it is graded against, and the confidence of the space it was measured against. Every open-loop cell carries the date it was declared and how long it has stood.",
+    "prd_refs": ["OT-P0-001", "OT-P0-002", "OT-P0-005", "OT-P1-004"]
+  },
+  "regions": [
+    {
+      "id": "cell-grid",
+      "purpose": "The primary object on the page: projections down, cells across, each showing NOW / IN-REACH / MISSING with its bar and honesty flag.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "error"]}
+    },
+    {
+      "id": "confidence",
+      "purpose": "Per-projection denominator-confidence with its rationale, presented beside the ratio it qualifies rather than in a tooltip.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "error"]}
+    },
+    {
+      "id": "open-loop",
+      "purpose": "Separate the MISSING cells, each with gap_opened_on and gap_open_days, so an intentionally visible hole can be told from an overdue one.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    },
+    {
+      "id": "integrity",
+      "purpose": "Report setpoint-integrity findings — a NOW cell with no bar, a bar equal to its authoring-time reading, a hand-set honesty flag — and drift findings where a named sensor no longer resolves or a MISSING cell could already be closed by a shipped verb.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    }
+  ],
+  "states": [
+    {"id": "ready", "description": "Spaces read, setpoint parsed, grid joined. Cells, confidence, open-loop and integrity findings all shown.", "setup": {"route": "/coverage"}},
+    {"id": "space-unavailable", "description": "One owner's space verb could not be read. That projection shows UNAVAILABLE with the reason and SKETCH confidence; its cells keep their last authored status and none is fabricated as MISSING. Other projections render normally.", "setup": {"route": "/coverage", "query": "state=space-unavailable"}},
+    {"id": "integrity-findings", "description": "The setpoint parses but one or more bars are malformed. The grid still loads; the malformed entries are called out rather than dropped.", "setup": {"route": "/coverage", "query": "state=integrity"}},
+    {"id": "error", "description": "The setpoint file is missing, unreadable or unparseable. A hard, loud failure — no cell count is shown.", "setup": {"route": "/coverage", "query": "state=error"}}
+  ],
+  "priorities": [
+    {
+      "statement": "The setpoint is read-only here, and the page must look it.",
+      "notes": "No edit affordance of any kind. Changing a bar is an operator decision made through a reliability-target-update in a reviewed commit, not a UI action. An edit control here would be deviation D6 rendered in pixels, and this page is the single most likely place for that boundary to be eroded by a well-meaning addition."
+    },
+    {
+      "statement": "An open-loop cell is presented as a declared state, not as missing data.",
+      "notes": "MISSING cells are honest declarations of blindness. They are counted and dated, never hidden and never shown as a failure of the plant."
+    },
+    {
+      "statement": "No ratio appears without its denominator-confidence.",
+      "notes": "A coverage percentage published without the confidence of the space it was measured against implies a completeness the board has not earned."
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-edit-affordance",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "The page exposes no control that would create, edit or delete a projection, cell, bar, deadband or actuator.",
+      "rationale": "The instrument may not author either half of its own denominator. There is deliberately no API path to call even if a control were added.",
+      "states": ["ready"],
+      "elements": ["cell-grid"]
+    },
+    {
+      "id": "confidence-accompanies-ratio",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "Every coverage ratio is rendered adjacent to its denominator-confidence level and rationale, in the same visual unit.",
+      "rationale": "Recursive honesty is the property that keeps a SKETCH denominator from reading as an authoritative one. Relegating it to a tooltip defeats it.",
+      "states": ["ready"],
+      "elements": ["cell-grid", "confidence"]
+    },
+    {
+      "id": "open-loop-is-dated",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "Every MISSING cell displays the date its gap was declared and the number of days it has stood.",
+      "rationale": "Without the dates, 'declared and dated' degrades into 'declared once and forgotten' — the state three framework-health targets sat in indefinitely.",
+      "states": ["ready"],
+      "elements": ["open-loop"]
+    },
+    {
+      "id": "unavailable-space-is-not-missing",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "When an owner's space cannot be read, its cells retain their authored status and are visibly marked UNAVAILABLE with the reason; none is rendered as MISSING or as 0%.",
+      "rationale": "An owner outage reading as a coverage collapse would make every board reading untrustworthy during exactly the incidents the board exists to surface.",
+      "states": ["space-unavailable"],
+      "elements": ["cell-grid", "confidence"]
+    },
+    {
+      "id": "setpoint-error-is-loud",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "When the setpoint cannot be parsed, the page states the failure and its reason and shows no cell count.",
+      "rationale": "An empty grid rendered as zero cells would read as a scenario with nothing to measure rather than an instrument that lost its reference.",
+      "states": ["error"],
+      "elements": ["cell-grid", "integrity"]
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "cell-grid": {"testid": "coverage-grid"},
+      "confidence": {"testid": "coverage-confidence"},
+      "open-loop": {"testid": "coverage-open-loop"},
+      "integrity": {"testid": "coverage-integrity"}
+    }
+  }
+}

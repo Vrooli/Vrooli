@@ -54,6 +54,37 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ## Domain endpoints — `<domain>`
 
+### Planned surface
+
+Designed, not yet implemented. Every method is a **read**; there is deliberately
+no mutating procedure anywhere in this scenario's contract.
+
+| Service | Method | Serves |
+|---|---|---|
+| `CoverageService` | `GetCoverage` | Per-projection ratios with denominator-confidence and rationale |
+| `CoverageService` | `ListCells` | The full cell grid: status, bar, honesty flag, gap dates |
+| `CoverageService` | `GetProjection` | One projection's cells and its space's confidence |
+| `CoverageService` | `ValidateSetpoint` | Setpoint-integrity findings |
+| `CoverageService` | `GetDrift` | Dead sensors and closable gaps against the live fleet surface |
+| `ConditionService` | `GetCondition` | Current reading, trust verdict and band verdict per instrumented cell |
+| `ConditionService` | `GetTrustDistribution` | The trust triple, as one message so it cannot be split |
+| `ConditionService` | `ExplainCell` | The evidence chain behind one cell's verdicts |
+| `ConditionService` | `GetHistory` | Stored readings, re-banded against the current deadband |
+| `FocusService` | `GetNext` | The ranked error surface with its ranking rationale |
+| `FocusService` | `GetFinding` | One finding with source, cell and named sensor |
+| `FocusService` | `ListSources` | Gap-source contribution and availability |
+| `FocusService` | `GetEfficacy` | Efficacy records and their verdicts |
+
+**There is no `SetBar`, no `UpdateSetpoint`, no `ShelveCheck`, no `DismissFinding`.**
+The absence of a setpoint write path is the `D6` defence and is asserted by an
+architecture test, not only by convention. See
+[`../concepts/SETPOINT-MODEL.md`](../concepts/SETPOINT-MODEL.md) § Why a file and not a table.
+
+Each method is bounded and degrades per-source: an unreachable owner yields an
+`UNAVAILABLE` entry with its reason stated verbatim, never a zero and never a
+dropped row.
+
+
 Each product domain exposes its endpoints under
 `POST /vrooli.infrastructure_manager.v1.<domain>.<Domain>Service/<Method>`
 for proto-typed Connect-RPC calls, with REST exceptions (such as

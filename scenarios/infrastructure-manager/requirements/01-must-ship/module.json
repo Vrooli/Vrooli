@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "description": "Requirements derived from the P0 operational targets: the coverage grid, the setpoint, trust, the ranked surface, and the open-loop self-report.",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -8,11 +8,11 @@
   "requirements": [
     {
       "criticality": "P0",
-      "description": "Parse the infra-health sensor map into typed targets and validate its integrity: every target names a sensor, a deadband and an actuator, or is an honest empty cell. The setpoint stays owned by the team's plan of record and is read, never authored here.",
+      "description": "Join each control layer's authored reliability space against the fleet's live surface into a typed cell grid, reporting NOW / IN-REACH / MISSING per cell with per-projection denominator-confidence. Spaces are read live from their owners and never cached; a cell absent from a live join keeps its authored status rather than being fabricated as MISSING.",
       "id": "IFM-P0-001",
       "prd_ref": "OT-P0-001",
       "status": "planned",
-      "title": "Typed setpoint read",
+      "title": "Live cell grid",
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P0-001] tag) once the behavior exists.",
@@ -23,11 +23,11 @@
     },
     {
       "criticality": "P0",
-      "description": "Read each named sensor live and join it against its deadband to report in-band or out-of-band per target. Every source degrades independently to an explicit UNAVAILABLE with a stated reason, never to a zero and never to a dropped row.",
+      "description": "Parse the checked-in setpoint into typed bars and validate it: every NOW cell has a bar, no bar equals the reading it was authored against, every honesty flag is derived rather than hand-set, and every changed bar carries a decision reference. An unparseable setpoint fails loudly instead of reporting zero targets as zero problems. No API path may write the setpoint.",
       "id": "IFM-P0-002",
       "prd_ref": "OT-P0-002",
       "status": "planned",
-      "title": "Live reading join",
+      "title": "Setpoint read and integrity",
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P0-002] tag) once the behavior exists.",
@@ -38,7 +38,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Attach a closed-vocabulary trust verdict to every reading (valid, ghost, saturated, shelved, unit-mismatch, unavailable). An untrusted reading never contributes to an aggregate, and an uninstrumented target is never reported as healthy.",
+      "description": "Attach a closed-vocabulary trust verdict to every reading (VALID, GHOST, SATURATED, SHELVED, UNIT_MISMATCH, UNAVAILABLE, UNTRUSTED). Only VALID contributes to an aggregate, every trust number is reported as a distribution over checked readings over total readings, and an untrusted reading routes to the instrument's owner rather than becoming plant work.",
       "id": "IFM-P0-003",
       "prd_ref": "OT-P0-003",
       "status": "planned",
@@ -53,7 +53,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Merge out-of-band readings, supervision gaps, untrusted readings and uninstrumented targets into a single ranked surface a member reads with one call, with each source named and independently degradable.",
+      "description": "Merge out-of-band readings, untrusted readings, open-loop cells, coverage drift and source unavailability into a single ranked surface a member reads with one call. Sources are named and independently degradable, and ranking honours cascade order \u2014 sensor-channel integrity first \u2014 and states that it is doing so.",
       "id": "IFM-P0-004",
       "prd_ref": "OT-P0-004",
       "status": "planned",
@@ -68,7 +68,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Count and date the targets that have no working sensor, including this scenario's own blind spots, so an honest hole is visible and ageing rather than silent.",
+      "description": "Count and date every MISSING cell, including this scenario's own blind spots, so an honest hole is visible and ageing rather than silent. The instrumentation roadmap becomes the computed open-loop set rather than a hand-maintained list that can disagree with the grid beside it.",
       "id": "IFM-P0-005",
       "prd_ref": "OT-P0-005",
       "status": "planned",

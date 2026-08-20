@@ -9,12 +9,17 @@ measures and surfaces; none re-implements another scenario's measurement,
 performs the improvement, or makes a judgment call. That constraint is the
 scenario's defining property and the reason the domain set is small.
 
-Four product domains are planned — `targets`, `readings`, `supervision`,
-`focus` — alongside the scaffold's `health`. **Build order is
-`targets` → `readings` → `supervision` → `focus`**, because each reads the
-one before it: readings need typed targets to band against, supervision
-needs the derived set, and focus ranks what the other three produce.
-`targets` + `readings` is the first real vertical slice (Gate 6).
+Three product domains are planned — `coverage`, `condition`, `focus` —
+alongside the scaffold's `health`. They are the three axes of
+[`COVERAGE-MODEL.md`](COVERAGE-MODEL.md) made into code, and the mapping is
+one-to-one on purpose: a reader who understands the models already knows
+where any behaviour lives.
+
+**Build order is `coverage` → `condition` → `focus`**, because each reads the
+one before it: condition needs the cell grid to band against, and focus ranks
+what the other two produce. Each domain ships as a **vertical** — API, CLI and
+its board page together. No page ships without its domain; no domain ships
+without its page.
 
 The scaffold also ships one clearly fenced worked example domain (never
 product scope) as a copyable reference; `template-manager detemplate
@@ -39,10 +44,9 @@ belong in [`DATA.md`](DATA.md).
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/infrastructure-manager/v1/shared/health.proto` |
-| targets | Read and validate the setpoint. | Turn the team's authored sensor map into typed targets so the rest of the scenario has something to measure against. | No product data; parses an upstream document. | reporting | query, validation | Target, Deadband, Actuator, SensorRef | `api/internal/targets/`, `api/handlers/targets/`, `cli/domains/targets/` |
-| readings | Take live readings and qualify their trust. | Answer "what does each sensor say right now, and can that reading be believed?" | Reading history (never verdicts). | reporting | service, timeseries | Reading, TrustVerdict, Band | `api/internal/readings/`, `api/handlers/readings/`, `cli/domains/readings/` |
-| supervision | Reconcile the check registry against the derived should-be-supervised set. | Answer "is everything that should be watched actually watched, and is anything watched that no longer exists?" | No product data; derives its set at read time. | reporting | query, reconciliation | SupervisedSet, GhostCheck, UnsupervisedElement | `api/internal/supervision/`, `api/handlers/supervision/`, `cli/domains/supervision/` |
-| focus | Rank the error surface and grade actuation. | Give a member one ordered answer to "what should I do next?", and record whether past fixes moved their sensor. | Findings and their sensor-efficacy join. | workflow | service, ranking | Finding, GapSource, Efficacy | `api/internal/focus/`, `api/handlers/focus/`, `cli/domains/focus/` |
+| coverage | Join owner-authored spaces with the checked-in setpoint into a live cell grid. | Answer "how much of the platform's reliability is instrumented at all, and against what bar?" | No product data; reads spaces live and parses a checked-in file. | reporting | query, validation | Projection, Cell, Denominator, Confidence, OpenLoop | `api/internal/coverage/`, `api/handlers/coverage/`, `cli/domains/coverage/`, `ui/src/features/coverage/` |
+| condition | Take live readings on every `NOW` cell, qualify their trust, and band them. | Answer "for what we can see, is the platform in band — and can the reading be believed?" | Reading history and trust verdicts (never band verdicts). | reporting | service, timeseries | Leg, Reading, TrustVerdict, BandVerdict | `api/internal/condition/`, `api/handlers/condition/`, `cli/domains/condition/`, `ui/src/features/condition/` |
+| focus | Rank the error surface and grade actuation. | Give a member one ordered answer to "what should I do next?", and record whether past fixes moved their sensor. | Findings and their sensor-efficacy join. | workflow | service, ranking | Finding, GapSource, Efficacy | `api/internal/focus/`, `api/handlers/focus/`, `cli/domains/focus/`, `ui/src/features/focus/` |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)
@@ -91,66 +95,81 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Tests: handler, module, UI feature, and accessibility tests.
 - Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
 
-### targets
+### coverage
 
-- Purpose: read the setpoint and prove it is well-formed. The setpoint is the sensor map in `docs/infra-health/strategy/RELIABILITY_TARGETS.md`, owned by the infra-health team and the operator.
+- Purpose: produce the live cell grid — which reliability dimensions are instrumented, at what confidence, against which bar.
 - Primary archetype: reporting / query.
-- Secondary traits: upstream-document parsing, integrity validation.
-- Owns: the typed target model (id, sensor reference, deadband, actuator, honesty flag, gap dates) and the integrity findings that come from parsing it.
-- **Does not own the setpoint itself.** Authoring a target, choosing a deadband, or changing an actuator is an operator decision made through a `reliability-target-update`. A target authored here would be the instrument confirming itself — deviation `D6` in `docs/agent-system/TARGET_MODEL.md`.
-- Also owns setpoint-drift detection: diffing each target's named sensor against the fleet's live command surface, so a target whose sensor no longer resolves — or an empty cell a shipped verb could already fill — is reported rather than silently believed.
-- API: `api/internal/targets/`, `api/handlers/targets/`.
-- CLI: `targets status`, `targets show <id>`, `targets validate`, `targets drift`.
-- Storage: none. The setpoint is read at query time, never cached as truth.
-- Requirements: `IFM-P0-001`, `IFM-P1-004`.
-- Related docs: [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md).
+- Secondary traits: multi-owner fan-out, declarative-file parsing, integrity validation, drift detection.
+- Owns: the typed projection and cell model, the denominator join, denominator-confidence, the open-loop set with its dates, and the integrity findings that come from parsing the setpoint.
+- **Does not own either half of the denominator.** The *space* — which cells exist — is authored by each control layer in its own `docs/spaces/<projection>-space.md` and read through that owner's `space --projection <p> --json` verb. The *bar* is the checked-in setpoint file, changed only through an approved `reliability-target-update` in a reviewed commit. Authoring either here would be the instrument confirming itself — deviation `D6` in `docs/agent-system/TARGET_MODEL.md`.
+- Also owns setpoint drift: a cell naming a sensor whose typed operation no longer resolves, and a `MISSING` cell whose gap a shipped verb could already close. Both are computed against the fleet's live surface so neither can go stale the way the thing it checks can.
+- API: `api/internal/coverage/`, `api/handlers/coverage/`.
+- CLI: `coverage status`, `coverage show <projection>`, `coverage cells`, `coverage validate`, `coverage drift`, `coverage open-loop`.
+- UI: `ui/src/features/coverage/` — the cell grid, per-projection confidence, and the dated open-loop set.
+- Storage: **none.** Spaces are read live; the setpoint is parsed per query. A `coverage` table is almost certainly a cached denominator, which is `D6`.
+- Requirements: `IFM-P0-001`, `IFM-P0-002`, `IFM-P0-005`, `IFM-P1-004`; board page `IFM-P1-005`.
+- Related docs: [`COVERAGE-MODEL.md`](COVERAGE-MODEL.md), [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md).
 
-### readings
+### condition
 
-- Purpose: take a live reading from each named sensor, band it against its deadband, and attach a trust verdict.
+- Purpose: for every cell that resolved `NOW`, take a live reading, attach a trust verdict, and band it against the current deadband.
 - Primary archetype: reporting / timeseries.
-- Secondary traits: bounded fan-out, independent per-source degradation.
-- Owns: the reading history and the trust-verdict computation.
-- **Owns readings, never verdicts.** In-band status is recomputed at query time against the *current* deadband, so tightening a target re-grades history instead of stranding stale judgments. This is the one deliberate divergence from `meta-optimization-manager`, which never stores a numerator at all — uptime over thirty days *is* history, and Gap 11 names the failure of not keeping it: an outage becomes indistinguishable from missing data after the fact.
-- Does not own: what a sensor means. Each source owns its own semantics; this domain reads the derived output and never re-runs or re-implements a measurement.
-- API: `api/internal/readings/`, `api/handlers/readings/`.
-- CLI: `readings status`, `readings trust`, `readings explain <target>`, `readings history <target>`.
-- Storage: domain-owned SQLite reading history.
-- Requirements: `IFM-P0-002`, `IFM-P0-003`, `IFM-P1-002`.
-- Related docs: [`TRUST-MODEL.md`](TRUST-MODEL.md), [`INTEGRATIONS.md`](INTEGRATIONS.md).
-
-### supervision
-
-- Purpose: report the two-direction diff between the autoheal check registry and the set that should be supervised — ghost checks on one side, unsupervised plant on the other.
-- Primary archetype: reporting / reconciliation.
-- Secondary traits: derived-set computation.
-- Owns: the reconcile diff and its findings.
-- **Never owns a roster.** The should-be-supervised set is computed fresh at read time — the core-set closure from `scenario-dependency-analyzer` union the load-bearing declared capability members. Operating-model rule 6 forbids enumeration anywhere in this team's surfaces, and a cached member list would be exactly the central capability-health roster that `INSTRUMENTATION_ROADMAP.md` Gap 11 rejects.
-- Does not own: the check registry (that is `vrooli-autoheal`) or the closure computation (that is `scenario-dependency-analyzer`).
-- API: `api/internal/supervision/`, `api/handlers/supervision/`.
-- CLI: `supervision status`, `supervision reconcile`, `supervision explain <element>`.
-- Storage: none; the diff is computed live.
-- Requirements: `IFM-P1-001`.
+- Secondary traits: bounded concurrent fan-out, independent per-source degradation, derived leg population.
+- Owns: the reading history, the trust-verdict computation, and band evaluation.
+- **Owns readings, never band verdicts.** In-band status is recomputed at query time against the *current* deadband, so tightening a target re-grades history instead of stranding stale judgments. Trust verdicts are the one stored exception, because nothing can reconstruct after the fact whether a check was saturated at the moment of the read.
+- **Never caches its leg population.** The legs are derived per read from the cells that resolved `NOW`. A stored leg list is the roster operating-model rule 6 forbids and `INSTRUMENTATION_ROADMAP.md` Gap 11 rejects — an architectural defect, not an optimization.
+- Does not own: what a sensor means. Each control layer owns its own semantics; this domain reads the derived output and never re-runs or re-implements a measurement.
+- API: `api/internal/condition/`, `api/handlers/condition/`.
+- CLI: `condition status`, `condition trust`, `condition explain <cell>`, `condition history <cell>`.
+- UI: `ui/src/features/condition/` — per-cell band state, the trust distribution triple, and drilldown to the evidence behind each verdict.
+- Storage: domain-owned SQLite reading history, with a retention floor derived from the longest declared window.
+- Requirements: `IFM-P0-003`, `IFM-P1-001`, `IFM-P1-002`; board page `IFM-P1-005`.
+- Related docs: [`CONDITION-MODEL.md`](CONDITION-MODEL.md), [`TRUST-MODEL.md`](TRUST-MODEL.md), [`INTEGRATIONS.md`](INTEGRATIONS.md).
 
 ### focus
 
 - Purpose: merge every error term into one ranked surface, and grade whether completed work actually moved its sensor.
 - Primary archetype: workflow / ranking.
-- Secondary traits: multiplexed sources, efficacy join.
+- Secondary traits: multiplexed sources, efficacy join, cascade-ordered ranking.
 - Owns: findings, their ranking, and the finding-to-sensor efficacy record.
-- Sources are named and independently degradable — out-of-band readings, untrusted readings, uninstrumented targets, supervision gaps, and open-loop self-report. An unreadable source becomes a visible availability entry rather than silently removing findings.
+- Sources are named and independently degradable — out-of-band readings, untrusted readings, open-loop cells, coverage drift, and source unavailability. An unreadable source becomes a visible availability entry rather than silently removing findings.
+- **Ranks by cascade order and says so.** Sensor-channel integrity is the innermost layer, so trust findings outrank condition findings whenever both are present. A reordering the reader cannot see is indistinguishable from a ranking bug.
 - **Surfaces, does not decide.** Ranking is a recommendation. Whether to repair, defer, or retire stays with the team and the operator, and no path in this scenario actuates anything.
-- Actuation efficacy implements update-protocol rule 5 of `RELIABILITY_TARGETS.md`: a finding names its sensor and expected in-band return, the next read after the work lands re-grades it, and a fix that does not move the sensor re-opens the finding. The sensor grades the fix, not its author.
+- Actuation efficacy implements update-protocol rule 5: a finding names its sensor and expected in-band return, the next read after the work lands re-grades it, and a fix that does not move the sensor re-opens the finding. The sensor grades the fix, not its author.
 - API: `api/internal/focus/`, `api/handlers/focus/`.
-- CLI: `focus next`, `focus show <id>`, `focus efficacy`.
+- CLI: `focus next`, `focus show <id>`, `focus efficacy`, `focus sources`.
+- UI: `ui/src/features/focus/` — the ranked surface and the `triage-next-finding` journey.
 - Storage: domain-owned SQLite findings and efficacy records.
-- Requirements: `IFM-P0-004`, `IFM-P0-005`, `IFM-P1-003`.
+- Requirements: `IFM-P0-004`, `IFM-P1-003`; board page and `triage-next-finding` journey `IFM-P1-005`.
+- Related docs: [`CONDITION-MODEL.md`](CONDITION-MODEL.md) § Actuation efficacy.
+
+## Projections Are Cells, Not Domains
+
+The ten reliability projections — `supervision`, `availability`, `recovery`,
+`capacity`, `headroom`, `durability`, `attribution`, `validation-cost`,
+`agent-throughput`, `commissioning` — are **data in the cell grid, not code
+structures.** Adding an eleventh projection must require zero new domains,
+zero new tables, and zero new handlers: an owner authors a space doc, the
+setpoint gains bars, and the grid grows a column.
+
+This is the topological payoff the whole design exists for. If adding a
+projection ever requires a code change here, that is the signal the grid has
+been special-cased and the change should be reverted rather than extended.
+
+> **`supervision` was originally modelled as a domain and is not one.** It is
+> one projection among ten, distinguished only by having a two-direction
+> reconcile as its numerator instead of a scalar read. Modelling it as a
+> domain gave one reliability dimension a structural privilege the other nine
+> did not have, and made the tenth projection harder to add than the second.
 
 ## Shared Concepts
 
 | Concept | Meaning | Owner |
 |---|---|---|
 | Domain | Product capability boundary that should be easy to find, test, and delete. | `DOMAINS.md` defines the map; code owns implementation. |
+| Projection | One reliability question, owned by the control layer holding its ground truth. | [`COVERAGE-MODEL.md`](COVERAGE-MODEL.md). |
+| Cell | One answerable fact inside a projection; the unit of coverage. | [`COVERAGE-MODEL.md`](COVERAGE-MODEL.md). |
+| Leg | The smallest unit an owner can measure independently; the unit of condition. | [`CONDITION-MODEL.md`](CONDITION-MODEL.md). |
 | Surface | API, UI, CLI, or contract layer exposing the same product capability. | `ARCHITECTURE.md`. |
 | Seam | Test-substitutable boundary wired once in production. | `../internal/SEAMS.md`. |
 | Requirement | Implementation-facing measurement tied back to the PRD. | `requirements/`. |
@@ -162,9 +181,9 @@ are real enough to affect architecture or requirements.
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| `watchdog-supervision` | The plant does not exist yet. A watchdog tier — liveness of autoheal and the core set, on a seconds clock, with an enumerated action set — is a separate operator decision precisely because it is the only piece that would touch a running system. Modelling its supervision now would inflate the open-loop count with a hole nobody can close. | The operator authorizes a watchdog tier. Then this becomes a domain here (`OT-P2-003`), supervising its liveness, enumerated-action counts, and claim-suppression rate. |
-| `capability-availability` | Owner-side work, not ours. `INSTRUMENTATION_ROADMAP.md` Gap 11 places availability persistence with each capability owner, and building it centrally would recreate the roster rule 6 forbids. The `readings` domain carries an interim read-time reachability proxy, flagged `estimate` with an expiry. | Capability owners persist queryable availability aggregates. The proxy is then retired in favour of owner-derived history (`OT-P2-002`). |
-| `platform-code-audit` | Judgment-shaped, not measurement-shaped. Cross-platform debt and internal platform-code quality belong to the `platform-code-auditor` member's lane; forcing them into a coverage ratio would repeat the mistake the production-ledger archetype exists to prevent. | Only if a defensible denominator for platform-code conformance is ever authored. Absent that, this stays prose. |
+| `watchdog-supervision` | The plant does not exist yet. A watchdog tier — liveness of autoheal and the core set, on a seconds clock, with an enumerated action set — is a separate operator decision precisely because it is the only piece that would touch a running system. Modelling its supervision now would inflate the open-loop count with a hole nobody can close. | The operator authorizes a watchdog tier. It then becomes an eleventh **projection**, not a domain, supervising liveness, enumerated-action counts, and claim-suppression rate. |
+| `capability-availability` | Owner-side work, not ours. `INSTRUMENTATION_ROADMAP.md` Gap 11 places availability persistence with each capability owner, and building it centrally would recreate the roster rule 6 forbids. `condition` carries an interim read-time reachability proxy, flagged `estimate` with an expiry. | Capability owners persist queryable availability aggregates. The proxy is then retired in favour of owner-derived history. |
+| `platform-code-audit` | Judgment-shaped, not measurement-shaped. Cross-platform debt and internal platform-code quality belong to the `platform-code-auditor` member's lane; forcing them into a coverage ratio would repeat the mistake the production-ledger archetype exists to prevent. | Only if a defensible denominator for platform-code conformance is ever authored. Absent that, this stays prose, and `docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md` stays with the team. |
 | `remediation` | Out of scope by contract, permanently. Operating-model rule 3 is "supervise, don't operate", and live incident response belongs to autoheal, system-monitor, agent-manager and the operator. | Never. A remediation domain here would make the instrument a controller — the boundary violation `TARGET_MODEL.md` names as the whole reason sensors carry no authority. |
 
 ## Non-Domains
@@ -175,6 +194,7 @@ These are important but should not become product domains:
 - `api/internal/module/` — shared module descriptor type.
 - `api/internal/modules/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database infrastructure.
+- `api/internal/sources/` — typed read clients per control layer, resolved through `api-core/discovery`. Transport, not product capability; it holds no reliability vocabulary and no verdict logic.
 - `api/internal/testutil/` — cross-domain test harnesses.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
@@ -184,8 +204,10 @@ piece into an owning domain instead of growing infrastructure.
 
 ## Cross-References
 
-- [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md) — what a target is, where the setpoint lives, and why this scenario may not author it
-- [`TRUST-MODEL.md`](TRUST-MODEL.md) — the trust axis: when a reading is evidence and when it is instrument fault
+- [`COVERAGE-MODEL.md`](COVERAGE-MODEL.md) — projections, cells, denominators, confidence
+- [`CONDITION-MODEL.md`](CONDITION-MODEL.md) — legs, banding, reading history, efficacy
+- [`TRUST-MODEL.md`](TRUST-MODEL.md) — the closed trust vocabulary
+- [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md) — the bar, and why this scenario cannot move it
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — system shape and extension rules
 - [`FLOWS.md`](FLOWS.md) — workflows and state transitions
 - [`DATA.md`](DATA.md) — data ownership and storage
@@ -196,6 +218,5 @@ piece into an owning domain instead of growing infrastructure.
 Upstream canon this scenario implements (cited, never restated):
 
 - `docs/agent-system/TARGET_MODEL.md` — the instrument contract and the deviation catalogue
-- `docs/infra-health/strategy/RELIABILITY_TARGETS.md` — the setpoint itself
 - `docs/infra-health/operating/OPERATING_MODEL.md` — the plant's layer map and routing rules
-- `docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md` — the gaps behind every empty sensor cell
+- `scenarios/meta-optimization-manager/docs/concepts/{COVERAGE,CONDITION}-MODEL.md` — the sibling instrument's models

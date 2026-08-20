@@ -1,0 +1,22 @@
+{
+  "$comment": "The bar. Read-only at runtime: no API path writes this file. See setpoint/README.md and docs/concepts/SETPOINT-MODEL.md.",
+  "schema_version": "1.0.0",
+  "confidence": {
+    "level": "SKETCH",
+    "rationale": "Bars sit at operation granularity. The obligation list they should derive from \u2014 what the infra-health team must be able to do \u2014 has never been written, and no control layer has authored a space doc yet. Confidence cannot rise above SKETCH until both exist.",
+    "recorded_on": "2026-08-19"
+  },
+  "constants": {
+    "read_deadline_seconds": 10,
+    "saturation_window_hours": 24,
+    "shelf_expiry_required": true,
+    "retention_margin_days": 15
+  },
+  "bars": [],
+  "migration": {
+    "status": "not-started",
+    "source": "docs/infra-health/strategy/RELIABILITY_TARGETS.md",
+    "note": "The 14 authored target kinds have not been migrated yet. Bars are deliberately empty rather than pre-populated: a bar must name a cell, and no control layer has authored a space doc for its cells to exist in. Populating bars against cell refs that do not resolve would fail the setpoint-integrity check on its first run and would encode guesses about spaces their owners have not written. Migration is a plan phase and runs after the first owner space docs land.",
+    "on_completion": "docs/infra-health/strategy/RELIABILITY_TARGETS.md keeps its operating-model and governance content and points here for the bars; docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md is replaced by the computed open-loop set."
+  }
+}

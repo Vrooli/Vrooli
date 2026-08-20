@@ -1,0 +1,117 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "condition",
+    "title": "Condition",
+    "routes": ["/condition"],
+    "purpose": "Show what every instrumented cell is actually reading right now — the value, the trust verdict that says whether it can be believed, and the band verdict that says whether it is inside the bar. Plus the history behind any windowed claim.",
+    "prd_refs": ["OT-P0-003", "OT-P1-001", "OT-P1-002"]
+  },
+  "regions": [
+    {
+      "id": "readings",
+      "purpose": "One dense row per instrumented cell: current value, source, timestamp, trust verdict, band verdict.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "error"]}
+    },
+    {
+      "id": "trust-distribution",
+      "purpose": "The trust triple — verdict distribution, of checked readings, of total readings — as one visual unit that cannot be read as two independent tallies.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "error"]}
+    },
+    {
+      "id": "source-availability",
+      "purpose": "Every source that could not be read, named, with its reason verbatim and the cells it cost.",
+      "required": true,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    },
+    {
+      "id": "history",
+      "purpose": "Reading history for a selected cell, re-banded against the current deadband at view time so a tightened bar re-grades its own past.",
+      "required": false,
+      "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    }
+  ],
+  "states": [
+    {"id": "ready", "description": "All sources read. Readings, trust distribution and availability all shown.", "setup": {"route": "/condition"}},
+    {"id": "degraded", "description": "One or more sources unreadable. Their cells show UNAVAILABLE with the reason; healthy cells continue to render and band normally.", "setup": {"route": "/condition", "query": "state=degraded"}},
+    {"id": "untrusted-heavy", "description": "A large share of readings carry non-VALID trust verdicts — the 2026-07-23 shape, where ~92% of 4,624 critical events came from ghost and saturated checks. The page must read as an instrument problem, not a platform collapse.", "setup": {"route": "/condition", "query": "state=untrusted"}},
+    {"id": "empty", "description": "No cell has resolved NOW yet, so there is nothing to read. Stated as such — never as a healthy platform.", "setup": {"route": "/condition", "query": "state=empty"}}
+  ],
+  "priorities": [
+    {
+      "statement": "Trust is visible before condition, not behind it.",
+      "notes": "A reader must never be able to take a band verdict at face value without seeing whether the reading behind it was believable. Sensor-channel integrity is the innermost cascade layer and the page's visual hierarchy has to agree."
+    },
+    {
+      "statement": "An untrusted reading is neither green nor red.",
+      "notes": "It is not evidence. Rendering it as in-band manufactures false confidence; rendering it as out-of-band manufactures false alarm. It needs its own visual treatment that reads as 'this is about the instrument'."
+    },
+    {
+      "statement": "Status is never carried by colour alone.",
+      "notes": "The entire surface is status, so this matters more here than in an ordinary page. Every verdict pairs a hue with a label or shape."
+    }
+  ],
+  "claims": [
+    {
+      "id": "trust-triple-is-atomic",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "Trust counts are rendered as one unit reading 'distribution of N checked, of M total'; the verdict counts and the checked denominator are never presented as separate independent figures.",
+      "rationale": "Splitting them lets a reader mistake the unchecked remainder for valid readings, which is the precise failure the honesty invariant exists to prevent.",
+      "states": ["ready", "untrusted-heavy"],
+      "elements": ["trust-distribution"]
+    },
+    {
+      "id": "untrusted-is-not-banded",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "A reading whose trust verdict is not VALID displays NOT_EVALUATED and no band verdict, and is visually distinct from both in-band and out-of-band rows.",
+      "rationale": "An untrusted reading is not evidence. Folding it into either band routes instrument fault as plant work, or hides it entirely.",
+      "states": ["ready", "untrusted-heavy"],
+      "elements": ["readings"]
+    },
+    {
+      "id": "unavailable-source-is-named",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "Every unreadable source appears in the availability region with its name and its failure reason verbatim, and the cells it cost are marked UNAVAILABLE rather than omitted.",
+      "rationale": "A silently dropped row is indistinguishable from a healthy one. Degradation must be legible precisely when the platform is unhealthy.",
+      "states": ["degraded"],
+      "elements": ["source-availability", "readings"]
+    },
+    {
+      "id": "history-rebands-live",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "Historical readings are banded against the current deadband at view time, not against any stored verdict.",
+      "rationale": "Band verdicts are never persisted. A tightened target must re-grade its own history rather than stranding judgments made against a bar nobody uses any more.",
+      "states": ["ready"],
+      "elements": ["history"]
+    },
+    {
+      "id": "empty-is-not-healthy",
+      "type": "behavior",
+      "tier": "required",
+      "statement": "With no NOW cells, the page states that nothing is instrumented and shows no aggregate; it never renders an empty set as a passing state.",
+      "rationale": "An uninstrumented platform reading as healthy is the inversion this whole scenario exists to prevent.",
+      "states": ["empty"],
+      "elements": ["readings", "trust-distribution"]
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "readings": {"testid": "condition-readings"},
+      "trust-distribution": {"testid": "condition-trust"},
+      "source-availability": {"testid": "condition-availability"},
+      "history": {"testid": "condition-history"}
+    }
+  }
+}

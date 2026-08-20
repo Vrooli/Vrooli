@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "description": "Requirements derived from the P1 operational targets: supervision reconcile, reading history, actuation efficacy, coverage drift, and the operator board.",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -8,11 +8,11 @@
   "requirements": [
     {
       "criticality": "P1",
-      "description": "Report the two-direction diff between the autoheal check registry and the derived should-be-supervised set: ghost checks and unsupervised plant. The set is computed at read time from the core-set closure and load-bearing declarations, never held as an enumerated roster.",
+      "description": "Report the two-direction diff between the autoheal check registry and the derived should-be-supervised set: ghost checks on one side, unsupervised plant on the other. The set is computed at read time from the core-set closure and load-bearing declarations, never held as an enumerated roster, and never falls back to a cached list when the closure source is unavailable.",
       "id": "IFM-P1-001",
       "prd_ref": "OT-P1-001",
       "status": "planned",
-      "title": "Supervised-set reconcile",
+      "title": "Supervision reconcile",
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P1-001] tag) once the behavior exists.",
@@ -23,11 +23,11 @@
     },
     {
       "criticality": "P1",
-      "description": "Persist readings and never verdicts, so in-band status is recomputed against the current deadband at query time and a target change re-grades history instead of stranding stale judgments.",
+      "description": "Persist readings and trust verdicts but never band verdicts, so in-band status is recomputed against the current deadband at query time and tightening a target re-grades its own history. The retention floor is derived from the longest declared window rather than hardcoded, so a widened target widens retention with it.",
       "id": "IFM-P1-002",
       "prd_ref": "OT-P1-002",
       "status": "planned",
-      "title": "Reading history and trend",
+      "title": "Reading history and band recomputation",
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P1-002] tag) once the behavior exists.",
@@ -38,7 +38,7 @@
     },
     {
       "criticality": "P1",
-      "description": "Re-read a finding's named sensor after its downstream work lands and record whether the reading returned in band. A fix that does not move its sensor re-opens the finding, so the sensor grades the fix rather than its author.",
+      "description": "Re-read a finding's named sensor after its downstream work lands and record whether the reading returned in band. A fix that does not move its sensor re-opens the finding; a sensor that became untrusted or unavailable in the meantime is reported as unmeasurable and routed to the instrument, never recorded as a pass.",
       "id": "IFM-P1-003",
       "prd_ref": "OT-P1-003",
       "status": "planned",
@@ -53,14 +53,29 @@
     },
     {
       "criticality": "P1",
-      "description": "Diff the sensor map against the fleet's live command surface and report targets whose named sensor no longer resolves, plus open cells whose gap a shipped verb could already close.",
+      "description": "Diff every cell against the fleet's live command surface and report cells whose named sensor no longer resolves, plus MISSING cells whose gap a shipped verb could already close. Both are computed against the live surface rather than a checked-in list.",
       "id": "IFM-P1-004",
       "prd_ref": "OT-P1-004",
       "status": "planned",
-      "title": "Setpoint drift detection",
+      "title": "Coverage drift detection",
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A polished read-only operator panel presenting the cell grid, the ranked error surface, the trust distribution, and per-cell drilldown to the evidence behind each verdict. Instrument-panel dense rather than dashboard-decorative, WCAG 2.1 AA with status never carried by colour alone, and shipped vertical-by-vertical with the domain it presents.",
+      "id": "IFM-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Operator board",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P1-005] tag) once the behavior exists.",
           "status": "planned",
           "type": "manual"
         }

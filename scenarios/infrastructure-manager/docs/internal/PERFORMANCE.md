@@ -20,7 +20,7 @@ Use this document to answer:
 | API health | responsive under lifecycle health timeout | `/health` check | active |
 | UI health | responsive under lifecycle health timeout | `/health` check | active |
 | Per-source read | **3s deadline** (`readDeadline`) | per-client instrumentation | planned |
-| Setpoint read | **5s deadline** | `targets` domain | planned |
+| Setpoint + space read | **10s deadline per owner** | `coverage` domain | planned |
 | Board response (`focus next`) | **under 10s** with all sources reachable | end-to-end handler timing | planned |
 
 **A slow source must become an honest `UNAVAILABLE`, never a hang.** That is the

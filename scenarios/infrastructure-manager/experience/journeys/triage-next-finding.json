@@ -22,19 +22,19 @@
       "via": "same page"
     },
     {
-      "page": "readings",
+      "page": "condition",
       "state": "untrusted-present",
       "intent": "Open the finding's reading and decide the question that determines everything downstream: is this a plant fault or an instrument fault? A non-VALID trust verdict routes to the instrument, never to plant-side work.",
       "via": "finding drill-down"
     },
     {
-      "page": "readings",
+      "page": "condition",
       "state": "detail",
       "intent": "Read the target's history, re-graded against the current deadband, to distinguish a transient excursion from a sustained one.",
       "via": "target link"
     },
     {
-      "page": "targets",
+      "page": "coverage",
       "state": "ready",
       "intent": "Audit the deadband and actuator the finding was judged against, confirming the target is the right one to act on and that its honesty flag supports the claim.",
       "via": "sensor reference link"
