@@ -112,38 +112,17 @@ const ChartTooltip = ({ active, payload, label, formatter, hiddenSeries }: Custo
 
   return (
     <div
-      style={{
-        background: 'var(--chart-tooltip-bg)',
-        border: '1px solid var(--chart-tooltip-border)',
-        borderRadius: 'var(--radius-md)',
-        padding: '8px 12px',
-        boxShadow: 'var(--chart-tooltip-shadow)',
-        minWidth: 140
-      }}
+      data-sm-style="sm-style-674a98adf0"
     >
       <div
-        style={{
-          color: 'var(--color-text-heading)',
-          fontWeight: 600,
-          fontSize: 'var(--text-xs)',
-          marginBottom: 6,
-          borderBottom: '1px solid var(--color-border)',
-          paddingBottom: 4
-        }}
+        data-sm-style="sm-style-f2d36b52d9"
       >
         {formattedLabel}
       </div>
       {visiblePayload.map(entry => (
         <div
           key={entry.dataKey}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text)',
-            padding: '2px 0'
-          }}
+          data-sm-style="sm-style-3a3c6a968c"
         >
           <span
             style={{
@@ -154,8 +133,8 @@ const ChartTooltip = ({ active, payload, label, formatter, hiddenSeries }: Custo
               flexShrink: 0
             }}
           />
-          <span style={{ color: 'var(--color-text-secondary)', flex: 1 }}>{entry.name}</span>
-          <span style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+          <span data-sm-style="sm-style-2f52d20bb2">{entry.name}</span>
+          <span data-sm-style="sm-style-dee1e2e177">
             {Number.isFinite(entry.value) ? formatter(entry.value) : '—'}
           </span>
         </div>
@@ -312,10 +291,7 @@ export const MetricLineChart = ({
           </ComposedChart>
         </ResponsiveContainer>
       ) : (
-        <div style={{
-          textAlign: 'center',
-          padding: 'var(--spacing-xl)'
-        }} className="text-muted">
+        <div data-sm-style="sm-style-5a1d16c96d" className="text-muted">
           Waiting for timeseries data...
         </div>
       )}

@@ -62,6 +62,8 @@ func scriptExecutionStatusToProto(status string) scriptspb.ScriptExecutionStatus
 		return scriptspb.ScriptExecutionStatus_SCRIPT_EXECUTION_STATUS_COMPLETED
 	case "failed":
 		return scriptspb.ScriptExecutionStatus_SCRIPT_EXECUTION_STATUS_FAILED
+	case "skipped":
+		return scriptspb.ScriptExecutionStatus_SCRIPT_EXECUTION_STATUS_SKIPPED
 	default:
 		return scriptspb.ScriptExecutionStatus_SCRIPT_EXECUTION_STATUS_UNSPECIFIED
 	}

@@ -20,8 +20,8 @@ export const GpuContentionCard = ({ gpu }: GpuContentionCardProps) => {
   const claimedPct = total > 0 ? Math.min(100, (claimed / total) * 100) : 0;
 
   return (
-    <div className="card" style={{ padding: 'var(--spacing-md)' }}>
-      <h3 style={{ marginTop: 0, marginBottom: 'var(--spacing-sm)' }}>
+    <div className="card" data-sm-style="sm-style-7b635e08e2">
+      <h3 data-sm-style="sm-style-ae54b9d902">
         GPU {gpu.index} · {gpu.name || 'unknown'}
       </h3>
 
@@ -31,18 +31,11 @@ export const GpuContentionCard = ({ gpu }: GpuContentionCardProps) => {
         aria-valuenow={Math.round(usedPct)}
         aria-valuemin={0}
         aria-valuemax={100}
-        style={{
-          position: 'relative',
-          height: '14px',
-          borderRadius: 'var(--radius-sm, 4px)',
-          background: 'var(--color-surface-alt, #2a2a2a)',
-          overflow: 'hidden',
-          marginBottom: '4px',
-        }}
+        data-sm-style="sm-style-1c3eec730d"
       >
         <div style={{ position: 'absolute', inset: 0, width: `${String(usedPct)}%`, background: 'var(--color-primary)' }} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--color-text-muted, #999)' }}>
+      <div data-sm-style="sm-style-90be12c424">
         <span>Used (observed): {formatBytes(used)} ({formatPercentage(usedPct)})</span>
         <span>Free: {formatBytes(free)}</span>
       </div>
@@ -53,19 +46,11 @@ export const GpuContentionCard = ({ gpu }: GpuContentionCardProps) => {
         aria-valuenow={Math.round(claimedPct)}
         aria-valuemin={0}
         aria-valuemax={100}
-        style={{
-          position: 'relative',
-          height: '14px',
-          borderRadius: 'var(--radius-sm, 4px)',
-          background: 'var(--color-surface-alt, #2a2a2a)',
-          overflow: 'hidden',
-          marginTop: 'var(--spacing-sm)',
-          marginBottom: '4px',
-        }}
+        data-sm-style="sm-style-71c578afd9"
       >
-        <div style={{ position: 'absolute', inset: 0, width: `${String(claimedPct)}%`, background: 'var(--color-accent, #c79a3a)' }} />
+        <div className="gpu-contention-claimed" style={{ width: `${String(claimedPct)}%` }} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--color-text-muted, #999)' }}>
+      <div data-sm-style="sm-style-90be12c424">
         <span>Claimed: {formatBytes(claimed)} ({formatPercentage(claimedPct)})</span>
         <span>Total: {formatBytes(total)}</span>
       </div>

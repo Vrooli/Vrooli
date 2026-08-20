@@ -298,25 +298,17 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
 
   return (
     <div className="page-container">
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 'var(--spacing-sm)'
-      }}>
-        <h2 style={{ margin: 0, color: 'var(--color-text-heading)' }}>
+      <div data-sm-style="sm-style-90cbf1ff5e">
+        <h2 data-sm-style="sm-style-59e966dafb">
           Investigation Scripts Library
         </h2>
-        <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
+        <p data-sm-style="sm-style-dc296a3b4c">
           Browse and inspect reusable investigative tools. Select a script to review its source, or open it in the editor for deeper analysis.
         </p>
       </div>
 
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 'var(--spacing-sm)'
-      }}>
-        <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: '360px' }}>
+      <div data-sm-style="sm-style-e88a5a04fd">
+        <div data-sm-style="sm-style-ac4ff15a26">
           <input
             type="text"
             className="input-field"
@@ -326,7 +318,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
           />
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+        <div data-sm-style="sm-style-2f94a4de27">
           <button
             type="button"
             className="btn btn-action"
@@ -349,16 +341,11 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
       {loading ? (
         <LoadingSkeleton variant="card" count={2} />
       ) : errorMessage ? (
-        <div className="error-banner" style={{ justifyContent: 'center' }}>
+        <div className="error-banner" data-sm-style="sm-style-116ddd511d">
           Failed to load scripts: {errorMessage}
         </div>
       ) : filteredScripts.length === 0 ? (
-        <div className="text-muted" style={{
-          textAlign: 'center',
-          padding: 'var(--spacing-xl)',
-          border: '1px dashed var(--color-primary)',
-          borderRadius: 'var(--radius-md)'
-        }}>
+        <div className="text-muted" data-sm-style="sm-style-6e40010e0e">
           No scripts match the current search.
         </div>
       ) : (
@@ -367,17 +354,8 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
           gridTemplateColumns: isDesktop ? 'minmax(280px, 1.3fr) minmax(360px, 2fr)' : '1fr',
           gap: 'var(--spacing-lg)'
         }}>
-          <div style={{
-            border: '1px solid var(--color-primary)',
-            borderRadius: 'var(--radius-md)',
-            overflow: 'hidden',
-            background: 'var(--overlay-medium)'
-          }}>
-            <div className="detail-row-label" style={{
-              padding: 'var(--spacing-sm) var(--spacing-md)',
-              borderBottom: '1px solid var(--color-primary)',
-              background: 'var(--color-primary-muted)',
-            }}>
+          <div data-sm-style="sm-style-b293ccbee1">
+            <div className="detail-row-label" data-sm-style="sm-style-593a9e7e18">
               {filteredScripts.length} Scripts
             </div>
             <div style={{ maxHeight: isDesktop ? '60vh' : 'auto', overflowY: 'auto' }}>
@@ -395,34 +373,18 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
           {isDesktop && currentScriptData && (
             <div
               className="script-viewer-pane"
-              style={{
-                border: '1px solid var(--color-primary)',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--overlay-medium)',
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: '520px',
-                overflow: 'hidden'
-              }}
+              data-sm-style="sm-style-15502ee84e"
             >
               <div
-                style={{
-                  padding: 'var(--spacing-md) var(--spacing-lg)',
-                  borderBottom: '1px solid var(--color-primary)',
-                  background: 'var(--color-primary-muted)'
-                }}
+                data-sm-style="sm-style-640bf0cb84"
               >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--spacing-md)' }}>
+                <div data-sm-style="sm-style-9f304072b4">
+                  <div data-sm-style="sm-style-748cbc8aad">
                     <div>
-                      <h3 style={{ margin: 0, color: 'var(--color-text-heading)', fontSize: 'var(--text-lg)' }}>
+                      <h3 data-sm-style="sm-style-d339ab43c7">
                         {currentScriptData.name}
                       </h3>
-                      <div className="detail-row-label" style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 'var(--spacing-xs)',
-                      }}>
+                      <div className="detail-row-label" data-sm-style="sm-style-2edfc291a6">
                         <span>{currentScriptData.category}</span>
                         <span>•</span>
                         <span>{currentScriptData.author}</span>
@@ -430,7 +392,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                         <span>{formatTimestampDisplay(currentScriptData.updatedAt)}</span>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                    <div data-sm-style="sm-style-364b891340">
                       {editorMode === 'view' ? (
                         <button
                           type="button"
@@ -477,22 +439,11 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
               </div>
 
               <div
-                style={{
-                  padding: 'var(--spacing-md) var(--spacing-lg)',
-                  borderBottom: '1px solid var(--color-primary-muted)',
-                  background: 'var(--overlay-medium)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--spacing-md)'
-                }}
+                data-sm-style="sm-style-d93416d25f"
               >
                 {editorMode === 'edit' ? (
                   <>
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                      gap: 'var(--spacing-md)'
-                    }}>
+                    <div data-sm-style="sm-style-2babf03b98">
                       <div>
                         <label className="input-label">Name</label>
                         <input
@@ -538,13 +489,8 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                       </div>
                     </div>
 
-                    <div style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 'var(--spacing-md)',
-                      alignItems: 'center'
-                    }}>
-                      <div style={{ flex: '1 1 280px' }}>
+                    <div data-sm-style="sm-style-14eef746cd">
+                      <div data-sm-style="sm-style-ecb84d9e1d">
                         <label className="input-label">Description</label>
                         <textarea
                           className="input-field"
@@ -552,7 +498,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                           onChange={(event) => { handleScriptFieldChange('description', event.target.value); }}
                           placeholder="Brief description of what this script investigates"
                           rows={3}
-                          style={{ resize: 'vertical' }}
+                          data-sm-style="sm-style-d378f0446f"
                         />
                       </div>
 
@@ -587,14 +533,10 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                   </>
                 ) : (
                   <>
-                    <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
+                    <p data-sm-style="sm-style-dc296a3b4c">
                       {currentScriptData.description}
                     </p>
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                      gap: 'var(--spacing-md)'
-                    }}>
+                    <div data-sm-style="sm-style-80e86a94fb">
                       <div className="detail-row">
                         <div className="detail-row-label">Script ID</div>
                         <div className="detail-row-value-sm">{currentScriptData.id}</div>
@@ -620,31 +562,22 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                 )}
 
                 {saveError && (
-                  <div className="error-banner" style={{ marginTop: 'var(--spacing-sm)', fontSize: 'var(--text-xs)' }}>
+                  <div className="error-banner" data-sm-style="sm-style-d75c27402a">
                     Failed to save script: {saveError}
                   </div>
                 )}
               </div>
 
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: 'var(--spacing-sm) var(--spacing-lg)',
-                  background: 'var(--color-primary-muted)',
-                  borderBottom: '1px solid var(--color-primary-muted)',
-                  fontSize: 'var(--text-sm)',
-                  color: 'var(--color-text-heading)'
-                }}>
+              <div data-sm-style="sm-style-6748d27aca">
+                <div data-sm-style="sm-style-63de2fe25f">
                   <span>Script Code</span>
-                  <div style={{ color: 'var(--color-text-secondary)' }}>
+                  <div data-sm-style="sm-style-a6b497e153">
                     {editorMode === 'view' ? 'Read Only' : 'Editable'} | {(selectedContent || '').length} chars
                   </div>
                 </div>
-                <div style={{ flex: 1, overflow: 'auto' }}>
+                <div data-sm-style="sm-style-7cd8982c82">
                   {isFetchingContent ? (
-                    <div className="icon-text" style={{ color: 'var(--color-text-secondary)', padding: 'var(--spacing-md) var(--spacing-lg)' }}>
+                    <div className="icon-text" data-sm-style="sm-style-80c3287350">
                       <Loader2 size={16} className="animate-spin" />
                       Loading script&hellip;
                     </div>
@@ -658,22 +591,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                       value={selectedContent}
                       onChange={(event) => { dispatch({ type: 'SET_CONTENT', content: event.target.value }); }}
                       placeholder="#!/bin/bash\n# Your investigation script here..."
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        padding: 'var(--spacing-lg)',
-                        background: 'var(--overlay-backdrop)',
-                        border: 'none',
-                        color: 'var(--color-text)',
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: 'var(--text-sm)',
-                        lineHeight: '1.5',
-                        resize: 'none',
-                        outline: 'none',
-                        whiteSpace: 'pre',
-                        overflowWrap: 'normal',
-                        tabSize: 2
-                      }}
+                      data-sm-style="sm-style-40528c32d1"
                     />
                   )}
                 </div>

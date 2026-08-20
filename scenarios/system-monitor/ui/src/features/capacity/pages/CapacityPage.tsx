@@ -3,9 +3,10 @@ import { GpuContentionCard } from '../components/GpuContentionCard';
 import { ClaimsTable } from '../components/ClaimsTable';
 import { FindingsPanel } from '../components/FindingsPanel';
 import { PolicyPanel } from '../components/PolicyPanel';
+import { useTimeRange } from '../../../shared/time/TimeRangeContext';
 
 const sectionHeading = (text: string) => (
-  <h3 style={{ margin: 'var(--spacing-lg) 0 var(--spacing-sm)' }}>{text}</h3>
+  <h3 data-sm-style="sm-style-91a0904255">{text}</h3>
 );
 
 /**
@@ -14,6 +15,7 @@ const sectionHeading = (text: string) => (
  * platform `internal/capacity` ledger via system-monitor's capacity API.
  */
 export const CapacityPage = () => {
+  const { range } = useTimeRange();
   const {
     overview,
     reconciliation,
@@ -30,21 +32,25 @@ export const CapacityPage = () => {
 
   return (
     <section className="capacity-page">
-      <header className="flex-row-center" style={{ justifyContent: 'space-between', marginBottom: 'var(--spacing-md)' }}>
-        <h2 style={{ margin: 0 }}>Capacity</h2>
+      <header className="flex-row-center" data-sm-style="sm-style-740d1580c7">
+        <h2 data-sm-style="sm-style-2a0ca8350a">Capacity</h2>
         <button type="button" className="header-button" onClick={() => void refresh()} disabled={isLoading}>
           {isLoading ? 'Refreshing…' : 'Refresh'}
         </button>
       </header>
 
+      <p className="text-xs text-muted" data-sm-style="sm-style-00a48ba4a2">
+        Shared time range: {range.label}. Capacity is a current-state ledger; historical utilization is shown only where metric history is available.
+      </p>
+
       {error && (
-        <div className="card" role="alert" style={{ padding: 'var(--spacing-md)', color: 'var(--color-error)', marginBottom: 'var(--spacing-md)' }}>
+        <div className="card" role="alert" data-sm-style="sm-style-0fdae7acd4">
           {error}
         </div>
       )}
 
       {overview && overview.warnings.length > 0 && (
-        <div className="card" style={{ padding: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)', color: 'var(--color-warning, #e0a020)' }}>
+        <div className="card" data-sm-style="sm-style-71cbba1723">
           {overview.warnings.map((warning) => (
             <div key={warning}>⚠ {warning}</div>
           ))}
@@ -52,18 +58,18 @@ export const CapacityPage = () => {
       )}
 
       {!overview && isLoading && (
-        <div className="card" style={{ padding: 'var(--spacing-md)' }}>Loading capacity state…</div>
+        <div className="card" data-sm-style="sm-style-7b635e08e2">Loading capacity state…</div>
       )}
 
       {overview && (
         <>
           {sectionHeading('GPU contention')}
           {overview.gpus.length === 0 ? (
-            <div className="card" style={{ padding: 'var(--spacing-md)', color: 'var(--color-text-muted, #999)' }}>
+            <div className="card" data-sm-style="sm-style-2dce25a9dc">
               No GPUs detected on this host.
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--spacing-md)' }}>
+            <div data-sm-style="sm-style-20558dad9f">
               {overview.gpus.map((gpu) => (
                 <GpuContentionCard key={gpu.index} gpu={gpu} />
               ))}

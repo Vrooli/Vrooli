@@ -62,7 +62,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
           <span className="text-sm font-bold text-bright">
             Investigation {investigation.id}
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+          <div data-sm-style="sm-style-67bc078b69">
             {autoFix && (
               <span className="badge badge-success">Auto-Fix</span>
             )}
@@ -85,7 +85,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         </div>
 
         {typeof progress === 'number' && !compact && (
-          <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+          <div data-sm-style="sm-style-c08663b577">
             <div className="progress-bar">
               <div
                 className="progress-fill"
@@ -101,7 +101,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         )}
 
         {userNote && (
-          <div className="text-xs text-muted" style={{ fontStyle: 'italic', marginBottom: 'var(--spacing-sm)' }}>
+          <div className="text-xs text-muted" data-sm-style="sm-style-912591a331">
             User Note: {userNote}
           </div>
         )}

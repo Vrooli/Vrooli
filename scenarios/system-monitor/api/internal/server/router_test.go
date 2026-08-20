@@ -13,6 +13,8 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	capacitypb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/capacity"
 	capacityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/capacity/capacityconnect"
+	devicegraphpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/devicegraph"
+	devicegraphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/devicegraph/devicegraphconnect"
 	healthpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/health"
 	healthconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/health/healthconnect"
 	investigationspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations"
@@ -29,6 +31,7 @@ import (
 	settingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings/settingsconnect"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/devicegraph"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers"
 	handlermocks "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers/mocks"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
@@ -76,7 +79,7 @@ func TestMountConnectRoutesHealth(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation)
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -117,7 +120,7 @@ func TestMountConnectRoutesMetrics(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation)
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -147,7 +150,7 @@ func TestMountConnectRoutesReports(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation)
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -177,7 +180,7 @@ func TestMountConnectRoutesSettings(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation)
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -207,7 +210,7 @@ func TestMountConnectRoutesCapacity(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation)
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -240,7 +243,7 @@ func TestMountConnectRoutesMaintenance(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation)
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -273,7 +276,7 @@ func TestMountConnectRoutesScripts(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation)
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -306,7 +309,7 @@ func TestMountConnectRoutesInvestigations(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{Server: config.ServerConfig{APIPort: "16914"}}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation)
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -671,5 +674,145 @@ func sampleReport(id string) *models.EnhancedSystemReport {
 			TimeRange: "2026-06-23 12:00 to 2026-06-24 12:00",
 		},
 		MetricsCount: 1,
+	}
+}
+
+// stubDeviceGraphProvider serves a deterministic single-device graph so the
+// Connect route can be exercised without walking the test machine's hardware.
+type stubDeviceGraphProvider struct{}
+
+func (stubDeviceGraphProvider) DeviceGraph(context.Context) devicegraph.Graph {
+	observed := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	return devicegraph.Graph{
+		CollectedAt: observed,
+		Platform:    "linux",
+		Devices: []devicegraph.Device{{
+			ID:    "pci:0000:01:00.0",
+			Class: devicegraph.ClassGraphicsDevice,
+			Rungs: map[devicegraph.Rung]devicegraph.RungState{
+				devicegraph.RungIdentity: {
+					Rung: devicegraph.RungIdentity, State: devicegraph.StateMeasured,
+					Mechanism: "sysfs", ObservedAt: observed,
+				},
+				devicegraph.RungTelemetry: {
+					Rung: devicegraph.RungTelemetry, State: devicegraph.StateMeasured,
+					Mechanism: "sysfs", ObservedAt: observed,
+				},
+				devicegraph.RungEvidence: {
+					Rung: devicegraph.RungEvidence, State: devicegraph.StateNotApplicable,
+					Reason: "a graphics device retains no per-sample record", ObservedAt: observed,
+				},
+				devicegraph.RungControl: {
+					Rung: devicegraph.RungControl, State: devicegraph.StateUnmeasurable,
+					Reason: "permission denied", Mechanism: "smartctl", ObservedAt: observed,
+				},
+				devicegraph.RungAnticipation: {
+					Rung: devicegraph.RungAnticipation, State: devicegraph.StateUnavailable,
+					Reason:    "no wear or error-accrual signal: smartctl is not installed",
+					Mechanism: "smartctl", Remediation: "install smartmontools", ObservedAt: observed,
+				},
+			},
+		}},
+	}
+}
+
+// TestDeviceGraphConnectRouteServesGradedRungs pins the read verb the substrate
+// join consumes. The load-bearing assertion is the LAST one: `unmeasurable`
+// must survive the wire as its own grade. Collapsing it into "not measured", a
+// bool, or an omitted field would report hardware nobody can actually read as
+// hardware that is fine.
+func TestDeviceGraphConnectRouteServesGradedRungs(t *testing.T) {
+	r := http.NewServeMux()
+	monitor := handlermocks.NewMonitorQuerier()
+	health := handlers.NewHealthHandler(&config.Config{}, monitor, newFakeSettingsProvider())
+	metrics := handlers.NewMetricsHandler(&config.Config{}, monitor, nil)
+	reports := handlers.NewReportHandler(&config.Config{}, fakeReportGenerator{}, nil)
+	settings := handlers.NewSettingsHandler(newFakeSettingsProvider(), nil)
+	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
+	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
+	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation,
+		handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
+
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	client := devicegraphconnect.NewDeviceGraphServiceClient(server.Client(), server.URL)
+	resp, err := client.GetDeviceGraph(context.Background(), connect.NewRequest(&devicegraphpb.GetDeviceGraphRequest{}))
+	if err != nil {
+		t.Fatalf("GetDeviceGraph Connect call failed: %v", err)
+	}
+	graph := resp.Msg.GetGraph()
+	if !graph.GetAvailable() {
+		t.Fatalf("graph reported unavailable: %s", graph.GetUnavailableReason())
+	}
+	if len(graph.GetDevices()) != 1 {
+		t.Fatalf("got %d devices, want 1", len(graph.GetDevices()))
+	}
+	device := graph.GetDevices()[0]
+	if device.GetId() != "pci:0000:01:00.0" {
+		t.Errorf("device id = %q, want the durable pci address", device.GetId())
+	}
+
+	grades := map[devicegraphpb.Rung]*devicegraphpb.RungState{}
+	for _, rung := range device.GetRungs() {
+		grades[rung.GetRung()] = rung
+	}
+	if len(device.GetRungs()) != len(devicegraph.Rungs) {
+		t.Fatalf("got %d rungs, want the full ladder of %d", len(device.GetRungs()), len(devicegraph.Rungs))
+	}
+	// The ladder arrives in dependency order, so two reads of one unchanged
+	// host produce identical responses rather than map-order noise.
+	wantOrder := []devicegraphpb.Rung{
+		devicegraphpb.Rung_RUNG_IDENTITY, devicegraphpb.Rung_RUNG_TELEMETRY,
+		devicegraphpb.Rung_RUNG_EVIDENCE, devicegraphpb.Rung_RUNG_CONTROL,
+		devicegraphpb.Rung_RUNG_ANTICIPATION,
+	}
+	for index, want := range wantOrder {
+		if got := device.GetRungs()[index].GetRung(); got != want {
+			t.Fatalf("rung %d is %v, want %v — the ladder is not in dependency order", index, got, want)
+		}
+	}
+
+	// The three non-measured grades are three different facts and must stay
+	// distinct across the wire. Collapsing any pair reports hardware nobody can
+	// read as hardware that is fine.
+	for _, expectation := range []struct {
+		rung   devicegraphpb.Rung
+		grade  devicegraphpb.RungGrade
+		reason string
+	}{
+		{devicegraphpb.Rung_RUNG_IDENTITY, devicegraphpb.RungGrade_RUNG_GRADE_MEASURED, ""},
+		{devicegraphpb.Rung_RUNG_EVIDENCE, devicegraphpb.RungGrade_RUNG_GRADE_NOT_APPLICABLE, "a graphics device retains no per-sample record"},
+		{devicegraphpb.Rung_RUNG_CONTROL, devicegraphpb.RungGrade_RUNG_GRADE_UNMEASURABLE, "permission denied"},
+		{devicegraphpb.Rung_RUNG_ANTICIPATION, devicegraphpb.RungGrade_RUNG_GRADE_UNAVAILABLE, "no wear or error-accrual signal: smartctl is not installed"},
+	} {
+		state, ok := grades[expectation.rung]
+		if !ok {
+			t.Errorf("%v was dropped in transit; a graded rung must never vanish", expectation.rung)
+			continue
+		}
+		if state.GetGrade() != expectation.grade {
+			t.Errorf("%v grade = %v, want %v", expectation.rung, state.GetGrade(), expectation.grade)
+		}
+		if state.GetReason() != expectation.reason {
+			t.Errorf("%v reason = %q, want %q", expectation.rung, state.GetReason(), expectation.reason)
+		}
+	}
+	if grades[devicegraphpb.Rung_RUNG_ANTICIPATION].GetRemediation() != "install smartmontools" {
+		t.Error("the remediation for an absent mechanism was dropped; without it the gap names no fix")
+	}
+}
+
+// TestDeviceGraphRefusesRatherThanServingAnEmptyGraph guards the claim an empty
+// graph would make: that the host has no hardware.
+func TestDeviceGraphRefusesRatherThanServingAnEmptyGraph(t *testing.T) {
+	handler := handlers.NewDeviceGraphHandler(nil, nil)
+	_, err := handler.GetDeviceGraph(context.Background(), connect.NewRequest(&devicegraphpb.GetDeviceGraphRequest{}))
+	if err == nil {
+		t.Fatal("an unconfigured provider served a graph")
+	}
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("code = %v, want FailedPrecondition", connect.CodeOf(err))
 	}
 }

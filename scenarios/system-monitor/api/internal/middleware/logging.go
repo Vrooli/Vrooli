@@ -21,7 +21,7 @@ type LogEntry struct {
 	ErrorMessage string    `json:"error,omitempty"`
 }
 
-// responseWriter wraps http.ResponseWriter to capture status code
+// responseWriter wraps http.ResponseWriter to capture status code.
 type responseWriter struct {
 	http.ResponseWriter
 	statusCode int
@@ -39,14 +39,10 @@ func NewResponseWriter(w http.ResponseWriter) *responseWriter {
 // WriteHeader captures the status code and, as the universal response-writer
 // wrapper applied to every route, stamps a secure header floor on the way out.
 // This is the catch-all enforcement point so even handlers that write directly
-// to the ResponseWriter still emit OWASP security headers. The guard leaves any
-// value an upstream middleware (e.g. CORS origin reflection) already set intact.
+// to the ResponseWriter still emit OWASP security headers.
 func (rw *responseWriter) WriteHeader(code int) {
 	if !rw.written {
 		w := rw.ResponseWriter
-		if w.Header().Get("Access-Control-Allow-Origin") == "" {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-		}
 		if w.Header().Get("X-Frame-Options") == "" {
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			w.Header().Set("X-Frame-Options", "DENY")

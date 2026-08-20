@@ -190,8 +190,7 @@ curl 'http://localhost:8080/api/v1/forensics/gpu?window=1h'
 curl 'http://localhost:8080/api/v1/forensics/pressure?window=1h'
 
 # CLI
-system-monitor metrics process-timeline --window 5m --top 20
-system-monitor metrics process-timeline --owner security-health --json
+system-monitor metrics processes --json
 ```
 
 ### Manual maintenance

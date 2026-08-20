@@ -90,6 +90,35 @@ func TestMonitorService_CollectorRegistration(t *testing.T) {
 	}
 }
 
+func TestCollectorCostBudgetsCoverDefaultCollectorsWithHeadroom(t *testing.T) {
+	names := []string{"cpu", "memory", "network", "disk", "process", "pressure", "gpu"}
+	if err := ValidateCollectorCostBudgets(names, 10*time.Second); err != nil {
+		t.Fatalf("default collector cost policy is not headroom-safe: %v", err)
+	}
+	if _, ok := collectorBudget("disk"); !ok {
+		t.Fatal("disk collector has no declared cost budget")
+	}
+}
+
+func TestCollectorCostBudgetsRejectUndeclaredCollector(t *testing.T) {
+	if err := ValidateCollectorCostBudgets([]string{"cpu", "new-probe"}, 10*time.Second); err == nil {
+		t.Fatal("expected undeclared collector to fail cost policy")
+	}
+}
+
+func TestMonitorSelfMetricsFlagCycleWithoutHeadroom(t *testing.T) {
+	cfg := &config.Config{Monitoring: config.MonitoringConfig{MetricsInterval: 10 * time.Second}}
+	svc := NewMonitorService(cfg, memory.NewRepository(), infrastructure.NewStaticProvider())
+	svc.recordCycleSelfMetrics(6*time.Second, 0, time.Now())
+	metrics := svc.SelfMetrics()
+	if metrics["headroom_ok"] != false {
+		t.Fatalf("headroom_ok = %#v, want false", metrics["headroom_ok"])
+	}
+	if metrics["headroom_reason"] == "" {
+		t.Fatal("headroom breach did not include a reason")
+	}
+}
+
 func TestMonitorService_GetMetricsTimeline_Empty(t *testing.T) {
 	cfg := &config.Config{
 		Monitoring: config.MonitoringConfig{

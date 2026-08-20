@@ -21,14 +21,14 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
     switch (execution.status) {
       case ScriptExecutionStatus.COMPLETED:
         return execution.exitCode === 0 && !execution.timedOut ?
-          <CheckCircle size={20} style={{ color: 'var(--color-success)' }} /> :
-          <XCircle size={20} style={{ color: 'var(--color-error)' }} />;
+          <CheckCircle size={20} data-sm-style="sm-style-eab9fc4afc" /> :
+          <XCircle size={20} data-sm-style="sm-style-6d06f948c5" />;
       case ScriptExecutionStatus.FAILED:
-        return <XCircle size={20} style={{ color: 'var(--color-error)' }} />;
+        return <XCircle size={20} data-sm-style="sm-style-6d06f948c5" />;
       case ScriptExecutionStatus.RUNNING:
-        return <Clock size={20} style={{ color: 'var(--color-warning)' }} />;
+        return <Clock size={20} data-sm-style="sm-style-38c5f4e767" />;
       default:
-        return <Terminal size={20} style={{ color: 'var(--color-info)' }} />;
+        return <Terminal size={20} data-sm-style="sm-style-60c4dfc517" />;
     }
   };
 
@@ -61,34 +61,25 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="modal-md" ariaLabel="Script execution results">
       <ModalHeader onClose={onClose}>
-        <div className="icon-text" style={{ gap: 'var(--spacing-md)' }}>
+        <div className="icon-text" data-sm-style="sm-style-8322eb66c1">
           {getStatusIcon()}
           <div>
-            <h3 style={{
-              margin: '0 0 var(--spacing-xs) 0',
-              color: 'var(--color-text-heading)',
-              fontSize: 'var(--text-xl)'
-            }}>
+            <h3 data-sm-style="sm-style-bd3930e88e">
               Script Execution Results
             </h3>
-            <p style={{
-              margin: 0,
-              color: 'var(--color-text-secondary)',
-              fontSize: 'var(--text-sm)'
-            }}>
+            <p data-sm-style="sm-style-5c239e09c9">
               Script: {execution.scriptId} | Execution ID: {execution.executionId}
             </p>
+            {execution.executionMode && (
+              <p className="text-dim-xs">Execution path: {execution.executionMode}{execution.skipReason ? ` — ${execution.skipReason}` : ''}</p>
+            )}
           </div>
         </div>
       </ModalHeader>
 
       {/* Execution Summary */}
-      <div className="execution-summary" style={{
-        padding: 'var(--spacing-lg)',
-        borderBottom: '1px solid var(--color-primary-muted)',
-        background: 'var(--overlay-medium)'
-      }}>
-        <div className="detail-grid detail-grid-md" style={{ gap: 'var(--spacing-lg)' }}>
+      <div className="execution-summary" data-sm-style="sm-style-e35c711cad">
+        <div className="detail-grid detail-grid-md" data-sm-style="sm-style-f383142193">
           <div className="summary-stat">
             <span className="summary-stat-label">Status:</span>
             <span className="summary-stat-value" style={{
@@ -113,10 +104,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
 
           <div className="summary-stat">
             <span className="summary-stat-label">Duration:</span>
-            <span className="summary-stat-value" style={{
-              color: 'var(--color-text-heading)',
-              fontFamily: 'var(--font-mono)'
-            }}>
+            <span className="summary-stat-value" data-sm-style="sm-style-2cc55f187c">
               {formatDuration()}
             </span>
           </div>
@@ -134,10 +122,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
 
           <div className="summary-stat">
             <span className="summary-stat-label">Started:</span>
-            <span style={{
-              color: 'var(--color-text)',
-              fontSize: 'var(--text-sm)'
-            }}>
+            <span data-sm-style="sm-style-d7b793f3b3">
               {execution.startedAt ? timestampDate(execution.startedAt).toLocaleString() : 'Unknown'}
             </span>
           </div>
@@ -145,47 +130,20 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
       </div>
 
       {/* Modal Body - Output */}
-      <div className="modal-body" style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        padding: 0
-      }}>
+      <div className="modal-body" data-sm-style="sm-style-500d25478f">
 
         {/* Output Section */}
         {stdoutContent && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div className="output-header icon-text" style={{
-              padding: 'var(--spacing-sm) var(--spacing-md)',
-              background: 'var(--color-primary-muted)',
-              borderBottom: '1px solid var(--color-primary-muted)',
-              fontSize: 'var(--text-sm)',
-              color: 'var(--color-text-heading)'
-            }}>
+          <div data-sm-style="sm-style-e19d496461">
+            <div className="output-header icon-text" data-sm-style="sm-style-20b2bbf6af">
               <Terminal size={16} />
               <span>Script Output</span>
-              <span style={{
-                marginLeft: 'auto',
-                color: 'var(--color-text-secondary)',
-                fontSize: 'var(--text-xs)'
-              }}>
+              <span data-sm-style="sm-style-2dd53c91dc">
                 {stdoutContent.split('\n').length} lines
               </span>
             </div>
 
-            <div className="output-content" style={{
-              flex: 1,
-              padding: 'var(--spacing-md)',
-              background: 'var(--overlay-backdrop)',
-              overflowY: 'auto',
-              maxHeight: '60vh',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--text-sm)',
-              lineHeight: '1.4',
-              whiteSpace: 'pre-wrap',
-              color: 'var(--color-text)'
-            }}>
+            <div className="output-content" data-sm-style="sm-style-1b2da6b47f">
               {stdoutContent}
             </div>
           </div>
@@ -197,27 +155,12 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
             borderTop: stdoutContent ? `1px solid var(--color-error)` : 'none',
             background: 'var(--color-error-muted)'
           }}>
-            <div className="error-header icon-text" style={{
-              padding: 'var(--spacing-sm) var(--spacing-md)',
-              borderBottom: '1px solid var(--color-error)',
-              fontSize: 'var(--text-sm)',
-              color: 'var(--color-error)'
-            }}>
+            <div className="error-header icon-text" data-sm-style="sm-style-46f4f9ea6e">
               <XCircle size={16} />
               <span>Error Output</span>
             </div>
 
-            <div className="error-content" style={{
-              padding: 'var(--spacing-md)',
-              background: 'var(--color-error-muted)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--text-sm)',
-              lineHeight: '1.4',
-              whiteSpace: 'pre-wrap',
-              color: 'var(--color-error)',
-              maxHeight: '200px',
-              overflow: 'auto'
-            }}>
+            <div className="error-content" data-sm-style="sm-style-3b31792f5d">
               {stderrContent}
             </div>
           </div>
@@ -225,18 +168,11 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
 
         {/* No Output Message */}
         {!stdoutContent && !stderrContent && execution.status === ScriptExecutionStatus.RUNNING && (
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--color-text-secondary)',
-            fontSize: 'var(--text-lg)'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <Clock size={48} style={{ marginBottom: 'var(--spacing-md)' }} />
+          <div data-sm-style="sm-style-be12747b9c">
+            <div data-sm-style="sm-style-980597f335">
+              <Clock size={48} data-sm-style="sm-style-91394348ef" />
               <div>Script is still running...</div>
-              <div style={{ fontSize: 'var(--text-sm)', marginTop: 'var(--spacing-sm)' }}>
+              <div data-sm-style="sm-style-d523b883ef">
                 Started {formatDuration()} ago
               </div>
             </div>
@@ -244,14 +180,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
         )}
 
         {!stdoutContent && !stderrContent && execution.status !== ScriptExecutionStatus.RUNNING && (
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--color-text-secondary)',
-            fontSize: 'var(--text-lg)'
-          }}>
+          <div data-sm-style="sm-style-be12747b9c">
             No output available
           </div>
         )}

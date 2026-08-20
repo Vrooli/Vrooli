@@ -6,8 +6,8 @@ interface NotProvisionedCardProps {
 }
 
 export const NotProvisionedCard = ({ title, reason }: NotProvisionedCardProps) => (
-  <div className="card" style={{ padding: 'var(--spacing-md)' }}>
-    <div className="flex-row-center gap-sm" style={{ marginBottom: '0.5rem' }}>
+  <div className="card" data-sm-style="sm-style-7b635e08e2">
+    <div className="flex-row-center gap-sm" data-sm-style="sm-style-b113dc3b73">
       <AlertTriangle size={16} className="text-muted" />
       <span className="font-bold">{title}</span>
     </div>

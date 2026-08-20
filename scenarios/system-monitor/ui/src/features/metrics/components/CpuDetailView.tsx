@@ -23,11 +23,11 @@ export interface CpuDetailViewProps {
 }
 
 export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, metricHistory, onBack }: CpuDetailViewProps) => {
-  const cpuUsage = detailedMetrics?.cpuDetails?.usage ?? metrics?.cpuUsage ?? 0;
+  const cpuUsage = detailedMetrics?.cpuDetails?.usage ?? (metrics?.cpu?.state?.case === 'measured' ? metrics.cpu.state.value : undefined);
   const cpuData = useMemo(() => buildSingleSeriesData(metricHistory?.cpu), [metricHistory?.cpu]);
   const loadAverage = detailedMetrics?.cpuDetails?.loadAverage ?? [];
-  const contextSwitches = detailedMetrics?.cpuDetails?.contextSwitches ?? BigInt(0);
-  const goroutines = detailedMetrics?.cpuDetails?.totalGoroutines ?? 0;
+  const contextSwitches = detailedMetrics?.cpuDetails?.contextSwitches;
+  const goroutines = detailedMetrics?.cpuDetails?.totalGoroutines;
   const topProcesses = detailedMetrics?.cpuDetails?.topProcesses;
 
   const subhead = detailedMetrics?.timestamp
@@ -38,13 +38,13 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
     <MetricDetailLayout
       title="CPU PERFORMANCE"
       icon={<Cpu size={22} />}
-      headline={`${cpuUsage.toFixed(1)}% utilization`}
+      headline={cpuUsage === undefined ? 'Utilization not measured' : `${cpuUsage.toFixed(1)}% utilization`}
       subhead={subhead}
       onBack={onBack}
     >
       <MetricLineChart
         className="card"
-        style={{ padding: 'var(--spacing-lg)' }}
+        data-sm-style="sm-style-a796e75e8f"
         data={cpuData.map(point => ({ timestamp: point.timestamp, value: point.value }))}
         lines={[{ dataKey: 'value', name: 'CPU Usage', color: 'var(--color-primary)' }]}
         unit="%"
@@ -52,13 +52,13 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
         valueFormatter={value => `${value.toFixed(1)}%`}
       />
 
-      <div className="detail-grid detail-grid-lg" style={{ gap: 'var(--spacing-lg)' }}>
+      <div className="detail-grid detail-grid-lg" data-sm-style="sm-style-f383142193">
         <div className="card flex-col-gap-sm">
           <h3 className="section-heading">Load Profile</h3>
           <div className="card-subtitle">
             1m / 5m / 15m load average
           </div>
-          <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+          <div data-sm-style="sm-style-09ba01c6ba">
             {loadAverage.slice(0, 3).map((value: number, index: number) => (
               <DetailRow
                 key={`${value}-${index}`}
@@ -77,8 +77,8 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
             </div>
           </div>
           <div className="detail-grid detail-grid-md">
-            <DetailRow label="Context Switches" value={formatInteger(Number(contextSwitches))} valueColor="var(--color-primary)" />
-            <DetailRow label="Goroutines" value={formatInteger(goroutines)} valueColor="var(--color-primary)" />
+            <DetailRow label="Context Switches" value={contextSwitches === undefined ? '—' : formatInteger(Number(contextSwitches))} valueColor="var(--color-primary)" />
+            <DetailRow label="Goroutines" value={goroutines === undefined ? '—' : formatInteger(goroutines)} valueColor="var(--color-primary)" />
           </div>
         </div>
       </div>

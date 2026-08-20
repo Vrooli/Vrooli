@@ -32,9 +32,6 @@ func NewDiskCollector() *DiskCollector {
 
 // Collect gathers disk metrics
 func (c *DiskCollector) Collect(ctx context.Context) (*MetricData, error) {
-	if collectorOS != "linux" {
-		return unsupportedMetricData(c.GetName(), "disk"), nil
-	}
 	diskUsage := c.getDiskUsage()
 	ioStats := c.getIOStats()
 	fileDescriptors := c.getFileDescriptors()
@@ -50,6 +47,10 @@ func (c *DiskCollector) Collect(ctx context.Context) (*MetricData, error) {
 			"file_descriptors": fileDescriptors,
 			"inotify_watchers": inotifyStats,
 		},
+		Tags: map[string]string{
+			"os":     collectorOS,
+			"source": "native filesystem statistics",
+		},
 	}, nil
 }
 
@@ -64,6 +65,11 @@ func (c *DiskCollector) getDiskUsage() map[string]interface{} {
 
 	measured, err := ReadDiskUsage(RootMountPath())
 	if err != nil || measured.TotalBytes <= 0 {
+		usage["status"] = "failed"
+		usage["reason"] = "disk usage could not be measured"
+		if err != nil {
+			usage["reason"] = err.Error()
+		}
 		return usage
 	}
 	usage["total"] = measured.TotalBytes
@@ -86,6 +92,11 @@ func (c *DiskCollector) getIOStats() map[string]interface{} {
 		"reads_per_sec":    float64(0),
 		"writes_per_sec":   float64(0),
 	}
+	if collectorOS != "linux" {
+		ioStats["status"] = "unsupported"
+		ioStats["reason"] = "disk I/O counters are not implemented for this platform"
+		return ioStats
+	}
 
 	if wait, ok := readIOWaitPercent(); ok {
 		ioStats["io_wait_percent"] = wait
@@ -100,6 +111,11 @@ func (c *DiskCollector) getFileDescriptors() map[string]interface{} {
 		"used":    0,
 		"max":     65536,
 		"percent": float64(0),
+	}
+	if collectorOS != "linux" {
+		fdInfo["status"] = "unsupported"
+		fdInfo["reason"] = "system-wide file descriptor counters are not implemented for this platform"
+		return fdInfo
 	}
 
 	// Get current FD count from /proc/sys/fs/file-nr (much faster than lsof)
@@ -145,6 +161,10 @@ func (c *DiskCollector) getInotifyStats() map[string]interface{} {
 		"instances_used":    0,
 		"instances_max":     0,
 		"instances_percent": float64(0),
+	}
+	if collectorOS != "linux" {
+		stats["reason"] = "inotify is Linux-specific"
+		return stats
 	}
 
 	watchesMax, err := readIntFromFile("/proc/sys/fs/inotify/max_user_watches")

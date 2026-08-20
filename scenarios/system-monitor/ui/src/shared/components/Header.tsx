@@ -1,10 +1,11 @@
-import { Moon, Settings, Sun, Terminal } from 'lucide-react';
+import { Moon, Pause, Play, Settings, Sun, Terminal } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { StatusIndicator } from './StatusIndicator';
 import { AgentDropdown } from './AgentDropdown';
 import { useTheme } from '../theme/ThemeProvider';
 import type { InvestigationAgentState } from '../../types';
 import type { SystemHealthStatus } from '../../features/monitoring/hooks/useSystemMonitor';
+import { TIME_RANGE_OPTIONS, useTimeRange } from '../time/TimeRangeContext';
 
 interface HeaderProps {
   unreadErrorCount: number;
@@ -38,18 +39,19 @@ export const Header = ({
   isLoadingHealth
 }: HeaderProps) => {
   const { theme, toggleTheme } = useTheme();
+  const { range, setRange, paused, setPaused } = useTimeRange();
 
   return (
     <header className="app-header">
       <div className="app-header-inner">
         <h1
           className="system-monitor-title icon-text"
-          style={{ margin: 0, fontSize: 'var(--text-xl)' }}
+          data-sm-style="sm-style-a02ac2f8c1"
         >
           <span className="system-monitor-title-text">System Monitor</span>
         </h1>
 
-        <nav className="app-nav flex-row-center gap-sm" style={{ marginLeft: 'var(--spacing-md)' }}>
+        <nav className="app-nav flex-row-center gap-sm" data-sm-style="sm-style-c938f99d82">
           <NavLink to="/" end className="app-nav-link">
             Dashboard
           </NavLink>
@@ -84,6 +86,29 @@ export const Header = ({
             isLoading={isLoadingHealth}
           />
 
+          <label className="history-window-control">
+            <span className="sr-only">Shared time range</span>
+            <select
+              aria-label="Shared time range"
+              value={range.key}
+              onChange={event => { setRange(event.target.value); }}
+            >
+              {TIME_RANGE_OPTIONS.map(option => (
+                <option key={option.key} value={option.key}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            className="header-button icon-button"
+            onClick={() => { setPaused(!paused); }}
+            type="button"
+            title={paused ? 'Resume live updates' : 'Pause live updates'}
+            aria-label={paused ? 'Resume live updates' : 'Pause live updates'}
+          >
+            {paused ? <Play size={16} /> : <Pause size={16} />}
+          </button>
+
           <button
             className="theme-toggle"
             onClick={toggleTheme}
@@ -107,7 +132,7 @@ export const Header = ({
             onClick={onToggleTerminal}
             type="button"
             title="Toggle system output"
-            style={{ position: 'relative' }}
+            data-sm-style="sm-style-821233d621"
           >
             <Terminal size={16} />
             {unreadErrorCount > 0 && (

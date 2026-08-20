@@ -7,9 +7,41 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func metricValue(s models.MetricState, fallback float64) *metricspb.MetricValue {
+	if s.Status == "" {
+		s.Status = "measured"
+		s.Value = fallback
+	}
+	value := &metricspb.MetricValue{
+		Provenance: s.Provenance,
+	}
+	if !s.ObservedAt.IsZero() {
+		value.ObservedAt = timestamppb.New(s.ObservedAt)
+	}
+	switch s.Status {
+	case "measured":
+		value.State = &metricspb.MetricValue_Measured{Measured: s.Value}
+	case "unsupported":
+		if s.Reason == "" {
+			s.Reason = "metric is not supported on this host"
+		}
+		value.State = &metricspb.MetricValue_UnsupportedReason{UnsupportedReason: s.Reason}
+	default:
+		if s.Reason == "" {
+			s.Reason = "metric collection failed"
+		}
+		value.State = &metricspb.MetricValue_FailedError{FailedError: s.Reason}
+	}
+	return value
+}
+
 func MetricsResponseToProto(m *models.MetricsResponse) *metricspb.MetricsResponse {
 	if m == nil {
 		return nil
+	}
+	gpuState := m.GPUState
+	if gpuState.Status == "" && m.GPUUsage == nil {
+		gpuState = models.MetricState{Status: "unsupported", Reason: "GPU collector unavailable"}
 	}
 	pb := &metricspb.MetricsResponse{
 		CpuUsage:       m.CPUUsage,
@@ -17,8 +49,25 @@ func MetricsResponseToProto(m *models.MetricsResponse) *metricspb.MetricsRespons
 		TcpConnections: int32(m.TCPConnections),
 		GpuUsage:       m.GPUUsage,
 		Timestamp:      timestamppb.New(m.Timestamp),
+		Cpu:            metricValue(m.CPUState, m.CPUUsage),
+		Memory:         metricValue(m.MemoryState, m.MemoryUsage),
+		Connections:    metricValue(m.ConnectionsState, float64(m.TCPConnections)),
+		Gpu:            metricValue(gpuState, dereferenceFloat(m.GPUUsage)),
+		Disk:           metricValue(m.DiskState, m.DiskUsage),
 	}
+	pb.Cpu = metricValue(m.CPUState, m.CPUUsage)
+	pb.Memory = metricValue(m.MemoryState, m.MemoryUsage)
+	pb.Connections = metricValue(m.ConnectionsState, float64(m.TCPConnections))
+	pb.Gpu = metricValue(gpuState, dereferenceFloat(m.GPUUsage))
+	pb.Disk = metricValue(m.DiskState, m.DiskUsage)
 	return pb
+}
+
+func dereferenceFloat(v *float64) float64 {
+	if v == nil {
+		return 0
+	}
+	return *v
 }
 
 func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricspb.MetricsTimelineResponse {
@@ -33,6 +82,10 @@ func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricsp
 			MemoryUsage:    s.MemoryUsage,
 			TcpConnections: int32(s.TCPConnections),
 			GpuUsage:       s.GPUUsage,
+			Cpu:            metricValue(s.CPUState, s.CPUUsage),
+			Memory:         metricValue(s.MemoryState, s.MemoryUsage),
+			Connections:    metricValue(s.ConnectionsState, float64(s.TCPConnections)),
+			Gpu:            metricValue(s.GPUState, dereferenceFloat(s.GPUUsage)),
 		}
 	}
 	return &metricspb.MetricsTimelineResponse{

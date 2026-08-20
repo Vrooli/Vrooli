@@ -31,29 +31,11 @@ export function ConnectionStatusBanner({ isStale, lastSuccessfulFetch, onRefresh
   const timeAgo = lastSuccessfulFetch ? formatTimeAgo(lastSuccessfulFetch) : 'never';
 
   return (
-    <div style={{
-      background: 'var(--color-warning-bg, rgba(255, 193, 7, 0.15))',
-      borderBottom: '1px solid var(--color-warning-border, rgba(255, 193, 7, 0.4))',
-      padding: '0.5rem 1rem',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '1rem',
-      fontSize: '0.875rem',
-      color: 'var(--color-warning, #ffc107)',
-    }}>
+    <div data-sm-style="sm-style-53f1cf7a58">
       <span>Data may be outdated. Last successful update: {timeAgo}. Retrying...</span>
       <button
         onClick={onRefresh}
-        style={{
-          background: 'var(--color-warning-bg-hover, rgba(255, 193, 7, 0.2))',
-          border: '1px solid var(--color-warning-border, rgba(255, 193, 7, 0.5))',
-          color: 'var(--color-warning, #ffc107)',
-          padding: '0.25rem 0.75rem',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontSize: '0.8rem',
-        }}
+        data-sm-style="sm-style-db72597db4"
       >
         Refresh Now
       </button>

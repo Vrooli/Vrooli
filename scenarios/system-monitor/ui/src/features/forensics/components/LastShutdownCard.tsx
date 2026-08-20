@@ -17,8 +17,8 @@ export const LastShutdownCard = ({ envelope }: LastShutdownCardProps) => {
   const prev = envelope.data.boots.find((b) => b.index === -1);
   if (!prev) {
     return (
-      <div className="card" style={{ padding: 'var(--spacing-md)' }}>
-        <div className="font-bold" style={{ marginBottom: '0.5rem' }}>
+      <div className="card" data-sm-style="sm-style-7b635e08e2">
+        <div className="font-bold" data-sm-style="sm-style-b113dc3b73">
           Last Shutdown
         </div>
         <div className="text-sm text-muted">No prior boot recorded yet.</div>
@@ -27,14 +27,14 @@ export const LastShutdownCard = ({ envelope }: LastShutdownCardProps) => {
   }
   const cls = classifyShutdown(prev);
   return (
-    <div className="card" style={{ padding: 'var(--spacing-md)' }}>
-      <div className="font-bold" style={{ marginBottom: '0.5rem' }}>
+    <div className="card" data-sm-style="sm-style-7b635e08e2">
+      <div className="font-bold" data-sm-style="sm-style-b113dc3b73">
         Last Shutdown
       </div>
       <div className="text-sm">
         <strong>Status:</strong> {shutdownLabel(cls)}
       </div>
-      <div className="text-xs text-muted" style={{ fontFamily: 'monospace' }}>
+      <div className="text-xs text-muted" data-sm-style="sm-style-51316ccfb7">
         boot {prev.bootId.slice(0, 8)} ({prev.index})
       </div>
       {prev.reason && <div className="text-xs text-muted">Reason: {prev.reason}</div>}

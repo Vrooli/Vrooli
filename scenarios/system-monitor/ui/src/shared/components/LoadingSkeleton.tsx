@@ -6,88 +6,47 @@ interface LoadingSkeletonProps {
 export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeletonProps) => {
   const renderListSkeleton = () => (
     <div 
-      style={{
-        padding: 'var(--spacing-md)',
-        borderBottom: '1px solid var(--color-primary)',
-        background: 'var(--overlay-light)'
-      }}
+      data-sm-style="sm-style-17abb19013"
     >
       {/* Header skeleton */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 'var(--spacing-xs)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+      <div data-sm-style="sm-style-dabe935aa7">
+        <div data-sm-style="sm-style-67bc078b69">
           <div 
             className="skeleton-item"
-            style={{
-              width: '16px',
-              height: '16px',
-              borderRadius: '2px'
-            }}
+            data-sm-style="sm-style-3dcc0f079d"
           />
           <div 
             className="skeleton-item"
-            style={{
-              width: '150px',
-              height: '18px',
-              borderRadius: '2px'
-            }}
+            data-sm-style="sm-style-467d79f189"
           />
         </div>
         <div 
           className="skeleton-item"
-          style={{
-            width: '70px',
-            height: '14px',
-            borderRadius: '2px'
-          }}
+          data-sm-style="sm-style-c733575e50"
         />
       </div>
       
       {/* Metadata skeleton */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        marginBottom: 'var(--spacing-sm)'
-      }}>
+      <div data-sm-style="sm-style-48be228cf7">
         <div 
           className="skeleton-item"
-          style={{
-            width: '120px',
-            height: '14px',
-            borderRadius: '2px'
-          }}
+          data-sm-style="sm-style-fed0da754e"
         />
         <div 
           className="skeleton-item"
-          style={{
-            width: '80px',
-            height: '14px',
-            borderRadius: '2px'
-          }}
+          data-sm-style="sm-style-16bd637909"
         />
       </div>
       
       {/* Description skeleton */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+      <div data-sm-style="sm-style-f42c3fdadb">
         <div 
           className="skeleton-item"
-          style={{
-            width: '100%',
-            height: '14px',
-            borderRadius: '2px'
-          }}
+          data-sm-style="sm-style-647322c717"
         />
         <div 
           className="skeleton-item"
-          style={{
-            width: '80%',
-            height: '14px',
-            borderRadius: '2px'
-          }}
+          data-sm-style="sm-style-d13567a769"
         />
       </div>
     </div>
@@ -95,74 +54,37 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
 
   const renderCardSkeleton = () => (
     <div 
-      style={{
-        padding: 'var(--spacing-md)',
-        background: 'var(--overlay-medium)',
-        borderRadius: 'var(--radius-md)',
-        marginBottom: 'var(--spacing-md)'
-      }}
+      data-sm-style="sm-style-6147d91f78"
     >
       {/* Header skeleton */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 'var(--spacing-md)'
-      }}>
+      <div data-sm-style="sm-style-ed56df885d">
         <div>
           <div 
             className="skeleton-item"
-            style={{
-              width: '120px',
-              height: '18px',
-              borderRadius: '2px',
-              marginBottom: 'var(--spacing-xs)'
-            }}
+            data-sm-style="sm-style-50b259a35d"
           />
           <div 
             className="skeleton-item"
-            style={{
-              width: '200px',
-              height: '14px',
-              borderRadius: '2px'
-            }}
+            data-sm-style="sm-style-65cc2b8cef"
           />
         </div>
         <div 
           className="skeleton-item"
-          style={{
-            width: '60px',
-            height: '20px',
-            borderRadius: 'var(--radius-sm)'
-          }}
+          data-sm-style="sm-style-d93100fc92"
         />
       </div>
       
       {/* Content grid skeleton */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: 'var(--spacing-md)',
-        marginBottom: 'var(--spacing-md)'
-      }}>
+      <div data-sm-style="sm-style-54f14ccf5b">
         {Array.from({ length: 4 }).map((_, idx) => (
           <div key={idx}>
             <div 
               className="skeleton-item"
-              style={{
-                width: '100px',
-                height: '12px',
-                borderRadius: '2px',
-                marginBottom: 'var(--spacing-xs)'
-              }}
+              data-sm-style="sm-style-73e32f9187"
             />
             <div 
               className="skeleton-item"
-              style={{
-                width: '60px',
-                height: '16px',
-                borderRadius: '2px'
-              }}
+              data-sm-style="sm-style-d035611a33"
             />
           </div>
         ))}
@@ -172,29 +94,16 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
       <div>
         <div 
           className="skeleton-item"
-          style={{
-            width: '150px',
-            height: '14px',
-            borderRadius: '2px',
-            marginBottom: 'var(--spacing-sm)'
-          }}
+          data-sm-style="sm-style-7f25ef5fd3"
         />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+        <div data-sm-style="sm-style-f42c3fdadb">
           <div 
             className="skeleton-item"
-            style={{
-              width: '90%',
-              height: '12px',
-              borderRadius: '2px'
-            }}
+            data-sm-style="sm-style-e0db026113"
           />
           <div 
             className="skeleton-item"
-            style={{
-              width: '85%',
-              height: '12px',
-              borderRadius: '2px'
-            }}
+            data-sm-style="sm-style-309db88982"
           />
         </div>
       </div>
@@ -202,31 +111,12 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
   );
 
   const renderSimpleSkeleton = () => (
-    <div style={{
-      textAlign: 'center',
-      padding: 'var(--spacing-lg)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 'var(--spacing-md)'
-    }}>
+    <div data-sm-style="sm-style-3ef47af557">
       <div 
         className="skeleton-pulse"
-        style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: '50%',
-          background: 'linear-gradient(90deg, var(--color-primary-muted) 25%, var(--color-primary-muted) 50%, var(--color-primary-muted) 75%)',
-          backgroundSize: '200% 100%',
-          animation: 'skeleton-loading 1.5s infinite'
-        }}
+        data-sm-style="sm-style-04bed5fb37"
       />
-      <div style={{
-        color: 'var(--color-text-secondary)',
-        fontSize: 'var(--text-lg)',
-        textTransform: 'uppercase',
-        letterSpacing: '2px'
-      }}>
+      <div data-sm-style="sm-style-6ce841334e">
         LOADING...
       </div>
     </div>

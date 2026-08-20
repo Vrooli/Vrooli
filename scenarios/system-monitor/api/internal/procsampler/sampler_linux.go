@@ -159,7 +159,7 @@ func parseStat(line string) (ProcessSample, bool) {
 		return ProcessSample{}, false
 	}
 
-	sample := ProcessSample{Comm: comm}
+	sample := ProcessSample{Comm: comm, State: rest[0]}
 	sample.PPID = atoiSafe(rest[1])
 	sample.utime = atouSafe(rest[11])
 	sample.stime = atouSafe(rest[12])

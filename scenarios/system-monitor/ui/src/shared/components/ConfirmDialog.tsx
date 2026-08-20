@@ -23,22 +23,22 @@ export const ConfirmDialog = ({
 }: ConfirmDialogProps) => (
   <Modal isOpen={isOpen} onClose={onCancel} ariaLabel={title}>
     <div className="confirm-dialog">
-      <div className="icon-text" style={{ marginBottom: 'var(--spacing-lg)', color: variant === 'danger' ? 'var(--color-error)' : 'var(--color-warning)' }}>
+      <div className={`icon-text dialog-variant-${variant}`}>
         <AlertTriangle size={32} />
-        <h3 style={{ margin: 0, color: 'var(--color-text-heading)', fontSize: 'var(--text-xl)' }}>
+        <h3 data-sm-style="sm-style-6d057eff06">
           {title}
         </h3>
       </div>
 
-      <div style={{ marginBottom: 'var(--spacing-lg)', color: 'var(--color-text)', fontSize: 'var(--text-base)', lineHeight: '1.5' }}>
+      <div data-sm-style="sm-style-6c952c3a20">
         {message}
       </div>
 
-      <div style={{ display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'flex-end' }}>
+      <div data-sm-style="sm-style-8104be9250">
         <button
           className="btn btn-secondary"
           onClick={onCancel}
-          style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', fontSize: 'var(--text-sm)' }}
+          data-sm-style="sm-style-817bf65bc0"
         >
           CANCEL
         </button>

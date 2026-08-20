@@ -8,14 +8,17 @@ import (
 
 func ScriptMetaToProto(meta services.ScriptMeta) *scriptspb.InvestigationScript {
 	return &scriptspb.InvestigationScript{
-		Id:          meta.ID,
-		Name:        meta.Name,
-		Description: meta.Description,
-		Category:    meta.Category,
-		Author:      meta.Author,
-		CreatedAt:   timestamppb.New(meta.CreatedAt),
-		UpdatedAt:   timestamppb.New(meta.UpdatedAt),
-		Enabled:     meta.Enabled,
+		Id:            meta.ID,
+		Name:          meta.Name,
+		Description:   meta.Description,
+		Category:      meta.Category,
+		Author:        meta.Author,
+		CreatedAt:     timestamppb.New(meta.CreatedAt),
+		UpdatedAt:     timestamppb.New(meta.UpdatedAt),
+		Enabled:       meta.Enabled,
+		ExecutionMode: meta.ExecutionMode,
+		RequiredTools: meta.RequiredTools,
+		SkipReason:    meta.SkipReason,
 	}
 }
 
@@ -29,15 +32,17 @@ func ScriptMetasToProto(metas []services.ScriptMeta) []*scriptspb.InvestigationS
 
 func ScriptExecutionToProto(exec services.ScriptExecution) *scriptspb.ScriptExecution {
 	pb := &scriptspb.ScriptExecution{
-		ScriptId:    exec.ScriptID,
-		ExecutionId: exec.ExecutionID,
-		Status:      scriptExecutionStatusToProto(exec.Status),
-		StartedAt:   timestamppb.New(exec.StartedAt),
-		CompletedAt: timestamppb.New(exec.CompletedAt),
-		Output:      exec.Stdout,
-		Stdout:      exec.Stdout,
-		Stderr:      exec.Stderr,
-		TimedOut:    exec.TimedOut,
+		ScriptId:      exec.ScriptID,
+		ExecutionId:   exec.ExecutionID,
+		Status:        scriptExecutionStatusToProto(exec.Status),
+		StartedAt:     timestamppb.New(exec.StartedAt),
+		CompletedAt:   timestamppb.New(exec.CompletedAt),
+		Output:        exec.Stdout,
+		Stdout:        exec.Stdout,
+		Stderr:        exec.Stderr,
+		TimedOut:      exec.TimedOut,
+		ExecutionMode: exec.ExecutionMode,
+		SkipReason:    exec.SkipReason,
 	}
 	exitCode := int32(exec.ExitCode)
 	pb.ExitCode = &exitCode

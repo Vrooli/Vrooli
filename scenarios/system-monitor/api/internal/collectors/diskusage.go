@@ -1,6 +1,9 @@
 package collectors
 
-import "runtime"
+import (
+	"fmt"
+	"runtime"
+)
 
 // RootMountPath is the filesystem the scenario treats as "the host disk" when no
 // specific path is named.
@@ -13,6 +16,7 @@ func RootMountPath() string {
 
 // DiskUsage is a single filesystem's capacity, measured the way `df` measures it.
 type DiskUsage struct {
+	MountPath      string
 	TotalBytes     int64
 	UsedBytes      int64
 	AvailableBytes int64
@@ -59,5 +63,10 @@ func ReadDiskUsage(path string) (DiskUsage, error) {
 	if err != nil {
 		return DiskUsage{}, err
 	}
-	return diskUsageFrom(total, free, available), nil
+	if total <= 0 || available < 0 || free < 0 {
+		return DiskUsage{}, fmt.Errorf("filesystem capacity is unavailable for %q", path)
+	}
+	usage := diskUsageFrom(total, free, available)
+	usage.MountPath = path
+	return usage, nil
 }

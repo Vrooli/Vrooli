@@ -1,7 +1,7 @@
 {
-  "description": "No dedicated timeline endpoint exists. Trend analysis is only implemented within report generation (api/internal/services/report.go). UI calls /api/v1/metrics/timeline which is not registered in the API router; UI sparkline falls back to client-side accumulation.",
+  "description": "Metric history is exposed through the timeline API and consumed by the dashboard's shared time-range and incident-timeline views. Dedicated long-horizon statistical trend analysis remains future work.",
   "module_id": "MOD-P1-011",
-  "prd_ref": "Operational Targets > P1 > OT-P1-011",
+  "prd_ref": "OT-P1-011",
   "priority": "P1",
   "requirements": [
     {
@@ -9,9 +9,9 @@
       "dependencies": [
         "REQ-P0-004"
       ],
-      "description": "Implement historical trend analysis capability through dedicated timeline endpoints and standalone analysis functions beyond report generation. System must track and analyze metric patterns over time to identify long-term trends and seasonal variations.",
+      "description": "The system should expose metric history through a dedicated timeline endpoint and render it against the shared observation window used by the dashboard.",
       "id": "REQ-P1-001",
-      "prd_ref": "Operational Targets > P1 > OT-P1-011",
+      "prd_ref": "OT-P1-011",
       "status": "pending",
       "title": "Historical Trend Analysis System",
       "validation": [
@@ -53,5 +53,5 @@
       ]
     }
   ],
-  "title": "Historical trend analysis (no timeline endpoint exists; trend analysis implemented only within report generation)"
+  "title": "Historical metric timeline and trend context"
 }

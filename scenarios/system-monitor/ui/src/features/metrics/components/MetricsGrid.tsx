@@ -84,7 +84,7 @@ export const MetricsGrid = ({
         type="cpu"
         label="CPU USAGE"
         unit="%"
-        value={metrics?.cpuUsage ?? 0}
+        metric={metrics?.cpu}
         isExpanded={expandedCards.has('cpu')}
         onToggle={() => { onToggleCard('cpu'); }}
         details={detailedMetrics?.cpuDetails}
@@ -93,7 +93,7 @@ export const MetricsGrid = ({
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
         onOpenDetails={() => { onOpenDetail('cpu'); }}
-        detailButtonLabel="OPEN DETAIL"
+        detailButtonLabel="Open CPU detail"
       />
 
       {/* Memory Card */}
@@ -101,7 +101,7 @@ export const MetricsGrid = ({
         type="memory"
         label="MEMORY"
         unit="%"
-        value={metrics?.memoryUsage ?? 0}
+        metric={metrics?.memory}
         isExpanded={expandedCards.has('memory')}
         onToggle={() => { onToggleCard('memory'); }}
         details={detailedMetrics?.memoryDetails}
@@ -110,7 +110,7 @@ export const MetricsGrid = ({
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
         onOpenDetails={() => { onOpenDetail('memory'); }}
-        detailButtonLabel="OPEN DETAIL"
+        detailButtonLabel="Open memory detail"
       />
 
       {/* GPU Card */}
@@ -118,7 +118,7 @@ export const MetricsGrid = ({
         type="gpu"
         label="GPU"
         unit="%"
-        value={metrics?.gpuUsage ?? null}
+        metric={metrics?.gpu}
         isExpanded={expandedCards.has('gpu')}
         onToggle={() => { onToggleCard('gpu'); }}
         details={gpuDetails}
@@ -128,7 +128,7 @@ export const MetricsGrid = ({
         valueDomain={[0, 100]}
         historyUnit=" %"
         onOpenDetails={() => { onOpenDetail('gpu'); }}
-        detailButtonLabel="OPEN DETAIL"
+        detailButtonLabel="Open GPU detail"
       />
 
       {/* Disk Card */}
@@ -136,7 +136,7 @@ export const MetricsGrid = ({
         type="disk"
         label="DISK"
         unit="%"
-        value={diskDetails?.diskUsage.percent ?? 0}
+        metric={metrics?.disk}
         isExpanded={expandedCards.has('disk')}
         onToggle={() => { onToggleCard('disk'); }}
         details={diskDetails}
@@ -145,7 +145,7 @@ export const MetricsGrid = ({
         historyWindowSeconds={metricHistory?.windowSeconds}
         historyUnit=" MB/s"
         onOpenDetails={() => { onOpenDetail('disk'); }}
-        detailButtonLabel="OPEN DETAIL"
+        detailButtonLabel="Open disk detail"
       />
 
       {/* Network & Connections Card */}
@@ -153,7 +153,7 @@ export const MetricsGrid = ({
         type="network"
         label="NETWORK & CONNECTIONS"
         unit="#"
-        value={metrics?.tcpConnections ?? 0}
+        metric={metrics?.connections}
         isExpanded={expandedCards.has('network')}
         onToggle={() => { onToggleCard('network'); }}
         details={detailedMetrics?.networkDetails}
@@ -161,7 +161,7 @@ export const MetricsGrid = ({
         history={metricHistory?.network}
         historyWindowSeconds={metricHistory?.windowSeconds}
         onOpenDetails={() => { onOpenDetail('network'); }}
-        detailButtonLabel="OPEN DETAIL"
+        detailButtonLabel="Open network detail"
       />
 
     </div>

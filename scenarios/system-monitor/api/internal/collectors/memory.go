@@ -32,25 +32,35 @@ func (c *MemoryCollector) SetSnapshotProvider(p SnapshotProvider) {
 
 // Collect gathers memory metrics
 func (c *MemoryCollector) Collect(ctx context.Context) (*MetricData, error) {
+	if collectorOS != runtime.GOOS {
+		return unsupportedMetricData(c.GetName(), "memory"), nil
+	}
 	snapshot, _ := c.snapshots.Snapshot(ctx)
-	memUsage := c.getMemoryUsage(snapshot)
-	memDetails := c.getMemoryDetails(snapshot)
-	swapInfo := c.getSwapUsage(snapshot)
+	reading := collectPlatformMemory(ctx, c, snapshot)
 	topProcesses, _ := GetTopProcessesByMemory(5)
+	values := map[string]interface{}{"top_processes": topProcesses}
+	if reading.status == "measured" {
+		values["usage_percent"] = reading.usage
+		for key, value := range reading.details {
+			values[key] = value
+		}
+		values["swap"] = reading.swap
+	}
+	if reading.status != "" {
+		values["status"] = reading.status
+	}
+	if reading.reason != "" {
+		values["reason"] = reading.reason
+	}
 
 	return &MetricData{
 		CollectorName: c.GetName(),
 		Timestamp:     time.Now(),
 		Type:          "memory",
-		Values: map[string]interface{}{
-			"usage_percent": memUsage,
-			"total":         memDetails["total"],
-			"used":          memDetails["used"],
-			"available":     memDetails["available"],
-			"cached":        memDetails["cached"],
-			"buffers":       memDetails["buffers"],
-			"swap":          swapInfo,
-			"top_processes": topProcesses,
+		Values:        values,
+		Tags: map[string]string{
+			"os":     collectorOS,
+			"source": reading.provenance,
 		},
 	}, nil
 }
@@ -116,10 +126,6 @@ func (c *MemoryCollector) getSwapUsage(snapshot hostinventory.Snapshot) map[stri
 
 // GetTopProcessesByMemory returns top processes by memory usage
 func GetTopProcessesByMemory(limit int) ([]map[string]interface{}, error) {
-	if runtime.GOOS != "linux" {
-		return []map[string]interface{}{}, nil
-	}
-
 	samples, err := topProcessSamples(limit, func(a, b procsampler.ProcessSample) bool {
 		if a.RSSKB != b.RSSKB {
 			return a.RSSKB > b.RSSKB

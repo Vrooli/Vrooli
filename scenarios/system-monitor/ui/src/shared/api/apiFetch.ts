@@ -288,7 +288,10 @@ function buildConnectCall(rawPath: string, options?: RequestInit): ConnectCall |
     case '/investigations/agent/spawn':
       return {
         procedure: `${investigations}/TriggerInvestigation`,
-        body: { autoFix: Boolean(body.autoFix ?? body.auto_fix), note: String(body.note ?? '') },
+        body: {
+          autoFix: Boolean(body.autoFix ?? body.auto_fix),
+          note: typeof body.note === 'string' ? body.note : '',
+        },
         unwrap: identity,
       };
     case '/investigations/cooldown':

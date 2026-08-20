@@ -1,7 +1,7 @@
 {
   "description": "Not implemented. No prediction models, ML pipelines, or forecasting endpoints exist.",
   "module_id": "MOD-P1-017",
-  "prd_ref": "Operational Targets > P1 > OT-P1-017",
+  "prd_ref": "OT-P1-017",
   "priority": "P1",
   "requirements": [
     {
@@ -11,7 +11,7 @@
       ],
       "description": "Implement machine learning models for resource usage prediction including CPU, memory, and storage trends.",
       "id": "REQ-P1-007",
-      "prd_ref": "Operational Targets > P1 > OT-P1-017",
+      "prd_ref": "OT-P1-017",
       "status": "pending",
       "title": "Resource Prediction Models",
       "validation": [

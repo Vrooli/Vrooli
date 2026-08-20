@@ -19,9 +19,8 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
   return (
     <section className="monitoring-panel collapsible card">
       <div
-        className="panel-header clickable monitor-panel-header"
+        className={`panel-header clickable monitor-panel-header ${isExpanded ? 'monitor-panel-header-expanded' : ''}`}
         onClick={onToggle}
-        style={{ marginBottom: isExpanded ? 'var(--spacing-md)' : 0 }}
       >
         <h2 className="icon-text monitor-heading">
           <Zap size={20} />
@@ -212,7 +211,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                                   {service.status === 'healthy' ? 'Operational' : 'Needs attention'}
                                 </div>
                               </div>
-                              <div style={{ textAlign: 'right' }}>
+                              <div data-sm-style="sm-style-905bfede49">
                                 <div style={{
                                   color: service.status === 'healthy' ? 'var(--color-success)' : 'var(--color-error)',
                                   fontWeight: 600

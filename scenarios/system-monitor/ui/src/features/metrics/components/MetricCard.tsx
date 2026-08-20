@@ -8,6 +8,8 @@ import type {
   DiskCardDetails,
   GPUCardDetails
 } from '../../../types';
+import type { MetricValue } from '@vrooli/proto-types/system-monitor/v1/metrics/metrics_pb';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { MetricSparkline } from './MetricSparkline';
 import { expansionMap } from './expansions';
 import { formatWindowLabel } from '../../../shared/utils/formatters';
@@ -17,6 +19,7 @@ interface MetricCardProps {
   label: string;
   unit: string;
   value?: number | null;
+  metric?: MetricValue;
   isExpanded: boolean;
   onToggle: () => void;
   details?: CPUMetrics | MemoryMetrics | NetworkMetrics | DiskCardDetails | GPUCardDetails;
@@ -35,6 +38,7 @@ export const MetricCard = ({
   label,
   unit,
   value,
+  metric,
   isExpanded,
   onToggle,
   details,
@@ -47,8 +51,15 @@ export const MetricCard = ({
   onOpenDetails,
   detailButtonLabel = 'VIEW DETAIL'
 }: MetricCardProps) => {
-  const hasNumericValue = typeof value === 'number' && Number.isFinite(value);
-  const resolvedValue = hasNumericValue ? (value) : null;
+  const state = metric?.state;
+  const metricMeasured = state?.case === 'measured' ? state.value : undefined;
+  const metricReason = state?.case === 'unsupportedReason' || state?.case === 'failedError' ? state.value : undefined;
+  const hasNumericValue = typeof metricMeasured === 'number'
+    ? Number.isFinite(metricMeasured)
+    : typeof value === 'number' && Number.isFinite(value);
+  const resolvedValue = hasNumericValue ? (typeof metricMeasured === 'number' ? metricMeasured : value ?? null) : null;
+  const isUnavailable = Boolean(metric && state?.case !== 'measured');
+  const observedAt = metric?.observedAt ? timestampDate(metric.observedAt).toLocaleTimeString() : undefined;
 
   const getProgressValue = (): number => {
     if (!hasNumericValue || resolvedValue === null) {
@@ -142,12 +153,23 @@ export const MetricCard = ({
         </div>
       </div>
 
-      <div className="metric-value" style={{ color: getValueColor() }}>
-        {resolvedValue !== null ? resolvedValue.toFixed(1) : '—'}
+      <div className={`metric-value ${getValueColor() === 'var(--color-error)' ? 'text-error' : getValueColor() === 'var(--color-warning)' ? 'text-warning' : getValueColor() === 'var(--color-text-secondary)' ? 'text-muted' : 'text-heading'}`}>
+        {isUnavailable && state?.case === 'failedError' ? '⚠' : resolvedValue !== null ? resolvedValue.toFixed(1) : '—'}
       </div>
 
+      <div
+        className="sr-only"
+        role={hasNumericValue && !isUnavailable ? 'meter' : 'status'}
+        aria-label={isUnavailable || !hasNumericValue ? `${label}: ${metricReason ?? 'not measured'}` : `${label}: ${resolvedValue?.toFixed(1)}${unit}`}
+        aria-valuemin={hasNumericValue && !isUnavailable ? 0 : undefined}
+        aria-valuemax={hasNumericValue && !isUnavailable && type !== 'network' ? 100 : undefined}
+        aria-valuenow={hasNumericValue && !isUnavailable && resolvedValue !== null ? resolvedValue : undefined}
+      />
+      {isUnavailable && <span className="metric-state-reason" title={metricReason}>{metricReason ?? 'Not measured'}</span>}
+      {observedAt && <div className="metric-observed-at">Measured {observedAt}</div>}
+
       {history && history.length > 0 ? (
-        <div style={{ position: 'relative', overflow: 'visible' }}>
+        <div data-sm-style="sm-style-254feda622">
           <MetricSparkline
             data={history}
             color={sparklineColor}
@@ -155,6 +177,7 @@ export const MetricCard = ({
             threshold={sparklineThreshold}
             unit={sparklineUnit}
             windowLabel={formatWindowLabel(historyWindowSeconds)}
+            ariaLabel={`${label} history${resolvedValue !== null ? `, latest ${resolvedValue.toFixed(1)}${unit}` : ', not measured'}`}
           />
         </div>
       ) : (
@@ -169,11 +192,11 @@ export const MetricCard = ({
       {renderExpandedContent()}
 
       {onOpenDetails && (
-        <div style={{ marginTop: 'var(--spacing-md)', display: 'flex', justifyContent: 'flex-end' }}>
+        <div data-sm-style="sm-style-ffa5044e12">
           <button
             type="button"
             className="btn btn-action text-xs"
-            style={{ letterSpacing: '0.08em' }}
+            data-sm-style="sm-style-84a0f8980c"
             onClick={event => {
               event.stopPropagation();
               onOpenDetails?.();

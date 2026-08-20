@@ -10,39 +10,39 @@ export const MCESummaryCard = ({ envelope }: MCESummaryCardProps) => {
     return <NotProvisionedCard title="Machine Check Errors" reason={envelope.reason} />;
   }
   const { window, uncorrected, corrected, rawSummary } = envelope.data;
-  const errorColor = uncorrected > 0
-    ? 'var(--color-error, #f87171)'
+  const errorClass = uncorrected > 0
+    ? 'text-error'
     : corrected > 0
-      ? 'var(--color-warning, #facc15)'
-      : 'var(--color-success, #4ade80)';
+      ? 'text-warning'
+      : 'text-success';
   return (
-    <div className="card" style={{ padding: 'var(--spacing-md)' }}>
-      <div className="font-bold" style={{ marginBottom: '0.5rem' }}>
+    <div className="card" data-sm-style="sm-style-7b635e08e2">
+      <div className="font-bold" data-sm-style="sm-style-b113dc3b73">
         Machine Check Errors
       </div>
-      <div className="text-xs text-muted" style={{ marginBottom: '0.5rem' }}>
+      <div className="text-xs text-muted" data-sm-style="sm-style-b113dc3b73">
         Window: {window}
       </div>
       <div className="flex-row-center gap-md">
         <div>
           <div className="text-xs text-muted">Uncorrected</div>
-          <div style={{ fontSize: 'var(--text-xl)', color: errorColor, fontWeight: 'bold' }}>
+          <div className={`text-xl font-bold ${errorClass}`}>
             {uncorrected}
           </div>
         </div>
         <div>
           <div className="text-xs text-muted">Corrected</div>
-          <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'bold' }}>{corrected}</div>
+          <div data-sm-style="sm-style-9b38f4bcde">{corrected}</div>
         </div>
       </div>
       {rawSummary && (
-        <details style={{ marginTop: '0.5rem' }}>
-          <summary className="text-xs text-muted" style={{ cursor: 'pointer' }}>
+        <details data-sm-style="sm-style-fd08d808d2">
+          <summary className="text-xs text-muted" data-sm-style="sm-style-667fe49ecb">
             Raw summary
           </summary>
           <pre
             className="text-xs"
-            style={{ whiteSpace: 'pre-wrap', marginTop: '0.25rem' }}
+            data-sm-style="sm-style-4abf2fa839"
           >
             {rawSummary}
           </pre>

@@ -2,7 +2,6 @@ package collectors
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -45,7 +44,7 @@ func (c *GPUCollector) SetSnapshotProvider(p SnapshotProvider) {
 // surface the absence without relying on mock data.
 func (c *GPUCollector) Collect(ctx context.Context) (*MetricData, error) {
 	if !c.IsEnabled() {
-		return nil, fmt.Errorf("gpu collector disabled")
+		return unsupportedMetricData(c.GetName(), "gpu"), nil
 	}
 
 	snapshot, err := c.snapshots.Snapshot(ctx)

@@ -15,9 +15,12 @@ import { ThemeProvider } from './shared/theme/ThemeProvider';
 import { useSystemMonitor } from './features/monitoring/hooks/useSystemMonitor';
 import { useInvestigationAgents } from './features/investigations/hooks/useInvestigationAgents';
 import { useScriptExecution } from './features/investigations/hooks/useScriptExecution';
+import { IncidentTimeline, type TimelineEntry } from './features/monitoring/components/IncidentTimeline';
+import { TimeRangeProvider, useTimeRange } from './shared/time/TimeRangeContext';
 import type { DashboardState, CardType, PanelType } from './types';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import './styles/tokens.css';
+import './styles/migrated-inline.css';
 
 // ── Lazy-loaded, off-initial-paint subtrees ─────────────────────────────────
 //
@@ -52,7 +55,7 @@ const CapacityPage = lazy(() => import('./features/capacity/pages/CapacityPage')
 const ModalsContainer = lazy(() => import('./features/investigations/modals/ModalsContainer').then(m => ({ default: m.ModalsContainer })));
 const SystemSettingsModal = lazy(() => import('./features/settings/components/SystemSettingsModal').then(m => ({ default: m.SystemSettingsModal })));
 
-// Suspense fallback shared by all lazy route/modal boundaries. The matrix-theme
+// Suspense fallback shared by all lazy route/modal boundaries. The operational
 // LoadingSkeleton spinner doubles as the chunk-load indicator.
 const RouteFallback = () => <LoadingSkeleton variant="simple" />;
 
@@ -88,6 +91,7 @@ function AppContent() {
   });
 
   const [systemSettingsModalOpen, setSystemSettingsModalOpen] = useState(false);
+  const { range, paused } = useTimeRange();
 
   const {
     metrics,
@@ -105,7 +109,7 @@ function AppContent() {
     toggleMonitoring,
     refreshHealth,
     refresh
-  } = useSystemMonitor();
+  } = useSystemMonitor(range.seconds, { enabled: !paused });
 
   const {
     agents,
@@ -135,6 +139,14 @@ function AppContent() {
 
   const handleBackToDashboard = () => {
     void navigate('/');
+  };
+
+  const handleOpenIncidentSource = (source: 'logs' | 'forensics') => {
+    void navigate(`/${source}`);
+  };
+
+  const handleInvestigateIncident = (entry: TimelineEntry) => {
+    void navigate('/scripts', { state: { incidentId: entry.id, since: range.since, until: range.until } });
   };
 
   // Update online status based on successful API calls
@@ -228,16 +240,25 @@ function AppContent() {
         <ConnectionStatusBanner isStale={isStale} lastSuccessfulFetch={lastSuccessfulFetch} onRefresh={refresh} />
 
         <main className="main-content">
-          <div className="container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+          <div className="container" data-sm-style="sm-style-a8abd88c52">
             <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route
                 path="/"
                 element={(
                   <>
+                    <section className="mb-lg">
+                      <IncidentTimeline
+                        history={metricHistory}
+                        investigations={investigations}
+                        onOpenSource={handleOpenIncidentSource}
+                        onInvestigate={handleInvestigateIncident}
+                      />
+                    </section>
+
                     {/* Real-time Metrics Grid */}
                     <section className="mb-lg">
-                      <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Metrics failed to render. Try refreshing the page.</div>}>
+                      <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Metrics failed to render. Try refreshing the page.</div>}>
                         <MetricsGrid
                           metrics={metrics}
                           detailedMetrics={detailedMetrics}
@@ -260,7 +281,7 @@ function AppContent() {
                       <>
                         {/* Infrastructure Monitor Panel */}
                         <section className="mb-lg">
-                          <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Infrastructure monitor failed to render.</div>}>
+                          <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Infrastructure monitor failed to render.</div>}>
                             <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
                               <InfrastructureMonitor
                                 data={infrastructureData}
@@ -274,7 +295,7 @@ function AppContent() {
 
                         {/* Investigations Section */}
                         <section className="mb-lg">
-                          <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Investigations section failed to render.</div>}>
+                          <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Investigations section failed to render.</div>}>
                             <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
                               <InvestigationsSection
                                 investigations={investigations}
@@ -290,7 +311,7 @@ function AppContent() {
 
                         {/* Playback Reports */}
                         <section className="mb-lg">
-                          <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Reports failed to render.</div>}>
+                          <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Reports failed to render.</div>}>
                             <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
                               <ReportsPanel />
                             </Suspense>
@@ -305,7 +326,7 @@ function AppContent() {
               <Route
                 path="/scripts"
                 element={(
-                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Scripts page failed to render.</div>}>
+                  <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Scripts page failed to render.</div>}>
                     <InvestigationScriptsPage
                       onOpenScriptEditor={openScriptEditor}
                       onExecuteScript={executeScript}
@@ -318,7 +339,7 @@ function AppContent() {
               <Route
                 path="/metrics/cpu"
                 element={(
-                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>CPU detail view failed to render.</div>}>
+                  <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">CPU detail view failed to render.</div>}>
                     <CpuDetailView
                       metrics={metrics}
                       detailedMetrics={detailedMetrics}
@@ -332,7 +353,7 @@ function AppContent() {
               <Route
                 path="/metrics/memory"
                 element={(
-                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Memory detail view failed to render.</div>}>
+                  <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Memory detail view failed to render.</div>}>
                     <MemoryDetailView
                       metrics={metrics}
                       detailedMetrics={detailedMetrics}
@@ -345,7 +366,7 @@ function AppContent() {
               <Route
                 path="/metrics/network"
                 element={(
-                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Network detail view failed to render.</div>}>
+                  <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Network detail view failed to render.</div>}>
                     <NetworkDetailView
                       metrics={metrics}
                       detailedMetrics={detailedMetrics}
@@ -358,7 +379,7 @@ function AppContent() {
               <Route
                 path="/metrics/gpu"
                 element={(
-                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>GPU detail view failed to render.</div>}>
+                  <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">GPU detail view failed to render.</div>}>
                     <GpuDetailView
                       detailedMetrics={detailedMetrics}
                       metricHistory={metricHistory}
@@ -370,7 +391,7 @@ function AppContent() {
               <Route
                 path="/forensics"
                 element={(
-                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Forensics page failed to render.</div>}>
+                  <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Forensics page failed to render.</div>}>
                     <ForensicsPage />
                   </ErrorBoundary>
                 )}
@@ -378,7 +399,7 @@ function AppContent() {
               <Route
                 path="/logs"
                 element={(
-                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Logs page failed to render.</div>}>
+                  <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Logs page failed to render.</div>}>
                     <LogsPage />
                   </ErrorBoundary>
                 )}
@@ -386,7 +407,7 @@ function AppContent() {
               <Route
                 path="/capacity"
                 element={(
-                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Capacity page failed to render.</div>}>
+                  <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Capacity page failed to render.</div>}>
                     <CapacityPage />
                   </ErrorBoundary>
                 )}
@@ -394,7 +415,7 @@ function AppContent() {
               <Route
                 path="/metrics/disk"
                 element={(
-                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Disk detail view failed to render.</div>}>
+                  <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Disk detail view failed to render.</div>}>
                     <DiskDetailView
                       detailedMetrics={detailedMetrics}
                       storageIO={infrastructureData?.storageIo}
@@ -459,9 +480,11 @@ export default function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <BrowserRouter basename={basename}>
-          <AppContent />
-        </BrowserRouter>
+        <TimeRangeProvider>
+          <BrowserRouter basename={basename}>
+            <AppContent />
+          </BrowserRouter>
+        </TimeRangeProvider>
       </ToastProvider>
     </ThemeProvider>
   );

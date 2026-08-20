@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -52,18 +53,27 @@ func NewProcessCollector() *ProcessCollector {
 // once here and reused for the health summary — previously getProcessHealth
 // re-shelled both queries, doubling the forks per cycle.
 func (c *ProcessCollector) Collect(ctx context.Context) (*MetricData, error) {
-	if collectorOS != "linux" {
+	if collectorOS != runtime.GOOS {
 		return unsupportedMetricData(c.GetName(), "process"), nil
 	}
-	totalProcesses := 0
-	var zombieProcesses []map[string]interface{}
-	var highThreadProcesses []map[string]interface{}
-	if collectorOS == "linux" {
-		stats, _ := readProcessStats(ctx)
-		totalProcesses = len(stats)
-		zombieProcesses = zombieProcessesFromStats(stats)
-		highThreadProcesses = highThreadProcessesFromStats(stats)
+	samples, err := currentProcessSamples(ctx)
+	if err != nil {
+		if err == procsampler.ErrUnsupported {
+			return unsupportedMetricData(c.GetName(), "process"), nil
+		}
+		return &MetricData{
+			CollectorName: c.GetName(),
+			Timestamp:     time.Now(),
+			Type:          "process",
+			Values: map[string]interface{}{
+				"status": "failed",
+				"reason": "native process table unavailable: " + err.Error(),
+			},
+		}, nil
 	}
+	totalProcesses := len(samples)
+	zombieProcesses := zombieProcessesFromSamples(samples)
+	highThreadProcesses := highThreadProcessesFromSamples(samples)
 	topProcesses, _ := GetTopProcessesByCPU(10)
 
 	return &MetricData{
@@ -78,6 +88,50 @@ func (c *ProcessCollector) Collect(ctx context.Context) (*MetricData, error) {
 			"process_health":    c.processHealth(ctx, zombieProcesses, highThreadProcesses),
 		},
 	}, nil
+}
+
+func currentProcessSamples(ctx context.Context) ([]procsampler.ProcessSample, error) {
+	topProcessSamplerMu.Lock()
+	defer topProcessSamplerMu.Unlock()
+	return topProcessSampler.Sample(ctx)
+}
+
+func zombieProcessesFromSamples(samples []procsampler.ProcessSample) []map[string]interface{} {
+	zombies := make([]map[string]interface{}, 0)
+	for _, sample := range samples {
+		if sample.State != "Z" && sample.State != "z" {
+			continue
+		}
+		zombies = append(zombies, map[string]interface{}{
+			"pid":    sample.PID,
+			"name":   sample.Comm,
+			"status": "zombie",
+		})
+		if len(zombies) >= 10 {
+			break
+		}
+	}
+	return zombies
+}
+
+func highThreadProcessesFromSamples(samples []procsampler.ProcessSample) []map[string]interface{} {
+	ordered := append([]procsampler.ProcessSample(nil), samples...)
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Threads > ordered[j].Threads })
+	processes := make([]map[string]interface{}, 0)
+	for _, sample := range ordered {
+		if sample.Threads <= 20 {
+			continue
+		}
+		processes = append(processes, map[string]interface{}{
+			"pid":     sample.PID,
+			"name":    sample.Comm,
+			"threads": sample.Threads,
+		})
+		if len(processes) >= 5 {
+			break
+		}
+	}
+	return processes
 }
 
 func zombieProcessesFromStats(stats []processStat) []map[string]interface{} {
@@ -166,17 +220,14 @@ func (c *ProcessCollector) checkCriticalProcesses(ctx context.Context) []map[str
 // single /proc scan. On non-Linux platforms it returns nil and callers treat
 // every critical process as present (the prior behavior).
 func (c *ProcessCollector) runningCommandSet(ctx context.Context) map[string]struct{} {
-	if collectorOS != "linux" {
-		return map[string]struct{}{}
-	}
-	stats, err := readProcessStats(ctx)
+	samples, err := currentProcessSamples(ctx)
 	if err != nil {
 		return map[string]struct{}{}
 	}
 	set := map[string]struct{}{}
-	for _, stat := range stats {
-		if stat.comm != "" {
-			set[stat.comm] = struct{}{}
+	for _, sample := range samples {
+		if sample.Comm != "" {
+			set[sample.Comm] = struct{}{}
 		}
 	}
 	return set

@@ -2,13 +2,13 @@
 
 ## Work ladder
 
-- Rung: W3
-- Evidence: the original restart exposed stale managed-Go state (`~/.vrooli/bin/go` predated `~/.vrooli/opt/go`) and lifecycle setup exposed an interactive pnpm purge prompt. The shared lifecycle now preflights host requirements before teardown, verifies managed payloads and launchers, serializes repairs, preserves diagnostics, and runs setup/test phases with `CI=true`. A real `vrooli scenario restart system-monitor` completed setup and reached healthy status without a prompt; focused regressions passed.
-- Blocker: none for this incident; the remaining scenario test-genie failures are pre-existing product-quality findings unrelated to lifecycle startup/tool convergence.
-- Measured: 2026-08-05
+- Rung: W3 implementation — governed re-measurement in progress
+- Evidence: the registered goal `system-monitor-production-readiness` and the PRD agree on the readiness capability; the plan's Matrix UI and placeholder investigation-API positions were superseded by the governed Vrooli Operational Console, typed native/shell-gated investigations, and current timeline surface. `vrooli scenario requirements validate system-monitor` passes structurally, with only orphaned future P2 targets reported. The latest governed run passed 22/22 phases.
+- Blocker: the latest governed run is green at 22/22 phases. Linux arm64 hardware evidence is unavailable, so its support tier remains build-verified until a real Raspberry Pi 4 run is recorded.
+- Measured: 2026-08-20
 
 ## Last Updated
-2026-06-22 (Phase-5 health pass)
+2026-08-20 (production-readiness evidence pass)
 
 ## Resolved Since 2026-02-16
 

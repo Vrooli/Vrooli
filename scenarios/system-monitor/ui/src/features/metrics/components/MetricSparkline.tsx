@@ -11,6 +11,7 @@ interface MetricSparklineProps {
   threshold?: number;
   unit?: string;
   windowLabel?: string;
+  ariaLabel?: string;
 }
 
 interface ComputedPoint {
@@ -92,7 +93,8 @@ export const MetricSparkline = ({
   valueDomain,
   threshold,
   unit,
-  windowLabel
+  windowLabel,
+  ariaLabel
 }: MetricSparklineProps) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -244,13 +246,15 @@ export const MetricSparkline = ({
   const hoverPoint = hoverIndex !== null ? points[hoverIndex] : null;
 
   return (
-    <div className={className} style={{ width: '100%', position: 'relative' }}>
+    <div className={className} data-sm-style="sm-style-6344dc8492">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
         style={{ width: '100%', height, cursor: 'crosshair' }}
         className="metric-sparkline-chart"
+        role="img"
+        aria-label={ariaLabel ?? tooltip}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
@@ -320,22 +324,17 @@ export const MetricSparkline = ({
             zIndex: 10
           }}
         >
-          <span style={{ fontWeight: 600 }}>
+          <span data-sm-style="sm-style-2d5d655385">
             {unit ? `${hoverPoint.raw.toFixed(1)}${unit}` : hoverPoint.raw.toFixed(1)}
           </span>
-          <span style={{ color: 'var(--color-text-muted)', marginLeft: 4 }}>
+          <span data-sm-style="sm-style-89cc5f7662">
             {formatTime(hoverPoint.timestamp)}
           </span>
         </div>
       )}
       {windowLabel && (
         <div
-          style={{
-            marginTop: 'var(--spacing-xs)',
-            color: 'var(--color-text-secondary)',
-            fontSize: '0.55rem',
-            letterSpacing: '0.08em'
-          }}
+          data-sm-style="sm-style-cc8e87996d"
         >
           {windowLabel}
         </div>

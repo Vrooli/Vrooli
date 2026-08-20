@@ -149,38 +149,30 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     <Modal isOpen={isOpen} onClose={handleClose} ariaLabel="System settings" className="modal-sm">
       <ModalHeader onClose={handleClose}>
         <div className="icon-text">
-          <Settings size={24} style={{ color: 'var(--color-primary)' }} />
-          <h2 style={{
-            margin: 0,
-            color: 'var(--color-text-heading)',
-            fontSize: 'var(--text-xl)'
-          }}>
+          <Settings size={24} data-sm-style="sm-style-392c7463c7" />
+          <h2 data-sm-style="sm-style-28fbfae5b9">
             System Monitor Settings
           </h2>
         </div>
       </ModalHeader>
 
       {/* Body */}
-      <div style={{ padding: 'var(--spacing-lg)', overflow: 'auto', flex: 1 }}>
+      <div data-sm-style="sm-style-fe9d9d2f6f">
         {loading && (
-          <div style={{
-            textAlign: 'center',
-            padding: 'var(--spacing-xl)',
-            color: 'var(--color-text-secondary)'
-          }}>
+          <div data-sm-style="sm-style-586c42c087">
             Loading settings...
           </div>
         )}
 
         {error && (
-          <div className="error-banner" style={{ marginBottom: 'var(--spacing-lg)' }}>
+          <div className="error-banner" data-sm-style="sm-style-b439d4fdb0">
             <AlertTriangle size={16} />
             {error}
           </div>
         )}
 
         {successMessage && (
-          <div className="success-banner" style={{ marginBottom: 'var(--spacing-lg)' }}>
+          <div className="success-banner" data-sm-style="sm-style-b439d4fdb0">
             <CheckCircle size={16} />
             {successMessage}
           </div>
@@ -190,47 +182,23 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
           <div className="flex-col-gap-lg">
             {/* System Status Section */}
             <div>
-              <h3 className="icon-text section-heading" style={{
-                marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--text-lg)'
-              }}>
+              <h3 className="icon-text section-heading" data-sm-style="sm-style-aa254bd4d7">
                 <Activity size={18} />
                 System Status
               </h3>
 
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--spacing-sm)',
-                cursor: 'pointer',
-                padding: 'var(--spacing-md)',
-                background: 'var(--overlay-medium)',
-                border: '1px solid var(--color-primary)',
-                borderRadius: 'var(--radius-md)'
-              }}>
+              <label data-sm-style="sm-style-53626c1c9a">
                 <input
                   type="checkbox"
                   checked={settings.active}
                   onChange={(e) => { setSettings(prev => ({ ...prev, active: e.target.checked })); }}
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    accentColor: 'var(--color-success)',
-                    cursor: 'pointer'
-                  }}
+                  data-sm-style="sm-style-61e095ca60"
                 />
                 <div>
-                  <div style={{
-                    color: 'var(--color-text-heading)',
-                    fontWeight: 'bold'
-                  }}>
+                  <div data-sm-style="sm-style-65dd98adc6">
                     System Monitor Active
                   </div>
-                  <div style={{
-                    color: 'var(--color-text-secondary)',
-                    fontSize: 'var(--text-sm)',
-                    marginTop: 'var(--spacing-xs)'
-                  }}>
+                  <div data-sm-style="sm-style-aba19f690c">
                     Enable automatic monitoring, threshold checking, and anomaly detection
                   </div>
                 </div>
@@ -239,18 +207,11 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
 
             {/* Monitoring Intervals Section */}
             <div>
-              <h3 className="section-heading" style={{
-                marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--text-lg)'
-              }}>
+              <h3 className="section-heading" data-sm-style="sm-style-aa254bd4d7">
                 Monitoring Intervals (seconds)
               </h3>
 
-              <div style={{
-                display: 'grid',
-                gap: 'var(--spacing-md)',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))'
-              }}>
+              <div data-sm-style="sm-style-4ac5de75de">
                 <div>
                   <label className="input-label">Metric Collection</label>
                   <input
@@ -300,18 +261,11 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
 
             {/* System Thresholds Section */}
             <div>
-              <h3 className="section-heading" style={{
-                marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--text-lg)'
-              }}>
+              <h3 className="section-heading" data-sm-style="sm-style-aa254bd4d7">
                 Alert Thresholds (%)
               </h3>
 
-              <div style={{
-                display: 'grid',
-                gap: 'var(--spacing-md)',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))'
-              }}>
+              <div data-sm-style="sm-style-52943ea1ec">
                 <div>
                   <label className="input-label">CPU Usage</label>
                   <input
@@ -364,10 +318,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
 
             {/* Investigation Settings Section */}
             <div>
-              <h3 className="section-heading" style={{
-                marginBottom: 'var(--spacing-md)',
-                fontSize: 'var(--text-lg)'
-              }}>
+              <h3 className="section-heading" data-sm-style="sm-style-aa254bd4d7">
                 Investigation Settings
               </h3>
 
@@ -383,13 +334,9 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     ...prev,
                     cooldownPeriodSeconds: parseInt(e.target.value) || 300
                   })); }}
-                  style={{ width: '200px' }}
+                  data-sm-style="sm-style-28702649fb"
                 />
-                <div style={{
-                  color: 'var(--color-text-secondary)',
-                  fontSize: 'var(--text-xs)',
-                  marginTop: 'var(--spacing-xs)'
-                }}>
+                <div data-sm-style="sm-style-583863c6ac">
                   Minimum time between automatic investigations to prevent spam
                 </div>
               </div>
@@ -399,30 +346,21 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
       </div>
 
       {/* Footer */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 'var(--spacing-lg)',
-        borderTop: '1px solid var(--color-primary)',
-        background: 'var(--overlay-medium)'
-      }}>
+      <div data-sm-style="sm-style-e3e852fc99">
         <button
           onClick={() => { void resetSettings(); }}
           disabled={saving || loading}
-          className="btn btn-secondary icon-text icon-text-xs"
-          style={{ opacity: saving || loading ? 0.5 : 1 }}
+          className={`btn btn-secondary icon-text icon-text-xs ${saving || loading ? 'is-disabled' : ''}`}
         >
           <RotateCcw size={16} />
           Reset to Defaults
         </button>
 
-        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+        <div data-sm-style="sm-style-2f94a4de27">
           <button
             onClick={handleClose}
             disabled={saving}
-            className="btn btn-secondary"
-            style={{ opacity: saving ? 0.5 : 1 }}
+            className={`btn btn-secondary ${saving ? 'is-disabled' : ''}`}
           >
             Cancel
           </button>
@@ -430,8 +368,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
           <button
             onClick={() => { void saveSettings(); }}
             disabled={saving || loading || !hasChanges}
-            className="btn btn-primary icon-text icon-text-xs"
-            style={{ opacity: saving || loading || !hasChanges ? 0.5 : 1 }}
+            className={`btn btn-primary icon-text icon-text-xs ${saving || loading || !hasChanges ? 'is-disabled' : ''}`}
           >
             <Save size={16} />
             {saving ? 'Saving...' : 'Save Settings'}

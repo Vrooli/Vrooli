@@ -5,7 +5,9 @@ package services
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -16,14 +18,18 @@ import (
 
 // ScriptMeta holds parsed metadata from a script file header.
 type ScriptMeta struct {
-	ID          string
-	Name        string
-	Description string
-	Category    string
-	Author      string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Enabled     bool
+	ID            string
+	Name          string
+	Description   string
+	Category      string
+	Author        string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Enabled       bool
+	ExecutionMode string
+	RequiredTools []string
+	SkipReason    string
+	Query         string
 }
 
 // ScriptExecution holds the result of running a script.
@@ -38,12 +44,16 @@ type ScriptExecution struct {
 	ExitCode        int
 	TimedOut        bool
 	DurationSeconds float64
+	ExecutionMode   string
+	SkipReason      string
 }
 
 // ScriptService discovers and executes investigation scripts from disk.
 type ScriptService struct {
 	scriptsDir string
 	runner     CommandRunner
+	native     NativeInvestigationRunner
+	policyPath string
 }
 
 // NewScriptService creates a ScriptService that reads scripts from the given directory.
@@ -53,7 +63,17 @@ func NewScriptService(scriptsDir string, runner ...CommandRunner) *ScriptService
 	if len(runner) > 0 && runner[0] != nil {
 		r = runner[0]
 	}
-	return &ScriptService{scriptsDir: scriptsDir, runner: r}
+	return &ScriptService{
+		scriptsDir: scriptsDir,
+		runner:     r,
+		policyPath: filepath.Join(filepath.Dir(scriptsDir), "execution-policy.json"),
+	}
+}
+
+// SetNativeRunner installs the typed-query execution seam. It is separate from
+// the command runner so tests can prove native investigations do not fork.
+func (s *ScriptService) SetNativeRunner(r NativeInvestigationRunner) {
+	s.native = r
 }
 
 // ListScripts returns metadata for all scripts in the scripts directory.
@@ -76,6 +96,7 @@ func (s *ScriptService) ListScripts() ([]ScriptMeta, error) {
 		if err != nil {
 			continue // skip unparseable scripts
 		}
+		s.applyExecutionPolicy(&meta)
 		scripts = append(scripts, meta)
 	}
 	return scripts, nil
@@ -92,6 +113,7 @@ func (s *ScriptService) GetScript(id string) (ScriptMeta, string, error) {
 	if err != nil {
 		return ScriptMeta{}, "", apierrors.Internal("Script metadata could not be read", err)
 	}
+	s.applyExecutionPolicy(&meta)
 
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -111,6 +133,39 @@ func (s *ScriptService) ExecuteScript(ctx context.Context, id string, contentOve
 		ScriptID:    id,
 		ExecutionID: execID,
 		StartedAt:   startedAt,
+	}
+	meta := ScriptMeta{ID: id, ExecutionMode: "shell"}
+	s.applyExecutionPolicy(&meta)
+	result.ExecutionMode = meta.ExecutionMode
+	if meta.SkipReason != "" {
+		result.Status = "skipped"
+		result.SkipReason = meta.SkipReason
+		result.Stderr = meta.SkipReason
+		result.CompletedAt = time.Now()
+		result.DurationSeconds = result.CompletedAt.Sub(startedAt).Seconds()
+		return result, nil
+	}
+	if meta.ExecutionMode == "native" {
+		if s.native == nil {
+			result.Status = "skipped"
+			result.SkipReason = "native query runner is unavailable"
+			result.Stderr = result.SkipReason
+			result.CompletedAt = time.Now()
+			return result, nil
+		}
+		stdout, err := s.native.RunNative(ctx, meta.Query)
+		result.CompletedAt = time.Now()
+		result.DurationSeconds = result.CompletedAt.Sub(startedAt).Seconds()
+		result.Stdout = string(stdout)
+		if err != nil {
+			result.Status = "failed"
+			result.Stderr = err.Error()
+			result.ExitCode = 1
+			return result, nil
+		}
+		result.Status = "completed"
+		result.ExitCode = 0
+		return result, nil
 	}
 
 	var scriptPath string
@@ -168,6 +223,51 @@ func (s *ScriptService) ExecuteScript(ctx context.Context, id string, contentOve
 	}
 
 	return result, nil
+}
+
+type scriptExecutionPolicy struct {
+	Mode          string   `json:"mode"`
+	Query         string   `json:"query"`
+	RequiredTools []string `json:"required_tools"`
+}
+
+type scriptExecutionPolicyFile struct {
+	Entries map[string]scriptExecutionPolicy `json:"entries"`
+}
+
+func (s *ScriptService) applyExecutionPolicy(meta *ScriptMeta) {
+	if meta.ExecutionMode == "" {
+		meta.ExecutionMode = "shell"
+	}
+	data, err := os.ReadFile(s.policyPath)
+	if err != nil {
+		return
+	}
+	var file scriptExecutionPolicyFile
+	if json.Unmarshal(data, &file) != nil {
+		return
+	}
+	policy, ok := file.Entries[meta.ID]
+	if !ok {
+		return
+	}
+	if policy.Mode != "" {
+		meta.ExecutionMode = policy.Mode
+	}
+	meta.RequiredTools = append([]string(nil), policy.RequiredTools...)
+	meta.Query = policy.Query
+	if meta.ExecutionMode == "native" && meta.Query == "" {
+		meta.SkipReason = "native investigation has no declared query"
+	}
+	missing := make([]string, 0)
+	for _, tool := range meta.RequiredTools {
+		if _, err := exec.LookPath(tool); err != nil {
+			missing = append(missing, tool)
+		}
+	}
+	if len(missing) > 0 {
+		meta.SkipReason = "required tools unavailable: " + strings.Join(missing, ", ")
+	}
 }
 
 // resolveScriptPath maps a script ID (filename stem) to its full path.

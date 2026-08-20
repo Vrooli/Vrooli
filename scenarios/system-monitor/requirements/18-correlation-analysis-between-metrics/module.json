@@ -1,7 +1,7 @@
 {
   "description": "Not implemented. No correlation analysis, pattern detection, or cross-metric relationship analysis exists.",
   "module_id": "MOD-P1-018",
-  "prd_ref": "Operational Targets > P1 > OT-P1-018",
+  "prd_ref": "OT-P1-018",
   "priority": "P1",
   "requirements": [
     {
@@ -12,7 +12,7 @@
       ],
       "description": "Develop system for analyzing correlations between different metrics to identify patterns and causal relationships.",
       "id": "REQ-P1-008",
-      "prd_ref": "Operational Targets > P1 > OT-P1-018",
+      "prd_ref": "OT-P1-018",
       "status": "pending",
       "title": "Metric Correlation Analysis",
       "validation": [

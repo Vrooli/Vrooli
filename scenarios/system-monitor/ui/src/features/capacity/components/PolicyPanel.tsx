@@ -41,29 +41,29 @@ export const PolicyPanel = ({ levers, isSaving, error, onSave }: PolicyPanelProp
   };
 
   return (
-    <div className="card" style={{ padding: 'var(--spacing-md)' }}>
+    <div className="card" data-sm-style="sm-style-7b635e08e2">
       {error && (
-        <div role="alert" style={{ color: 'var(--color-error)', marginBottom: 'var(--spacing-sm)' }}>
+        <div role="alert" data-sm-style="sm-style-61375b27ab">
           {error}
         </div>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+      <div data-sm-style="sm-style-9f304072b4">
         {levers.map((lever) => {
           const draft = drafts[lever.key] ?? lever.value;
           const dirty = draft !== lever.value;
           const inputId = `policy-${lever.key}`;
           return (
-            <div key={lever.key} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <label htmlFor={inputId} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+            <div key={lever.key} data-sm-style="sm-style-a4cd9cd628">
+              <label htmlFor={inputId} data-sm-style="sm-style-37fc90e1c1">
                 {lever.key}
               </label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div data-sm-style="sm-style-070fbdbe2e">
                 {lever.key === 'enforce' ? (
                   <select
                     id={inputId}
                     value={draft}
                     onChange={(e) => { updateDraft(lever.key, e.target.value); }}
-                    style={{ flex: 1, padding: '4px 6px' }}
+                    data-sm-style="sm-style-76aec44f93"
                   >
                     {ENFORCE_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>{opt}</option>
@@ -75,7 +75,7 @@ export const PolicyPanel = ({ levers, isSaving, error, onSave }: PolicyPanelProp
                     type="text"
                     value={draft}
                     onChange={(e) => { updateDraft(lever.key, e.target.value); }}
-                    style={{ flex: 1, padding: '4px 6px' }}
+                    data-sm-style="sm-style-76aec44f93"
                   />
                 )}
                 <button
@@ -88,7 +88,7 @@ export const PolicyPanel = ({ levers, isSaving, error, onSave }: PolicyPanelProp
                 </button>
               </div>
               {LEVER_HELP[lever.key] && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #999)' }}>
+                <span data-sm-style="sm-style-da63c9020c">
                   {LEVER_HELP[lever.key]}
                 </span>
               )}

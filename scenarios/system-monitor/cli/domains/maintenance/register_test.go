@@ -3,6 +3,8 @@ package maintenance
 import (
 	"strings"
 	"testing"
+
+	"system-monitor/cli/internal/testutil"
 )
 
 func TestParseDaysRejectsBadDays(t *testing.T) {
@@ -24,9 +26,7 @@ func TestParseDaysAcceptsPositiveInteger(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected valid days, got %v", err)
 	}
-	if got != 30 {
-		t.Fatalf("parseDays returned %d, want 30", got)
-	}
+	testutil.Equal(t, got, 30)
 }
 
 func TestFormatBytes(t *testing.T) {
@@ -37,8 +37,6 @@ func TestFormatBytes(t *testing.T) {
 		1048576: "1.0 MB",
 	}
 	for in, want := range cases {
-		if got := formatBytes(in); got != want {
-			t.Errorf("formatBytes(%d) = %q, want %q", in, got, want)
-		}
+		testutil.Equal(t, formatBytes(in), want)
 	}
 }

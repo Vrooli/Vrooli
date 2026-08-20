@@ -6,11 +6,28 @@ import (
 
 // MetricsResponse represents the current system metrics
 type MetricsResponse struct {
-	CPUUsage       float64   `json:"cpu_usage"`
-	MemoryUsage    float64   `json:"memory_usage"`
-	TCPConnections int       `json:"tcp_connections"`
-	GPUUsage       *float64  `json:"gpu_usage,omitempty"`
-	Timestamp      time.Time `json:"timestamp"`
+	CPUUsage         float64     `json:"cpu_usage"`
+	MemoryUsage      float64     `json:"memory_usage"`
+	TCPConnections   int         `json:"tcp_connections"`
+	GPUUsage         *float64    `json:"gpu_usage,omitempty"`
+	DiskUsage        float64     `json:"disk_usage"`
+	CPUState         MetricState `json:"cpu_state"`
+	MemoryState      MetricState `json:"memory_state"`
+	ConnectionsState MetricState `json:"connections_state"`
+	GPUState         MetricState `json:"gpu_state"`
+	DiskState        MetricState `json:"disk_state"`
+	Timestamp        time.Time   `json:"timestamp"`
+}
+
+// MetricState is the internal representation of the API's three-state metric
+// contract. Status is measured, unsupported, or failed; Value is meaningful
+// only for measured states.
+type MetricState struct {
+	Status     string    `json:"status"`
+	Value      float64   `json:"value,omitempty"`
+	Reason     string    `json:"reason,omitempty"`
+	Provenance string    `json:"provenance,omitempty"`
+	ObservedAt time.Time `json:"observed_at,omitempty"`
 }
 
 // PressureSnapshot is the typed, low-overhead memory-pressure view. Available
@@ -52,11 +69,15 @@ type PressureHistory struct {
 
 // MetricTimelineSample represents a single sample in a metrics timeline.
 type MetricTimelineSample struct {
-	Timestamp      time.Time `json:"timestamp"`
-	CPUUsage       float64   `json:"cpu_usage"`
-	MemoryUsage    float64   `json:"memory_usage"`
-	TCPConnections int       `json:"tcp_connections"`
-	GPUUsage       *float64  `json:"gpu_usage,omitempty"`
+	Timestamp        time.Time   `json:"timestamp"`
+	CPUUsage         float64     `json:"cpu_usage"`
+	MemoryUsage      float64     `json:"memory_usage"`
+	TCPConnections   int         `json:"tcp_connections"`
+	GPUUsage         *float64    `json:"gpu_usage,omitempty"`
+	CPUState         MetricState `json:"cpu_state"`
+	MemoryState      MetricState `json:"memory_state"`
+	ConnectionsState MetricState `json:"connections_state"`
+	GPUState         MetricState `json:"gpu_state"`
 }
 
 // MetricsTimelineResponse contains a windowed series of metric samples.

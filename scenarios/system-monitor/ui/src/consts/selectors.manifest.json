@@ -1,0 +1,13 @@
+{
+  "selectors": {
+    "capacity": { "testId": "system-monitor-capacity", "selector": "h2" },
+    "cpu": { "testId": "system-monitor-cpu", "selector": "h2" },
+    "dashboard": { "testId": "system-monitor-dashboard", "selector": "h2" },
+    "disk": { "testId": "system-monitor-disk", "selector": "h2" },
+    "forensics": { "testId": "system-monitor-forensics", "selector": "h2" },
+    "gpu": { "testId": "system-monitor-gpu", "selector": "h2" },
+    "logs": { "testId": "system-monitor-logs", "selector": "h2" },
+    "memory": { "testId": "system-monitor-memory", "selector": "h2" },
+    "network": { "testId": "system-monitor-network", "selector": "h2" }
+  }
+}

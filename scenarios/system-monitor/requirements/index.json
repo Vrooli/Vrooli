@@ -66,13 +66,13 @@
       "id": "MOD-P0-007",
       "path": "07-dark-cyberpunk-monitoring-dashboard",
       "priority": "P0",
-      "title": "Dark cyberpunk monitoring dashboard (Matrix-themed React UI)"
+      "title": "Governed responsive monitoring dashboard"
     },
     {
       "id": "MOD-P0-008",
       "path": "08-investigation-script-execution",
       "priority": "P0",
-      "title": "Investigation script execution (30 scripts in investigations/active/; API script endpoints are placeholders)"
+      "title": "Typed investigation script execution"
     },
     {
       "id": "MOD-P0-009",
@@ -90,7 +90,7 @@
       "id": "MOD-P1-011",
       "path": "11-historical-trend-analysis",
       "priority": "P1",
-      "title": "Historical trend analysis (no timeline endpoint exists; trend analysis implemented only within report generation)"
+      "title": "Historical metric timeline and trend context"
     },
     {
       "id": "MOD-P1-012",

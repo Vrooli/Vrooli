@@ -175,7 +175,7 @@ Host-level steps (tmpfiles override, filesystem reserve, journal bounds) are in
 When investigating by hand, identify pressure and likely owners first:
 
 ```bash
-system-monitor metrics process-timeline --window 5m --top 20 --json
+system-monitor metrics processes --json
 storage-manager cleanup plan --json
 ```
 
@@ -183,3 +183,28 @@ Apply only an approved storage-manager plan with an idempotency key. Do not
 add broad deletion, Docker prune, journal vacuum, package-cache cleanup, or
 scenario-private cleanup paths to system-monitor; those are storage-manager
 provider responsibilities, with private data delegated to owner scenarios.
+
+## Collection headroom
+
+Each built-in collector has a declared duration and subprocess budget in
+`api/internal/services/collector_cost.go`. The policy reserves at least half of
+the configured metrics interval for persistence, attribution, and the host.
+The health payload exposes `metrics.self.headroom_ok` and
+`metrics.self.headroom_reason`; a false value means the monitor is consuming
+more than its declared collection share and should be investigated before
+shortening the interval. Raspberry Pi qualification must record this field
+over a representative run; build success alone is not hardware evidence.
+
+## Lifecycle stop
+
+Use the control plane to stop the scenario so it can signal the recorded API
+and UI PIDs safely:
+
+```bash
+vrooli scenario stop system-monitor
+vrooli scenario status system-monitor
+```
+
+Do not use `pkill`, `killall`, or a broad command-line pattern. Process
+ownership belongs to the control plane and the structure-health validator flags
+unscoped stop commands.

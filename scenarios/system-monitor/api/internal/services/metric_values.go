@@ -1,6 +1,13 @@
 package services
 
-import "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/maputil"
+import (
+	"fmt"
+	"time"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/maputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+)
 
 // Re-export maputil functions as package-level aliases for backward compatibility
 // within the services package. These delegate to the shared maputil package.
@@ -12,3 +19,81 @@ var (
 	getStringValue  = maputil.GetString
 	getBoolValue    = maputil.GetBool
 )
+
+func metricState(data *collectors.MetricData, key, unavailableReason string) models.MetricState {
+	now := time.Now()
+	if data != nil && !data.Timestamp.IsZero() {
+		now = data.Timestamp
+	}
+	state := models.MetricState{Status: "failed", Reason: unavailableReason, ObservedAt: now}
+	if data == nil {
+		return state
+	}
+	if data.Tags != nil {
+		state.Provenance = data.Tags["source"]
+	}
+	if state.Provenance == "" {
+		state.Provenance = "system-monitor/" + data.CollectorName
+	}
+	if status, ok := data.Values["status"].(string); ok && status != "" {
+		state.Status = status
+	}
+	if reason, ok := data.Values["reason"].(string); ok && reason != "" {
+		state.Reason = reason
+	}
+	if errText, ok := data.Values["error"].(string); ok && errText != "" {
+		state.Reason = errText
+	}
+	// An explicit unsupported/failed status is authoritative. Collectors may
+	// retain a zero-valued compatibility field alongside the state, but that
+	// field must never turn an unavailable measurement into a false reading.
+	if state.Status == "unsupported" || state.Status == "failed" {
+		if state.Reason == "" {
+			state.Reason = fmt.Sprintf("collector did not measure %s", key)
+		}
+		return state
+	}
+	if value, ok := data.Values[key].(float64); ok {
+		state.Status = "measured"
+		state.Value = value
+		state.Reason = ""
+		return state
+	}
+	if value, ok := data.Values[key].(int); ok {
+		state.Status = "measured"
+		state.Value = float64(value)
+		state.Reason = ""
+		return state
+	}
+	if state.Status == "measured" {
+		state.Status = "failed"
+	}
+	if state.Reason == "" {
+		state.Reason = fmt.Sprintf("collector did not return %s", key)
+	}
+	return state
+}
+
+func diskMetricState(data *collectors.MetricData) models.MetricState {
+	state := metricState(data, "usage", "disk collector did not return usage")
+	if data == nil {
+		return state
+	}
+	usage, ok := data.Values["usage"].(map[string]interface{})
+	if !ok {
+		return state
+	}
+	if status, _ := usage["status"].(string); status == "unsupported" || status == "failed" {
+		state.Status = status
+		if reason, _ := usage["reason"].(string); reason != "" {
+			state.Reason = reason
+		}
+		return state
+	}
+	percent, ok := usage["percent"].(float64)
+	if !ok {
+		return models.MetricState{Status: "failed", Reason: "disk usage percent was not measured", Provenance: state.Provenance, ObservedAt: state.ObservedAt}
+	}
+	state.Status, state.Value, state.Reason = "measured", percent, ""
+	return state
+}

@@ -16,9 +16,10 @@
 :root,
 [data-theme="dark"] {
   /* ── Brand / Accent ── */
-  --color-primary: #5b8af5;
-  --color-primary-hover: #7da6ff;
-  --color-primary-muted: rgba(91, 138, 245, 0.14);
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-muted: rgba(37, 99, 235, 0.14);
+  --color-secondary: #0891b2;
   --color-primary-text: #ffffff;
 
   /* ── Backgrounds ── */
@@ -56,7 +57,7 @@
   --color-info-text: #93c5fd;
 
   /* ── Focus ── */
-  --focus-ring: 0 0 0 3px rgba(91, 138, 245, 0.35);
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.35);
 
   /* ── Overlays ── */
   --overlay-backdrop: rgba(4, 6, 16, 0.7);
@@ -94,9 +95,10 @@
    ═══════════════════════════════════════════════════════════ */
 [data-theme="light"] {
   /* ── Brand / Accent ── */
-  --color-primary: #4f46e5;
-  --color-primary-hover: #4338ca;
-  --color-primary-muted: rgba(79, 70, 229, 0.1);
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-muted: rgba(37, 99, 235, 0.1);
+  --color-secondary: #0891b2;
   --color-primary-text: #ffffff;
 
   /* ── Backgrounds ── */
@@ -134,7 +136,7 @@
   --color-info-text: #1d4ed8;
 
   /* ── Focus ── */
-  --focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.3);
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.3);
 
   /* ── Overlays ── */
   --overlay-backdrop: rgba(15, 23, 42, 0.4);
@@ -264,12 +266,28 @@ p {
   color: var(--color-text-secondary);
 }
 
+/* All native controls meet the 44px touch target floor, including controls
+   rendered by feature pages that do not use the shared button classes. */
+button,
+select,
+input {
+  min-height: 44px;
+}
+
+.app-nav a {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
 /* ═══════════════════════════════════════════════════════════
    BUTTONS
    ═══════════════════════════════════════════════════════════ */
 .btn {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--color-surface);
@@ -451,6 +469,10 @@ p {
   margin-bottom: var(--spacing-sm);
 }
 
+.metric-observed-at { color: var(--color-text-muted); font-size: var(--text-xs); margin-top: var(--spacing-xs); }
+.metric-state-reason { color: var(--color-warning-text); font-size: var(--text-xs); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
 .metric-bar {
   width: 100%;
   height: 4px;
@@ -533,6 +555,7 @@ p {
   justify-content: center;
   gap: var(--spacing-xs);
   padding: 0.4rem 0.75rem;
+  min-height: 44px;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -560,7 +583,9 @@ p {
 
 .header-button.icon-button {
   width: 36px;
-  height: 36px;
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
   padding: 0;
   border-radius: var(--radius-md);
 }
@@ -573,8 +598,8 @@ p {
 }
 
 .status-dot-button {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   padding: 0;
   border: 1px solid var(--color-border);
@@ -604,6 +629,19 @@ p {
 
 .status-dot.error {
   background: var(--color-warning);
+}
+
+.status-dot.status-critical {
+  background: var(--color-error);
+}
+
+.status-dot.status-warning {
+  background: var(--color-warning);
+}
+
+.status-dot.status-info {
+  background: var(--color-info);
+  animation: none;
 }
 
 @keyframes pulse {
@@ -860,9 +898,23 @@ p {
   box-shadow: var(--focus-ring);
 }
 
+.history-window-control select {
+  min-height: 44px;
+  padding: 0 var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.history-window-control select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* Terminal modal */
 .modal-terminal {
-  width: min(900px, calc(100vw - 3rem));
+  width: min(900px, calc(100% - 3rem));
   max-height: min(80vh, 720px);
   display: flex;
   flex-direction: column;
@@ -2186,6 +2238,69 @@ input[type="range"]::-moz-range-thumb:hover {
   text-align: center;
 }
 
+.logs-page,
+.log-table {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.log-table {
+  overflow-x: auto;
+}
+
+@media (max-width: 480px) {
+  .logs-page {
+    overflow-x: clip;
+  }
+
+  .logs-page .filter-bar {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .logs-page .filter-bar > *,
+  .logs-page .filter-bar .flex-row-center {
+    min-width: 0 !important;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .logs-page .filter-bar input,
+  .logs-page .filter-bar select {
+    min-width: 0 !important;
+    max-width: 100%;
+  }
+}
+
+.incident-timeline-entry + .incident-timeline-entry {
+  border-top: 1px solid var(--color-border);
+}
+
+.incident-timeline-entry-button {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  align-items: start;
+  gap: var(--spacing-sm);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--spacing-sm) 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.incident-timeline-entry-button:hover,
+.incident-timeline-entry-button:focus-visible {
+  color: var(--color-info);
+}
+
+.incident-timeline-entry-button > span:last-child {
+  display: grid;
+  gap: 0.2rem;
+}
+
 /* Icon button — transparent, hover-reveals background */
 .btn-icon {
   display: inline-flex;
@@ -2210,9 +2325,7 @@ input[type="range"]::-moz-range-thumb:hover {
     gap: 0.25rem;
   }
 
-  .system-monitor-title-text {
-    display: none;
-  }
+  .system-monitor-title-text { display: inline; }
 
   .agent-spawn-header {
     flex-direction: column;
@@ -2243,6 +2356,37 @@ input[type="range"]::-moz-range-thumb:hover {
   }
 }
 
+@media (max-width: 480px) {
+  body { overflow-x: hidden; }
+  .metrics-grid { gap: var(--spacing-sm); }
+  .metric-card { min-width: 0; padding: var(--spacing-md); }
+  .metric-grid-2col { grid-template-columns: 1fr; }
+  .app-header-inner {
+    flex-wrap: wrap;
+    padding: var(--spacing-sm) var(--spacing-md);
+    gap: var(--spacing-sm);
+  }
+  .app-header-inner > .flex-row-center:last-child {
+    order: 2;
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .app-header-inner > .app-nav {
+    order: 3;
+    flex: 1 1 100%;
+    margin-left: 0 !important;
+    justify-content: flex-start;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 2px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 /* ═══════════════════════════════════════════════════════════
    THEME TOGGLE
    ═══════════════════════════════════════════════════════════ */
@@ -2250,8 +2394,9 @@ input[type="range"]::-moz-range-thumb:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);

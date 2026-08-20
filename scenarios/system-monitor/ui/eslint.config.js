@@ -4,6 +4,32 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
+const noRawHexColorRule = {
+  meta: {
+    type: "problem",
+    docs: { description: "Require semantic color tokens instead of literal hex colors" },
+    schema: [],
+  },
+  create(context) {
+    const reportIfRawHex = (node, value) => {
+      if (typeof value === "string" && /#[0-9a-f]{3,8}\b/i.test(value)) {
+        context.report({ node, message: "Use a semantic CSS color token instead of a literal hex color." });
+      }
+    };
+
+    return {
+      Literal(node) {
+        reportIfRawHex(node, node.value);
+      },
+      TemplateLiteral(node) {
+        for (const quasi of node.quasis) {
+          reportIfRawHex(quasi, quasi.value.raw);
+        }
+      },
+    };
+  },
+};
+
 export default tseslint.config(
   { ignores: ["dist", "node_modules"] },
   {
@@ -19,6 +45,7 @@ export default tseslint.config(
       "import": importPlugin,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      "system-monitor": { rules: { "no-raw-hex-color": noRawHexColorRule } },
     },
     settings: {
       "import/resolver": {
@@ -60,6 +87,30 @@ export default tseslint.config(
       // CRITICAL: Detects circular dependencies ("Cannot access X before initialization").
       "import/no-cycle": "error",
 
+      // Test utilities are quarantine-only. Production code must not pull
+      // provider wiring, mutable fakes, or test-only dependencies into the
+      // shipped bundle.
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/test-utils",
+                "**/test-utils/*",
+                "@/test-utils",
+                "@/test-utils/*",
+                "**/features/*/mocks",
+                "**/features/*/mocks/*",
+                "@/features/*/mocks",
+                "@/features/*/mocks/*",
+              ],
+              message: "Production code must not import from test utilities or feature mocks.",
+            },
+          ],
+        },
+      ],
+
       // ════════════════════════════════════════════════════════════════════════
       // STANDARD RULES (can be adjusted if needed)
       // ════════════════════════════════════════════════════════════════════════
@@ -90,6 +141,21 @@ export default tseslint.config(
       "@typescript-eslint/restrict-template-expressions": "warn",
       "@typescript-eslint/no-unnecessary-type-conversion": "warn",
       "@typescript-eslint/no-redundant-type-constituents": "warn",
+      "system-monitor/no-raw-hex-color": "error",
+    },
+  },
+  {
+    files: ["src/test-setup.ts"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
+  },
+  {
+    files: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    rules: {
+      // Tests are the quarantine boundary's consumers; production modules remain
+      // prohibited from importing the provider harness and test-only fakes.
+      "no-restricted-imports": "off",
     },
   }
 );

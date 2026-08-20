@@ -11,11 +11,11 @@ export const PstoreArtifactList = ({ envelope }: PstoreArtifactListProps) => {
   }
   const { path, entries } = envelope.data;
   return (
-    <div className="card" style={{ padding: 'var(--spacing-md)' }}>
-      <div className="font-bold" style={{ marginBottom: '0.5rem' }}>
+    <div className="card" data-sm-style="sm-style-7b635e08e2">
+      <div className="font-bold" data-sm-style="sm-style-b113dc3b73">
         Pstore Artifacts
       </div>
-      <div className="text-xs text-muted" style={{ marginBottom: '0.5rem' }}>
+      <div className="text-xs text-muted" data-sm-style="sm-style-b113dc3b73">
         {path}
       </div>
       {entries.length === 0 ? (
@@ -23,13 +23,13 @@ export const PstoreArtifactList = ({ envelope }: PstoreArtifactListProps) => {
           No artifacts. (No panic captured since last boot — this is the healthy state.)
         </div>
       ) : (
-        <table className="data-table" style={{ width: '100%', fontSize: 'var(--text-sm)' }}>
+        <table className="data-table" data-sm-style="sm-style-edba66b80f">
           <thead>
             <tr>
-              <th style={{ textAlign: 'left' }}>Name</th>
-              <th style={{ textAlign: 'left' }}>Kind</th>
-              <th style={{ textAlign: 'right' }}>Size</th>
-              <th style={{ textAlign: 'left' }}>Modified</th>
+              <th data-sm-style="sm-style-90a773519e">Name</th>
+              <th data-sm-style="sm-style-90a773519e">Kind</th>
+              <th data-sm-style="sm-style-905bfede49">Size</th>
+              <th data-sm-style="sm-style-90a773519e">Modified</th>
             </tr>
           </thead>
           <tbody>
@@ -37,7 +37,7 @@ export const PstoreArtifactList = ({ envelope }: PstoreArtifactListProps) => {
               <tr key={e.name}>
                 <td>{e.name}</td>
                 <td>{e.kind}</td>
-                <td style={{ textAlign: 'right' }}>{e.size}</td>
+                <td data-sm-style="sm-style-905bfede49">{e.size}</td>
                 <td>{e.modified ? new Date(e.modified).toLocaleString() : '—'}</td>
               </tr>
             ))}

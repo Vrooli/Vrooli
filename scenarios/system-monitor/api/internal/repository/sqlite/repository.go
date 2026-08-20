@@ -315,7 +315,7 @@ func (r *Repository) GetLatestMetrics(ctx context.Context) (*models.MetricsRespo
 
 	resp := &models.MetricsResponse{Timestamp: time.Now()}
 
-	for _, collector := range []string{"cpu", "memory", "network", "gpu"} {
+	for _, collector := range []string{"cpu", "memory", "network", "gpu", "disk"} {
 		row := r.db.QueryRowContext(ctx,
 			"SELECT metric_data FROM metrics WHERE collector_name = ? ORDER BY timestamp DESC LIMIT 1",
 			collector,
@@ -945,25 +945,81 @@ func parseTime(s string) (time.Time, error) {
 }
 
 func hydrateMetricsResponse(resp *models.MetricsResponse, collector string, values map[string]interface{}) {
+	state := storedMetricState(resp.Timestamp, collector, values)
 	switch collector {
 	case "cpu":
+		resp.CPUState = state
 		if cpu, ok := values["usage_percent"].(float64); ok {
 			resp.CPUUsage = cpu
 		}
 	case "memory":
+		resp.MemoryState = state
 		if mem, ok := values["usage_percent"].(float64); ok {
 			resp.MemoryUsage = mem
 		}
 	case "network":
+		resp.ConnectionsState = state
 		if tcp, ok := values["tcp_connections"].(float64); ok {
 			resp.TCPConnections = int(tcp)
 		}
 	case "gpu":
+		resp.GPUState = state
 		if usage, ok := values["total_usage_percent"].(float64); ok {
 			v := usage
 			resp.GPUUsage = &v
 		}
+	case "disk":
+		resp.DiskState = state
+		if usage, ok := values["usage"].(map[string]interface{}); ok {
+			if percent, ok := usage["percent"].(float64); ok {
+				resp.DiskUsage = percent
+			}
+		}
 	}
+}
+
+func storedMetricState(observedAt time.Time, collector string, values map[string]interface{}) models.MetricState {
+	state := models.MetricState{
+		Status:     "failed",
+		Reason:     "collector did not return a measurement",
+		Provenance: "system-monitor/" + collector,
+		ObservedAt: observedAt,
+	}
+	if status, _ := values["status"].(string); status != "" {
+		state.Status = status
+	}
+	if reason, _ := values["reason"].(string); reason != "" {
+		state.Reason = reason
+	}
+	if source, _ := values["source"].(string); source != "" {
+		state.Provenance = source
+	}
+	if _, explicitStatus := values["status"].(string); !explicitStatus {
+		measured := false
+		switch collector {
+		case "cpu", "memory":
+			_, measured = values["usage_percent"].(float64)
+		case "network":
+			_, measured = values["tcp_connections"].(float64)
+		case "gpu":
+			_, measured = values["total_usage_percent"].(float64)
+		case "disk":
+			usage, ok := values["usage"].(map[string]interface{})
+			if ok {
+				_, measured = usage["percent"].(float64)
+			}
+		}
+		if measured {
+			state.Status = "measured"
+		}
+	}
+	if state.Status == "" {
+		state.Status = "failed"
+	}
+	if state.Status == "measured" {
+		state.Reason = ""
+	}
+	return state
 }
 
 func nullTime(t *time.Time) interface{} {

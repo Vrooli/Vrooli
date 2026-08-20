@@ -1,4 +1,4 @@
-import { defineConfig, type UserConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
@@ -16,7 +16,7 @@ import react from '@vitejs/plugin-react'
 //
 // Triggering the perf build:
 //   - Direct:  `pnpm run build:profile` always uses --mode profile.
-export default defineConfig(({ mode }): UserConfig => {
+export default defineConfig(({ mode }) => {
   const isProfile = mode === 'profile'
 
   return {
@@ -33,6 +33,39 @@ export default defineConfig(({ mode }): UserConfig => {
     // ╚══════════════════════════════════════════════════════════════╝
     base: './',
     plugins: [react()],
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: ['./src/test-setup.ts'],
+      include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+      exclude: ['**/node_modules/**', '**/dist/**', '**/coverage/**'],
+      passWithNoTests: true,
+      clearMocks: true,
+      restoreMocks: true,
+      coverage: {
+        provider: 'v8',
+        reporter: ['text', 'json-summary', 'json'],
+        reportOnFailure: true,
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: [
+          'src/**/*.test.{ts,tsx}',
+          'src/**/*.spec.{ts,tsx}',
+          'src/**/*.d.ts',
+          'src/main.tsx',
+          'src/test-setup.ts',
+          'src/test-utils/**',
+          'src/consts/strings.generated.ts',
+          'src/i18n/locales/**',
+          'src/**/generated/**',
+        ],
+        thresholds: {
+          lines: 85,
+          functions: 85,
+          branches: 85,
+          statements: 85,
+        },
+      },
+    },
     resolve: isProfile
       ? {
           alias: {

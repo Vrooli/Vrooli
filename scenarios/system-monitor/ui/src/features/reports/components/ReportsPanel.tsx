@@ -140,20 +140,14 @@ export const ReportsPanel = () => {
         {loading ? (
           <LoadingSkeleton variant="card" count={2} />
         ) : error && !loading ? (
-          <div className="error-banner" style={{
-            padding: 'var(--spacing-md)',
-            marginBottom: 'var(--spacing-md)',
-            color: 'var(--color-warning)',
-            textAlign: 'center',
-            fontSize: 'var(--text-sm)',
-          }}>
+          <div className="error-banner" data-sm-style="sm-style-c220bf04e8">
             FAILED TO LOAD REPORTS
             <br />
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>{error}</span>
+            <span data-sm-style="sm-style-634e37ebe1">{error}</span>
             <br />
             <button type="button" className="btn btn-action"
               onClick={() => { void loadReports(); }}
-              style={{ marginTop: 'var(--spacing-sm)' }}>
+              data-sm-style="sm-style-9ed1054ccd">
               <RefreshCw size={14} /> RETRY
             </button>
           </div>
@@ -163,13 +157,13 @@ export const ReportsPanel = () => {
           </div>
         ) : (
           reports.map(report => (
-            <div key={report.id} className="report-item section-card mb-md" style={{ cursor: 'pointer' }}>
-              <div className="flex-row-between mb-md" style={{ alignItems: 'flex-start' }}>
+            <div key={report.id} className="report-item section-card mb-md" data-sm-style="sm-style-667fe49ecb">
+              <div className="flex-row-between mb-md" data-sm-style="sm-style-b27fbbaf32">
                 <div>
-                  <h4 className="section-heading" style={{ textTransform: 'uppercase' }}>
+                  <h4 className="section-heading" data-sm-style="sm-style-40e6416985">
                     {report.type} Report
                   </h4>
-                  <p className="text-muted text-sm" style={{ margin: 0 }}>
+                  <p className="text-muted text-sm" data-sm-style="sm-style-2a0ca8350a">
                     Generated: {report.generatedAt ? timestampDate(report.generatedAt).toLocaleString() : 'Unknown'}
                   </p>
                 </div>
@@ -182,14 +176,14 @@ export const ReportsPanel = () => {
               <div className="report-summary detail-grid detail-grid-md mb-md">
                 <div className="summary-stat">
                   <span className="summary-stat-label">Avg CPU Usage:</span>
-                  <span className="summary-stat-value" style={{ color: 'var(--color-text-heading)' }}>
+                  <span className="summary-stat-value" data-sm-style="sm-style-dbed1e5364">
                     {report.summary?.avgCpuUsage.toFixed(1)}%
                   </span>
                 </div>
 
                 <div className="summary-stat">
                   <span className="summary-stat-label">Avg Memory Usage:</span>
-                  <span className="summary-stat-value" style={{ color: 'var(--color-text-heading)' }}>
+                  <span className="summary-stat-value" data-sm-style="sm-style-dbed1e5364">
                     {report.summary?.avgMemoryUsage.toFixed(1)}%
                   </span>
                 </div>
@@ -205,7 +199,7 @@ export const ReportsPanel = () => {
 
                 <div className="summary-stat">
                   <span className="summary-stat-label">Uptime:</span>
-                  <span className="summary-stat-value" style={{ color: 'var(--color-success)' }}>
+                  <span className="summary-stat-value" data-sm-style="sm-style-eab9fc4afc">
                     {report.summary?.uptimePercentage.toFixed(1)}%
                   </span>
                 </div>
@@ -213,10 +207,10 @@ export const ReportsPanel = () => {
               
               {report.recommendations.length > 0 && (
                 <div className="recommendations">
-                  <h5 className="text-accent text-sm" style={{ margin: '0 0 var(--spacing-sm) 0' }}>
+                  <h5 className="text-accent text-sm" data-sm-style="sm-style-fef0e1ff97">
                     Key Recommendations:
                   </h5>
-                  <ul className="text-sm" style={{ margin: 0, paddingLeft: 'var(--spacing-lg)' }}>
+                  <ul className="text-sm" data-sm-style="sm-style-59a5e35c0f">
                     {report.recommendations.slice(0, 2).map((rec, index) => (
                       <li key={index} className="mb-sm">
                         {rec}

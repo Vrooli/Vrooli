@@ -15,14 +15,9 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 )
 
-// secureHeaders applies a CORS-enabled OWASP security header floor to a
-// response. Each Set is guarded so it never clobbers a value an upstream
-// middleware (CORS origin reflection, the logging response wrapper) already
-// wrote — it only fills gaps so every JSON/error write site is self-contained.
+// secureHeaders applies the OWASP security header floor to a response. CORS
+// policy is owned by the middleware and is intentionally not synthesized here.
 func secureHeaders(w http.ResponseWriter) {
-	if w.Header().Get("Access-Control-Allow-Origin") == "" {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-	}
 	if w.Header().Get("X-Frame-Options") == "" {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")

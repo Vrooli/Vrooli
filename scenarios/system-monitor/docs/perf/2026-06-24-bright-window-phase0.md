@@ -11,7 +11,7 @@ curl -fsS http://localhost:16914/debug/pprof/
 curl -fsS 'http://localhost:16914/debug/pprof/profile?seconds=30' \
   -o scenarios/system-monitor/docs/perf/2026-06-24-bright-window-before.pprof
 curl -fsS http://localhost:16914/health | jq '.metrics.self'
-system-monitor metrics process-timeline --window 5m --top 20 --json
+system-monitor metrics processes --json
 ```
 
 ## Artifacts
@@ -51,7 +51,7 @@ system-monitor metrics process-timeline --window 5m --top 20 --json
 - `/debug/pprof/` is mounted only outside production.
 - Development `WriteTimeout` is 75s so 30-60s pprof captures can complete;
   production keeps the existing 15s timeout.
-- The live `system-monitor metrics process-timeline --window 5m --top 20 --json`
+- The live `system-monitor metrics processes --json`
   command returned ranked owner-attributed process consumers after lifecycle
   install/restart.
 

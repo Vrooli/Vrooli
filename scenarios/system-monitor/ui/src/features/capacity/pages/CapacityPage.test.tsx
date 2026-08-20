@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { create } from '@bufbuild/protobuf';
-import { renderWithProviders } from "@vrooli/api-base/testing";
+import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
 import { CapacityPage } from './CapacityPage';
 import {
   GetCapacityOverviewResponseSchema,
@@ -62,7 +62,8 @@ describe('CapacityPage', () => {
   });
 
   it('renders GPU contention, claims, findings and policy levers', async () => {
-    renderWithProviders(<CapacityPage />);
+    // provider-free-exception: page uses local fetch adapters and no shared provider context.
+    render(<CapacityPage />);
 
     await waitFor(() => expect(screen.getByText(/GPU 0 · NVIDIA RTX/)).toBeInTheDocument());
     // Claim row
@@ -82,7 +83,8 @@ describe('CapacityPage', () => {
       gpus: [],
       claims: [],
     }));
-    renderWithProviders(<CapacityPage />);
+    // provider-free-exception: page uses local fetch adapters and no shared provider context.
+    render(<CapacityPage />);
 
     await waitFor(() => expect(screen.getByText(/Capacity sensing is unavailable/i)).toBeInTheDocument());
     expect(screen.getByText(/nvidia-smi binary not found/i)).toBeInTheDocument();
@@ -91,7 +93,8 @@ describe('CapacityPage', () => {
 
   it('saves a policy lever change', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<CapacityPage />);
+    // provider-free-exception: page uses local fetch adapters and no shared provider context.
+    render(<CapacityPage />);
 
     await waitFor(() => expect(screen.getByLabelText('enforce')).toBeInTheDocument());
 
@@ -106,7 +109,8 @@ describe('CapacityPage', () => {
 
   it('shows an error banner when the overview fetch fails', async () => {
     vi.mocked(fetchCapacityOverview).mockRejectedValue(new Error('boom'));
-    renderWithProviders(<CapacityPage />);
+    // provider-free-exception: page uses local fetch adapters and no shared provider context.
+    render(<CapacityPage />);
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/boom|Failed to load/i));
   });
 });

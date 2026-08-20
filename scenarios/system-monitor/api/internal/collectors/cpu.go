@@ -18,6 +18,7 @@ type CPUCollector struct {
 	snapshots      SnapshotProvider
 	lastCPUStats   *cpuStats
 	lastSampleTime time.Time
+	platformState  platformCPUState
 }
 
 type cpuStats struct {
@@ -49,13 +50,11 @@ func (c *CPUCollector) SetSnapshotProvider(p SnapshotProvider) {
 
 // Collect gathers CPU metrics
 func (c *CPUCollector) Collect(ctx context.Context) (*MetricData, error) {
-	if collectorOS != "linux" {
+	if collectorOS != runtime.GOOS {
 		return unsupportedMetricData(c.GetName(), "cpu"), nil
 	}
 	snapshot, _ := c.snapshots.Snapshot(ctx)
-	usage := c.getCPUUsage()
-	loadAvg := c.getLoadAverage(snapshot)
-	contextSwitches := c.getContextSwitches()
+	reading := collectPlatformCPU(ctx, c, snapshot)
 	cores := snapshot.CPU.Cores
 	goarch := snapshot.Arch
 	if goarch == "" {
@@ -66,22 +65,36 @@ func (c *CPUCollector) Collect(ctx context.Context) (*MetricData, error) {
 		goos = collectorOS
 	}
 
-	return &MetricData{
+	data := &MetricData{
 		CollectorName: c.GetName(),
 		Timestamp:     time.Now(),
 		Type:          "cpu",
 		Values: map[string]interface{}{
-			"usage_percent":    usage,
-			"cores":            cores,
-			"load_average":     loadAvg,
-			"context_switches": contextSwitches,
-			"goroutines":       runtime.NumGoroutine(),
+			"cores":      cores,
+			"goroutines": runtime.NumGoroutine(),
 		},
 		Tags: map[string]string{
-			"arch": goarch,
-			"os":   goos,
+			"arch":   goarch,
+			"os":     goos,
+			"source": reading.provenance,
 		},
-	}, nil
+	}
+	if reading.status != "" {
+		data.Values["status"] = reading.status
+	}
+	if reading.reason != "" {
+		data.Values["reason"] = reading.reason
+	}
+	if reading.status == "measured" {
+		data.Values["usage_percent"] = reading.usage
+		if reading.loadAverage != nil {
+			data.Values["load_average"] = reading.loadAverage
+		}
+		if reading.contextSwitches != nil {
+			data.Values["context_switches"] = *reading.contextSwitches
+		}
+	}
+	return data, nil
 }
 
 // getCPUUsage returns current CPU usage percentage using delta calculation
@@ -201,10 +214,6 @@ func (c *CPUCollector) getContextSwitches() int64 {
 
 // getTopProcessesByCPU returns top processes by CPU usage
 func GetTopProcessesByCPU(limit int) ([]map[string]interface{}, error) {
-	if collectorOS != "linux" {
-		return []map[string]interface{}{}, nil
-	}
-
 	samples, err := topProcessSamples(limit, func(a, b procsampler.ProcessSample) bool {
 		if a.CPUPct != b.CPUPct {
 			return a.CPUPct > b.CPUPct

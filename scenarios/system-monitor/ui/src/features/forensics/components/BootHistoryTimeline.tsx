@@ -7,16 +7,16 @@ interface BootHistoryTimelineProps {
   envelope: ForensicsEnvelope<BootHistoryReport>;
 }
 
-const colorFor = (c: ShutdownClass): string => {
+const shutdownClass = (c: ShutdownClass): string => {
   switch (c) {
     case 'clean':
-      return 'var(--color-success, #4ade80)';
+      return 'shutdown-clean';
     case 'unclean':
-      return 'var(--color-error, #f87171)';
+      return 'shutdown-unclean';
     case 'in-progress':
-      return 'var(--color-info, #60a5fa)';
+      return 'shutdown-in-progress';
     case 'unknown':
-      return 'var(--color-warning, #facc15)';
+      return 'shutdown-unknown';
   }
 };
 
@@ -26,37 +26,36 @@ export const BootHistoryTimeline = ({ envelope }: BootHistoryTimelineProps) => {
   }
   const { boots } = envelope.data;
   return (
-    <div className="card" style={{ padding: 'var(--spacing-md)' }}>
-      <div className="font-bold" style={{ marginBottom: '0.5rem' }}>
+    <div className="card" data-sm-style="sm-style-7b635e08e2">
+      <div className="font-bold" data-sm-style="sm-style-b113dc3b73">
         Boot History
       </div>
       {boots.length === 0 ? (
         <div className="text-sm text-muted">No boot records available.</div>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        <ul data-sm-style="sm-style-0d21d4c312">
           {boots.map((b) => {
             const c = classifyShutdown(b);
             return (
               <li
                 key={b.bootId || `idx-${b.index}`}
-                className="boot-history-row"
+                className={`boot-history-row ${shutdownClass(c)}`}
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '4ch 1fr auto auto',
                   gap: '0.5rem',
                   alignItems: 'center',
                   padding: '0.25rem 0',
-                  borderLeft: `3px solid ${colorFor(c)}`,
                   paddingLeft: '0.5rem',
                   marginBottom: '0.25rem',
                 }}
               >
                 <span className="text-xs text-muted">{b.index}</span>
-                <span className="text-xs" title={b.bootId} style={{ fontFamily: 'monospace' }}>
+                <span className="text-xs" title={b.bootId} data-sm-style="sm-style-51316ccfb7">
                   {b.bootId.slice(0, 8) || '—'}
                 </span>
                 <span className="text-xs">{formatBootDuration(b.firstEntry, b.lastEntry)}</span>
-                <span className="text-xs" style={{ color: colorFor(c) }}>
+                <span className="text-xs shutdown-label">
                   {shutdownLabel(c)}
                 </span>
               </li>

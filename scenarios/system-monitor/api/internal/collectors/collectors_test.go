@@ -20,7 +20,6 @@ func TestCollectorsDoNotFabricateNonLinuxMetrics(t *testing.T) {
 		NewCPUCollector(),
 		NewNetworkCollector(),
 		NewProcessCollector(),
-		NewDiskCollector(),
 	}
 	for _, collector := range collectors {
 		data, err := collector.Collect(context.Background())
@@ -33,6 +32,24 @@ func TestCollectorsDoNotFabricateNonLinuxMetrics(t *testing.T) {
 		if _, fabricated := data.Values["usage_percent"]; fabricated {
 			t.Errorf("%s returned fabricated usage values", collector.GetName())
 		}
+	}
+}
+
+func TestDiskCollectorUsesNativeFilesystemBackend(t *testing.T) {
+	collector := NewDiskCollector()
+	data, err := collector.Collect(context.Background())
+	if err != nil {
+		t.Fatalf("disk collection failed: %v", err)
+	}
+	usage, ok := data.Values["usage"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("disk usage has type %T, want map", data.Values["usage"])
+	}
+	if usage["status"] == "failed" {
+		t.Fatalf("disk usage failed: %v", usage["reason"])
+	}
+	if percent, ok := usage["percent"].(float64); !ok || percent < 0 || percent > 100 {
+		t.Fatalf("disk percent = %#v, want measured percentage", usage["percent"])
 	}
 }
 
@@ -65,11 +82,33 @@ func TestCPUCollector_Collect(t *testing.T) {
 			t.Fatal("Expected values map, got nil")
 		}
 
-		// Check required fields
-		requiredFields := []string{"usage_percent", "cores", "load_average", "context_switches", "goroutines"}
+		// The first CPU delta is intentionally not a numeric measurement. The
+		// collector must expose the reason rather than fabricate a zero.
+		if got := metrics.Values["status"]; got != "failed" {
+			t.Fatalf("first sample status = %v, want failed", got)
+		}
+		if _, exists := metrics.Values["usage_percent"]; exists {
+			t.Fatal("first CPU sample must not expose a fabricated usage_percent")
+		}
+
+		// Stable metadata is available even before the first delta.
+		requiredFields := []string{"cores", "goroutines", "status", "reason"}
 		for _, field := range requiredFields {
 			if _, exists := metrics.Values[field]; !exists {
 				t.Errorf("Expected field %s in values", field)
+			}
+		}
+
+		metrics, err = collector.Collect(ctx)
+		if err != nil {
+			t.Fatalf("second CPU collection failed: %v", err)
+		}
+		if metrics.Values["status"] != "measured" {
+			t.Fatalf("second sample status = %v, want measured", metrics.Values["status"])
+		}
+		for _, field := range []string{"usage_percent", "load_average", "context_switches"} {
+			if _, exists := metrics.Values[field]; !exists {
+				t.Errorf("measured sample missing field %s", field)
 			}
 		}
 

@@ -24,9 +24,9 @@ const killButtonClass: Record<ProcessAlertItemProps['variant'], string> = {
 export const ProcessAlertItem = ({ pid, name, variant, detail, onKill }: ProcessAlertItemProps) => (
   <div className={`pool-item ${variantClass[variant]}`}>
     <span>{name} (PID: {pid})</span>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+    <div data-sm-style="sm-style-67bc078b69">
       {detail && (
-        <span style={{ color: 'var(--color-warning)' }}>
+        <span data-sm-style="sm-style-38c5f4e767">
           {detail}
         </span>
       )}

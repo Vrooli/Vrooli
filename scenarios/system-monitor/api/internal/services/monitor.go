@@ -36,6 +36,7 @@ type MonitorService struct {
 	// attributor maps each pid to its owning scenario; both are nil-safe so a
 	// service constructed without them simply skips process sampling.
 	snapshots         collectors.SnapshotProvider
+	deviceGraphs      collectors.DeviceGraphProvider
 	sampler           procsampler.Sampler
 	attributor        *procsampler.Attributor
 	procSampleEvery   time.Duration
@@ -49,6 +50,9 @@ type MonitorService struct {
 	lastProcSampleDuration  time.Duration
 	lastCommandForkCount    uint64
 	lastSelfMetricsRecorded time.Time
+	lastCycleHeadroomOK     bool
+	lastCycleHeadroomReason string
+	collectionProfile       CollectionProfile
 }
 
 // MonitorOption configures a MonitorService.
@@ -106,9 +110,12 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, in
 		lastRun:                make(map[string]time.Time),
 		lastCollectorDurations: make(map[string]time.Duration),
 		lastCollectorForks:     make(map[string]uint64),
+		lastCycleHeadroomOK:    true,
+		collectionProfile:      CollectionProfileStandard,
 		ctx:                    ctx,
 		cancel:                 cancel,
 		snapshots:              collectors.NewCachedSnapshotProvider(0),
+		deviceGraphs:           collectors.NewCachedDeviceGraphProvider(0),
 		procSampleEvery:        procEvery,
 		procSampleTopN:         procTopN,
 	}
@@ -131,6 +138,9 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, in
 
 	// Register default collectors only if none were injected via options
 	if len(svc.collectors.GetAll()) == 0 {
+		if snapshot, err := svc.snapshots.Snapshot(context.Background()); err == nil {
+			svc.collectionProfile = CollectionProfileForHost(snapshot)
+		}
 		svc.registerCollectors()
 	}
 
@@ -142,19 +152,52 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, in
 // host once instead of three times.
 func (s *MonitorService) registerCollectors() {
 	cpu := collectors.NewCPUCollector()
+	configureCollectorProfile(cpu, s.collectionProfile, "cpu")
 	cpu.SetSnapshotProvider(s.snapshots)
 	mem := collectors.NewMemoryCollector()
+	configureCollectorProfile(mem, s.collectionProfile, "memory")
 	mem.SetSnapshotProvider(s.snapshots)
 
+	network := collectors.NewNetworkCollector()
+	configureCollectorProfile(network, s.collectionProfile, "network")
+	disk := collectors.NewDiskCollector()
+	configureCollectorProfile(disk, s.collectionProfile, "disk")
+	process := collectors.NewProcessCollector()
+	configureCollectorProfile(process, s.collectionProfile, "process")
+	pressure := collectors.NewPressureCollector()
+	configureCollectorProfile(pressure, s.collectionProfile, "pressure")
+	deviceGraph := collectors.NewDeviceGraphCollector()
+	configureCollectorProfile(deviceGraph, s.collectionProfile, "device_graph")
+	deviceGraph.SetDeviceGraphProvider(s.deviceGraphs)
 	s.collectors.Register(cpu)
 	s.collectors.Register(mem)
-	s.collectors.Register(collectors.NewNetworkCollector())
-	s.collectors.Register(collectors.NewDiskCollector())
-	s.collectors.Register(collectors.NewProcessCollector())
-	s.collectors.Register(collectors.NewPressureCollector())
-	if gpuCollector := collectors.NewGPUCollector(); gpuCollector.IsEnabled() {
+	s.collectors.Register(network)
+	s.collectors.Register(disk)
+	s.collectors.Register(process)
+	s.collectors.Register(pressure)
+	s.collectors.Register(deviceGraph)
+	if gpuCollector := collectors.NewGPUCollector(); gpuCollector.IsEnabled() && s.collectionProfile != CollectionProfileLowPower {
+		configureCollectorProfile(gpuCollector, s.collectionProfile, "gpu")
 		gpuCollector.SetSnapshotProvider(s.snapshots)
 		s.collectors.Register(gpuCollector)
+	}
+}
+
+func configureCollectorProfile(collector interface {
+	SetInterval(time.Duration)
+}, profile CollectionProfile, name string,
+) {
+	if profile != CollectionProfileLowPower {
+		return
+	}
+	intervals := map[string]time.Duration{
+		"cpu": 30 * time.Second, "memory": 30 * time.Second,
+		"network": 60 * time.Second, "disk": 120 * time.Second,
+		"process": 60 * time.Second, "pressure": 30 * time.Second,
+		"gpu": 60 * time.Second, "device_graph": 300 * time.Second,
+	}
+	if interval, ok := intervals[name]; ok {
+		collector.SetInterval(interval)
 	}
 }
 
@@ -177,6 +220,12 @@ func (s *MonitorService) Stop() {
 }
 
 // SetActive toggles metric collection without shutting down the service.
+// DeviceGraphs exposes the shared device-graph provider so the API can serve
+// the graph from the same cached walk the collector uses. Handing out the
+// existing provider rather than a fresh one is the point: two providers would
+// mean two host walks and two answers about one machine.
+func (s *MonitorService) DeviceGraphs() collectors.DeviceGraphProvider { return s.deviceGraphs }
+
 func (s *MonitorService) SetActive(active bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -467,6 +516,12 @@ func (s *MonitorService) recordCycleSelfMetrics(duration time.Duration, forks ui
 	s.lastCycleForks = forks
 	s.lastCommandForkCount = collectors.CommandForkCount()
 	s.lastSelfMetricsRecorded = now
+	s.lastCycleHeadroomOK = true
+	s.lastCycleHeadroomReason = ""
+	if duration > time.Duration(float64(s.metricInterval)*collectorCycleHeadroom) {
+		s.lastCycleHeadroomOK = false
+		s.lastCycleHeadroomReason = "collection cycle exceeded 50% of the configured interval"
+	}
 }
 
 // SelfMetrics returns lightweight monitor overhead telemetry for health/status
@@ -485,12 +540,15 @@ func (s *MonitorService) SelfMetrics() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
+		"collection_profile":           string(s.collectionProfile),
 		"last_cycle_duration_ms":       float64(s.lastCycleDuration.Microseconds()) / 1000,
 		"last_cycle_forks":             s.lastCycleForks,
 		"total_collector_forks":        s.lastCommandForkCount,
 		"collector_duration_ms":        collectorDurations,
 		"collector_forks":              collectorForks,
 		"last_proc_sample_duration_ms": float64(s.lastProcSampleDuration.Microseconds()) / 1000,
+		"headroom_ok":                  s.lastCycleHeadroomOK,
+		"headroom_reason":              s.lastCycleHeadroomReason,
 		"recorded_at":                  s.lastSelfMetricsRecorded.UTC().Format(time.RFC3339),
 	}
 }
@@ -545,6 +603,7 @@ func (s *MonitorService) GetCurrentMetricsFresh(ctx context.Context) (*models.Me
 	memData, _ := s.collectFromRegistry(ctx, "memory")
 	netData, _ := s.collectFromRegistry(ctx, "network")
 	gpuData, _ := s.collectFromRegistry(ctx, "gpu")
+	diskData, _ := s.collectFromRegistry(ctx, "disk")
 
 	cpuUsage := 0.0
 	if cpuData != nil {
@@ -576,11 +635,17 @@ func (s *MonitorService) GetCurrentMetricsFresh(ctx context.Context) (*models.Me
 	}
 
 	return &models.MetricsResponse{
-		CPUUsage:       cpuUsage,
-		MemoryUsage:    memUsage,
-		TCPConnections: tcpConnections,
-		GPUUsage:       gpuUsagePtr,
-		Timestamp:      s.clock.Now(),
+		CPUUsage:         cpuUsage,
+		MemoryUsage:      memUsage,
+		TCPConnections:   tcpConnections,
+		GPUUsage:         gpuUsagePtr,
+		DiskUsage:        diskMetricState(diskData).Value,
+		CPUState:         metricState(cpuData, "usage_percent", "CPU has not been sampled yet"),
+		MemoryState:      metricState(memData, "usage_percent", "memory collector unavailable"),
+		ConnectionsState: metricState(netData, "tcp_connections", "network collector unavailable"),
+		GPUState:         metricState(gpuData, "total_usage_percent", "GPU collector unavailable"),
+		DiskState:        diskMetricState(diskData),
+		Timestamp:        s.clock.Now(),
 	}, nil
 }
 
@@ -708,11 +773,15 @@ func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, 
 	samples := make([]models.MetricTimelineSample, 0, len(results))
 	for _, m := range results {
 		samples = append(samples, models.MetricTimelineSample{
-			Timestamp:      m.Timestamp,
-			CPUUsage:       m.CPUUsage,
-			MemoryUsage:    m.MemoryUsage,
-			TCPConnections: m.TCPConnections,
-			GPUUsage:       m.GPUUsage,
+			Timestamp:        m.Timestamp,
+			CPUUsage:         m.CPUUsage,
+			MemoryUsage:      m.MemoryUsage,
+			TCPConnections:   m.TCPConnections,
+			GPUUsage:         m.GPUUsage,
+			CPUState:         m.CPUState,
+			MemoryState:      m.MemoryState,
+			ConnectionsState: m.ConnectionsState,
+			GPUState:         m.GPUState,
 		})
 	}
 

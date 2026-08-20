@@ -3,6 +3,7 @@ package collectors
 import (
 	"context"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -26,24 +27,26 @@ func NewNetworkCollector() *NetworkCollector {
 
 // Collect gathers network metrics
 func (c *NetworkCollector) Collect(ctx context.Context) (*MetricData, error) {
-	if collectorOS != "linux" {
+	if collectorOS != runtime.GOOS {
 		return unsupportedMetricData(c.GetName(), "network"), nil
 	}
-	tcpConnections := c.getTCPConnections(ctx)
-	tcpStates := c.getTCPConnectionStates(ctx)
-	networkStats := c.getNetworkStats(ctx)
-	portUsage := c.getPortUsage(ctx)
+	reading := collectPlatformNetwork(ctx, c)
+	values := reading.values
+	if reading.status != "" {
+		values["status"] = reading.status
+	}
+	if reading.reason != "" {
+		values["reason"] = reading.reason
+	}
 
 	return &MetricData{
 		CollectorName: c.GetName(),
 		Timestamp:     time.Now(),
 		Type:          "network",
-		Values: map[string]interface{}{
-			"tcp_connections": tcpConnections,
-			"tcp_states":      tcpStates,
-			"network_stats":   networkStats,
-			"port_usage":      portUsage,
-			"bandwidth":       c.calculateBandwidth(),
+		Values:        values,
+		Tags: map[string]string{
+			"os":     collectorOS,
+			"source": reading.provenance,
 		},
 	}, nil
 }

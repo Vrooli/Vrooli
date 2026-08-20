@@ -41,7 +41,7 @@ the manual "top consumers by scenario" forensic that found the recurring-scan st
   `GET /api/v1/metrics/processes/timeline?window=&owner=&top=` as a temporary REST route.
   Bright-window later promoted this to `MetricsService.GetProcessTimeline` over Connect, returning ranked
   `{owner, comm, pid, aggregated, cpu_pct, rss_kb, sample_count, first_seen, last_seen}`. CLI:
-  `system-monitor metrics process-timeline --window --owner --top [--json]`. This is the
+  `system-monitor metrics processes --json`. This is the
   standing replacement for the ad-hoc `ps`/`top` investigation.
 
 ## Config knobs
@@ -76,7 +76,7 @@ the in-app counters are.)
 
 Dogfood any time:
 ```bash
-system-monitor metrics process-timeline --window 5m --top 20 --json
+system-monitor metrics processes --json
 curl "http://localhost:${API_PORT}/api/v1/metrics/processes/timeline?window=5m&top=20"
 ```
 

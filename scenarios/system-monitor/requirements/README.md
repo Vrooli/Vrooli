@@ -26,8 +26,8 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 | P0 | system-monitor-must-have-persistent-time-series-data-storage | Persistent time-series data storage (... | 1 |
 | P0 | system-monitor-must-have-configurable-warningcritical-thresholds-via-api-settings-endpoints | Configurable warning/critical thresho... | 1 |
 | P0 | system-monitor-must-have-report-generation-dailyweekly-via-api-endpoint | Report generation (daily/weekly via A... | 1 |
-| P0 | system-monitor-must-have-dark-cyberpunk-monitoring-dashboard-matrix-themed-react-ui | Dark cyberpunk monitoring dashboard (... | 1 |
-| P0 | system-monitor-must-have-investigation-script-execution-30-scripts-in-investigationsactive-api-script-endpoints-are-placeholders | Investigation script execution (30 sc... | 1 |
+| P0 | system-monitor-must-have-dark-cyberpunk-monitoring-dashboard-matrix-themed-react-ui | Governed responsive monitoring dashboard | 1 |
+| P0 | system-monitor-must-have-investigation-script-execution-30-scripts-in-investigationsactive-api-script-endpoints-are-placeholders | Typed investigation script execution | 1 |
 | P0 | system-monitor-must-have-process-monitoring-and-management-zombie-detection-process-kill | Process monitoring and management (zo... | 1 |
 | P0 | system-monitor-must-have-infrastructure-monitoring-database-pools-http-pools-message-queues-storage-io | Infrastructure monitoring (database p... | 1 |
 | P1 | system-monitor-should-have-historical-trend-analysis-no-timeline-endpoint-exists-trend-analysis-implemented-only-within-report-generation | Historical trend analysis (no timelin... | 1 |

@@ -20,7 +20,7 @@ export interface MemoryDetailViewProps {
 }
 
 export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBack }: MemoryDetailViewProps) => {
-  const memoryUsage = detailedMetrics?.memoryDetails?.usage ?? metrics?.memoryUsage ?? 0;
+  const memoryUsage = detailedMetrics?.memoryDetails?.usage ?? (metrics?.memory?.state?.case === 'measured' ? metrics.memory.state.value : undefined);
   const memoryData = useMemo(() => buildSingleSeriesData(metricHistory?.memory), [metricHistory?.memory]);
   const memoryDetails = detailedMetrics?.memoryDetails;
 
@@ -36,7 +36,7 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
     <MetricDetailLayout
       title="MEMORY UTILIZATION"
       icon={<MemoryStick size={22} />}
-      headline={`${memoryUsage.toFixed(1)}% used`}
+      headline={memoryUsage === undefined ? 'Utilization not measured' : `${memoryUsage.toFixed(1)}% used`}
       subhead={subhead}
       onBack={onBack}
     >
@@ -49,7 +49,7 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
         valueFormatter={value => `${value.toFixed(1)}%`}
       />
 
-      <div className="detail-grid detail-grid-lg" style={{ gap: 'var(--spacing-lg)' }}>
+      <div className="detail-grid detail-grid-lg" data-sm-style="sm-style-f383142193">
         <div className="card flex-col-gap-sm">
           <h3 className="section-heading">Swap Activity</h3>
           {swapUsage ? (

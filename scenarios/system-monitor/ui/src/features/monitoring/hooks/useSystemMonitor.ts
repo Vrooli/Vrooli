@@ -58,7 +58,12 @@ interface UseSystemMonitorReturn {
 
 type MaintenanceState = 'active' | 'inactive' | string;
 
-export const useSystemMonitor = (): UseSystemMonitorReturn => {
+interface UseSystemMonitorOptions {
+  enabled?: boolean;
+}
+
+export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemMonitorOptions = {}): UseSystemMonitorReturn => {
+  const pollingEnabled = options.enabled ?? true;
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [detailedMetrics, setDetailedMetrics] = useState<DetailedMetrics | null>(null);
   const [processMonitorData, setProcessMonitorData] = useState<ProcessMonitorData | null>(null);
@@ -285,9 +290,9 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     await Promise.all([
       fetchMetrics(),
       fetchDetailedMetrics(),
-      fetchMetricsTimeline()
+      fetchMetricsTimeline(historyWindowSeconds)
     ]);
-  }, [fetchDetailedMetrics, fetchMetrics, fetchMetricsTimeline]);
+  }, [fetchDetailedMetrics, fetchMetrics, fetchMetricsTimeline, historyWindowSeconds]);
 
   const fetchDeferredData = useCallback(async () => {
     await Promise.all([
@@ -295,14 +300,15 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       fetchProcessMonitorData(),
       fetchInfrastructureData(),
       fetchInvestigations(),
-      fetchMetricsTimeline(120)
+      fetchMetricsTimeline(historyWindowSeconds)
     ]);
   }, [
     fetchMetricsTimeline,
     fetchDetailedMetrics,
     fetchProcessMonitorData,
     fetchInfrastructureData,
-    fetchInvestigations
+	  fetchInvestigations,
+	  historyWindowSeconds
   ]);
 
   const refresh = useCallback(async () => {
@@ -372,7 +378,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   }, [fetchDeferredData, refreshInitial]);
 
   // Set up polling for metrics (every 5 seconds for responsive graphs)
-  usePolling(refreshMetrics, 5000, true, { enabled: true, maxIntervalMs: 60000 });
+  usePolling(refreshMetrics, 5000, pollingEnabled, { enabled: true, maxIntervalMs: 60000 });
 
   // Set up polling for detailed data + health (every 60 seconds)
   const fetchDetailedAll = useCallback(() => {
@@ -383,7 +389,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       checkHealth()
     ]).catch((err: unknown) => { console.error('Failed to fetch detailed data:', err); });
   }, [fetchProcessMonitorData, fetchInfrastructureData, fetchInvestigations, checkHealth]);
-  usePolling(fetchDetailedAll, 60000, true, { enabled: true, maxIntervalMs: 300000 });
+  usePolling(fetchDetailedAll, 60000, pollingEnabled, { enabled: true, maxIntervalMs: 300000 });
 
   return {
     metrics,

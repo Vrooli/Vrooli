@@ -19,55 +19,19 @@ export const ErrorBoundaryTest = () => {
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '20px',
-      right: '20px',
-      zIndex: 9999,
-      background: 'var(--color-error-muted)',
-      border: '1px solid var(--color-error)',
-      borderRadius: 'var(--radius-md)',
-      padding: 'var(--spacing-md)',
-      maxWidth: '300px'
-    }}>
-      <h4 style={{
-        margin: '0 0 var(--spacing-sm) 0',
-        color: 'var(--color-error)',
-        fontSize: 'var(--text-sm)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 'var(--spacing-xs)'
-      }}>
+    <div data-sm-style="sm-style-5b492864e3">
+      <h4 data-sm-style="sm-style-87192e5467">
         <Bug size={16} />
         Error Boundary Test
       </h4>
       
-      <p style={{
-        margin: '0 0 var(--spacing-sm) 0',
-        color: 'var(--color-text-secondary)',
-        fontSize: 'var(--text-xs)',
-        lineHeight: '1.4'
-      }}>
+      <p data-sm-style="sm-style-d3e418452c">
         Click to test error boundary functionality (development only)
       </p>
       
       <button
         onClick={() => { setShouldThrow(true); }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--spacing-xs)',
-          padding: 'var(--spacing-xs) var(--spacing-sm)',
-          background: 'var(--color-error)',
-          color: 'var(--color-background)',
-          border: 'none',
-          borderRadius: 'var(--radius-sm)',
-          fontSize: 'var(--text-xs)',
-          fontWeight: 'bold',
-          textTransform: 'uppercase',
-          cursor: 'pointer',
-          transition: 'all 0.2s'
-        }}
+        data-sm-style="sm-style-c15c78d6dc"
       >
         <Bug size={12} />
         Throw Error

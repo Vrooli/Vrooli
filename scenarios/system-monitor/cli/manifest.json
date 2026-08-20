@@ -4,6 +4,69 @@
   "description": "System Monitor CLI surface. Single source of truth for the proto-backed CLI verbs across the metrics, investigations, reports, settings, maintenance and capacity domains. Schema-validated against cli-manifest/v1 and cross-validated against the system-monitor v1 proto descriptors at test time. The runtime CLI serves these over the REST gateway (gorilla); the connect-rpc binding names the authoritative proto contract each verb fulfils.",
   "groups": [
     {
+      "name": "space",
+      "flat": true,
+      "description": "Emit the Act coverage-space denominator.",
+      "commands": [
+        {
+          "name": "space",
+          "description": "Emit the owner-controlled Act coverage-space denominator.",
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "overview",
+      "description": "Top-level monitor status and dashboard commands",
+      "flat": true,
+      "commands": [
+        {
+          "name": "health",
+          "description": "Check API health and dependencies",
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "alerts",
+          "description": "Show active alerts from the current metrics snapshot",
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "watch",
+          "description": "Stream the current metrics snapshot and alert state",
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "dashboard",
+          "description": "Open the system-monitor dashboard in a browser",
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
       "name": "metrics",
       "description": "Read host metrics snapshots, process/infrastructure detail, and recent history",
       "commands": [

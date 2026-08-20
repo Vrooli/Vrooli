@@ -1,5 +1,42 @@
 # Spec Sync Progress
 
+## 2026-08-20 — Production-readiness evidence pass
+
+- Implemented honest three-state metric propagation (`measured`, `unsupported`,
+  `failed`) through the protobuf/API/UI path; non-measured values are excluded
+  from threshold evaluation and are not rendered as numeric zeroes.
+- Added native CPU, memory, network, process, disk, and typed investigation
+  paths for the supported build targets. Shell investigations remain declared
+  escape hatches where they provide materially richer Linux-only evidence.
+- Added authoritative disk-pressure consumption to autoheal, low-power
+  collection profiles and headroom self-metrics, PID-scoped stop validation,
+  platform evidence metadata, and the responsive `vrooli-default` UI contract.
+- Live evidence: lifecycle-managed System Monitor is healthy; the latest direct
+  `/health` sample reports `last_cycle_duration_ms` of 456.376 with
+  `headroom_ok: true`, and `/api/v1/disk-pressure` reports the observed `/`
+  mount at 68.003%. Native CPU investigation execution completed.
+- BAS evidence is current at desktop, tablet, and mobile sizes. Settled metric
+  captures report `DISK: 68.0%`, four numeric meters, and a typed GPU status;
+  the 68-second hold reports the same disk value. At 390px the root remains
+  390px wide, header controls are within the viewport, detail buttons are
+  uniquely named, and the logs page text controls now measure 44px high.
+- Validation: four-target Go builds plus collectors/process-sampler contract
+  test compilation pass; host collector/procsampler/convert tests pass. UI
+  type-check, build, lint (0 errors / 616 warnings), unit-health (0 blocking),
+  experience validation, dependency governance, and all 216 UI tests pass.
+- Autoheal evidence: after a control-plane stop, two `vrooli-autoheal tick`
+  cycles produced a successful `scenario-system-monitor/start`; the scenario
+  returned healthy without a scenario-specific autoheal opt-in.
+- The latest terminal governed run `20260820-083236-aabbc0fe` passed all 22
+  phases in 373 seconds, including Agent Conformance at L4. The optional
+  integration remains declared with its profile source and typed degraded
+  behavior. Agent Manager's lifecycle manifest now gives its synchronous
+  recovery/bootstrap path a 90-second API readiness budget; its optional
+  credential gaps remain explicitly degraded.
+- Raspberry Pi 4 hardware remains unavailable. Linux arm64 therefore remains
+  build-verified rather than promoted to supported; no hardware claim is being
+  inferred from the cross-build.
+
 ## 2026-02-16 — Fourth Spec Sync Pass
 
 ### What Was Synced

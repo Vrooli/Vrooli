@@ -1,0 +1,1 @@
+{ "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json", "kind": "experience-page", "schemaVersion": "1.0.0", "page": { "id": "cpu", "title": "CPU Metrics", "routes": ["/metrics/cpu"], "purpose": "Inspect CPU history and detail provenance.", "prd_refs": ["OT-P0-001"] } }

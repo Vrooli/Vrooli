@@ -20,7 +20,7 @@ const PrismHighlighter = lazy<React.ComponentType<InnerHighlighterProps>>(async 
   ]);
 
   // Preserve the exact theme used previously: the full `tomorrow` Prism theme
-  // with the `pre` block overridden for the matrix-theme background/spacing.
+  // with the `pre` block overridden for the operational-console background/spacing.
   const Highlighter = ({ content, padding }: InnerHighlighterProps) => (
     <Prism
       language="bash"

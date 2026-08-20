@@ -42,91 +42,180 @@
       "system-monitor-disk",
       "system-monitor-network",
       "system-monitor-process",
-      "system-monitor-gpu"
+      "system-monitor-gpu",
+      "system-monitor-device-graph",
+      "system-monitor-storage-health",
+      "system-monitor-thermal",
+      "system-monitor-memory-errors"
     ],
     "platform_capabilities": {
       "system-monitor-cpu": {
         "linux": {
           "status": "supported",
-          "mechanism": "procfs"
+          "mechanism": "procfs",
+          "evidence": "scenarios/system-monitor/api/internal/collectors/cpu.go and Linux contract tests"
         },
         "macos": {
-          "status": "unsupported",
-          "mechanism": "host_statistics"
+          "status": "build-verified",
+          "mechanism": "host_statistics",
+          "evidence": "darwin/arm64 cross-build and platform contract fixtures; no real-host qualification"
         },
         "windows": {
-          "status": "unsupported",
-          "mechanism": "windows_performance_counters"
+          "status": "build-verified",
+          "mechanism": "windows_performance_counters",
+          "evidence": "windows/amd64 cross-build and platform contract fixtures; no real-host qualification"
         }
       },
       "system-monitor-memory": {
         "linux": {
           "status": "supported",
-          "mechanism": "procfs"
+          "mechanism": "procfs",
+          "evidence": "scenarios/system-monitor/api/internal/collectors/memory.go and Linux contract tests"
         },
         "macos": {
-          "status": "unsupported",
-          "mechanism": "host_statistics64"
+          "status": "build-verified",
+          "mechanism": "host_statistics64",
+          "evidence": "darwin/arm64 cross-build and platform contract fixtures; no real-host qualification"
         },
         "windows": {
-          "status": "unsupported",
-          "mechanism": "global_memory_status_ex"
+          "status": "build-verified",
+          "mechanism": "global_memory_status_ex",
+          "evidence": "windows/amd64 cross-build and platform contract fixtures; no real-host qualification"
         }
       },
       "system-monitor-disk": {
         "linux": {
           "status": "supported",
-          "mechanism": "statfs_procfs"
+          "mechanism": "statfs_procfs",
+          "evidence": "Linux statfs contract tests and live disk-pressure endpoint"
         },
         "macos": {
-          "status": "unsupported",
-          "mechanism": "getmntinfo"
+          "status": "build-verified",
+          "mechanism": "getmntinfo",
+          "evidence": "darwin/arm64 cross-build and platform contract fixtures; no real-host qualification"
         },
         "windows": {
-          "status": "unsupported",
-          "mechanism": "get_disk_free_space_ex"
+          "status": "build-verified",
+          "mechanism": "get_disk_free_space_ex",
+          "evidence": "windows/amd64 cross-build and platform contract fixtures; no real-host qualification"
         }
       },
       "system-monitor-network": {
         "linux": {
           "status": "supported",
-          "mechanism": "procfs_sysfs"
+          "mechanism": "procfs_sysfs",
+          "evidence": "Linux collector contract tests"
         },
         "macos": {
-          "status": "unsupported",
-          "mechanism": "if_data"
+          "status": "build-verified",
+          "mechanism": "if_data",
+          "evidence": "darwin/arm64 cross-build and platform contract fixtures; no real-host qualification"
         },
         "windows": {
-          "status": "unsupported",
-          "mechanism": "get_if_table_2"
+          "status": "build-verified",
+          "mechanism": "get_if_table_2",
+          "evidence": "windows/amd64 cross-build and platform contract fixtures; no real-host qualification"
         }
       },
       "system-monitor-process": {
         "linux": {
           "status": "supported",
-          "mechanism": "procfs"
+          "mechanism": "procfs",
+          "evidence": "Linux process sampler contract tests"
         },
         "macos": {
-          "status": "unsupported",
-          "mechanism": "sysctl_proc_list"
+          "status": "build-verified",
+          "mechanism": "sysctl_proc_list",
+          "evidence": "darwin/arm64 cross-build and platform contract fixtures; no real-host qualification"
         },
         "windows": {
-          "status": "unsupported",
-          "mechanism": "windows_toolhelp"
+          "status": "build-verified",
+          "mechanism": "windows_toolhelp",
+          "evidence": "windows/amd64 cross-build and platform contract fixtures; no real-host qualification"
         }
       },
       "system-monitor-gpu": {
         "linux": {
           "status": "supported",
-          "mechanism": "hostinventory"
+          "mechanism": "hostinventory",
+          "evidence": "Linux host-inventory integration tests; GPU availability remains host-dependent"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "ioreg",
+          "evidence": "darwin/arm64 cross-build; no real-host qualification"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "dxdiag",
+          "evidence": "windows/amd64 cross-build; no real-host qualification"
+        }
+      },
+      "system-monitor-device-graph": {
+        "linux": {
+          "status": "supported",
+          "mechanism": "sysfs_device_tree",
+          "evidence": "scenarios/system-monitor/api/internal/devicegraph sysfs walk plus fixture contract tests; observed live on an amd64 Linux host enumerating 2 physical disks, 2 physical NICs and 8 hwmon sensors while excluding 32 virtual block devices, 3 partitions and 7 virtual interfaces"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "system_profiler_json",
+          "evidence": "darwin cross-build and the SPPCIDataType/SPUSBDataType/SPNVMeDataType fixture contract tests in platform_probe_test.go; no real-host qualification"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "get_pnp_device",
+          "evidence": "windows cross-build and the Get-PnpDevice/Get-PhysicalDisk fixture contract tests in platform_probe_test.go; no real-host qualification"
+        }
+      },
+      "system-monitor-storage-health": {
+        "linux": {
+          "status": "supported",
+          "mechanism": "smartctl_json",
+          "evidence": "scenarios/system-monitor/api/internal/devicegraph/smart.go parses both the NVMe health log and the ATA attribute table; fixture tests cover both plus a refused read, and a live amd64 Linux host graded both of its disks unmeasurable with the reason 'permission denied' rather than reporting zero errors"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "smartctl_json",
+          "evidence": "the same smartctl parser is used on darwin and is covered by the darwin backend fixture tests; smartmontools is declared for macos in internal/tools/smartctl/tool.json but has had no real-host qualification"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "get_storage_reliability_counter",
+          "evidence": "windows cross-build and fixture tests covering a disk that returns reliability counters and one that returns none; smartctl is not declared for windows, so wear comes from the storage driver instead; no real-host qualification"
+        }
+      },
+      "system-monitor-thermal": {
+        "linux": {
+          "status": "supported",
+          "mechanism": "hwmon_and_thermal_zones",
+          "evidence": "hwmon and thermal-zone readers with setpoints taken from the sensor's own temp*_max/temp*_crit and trip points; fixture tests cover a host with zones and one without, and a live amd64 Linux host enumerated 8 hwmon sensors with the one exposing no temp*_input graded unmeasurable"
         },
         "macos": {
           "status": "unsupported",
-          "mechanism": "ioreg"
+          "mechanism": "powermetrics",
+          "evidence": "macOS exposes SMC temperatures only through the privileged powermetrics interface and this scenario never escalates at runtime, so the darwin backend deliberately grades thermal unavailable with that reason instead of implementing a reader"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "msacpi_thermal_zone_temperature",
+          "evidence": "windows cross-build and fixture tests covering both a host that exposes an ACPI thermal zone through WMI and one that does not; no real-host qualification"
+        }
+      },
+      "system-monitor-memory-errors": {
+        "linux": {
+          "status": "supported",
+          "mechanism": "edac_sysfs",
+          "evidence": "reads ce_count, ue_count and per-DIMM counters from every registered EDAC controller; fixture tests cover an empty controller directory and a controller with a rising correctable count, and a live amd64 Linux host with no registered controller graded every rung unmeasurable rather than zero"
+        },
+        "macos": {
+          "status": "unsupported",
+          "evidence": "macOS exposes no EDAC-equivalent ECC counter interface and no per-controller error counter of any kind, so the darwin backend grades memory errors not-applicable with that reason; mechanism is deliberately omitted because there is no mechanism to wire"
         },
         "windows": {
           "status": "unsupported",
-          "mechanism": "dxdiag"
+          "mechanism": "whea_event_log",
+          "evidence": "Windows reports corrected memory errors only as WHEA event-log records rather than running counters; no WHEA reader is implemented, so the windows backend grades memory errors unmeasurable with that reason"
         }
       }
     },
@@ -188,29 +277,16 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI"
-    },
-    "develop": {
-      "description": "Launch API and UI server"
     }
   },
   "dependencies": {
-    "resources": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "description": "AI analysis for anomaly investigations"
-      }
-    },
     "scenarios": {
       "agent-manager": {
         "type": "scenario",
         "enabled": true,
-        "required": true,
-        "description": "Agent orchestration layer for investigations and anomaly checks",
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional Agent Manager integration for role-based investigation runs",
         "config": {
           "declarations": {
             "reconcile": true,
@@ -219,13 +295,23 @@
               ".vrooli/agent-manager/default.json"
             ]
           }
-        }
+        },
+        "degraded_behavior": "Native investigations, metrics, and the dashboard remain available. Agent-backed investigations report typed unavailable status until Agent Manager recovers."
       },
       "vrooli-autoheal": {
         "type": "scenario",
         "enabled": true,
         "required": false,
-        "description": "Optional autoheal proxy for the forensics page; degrades gracefully when offline"
+        "description": "Optional autoheal proxy for the forensics page; degrades gracefully when offline",
+        "degraded_behavior": "Metrics, native investigations, and the dashboard remain available. Forensics autoheal checks report unavailable with the connection reason until vrooli-autoheal recovers."
+      }
+    },
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "AI analysis for anomaly investigations"
       }
     }
   },

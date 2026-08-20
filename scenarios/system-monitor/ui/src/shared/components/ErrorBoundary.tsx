@@ -127,150 +127,53 @@ Browser Info:
       const isDev = process.env.NODE_ENV === 'development';
 
       return (
-        <div style={{
-          minHeight: '100vh',
-          background: 'linear-gradient(135deg, var(--color-background) 0%, var(--color-background-alt) 100%)',
-          color: 'var(--color-text)',
-          fontFamily: 'var(--font-mono)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 'var(--spacing-xl)'
-        }}>
-          <div style={{
-            background: 'var(--overlay-backdrop)',
-            border: '2px solid var(--color-error)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--spacing-xxl)',
-            maxWidth: '800px',
-            width: '100%',
-            boxShadow: '0 0 30px var(--color-error)'
-          }}>
+        <div data-sm-style="sm-style-d7272546ca">
+          <div data-sm-style="sm-style-9a5e094449">
             {/* Header */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-md)',
-              marginBottom: 'var(--spacing-xl)',
-              borderBottom: '1px solid var(--color-error)',
-              paddingBottom: 'var(--spacing-lg)'
-            }}>
-              <div style={{
-                padding: 'var(--spacing-sm)',
-                background: 'var(--color-error-muted)',
-                borderRadius: 'var(--radius-md)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <AlertTriangle size={32} style={{ color: 'var(--color-error)' }} />
+            <div data-sm-style="sm-style-58ee2038d8">
+              <div data-sm-style="sm-style-f1fe77f7dc">
+                <AlertTriangle size={32} data-sm-style="sm-style-6d06f948c5" />
               </div>
               
               <div>
-                <h1 style={{
-                  margin: 0,
-                  color: 'var(--color-error)',
-                  fontSize: 'var(--text-2xl)',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  letterSpacing: '2px'
-                }}>
+                <h1 data-sm-style="sm-style-596c89e6f2">
                   System Error
                 </h1>
-                <p style={{
-                  margin: 'var(--spacing-xs) 0 0 0',
-                  color: 'var(--color-text-secondary)',
-                  fontSize: 'var(--text-sm)'
-                }}>
+                <p data-sm-style="sm-style-a3d7ba4ae7">
                   Component crashed • Retry #{retryCount + 1}
                 </p>
               </div>
             </div>
 
             {/* Error Message */}
-            <div style={{
-              background: 'var(--color-error-muted)',
-              border: '1px solid var(--color-error)',
-              borderRadius: 'var(--radius-md)',
-              padding: 'var(--spacing-lg)',
-              marginBottom: 'var(--spacing-xl)'
-            }}>
-              <h3 style={{
-                margin: '0 0 var(--spacing-sm) 0',
-                color: 'var(--color-text-heading)',
-                fontSize: 'var(--text-base)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--spacing-sm)'
-              }}>
+            <div data-sm-style="sm-style-5e6e478f5f">
+              <h3 data-sm-style="sm-style-7acc1b7c7b">
                 <Bug size={16} />
                 Error Details
               </h3>
-              <p style={{
-                margin: 0,
-                color: 'var(--color-text)',
-                fontSize: 'var(--text-sm)',
-                fontFamily: 'var(--font-mono)',
-                background: 'var(--overlay-medium)',
-                padding: 'var(--spacing-md)',
-                borderRadius: 'var(--radius-sm)',
-                overflowX: 'auto',
-                whiteSpace: 'pre-wrap'
-              }}>
+              <p data-sm-style="sm-style-6b0bd53dc4">
                 {error?.message || 'Unknown error occurred'}
               </p>
             </div>
 
             {/* Development Info */}
             {isDev && error && errorInfo && (
-              <div style={{
-                background: 'var(--color-primary-muted)',
-                border: '1px solid var(--color-primary)',
-                borderRadius: 'var(--radius-md)',
-                padding: 'var(--spacing-lg)',
-                marginBottom: 'var(--spacing-xl)'
-              }}>
-                <h4 style={{
-                  margin: '0 0 var(--spacing-sm) 0',
-                  color: 'var(--color-primary)',
-                  fontSize: 'var(--text-sm)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px'
-                }}>
+              <div data-sm-style="sm-style-a9af1f41eb">
+                <h4 data-sm-style="sm-style-15a86bafac">
                   Development Details
                 </h4>
                 
-                <div style={{ marginBottom: 'var(--spacing-md)' }}>
-                  <strong style={{ color: 'var(--color-text-heading)' }}>Component Stack:</strong>
-                  <pre style={{
-                    margin: 'var(--spacing-xs) 0 0 0',
-                    color: 'var(--color-text-secondary)',
-                    fontSize: 'var(--text-xs)',
-                    background: 'var(--overlay-medium)',
-                    padding: 'var(--spacing-sm)',
-                    borderRadius: 'var(--radius-sm)',
-                    overflowX: 'auto',
-                    maxHeight: '200px',
-                    overflowY: 'auto'
-                  }}>
+                <div data-sm-style="sm-style-91394348ef">
+                  <strong data-sm-style="sm-style-dbed1e5364">Component Stack:</strong>
+                  <pre data-sm-style="sm-style-bb45f3b812">
                     {errorInfo.componentStack}
                   </pre>
                 </div>
 
                 {error.stack && (
                   <div>
-                    <strong style={{ color: 'var(--color-text-heading)' }}>Error Stack:</strong>
-                    <pre style={{
-                      margin: 'var(--spacing-xs) 0 0 0',
-                      color: 'var(--color-text-secondary)',
-                      fontSize: 'var(--text-xs)',
-                      background: 'var(--overlay-medium)',
-                      padding: 'var(--spacing-sm)',
-                      borderRadius: 'var(--radius-sm)',
-                      overflowX: 'auto',
-                      maxHeight: '200px',
-                      overflowY: 'auto'
-                    }}>
+                    <strong data-sm-style="sm-style-dbed1e5364">Error Stack:</strong>
+                    <pre data-sm-style="sm-style-695cfbe3f2">
                       {error.stack}
                     </pre>
                   </div>
@@ -279,12 +182,7 @@ Browser Info:
             )}
 
             {/* Actions */}
-            <div style={{
-              display: 'flex',
-              gap: 'var(--spacing-md)',
-              justifyContent: 'center',
-              flexWrap: 'wrap'
-            }}>
+            <div data-sm-style="sm-style-63be1464e7">
               <button className="btn-retry" onClick={this.handleRetry}>
                 <RefreshCw size={16} />
                 Retry
@@ -302,19 +200,12 @@ Browser Info:
             </div>
 
             {/* Footer */}
-            <div style={{
-              marginTop: 'var(--spacing-xl)',
-              paddingTop: 'var(--spacing-lg)',
-              borderTop: '1px solid var(--color-text-secondary)',
-              textAlign: 'center',
-              color: 'var(--color-text-secondary)',
-              fontSize: 'var(--text-xs)'
-            }}>
-              <p style={{ margin: 0 }}>
+            <div data-sm-style="sm-style-b1ac371e7d">
+              <p data-sm-style="sm-style-2a0ca8350a">
                 This error has been logged. If the problem persists, check the browser console for additional details.
               </p>
               {isDev && (
-                <p style={{ margin: 'var(--spacing-xs) 0 0 0' }}>
+                <p data-sm-style="sm-style-23a6170aa2">
                   💡 <strong>Development Mode:</strong> Additional debugging information is displayed above.
                 </p>
               )}

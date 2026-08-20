@@ -30,6 +30,7 @@ type ProcessSample struct {
 	PID     int
 	PPID    int
 	Comm    string  // short name from /proc/<pid>/comm
+	State   string  // native process state when the platform exposes it
 	Cmdline string  // full command line (nul-joined args rendered with spaces)
 	Cwd     string  // resolved /proc/<pid>/cwd target ("" when unreadable)
 	Owner   string  // attributed scenario name or "unknown" (filled by the attributor)

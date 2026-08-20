@@ -1,25 +1,25 @@
 # System Monitor
 
 ## Purpose
-Real-time server monitoring with threshold-based anomaly detection, AI-driven investigation via agent-manager, and automated reporting. Features a Matrix-themed cyberpunk dashboard.
+Real-time server monitoring with threshold-based anomaly detection, AI-driven investigation via agent-manager, and automated reporting. Features a governed, responsive Vrooli Operational Console dashboard.
 
 ## Features
 - **Real-time Metrics**: CPU, memory, disk, network, GPU, process monitoring via 6 pluggable collectors
 - **Threshold-based Anomaly Detection**: Configurable warning/critical thresholds with 5 auto-fix triggers
 - **AI Investigation**: Automated investigation via agent-manager integration (spawns AI agents)
-- **Investigation Scripts**: 30 ready-to-use investigation scripts (CPU, memory, network, container, process analysis)
-- **Process Management**: Zombie detection, high-thread monitoring, memory leak candidates, process kill
+- **Investigation Scripts**: A typed catalog of native and explicitly shell-gated investigations (CPU, memory, network, container, process analysis)
+- **Process Monitoring**: Zombie detection, high-thread monitoring, and memory-leak candidates; process termination remains outside the current API contract
 - **Infrastructure Monitoring**: Database pools, HTTP pools, message queues, storage I/O
 - **Automated Reports**: Daily/weekly report generation with executive summaries and trend analysis
-- **Dark Cyberpunk UI**: Matrix-themed React dashboard with animated grid backgrounds, neon green styling
+- **Governed UI**: Responsive React dashboard using the vrooli-default / Vrooli Operational Console design system
 
 ## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  UI (React + Vite)          │  CLI (Bash)                       │
-│  Port: 36232 (lifecycle)    │  system-monitor / vrooli-system-  │
-│  HTTP polling (5s/60s/4s)   │  monitor (Bash CLI)               │
+│  UI (React + Vite)          │  CLI (Go)                         │
+│  Port: 36232 (lifecycle)    │  system-monitor (manifest-backed) │
+│  HTTP polling (5s/60s/4s)   │  generated Connect clients         │
 └──────────┬──────────────────┴──────────┬────────────────────────┘
            │                             │
            ▼                             ▼
@@ -61,7 +61,7 @@ REST API with 40+ endpoints across these groups:
 - **Agent Config**: config, runners, status
 
 ### UI (React + Vite + TypeScript)
-Matrix-themed dashboard with 7 routes:
+Vrooli Operational Console dashboard with 7 routes:
 | Route | View |
 |-------|------|
 | `/` | Main dashboard with all monitoring panels |
@@ -74,10 +74,10 @@ Matrix-themed dashboard with 7 routes:
 
 Key features: MetricsGrid (5-column), sparkline charts (recharts), process monitor with kill dialog, infrastructure monitor, investigation agent management, script editor/executor, report generation panel.
 
-Styling: "Share Tech Mono" font, `#5cff95` primary green, `#020b07` background, animated grid, glow effects, backdrop blur.
+Styling: semantic vrooli-default tokens, responsive layout, 44px interaction targets, and accessible live metric states.
 
-### CLI (Bash, v2.0.0)
-Entry points: `cli/system-monitor`, `cli/vrooli-system-monitor`
+### CLI (Go, manifest-backed)
+Entry point: `system-monitor`
 
 | Command | Description | API Endpoint |
 |---------|-------------|-------------|
@@ -122,7 +122,7 @@ vrooli scenario start system-monitor
 
 # CLI
 system-monitor health
-system-monitor metrics --json
+system-monitor metrics current --json
 system-monitor status
 system-monitor alerts
 system-monitor investigate
@@ -162,18 +162,13 @@ Other scenarios can leverage system-monitor for:
 - Real-time system metrics (via API endpoints)
 - Anomaly detection and investigation (via investigation triggers)
 - System health checks (via `/health` endpoint)
-- Process management (via process kill endpoint)
+- Process monitoring and health insight
 - Infrastructure monitoring (database pools, queues, storage)
 
 ## Known Limitations
 - **No WebSocket**: UI uses HTTP polling (5s current+detailed metrics, 60s process/infrastructure/investigations, 4s agent status when active), not real-time streaming
 - **No Authentication**: API endpoints have no auth middleware
-- **CLI JSON Parsing**: Uses regex (grep/cut) instead of jq; fragile
-- **CLI report bug**: Calls `/api/reports/generate` (missing `/v1/` prefix) — will 404
 - **Storage Default**: API defaults to in-memory; persistent metric history is not yet implemented
 - **Missing API endpoint**: UI references `POST /processes/{pid}/kill`, but no process-kill route exists in the API router — process kill silently fails
 - **Disk remediation boundary**: Disk detail is read-only; broad cleanup routes through storage-manager preview/apply rather than system-monitor deletion paths
-- **Script API placeholders**: Script list/get/execute endpoints return empty/404; scripts run via investigation agent, not API
-- **Test Coverage**: test/ directory is empty; tests defined via test-genie but not populated
-- **simulate command**: References test endpoint that doesn't exist in API
-- **CLI --quiet flag**: Parsed but never checked in code (no effect)
+- **UI coverage**: The full production-source denominator remains below the platform's 85% unit policy and is tracked as an open quality gap

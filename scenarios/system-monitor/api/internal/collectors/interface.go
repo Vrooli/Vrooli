@@ -125,6 +125,15 @@ func (b *BaseCollector) GetInterval() time.Duration {
 	return b.interval
 }
 
+// SetInterval changes a collector's cadence during service wiring. The
+// monitor's scheduler reads the value on every tick, so low-power hosts can
+// use a slower, explicit profile without changing collector implementations.
+func (b *BaseCollector) SetInterval(interval time.Duration) {
+	if interval > 0 {
+		b.interval = interval
+	}
+}
+
 // IsEnabled returns whether the collector is enabled
 func (b *BaseCollector) IsEnabled() bool {
 	return b.enabled
@@ -155,7 +164,7 @@ func unsupportedMetricData(collector, metricType string) *MetricData {
 		Type:          metricType,
 		Values: map[string]interface{}{
 			"status": "unsupported",
-			"reason": "this collector currently has a Linux implementation only",
+			"reason": "no native backend is available for this platform",
 		},
 		Tags: map[string]string{"os": collectorOS},
 	}

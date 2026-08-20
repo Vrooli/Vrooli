@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
-import { renderWithProviders } from "@vrooli/api-base/testing";
+import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
 import { ForensicsPage } from './ForensicsPage';
 import type { ForensicsSummary } from '../types';
 
@@ -50,7 +50,8 @@ describe('ForensicsPage', () => {
 
   it('renders all five panels with happy-path data', async () => {
     vi.mocked(fetchForensicsSummary).mockResolvedValue(happy);
-    renderWithProviders(<ForensicsPage />);
+    // provider-free-exception: page uses a local fetch adapter and no shared provider context.
+    render(<ForensicsPage />);
 
     await waitFor(() => expect(screen.getByText(/Last Shutdown/i)).toBeInTheDocument());
     expect(screen.getByText(/Boot History/i)).toBeInTheDocument();
@@ -63,7 +64,8 @@ describe('ForensicsPage', () => {
 
   it('renders not-provisioned reasons when envelopes report unavailable', async () => {
     vi.mocked(fetchForensicsSummary).mockResolvedValue(notProvisioned);
-    renderWithProviders(<ForensicsPage />);
+    // provider-free-exception: page uses a local fetch adapter and no shared provider context.
+    render(<ForensicsPage />);
 
     await waitFor(() =>
       expect(screen.getByText(/pstore directory not present/i)).toBeInTheDocument(),

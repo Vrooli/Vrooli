@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Brain, Loader2, RefreshCcw, ChevronDown, Clock, AlertTriangle, CheckCircle2, XCircle, Square } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
-import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import type { InvestigationAgentState } from '../../types';
 
 interface AgentDropdownProps {
@@ -23,35 +23,35 @@ const normalizeStatus = (status?: string): string => {
 
 import { formatDurationElapsed } from '../utils/formatters';
 
-const statusAccent = (status: string): string => {
+const statusClass = (status: string): string => {
   switch (status) {
     case 'error':
     case 'failed':
-      return 'var(--color-error)';
+      return 'text-error';
     case 'completed':
-      return 'var(--color-success)';
+      return 'text-success';
     case 'initializing':
     case 'analyzing':
-      return 'var(--color-warning)';
+      return 'text-warning';
     case 'investigating':
     case 'running':
     default:
-      return 'var(--color-primary)';
+      return 'text-accent';
   }
 };
 
 const statusIconFor = (status: string) => {
-  const color = statusAccent(status);
+  const toneClass = statusClass(status);
   if (status === 'completed') {
-    return <CheckCircle2 size={14} style={{ color }} />;
+    return <CheckCircle2 size={14} className={toneClass} />;
   }
   if (status === 'error' || status === 'failed') {
-    return <XCircle size={14} style={{ color }} />;
+    return <XCircle size={14} className={toneClass} />;
   }
   if (status === 'initializing' || status === 'investigating' || status === 'analyzing') {
-    return <Loader2 size={14} className="animate-spin" style={{ color }} />;
+    return <Loader2 size={14} className={`animate-spin ${toneClass}`} />;
   }
-  return <AlertTriangle size={14} style={{ color }} />;
+  return <AlertTriangle size={14} className={toneClass} />;
 };
 
 export const AgentDropdown = ({
@@ -96,11 +96,6 @@ export const AgentDropdown = ({
   const runningCount = useMemo(() => sortedAgents.filter(agent => !terminalStatuses.has(normalizeStatus(agent.status))).length, [sortedAgents]);
   const totalCount = sortedAgents.length;
   const buttonTone = totalCount === 0 ? 'idle' : runningCount > 0 ? 'active' : 'success';
-  const buttonAccent = buttonTone === 'active'
-    ? 'var(--color-primary)'
-    : buttonTone === 'success'
-    ? 'var(--color-success)'
-    : 'var(--color-text-secondary)';
 
   const agentButtonLabel = totalCount === 0
     ? 'Agents'
@@ -124,15 +119,11 @@ export const AgentDropdown = ({
         onClick={() => { setAgentsOpen(prev => !prev); }}
         aria-expanded={agentsOpen}
         aria-haspopup="true"
-        className={`agent-dropdown-btn ${buttonTone !== 'idle' ? 'active' : ''}`}
-        style={{
-          border: `1px solid ${buttonAccent}`,
-          color: buttonTone === 'idle' ? 'var(--color-text)' : buttonAccent
-        }}
+        className={`agent-dropdown-btn ${buttonTone !== 'idle' ? 'active' : ''} agent-dropdown-${buttonTone}`}
       >
         <Brain size={16} />
         <span>{agentButtonLabel}</span>
-        <ChevronDown size={14} style={{ transform: agentsOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+        <ChevronDown size={14} className={`agent-dropdown-chevron ${agentsOpen ? 'is-open' : ''}`} />
       </button>
 
       {agentsOpen && (
@@ -162,15 +153,9 @@ export const AgentDropdown = ({
             <div className="flex-col">
               {sortedAgents.map(agent => {
                 const normalized = normalizeStatus(agent.status);
-                const color = statusAccent(normalized);
                 const isStopping = stoppingAgentIds.has(agent.id);
                 const errorMessage = agentErrors[agent.id];
                 const isTerminalStatus = terminalStatuses.has(normalized);
-                const stopButtonColor = isTerminalStatus ? 'var(--color-text-secondary)' : 'var(--color-error)';
-                const stopButtonBackground = isTerminalStatus ? 'var(--overlay-light)' : 'var(--color-error-muted)';
-                const stopButtonBorder = isTerminalStatus
-                  ? '1px solid var(--color-border)'
-                  : '1px solid var(--color-error)';
                 const stopButtonIcon = isStopping
                   ? <Loader2 size={12} className="animate-spin" />
                   : isTerminalStatus
@@ -188,9 +173,9 @@ export const AgentDropdown = ({
                       <div className="agent-item-title">
                         {agent.label ?? `Investigation ${agent.id}`}
                       </div>
-                      <div className="icon-text icon-text-xs" style={{ fontSize: 'var(--text-xs)', color }}>
+                      <div className={`icon-text icon-text-xs text-xs ${statusClass(normalized)}`}>
                         {statusIconFor(normalized)}
-                        <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        <span data-sm-style="sm-style-df8e8add6b">
                           {agent.status ?? 'UNKNOWN'}
                         </span>
                       </div>
@@ -201,7 +186,7 @@ export const AgentDropdown = ({
                         <Clock size={12} />
                         <span>{formatDurationElapsed(agent.startTime)}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <div data-sm-style="sm-style-f5bb675600">
                         <span>Mode: {agent.operationMode ?? 'report-only'}</span>
                         <span>Auto-fix: {agent.autoFix ? 'enabled' : 'off'}</span>
                         {agent.model && <span>Model: {agent.model}</span>}
@@ -219,19 +204,12 @@ export const AgentDropdown = ({
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div data-sm-style="sm-style-b8ac32c4c4">
                       <button
                         type="button"
                         onClick={(event) => { void handleStopClick(event, agent.id); }}
                         disabled={isStopping || isTerminalStatus}
-                        className="icon-text icon-text-xs agent-stop-btn"
-                        style={{
-                          border: stopButtonBorder,
-                          background: stopButtonBackground,
-                          color: stopButtonColor,
-                          cursor: isStopping ? 'wait' : 'pointer',
-                          opacity: isStopping ? 0.7 : 1
-                        }}
+                        className={`icon-text icon-text-xs agent-stop-btn ${isTerminalStatus ? 'is-terminal' : 'is-actionable'} ${isStopping ? 'is-stopping' : ''}`}
                       >
                         {stopButtonIcon}
                         {stopButtonLabel}

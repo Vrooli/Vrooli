@@ -5,12 +5,12 @@ interface AutohealChecksPanelProps {
   envelope: AutohealEnvelope;
 }
 
-const statusColor = (status: string): string => {
+const statusClass = (status: string): string => {
   const s = status.toLowerCase();
-  if (s === 'ok' || s === 'pass' || s === 'passed') return 'var(--color-success, #4ade80)';
-  if (s === 'critical' || s === 'fail' || s === 'failed') return 'var(--color-error, #f87171)';
-  if (s === 'warning' || s === 'warn') return 'var(--color-warning, #facc15)';
-  return 'var(--color-muted, #94a3b8)';
+  if (s === 'ok' || s === 'pass' || s === 'passed') return 'text-success';
+  if (s === 'critical' || s === 'fail' || s === 'failed') return 'text-error';
+  if (s === 'warning' || s === 'warn') return 'text-warning';
+  return 'text-muted';
 };
 
 export const AutohealChecksPanel = ({ envelope }: AutohealChecksPanelProps) => {
@@ -19,38 +19,27 @@ export const AutohealChecksPanel = ({ envelope }: AutohealChecksPanelProps) => {
   }
   const checks = envelope.checks ?? [];
   return (
-    <div className="card" style={{ padding: 'var(--spacing-md)' }}>
-      <div className="font-bold" style={{ marginBottom: '0.5rem' }}>
+    <div className="card" data-sm-style="sm-style-7b635e08e2">
+      <div className="font-bold" data-sm-style="sm-style-b113dc3b73">
         Autoheal Checks (forensics)
       </div>
       {checks.length === 0 ? (
         <div className="text-sm text-muted">No forensics-relevant checks reported.</div>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        <ul data-sm-style="sm-style-0d21d4c312">
           {checks.map((c) => (
             <li
               key={c.checkId}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr auto',
-                alignItems: 'center',
-                padding: '0.25rem 0',
-                gap: '0.5rem',
-              }}
+              data-sm-style="sm-style-980f9b6819"
             >
               <div>
-                <div className="text-sm" style={{ fontFamily: 'monospace' }}>
+                <div className="text-sm" data-sm-style="sm-style-51316ccfb7">
                   {c.checkId}
                 </div>
                 {c.message && <div className="text-xs text-muted">{c.message}</div>}
               </div>
               <span
-                className="text-xs"
-                style={{
-                  color: statusColor(c.status),
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                }}
+                className={`text-xs font-bold uppercase ${statusClass(c.status)}`}
               >
                 {c.status}
               </span>

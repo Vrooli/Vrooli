@@ -23,7 +23,9 @@ export interface NetworkDetailViewProps {
 export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onBack }: NetworkDetailViewProps) => {
   const networkData = useMemo(() => buildSingleSeriesData(metricHistory?.network), [metricHistory?.network]);
   const networkDetails = detailedMetrics?.networkDetails;
-  const totalConnections = metrics?.tcpConnections ?? networkDetails?.tcpStates?.total ?? 0;
+  const totalConnections = metrics?.connections?.state?.case === 'measured'
+    ? metrics.connections.state.value
+    : networkDetails?.tcpStates?.total;
 
   const subhead = detailedMetrics?.timestamp
     ? `Updated ${formatProtoTimestamp(detailedMetrics.timestamp)}`
@@ -33,7 +35,7 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
     <MetricDetailLayout
       title="NETWORK ACTIVITY"
       icon={<Network size={22} />}
-      headline={`${totalConnections.toLocaleString()} active connections`}
+      headline={totalConnections === undefined ? 'Connections not measured' : `${totalConnections.toLocaleString()} active connections`}
       subhead={subhead}
       onBack={onBack}
     >
@@ -94,10 +96,10 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
               <div key={pool.name} className="pool-card">
                 <div className="text-bright mb-sm">{pool.name}</div>
                 <div className="text-dim-xs">
-                  Active: <span style={{ color: 'var(--color-text)' }}>{pool.active}</span> · Idle: <span style={{ color: 'var(--color-text)' }}>{pool.idle}</span>
+                  Active: <span data-sm-style="sm-style-bb03b2fa99">{pool.active}</span> · Idle: <span data-sm-style="sm-style-bb03b2fa99">{pool.idle}</span>
                 </div>
                 <div className="text-dim-xs">
-                  Waiting: <span style={{ color: 'var(--color-text)' }}>{pool.waiting}</span> / Max {pool.maxSize}
+                  Waiting: <span data-sm-style="sm-style-bb03b2fa99">{pool.waiting}</span> / Max {pool.maxSize}
                 </div>
                 <div style={{
                   marginTop: 'var(--spacing-xs)',

@@ -43,6 +43,7 @@ func NewDiskPressureHandler(scheduler *services.ThresholdScheduler, history viol
 type DiskPressureResponse struct {
 	Observed        bool                         `json:"observed"`
 	ObservedAt      time.Time                    `json:"observed_at,omitempty"`
+	MountPath       string                       `json:"mount_path,omitempty"`
 	Band            string                       `json:"band"`
 	UsedPercent     float64                      `json:"used_percent"`
 	UsedBytes       int64                        `json:"used_bytes"`
@@ -64,6 +65,7 @@ func (h *DiskPressureHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	resp := DiskPressureResponse{
 		Observed:        status.HasRun,
 		ObservedAt:      status.LastRunAt,
+		MountPath:       status.LastUsage.MountPath,
 		Band:            status.Band.String(),
 		UsedPercent:     status.LastUsage.UsedPercent,
 		UsedBytes:       status.LastUsage.UsedBytes,

@@ -65,6 +65,7 @@ func Run(cfg *config.Config) error {
 
 	investigationSvc := services.NewInvestigationService(cfg, repo, monitorSvc, agentSvc, services.WithLogger(apiLog.With("service", "investigation")))
 	scriptSvc := services.NewScriptService(services.ResolveScriptsDir())
+	scriptSvc.SetNativeRunner(services.NewNativeInvestigator())
 	reportSvc := services.NewReportService(cfg, repo)
 	settingsMgr := services.NewSettingsManager()
 	monitorSvc.SetActive(settingsMgr.IsActive())
@@ -113,7 +114,11 @@ func Run(cfg *config.Config) error {
 	logsHandler := handlers.NewLogsHandler(journalReader, apiLog.With("handler", "logs"))
 	diskPressureHandler := handlers.NewDiskPressureHandler(thresholdScheduler, repo, apiLog.With("handler", "disk-pressure"))
 
-	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, diskPressureHandler)
+	// The device-graph read verb serves from the monitor service's shared
+	// cached provider, the same one the 60s collector uses.
+	deviceGraphHandler := handlers.NewDeviceGraphHandler(monitorSvc.DeviceGraphs(), apiLog.With("handler", "device-graph"))
+
+	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, diskPressureHandler, deviceGraphHandler)
 	rootMux := http.NewServeMux()
 	if routedDB != nil {
 		devrouting.Register(rootMux, routedDB)

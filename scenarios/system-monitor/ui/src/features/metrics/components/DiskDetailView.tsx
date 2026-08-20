@@ -262,7 +262,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             {watchersSupported ? (
               <>
                 <div className="utilization-header">
-                  <div className="utilization-value-lg" style={{ fontSize: 'var(--text-lg)' }}>
+                  <div className="utilization-value-lg" data-sm-style="sm-style-374ebe9a52">
                     {inotifyWatchers.watchesUsed.toLocaleString()} / {inotifyWatchers.watchesMax.toLocaleString()} watches
                   </div>
                   <div className="utilization-percent" style={{
@@ -408,15 +408,15 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
       </div>
 
       {detailsError && (
-        <div className="card" style={{ color: 'var(--color-error)', letterSpacing: '0.08em' }}>
+        <div className="card" data-sm-style="sm-style-f4d03882e0">
           Failed to analyze disk usage: {detailsError}
         </div>
       )}
 
       {diskDetails?.notes && diskDetails.notes.length > 0 && (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)', color: 'var(--color-warning)' }}>
+        <div className="card" data-sm-style="sm-style-d370fc4399">
           {diskDetails.notes.map((note, index) => (
-            <div key={`${note}-${index}`} style={{ letterSpacing: '0.08em' }}>
+            <div key={`${note}-${index}`} data-sm-style="sm-style-84a0f8980c">
               {'\u2022'} {note}
             </div>
           ))}
@@ -424,7 +424,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
       )}
 
       <div className="card flex-col-gap-md">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
+        <div data-sm-style="sm-style-a2c4df2a66">
           <div>
             <h3 className="section-heading">Top Directories</h3>
             <div className="card-subtitle">
@@ -435,7 +435,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         {detailsLoading && topDirectories.length === 0 ? (
           <div className="text-muted">Analyzing directory usage...</div>
         ) : topDirectories.length > 0 ? (
-          <div style={{ overflowX: 'auto' }}>
+          <div data-sm-style="sm-style-d383f0755e">
             <table className="data-table">
               <thead>
                 <tr>
@@ -447,7 +447,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                 {topDirectories.map((entry: DiskUsageEntry) => (
                   <tr key={entry.path}>
                     <td className="text-bright">{entry.path}</td>
-                    <td className="text-accent" style={{ whiteSpace: 'nowrap' }}>{entry.sizeHuman}</td>
+                    <td className="text-accent" data-sm-style="sm-style-f8d335ec48">{entry.sizeHuman}</td>
                   </tr>
                 ))}
               </tbody>
@@ -469,7 +469,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         </div>
         {includeFiles ? (
           largestFiles.length > 0 ? (
-            <div style={{ overflowX: 'auto' }}>
+            <div data-sm-style="sm-style-d383f0755e">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -481,7 +481,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                   {largestFiles.map(entry => (
                     <tr key={entry.path}>
                       <td className="text-bright">{entry.path}</td>
-                      <td className="text-accent" style={{ whiteSpace: 'nowrap' }}>{entry.sizeHuman}</td>
+                      <td className="text-accent" data-sm-style="sm-style-f8d335ec48">{entry.sizeHuman}</td>
                     </tr>
                   ))}
                 </tbody>
