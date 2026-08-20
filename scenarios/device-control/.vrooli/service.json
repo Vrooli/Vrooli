@@ -154,9 +154,7 @@
     }
   },
   "credentials": {},
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/device-control.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

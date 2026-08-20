@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"image"
 	"math"
+
 	// Registering the JPEG decoder is what lets pngGeometry say "candidate is
 	// jpeg, but the contract is PNG" instead of "unknown format". A model
 	// backend really did return JPEG, and the precise message is the finding.

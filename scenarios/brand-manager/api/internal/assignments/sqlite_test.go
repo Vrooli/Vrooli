@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"brand-manager/internal/assignments"
+
 	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"

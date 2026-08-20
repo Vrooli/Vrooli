@@ -85,8 +85,14 @@ type CheckInfo struct {
 	Importance      string                 `protobuf:"bytes,4,opt,name=importance,proto3" json:"importance,omitempty"`
 	Category        string                 `protobuf:"bytes,5,opt,name=category,proto3" json:"category,omitempty"`
 	IntervalSeconds int32                  `protobuf:"varint,6,opt,name=interval_seconds,json=intervalSeconds,proto3" json:"interval_seconds,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// platforms lists the host operating systems this check applies to, exactly
+	// as the check declares them. An EMPTY list means the check applies to every
+	// platform — it is not "unknown" and must not be read as one. Exposing the
+	// declaration is what lets a reader distinguish a check that is silent
+	// because it does not apply here from one that is silent because it broke.
+	Platforms     []string `protobuf:"bytes,7,rep,name=platforms,proto3" json:"platforms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CheckInfo) Reset() {
@@ -159,6 +165,13 @@ func (x *CheckInfo) GetIntervalSeconds() int32 {
 		return x.IntervalSeconds
 	}
 	return 0
+}
+
+func (x *CheckInfo) GetPlatforms() []string {
+	if x != nil {
+		return x.Platforms
+	}
+	return nil
 }
 
 type CheckResult struct {
@@ -817,11 +830,695 @@ func (x *GetTransitionsResponse) GetTransitions() []*Transition {
 	return nil
 }
 
+type Reconcile struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ghost_check_ids are checks whose target no longer exists. Their readings
+	// carry no information about the plant and are excluded from aggregates.
+	GhostCheckIds []string `protobuf:"bytes,1,rep,name=ghost_check_ids,json=ghostCheckIds,proto3" json:"ghost_check_ids,omitempty"`
+	// unsupervised_plant are members of the derived should-be-supervised set
+	// that have no registered check.
+	UnsupervisedPlant []string               `protobuf:"bytes,2,rep,name=unsupervised_plant,json=unsupervisedPlant,proto3" json:"unsupervised_plant,omitempty"`
+	Available         bool                   `protobuf:"varint,3,opt,name=available,proto3" json:"available,omitempty"`
+	UnavailableReason string                 `protobuf:"bytes,4,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
+	ComputedAt        *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	// out_of_scope_check_ids are checks whose target exists but is outside the
+	// derived should-be-supervised set. They are a supervision-scope signal,
+	// NOT ghosts: the reading is about a real element and stays in every
+	// aggregate. Conflating the two silently drops live plant from uptime.
+	OutOfScopeCheckIds []string `protobuf:"bytes,6,rep,name=out_of_scope_check_ids,json=outOfScopeCheckIds,proto3" json:"out_of_scope_check_ids,omitempty"`
+	// ghost_detection_available reports whether the installed-target set could
+	// be read. When false, no check may be called a ghost, because absence from
+	// an unavailable set is not evidence that a target is gone.
+	GhostDetectionAvailable bool   `protobuf:"varint,7,opt,name=ghost_detection_available,json=ghostDetectionAvailable,proto3" json:"ghost_detection_available,omitempty"`
+	GhostUnavailableReason  string `protobuf:"bytes,8,opt,name=ghost_unavailable_reason,json=ghostUnavailableReason,proto3" json:"ghost_unavailable_reason,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *Reconcile) Reset() {
+	*x = Reconcile{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Reconcile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Reconcile) ProtoMessage() {}
+
+func (x *Reconcile) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Reconcile.ProtoReflect.Descriptor instead.
+func (*Reconcile) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *Reconcile) GetGhostCheckIds() []string {
+	if x != nil {
+		return x.GhostCheckIds
+	}
+	return nil
+}
+
+func (x *Reconcile) GetUnsupervisedPlant() []string {
+	if x != nil {
+		return x.UnsupervisedPlant
+	}
+	return nil
+}
+
+func (x *Reconcile) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *Reconcile) GetUnavailableReason() string {
+	if x != nil {
+		return x.UnavailableReason
+	}
+	return ""
+}
+
+func (x *Reconcile) GetComputedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ComputedAt
+	}
+	return nil
+}
+
+func (x *Reconcile) GetOutOfScopeCheckIds() []string {
+	if x != nil {
+		return x.OutOfScopeCheckIds
+	}
+	return nil
+}
+
+func (x *Reconcile) GetGhostDetectionAvailable() bool {
+	if x != nil {
+		return x.GhostDetectionAvailable
+	}
+	return false
+}
+
+func (x *Reconcile) GetGhostUnavailableReason() string {
+	if x != nil {
+		return x.GhostUnavailableReason
+	}
+	return ""
+}
+
+type GetReconcileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetReconcileRequest) Reset() {
+	*x = GetReconcileRequest{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReconcileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReconcileRequest) ProtoMessage() {}
+
+func (x *GetReconcileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReconcileRequest.ProtoReflect.Descriptor instead.
+func (*GetReconcileRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{14}
+}
+
+type GetReconcileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reconcile     *Reconcile             `protobuf:"bytes,1,opt,name=reconcile,proto3" json:"reconcile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetReconcileResponse) Reset() {
+	*x = GetReconcileResponse{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReconcileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReconcileResponse) ProtoMessage() {}
+
+func (x *GetReconcileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReconcileResponse.ProtoReflect.Descriptor instead.
+func (*GetReconcileResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetReconcileResponse) GetReconcile() *Reconcile {
+	if x != nil {
+		return x.Reconcile
+	}
+	return nil
+}
+
+type Shelf struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CheckId       string                 `protobuf:"bytes,1,opt,name=check_id,json=checkId,proto3" json:"check_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	SetBy         string                 `protobuf:"bytes,4,opt,name=set_by,json=setBy,proto3" json:"set_by,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Shelf) Reset() {
+	*x = Shelf{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Shelf) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Shelf) ProtoMessage() {}
+
+func (x *Shelf) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Shelf.ProtoReflect.Descriptor instead.
+func (*Shelf) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *Shelf) GetCheckId() string {
+	if x != nil {
+		return x.CheckId
+	}
+	return ""
+}
+
+func (x *Shelf) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *Shelf) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *Shelf) GetSetBy() string {
+	if x != nil {
+		return x.SetBy
+	}
+	return ""
+}
+
+func (x *Shelf) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type ListShelvesRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	IncludeExpired bool                   `protobuf:"varint,1,opt,name=include_expired,json=includeExpired,proto3" json:"include_expired,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListShelvesRequest) Reset() {
+	*x = ListShelvesRequest{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListShelvesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListShelvesRequest) ProtoMessage() {}
+
+func (x *ListShelvesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListShelvesRequest.ProtoReflect.Descriptor instead.
+func (*ListShelvesRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ListShelvesRequest) GetIncludeExpired() bool {
+	if x != nil {
+		return x.IncludeExpired
+	}
+	return false
+}
+
+type ListShelvesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Shelves       []*Shelf               `protobuf:"bytes,1,rep,name=shelves,proto3" json:"shelves,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListShelvesResponse) Reset() {
+	*x = ListShelvesResponse{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListShelvesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListShelvesResponse) ProtoMessage() {}
+
+func (x *ListShelvesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListShelvesResponse.ProtoReflect.Descriptor instead.
+func (*ListShelvesResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ListShelvesResponse) GetShelves() []*Shelf {
+	if x != nil {
+		return x.Shelves
+	}
+	return nil
+}
+
+type Saturation struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	CheckId         string                 `protobuf:"bytes,1,opt,name=check_id,json=checkId,proto3" json:"check_id,omitempty"`
+	Transitioned    bool                   `protobuf:"varint,2,opt,name=transitioned,proto3" json:"transitioned,omitempty"`
+	TransitionCount int32                  `protobuf:"varint,3,opt,name=transition_count,json=transitionCount,proto3" json:"transition_count,omitempty"`
+	// current_status at the end of the window. Reported so a caller never has to
+	// infer saturation from the transition count alone.
+	CurrentStatus CheckStatus `protobuf:"varint,4,opt,name=current_status,json=currentStatus,proto3,enum=vrooli.vrooli_autoheal.v1.checks.CheckStatus" json:"current_status,omitempty"`
+	// saturated means the check is pinned in a NON-NORMAL state for the whole
+	// window: no transition AND a current status of WARNING or CRITICAL. A check
+	// steady at OK has also not transitioned, but it is simply healthy — it is
+	// the desired state, not an alarm carrying no information. Deriving
+	// saturation from `!transitioned` alone marks every healthy check saturated
+	// and, because saturated readings are excluded from aggregates, empties the
+	// uptime figure of exactly the checks that were fine.
+	Saturated     bool `protobuf:"varint,5,opt,name=saturated,proto3" json:"saturated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Saturation) Reset() {
+	*x = Saturation{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Saturation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Saturation) ProtoMessage() {}
+
+func (x *Saturation) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Saturation.ProtoReflect.Descriptor instead.
+func (*Saturation) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *Saturation) GetCheckId() string {
+	if x != nil {
+		return x.CheckId
+	}
+	return ""
+}
+
+func (x *Saturation) GetTransitioned() bool {
+	if x != nil {
+		return x.Transitioned
+	}
+	return false
+}
+
+func (x *Saturation) GetTransitionCount() int32 {
+	if x != nil {
+		return x.TransitionCount
+	}
+	return 0
+}
+
+func (x *Saturation) GetCurrentStatus() CheckStatus {
+	if x != nil {
+		return x.CurrentStatus
+	}
+	return CheckStatus_CHECK_STATUS_UNSPECIFIED
+}
+
+func (x *Saturation) GetSaturated() bool {
+	if x != nil {
+		return x.Saturated
+	}
+	return false
+}
+
+type ListSaturationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WindowHours   int32                  `protobuf:"varint,1,opt,name=window_hours,json=windowHours,proto3" json:"window_hours,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSaturationRequest) Reset() {
+	*x = ListSaturationRequest{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSaturationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSaturationRequest) ProtoMessage() {}
+
+func (x *ListSaturationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSaturationRequest.ProtoReflect.Descriptor instead.
+func (*ListSaturationRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ListSaturationRequest) GetWindowHours() int32 {
+	if x != nil {
+		return x.WindowHours
+	}
+	return 0
+}
+
+type ListSaturationResponse struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Saturations []*Saturation          `protobuf:"bytes,1,rep,name=saturations,proto3" json:"saturations,omitempty"`
+	WindowHours int32                  `protobuf:"varint,2,opt,name=window_hours,json=windowHours,proto3" json:"window_hours,omitempty"`
+	ComputedAt  *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	// truncated reports that the transition window was capped before every
+	// registered check could be tallied. A capped tally cannot distinguish
+	// "no transition" from "not read", so callers must not derive saturation
+	// from it.
+	Truncated     bool `protobuf:"varint,4,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSaturationResponse) Reset() {
+	*x = ListSaturationResponse{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSaturationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSaturationResponse) ProtoMessage() {}
+
+func (x *ListSaturationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSaturationResponse.ProtoReflect.Descriptor instead.
+func (*ListSaturationResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ListSaturationResponse) GetSaturations() []*Saturation {
+	if x != nil {
+		return x.Saturations
+	}
+	return nil
+}
+
+func (x *ListSaturationResponse) GetWindowHours() int32 {
+	if x != nil {
+		return x.WindowHours
+	}
+	return 0
+}
+
+func (x *ListSaturationResponse) GetComputedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ComputedAt
+	}
+	return nil
+}
+
+func (x *ListSaturationResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+type GetSaturationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CheckId       string                 `protobuf:"bytes,1,opt,name=check_id,json=checkId,proto3" json:"check_id,omitempty"`
+	WindowHours   int32                  `protobuf:"varint,2,opt,name=window_hours,json=windowHours,proto3" json:"window_hours,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSaturationRequest) Reset() {
+	*x = GetSaturationRequest{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSaturationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSaturationRequest) ProtoMessage() {}
+
+func (x *GetSaturationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSaturationRequest.ProtoReflect.Descriptor instead.
+func (*GetSaturationRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetSaturationRequest) GetCheckId() string {
+	if x != nil {
+		return x.CheckId
+	}
+	return ""
+}
+
+func (x *GetSaturationRequest) GetWindowHours() int32 {
+	if x != nil {
+		return x.WindowHours
+	}
+	return 0
+}
+
+type GetSaturationResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	CheckId         string                 `protobuf:"bytes,1,opt,name=check_id,json=checkId,proto3" json:"check_id,omitempty"`
+	Transitioned    bool                   `protobuf:"varint,2,opt,name=transitioned,proto3" json:"transitioned,omitempty"`
+	TransitionCount int32                  `protobuf:"varint,3,opt,name=transition_count,json=transitionCount,proto3" json:"transition_count,omitempty"`
+	WindowHours     int32                  `protobuf:"varint,4,opt,name=window_hours,json=windowHours,proto3" json:"window_hours,omitempty"`
+	ComputedAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetSaturationResponse) Reset() {
+	*x = GetSaturationResponse{}
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSaturationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSaturationResponse) ProtoMessage() {}
+
+func (x *GetSaturationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_checks_checks_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSaturationResponse.ProtoReflect.Descriptor instead.
+func (*GetSaturationResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetSaturationResponse) GetCheckId() string {
+	if x != nil {
+		return x.CheckId
+	}
+	return ""
+}
+
+func (x *GetSaturationResponse) GetTransitioned() bool {
+	if x != nil {
+		return x.Transitioned
+	}
+	return false
+}
+
+func (x *GetSaturationResponse) GetTransitionCount() int32 {
+	if x != nil {
+		return x.TransitionCount
+	}
+	return 0
+}
+
+func (x *GetSaturationResponse) GetWindowHours() int32 {
+	if x != nil {
+		return x.WindowHours
+	}
+	return 0
+}
+
+func (x *GetSaturationResponse) GetComputedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ComputedAt
+	}
+	return nil
+}
+
 var File_vrooli_autoheal_v1_checks_checks_proto protoreflect.FileDescriptor
 
 const file_vrooli_autoheal_v1_checks_checks_proto_rawDesc = "" +
 	"\n" +
-	"&vrooli-autoheal/v1/checks/checks.proto\x12 vrooli.vrooli_autoheal.v1.checks\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x01\n" +
+	"&vrooli-autoheal/v1/checks/checks.proto\x12 vrooli.vrooli_autoheal.v1.checks\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd8\x01\n" +
 	"\tCheckInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -830,7 +1527,8 @@ const file_vrooli_autoheal_v1_checks_checks_proto_rawDesc = "" +
 	"importance\x18\x04 \x01(\tR\n" +
 	"importance\x12\x1a\n" +
 	"\bcategory\x18\x05 \x01(\tR\bcategory\x12)\n" +
-	"\x10interval_seconds\x18\x06 \x01(\x05R\x0fintervalSeconds\"\x8a\x02\n" +
+	"\x10interval_seconds\x18\x06 \x01(\x05R\x0fintervalSeconds\x12\x1c\n" +
+	"\tplatforms\x18\a \x03(\tR\tplatforms\"\x8a\x02\n" +
 	"\vCheckResult\x12\x19\n" +
 	"\bcheck_id\x18\x01 \x01(\tR\acheckId\x12E\n" +
 	"\x06status\x18\x02 \x01(\x0e2-.vrooli.vrooli_autoheal.v1.checks.CheckStatusR\x06status\x12\x18\n" +
@@ -877,13 +1575,63 @@ const file_vrooli_autoheal_v1_checks_checks_proto_rawDesc = "" +
 	"\fwindow_hours\x18\x01 \x01(\x05R\vwindowHours\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"h\n" +
 	"\x16GetTransitionsResponse\x12N\n" +
-	"\vtransitions\x18\x01 \x03(\v2,.vrooli.vrooli_autoheal.v1.checks.TransitionR\vtransitions*\x96\x01\n" +
+	"\vtransitions\x18\x01 \x03(\v2,.vrooli.vrooli_autoheal.v1.checks.TransitionR\vtransitions\"\x96\x03\n" +
+	"\tReconcile\x12&\n" +
+	"\x0fghost_check_ids\x18\x01 \x03(\tR\rghostCheckIds\x12-\n" +
+	"\x12unsupervised_plant\x18\x02 \x03(\tR\x11unsupervisedPlant\x12\x1c\n" +
+	"\tavailable\x18\x03 \x01(\bR\tavailable\x12-\n" +
+	"\x12unavailable_reason\x18\x04 \x01(\tR\x11unavailableReason\x12;\n" +
+	"\vcomputed_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"computedAt\x122\n" +
+	"\x16out_of_scope_check_ids\x18\x06 \x03(\tR\x12outOfScopeCheckIds\x12:\n" +
+	"\x19ghost_detection_available\x18\a \x01(\bR\x17ghostDetectionAvailable\x128\n" +
+	"\x18ghost_unavailable_reason\x18\b \x01(\tR\x16ghostUnavailableReason\"\x15\n" +
+	"\x13GetReconcileRequest\"a\n" +
+	"\x14GetReconcileResponse\x12I\n" +
+	"\treconcile\x18\x01 \x01(\v2+.vrooli.vrooli_autoheal.v1.checks.ReconcileR\treconcile\"\xc7\x01\n" +
+	"\x05Shelf\x12\x19\n" +
+	"\bcheck_id\x18\x01 \x01(\tR\acheckId\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\x129\n" +
+	"\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x15\n" +
+	"\x06set_by\x18\x04 \x01(\tR\x05setBy\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"=\n" +
+	"\x12ListShelvesRequest\x12'\n" +
+	"\x0finclude_expired\x18\x01 \x01(\bR\x0eincludeExpired\"X\n" +
+	"\x13ListShelvesResponse\x12A\n" +
+	"\ashelves\x18\x01 \x03(\v2'.vrooli.vrooli_autoheal.v1.checks.ShelfR\ashelves\"\xea\x01\n" +
+	"\n" +
+	"Saturation\x12\x19\n" +
+	"\bcheck_id\x18\x01 \x01(\tR\acheckId\x12\"\n" +
+	"\ftransitioned\x18\x02 \x01(\bR\ftransitioned\x12)\n" +
+	"\x10transition_count\x18\x03 \x01(\x05R\x0ftransitionCount\x12T\n" +
+	"\x0ecurrent_status\x18\x04 \x01(\x0e2-.vrooli.vrooli_autoheal.v1.checks.CheckStatusR\rcurrentStatus\x12\x1c\n" +
+	"\tsaturated\x18\x05 \x01(\bR\tsaturated\":\n" +
+	"\x15ListSaturationRequest\x12!\n" +
+	"\fwindow_hours\x18\x01 \x01(\x05R\vwindowHours\"\xe6\x01\n" +
+	"\x16ListSaturationResponse\x12N\n" +
+	"\vsaturations\x18\x01 \x03(\v2,.vrooli.vrooli_autoheal.v1.checks.SaturationR\vsaturations\x12!\n" +
+	"\fwindow_hours\x18\x02 \x01(\x05R\vwindowHours\x12;\n" +
+	"\vcomputed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"computedAt\x12\x1c\n" +
+	"\ttruncated\x18\x04 \x01(\bR\ttruncated\"T\n" +
+	"\x14GetSaturationRequest\x12\x19\n" +
+	"\bcheck_id\x18\x01 \x01(\tR\acheckId\x12!\n" +
+	"\fwindow_hours\x18\x02 \x01(\x05R\vwindowHours\"\xe1\x01\n" +
+	"\x15GetSaturationResponse\x12\x19\n" +
+	"\bcheck_id\x18\x01 \x01(\tR\acheckId\x12\"\n" +
+	"\ftransitioned\x18\x02 \x01(\bR\ftransitioned\x12)\n" +
+	"\x10transition_count\x18\x03 \x01(\x05R\x0ftransitionCount\x12!\n" +
+	"\fwindow_hours\x18\x04 \x01(\x05R\vwindowHours\x12;\n" +
+	"\vcomputed_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"computedAt*\x96\x01\n" +
 	"\vCheckStatus\x12\x1c\n" +
 	"\x18CHECK_STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fCHECK_STATUS_OK\x10\x01\x12\x18\n" +
 	"\x14CHECK_STATUS_WARNING\x10\x02\x12\x19\n" +
 	"\x15CHECK_STATUS_CRITICAL\x10\x03\x12\x1f\n" +
-	"\x1bCHECK_STATUS_NOT_APPLICABLE\x10\x042\xf0\x04\n" +
+	"\x1bCHECK_STATUS_NOT_APPLICABLE\x10\x042\xf4\b\n" +
 	"\rChecksService\x12w\n" +
 	"\n" +
 	"ListChecks\x123.vrooli.vrooli_autoheal.v1.checks.ListChecksRequest\x1a4.vrooli.vrooli_autoheal.v1.checks.ListChecksResponse\x12q\n" +
@@ -891,7 +1639,11 @@ const file_vrooli_autoheal_v1_checks_checks_proto_rawDesc = "" +
 	"\n" +
 	"GetHistory\x123.vrooli.vrooli_autoheal.v1.checks.GetHistoryRequest\x1a4.vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse\x12t\n" +
 	"\tGetStatus\x122.vrooli.vrooli_autoheal.v1.checks.GetStatusRequest\x1a3.vrooli.vrooli_autoheal.v1.checks.GetStatusResponse\x12\x83\x01\n" +
-	"\x0eGetTransitions\x127.vrooli.vrooli_autoheal.v1.checks.GetTransitionsRequest\x1a8.vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/checks;checks_v1b\x06proto3"
+	"\x0eGetTransitions\x127.vrooli.vrooli_autoheal.v1.checks.GetTransitionsRequest\x1a8.vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse\x12}\n" +
+	"\fGetReconcile\x125.vrooli.vrooli_autoheal.v1.checks.GetReconcileRequest\x1a6.vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse\x12z\n" +
+	"\vListShelves\x124.vrooli.vrooli_autoheal.v1.checks.ListShelvesRequest\x1a5.vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse\x12\x80\x01\n" +
+	"\rGetSaturation\x126.vrooli.vrooli_autoheal.v1.checks.GetSaturationRequest\x1a7.vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse\x12\x83\x01\n" +
+	"\x0eListSaturation\x127.vrooli.vrooli_autoheal.v1.checks.ListSaturationRequest\x1a8.vrooli.vrooli_autoheal.v1.checks.ListSaturationResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/checks;checks_v1b\x06proto3"
 
 var (
 	file_vrooli_autoheal_v1_checks_checks_proto_rawDescOnce sync.Once
@@ -906,7 +1658,7 @@ func file_vrooli_autoheal_v1_checks_checks_proto_rawDescGZIP() []byte {
 }
 
 var file_vrooli_autoheal_v1_checks_checks_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_vrooli_autoheal_v1_checks_checks_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_vrooli_autoheal_v1_checks_checks_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_vrooli_autoheal_v1_checks_checks_proto_goTypes = []any{
 	(CheckStatus)(0),               // 0: vrooli.vrooli_autoheal.v1.checks.CheckStatus
 	(*CheckInfo)(nil),              // 1: vrooli.vrooli_autoheal.v1.checks.CheckInfo
@@ -922,36 +1674,64 @@ var file_vrooli_autoheal_v1_checks_checks_proto_goTypes = []any{
 	(*GetStatusResponse)(nil),      // 11: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse
 	(*GetTransitionsRequest)(nil),  // 12: vrooli.vrooli_autoheal.v1.checks.GetTransitionsRequest
 	(*GetTransitionsResponse)(nil), // 13: vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse
-	(*timestamppb.Timestamp)(nil),  // 14: google.protobuf.Timestamp
+	(*Reconcile)(nil),              // 14: vrooli.vrooli_autoheal.v1.checks.Reconcile
+	(*GetReconcileRequest)(nil),    // 15: vrooli.vrooli_autoheal.v1.checks.GetReconcileRequest
+	(*GetReconcileResponse)(nil),   // 16: vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse
+	(*Shelf)(nil),                  // 17: vrooli.vrooli_autoheal.v1.checks.Shelf
+	(*ListShelvesRequest)(nil),     // 18: vrooli.vrooli_autoheal.v1.checks.ListShelvesRequest
+	(*ListShelvesResponse)(nil),    // 19: vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse
+	(*Saturation)(nil),             // 20: vrooli.vrooli_autoheal.v1.checks.Saturation
+	(*ListSaturationRequest)(nil),  // 21: vrooli.vrooli_autoheal.v1.checks.ListSaturationRequest
+	(*ListSaturationResponse)(nil), // 22: vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse
+	(*GetSaturationRequest)(nil),   // 23: vrooli.vrooli_autoheal.v1.checks.GetSaturationRequest
+	(*GetSaturationResponse)(nil),  // 24: vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse
+	(*timestamppb.Timestamp)(nil),  // 25: google.protobuf.Timestamp
 }
 var file_vrooli_autoheal_v1_checks_checks_proto_depIdxs = []int32{
 	0,  // 0: vrooli.vrooli_autoheal.v1.checks.CheckResult.status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
-	14, // 1: vrooli.vrooli_autoheal.v1.checks.CheckResult.observed_at:type_name -> google.protobuf.Timestamp
+	25, // 1: vrooli.vrooli_autoheal.v1.checks.CheckResult.observed_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.vrooli_autoheal.v1.checks.Transition.from_status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
 	0,  // 3: vrooli.vrooli_autoheal.v1.checks.Transition.to_status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
-	14, // 4: vrooli.vrooli_autoheal.v1.checks.Transition.observed_at:type_name -> google.protobuf.Timestamp
+	25, // 4: vrooli.vrooli_autoheal.v1.checks.Transition.observed_at:type_name -> google.protobuf.Timestamp
 	1,  // 5: vrooli.vrooli_autoheal.v1.checks.ListChecksResponse.checks:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckInfo
 	2,  // 6: vrooli.vrooli_autoheal.v1.checks.GetCheckResponse.result:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckResult
 	2,  // 7: vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse.results:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckResult
 	0,  // 8: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse.status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
 	2,  // 9: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse.checks:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckResult
-	14, // 10: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse.computed_at:type_name -> google.protobuf.Timestamp
+	25, // 10: vrooli.vrooli_autoheal.v1.checks.GetStatusResponse.computed_at:type_name -> google.protobuf.Timestamp
 	3,  // 11: vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse.transitions:type_name -> vrooli.vrooli_autoheal.v1.checks.Transition
-	4,  // 12: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListChecks:input_type -> vrooli.vrooli_autoheal.v1.checks.ListChecksRequest
-	6,  // 13: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetCheck:input_type -> vrooli.vrooli_autoheal.v1.checks.GetCheckRequest
-	8,  // 14: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetHistory:input_type -> vrooli.vrooli_autoheal.v1.checks.GetHistoryRequest
-	10, // 15: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetStatus:input_type -> vrooli.vrooli_autoheal.v1.checks.GetStatusRequest
-	12, // 16: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetTransitions:input_type -> vrooli.vrooli_autoheal.v1.checks.GetTransitionsRequest
-	5,  // 17: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListChecks:output_type -> vrooli.vrooli_autoheal.v1.checks.ListChecksResponse
-	7,  // 18: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetCheck:output_type -> vrooli.vrooli_autoheal.v1.checks.GetCheckResponse
-	9,  // 19: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetHistory:output_type -> vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse
-	11, // 20: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetStatus:output_type -> vrooli.vrooli_autoheal.v1.checks.GetStatusResponse
-	13, // 21: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetTransitions:output_type -> vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse
-	17, // [17:22] is the sub-list for method output_type
-	12, // [12:17] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	25, // 12: vrooli.vrooli_autoheal.v1.checks.Reconcile.computed_at:type_name -> google.protobuf.Timestamp
+	14, // 13: vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse.reconcile:type_name -> vrooli.vrooli_autoheal.v1.checks.Reconcile
+	25, // 14: vrooli.vrooli_autoheal.v1.checks.Shelf.expires_at:type_name -> google.protobuf.Timestamp
+	25, // 15: vrooli.vrooli_autoheal.v1.checks.Shelf.created_at:type_name -> google.protobuf.Timestamp
+	17, // 16: vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse.shelves:type_name -> vrooli.vrooli_autoheal.v1.checks.Shelf
+	0,  // 17: vrooli.vrooli_autoheal.v1.checks.Saturation.current_status:type_name -> vrooli.vrooli_autoheal.v1.checks.CheckStatus
+	20, // 18: vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse.saturations:type_name -> vrooli.vrooli_autoheal.v1.checks.Saturation
+	25, // 19: vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse.computed_at:type_name -> google.protobuf.Timestamp
+	25, // 20: vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse.computed_at:type_name -> google.protobuf.Timestamp
+	4,  // 21: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListChecks:input_type -> vrooli.vrooli_autoheal.v1.checks.ListChecksRequest
+	6,  // 22: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetCheck:input_type -> vrooli.vrooli_autoheal.v1.checks.GetCheckRequest
+	8,  // 23: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetHistory:input_type -> vrooli.vrooli_autoheal.v1.checks.GetHistoryRequest
+	10, // 24: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetStatus:input_type -> vrooli.vrooli_autoheal.v1.checks.GetStatusRequest
+	12, // 25: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetTransitions:input_type -> vrooli.vrooli_autoheal.v1.checks.GetTransitionsRequest
+	15, // 26: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetReconcile:input_type -> vrooli.vrooli_autoheal.v1.checks.GetReconcileRequest
+	18, // 27: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListShelves:input_type -> vrooli.vrooli_autoheal.v1.checks.ListShelvesRequest
+	23, // 28: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetSaturation:input_type -> vrooli.vrooli_autoheal.v1.checks.GetSaturationRequest
+	21, // 29: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListSaturation:input_type -> vrooli.vrooli_autoheal.v1.checks.ListSaturationRequest
+	5,  // 30: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListChecks:output_type -> vrooli.vrooli_autoheal.v1.checks.ListChecksResponse
+	7,  // 31: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetCheck:output_type -> vrooli.vrooli_autoheal.v1.checks.GetCheckResponse
+	9,  // 32: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetHistory:output_type -> vrooli.vrooli_autoheal.v1.checks.GetHistoryResponse
+	11, // 33: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetStatus:output_type -> vrooli.vrooli_autoheal.v1.checks.GetStatusResponse
+	13, // 34: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetTransitions:output_type -> vrooli.vrooli_autoheal.v1.checks.GetTransitionsResponse
+	16, // 35: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetReconcile:output_type -> vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse
+	19, // 36: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListShelves:output_type -> vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse
+	24, // 37: vrooli.vrooli_autoheal.v1.checks.ChecksService.GetSaturation:output_type -> vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse
+	22, // 38: vrooli.vrooli_autoheal.v1.checks.ChecksService.ListSaturation:output_type -> vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse
+	30, // [30:39] is the sub-list for method output_type
+	21, // [21:30] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_autoheal_v1_checks_checks_proto_init() }
@@ -965,7 +1745,7 @@ func file_vrooli_autoheal_v1_checks_checks_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_autoheal_v1_checks_checks_proto_rawDesc), len(file_vrooli_autoheal_v1_checks_checks_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

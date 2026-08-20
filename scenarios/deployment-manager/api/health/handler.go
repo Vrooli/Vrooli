@@ -16,7 +16,7 @@ type Handler struct {
 
 // NewHandler creates a new health handler using the standardized api-core/health package.
 func NewHandler(db interface{ PingContext(context.Context) error }) *Handler {
-		healthHandler := health.New().Version("1.0.0").Check(health.Func("database", func(ctx context.Context) error {
+	healthHandler := health.New().Version("1.0.0").Check(health.Func("database", func(ctx context.Context) error {
 		if db == nil {
 			return errors.New("database is not configured")
 		}

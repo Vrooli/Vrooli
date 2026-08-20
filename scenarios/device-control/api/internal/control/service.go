@@ -20,6 +20,7 @@ import (
 	"device-control/strategy"
 	"device-control/strategy/androidtvremote"
 	strategyregistry "device-control/strategy/registry"
+
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/filerouting"
 )

@@ -1,7 +1,7 @@
 package release
 
-import "context"
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"

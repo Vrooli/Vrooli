@@ -328,11 +328,12 @@ func receiptMessage(receipt *core.ReleaseReceipt) *channelmanagerv1.ReleaseRecei
 
 func Schema() string { return core.Schema() }
 
-var Endpoints = []module.EndpointDescriptor{{
-	ID: "channel_manager_overview", Path: channelmanagerconnect.ChannelManagerServiceGetOverviewProcedure, Method: http.MethodPost,
-	Summary: "Get channel manager overview", Description: "Returns identity and queued-action references without credential values.", Category: "channel-manager",
-	Response: &module.Schema{Type: "object", Properties: map[string]string{"identities": "array<Identity>", "actions": "array<Action>"}},
-},
+var Endpoints = []module.EndpointDescriptor{
+	{
+		ID: "channel_manager_overview", Path: channelmanagerconnect.ChannelManagerServiceGetOverviewProcedure, Method: http.MethodPost,
+		Summary: "Get channel manager overview", Description: "Returns identity and queued-action references without credential values.", Category: "channel-manager",
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"identities": "array<Identity>", "actions": "array<Action>"}},
+	},
 	{ID: "channel_manager_eligibility", Path: channelmanagerconnect.ChannelManagerServiceGetEligibilityProcedure, Method: http.MethodPost, Summary: "Get identity lane eligibility", Category: "channel-manager"},
 	{ID: "channel_manager_submit_release", Path: channelmanagerconnect.ChannelManagerServiceSubmitReleaseProcedure, Method: http.MethodPost, Summary: "Submit idempotent release", Category: "channel-manager"},
 	{ID: "channel_manager_deliver_release", Path: channelmanagerconnect.ChannelManagerServiceDeliverReleaseOutcomeProcedure, Method: http.MethodPost, Summary: "Deliver completed release outcome to Content Desk", Category: "channel-manager"},
@@ -544,6 +545,7 @@ func (h *api) observe(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"flag": flag})
 }
+
 func (h *api) eligibility(w http.ResponseWriter, r *http.Request) {
 	lane := r.URL.Query().Get("lane")
 	if lane == "" {
@@ -555,6 +557,7 @@ func (h *api) eligibility(w http.ResponseWriter, r *http.Request) {
 	h.mu.Unlock()
 	writeJSON(w, http.StatusOK, map[string]string{"eligibility": result})
 }
+
 func (h *api) release(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		IdentityID     string `json:"identity_id"`

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"device-control/strategy"
+
 	"github.com/stretchr/testify/require"
 )
 

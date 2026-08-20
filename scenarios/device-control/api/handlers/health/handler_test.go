@@ -12,6 +12,7 @@ import (
 	"device-control/internal/module"
 	"device-control/internal/server"
 	"device-control/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

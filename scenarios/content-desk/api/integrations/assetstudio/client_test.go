@@ -12,11 +12,19 @@ import (
 )
 
 type staticResolver struct{ url string }
-func (r staticResolver) ResolveScenarioURLDefault(context.Context, string) (string, error) { return r.url, nil }
 
-type referenceHandler struct { studioconnect.UnimplementedStudioServiceHandler }
+func (r staticResolver) ResolveScenarioURLDefault(context.Context, string) (string, error) {
+	return r.url, nil
+}
+
+type referenceHandler struct {
+	studioconnect.UnimplementedStudioServiceHandler
+}
+
 func (referenceHandler) GetReleasedAssetReference(_ context.Context, request *connect.Request[studiov1.GetReleasedAssetReferenceRequest]) (*connect.Response[studiov1.GetReleasedAssetReferenceResponse], error) {
-	if request.Msg.AssetId != "asset-1" { return nil, connect.NewError(connect.CodeNotFound, nil) }
+	if request.Msg.AssetId != "asset-1" {
+		return nil, connect.NewError(connect.CodeNotFound, nil)
+	}
 	return connect.NewResponse(&studiov1.GetReleasedAssetReferenceResponse{Asset: &studiov1.AssetReference{Id: "asset-1", Status: "released", AltText: "Asset Studio source alt", MediaType: "image/png", Width: 1600, Height: 900}}), nil
 }
 
@@ -24,7 +32,8 @@ func (referenceHandler) GetReleasedAssetReference(_ context.Context, request *co
 // reference; the generated contract has no image byte field to transfer.
 func TestClientResolvesReleasedAssetMetadataOnly(t *testing.T) {
 	_, handler := studioconnect.NewStudioServiceHandler(referenceHandler{})
-	server := httptest.NewServer(handler); t.Cleanup(server.Close)
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
 	client := &Client{resolver: staticResolver{url: server.URL}, http: server.Client()}
 	ref, err := client.ResolveReleasedAsset(context.Background(), "asset-1")
 	require.NoError(t, err)

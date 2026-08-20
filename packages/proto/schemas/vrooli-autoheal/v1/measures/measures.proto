@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package vrooli.vrooli_autoheal.v1.measures;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/measures;measures_v1";
+
+// MeasuresService exposes read-only analytical projections over autoheal's
+// persisted check, restart, and recovery histories. It never starts a check,
+// restarts a process, or changes monitoring configuration.
+service MeasuresService {
+  rpc GetUptimeByCheck(GetUptimeByCheckRequest) returns (GetUptimeByCheckResponse);
+  rpc GetRestartCount(GetRestartCountRequest) returns (GetRestartCountResponse);
+  rpc GetHealOutcomes(GetHealOutcomesRequest) returns (GetHealOutcomesResponse);
+  rpc GetCriticalCount(GetCriticalCountRequest) returns (GetCriticalCountResponse);
+}
+
+message GetUptimeByCheckRequest {
+  string check_id = 1;
+  int32 window_hours = 2;
+}
+
+message UptimeByCheck {
+  string check_id = 1;
+  double uptime_percent = 2;
+  int32 total = 3;
+  int32 ok = 4;
+  int32 warning = 5;
+  int32 critical = 6;
+  google.protobuf.Timestamp computed_at = 7;
+}
+
+message GetUptimeByCheckResponse { UptimeByCheck uptime = 1; }
+
+message GetRestartCountRequest { int32 window_hours = 1; }
+
+message RestartCount {
+  int32 count = 1;
+  int32 window_hours = 2;
+  google.protobuf.Timestamp computed_at = 3;
+}
+
+message GetRestartCountResponse { RestartCount restarts = 1; }
+
+message GetHealOutcomesRequest { int32 window_hours = 1; }
+
+message HealOutcomeCount {
+  string outcome = 1;
+  int32 count = 2;
+}
+
+message GetHealOutcomesResponse {
+  repeated HealOutcomeCount outcomes = 1;
+  int32 window_hours = 2;
+  google.protobuf.Timestamp computed_at = 3;
+}
+
+message GetCriticalCountRequest { int32 window_hours = 1; }
+
+message CriticalCount {
+  int32 count = 1;
+  int32 window_hours = 2;
+  google.protobuf.Timestamp computed_at = 3;
+}
+
+message GetCriticalCountResponse { CriticalCount critical = 1; }

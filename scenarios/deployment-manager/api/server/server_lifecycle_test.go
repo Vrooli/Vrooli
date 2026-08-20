@@ -13,7 +13,7 @@ import (
 func TestNewBuildsConfiguredServer(t *testing.T) {
 	t.Setenv("API_PORT", "0")
 	t.Setenv("VROOLI_SOURCE_ROOT", filepath.Clean(filepath.Join("..", "..", "..", "..")))
-	t.Setenv("SQLITE_PATH", filepath.Join(t.TempDir(), "deployment-manager.db"))
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 	srv, err := New()
 	if err != nil {
 		t.Fatalf("New() = %v", err)

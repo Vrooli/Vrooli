@@ -10,6 +10,7 @@ import (
 	"experience-manager/internal/authoring"
 	"experience-manager/internal/reconcile"
 	"experience-manager/internal/spec"
+
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 )
 

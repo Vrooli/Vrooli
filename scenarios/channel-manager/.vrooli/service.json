@@ -133,7 +133,6 @@
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/channel-manager.db",
     "CHANNEL_MANAGER_DATA_DIR": "../data"
   },
   "components": {

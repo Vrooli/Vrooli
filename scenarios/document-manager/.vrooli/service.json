@@ -183,9 +183,7 @@
     "rationale": "Raw bytes and custody evidence are durable; derivations are reproducible cache artifacts."
   },
   "credentials": {},
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/document-manager.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

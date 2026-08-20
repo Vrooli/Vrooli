@@ -12,6 +12,7 @@ import (
 	"channel-manager/internal/module"
 	"channel-manager/internal/server"
 	"channel-manager/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"document-manager/internal/corpus"
+
 	"github.com/stretchr/testify/require"
 	documentpb "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/shared"
 	_ "modernc.org/sqlite"

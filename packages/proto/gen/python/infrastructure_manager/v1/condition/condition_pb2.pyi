@@ -2,6 +2,7 @@ import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from infrastructure_manager.v1.coverage import coverage_pb2 as _coverage_pb2
+from infrastructure_manager.v1.shared import cell_pb2 as _cell_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -30,6 +31,7 @@ class BandVerdict(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BAND_VERDICT_PENDING_SUSTAIN: _ClassVar[BandVerdict]
     BAND_VERDICT_NEEDS_BASELINE: _ClassVar[BandVerdict]
     BAND_VERDICT_NOT_EVALUATED: _ClassVar[BandVerdict]
+    BAND_VERDICT_NOT_GRADEABLE: _ClassVar[BandVerdict]
 TRUST_VERDICT_UNSPECIFIED: TrustVerdict
 TRUST_VERDICT_VALID: TrustVerdict
 TRUST_VERDICT_GHOST: TrustVerdict
@@ -44,6 +46,7 @@ BAND_VERDICT_OUT_OF_BAND: BandVerdict
 BAND_VERDICT_PENDING_SUSTAIN: BandVerdict
 BAND_VERDICT_NEEDS_BASELINE: BandVerdict
 BAND_VERDICT_NOT_EVALUATED: BandVerdict
+BAND_VERDICT_NOT_GRADEABLE: BandVerdict
 
 class Leg(_message.Message):
     __slots__ = ("cell_ref", "projection", "owner", "unit", "source")
@@ -60,7 +63,7 @@ class Leg(_message.Message):
     def __init__(self, cell_ref: _Optional[str] = ..., projection: _Optional[_Union[_coverage_pb2.Projection, str]] = ..., owner: _Optional[str] = ..., unit: _Optional[str] = ..., source: _Optional[str] = ...) -> None: ...
 
 class Reading(_message.Message):
-    __slots__ = ("id", "cell_ref", "value", "unit", "source", "observed_at", "trust_verdict", "band_verdict", "unavailable_reason")
+    __slots__ = ("id", "cell_ref", "value", "unit", "source", "observed_at", "trust_verdict", "band_verdict", "unavailable_reason", "band_explanation", "out_of_scope")
     ID_FIELD_NUMBER: _ClassVar[int]
     CELL_REF_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -70,6 +73,8 @@ class Reading(_message.Message):
     TRUST_VERDICT_FIELD_NUMBER: _ClassVar[int]
     BAND_VERDICT_FIELD_NUMBER: _ClassVar[int]
     UNAVAILABLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    BAND_EXPLANATION_FIELD_NUMBER: _ClassVar[int]
+    OUT_OF_SCOPE_FIELD_NUMBER: _ClassVar[int]
     id: str
     cell_ref: str
     value: float
@@ -79,7 +84,9 @@ class Reading(_message.Message):
     trust_verdict: TrustVerdict
     band_verdict: BandVerdict
     unavailable_reason: str
-    def __init__(self, id: _Optional[str] = ..., cell_ref: _Optional[str] = ..., value: _Optional[float] = ..., unit: _Optional[str] = ..., source: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., trust_verdict: _Optional[_Union[TrustVerdict, str]] = ..., band_verdict: _Optional[_Union[BandVerdict, str]] = ..., unavailable_reason: _Optional[str] = ...) -> None: ...
+    band_explanation: str
+    out_of_scope: bool
+    def __init__(self, id: _Optional[str] = ..., cell_ref: _Optional[str] = ..., value: _Optional[float] = ..., unit: _Optional[str] = ..., source: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., trust_verdict: _Optional[_Union[TrustVerdict, str]] = ..., band_verdict: _Optional[_Union[BandVerdict, str]] = ..., unavailable_reason: _Optional[str] = ..., band_explanation: _Optional[str] = ..., out_of_scope: _Optional[bool] = ...) -> None: ...
 
 class TrustCount(_message.Message):
     __slots__ = ("verdict", "count")
@@ -156,10 +163,10 @@ class ExplainCellResponse(_message.Message):
     CELL_FIELD_NUMBER: _ClassVar[int]
     READING_FIELD_NUMBER: _ClassVar[int]
     SOURCES_FIELD_NUMBER: _ClassVar[int]
-    cell: _coverage_pb2.Cell
+    cell: _cell_pb2.Cell
     reading: Reading
     sources: _containers.RepeatedCompositeFieldContainer[SourceAvailability]
-    def __init__(self, cell: _Optional[_Union[_coverage_pb2.Cell, _Mapping]] = ..., reading: _Optional[_Union[Reading, _Mapping]] = ..., sources: _Optional[_Iterable[_Union[SourceAvailability, _Mapping]]] = ...) -> None: ...
+    def __init__(self, cell: _Optional[_Union[_cell_pb2.Cell, _Mapping]] = ..., reading: _Optional[_Union[Reading, _Mapping]] = ..., sources: _Optional[_Iterable[_Union[SourceAvailability, _Mapping]]] = ...) -> None: ...
 
 class GetHistoryRequest(_message.Message):
     __slots__ = ("cell_ref", "limit")

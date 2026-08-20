@@ -138,6 +138,7 @@ func TestApp_RegisterCommands_Groups(t *testing.T) {
 		"Events",
 		"Findings",
 		"Subscription",
+		"Coverage Space",
 	}
 	if len(groups) != len(expectedGroups) {
 		t.Errorf("expected %d command groups, got %d", len(expectedGroups), len(groups))

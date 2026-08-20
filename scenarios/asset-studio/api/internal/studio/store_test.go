@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"testing"
-)
 
-import _ "modernc.org/sqlite"
+	_ "modernc.org/sqlite"
+)
 
 func TestSQLiteStoreSurvivesReload(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:studio-store-test?mode=memory&cache=shared")

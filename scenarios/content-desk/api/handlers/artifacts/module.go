@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"time"
 
-	"connectrpc.com/connect"
 	agentmanager "content-desk/integrations/agentmanager"
 	assetstudio "content-desk/integrations/assetstudio"
 	channelmanager "content-desk/integrations/channelmanager"
 	internalartifacts "content-desk/internal/artifacts"
 	"content-desk/internal/module"
+
+	"connectrpc.com/connect"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"

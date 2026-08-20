@@ -13,6 +13,7 @@ import (
 	"code-facts/internal/module"
 	"code-facts/internal/server"
 	"code-facts/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

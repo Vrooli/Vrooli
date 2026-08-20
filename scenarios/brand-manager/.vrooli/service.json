@@ -129,7 +129,6 @@
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/brand-manager.db",
     "OLLAMA_URL": "${OLLAMA_URL}",
     "OPENROUTER_API_KEY": "${OPENROUTER_API_KEY}"
   },

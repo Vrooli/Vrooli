@@ -6,9 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"connectrpc.com/connect"
 	"document-manager/internal/corpus"
 	internal "document-manager/internal/intake"
+
+	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	intakev1 "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/intake"

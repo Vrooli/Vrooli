@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"deployment-manager/internal/modules"
+
 	gen "github.com/vrooli/api-core/endpoints/gen"
 )
 

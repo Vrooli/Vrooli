@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -93,16 +91,12 @@ func New() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure file roots: %w", err)
 	}
-	if dbPath := strings.TrimSpace(os.Getenv("SQLITE_PATH")); dbPath != "" && !strings.HasPrefix(dbPath, "file:") {
-		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-			return nil, fmt.Errorf("failed to create sqlite data directory: %w", err)
-		}
-	}
-
-	// Connect to database with automatic retry and backoff.
-	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	// Connect to this scenario's own database. The path derives from the
+	// scenario slug rather than from the environment, and the seam creates the
+	// parent directory, so no pre-flight mkdir is needed here.
 	routedDB, err := database.Open(context.Background(), database.Config{
-		Driver: database.DriverSQLite,
+		Driver:   database.DriverSQLite,
+		Scenario: "deployment-manager",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)

@@ -5,9 +5,10 @@ import (
 	"context"
 	"fmt"
 
-	"connectrpc.com/connect"
 	"content-desk/internal/module"
 	internalreview "content-desk/internal/review"
+
+	"connectrpc.com/connect"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"

@@ -12,6 +12,7 @@ import (
 	"device-sync-hub/internal/module"
 	"device-sync-hub/internal/server"
 	"device-sync-hub/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

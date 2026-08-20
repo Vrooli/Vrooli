@@ -29,30 +29,39 @@ func (f *orchestratorApprovalsRepo) Create(context.Context, *DeploymentApproval)
 func (f *orchestratorApprovalsRepo) Get(context.Context, string) (*DeploymentApproval, error) {
 	return nil, nil
 }
+
 func (f *orchestratorApprovalsRepo) ListByCommit(context.Context, string, string) ([]*DeploymentApproval, error) {
 	return nil, nil
 }
+
 func (f *orchestratorApprovalsRepo) ListByProfile(context.Context, string, int) ([]*DeploymentApproval, error) {
 	return nil, nil
 }
+
 func (f *orchestratorApprovalsRepo) UpdateDecision(context.Context, string, string, string, string) error {
 	return nil
 }
+
 func (f *orchestratorApprovalsRepo) MarkStale(context.Context, string, string, string) error {
 	return nil
 }
+
 func (f *orchestratorApprovalsRepo) GetRequiredPlatforms(context.Context, string) ([]string, error) {
 	return nil, nil
 }
+
 func (f *orchestratorApprovalsRepo) SetRequiredPlatforms(context.Context, string, []string) error {
 	return nil
 }
+
 func (f *orchestratorApprovalsRepo) CheckReleaseGate(context.Context, string, string) (*ReleaseGateStatus, error) {
 	return f.gate, f.err
 }
+
 func (f *orchestratorApprovalsRepo) GetRequiredTargets(context.Context, string) ([]RequiredTarget, error) {
 	return nil, nil
 }
+
 func (f *orchestratorApprovalsRepo) SetRequiredTargets(context.Context, string, []RequiredTarget) error {
 	return nil
 }
@@ -61,9 +70,11 @@ func (f *orchestratorProfileRepo) List(context.Context) ([]profiles.Profile, err
 func (f *orchestratorProfileRepo) Get(context.Context, string) (*profiles.Profile, error) {
 	return f.profile, f.err
 }
+
 func (f *orchestratorProfileRepo) Create(context.Context, *profiles.Profile) (string, error) {
 	return "", nil
 }
+
 func (f *orchestratorProfileRepo) Update(context.Context, string, map[string]interface{}) (*profiles.Profile, error) {
 	return nil, nil
 }
@@ -71,6 +82,7 @@ func (f *orchestratorProfileRepo) Delete(context.Context, string) (bool, error) 
 func (f *orchestratorProfileRepo) GetVersions(context.Context, string) ([]profiles.Version, error) {
 	return nil, nil
 }
+
 func (f *orchestratorProfileRepo) GetScenarioAndTier(context.Context, string) (string, int, error) {
 	return "", 0, nil
 }

@@ -2,6 +2,7 @@ package retrieval
 
 import (
 	"document-manager/internal/module"
+
 	retrievalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/retrieval/retrieval_v1connect"
 )
 

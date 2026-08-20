@@ -1,0 +1,215 @@
+syntax = "proto3";
+
+package vrooli.infrastructure_manager.v1.portability;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/portability;portability_v1";
+
+// Portability is the capability-availability axis of the infrastructure
+// reliability instrument. It aggregates the platform declarations that live
+// with each tool, safeguard and scenario manifest and resolves them through
+// the control plane's pure resolver.
+//
+// It aggregates; it never authors. A tool's platform block belongs with the
+// tool, so this service reads manifests and reports a grid — it is not a
+// roster and it holds no second deployment table of its own.
+//
+// Every platform entry carries BOTH a resolution status ("did a declaration
+// resolve on this host OS?") and a qualification rung ("how much real-world
+// proof does the winning declaration carry?"). Collapsing the two is what made
+// a cross-compiled, never-executed implementation indistinguishable from one
+// running on real hardware.
+
+service PortabilityService {
+  // GetGrid returns the whole capability grid, or the named subset.
+  rpc GetGrid(GetGridRequest) returns (GetGridResponse);
+  // GetCapability returns one capability's row.
+  rpc GetCapability(GetCapabilityRequest) returns (GetCapabilityResponse);
+  // ListSituations returns the capability rows sharing one situation
+  // classification, so an operator can ask "what is peerless?" directly.
+  rpc ListSituations(ListSituationsRequest) returns (ListSituationsResponse);
+  // GetFleet returns the computed fleet view: which scenarios are blocked on
+  // which host OS, and why.
+  rpc GetFleet(GetFleetRequest) returns (GetFleetResponse);
+}
+
+enum HostOS {
+  HOST_OS_UNSPECIFIED = 0;
+  HOST_OS_LINUX = 1;
+  HOST_OS_MACOS = 2;
+  HOST_OS_WINDOWS = 3;
+}
+
+// ResolutionStatus mirrors the control plane's closed resolution vocabulary.
+// STATUS_INVALID is a terminal verdict rather than a resolution: a manifest
+// authored a platform status outside the vocabulary and nobody has read it.
+enum ResolutionStatus {
+  RESOLUTION_STATUS_UNSPECIFIED = 0;
+  RESOLUTION_STATUS_IMPLEMENTED = 1;
+  RESOLUTION_STATUS_DEGRADED = 2;
+  RESOLUTION_STATUS_INELIGIBLE = 3;
+  RESOLUTION_STATUS_UNWIRED = 4;
+  RESOLUTION_STATUS_PEERLESS = 5;
+  RESOLUTION_STATUS_STATUS_INVALID = 6;
+}
+
+// Qualification is the honesty ladder, ascending with real-world proof. It is
+// reported beside the resolution status, never folded into it.
+enum Qualification {
+  QUALIFICATION_UNSPECIFIED = 0;
+  QUALIFICATION_UNDECLARED = 1;
+  QUALIFICATION_INELIGIBLE = 2;
+  QUALIFICATION_DEGRADED = 3;
+  QUALIFICATION_UNQUALIFIED = 4;
+  QUALIFICATION_BUILD_VERIFIED = 5;
+  QUALIFICATION_QUALIFIED = 6;
+}
+
+enum CapabilitySituation {
+  CAPABILITY_SITUATION_UNSPECIFIED = 0;
+  CAPABILITY_SITUATION_BUILT_EVERYWHERE = 1;
+  CAPABILITY_SITUATION_NO_WORK_REQUIRED = 2;
+  CAPABILITY_SITUATION_NO_EQUIVALENT_EVER = 3;
+  CAPABILITY_SITUATION_REAL_PEER_NOBODY_WIRED = 4;
+}
+
+enum Verdict {
+  VERDICT_UNSPECIFIED = 0;
+  VERDICT_ELIGIBLE = 1;
+  VERDICT_INELIGIBLE = 2;
+  VERDICT_UNKNOWN = 3;
+}
+
+enum DeliveryTier {
+  DELIVERY_TIER_UNSPECIFIED = 0;
+  DELIVERY_TIER_LOCAL = 1;
+  DELIVERY_TIER_DESKTOP = 2;
+  DELIVERY_TIER_MOBILE = 3;
+}
+
+message PlatformEntry {
+  HostOS host_os = 1;
+  ResolutionStatus status = 2;
+  Qualification qualification = 3;
+  string implementer = 4;
+  string mechanism = 5;
+  // reason explains the resolution: why this status and not another.
+  string reason = 6;
+  // qualification_reason explains the honesty rung in one line, so a reader
+  // never has to infer what "build_verified" is asserting.
+  string qualification_reason = 7;
+  // has_implementation is the resolver's own answer to "does code run here?",
+  // carried so a caller never re-derives it by comparing against one status.
+  bool has_implementation = 8;
+}
+
+message CapabilityEntry {
+  string capability = 1;
+  CapabilitySituation situation = 2;
+  string situation_reason = 3;
+  repeated PlatformEntry platforms = 4;
+}
+
+// Grid is the whole readout. manifest_root is reported on every response
+// because a grid computed against the wrong tree is worse than no grid: it is
+// a complete-looking answer about a repository nobody asked about.
+message Grid {
+  repeated CapabilityEntry capabilities = 1;
+  string manifest_root = 2;
+  int32 manifests_read = 3;
+  google.protobuf.Timestamp computed_at = 4;
+}
+
+message GetGridRequest {
+  // capabilities optionally narrows the grid. Empty means the whole grid.
+  repeated string capabilities = 1;
+}
+
+message GetGridResponse {
+  Grid grid = 1;
+}
+
+message GetCapabilityRequest {
+  string capability = 1;
+}
+
+message GetCapabilityResponse {
+  CapabilityEntry capability = 1;
+  string manifest_root = 2;
+  google.protobuf.Timestamp computed_at = 3;
+}
+
+message ListSituationsRequest {
+  // situation optionally filters. Unspecified returns every row grouped by
+  // its own situation.
+  CapabilitySituation situation = 1;
+}
+
+message ListSituationsResponse {
+  repeated CapabilityEntry capabilities = 1;
+  string manifest_root = 2;
+  google.protobuf.Timestamp computed_at = 3;
+}
+
+message DependencyReason {
+  string code = 1;
+  string dependency = 2;
+  string requirement = 3;
+  string message = 4;
+}
+
+message DependencyResult {
+  string kind = 1;
+  string name = 2;
+  bool required = 3;
+  Verdict verdict = 4;
+  repeated DependencyReason reasons = 5;
+}
+
+message ScenarioBlock {
+  string scenario = 1;
+  HostOS host_os = 2;
+  repeated DependencyResult dependencies = 3;
+}
+
+message ScenarioPeerless {
+  string scenario = 1;
+  HostOS host_os = 2;
+  repeated string capabilities = 3;
+}
+
+message TierUpgrade {
+  string scenario = 1;
+  HostOS host_os = 2;
+  DeliveryTier current_tier = 3;
+  DeliveryTier next_tier = 4;
+  string single_change = 5;
+  string blocking_dependency = 6;
+}
+
+message DesktopBundlingVerdict {
+  int32 resources = 1;
+  int32 host_required = 2;
+  int32 vendorable = 3;
+  int32 prohibited = 4;
+  int32 unknown = 5;
+  bool database_blocked = 6;
+  string reason = 7;
+}
+
+message FleetReadout {
+  repeated ScenarioBlock blocked_by_os = 1;
+  repeated ScenarioBlock docker_blocked = 2;
+  repeated ScenarioPeerless peerless = 3;
+  repeated TierUpgrade tier_upgrades = 4;
+  DesktopBundlingVerdict desktop_bundling = 5;
+  string manifest_root = 6;
+  google.protobuf.Timestamp computed_at = 7;
+}
+
+message GetFleetRequest {}
+
+message GetFleetResponse {
+  FleetReadout fleet = 1;
+}

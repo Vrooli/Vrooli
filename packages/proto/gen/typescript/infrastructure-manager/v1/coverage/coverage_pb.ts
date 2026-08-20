@@ -6,13 +6,15 @@ import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobu
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { Cell } from "../shared/cell_pb";
+import { file_infrastructure_manager_v1_shared_cell } from "../shared/cell_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file infrastructure-manager/v1/coverage/coverage.proto.
  */
 export const file_infrastructure_manager_v1_coverage_coverage: GenFile = /*@__PURE__*/
-  fileDesc("CjFpbmZyYXN0cnVjdHVyZS1tYW5hZ2VyL3YxL2NvdmVyYWdlL2NvdmVyYWdlLnByb3RvEil2cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZSJqCgpDb25maWRlbmNlEkkKBWxldmVsGAEgASgOMjoudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuQ29uZmlkZW5jZUxldmVsEhEKCXJhdGlvbmFsZRgCIAEoCSKJAQoFUmF0aW8SDQoFdmFsdWUYASABKAESSQoKY29uZmlkZW5jZRgCIAEoCzI1LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLkNvbmZpZGVuY2USEQoJbnVtZXJhdG9yGAMgASgFEhMKC2Rlbm9taW5hdG9yGAQgASgFIqgCCgRDZWxsEgoKAmlkGAEgASgJEkkKCnByb2plY3Rpb24YAiABKA4yNS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5Qcm9qZWN0aW9uEhAKCHF1ZXN0aW9uGAMgASgJEg0KBW93bmVyGAQgASgJEhAKCGxlZ191bml0GAUgASgJEkUKBnN0YXR1cxgGIAEoDjI1LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLkNlbGxTdGF0dXMSEgoKc2Vuc29yX3JlZhgHIAEoCRIVCg1nYXBfb3BlbmVkX29uGAggASgJEhUKDWdhcF9vcGVuX2RheXMYCSABKAUSDQoFbm90ZXMYCiADKAkizgEKA0JhchIKCgJpZBgBIAEoCRIQCghjZWxsX3JlZhgCIAEoCRJJCgpwcm9qZWN0aW9uGAMgASgOMjUudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuUHJvamVjdGlvbhITCgt0YXJnZXRfa2luZBgEIAEoCRIQCghkZWFkYmFuZBgFIAEoCRIPCgdzdXN0YWluGAYgASgJEhAKCGFjdHVhdG9yGAcgASgJEhQKDGRlY2lzaW9uX3JlZhgIIAEoCSKiAwoSUHJvamVjdGlvbkNvdmVyYWdlEkkKCnByb2plY3Rpb24YASABKA4yNS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5Qcm9qZWN0aW9uEj8KBXJhdGlvGAIgASgLMjAudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuUmF0aW8SEQoJbm93X2NvdW50GAMgASgFEhYKDmluX3JlYWNoX2NvdW50GAQgASgFEhUKDW1pc3NpbmdfY291bnQYBSABKAUSEwoLdG90YWxfY2VsbHMYBiABKAUSSQoKY29uZmlkZW5jZRgHIAEoCzI1LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLkNvbmZpZGVuY2USLwoLY29tcHV0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWF2YWlsYWJsZRgJIAEoCBIaChJ1bmF2YWlsYWJsZV9yZWFzb24YCiABKAkiawoQSW50ZWdyaXR5RmluZGluZxIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEAoIbG9jYXRpb24YAyABKAkSEAoIc2V2ZXJpdHkYBCABKAkSFAoMZGVjaXNpb25fcmVmGAUgASgJImMKDERyaWZ0RmluZGluZxIMCgRjb2RlGAEgASgJEhAKCGNlbGxfcmVmGAIgASgJEhIKCnNlbnNvcl9yZWYYAyABKAkSDwoHbWVzc2FnZRgEIAEoCRIOCgZzb3VyY2UYBSABKAkiYAoSR2V0Q292ZXJhZ2VSZXF1ZXN0EkoKC3Byb2plY3Rpb25zGAEgAygOMjUudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuUHJvamVjdGlvbiLzAQoTR2V0Q292ZXJhZ2VSZXNwb25zZRJSCgtwcm9qZWN0aW9ucxgBIAMoCzI9LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLlByb2plY3Rpb25Db3ZlcmFnZRJXChJpbnRlZ3JpdHlfZmluZGluZ3MYAiADKAsyOy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5JbnRlZ3JpdHlGaW5kaW5nEi8KC2NvbXB1dGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKkAQoQTGlzdENlbGxzUmVxdWVzdBJJCgpwcm9qZWN0aW9uGAEgASgOMjUudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuUHJvamVjdGlvbhJFCgZzdGF0dXMYAiABKA4yNS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5DZWxsU3RhdHVzIlMKEUxpc3RDZWxsc1Jlc3BvbnNlEj4KBWNlbGxzGAEgAygLMi8udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuQ2VsbCJhChRHZXRQcm9qZWN0aW9uUmVxdWVzdBJJCgpwcm9qZWN0aW9uGAEgASgOMjUudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuUHJvamVjdGlvbiKxAgoVR2V0UHJvamVjdGlvblJlc3BvbnNlEkkKCnByb2plY3Rpb24YASABKA4yNS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5Qcm9qZWN0aW9uEj4KBWNlbGxzGAIgAygLMi8udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuQ2VsbBJPCghjb3ZlcmFnZRgDIAEoCzI9LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLlByb2plY3Rpb25Db3ZlcmFnZRI8CgRiYXJzGAQgAygLMi4udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuQmFyIjUKF1ZhbGlkYXRlU2V0cG9pbnRSZXF1ZXN0EhoKEmluY2x1ZGVfYWR2aXNvcmllcxgBIAEoCCJ1ChhWYWxpZGF0ZVNldHBvaW50UmVzcG9uc2USCgoCb2sYASABKAgSTQoIZmluZGluZ3MYAiADKAsyOy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5JbnRlZ3JpdHlGaW5kaW5nIlwKD0dldERyaWZ0UmVxdWVzdBJJCgpwcm9qZWN0aW9uGAEgASgOMjUudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuUHJvamVjdGlvbiJdChBHZXREcmlmdFJlc3BvbnNlEkkKCGZpbmRpbmdzGAEgAygLMjcudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuRHJpZnRGaW5kaW5nKsICCgpQcm9qZWN0aW9uEhoKFlBST0pFQ1RJT05fVU5TUEVDSUZJRUQQABIaChZQUk9KRUNUSU9OX1NVUEVSVklTSU9OEAESGwoXUFJPSkVDVElPTl9BVkFJTEFCSUxJVFkQAhIXChNQUk9KRUNUSU9OX1JFQ09WRVJZEAMSFwoTUFJPSkVDVElPTl9DQVBBQ0lUWRAEEhcKE1BST0pFQ1RJT05fSEVBRFJPT00QBRIZChVQUk9KRUNUSU9OX0RVUkFCSUxJVFkQBhIaChZQUk9KRUNUSU9OX0FUVFJJQlVUSU9OEAcSHgoaUFJPSkVDVElPTl9WQUxJREFUSU9OX0NPU1QQCBIfChtQUk9KRUNUSU9OX0FHRU5UX1RIUk9VR0hQVVQQCRIcChhQUk9KRUNUSU9OX0NPTU1JU1NJT05JTkcQCipxCgpDZWxsU3RhdHVzEhsKF0NFTExfU1RBVFVTX1VOU1BFQ0lGSUVEEAASEwoPQ0VMTF9TVEFUVVNfTk9XEAESGAoUQ0VMTF9TVEFUVVNfSU5fUkVBQ0gQAhIXChNDRUxMX1NUQVRVU19NSVNTSU5HEAMqkgEKD0NvbmZpZGVuY2VMZXZlbBIgChxDT05GSURFTkNFX0xFVkVMX1VOU1BFQ0lGSUVEEAASIgoeQ09ORklERU5DRV9MRVZFTF9BVVRIT1JJVEFUSVZFEAESHAoYQ09ORklERU5DRV9MRVZFTF9QQVJUSUFMEAISGwoXQ09ORklERU5DRV9MRVZFTF9TS0VUQ0gQAzLiBQoPQ292ZXJhZ2VTZXJ2aWNlEowBCgtHZXRDb3ZlcmFnZRI9LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLkdldENvdmVyYWdlUmVxdWVzdBo+LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLkdldENvdmVyYWdlUmVzcG9uc2UShgEKCUxpc3RDZWxscxI7LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLkxpc3RDZWxsc1JlcXVlc3QaPC52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5MaXN0Q2VsbHNSZXNwb25zZRKSAQoNR2V0UHJvamVjdGlvbhI/LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLkdldFByb2plY3Rpb25SZXF1ZXN0GkAudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuR2V0UHJvamVjdGlvblJlc3BvbnNlEpsBChBWYWxpZGF0ZVNldHBvaW50EkIudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuVmFsaWRhdGVTZXRwb2ludFJlcXVlc3QaQy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5WYWxpZGF0ZVNldHBvaW50UmVzcG9uc2USgwEKCEdldERyaWZ0EjoudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuR2V0RHJpZnRSZXF1ZXN0GjsudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuR2V0RHJpZnRSZXNwb25zZUJfWl1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2luZnJhc3RydWN0dXJlLW1hbmFnZXIvdjEvY292ZXJhZ2U7Y292ZXJhZ2VfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CjFpbmZyYXN0cnVjdHVyZS1tYW5hZ2VyL3YxL2NvdmVyYWdlL2NvdmVyYWdlLnByb3RvEil2cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZSJqCgpDb25maWRlbmNlEkkKBWxldmVsGAEgASgOMjoudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuQ29uZmlkZW5jZUxldmVsEhEKCXJhdGlvbmFsZRgCIAEoCSKJAQoFUmF0aW8SDQoFdmFsdWUYASABKAESSQoKY29uZmlkZW5jZRgCIAEoCzI1LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLkNvbmZpZGVuY2USEQoJbnVtZXJhdG9yGAMgASgFEhMKC2Rlbm9taW5hdG9yGAQgASgFIs4BCgNCYXISCgoCaWQYASABKAkSEAoIY2VsbF9yZWYYAiABKAkSSQoKcHJvamVjdGlvbhgDIAEoDjI1LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLlByb2plY3Rpb24SEwoLdGFyZ2V0X2tpbmQYBCABKAkSEAoIZGVhZGJhbmQYBSABKAkSDwoHc3VzdGFpbhgGIAEoCRIQCghhY3R1YXRvchgHIAEoCRIUCgxkZWNpc2lvbl9yZWYYCCABKAkiogMKElByb2plY3Rpb25Db3ZlcmFnZRJJCgpwcm9qZWN0aW9uGAEgASgOMjUudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuUHJvamVjdGlvbhI/CgVyYXRpbxgCIAEoCzIwLnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLlJhdGlvEhEKCW5vd19jb3VudBgDIAEoBRIWCg5pbl9yZWFjaF9jb3VudBgEIAEoBRIVCg1taXNzaW5nX2NvdW50GAUgASgFEhMKC3RvdGFsX2NlbGxzGAYgASgFEkkKCmNvbmZpZGVuY2UYByABKAsyNS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5Db25maWRlbmNlEi8KC2NvbXB1dGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCglhdmFpbGFibGUYCSABKAgSGgoSdW5hdmFpbGFibGVfcmVhc29uGAogASgJImsKEEludGVncml0eUZpbmRpbmcSDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEhAKCGxvY2F0aW9uGAMgASgJEhAKCHNldmVyaXR5GAQgASgJEhQKDGRlY2lzaW9uX3JlZhgFIAEoCSJjCgxEcmlmdEZpbmRpbmcSDAoEY29kZRgBIAEoCRIQCghjZWxsX3JlZhgCIAEoCRISCgpzZW5zb3JfcmVmGAMgASgJEg8KB21lc3NhZ2UYBCABKAkSDgoGc291cmNlGAUgASgJImAKEkdldENvdmVyYWdlUmVxdWVzdBJKCgtwcm9qZWN0aW9ucxgBIAMoDjI1LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLlByb2plY3Rpb24i8wEKE0dldENvdmVyYWdlUmVzcG9uc2USUgoLcHJvamVjdGlvbnMYASADKAsyPS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5Qcm9qZWN0aW9uQ292ZXJhZ2USVwoSaW50ZWdyaXR5X2ZpbmRpbmdzGAIgAygLMjsudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuSW50ZWdyaXR5RmluZGluZxIvCgtjb21wdXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAipAEKEExpc3RDZWxsc1JlcXVlc3QSSQoKcHJvamVjdGlvbhgBIAEoDjI1LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLlByb2plY3Rpb24SRQoGc3RhdHVzGAIgASgOMjUudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuQ2VsbFN0YXR1cyJRChFMaXN0Q2VsbHNSZXNwb25zZRI8CgVjZWxscxgBIAMoCzItLnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLnNoYXJlZC5DZWxsImEKFEdldFByb2plY3Rpb25SZXF1ZXN0EkkKCnByb2plY3Rpb24YASABKA4yNS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5Qcm9qZWN0aW9uIq8CChVHZXRQcm9qZWN0aW9uUmVzcG9uc2USSQoKcHJvamVjdGlvbhgBIAEoDjI1LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLlByb2plY3Rpb24SPAoFY2VsbHMYAiADKAsyLS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5zaGFyZWQuQ2VsbBJPCghjb3ZlcmFnZRgDIAEoCzI9LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLlByb2plY3Rpb25Db3ZlcmFnZRI8CgRiYXJzGAQgAygLMi4udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuQmFyIjUKF1ZhbGlkYXRlU2V0cG9pbnRSZXF1ZXN0EhoKEmluY2x1ZGVfYWR2aXNvcmllcxgBIAEoCCJ1ChhWYWxpZGF0ZVNldHBvaW50UmVzcG9uc2USCgoCb2sYASABKAgSTQoIZmluZGluZ3MYAiADKAsyOy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5JbnRlZ3JpdHlGaW5kaW5nIlwKD0dldERyaWZ0UmVxdWVzdBJJCgpwcm9qZWN0aW9uGAEgASgOMjUudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuUHJvamVjdGlvbiJdChBHZXREcmlmdFJlc3BvbnNlEkkKCGZpbmRpbmdzGAEgAygLMjcudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuRHJpZnRGaW5kaW5nKtwCCgpQcm9qZWN0aW9uEhoKFlBST0pFQ1RJT05fVU5TUEVDSUZJRUQQABIaChZQUk9KRUNUSU9OX1NVUEVSVklTSU9OEAESGwoXUFJPSkVDVElPTl9BVkFJTEFCSUxJVFkQAhIXChNQUk9KRUNUSU9OX1JFQ09WRVJZEAMSFwoTUFJPSkVDVElPTl9DQVBBQ0lUWRAEEhcKE1BST0pFQ1RJT05fSEVBRFJPT00QBRIZChVQUk9KRUNUSU9OX0RVUkFCSUxJVFkQBhIaChZQUk9KRUNUSU9OX0FUVFJJQlVUSU9OEAcSHgoaUFJPSkVDVElPTl9WQUxJREFUSU9OX0NPU1QQCBIfChtQUk9KRUNUSU9OX0FHRU5UX1RIUk9VR0hQVVQQCRIcChhQUk9KRUNUSU9OX0NPTU1JU1NJT05JTkcQChIYChRQUk9KRUNUSU9OX1NVQlNUUkFURRALKnEKCkNlbGxTdGF0dXMSGwoXQ0VMTF9TVEFUVVNfVU5TUEVDSUZJRUQQABITCg9DRUxMX1NUQVRVU19OT1cQARIYChRDRUxMX1NUQVRVU19JTl9SRUFDSBACEhcKE0NFTExfU1RBVFVTX01JU1NJTkcQAyqSAQoPQ29uZmlkZW5jZUxldmVsEiAKHENPTkZJREVOQ0VfTEVWRUxfVU5TUEVDSUZJRUQQABIiCh5DT05GSURFTkNFX0xFVkVMX0FVVEhPUklUQVRJVkUQARIcChhDT05GSURFTkNFX0xFVkVMX1BBUlRJQUwQAhIbChdDT05GSURFTkNFX0xFVkVMX1NLRVRDSBADMvMGCg9Db3ZlcmFnZVNlcnZpY2USjAEKC0dldENvdmVyYWdlEj0udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuR2V0Q292ZXJhZ2VSZXF1ZXN0Gj4udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuR2V0Q292ZXJhZ2VSZXNwb25zZRKGAQoJTGlzdENlbGxzEjsudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuTGlzdENlbGxzUmVxdWVzdBo8LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLkxpc3RDZWxsc1Jlc3BvbnNlEo4BChFMaXN0T3Blbkxvb3BDZWxscxI7LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLkxpc3RDZWxsc1JlcXVlc3QaPC52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5MaXN0Q2VsbHNSZXNwb25zZRKSAQoNR2V0UHJvamVjdGlvbhI/LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmNvdmVyYWdlLkdldFByb2plY3Rpb25SZXF1ZXN0GkAudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuR2V0UHJvamVjdGlvblJlc3BvbnNlEpsBChBWYWxpZGF0ZVNldHBvaW50EkIudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuVmFsaWRhdGVTZXRwb2ludFJlcXVlc3QaQy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5jb3ZlcmFnZS5WYWxpZGF0ZVNldHBvaW50UmVzcG9uc2USgwEKCEdldERyaWZ0EjoudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuR2V0RHJpZnRSZXF1ZXN0GjsudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEuY292ZXJhZ2UuR2V0RHJpZnRSZXNwb25zZUJfWl1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2luZnJhc3RydWN0dXJlLW1hbmFnZXIvdjEvY292ZXJhZ2U7Y292ZXJhZ2VfdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_infrastructure_manager_v1_shared_cell]);
 
 /**
  * Confidence is deliberately a message carried beside every ratio. A ratio
@@ -72,68 +74,6 @@ export const RatioSchema: GenMessage<Ratio> = /*@__PURE__*/
   messageDesc(file_infrastructure_manager_v1_coverage_coverage, 1);
 
 /**
- * @generated from message vrooli.infrastructure_manager.v1.coverage.Cell
- */
-export type Cell = Message<"vrooli.infrastructure_manager.v1.coverage.Cell"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: vrooli.infrastructure_manager.v1.coverage.Projection projection = 2;
-   */
-  projection: Projection;
-
-  /**
-   * @generated from field: string question = 3;
-   */
-  question: string;
-
-  /**
-   * @generated from field: string owner = 4;
-   */
-  owner: string;
-
-  /**
-   * @generated from field: string leg_unit = 5;
-   */
-  legUnit: string;
-
-  /**
-   * @generated from field: vrooli.infrastructure_manager.v1.coverage.CellStatus status = 6;
-   */
-  status: CellStatus;
-
-  /**
-   * @generated from field: string sensor_ref = 7;
-   */
-  sensorRef: string;
-
-  /**
-   * @generated from field: string gap_opened_on = 8;
-   */
-  gapOpenedOn: string;
-
-  /**
-   * @generated from field: int32 gap_open_days = 9;
-   */
-  gapOpenDays: number;
-
-  /**
-   * @generated from field: repeated string notes = 10;
-   */
-  notes: string[];
-};
-
-/**
- * Describes the message vrooli.infrastructure_manager.v1.coverage.Cell.
- * Use `create(CellSchema)` to create a new message.
- */
-export const CellSchema: GenMessage<Cell> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 2);
-
-/**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.Bar
  */
 export type Bar = Message<"vrooli.infrastructure_manager.v1.coverage.Bar"> & {
@@ -183,7 +123,7 @@ export type Bar = Message<"vrooli.infrastructure_manager.v1.coverage.Bar"> & {
  * Use `create(BarSchema)` to create a new message.
  */
 export const BarSchema: GenMessage<Bar> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 3);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 2);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage
@@ -245,7 +185,7 @@ export type ProjectionCoverage = Message<"vrooli.infrastructure_manager.v1.cover
  * Use `create(ProjectionCoverageSchema)` to create a new message.
  */
 export const ProjectionCoverageSchema: GenMessage<ProjectionCoverage> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 4);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 3);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.IntegrityFinding
@@ -282,7 +222,7 @@ export type IntegrityFinding = Message<"vrooli.infrastructure_manager.v1.coverag
  * Use `create(IntegrityFindingSchema)` to create a new message.
  */
 export const IntegrityFindingSchema: GenMessage<IntegrityFinding> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 5);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 4);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.DriftFinding
@@ -319,7 +259,7 @@ export type DriftFinding = Message<"vrooli.infrastructure_manager.v1.coverage.Dr
  * Use `create(DriftFindingSchema)` to create a new message.
  */
 export const DriftFindingSchema: GenMessage<DriftFinding> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 6);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 5);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.GetCoverageRequest
@@ -336,7 +276,7 @@ export type GetCoverageRequest = Message<"vrooli.infrastructure_manager.v1.cover
  * Use `create(GetCoverageRequestSchema)` to create a new message.
  */
 export const GetCoverageRequestSchema: GenMessage<GetCoverageRequest> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 7);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 6);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse
@@ -363,7 +303,7 @@ export type GetCoverageResponse = Message<"vrooli.infrastructure_manager.v1.cove
  * Use `create(GetCoverageResponseSchema)` to create a new message.
  */
 export const GetCoverageResponseSchema: GenMessage<GetCoverageResponse> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 8);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 7);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.ListCellsRequest
@@ -385,14 +325,14 @@ export type ListCellsRequest = Message<"vrooli.infrastructure_manager.v1.coverag
  * Use `create(ListCellsRequestSchema)` to create a new message.
  */
 export const ListCellsRequestSchema: GenMessage<ListCellsRequest> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 9);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 8);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.ListCellsResponse
  */
 export type ListCellsResponse = Message<"vrooli.infrastructure_manager.v1.coverage.ListCellsResponse"> & {
   /**
-   * @generated from field: repeated vrooli.infrastructure_manager.v1.coverage.Cell cells = 1;
+   * @generated from field: repeated vrooli.infrastructure_manager.v1.shared.Cell cells = 1;
    */
   cells: Cell[];
 };
@@ -402,7 +342,7 @@ export type ListCellsResponse = Message<"vrooli.infrastructure_manager.v1.covera
  * Use `create(ListCellsResponseSchema)` to create a new message.
  */
 export const ListCellsResponseSchema: GenMessage<ListCellsResponse> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 10);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 9);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.GetProjectionRequest
@@ -419,7 +359,7 @@ export type GetProjectionRequest = Message<"vrooli.infrastructure_manager.v1.cov
  * Use `create(GetProjectionRequestSchema)` to create a new message.
  */
 export const GetProjectionRequestSchema: GenMessage<GetProjectionRequest> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 11);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 10);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse
@@ -431,7 +371,7 @@ export type GetProjectionResponse = Message<"vrooli.infrastructure_manager.v1.co
   projection: Projection;
 
   /**
-   * @generated from field: repeated vrooli.infrastructure_manager.v1.coverage.Cell cells = 2;
+   * @generated from field: repeated vrooli.infrastructure_manager.v1.shared.Cell cells = 2;
    */
   cells: Cell[];
 
@@ -451,7 +391,7 @@ export type GetProjectionResponse = Message<"vrooli.infrastructure_manager.v1.co
  * Use `create(GetProjectionResponseSchema)` to create a new message.
  */
 export const GetProjectionResponseSchema: GenMessage<GetProjectionResponse> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 12);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 11);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.ValidateSetpointRequest
@@ -468,7 +408,7 @@ export type ValidateSetpointRequest = Message<"vrooli.infrastructure_manager.v1.
  * Use `create(ValidateSetpointRequestSchema)` to create a new message.
  */
 export const ValidateSetpointRequestSchema: GenMessage<ValidateSetpointRequest> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 13);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 12);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.ValidateSetpointResponse
@@ -490,7 +430,7 @@ export type ValidateSetpointResponse = Message<"vrooli.infrastructure_manager.v1
  * Use `create(ValidateSetpointResponseSchema)` to create a new message.
  */
 export const ValidateSetpointResponseSchema: GenMessage<ValidateSetpointResponse> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 14);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 13);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.GetDriftRequest
@@ -507,7 +447,7 @@ export type GetDriftRequest = Message<"vrooli.infrastructure_manager.v1.coverage
  * Use `create(GetDriftRequestSchema)` to create a new message.
  */
 export const GetDriftRequestSchema: GenMessage<GetDriftRequest> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 15);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 14);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.coverage.GetDriftResponse
@@ -524,7 +464,7 @@ export type GetDriftResponse = Message<"vrooli.infrastructure_manager.v1.coverag
  * Use `create(GetDriftResponseSchema)` to create a new message.
  */
 export const GetDriftResponseSchema: GenMessage<GetDriftResponse> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 16);
+  messageDesc(file_infrastructure_manager_v1_coverage_coverage, 15);
 
 /**
  * @generated from enum vrooli.infrastructure_manager.v1.coverage.Projection
@@ -584,6 +524,14 @@ export enum Projection {
    * @generated from enum value: PROJECTION_COMMISSIONING = 10;
    */
   COMMISSIONING = 10,
+
+  /**
+   * Host, kernel and device tier. Second rung of the infra-health cascade
+   * ladder, so it is read before any outer-tier finding is honoured.
+   *
+   * @generated from enum value: PROJECTION_SUBSTRATE = 11;
+   */
+  SUBSTRATE = 11,
 }
 
 /**
@@ -670,6 +618,14 @@ export const CoverageService: GenService<{
    * @generated from rpc vrooli.infrastructure_manager.v1.coverage.CoverageService.ListCells
    */
   listCells: {
+    methodKind: "unary";
+    input: typeof ListCellsRequestSchema;
+    output: typeof ListCellsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.infrastructure_manager.v1.coverage.CoverageService.ListOpenLoopCells
+   */
+  listOpenLoopCells: {
     methodKind: "unary";
     input: typeof ListCellsRequestSchema;
     output: typeof ListCellsResponseSchema;

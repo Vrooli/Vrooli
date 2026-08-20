@@ -12,6 +12,7 @@ import (
 	"backdrop-studio/internal/module"
 	"backdrop-studio/internal/server"
 	"backdrop-studio/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

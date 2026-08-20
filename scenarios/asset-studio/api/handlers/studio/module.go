@@ -16,6 +16,7 @@ import (
 
 	"asset-studio/internal/module"
 	core "asset-studio/internal/studio"
+
 	studioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/studio/studio_v1connect"
 )
 
@@ -46,6 +47,7 @@ func Module(db *database.RoutedDB) module.Module {
 	path, handler := studioconnect.NewStudioServiceHandler(h)
 	return module.Module{Name: "studio", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) }, Endpoints: Endpoints}
 }
+
 func agentManagerCommissionerFromEnvironment(lookup func(string) (string, bool)) AgentCommissioner {
 	origin, err := configuredOrigin(lookup, "AGENT_MANAGER_API_URL")
 	if err != nil {

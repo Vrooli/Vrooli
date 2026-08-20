@@ -13,8 +13,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vrooli/maturity-go/autofix"
 	intent "intent-go"
+
+	"github.com/vrooli/maturity-go/autofix"
 )
 
 // NewRegistry returns the scenario's fixer registry.

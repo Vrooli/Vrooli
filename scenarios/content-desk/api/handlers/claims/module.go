@@ -6,9 +6,10 @@ import (
 	"errors"
 	"time"
 
-	"connectrpc.com/connect"
 	internalclaims "content-desk/internal/claims"
 	"content-desk/internal/module"
+
+	"connectrpc.com/connect"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -109,23 +110,33 @@ func (h handler) GetClaimCoverage(ctx context.Context, request *connect.Request[
 
 func (h handler) ExtractClaimProposals(ctx context.Context, request *connect.Request[claimsv1.ExtractClaimProposalsRequest]) (*connect.Response[claimsv1.ExtractClaimProposalsResponse], error) {
 	proposals, err := h.library.ExtractProposals(ctx, request.Msg.DraftId, request.Msg.Body)
-	if err != nil { return nil, connect.NewError(connect.CodeInvalidArgument, err) }
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	response := &claimsv1.ExtractClaimProposalsResponse{}
-	for _, proposal := range proposals { response.Proposals = append(response.Proposals, proposalMessage(proposal)) }
+	for _, proposal := range proposals {
+		response.Proposals = append(response.Proposals, proposalMessage(proposal))
+	}
 	return connect.NewResponse(response), nil
 }
 
 func (h handler) ListClaimProposals(ctx context.Context, request *connect.Request[claimsv1.ListClaimProposalsRequest]) (*connect.Response[claimsv1.ListClaimProposalsResponse], error) {
 	proposals, err := h.library.ListProposals(ctx, request.Msg.DraftId)
-	if err != nil { return nil, connect.NewError(connect.CodeInternal, err) }
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	response := &claimsv1.ListClaimProposalsResponse{}
-	for _, proposal := range proposals { response.Proposals = append(response.Proposals, proposalMessage(proposal)) }
+	for _, proposal := range proposals {
+		response.Proposals = append(response.Proposals, proposalMessage(proposal))
+	}
 	return connect.NewResponse(response), nil
 }
 
 func (h handler) DecideClaimProposal(ctx context.Context, request *connect.Request[claimsv1.DecideClaimProposalRequest]) (*connect.Response[claimsv1.DecideClaimProposalResponse], error) {
 	proposal, err := h.library.DecideProposal(ctx, request.Msg.Id, request.Msg.Status)
-	if err != nil { return nil, connect.NewError(connect.CodeFailedPrecondition, err) }
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	return connect.NewResponse(&claimsv1.DecideClaimProposalResponse{Proposal: proposalMessage(proposal)}), nil
 }
 
@@ -135,7 +146,9 @@ func claimMessage(claim internalclaims.Claim) *claimsv1.Claim {
 
 func proposalMessage(proposal internalclaims.Proposal) *claimsv1.ClaimProposal {
 	message := &claimsv1.ClaimProposal{Id: proposal.ID, DraftId: proposal.DraftID, Statement: proposal.Statement, Status: proposal.Status, CreatedAt: proposal.CreatedAt.UTC().Format(time.RFC3339Nano)}
-	if !proposal.DecidedAt.IsZero() { message.DecidedAt = proposal.DecidedAt.UTC().Format(time.RFC3339Nano) }
+	if !proposal.DecidedAt.IsZero() {
+		message.DecidedAt = proposal.DecidedAt.UTC().Format(time.RFC3339Nano)
+	}
 	return message
 }
 

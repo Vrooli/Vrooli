@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"content-desk/internal/artifacts"
+
 	"github.com/stretchr/testify/require"
 )
 

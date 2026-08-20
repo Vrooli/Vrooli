@@ -7,6 +7,7 @@ import (
 
 	"backdrop-studio/internal/catalog"
 	"backdrop-studio/internal/module"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	surfacesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/surfaces"

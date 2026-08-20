@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"connectrpc.com/connect"
 	"device-control/strategy"
+
+	"connectrpc.com/connect"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 )
 

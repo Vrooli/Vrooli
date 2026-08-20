@@ -7,6 +7,7 @@
 package coverage_v1
 
 import (
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -36,6 +37,9 @@ const (
 	Projection_PROJECTION_VALIDATION_COST  Projection = 8
 	Projection_PROJECTION_AGENT_THROUGHPUT Projection = 9
 	Projection_PROJECTION_COMMISSIONING    Projection = 10
+	// Host, kernel and device tier. Second rung of the infra-health cascade
+	// ladder, so it is read before any outer-tier finding is honoured.
+	Projection_PROJECTION_SUBSTRATE Projection = 11
 )
 
 // Enum value maps for Projection.
@@ -52,6 +56,7 @@ var (
 		8:  "PROJECTION_VALIDATION_COST",
 		9:  "PROJECTION_AGENT_THROUGHPUT",
 		10: "PROJECTION_COMMISSIONING",
+		11: "PROJECTION_SUBSTRATE",
 	}
 	Projection_value = map[string]int32{
 		"PROJECTION_UNSPECIFIED":      0,
@@ -65,6 +70,7 @@ var (
 		"PROJECTION_VALIDATION_COST":  8,
 		"PROJECTION_AGENT_THROUGHPUT": 9,
 		"PROJECTION_COMMISSIONING":    10,
+		"PROJECTION_SUBSTRATE":        11,
 	}
 )
 
@@ -321,122 +327,6 @@ func (x *Ratio) GetDenominator() int32 {
 	return 0
 }
 
-type Cell struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Projection    Projection             `protobuf:"varint,2,opt,name=projection,proto3,enum=vrooli.infrastructure_manager.v1.coverage.Projection" json:"projection,omitempty"`
-	Question      string                 `protobuf:"bytes,3,opt,name=question,proto3" json:"question,omitempty"`
-	Owner         string                 `protobuf:"bytes,4,opt,name=owner,proto3" json:"owner,omitempty"`
-	LegUnit       string                 `protobuf:"bytes,5,opt,name=leg_unit,json=legUnit,proto3" json:"leg_unit,omitempty"`
-	Status        CellStatus             `protobuf:"varint,6,opt,name=status,proto3,enum=vrooli.infrastructure_manager.v1.coverage.CellStatus" json:"status,omitempty"`
-	SensorRef     string                 `protobuf:"bytes,7,opt,name=sensor_ref,json=sensorRef,proto3" json:"sensor_ref,omitempty"`
-	GapOpenedOn   string                 `protobuf:"bytes,8,opt,name=gap_opened_on,json=gapOpenedOn,proto3" json:"gap_opened_on,omitempty"`
-	GapOpenDays   int32                  `protobuf:"varint,9,opt,name=gap_open_days,json=gapOpenDays,proto3" json:"gap_open_days,omitempty"`
-	Notes         []string               `protobuf:"bytes,10,rep,name=notes,proto3" json:"notes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Cell) Reset() {
-	*x = Cell{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Cell) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Cell) ProtoMessage() {}
-
-func (x *Cell) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Cell.ProtoReflect.Descriptor instead.
-func (*Cell) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *Cell) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *Cell) GetProjection() Projection {
-	if x != nil {
-		return x.Projection
-	}
-	return Projection_PROJECTION_UNSPECIFIED
-}
-
-func (x *Cell) GetQuestion() string {
-	if x != nil {
-		return x.Question
-	}
-	return ""
-}
-
-func (x *Cell) GetOwner() string {
-	if x != nil {
-		return x.Owner
-	}
-	return ""
-}
-
-func (x *Cell) GetLegUnit() string {
-	if x != nil {
-		return x.LegUnit
-	}
-	return ""
-}
-
-func (x *Cell) GetStatus() CellStatus {
-	if x != nil {
-		return x.Status
-	}
-	return CellStatus_CELL_STATUS_UNSPECIFIED
-}
-
-func (x *Cell) GetSensorRef() string {
-	if x != nil {
-		return x.SensorRef
-	}
-	return ""
-}
-
-func (x *Cell) GetGapOpenedOn() string {
-	if x != nil {
-		return x.GapOpenedOn
-	}
-	return ""
-}
-
-func (x *Cell) GetGapOpenDays() int32 {
-	if x != nil {
-		return x.GapOpenDays
-	}
-	return 0
-}
-
-func (x *Cell) GetNotes() []string {
-	if x != nil {
-		return x.Notes
-	}
-	return nil
-}
-
 type Bar struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -453,7 +343,7 @@ type Bar struct {
 
 func (x *Bar) Reset() {
 	*x = Bar{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[3]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -465,7 +355,7 @@ func (x *Bar) String() string {
 func (*Bar) ProtoMessage() {}
 
 func (x *Bar) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[3]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -478,7 +368,7 @@ func (x *Bar) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bar.ProtoReflect.Descriptor instead.
 func (*Bar) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{3}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Bar) GetId() string {
@@ -555,7 +445,7 @@ type ProjectionCoverage struct {
 
 func (x *ProjectionCoverage) Reset() {
 	*x = ProjectionCoverage{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[4]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -567,7 +457,7 @@ func (x *ProjectionCoverage) String() string {
 func (*ProjectionCoverage) ProtoMessage() {}
 
 func (x *ProjectionCoverage) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[4]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -580,7 +470,7 @@ func (x *ProjectionCoverage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectionCoverage.ProtoReflect.Descriptor instead.
 func (*ProjectionCoverage) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{4}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ProjectionCoverage) GetProjection() Projection {
@@ -666,7 +556,7 @@ type IntegrityFinding struct {
 
 func (x *IntegrityFinding) Reset() {
 	*x = IntegrityFinding{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[5]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -678,7 +568,7 @@ func (x *IntegrityFinding) String() string {
 func (*IntegrityFinding) ProtoMessage() {}
 
 func (x *IntegrityFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[5]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -691,7 +581,7 @@ func (x *IntegrityFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IntegrityFinding.ProtoReflect.Descriptor instead.
 func (*IntegrityFinding) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{5}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *IntegrityFinding) GetCode() string {
@@ -742,7 +632,7 @@ type DriftFinding struct {
 
 func (x *DriftFinding) Reset() {
 	*x = DriftFinding{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[6]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -754,7 +644,7 @@ func (x *DriftFinding) String() string {
 func (*DriftFinding) ProtoMessage() {}
 
 func (x *DriftFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[6]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -767,7 +657,7 @@ func (x *DriftFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DriftFinding.ProtoReflect.Descriptor instead.
 func (*DriftFinding) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{6}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DriftFinding) GetCode() string {
@@ -814,7 +704,7 @@ type GetCoverageRequest struct {
 
 func (x *GetCoverageRequest) Reset() {
 	*x = GetCoverageRequest{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[7]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -826,7 +716,7 @@ func (x *GetCoverageRequest) String() string {
 func (*GetCoverageRequest) ProtoMessage() {}
 
 func (x *GetCoverageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[7]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -839,7 +729,7 @@ func (x *GetCoverageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCoverageRequest.ProtoReflect.Descriptor instead.
 func (*GetCoverageRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{7}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetCoverageRequest) GetProjections() []Projection {
@@ -860,7 +750,7 @@ type GetCoverageResponse struct {
 
 func (x *GetCoverageResponse) Reset() {
 	*x = GetCoverageResponse{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[8]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -872,7 +762,7 @@ func (x *GetCoverageResponse) String() string {
 func (*GetCoverageResponse) ProtoMessage() {}
 
 func (x *GetCoverageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[8]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -885,7 +775,7 @@ func (x *GetCoverageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCoverageResponse.ProtoReflect.Descriptor instead.
 func (*GetCoverageResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{8}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetCoverageResponse) GetProjections() []*ProjectionCoverage {
@@ -919,7 +809,7 @@ type ListCellsRequest struct {
 
 func (x *ListCellsRequest) Reset() {
 	*x = ListCellsRequest{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[9]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -931,7 +821,7 @@ func (x *ListCellsRequest) String() string {
 func (*ListCellsRequest) ProtoMessage() {}
 
 func (x *ListCellsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[9]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -944,7 +834,7 @@ func (x *ListCellsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCellsRequest.ProtoReflect.Descriptor instead.
 func (*ListCellsRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{9}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListCellsRequest) GetProjection() Projection {
@@ -963,14 +853,14 @@ func (x *ListCellsRequest) GetStatus() CellStatus {
 
 type ListCellsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Cells         []*Cell                `protobuf:"bytes,1,rep,name=cells,proto3" json:"cells,omitempty"`
+	Cells         []*shared.Cell         `protobuf:"bytes,1,rep,name=cells,proto3" json:"cells,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListCellsResponse) Reset() {
 	*x = ListCellsResponse{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[10]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -982,7 +872,7 @@ func (x *ListCellsResponse) String() string {
 func (*ListCellsResponse) ProtoMessage() {}
 
 func (x *ListCellsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[10]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -995,10 +885,10 @@ func (x *ListCellsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCellsResponse.ProtoReflect.Descriptor instead.
 func (*ListCellsResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{10}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *ListCellsResponse) GetCells() []*Cell {
+func (x *ListCellsResponse) GetCells() []*shared.Cell {
 	if x != nil {
 		return x.Cells
 	}
@@ -1014,7 +904,7 @@ type GetProjectionRequest struct {
 
 func (x *GetProjectionRequest) Reset() {
 	*x = GetProjectionRequest{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[11]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1026,7 +916,7 @@ func (x *GetProjectionRequest) String() string {
 func (*GetProjectionRequest) ProtoMessage() {}
 
 func (x *GetProjectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[11]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1039,7 +929,7 @@ func (x *GetProjectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProjectionRequest.ProtoReflect.Descriptor instead.
 func (*GetProjectionRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{11}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetProjectionRequest) GetProjection() Projection {
@@ -1052,7 +942,7 @@ func (x *GetProjectionRequest) GetProjection() Projection {
 type GetProjectionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Projection    Projection             `protobuf:"varint,1,opt,name=projection,proto3,enum=vrooli.infrastructure_manager.v1.coverage.Projection" json:"projection,omitempty"`
-	Cells         []*Cell                `protobuf:"bytes,2,rep,name=cells,proto3" json:"cells,omitempty"`
+	Cells         []*shared.Cell         `protobuf:"bytes,2,rep,name=cells,proto3" json:"cells,omitempty"`
 	Coverage      *ProjectionCoverage    `protobuf:"bytes,3,opt,name=coverage,proto3" json:"coverage,omitempty"`
 	Bars          []*Bar                 `protobuf:"bytes,4,rep,name=bars,proto3" json:"bars,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1061,7 +951,7 @@ type GetProjectionResponse struct {
 
 func (x *GetProjectionResponse) Reset() {
 	*x = GetProjectionResponse{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[12]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1073,7 +963,7 @@ func (x *GetProjectionResponse) String() string {
 func (*GetProjectionResponse) ProtoMessage() {}
 
 func (x *GetProjectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[12]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1086,7 +976,7 @@ func (x *GetProjectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProjectionResponse.ProtoReflect.Descriptor instead.
 func (*GetProjectionResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{12}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetProjectionResponse) GetProjection() Projection {
@@ -1096,7 +986,7 @@ func (x *GetProjectionResponse) GetProjection() Projection {
 	return Projection_PROJECTION_UNSPECIFIED
 }
 
-func (x *GetProjectionResponse) GetCells() []*Cell {
+func (x *GetProjectionResponse) GetCells() []*shared.Cell {
 	if x != nil {
 		return x.Cells
 	}
@@ -1126,7 +1016,7 @@ type ValidateSetpointRequest struct {
 
 func (x *ValidateSetpointRequest) Reset() {
 	*x = ValidateSetpointRequest{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[13]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1138,7 +1028,7 @@ func (x *ValidateSetpointRequest) String() string {
 func (*ValidateSetpointRequest) ProtoMessage() {}
 
 func (x *ValidateSetpointRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[13]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1151,7 +1041,7 @@ func (x *ValidateSetpointRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateSetpointRequest.ProtoReflect.Descriptor instead.
 func (*ValidateSetpointRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{13}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ValidateSetpointRequest) GetIncludeAdvisories() bool {
@@ -1171,7 +1061,7 @@ type ValidateSetpointResponse struct {
 
 func (x *ValidateSetpointResponse) Reset() {
 	*x = ValidateSetpointResponse{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[14]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1183,7 +1073,7 @@ func (x *ValidateSetpointResponse) String() string {
 func (*ValidateSetpointResponse) ProtoMessage() {}
 
 func (x *ValidateSetpointResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[14]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1196,7 +1086,7 @@ func (x *ValidateSetpointResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateSetpointResponse.ProtoReflect.Descriptor instead.
 func (*ValidateSetpointResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{14}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ValidateSetpointResponse) GetOk() bool {
@@ -1222,7 +1112,7 @@ type GetDriftRequest struct {
 
 func (x *GetDriftRequest) Reset() {
 	*x = GetDriftRequest{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[15]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1234,7 +1124,7 @@ func (x *GetDriftRequest) String() string {
 func (*GetDriftRequest) ProtoMessage() {}
 
 func (x *GetDriftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[15]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1247,7 +1137,7 @@ func (x *GetDriftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDriftRequest.ProtoReflect.Descriptor instead.
 func (*GetDriftRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{15}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetDriftRequest) GetProjection() Projection {
@@ -1266,7 +1156,7 @@ type GetDriftResponse struct {
 
 func (x *GetDriftResponse) Reset() {
 	*x = GetDriftResponse{}
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[16]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1278,7 +1168,7 @@ func (x *GetDriftResponse) String() string {
 func (*GetDriftResponse) ProtoMessage() {}
 
 func (x *GetDriftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[16]
+	mi := &file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1291,7 +1181,7 @@ func (x *GetDriftResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDriftResponse.ProtoReflect.Descriptor instead.
 func (*GetDriftResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{16}
+	return file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetDriftResponse) GetFindings() []*DriftFinding {
@@ -1305,7 +1195,7 @@ var File_infrastructure_manager_v1_coverage_coverage_proto protoreflect.FileDesc
 
 const file_infrastructure_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\n" +
-	"1infrastructure-manager/v1/coverage/coverage.proto\x12)vrooli.infrastructure_manager.v1.coverage\x1a\x1fgoogle/protobuf/timestamp.proto\"|\n" +
+	"1infrastructure-manager/v1/coverage/coverage.proto\x12)vrooli.infrastructure_manager.v1.coverage\x1a\x1fgoogle/protobuf/timestamp.proto\x1a+infrastructure-manager/v1/shared/cell.proto\"|\n" +
 	"\n" +
 	"Confidence\x12P\n" +
 	"\x05level\x18\x01 \x01(\x0e2:.vrooli.infrastructure_manager.v1.coverage.ConfidenceLevelR\x05level\x12\x1c\n" +
@@ -1316,22 +1206,7 @@ const file_infrastructure_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"confidence\x18\x02 \x01(\v25.vrooli.infrastructure_manager.v1.coverage.ConfidenceR\n" +
 	"confidence\x12\x1c\n" +
 	"\tnumerator\x18\x03 \x01(\x05R\tnumerator\x12 \n" +
-	"\vdenominator\x18\x04 \x01(\x05R\vdenominator\"\x86\x03\n" +
-	"\x04Cell\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12U\n" +
-	"\n" +
-	"projection\x18\x02 \x01(\x0e25.vrooli.infrastructure_manager.v1.coverage.ProjectionR\n" +
-	"projection\x12\x1a\n" +
-	"\bquestion\x18\x03 \x01(\tR\bquestion\x12\x14\n" +
-	"\x05owner\x18\x04 \x01(\tR\x05owner\x12\x19\n" +
-	"\bleg_unit\x18\x05 \x01(\tR\alegUnit\x12M\n" +
-	"\x06status\x18\x06 \x01(\x0e25.vrooli.infrastructure_manager.v1.coverage.CellStatusR\x06status\x12\x1d\n" +
-	"\n" +
-	"sensor_ref\x18\a \x01(\tR\tsensorRef\x12\"\n" +
-	"\rgap_opened_on\x18\b \x01(\tR\vgapOpenedOn\x12\"\n" +
-	"\rgap_open_days\x18\t \x01(\x05R\vgapOpenDays\x12\x14\n" +
-	"\x05notes\x18\n" +
-	" \x03(\tR\x05notes\"\x9d\x02\n" +
+	"\vdenominator\x18\x04 \x01(\x05R\vdenominator\"\x9d\x02\n" +
 	"\x03Bar\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bcell_ref\x18\x02 \x01(\tR\acellRef\x12U\n" +
@@ -1386,18 +1261,18 @@ const file_infrastructure_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\n" +
 	"projection\x18\x01 \x01(\x0e25.vrooli.infrastructure_manager.v1.coverage.ProjectionR\n" +
 	"projection\x12M\n" +
-	"\x06status\x18\x02 \x01(\x0e25.vrooli.infrastructure_manager.v1.coverage.CellStatusR\x06status\"Z\n" +
-	"\x11ListCellsResponse\x12E\n" +
-	"\x05cells\x18\x01 \x03(\v2/.vrooli.infrastructure_manager.v1.coverage.CellR\x05cells\"m\n" +
+	"\x06status\x18\x02 \x01(\x0e25.vrooli.infrastructure_manager.v1.coverage.CellStatusR\x06status\"X\n" +
+	"\x11ListCellsResponse\x12C\n" +
+	"\x05cells\x18\x01 \x03(\v2-.vrooli.infrastructure_manager.v1.shared.CellR\x05cells\"m\n" +
 	"\x14GetProjectionRequest\x12U\n" +
 	"\n" +
 	"projection\x18\x01 \x01(\x0e25.vrooli.infrastructure_manager.v1.coverage.ProjectionR\n" +
-	"projection\"\xd4\x02\n" +
+	"projection\"\xd2\x02\n" +
 	"\x15GetProjectionResponse\x12U\n" +
 	"\n" +
 	"projection\x18\x01 \x01(\x0e25.vrooli.infrastructure_manager.v1.coverage.ProjectionR\n" +
-	"projection\x12E\n" +
-	"\x05cells\x18\x02 \x03(\v2/.vrooli.infrastructure_manager.v1.coverage.CellR\x05cells\x12Y\n" +
+	"projection\x12C\n" +
+	"\x05cells\x18\x02 \x03(\v2-.vrooli.infrastructure_manager.v1.shared.CellR\x05cells\x12Y\n" +
 	"\bcoverage\x18\x03 \x01(\v2=.vrooli.infrastructure_manager.v1.coverage.ProjectionCoverageR\bcoverage\x12B\n" +
 	"\x04bars\x18\x04 \x03(\v2..vrooli.infrastructure_manager.v1.coverage.BarR\x04bars\"H\n" +
 	"\x17ValidateSetpointRequest\x12-\n" +
@@ -1410,7 +1285,7 @@ const file_infrastructure_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"projection\x18\x01 \x01(\x0e25.vrooli.infrastructure_manager.v1.coverage.ProjectionR\n" +
 	"projection\"g\n" +
 	"\x10GetDriftResponse\x12S\n" +
-	"\bfindings\x18\x01 \x03(\v27.vrooli.infrastructure_manager.v1.coverage.DriftFindingR\bfindings*\xc2\x02\n" +
+	"\bfindings\x18\x01 \x03(\v27.vrooli.infrastructure_manager.v1.coverage.DriftFindingR\bfindings*\xdc\x02\n" +
 	"\n" +
 	"Projection\x12\x1a\n" +
 	"\x16PROJECTION_UNSPECIFIED\x10\x00\x12\x1a\n" +
@@ -1424,7 +1299,8 @@ const file_infrastructure_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\x1aPROJECTION_VALIDATION_COST\x10\b\x12\x1f\n" +
 	"\x1bPROJECTION_AGENT_THROUGHPUT\x10\t\x12\x1c\n" +
 	"\x18PROJECTION_COMMISSIONING\x10\n" +
-	"*q\n" +
+	"\x12\x18\n" +
+	"\x14PROJECTION_SUBSTRATE\x10\v*q\n" +
 	"\n" +
 	"CellStatus\x12\x1b\n" +
 	"\x17CELL_STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +
@@ -1435,10 +1311,11 @@ const file_infrastructure_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\x1cCONFIDENCE_LEVEL_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eCONFIDENCE_LEVEL_AUTHORITATIVE\x10\x01\x12\x1c\n" +
 	"\x18CONFIDENCE_LEVEL_PARTIAL\x10\x02\x12\x1b\n" +
-	"\x17CONFIDENCE_LEVEL_SKETCH\x10\x032\xe2\x05\n" +
+	"\x17CONFIDENCE_LEVEL_SKETCH\x10\x032\xf3\x06\n" +
 	"\x0fCoverageService\x12\x8c\x01\n" +
 	"\vGetCoverage\x12=.vrooli.infrastructure_manager.v1.coverage.GetCoverageRequest\x1a>.vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse\x12\x86\x01\n" +
-	"\tListCells\x12;.vrooli.infrastructure_manager.v1.coverage.ListCellsRequest\x1a<.vrooli.infrastructure_manager.v1.coverage.ListCellsResponse\x12\x92\x01\n" +
+	"\tListCells\x12;.vrooli.infrastructure_manager.v1.coverage.ListCellsRequest\x1a<.vrooli.infrastructure_manager.v1.coverage.ListCellsResponse\x12\x8e\x01\n" +
+	"\x11ListOpenLoopCells\x12;.vrooli.infrastructure_manager.v1.coverage.ListCellsRequest\x1a<.vrooli.infrastructure_manager.v1.coverage.ListCellsResponse\x12\x92\x01\n" +
 	"\rGetProjection\x12?.vrooli.infrastructure_manager.v1.coverage.GetProjectionRequest\x1a@.vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse\x12\x9b\x01\n" +
 	"\x10ValidateSetpoint\x12B.vrooli.infrastructure_manager.v1.coverage.ValidateSetpointRequest\x1aC.vrooli.infrastructure_manager.v1.coverage.ValidateSetpointResponse\x12\x83\x01\n" +
 	"\bGetDrift\x12:.vrooli.infrastructure_manager.v1.coverage.GetDriftRequest\x1a;.vrooli.infrastructure_manager.v1.coverage.GetDriftResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/coverage;coverage_v1b\x06proto3"
@@ -1456,70 +1333,70 @@ func file_infrastructure_manager_v1_coverage_coverage_proto_rawDescGZIP() []byte
 }
 
 var file_infrastructure_manager_v1_coverage_coverage_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_infrastructure_manager_v1_coverage_coverage_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_infrastructure_manager_v1_coverage_coverage_proto_goTypes = []any{
 	(Projection)(0),                  // 0: vrooli.infrastructure_manager.v1.coverage.Projection
 	(CellStatus)(0),                  // 1: vrooli.infrastructure_manager.v1.coverage.CellStatus
 	(ConfidenceLevel)(0),             // 2: vrooli.infrastructure_manager.v1.coverage.ConfidenceLevel
 	(*Confidence)(nil),               // 3: vrooli.infrastructure_manager.v1.coverage.Confidence
 	(*Ratio)(nil),                    // 4: vrooli.infrastructure_manager.v1.coverage.Ratio
-	(*Cell)(nil),                     // 5: vrooli.infrastructure_manager.v1.coverage.Cell
-	(*Bar)(nil),                      // 6: vrooli.infrastructure_manager.v1.coverage.Bar
-	(*ProjectionCoverage)(nil),       // 7: vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage
-	(*IntegrityFinding)(nil),         // 8: vrooli.infrastructure_manager.v1.coverage.IntegrityFinding
-	(*DriftFinding)(nil),             // 9: vrooli.infrastructure_manager.v1.coverage.DriftFinding
-	(*GetCoverageRequest)(nil),       // 10: vrooli.infrastructure_manager.v1.coverage.GetCoverageRequest
-	(*GetCoverageResponse)(nil),      // 11: vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse
-	(*ListCellsRequest)(nil),         // 12: vrooli.infrastructure_manager.v1.coverage.ListCellsRequest
-	(*ListCellsResponse)(nil),        // 13: vrooli.infrastructure_manager.v1.coverage.ListCellsResponse
-	(*GetProjectionRequest)(nil),     // 14: vrooli.infrastructure_manager.v1.coverage.GetProjectionRequest
-	(*GetProjectionResponse)(nil),    // 15: vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse
-	(*ValidateSetpointRequest)(nil),  // 16: vrooli.infrastructure_manager.v1.coverage.ValidateSetpointRequest
-	(*ValidateSetpointResponse)(nil), // 17: vrooli.infrastructure_manager.v1.coverage.ValidateSetpointResponse
-	(*GetDriftRequest)(nil),          // 18: vrooli.infrastructure_manager.v1.coverage.GetDriftRequest
-	(*GetDriftResponse)(nil),         // 19: vrooli.infrastructure_manager.v1.coverage.GetDriftResponse
-	(*timestamppb.Timestamp)(nil),    // 20: google.protobuf.Timestamp
+	(*Bar)(nil),                      // 5: vrooli.infrastructure_manager.v1.coverage.Bar
+	(*ProjectionCoverage)(nil),       // 6: vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage
+	(*IntegrityFinding)(nil),         // 7: vrooli.infrastructure_manager.v1.coverage.IntegrityFinding
+	(*DriftFinding)(nil),             // 8: vrooli.infrastructure_manager.v1.coverage.DriftFinding
+	(*GetCoverageRequest)(nil),       // 9: vrooli.infrastructure_manager.v1.coverage.GetCoverageRequest
+	(*GetCoverageResponse)(nil),      // 10: vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse
+	(*ListCellsRequest)(nil),         // 11: vrooli.infrastructure_manager.v1.coverage.ListCellsRequest
+	(*ListCellsResponse)(nil),        // 12: vrooli.infrastructure_manager.v1.coverage.ListCellsResponse
+	(*GetProjectionRequest)(nil),     // 13: vrooli.infrastructure_manager.v1.coverage.GetProjectionRequest
+	(*GetProjectionResponse)(nil),    // 14: vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse
+	(*ValidateSetpointRequest)(nil),  // 15: vrooli.infrastructure_manager.v1.coverage.ValidateSetpointRequest
+	(*ValidateSetpointResponse)(nil), // 16: vrooli.infrastructure_manager.v1.coverage.ValidateSetpointResponse
+	(*GetDriftRequest)(nil),          // 17: vrooli.infrastructure_manager.v1.coverage.GetDriftRequest
+	(*GetDriftResponse)(nil),         // 18: vrooli.infrastructure_manager.v1.coverage.GetDriftResponse
+	(*timestamppb.Timestamp)(nil),    // 19: google.protobuf.Timestamp
+	(*shared.Cell)(nil),              // 20: vrooli.infrastructure_manager.v1.shared.Cell
 }
 var file_infrastructure_manager_v1_coverage_coverage_proto_depIdxs = []int32{
 	2,  // 0: vrooli.infrastructure_manager.v1.coverage.Confidence.level:type_name -> vrooli.infrastructure_manager.v1.coverage.ConfidenceLevel
 	3,  // 1: vrooli.infrastructure_manager.v1.coverage.Ratio.confidence:type_name -> vrooli.infrastructure_manager.v1.coverage.Confidence
-	0,  // 2: vrooli.infrastructure_manager.v1.coverage.Cell.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
-	1,  // 3: vrooli.infrastructure_manager.v1.coverage.Cell.status:type_name -> vrooli.infrastructure_manager.v1.coverage.CellStatus
-	0,  // 4: vrooli.infrastructure_manager.v1.coverage.Bar.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
-	0,  // 5: vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
-	4,  // 6: vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage.ratio:type_name -> vrooli.infrastructure_manager.v1.coverage.Ratio
-	3,  // 7: vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage.confidence:type_name -> vrooli.infrastructure_manager.v1.coverage.Confidence
-	20, // 8: vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage.computed_at:type_name -> google.protobuf.Timestamp
-	0,  // 9: vrooli.infrastructure_manager.v1.coverage.GetCoverageRequest.projections:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
-	7,  // 10: vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse.projections:type_name -> vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage
-	8,  // 11: vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse.integrity_findings:type_name -> vrooli.infrastructure_manager.v1.coverage.IntegrityFinding
-	20, // 12: vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse.computed_at:type_name -> google.protobuf.Timestamp
-	0,  // 13: vrooli.infrastructure_manager.v1.coverage.ListCellsRequest.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
-	1,  // 14: vrooli.infrastructure_manager.v1.coverage.ListCellsRequest.status:type_name -> vrooli.infrastructure_manager.v1.coverage.CellStatus
-	5,  // 15: vrooli.infrastructure_manager.v1.coverage.ListCellsResponse.cells:type_name -> vrooli.infrastructure_manager.v1.coverage.Cell
-	0,  // 16: vrooli.infrastructure_manager.v1.coverage.GetProjectionRequest.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
-	0,  // 17: vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
-	5,  // 18: vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse.cells:type_name -> vrooli.infrastructure_manager.v1.coverage.Cell
-	7,  // 19: vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse.coverage:type_name -> vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage
-	6,  // 20: vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse.bars:type_name -> vrooli.infrastructure_manager.v1.coverage.Bar
-	8,  // 21: vrooli.infrastructure_manager.v1.coverage.ValidateSetpointResponse.findings:type_name -> vrooli.infrastructure_manager.v1.coverage.IntegrityFinding
-	0,  // 22: vrooli.infrastructure_manager.v1.coverage.GetDriftRequest.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
-	9,  // 23: vrooli.infrastructure_manager.v1.coverage.GetDriftResponse.findings:type_name -> vrooli.infrastructure_manager.v1.coverage.DriftFinding
-	10, // 24: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetCoverage:input_type -> vrooli.infrastructure_manager.v1.coverage.GetCoverageRequest
-	12, // 25: vrooli.infrastructure_manager.v1.coverage.CoverageService.ListCells:input_type -> vrooli.infrastructure_manager.v1.coverage.ListCellsRequest
-	14, // 26: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetProjection:input_type -> vrooli.infrastructure_manager.v1.coverage.GetProjectionRequest
-	16, // 27: vrooli.infrastructure_manager.v1.coverage.CoverageService.ValidateSetpoint:input_type -> vrooli.infrastructure_manager.v1.coverage.ValidateSetpointRequest
-	18, // 28: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetDrift:input_type -> vrooli.infrastructure_manager.v1.coverage.GetDriftRequest
-	11, // 29: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetCoverage:output_type -> vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse
-	13, // 30: vrooli.infrastructure_manager.v1.coverage.CoverageService.ListCells:output_type -> vrooli.infrastructure_manager.v1.coverage.ListCellsResponse
-	15, // 31: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetProjection:output_type -> vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse
-	17, // 32: vrooli.infrastructure_manager.v1.coverage.CoverageService.ValidateSetpoint:output_type -> vrooli.infrastructure_manager.v1.coverage.ValidateSetpointResponse
-	19, // 33: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetDrift:output_type -> vrooli.infrastructure_manager.v1.coverage.GetDriftResponse
-	29, // [29:34] is the sub-list for method output_type
-	24, // [24:29] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	0,  // 2: vrooli.infrastructure_manager.v1.coverage.Bar.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
+	0,  // 3: vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
+	4,  // 4: vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage.ratio:type_name -> vrooli.infrastructure_manager.v1.coverage.Ratio
+	3,  // 5: vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage.confidence:type_name -> vrooli.infrastructure_manager.v1.coverage.Confidence
+	19, // 6: vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage.computed_at:type_name -> google.protobuf.Timestamp
+	0,  // 7: vrooli.infrastructure_manager.v1.coverage.GetCoverageRequest.projections:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
+	6,  // 8: vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse.projections:type_name -> vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage
+	7,  // 9: vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse.integrity_findings:type_name -> vrooli.infrastructure_manager.v1.coverage.IntegrityFinding
+	19, // 10: vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse.computed_at:type_name -> google.protobuf.Timestamp
+	0,  // 11: vrooli.infrastructure_manager.v1.coverage.ListCellsRequest.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
+	1,  // 12: vrooli.infrastructure_manager.v1.coverage.ListCellsRequest.status:type_name -> vrooli.infrastructure_manager.v1.coverage.CellStatus
+	20, // 13: vrooli.infrastructure_manager.v1.coverage.ListCellsResponse.cells:type_name -> vrooli.infrastructure_manager.v1.shared.Cell
+	0,  // 14: vrooli.infrastructure_manager.v1.coverage.GetProjectionRequest.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
+	0,  // 15: vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
+	20, // 16: vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse.cells:type_name -> vrooli.infrastructure_manager.v1.shared.Cell
+	6,  // 17: vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse.coverage:type_name -> vrooli.infrastructure_manager.v1.coverage.ProjectionCoverage
+	5,  // 18: vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse.bars:type_name -> vrooli.infrastructure_manager.v1.coverage.Bar
+	7,  // 19: vrooli.infrastructure_manager.v1.coverage.ValidateSetpointResponse.findings:type_name -> vrooli.infrastructure_manager.v1.coverage.IntegrityFinding
+	0,  // 20: vrooli.infrastructure_manager.v1.coverage.GetDriftRequest.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
+	8,  // 21: vrooli.infrastructure_manager.v1.coverage.GetDriftResponse.findings:type_name -> vrooli.infrastructure_manager.v1.coverage.DriftFinding
+	9,  // 22: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetCoverage:input_type -> vrooli.infrastructure_manager.v1.coverage.GetCoverageRequest
+	11, // 23: vrooli.infrastructure_manager.v1.coverage.CoverageService.ListCells:input_type -> vrooli.infrastructure_manager.v1.coverage.ListCellsRequest
+	11, // 24: vrooli.infrastructure_manager.v1.coverage.CoverageService.ListOpenLoopCells:input_type -> vrooli.infrastructure_manager.v1.coverage.ListCellsRequest
+	13, // 25: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetProjection:input_type -> vrooli.infrastructure_manager.v1.coverage.GetProjectionRequest
+	15, // 26: vrooli.infrastructure_manager.v1.coverage.CoverageService.ValidateSetpoint:input_type -> vrooli.infrastructure_manager.v1.coverage.ValidateSetpointRequest
+	17, // 27: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetDrift:input_type -> vrooli.infrastructure_manager.v1.coverage.GetDriftRequest
+	10, // 28: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetCoverage:output_type -> vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse
+	12, // 29: vrooli.infrastructure_manager.v1.coverage.CoverageService.ListCells:output_type -> vrooli.infrastructure_manager.v1.coverage.ListCellsResponse
+	12, // 30: vrooli.infrastructure_manager.v1.coverage.CoverageService.ListOpenLoopCells:output_type -> vrooli.infrastructure_manager.v1.coverage.ListCellsResponse
+	14, // 31: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetProjection:output_type -> vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse
+	16, // 32: vrooli.infrastructure_manager.v1.coverage.CoverageService.ValidateSetpoint:output_type -> vrooli.infrastructure_manager.v1.coverage.ValidateSetpointResponse
+	18, // 33: vrooli.infrastructure_manager.v1.coverage.CoverageService.GetDrift:output_type -> vrooli.infrastructure_manager.v1.coverage.GetDriftResponse
+	28, // [28:34] is the sub-list for method output_type
+	22, // [22:28] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_infrastructure_manager_v1_coverage_coverage_proto_init() }
@@ -1533,7 +1410,7 @@ func file_infrastructure_manager_v1_coverage_coverage_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_infrastructure_manager_v1_coverage_coverage_proto_rawDesc), len(file_infrastructure_manager_v1_coverage_coverage_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   17,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"deployment-manager/shared"
+
 	"github.com/vrooli/api-core/discovery"
 )
 

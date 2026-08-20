@@ -24,20 +24,22 @@ CHECK_STATUS_CRITICAL: CheckStatus
 CHECK_STATUS_NOT_APPLICABLE: CheckStatus
 
 class CheckInfo(_message.Message):
-    __slots__ = ("id", "title", "description", "importance", "category", "interval_seconds")
+    __slots__ = ("id", "title", "description", "importance", "category", "interval_seconds", "platforms")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     IMPORTANCE_FIELD_NUMBER: _ClassVar[int]
     CATEGORY_FIELD_NUMBER: _ClassVar[int]
     INTERVAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    PLATFORMS_FIELD_NUMBER: _ClassVar[int]
     id: str
     title: str
     description: str
     importance: str
     category: str
     interval_seconds: int
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., importance: _Optional[str] = ..., category: _Optional[str] = ..., interval_seconds: _Optional[int] = ...) -> None: ...
+    platforms: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., importance: _Optional[str] = ..., category: _Optional[str] = ..., interval_seconds: _Optional[int] = ..., platforms: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CheckResult(_message.Message):
     __slots__ = ("check_id", "status", "message", "observed_at", "duration_ms", "details_json")
@@ -142,3 +144,113 @@ class GetTransitionsResponse(_message.Message):
     TRANSITIONS_FIELD_NUMBER: _ClassVar[int]
     transitions: _containers.RepeatedCompositeFieldContainer[Transition]
     def __init__(self, transitions: _Optional[_Iterable[_Union[Transition, _Mapping]]] = ...) -> None: ...
+
+class Reconcile(_message.Message):
+    __slots__ = ("ghost_check_ids", "unsupervised_plant", "available", "unavailable_reason", "computed_at", "out_of_scope_check_ids", "ghost_detection_available", "ghost_unavailable_reason")
+    GHOST_CHECK_IDS_FIELD_NUMBER: _ClassVar[int]
+    UNSUPERVISED_PLANT_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    UNAVAILABLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
+    OUT_OF_SCOPE_CHECK_IDS_FIELD_NUMBER: _ClassVar[int]
+    GHOST_DETECTION_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    GHOST_UNAVAILABLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    ghost_check_ids: _containers.RepeatedScalarFieldContainer[str]
+    unsupervised_plant: _containers.RepeatedScalarFieldContainer[str]
+    available: bool
+    unavailable_reason: str
+    computed_at: _timestamp_pb2.Timestamp
+    out_of_scope_check_ids: _containers.RepeatedScalarFieldContainer[str]
+    ghost_detection_available: bool
+    ghost_unavailable_reason: str
+    def __init__(self, ghost_check_ids: _Optional[_Iterable[str]] = ..., unsupervised_plant: _Optional[_Iterable[str]] = ..., available: _Optional[bool] = ..., unavailable_reason: _Optional[str] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., out_of_scope_check_ids: _Optional[_Iterable[str]] = ..., ghost_detection_available: _Optional[bool] = ..., ghost_unavailable_reason: _Optional[str] = ...) -> None: ...
+
+class GetReconcileRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetReconcileResponse(_message.Message):
+    __slots__ = ("reconcile",)
+    RECONCILE_FIELD_NUMBER: _ClassVar[int]
+    reconcile: Reconcile
+    def __init__(self, reconcile: _Optional[_Union[Reconcile, _Mapping]] = ...) -> None: ...
+
+class Shelf(_message.Message):
+    __slots__ = ("check_id", "reason", "expires_at", "set_by", "created_at")
+    CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    SET_BY_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    check_id: str
+    reason: str
+    expires_at: _timestamp_pb2.Timestamp
+    set_by: str
+    created_at: _timestamp_pb2.Timestamp
+    def __init__(self, check_id: _Optional[str] = ..., reason: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., set_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class ListShelvesRequest(_message.Message):
+    __slots__ = ("include_expired",)
+    INCLUDE_EXPIRED_FIELD_NUMBER: _ClassVar[int]
+    include_expired: bool
+    def __init__(self, include_expired: _Optional[bool] = ...) -> None: ...
+
+class ListShelvesResponse(_message.Message):
+    __slots__ = ("shelves",)
+    SHELVES_FIELD_NUMBER: _ClassVar[int]
+    shelves: _containers.RepeatedCompositeFieldContainer[Shelf]
+    def __init__(self, shelves: _Optional[_Iterable[_Union[Shelf, _Mapping]]] = ...) -> None: ...
+
+class Saturation(_message.Message):
+    __slots__ = ("check_id", "transitioned", "transition_count", "current_status", "saturated")
+    CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSITIONED_FIELD_NUMBER: _ClassVar[int]
+    TRANSITION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_STATUS_FIELD_NUMBER: _ClassVar[int]
+    SATURATED_FIELD_NUMBER: _ClassVar[int]
+    check_id: str
+    transitioned: bool
+    transition_count: int
+    current_status: CheckStatus
+    saturated: bool
+    def __init__(self, check_id: _Optional[str] = ..., transitioned: _Optional[bool] = ..., transition_count: _Optional[int] = ..., current_status: _Optional[_Union[CheckStatus, str]] = ..., saturated: _Optional[bool] = ...) -> None: ...
+
+class ListSaturationRequest(_message.Message):
+    __slots__ = ("window_hours",)
+    WINDOW_HOURS_FIELD_NUMBER: _ClassVar[int]
+    window_hours: int
+    def __init__(self, window_hours: _Optional[int] = ...) -> None: ...
+
+class ListSaturationResponse(_message.Message):
+    __slots__ = ("saturations", "window_hours", "computed_at", "truncated")
+    SATURATIONS_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_HOURS_FIELD_NUMBER: _ClassVar[int]
+    COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
+    TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    saturations: _containers.RepeatedCompositeFieldContainer[Saturation]
+    window_hours: int
+    computed_at: _timestamp_pb2.Timestamp
+    truncated: bool
+    def __init__(self, saturations: _Optional[_Iterable[_Union[Saturation, _Mapping]]] = ..., window_hours: _Optional[int] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., truncated: _Optional[bool] = ...) -> None: ...
+
+class GetSaturationRequest(_message.Message):
+    __slots__ = ("check_id", "window_hours")
+    CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_HOURS_FIELD_NUMBER: _ClassVar[int]
+    check_id: str
+    window_hours: int
+    def __init__(self, check_id: _Optional[str] = ..., window_hours: _Optional[int] = ...) -> None: ...
+
+class GetSaturationResponse(_message.Message):
+    __slots__ = ("check_id", "transitioned", "transition_count", "window_hours", "computed_at")
+    CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSITIONED_FIELD_NUMBER: _ClassVar[int]
+    TRANSITION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_HOURS_FIELD_NUMBER: _ClassVar[int]
+    COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
+    check_id: str
+    transitioned: bool
+    transition_count: int
+    window_hours: int
+    computed_at: _timestamp_pb2.Timestamp
+    def __init__(self, check_id: _Optional[str] = ..., transitioned: _Optional[bool] = ..., transition_count: _Optional[int] = ..., window_hours: _Optional[int] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...

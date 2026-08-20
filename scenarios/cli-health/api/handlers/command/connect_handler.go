@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	"cli-health/internal/commandref"
+
 	commandv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/command"
 )
 

@@ -15,9 +15,16 @@ import (
 )
 
 func main() {
-	dsn := strings.TrimSpace(os.Getenv("SQLITE_PATH"))
-	if dsn == "" { dsn = strings.TrimSpace(os.Getenv("SQLITE_DB")) }
-	if dsn == "" { log.Fatal("seed: SQLITE_PATH or SQLITE_DB is required") }
+	// The playbooks isolation manager leases this run its own database and
+	// names it in the playbooks-scoped variables. The generic pair is not read:
+	// it would let this seed truncate whatever database was in the environment.
+	dsn := strings.TrimSpace(os.Getenv("PLAYBOOKS_SQLITE_DSN"))
+	if dsn == "" {
+		dsn = strings.TrimSpace(os.Getenv("PLAYBOOKS_SQLITE_PATH"))
+	}
+	if dsn == "" {
+		log.Fatal("seed: PLAYBOOKS_SQLITE_DSN or PLAYBOOKS_SQLITE_PATH is required")
+	}
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil { log.Fatal(err) }
 	defer db.Close()

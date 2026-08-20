@@ -15,6 +15,7 @@ import (
 	assetstudio "channel-manager/integrations/assetstudio"
 	contentdesk "channel-manager/integrations/contentdesk"
 	core "channel-manager/internal/channelmanager"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	channelmanagerv1 "github.com/vrooli/vrooli/packages/proto/gen/go/channel-manager/v1/channelmanager"
@@ -69,6 +70,7 @@ func (d *deliveryStub) DeliverRelease(_ context.Context, outcome contentdesk.Rel
 	d.release = outcome
 	return d.err
 }
+
 func (d *deliveryStub) DeliverMetric(_ context.Context, sample contentdesk.MetricSample) error {
 	d.metric = sample
 	return d.err

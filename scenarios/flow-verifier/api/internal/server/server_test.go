@@ -8,6 +8,7 @@ import (
 
 	"flow-verifier/internal/module"
 	"flow-verifier/internal/server"
+
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"

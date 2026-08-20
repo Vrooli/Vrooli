@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"ai-gateway/internal/providers"
+
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 

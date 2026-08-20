@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"backdrop-studio/internal/catalog"
+
 	"github.com/stretchr/testify/require"
 )
 

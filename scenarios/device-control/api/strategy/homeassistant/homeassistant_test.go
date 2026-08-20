@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"device-control/strategy"
+
 	"github.com/stretchr/testify/require"
 )
 

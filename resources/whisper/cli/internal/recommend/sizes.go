@@ -1,7 +1,7 @@
 // Package recommend converts a HostCapabilities snapshot into a
 // concrete Whisper model-size pick. The decision table is centralised
-// in this package; the CLI subcommand and the docker start path both
-// consume the same Pick() function so behaviour stays consistent.
+// in this package; the CLI and capacity-management paths both consume the
+// same Pick() function so behaviour stays consistent.
 package recommend
 
 // Model is the canonical Whisper model identifier emitted by Pick.
@@ -17,7 +17,7 @@ const (
 )
 
 // VRAMRequirement is the minimum effective VRAM (bytes) for a model at
-// safe operating headroom on faster_whisper. Numbers are approximate
+// safe operating headroom on native Whisper runtimes. Numbers are approximate
 // floor values that include activation + KV cache; they bias toward
 // "the host can actually load this." Updating these is the only knob
 // for shifting the table.

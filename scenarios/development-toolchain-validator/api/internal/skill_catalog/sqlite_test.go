@@ -7,6 +7,7 @@ import (
 	"time"
 
 	skillcatalog "development-toolchain-validator/internal/skill_catalog"
+
 	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"

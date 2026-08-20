@@ -4,6 +4,7 @@ package vrooli.infrastructure_manager.v1.condition;
 
 import "google/protobuf/timestamp.proto";
 import "infrastructure-manager/v1/coverage/coverage.proto";
+import "infrastructure-manager/v1/shared/cell.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/condition;condition_v1";
 
@@ -36,6 +37,10 @@ enum BandVerdict {
   BAND_VERDICT_PENDING_SUSTAIN = 3;
   BAND_VERDICT_NEEDS_BASELINE = 4;
   BAND_VERDICT_NOT_EVALUATED = 5;
+  // A bar exists for the cell but authors no threshold. Distinct from
+  // NOT_EVALUATED (the reading could not be trusted) and NEEDS_BASELINE
+  // (no bar was found at all).
+  BAND_VERDICT_NOT_GRADEABLE = 6;
 }
 
 message Leg {
@@ -56,6 +61,12 @@ message Reading {
   TrustVerdict trust_verdict = 7;
   BandVerdict band_verdict = 8;
   string unavailable_reason = 9;
+  // band_explanation states why a reading was not graded, so an ungraded cell
+  // is explainable instead of merely blank.
+  string band_explanation = 10;
+  // out_of_scope marks a reading whose target exists but sits outside the
+  // derived should-be-supervised set. It never lowers trust.
+  bool out_of_scope = 11;
 }
 
 message TrustCount {
@@ -104,7 +115,7 @@ message ExplainCellRequest {
 }
 
 message ExplainCellResponse {
-  coverage.Cell cell = 1;
+  shared.Cell cell = 1;
   Reading reading = 2;
   repeated SourceAvailability sources = 3;
 }

@@ -8,6 +8,7 @@ import (
 
 	"code-facts/internal/module"
 	"code-facts/internal/server"
+
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"

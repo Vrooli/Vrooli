@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.infrastructure_manager.v1.coverage;
 
 import "google/protobuf/timestamp.proto";
+import "infrastructure-manager/v1/shared/cell.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/coverage;coverage_v1";
 
@@ -13,6 +14,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructu
 service CoverageService {
   rpc GetCoverage(GetCoverageRequest) returns (GetCoverageResponse);
   rpc ListCells(ListCellsRequest) returns (ListCellsResponse);
+  rpc ListOpenLoopCells(ListCellsRequest) returns (ListCellsResponse);
   rpc GetProjection(GetProjectionRequest) returns (GetProjectionResponse);
   rpc ValidateSetpoint(ValidateSetpointRequest) returns (ValidateSetpointResponse);
   rpc GetDrift(GetDriftRequest) returns (GetDriftResponse);
@@ -30,6 +32,9 @@ enum Projection {
   PROJECTION_VALIDATION_COST = 8;
   PROJECTION_AGENT_THROUGHPUT = 9;
   PROJECTION_COMMISSIONING = 10;
+  // Host, kernel and device tier. Second rung of the infra-health cascade
+  // ladder, so it is read before any outer-tier finding is honoured.
+  PROJECTION_SUBSTRATE = 11;
 }
 
 enum CellStatus {
@@ -58,19 +63,6 @@ message Ratio {
   Confidence confidence = 2;
   int32 numerator = 3;
   int32 denominator = 4;
-}
-
-message Cell {
-  string id = 1;
-  Projection projection = 2;
-  string question = 3;
-  string owner = 4;
-  string leg_unit = 5;
-  CellStatus status = 6;
-  string sensor_ref = 7;
-  string gap_opened_on = 8;
-  int32 gap_open_days = 9;
-  repeated string notes = 10;
 }
 
 message Bar {
@@ -129,7 +121,7 @@ message ListCellsRequest {
 }
 
 message ListCellsResponse {
-  repeated Cell cells = 1;
+  repeated shared.Cell cells = 1;
 }
 
 message GetProjectionRequest {
@@ -138,7 +130,7 @@ message GetProjectionRequest {
 
 message GetProjectionResponse {
   Projection projection = 1;
-  repeated Cell cells = 2;
+  repeated shared.Cell cells = 2;
   ProjectionCoverage coverage = 3;
   repeated Bar bars = 4;
 }

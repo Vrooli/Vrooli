@@ -14,11 +14,12 @@ import (
 	"net/url"
 	"strings"
 
-	"connectrpc.com/connect"
 	"deployment-manager/dependencies"
 	"deployment-manager/deployments"
 	"deployment-manager/fitness"
 	"deployment-manager/swaps"
+
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	approvalsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/approvals/approvalsv1connect"
 	dependenciesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/dependencies/dependenciesv1connect"

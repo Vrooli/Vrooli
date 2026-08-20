@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"document-manager/internal/gatewayreq"
+
 	gatewaypb "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	documentpb "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/shared"
 )

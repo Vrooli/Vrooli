@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"connectrpc.com/connect"
 	internalledger "content-desk/internal/ledger"
 	"content-desk/internal/module"
+
+	"connectrpc.com/connect"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"

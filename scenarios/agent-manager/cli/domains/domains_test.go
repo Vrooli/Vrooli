@@ -8,8 +8,8 @@ import (
 
 func TestCommandGroupsRegistersEveryTopLevelCommand(t *testing.T) {
 	groups := CommandGroups(support.Dependencies{})
-	if len(groups) != 14 {
-		t.Fatalf("group count = %d, want 14", len(groups))
+	if len(groups) != 15 {
+		t.Fatalf("group count = %d, want 15", len(groups))
 	}
 	for _, group := range groups {
 		if group.Title == "" || len(group.Commands) == 0 {

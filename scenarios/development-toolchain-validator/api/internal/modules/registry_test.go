@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"development-toolchain-validator/internal/modules"
+
 	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"

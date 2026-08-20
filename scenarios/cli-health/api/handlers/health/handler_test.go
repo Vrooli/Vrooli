@@ -12,6 +12,7 @@ import (
 	"cli-health/internal/module"
 	"cli-health/internal/server"
 	"cli-health/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

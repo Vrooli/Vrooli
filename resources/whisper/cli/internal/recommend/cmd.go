@@ -46,8 +46,8 @@ func Default() *Handlers {
 }
 
 // Commands returns the `recommend-model` command for registration. The
-// recommender lives at the top level (not inside a subgroup) because
-// docker.sh consumes it like any other root-level whisper subcommand.
+// recommender lives at the top level so operators and the managed-service
+// lifecycle can invoke it as a normal Whisper subcommand.
 func Commands(h *Handlers) cliapp.Command {
 	if h == nil {
 		h = Default()
@@ -61,7 +61,7 @@ func Commands(h *Handlers) cliapp.Command {
 }
 
 // jsonResult is the frozen schema documented in the plan. Fields here
-// are the only public contract; docker.sh parses by jq.
+// are the only public machine-readable contract.
 type jsonResult struct {
 	Model     string `json:"model"`
 	Reason    string `json:"reason"`
@@ -88,7 +88,7 @@ func (h *Handlers) Run(args []string) error {
 	fs := flag.NewFlagSet("recommend-model", flag.ContinueOnError)
 	fs.SetOutput(h.Stderr)
 	jsonOut := fs.Bool("json", false, "emit JSON")
-	envOut := fs.Bool("env", false, "emit KEY=VALUE lines for shell/compose env injection")
+	envOut := fs.Bool("env", false, "emit KEY=VALUE lines for shell tooling")
 	explain := fs.Bool("explain", false, "include reasoning lines in human output")
 	budgetFlag := fs.Int("budget-pct", 0, "percent of detected RAM/VRAM the recommender may spend")
 	if err := fs.Parse(args); err != nil {
@@ -109,7 +109,7 @@ func (h *Handlers) Run(args []string) error {
 
 	// Honor a capacity-broker/operator model pin first (the degrade actuation
 	// persists it): the pinned model overrides the host-derived recommendation so
-	// the next compose start comes up at the smaller size. The pin is honored
+	// the next managed-service start comes up at the smaller size. The pin is honored
 	// before Pick so it works even on a host where Pick would otherwise error.
 	var model Model
 	var reason string
@@ -170,11 +170,8 @@ func writeJSON(w io.Writer, model Model, reason string, caps hostinventory.Snaps
 	return enc.Encode(r)
 }
 
-// writeEnv emits the KEY=VALUE lines consumed by the compose driver's
-// runtime_env_command harvest. Keeps the names aligned with
-// docker-compose.yml: WHISPER_MODEL_SIZE feeds ASR_MODEL,
-// AUDIO_WHISPER_MODEL feeds the audio-tools LocalProvider model-truth
-// seam.
+// writeEnv emits the KEY=VALUE lines consumed by operator tooling and the
+// audio-tools LocalProvider model-truth seam.
 func writeEnv(w io.Writer, model Model) error {
 	_, err := fmt.Fprintf(w, "WHISPER_MODEL_SIZE=%s\nAUDIO_WHISPER_MODEL=%s\n", model, model)
 	return err

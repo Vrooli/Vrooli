@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from infrastructure_manager.v1.shared import cell_pb2 as _cell_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -23,6 +24,7 @@ class Projection(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PROJECTION_VALIDATION_COST: _ClassVar[Projection]
     PROJECTION_AGENT_THROUGHPUT: _ClassVar[Projection]
     PROJECTION_COMMISSIONING: _ClassVar[Projection]
+    PROJECTION_SUBSTRATE: _ClassVar[Projection]
 
 class CellStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -48,6 +50,7 @@ PROJECTION_ATTRIBUTION: Projection
 PROJECTION_VALIDATION_COST: Projection
 PROJECTION_AGENT_THROUGHPUT: Projection
 PROJECTION_COMMISSIONING: Projection
+PROJECTION_SUBSTRATE: Projection
 CELL_STATUS_UNSPECIFIED: CellStatus
 CELL_STATUS_NOW: CellStatus
 CELL_STATUS_IN_REACH: CellStatus
@@ -76,30 +79,6 @@ class Ratio(_message.Message):
     numerator: int
     denominator: int
     def __init__(self, value: _Optional[float] = ..., confidence: _Optional[_Union[Confidence, _Mapping]] = ..., numerator: _Optional[int] = ..., denominator: _Optional[int] = ...) -> None: ...
-
-class Cell(_message.Message):
-    __slots__ = ("id", "projection", "question", "owner", "leg_unit", "status", "sensor_ref", "gap_opened_on", "gap_open_days", "notes")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    PROJECTION_FIELD_NUMBER: _ClassVar[int]
-    QUESTION_FIELD_NUMBER: _ClassVar[int]
-    OWNER_FIELD_NUMBER: _ClassVar[int]
-    LEG_UNIT_FIELD_NUMBER: _ClassVar[int]
-    STATUS_FIELD_NUMBER: _ClassVar[int]
-    SENSOR_REF_FIELD_NUMBER: _ClassVar[int]
-    GAP_OPENED_ON_FIELD_NUMBER: _ClassVar[int]
-    GAP_OPEN_DAYS_FIELD_NUMBER: _ClassVar[int]
-    NOTES_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    projection: Projection
-    question: str
-    owner: str
-    leg_unit: str
-    status: CellStatus
-    sensor_ref: str
-    gap_opened_on: str
-    gap_open_days: int
-    notes: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., projection: _Optional[_Union[Projection, str]] = ..., question: _Optional[str] = ..., owner: _Optional[str] = ..., leg_unit: _Optional[str] = ..., status: _Optional[_Union[CellStatus, str]] = ..., sensor_ref: _Optional[str] = ..., gap_opened_on: _Optional[str] = ..., gap_open_days: _Optional[int] = ..., notes: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class Bar(_message.Message):
     __slots__ = ("id", "cell_ref", "projection", "target_kind", "deadband", "sustain", "actuator", "decision_ref")
@@ -200,8 +179,8 @@ class ListCellsRequest(_message.Message):
 class ListCellsResponse(_message.Message):
     __slots__ = ("cells",)
     CELLS_FIELD_NUMBER: _ClassVar[int]
-    cells: _containers.RepeatedCompositeFieldContainer[Cell]
-    def __init__(self, cells: _Optional[_Iterable[_Union[Cell, _Mapping]]] = ...) -> None: ...
+    cells: _containers.RepeatedCompositeFieldContainer[_cell_pb2.Cell]
+    def __init__(self, cells: _Optional[_Iterable[_Union[_cell_pb2.Cell, _Mapping]]] = ...) -> None: ...
 
 class GetProjectionRequest(_message.Message):
     __slots__ = ("projection",)
@@ -216,10 +195,10 @@ class GetProjectionResponse(_message.Message):
     COVERAGE_FIELD_NUMBER: _ClassVar[int]
     BARS_FIELD_NUMBER: _ClassVar[int]
     projection: Projection
-    cells: _containers.RepeatedCompositeFieldContainer[Cell]
+    cells: _containers.RepeatedCompositeFieldContainer[_cell_pb2.Cell]
     coverage: ProjectionCoverage
     bars: _containers.RepeatedCompositeFieldContainer[Bar]
-    def __init__(self, projection: _Optional[_Union[Projection, str]] = ..., cells: _Optional[_Iterable[_Union[Cell, _Mapping]]] = ..., coverage: _Optional[_Union[ProjectionCoverage, _Mapping]] = ..., bars: _Optional[_Iterable[_Union[Bar, _Mapping]]] = ...) -> None: ...
+    def __init__(self, projection: _Optional[_Union[Projection, str]] = ..., cells: _Optional[_Iterable[_Union[_cell_pb2.Cell, _Mapping]]] = ..., coverage: _Optional[_Union[ProjectionCoverage, _Mapping]] = ..., bars: _Optional[_Iterable[_Union[Bar, _Mapping]]] = ...) -> None: ...
 
 class ValidateSetpointRequest(_message.Message):
     __slots__ = ("include_advisories",)

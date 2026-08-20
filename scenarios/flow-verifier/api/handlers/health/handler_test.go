@@ -12,6 +12,7 @@ import (
 	"flow-verifier/internal/module"
 	"flow-verifier/internal/server"
 	"flow-verifier/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

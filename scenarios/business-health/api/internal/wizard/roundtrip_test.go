@@ -9,8 +9,9 @@ import (
 	"business-health/internal/checks"
 	"business-health/internal/extraction"
 
-	"github.com/stretchr/testify/require"
 	intent "intent-go"
+
+	"github.com/stretchr/testify/require"
 )
 
 // answersFor builds a complete, anchor-conformant answer set. Variations

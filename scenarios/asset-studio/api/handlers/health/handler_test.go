@@ -12,6 +12,7 @@ import (
 	"asset-studio/internal/module"
 	"asset-studio/internal/server"
 	"asset-studio/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

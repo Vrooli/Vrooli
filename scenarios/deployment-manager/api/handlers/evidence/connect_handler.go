@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"connectrpc.com/connect"
 	internalEvidence "deployment-manager/internal/evidence"
 	"deployment-manager/internal/evidence/conformance"
+
+	"connectrpc.com/connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	evidencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence"
 	evidenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence/evidencev1connect"

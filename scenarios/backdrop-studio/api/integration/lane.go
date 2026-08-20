@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+
 	// The PNG decoder is used directly by MeanPixelDifference and registered
 	// for image.Decode, so callers measuring a candidate need not import it.
 	"image/png"

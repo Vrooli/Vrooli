@@ -9,9 +9,10 @@ import (
 
 	"business-health/internal/extraction"
 
+	intent "intent-go"
+
 	"github.com/stretchr/testify/require"
 	maturity "github.com/vrooli/maturity-go/assessment"
-	intent "intent-go"
 )
 
 // conformantPRD is a fully canonical PRD fixture; per-code tests mutate it.

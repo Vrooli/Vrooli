@@ -5,11 +5,12 @@ import (
 	"net/http"
 	"testing"
 
-	"connectrpc.com/connect"
 	"deployment-manager/dependencies"
 	"deployment-manager/deployments"
 	"deployment-manager/fitness"
 	"deployment-manager/swaps"
+
+	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 

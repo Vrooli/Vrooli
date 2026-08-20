@@ -35,6 +35,7 @@ import (
 
 	healthH "backdrop-studio/handlers/health"
 	localdb "backdrop-studio/internal/database"
+
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/catalog"
 	composev1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/compose"
 	generatorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/generators"

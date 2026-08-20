@@ -5,8 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
 	authdomain "device-control/internal/auth"
+
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	authv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/auth"

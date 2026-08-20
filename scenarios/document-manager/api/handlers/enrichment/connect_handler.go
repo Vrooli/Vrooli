@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"connectrpc.com/connect"
 	internal "document-manager/internal/enrichment"
+
+	"connectrpc.com/connect"
 	enrichmentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/enrichment"
 )
 

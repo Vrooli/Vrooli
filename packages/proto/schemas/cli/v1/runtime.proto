@@ -196,6 +196,49 @@ message CliHostSnapshot {
   // explicit container device bindings must derive them from this inventory,
   // never from a hard-coded node list.
   repeated string nvidia_device_nodes = 24;
+
+  // Devices enumerated from the host device tree.
+  //
+  // This is the device-tree-first enumeration, and it is the authoritative
+  // answer to "what is attached to this machine". It is deliberately separate
+  // from `gpus`, which carries vendor-tool telemetry and therefore only ever
+  // covers devices whose vendor ships such a tool. A device present here and
+  // absent from `gpus` is not an error: it means the platform knows the device
+  // exists (ladder rung one) and cannot read its state (rung two).
+  repeated CliHostDevice devices = 25;
+}
+
+// CliHostDevice mirrors hostinventory.Device: one physical device with a
+// platform-durable identity, its position in the device tree, and the
+// provenance of how it was found.
+message CliHostDevice {
+  // Stable, platform-durable identity, e.g. "pci:0000:01:00.0". Survives
+  // reboots and does not depend on enumeration order.
+  string id = 1;
+
+  // Device class, e.g. "graphics", "storage", "network".
+  string class = 2;
+
+  // Identity of the parent bus or controller; empty at a tree root.
+  string parent = 3;
+
+  string vendor = 4;
+  string vendor_id = 5;
+  string model = 6;
+  string model_id = 7;
+  string driver = 8;
+  string driver_version = 9;
+
+  // Kernel-visible nodes for this device, e.g. "card1", "renderD128".
+  repeated string nodes = 10;
+
+  // The probe that DISCOVERED the device. A vendor tool must never appear
+  // here: vendor tools enrich devices the device tree already found, and a
+  // vendor-discovered device is exactly the bug this enumeration removed.
+  string discovered_by = 11;
+
+  // Probes that added detail to an already-discovered device.
+  repeated string enriched_by = 12;
 }
 
 // CliHostRemoteDesktop mirrors hostinventory.RemoteDesktopCapability.

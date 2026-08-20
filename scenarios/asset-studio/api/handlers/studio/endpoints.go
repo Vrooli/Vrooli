@@ -2,6 +2,7 @@ package studio
 
 import (
 	"asset-studio/internal/module"
+
 	studioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/studio/studio_v1connect"
 )
 

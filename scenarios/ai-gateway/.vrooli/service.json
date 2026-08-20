@@ -155,9 +155,7 @@
       }
     ]
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/ai-gateway.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

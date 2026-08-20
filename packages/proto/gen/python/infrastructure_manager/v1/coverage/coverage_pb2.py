@@ -23,9 +23,10 @@ _sym_db = _symbol_database.Default()
 
 
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
+from infrastructure_manager.v1.shared import cell_pb2 as infrastructure__manager_dot_v1_dot_shared_dot_cell__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n1infrastructure-manager/v1/coverage/coverage.proto\x12)vrooli.infrastructure_manager.v1.coverage\x1a\x1fgoogle/protobuf/timestamp.proto\"|\n\nConfidence\x12P\n\x05level\x18\x01 \x01(\x0e\x32:.vrooli.infrastructure_manager.v1.coverage.ConfidenceLevelR\x05level\x12\x1c\n\trationale\x18\x02 \x01(\tR\trationale\"\xb4\x01\n\x05Ratio\x12\x14\n\x05value\x18\x01 \x01(\x01R\x05value\x12U\n\nconfidence\x18\x02 \x01(\x0b\x32\x35.vrooli.infrastructure_manager.v1.coverage.ConfidenceR\nconfidence\x12\x1c\n\tnumerator\x18\x03 \x01(\x05R\tnumerator\x12 \n\x0b\x64\x65nominator\x18\x04 \x01(\x05R\x0b\x64\x65nominator\"\x86\x03\n\x04\x43\x65ll\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12U\n\nprojection\x18\x02 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\x12\x1a\n\x08question\x18\x03 \x01(\tR\x08question\x12\x14\n\x05owner\x18\x04 \x01(\tR\x05owner\x12\x19\n\x08leg_unit\x18\x05 \x01(\tR\x07legUnit\x12M\n\x06status\x18\x06 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.CellStatusR\x06status\x12\x1d\n\nsensor_ref\x18\x07 \x01(\tR\tsensorRef\x12\"\n\rgap_opened_on\x18\x08 \x01(\tR\x0bgapOpenedOn\x12\"\n\rgap_open_days\x18\t \x01(\x05R\x0bgapOpenDays\x12\x14\n\x05notes\x18\n \x03(\tR\x05notes\"\x9d\x02\n\x03\x42\x61r\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n\x08\x63\x65ll_ref\x18\x02 \x01(\tR\x07\x63\x65llRef\x12U\n\nprojection\x18\x03 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\x12\x1f\n\x0btarget_kind\x18\x04 \x01(\tR\ntargetKind\x12\x1a\n\x08\x64\x65\x61\x64\x62\x61nd\x18\x05 \x01(\tR\x08\x64\x65\x61\x64\x62\x61nd\x12\x18\n\x07sustain\x18\x06 \x01(\tR\x07sustain\x12\x1a\n\x08\x61\x63tuator\x18\x07 \x01(\tR\x08\x61\x63tuator\x12!\n\x0c\x64\x65\x63ision_ref\x18\x08 \x01(\tR\x0b\x64\x65\x63isionRef\"\x9d\x04\n\x12ProjectionCoverage\x12U\n\nprojection\x18\x01 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\x12\x46\n\x05ratio\x18\x02 \x01(\x0b\x32\x30.vrooli.infrastructure_manager.v1.coverage.RatioR\x05ratio\x12\x1b\n\tnow_count\x18\x03 \x01(\x05R\x08nowCount\x12$\n\x0ein_reach_count\x18\x04 \x01(\x05R\x0cinReachCount\x12#\n\rmissing_count\x18\x05 \x01(\x05R\x0cmissingCount\x12\x1f\n\x0btotal_cells\x18\x06 \x01(\x05R\ntotalCells\x12U\n\nconfidence\x18\x07 \x01(\x0b\x32\x35.vrooli.infrastructure_manager.v1.coverage.ConfidenceR\nconfidence\x12;\n\x0b\x63omputed_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ncomputedAt\x12\x1c\n\tavailable\x18\t \x01(\x08R\tavailable\x12-\n\x12unavailable_reason\x18\n \x01(\tR\x11unavailableReason\"\x9b\x01\n\x10IntegrityFinding\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x1a\n\x08location\x18\x03 \x01(\tR\x08location\x12\x1a\n\x08severity\x18\x04 \x01(\tR\x08severity\x12!\n\x0c\x64\x65\x63ision_ref\x18\x05 \x01(\tR\x0b\x64\x65\x63isionRef\"\x8e\x01\n\x0c\x44riftFinding\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x19\n\x08\x63\x65ll_ref\x18\x02 \x01(\tR\x07\x63\x65llRef\x12\x1d\n\nsensor_ref\x18\x03 \x01(\tR\tsensorRef\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12\x16\n\x06source\x18\x05 \x01(\tR\x06source\"m\n\x12GetCoverageRequest\x12W\n\x0bprojections\x18\x01 \x03(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\x0bprojections\"\x9f\x02\n\x13GetCoverageResponse\x12_\n\x0bprojections\x18\x01 \x03(\x0b\x32=.vrooli.infrastructure_manager.v1.coverage.ProjectionCoverageR\x0bprojections\x12j\n\x12integrity_findings\x18\x02 \x03(\x0b\x32;.vrooli.infrastructure_manager.v1.coverage.IntegrityFindingR\x11integrityFindings\x12;\n\x0b\x63omputed_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ncomputedAt\"\xb8\x01\n\x10ListCellsRequest\x12U\n\nprojection\x18\x01 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\x12M\n\x06status\x18\x02 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.CellStatusR\x06status\"Z\n\x11ListCellsResponse\x12\x45\n\x05\x63\x65lls\x18\x01 \x03(\x0b\x32/.vrooli.infrastructure_manager.v1.coverage.CellR\x05\x63\x65lls\"m\n\x14GetProjectionRequest\x12U\n\nprojection\x18\x01 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\"\xd4\x02\n\x15GetProjectionResponse\x12U\n\nprojection\x18\x01 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\x12\x45\n\x05\x63\x65lls\x18\x02 \x03(\x0b\x32/.vrooli.infrastructure_manager.v1.coverage.CellR\x05\x63\x65lls\x12Y\n\x08\x63overage\x18\x03 \x01(\x0b\x32=.vrooli.infrastructure_manager.v1.coverage.ProjectionCoverageR\x08\x63overage\x12\x42\n\x04\x62\x61rs\x18\x04 \x03(\x0b\x32..vrooli.infrastructure_manager.v1.coverage.BarR\x04\x62\x61rs\"H\n\x17ValidateSetpointRequest\x12-\n\x12include_advisories\x18\x01 \x01(\x08R\x11includeAdvisories\"\x83\x01\n\x18ValidateSetpointResponse\x12\x0e\n\x02ok\x18\x01 \x01(\x08R\x02ok\x12W\n\x08\x66indings\x18\x02 \x03(\x0b\x32;.vrooli.infrastructure_manager.v1.coverage.IntegrityFindingR\x08\x66indings\"h\n\x0fGetDriftRequest\x12U\n\nprojection\x18\x01 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\"g\n\x10GetDriftResponse\x12S\n\x08\x66indings\x18\x01 \x03(\x0b\x32\x37.vrooli.infrastructure_manager.v1.coverage.DriftFindingR\x08\x66indings*\xc2\x02\n\nProjection\x12\x1a\n\x16PROJECTION_UNSPECIFIED\x10\x00\x12\x1a\n\x16PROJECTION_SUPERVISION\x10\x01\x12\x1b\n\x17PROJECTION_AVAILABILITY\x10\x02\x12\x17\n\x13PROJECTION_RECOVERY\x10\x03\x12\x17\n\x13PROJECTION_CAPACITY\x10\x04\x12\x17\n\x13PROJECTION_HEADROOM\x10\x05\x12\x19\n\x15PROJECTION_DURABILITY\x10\x06\x12\x1a\n\x16PROJECTION_ATTRIBUTION\x10\x07\x12\x1e\n\x1aPROJECTION_VALIDATION_COST\x10\x08\x12\x1f\n\x1bPROJECTION_AGENT_THROUGHPUT\x10\t\x12\x1c\n\x18PROJECTION_COMMISSIONING\x10\n*q\n\nCellStatus\x12\x1b\n\x17\x43\x45LL_STATUS_UNSPECIFIED\x10\x00\x12\x13\n\x0f\x43\x45LL_STATUS_NOW\x10\x01\x12\x18\n\x14\x43\x45LL_STATUS_IN_REACH\x10\x02\x12\x17\n\x13\x43\x45LL_STATUS_MISSING\x10\x03*\x92\x01\n\x0f\x43onfidenceLevel\x12 \n\x1c\x43ONFIDENCE_LEVEL_UNSPECIFIED\x10\x00\x12\"\n\x1e\x43ONFIDENCE_LEVEL_AUTHORITATIVE\x10\x01\x12\x1c\n\x18\x43ONFIDENCE_LEVEL_PARTIAL\x10\x02\x12\x1b\n\x17\x43ONFIDENCE_LEVEL_SKETCH\x10\x03\x32\xe2\x05\n\x0f\x43overageService\x12\x8c\x01\n\x0bGetCoverage\x12=.vrooli.infrastructure_manager.v1.coverage.GetCoverageRequest\x1a>.vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse\x12\x86\x01\n\tListCells\x12;.vrooli.infrastructure_manager.v1.coverage.ListCellsRequest\x1a<.vrooli.infrastructure_manager.v1.coverage.ListCellsResponse\x12\x92\x01\n\rGetProjection\x12?.vrooli.infrastructure_manager.v1.coverage.GetProjectionRequest\x1a@.vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse\x12\x9b\x01\n\x10ValidateSetpoint\x12\x42.vrooli.infrastructure_manager.v1.coverage.ValidateSetpointRequest\x1a\x43.vrooli.infrastructure_manager.v1.coverage.ValidateSetpointResponse\x12\x83\x01\n\x08GetDrift\x12:.vrooli.infrastructure_manager.v1.coverage.GetDriftRequest\x1a;.vrooli.infrastructure_manager.v1.coverage.GetDriftResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/coverage;coverage_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n1infrastructure-manager/v1/coverage/coverage.proto\x12)vrooli.infrastructure_manager.v1.coverage\x1a\x1fgoogle/protobuf/timestamp.proto\x1a+infrastructure-manager/v1/shared/cell.proto\"|\n\nConfidence\x12P\n\x05level\x18\x01 \x01(\x0e\x32:.vrooli.infrastructure_manager.v1.coverage.ConfidenceLevelR\x05level\x12\x1c\n\trationale\x18\x02 \x01(\tR\trationale\"\xb4\x01\n\x05Ratio\x12\x14\n\x05value\x18\x01 \x01(\x01R\x05value\x12U\n\nconfidence\x18\x02 \x01(\x0b\x32\x35.vrooli.infrastructure_manager.v1.coverage.ConfidenceR\nconfidence\x12\x1c\n\tnumerator\x18\x03 \x01(\x05R\tnumerator\x12 \n\x0b\x64\x65nominator\x18\x04 \x01(\x05R\x0b\x64\x65nominator\"\x9d\x02\n\x03\x42\x61r\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n\x08\x63\x65ll_ref\x18\x02 \x01(\tR\x07\x63\x65llRef\x12U\n\nprojection\x18\x03 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\x12\x1f\n\x0btarget_kind\x18\x04 \x01(\tR\ntargetKind\x12\x1a\n\x08\x64\x65\x61\x64\x62\x61nd\x18\x05 \x01(\tR\x08\x64\x65\x61\x64\x62\x61nd\x12\x18\n\x07sustain\x18\x06 \x01(\tR\x07sustain\x12\x1a\n\x08\x61\x63tuator\x18\x07 \x01(\tR\x08\x61\x63tuator\x12!\n\x0c\x64\x65\x63ision_ref\x18\x08 \x01(\tR\x0b\x64\x65\x63isionRef\"\x9d\x04\n\x12ProjectionCoverage\x12U\n\nprojection\x18\x01 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\x12\x46\n\x05ratio\x18\x02 \x01(\x0b\x32\x30.vrooli.infrastructure_manager.v1.coverage.RatioR\x05ratio\x12\x1b\n\tnow_count\x18\x03 \x01(\x05R\x08nowCount\x12$\n\x0ein_reach_count\x18\x04 \x01(\x05R\x0cinReachCount\x12#\n\rmissing_count\x18\x05 \x01(\x05R\x0cmissingCount\x12\x1f\n\x0btotal_cells\x18\x06 \x01(\x05R\ntotalCells\x12U\n\nconfidence\x18\x07 \x01(\x0b\x32\x35.vrooli.infrastructure_manager.v1.coverage.ConfidenceR\nconfidence\x12;\n\x0b\x63omputed_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ncomputedAt\x12\x1c\n\tavailable\x18\t \x01(\x08R\tavailable\x12-\n\x12unavailable_reason\x18\n \x01(\tR\x11unavailableReason\"\x9b\x01\n\x10IntegrityFinding\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x1a\n\x08location\x18\x03 \x01(\tR\x08location\x12\x1a\n\x08severity\x18\x04 \x01(\tR\x08severity\x12!\n\x0c\x64\x65\x63ision_ref\x18\x05 \x01(\tR\x0b\x64\x65\x63isionRef\"\x8e\x01\n\x0c\x44riftFinding\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x19\n\x08\x63\x65ll_ref\x18\x02 \x01(\tR\x07\x63\x65llRef\x12\x1d\n\nsensor_ref\x18\x03 \x01(\tR\tsensorRef\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12\x16\n\x06source\x18\x05 \x01(\tR\x06source\"m\n\x12GetCoverageRequest\x12W\n\x0bprojections\x18\x01 \x03(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\x0bprojections\"\x9f\x02\n\x13GetCoverageResponse\x12_\n\x0bprojections\x18\x01 \x03(\x0b\x32=.vrooli.infrastructure_manager.v1.coverage.ProjectionCoverageR\x0bprojections\x12j\n\x12integrity_findings\x18\x02 \x03(\x0b\x32;.vrooli.infrastructure_manager.v1.coverage.IntegrityFindingR\x11integrityFindings\x12;\n\x0b\x63omputed_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ncomputedAt\"\xb8\x01\n\x10ListCellsRequest\x12U\n\nprojection\x18\x01 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\x12M\n\x06status\x18\x02 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.CellStatusR\x06status\"X\n\x11ListCellsResponse\x12\x43\n\x05\x63\x65lls\x18\x01 \x03(\x0b\x32-.vrooli.infrastructure_manager.v1.shared.CellR\x05\x63\x65lls\"m\n\x14GetProjectionRequest\x12U\n\nprojection\x18\x01 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\"\xd2\x02\n\x15GetProjectionResponse\x12U\n\nprojection\x18\x01 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\x12\x43\n\x05\x63\x65lls\x18\x02 \x03(\x0b\x32-.vrooli.infrastructure_manager.v1.shared.CellR\x05\x63\x65lls\x12Y\n\x08\x63overage\x18\x03 \x01(\x0b\x32=.vrooli.infrastructure_manager.v1.coverage.ProjectionCoverageR\x08\x63overage\x12\x42\n\x04\x62\x61rs\x18\x04 \x03(\x0b\x32..vrooli.infrastructure_manager.v1.coverage.BarR\x04\x62\x61rs\"H\n\x17ValidateSetpointRequest\x12-\n\x12include_advisories\x18\x01 \x01(\x08R\x11includeAdvisories\"\x83\x01\n\x18ValidateSetpointResponse\x12\x0e\n\x02ok\x18\x01 \x01(\x08R\x02ok\x12W\n\x08\x66indings\x18\x02 \x03(\x0b\x32;.vrooli.infrastructure_manager.v1.coverage.IntegrityFindingR\x08\x66indings\"h\n\x0fGetDriftRequest\x12U\n\nprojection\x18\x01 \x01(\x0e\x32\x35.vrooli.infrastructure_manager.v1.coverage.ProjectionR\nprojection\"g\n\x10GetDriftResponse\x12S\n\x08\x66indings\x18\x01 \x03(\x0b\x32\x37.vrooli.infrastructure_manager.v1.coverage.DriftFindingR\x08\x66indings*\xdc\x02\n\nProjection\x12\x1a\n\x16PROJECTION_UNSPECIFIED\x10\x00\x12\x1a\n\x16PROJECTION_SUPERVISION\x10\x01\x12\x1b\n\x17PROJECTION_AVAILABILITY\x10\x02\x12\x17\n\x13PROJECTION_RECOVERY\x10\x03\x12\x17\n\x13PROJECTION_CAPACITY\x10\x04\x12\x17\n\x13PROJECTION_HEADROOM\x10\x05\x12\x19\n\x15PROJECTION_DURABILITY\x10\x06\x12\x1a\n\x16PROJECTION_ATTRIBUTION\x10\x07\x12\x1e\n\x1aPROJECTION_VALIDATION_COST\x10\x08\x12\x1f\n\x1bPROJECTION_AGENT_THROUGHPUT\x10\t\x12\x1c\n\x18PROJECTION_COMMISSIONING\x10\n\x12\x18\n\x14PROJECTION_SUBSTRATE\x10\x0b*q\n\nCellStatus\x12\x1b\n\x17\x43\x45LL_STATUS_UNSPECIFIED\x10\x00\x12\x13\n\x0f\x43\x45LL_STATUS_NOW\x10\x01\x12\x18\n\x14\x43\x45LL_STATUS_IN_REACH\x10\x02\x12\x17\n\x13\x43\x45LL_STATUS_MISSING\x10\x03*\x92\x01\n\x0f\x43onfidenceLevel\x12 \n\x1c\x43ONFIDENCE_LEVEL_UNSPECIFIED\x10\x00\x12\"\n\x1e\x43ONFIDENCE_LEVEL_AUTHORITATIVE\x10\x01\x12\x1c\n\x18\x43ONFIDENCE_LEVEL_PARTIAL\x10\x02\x12\x1b\n\x17\x43ONFIDENCE_LEVEL_SKETCH\x10\x03\x32\xf3\x06\n\x0f\x43overageService\x12\x8c\x01\n\x0bGetCoverage\x12=.vrooli.infrastructure_manager.v1.coverage.GetCoverageRequest\x1a>.vrooli.infrastructure_manager.v1.coverage.GetCoverageResponse\x12\x86\x01\n\tListCells\x12;.vrooli.infrastructure_manager.v1.coverage.ListCellsRequest\x1a<.vrooli.infrastructure_manager.v1.coverage.ListCellsResponse\x12\x8e\x01\n\x11ListOpenLoopCells\x12;.vrooli.infrastructure_manager.v1.coverage.ListCellsRequest\x1a<.vrooli.infrastructure_manager.v1.coverage.ListCellsResponse\x12\x92\x01\n\rGetProjection\x12?.vrooli.infrastructure_manager.v1.coverage.GetProjectionRequest\x1a@.vrooli.infrastructure_manager.v1.coverage.GetProjectionResponse\x12\x9b\x01\n\x10ValidateSetpoint\x12\x42.vrooli.infrastructure_manager.v1.coverage.ValidateSetpointRequest\x1a\x43.vrooli.infrastructure_manager.v1.coverage.ValidateSetpointResponse\x12\x83\x01\n\x08GetDrift\x12:.vrooli.infrastructure_manager.v1.coverage.GetDriftRequest\x1a;.vrooli.infrastructure_manager.v1.coverage.GetDriftResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/coverage;coverage_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,46 +34,44 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'infrastructure_manager.v1.c
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z]github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/coverage;coverage_v1'
-  _globals['_PROJECTION']._serialized_start=3520
-  _globals['_PROJECTION']._serialized_end=3842
-  _globals['_CELLSTATUS']._serialized_start=3844
-  _globals['_CELLSTATUS']._serialized_end=3957
-  _globals['_CONFIDENCELEVEL']._serialized_start=3960
-  _globals['_CONFIDENCELEVEL']._serialized_end=4106
-  _globals['_CONFIDENCE']._serialized_start=129
-  _globals['_CONFIDENCE']._serialized_end=253
-  _globals['_RATIO']._serialized_start=256
-  _globals['_RATIO']._serialized_end=436
-  _globals['_CELL']._serialized_start=439
-  _globals['_CELL']._serialized_end=829
-  _globals['_BAR']._serialized_start=832
-  _globals['_BAR']._serialized_end=1117
-  _globals['_PROJECTIONCOVERAGE']._serialized_start=1120
-  _globals['_PROJECTIONCOVERAGE']._serialized_end=1661
-  _globals['_INTEGRITYFINDING']._serialized_start=1664
-  _globals['_INTEGRITYFINDING']._serialized_end=1819
-  _globals['_DRIFTFINDING']._serialized_start=1822
-  _globals['_DRIFTFINDING']._serialized_end=1964
-  _globals['_GETCOVERAGEREQUEST']._serialized_start=1966
-  _globals['_GETCOVERAGEREQUEST']._serialized_end=2075
-  _globals['_GETCOVERAGERESPONSE']._serialized_start=2078
-  _globals['_GETCOVERAGERESPONSE']._serialized_end=2365
-  _globals['_LISTCELLSREQUEST']._serialized_start=2368
-  _globals['_LISTCELLSREQUEST']._serialized_end=2552
-  _globals['_LISTCELLSRESPONSE']._serialized_start=2554
-  _globals['_LISTCELLSRESPONSE']._serialized_end=2644
-  _globals['_GETPROJECTIONREQUEST']._serialized_start=2646
-  _globals['_GETPROJECTIONREQUEST']._serialized_end=2755
-  _globals['_GETPROJECTIONRESPONSE']._serialized_start=2758
-  _globals['_GETPROJECTIONRESPONSE']._serialized_end=3098
-  _globals['_VALIDATESETPOINTREQUEST']._serialized_start=3100
-  _globals['_VALIDATESETPOINTREQUEST']._serialized_end=3172
-  _globals['_VALIDATESETPOINTRESPONSE']._serialized_start=3175
-  _globals['_VALIDATESETPOINTRESPONSE']._serialized_end=3306
-  _globals['_GETDRIFTREQUEST']._serialized_start=3308
-  _globals['_GETDRIFTREQUEST']._serialized_end=3412
-  _globals['_GETDRIFTRESPONSE']._serialized_start=3414
-  _globals['_GETDRIFTRESPONSE']._serialized_end=3517
-  _globals['_COVERAGESERVICE']._serialized_start=4109
-  _globals['_COVERAGESERVICE']._serialized_end=4847
+  _globals['_PROJECTION']._serialized_start=3168
+  _globals['_PROJECTION']._serialized_end=3516
+  _globals['_CELLSTATUS']._serialized_start=3518
+  _globals['_CELLSTATUS']._serialized_end=3631
+  _globals['_CONFIDENCELEVEL']._serialized_start=3634
+  _globals['_CONFIDENCELEVEL']._serialized_end=3780
+  _globals['_CONFIDENCE']._serialized_start=174
+  _globals['_CONFIDENCE']._serialized_end=298
+  _globals['_RATIO']._serialized_start=301
+  _globals['_RATIO']._serialized_end=481
+  _globals['_BAR']._serialized_start=484
+  _globals['_BAR']._serialized_end=769
+  _globals['_PROJECTIONCOVERAGE']._serialized_start=772
+  _globals['_PROJECTIONCOVERAGE']._serialized_end=1313
+  _globals['_INTEGRITYFINDING']._serialized_start=1316
+  _globals['_INTEGRITYFINDING']._serialized_end=1471
+  _globals['_DRIFTFINDING']._serialized_start=1474
+  _globals['_DRIFTFINDING']._serialized_end=1616
+  _globals['_GETCOVERAGEREQUEST']._serialized_start=1618
+  _globals['_GETCOVERAGEREQUEST']._serialized_end=1727
+  _globals['_GETCOVERAGERESPONSE']._serialized_start=1730
+  _globals['_GETCOVERAGERESPONSE']._serialized_end=2017
+  _globals['_LISTCELLSREQUEST']._serialized_start=2020
+  _globals['_LISTCELLSREQUEST']._serialized_end=2204
+  _globals['_LISTCELLSRESPONSE']._serialized_start=2206
+  _globals['_LISTCELLSRESPONSE']._serialized_end=2294
+  _globals['_GETPROJECTIONREQUEST']._serialized_start=2296
+  _globals['_GETPROJECTIONREQUEST']._serialized_end=2405
+  _globals['_GETPROJECTIONRESPONSE']._serialized_start=2408
+  _globals['_GETPROJECTIONRESPONSE']._serialized_end=2746
+  _globals['_VALIDATESETPOINTREQUEST']._serialized_start=2748
+  _globals['_VALIDATESETPOINTREQUEST']._serialized_end=2820
+  _globals['_VALIDATESETPOINTRESPONSE']._serialized_start=2823
+  _globals['_VALIDATESETPOINTRESPONSE']._serialized_end=2954
+  _globals['_GETDRIFTREQUEST']._serialized_start=2956
+  _globals['_GETDRIFTREQUEST']._serialized_end=3060
+  _globals['_GETDRIFTRESPONSE']._serialized_start=3062
+  _globals['_GETDRIFTRESPONSE']._serialized_end=3165
+  _globals['_COVERAGESERVICE']._serialized_start=3783
+  _globals['_COVERAGESERVICE']._serialized_end=4666
 # @@protoc_insertion_point(module_scope)

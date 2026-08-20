@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
 	profilesdomain "deployment-manager/profiles"
+
+	"connectrpc.com/connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	profilesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/profiles"
 )

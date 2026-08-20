@@ -3,6 +3,7 @@ package retrieval
 import (
 	"document-manager/internal/module"
 	"document-manager/internal/retrieval"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
 	retrievalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/retrieval/retrieval_v1connect"

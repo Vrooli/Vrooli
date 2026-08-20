@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/runtime.proto.
  */
 export const file_cli_v1_runtime: GenFile = /*@__PURE__*/
-  fileDesc("ChRjbGkvdjEvcnVudGltZS5wcm90bxINdnJvb2xpLmNsaS52MSJJCgpDbGlWZXJzaW9uEhMKC2NsaV92ZXJzaW9uGAEgASgJEhgKEHBsYXRmb3JtX3ZlcnNpb24YAiABKAkSDAoEcm9vdBgDIAEoCSLuAwoTQ2xpU3VwZXJ2aXNvclN0YXR1cxIVCg1zdXBlcnZpc29yX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIVCg1zdGF0dXNfcmVhc29uGAMgASgJEhQKDGhvc3RfYm9vdF9pZBgEIAEoCRIXCg9ob3N0X3Nlc3Npb25faWQYBSABKAkSCwoDcGlkGAYgASgFEhkKEWxhc3RfaGVhcnRiZWF0X2F0GAcgASgJEh0KFWhlYXJ0YmVhdF9kZWFkbGluZV9hdBgIIAEoCRIhChlzdXBlcnZpc2VkX2luc3RhbmNlX2NvdW50GAkgASgFEiEKGXVudmVyaWZpZWRfaW5zdGFuY2VfY291bnQYCiABKAUSIAoYZWZmZWN0aXZlX3JlbmV3X2ludGVydmFsGAsgASgDEhsKE2VmZmVjdGl2ZV9sZWFzZV90dGwYDCABKAMSIQoZZWZmZWN0aXZlX2hlYWx0aF9pbnRlcnZhbBgNIAEoAxIoCiBlZmZlY3RpdmVfbWF4X2hlYWx0aF9jb25jdXJyZW5jeRgOIAEoBRIcChRlZmZlY3RpdmVfYmF0Y2hfc2l6ZRgPIAEoBRIzCglsYXN0X3RpY2sYECABKAsyIC52cm9vbGkuY2xpLnYxLkNsaVN1cGVydmlzb3JUaWNrInwKEUNsaVN1cGVydmlzb3JUaWNrEhUKDXN1cGVydmlzb3JfaWQYASABKAkSDwoHcmVuZXdlZBgCIAEoBRIPCgdleHBpcmVkGAMgASgFEhIKCnVudmVyaWZpZWQYBCABKAUSGgoSaGVhbHRoX3Byb2JlX2NvdW50GAUgASgFImEKGkNsaVN1cGVydmlzb3JTZXJ2aWNlUmVzdWx0EhEKCXVuaXRfbmFtZRgBIAEoCRIRCgl1bml0X3BhdGgYAiABKAkSDQoFc2NvcGUYAyABKAkSDgoGYWN0aXZlGAQgASgIIvUICg9DbGlIb3N0U25hcHNob3QSCgoCb3MYASABKAkSDAoEYXJjaBgCIAEoCRImCgNjcHUYAyABKAsyGS52cm9vbGkuY2xpLnYxLkNsaUhvc3RDUFUSKAoEbG9hZBgEIAEoCzIaLnZyb29saS5jbGkudjEuQ2xpSG9zdExvYWQSLAoGbWVtb3J5GAUgASgLMhwudnJvb2xpLmNsaS52MS5DbGlIb3N0TWVtb3J5EigKBHN3YXAYBiABKAsyGi52cm9vbGkuY2xpLnYxLkNsaUhvc3RTd2FwEicKBGdwdXMYByADKAsyGS52cm9vbGkuY2xpLnYxLkNsaUhvc3RHUFUSNwoNZ3B1X3Byb2Nlc3NlcxgIIAMoCzIgLnZyb29saS5jbGkudjEuQ2xpSG9zdEdQVVByb2Nlc3MSRwoNcnVudGltZV90b29scxgJIAMoCzIwLnZyb29saS5jbGkudjEuQ2xpSG9zdFNuYXBzaG90LlJ1bnRpbWVUb29sc0VudHJ5EjMKCmRvY2tlcl9ncHUYCiABKAsyHy52cm9vbGkuY2xpLnYxLkNsaUhvc3REb2NrZXJHUFUSEAoId2FybmluZ3MYCyADKAkSSQoOcHJvYmVfc3RhdHVzZXMYDCADKAsyMS52cm9vbGkuY2xpLnYxLkNsaUhvc3RTbmFwc2hvdC5Qcm9iZVN0YXR1c2VzRW50cnkSTQoQZmllbGRfcHJvdmVuYW5jZRgNIAMoCzIzLnZyb29saS5jbGkudjEuQ2xpSG9zdFNuYXBzaG90LkZpZWxkUHJvdmVuYW5jZUVudHJ5EhgKEGRpc3BsYXlfYXR0YWNoZWQYDiABKAgSOwoOcmVtb3RlX2Rlc2t0b3AYDyABKAsyIy52cm9vbGkuY2xpLnYxLkNsaUhvc3RSZW1vdGVEZXNrdG9wEhYKDmRpc3BsYXlfc2VydmVyGBAgASgJEhoKEndheWxhbmRfYXR0YWluYWJsZRgRIAEoCBIWCg53YXlsYW5kX3JlYXNvbhgSIAEoCRIXCg9kaXNwbGF5X21hbmFnZXIYEyABKAkSFAoMc2Vzc2lvbl90eXBlGBQgASgJEgwKBHNlYXQYFSABKAkSGwoTYWN0aXZlX3Nlc3Npb25fdXNlchgWIAEoCRIXCg9hdXRvX2xvZ2luX3VzZXIYFyABKAkSGwoTbnZpZGlhX2RldmljZV9ub2RlcxgYIAMoCRpPChFSdW50aW1lVG9vbHNFbnRyeRILCgNrZXkYASABKAkSKQoFdmFsdWUYAiABKAsyGi52cm9vbGkuY2xpLnYxLkNsaUhvc3RUb29sOgI4ARo0ChJQcm9iZVN0YXR1c2VzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARpYChRGaWVsZFByb3ZlbmFuY2VFbnRyeRILCgNrZXkYASABKAkSLwoFdmFsdWUYAiABKAsyIC52cm9vbGkuY2xpLnYxLkNsaUhvc3RQcm92ZW5hbmNlOgI4ASKNAgoUQ2xpSG9zdFJlbW90ZURlc2t0b3ASEQoJc3VwcG9ydGVkGAEgASgIEhAKCG9ic2VydmVkGAIgASgIEgwKBG1vZGUYAyABKAkSDgoGYWN0aXZlGAQgASgIEhYKDmxpc3RlbmluZ19wb3J0GAUgASgFEhkKEXNlbGVjdGVkX3Byb3ZpZGVyGAYgASgJEj4KCXByb3ZpZGVycxgHIAMoCzIrLnZyb29saS5jbGkudjEuQ2xpSG9zdFJlbW90ZURlc2t0b3BQcm92aWRlchI/ChBjcmVkZW50aWFsX3N0b3JlGAggASgLMiUudnJvb2xpLmNsaS52MS5DbGlIb3N0Q3JlZGVudGlhbFN0b3JlInwKHENsaUhvc3RSZW1vdGVEZXNrdG9wUHJvdmlkZXISDAoEbmFtZRgBIAEoCRIPCgdwcmVzZW50GAIgASgIEg4KBmFjdGl2ZRgDIAEoCBIXCg9wcm9iZV9zdWNjZWVkZWQYBCABKAgSFAoMdXNlcl9zZXNzaW9uGAUgASgIInUKFkNsaUhvc3RDcmVkZW50aWFsU3RvcmUSEQoJc3VwcG9ydGVkGAEgASgIEhAKCG9ic2VydmVkGAIgASgIEg0KBXN0YXRlGAMgASgJEhcKD3Byb2JlX3N1Y2NlZWRlZBgEIAEoCBIOCgZyZWFzb24YBSABKAkiGwoKQ2xpSG9zdENQVRINCgVjb3JlcxgBIAEoBSKtAQoLQ2xpSG9zdExvYWQSDQoFbG9hZDEYASABKAESDQoFbG9hZDUYAiABKAESDgoGbG9hZDE1GAMgASgBEhUKDXJ1bm5pbmdfcHJvY3MYBCABKAUSEwoLdG90YWxfcHJvY3MYBSABKAUSEAoIbGFzdF9waWQYBiABKAUSGAoQbm9ybWFsaXplZF9sb2FkMRgHIAEoARIYChBub3JtYWxpemVkX2xvYWQ1GAggASgBImoKDUNsaUhvc3RNZW1vcnkSEwoLdG90YWxfYnl0ZXMYASABKAMSFwoPYXZhaWxhYmxlX2J5dGVzGAIgASgDEhUKDWJ1ZmZlcnNfYnl0ZXMYAyABKAMSFAoMY2FjaGVkX2J5dGVzGAQgASgDIjYKC0NsaUhvc3RTd2FwEhMKC3RvdGFsX2J5dGVzGAEgASgDEhIKCmZyZWVfYnl0ZXMYAiABKAMi3AIKCkNsaUhvc3RHUFUSDQoFaW5kZXgYASABKAUSDAoEdXVpZBgCIAEoCRIMCgRuYW1lGAMgASgJEhYKDmRyaXZlcl92ZXJzaW9uGAQgASgJEhIKCnZyYW1fYnl0ZXMYBSABKAMSFwoPdnJhbV91c2VkX2J5dGVzGAYgASgDEhsKE3V0aWxpemF0aW9uX3BlcmNlbnQYByABKAESIgoabWVtb3J5X3V0aWxpemF0aW9uX3BlcmNlbnQYCCABKAESFQoNdGVtcGVyYXR1cmVfYxgJIAEoARIZChFmYW5fc3BlZWRfcGVyY2VudBgKIAEoARIUCgxwb3dlcl9kcmF3X3cYCyABKAESFQoNcG93ZXJfbGltaXRfdxgMIAEoARIUCgxzbV9jbG9ja19taHoYDSABKAESGAoQbWVtb3J5X2Nsb2NrX21oehgOIAEoARIOCgZzb3VyY2UYDyABKAkibwoRQ2xpSG9zdEdQVVByb2Nlc3MSEQoJZ3B1X2luZGV4GAEgASgFEhAKCGdwdV91dWlkGAIgASgJEgsKA3BpZBgDIAEoBRIUCgxwcm9jZXNzX25hbWUYBCABKAkSEgoKdXNlZF9ieXRlcxgFIAEoAyIqChBDbGlIb3N0RG9ja2VyR1BVEhYKDm52aWRpYV9ydW50aW1lGAEgASgIIiwKC0NsaUhvc3RUb29sEg8KB3ByZXNlbnQYASABKAgSDAoEcGF0aBgCIAEoCSKAAQoRQ2xpSG9zdFByb3ZlbmFuY2USEwoLc291cmNlX2tpbmQYASABKAkSDgoGc291cmNlGAIgASgJEhMKC29ic2VydmVkX2F0GAMgASgJEhIKCmNvbmZpZGVuY2UYBCABKAkSDwoHY29tbWFuZBgFIAEoCRIMCgRmaWxlGAYgASgJIr0BChRDbGlIb3N0SW5zdGFsbFN0YXR1cxIMCgRuYW1lGAEgASgJEg8KB2NvbW1hbmQYAiABKAkSEQoJaW5zdGFsbGVkGAMgASgIEhUKDXN1cHBvcnRfY2xhc3MYBCABKAkSFwoPZXhlY3V0aW9uX3N0YXRlGAUgASgJEhcKD2Jsb2NraW5nX3JlYXNvbhgGIAEoCRIPCgd2ZXJzaW9uGAcgASgJEg0KBW5vdGVzGAggAygJEgoKAm9rGAkgASgIQj1aO2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY2xpL3YxO2NsaXYxYgZwcm90bzM");
+  fileDesc("ChRjbGkvdjEvcnVudGltZS5wcm90bxINdnJvb2xpLmNsaS52MSJJCgpDbGlWZXJzaW9uEhMKC2NsaV92ZXJzaW9uGAEgASgJEhgKEHBsYXRmb3JtX3ZlcnNpb24YAiABKAkSDAoEcm9vdBgDIAEoCSLuAwoTQ2xpU3VwZXJ2aXNvclN0YXR1cxIVCg1zdXBlcnZpc29yX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIVCg1zdGF0dXNfcmVhc29uGAMgASgJEhQKDGhvc3RfYm9vdF9pZBgEIAEoCRIXCg9ob3N0X3Nlc3Npb25faWQYBSABKAkSCwoDcGlkGAYgASgFEhkKEWxhc3RfaGVhcnRiZWF0X2F0GAcgASgJEh0KFWhlYXJ0YmVhdF9kZWFkbGluZV9hdBgIIAEoCRIhChlzdXBlcnZpc2VkX2luc3RhbmNlX2NvdW50GAkgASgFEiEKGXVudmVyaWZpZWRfaW5zdGFuY2VfY291bnQYCiABKAUSIAoYZWZmZWN0aXZlX3JlbmV3X2ludGVydmFsGAsgASgDEhsKE2VmZmVjdGl2ZV9sZWFzZV90dGwYDCABKAMSIQoZZWZmZWN0aXZlX2hlYWx0aF9pbnRlcnZhbBgNIAEoAxIoCiBlZmZlY3RpdmVfbWF4X2hlYWx0aF9jb25jdXJyZW5jeRgOIAEoBRIcChRlZmZlY3RpdmVfYmF0Y2hfc2l6ZRgPIAEoBRIzCglsYXN0X3RpY2sYECABKAsyIC52cm9vbGkuY2xpLnYxLkNsaVN1cGVydmlzb3JUaWNrInwKEUNsaVN1cGVydmlzb3JUaWNrEhUKDXN1cGVydmlzb3JfaWQYASABKAkSDwoHcmVuZXdlZBgCIAEoBRIPCgdleHBpcmVkGAMgASgFEhIKCnVudmVyaWZpZWQYBCABKAUSGgoSaGVhbHRoX3Byb2JlX2NvdW50GAUgASgFImEKGkNsaVN1cGVydmlzb3JTZXJ2aWNlUmVzdWx0EhEKCXVuaXRfbmFtZRgBIAEoCRIRCgl1bml0X3BhdGgYAiABKAkSDQoFc2NvcGUYAyABKAkSDgoGYWN0aXZlGAQgASgIIqQJCg9DbGlIb3N0U25hcHNob3QSCgoCb3MYASABKAkSDAoEYXJjaBgCIAEoCRImCgNjcHUYAyABKAsyGS52cm9vbGkuY2xpLnYxLkNsaUhvc3RDUFUSKAoEbG9hZBgEIAEoCzIaLnZyb29saS5jbGkudjEuQ2xpSG9zdExvYWQSLAoGbWVtb3J5GAUgASgLMhwudnJvb2xpLmNsaS52MS5DbGlIb3N0TWVtb3J5EigKBHN3YXAYBiABKAsyGi52cm9vbGkuY2xpLnYxLkNsaUhvc3RTd2FwEicKBGdwdXMYByADKAsyGS52cm9vbGkuY2xpLnYxLkNsaUhvc3RHUFUSNwoNZ3B1X3Byb2Nlc3NlcxgIIAMoCzIgLnZyb29saS5jbGkudjEuQ2xpSG9zdEdQVVByb2Nlc3MSRwoNcnVudGltZV90b29scxgJIAMoCzIwLnZyb29saS5jbGkudjEuQ2xpSG9zdFNuYXBzaG90LlJ1bnRpbWVUb29sc0VudHJ5EjMKCmRvY2tlcl9ncHUYCiABKAsyHy52cm9vbGkuY2xpLnYxLkNsaUhvc3REb2NrZXJHUFUSEAoId2FybmluZ3MYCyADKAkSSQoOcHJvYmVfc3RhdHVzZXMYDCADKAsyMS52cm9vbGkuY2xpLnYxLkNsaUhvc3RTbmFwc2hvdC5Qcm9iZVN0YXR1c2VzRW50cnkSTQoQZmllbGRfcHJvdmVuYW5jZRgNIAMoCzIzLnZyb29saS5jbGkudjEuQ2xpSG9zdFNuYXBzaG90LkZpZWxkUHJvdmVuYW5jZUVudHJ5EhgKEGRpc3BsYXlfYXR0YWNoZWQYDiABKAgSOwoOcmVtb3RlX2Rlc2t0b3AYDyABKAsyIy52cm9vbGkuY2xpLnYxLkNsaUhvc3RSZW1vdGVEZXNrdG9wEhYKDmRpc3BsYXlfc2VydmVyGBAgASgJEhoKEndheWxhbmRfYXR0YWluYWJsZRgRIAEoCBIWCg53YXlsYW5kX3JlYXNvbhgSIAEoCRIXCg9kaXNwbGF5X21hbmFnZXIYEyABKAkSFAoMc2Vzc2lvbl90eXBlGBQgASgJEgwKBHNlYXQYFSABKAkSGwoTYWN0aXZlX3Nlc3Npb25fdXNlchgWIAEoCRIXCg9hdXRvX2xvZ2luX3VzZXIYFyABKAkSGwoTbnZpZGlhX2RldmljZV9ub2RlcxgYIAMoCRItCgdkZXZpY2VzGBkgAygLMhwudnJvb2xpLmNsaS52MS5DbGlIb3N0RGV2aWNlGk8KEVJ1bnRpbWVUb29sc0VudHJ5EgsKA2tleRgBIAEoCRIpCgV2YWx1ZRgCIAEoCzIaLnZyb29saS5jbGkudjEuQ2xpSG9zdFRvb2w6AjgBGjQKElByb2JlU3RhdHVzZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGlgKFEZpZWxkUHJvdmVuYW5jZUVudHJ5EgsKA2tleRgBIAEoCRIvCgV2YWx1ZRgCIAEoCzIgLnZyb29saS5jbGkudjEuQ2xpSG9zdFByb3ZlbmFuY2U6AjgBIuEBCg1DbGlIb3N0RGV2aWNlEgoKAmlkGAEgASgJEg0KBWNsYXNzGAIgASgJEg4KBnBhcmVudBgDIAEoCRIOCgZ2ZW5kb3IYBCABKAkSEQoJdmVuZG9yX2lkGAUgASgJEg0KBW1vZGVsGAYgASgJEhAKCG1vZGVsX2lkGAcgASgJEg4KBmRyaXZlchgIIAEoCRIWCg5kcml2ZXJfdmVyc2lvbhgJIAEoCRINCgVub2RlcxgKIAMoCRIVCg1kaXNjb3ZlcmVkX2J5GAsgASgJEhMKC2VucmljaGVkX2J5GAwgAygJIo0CChRDbGlIb3N0UmVtb3RlRGVza3RvcBIRCglzdXBwb3J0ZWQYASABKAgSEAoIb2JzZXJ2ZWQYAiABKAgSDAoEbW9kZRgDIAEoCRIOCgZhY3RpdmUYBCABKAgSFgoObGlzdGVuaW5nX3BvcnQYBSABKAUSGQoRc2VsZWN0ZWRfcHJvdmlkZXIYBiABKAkSPgoJcHJvdmlkZXJzGAcgAygLMisudnJvb2xpLmNsaS52MS5DbGlIb3N0UmVtb3RlRGVza3RvcFByb3ZpZGVyEj8KEGNyZWRlbnRpYWxfc3RvcmUYCCABKAsyJS52cm9vbGkuY2xpLnYxLkNsaUhvc3RDcmVkZW50aWFsU3RvcmUifAocQ2xpSG9zdFJlbW90ZURlc2t0b3BQcm92aWRlchIMCgRuYW1lGAEgASgJEg8KB3ByZXNlbnQYAiABKAgSDgoGYWN0aXZlGAMgASgIEhcKD3Byb2JlX3N1Y2NlZWRlZBgEIAEoCBIUCgx1c2VyX3Nlc3Npb24YBSABKAgidQoWQ2xpSG9zdENyZWRlbnRpYWxTdG9yZRIRCglzdXBwb3J0ZWQYASABKAgSEAoIb2JzZXJ2ZWQYAiABKAgSDQoFc3RhdGUYAyABKAkSFwoPcHJvYmVfc3VjY2VlZGVkGAQgASgIEg4KBnJlYXNvbhgFIAEoCSIbCgpDbGlIb3N0Q1BVEg0KBWNvcmVzGAEgASgFIq0BCgtDbGlIb3N0TG9hZBINCgVsb2FkMRgBIAEoARINCgVsb2FkNRgCIAEoARIOCgZsb2FkMTUYAyABKAESFQoNcnVubmluZ19wcm9jcxgEIAEoBRITCgt0b3RhbF9wcm9jcxgFIAEoBRIQCghsYXN0X3BpZBgGIAEoBRIYChBub3JtYWxpemVkX2xvYWQxGAcgASgBEhgKEG5vcm1hbGl6ZWRfbG9hZDUYCCABKAEiagoNQ2xpSG9zdE1lbW9yeRITCgt0b3RhbF9ieXRlcxgBIAEoAxIXCg9hdmFpbGFibGVfYnl0ZXMYAiABKAMSFQoNYnVmZmVyc19ieXRlcxgDIAEoAxIUCgxjYWNoZWRfYnl0ZXMYBCABKAMiNgoLQ2xpSG9zdFN3YXASEwoLdG90YWxfYnl0ZXMYASABKAMSEgoKZnJlZV9ieXRlcxgCIAEoAyLcAgoKQ2xpSG9zdEdQVRINCgVpbmRleBgBIAEoBRIMCgR1dWlkGAIgASgJEgwKBG5hbWUYAyABKAkSFgoOZHJpdmVyX3ZlcnNpb24YBCABKAkSEgoKdnJhbV9ieXRlcxgFIAEoAxIXCg92cmFtX3VzZWRfYnl0ZXMYBiABKAMSGwoTdXRpbGl6YXRpb25fcGVyY2VudBgHIAEoARIiChptZW1vcnlfdXRpbGl6YXRpb25fcGVyY2VudBgIIAEoARIVCg10ZW1wZXJhdHVyZV9jGAkgASgBEhkKEWZhbl9zcGVlZF9wZXJjZW50GAogASgBEhQKDHBvd2VyX2RyYXdfdxgLIAEoARIVCg1wb3dlcl9saW1pdF93GAwgASgBEhQKDHNtX2Nsb2NrX21oehgNIAEoARIYChBtZW1vcnlfY2xvY2tfbWh6GA4gASgBEg4KBnNvdXJjZRgPIAEoCSJvChFDbGlIb3N0R1BVUHJvY2VzcxIRCglncHVfaW5kZXgYASABKAUSEAoIZ3B1X3V1aWQYAiABKAkSCwoDcGlkGAMgASgFEhQKDHByb2Nlc3NfbmFtZRgEIAEoCRISCgp1c2VkX2J5dGVzGAUgASgDIioKEENsaUhvc3REb2NrZXJHUFUSFgoObnZpZGlhX3J1bnRpbWUYASABKAgiLAoLQ2xpSG9zdFRvb2wSDwoHcHJlc2VudBgBIAEoCBIMCgRwYXRoGAIgASgJIoABChFDbGlIb3N0UHJvdmVuYW5jZRITCgtzb3VyY2Vfa2luZBgBIAEoCRIOCgZzb3VyY2UYAiABKAkSEwoLb2JzZXJ2ZWRfYXQYAyABKAkSEgoKY29uZmlkZW5jZRgEIAEoCRIPCgdjb21tYW5kGAUgASgJEgwKBGZpbGUYBiABKAkivQEKFENsaUhvc3RJbnN0YWxsU3RhdHVzEgwKBG5hbWUYASABKAkSDwoHY29tbWFuZBgCIAEoCRIRCglpbnN0YWxsZWQYAyABKAgSFQoNc3VwcG9ydF9jbGFzcxgEIAEoCRIXCg9leGVjdXRpb25fc3RhdGUYBSABKAkSFwoPYmxvY2tpbmdfcmVhc29uGAYgASgJEg8KB3ZlcnNpb24YByABKAkSDQoFbm90ZXMYCCADKAkSCgoCb2sYCSABKAhCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw");
 
 /**
  * CliVersion is the shape of `vrooli --version --json`. The producer emits this
@@ -431,6 +431,20 @@ export type CliHostSnapshot = Message<"vrooli.cli.v1.CliHostSnapshot"> & {
    * @generated from field: repeated string nvidia_device_nodes = 24;
    */
   nvidiaDeviceNodes: string[];
+
+  /**
+   * Devices enumerated from the host device tree.
+   *
+   * This is the device-tree-first enumeration, and it is the authoritative
+   * answer to "what is attached to this machine". It is deliberately separate
+   * from `gpus`, which carries vendor-tool telemetry and therefore only ever
+   * covers devices whose vendor ships such a tool. A device present here and
+   * absent from `gpus` is not an error: it means the platform knows the device
+   * exists (ladder rung one) and cannot read its state (rung two).
+   *
+   * @generated from field: repeated vrooli.cli.v1.CliHostDevice devices = 25;
+   */
+  devices: CliHostDevice[];
 };
 
 /**
@@ -439,6 +453,97 @@ export type CliHostSnapshot = Message<"vrooli.cli.v1.CliHostSnapshot"> & {
  */
 export const CliHostSnapshotSchema: GenMessage<CliHostSnapshot> = /*@__PURE__*/
   messageDesc(file_cli_v1_runtime, 4);
+
+/**
+ * CliHostDevice mirrors hostinventory.Device: one physical device with a
+ * platform-durable identity, its position in the device tree, and the
+ * provenance of how it was found.
+ *
+ * @generated from message vrooli.cli.v1.CliHostDevice
+ */
+export type CliHostDevice = Message<"vrooli.cli.v1.CliHostDevice"> & {
+  /**
+   * Stable, platform-durable identity, e.g. "pci:0000:01:00.0". Survives
+   * reboots and does not depend on enumeration order.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * Device class, e.g. "graphics", "storage", "network".
+   *
+   * @generated from field: string class = 2;
+   */
+  class: string;
+
+  /**
+   * Identity of the parent bus or controller; empty at a tree root.
+   *
+   * @generated from field: string parent = 3;
+   */
+  parent: string;
+
+  /**
+   * @generated from field: string vendor = 4;
+   */
+  vendor: string;
+
+  /**
+   * @generated from field: string vendor_id = 5;
+   */
+  vendorId: string;
+
+  /**
+   * @generated from field: string model = 6;
+   */
+  model: string;
+
+  /**
+   * @generated from field: string model_id = 7;
+   */
+  modelId: string;
+
+  /**
+   * @generated from field: string driver = 8;
+   */
+  driver: string;
+
+  /**
+   * @generated from field: string driver_version = 9;
+   */
+  driverVersion: string;
+
+  /**
+   * Kernel-visible nodes for this device, e.g. "card1", "renderD128".
+   *
+   * @generated from field: repeated string nodes = 10;
+   */
+  nodes: string[];
+
+  /**
+   * The probe that DISCOVERED the device. A vendor tool must never appear
+   * here: vendor tools enrich devices the device tree already found, and a
+   * vendor-discovered device is exactly the bug this enumeration removed.
+   *
+   * @generated from field: string discovered_by = 11;
+   */
+  discoveredBy: string;
+
+  /**
+   * Probes that added detail to an already-discovered device.
+   *
+   * @generated from field: repeated string enriched_by = 12;
+   */
+  enrichedBy: string[];
+};
+
+/**
+ * Describes the message vrooli.cli.v1.CliHostDevice.
+ * Use `create(CliHostDeviceSchema)` to create a new message.
+ */
+export const CliHostDeviceSchema: GenMessage<CliHostDevice> = /*@__PURE__*/
+  messageDesc(file_cli_v1_runtime, 5);
 
 /**
  * CliHostRemoteDesktop mirrors hostinventory.RemoteDesktopCapability.
@@ -492,7 +597,7 @@ export type CliHostRemoteDesktop = Message<"vrooli.cli.v1.CliHostRemoteDesktop">
  * Use `create(CliHostRemoteDesktopSchema)` to create a new message.
  */
 export const CliHostRemoteDesktopSchema: GenMessage<CliHostRemoteDesktop> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 5);
+  messageDesc(file_cli_v1_runtime, 6);
 
 /**
  * @generated from message vrooli.cli.v1.CliHostRemoteDesktopProvider
@@ -529,7 +634,7 @@ export type CliHostRemoteDesktopProvider = Message<"vrooli.cli.v1.CliHostRemoteD
  * Use `create(CliHostRemoteDesktopProviderSchema)` to create a new message.
  */
 export const CliHostRemoteDesktopProviderSchema: GenMessage<CliHostRemoteDesktopProvider> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 6);
+  messageDesc(file_cli_v1_runtime, 7);
 
 /**
  * @generated from message vrooli.cli.v1.CliHostCredentialStore
@@ -566,7 +671,7 @@ export type CliHostCredentialStore = Message<"vrooli.cli.v1.CliHostCredentialSto
  * Use `create(CliHostCredentialStoreSchema)` to create a new message.
  */
 export const CliHostCredentialStoreSchema: GenMessage<CliHostCredentialStore> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 7);
+  messageDesc(file_cli_v1_runtime, 8);
 
 /**
  * CliHostCPU mirrors hostinventory.CPU.
@@ -587,7 +692,7 @@ export type CliHostCPU = Message<"vrooli.cli.v1.CliHostCPU"> & {
  * Use `create(CliHostCPUSchema)` to create a new message.
  */
 export const CliHostCPUSchema: GenMessage<CliHostCPU> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 8);
+  messageDesc(file_cli_v1_runtime, 9);
 
 /**
  * CliHostLoad mirrors hostinventory.Load.
@@ -657,7 +762,7 @@ export type CliHostLoad = Message<"vrooli.cli.v1.CliHostLoad"> & {
  * Use `create(CliHostLoadSchema)` to create a new message.
  */
 export const CliHostLoadSchema: GenMessage<CliHostLoad> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 9);
+  messageDesc(file_cli_v1_runtime, 10);
 
 /**
  * CliHostMemory mirrors hostinventory.Memory. Byte totals are int64: physical
@@ -700,7 +805,7 @@ export type CliHostMemory = Message<"vrooli.cli.v1.CliHostMemory"> & {
  * Use `create(CliHostMemorySchema)` to create a new message.
  */
 export const CliHostMemorySchema: GenMessage<CliHostMemory> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 10);
+  messageDesc(file_cli_v1_runtime, 11);
 
 /**
  * CliHostSwap mirrors hostinventory.Swap. Byte totals are int64 (can exceed
@@ -729,7 +834,7 @@ export type CliHostSwap = Message<"vrooli.cli.v1.CliHostSwap"> & {
  * Use `create(CliHostSwapSchema)` to create a new message.
  */
 export const CliHostSwapSchema: GenMessage<CliHostSwap> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 11);
+  messageDesc(file_cli_v1_runtime, 12);
 
 /**
  * CliHostGPU mirrors hostinventory.GPU. Optional Go *float64 fields are emitted
@@ -849,7 +954,7 @@ export type CliHostGPU = Message<"vrooli.cli.v1.CliHostGPU"> & {
  * Use `create(CliHostGPUSchema)` to create a new message.
  */
 export const CliHostGPUSchema: GenMessage<CliHostGPU> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 12);
+  messageDesc(file_cli_v1_runtime, 13);
 
 /**
  * CliHostGPUProcess mirrors hostinventory.GPUProcess.
@@ -898,7 +1003,7 @@ export type CliHostGPUProcess = Message<"vrooli.cli.v1.CliHostGPUProcess"> & {
  * Use `create(CliHostGPUProcessSchema)` to create a new message.
  */
 export const CliHostGPUProcessSchema: GenMessage<CliHostGPUProcess> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 13);
+  messageDesc(file_cli_v1_runtime, 14);
 
 /**
  * CliHostDockerGPU mirrors hostinventory.DockerGPU.
@@ -919,7 +1024,7 @@ export type CliHostDockerGPU = Message<"vrooli.cli.v1.CliHostDockerGPU"> & {
  * Use `create(CliHostDockerGPUSchema)` to create a new message.
  */
 export const CliHostDockerGPUSchema: GenMessage<CliHostDockerGPU> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 14);
+  messageDesc(file_cli_v1_runtime, 15);
 
 /**
  * CliHostTool mirrors hostinventory.Tool.
@@ -947,7 +1052,7 @@ export type CliHostTool = Message<"vrooli.cli.v1.CliHostTool"> & {
  * Use `create(CliHostToolSchema)` to create a new message.
  */
 export const CliHostToolSchema: GenMessage<CliHostTool> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 15);
+  messageDesc(file_cli_v1_runtime, 16);
 
 /**
  * CliHostProvenance mirrors hostinventory.Provenance.
@@ -1003,7 +1108,7 @@ export type CliHostProvenance = Message<"vrooli.cli.v1.CliHostProvenance"> & {
  * Use `create(CliHostProvenanceSchema)` to create a new message.
  */
 export const CliHostProvenanceSchema: GenMessage<CliHostProvenance> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 16);
+  messageDesc(file_cli_v1_runtime, 17);
 
 /**
  * CliHostInstallStatus is the typed `vrooli host install <tool> --json` result:
@@ -1083,5 +1188,5 @@ export type CliHostInstallStatus = Message<"vrooli.cli.v1.CliHostInstallStatus">
  * Use `create(CliHostInstallStatusSchema)` to create a new message.
  */
 export const CliHostInstallStatusSchema: GenMessage<CliHostInstallStatus> = /*@__PURE__*/
-  messageDesc(file_cli_v1_runtime, 17);
+  messageDesc(file_cli_v1_runtime, 18);
 

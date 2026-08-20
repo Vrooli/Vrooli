@@ -15,6 +15,7 @@ import (
 	"experience-manager/internal/reconcile"
 	specRender "experience-manager/internal/render"
 	"experience-manager/internal/spec"
+
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 )
 

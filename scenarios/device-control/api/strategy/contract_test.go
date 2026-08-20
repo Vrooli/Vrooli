@@ -9,6 +9,7 @@ import (
 	"device-control/strategy/iosmirror"
 	"device-control/strategy/iossimctl"
 	"device-control/strategy/iosxcuitest"
+
 	"github.com/stretchr/testify/require"
 )
 

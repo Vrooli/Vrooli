@@ -25,6 +25,7 @@ import (
 	channelManagerH "channel-manager/handlers/channelmanager"
 	healthH "channel-manager/handlers/health"
 	localdb "channel-manager/internal/database"
+
 	channelmanagerv1 "github.com/vrooli/vrooli/packages/proto/gen/go/channel-manager/v1/channelmanager"
 )
 

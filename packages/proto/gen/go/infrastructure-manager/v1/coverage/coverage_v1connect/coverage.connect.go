@@ -39,6 +39,9 @@ const (
 	// CoverageServiceListCellsProcedure is the fully-qualified name of the CoverageService's ListCells
 	// RPC.
 	CoverageServiceListCellsProcedure = "/vrooli.infrastructure_manager.v1.coverage.CoverageService/ListCells"
+	// CoverageServiceListOpenLoopCellsProcedure is the fully-qualified name of the CoverageService's
+	// ListOpenLoopCells RPC.
+	CoverageServiceListOpenLoopCellsProcedure = "/vrooli.infrastructure_manager.v1.coverage.CoverageService/ListOpenLoopCells"
 	// CoverageServiceGetProjectionProcedure is the fully-qualified name of the CoverageService's
 	// GetProjection RPC.
 	CoverageServiceGetProjectionProcedure = "/vrooli.infrastructure_manager.v1.coverage.CoverageService/GetProjection"
@@ -55,6 +58,7 @@ const (
 type CoverageServiceClient interface {
 	GetCoverage(context.Context, *connect.Request[coverage.GetCoverageRequest]) (*connect.Response[coverage.GetCoverageResponse], error)
 	ListCells(context.Context, *connect.Request[coverage.ListCellsRequest]) (*connect.Response[coverage.ListCellsResponse], error)
+	ListOpenLoopCells(context.Context, *connect.Request[coverage.ListCellsRequest]) (*connect.Response[coverage.ListCellsResponse], error)
 	GetProjection(context.Context, *connect.Request[coverage.GetProjectionRequest]) (*connect.Response[coverage.GetProjectionResponse], error)
 	ValidateSetpoint(context.Context, *connect.Request[coverage.ValidateSetpointRequest]) (*connect.Response[coverage.ValidateSetpointResponse], error)
 	GetDrift(context.Context, *connect.Request[coverage.GetDriftRequest]) (*connect.Response[coverage.GetDriftResponse], error)
@@ -84,6 +88,12 @@ func NewCoverageServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(coverageServiceMethods.ByName("ListCells")),
 			connect.WithClientOptions(opts...),
 		),
+		listOpenLoopCells: connect.NewClient[coverage.ListCellsRequest, coverage.ListCellsResponse](
+			httpClient,
+			baseURL+CoverageServiceListOpenLoopCellsProcedure,
+			connect.WithSchema(coverageServiceMethods.ByName("ListOpenLoopCells")),
+			connect.WithClientOptions(opts...),
+		),
 		getProjection: connect.NewClient[coverage.GetProjectionRequest, coverage.GetProjectionResponse](
 			httpClient,
 			baseURL+CoverageServiceGetProjectionProcedure,
@@ -107,11 +117,12 @@ func NewCoverageServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // coverageServiceClient implements CoverageServiceClient.
 type coverageServiceClient struct {
-	getCoverage      *connect.Client[coverage.GetCoverageRequest, coverage.GetCoverageResponse]
-	listCells        *connect.Client[coverage.ListCellsRequest, coverage.ListCellsResponse]
-	getProjection    *connect.Client[coverage.GetProjectionRequest, coverage.GetProjectionResponse]
-	validateSetpoint *connect.Client[coverage.ValidateSetpointRequest, coverage.ValidateSetpointResponse]
-	getDrift         *connect.Client[coverage.GetDriftRequest, coverage.GetDriftResponse]
+	getCoverage       *connect.Client[coverage.GetCoverageRequest, coverage.GetCoverageResponse]
+	listCells         *connect.Client[coverage.ListCellsRequest, coverage.ListCellsResponse]
+	listOpenLoopCells *connect.Client[coverage.ListCellsRequest, coverage.ListCellsResponse]
+	getProjection     *connect.Client[coverage.GetProjectionRequest, coverage.GetProjectionResponse]
+	validateSetpoint  *connect.Client[coverage.ValidateSetpointRequest, coverage.ValidateSetpointResponse]
+	getDrift          *connect.Client[coverage.GetDriftRequest, coverage.GetDriftResponse]
 }
 
 // GetCoverage calls vrooli.infrastructure_manager.v1.coverage.CoverageService.GetCoverage.
@@ -122,6 +133,12 @@ func (c *coverageServiceClient) GetCoverage(ctx context.Context, req *connect.Re
 // ListCells calls vrooli.infrastructure_manager.v1.coverage.CoverageService.ListCells.
 func (c *coverageServiceClient) ListCells(ctx context.Context, req *connect.Request[coverage.ListCellsRequest]) (*connect.Response[coverage.ListCellsResponse], error) {
 	return c.listCells.CallUnary(ctx, req)
+}
+
+// ListOpenLoopCells calls
+// vrooli.infrastructure_manager.v1.coverage.CoverageService.ListOpenLoopCells.
+func (c *coverageServiceClient) ListOpenLoopCells(ctx context.Context, req *connect.Request[coverage.ListCellsRequest]) (*connect.Response[coverage.ListCellsResponse], error) {
+	return c.listOpenLoopCells.CallUnary(ctx, req)
 }
 
 // GetProjection calls vrooli.infrastructure_manager.v1.coverage.CoverageService.GetProjection.
@@ -145,6 +162,7 @@ func (c *coverageServiceClient) GetDrift(ctx context.Context, req *connect.Reque
 type CoverageServiceHandler interface {
 	GetCoverage(context.Context, *connect.Request[coverage.GetCoverageRequest]) (*connect.Response[coverage.GetCoverageResponse], error)
 	ListCells(context.Context, *connect.Request[coverage.ListCellsRequest]) (*connect.Response[coverage.ListCellsResponse], error)
+	ListOpenLoopCells(context.Context, *connect.Request[coverage.ListCellsRequest]) (*connect.Response[coverage.ListCellsResponse], error)
 	GetProjection(context.Context, *connect.Request[coverage.GetProjectionRequest]) (*connect.Response[coverage.GetProjectionResponse], error)
 	ValidateSetpoint(context.Context, *connect.Request[coverage.ValidateSetpointRequest]) (*connect.Response[coverage.ValidateSetpointResponse], error)
 	GetDrift(context.Context, *connect.Request[coverage.GetDriftRequest]) (*connect.Response[coverage.GetDriftResponse], error)
@@ -167,6 +185,12 @@ func NewCoverageServiceHandler(svc CoverageServiceHandler, opts ...connect.Handl
 		CoverageServiceListCellsProcedure,
 		svc.ListCells,
 		connect.WithSchema(coverageServiceMethods.ByName("ListCells")),
+		connect.WithHandlerOptions(opts...),
+	)
+	coverageServiceListOpenLoopCellsHandler := connect.NewUnaryHandler(
+		CoverageServiceListOpenLoopCellsProcedure,
+		svc.ListOpenLoopCells,
+		connect.WithSchema(coverageServiceMethods.ByName("ListOpenLoopCells")),
 		connect.WithHandlerOptions(opts...),
 	)
 	coverageServiceGetProjectionHandler := connect.NewUnaryHandler(
@@ -193,6 +217,8 @@ func NewCoverageServiceHandler(svc CoverageServiceHandler, opts ...connect.Handl
 			coverageServiceGetCoverageHandler.ServeHTTP(w, r)
 		case CoverageServiceListCellsProcedure:
 			coverageServiceListCellsHandler.ServeHTTP(w, r)
+		case CoverageServiceListOpenLoopCellsProcedure:
+			coverageServiceListOpenLoopCellsHandler.ServeHTTP(w, r)
 		case CoverageServiceGetProjectionProcedure:
 			coverageServiceGetProjectionHandler.ServeHTTP(w, r)
 		case CoverageServiceValidateSetpointProcedure:
@@ -214,6 +240,10 @@ func (UnimplementedCoverageServiceHandler) GetCoverage(context.Context, *connect
 
 func (UnimplementedCoverageServiceHandler) ListCells(context.Context, *connect.Request[coverage.ListCellsRequest]) (*connect.Response[coverage.ListCellsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.infrastructure_manager.v1.coverage.CoverageService.ListCells is not implemented"))
+}
+
+func (UnimplementedCoverageServiceHandler) ListOpenLoopCells(context.Context, *connect.Request[coverage.ListCellsRequest]) (*connect.Response[coverage.ListCellsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.infrastructure_manager.v1.coverage.CoverageService.ListOpenLoopCells is not implemented"))
 }
 
 func (UnimplementedCoverageServiceHandler) GetProjection(context.Context, *connect.Request[coverage.GetProjectionRequest]) (*connect.Response[coverage.GetProjectionResponse], error) {

@@ -34,9 +34,9 @@ func ValidModel(label string) (Model, bool) {
 
 // PinPath resolves the operator/broker model-pin file. The pin is how the
 // capacity broker's degrade actuation (`capacity-degrade --to <model>`) forces a
-// smaller model: it persists the choice so the next compose start — which
-// harvests `recommend-model --env` — comes up at the pinned size instead of the
-// host-derived recommendation. An explicit env override wins (tests/sandboxes);
+// smaller model: it persists the choice so the next managed-service start —
+// which harvests `recommend-model --env` — comes up at the pinned size instead
+// of the host-derived recommendation. An explicit env override wins (tests/sandboxes);
 // otherwise it lives beside the capacity ledger under the runtime-home state dir.
 func PinPath(getEnv func(string) string) (string, error) {
 	if getEnv == nil {

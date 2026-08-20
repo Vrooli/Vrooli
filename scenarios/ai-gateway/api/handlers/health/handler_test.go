@@ -12,6 +12,7 @@ import (
 	"ai-gateway/internal/module"
 	"ai-gateway/internal/server"
 	"ai-gateway/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

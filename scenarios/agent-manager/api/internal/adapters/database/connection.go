@@ -118,22 +118,6 @@ func SQLiteDSN(log *logrus.Logger) (string, error) {
 	), nil
 }
 
-// sqliteDSN remains a package-private compatibility alias for tests that
-// verify the canonical path policy directly.
-func sqliteDSN(log *logrus.Logger) (string, error) { return SQLiteDSN(log) }
-
-func scenarioDBPath() (string, error) {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
-	if err != nil {
-		return "", err
-	}
-	scenarioID, err := storage.ScenarioNamespace("agent-manager")
-	if err != nil {
-		return "", err
-	}
-	return resolver.Path(storage.Options{ScenarioID: scenarioID}, storage.ClassData, "agent-manager.db")
-}
-
 // Close closes the database connection.
 func (db *DB) Close() error {
 	if db == nil {

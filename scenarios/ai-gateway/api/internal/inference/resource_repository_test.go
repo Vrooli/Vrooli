@@ -7,6 +7,7 @@ import (
 
 	"ai-gateway/internal/providers"
 	providermocks "ai-gateway/internal/providers/mocks"
+
 	"github.com/stretchr/testify/require"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )

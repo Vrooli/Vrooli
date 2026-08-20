@@ -6,8 +6,13 @@ Managed Whisper speech-to-text runtime for local transcription and translation w
 
 - Resource ID: `whisper`
 - Category: `ai`
-- Driver: `compose-service`
-- Portability tier: `partial`
+- Driver: `managed-service`
+- Portability tier: Linux native supported; Windows acquisition conditional; macOS unsupported until a signed native server build exists
+
+The macOS candidate build recipe is documented in
+[docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/whisper/docs/OPERATIONS.md).
+It is a native-host build aid only; it does not promote macOS support or
+replace the signed acquisition entry in `resource.json`.
 
 ## Use Cases
 
@@ -17,26 +22,23 @@ Managed Whisper speech-to-text runtime for local transcription and translation w
 
 ## Architecture
 
-This resource uses the updated `compose-service` structure.
+This resource uses the `managed-service` structure.
 
-- `resource.json` is the declarative authority for lifecycle, compose orchestration, ports, exports, health, and freshness metadata.
+- `resource.json` is the declarative authority for lifecycle, checksum-pinned native acquisition, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
-- `cli/internal/` is the default home for Whisper-specific Go logic when the manifest and shared control plane are not enough.
+- `cli/internal/` contains the activity edge and its native `/asr` compatibility adapter.
 
 The intended escalation path is:
 
-1. express behavior in `resource.json` and `docker/docker-compose.yml`
+1. express behavior in `resource.json` and its acquisition targets
 2. rely on the shared `vrooli resource ...` control plane
 3. add Whisper-specific Go code under `cli/internal/...` only where specialization is real
 4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
 
 Current internal package boundaries:
 
-- `cli/internal/compose`: compose-specific runtime graph helpers
-- `cli/internal/topology`: service dependency and readiness semantics
-- `cli/internal/runtime`: runtime shaping helpers
-- `cli/internal/health`: Whisper-specific readiness helpers
-- `cli/internal/env`: environment export helpers
+- `cli/internal/activityproxy`: canonical port, capacity activity, and native request adaptation
+- `cli/internal/recommend`: resource sizing and capacity-degrade policy
 
 ## Usage
 
@@ -54,17 +56,17 @@ curl http://localhost:8090/
 ## Activity Edge
 
 Whisper clients must use `127.0.0.1:8090`. That port is owned by the host-side
-`activity-edge` companion, which forwards to the compose container on
-`127.0.0.1:18090`.
+`activity-edge` companion, which forwards to the supervised native
+`whisper-server` on `127.0.0.1:18090`.
 
 The edge is intentionally part of the serving path: it is the only component that
 can see every `POST /asr` request from host dictation and browser clients, so it
-also reports whisper active/idle state to the capacity broker. If the container
-is healthy but `8090` refuses connections, the container is not the failing
-piece; the companion is down, STT is unavailable, and capacity reporting is
-blind. `vrooli resource status whisper` now reports that state distinctly, and
-`vrooli-autoheal` can recover it with a cheap `vrooli resource start whisper`
-reconcile that respawns the companion without restarting the container.
+also reports whisper active/idle state to the capacity broker. If the native
+server is healthy but `8090` refuses connections, the companion is down, STT is
+unavailable, and capacity reporting is blind. `vrooli resource status whisper`
+reports that state distinctly, and `vrooli-autoheal` can recover it with a
+cheap `vrooli resource start whisper` reconcile that respawns the companion
+without restarting the server.
 
 The shared companion launcher also honors the resource's
 `orchestration.recovery_attempts` as a crash-loop cap for repeated stale-pid
@@ -76,7 +78,8 @@ the status JSON reports `failed: true` with the terminal reason. A deliberate
 ## Notes
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for transcription workflows.
-- Keep runtime state rooted in `${RESOURCE_*_DIR}` paths and compose-managed mounts rather than repo-local mutable directories.
+- Keep runtime state rooted in `${RESOURCE_*_DIR}` paths; the native server and
+  its GGML model are acquired and verified outside the repository.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/whisper/docs/OPERATIONS.md) as the architecture boundary for future migrations.
 ## Maturity
 

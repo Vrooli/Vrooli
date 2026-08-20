@@ -75,6 +75,7 @@ type lpbsConfigFakeRepo struct {
 func (r *lpbsConfigFakeRepo) Get(context.Context, string) (*LPBSReleaseConfig, error) {
 	return r.cfg, r.err
 }
+
 func (r *lpbsConfigFakeRepo) Upsert(_ context.Context, cfg *LPBSReleaseConfig) error {
 	r.cfg = cfg
 	return r.err

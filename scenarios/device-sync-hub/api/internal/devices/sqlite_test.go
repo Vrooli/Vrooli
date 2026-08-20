@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"device-sync-hub/internal/devices"
+
 	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"

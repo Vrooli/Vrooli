@@ -10,6 +10,7 @@ import (
 	"time"
 
 	core "channel-manager/internal/channelmanager"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"

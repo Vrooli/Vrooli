@@ -18,6 +18,7 @@ import (
 	"device-sync-hub/internal/deviceauth"
 	"device-sync-hub/internal/devices"
 	internaltransfer "device-sync-hub/internal/transfer"
+
 	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"

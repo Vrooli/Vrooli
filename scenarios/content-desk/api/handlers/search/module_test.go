@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"connectrpc.com/connect"
 	internalartifacts "content-desk/internal/artifacts"
 	internalledger "content-desk/internal/ledger"
+
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/search"
 )

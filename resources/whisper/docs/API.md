@@ -8,6 +8,12 @@ Complete API documentation for the Whisper speech-to-text service.
 http://localhost:8090
 ```
 
+The host-side activity edge preserves the historical multipart contract while
+forwarding to whisper.cpp: `audio_file` becomes `file`, query controls such as
+`task` and `language` become multipart fields, and JSON output is translated to
+whisper.cpp `verbose_json`. `/detect-language` preserves the documented
+`detected_language`, `language_code`, and `confidence` fields.
+
 ## Endpoints
 
 ### Health Check

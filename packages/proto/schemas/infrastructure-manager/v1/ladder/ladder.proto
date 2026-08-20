@@ -1,0 +1,249 @@
+syntax = "proto3";
+
+package vrooli.infrastructure_manager.v1.ladder;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/ladder;ladder_v1";
+
+// Ladder grades the host's device layer against the five-rung capability
+// ladder and joins that grading onto the substrate projection's authored
+// cells. It is the SB9-SB13 join: the sensors ship and emit in another
+// scenario, and what this domain adds is the binding, the unit mapping and the
+// honesty rules.
+//
+// The service is READ-ONLY by contract. This scenario has no controller
+// letter, so no restart, reconcile or mutate verb may ever be added here.
+
+service LadderService {
+  // GetLadder returns the whole ladder readout: every cell, every source's
+  // availability, and the cascade-ranked findings.
+  rpc GetLadder(GetLadderRequest) returns (GetLadderResponse);
+  // ListCells returns the ladder cells, optionally filtered.
+  rpc ListCells(ListCellsRequest) returns (ListCellsResponse);
+  // ListSources returns each source's availability and reason.
+  rpc ListSources(ListSourcesRequest) returns (ListSourcesResponse);
+  // RankFindings returns the cascade-ranked findings, each stating the stage
+  // that placed it.
+  rpc RankFindings(RankFindingsRequest) returns (RankFindingsResponse);
+}
+
+// Rung is the capability ladder in DEPENDENCY order. A rung is never reported
+// covered while the rung below it is blind.
+enum Rung {
+  RUNG_UNSPECIFIED = 0;
+  RUNG_IDENTITY = 1;
+  RUNG_TELEMETRY = 2;
+  RUNG_EVIDENCE = 3;
+  RUNG_CONTROL = 4;
+  RUNG_ANTICIPATION = 5;
+}
+
+// Observation is the outcome of grading one rung.
+enum Observation {
+  OBSERVATION_UNSPECIFIED = 0;
+  // A real value was obtained from the host.
+  OBSERVATION_MEASURED = 1;
+  // The rung applies and a value should exist, but the host refused or could
+  // not produce it. Never zero, never healthy.
+  OBSERVATION_UNMEASURABLE = 2;
+  // The mechanism that would produce the value is not present on this host.
+  OBSERVATION_UNAVAILABLE = 3;
+  // The rung is meaningless for this device class. Not a gap.
+  OBSERVATION_NOT_APPLICABLE = 4;
+  // A rung beneath this one is blind, so this rung was not graded.
+  OBSERVATION_BLOCKED = 5;
+  // No source graded this rung at all.
+  OBSERVATION_UNREAD = 6;
+}
+
+// CellStatus mirrors the coverage model's status vocabulary. CELL_STATUS_
+// UNAUTHORED means the space document declares no such cell — it is not a
+// synonym for MISSING, which is an authored declaration of blindness.
+enum CellStatus {
+  CELL_STATUS_UNSPECIFIED = 0;
+  CELL_STATUS_NOW = 1;
+  CELL_STATUS_IN_REACH = 2;
+  CELL_STATUS_MISSING = 3;
+  CELL_STATUS_UNAUTHORED = 4;
+}
+
+// TrustVerdict is the closed trust vocabulary. UNAVAILABLE means the source
+// could not be read; UNTRUSTED means a reading exists whose trustworthiness
+// could not be established. Neither is ever reported as a coverage status.
+enum TrustVerdict {
+  TRUST_VERDICT_UNSPECIFIED = 0;
+  TRUST_VERDICT_VALID = 1;
+  TRUST_VERDICT_GHOST = 2;
+  TRUST_VERDICT_SATURATED = 3;
+  TRUST_VERDICT_SHELVED = 4;
+  TRUST_VERDICT_UNIT_MISMATCH = 5;
+  TRUST_VERDICT_UNAVAILABLE = 6;
+  TRUST_VERDICT_UNTRUSTED = 7;
+}
+
+enum BandVerdict {
+  BAND_VERDICT_UNSPECIFIED = 0;
+  BAND_VERDICT_IN_BAND = 1;
+  BAND_VERDICT_OUT_OF_BAND = 2;
+  BAND_VERDICT_PENDING_SUSTAIN = 3;
+  BAND_VERDICT_NEEDS_BASELINE = 4;
+  BAND_VERDICT_NOT_EVALUATED = 5;
+  BAND_VERDICT_NOT_GRADEABLE = 6;
+}
+
+// CascadeStage is the operating model's finding cascade, inner to outer.
+enum CascadeStage {
+  CASCADE_STAGE_UNSPECIFIED = 0;
+  CASCADE_STAGE_SENSOR_CHANNEL_INTEGRITY = 1;
+  CASCADE_STAGE_HOST_SUBSTRATE = 2;
+  CASCADE_STAGE_CAPABILITY_AVAILABILITY = 3;
+  CASCADE_STAGE_EFFICIENCY = 4;
+  CASCADE_STAGE_MEASUREMENT_IMPROVEMENT = 5;
+}
+
+// LadderCell is one (device class, rung, host OS) cell.
+message LadderCell {
+  string device_class = 1;
+  Rung rung = 2;
+  string host_os = 3;
+  // key is the rendered "<class>/<rung>/<host-os>" identifier.
+  string key = 4;
+  // cell_ref is the authored substrate cell this ladder cell answers.
+  string cell_ref = 5;
+  string question = 6;
+
+  CellStatus status = 7;
+  // status_source says whether the status came from the space document or from
+  // a live join that refined it. A cell absent from a live join KEEPS its
+  // authored status; silence never fabricates MISSING.
+  string status_source = 8;
+
+  Observation observation = 9;
+  string reason = 10;
+  string mechanism = 11;
+  string remediation = 12;
+  // blocked_by names the lower rung whose blindness suppressed this grade.
+  Rung blocked_by = 13;
+
+  TrustVerdict trust = 14;
+  string unavailable_reason = 15;
+
+  int32 device_count = 16;
+  int32 blind_devices = 17;
+
+  string bar_id = 18;
+  // graded is false when no bar resolves, the bar authors no threshold, or the
+  // reading is not trusted. ungraded_reason always says which.
+  bool graded = 19;
+  string ungraded_reason = 20;
+  BandVerdict band = 21;
+  bool provisional = 22;
+
+  string capability = 23;
+  string capability_status = 24;
+  string capability_reason = 25;
+
+  google.protobuf.Timestamp observed_at = 26;
+}
+
+// CheckPlatformCoverage is the substrate sensing declared for one host OS: how
+// many registered autoheal checks apply there, out of how many exist. It is a
+// triple rather than a bare count because "4 checks apply on windows" is
+// unreadable without the denominator.
+message CheckPlatformCoverage {
+  string host_os = 1;
+  int32 applicable = 2;
+  int32 total = 3;
+  // universal counts checks declaring no platform at all. An empty platform
+  // declaration means the check applies EVERYWHERE, not that its platform is
+  // unknown, and these are the reason a host OS can have applicable checks
+  // while no check names it explicitly.
+  int32 universal = 4;
+  bool available = 5;
+  string reason = 6;
+}
+
+message SourceState {
+  string id = 1;
+  bool available = 2;
+  string reason = 3;
+  google.protobuf.Timestamp checked_at = 4;
+}
+
+message RankedFinding {
+  int32 rank = 1;
+  string id = 2;
+  string source = 3;
+  string cell_ref = 4;
+  string sensor_ref = 5;
+  string title = 6;
+  string message = 7;
+  CascadeStage stage = 8;
+  // stage_explanation states which cascade stage placed this finding and why
+  // that stage outranks the next. A ranking whose order the reader cannot see
+  // is indistinguishable from a ranking bug.
+  string stage_explanation = 9;
+  int32 severity = 10;
+  bool trust_valid = 11;
+  string expected_return = 12;
+}
+
+message Ladder {
+  repeated LadderCell cells = 1;
+  repeated SourceState sources = 2;
+  repeated RankedFinding findings = 3;
+  // host_os is the platform this instrument is running on. Only its cells can
+  // be refined by a live device read; other platforms are reasoned about from
+  // declarations alone.
+  string host_os = 4;
+  // coverage_available is false when the substrate space document itself could
+  // not be read, in which case no cell carries an authored status.
+  bool coverage_available = 5;
+  string coverage_reason = 6;
+  // check_platforms aggregates the autoheal check registry's platform
+  // declarations onto the host OS axis, read live from the owner's typed
+  // surface rather than parsed out of its source.
+  repeated CheckPlatformCoverage check_platforms = 7;
+  google.protobuf.Timestamp computed_at = 8;
+}
+
+message GetLadderRequest {}
+
+message GetLadderResponse {
+  Ladder ladder = 1;
+}
+
+message ListCellsRequest {
+  // Optional filters. An unset filter matches everything.
+  string device_class = 1;
+  Rung rung = 2;
+  string host_os = 3;
+  string cell_ref = 4;
+}
+
+message ListCellsResponse {
+  repeated LadderCell cells = 1;
+  google.protobuf.Timestamp computed_at = 2;
+}
+
+message ListSourcesRequest {}
+
+message ListSourcesResponse {
+  repeated SourceState sources = 1;
+  repeated CheckPlatformCoverage check_platforms = 2;
+  google.protobuf.Timestamp computed_at = 3;
+}
+
+message RankFindingsRequest {
+  // stage optionally narrows the ranking to one cascade stage.
+  CascadeStage stage = 1;
+}
+
+message RankFindingsResponse {
+  repeated RankedFinding findings = 1;
+  // applied_cascade names the cascade order used, so the response states the
+  // rule it applied rather than leaving the reader to infer it.
+  string applied_cascade = 2;
+  google.protobuf.Timestamp computed_at = 3;
+}

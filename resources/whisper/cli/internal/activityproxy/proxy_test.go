@@ -3,8 +3,10 @@ package activityproxy
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -102,6 +104,123 @@ func TestProxyForwardsTransparentlyAndBrackets(t *testing.T) {
 	}
 	if !waitForState(&mu, &states, "idle", time.Second) {
 		t.Fatalf("idle never reported after debounce; states=%v", snapshot(&mu, &states))
+	}
+}
+
+func TestNativeAdapterMapsHistoricalASRContract(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/inference" {
+			t.Fatalf("native path=%q, want /inference", r.URL.Path)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("parse native form: %v", err)
+		}
+		if len(r.MultipartForm.File["file"]) != 1 || len(r.MultipartForm.File["audio_file"]) != 0 {
+			t.Fatalf("native files=%v, want file only", r.MultipartForm.File)
+		}
+		if got := r.FormValue("response_format"); got != "verbose_json" {
+			t.Fatalf("response_format=%q, want verbose_json", got)
+		}
+		if got := r.FormValue("language"); got != "en" {
+			t.Fatalf("language=%q, want en from query", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"text":"hello","segments":[]}`)
+	}))
+	defer upstream.Close()
+
+	h := &Handlers{
+		Stdout: io.Discard, Stderr: io.Discard, Native: true,
+		GetEnv: func(string) string { return "" },
+		Exec:   func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
+	}
+	srv, err := h.server("127.0.0.1:0", strings.TrimPrefix(upstream.URL, "http://"), 10*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	front := httptest.NewServer(srv.Handler)
+	defer front.Close()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("audio_file", "speech.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.WriteString(part, "wav")
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request, err := http.NewRequest(http.MethodPost, front.URL+"/asr?output=json&language=en", &body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status=%d, want 200", response.StatusCode)
+	}
+	data, _ := io.ReadAll(response.Body)
+	if string(data) != `{"text":"hello","segments":[]}` {
+		t.Fatalf("response=%q", data)
+	}
+}
+
+func TestNativeAdapterMapsDetectLanguageResponse(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/inference" {
+			t.Fatalf("native path=%q, want /inference", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"language":"english","detected_language":"english","detected_language_probability":0.97}`)
+	}))
+	defer upstream.Close()
+
+	h := &Handlers{
+		Stdout: io.Discard, Stderr: io.Discard, Native: true,
+		GetEnv: func(string) string { return "" },
+		Exec:   func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
+	}
+	srv, err := h.server("127.0.0.1:0", strings.TrimPrefix(upstream.URL, "http://"), 10*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	front := httptest.NewServer(srv.Handler)
+	defer front.Close()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("audio_file", "speech.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.WriteString(part, "wav")
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request, err := http.NewRequest(http.MethodPost, front.URL+"/detect-language", &body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if got := payload["language_code"]; got != "en" {
+		t.Fatalf("language_code=%v, want en", got)
+	}
+	if got := payload["confidence"]; got != 0.97 {
+		t.Fatalf("confidence=%v, want 0.97", got)
 	}
 }
 

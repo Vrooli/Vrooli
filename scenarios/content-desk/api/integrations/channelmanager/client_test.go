@@ -34,6 +34,7 @@ func (releaseHandler) SubmitRelease(_ context.Context, request *connect.Request[
 	}
 	return connect.NewResponse(&channelmanagerv1.SubmitReleaseResponse{Receipt: &channelmanagerv1.ReleaseReceipt{Id: "release-1", ActionId: "action-1", Status: "scheduled"}}), nil
 }
+
 func TestClientUsesGeneratedContractAndResolvedURL(t *testing.T) {
 	_, handler := channelmanagerconnect.NewChannelManagerServiceHandler(releaseHandler{})
 	server := httptest.NewServer(handler)

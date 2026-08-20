@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"device-control/strategy"
+
 	"github.com/google/uuid"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )

@@ -142,9 +142,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/code-facts.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

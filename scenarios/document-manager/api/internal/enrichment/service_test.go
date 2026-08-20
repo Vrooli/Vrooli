@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"document-manager/internal/gatewayreq"
+
 	"github.com/stretchr/testify/require"
 	gatewaypb "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	documentpb "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/shared"

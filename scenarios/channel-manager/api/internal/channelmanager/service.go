@@ -246,8 +246,10 @@ func (i Identity) Valid(platforms map[string]Platform) error {
 	return nil
 }
 
-type ActionStatus = generated.ActionStatus
-type ActionEvent = generated.ActionEvent
+type (
+	ActionStatus = generated.ActionStatus
+	ActionEvent  = generated.ActionEvent
+)
 
 const (
 	Scheduled ActionStatus = generated.ChannelActionScheduled
@@ -813,7 +815,7 @@ func (s *Service) ScheduleSessions(identityID string) error {
 		sessions = 1
 	}
 	gap := time.Duration(p.Sessions.MinimumGapMinutes) * time.Minute
-	var lastBySession = make([]time.Time, sessions)
+	lastBySession := make([]time.Time, sessions)
 	for index, action := range actions {
 		session := index % sessions
 		action.SessionNumber = session + 1

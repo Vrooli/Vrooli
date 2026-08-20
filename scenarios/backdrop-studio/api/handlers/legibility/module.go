@@ -6,6 +6,7 @@ import (
 
 	internal "backdrop-studio/internal/legibility"
 	"backdrop-studio/internal/module"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/legibility"

@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 
 	"cli-health/internal/services/manifestvalidation"
+
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"

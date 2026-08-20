@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"device-control/internal/identity"
+
 	"github.com/stretchr/testify/require"
 )
 

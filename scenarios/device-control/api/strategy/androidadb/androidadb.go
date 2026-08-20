@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+
 	// Register JPEG decoder for image.Decode.
 	_ "image/jpeg"
 	_ "image/png"

@@ -1,5 +1,5 @@
 // Package activityproxy is whisper's activity edge: a host-side reverse proxy
-// that sits in front of the third-party whisper-asr-webservice container and
+// that sits in front of the supervised native whisper.cpp server and
 // reports transcription activity to the platform capacity broker.
 //
 // Why the edge and not the caller (plan §2, internal/capacity/doc.go
@@ -18,20 +18,23 @@
 // OFF the request path (a background reporter goroutine), so the proxy adds
 // negligible latency.
 //
-// The edge owns the canonical client port (8090). The compose container listens
-// on the internal host port (18090), so "container healthy but 8090 down" means
-// the companion is down: STT is unavailable and whisper capacity activity is not
+// The edge owns the canonical client port (8090). The native server listens on
+// the internal host port (18090), so "server healthy but 8090 down" means the
+// companion is down: STT is unavailable and whisper capacity activity is not
 // being reported until the companion is respawned.
 package activityproxy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
 	"os"
@@ -78,6 +81,10 @@ type Handlers struct {
 	HeartbeatInterval time.Duration
 	// Now is the wall-clock seam for liveness logs.
 	Now func() time.Time
+	// Native enables the compatibility adapter from the historical /asr form to
+	// whisper.cpp's /inference form. Compatibility tests and attach-only users can
+	// keep the transparent proxy by leaving it false.
+	Native bool
 }
 
 // Default returns Handlers wired to the real shell.
@@ -118,14 +125,15 @@ func (h *Handlers) Run(args []string) error {
 	fs := flag.NewFlagSet("activity-proxy", flag.ContinueOnError)
 	fs.SetOutput(h.Stderr)
 	listen := fs.String("listen", h.env(envListen, defaultListen), "host:port the proxy listens on (the canonical whisper port)")
-	upstream := fs.String("upstream", h.env(envUpstream, defaultUpstream), "host:port of the whisper container (internal)")
+	upstream := fs.String("upstream", h.env(envUpstream, defaultUpstream), "host:port of the native whisper server (internal)")
 	debounce := fs.Duration("debounce", h.debounce(), "idle debounce after the last in-flight /asr completes")
+	native := fs.Bool("native", h.Native, "adapt the historical /asr multipart contract to whisper.cpp")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	started := h.now()
-	srv, tr, err := h.serverWithTracker(*listen, *upstream, *debounce)
+	srv, tr, err := h.serverWithTrackerMode(*listen, *upstream, *debounce, *native)
 	if err != nil {
 		fmt.Fprintf(h.Stderr, "activity-edge exit: reason=server-build err=%v\n", err)
 		return err
@@ -177,6 +185,10 @@ func (h *Handlers) server(listen, upstream string, debounce time.Duration) (*htt
 }
 
 func (h *Handlers) serverWithTracker(listen, upstream string, debounce time.Duration) (*http.Server, *tracker, error) {
+	return h.serverWithTrackerMode(listen, upstream, debounce, h.Native)
+}
+
+func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.Duration, native bool) (*http.Server, *tracker, error) {
 	target, err := url.Parse("http://" + strings.TrimPrefix(upstream, "http://"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse upstream %q: %w", upstream, err)
@@ -202,9 +214,175 @@ func (h *Handlers) serverWithTracker(listen, upstream string, debounce time.Dura
 			tr.begin()
 			defer tr.end()
 		}
+		if native && isTranscription(r) {
+			adapted, err := adaptNativeRequest(r)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if strings.Contains(strings.ToLower(r.URL.Path), "detect-language") {
+				rec := httptest.NewRecorder()
+				proxy.ServeHTTP(rec, adapted)
+				copyRecordedResponse(w, rec, true)
+				return
+			}
+			proxy.ServeHTTP(w, adapted)
+			return
+		}
 		proxy.ServeHTTP(w, r)
 	})
 	return &http.Server{Handler: mux, ReadHeaderTimeout: 15 * time.Second}, tr, nil
+}
+
+// adaptNativeRequest preserves the public audio_file multipart field and
+// /asr path while translating to whisper.cpp's /inference endpoint. Query
+// controls from the historical API are promoted into the native multipart
+// fields because whisper.cpp does not consume them from the query string.
+func adaptNativeRequest(r *http.Request) (*http.Request, error) {
+	if r.Method != http.MethodPost || !isTranscription(r) {
+		return r, nil
+	}
+	if err := r.ParseMultipartForm(64 << 20); err != nil {
+		return nil, fmt.Errorf("native whisper requires multipart audio: %w", err)
+	}
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for key, values := range r.MultipartForm.Value {
+		for _, value := range values {
+			if err := writer.WriteField(key, value); err != nil {
+				return nil, fmt.Errorf("copy whisper form field %q: %w", key, err)
+			}
+		}
+	}
+	for key, headers := range r.MultipartForm.File {
+		for _, header := range headers {
+			file, err := header.Open()
+			if err != nil {
+				return nil, fmt.Errorf("open uploaded audio: %w", err)
+			}
+			targetKey := key
+			if key == "audio_file" {
+				targetKey = "file"
+			}
+			part, err := writer.CreateFormFile(targetKey, header.Filename)
+			if err == nil {
+				_, err = io.Copy(part, file)
+			}
+			closeErr := file.Close()
+			if err != nil {
+				return nil, fmt.Errorf("copy uploaded audio: %w", err)
+			}
+			if closeErr != nil {
+				return nil, fmt.Errorf("close uploaded audio: %w", closeErr)
+			}
+		}
+	}
+	if _, ok := r.MultipartForm.Value["response_format"]; !ok {
+		format := nativeResponseFormat(r.URL.Query().Get("output"))
+		if err := writer.WriteField("response_format", format); err != nil {
+			return nil, fmt.Errorf("set native response format: %w", err)
+		}
+	}
+	for _, key := range []string{"task", "language", "prompt", "initial_prompt"} {
+		if _, inBody := r.MultipartForm.Value[key]; inBody {
+			continue
+		}
+		if value := r.URL.Query().Get(key); value != "" {
+			if err := writer.WriteField(key, value); err != nil {
+				return nil, fmt.Errorf("copy native query field %q: %w", key, err)
+			}
+		}
+	}
+	if strings.Contains(strings.ToLower(r.URL.Path), "detect-language") {
+		if err := writer.WriteField("detect_language", "true"); err != nil {
+			return nil, fmt.Errorf("set native language detection: %w", err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("close native whisper form: %w", err)
+	}
+	adapted := r.Clone(r.Context())
+	adapted.URL.Path = "/inference"
+	adapted.URL.RawPath = ""
+	adapted.URL.RawQuery = ""
+	adapted.Body = io.NopCloser(bytes.NewReader(body.Bytes()))
+	adapted.ContentLength = int64(body.Len())
+	adapted.Header = adapted.Header.Clone()
+	adapted.Header.Set("Content-Type", writer.FormDataContentType())
+	adapted.Header.Set("Content-Length", fmt.Sprintf("%d", body.Len()))
+	return adapted, nil
+}
+
+func nativeResponseFormat(output string) string {
+	switch strings.ToLower(strings.TrimSpace(output)) {
+	case "text", "srt", "vtt":
+		return strings.ToLower(strings.TrimSpace(output))
+	default:
+		return "verbose_json"
+	}
+}
+
+func copyRecordedResponse(w http.ResponseWriter, rec *httptest.ResponseRecorder, detectLanguage bool) {
+	body := rec.Body.Bytes()
+	if detectLanguage && rec.Code >= http.StatusOK && rec.Code < http.StatusMultipleChoices {
+		body = adaptDetectLanguageResponse(body)
+		w.Header().Set("Content-Type", "application/json")
+	}
+	for key, values := range rec.Header() {
+		if key == "Content-Length" || (detectLanguage && key == "Content-Type") {
+			continue
+		}
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+	w.WriteHeader(rec.Code)
+	_, _ = w.Write(body)
+}
+
+func adaptDetectLanguageResponse(body []byte) []byte {
+	var payload map[string]any
+	if json.Unmarshal(body, &payload) != nil {
+		return body
+	}
+	language, _ := payload["detected_language"].(string)
+	if language == "" {
+		language, _ = payload["language"].(string)
+	}
+	if _, ok := payload["language_code"]; !ok {
+		payload["language_code"] = languageCode(language)
+	}
+	if _, ok := payload["confidence"]; !ok {
+		if probability, ok := payload["detected_language_probability"].(float64); ok {
+			payload["confidence"] = probability
+		}
+	}
+	adapted, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return adapted
+}
+
+func languageCode(language string) string {
+	switch strings.ToLower(strings.TrimSpace(language)) {
+	case "english":
+		return "en"
+	case "spanish":
+		return "es"
+	case "french":
+		return "fr"
+	case "german":
+		return "de"
+	case "italian":
+		return "it"
+	case "portuguese":
+		return "pt"
+	case "dutch":
+		return "nl"
+	default:
+		return strings.ToLower(strings.TrimSpace(language))
+	}
 }
 
 // isTranscription reports whether a request is a unit of transcription work that

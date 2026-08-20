@@ -12,6 +12,7 @@ import (
 	internalflows "device-control/internal/flows"
 	"device-control/internal/module"
 	"device-control/strategy"
+
 	"github.com/gorilla/mux"
 )
 

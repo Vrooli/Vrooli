@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-autoheal/v1/checks/checks.proto.
  */
 export const file_vrooli_autoheal_v1_checks_checks: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktYXV0b2hlYWwvdjEvY2hlY2tzL2NoZWNrcy5wcm90bxIgdnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MiewoJQ2hlY2tJbmZvEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhIKCmltcG9ydGFuY2UYBCABKAkSEAoIY2F0ZWdvcnkYBSABKAkSGAoQaW50ZXJ2YWxfc2Vjb25kcxgGIAEoBSLLAQoLQ2hlY2tSZXN1bHQSEAoIY2hlY2tfaWQYASABKAkSPQoGc3RhdHVzGAIgASgOMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tTdGF0dXMSDwoHbWVzc2FnZRgDIAEoCRIvCgtvYnNlcnZlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYBSABKAMSFAoMZGV0YWlsc19qc29uGAYgASgJIuYBCgpUcmFuc2l0aW9uEhAKCGNoZWNrX2lkGAEgASgJEkIKC2Zyb21fc3RhdHVzGAIgASgOMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tTdGF0dXMSQAoJdG9fc3RhdHVzGAMgASgOMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tTdGF0dXMSDwoHbWVzc2FnZRgEIAEoCRIvCgtvYnNlcnZlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiEwoRTGlzdENoZWNrc1JlcXVlc3QiUQoSTGlzdENoZWNrc1Jlc3BvbnNlEjsKBmNoZWNrcxgBIAMoCzIrLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkNoZWNrSW5mbyIjCg9HZXRDaGVja1JlcXVlc3QSEAoIY2hlY2tfaWQYASABKAkiUQoQR2V0Q2hlY2tSZXNwb25zZRI9CgZyZXN1bHQYASABKAsyLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1Jlc3VsdCI0ChFHZXRIaXN0b3J5UmVxdWVzdBIQCghjaGVja19pZBgBIAEoCRINCgVsaW1pdBgCIAEoBSJUChJHZXRIaXN0b3J5UmVzcG9uc2USPgoHcmVzdWx0cxgBIAMoCzItLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkNoZWNrUmVzdWx0IhIKEEdldFN0YXR1c1JlcXVlc3QitgIKEUdldFN0YXR1c1Jlc3BvbnNlEj0KBnN0YXR1cxgBIAEoDjItLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkNoZWNrU3RhdHVzEhMKC3RvdGFsX2NvdW50GAIgASgFEhAKCG9rX2NvdW50GAMgASgFEhUKDXdhcm5pbmdfY291bnQYBCABKAUSFgoOY3JpdGljYWxfY291bnQYBSABKAUSHAoUbm90X2FwcGxpY2FibGVfY291bnQYBiABKAUSPQoGY2hlY2tzGAcgAygLMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tSZXN1bHQSLwoLY29tcHV0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjwKFUdldFRyYW5zaXRpb25zUmVxdWVzdBIUCgx3aW5kb3dfaG91cnMYASABKAUSDQoFbGltaXQYAiABKAUiWwoWR2V0VHJhbnNpdGlvbnNSZXNwb25zZRJBCgt0cmFuc2l0aW9ucxgBIAMoCzIsLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLlRyYW5zaXRpb24qlgEKC0NoZWNrU3RhdHVzEhwKGENIRUNLX1NUQVRVU19VTlNQRUNJRklFRBAAEhMKD0NIRUNLX1NUQVRVU19PSxABEhgKFENIRUNLX1NUQVRVU19XQVJOSU5HEAISGQoVQ0hFQ0tfU1RBVFVTX0NSSVRJQ0FMEAMSHwobQ0hFQ0tfU1RBVFVTX05PVF9BUFBMSUNBQkxFEAQy8AQKDUNoZWNrc1NlcnZpY2USdwoKTGlzdENoZWNrcxIzLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkxpc3RDaGVja3NSZXF1ZXN0GjQudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuTGlzdENoZWNrc1Jlc3BvbnNlEnEKCEdldENoZWNrEjEudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0Q2hlY2tSZXF1ZXN0GjIudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0Q2hlY2tSZXNwb25zZRJ3CgpHZXRIaXN0b3J5EjMudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0SGlzdG9yeVJlcXVlc3QaNC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5HZXRIaXN0b3J5UmVzcG9uc2USdAoJR2V0U3RhdHVzEjIudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0U3RhdHVzUmVxdWVzdBozLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFN0YXR1c1Jlc3BvbnNlEoMBCg5HZXRUcmFuc2l0aW9ucxI3LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFRyYW5zaXRpb25zUmVxdWVzdBo4LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFRyYW5zaXRpb25zUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYXV0b2hlYWwvdjEvY2hlY2tzO2NoZWNrc192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CiZ2cm9vbGktYXV0b2hlYWwvdjEvY2hlY2tzL2NoZWNrcy5wcm90bxIgdnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MijgEKCUNoZWNrSW5mbxIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRISCgppbXBvcnRhbmNlGAQgASgJEhAKCGNhdGVnb3J5GAUgASgJEhgKEGludGVydmFsX3NlY29uZHMYBiABKAUSEQoJcGxhdGZvcm1zGAcgAygJIssBCgtDaGVja1Jlc3VsdBIQCghjaGVja19pZBgBIAEoCRI9CgZzdGF0dXMYAiABKA4yLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1N0YXR1cxIPCgdtZXNzYWdlGAMgASgJEi8KC29ic2VydmVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtkdXJhdGlvbl9tcxgFIAEoAxIUCgxkZXRhaWxzX2pzb24YBiABKAki5gEKClRyYW5zaXRpb24SEAoIY2hlY2tfaWQYASABKAkSQgoLZnJvbV9zdGF0dXMYAiABKA4yLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1N0YXR1cxJACgl0b19zdGF0dXMYAyABKA4yLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1N0YXR1cxIPCgdtZXNzYWdlGAQgASgJEi8KC29ic2VydmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCITChFMaXN0Q2hlY2tzUmVxdWVzdCJRChJMaXN0Q2hlY2tzUmVzcG9uc2USOwoGY2hlY2tzGAEgAygLMisudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tJbmZvIiMKD0dldENoZWNrUmVxdWVzdBIQCghjaGVja19pZBgBIAEoCSJRChBHZXRDaGVja1Jlc3BvbnNlEj0KBnJlc3VsdBgBIAEoCzItLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkNoZWNrUmVzdWx0IjQKEUdldEhpc3RvcnlSZXF1ZXN0EhAKCGNoZWNrX2lkGAEgASgJEg0KBWxpbWl0GAIgASgFIlQKEkdldEhpc3RvcnlSZXNwb25zZRI+CgdyZXN1bHRzGAEgAygLMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tSZXN1bHQiEgoQR2V0U3RhdHVzUmVxdWVzdCK2AgoRR2V0U3RhdHVzUmVzcG9uc2USPQoGc3RhdHVzGAEgASgOMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tTdGF0dXMSEwoLdG90YWxfY291bnQYAiABKAUSEAoIb2tfY291bnQYAyABKAUSFQoNd2FybmluZ19jb3VudBgEIAEoBRIWCg5jcml0aWNhbF9jb3VudBgFIAEoBRIcChRub3RfYXBwbGljYWJsZV9jb3VudBgGIAEoBRI9CgZjaGVja3MYByADKAsyLS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5DaGVja1Jlc3VsdBIvCgtjb21wdXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiPAoVR2V0VHJhbnNpdGlvbnNSZXF1ZXN0EhQKDHdpbmRvd19ob3VycxgBIAEoBRINCgVsaW1pdBgCIAEoBSJbChZHZXRUcmFuc2l0aW9uc1Jlc3BvbnNlEkEKC3RyYW5zaXRpb25zGAEgAygLMiwudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuVHJhbnNpdGlvbiKFAgoJUmVjb25jaWxlEhcKD2dob3N0X2NoZWNrX2lkcxgBIAMoCRIaChJ1bnN1cGVydmlzZWRfcGxhbnQYAiADKAkSEQoJYXZhaWxhYmxlGAMgASgIEhoKEnVuYXZhaWxhYmxlX3JlYXNvbhgEIAEoCRIvCgtjb21wdXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASHgoWb3V0X29mX3Njb3BlX2NoZWNrX2lkcxgGIAMoCRIhChlnaG9zdF9kZXRlY3Rpb25fYXZhaWxhYmxlGAcgASgIEiAKGGdob3N0X3VuYXZhaWxhYmxlX3JlYXNvbhgIIAEoCSIVChNHZXRSZWNvbmNpbGVSZXF1ZXN0IlYKFEdldFJlY29uY2lsZVJlc3BvbnNlEj4KCXJlY29uY2lsZRgBIAEoCzIrLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLlJlY29uY2lsZSKZAQoFU2hlbGYSEAoIY2hlY2tfaWQYASABKAkSDgoGcmVhc29uGAIgASgJEi4KCmV4cGlyZXNfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnNldF9ieRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCItChJMaXN0U2hlbHZlc1JlcXVlc3QSFwoPaW5jbHVkZV9leHBpcmVkGAEgASgIIk8KE0xpc3RTaGVsdmVzUmVzcG9uc2USOAoHc2hlbHZlcxgBIAMoCzInLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLlNoZWxmIqgBCgpTYXR1cmF0aW9uEhAKCGNoZWNrX2lkGAEgASgJEhQKDHRyYW5zaXRpb25lZBgCIAEoCBIYChB0cmFuc2l0aW9uX2NvdW50GAMgASgFEkUKDmN1cnJlbnRfc3RhdHVzGAQgASgOMi0udnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuQ2hlY2tTdGF0dXMSEQoJc2F0dXJhdGVkGAUgASgIIi0KFUxpc3RTYXR1cmF0aW9uUmVxdWVzdBIUCgx3aW5kb3dfaG91cnMYASABKAUitQEKFkxpc3RTYXR1cmF0aW9uUmVzcG9uc2USQQoLc2F0dXJhdGlvbnMYASADKAsyLC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5TYXR1cmF0aW9uEhQKDHdpbmRvd19ob3VycxgCIAEoBRIvCgtjb21wdXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJdHJ1bmNhdGVkGAQgASgIIj4KFEdldFNhdHVyYXRpb25SZXF1ZXN0EhAKCGNoZWNrX2lkGAEgASgJEhQKDHdpbmRvd19ob3VycxgCIAEoBSKgAQoVR2V0U2F0dXJhdGlvblJlc3BvbnNlEhAKCGNoZWNrX2lkGAEgASgJEhQKDHRyYW5zaXRpb25lZBgCIAEoCBIYChB0cmFuc2l0aW9uX2NvdW50GAMgASgFEhQKDHdpbmRvd19ob3VycxgEIAEoBRIvCgtjb21wdXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAqlgEKC0NoZWNrU3RhdHVzEhwKGENIRUNLX1NUQVRVU19VTlNQRUNJRklFRBAAEhMKD0NIRUNLX1NUQVRVU19PSxABEhgKFENIRUNLX1NUQVRVU19XQVJOSU5HEAISGQoVQ0hFQ0tfU1RBVFVTX0NSSVRJQ0FMEAMSHwobQ0hFQ0tfU1RBVFVTX05PVF9BUFBMSUNBQkxFEAQy9AgKDUNoZWNrc1NlcnZpY2USdwoKTGlzdENoZWNrcxIzLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkxpc3RDaGVja3NSZXF1ZXN0GjQudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuTGlzdENoZWNrc1Jlc3BvbnNlEnEKCEdldENoZWNrEjEudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0Q2hlY2tSZXF1ZXN0GjIudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0Q2hlY2tSZXNwb25zZRJ3CgpHZXRIaXN0b3J5EjMudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0SGlzdG9yeVJlcXVlc3QaNC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLmNoZWNrcy5HZXRIaXN0b3J5UmVzcG9uc2USdAoJR2V0U3RhdHVzEjIudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0U3RhdHVzUmVxdWVzdBozLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFN0YXR1c1Jlc3BvbnNlEoMBCg5HZXRUcmFuc2l0aW9ucxI3LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFRyYW5zaXRpb25zUmVxdWVzdBo4LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFRyYW5zaXRpb25zUmVzcG9uc2USfQoMR2V0UmVjb25jaWxlEjUudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0UmVjb25jaWxlUmVxdWVzdBo2LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFJlY29uY2lsZVJlc3BvbnNlEnoKC0xpc3RTaGVsdmVzEjQudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuTGlzdFNoZWx2ZXNSZXF1ZXN0GjUudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuTGlzdFNoZWx2ZXNSZXNwb25zZRKAAQoNR2V0U2F0dXJhdGlvbhI2LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkdldFNhdHVyYXRpb25SZXF1ZXN0GjcudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5jaGVja3MuR2V0U2F0dXJhdGlvblJlc3BvbnNlEoMBCg5MaXN0U2F0dXJhdGlvbhI3LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkxpc3RTYXR1cmF0aW9uUmVxdWVzdBo4LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEuY2hlY2tzLkxpc3RTYXR1cmF0aW9uUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYXV0b2hlYWwvdjEvY2hlY2tzO2NoZWNrc192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.checks.CheckInfo
@@ -47,6 +47,17 @@ export type CheckInfo = Message<"vrooli.vrooli_autoheal.v1.checks.CheckInfo"> & 
    * @generated from field: int32 interval_seconds = 6;
    */
   intervalSeconds: number;
+
+  /**
+   * platforms lists the host operating systems this check applies to, exactly
+   * as the check declares them. An EMPTY list means the check applies to every
+   * platform — it is not "unknown" and must not be read as one. Exposing the
+   * declaration is what lets a reader distinguish a check that is silent
+   * because it does not apply here from one that is silent because it broke.
+   *
+   * @generated from field: repeated string platforms = 7;
+   */
+  platforms: string[];
 };
 
 /**
@@ -343,6 +354,335 @@ export const GetTransitionsResponseSchema: GenMessage<GetTransitionsResponse> = 
   messageDesc(file_vrooli_autoheal_v1_checks_checks, 12);
 
 /**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.Reconcile
+ */
+export type Reconcile = Message<"vrooli.vrooli_autoheal.v1.checks.Reconcile"> & {
+  /**
+   * ghost_check_ids are checks whose target no longer exists. Their readings
+   * carry no information about the plant and are excluded from aggregates.
+   *
+   * @generated from field: repeated string ghost_check_ids = 1;
+   */
+  ghostCheckIds: string[];
+
+  /**
+   * unsupervised_plant are members of the derived should-be-supervised set
+   * that have no registered check.
+   *
+   * @generated from field: repeated string unsupervised_plant = 2;
+   */
+  unsupervisedPlant: string[];
+
+  /**
+   * @generated from field: bool available = 3;
+   */
+  available: boolean;
+
+  /**
+   * @generated from field: string unavailable_reason = 4;
+   */
+  unavailableReason: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp computed_at = 5;
+   */
+  computedAt?: Timestamp | undefined;
+
+  /**
+   * out_of_scope_check_ids are checks whose target exists but is outside the
+   * derived should-be-supervised set. They are a supervision-scope signal,
+   * NOT ghosts: the reading is about a real element and stays in every
+   * aggregate. Conflating the two silently drops live plant from uptime.
+   *
+   * @generated from field: repeated string out_of_scope_check_ids = 6;
+   */
+  outOfScopeCheckIds: string[];
+
+  /**
+   * ghost_detection_available reports whether the installed-target set could
+   * be read. When false, no check may be called a ghost, because absence from
+   * an unavailable set is not evidence that a target is gone.
+   *
+   * @generated from field: bool ghost_detection_available = 7;
+   */
+  ghostDetectionAvailable: boolean;
+
+  /**
+   * @generated from field: string ghost_unavailable_reason = 8;
+   */
+  ghostUnavailableReason: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.Reconcile.
+ * Use `create(ReconcileSchema)` to create a new message.
+ */
+export const ReconcileSchema: GenMessage<Reconcile> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 13);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.GetReconcileRequest
+ */
+export type GetReconcileRequest = Message<"vrooli.vrooli_autoheal.v1.checks.GetReconcileRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.GetReconcileRequest.
+ * Use `create(GetReconcileRequestSchema)` to create a new message.
+ */
+export const GetReconcileRequestSchema: GenMessage<GetReconcileRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 14);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse
+ */
+export type GetReconcileResponse = Message<"vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse"> & {
+  /**
+   * @generated from field: vrooli.vrooli_autoheal.v1.checks.Reconcile reconcile = 1;
+   */
+  reconcile?: Reconcile | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.GetReconcileResponse.
+ * Use `create(GetReconcileResponseSchema)` to create a new message.
+ */
+export const GetReconcileResponseSchema: GenMessage<GetReconcileResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 15);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.Shelf
+ */
+export type Shelf = Message<"vrooli.vrooli_autoheal.v1.checks.Shelf"> & {
+  /**
+   * @generated from field: string check_id = 1;
+   */
+  checkId: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp expires_at = 3;
+   */
+  expiresAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string set_by = 4;
+   */
+  setBy: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 5;
+   */
+  createdAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.Shelf.
+ * Use `create(ShelfSchema)` to create a new message.
+ */
+export const ShelfSchema: GenMessage<Shelf> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 16);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.ListShelvesRequest
+ */
+export type ListShelvesRequest = Message<"vrooli.vrooli_autoheal.v1.checks.ListShelvesRequest"> & {
+  /**
+   * @generated from field: bool include_expired = 1;
+   */
+  includeExpired: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.ListShelvesRequest.
+ * Use `create(ListShelvesRequestSchema)` to create a new message.
+ */
+export const ListShelvesRequestSchema: GenMessage<ListShelvesRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 17);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse
+ */
+export type ListShelvesResponse = Message<"vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.vrooli_autoheal.v1.checks.Shelf shelves = 1;
+   */
+  shelves: Shelf[];
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.ListShelvesResponse.
+ * Use `create(ListShelvesResponseSchema)` to create a new message.
+ */
+export const ListShelvesResponseSchema: GenMessage<ListShelvesResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 18);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.Saturation
+ */
+export type Saturation = Message<"vrooli.vrooli_autoheal.v1.checks.Saturation"> & {
+  /**
+   * @generated from field: string check_id = 1;
+   */
+  checkId: string;
+
+  /**
+   * @generated from field: bool transitioned = 2;
+   */
+  transitioned: boolean;
+
+  /**
+   * @generated from field: int32 transition_count = 3;
+   */
+  transitionCount: number;
+
+  /**
+   * current_status at the end of the window. Reported so a caller never has to
+   * infer saturation from the transition count alone.
+   *
+   * @generated from field: vrooli.vrooli_autoheal.v1.checks.CheckStatus current_status = 4;
+   */
+  currentStatus: CheckStatus;
+
+  /**
+   * saturated means the check is pinned in a NON-NORMAL state for the whole
+   * window: no transition AND a current status of WARNING or CRITICAL. A check
+   * steady at OK has also not transitioned, but it is simply healthy — it is
+   * the desired state, not an alarm carrying no information. Deriving
+   * saturation from `!transitioned` alone marks every healthy check saturated
+   * and, because saturated readings are excluded from aggregates, empties the
+   * uptime figure of exactly the checks that were fine.
+   *
+   * @generated from field: bool saturated = 5;
+   */
+  saturated: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.Saturation.
+ * Use `create(SaturationSchema)` to create a new message.
+ */
+export const SaturationSchema: GenMessage<Saturation> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 19);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.ListSaturationRequest
+ */
+export type ListSaturationRequest = Message<"vrooli.vrooli_autoheal.v1.checks.ListSaturationRequest"> & {
+  /**
+   * @generated from field: int32 window_hours = 1;
+   */
+  windowHours: number;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.ListSaturationRequest.
+ * Use `create(ListSaturationRequestSchema)` to create a new message.
+ */
+export const ListSaturationRequestSchema: GenMessage<ListSaturationRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 20);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse
+ */
+export type ListSaturationResponse = Message<"vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.vrooli_autoheal.v1.checks.Saturation saturations = 1;
+   */
+  saturations: Saturation[];
+
+  /**
+   * @generated from field: int32 window_hours = 2;
+   */
+  windowHours: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp computed_at = 3;
+   */
+  computedAt?: Timestamp | undefined;
+
+  /**
+   * truncated reports that the transition window was capped before every
+   * registered check could be tallied. A capped tally cannot distinguish
+   * "no transition" from "not read", so callers must not derive saturation
+   * from it.
+   *
+   * @generated from field: bool truncated = 4;
+   */
+  truncated: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.ListSaturationResponse.
+ * Use `create(ListSaturationResponseSchema)` to create a new message.
+ */
+export const ListSaturationResponseSchema: GenMessage<ListSaturationResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 21);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.GetSaturationRequest
+ */
+export type GetSaturationRequest = Message<"vrooli.vrooli_autoheal.v1.checks.GetSaturationRequest"> & {
+  /**
+   * @generated from field: string check_id = 1;
+   */
+  checkId: string;
+
+  /**
+   * @generated from field: int32 window_hours = 2;
+   */
+  windowHours: number;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.GetSaturationRequest.
+ * Use `create(GetSaturationRequestSchema)` to create a new message.
+ */
+export const GetSaturationRequestSchema: GenMessage<GetSaturationRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 22);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse
+ */
+export type GetSaturationResponse = Message<"vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse"> & {
+  /**
+   * @generated from field: string check_id = 1;
+   */
+  checkId: string;
+
+  /**
+   * @generated from field: bool transitioned = 2;
+   */
+  transitioned: boolean;
+
+  /**
+   * @generated from field: int32 transition_count = 3;
+   */
+  transitionCount: number;
+
+  /**
+   * @generated from field: int32 window_hours = 4;
+   */
+  windowHours: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp computed_at = 5;
+   */
+  computedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.checks.GetSaturationResponse.
+ * Use `create(GetSaturationResponseSchema)` to create a new message.
+ */
+export const GetSaturationResponseSchema: GenMessage<GetSaturationResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_checks_checks, 23);
+
+/**
  * @generated from enum vrooli.vrooli_autoheal.v1.checks.CheckStatus
  */
 export enum CheckStatus {
@@ -421,6 +761,45 @@ export const ChecksService: GenService<{
     methodKind: "unary";
     input: typeof GetTransitionsRequestSchema;
     output: typeof GetTransitionsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_autoheal.v1.checks.ChecksService.GetReconcile
+   */
+  getReconcile: {
+    methodKind: "unary";
+    input: typeof GetReconcileRequestSchema;
+    output: typeof GetReconcileResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_autoheal.v1.checks.ChecksService.ListShelves
+   */
+  listShelves: {
+    methodKind: "unary";
+    input: typeof ListShelvesRequestSchema;
+    output: typeof ListShelvesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_autoheal.v1.checks.ChecksService.GetSaturation
+   */
+  getSaturation: {
+    methodKind: "unary";
+    input: typeof GetSaturationRequestSchema;
+    output: typeof GetSaturationResponseSchema;
+  },
+  /**
+   * ListSaturation answers the same question as GetSaturation for every
+   * registered check in one call. Per-check saturation reads force a caller
+   * holding a bounded per-source deadline into an N+1 fan-out, where the
+   * checks that do not fit the deadline are indistinguishable from checks
+   * that genuinely could not be read. Saturation is a property of the whole
+   * transition window, so it is computed once here instead.
+   *
+   * @generated from rpc vrooli.vrooli_autoheal.v1.checks.ChecksService.ListSaturation
+   */
+  listSaturation: {
+    methodKind: "unary";
+    input: typeof ListSaturationRequestSchema;
+    output: typeof ListSaturationResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_autoheal_v1_checks_checks, 0);

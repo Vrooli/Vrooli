@@ -22,7 +22,7 @@ type DegradeHandlers struct {
 	Stderr io.Writer
 	GetEnv func(string) string
 	// Exec runs a command and returns its combined output. Tests inject a fake so
-	// the verb never shells out (no `vrooli`/docker in unit runs).
+	// the verb never shells out to the control plane in unit runs.
 	Exec func(ctx context.Context, name string, args ...string) (string, error)
 	// WritePinFn / ClearPinFn default to the package pin writers; tests may
 	// override. The pin file path itself is env-overridable (EnvPinFile).

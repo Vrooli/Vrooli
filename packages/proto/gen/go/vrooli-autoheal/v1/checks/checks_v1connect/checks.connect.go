@@ -46,6 +46,18 @@ const (
 	// ChecksServiceGetTransitionsProcedure is the fully-qualified name of the ChecksService's
 	// GetTransitions RPC.
 	ChecksServiceGetTransitionsProcedure = "/vrooli.vrooli_autoheal.v1.checks.ChecksService/GetTransitions"
+	// ChecksServiceGetReconcileProcedure is the fully-qualified name of the ChecksService's
+	// GetReconcile RPC.
+	ChecksServiceGetReconcileProcedure = "/vrooli.vrooli_autoheal.v1.checks.ChecksService/GetReconcile"
+	// ChecksServiceListShelvesProcedure is the fully-qualified name of the ChecksService's ListShelves
+	// RPC.
+	ChecksServiceListShelvesProcedure = "/vrooli.vrooli_autoheal.v1.checks.ChecksService/ListShelves"
+	// ChecksServiceGetSaturationProcedure is the fully-qualified name of the ChecksService's
+	// GetSaturation RPC.
+	ChecksServiceGetSaturationProcedure = "/vrooli.vrooli_autoheal.v1.checks.ChecksService/GetSaturation"
+	// ChecksServiceListSaturationProcedure is the fully-qualified name of the ChecksService's
+	// ListSaturation RPC.
+	ChecksServiceListSaturationProcedure = "/vrooli.vrooli_autoheal.v1.checks.ChecksService/ListSaturation"
 )
 
 // ChecksServiceClient is a client for the vrooli.vrooli_autoheal.v1.checks.ChecksService service.
@@ -55,6 +67,16 @@ type ChecksServiceClient interface {
 	GetHistory(context.Context, *connect.Request[checks.GetHistoryRequest]) (*connect.Response[checks.GetHistoryResponse], error)
 	GetStatus(context.Context, *connect.Request[checks.GetStatusRequest]) (*connect.Response[checks.GetStatusResponse], error)
 	GetTransitions(context.Context, *connect.Request[checks.GetTransitionsRequest]) (*connect.Response[checks.GetTransitionsResponse], error)
+	GetReconcile(context.Context, *connect.Request[checks.GetReconcileRequest]) (*connect.Response[checks.GetReconcileResponse], error)
+	ListShelves(context.Context, *connect.Request[checks.ListShelvesRequest]) (*connect.Response[checks.ListShelvesResponse], error)
+	GetSaturation(context.Context, *connect.Request[checks.GetSaturationRequest]) (*connect.Response[checks.GetSaturationResponse], error)
+	// ListSaturation answers the same question as GetSaturation for every
+	// registered check in one call. Per-check saturation reads force a caller
+	// holding a bounded per-source deadline into an N+1 fan-out, where the
+	// checks that do not fit the deadline are indistinguishable from checks
+	// that genuinely could not be read. Saturation is a property of the whole
+	// transition window, so it is computed once here instead.
+	ListSaturation(context.Context, *connect.Request[checks.ListSaturationRequest]) (*connect.Response[checks.ListSaturationResponse], error)
 }
 
 // NewChecksServiceClient constructs a client for the vrooli.vrooli_autoheal.v1.checks.ChecksService
@@ -98,6 +120,30 @@ func NewChecksServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(checksServiceMethods.ByName("GetTransitions")),
 			connect.WithClientOptions(opts...),
 		),
+		getReconcile: connect.NewClient[checks.GetReconcileRequest, checks.GetReconcileResponse](
+			httpClient,
+			baseURL+ChecksServiceGetReconcileProcedure,
+			connect.WithSchema(checksServiceMethods.ByName("GetReconcile")),
+			connect.WithClientOptions(opts...),
+		),
+		listShelves: connect.NewClient[checks.ListShelvesRequest, checks.ListShelvesResponse](
+			httpClient,
+			baseURL+ChecksServiceListShelvesProcedure,
+			connect.WithSchema(checksServiceMethods.ByName("ListShelves")),
+			connect.WithClientOptions(opts...),
+		),
+		getSaturation: connect.NewClient[checks.GetSaturationRequest, checks.GetSaturationResponse](
+			httpClient,
+			baseURL+ChecksServiceGetSaturationProcedure,
+			connect.WithSchema(checksServiceMethods.ByName("GetSaturation")),
+			connect.WithClientOptions(opts...),
+		),
+		listSaturation: connect.NewClient[checks.ListSaturationRequest, checks.ListSaturationResponse](
+			httpClient,
+			baseURL+ChecksServiceListSaturationProcedure,
+			connect.WithSchema(checksServiceMethods.ByName("ListSaturation")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -108,6 +154,10 @@ type checksServiceClient struct {
 	getHistory     *connect.Client[checks.GetHistoryRequest, checks.GetHistoryResponse]
 	getStatus      *connect.Client[checks.GetStatusRequest, checks.GetStatusResponse]
 	getTransitions *connect.Client[checks.GetTransitionsRequest, checks.GetTransitionsResponse]
+	getReconcile   *connect.Client[checks.GetReconcileRequest, checks.GetReconcileResponse]
+	listShelves    *connect.Client[checks.ListShelvesRequest, checks.ListShelvesResponse]
+	getSaturation  *connect.Client[checks.GetSaturationRequest, checks.GetSaturationResponse]
+	listSaturation *connect.Client[checks.ListSaturationRequest, checks.ListSaturationResponse]
 }
 
 // ListChecks calls vrooli.vrooli_autoheal.v1.checks.ChecksService.ListChecks.
@@ -135,6 +185,26 @@ func (c *checksServiceClient) GetTransitions(ctx context.Context, req *connect.R
 	return c.getTransitions.CallUnary(ctx, req)
 }
 
+// GetReconcile calls vrooli.vrooli_autoheal.v1.checks.ChecksService.GetReconcile.
+func (c *checksServiceClient) GetReconcile(ctx context.Context, req *connect.Request[checks.GetReconcileRequest]) (*connect.Response[checks.GetReconcileResponse], error) {
+	return c.getReconcile.CallUnary(ctx, req)
+}
+
+// ListShelves calls vrooli.vrooli_autoheal.v1.checks.ChecksService.ListShelves.
+func (c *checksServiceClient) ListShelves(ctx context.Context, req *connect.Request[checks.ListShelvesRequest]) (*connect.Response[checks.ListShelvesResponse], error) {
+	return c.listShelves.CallUnary(ctx, req)
+}
+
+// GetSaturation calls vrooli.vrooli_autoheal.v1.checks.ChecksService.GetSaturation.
+func (c *checksServiceClient) GetSaturation(ctx context.Context, req *connect.Request[checks.GetSaturationRequest]) (*connect.Response[checks.GetSaturationResponse], error) {
+	return c.getSaturation.CallUnary(ctx, req)
+}
+
+// ListSaturation calls vrooli.vrooli_autoheal.v1.checks.ChecksService.ListSaturation.
+func (c *checksServiceClient) ListSaturation(ctx context.Context, req *connect.Request[checks.ListSaturationRequest]) (*connect.Response[checks.ListSaturationResponse], error) {
+	return c.listSaturation.CallUnary(ctx, req)
+}
+
 // ChecksServiceHandler is an implementation of the vrooli.vrooli_autoheal.v1.checks.ChecksService
 // service.
 type ChecksServiceHandler interface {
@@ -143,6 +213,16 @@ type ChecksServiceHandler interface {
 	GetHistory(context.Context, *connect.Request[checks.GetHistoryRequest]) (*connect.Response[checks.GetHistoryResponse], error)
 	GetStatus(context.Context, *connect.Request[checks.GetStatusRequest]) (*connect.Response[checks.GetStatusResponse], error)
 	GetTransitions(context.Context, *connect.Request[checks.GetTransitionsRequest]) (*connect.Response[checks.GetTransitionsResponse], error)
+	GetReconcile(context.Context, *connect.Request[checks.GetReconcileRequest]) (*connect.Response[checks.GetReconcileResponse], error)
+	ListShelves(context.Context, *connect.Request[checks.ListShelvesRequest]) (*connect.Response[checks.ListShelvesResponse], error)
+	GetSaturation(context.Context, *connect.Request[checks.GetSaturationRequest]) (*connect.Response[checks.GetSaturationResponse], error)
+	// ListSaturation answers the same question as GetSaturation for every
+	// registered check in one call. Per-check saturation reads force a caller
+	// holding a bounded per-source deadline into an N+1 fan-out, where the
+	// checks that do not fit the deadline are indistinguishable from checks
+	// that genuinely could not be read. Saturation is a property of the whole
+	// transition window, so it is computed once here instead.
+	ListSaturation(context.Context, *connect.Request[checks.ListSaturationRequest]) (*connect.Response[checks.ListSaturationResponse], error)
 }
 
 // NewChecksServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -182,6 +262,30 @@ func NewChecksServiceHandler(svc ChecksServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(checksServiceMethods.ByName("GetTransitions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	checksServiceGetReconcileHandler := connect.NewUnaryHandler(
+		ChecksServiceGetReconcileProcedure,
+		svc.GetReconcile,
+		connect.WithSchema(checksServiceMethods.ByName("GetReconcile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	checksServiceListShelvesHandler := connect.NewUnaryHandler(
+		ChecksServiceListShelvesProcedure,
+		svc.ListShelves,
+		connect.WithSchema(checksServiceMethods.ByName("ListShelves")),
+		connect.WithHandlerOptions(opts...),
+	)
+	checksServiceGetSaturationHandler := connect.NewUnaryHandler(
+		ChecksServiceGetSaturationProcedure,
+		svc.GetSaturation,
+		connect.WithSchema(checksServiceMethods.ByName("GetSaturation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	checksServiceListSaturationHandler := connect.NewUnaryHandler(
+		ChecksServiceListSaturationProcedure,
+		svc.ListSaturation,
+		connect.WithSchema(checksServiceMethods.ByName("ListSaturation")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_autoheal.v1.checks.ChecksService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ChecksServiceListChecksProcedure:
@@ -194,6 +298,14 @@ func NewChecksServiceHandler(svc ChecksServiceHandler, opts ...connect.HandlerOp
 			checksServiceGetStatusHandler.ServeHTTP(w, r)
 		case ChecksServiceGetTransitionsProcedure:
 			checksServiceGetTransitionsHandler.ServeHTTP(w, r)
+		case ChecksServiceGetReconcileProcedure:
+			checksServiceGetReconcileHandler.ServeHTTP(w, r)
+		case ChecksServiceListShelvesProcedure:
+			checksServiceListShelvesHandler.ServeHTTP(w, r)
+		case ChecksServiceGetSaturationProcedure:
+			checksServiceGetSaturationHandler.ServeHTTP(w, r)
+		case ChecksServiceListSaturationProcedure:
+			checksServiceListSaturationHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -221,4 +333,20 @@ func (UnimplementedChecksServiceHandler) GetStatus(context.Context, *connect.Req
 
 func (UnimplementedChecksServiceHandler) GetTransitions(context.Context, *connect.Request[checks.GetTransitionsRequest]) (*connect.Response[checks.GetTransitionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_autoheal.v1.checks.ChecksService.GetTransitions is not implemented"))
+}
+
+func (UnimplementedChecksServiceHandler) GetReconcile(context.Context, *connect.Request[checks.GetReconcileRequest]) (*connect.Response[checks.GetReconcileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_autoheal.v1.checks.ChecksService.GetReconcile is not implemented"))
+}
+
+func (UnimplementedChecksServiceHandler) ListShelves(context.Context, *connect.Request[checks.ListShelvesRequest]) (*connect.Response[checks.ListShelvesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_autoheal.v1.checks.ChecksService.ListShelves is not implemented"))
+}
+
+func (UnimplementedChecksServiceHandler) GetSaturation(context.Context, *connect.Request[checks.GetSaturationRequest]) (*connect.Response[checks.GetSaturationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_autoheal.v1.checks.ChecksService.GetSaturation is not implemented"))
+}
+
+func (UnimplementedChecksServiceHandler) ListSaturation(context.Context, *connect.Request[checks.ListSaturationRequest]) (*connect.Response[checks.ListSaturationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_autoheal.v1.checks.ChecksService.ListSaturation is not implemented"))
 }

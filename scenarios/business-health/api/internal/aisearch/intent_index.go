@@ -13,8 +13,9 @@ import (
 
 	"business-health/internal/extraction"
 
-	pkg "github.com/vrooli/ai-go/search"
 	intent "intent-go"
+
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // idPrefix namespaces business-health's point IDs (UUIDv5 derivation).

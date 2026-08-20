@@ -17,6 +17,7 @@ type adapterLPBSClient struct {
 func (c adapterLPBSClient) CheckDeployReadiness(context.Context, *deployments.LPBSReadinessRequest) (*deployments.LPBSReadinessResult, error) {
 	return nil, nil
 }
+
 func (c adapterLPBSClient) Verify(context.Context, *deployments.LPBSVerifyRequest) (*deployments.LPBSVerifyResult, error) {
 	return c.out, c.err
 }

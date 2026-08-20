@@ -8,6 +8,7 @@ import (
 	"backdrop-studio/internal/catalog"
 	"backdrop-studio/internal/module"
 	internal "backdrop-studio/internal/release"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/release"

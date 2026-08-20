@@ -4,6 +4,7 @@ import (
 	"document-manager/internal/enrichment"
 	"document-manager/internal/gatewayreq"
 	"document-manager/internal/module"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
 	enrichmentconnect "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/enrichment/enrichment_v1connect"

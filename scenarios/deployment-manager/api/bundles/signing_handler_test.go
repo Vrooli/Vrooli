@@ -20,6 +20,7 @@ type bundleSigningRepo struct {
 func (r bundleSigningRepo) Get(context.Context, string) (*codesigning.SigningConfig, error) {
 	return r.config, r.err
 }
+
 func (r bundleSigningRepo) Save(context.Context, string, *codesigning.SigningConfig) error {
 	return nil
 }
@@ -27,6 +28,7 @@ func (r bundleSigningRepo) Delete(context.Context, string) error { return nil }
 func (r bundleSigningRepo) GetForPlatform(context.Context, string, string) (interface{}, error) {
 	return nil, nil
 }
+
 func (r bundleSigningRepo) SaveForPlatform(context.Context, string, string, interface{}) error {
 	return nil
 }

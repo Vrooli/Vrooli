@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"connectrpc.com/connect"
 	"experience-manager/internal/spec"
+
+	"connectrpc.com/connect"
 
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 )

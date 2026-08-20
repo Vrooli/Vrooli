@@ -2,6 +2,7 @@ package studio
 
 import (
 	"experience-manager/internal/module"
+
 	contractconnect "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract/contract_v1connect"
 )
 

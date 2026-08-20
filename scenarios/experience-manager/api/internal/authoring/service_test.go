@@ -12,6 +12,7 @@ import (
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 
 	"experience-manager/internal/spec"
+
 	db "github.com/vrooli/api-core/databasetest"
 )
 

@@ -46,7 +46,7 @@ type (
 	}
 	Proposal struct {
 		ID, DraftID, Statement, Status string
-		CreatedAt, DecidedAt            time.Time
+		CreatedAt, DecidedAt           time.Time
 	}
 )
 
@@ -80,10 +80,14 @@ type (
 // It is intentionally deterministic and local: an unavailable assistant must
 // leave the draft workable, and extraction cannot satisfy the evidence gate.
 func (l *library) ExtractProposals(ctx context.Context, draftID, body string) ([]Proposal, error) {
-	if draftID == "" { return nil, fmt.Errorf("draft id is required") }
+	if draftID == "" {
+		return nil, fmt.Errorf("draft id is required")
+	}
 	for _, statement := range extractionCandidates(body) {
 		_, err := l.db.ExecContext(ctx, `INSERT INTO claim_proposals (id, draft_id, statement, status, created_at) VALUES (?, ?, ?, 'proposed', ?) ON CONFLICT(draft_id, statement) DO NOTHING`, uuid.NewString(), draftID, statement, time.Now().UTC().Format(time.RFC3339Nano))
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 	}
 	return l.ListProposals(ctx, draftID)
 }
@@ -92,39 +96,76 @@ func extractionCandidates(body string) []string {
 	var out []string
 	start := 0
 	for i, r := range body {
-		if r != '.' && r != '!' && r != '?' { continue }
-		candidate := strings.TrimSpace(body[start:i+1])
+		if r != '.' && r != '!' && r != '?' {
+			continue
+		}
+		candidate := strings.TrimSpace(body[start : i+1])
 		start = i + 1
-		if len(candidate) >= 12 { out = append(out, candidate) }
+		if len(candidate) >= 12 {
+			out = append(out, candidate)
+		}
 	}
-	if tail := strings.TrimSpace(body[start:]); len(tail) >= 12 { out = append(out, tail) }
+	if tail := strings.TrimSpace(body[start:]); len(tail) >= 12 {
+		out = append(out, tail)
+	}
 	return out
 }
 
 func (l *library) ListProposals(ctx context.Context, draftID string) ([]Proposal, error) {
 	rows, err := l.db.QueryContext(ctx, `SELECT id, draft_id, statement, status, created_at, COALESCE(decided_at,'') FROM claim_proposals WHERE draft_id = ? ORDER BY created_at, id`, draftID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	var proposals []Proposal
 	for rows.Next() {
-		var proposal Proposal; var createdAt, decidedAt string
-		if err := rows.Scan(&proposal.ID, &proposal.DraftID, &proposal.Statement, &proposal.Status, &createdAt, &decidedAt); err != nil { return nil, err }
-		proposal.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt); if err != nil { return nil, err }
-		if decidedAt != "" { proposal.DecidedAt, err = time.Parse(time.RFC3339Nano, decidedAt); if err != nil { return nil, err } }
+		var proposal Proposal
+		var createdAt, decidedAt string
+		if err := rows.Scan(&proposal.ID, &proposal.DraftID, &proposal.Statement, &proposal.Status, &createdAt, &decidedAt); err != nil {
+			return nil, err
+		}
+		proposal.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt)
+		if err != nil {
+			return nil, err
+		}
+		if decidedAt != "" {
+			proposal.DecidedAt, err = time.Parse(time.RFC3339Nano, decidedAt)
+			if err != nil {
+				return nil, err
+			}
+		}
 		proposals = append(proposals, proposal)
 	}
 	return proposals, rows.Err()
 }
 
 func (l *library) DecideProposal(ctx context.Context, id, status string) (Proposal, error) {
-	if status != "accepted" && status != "rejected" { return Proposal{}, fmt.Errorf("proposal status %q is invalid", status) }
+	if status != "accepted" && status != "rejected" {
+		return Proposal{}, fmt.Errorf("proposal status %q is invalid", status)
+	}
 	now := time.Now().UTC()
 	result, err := l.db.ExecContext(ctx, `UPDATE claim_proposals SET status = ?, decided_at = ? WHERE id = ? AND status = 'proposed'`, status, now.Format(time.RFC3339Nano), id)
-	if err != nil { return Proposal{}, err }; affected, err := result.RowsAffected(); if err != nil { return Proposal{}, err }; if affected != 1 { return Proposal{}, fmt.Errorf("proposal %q is not pending", id) }
+	if err != nil {
+		return Proposal{}, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return Proposal{}, err
+	}
+	if affected != 1 {
+		return Proposal{}, fmt.Errorf("proposal %q is not pending", id)
+	}
 	row := l.db.QueryRowContext(ctx, `SELECT id, draft_id, statement, status, created_at, decided_at FROM claim_proposals WHERE id = ?`, id)
-	var proposal Proposal; var createdAt, decidedAt string
-	if err = row.Scan(&proposal.ID, &proposal.DraftID, &proposal.Statement, &proposal.Status, &createdAt, &decidedAt); err != nil { return Proposal{}, err }
-	proposal.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt); if err != nil { return Proposal{}, err }; proposal.DecidedAt, err = time.Parse(time.RFC3339Nano, decidedAt)
+	var proposal Proposal
+	var createdAt, decidedAt string
+	if err = row.Scan(&proposal.ID, &proposal.DraftID, &proposal.Statement, &proposal.Status, &createdAt, &decidedAt); err != nil {
+		return Proposal{}, err
+	}
+	proposal.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt)
+	if err != nil {
+		return Proposal{}, err
+	}
+	proposal.DecidedAt, err = time.Parse(time.RFC3339Nano, decidedAt)
 	return proposal, err
 }
 

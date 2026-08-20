@@ -149,9 +149,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/business-health.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

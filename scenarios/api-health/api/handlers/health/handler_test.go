@@ -12,6 +12,7 @@ import (
 	"api-health/internal/module"
 	"api-health/internal/server"
 	"api-health/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

@@ -202,7 +202,7 @@
         "readiness": {
           "type": "http",
           "path": "/health",
-          "timeout_ms": 30000
+          "timeout_ms": 90000
         },
         "port": "api",
         "cwd": "api"

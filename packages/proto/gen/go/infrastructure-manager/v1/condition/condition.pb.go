@@ -8,6 +8,7 @@ package condition_v1
 
 import (
 	coverage "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/coverage"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -96,6 +97,10 @@ const (
 	BandVerdict_BAND_VERDICT_PENDING_SUSTAIN BandVerdict = 3
 	BandVerdict_BAND_VERDICT_NEEDS_BASELINE  BandVerdict = 4
 	BandVerdict_BAND_VERDICT_NOT_EVALUATED   BandVerdict = 5
+	// A bar exists for the cell but authors no threshold. Distinct from
+	// NOT_EVALUATED (the reading could not be trusted) and NEEDS_BASELINE
+	// (no bar was found at all).
+	BandVerdict_BAND_VERDICT_NOT_GRADEABLE BandVerdict = 6
 )
 
 // Enum value maps for BandVerdict.
@@ -107,6 +112,7 @@ var (
 		3: "BAND_VERDICT_PENDING_SUSTAIN",
 		4: "BAND_VERDICT_NEEDS_BASELINE",
 		5: "BAND_VERDICT_NOT_EVALUATED",
+		6: "BAND_VERDICT_NOT_GRADEABLE",
 	}
 	BandVerdict_value = map[string]int32{
 		"BAND_VERDICT_UNSPECIFIED":     0,
@@ -115,6 +121,7 @@ var (
 		"BAND_VERDICT_PENDING_SUSTAIN": 3,
 		"BAND_VERDICT_NEEDS_BASELINE":  4,
 		"BAND_VERDICT_NOT_EVALUATED":   5,
+		"BAND_VERDICT_NOT_GRADEABLE":   6,
 	}
 )
 
@@ -232,8 +239,14 @@ type Reading struct {
 	TrustVerdict      TrustVerdict           `protobuf:"varint,7,opt,name=trust_verdict,json=trustVerdict,proto3,enum=vrooli.infrastructure_manager.v1.condition.TrustVerdict" json:"trust_verdict,omitempty"`
 	BandVerdict       BandVerdict            `protobuf:"varint,8,opt,name=band_verdict,json=bandVerdict,proto3,enum=vrooli.infrastructure_manager.v1.condition.BandVerdict" json:"band_verdict,omitempty"`
 	UnavailableReason string                 `protobuf:"bytes,9,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// band_explanation states why a reading was not graded, so an ungraded cell
+	// is explainable instead of merely blank.
+	BandExplanation string `protobuf:"bytes,10,opt,name=band_explanation,json=bandExplanation,proto3" json:"band_explanation,omitempty"`
+	// out_of_scope marks a reading whose target exists but sits outside the
+	// derived should-be-supervised set. It never lowers trust.
+	OutOfScope    bool `protobuf:"varint,11,opt,name=out_of_scope,json=outOfScope,proto3" json:"out_of_scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Reading) Reset() {
@@ -327,6 +340,20 @@ func (x *Reading) GetUnavailableReason() string {
 		return x.UnavailableReason
 	}
 	return ""
+}
+
+func (x *Reading) GetBandExplanation() string {
+	if x != nil {
+		return x.BandExplanation
+	}
+	return ""
+}
+
+func (x *Reading) GetOutOfScope() bool {
+	if x != nil {
+		return x.OutOfScope
+	}
+	return false
 }
 
 type TrustCount struct {
@@ -773,7 +800,7 @@ func (x *ExplainCellRequest) GetCellRef() string {
 
 type ExplainCellResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Cell          *coverage.Cell         `protobuf:"bytes,1,opt,name=cell,proto3" json:"cell,omitempty"`
+	Cell          *shared.Cell           `protobuf:"bytes,1,opt,name=cell,proto3" json:"cell,omitempty"`
 	Reading       *Reading               `protobuf:"bytes,2,opt,name=reading,proto3" json:"reading,omitempty"`
 	Sources       []*SourceAvailability  `protobuf:"bytes,3,rep,name=sources,proto3" json:"sources,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -810,7 +837,7 @@ func (*ExplainCellResponse) Descriptor() ([]byte, []int) {
 	return file_infrastructure_manager_v1_condition_condition_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *ExplainCellResponse) GetCell() *coverage.Cell {
+func (x *ExplainCellResponse) GetCell() *shared.Cell {
 	if x != nil {
 		return x.Cell
 	}
@@ -947,7 +974,7 @@ var File_infrastructure_manager_v1_condition_condition_proto protoreflect.FileDe
 
 const file_infrastructure_manager_v1_condition_condition_proto_rawDesc = "" +
 	"\n" +
-	"3infrastructure-manager/v1/condition/condition.proto\x12*vrooli.infrastructure_manager.v1.condition\x1a\x1fgoogle/protobuf/timestamp.proto\x1a1infrastructure-manager/v1/coverage/coverage.proto\"\xb9\x01\n" +
+	"3infrastructure-manager/v1/condition/condition.proto\x12*vrooli.infrastructure_manager.v1.condition\x1a\x1fgoogle/protobuf/timestamp.proto\x1a1infrastructure-manager/v1/coverage/coverage.proto\x1a+infrastructure-manager/v1/shared/cell.proto\"\xb9\x01\n" +
 	"\x03Leg\x12\x19\n" +
 	"\bcell_ref\x18\x01 \x01(\tR\acellRef\x12U\n" +
 	"\n" +
@@ -955,7 +982,7 @@ const file_infrastructure_manager_v1_condition_condition_proto_rawDesc = "" +
 	"projection\x12\x14\n" +
 	"\x05owner\x18\x03 \x01(\tR\x05owner\x12\x12\n" +
 	"\x04unit\x18\x04 \x01(\tR\x04unit\x12\x16\n" +
-	"\x06source\x18\x05 \x01(\tR\x06source\"\x9d\x03\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\"\xea\x03\n" +
 	"\aReading\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bcell_ref\x18\x02 \x01(\tR\acellRef\x12\x14\n" +
@@ -966,7 +993,11 @@ const file_infrastructure_manager_v1_condition_condition_proto_rawDesc = "" +
 	"observedAt\x12]\n" +
 	"\rtrust_verdict\x18\a \x01(\x0e28.vrooli.infrastructure_manager.v1.condition.TrustVerdictR\ftrustVerdict\x12Z\n" +
 	"\fband_verdict\x18\b \x01(\x0e27.vrooli.infrastructure_manager.v1.condition.BandVerdictR\vbandVerdict\x12-\n" +
-	"\x12unavailable_reason\x18\t \x01(\tR\x11unavailableReason\"v\n" +
+	"\x12unavailable_reason\x18\t \x01(\tR\x11unavailableReason\x12)\n" +
+	"\x10band_explanation\x18\n" +
+	" \x01(\tR\x0fbandExplanation\x12 \n" +
+	"\fout_of_scope\x18\v \x01(\bR\n" +
+	"outOfScope\"v\n" +
 	"\n" +
 	"TrustCount\x12R\n" +
 	"\averdict\x18\x01 \x01(\x0e28.vrooli.infrastructure_manager.v1.condition.TrustVerdictR\averdict\x12\x14\n" +
@@ -1001,9 +1032,9 @@ const file_infrastructure_manager_v1_condition_condition_proto_rawDesc = "" +
 	"\x1cGetTrustDistributionResponse\x12M\n" +
 	"\x05trust\x18\x01 \x01(\v27.vrooli.infrastructure_manager.v1.condition.TrustTripleR\x05trust\"/\n" +
 	"\x12ExplainCellRequest\x12\x19\n" +
-	"\bcell_ref\x18\x01 \x01(\tR\acellRef\"\x83\x02\n" +
-	"\x13ExplainCellResponse\x12C\n" +
-	"\x04cell\x18\x01 \x01(\v2/.vrooli.infrastructure_manager.v1.coverage.CellR\x04cell\x12M\n" +
+	"\bcell_ref\x18\x01 \x01(\tR\acellRef\"\x81\x02\n" +
+	"\x13ExplainCellResponse\x12A\n" +
+	"\x04cell\x18\x01 \x01(\v2-.vrooli.infrastructure_manager.v1.shared.CellR\x04cell\x12M\n" +
 	"\areading\x18\x02 \x01(\v23.vrooli.infrastructure_manager.v1.condition.ReadingR\areading\x12X\n" +
 	"\asources\x18\x03 \x03(\v2>.vrooli.infrastructure_manager.v1.condition.SourceAvailabilityR\asources\"D\n" +
 	"\x11GetHistoryRequest\x12\x19\n" +
@@ -1023,14 +1054,15 @@ const file_infrastructure_manager_v1_condition_condition_proto_rawDesc = "" +
 	"\x15TRUST_VERDICT_SHELVED\x10\x04\x12\x1f\n" +
 	"\x1bTRUST_VERDICT_UNIT_MISMATCH\x10\x05\x12\x1d\n" +
 	"\x19TRUST_VERDICT_UNAVAILABLE\x10\x06\x12\x1b\n" +
-	"\x17TRUST_VERDICT_UNTRUSTED\x10\a*\xc6\x01\n" +
+	"\x17TRUST_VERDICT_UNTRUSTED\x10\a*\xe6\x01\n" +
 	"\vBandVerdict\x12\x1c\n" +
 	"\x18BAND_VERDICT_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14BAND_VERDICT_IN_BAND\x10\x01\x12\x1c\n" +
 	"\x18BAND_VERDICT_OUT_OF_BAND\x10\x02\x12 \n" +
 	"\x1cBAND_VERDICT_PENDING_SUSTAIN\x10\x03\x12\x1f\n" +
 	"\x1bBAND_VERDICT_NEEDS_BASELINE\x10\x04\x12\x1e\n" +
-	"\x1aBAND_VERDICT_NOT_EVALUATED\x10\x052\xf1\x04\n" +
+	"\x1aBAND_VERDICT_NOT_EVALUATED\x10\x05\x12\x1e\n" +
+	"\x1aBAND_VERDICT_NOT_GRADEABLE\x10\x062\xf1\x04\n" +
 	"\x10ConditionService\x12\x91\x01\n" +
 	"\fGetCondition\x12?.vrooli.infrastructure_manager.v1.condition.GetConditionRequest\x1a@.vrooli.infrastructure_manager.v1.condition.GetConditionResponse\x12\xa9\x01\n" +
 	"\x14GetTrustDistribution\x12G.vrooli.infrastructure_manager.v1.condition.GetTrustDistributionRequest\x1aH.vrooli.infrastructure_manager.v1.condition.GetTrustDistributionResponse\x12\x8e\x01\n" +
@@ -1070,7 +1102,7 @@ var file_infrastructure_manager_v1_condition_condition_proto_goTypes = []any{
 	(*GetHistoryResponse)(nil),           // 14: vrooli.infrastructure_manager.v1.condition.GetHistoryResponse
 	(coverage.Projection)(0),             // 15: vrooli.infrastructure_manager.v1.coverage.Projection
 	(*timestamppb.Timestamp)(nil),        // 16: google.protobuf.Timestamp
-	(*coverage.Cell)(nil),                // 17: vrooli.infrastructure_manager.v1.coverage.Cell
+	(*shared.Cell)(nil),                  // 17: vrooli.infrastructure_manager.v1.shared.Cell
 }
 var file_infrastructure_manager_v1_condition_condition_proto_depIdxs = []int32{
 	15, // 0: vrooli.infrastructure_manager.v1.condition.Leg.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
@@ -1088,7 +1120,7 @@ var file_infrastructure_manager_v1_condition_condition_proto_depIdxs = []int32{
 	16, // 12: vrooli.infrastructure_manager.v1.condition.GetConditionResponse.computed_at:type_name -> google.protobuf.Timestamp
 	15, // 13: vrooli.infrastructure_manager.v1.condition.GetTrustDistributionRequest.projection:type_name -> vrooli.infrastructure_manager.v1.coverage.Projection
 	5,  // 14: vrooli.infrastructure_manager.v1.condition.GetTrustDistributionResponse.trust:type_name -> vrooli.infrastructure_manager.v1.condition.TrustTriple
-	17, // 15: vrooli.infrastructure_manager.v1.condition.ExplainCellResponse.cell:type_name -> vrooli.infrastructure_manager.v1.coverage.Cell
+	17, // 15: vrooli.infrastructure_manager.v1.condition.ExplainCellResponse.cell:type_name -> vrooli.infrastructure_manager.v1.shared.Cell
 	3,  // 16: vrooli.infrastructure_manager.v1.condition.ExplainCellResponse.reading:type_name -> vrooli.infrastructure_manager.v1.condition.Reading
 	6,  // 17: vrooli.infrastructure_manager.v1.condition.ExplainCellResponse.sources:type_name -> vrooli.infrastructure_manager.v1.condition.SourceAvailability
 	3,  // 18: vrooli.infrastructure_manager.v1.condition.GetHistoryResponse.readings:type_name -> vrooli.infrastructure_manager.v1.condition.Reading

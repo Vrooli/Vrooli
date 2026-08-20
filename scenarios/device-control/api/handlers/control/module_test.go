@@ -16,6 +16,7 @@ import (
 	"device-control/strategy/fakes"
 	"device-control/strategy/googlecast"
 	strategyregistry "device-control/strategy/registry"
+
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	flowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows"

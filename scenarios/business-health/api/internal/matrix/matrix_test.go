@@ -7,8 +7,9 @@ import (
 	"business-health/internal/evidence"
 	"business-health/internal/extraction"
 
-	"github.com/stretchr/testify/require"
 	intent "intent-go"
+
+	"github.com/stretchr/testify/require"
 )
 
 func now() time.Time { return time.Date(2026, 7, 2, 12, 0, 0, 0, time.UTC) }

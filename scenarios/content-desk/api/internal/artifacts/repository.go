@@ -84,6 +84,7 @@ func (r *sqliteRepository) GetAgentCommission(ctx context.Context, id string) (A
 	commission.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
 	return commission, err
 }
+
 func (r *sqliteRepository) RecordAgentAdoption(ctx context.Context, commissionID, draftID, runID string) error {
 	_, err := r.db.ExecContext(ctx, `INSERT INTO draft_agent_adoptions (commission_id, draft_id, run_id, adopted_at) VALUES (?, ?, ?, ?)`, commissionID, draftID, runID, time.Now().UTC().Format(time.RFC3339Nano))
 	return err
@@ -216,7 +217,8 @@ func (r *sqliteRepository) RecordReleaseOutcome(ctx context.Context, outcome Rel
 
 func scanDraft(ctx context.Context, queryer interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
-}, id string) (Draft, error) {
+}, id string,
+) (Draft, error) {
 	var draft Draft
 	err := queryer.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.Channel, &draft.Format)
 	return draft, err

@@ -12,6 +12,7 @@ import (
 	"brand-manager/internal/module"
 	"brand-manager/internal/server"
 	"brand-manager/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

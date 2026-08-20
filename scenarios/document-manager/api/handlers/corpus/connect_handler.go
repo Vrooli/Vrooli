@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"connectrpc.com/connect"
 	internal "document-manager/internal/corpus"
+
+	"connectrpc.com/connect"
 	corpusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/corpus"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

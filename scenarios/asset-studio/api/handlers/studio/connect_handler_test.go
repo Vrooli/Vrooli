@@ -6,6 +6,7 @@ import (
 	"time"
 
 	core "asset-studio/internal/studio"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/blobstore"
 	studiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/studio"
@@ -13,8 +14,10 @@ import (
 
 type successfulDispatcher struct{}
 
-type successfulAdvisoryAnalyzer struct{}
-type successfulCommissioner struct{}
+type (
+	successfulAdvisoryAnalyzer struct{}
+	successfulCommissioner     struct{}
+)
 
 func (successfulCommissioner) CreateTask(context.Context, string, string) (string, error) {
 	return "agent-task-1", nil

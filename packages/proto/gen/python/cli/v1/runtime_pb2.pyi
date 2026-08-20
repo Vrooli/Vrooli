@@ -79,7 +79,7 @@ class CliSupervisorServiceResult(_message.Message):
     def __init__(self, unit_name: _Optional[str] = ..., unit_path: _Optional[str] = ..., scope: _Optional[str] = ..., active: _Optional[bool] = ...) -> None: ...
 
 class CliHostSnapshot(_message.Message):
-    __slots__ = ("os", "arch", "cpu", "load", "memory", "swap", "gpus", "gpu_processes", "runtime_tools", "docker_gpu", "warnings", "probe_statuses", "field_provenance", "display_attached", "remote_desktop", "display_server", "wayland_attainable", "wayland_reason", "display_manager", "session_type", "seat", "active_session_user", "auto_login_user", "nvidia_device_nodes")
+    __slots__ = ("os", "arch", "cpu", "load", "memory", "swap", "gpus", "gpu_processes", "runtime_tools", "docker_gpu", "warnings", "probe_statuses", "field_provenance", "display_attached", "remote_desktop", "display_server", "wayland_attainable", "wayland_reason", "display_manager", "session_type", "seat", "active_session_user", "auto_login_user", "nvidia_device_nodes", "devices")
     class RuntimeToolsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -125,6 +125,7 @@ class CliHostSnapshot(_message.Message):
     ACTIVE_SESSION_USER_FIELD_NUMBER: _ClassVar[int]
     AUTO_LOGIN_USER_FIELD_NUMBER: _ClassVar[int]
     NVIDIA_DEVICE_NODES_FIELD_NUMBER: _ClassVar[int]
+    DEVICES_FIELD_NUMBER: _ClassVar[int]
     os: str
     arch: str
     cpu: CliHostCPU
@@ -149,7 +150,35 @@ class CliHostSnapshot(_message.Message):
     active_session_user: str
     auto_login_user: str
     nvidia_device_nodes: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, os: _Optional[str] = ..., arch: _Optional[str] = ..., cpu: _Optional[_Union[CliHostCPU, _Mapping]] = ..., load: _Optional[_Union[CliHostLoad, _Mapping]] = ..., memory: _Optional[_Union[CliHostMemory, _Mapping]] = ..., swap: _Optional[_Union[CliHostSwap, _Mapping]] = ..., gpus: _Optional[_Iterable[_Union[CliHostGPU, _Mapping]]] = ..., gpu_processes: _Optional[_Iterable[_Union[CliHostGPUProcess, _Mapping]]] = ..., runtime_tools: _Optional[_Mapping[str, CliHostTool]] = ..., docker_gpu: _Optional[_Union[CliHostDockerGPU, _Mapping]] = ..., warnings: _Optional[_Iterable[str]] = ..., probe_statuses: _Optional[_Mapping[str, str]] = ..., field_provenance: _Optional[_Mapping[str, CliHostProvenance]] = ..., display_attached: _Optional[bool] = ..., remote_desktop: _Optional[_Union[CliHostRemoteDesktop, _Mapping]] = ..., display_server: _Optional[str] = ..., wayland_attainable: _Optional[bool] = ..., wayland_reason: _Optional[str] = ..., display_manager: _Optional[str] = ..., session_type: _Optional[str] = ..., seat: _Optional[str] = ..., active_session_user: _Optional[str] = ..., auto_login_user: _Optional[str] = ..., nvidia_device_nodes: _Optional[_Iterable[str]] = ...) -> None: ...
+    devices: _containers.RepeatedCompositeFieldContainer[CliHostDevice]
+    def __init__(self, os: _Optional[str] = ..., arch: _Optional[str] = ..., cpu: _Optional[_Union[CliHostCPU, _Mapping]] = ..., load: _Optional[_Union[CliHostLoad, _Mapping]] = ..., memory: _Optional[_Union[CliHostMemory, _Mapping]] = ..., swap: _Optional[_Union[CliHostSwap, _Mapping]] = ..., gpus: _Optional[_Iterable[_Union[CliHostGPU, _Mapping]]] = ..., gpu_processes: _Optional[_Iterable[_Union[CliHostGPUProcess, _Mapping]]] = ..., runtime_tools: _Optional[_Mapping[str, CliHostTool]] = ..., docker_gpu: _Optional[_Union[CliHostDockerGPU, _Mapping]] = ..., warnings: _Optional[_Iterable[str]] = ..., probe_statuses: _Optional[_Mapping[str, str]] = ..., field_provenance: _Optional[_Mapping[str, CliHostProvenance]] = ..., display_attached: _Optional[bool] = ..., remote_desktop: _Optional[_Union[CliHostRemoteDesktop, _Mapping]] = ..., display_server: _Optional[str] = ..., wayland_attainable: _Optional[bool] = ..., wayland_reason: _Optional[str] = ..., display_manager: _Optional[str] = ..., session_type: _Optional[str] = ..., seat: _Optional[str] = ..., active_session_user: _Optional[str] = ..., auto_login_user: _Optional[str] = ..., nvidia_device_nodes: _Optional[_Iterable[str]] = ..., devices: _Optional[_Iterable[_Union[CliHostDevice, _Mapping]]] = ...) -> None: ...
+
+class CliHostDevice(_message.Message):
+    __slots__ = ("id", "parent", "vendor", "vendor_id", "model", "model_id", "driver", "driver_version", "nodes", "discovered_by", "enriched_by")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    CLASS_FIELD_NUMBER: _ClassVar[int]
+    PARENT_FIELD_NUMBER: _ClassVar[int]
+    VENDOR_FIELD_NUMBER: _ClassVar[int]
+    VENDOR_ID_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    DRIVER_FIELD_NUMBER: _ClassVar[int]
+    DRIVER_VERSION_FIELD_NUMBER: _ClassVar[int]
+    NODES_FIELD_NUMBER: _ClassVar[int]
+    DISCOVERED_BY_FIELD_NUMBER: _ClassVar[int]
+    ENRICHED_BY_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    parent: str
+    vendor: str
+    vendor_id: str
+    model: str
+    model_id: str
+    driver: str
+    driver_version: str
+    nodes: _containers.RepeatedScalarFieldContainer[str]
+    discovered_by: str
+    enriched_by: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., parent: _Optional[str] = ..., vendor: _Optional[str] = ..., vendor_id: _Optional[str] = ..., model: _Optional[str] = ..., model_id: _Optional[str] = ..., driver: _Optional[str] = ..., driver_version: _Optional[str] = ..., nodes: _Optional[_Iterable[str]] = ..., discovered_by: _Optional[str] = ..., enriched_by: _Optional[_Iterable[str]] = ..., **kwargs) -> None: ...
 
 class CliHostRemoteDesktop(_message.Message):
     __slots__ = ("supported", "observed", "mode", "active", "listening_port", "selected_provider", "providers", "credential_store")

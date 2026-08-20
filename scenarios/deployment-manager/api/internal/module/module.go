@@ -3,11 +3,13 @@ package module
 
 import "github.com/vrooli/api-core/endpoints"
 
-type EndpointDescriptor = endpoints.EndpointDescriptor
-type RESTException = endpoints.RESTException
-type RESTPayload = endpoints.RESTPayload
-type RESTProtoPayloads = endpoints.RESTProtoPayloads
-type Schema = endpoints.Schema
+type (
+	EndpointDescriptor = endpoints.EndpointDescriptor
+	RESTException      = endpoints.RESTException
+	RESTPayload        = endpoints.RESTPayload
+	RESTProtoPayloads  = endpoints.RESTProtoPayloads
+	Schema             = endpoints.Schema
+)
 
 const (
 	RESTReasonMultipartUpload = endpoints.RESTReasonMultipartUpload

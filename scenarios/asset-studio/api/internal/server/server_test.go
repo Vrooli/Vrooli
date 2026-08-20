@@ -8,6 +8,7 @@ import (
 
 	"asset-studio/internal/module"
 	"asset-studio/internal/server"
+
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"

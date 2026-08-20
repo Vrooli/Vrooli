@@ -6,6 +6,7 @@ import (
 	internalevidence "deployment-manager/internal/evidence"
 	internalprofiles "deployment-manager/internal/profiles"
 	internalreleases "deployment-manager/internal/releases"
+
 	coredb "github.com/vrooli/api-core/database"
 )
 

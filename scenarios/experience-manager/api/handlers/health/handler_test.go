@@ -12,6 +12,7 @@ import (
 	"experience-manager/internal/module"
 	"experience-manager/internal/server"
 	"experience-manager/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

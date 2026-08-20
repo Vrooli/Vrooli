@@ -8,6 +8,7 @@ import (
 
 	"device-control/internal/module"
 	"device-control/internal/server"
+
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"

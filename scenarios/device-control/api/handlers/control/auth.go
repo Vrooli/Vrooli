@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	authdomain "device-control/internal/auth"
+
 	"github.com/gorilla/mux"
 )
 

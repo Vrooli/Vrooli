@@ -3,6 +3,7 @@ package corpus
 import (
 	"document-manager/internal/corpus"
 	"document-manager/internal/module"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
 	corpusconnect "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/corpus/corpus_v1connect"

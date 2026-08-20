@@ -5,8 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"connectrpc.com/connect"
 	internalEvidence "deployment-manager/internal/evidence"
+
+	"connectrpc.com/connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	evidencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence"
 )

@@ -8,6 +8,7 @@ import (
 
 	"api-health/internal/module"
 	"api-health/internal/server"
+
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"

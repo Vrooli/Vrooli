@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"ai-gateway/internal/providers"
+
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	"google.golang.org/protobuf/proto"

@@ -19,6 +19,7 @@ import (
 	vrun "development-toolchain-validator/internal/validation_run"
 
 	"development-toolchain-validator/internal/httpc"
+
 	"github.com/vrooli/api-core/discovery"
 )
 

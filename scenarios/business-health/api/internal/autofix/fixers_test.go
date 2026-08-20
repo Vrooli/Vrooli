@@ -10,9 +10,10 @@ import (
 	"business-health/internal/checks"
 	"business-health/internal/extraction"
 
+	intent "intent-go"
+
 	"github.com/stretchr/testify/require"
 	maturity "github.com/vrooli/maturity-go/assessment"
-	intent "intent-go"
 )
 
 const fixturePRD = `# Product Requirements Document (PRD)

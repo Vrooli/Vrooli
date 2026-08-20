@@ -12,6 +12,7 @@ import (
 	"content-desk/internal/module"
 	"content-desk/internal/server"
 	"content-desk/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

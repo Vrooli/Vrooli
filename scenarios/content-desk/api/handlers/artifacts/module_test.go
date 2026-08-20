@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"connectrpc.com/connect"
 	assetstudio "content-desk/integrations/assetstudio"
 	channelmanager "content-desk/integrations/channelmanager"
 	internalartifacts "content-desk/internal/artifacts"
+
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/artifacts"
 )

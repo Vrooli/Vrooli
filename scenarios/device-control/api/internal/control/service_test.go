@@ -18,6 +18,7 @@ import (
 	"device-control/strategy/androidtvremote"
 	"device-control/strategy/fakes"
 	strategyregistry "device-control/strategy/registry"
+
 	"github.com/stretchr/testify/require"
 	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"

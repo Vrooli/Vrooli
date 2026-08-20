@@ -5,9 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
 	internal "device-control/internal/control"
 	"device-control/strategy"
+
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	devicesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices"

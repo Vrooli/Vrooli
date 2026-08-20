@@ -12,6 +12,7 @@ import (
 	"device-sync-hub/internal/deviceauth"
 	"device-sync-hub/internal/httpx"
 	internaltransfer "device-sync-hub/internal/transfer"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	transferv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/transfer"

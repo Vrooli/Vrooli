@@ -18,6 +18,8 @@ import (
 	"agent-manager/cli/domains/workflows"
 	"agent-manager/cli/internal/support"
 
+	"github.com/vrooli/api-core/spacecli"
+	"github.com/vrooli/api-core/spacedoc"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -37,6 +39,7 @@ func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
 		events.Register(deps),
 		findings.Register(deps),
 		subscription.Register(deps),
+		spacecli.CommandGroup(spacecli.Config{Owner: "agent-manager", Projection: spacedoc.ProjectionAgentThroughput}),
 	}
 }
 

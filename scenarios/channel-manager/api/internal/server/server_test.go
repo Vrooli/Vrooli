@@ -8,6 +8,7 @@ import (
 
 	"channel-manager/internal/module"
 	"channel-manager/internal/server"
+
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"

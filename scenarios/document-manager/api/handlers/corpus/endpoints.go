@@ -2,6 +2,7 @@ package corpus
 
 import (
 	"document-manager/internal/module"
+
 	corpusconnect "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/corpus/corpus_v1connect"
 )
 

@@ -5,6 +5,7 @@ import (
 
 	core "channel-manager/internal/channelmanager"
 	"channel-manager/internal/channelmanager/flow/generated"
+
 	"github.com/stretchr/testify/require"
 )
 

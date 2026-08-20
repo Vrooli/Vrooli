@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"connectrpc.com/connect"
 	"experience-manager/internal/capstatus"
 	"experience-manager/internal/module"
 	"experience-manager/internal/reconcile"
+
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/capabilities"

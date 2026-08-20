@@ -8,6 +8,7 @@ import (
 
 	authdomain "device-control/internal/auth"
 	"device-control/strategy"
+
 	"github.com/google/uuid"
 )
 

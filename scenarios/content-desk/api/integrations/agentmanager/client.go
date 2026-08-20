@@ -17,13 +17,15 @@ import (
 
 const profileKey = "content-desk/workbench"
 
-type Commission struct{ DraftID, Action, Body string }
-type Receipt struct{ TaskID, RunID, Status string }
-type Result struct{ Status, Body string }
-type Runner interface {
-	Commission(context.Context, Commission) (Receipt, error)
-	GetResult(context.Context, string) (Result, error)
-}
+type (
+	Commission struct{ DraftID, Action, Body string }
+	Receipt    struct{ TaskID, RunID, Status string }
+	Result     struct{ Status, Body string }
+	Runner     interface {
+		Commission(context.Context, Commission) (Receipt, error)
+		GetResult(context.Context, string) (Result, error)
+	}
+)
 
 func (c *Client) GetResult(ctx context.Context, runID string) (Result, error) {
 	if strings.TrimSpace(runID) == "" {

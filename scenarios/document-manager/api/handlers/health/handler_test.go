@@ -12,6 +12,7 @@ import (
 	"document-manager/internal/module"
 	"document-manager/internal/server"
 	"document-manager/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

@@ -156,9 +156,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/asset-studio.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

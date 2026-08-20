@@ -2,6 +2,7 @@ package intake
 
 import (
 	"document-manager/internal/module"
+
 	intakeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/intake/intake_v1connect"
 )
 

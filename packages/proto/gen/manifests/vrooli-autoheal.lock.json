@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "scenario": "vrooli-autoheal",
+  "input_digest": "sha256:c24937d4618f19ca732f08ba115163395cb83e844bab02d66195d6b42a53afb2",
+  "input_files": [
+    "schemas/vrooli-autoheal/v1/actions/actions.proto",
+    "schemas/vrooli-autoheal/v1/checks/checks.proto",
+    "schemas/vrooli-autoheal/v1/healing/healing.proto",
+    "schemas/vrooli-autoheal/v1/incidents/incidents.proto",
+    "schemas/vrooli-autoheal/v1/measures/measures.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/vrooli-autoheal/v1/actions/actions.pb.go": "sha256:5f80b8f945d40b91b24a0a959dae54b70603c420a2c6c23d944b378ac2bcb335",
+    "gen/go/vrooli-autoheal/v1/actions/actions_v1connect/actions.connect.go": "sha256:d8fc85411481adfaf3d423eeb20503bb6083312a339ded05fb8e719ae8ff0fb7",
+    "gen/go/vrooli-autoheal/v1/checks/checks.pb.go": "sha256:aacbc12e4ac4f36f96e5c9de48c2ef6e21c56aabd3851b4e3b0833fe33ded75f",
+    "gen/go/vrooli-autoheal/v1/checks/checks_v1connect/checks.connect.go": "sha256:2ed1f96c62c3409119820658da56594585ce948bc26daf0523f28929cd4fd4a0",
+    "gen/go/vrooli-autoheal/v1/healing/healing.pb.go": "sha256:0ff43e9606e4a9400ffe099ae8ecdefe1138e025381c70667bf99cd2f64eda22",
+    "gen/go/vrooli-autoheal/v1/healing/healing_v1connect/healing.connect.go": "sha256:41df0ac04954a3bc2c5e5698aaaa1af775f1674530243d9b37740707dea149cb",
+    "gen/go/vrooli-autoheal/v1/incidents/incidents.pb.go": "sha256:b222153d58cbba39c6bd512ed4e6046604975699a32c108b0e2f3e78f49d625a",
+    "gen/go/vrooli-autoheal/v1/incidents/incidents_v1connect/incidents.connect.go": "sha256:c65f99498b69d5a90f5c7d41ea04ab969ec1764bc41bfc21486a227038509adc",
+    "gen/go/vrooli-autoheal/v1/measures/measures.pb.go": "sha256:b2cf48378e79102a1e5b25a7bf4c1e357512c17894e2b8d84e068be9052f1969",
+    "gen/go/vrooli-autoheal/v1/measures/measures_v1connect/measures.connect.go": "sha256:a26cde014f8bba9c93bd7f5775d0d18ec20dca3b3b1b93c12f65ca976f7e26c0",
+    "gen/python/vrooli_autoheal/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/vrooli_autoheal/v1/actions/actions_pb2.py": "sha256:c0a4c37889f248511885789305d5f3de718b1f2f812c15cd9549474820c9ffa1",
+    "gen/python/vrooli_autoheal/v1/actions/actions_pb2.pyi": "sha256:e8b5c220bbd7642095e8e56f5395de894156b905d3dac7f0fbe24daac7408ebb",
+    "gen/python/vrooli_autoheal/v1/actions/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/vrooli_autoheal/v1/checks/checks_pb2.py": "sha256:6c07d1365a19925cecc9d726fa02ccd24dce68de7f15dd660d140480c674b6a0",
+    "gen/python/vrooli_autoheal/v1/checks/checks_pb2.pyi": "sha256:80a881fce39c84fbb4df4317da5f3aca1f6189d450def9c61099dfe9e2587025",
+    "gen/python/vrooli_autoheal/v1/checks/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/vrooli_autoheal/v1/healing/healing_pb2.py": "sha256:c3dbeb125fbcb3eff7bdb834af1b9c28de435f3793e135e542ac3d7a9331d6a0",
+    "gen/python/vrooli_autoheal/v1/healing/healing_pb2.pyi": "sha256:ed8e1c39174b1fb75ababa6cb54efd83b1f7f90eda0645d3f2e30328813f116e",
+    "gen/python/vrooli_autoheal/v1/healing/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/vrooli_autoheal/v1/incidents/incidents_pb2.py": "sha256:9b703daa8b99871815b3dd08e366077ded38b6b5a5a81e599cb8bce390798f52",
+    "gen/python/vrooli_autoheal/v1/incidents/incidents_pb2.pyi": "sha256:59019686f67f480ce9334f6284b445a3322a82febea1f6a155e3fdeffb4a22aa",
+    "gen/python/vrooli_autoheal/v1/incidents/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/vrooli_autoheal/v1/measures/measures_pb2.py": "sha256:0ec47834af1ff21c194e52900f09192fd57455d7611229025dd80e41b7e46de3",
+    "gen/python/vrooli_autoheal/v1/measures/measures_pb2.pyi": "sha256:a67ab58353ab4b51c0b8006c761114dd24d38659639bf5652800f9a6ecd57eaa",
+    "gen/python/vrooli_autoheal/v1/measures/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/vrooli_autoheal/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/vrooli-autoheal/v1/actions/actions_pb.js": "sha256:a5d0de8ae07e182b79b5b9da159ef6425320954b0252aa380cdfb4bd3f44e20f",
+    "gen/typescript/js/vrooli-autoheal/v1/checks/checks_pb.js": "sha256:f7e2475419567f2b72381bb29aef7e1c130280b847e6a4cbd04f1b5918da901b",
+    "gen/typescript/js/vrooli-autoheal/v1/healing/healing_pb.js": "sha256:d14ab1e199f05d6f4b8e3778d4cc393c75e434b7b913393753601ac22b1574a8",
+    "gen/typescript/js/vrooli-autoheal/v1/incidents/incidents_pb.js": "sha256:59b41f5069cec113e466da995dd19c293149be06f993326ef7a97ac1d12ceaf2",
+    "gen/typescript/js/vrooli-autoheal/v1/measures/measures_pb.js": "sha256:16b1f9672fcf2a5d476cd73153834c4b8885e68825850a5923acf1501be6add4",
+    "gen/typescript/vrooli-autoheal/v1/actions/actions_pb.ts": "sha256:1fd7ed54962ff81e2eaf42c74cd524a4d1ca7a1b2b3686e1007ccedd01142170",
+    "gen/typescript/vrooli-autoheal/v1/checks/checks_pb.ts": "sha256:1510b820efbc71e46bb8c456947283b2efd11e45eecbfce4f17739b3693c1342",
+    "gen/typescript/vrooli-autoheal/v1/healing/healing_pb.ts": "sha256:855cc8ac98ec12d2dde94dc8b20e67b0bfb9f7d1cddbf74963b4599a5c05e73a",
+    "gen/typescript/vrooli-autoheal/v1/incidents/incidents_pb.ts": "sha256:d9fa17bc98987ccd56a6061823d552e97b30ad4825da62f2c0c3cb94789508b2",
+    "gen/typescript/vrooli-autoheal/v1/measures/measures_pb.ts": "sha256:20a3e7d95c13a24db9c1d457274372933835fd7ce545ac22a4bdecb3d61d40e8"
+  }
+}

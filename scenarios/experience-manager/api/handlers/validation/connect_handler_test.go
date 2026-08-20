@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"connectrpc.com/connect"
 	"experience-manager/internal/spec"
+
+	"connectrpc.com/connect"
 	"github.com/vrooli/maturity-go/assessment"
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"

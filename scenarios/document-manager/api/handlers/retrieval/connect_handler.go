@@ -3,8 +3,9 @@ package retrieval
 import (
 	"context"
 
-	"connectrpc.com/connect"
 	internal "document-manager/internal/retrieval"
+
+	"connectrpc.com/connect"
 	retrievalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/retrieval"
 )
 

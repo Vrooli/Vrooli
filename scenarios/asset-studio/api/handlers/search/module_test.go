@@ -1,11 +1,14 @@
 package search
 
 import (
-	core "asset-studio/internal/studio"
-	"connectrpc.com/connect"
 	"context"
-	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/search"
 	"testing"
+
+	core "asset-studio/internal/studio"
+
+	"connectrpc.com/connect"
+
+	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/search"
 )
 
 type memoryStore struct{ state *core.Studio }

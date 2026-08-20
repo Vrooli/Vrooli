@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"device-control/strategy"
+
 	"github.com/stretchr/testify/require"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	_ "modernc.org/sqlite"

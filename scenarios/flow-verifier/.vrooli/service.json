@@ -114,9 +114,7 @@
     "resources": {},
     "scenarios": {}
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/flow-verifier.db"
-  },
+  "environment": {},
   "hostTools": [
     {
       "name": "java",
