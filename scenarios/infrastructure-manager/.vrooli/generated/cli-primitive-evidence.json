@@ -1,0 +1,122 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "infrastructure-manager",
+  "generator": "v1.0.0",
+  "manifest_hash": "b44f8287b48b89e5f98d8208d12c7a250f128a04f8e7215d5965a4ae697a9caa",
+  "commands": [
+    {
+      "path": "condition explain",
+      "group": "condition",
+      "command": "explain",
+      "binding": "ConditionService.ExplainCell",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "condition history",
+      "group": "condition",
+      "command": "history",
+      "binding": "ConditionService.GetHistory",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "condition status",
+      "group": "condition",
+      "command": "status",
+      "binding": "ConditionService.GetCondition",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "condition trust",
+      "group": "condition",
+      "command": "trust",
+      "binding": "ConditionService.GetTrustDistribution",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "coverage cells",
+      "group": "coverage",
+      "command": "cells",
+      "binding": "CoverageService.ListCells",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "coverage drift",
+      "group": "coverage",
+      "command": "drift",
+      "binding": "CoverageService.GetDrift",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "coverage open-loop",
+      "group": "coverage",
+      "command": "open-loop",
+      "binding": "CoverageService.ListOpenLoopCells",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "coverage show",
+      "group": "coverage",
+      "command": "show",
+      "binding": "CoverageService.GetProjection",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "coverage status",
+      "group": "coverage",
+      "command": "status",
+      "binding": "CoverageService.GetCoverage",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "coverage validate",
+      "group": "coverage",
+      "command": "validate",
+      "binding": "CoverageService.ValidateSetpoint",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "focus efficacy",
+      "group": "focus",
+      "command": "efficacy",
+      "binding": "FocusService.GetEfficacy",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "focus finding",
+      "group": "focus",
+      "command": "finding",
+      "binding": "FocusService.GetFinding",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "focus next",
+      "group": "focus",
+      "command": "next",
+      "binding": "FocusService.GetNext",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "focus sources",
+      "group": "focus",
+      "command": "sources",
+      "binding": "FocusService.ListSources",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

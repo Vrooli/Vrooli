@@ -1,11 +1,12 @@
 package server_test
 
 import (
-	httpx "github.com/vrooli/api-core/servertest"
 	"io"
 	"log"
 	"net/http"
 	"testing"
+
+	httpx "github.com/vrooli/api-core/servertest"
 	"infrastructure-manager/internal/module"
 	"infrastructure-manager/internal/server"
 

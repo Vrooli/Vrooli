@@ -4,16 +4,25 @@
   "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "coverage",
+      "description": "Read-only reliability coverage, open-loop and setpoint integrity",
       "commands": [
         {
-          "name": "list",
-          "description": "List all notes",
+          "name": "status",
+          "description": "Show coverage ratios with denominator confidence",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Optional projection filter",
+              "bind": {
+                "field": "projections"
+              }
+            }
+          ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
+            "service": "CoverageService",
+            "method": "GetCoverage"
           },
           "governance": {
             "effect": "read",
@@ -27,49 +36,298 @@
           }
         },
         {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
+          "name": "show",
+          "description": "Show one projection's cells and bars",
+          "positionals": [
             {
-              "name": "title",
+              "name": "projection",
               "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
+              "description": "Reliability projection"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
+            "service": "CoverageService",
+            "method": "GetProjection"
           },
           "governance": {
-            "effect": "write",
+            "effect": "read",
             "run_eligible": true,
             "permissions": [
               "network:internal"
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "proto_list"
           }
         },
         {
-          "name": "get",
-          "description": "Get a note by id",
+          "name": "cells",
+          "description": "List reliability cells, optionally filtered by projection and status",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Optional projection filter"
+            },
+            {
+              "name": "status",
+              "description": "Optional status filter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "ListCells"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "open-loop",
+          "description": "List every dated MISSING reliability cell",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Optional projection filter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "ListOpenLoopCells"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate the read-only setpoint and coverage integrity",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "ValidateSetpoint"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "drift",
+          "description": "Show live space and sensor drift findings",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Optional projection filter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "GetDrift"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "condition",
+      "description": "Read condition, trust and history evidence",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Read condition readings",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Projection filter"
+            },
+            {
+              "name": "cell",
+              "description": "Optional cell filter",
+              "bind": {
+                "field": "cell_ref"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConditionService",
+            "method": "GetCondition"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "trust",
+          "description": "Read the trust distribution and checked denominator",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConditionService",
+            "method": "GetTrustDistribution"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "explain",
+          "description": "Explain one condition cell",
+          "positionals": [
+            {
+              "name": "cell",
+              "required": true,
+              "description": "Condition cell reference",
+              "bind": {
+                "field": "cell_ref"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConditionService",
+            "method": "ExplainCell"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "history",
+          "description": "Read condition history or its measurement status",
+          "positionals": [
+            {
+              "name": "cell",
+              "required": true,
+              "description": "Condition cell reference",
+              "bind": {
+                "field": "cell_ref"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum readings"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConditionService",
+            "method": "GetHistory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "focus",
+      "description": "Read ranked reliability findings and efficacy evidence",
+      "commands": [
+        {
+          "name": "next",
+          "description": "Read ranked next findings",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum findings"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FocusService",
+            "method": "GetNext"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "finding",
+          "description": "Read one ranked finding",
           "positionals": [
             {
               "name": "id",
               "required": true,
-              "description": "Note id"
+              "description": "Finding id",
+              "bind": {
+                "field": "finding_id"
+              }
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
+            "service": "FocusService",
+            "method": "GetFinding"
           },
           "governance": {
             "effect": "read",
@@ -83,18 +341,12 @@
           }
         },
         {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
+          "name": "sources",
+          "description": "Read focus source availability",
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
+            "service": "FocusService",
+            "method": "ListSources"
           },
           "governance": {
             "effect": "read",
@@ -105,46 +357,43 @@
           },
           "architecture": {
             "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
+          }
+        },
+        {
+          "name": "efficacy",
+          "description": "Read finding efficacy evidence",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Finding id",
+              "bind": {
+                "field": "finding_id"
               }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
             }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FocusService",
+            "method": "GetEfficacy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         }
       ]
     }
   ],
   "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
+    "domains": []
   },
-  "exceptions": [
-    {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    }
-  ],
+  "exceptions": [],
   "omitted": []
 }

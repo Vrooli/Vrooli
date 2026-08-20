@@ -1,7 +1,9 @@
 package domains
 
 import (
-	"infrastructure-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"infrastructure-manager/cli/domains/condition"
+	"infrastructure-manager/cli/domains/coverage"
+	"infrastructure-manager/cli/domains/focus"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -37,12 +39,20 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	conditionGroup, err := condition.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups = append(groups, conditionGroup)
+	focusGroup, err := focus.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, focusGroup)
+	coverageGroup, err := coverage.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, coverageGroup)
 	return groups, nil
 }

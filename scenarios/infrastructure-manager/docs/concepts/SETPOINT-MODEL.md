@@ -111,7 +111,7 @@ Recorded as of 2026-08-19, as data.
 
 | Fact | Value |
 |---|---|
-| Setpoint location | Migrating from `docs/infra-health/strategy/RELIABILITY_TARGETS.md` into this scenario as checked-in data |
+| Setpoint location | Migrated from the retired `docs/infra-health/strategy/RELIABILITY_TARGETS.md` into this scenario as checked-in data |
 | Entries authored | 14 target kinds at operation granularity, pre-migration |
 | Entries carrying a `decision_ref` | 0 — the field does not exist in the prose form |
 | Bars whose value may equal the reading at authoring time | unaudited — the dead-deadband check has never run |

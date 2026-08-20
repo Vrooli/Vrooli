@@ -7,8 +7,11 @@ import {
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
-import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
 import { SettingsPage } from "../pages/SettingsPage";
+import { CoveragePage } from "../features/coverage/CoveragePage";
+import { ConditionPage } from "../features/condition/ConditionPage";
+import { FocusPage } from "../features/focus/FocusPage";
+import { ThemeProvider } from "../theme/ThemeProvider";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -22,7 +25,9 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "notes", element: <NotesPage /> }, // EXAMPLE-DOMAIN:notes
+      { path: "coverage", element: <CoveragePage /> },
+      { path: "condition", element: <ConditionPage /> },
+      { path: "focus", element: <FocusPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },
@@ -54,5 +59,5 @@ export function AppRouter() {
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
   const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
-  return <RouterProvider router={router} future={routerProviderFuture} />;
+  return <ThemeProvider initialChoice="light"><RouterProvider router={router} future={routerProviderFuture} /></ThemeProvider>;
 }

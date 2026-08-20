@@ -1,8 +1,4 @@
-import {
-  BarChart3, // EXAMPLE-DOMAIN:notes
-  Home,
-  Settings,
-} from "lucide-react";
+import { Activity, Crosshair, Gauge, Home, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { BottomNav as CanonicalBottomNav, type BottomNavItem } from "../components/ui/bottom-nav";
@@ -22,7 +18,7 @@ export function BottomNav() {
   const navigate = useNavigate();
   const items = NAV_ITEMS.map((item): BottomNavItem => ({
     id: item.key,
-    label: t(item.labelKey),
+    label: item.label ?? t(item.labelKey ?? strings.layout.nav.dashboard),
     icon: iconForItem(item),
     active: item.end ? location.pathname === item.path : location.pathname.startsWith(item.path),
     testId: selectors.layout.bottomNavLink({ key: item.key }),
@@ -46,10 +42,12 @@ export function BottomNav() {
 function iconForItem(item: NavItem) {
   const iconClass = "h-5 w-5";
   switch (item.key) {
-    // EXAMPLE-DOMAIN:notes START
-    case "notes":
-      return <BarChart3 aria-hidden className={iconClass} />;
-    // EXAMPLE-DOMAIN:notes END
+    case "coverage":
+      return <Gauge aria-hidden className={iconClass} />;
+    case "condition":
+      return <Activity aria-hidden className={iconClass} />;
+    case "focus":
+      return <Crosshair aria-hidden className={iconClass} />;
     case "settings":
       return <Settings aria-hidden className={iconClass} />;
     case "dashboard":

@@ -46,7 +46,7 @@ define backup and restore procedures before production deployment.
 |---|---|---|---|
 | SQLite database (readings + findings) | not required for correctness | restore-in-place from a filesystem backup | **Regenerable, with one caveat.** Findings and efficacy records rebuild from a fresh read. Reading *history* does not — it is an observation of moments that have passed, and a target banded on a 30-day window cannot be evaluated after losing it. Loss is not corruption: the board must report the affected targets as unmeasurable rather than in band, per [`../concepts/TRUST-MODEL.md`](../concepts/TRUST-MODEL.md). |
 | Blob files | not-applicable | n/a | The scenario stores no binary data. Removed with the worked example via `template-manager detemplate`. |
-| Setpoint | not this scenario's concern | n/a | Lives in `docs/infra-health/strategy/RELIABILITY_TARGETS.md` — repository content, backed up with the repo. Never cached here, so there is nothing to restore. |
+| Setpoint | not this scenario's concern | n/a | Lives in `setpoint/reliability-setpoint.json` — checked-in repository content with no API write path. The retired infra-health document is historical only. |
 
 ## Maintenance Tasks
 

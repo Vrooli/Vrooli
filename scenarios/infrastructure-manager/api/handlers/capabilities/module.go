@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"infrastructure-manager/internal/capabilities"
 	"infrastructure-manager/internal/module"
 

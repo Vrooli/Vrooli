@@ -28,7 +28,8 @@ export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
 
   return {
-    base: './',  // Required for tunnel/proxy contexts
+    // INTEROP-CRITICAL: relative assets keep tunnel/proxy and iframe paths valid.
+    base: './',
     plugins: [react(), stringsCodegen()],
     resolve: isProfile
       ? {

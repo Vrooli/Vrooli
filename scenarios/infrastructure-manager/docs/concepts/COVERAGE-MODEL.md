@@ -102,7 +102,7 @@ Two derived fields let an *intentionally visible* hole be told apart from an *ov
 
 Without them, "declared and dated" degrades into "declared once and forgotten."
 
-**The instrumentation roadmap is the open-loop set, computed.** Today `docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md` is a hand-maintained gap list that can silently disagree with the sensor map beside it. Under this model the gap list *falls out of* the cell grid: every `MISSING` cell is a roadmap entry with a date attached, and there is no second list to drift.
+**The instrumentation roadmap is the open-loop set, computed.** The retired `docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md` is historical context only. The gap list falls out of the cell grid: every `MISSING` cell is a roadmap entry with a date attached, and there is no second list to drift.
 
 ### Cell status is never inferred from silence
 

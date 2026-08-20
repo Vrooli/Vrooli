@@ -123,7 +123,7 @@ Recorded as of 2026-08-17, as data. This section is the measured distance from t
 |---|---|
 | Integrity rules computable today | 2 of 4 (saturated, unit mismatch) |
 | Integrity rules blocked on Gap 10 | 2 of 4 (ghost, shelved) — scheduled in the autoheal phase of the implementation plan |
-| `vrooli-autoheal` typed read surface | none — no proto schemas exist; it serves a plain HTTP router |
+| `vrooli-autoheal` typed read surface | shipped — checks, actions, incidents, healing, and Measures Connect services with read-only CLI parity |
 | Alarm-channel state at last reading | 1,058 critical events / 24h against a ≤500 deadband — out of band |
 | Prior decomposition | 4,624 / 24h on 2026-07-23; ~92% attributed to ghost and saturated checks |
 | Shelving record today | Hand-maintained rows in the team's runtime lessons artifact |
@@ -143,7 +143,7 @@ Recorded as of 2026-08-17, as data. This section is the measured distance from t
 - [`CONDITION-MODEL.md`](CONDITION-MODEL.md) — the parent axis; banding depends on every verdict here.
 - [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md) — the deadbands and honesty flags this document builds on.
 - [`DOMAINS.md`](DOMAINS.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`INTEGRATIONS.md`](INTEGRATIONS.md).
-- `docs/infra-health/strategy/RELIABILITY_TARGETS.md` § Sensor integrity — the ISA-18.2 / EEMUA 191 rules this axis mechanizes, pending migration of that document's sensor map into this scenario.
+- `docs/infra-health/strategy/RELIABILITY_TARGETS.md` — retired historical context; the typed condition surface now owns the live trust projection.
 - `docs/infra-health/operating/OPERATING_MODEL.md` rule 5 — the sensor-integrity routing rule.
-- `docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md` Gap 10 — check shelving and registry reconciliation, which unblocks two of the four rules.
+- `docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md` — retired historical gap context; autoheal Gap 10 is shipped and covered by typed checks tests.
 - `scenarios/meta-optimization-manager/docs/concepts/CONDITION-MODEL.md` — the sibling instrument's condition axis; the precedent for derived populations and the uninstrumented-is-not-healthy rule.

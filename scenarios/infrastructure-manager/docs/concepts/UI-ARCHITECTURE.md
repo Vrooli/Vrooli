@@ -70,6 +70,27 @@ layout rules buy you:
 Density is the aesthetic: scannable rows over large tiles, because a member is
 looking for the one row that changed, not for a summary they already know.
 
+## Instrument status component contracts
+
+`ui/src/theme/instrument.ts` is the closed status vocabulary. The seven trust
+tokens are `VALID`, `GHOST`, `SATURATED`, `SHELVED`, `UNIT_MISMATCH`,
+`UNAVAILABLE`, and `UNTRUSTED`; the five band tokens are `IN_BAND`,
+`OUT_OF_BAND`, `PENDING_SUSTAIN`, `NEEDS_BASELINE`, and `NOT_EVALUATED`.
+Each token owns a semantic light/dark colour, a label, and a mark. Consumers
+must render the label or mark alongside colour.
+
+`TrustTriple` receives one `TrustTripleValue` object (`distribution`, `checked`,
+`total`) and renders the distribution plus both denominators as one region.
+`RatioConfidence` receives one `RatioConfidenceValue` object (`ratio`,
+`confidence`, `rationale`) and renders all three adjacent. Passing separate
+numbers is intentionally not part of either component API.
+
+The cell grid must use an isolated horizontal scroll region, keyboard focus,
+and row/column headers. The `nothing-to-report` and
+`nothing-could-be-read` states are separate compositions: the former is a
+quiet successful result; the latter names unavailable sources and is a sensor
+finding. No status is conveyed by colour alone.
+
 ## Slots Are A Contract
 
 Every directory above maps to a named slot in `ui/manifest.json`. The manifest

@@ -10,18 +10,23 @@ export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
     | "dashboard"
-    | "notes" // EXAMPLE-DOMAIN:notes
+    | "coverage"
+    | "condition"
+    | "focus"
     | "settings";
   /** Router path. */
   path: string;
   /** True when this is the index route (used for `<NavLink end>`). */
   end?: boolean;
   /** Translation key path. */
-  labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  labelKey?: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  label?: string;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes }, // EXAMPLE-DOMAIN:notes
+  { key: "coverage", path: "/coverage", label: "Coverage" },
+  { key: "condition", path: "/condition", label: "Condition" },
+  { key: "focus", path: "/focus", label: "Focus" },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

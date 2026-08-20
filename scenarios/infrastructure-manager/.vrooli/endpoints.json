@@ -49,212 +49,130 @@
       "path": "/api/v1/capabilities/describe",
       "method": "GET",
       "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
-    },
-    {
-      "id": "notes_list",
-      "path": "/vrooli.infrastructure_manager.v1.notes.NotesService/ListNotes",
-      "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.infrastructure_manager.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.infrastructure_manager.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.infrastructure_manager.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.infrastructure_manager.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.infrastructure_manager.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.infrastructure_manager.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.infrastructure_manager.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
-      "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
+      "description": "",
+      "category": "capabilities",
       "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+        "reason": "ops_probe",
+        "note": "Operational capability probe is intentionally REST-shaped for lifecycle and diagnostics callers.",
         "proto_payloads": {
           "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
+            "transport": "none",
+            "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.infrastructure_manager.v1.notes.UploadAttachmentResponse",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           },
           "error": {
-            "proto_full_name": "vrooli.infrastructure_manager.v1.shared.ErrorEnvelope",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           }
         }
       }
+    },
+    {
+      "id": "condition_get",
+      "path": "/vrooli.infrastructure_manager.v1.condition.ConditionService/GetCondition",
+      "method": "POST",
+      "summary": "Read condition",
+      "description": "",
+      "category": "condition"
+    },
+    {
+      "id": "condition_trust",
+      "path": "/vrooli.infrastructure_manager.v1.condition.ConditionService/GetTrustDistribution",
+      "method": "POST",
+      "summary": "Read the trust triple",
+      "description": "",
+      "category": "condition"
+    },
+    {
+      "id": "condition_explain",
+      "path": "/vrooli.infrastructure_manager.v1.condition.ConditionService/ExplainCell",
+      "method": "POST",
+      "summary": "Explain one condition cell",
+      "description": "",
+      "category": "condition"
+    },
+    {
+      "id": "condition_history",
+      "path": "/vrooli.infrastructure_manager.v1.condition.ConditionService/GetHistory",
+      "method": "POST",
+      "summary": "Read condition history",
+      "description": "",
+      "category": "condition"
+    },
+    {
+      "id": "coverage_get",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/GetCoverage",
+      "method": "POST",
+      "summary": "Read coverage ratios",
+      "description": "",
+      "category": "coverage"
+    },
+    {
+      "id": "coverage_cells",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/ListCells",
+      "method": "POST",
+      "summary": "List coverage cells",
+      "description": "",
+      "category": "coverage"
+    },
+    {
+      "id": "coverage_projection",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/GetProjection",
+      "method": "POST",
+      "summary": "Read one projection",
+      "description": "",
+      "category": "coverage"
+    },
+    {
+      "id": "coverage_validate_setpoint",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/ValidateSetpoint",
+      "method": "POST",
+      "summary": "Validate the read-only setpoint",
+      "description": "",
+      "category": "coverage"
+    },
+    {
+      "id": "coverage_drift",
+      "path": "/vrooli.infrastructure_manager.v1.coverage.CoverageService/GetDrift",
+      "method": "POST",
+      "summary": "Read coverage drift",
+      "description": "",
+      "category": "coverage"
+    },
+    {
+      "id": "focus_next",
+      "path": "/vrooli.infrastructure_manager.v1.focus.FocusService/GetNext",
+      "method": "POST",
+      "summary": "Read the ranked next findings",
+      "description": "",
+      "category": "focus"
+    },
+    {
+      "id": "focus_finding",
+      "path": "/vrooli.infrastructure_manager.v1.focus.FocusService/GetFinding",
+      "method": "POST",
+      "summary": "Read one finding",
+      "description": "",
+      "category": "focus"
+    },
+    {
+      "id": "focus_sources",
+      "path": "/vrooli.infrastructure_manager.v1.focus.FocusService/ListSources",
+      "method": "POST",
+      "summary": "Read finding sources",
+      "description": "",
+      "category": "focus"
+    },
+    {
+      "id": "focus_efficacy",
+      "path": "/vrooli.infrastructure_manager.v1.focus.FocusService/GetEfficacy",
+      "method": "POST",
+      "summary": "Read efficacy evidence",
+      "description": "",
+      "category": "focus"
     }
   ]
 }

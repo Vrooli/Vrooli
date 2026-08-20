@@ -3,6 +3,7 @@ package modules_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	db "github.com/vrooli/api-core/databasetest"
@@ -129,6 +130,26 @@ func TestProtoConnectParity(t *testing.T) {
 						"Fix: either add an EndpointDescriptor referencing the generated "+
 						"*Procedure constant, or remove the rpc from the proto file.",
 					entry.Module, svc.FullName(), method.Name(), wantPath, count)
+			}
+		}
+	}
+}
+
+// TestReliabilityServicesAreReadOnly makes the instrument boundary fail at
+// compile/test time if a future proto adds an actuation-shaped RPC. The
+// instrument observes peer state; it never restarts, shelves, reconciles-and-
+// fixes, or changes the operator-owned setpoint.
+func TestReliabilityServicesAreReadOnly(t *testing.T) {
+	mutatingPrefixes := []string{"Create", "Update", "Delete", "Put", "Patch", "Set", "Shelve", "Unshelve", "Restart", "Stop", "Start"}
+	for _, entry := range modules.AllProtoFiles() {
+		for i := 0; i < entry.File.Services().Len(); i++ {
+			service := entry.File.Services().Get(i)
+			for j := 0; j < service.Methods().Len(); j++ {
+				method := service.Methods().Get(j)
+				for _, prefix := range mutatingPrefixes {
+					require.Falsef(t, strings.HasPrefix(string(method.Name()), prefix),
+						"read-only instrument service %s declares mutating-shaped method %s", service.FullName(), method.Name())
+				}
 			}
 		}
 	}

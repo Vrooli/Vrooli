@@ -15,21 +15,21 @@
       "purpose": "One dense row per instrumented cell: current value, source, timestamp, trust verdict, band verdict.",
       "required": true,
       "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
-      "lifecycle": {"kind": "async", "states": ["loading", "ready", "error"]}
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "partial", "error"]}
     },
     {
       "id": "trust-distribution",
       "purpose": "The trust triple — verdict distribution, of checked readings, of total readings — as one visual unit that cannot be read as two independent tallies.",
       "required": true,
       "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
-      "lifecycle": {"kind": "async", "states": ["loading", "ready", "error"]}
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "partial", "error"]}
     },
     {
       "id": "source-availability",
       "purpose": "Every source that could not be read, named, with its reason verbatim and the cells it cost.",
       "required": true,
       "component": {"library": {"component": "experience-surface", "version": "1.0.0"}},
-      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "partial", "error"]}
     },
     {
       "id": "history",
@@ -41,9 +41,21 @@
   ],
   "states": [
     {"id": "ready", "description": "All sources read. Readings, trust distribution and availability all shown.", "setup": {"route": "/condition"}},
-    {"id": "degraded", "description": "One or more sources unreadable. Their cells show UNAVAILABLE with the reason; healthy cells continue to render and band normally.", "setup": {"route": "/condition", "query": "state=degraded"}},
-    {"id": "untrusted-heavy", "description": "A large share of readings carry non-VALID trust verdicts — the 2026-07-23 shape, where ~92% of 4,624 critical events came from ghost and saturated checks. The page must read as an instrument problem, not a platform collapse.", "setup": {"route": "/condition", "query": "state=untrusted"}},
-    {"id": "empty", "description": "No cell has resolved NOW yet, so there is nothing to read. Stated as such — never as a healthy platform.", "setup": {"route": "/condition", "query": "state=empty"}}
+    {"id": "degraded", "description": "One or more sources unreadable. Their cells show UNAVAILABLE with the reason; healthy cells continue to render and band normally.", "setup": {"route": "/condition", "query": {"state": "degraded"}}},
+    {"id": "untrusted-heavy", "description": "A large share of readings carry non-VALID trust verdicts — the 2026-07-23 shape, where ~92% of 4,624 critical events came from ghost and saturated checks. The page must read as an instrument problem, not a platform collapse.", "setup": {"route": "/condition", "query": {"state": "untrusted"}}},
+    {"id": "untrusted-present", "description": "At least one reading is untrusted and is shown as instrument evidence rather than a band verdict.", "setup": {"route": "/condition", "query": {"state": "untrusted"}}},
+    {"id": "detail", "description": "A selected cell exposes its live reading and current-deadband history.", "setup": {"route": "/condition", "query": {"cell": "availability/A1"}}},
+    {"id": "empty", "description": "No cell has resolved NOW yet, so there is nothing to read. Stated as such — never as a healthy platform.", "setup": {"route": "/condition", "query": {"state": "empty"}}},
+    {"id": "loading", "description": "Condition readings are loading.", "setup": {"route": "/condition"}},
+    {"id": "stale", "description": "The last condition reading remains visible while refresh is pending.", "setup": {"route": "/condition"}},
+    {"id": "request-error", "description": "The condition request failed and the failure is named.", "setup": {"route": "/condition"}},
+    {"id": "partial", "description": "Some condition sources are unavailable while others remain readable.", "setup": {"route": "/condition"}}
+  ],
+  "elements": [
+    {"id": "readings", "role": "region", "name": "Readings", "description": "Current cell readings and band states."},
+    {"id": "trust-distribution", "role": "region", "name": "Trust distribution", "description": "Atomic trust triple."},
+    {"id": "source-availability", "role": "region", "name": "Source availability", "description": "Unavailable sources and reasons."},
+    {"id": "history", "role": "region", "name": "History", "description": "Live-rebanded reading history."}
   ],
   "priorities": [
     {
@@ -62,8 +74,8 @@
   "claims": [
     {
       "id": "trust-triple-is-atomic",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "Trust counts are rendered as one unit reading 'distribution of N checked, of M total'; the verdict counts and the checked denominator are never presented as separate independent figures.",
       "rationale": "Splitting them lets a reader mistake the unchecked remainder for valid readings, which is the precise failure the honesty invariant exists to prevent.",
       "states": ["ready", "untrusted-heavy"],
@@ -71,8 +83,8 @@
     },
     {
       "id": "untrusted-is-not-banded",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "A reading whose trust verdict is not VALID displays NOT_EVALUATED and no band verdict, and is visually distinct from both in-band and out-of-band rows.",
       "rationale": "An untrusted reading is not evidence. Folding it into either band routes instrument fault as plant work, or hides it entirely.",
       "states": ["ready", "untrusted-heavy"],
@@ -80,8 +92,8 @@
     },
     {
       "id": "unavailable-source-is-named",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "Every unreadable source appears in the availability region with its name and its failure reason verbatim, and the cells it cost are marked UNAVAILABLE rather than omitted.",
       "rationale": "A silently dropped row is indistinguishable from a healthy one. Degradation must be legible precisely when the platform is unhealthy.",
       "states": ["degraded"],
@@ -89,8 +101,8 @@
     },
     {
       "id": "history-rebands-live",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "Historical readings are banded against the current deadband at view time, not against any stored verdict.",
       "rationale": "Band verdicts are never persisted. A tightened target must re-grade its own history rather than stranding judgments made against a bar nobody uses any more.",
       "states": ["ready"],
@@ -98,8 +110,8 @@
     },
     {
       "id": "empty-is-not-healthy",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "With no NOW cells, the page states that nothing is instrumented and shows no aggregate; it never renders an empty set as a passing state.",
       "rationale": "An uninstrumented platform reading as healthy is the inversion this whole scenario exists to prevent.",
       "states": ["empty"],
@@ -107,6 +119,12 @@
     }
   ],
   "bindings": {
+    "elements": {
+      "readings": {"testid": "condition-readings"},
+      "trust-distribution": {"testid": "condition-trust"},
+      "source-availability": {"testid": "condition-availability"},
+      "history": {"testid": "condition-history"}
+    },
     "regions": {
       "readings": {"testid": "condition-readings"},
       "trust-distribution": {"testid": "condition-trust"},

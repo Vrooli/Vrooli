@@ -197,7 +197,30 @@ One scenario-specific emphasis within the language, not a deviation from it:
 remediate control, and no control that edits a target or deadband. That is the
 "supervise, don't operate" boundary rendered in pixels, and it is asserted as
 required experience claims (`no-edit-affordance`, `no-action-affordance`) rather
-than left to reviewer judgment.
+
+## Instrument-panel tokens and composite contracts
+
+The status vocabulary is implemented in `ui/src/theme/instrument.ts` and styled
+by `ui/src/theme/tokens.css` plus `styles.css`:
+
+- Trust tokens: `VALID`, `GHOST`, `SATURATED`, `SHELVED`, `UNIT_MISMATCH`,
+  `UNAVAILABLE`, and `UNTRUSTED`.
+- Band tokens: `IN_BAND`, `OUT_OF_BAND`, `PENDING_SUSTAIN`, `NEEDS_BASELINE`,
+  and `NOT_EVALUATED`.
+
+Every token has a light/dark semantic colour, a human-readable label, and a
+non-colour mark. `UNTRUSTED` and `NOT_EVALUATED` use dashed treatment so they
+cannot be mistaken for either a pass or a failure.
+
+`TrustTriple` accepts one `TrustTripleValue` object containing the distribution,
+checked count, and total. `RatioConfidence` accepts one `RatioConfidenceValue`
+containing the ratio, confidence level, and rationale. These APIs prevent the
+three parts of either claim from being rendered as unrelated numbers.
+
+The cell-grid primitive will be a horizontally scrollable, keyboard-navigable
+region with visible focus. Empty findings and unread sources use separate
+structures (`nothing-to-report` and `nothing-could-be-read`) and never share a
+generic empty-state component.
 
 ## How To Read This Document
 

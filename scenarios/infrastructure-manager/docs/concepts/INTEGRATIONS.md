@@ -78,7 +78,7 @@ reading is silently dropped.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| `vrooli-autoheal` | **needs work** | Backs three of ten projections, the check registry, and two of four trust rules. It has **no proto schemas and serves a plain HTTP router**, so it cannot be joined typed today. Building it a proper read-only Connect surface, closing roadmap Gap 10 (two-direction reconcile, shelve-with-expiry), and authoring its space docs are phases of this scenario's plan. | Read-only. Never `shelve`, `unshelve`, `retire`, or any remediation verb — reading the reconcile is not the same as running the fix. |
+| `vrooli-autoheal` | **typed / partial** | Backs three of ten projections, the check registry, and two of four trust rules. Read-only Connect services and Measures expose checks, actions, incidents, healing, reconcile, shelves, and evidence counts; owner availability history remains an explicit gap. | Read-only. Never `shelve`, `unshelve`, `retire`, or any remediation verb — reading the reconcile is not the same as running the fix. |
 | `vrooli capacity` | active | Claim coverage and declared-vs-observed reserve drift. Control-plane `internal/`, so the one legitimate CLI read. | Read-only. Never a policy-lever change, degrade, preempt, or release. |
 | `storage-manager` | active | Device census, growth slope, declared-ceiling coverage. Has a typed handler surface. | Read-only; never triggers cleanup. |
 | `test-genie` | active | Validation cost and cache reliability aggregate. `RunsService` is already consumed typed by `meta-optimization-manager`, so the precedent exists. | Read-only. Phase semantics stay with test-genie. |

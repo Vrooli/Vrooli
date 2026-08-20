@@ -40,7 +40,7 @@ auditable, per the load-bearing-constants discipline in
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet — no domain code exists. | n/a | n/a | 2026-08-17 |
+| UI production build and typed API unit suites | passing | build and suite timings recorded by the scenario-owned validation run | 2026-08-20 |
 
 One upstream measurement is worth recording because it will shape the read
 budget: every test-genie phase-batch admission was once observed running a full

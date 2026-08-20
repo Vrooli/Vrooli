@@ -19,19 +19,27 @@
       "notes": "Retention below the longest declared target window silently converts a measurable target into an unmeasurable one. The page must say so rather than offering it as a free choice."
     }
   ],
+  "states": [
+    {"id": "loading", "description": "Read-only settings are loading.", "setup": {"route": "/settings"}},
+    {"id": "ready", "description": "Read deadlines, retention floor, theme and locale are visible without setpoint controls.", "setup": {"route": "/settings"}},
+    {"id": "empty", "description": "No optional settings are configured; defaults and their safety implications are shown.", "setup": {"route": "/settings"}},
+    {"id": "partial", "description": "Some optional settings are unavailable; available values remain visible and the missing source is named.", "setup": {"route": "/settings"}},
+    {"id": "request-error", "description": "Settings could not be read; the error is visible and no value is implied.", "setup": {"route": "/settings"}},
+    {"id": "stale", "description": "The last known settings remain visible while refresh is pending.", "setup": {"route": "/settings"}}
+  ],
   "claims": [
     {
       "id": "no-setpoint-controls",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "Settings exposes no control that creates, edits or deletes a target, deadband or actuator.",
       "rationale": "The setpoint is owned by the team and the operator. Deviation D6 — an observer authoring its own reference model — is confirming itself.",
       "elements": []
     },
     {
       "id": "retention-floor-warned",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "Lowering retention below the longest declared target window warns that specific targets will become unmeasurable, and names them.",
       "rationale": "Silently trimming evidence below the window a target is banded on is indistinguishable from the target passing.",
       "elements": []

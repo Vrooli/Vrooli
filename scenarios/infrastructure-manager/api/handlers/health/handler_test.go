@@ -3,12 +3,13 @@ package health_test
 import (
 	"errors"
 	"fmt"
-	"github.com/vrooli/api-core/apihttptest"
-	httpx "github.com/vrooli/api-core/servertest"
 	"io"
 	"log"
 	"net/http"
 	"testing"
+
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
 	"infrastructure-manager/handlers/health"
 	"infrastructure-manager/internal/module"
 	"infrastructure-manager/internal/server"

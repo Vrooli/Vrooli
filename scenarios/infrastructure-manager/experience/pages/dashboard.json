@@ -17,7 +17,7 @@
       "component": {
         "library": {"component": "experience-surface", "version": "1.0.0"}
       },
-      "lifecycle": {"kind": "async", "states": ["loading", "ready", "error"]}
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "partial", "error"]}
     },
     {
       "id": "ranked-findings",
@@ -35,8 +35,13 @@
       "component": {
         "library": {"component": "experience-surface", "version": "1.0.0"}
       },
-      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "partial", "error"]}
     }
+  ],
+  "elements": [
+    {"id": "confidence-header", "role": "region", "name": "Confidence header", "description": "Setpoint confidence and open-loop summary."},
+    {"id": "ranked-findings", "role": "region", "name": "Ranked findings", "description": "The ordered reliability findings."},
+    {"id": "source-availability", "role": "region", "name": "Source availability", "description": "Readable and unreadable sensor sources."}
   ],
   "states": [
     {
@@ -52,18 +57,21 @@
     {
       "id": "partial",
       "description": "One or more sources unreadable. Healthy sources keep ranking; each unreadable source appears in the availability region with its reason verbatim.",
-      "setup": {"route": "/", "query": "state=partial"}
+      "setup": {"route": "/", "query": {"state": "partial"}}
     },
     {
       "id": "empty",
       "description": "No findings. Must be distinguishable at a glance from 'nothing could be read' — an empty board and a blind board are different claims.",
-      "setup": {"route": "/", "query": "state=empty"}
+      "setup": {"route": "/", "query": {"state": "empty"}}
     },
     {
       "id": "error",
       "description": "The setpoint itself could not be read or parsed. The board reports the failure and refuses to show a target count it does not have.",
-      "setup": {"route": "/", "query": "state=error"}
-    }
+      "setup": {"route": "/", "query": {"state": "error"}}
+    },
+    {"id": "loading", "description": "The board is loading its setpoint and source readings.", "setup": {"route": "/"}},
+    {"id": "stale", "description": "The board is showing the last known reading while a refresh is pending.", "setup": {"route": "/"}},
+    {"id": "request-error", "description": "A board request failed and the failure is visible.", "setup": {"route": "/"}}
   ],
   "priorities": [
     {
@@ -82,8 +90,8 @@
   "claims": [
     {
       "id": "degraded-source-is-visible",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "When any sensor source is unreadable, the availability region names that source and its stated reason, and the board does not present its cells as in band.",
       "rationale": "The degradation contract in TARGET_MODEL.md: an unreadable source becomes a visible availability entry, never a zero and never a silently dropped row.",
       "states": ["partial"],
@@ -91,8 +99,8 @@
     },
     {
       "id": "untrusted-never-counted",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "A reading with a non-VALID trust verdict is shown as untrusted and is excluded from any in-band aggregate on the page.",
       "rationale": "TRUST-MODEL.md honesty invariant — an untrusted reading is not evidence and must not be totalled as if it were.",
       "states": ["ready-ranked"],
@@ -100,8 +108,8 @@
     },
     {
       "id": "empty-is-not-blind",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "The empty state is visually and textually distinct from the error state.",
       "rationale": "'No findings' and 'nothing could be read' are opposite claims; conflating them is the exact failure the availability region exists to prevent.",
       "states": ["empty", "error"],
@@ -109,14 +117,19 @@
     },
     {
       "id": "status-not-colour-alone",
-      "type": "accessibility",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "Every status indicator pairs its colour with a text label or distinct shape, and meets WCAG 2.1 AA contrast in both themes.",
       "rationale": "The page is entirely status; colour-only encoding would make it unusable for colour-blind operators.",
       "states": ["ready-ranked", "partial"]
     }
   ],
   "bindings": {
+    "elements": {
+      "confidence-header": {"testid": "board-confidence-header"},
+      "ranked-findings": {"testid": "board-ranked-findings"},
+      "source-availability": {"testid": "board-source-availability"}
+    },
     "regions": {
       "confidence-header": {"testid": "board-confidence-header"},
       "ranked-findings": {"testid": "board-ranked-findings"},

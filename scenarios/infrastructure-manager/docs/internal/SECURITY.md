@@ -34,16 +34,6 @@ process output, so there is no path by which a credential could enter the
 reading store. Preserving that is an extension rule, not a preference — see
 [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) § Extension Rules.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `template-manager detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Auth And Authorization
 
 The generated template does not include an auth provider. Add auth only

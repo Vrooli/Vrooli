@@ -131,7 +131,7 @@ Recorded as of 2026-08-19, as data.
 
 | Fact | Value |
 |---|---|
-| Cells with a live band evaluation | 0 — no domain code exists |
+| Cells with a live band evaluation | availability readings are re-evaluated against the current setpoint; other projections remain explicitly unavailable until their owner source joins |
 | Reading history retained | none |
 | Efficacy records | none; update-protocol rule 5 has no mechanism behind it |
 | Alarm-channel state at last reading | 1,058 critical events / 24h against a ≤500 deadband — out of band |

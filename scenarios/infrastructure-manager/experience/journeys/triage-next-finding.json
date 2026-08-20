@@ -43,32 +43,32 @@
   "claims": [
     {
       "id": "one-address-start",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "The journey begins at the board and never requires the member to know which underlying scenario holds the answer.",
       "rationale": "Invariant 1 of the instrument contract: a member starts at the board, not at the tools. Members read different rows of one surface, never different surfaces.",
       "states": ["ready-ranked"]
     },
     {
       "id": "auditable-to-evidence",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "Every ranked finding can be traced from the board to its reading, its trust verdict, and the target and deadband it was judged against.",
       "rationale": "A headline that cannot be audited to evidence is inferred rather than measured, and the board's whole claim is that it measures.",
       "states": ["ready-ranked", "detail", "ready"]
     },
     {
       "id": "fault-attribution-before-action",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "The journey surfaces the trust verdict before it surfaces any suggested action, so instrument fault is separated from plant fault before work is routed.",
       "rationale": "Operating-model rule 5 — discriminate sensor fault from plant fault before routing plant-side work. Getting this backwards spends real effort on an imaginary problem.",
       "states": ["untrusted-present"]
     },
     {
       "id": "no-action-affordance",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "No step in this journey offers a control that would restart, shelve, remediate, or otherwise change the state of a supervised element.",
       "rationale": "Supervise, don't operate. The journey ends at a decision the member makes elsewhere; the instrument carries no authority to act.",
       "states": ["ready-ranked", "untrusted-present", "detail"]

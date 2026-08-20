@@ -80,4 +80,38 @@ describe("DataTable", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.queryByText("Beta")).not.toBeInTheDocument();
   });
+
+  it("supports filters, descending sort, non-sortable columns, and empty results", async () => {
+    const user = userEvent.setup();
+    const extendedColumns: Array<DataTableColumn<Row>> = [
+      ...columns,
+      { id: "details", header: "Details", accessor: (row) => <span>{row.name} details</span> },
+    ];
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={extendedColumns}
+        getRowKey={(row) => row.id}
+        caption="Filtered rows"
+        emptyMessage="Nothing matched"
+        filters={[
+          { id: "alpha", label: "Alpha only", predicate: (row) => row.id === "a" },
+          { id: "all", label: "All rows", predicate: () => true },
+        ]}
+        filterGroupLabel="Row filters"
+        sortLabel={(header) => `Order ${header}`}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "Row filters" })).toBeInTheDocument();
+    expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "All rows" }));
+    expect(screen.getByText("Beta")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Order Name" }));
+    const bodyRows = within(screen.getByRole("table")).getAllByRole("row").slice(1);
+    expect(bodyRows).toHaveLength(2);
+    expect(screen.getByText("Details")).toBeInTheDocument();
+    await user.type(screen.getByRole("searchbox"), "does-not-exist");
+    expect(screen.getByText("Nothing matched")).toBeInTheDocument();
+  });
 });

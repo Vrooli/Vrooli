@@ -50,7 +50,7 @@ export function Sidebar() {
             ].join(" ")
           }
         >
-          {t(item.labelKey)}
+          {item.label ?? t(item.labelKey ?? strings.layout.nav.dashboard)}
         </NavLink>
       ))}
       </nav>

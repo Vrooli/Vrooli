@@ -3,8 +3,8 @@
   "schema_version": "1.0.0",
   "confidence": {
     "level": "SKETCH",
-    "rationale": "Bars sit at operation granularity. The obligation list they should derive from \u2014 what the infra-health team must be able to do \u2014 has never been written, and no control layer has authored a space doc yet. Confidence cannot rise above SKETCH until both exist.",
-    "recorded_on": "2026-08-19"
+    "rationale": "The ten reliability spaces now exist, but the obligation list they should derive from has not been approved as a separate registry. Bars are therefore resolvable and operator-authored, but the setpoint denominator remains SKETCH.",
+    "recorded_on": "2026-08-20"
   },
   "constants": {
     "read_deadline_seconds": 10,
@@ -12,11 +12,230 @@
     "shelf_expiry_required": true,
     "retention_margin_days": 15
   },
-  "bars": [],
+  "bars": [
+    {
+      "id": "availability-scenario-resource-uptime",
+      "cell_ref": "availability/A1",
+      "projection": "availability",
+      "target_kind": "scenario-resource-uptime",
+      "deadband": "within 0.5pp below target, or excursion not sustained >=24h; ghost/saturated/shelved checks excluded",
+      "min": 99.5,
+      "sustain": "24h",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-07-23-round-2"
+    },
+    {
+      "id": "supervision-alarm-channel-flood",
+      "cell_ref": "supervision/S3",
+      "projection": "supervision",
+      "target_kind": "alarm-channel-flood",
+      "deadband": "criticalEvents <= 500 / 24h",
+      "sustain": "24h",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-07-23-round-2"
+    },
+    {
+      "id": "availability-restart-frequency",
+      "cell_ref": "availability/A2",
+      "projection": "availability",
+      "target_kind": "restart-frequency",
+      "deadband": "target exceeded in fewer than 2 consecutive windows",
+      "sustain": "2 windows",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-07-23-round-2"
+    },
+    {
+      "id": "availability-cold-start-latency",
+      "cell_ref": "availability/A3",
+      "projection": "availability",
+      "target_kind": "cold-start-start-restart-latency",
+      "deadband": "instrumentation gap until scenario stats provides a durable latency sensor",
+      "sustain": "pending telemetry",
+      "actuator": "instrumentation-gap",
+      "decision_ref": "2026-07-23-round-2"
+    },
+    {
+      "id": "commissioning-setup-time",
+      "cell_ref": "commissioning/CM1",
+      "projection": "commissioning",
+      "target_kind": "setup-end-to-end-time",
+      "deadband": "<= 15m from make setup to all critical scenarios green",
+      "sustain": "one clean-host run",
+      "actuator": "instrumentation-gap",
+      "decision_ref": "2026-07-23-round-2"
+    },
+    {
+      "id": "recovery-heal-success-rate",
+      "cell_ref": "recovery/R1",
+      "projection": "recovery",
+      "target_kind": "heal-success-rate",
+      "deadband": ">= 92% during bootstrap; target 95%",
+      "sustain": "30d",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-07-23-round-2"
+    },
+    {
+      "id": "recovery-heal-loop-incidence",
+      "cell_ref": "recovery/R2",
+      "projection": "recovery",
+      "target_kind": "heal-loop-incidence",
+      "deadband": "single-scenario, single-day occurrence",
+      "sustain": "24h",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-07-23-round-2"
+    },
+    {
+      "id": "capacity-claim-coverage",
+      "cell_ref": "capacity/C1",
+      "projection": "capacity",
+      "target_kind": "capacity-claim-coverage",
+      "deadband": "one-off UNCLAIMED; same owner unclaimed across 2+ heartbeats is out of band",
+      "sustain": "2 heartbeats",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-07-23-round-2"
+    },
+    {
+      "id": "capacity-declared-observed-drift",
+      "cell_ref": "capacity/C2",
+      "projection": "capacity",
+      "target_kind": "declared-vs-observed-usage-drift",
+      "deadband": "reserve <= 2x observed peak, or excursion not sustained >=7d",
+      "sustain": "7d",
+      "actuator": "runtime-health-finding or reliability-target-update",
+      "decision_ref": "2026-07-23-round-2"
+    },
+    {
+      "id": "supervision-set-coverage",
+      "cell_ref": "supervision/S1",
+      "projection": "supervision",
+      "target_kind": "supervised-set-coverage",
+      "deadband": "zero unsupervised members of the derived should-be-supervised set",
+      "sustain": "one reconcile read",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-07-24-round-3"
+    },
+    {
+      "id": "supervision-ghost-checks",
+      "cell_ref": "supervision/S2",
+      "projection": "supervision",
+      "target_kind": "space-integrity",
+      "deadband": "zero registered checks point at retired plant elements",
+      "sustain": "one reconcile read",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-07-23-round-2"
+    },
+    {
+      "id": "supervision-expiring-shelves",
+      "cell_ref": "supervision/S4",
+      "projection": "supervision",
+      "target_kind": "space-integrity",
+      "deadband": "every deliberate stop has a reason and a mandatory expiry",
+      "sustain": "one shelf read",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-07-23-round-2"
+    },
+    {
+      "id": "attribution-burst-attribution",
+      "cell_ref": "attribution/AT1",
+      "projection": "attribution",
+      "target_kind": "burst-attribution",
+      "deadband": "sustained host CPU/RAM saturation is attributable to an owning scenario or run",
+      "sustain": "sustained window",
+      "actuator": "instrumentation-gap",
+      "decision_ref": "2026-07-24-round-4"
+    },
+    {
+      "id": "headroom-device-census",
+      "cell_ref": "headroom/H1",
+      "projection": "headroom",
+      "target_kind": "space-integrity",
+      "deadband": "every load-bearing device is represented in the closed census",
+      "sustain": "one census read",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-03-storage-growth-slope"
+    },
+    {
+      "id": "headroom-storage-growth-slope",
+      "cell_ref": "headroom/H2",
+      "projection": "headroom",
+      "target_kind": "storage-growth-slope",
+      "deadband": "measured bytes under a declared ceiling; investigate sustained positive slope or falling coverage",
+      "sustain": "sustained positive slope",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-03-storage-growth-slope"
+    },
+    {
+      "id": "validation-cost-test-genie",
+      "cell_ref": "validation-cost/VC2",
+      "projection": "validation-cost",
+      "target_kind": "test-genie-validation-cost-and-cache-reliability",
+      "deadband": "reliable samples only; investigate missing calibration, low cache-hit rate, or net saving <= audit cost",
+      "sustain": "7d",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-08-test-genie-validation-cost"
+    },
+    {
+      "id": "validation-cost-phase-terminality",
+      "cell_ref": "validation-cost/VC1",
+      "projection": "validation-cost",
+      "target_kind": "space-integrity",
+      "deadband": "every declared phase produces a terminal result",
+      "sustain": "one catalog read",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-08-test-genie-validation-cost"
+    },
+    {
+      "id": "durability-plan-coverage",
+      "cell_ref": "durability/D1",
+      "projection": "durability",
+      "target_kind": "space-integrity",
+      "deadband": "every declared backup target is covered by a plan",
+      "sustain": "one plan read",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-03-storage-growth-slope"
+    },
+    {
+      "id": "durability-freshness",
+      "cell_ref": "durability/D2",
+      "projection": "durability",
+      "target_kind": "space-integrity",
+      "deadband": "backup freshness remains within target",
+      "sustain": "one run-history read",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-03-storage-growth-slope"
+    },
+    {
+      "id": "agent-throughput-spawn",
+      "cell_ref": "agent-throughput/AG1",
+      "projection": "agent-throughput",
+      "target_kind": "space-integrity",
+      "deadband": "agent runs spawn successfully",
+      "sustain": "one terminal-run read",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-07-24-round-4"
+    },
+    {
+      "id": "agent-throughput-errors",
+      "cell_ref": "agent-throughput/AG2",
+      "projection": "agent-throughput",
+      "target_kind": "space-integrity",
+      "deadband": "recurring error patterns are attributable by run class",
+      "sustain": "one error-pattern read",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-07-24-round-4"
+    }
+  ],
+  "unmapped": [
+    {
+      "target_kind": "capability-availability",
+      "reason": "Capability owners do not yet expose a shared derived aggregate space. Mapping this target to autoheal or test-genie would substitute an unrelated sensor and violate the split-denominator contract.",
+      "revisit": "Gap 11: capability-owner availability aggregates"
+    }
+  ],
   "migration": {
-    "status": "not-started",
+    "status": "partial",
     "source": "docs/infra-health/strategy/RELIABILITY_TARGETS.md",
-    "note": "The 14 authored target kinds have not been migrated yet. Bars are deliberately empty rather than pre-populated: a bar must name a cell, and no control layer has authored a space doc for its cells to exist in. Populating bars against cell refs that do not resolve would fail the setpoint-integrity check on its first run and would encode guesses about spaces their owners have not written. Migration is a plan phase and runs after the first owner space docs land.",
+    "note": "Phase-6 space docs now resolve twelve target kinds. Capability availability remains explicitly unmapped pending Gap 11 rather than being assigned to an unrelated owner. The setpoint parser and integrity join must keep this exception visible.",
     "on_completion": "docs/infra-health/strategy/RELIABILITY_TARGETS.md keeps its operating-model and governance content and points here for the bars; docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md is replaced by the computed open-loop set."
   }
 }

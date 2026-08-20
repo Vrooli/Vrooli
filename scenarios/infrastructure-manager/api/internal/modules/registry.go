@@ -20,15 +20,19 @@ import (
 	"infrastructure-manager/internal/module"
 
 	capsH "infrastructure-manager/handlers/capabilities"
+	conditionH "infrastructure-manager/handlers/condition"
+	coverageH "infrastructure-manager/handlers/coverage"
+	focusH "infrastructure-manager/handlers/focus"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "infrastructure-manager/handlers/health"
-	notesH "infrastructure-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "infrastructure-manager/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/notes" // EXAMPLE-DOMAIN:notes
+	conditionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/condition"
+	coveragev1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/coverage"
+	focusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/focus"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +43,9 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, conditionH.Endpoints...)
+	out = append(out, coverageH.Endpoints...)
+	out = append(out, focusH.Endpoints...)
 	return out
 }
 
@@ -66,7 +72,9 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_infrastructure_manager_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "condition", File: conditionv1.File_infrastructure_manager_v1_condition_condition_proto},
+		{Module: "coverage", File: coveragev1.File_infrastructure_manager_v1_coverage_coverage_proto},
+		{Module: "focus", File: focusv1.File_infrastructure_manager_v1_focus_focus_proto},
 	}
 }
 
@@ -81,6 +89,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(conditionH.Schema),
+		apidb.SchemaProviderFunc(focusH.Schema),
 	}
 }

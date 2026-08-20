@@ -45,36 +45,8 @@ belong in [`DATA.md`](DATA.md).
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/infrastructure-manager/v1/shared/health.proto` |
 | coverage | Join owner-authored spaces with the checked-in setpoint into a live cell grid. | Answer "how much of the platform's reliability is instrumented at all, and against what bar?" | No product data; reads spaces live and parses a checked-in file. | reporting | query, validation | Projection, Cell, Denominator, Confidence, OpenLoop | `api/internal/coverage/`, `api/handlers/coverage/`, `cli/domains/coverage/`, `ui/src/features/coverage/` |
-| condition | Take live readings on every `NOW` cell, qualify their trust, and band them. | Answer "for what we can see, is the platform in band — and can the reading be believed?" | Reading history and trust verdicts (never band verdicts). | reporting | service, timeseries | Leg, Reading, TrustVerdict, BandVerdict | `api/internal/condition/`, `api/handlers/condition/`, `cli/domains/condition/`, `ui/src/features/condition/` |
-| focus | Rank the error surface and grade actuation. | Give a member one ordered answer to "what should I do next?", and record whether past fixes moved their sensor. | Findings and their sensor-efficacy join. | workflow | service, ranking | Finding, GapSource, Efficacy | `api/internal/focus/`, `api/handlers/focus/`, `cli/domains/focus/`, `ui/src/features/focus/` |
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships `notes` as a worked CRUD vertical slice with a binary
-upload exception. Copy its shape for your own domains, then remove it.
-
-| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
-|---|---|---|---|---|---|---|---|
-| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | Note, Attachment | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/infrastructure-manager/v1/notes/` |
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
-<!-- EXAMPLE-DOMAIN:notes END -->
+| condition | Take live readings on every `NOW` cell, qualify their trust, and band them. | Answer "for what we can see, is the platform in band — and can the reading be believed?" | Reading history and trust verdicts (never band verdicts). | aggregation | service, timeseries | Leg, Reading, TrustVerdict, BandVerdict | `api/internal/condition/`, `api/handlers/condition/`, `cli/domains/condition/`, `ui/src/features/condition/`, `../vrooli-autoheal/api/internal/handlers/` |
+| focus | Rank the error surface and grade actuation. | Give a member one ordered answer to "what should I do next?", and record whether past fixes moved their sensor. | Findings and their sensor-efficacy join. | aggregation | service, ranking | Finding, GapSource, Efficacy | `api/internal/focus/`, `api/handlers/focus/`, `cli/domains/focus/`, `ui/src/features/focus/`, `ui/src/app/` |
 
 ## Domain Details
 

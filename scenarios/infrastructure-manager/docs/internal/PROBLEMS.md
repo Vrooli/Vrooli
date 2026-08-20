@@ -86,7 +86,7 @@ first vertical slice reports anything as `measured`.
 
 ### P-003 — Two of four trust rules cannot be computed until roadmap Gap 10 ships
 
-**Status:** open · degrades safely · **owner:** `vrooli-autoheal`
+**Status:** closed 2026-08-20 · **owner:** `vrooli-autoheal`
 
 Ghost and shelved verdicts need a two-direction `check reconcile` and a
 shelve-with-expiry verb on `vrooli-autoheal`, neither of which exists. The
@@ -95,27 +95,33 @@ rather than assuming `VALID`, so the gap degrades conservatively — but declare
 blindness is wider than it will be, and the shelving record is a hand-maintained
 artifact in the meantime.
 
-**Changed 2026-08-19:** this is no longer deferred upstream work. Closing Gap 10
-is a phase of this scenario's implementation plan, sequenced before the
-`condition` vertical, because shipping without it would launch the instrument
-with half its integrity vocabulary permanently uncomputable.
+**Resolution:** the typed autoheal checks surface now exposes both-direction
+reconcile, saturation, and mandatory-expiry shelves; the condition source
+consumes those reads and assigns the closed trust vocabulary conservatively.
 
-**Revisit trigger:** the autoheal phase lands.
+**Evidence:** `scenarios/vrooli-autoheal/api/internal/handlers/typed_connect.go`
+and the autoheal checks/reconcile tests.
 
 ### P-004 — Generated from a template whose registry status is `quarantined`
 
-**Status:** open · unresolved upstream · **owner:** `template-manager`
+**Status:** open · escalated upstream · **owner:** `template-manager`
 
-`template-manager registry list --kind scenario` reports both scenario templates
-as `quarantined`, while Template Manager's own `PROGRESS.md` records react-vite
-1.6.5 passing deep validation on 2026-07-12 with the registry active. Generation
-succeeded and the scaffold validates, so this is a status discrepancy rather than
-an observed defect — but it is unresolved and should not be discovered again by
-the next agent.
+`template-manager registry list --kind scenario --json` was re-run on 2026-08-20
+and reports `react-vite` 1.6.5 as `quarantined` (and also reports the other
+scenario template as quarantined). Template Manager's own `PROGRESS.md` records
+react-vite 1.6.5 passing deep validation on 2026-07-12, so the registry state is
+still inconsistent with the last known validation evidence. Generation succeeded
+and the scaffold validates, but this run cannot independently establish that the
+quarantine is stale or safe to override.
 
-**Revisit trigger:** confirm with Template Manager whether the flag is stale
-before the first vertical slice. If the quarantine is real, re-evaluate the
-template choice.
+The finding is escalated rather than closed: the plan's provenance gate remains
+open until Template Manager records a definitive resolution. Product work may
+continue only against the already-generated scenario while this provenance
+question is tracked.
+
+**Revisit trigger:** Template Manager publishes whether the flag is stale or
+genuine. If genuine, re-evaluate the template choice before claiming the
+scenario's provenance is healthy.
 
 ### P-005 — Three extension rules are prose with no mechanical enforcement
 
@@ -146,43 +152,37 @@ typed-read boundary that keeps credentials out of the reading store.
 
 ### P-007 — `vrooli-autoheal` has no typed read surface at all
 
-**Status:** open · on the critical path · **owner:** this scenario's plan
+**Status:** closed 2026-08-20 · **owner:** this scenario's plan
 
-`vrooli-autoheal` ships no proto schemas — `packages/proto/schemas/` has no
-`vrooli-autoheal` directory — and `api/main.go` serves a plain `setupRouter`
-HTTP router rather than Connect handlers. It is simultaneously the single most
-important sensor source: it backs three of ten projections (`supervision`,
-`availability`, `recovery`), owns the check registry, and answers two of four
-trust rules.
+`vrooli-autoheal` backs three of ten projections (`supervision`, `availability`,
+`recovery`), owns the check registry, and answers two of four trust rules.
 
-There is no honest way to join it typed today. The rejected shortcut was a
-minimal proto shim sufficient for the join, which would have locked in whatever
-shape was convenient in week one as the surface autoheal has to live with.
+The typed surface now preserves the existing checks, actions, incidents,
+healing, and Measures domains rather than introducing a minimal shim.
 
-**Real fix:** a proper read-only Connect surface over autoheal's existing
-domains (checks, actions, incidents, healing), with Measures declarations and
-its space docs. Scheduled as a plan phase before the `condition` vertical.
+**Evidence:** `packages/proto/schemas/vrooli-autoheal/v1/`,
+`scenarios/vrooli-autoheal/api/internal/handlers/typed_connect.go`, and
+`scenarios/vrooli-autoheal/cli/manifest.json`.
 
 **Refs:** `scenarios/vrooli-autoheal/api/main.go`, `api/internal/{checks,healing,incidents}/`
 
 ### P-008 — No control layer has authored a reliability space doc
 
-**Status:** open · every denominator starts at `SKETCH` · **owner:** each control layer
+**Status:** substantially resolved 2026-08-20 · **owner:** each control layer
 
 The coverage denominator is designed to be read from each owner's
 `docs/spaces/<projection>-space.md` through its `space --projection <p> --json`
 verb — the same contract `search-hub`, `test-genie`, `prompt-manager` and
-`program-runtime` already implement for `meta-optimization-manager`. **Zero of
-the six control layers have authored one.**
+`program-runtime` already implement for `meta-optimization-manager`. The six
+scenario owners and the control-plane exception now author the required spaces.
 
-Until they do, the coverage join has no denominator to read and every projection
-reports `SKETCH` confidence with the reason stated. The scenario must not
-compensate by asserting the cell sets itself: that would be a roster in all but
-name, would go stale on every owner change, and is the specific thing
-`INSTRUMENTATION_ROADMAP.md` Gap 11 rejects.
+The denominator still reports `SKETCH` until the obligation list and operator
+confidence are approved; that is an intentional confidence state, not a
+missing transport. The scenario must not assert the cell sets itself: that
+would be a roster in all but name and would go stale on owner change.
 
-**Real fix:** each owner authors its space doc and registers the verb. Sequenced
-per-projection in the plan, starting with autoheal's three.
+**Evidence:** owner `docs/spaces/` documents and the shared flat `space` CLI
+projection contract.
 
 ### P-009 — `vrooli capacity` cannot be read typed, by construction
 

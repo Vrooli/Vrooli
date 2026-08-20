@@ -7,42 +7,36 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "infrastructure-manager",
-  "description": "Experience contract for Infrastructure Manager, the infra-health team's instrument. The board is a first-class surface (OT-P1-005) and ships vertical-by-vertical with the domain it presents \u2014 no page ships without its domain, and no domain ships without its page. These specs are authored ahead of implementation to fix the honesty obligations before pixels harden around them. Every page inherits three rules: no number is shown without the qualifier that makes it honest, no unreadable source is ever allowed to look healthy, and no page offers a control the scenario has no right to perform.",
+  "description": "Experience contract for Infrastructure Manager, the infra-health team's instrument. The board is a first-class surface (OT-P1-005) and ships vertical-by-vertical with the domain it presents — no page ships without its domain, and no domain ships without its page. These specs are authored ahead of implementation to fix the honesty obligations before pixels harden around them. Every page inherits three rules: no number is shown without the qualifier that makes it honest, no unreadable source is ever allowed to look healthy, and no page offers a control the scenario has no right to perform.",
   "pages": [
     {
       "id": "dashboard",
       "path": "pages/dashboard.json",
       "title": "Board",
-      "status": "planned"
+      "status": "active"
     },
     {
       "id": "coverage",
       "path": "pages/coverage.json",
       "title": "Coverage",
-      "status": "planned"
+      "status": "active"
     },
     {
       "id": "condition",
       "path": "pages/condition.json",
       "title": "Condition",
-      "status": "planned"
+      "status": "active"
     },
     {
       "id": "focus",
       "path": "pages/focus.json",
       "title": "Focus",
-      "status": "planned"
+      "status": "active"
     },
     {
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",
-      "status": "planned"
-    },
-    {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
       "status": "active"
     }
   ],
@@ -51,7 +45,7 @@
       "id": "triage-next-finding",
       "path": "journeys/triage-next-finding.json",
       "title": "Triage the next finding",
-      "status": "planned"
+      "status": "active"
     }
   ]
 }

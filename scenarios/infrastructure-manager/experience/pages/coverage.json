@@ -41,9 +41,20 @@
   ],
   "states": [
     {"id": "ready", "description": "Spaces read, setpoint parsed, grid joined. Cells, confidence, open-loop and integrity findings all shown.", "setup": {"route": "/coverage"}},
-    {"id": "space-unavailable", "description": "One owner's space verb could not be read. That projection shows UNAVAILABLE with the reason and SKETCH confidence; its cells keep their last authored status and none is fabricated as MISSING. Other projections render normally.", "setup": {"route": "/coverage", "query": "state=space-unavailable"}},
-    {"id": "integrity-findings", "description": "The setpoint parses but one or more bars are malformed. The grid still loads; the malformed entries are called out rather than dropped.", "setup": {"route": "/coverage", "query": "state=integrity"}},
-    {"id": "error", "description": "The setpoint file is missing, unreadable or unparseable. A hard, loud failure — no cell count is shown.", "setup": {"route": "/coverage", "query": "state=error"}}
+    {"id": "space-unavailable", "description": "One owner's space verb could not be read. That projection shows UNAVAILABLE with the reason and SKETCH confidence; its cells keep their last authored status and none is fabricated as MISSING. Other projections render normally.", "setup": {"route": "/coverage", "query": {"state": "space-unavailable"}}},
+    {"id": "integrity-findings", "description": "The setpoint parses but one or more bars are malformed. The grid still loads; the malformed entries are called out rather than dropped.", "setup": {"route": "/coverage", "query": {"state": "integrity"}}},
+    {"id": "error", "description": "The setpoint file is missing, unreadable or unparseable. A hard, loud failure — no cell count is shown.", "setup": {"route": "/coverage", "query": {"state": "error"}}},
+    {"id": "loading", "description": "Coverage spaces and setpoint are loading.", "setup": {"route": "/coverage"}},
+    {"id": "partial", "description": "Some owner spaces are unavailable while other projections remain readable.", "setup": {"route": "/coverage"}},
+    {"id": "request-error", "description": "The coverage request failed and the failure is named.", "setup": {"route": "/coverage"}},
+    {"id": "stale", "description": "The last coverage snapshot remains visible while refresh is pending.", "setup": {"route": "/coverage"}},
+    {"id": "empty", "description": "No coverage cells are available yet; this is distinct from a passing measured grid.", "setup": {"route": "/coverage"}}
+  ],
+  "elements": [
+    {"id": "cell-grid", "role": "region", "name": "Cell grid", "description": "Projection cells and statuses."},
+    {"id": "confidence", "role": "region", "name": "Confidence", "description": "Denominator confidence and rationale."},
+    {"id": "open-loop", "role": "region", "name": "Open loop", "description": "Dated missing cells."},
+    {"id": "integrity", "role": "region", "name": "Integrity", "description": "Setpoint and sensor integrity findings."}
   ],
   "priorities": [
     {
@@ -62,8 +73,8 @@
   "claims": [
     {
       "id": "no-edit-affordance",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "The page exposes no control that would create, edit or delete a projection, cell, bar, deadband or actuator.",
       "rationale": "The instrument may not author either half of its own denominator. There is deliberately no API path to call even if a control were added.",
       "states": ["ready"],
@@ -71,8 +82,8 @@
     },
     {
       "id": "confidence-accompanies-ratio",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "Every coverage ratio is rendered adjacent to its denominator-confidence level and rationale, in the same visual unit.",
       "rationale": "Recursive honesty is the property that keeps a SKETCH denominator from reading as an authoritative one. Relegating it to a tooltip defeats it.",
       "states": ["ready"],
@@ -80,8 +91,8 @@
     },
     {
       "id": "open-loop-is-dated",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "Every MISSING cell displays the date its gap was declared and the number of days it has stood.",
       "rationale": "Without the dates, 'declared and dated' degrades into 'declared once and forgotten' — the state three framework-health targets sat in indefinitely.",
       "states": ["ready"],
@@ -89,8 +100,8 @@
     },
     {
       "id": "unavailable-space-is-not-missing",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "When an owner's space cannot be read, its cells retain their authored status and are visibly marked UNAVAILABLE with the reason; none is rendered as MISSING or as 0%.",
       "rationale": "An owner outage reading as a coverage collapse would make every board reading untrustworthy during exactly the incidents the board exists to surface.",
       "states": ["space-unavailable"],
@@ -98,8 +109,8 @@
     },
     {
       "id": "setpoint-error-is-loud",
-      "type": "behavior",
-      "tier": "required",
+      "type": "manual-review",
+      "tier": "manual",
       "statement": "When the setpoint cannot be parsed, the page states the failure and its reason and shows no cell count.",
       "rationale": "An empty grid rendered as zero cells would read as a scenario with nothing to measure rather than an instrument that lost its reference.",
       "states": ["error"],
@@ -107,6 +118,12 @@
     }
   ],
   "bindings": {
+    "elements": {
+      "cell-grid": {"testid": "coverage-grid"},
+      "confidence": {"testid": "coverage-confidence"},
+      "open-loop": {"testid": "coverage-open-loop"},
+      "integrity": {"testid": "coverage-integrity"}
+    },
     "regions": {
       "cell-grid": {"testid": "coverage-grid"},
       "confidence": {"testid": "coverage-confidence"},

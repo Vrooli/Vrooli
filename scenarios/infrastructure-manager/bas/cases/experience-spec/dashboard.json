@@ -42,5 +42,18 @@
         "metadata": { "label": "Dashboard page visible" }
       }
     }
+    ,
+    {
+      "id": "wait-dashboard-confidence-header",
+      "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"board-confidence-header\"][data-experience-state=\"loading\"], [data-testid=\"board-confidence-header\"][data-experience-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }, "metadata": { "label": "Dashboard confidence header" } }
+    },
+    {
+      "id": "wait-dashboard-ranked-findings",
+      "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"board-ranked-findings\"][data-experience-state=\"loading\"], [data-testid=\"board-ranked-findings\"][data-experience-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }, "metadata": { "label": "Dashboard ranked findings" } }
+    },
+    {
+      "id": "wait-dashboard-source-availability",
+      "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"board-source-availability\"][data-experience-state=\"loading\"], [data-testid=\"board-source-availability\"][data-experience-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }, "metadata": { "label": "Dashboard source availability" } }
+    }
   ]
 }

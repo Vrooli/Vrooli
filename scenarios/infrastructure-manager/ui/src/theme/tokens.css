@@ -17,6 +17,20 @@
  */
 
 :root {
+  /* Infrastructure Manager status tokens. Hue is supplementary; each token
+     is paired with a text label and mark by instrument-status.tsx. */
+  --instrument-valid: #15803d;
+  --instrument-ghost: #7c3aed;
+  --instrument-saturated: #b45309;
+  --instrument-shelved: #64748b;
+  --instrument-unit-mismatch: #c2410c;
+  --instrument-unavailable: #475569;
+  --instrument-untrusted: #6b21a8;
+  --instrument-in-band: #15803d;
+  --instrument-out-of-band: #b91c1c;
+  --instrument-pending-sustain: #b45309;
+  --instrument-needs-baseline: #0369a1;
+  --instrument-not-evaluated: #6b21a8;
   --surface-app: var(--color-background, #ffffff);
   --surface-elevated: var(--color-surface, #f7f7f8);
   --surface-muted: var(--color-surface-muted, #eef0f3);
@@ -28,6 +42,18 @@
 }
 
 [data-theme="dark"] {
+  --instrument-valid: #4ade80;
+  --instrument-ghost: #c4b5fd;
+  --instrument-saturated: #fbbf24;
+  --instrument-shelved: #cbd5e1;
+  --instrument-unit-mismatch: #fb923c;
+  --instrument-unavailable: #cbd5e1;
+  --instrument-untrusted: #d8b4fe;
+  --instrument-in-band: #4ade80;
+  --instrument-out-of-band: #fca5a5;
+  --instrument-pending-sustain: #fbbf24;
+  --instrument-needs-baseline: #7dd3fc;
+  --instrument-not-evaluated: #d8b4fe;
   --surface-app: var(--color-background-dark, #0b1020);
   --surface-elevated: var(--color-surface-dark, #131a2e);
   --surface-muted: var(--color-surface-muted-dark, #1b2240);
@@ -40,6 +66,18 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
+    --instrument-valid: #4ade80;
+    --instrument-ghost: #c4b5fd;
+    --instrument-saturated: #fbbf24;
+    --instrument-shelved: #cbd5e1;
+    --instrument-unit-mismatch: #fb923c;
+    --instrument-unavailable: #cbd5e1;
+    --instrument-untrusted: #d8b4fe;
+    --instrument-in-band: #4ade80;
+    --instrument-out-of-band: #fca5a5;
+    --instrument-pending-sustain: #fbbf24;
+    --instrument-needs-baseline: #7dd3fc;
+    --instrument-not-evaluated: #d8b4fe;
     --surface-app: var(--color-background-dark, #0b1020);
     --surface-elevated: var(--color-surface-dark, #131a2e);
     --surface-muted: var(--color-surface-muted-dark, #1b2240);
