@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package vrooli.token_economy.v1.catalog;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/catalog;catalogv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// CATALOG
+// =============================================================================
+//
+// @stability stable
+//
+// Owns minter-declared redeemables and server-enforced availability.
+//
+// =============================================================================
+
+enum ApprovalPosture {
+  APPROVAL_POSTURE_UNSPECIFIED = 0;
+  APPROVAL_POSTURE_IMMEDIATE = 1;
+  APPROVAL_POSTURE_REQUIRES_APPROVAL = 2;
+}
+
+message Availability {
+  google.protobuf.Timestamp available_from = 1;
+  google.protobuf.Timestamp available_until = 2;
+  optional int64 remaining_quantity = 3;
+}
+
+message CatalogEntry {
+  string id = 1;
+  string token_type_id = 2;
+  string title = 3;
+  string description = 4;
+  int64 cost_amount = 5;
+  Availability availability = 6;
+  ApprovalPosture approval_posture = 7;
+  bool retired = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  google.protobuf.Timestamp retired_at = 11;
+}

@@ -1,0 +1,317 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "sherpa-onnx",
+  "display_name": "sherpa-onnx",
+  "description": "Native sherpa-onnx Kokoro TTS, English streaming Zipformer STT, speaker verification, and Spleeter source-separation adapter for the Vrooli contracts; runtime and model delivery are checksum-pinned, while signed Vrooli server publication remains an explicit release gate.",
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/sherpa-onnx/models",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/sherpa-onnx/models",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/sherpa-onnx/models"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "SHERPA_ONNX_MODELS_DIR",
+          "scope": "container"
+        },
+        "rationale": "Kokoro model data is checksum-pinned and re-acquirable from the upstream release archive.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable model storage budget measured and governed on 2026-08-17; age is the reclaim ceiling."
+        }
+      },
+      "profiles": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/sherpa-onnx/profiles",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/sherpa-onnx/profiles",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/sherpa-onnx/profiles"
+        },
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Native speaker profiles contain model-specific embeddings and require explicit re-enrollment when the model changes."
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-sherpa-onnx",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-sherpa-onnx_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-sherpa-onnx"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "managed-service",
+  "driver": "managed-service",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "release-signed-vrooli-adapter",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": ["managed-private", "managed-shared", "attach-only", "remote-vrooli", "managed-discovered"],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": ["read-only", "read-write"]
+    },
+    "artifact": {
+      "path": "server/sherpa-onnx-server",
+      "version": "1.13.2-vrooli.1",
+      "layout": "dir",
+      "entry_path": "server/sherpa-onnx-server",
+      "bundle_artifact": "sherpa-onnx-server_${os}_${arch}",
+      "sha256_by_platform": {
+        "linux-amd64": "49c4aef834f4f45f282e2034ffffb43610006f44f3348310e5a4cb22d15b0e1d"
+      }
+    },
+    "acquisition": {
+      "kind": "none",
+      "license": "Apache-2.0 sherpa-onnx/ONNX Runtime; Apache-2.0 Kokoro and Zipformer model packaging; 3D-Speaker embedding model with the upstream VoxCeleb corpus condition; Spleeter model under its upstream training-data terms; Vrooli adapter release artifact",
+      "provenance": {"kind": "none"},
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "unsupported": "The Vrooli HTTP adapter has a qualified local build, but its signed release artifact is not published yet."},
+        {"when": {"os": "linux", "arch": "arm64"}, "unsupported": "A native Linux arm64 Vrooli adapter artifact must be built, signed, and published."},
+        {"when": {"os": "macos", "arch": "arm64"}, "unsupported": "A native macOS arm64 Vrooli adapter artifact must be signed and published; upstream runtime support alone is insufficient."},
+        {"when": {"os": "windows", "arch": "amd64"}, "unsupported": "A native Windows amd64 Vrooli adapter artifact must be signed and published; upstream runtime support alone is insufficient."}
+      ]
+    },
+    "attach_health_path": "/healthz",
+    "environment": {
+      "RESOURCE_LISTEN_ADDR": "127.0.0.1:${RESOURCE_PORT_UPSTREAM}",
+      "SHERPA_ONNX_MODEL_DIR": "${RESOURCE_DATA_DIR}/models/kokoro/kokoro-int8-multi-lang-v1_0",
+      "SHERPA_ONNX_PROVIDER": "cpu",
+      "SHERPA_ONNX_THREADS": "2",
+      "SHERPA_ONNX_STREAMING_MODEL_DIR": "${RESOURCE_DATA_DIR}/models/asr/sherpa-onnx-streaming-zipformer-en-2023-06-26",
+      "SHERPA_ONNX_STREAMING_MODEL_TYPE": "zipformer2",
+      "SHERPA_ONNX_STREAMING_MAX_SEGMENT_SECONDS": "15",
+      "SHERPA_ONNX_PUNCTUATION_MODEL_DIR": "${RESOURCE_DATA_DIR}/models/punctuation/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8",
+      "SHERPA_ONNX_SPEAKER_MODEL": "${RESOURCE_DATA_DIR}/models/speaker/3dspeaker_speech_eres2net_large_sv_zh-cn_3dspeaker_16k.onnx",
+      "SHERPA_ONNX_SEPARATION_MODEL_DIR": "${RESOURCE_DATA_DIR}/models/separation/sherpa-onnx-spleeter-2stems-fp16",
+      "SPEAKER_VERIFICATION_PROFILE_DIR": "${RESOURCE_DATA_DIR}/profiles",
+      "SHERPA_ONNX_FFMPEG": "ffmpeg"
+    },
+    "shutdown": {"signal": "terminate"},
+    "data_artifacts": [
+      {
+        "name": "kokoro-multi-lang-v1-0",
+        "path": "models/kokoro",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0 Kokoro model and sherpa-onnx model packaging",
+          "provenance": {"kind": "none"},
+          "targets": [
+            {
+              "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2",
+              "sha256": "75654a84864be26f345f020f4070c2c019e96dd1b7f9bf6e2ffd59efac6aa5a3",
+              "archive": "tar.bz2",
+              "layout": "dir",
+              "bin_path": "kokoro-int8-multi-lang-v1_0/model.int8.onnx"
+            }
+          ]
+        }
+      },
+      {
+        "name": "streaming-zipformer-en-2023-06-26",
+        "path": "models/asr",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0 sherpa-onnx runtime; CC BY 4.0 LibriSpeech-trained Zipformer model",
+          "provenance": {"kind": "none"},
+          "targets": [
+            {
+              "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-2023-06-26.tar.bz2",
+              "sha256": "639e25b578e9e997131402199419c13a941f8e4e198e2da1ce57dbf5cf401282",
+              "archive": "tar.bz2",
+              "layout": "dir",
+              "bin_path": "sherpa-onnx-streaming-zipformer-en-2023-06-26/tokens.txt"
+            }
+          ]
+        }
+      },
+      {
+        "name": "punctuation-ct-transformer-zh-en-2024-04-12-int8",
+        "path": "models/punctuation",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0 sherpa-onnx runtime; model license as published by the upstream sherpa-onnx release",
+          "provenance": {"kind": "none"},
+          "targets": [
+            {
+              "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/punctuation-models/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8.tar.bz2",
+              "sha256": "c0d5aa5f8eeb686032345e180bedf39319dc2e0556781c6264bcadba8328a6e1",
+              "archive": "tar.bz2",
+              "layout": "dir",
+              "bin_path": "sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8/model.int8.onnx"
+            }
+          ]
+        }
+      },
+      {
+        "name": "speaker-eres2net-large-zh-cn-16k",
+        "path": "models/speaker/3dspeaker_speech_eres2net_large_sv_zh-cn_3dspeaker_16k.onnx",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0 sherpa-onnx runtime; 3D-Speaker model with VoxCeleb corpus condition as published by the upstream model release",
+          "provenance": {"kind": "none"},
+          "targets": [
+            {
+              "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_eres2net_large_sv_zh-cn_3dspeaker_16k.onnx",
+              "sha256": "19547e85b6c14ec44b8add4e7cb9ce353c7e995d4f1c9ffd408176ac3a2d6895",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "spleeter-2stems-fp16",
+        "path": "models/separation",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0 sherpa-onnx runtime; Spleeter model with its upstream training-data terms",
+          "provenance": {"kind": "none"},
+          "targets": [
+            {
+              "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/source-separation-models/sherpa-onnx-spleeter-2stems-fp16.tar.bz2",
+              "sha256": "d54561979bd2e08a51e7dbd99ac36bb47564e089eefd403636dbca93e811bba2",
+              "archive": "tar.bz2",
+              "layout": "dir",
+              "bin_path": "sherpa-onnx-spleeter-2stems-fp16/vocals.fp16.onnx"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "bundled-service",
+          "architectures": ["amd64", "arm64"],
+          "requires": [],
+          "limitations": ["The server adapter is source-built and locally qualified, but no signed release artifact is published yet."],
+          "evidence": ["manifest-validation", "artifact-checksum"],
+          "reason": "Release artifact publication is required before lifecycle ownership can be claimed."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "bundled-service",
+          "architectures": ["arm64"],
+          "requires": [],
+          "limitations": ["The upstream shared runtime is available, but the Vrooli adapter must be signed and published."],
+          "evidence": ["manifest-validation"],
+          "reason": "Release artifact publication is required before lifecycle ownership can be claimed."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "bundled-service",
+          "architectures": ["amd64"],
+          "requires": [],
+          "limitations": ["The upstream shared runtime is available, but the Vrooli adapter must be signed and published."],
+          "evidence": ["manifest-validation"],
+          "reason": "Release artifact publication is required before lifecycle ownership can be claimed."
+        }
+      }
+    }
+  },
+  "category": "ai",
+  "requirements": {
+    "ram_mb": 2048,
+    "disk_mb": 2048,
+    "cpu_cores": 2,
+    "gpu": {},
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "medium",
+    "class": "ai",
+    "weight": 2
+  },
+  "platforms": {
+    "linux": "unsupported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": true,
+      "reason": "Preserve the existing MP3, Opus, and FLAC TTS response formats; WAV is encoded natively.",
+      "when": ["setup", "develop", "production"],
+      "notes": "The native adapter fails closed for compressed output when this tool is unavailable."
+    }
+  ],
+  "ports": [
+    {"name": "http", "container": 8880, "host": 8880}
+  ],
+  "orchestration": {
+    "startup_order": 565,
+    "startup_timeout_seconds": 180,
+    "startup_time_estimate": "native runtime and Kokoro model load up to 3 min",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "SHERPA_ONNX_HOST": "localhost"
+    },
+    "from_ports": {
+      "SHERPA_ONNX_PORT": "http"
+    },
+    "derived": {
+      "SHERPA_ONNX_URL": {"template": "http://${SHERPA_ONNX_HOST}:${SHERPA_ONNX_PORT}"},
+      "SHERPA_ONNX_BASE_URL": {"template": "${SHERPA_ONNX_URL}"}
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8880/healthz",
+      "kind": "readiness",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {"supports_logs": true},
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}
