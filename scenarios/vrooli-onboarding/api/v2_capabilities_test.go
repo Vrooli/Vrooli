@@ -10,10 +10,12 @@ import (
 
 func TestV2CapabilityRoutesUseMetadataOnlyGenericControlPlaneContract(t *testing.T) {
 	previous := controlPlaneCommand
-	controlPlaneCommand = func(ctx context.Context, _ string, args ...string) *exec.Cmd {
+	var commands [][]string
+	controlPlaneCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		commands = append(commands, append([]string{name}, args...))
 		output := `[]`
-		if len(args) > 0 {
-			switch args[0] {
+		if len(args) > 1 {
+			switch args[1] {
 			case "status":
 				output = `[{"descriptor":{"version":"operator-capability/v1","id":"demo","owner":"demo.owner","title":"Demo action","policy":{"requires_confirmation":true,"idempotent":true,"retryable":true},"evidence":{"secret_free":true}},"state":"needs_operator_input","missing_inputs":["destination"],"updated_at":"2026-08-19T00:00:00Z"}]`
 			case "preview":
@@ -39,5 +41,10 @@ func TestV2CapabilityRoutesUseMetadataOnlyGenericControlPlaneContract(t *testing
 	result := doPost(t, NewServer(), "/api/v2/capabilities/apply", `{"capability_id":"demo","confirm":true,"inputs":{"destination":"/approved"}}`)
 	if result.Code != http.StatusOK || !strings.Contains(result.Body.String(), `"outcome":"complete"`) || strings.Contains(result.Body.String(), "sensitive") {
 		t.Fatalf("apply = %d %s", result.Code, result.Body.String())
+	}
+	for _, command := range commands {
+		if len(command) < 3 || command[0] != "vrooli" || command[1] != "capability" {
+			t.Fatalf("capability route invoked non-control-plane command: %q", command)
+		}
 	}
 }

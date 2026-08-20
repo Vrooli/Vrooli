@@ -46,34 +46,88 @@
     ],
     "platform_capabilities": {
       "system-monitor-cpu": {
-        "linux": {"status": "supported", "mechanism": "procfs"},
-        "macos": {"status": "unsupported", "mechanism": "host_statistics"},
-        "windows": {"status": "unsupported", "mechanism": "windows_performance_counters"}
+        "linux": {
+          "status": "supported",
+          "mechanism": "procfs"
+        },
+        "macos": {
+          "status": "unsupported",
+          "mechanism": "host_statistics"
+        },
+        "windows": {
+          "status": "unsupported",
+          "mechanism": "windows_performance_counters"
+        }
       },
       "system-monitor-memory": {
-        "linux": {"status": "supported", "mechanism": "procfs"},
-        "macos": {"status": "unsupported", "mechanism": "host_statistics64"},
-        "windows": {"status": "unsupported", "mechanism": "global_memory_status_ex"}
+        "linux": {
+          "status": "supported",
+          "mechanism": "procfs"
+        },
+        "macos": {
+          "status": "unsupported",
+          "mechanism": "host_statistics64"
+        },
+        "windows": {
+          "status": "unsupported",
+          "mechanism": "global_memory_status_ex"
+        }
       },
       "system-monitor-disk": {
-        "linux": {"status": "supported", "mechanism": "statfs_procfs"},
-        "macos": {"status": "unsupported", "mechanism": "getmntinfo"},
-        "windows": {"status": "unsupported", "mechanism": "get_disk_free_space_ex"}
+        "linux": {
+          "status": "supported",
+          "mechanism": "statfs_procfs"
+        },
+        "macos": {
+          "status": "unsupported",
+          "mechanism": "getmntinfo"
+        },
+        "windows": {
+          "status": "unsupported",
+          "mechanism": "get_disk_free_space_ex"
+        }
       },
       "system-monitor-network": {
-        "linux": {"status": "supported", "mechanism": "procfs_sysfs"},
-        "macos": {"status": "unsupported", "mechanism": "if_data"},
-        "windows": {"status": "unsupported", "mechanism": "get_if_table_2"}
+        "linux": {
+          "status": "supported",
+          "mechanism": "procfs_sysfs"
+        },
+        "macos": {
+          "status": "unsupported",
+          "mechanism": "if_data"
+        },
+        "windows": {
+          "status": "unsupported",
+          "mechanism": "get_if_table_2"
+        }
       },
       "system-monitor-process": {
-        "linux": {"status": "supported", "mechanism": "procfs"},
-        "macos": {"status": "unsupported", "mechanism": "sysctl_proc_list"},
-        "windows": {"status": "unsupported", "mechanism": "windows_toolhelp"}
+        "linux": {
+          "status": "supported",
+          "mechanism": "procfs"
+        },
+        "macos": {
+          "status": "unsupported",
+          "mechanism": "sysctl_proc_list"
+        },
+        "windows": {
+          "status": "unsupported",
+          "mechanism": "windows_toolhelp"
+        }
       },
       "system-monitor-gpu": {
-        "linux": {"status": "supported", "mechanism": "hostinventory"},
-        "macos": {"status": "unsupported", "mechanism": "ioreg"},
-        "windows": {"status": "unsupported", "mechanism": "dxdiag"}
+        "linux": {
+          "status": "supported",
+          "mechanism": "hostinventory"
+        },
+        "macos": {
+          "status": "unsupported",
+          "mechanism": "ioreg"
+        },
+        "windows": {
+          "status": "unsupported",
+          "mechanism": "dxdiag"
+        }
       }
     },
     "maintainers": [
@@ -136,94 +190,10 @@
       ]
     },
     "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/system-monitor-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "system-monitor"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o system-monitor-api ./cmd/server",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (CI=true corepack pnpm install --no-frozen-lockfile --ignore-workspace || CI=true pnpm install --no-frozen-lockfile --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
+      "description": "Build API & UI, install CLI"
     },
     "develop": {
-      "description": "Launch API and UI server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./system-monitor-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/system-monitor-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute system-monitor --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'system-monitor-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
+      "description": "Launch API and UI server"
     }
   },
   "dependencies": {
@@ -259,9 +229,6 @@
       }
     }
   },
-  "notes": {
-    "storage_strategy": "Embedded SQLite repository for metrics, investigations, reports, and alerts"
-  },
   "cli": {
     "enabled": true,
     "command": "system-monitor",
@@ -281,6 +248,37 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

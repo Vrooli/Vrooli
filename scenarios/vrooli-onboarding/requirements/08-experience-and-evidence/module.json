@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "The operator experience contract and the evidence that proves it: accessibility, theming, the shared design system, recorded journeys, and contract-drift gates.",
-    "last_validated_at": "2026-08-18T15:43:55-04:00",
+    "last_validated_at": "2026-08-19T14:39:07-04:00",
     "module": "onboarding.experience",
     "schema_version": "1.0.0"
   },

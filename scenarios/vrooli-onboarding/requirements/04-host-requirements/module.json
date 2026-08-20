@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Host tools and safeguards: manifest-derived requirements, risk disclosure before consent, and schema-driven safeguard configuration.",
-    "last_validated_at": "2026-08-18T15:43:55-04:00",
+    "last_validated_at": "2026-08-19T14:39:07-04:00",
     "module": "onboarding.host",
     "schema_version": "1.0.0"
   },

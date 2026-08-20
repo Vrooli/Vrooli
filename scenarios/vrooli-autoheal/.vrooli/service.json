@@ -34,24 +34,60 @@
     ],
     "platform_capabilities": {
       "autoheal-health-monitoring": {
-        "linux": {"status": "supported", "mechanism": "native-go-checks-and-vrooli-cli"},
-        "macos": {"status": "partial", "mechanism": "typed-vrooli-status-and-platform-go-log-backend"},
-        "windows": {"status": "partial", "mechanism": "typed-vrooli-status-and-platform-go-log-backend"}
+        "linux": {
+          "status": "supported",
+          "mechanism": "native-go-checks-and-vrooli-cli"
+        },
+        "macos": {
+          "status": "partial",
+          "mechanism": "typed-vrooli-status-and-platform-go-log-backend"
+        },
+        "windows": {
+          "status": "partial",
+          "mechanism": "typed-vrooli-status-and-platform-go-log-backend"
+        }
       },
       "autoheal-host-integrity": {
-        "linux": {"status": "supported", "mechanism": "control-plane-hostinventory"},
-        "macos": {"status": "unsupported", "mechanism": "hostinventory-probe-boundary-reports-not-applicable"},
-        "windows": {"status": "unsupported", "mechanism": "hostinventory-probe-boundary-reports-not-applicable"}
+        "linux": {
+          "status": "supported",
+          "mechanism": "control-plane-hostinventory"
+        },
+        "macos": {
+          "status": "unsupported",
+          "mechanism": "hostinventory-probe-boundary-reports-not-applicable"
+        },
+        "windows": {
+          "status": "unsupported",
+          "mechanism": "hostinventory-probe-boundary-reports-not-applicable"
+        }
       },
       "autoheal-service-recovery": {
-        "linux": {"status": "supported", "mechanism": "platform-go-native-service-backend-and-setup-grant"},
-        "macos": {"status": "partial", "mechanism": "platform-go-launchd-backend"},
-        "windows": {"status": "partial", "mechanism": "platform-go-scheduled-task-backend"}
+        "linux": {
+          "status": "supported",
+          "mechanism": "platform-go-native-service-backend-and-setup-grant"
+        },
+        "macos": {
+          "status": "partial",
+          "mechanism": "platform-go-launchd-backend"
+        },
+        "windows": {
+          "status": "partial",
+          "mechanism": "platform-go-scheduled-task-backend"
+        }
       },
       "autoheal-watchdog": {
-        "linux": {"status": "supported", "mechanism": "platform-go-systemd-backend"},
-        "macos": {"status": "partial", "mechanism": "platform-go-launchd-backend"},
-        "windows": {"status": "partial", "mechanism": "platform-go-scheduled-task-backend"}
+        "linux": {
+          "status": "supported",
+          "mechanism": "platform-go-systemd-backend"
+        },
+        "macos": {
+          "status": "partial",
+          "mechanism": "platform-go-launchd-backend"
+        },
+        "windows": {
+          "status": "partial",
+          "mechanism": "platform-go-scheduled-task-backend"
+        }
       }
     },
     "tags": [
@@ -129,108 +165,10 @@
       ]
     },
     "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/vrooli-autoheal-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "vrooli-autoheal",
-            "targets": [
-              "vrooli-autoheal"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o vrooli-autoheal-api .",
-          "description": "Build the Go API binary (vrooli-autoheal-api) for lifecycle orchestration"
-        },
-        {
-          "name": "build-loop",
-          "run": "cd cli/loop && go build -o ../vrooli-autoheal-loop.new . && ../vrooli-autoheal-loop.new --install-self ../vrooli-autoheal-loop",
-          "description": "Compile the cross-platform Go loop binary and use its Go atomic installer to replace the watchdog executable."
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        }
-      ]
+      "description": "Build API & UI, install CLI"
     },
     "develop": {
-      "description": "Launch API and UI server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./vrooli-autoheal-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/vrooli-autoheal-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && pnpm run start",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "start-test-ui",
-          "run": "cd ui && pnpm run start",
-          "background": true,
-          "description": "Serve production UI bundle for smoke and Lighthouse phases",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "run-tests",
-          "run": "for i in $(seq 1 30); do curl -fsS http://localhost:${UI_PORT}/health >/dev/null && break; sleep 1; done; curl -fsS http://localhost:${UI_PORT}/health >/dev/null && test-genie execute vrooli-autoheal --preset comprehensive --ui-url http://localhost:${UI_PORT}",
-          "description": "Run structure/unit/integration/business/performance phases"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'vrooli-autoheal-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'vrooli-autoheal.*server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
+      "description": "Launch API and UI server"
     }
   },
   "hostTools": [
@@ -251,113 +189,181 @@
       "name": "vrooli",
       "required": false,
       "reason": "Structured scenario, resource, registry, and supervisor status is the authoritative monitoring input",
-      "when": ["setup"],
-      "platforms": ["linux", "macos", "windows"]
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ]
     },
     {
       "name": "journalctl",
       "required": false,
       "reason": "Linux journal evidence backend; absent on other platforms is reported as unsupported",
-      "when": ["develop"],
-      "platforms": ["linux"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "systemctl",
       "required": false,
       "reason": "Linux service observation and recovery backend; setup grants cover fixed recovery units",
-      "when": ["develop"],
-      "platforms": ["linux"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "docker",
       "required": false,
       "reason": "Docker resource health is monitored when Docker is installed",
-      "when": ["develop"],
-      "platforms": ["linux", "macos", "windows"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ]
     },
     {
       "name": "timedatectl",
       "required": false,
       "reason": "Linux clock synchronization observation; unsupported elsewhere",
-      "when": ["develop"],
-      "platforms": ["linux"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "resolvectl",
       "required": false,
       "reason": "Linux resolver observation; unsupported elsewhere",
-      "when": ["develop"],
-      "platforms": ["linux"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "apt-get",
       "required": false,
       "reason": "Optional Debian/Ubuntu package-event and remediation evidence",
-      "when": ["develop"],
-      "platforms": ["linux"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "apt-cache",
       "required": false,
       "reason": "Optional Debian/Ubuntu package candidate evidence",
-      "when": ["develop"],
-      "platforms": ["linux"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "dpkg-query",
       "required": false,
       "reason": "Optional Debian/Ubuntu package state evidence",
-      "when": ["develop"],
-      "platforms": ["linux"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "rpm",
       "required": false,
       "reason": "Optional Fedora/RHEL package state evidence",
-      "when": ["develop"],
-      "platforms": ["linux"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "dnf",
       "required": false,
       "reason": "Optional Fedora/RHEL package-event evidence",
-      "when": ["develop"],
-      "platforms": ["linux"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "pacman",
       "required": false,
       "reason": "Optional Arch package state evidence",
-      "when": ["develop"],
-      "platforms": ["linux"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "launchctl",
       "required": false,
       "reason": "macOS watchdog lifecycle backend",
-      "when": ["develop"],
-      "platforms": ["macos"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "macos"
+      ]
     },
     {
       "name": "log",
       "required": false,
       "reason": "macOS unified-log backend",
-      "when": ["develop"],
-      "platforms": ["macos"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "macos"
+      ]
     },
     {
       "name": "schtasks",
       "required": false,
       "reason": "Windows scheduled-task watchdog backend",
-      "when": ["develop"],
-      "platforms": ["windows"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "windows"
+      ]
     },
     {
       "name": "powershell.exe",
       "required": false,
       "reason": "Windows event-log backend",
-      "when": ["develop"],
-      "platforms": ["windows"]
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "windows"
+      ]
     }
   ],
   "hostSafeguards": [
@@ -365,8 +371,14 @@
       "name": "autoheal_recovery_privileges",
       "required": false,
       "reason": "Setup-provisioned Linux grant for fixed autoheal service recovery actions; unsupported on macOS and Windows",
-      "when": ["setup"],
-      "platforms": ["linux", "macos", "windows"]
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ]
     }
   ],
   "dependencies": {
@@ -461,6 +473,38 @@
         "pruner": "builtin",
         "rationale": "Incident forensics: one row per open incident per source check, throttled to a 30-minute quiet window unless the evidence changes. It had NO deletion path of any kind - no DELETE statement anywhere in the scenario and no ON DELETE CASCADE, so closing an incident never freed its observations and the table only ever grew. Measured at 0.249 GiB over 50 days (12,117 rows averaging 21 KB of evidence_json each, one incident alone holding 2,317), which is ~1 GiB/year at a healthy baseline. The rate is not the reason for the ceiling: growth scales with how many incidents are open, so it is fastest exactly when the fleet is broken and autoheal matters most. 90d keeps forensics across a full quarter of incident history; 512MiB is the bound for when that assumption stops holding.",
         "max_bytes": "512MiB"
+      }
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "pnpm",
+          "run",
+          "start"
+        ],
+        "cwd": "ui",
+        "port": "ui"
       }
     }
   }

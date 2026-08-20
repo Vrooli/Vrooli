@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Turning recorded intent into applied host state, and reporting honest readiness with a named remediation for every non-ready item.",
-    "last_validated_at": "2026-08-18T15:43:55-04:00",
+    "last_validated_at": "2026-08-19T14:39:07-04:00",
     "module": "onboarding.apply",
     "schema_version": "1.0.0"
   },

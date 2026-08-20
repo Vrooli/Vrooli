@@ -378,7 +378,9 @@ const literalSelectors = {
     input: "credential-input",
     save: "credential-save",
     obtainLink: "credential-obtain-link",
-    storeInitGuidance: "store-init-guidance",
+  },
+  capabilities: {
+    actions: "capability-actions",
   },
   scenario: {
     list: "scenario-list",

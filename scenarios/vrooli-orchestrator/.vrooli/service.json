@@ -111,101 +111,10 @@
       "startup_grace_period": 15000
     },
     "setup": {
-      "description": "Initialize Vrooli Orchestrator",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/vrooli-orchestrator-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "vrooli-orchestrator",
-            "targets": [
-              "vrooli-orchestrator"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o vrooli-orchestrator-api .",
-          "description": "Build Go orchestration API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && if [[ -f pnpm-lock.yaml ]]; then pnpm install --frozen-lockfile; else npm install; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && if [[ -f pnpm-lock.yaml ]]; then pnpm run build; else npm run build; fi",
-          "description": "Build profile management UI"
-        }
-      ]
+      "description": "Initialize Vrooli Orchestrator"
     },
     "develop": {
-      "description": "Start orchestrator with API server and dashboard UI",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./vrooli-orchestrator-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/vrooli-orchestrator-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && NODE_ENV=production node server.js",
-          "description": "Serve profile management dashboard from production bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for vrooli-orchestrator",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute vrooli-orchestrator --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop orchestrator services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"vrooli-orchestrator-api\" || true; sleep 1; pkill -9 -f \"vrooli-orchestrator-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"ui.*npm.*start\" || true; sleep 1; pkill -9 -f \"ui.*npm.*start\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
+      "description": "Start orchestrator with API server and dashboard UI"
     }
   },
   "dependencies": {
@@ -250,6 +159,40 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui",
+        "env": {
+          "NODE_ENV": "production"
+        }
+      }
     }
   }
 }

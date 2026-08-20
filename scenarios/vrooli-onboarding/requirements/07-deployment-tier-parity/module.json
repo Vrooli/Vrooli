@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "The same wizard on every deployment tier: local repository, desktop bundle, and remote host reached through vrooli-bridge or scenario-to-cloud.",
-    "last_validated_at": "2026-08-18T15:43:55-04:00",
+    "last_validated_at": "2026-08-19T14:39:07-04:00",
     "module": "onboarding.tiers",
     "schema_version": "1.0.0"
   },

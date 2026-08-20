@@ -187,12 +187,14 @@ func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
 		system.NewZombieCheck(),
 		system.NewPortCheck(),
 		system.NewClaudeCacheCheck(),
-		system.NewGPUCheck(),            // GPU health for AI/ML workloads
-		system.NewLoadCheck(),           // System load average monitoring
-		system.NewPstoreEvidenceCheck(), // Kernel crash dumps in /sys/fs/pstore
-		system.NewBootHistoryCheck(),    // Unclean shutdown detection
-		system.NewMCERecentCheck(),      // Recent hardware errors via rasdaemon
-		system.NewPMRuntimeHogCheck(),   // Kernel pm_runtime CPU hogs
+		system.NewGPUCheck(),                // GPU health for AI/ML workloads
+		system.NewLoadCheck(),               // System load average monitoring
+		system.NewPstoreEvidenceCheck(),     // Kernel crash dumps in /sys/fs/pstore
+		system.NewPanicEvidenceCheck(),      // Kernel panics captured by kdump
+		system.NewStaleServiceBinaryCheck(), // Supervised services running replaced binaries
+		system.NewBootHistoryCheck(),        // Unclean shutdown detection
+		system.NewMCERecentCheck(),          // Recent hardware errors via rasdaemon
+		system.NewPMRuntimeHogCheck(),       // Kernel pm_runtime CPU hogs
 	}
 	collector := hostinventory.NewCachedIntegrityCollector(hostinventory.NewIntegrityCollector(hostinventory.IntegrityCollectorOptions{}), 30*time.Second)
 	systemChecks = append(systemChecks, hostchecks.NewChecks(collector)...)

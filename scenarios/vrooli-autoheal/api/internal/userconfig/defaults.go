@@ -185,6 +185,21 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	},
 
 	// System checks
+	"system-stale-service-binary": {
+		Enabled: true,
+		// A supervised service running a replaced binary is exactly the kind of
+		// condition an operator should never have to notice: the fix is a
+		// restart of a unit designed to be restarted, and the restart already
+		// passes through the host-pressure gate that defers it while the
+		// machine is saturated.
+		//
+		// AutoHealOn must be warning+critical. The check reports a warning —
+		// stale code is wrong, not on fire — so the default "critical" trigger
+		// would leave it detected and never acted on.
+		AutoHeal:        true,
+		AutoHealOn:      "warning+critical",
+		IntervalSeconds: 300,
+	},
 	"system-disk": {
 		Enabled: true,
 		// Disk pressure IS auto-healable: the request-cleanup action reports

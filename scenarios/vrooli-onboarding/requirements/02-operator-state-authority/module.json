@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Operator-state write authority: one typed service, field-scoped merges, schema validation before write, and no second authority for any operator decision.",
-    "last_validated_at": "2026-08-18T15:43:55-04:00",
+    "last_validated_at": "2026-08-19T14:39:07-04:00",
     "module": "onboarding.state",
     "schema_version": "1.0.0"
   },

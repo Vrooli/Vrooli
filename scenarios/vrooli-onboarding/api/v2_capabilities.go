@@ -17,7 +17,7 @@ const capabilityActionTimeout = 30 * time.Second
 func (s *Server) handleV2Capabilities(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), capabilityActionTimeout)
 	defer cancel()
-	output, err := (controlPlaneExecutor{}).runNamedWithInput(ctx, nil, "capability", "status", "--json")
+	output, err := (controlPlaneExecutor{}).runNamedWithInput(ctx, nil, "vrooli", "capability", "status", "--json")
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "capability status is unavailable"})
 		return

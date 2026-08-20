@@ -209,10 +209,15 @@ curl http://localhost:15001/api/v1/profiles
 
 **CLI not found**
 ```bash
-# Add to PATH
-echo 'export PATH="$HOME/.vrooli/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
+# Put ~/.vrooli/bin on PATH exactly once, and first
+vrooli host safeguard path_hygiene
+exec $SHELL -l
 ```
+
+Do not append the export by hand. An unguarded `>> ~/.bashrc` runs again on
+every install and can only accumulate: one host reached 105 such lines and a
+236-entry PATH. The `path_hygiene` safeguard writes a marked, idempotent block
+instead, so a re-run replaces it rather than adding another copy.
 
 **API connection failed** 
 ```bash

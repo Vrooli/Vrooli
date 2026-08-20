@@ -293,3 +293,75 @@ func TestUpsertFromCheckResultBlocksNVIDIARemediationWithoutPackageCandidate(t *
 		t.Fatalf("remediation candidate applicability = %q, want blocked", input.RemediationCandidates[0].Applicability)
 	}
 }
+
+// A captured panic must become a critical unclean-boot incident identified by
+// what faulted, so one recurring defect stays one incident.
+func TestPanicEvidenceBecomesAnIdentifiedIncident(t *testing.T) {
+	base := checks.Result{
+		CheckID: "system-panic-evidence",
+		Status:  checks.StatusCritical,
+		Message: "Kernel panic captured by kdump: kernel BUG at fs/iomap/buffered-io.c:1061!",
+		Details: map[string]interface{}{
+			"latestStamp":  "202608191459",
+			"latestReason": "kernel BUG at fs/iomap/buffered-io.c:1061!",
+			"latestComm":   "kopia",
+		},
+	}
+
+	rule, ok := classifyResult(base)
+	if !ok {
+		t.Fatal("a captured panic must classify as an incident")
+	}
+	if rule.incidentType != TypeUncleanBoot {
+		t.Errorf("type = %v, want unclean_boot", rule.incidentType)
+	}
+	if rule.severity != SeverityCritical {
+		t.Errorf("severity = %v, want critical", rule.severity)
+	}
+
+	// The same defect crashing again is the same incident, even at a new stamp.
+	repeat := base
+	repeat.Details = map[string]interface{}{
+		"latestStamp":  "202608200800",
+		"latestReason": "kernel BUG at fs/iomap/buffered-io.c:1061!",
+		"latestComm":   "kopia",
+	}
+	repeatRule, _ := classifyResult(repeat)
+	if repeatRule.fingerprint != rule.fingerprint {
+		t.Error("the same panic at a later time must dedupe into one incident")
+	}
+
+	// A different panic is a different incident.
+	other := base
+	other.Details = map[string]interface{}{
+		"latestStamp":  "202608200900",
+		"latestReason": "Oops: general protection fault",
+		"latestComm":   "node",
+	}
+	otherRule, _ := classifyResult(other)
+	if otherRule.fingerprint == rule.fingerprint {
+		t.Error("a different panic must not collapse into the existing incident")
+	}
+}
+
+// A coverage gap is a warning about observability, not a claim that the host
+// crashed.
+func TestPanicEvidenceCoverageGapIsAWarning(t *testing.T) {
+	rule, ok := classifyResult(checks.Result{
+		CheckID: "system-panic-evidence",
+		Status:  checks.StatusWarning,
+		Details: map[string]interface{}{
+			"coverageGap":       true,
+			"coverageGapReason": "crashdump_export_missing",
+		},
+	})
+	if !ok {
+		t.Fatal("a coverage gap must classify as an incident")
+	}
+	if rule.severity != SeverityWarning {
+		t.Errorf("severity = %v, want warning", rule.severity)
+	}
+	if rule.incidentType != TypeAutohealFailure {
+		t.Errorf("type = %v, want autoheal_failure", rule.incidentType)
+	}
+}

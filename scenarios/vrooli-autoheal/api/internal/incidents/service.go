@@ -225,6 +225,26 @@ func classifyResult(result checks.Result) (incidentRule, bool) {
 			return incidentRule{incidentType: TypeHostIntegrity, severity: SeverityWarning, title: "Userspace pstore artifacts detected", fingerprint: Fingerprint(string(TypeHostIntegrity), result.CheckID, "pmsg")}, true
 		}
 		return incidentRule{incidentType: TypeUncleanBoot, severity: severity, title: "Kernel crash artifacts detected", fingerprint: Fingerprint(string(TypeUncleanBoot), result.CheckID)}, true
+	case "system-panic-evidence":
+		if boolDetail(result.Details, "coverageGap") {
+			return incidentRule{
+				incidentType: TypeAutohealFailure,
+				severity:     SeverityWarning,
+				title:        "Kernel panic evidence coverage gap detected",
+				fingerprint:  Fingerprint(string(TypeAutohealFailure), result.CheckID, stringDetail(result.Details, "coverageGapReason")),
+			}, true
+		}
+		// Identify the panic by what faulted, not by when. A recurring driver
+		// bug is one incident whose evidence keeps updating; a genuinely
+		// different panic gets its own record. Fingerprinting on the timestamp
+		// instead would turn one defect into an unbounded stream of incidents.
+		return incidentRule{
+			incidentType: TypeUncleanBoot,
+			severity:     severity,
+			title:        "Kernel panic captured by kdump",
+			fingerprint: Fingerprint(string(TypeUncleanBoot), result.CheckID,
+				stringDetail(result.Details, "latestReason"), stringDetail(result.Details, "latestComm")),
+		}, true
 	case "system-mce-recent":
 		if boolDetail(result.Details, "coverageGap") {
 			return incidentRule{

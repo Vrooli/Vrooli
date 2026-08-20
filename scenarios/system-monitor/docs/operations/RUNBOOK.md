@@ -154,11 +154,18 @@ and `forbidden` are withheld and reported in the response.
 
 ### Host floor
 
-Underneath both sits `scripts/emergency-watchdog.sh`, which needs no Go
-toolchain. It watches available (not free) space, requests `high`-band cleanup
-below its floor and `critical` below half the floor, bounds its own log, and
-tolerates a failed write — during the incident it died with
-`printf: write error: No space left on device`.
+Underneath both sits the emergency watchdog at
+`~/.vrooli/libexec/emergency-watchdog.sh`, installed by the `emergency_watchdog`
+safeguard (`vrooli setup`) and run every five minutes by a systemd user timer.
+It needs no Go toolchain. It watches available (not free) space, requests
+`high`-band cleanup below its floor and `critical` below half the floor, bounds
+its own log, and tolerates a failed write — during the 2026-07-31 incident it
+died with `printf: write error: No space left on device`.
+
+Since 2026-08-19 it also holds its unit restarts while the host is saturated
+(CPU PSI `some.avg10` at or above its threshold): restarting into a machine that
+cannot schedule adds load to a load problem. Thresholds are safeguard config,
+not edits to the script, which is managed and overwritten by setup.
 
 Host-level steps (tmpfiles override, filesystem reserve, journal bounds) are in
 [docs/reference/environment-management.md](../../../../docs/reference/environment-management.md#host-disk-floor-operator-steps).

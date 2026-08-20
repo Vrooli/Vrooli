@@ -95,7 +95,7 @@ func (e controlPlaneExecutor) runCapabilityJSON(ctx context.Context, action stri
 	if err != nil {
 		return nil, fmt.Errorf("encode capability action: %w", err)
 	}
-	return e.runNamedWithInput(ctx, []byte(append(payload, '\n')), "capability", action, "--json")
+	return e.runNamedWithInput(ctx, []byte(append(payload, '\n')), "vrooli", "capability", action, "--json")
 }
 
 func (controlPlaneExecutor) runNamed(ctx context.Context, name string, args ...string) error {

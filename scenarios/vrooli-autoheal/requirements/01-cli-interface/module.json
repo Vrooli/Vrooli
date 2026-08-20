@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-13T06:49:36-04:00"
+    "last_validated_at": "2026-08-18T16:36:55-04:00"
   },
   "requirements": [
     {
       "id": "CLI-TICK-001",
       "title": "Tick command executes single health cycle",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "vrooli-autoheal tick runs platform detection, bootstrap, watchdog verification, and all health checks once",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CLI-TICK-002",
       "title": "Tick command emits structured output",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "Tick outputs JSON-formatted health results when --json flag is provided",
@@ -31,14 +31,14 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CLI-LOOP-001",
       "title": "Loop command runs continuously",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "vrooli-autoheal loop repeatedly calls tick logic at configurable interval",
@@ -47,7 +47,7 @@
           "type": "test",
           "ref": "cli/loop/main_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Continuous run test pending"
         }
       ]
@@ -55,7 +55,7 @@
     {
       "id": "CLI-LOOP-002",
       "title": "Loop interval is configurable",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "--interval-seconds flag allows setting loop interval (default 60s)",
@@ -64,14 +64,14 @@
           "type": "test",
           "ref": "cli/loop/main_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CLI-LOOP-003",
       "title": "Loop handles errors gracefully",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "Transient errors are logged and loop continues; only fatal errors cause exit",
@@ -80,14 +80,14 @@
           "type": "test",
           "ref": "cli/loop/main_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CLI-STATUS-001",
       "title": "Status command shows health summary",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "criticality": "P0",
       "description": "vrooli-autoheal status displays last-known health results from persisted data",
@@ -96,14 +96,14 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CLI-STATUS-002",
       "title": "Status supports JSON output",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "criticality": "P0",
       "description": "--json flag outputs machine-readable health summary",
@@ -112,7 +112,7 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

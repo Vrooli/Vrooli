@@ -20,7 +20,7 @@ export function CapabilityActions({ statuses, onRefresh }: CapabilityActionsProp
   const secretValues = useRef<Record<string, Record<string, string>>>({});
   const [, refreshInputs] = useState(0);
 
-  const visible = useMemo(() => statuses.filter((status) => status.descriptor.inputs?.length), [statuses]);
+  const visible = useMemo(() => statuses, [statuses]);
 
   if (visible.length === 0) return null;
 
@@ -115,6 +115,7 @@ function CapabilityCard({
   onApply: () => Promise<void>;
 }) {
   const descriptor = status.descriptor;
+  const hasAction = (descriptor.inputs ?? []).length > 0;
   const missing = new Set(status.missing_inputs ?? []);
   const canPreview = descriptor.inputs?.filter((input) => input.required && input.kind !== "confirmation").every((input) => hasInput(input, values, secretValues, missing)) ?? false;
   const canApply = Boolean(preview && confirmed && canPreview);
@@ -131,17 +132,17 @@ function CapabilityCard({
     {descriptor.risk && <p className="mt-2 text-xs text-warning">Risk: {descriptor.risk}</p>}
     {status.remediation && <p className="mt-2 text-xs text-primary-soft">Next: {status.remediation}</p>}
     {(status.evidence ?? []).length > 0 && <EvidenceList evidence={status.evidence ?? []} />}
-    <div className="mt-3 space-y-3">
+    {hasAction && <div className="mt-3 space-y-3">
       {(descriptor.inputs ?? []).map((input) => <CapabilityInput key={input.id} input={input} value={input.kind === "secret" ? secretValues[input.id] : values[input.id]} missing={missing.has(input.id)} onValue={(value) => onValue(input.id, value, input.kind === "secret")} />)}
-    </div>
-    {descriptor.policy.requires_confirmation && <label className="mt-3 flex items-start gap-2 text-sm"><input data-testid={`capability-confirm-${descriptor.id}`} type="checkbox" checked={confirmed} onChange={(event) => onConfirm(event.target.checked)} className="mt-1 h-4 w-4" /><span>I reviewed the provider preview and authorize its declared mutations. This confirmation is required for every apply.</span></label>}
+    </div>}
+    {hasAction && descriptor.policy.requires_confirmation && <label className="mt-3 flex items-start gap-2 text-sm"><input data-testid={`capability-confirm-${descriptor.id}`} type="checkbox" checked={confirmed} onChange={(event) => onConfirm(event.target.checked)} className="mt-1 h-4 w-4" /><span>I reviewed the provider preview and authorize its declared mutations. This confirmation is required for every apply.</span></label>}
     {error && <p className="mt-3 text-sm text-danger" role="alert">{error}</p>}
     {preview && <div className="mt-3 rounded-md border border-primary-soft/30 bg-primary-soft/10 p-3 text-sm" data-testid={`capability-preview-${descriptor.id}`}><p className="font-medium">Review preview</p><ul className="mt-1 list-disc pl-5">{(preview.mutations ?? []).map((mutation) => <li key={mutation.id}>{mutation.summary}{mutation.reversible ? " · reversible" : ""}</li>)}</ul>{preview.remediation && <p className="mt-2 text-xs text-muted">{preview.remediation}</p>}</div>}
     {result && <div className={`mt-3 rounded-md border p-3 text-sm ${result.state === "ready" ? "border-primary-soft/30 bg-primary-soft/10" : "border-warning/30 bg-warning-surface"}`} data-testid={`capability-result-${descriptor.id}`} role="status"><p className="font-medium">{result.outcome} · {result.state}</p>{result.remediation && <p className="mt-1 text-xs text-muted">{result.remediation}</p>}{result.evidence && <EvidenceList evidence={result.evidence} />}</div>}
-    <div className="mt-3 flex flex-wrap gap-2">
+    {hasAction && <div className="mt-3 flex flex-wrap gap-2">
       <Button type="button" variant="outline" disabled={busy || !canPreview} onClick={() => { void onPreview(); }}>{busy ? "Working…" : "Preview"}</Button>
       <Button type="button" disabled={busy || !canApply} onClick={() => { void onApply(); }}>Apply reviewed capability</Button>
-    </div>
+    </div>}
   </article>;
 }
 
@@ -161,8 +162,8 @@ function EvidenceList({ evidence }: { evidence: Array<{ kind: string; artifact_i
 
 function hasInput(input: CapabilityInput, values: Record<string, InputValue>, secretValues: Record<string, string>, missing: Set<string>) {
   if (!input.required) return true;
-  if (missing.has(input.id) && values[input.id] === undefined && !input.default) return false;
   const value = input.kind === "secret" ? secretValues[input.id] : values[input.id] ?? input.default;
+  if (missing.has(input.id) && (value === undefined || value === "") && !input.default) return false;
   return typeof value === "boolean" ? true : Boolean(value && value.trim());
 }
 

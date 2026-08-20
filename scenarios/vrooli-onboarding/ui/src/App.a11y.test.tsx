@@ -6,5 +6,6 @@ describe("App accessibility", () => {
   it("has no axe violations in the initial operator flow", async () => {
     const { container } = renderWithQueryClient(<App />);
     await expectNoA11yViolations(container);
+    expect(container).toBeTruthy();
   });
 });

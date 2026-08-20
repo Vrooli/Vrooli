@@ -16,6 +16,41 @@ Read the item's remediation text — it is specific to the cause, not generic.
 After any fix, use **Recheck** rather than reloading. The probe pass is cheap and
 the reload loses your position.
 
+## Generic operator capabilities
+
+The Credentials step is descriptor-driven. Setup discovers capabilities without
+asking for values; onboarding then presents candidate metadata, typed inputs,
+the exact preview mutations, confirmation, and metadata-only evidence:
+
+```bash
+vrooli capability status --json
+```
+
+Select a sink only from the provider's candidates. Review the containment,
+writability, stable identity, and physical-independence evidence before
+confirming. The recovery passphrase is write-only and ephemeral. It must be
+held separately from the encrypted recovery artifact and is never entered in a
+shell argument or saved in operator state.
+
+An apply is ready only when its owner reports verified evidence. For credential
+escrow that means an encrypted root-copy read-back, an encrypted recovery-bundle
+decrypt/read-back with current coverage, and a supported schedule (or an
+explicit degraded/manual schedule result). For durable data protection, the
+data-backup-manager owner separately supplies destination readiness, a
+successful snapshot, a scratch restore checksum, and a verified recovery
+drill. Onboarding renders these owner reports; it does not execute backup or
+restore operations.
+
+If an apply returns `degraded` or `retryable_failure`, keep the existing valid
+artifact, follow the returned remediation, and retry after correcting that
+condition. A missing candidate, unknown physical independence, stale coverage,
+or unsupported scheduler is not a success. Re-running setup, status, preview,
+or apply is safe and converges through the provider's idempotency key.
+
+Do not promote the current disabled temporary sink during migration. Preserve
+the old configuration until the operator has selected a new sink and reviewed
+the first successful evidence set.
+
 ## Apply reported partial
 
 The report names each failed item, its remediation, and which dependants were

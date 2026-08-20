@@ -217,6 +217,90 @@ describe("V2 onboarding wizard steps", () => {
     expect(screen.queryByText("secret-value")).not.toBeInTheDocument();
   });
 
+  it("renders evidence-only providers without inventing an action control", async () => {
+    api.fetchCapabilities.mockResolvedValueOnce({
+      count: 1,
+      capabilities: [{
+        descriptor: {
+          version: "operator-capability/v1", id: "durable-backup-evidence", owner: "data-backup-manager", title: "Durable backup and recovery evidence",
+          description: "Read-only owner evidence.", inputs: [],
+          policy: { requires_confirmation: false, idempotent: true, retryable: true }, evidence: { secret_free: true, kinds: ["recovery-drill"] },
+        },
+        state: "degraded", evidence: [{ kind: "recovery-drill", artifact_identity: "data-backup-manager/drill/drill-1", observed_at: "now", verified: true }],
+        remediation: "run a recovery drill",
+      }],
+    });
+    renderWithProviders(<StepReadiness title="Credentials" />);
+    expect(await screen.findByTestId("capability-card-durable-backup-evidence")).toHaveTextContent("recovery-drill · verified");
+    expect(screen.getByTestId("capability-card-durable-backup-evidence")).toHaveTextContent("run a recovery drill");
+    expect(screen.queryByRole("button", { name: "Preview" })).not.toBeInTheDocument();
+  });
+
+  it("keeps capability secrets write-only and clears them after apply", async () => {
+    api.previewCapability.mockClear();
+    api.applyCapability.mockClear();
+    api.fetchCapabilities.mockResolvedValueOnce({
+      count: 1,
+      capabilities: [{
+        descriptor: {
+          version: "operator-capability/v1", id: "secret-capability", owner: "demo.owner", title: "Protect a secret",
+          inputs: [
+            { id: "destination", kind: "path", label: "Destination", required: true },
+            { id: "passphrase", kind: "secret", label: "Passphrase", required: true },
+          ],
+          policy: { requires_confirmation: true, idempotent: true, retryable: true }, evidence: { secret_free: true, kinds: ["demo"] },
+        },
+        state: "needs_operator_input", missing_inputs: ["destination", "passphrase"], remediation: "Choose a destination and enter the passphrase.", updated_at: "now",
+      }],
+    });
+    renderWithProviders(<StepReadiness title="Credentials" />);
+    expect(await screen.findByTestId("capability-card-secret-capability")).toBeInTheDocument();
+    const destination = screen.getByLabelText("Destination");
+    fireEvent.change(destination, { target: { value: "/mnt/approved" } });
+    await waitFor(() => expect(destination).toHaveValue("/mnt/approved"));
+    const passphrase = screen.getByLabelText("Passphrase");
+    fireEvent.change(passphrase, { target: { value: "ephemeral-passphrase" } });
+    await waitFor(() => expect(passphrase).toHaveValue("ephemeral-passphrase"));
+    fireEvent.click(screen.getByTestId("capability-confirm-secret-capability"));
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    await waitFor(() => expect(api.previewCapability).toHaveBeenCalledWith({ capability_id: "secret-capability", confirm: false, inputs: { destination: "/mnt/approved", passphrase: "ephemeral-passphrase" } }));
+    fireEvent.click(await screen.findByRole("button", { name: "Apply reviewed capability" }));
+    await waitFor(() => expect(api.applyCapability).toHaveBeenCalledWith({ capability_id: "secret-capability", confirm: true, inputs: { destination: "/mnt/approved", passphrase: "ephemeral-passphrase" } }));
+    expect(screen.getByLabelText("Passphrase")).toHaveValue("");
+    expect(screen.getByTestId("capability-result-secret-capability")).not.toHaveTextContent("ephemeral-passphrase");
+  });
+
+  it("reports preview and apply failures without claiming success", async () => {
+    api.fetchCapabilities.mockResolvedValueOnce({
+      count: 1,
+      capabilities: [{
+        descriptor: {
+          version: "operator-capability/v1", id: "failing-capability", owner: "demo.owner", title: "A failing capability",
+          inputs: [
+            { id: "destination", kind: "path", label: "Destination", required: true },
+            { id: "enabled", kind: "boolean", label: "Enabled", required: true },
+          ],
+          policy: { requires_confirmation: true, idempotent: true, retryable: true }, evidence: { secret_free: true, kinds: ["demo"] },
+        },
+        state: "needs_operator_input", missing_inputs: ["destination", "enabled"], remediation: "Choose a destination.", updated_at: "now",
+      }],
+    });
+    api.previewCapability.mockRejectedValueOnce(new Error("preview unavailable"));
+    renderWithProviders(<StepReadiness title="Credentials" />);
+    fireEvent.change(await screen.findByLabelText("Destination"), { target: { value: "/mnt/approved" } });
+    fireEvent.click(screen.getByLabelText(/Enabled/));
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("The capability preview failed");
+
+    api.previewCapability.mockResolvedValueOnce({ capability_id: "failing-capability", plan_id: "demo-plan", state: "ready_to_preview", mutations: [] });
+    api.applyCapability.mockRejectedValueOnce(new Error("apply unavailable"));
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    await waitFor(() => expect(screen.getByTestId("capability-preview-failing-capability")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("capability-confirm-failing-capability"));
+    fireEvent.click(screen.getByRole("button", { name: "Apply reviewed capability" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("The capability could not be applied");
+  });
+
   it("does not render manual recovery commands in the onboarding action surface", async () => {
     api.fetchV2Readiness.mockResolvedValueOnce({
       status: "missing",

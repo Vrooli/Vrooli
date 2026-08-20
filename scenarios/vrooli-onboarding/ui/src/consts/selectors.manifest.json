@@ -284,9 +284,9 @@
       "testId": "credential-obtain-link",
       "selector": "[data-testid=\"credential-obtain-link\"]"
     },
-    "credentials.storeInitGuidance": {
-      "testId": "store-init-guidance",
-      "selector": "[data-testid=\"store-init-guidance\"]"
+    "capabilities.actions": {
+      "testId": "capability-actions",
+      "selector": "[data-testid=\"capability-actions\"]"
     },
     "scenario.list": {
       "testId": "scenario-list",
