@@ -153,6 +153,23 @@ external delegation, durable runs) go in the manifest's top-level `exceptions[]`
 
 ## Adding a new command
 
+### Persona command groups
+
+The shipped surface has one report-shaped group for each product domain:
+
+| Group | Purpose |
+|---|---|
+| `persona personas` | Create, inspect, list, archive, and health-check persona records |
+| `persona access` | Resolve identity, act as a persona, and manage operator grants |
+| `persona channels` | Bind controlled routes, send messages, and retrieve one-time codes |
+| `persona handoffs` | Open, inspect, complete, cancel, resume, and prepare human checkpoints |
+| `persona documents` | Bind document-manager references and release them into named handoffs |
+| `persona accounts` | Link accounts, manage addresses and obligations, and release an address |
+| `persona journal` | Append and list immutable persona evidence |
+
+All seven groups are loaded from the manifest and use typed proto primitives;
+human output is a report and `--json` is the corresponding machine shape.
+
 For a new domain, copy the worked CRUD command group in the fenced
 example above first, then replace it once your real domain is green.
 

@@ -70,6 +70,38 @@ func TestBindingFailsClosedButExistingBindingsRemainListable(t *testing.T) {
 	}
 }
 
+func TestReleaseFailsClosedButExistingBindingsRemainListable(t *testing.T) {
+	// [REQ:PSN-P0-008] and [REQ:PSN-P0-009] an authority outage prevents
+	// disclosure while metadata already held by Persona remains readable.
+	repo := &FakeRepository{
+		ListFunc: func(context.Context, string) ([]Binding, error) {
+			return []Binding{{ID: "binding-1", PersonaID: "persona-1", DocumentID: "document-1"}}, nil
+		},
+		GetFunc: func(context.Context, string, string) (Binding, error) {
+			return Binding{ID: "binding-1", PersonaID: "persona-1", DocumentID: "document-1"}, nil
+		},
+	}
+	service := NewService(repo,
+		documentPersonaFunc(func(context.Context, string) (personas.Persona, error) { return documentPersona(), nil }),
+		documentHandoffFunc(func(context.Context, string) (handoffs.Handoff, error) { return documentHandoff(), nil }),
+		FakeAuthority{
+			CheckFunc: func(context.Context) error { return errors.New("document-manager stopped") },
+			ReleaseFunc: func(context.Context, string, string) (string, error) {
+				t.Fatal("Release() called while document-manager is unavailable")
+				return "", nil
+			},
+		}, nil, nil)
+
+	_, err := service.ReleaseIntoHandoff(context.Background(), ReleaseInput{PersonaID: "persona-1", DocumentID: "document-1", HandoffID: "handoff-1"})
+	if !errors.Is(err, ErrDocumentAuthorityUnavailable) {
+		t.Fatalf("ReleaseIntoHandoff() error = %v", err)
+	}
+	bindings, err := service.List(context.Background(), "persona-1")
+	if err != nil || len(bindings) != 1 {
+		t.Fatalf("List() = %#v, %v", bindings, err)
+	}
+}
+
 func TestReleaseRequiresNamedMatchingHandoff(t *testing.T) {
 	// [REQ:PSN-P0-009] release is server-bound to a pre-declared handoff.
 	repo := &FakeRepository{
@@ -101,6 +133,65 @@ func TestReleaseRequiresNamedMatchingHandoff(t *testing.T) {
 	}
 }
 
+func TestReleaseIsIdempotentPerHandoff(t *testing.T) {
+	// [REQ:PSN-P0-009] retrying an already recorded release must not disclose
+	// the document a second time.
+	release := Release{}
+	releaseCalls := 0
+	repo := &FakeRepository{
+		GetFunc: func(_ context.Context, personaID, documentID string) (Binding, error) {
+			return Binding{ID: "binding-1", PersonaID: personaID, DocumentID: documentID}, nil
+		},
+		GetReleaseFunc: func(_ context.Context, handoffID, documentID string) (Release, error) {
+			if release.ID == "" {
+				return Release{}, ErrReleaseNotFound
+			}
+			return release, nil
+		},
+		CreateReleaseFunc: func(_ context.Context, candidate Release) (Release, error) {
+			release = candidate
+			return release, nil
+		},
+	}
+	service := NewService(repo,
+		documentPersonaFunc(func(context.Context, string) (personas.Persona, error) { return documentPersona(), nil }),
+		documentHandoffFunc(func(context.Context, string) (handoffs.Handoff, error) { return documentHandoff(), nil }),
+		FakeAuthority{
+			CheckFunc: func(context.Context) error { return nil },
+			ReleaseFunc: func(context.Context, string, string) (string, error) {
+				releaseCalls++
+				return "release-1", nil
+			},
+		}, nil, nil)
+
+	first, err := service.ReleaseIntoHandoff(context.Background(), ReleaseInput{PersonaID: "persona-1", DocumentID: "document-1", HandoffID: "handoff-1"})
+	if err != nil {
+		t.Fatalf("first release = %#v, %v", first, err)
+	}
+	second, err := service.ReleaseIntoHandoff(context.Background(), ReleaseInput{PersonaID: "persona-1", DocumentID: "document-1", HandoffID: "handoff-1"})
+	if err != nil || second.ID != first.ID || releaseCalls != 1 {
+		t.Fatalf("idempotent release = %#v, %v, authority calls = %d", second, err, releaseCalls)
+	}
+}
+
+func TestReleaseRejectsClosedHandoff(t *testing.T) {
+	// [REQ:PSN-P0-009] a matching document cannot be released into a terminal
+	// handoff, even when the document-manager is healthy.
+	repo := &FakeRepository{GetFunc: func(context.Context, string, string) (Binding, error) {
+		return Binding{ID: "binding-1", PersonaID: "persona-1", DocumentID: "document-1"}, nil
+	}}
+	service := NewService(repo,
+		documentPersonaFunc(func(context.Context, string) (personas.Persona, error) { return documentPersona(), nil }),
+		documentHandoffFunc(func(context.Context, string) (handoffs.Handoff, error) {
+			return handoffs.Handoff{ID: "handoff-1", PersonaID: "persona-1", State: handoffs.StateCompleted, Checkpoint: handoffs.Checkpoint{RequiredDocumentIDs: []string{"document-1"}}}, nil
+		}),
+		FakeAuthority{CheckFunc: func(context.Context) error { return nil }}, nil, nil)
+	_, err := service.ReleaseIntoHandoff(context.Background(), ReleaseInput{PersonaID: "persona-1", DocumentID: "document-1", HandoffID: "handoff-1"})
+	if !errors.Is(err, ErrHandoffClosed) {
+		t.Fatalf("closed handoff error = %v", err)
+	}
+}
+
 func TestDocumentDescriptorHasNoContentReadPath(t *testing.T) {
 	// [REQ:PSN-P0-008] the generated contract structurally exposes references and release only.
 	methods := documentsv1.File_persona_v1_documents_documents_proto.Services().ByName("DocumentsService").Methods()
@@ -116,6 +207,17 @@ func TestDocumentDescriptorHasNoContentReadPath(t *testing.T) {
 			if strings.Contains(fieldName, "content") || strings.Contains(fieldName, "bytes") || strings.Contains(fieldName, "blob") {
 				t.Fatalf("document content field exposed: %s", fields.Get(j).Name())
 			}
+		}
+	}
+}
+
+func TestDocumentSchemaContainsReferencesOnly(t *testing.T) {
+	// [REQ:PSN-P0-008] the durable schema contains IDs and timestamps, never
+	// document payloads or credential material.
+	schema := strings.ToLower(schemaSQL)
+	for _, forbidden := range []string{"bytes", "content", "blob", "download", "credential_value", "secret_value"} {
+		if strings.Contains(schema, forbidden) {
+			t.Fatalf("document schema contains forbidden payload field %q", forbidden)
 		}
 	}
 }

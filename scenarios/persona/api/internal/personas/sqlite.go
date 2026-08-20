@@ -130,15 +130,16 @@ type rowScanner interface{ Scan(...any) error }
 
 func scanPersona(row rowScanner) (Persona, error) {
 	var p Persona
-	var kind, status, created, archived string
+	var kind, status, created string
+	var archived sql.NullString
 	if err := row.Scan(&p.ID, &kind, &p.LegalBasis.SubjectID, &p.LegalBasis.SubjectName, &p.LegalBasis.BasisType, &p.DisplayName, &status, &created, &archived); err != nil {
 		return Persona{}, err
 	}
 	p.Kind = Kind(kind)
 	p.Status = Status(status)
 	p.CreatedAt, _ = time.Parse(timeFormat, created)
-	if archived != "" {
-		at, err := time.Parse(timeFormat, archived)
+	if archived.Valid && archived.String != "" {
+		at, err := time.Parse(timeFormat, archived.String)
 		if err != nil {
 			return Persona{}, fmt.Errorf("parse archived_at: %w", err)
 		}

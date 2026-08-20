@@ -3,6 +3,7 @@ package access
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -36,6 +37,9 @@ func (h *connectHandler) ResolvePersona(ctx context.Context, req *connect.Reques
 }
 
 func (h *connectHandler) CreateGrant(ctx context.Context, req *connect.Request[accessv1.CreateGrantRequest]) (*connect.Response[accessv1.CreateGrantResponse], error) {
+	if err := rejectAgentACLMutation(req); err != nil {
+		return nil, err
+	}
 	grant, err := h.service.CreateGrant(ctx, domain.GrantInput{PersonaID: req.Msg.GetPersonaId(), HumanSubject: req.Msg.GetHumanSubject(), Level: fromGrantLevel(req.Msg.GetLevel()), Source: req.Msg.GetSource()})
 	if err != nil {
 		return nil, accessError(err)
@@ -56,10 +60,20 @@ func (h *connectHandler) ListGrants(ctx context.Context, req *connect.Request[ac
 }
 
 func (h *connectHandler) RemoveGrant(ctx context.Context, req *connect.Request[accessv1.RemoveGrantRequest]) (*connect.Response[accessv1.RemoveGrantResponse], error) {
+	if err := rejectAgentACLMutation(req); err != nil {
+		return nil, err
+	}
 	if err := h.service.RemoveGrant(ctx, req.Msg.GetGrantId()); err != nil {
 		return nil, accessError(err)
 	}
 	return connect.NewResponse(&accessv1.RemoveGrantResponse{}), nil
+}
+
+func rejectAgentACLMutation[T any](req *connect.Request[T]) error {
+	if req != nil && strings.TrimSpace(req.Header().Get(cliutil.HeaderAgentIdentityToken)) != "" {
+		return accessError(domain.ErrAgentACLMutation)
+	}
+	return nil
 }
 
 func (h *connectHandler) IssueAttestation(ctx context.Context, req *connect.Request[accessv1.IssueAttestationRequest]) (*connect.Response[accessv1.IssueAttestationResponse], error) {
@@ -77,7 +91,7 @@ func (h *connectHandler) IssueAttestation(ctx context.Context, req *connect.Requ
 func accessError(err error) error {
 	code := connect.CodeInternal
 	switch {
-	case errors.Is(err, domain.ErrMissingPersona), errors.Is(err, domain.ErrInvalidIdentity), errors.Is(err, domain.ErrPersonaBinding), errors.Is(err, domain.ErrScopeMissing), errors.Is(err, domain.ErrProposeOnly), errors.Is(err, domain.ErrAttestationExpiry):
+	case errors.Is(err, domain.ErrMissingPersona), errors.Is(err, domain.ErrInvalidIdentity), errors.Is(err, domain.ErrPersonaBinding), errors.Is(err, domain.ErrScopeMissing), errors.Is(err, domain.ErrProposeOnly), errors.Is(err, domain.ErrAttestationExpiry), errors.Is(err, domain.ErrAgentACLMutation):
 		code = connect.CodePermissionDenied
 	case errors.Is(err, domain.ErrAttestationSigner):
 		code = connect.CodeFailedPrecondition

@@ -113,17 +113,33 @@ describe("persona product pages", () => {
     expect(await screen.findByText("Ada's persona")).toBeInTheDocument();
     expect(screen.getByText("Mailbox is offline")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Retrieve code" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("123456");
+    const announcement = await screen.findByRole("status");
+    expect(announcement).toHaveTextContent("123456");
+    expect(announcement).toHaveAttribute("aria-live", "polite");
   });
 
-  it("keeps handoffs resumable and completes the human step", async () => {
+  it("keeps handoffs resumable and completes the human step by keyboard", async () => {
     const user = userEvent.setup();
     renderRoute(<HandoffsPage />, "/handoffs");
     expect(await screen.findByText("Confirm identity")).toBeInTheDocument();
-    await user.click(screen.getByText("Confirm identity"));
+    const handoffLink = screen.getByRole("link", { name: /Confirm identity/ });
+    handoffLink.focus();
+    await user.keyboard("{Enter}");
     expect(await screen.findByText("Completed fields")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Mark human step complete" }));
+    const completeButton = screen.getByRole("button", { name: "Mark human step complete" });
+    completeButton.focus();
+    await user.keyboard("{Enter}");
     await waitFor(() => expect(api.completeHandoff).toHaveBeenCalledWith("h1"));
+  });
+
+  it("renders terminal handoff state as text, not colour alone", async () => {
+    api.listAllHandoffs.mockResolvedValueOnce([
+      { ...handoff, state: HandoffState.EXPIRED, title: "Expired identity" },
+      { ...handoff, id: "h2", state: HandoffState.CANCELLED, title: "Cancelled identity" },
+    ]);
+    renderRoute(<HandoffsPage />, "/handoffs");
+    expect(await screen.findByText("Expired")).toBeInTheDocument();
+    expect(screen.getByText("Cancelled")).toBeInTheDocument();
   });
 
   it("renders append-only journal evidence", async () => {

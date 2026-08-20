@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliutil"
 	handoffs_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/handoffs"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	domain "persona/internal/handoffs"
@@ -18,7 +19,7 @@ func NewConnectHandler(service domain.Service) *connectHandler {
 }
 
 func (h *connectHandler) OpenHandoff(ctx context.Context, req *connect.Request[handoffs_v1.OpenHandoffRequest]) (*connect.Response[handoffs_v1.OpenHandoffResponse], error) {
-	out, err := h.service.Open(ctx, domain.OpenInput{PersonaID: req.Msg.GetPersonaId(), Kind: req.Msg.GetKind(), Title: req.Msg.GetTitle(), HumanAction: req.Msg.GetHumanAction(), Checkpoint: fromCheckpoint(req.Msg.GetCheckpoint()), Deadline: timeFromProto(req.Msg.GetDeadline())})
+	out, err := h.service.Open(ctx, domain.OpenInput{PersonaID: req.Msg.GetPersonaId(), Kind: req.Msg.GetKind(), Title: req.Msg.GetTitle(), HumanAction: req.Msg.GetHumanAction(), IdentityToken: req.Header().Get(cliutil.HeaderAgentIdentityToken), Checkpoint: fromCheckpoint(req.Msg.GetCheckpoint()), Deadline: timeFromProto(req.Msg.GetDeadline())})
 	if err != nil {
 		return nil, handoffError(err)
 	}
@@ -70,7 +71,7 @@ func (h *connectHandler) ResumeHandoff(ctx context.Context, req *connect.Request
 }
 
 func (h *connectHandler) PrepareEnrolment(ctx context.Context, req *connect.Request[handoffs_v1.PrepareEnrolmentRequest]) (*connect.Response[handoffs_v1.PrepareEnrolmentResponse], error) {
-	fields, handoff, err := h.service.PrepareEnrolment(ctx, domain.EnrolmentInput{PersonaID: req.Msg.GetPersonaId(), Target: req.Msg.GetTarget(), RequiredFields: req.Msg.GetRequiredFields()})
+	fields, handoff, err := h.service.PrepareEnrolment(ctx, domain.EnrolmentInput{PersonaID: req.Msg.GetPersonaId(), Target: req.Msg.GetTarget(), IdentityToken: req.Header().Get(cliutil.HeaderAgentIdentityToken), RequiredFields: req.Msg.GetRequiredFields()})
 	if err != nil {
 		return nil, handoffError(err)
 	}
@@ -88,6 +89,9 @@ func handoffError(err error) error {
 	}
 	if errors.Is(err, domain.ErrInvalidTransition) || errors.Is(err, domain.ErrExpired) {
 		code = connect.CodeFailedPrecondition
+	}
+	if errors.Is(err, domain.ErrProposalDenied) {
+		code = connect.CodePermissionDenied
 	}
 	return connect.NewError(code, err)
 }

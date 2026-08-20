@@ -186,7 +186,8 @@ func main() {
 	})
 	personaService := personas.NewServiceWithHealth(personas.NewSQLiteRepository(db, clock), healthProvider)
 	journalService := journal.NewService(journal.NewSQLiteRepository(db, clock))
-	handoffService := handoffs.NewServiceWithRelay(handoffs.NewSQLiteRepository(db, clock), personaService, journalService, notificationRelay(), clock)
+	accessService := access.NewService(access.NewSQLiteRepository(db, clock), personaService, journalService, access.LiveVerifier{}, access.ServiceOptions{Clock: clock, Secret: []byte(os.Getenv("PERSONA_ATTESTATION_SECRET")), KeyID: "persona-local"})
+	handoffService := handoffs.NewServiceWithRelayAndAuthorizer(handoffs.NewSQLiteRepository(db, clock), personaService, journalService, notificationRelay(), accessService, clock)
 	channelService = channels.NewService(channels.NewSQLiteRepository(db, clock), personaService, defaultChannelAdapters(), journalService, clock)
 	authority := documents.NewUnavailableAuthority()
 	if base := strings.TrimSpace(os.Getenv("DOCUMENT_MANAGER_API_BASE")); base != "" {
@@ -194,8 +195,6 @@ func main() {
 	}
 	documentService = documents.NewService(documents.NewSQLiteRepository(db, clock), personaService, handoffService, authority, journalService, clock)
 	accountService := accounts.NewService(accounts.NewSQLiteRepository(db, clock), personaService, handoffService, journalService, clock)
-	accessService := access.NewService(access.NewSQLiteRepository(db, clock), personaService, journalService, access.LiveVerifier{}, access.ServiceOptions{Clock: clock, Secret: []byte(os.Getenv("PERSONA_ATTESTATION_SECRET")), KeyID: "persona-local"})
-
 	srv := server.New(
 		server.Deps{Clock: clock, Logger: log.Default()},
 		healthH.Module(db, "persona-api", "1.0.0"),

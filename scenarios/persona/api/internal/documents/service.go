@@ -21,7 +21,9 @@ var (
 	ErrBindingNotFound              = errors.New("document binding not found")
 	ErrDocumentAuthorityUnavailable = errors.New("document-manager is unreachable")
 	ErrHandoffMismatch              = errors.New("document is not required by the named handoff")
+	ErrHandoffClosed                = errors.New("document release requires an open handoff")
 	ErrBindingExists                = errors.New("document is already bound to this persona")
+	ErrReleaseNotFound              = errors.New("document release record not found")
 )
 
 type (
@@ -30,8 +32,8 @@ type (
 		ValidUntil, CreatedAt                   time.Time
 	}
 	Release struct {
-		ID, HandoffID, DocumentID string
-		ReleasedAt                time.Time
+		ID, PersonaID, HandoffID, DocumentID string
+		ReleasedAt                           time.Time
 	}
 	HealthFinding   = personas.HealthFinding
 	PersonaResolver interface {
@@ -145,6 +147,15 @@ func (s *service) ReleaseIntoHandoff(ctx context.Context, in ReleaseInput) (Rele
 		s.record(ctx, in.PersonaID, "document_release_refused", "refused", "handoff_mismatch", map[string]string{"document_id": in.DocumentID, "handoff_id": in.HandoffID})
 		return Release{}, ErrHandoffMismatch
 	}
+	if h.State != handoffs.StateOpen && h.State != handoffs.StateDelivered && h.State != handoffs.StateAwaitingHuman {
+		s.record(ctx, in.PersonaID, "document_release_refused", "refused", "handoff_closed", map[string]string{"document_id": in.DocumentID, "handoff_id": in.HandoffID})
+		return Release{}, ErrHandoffClosed
+	}
+	if existing, err := s.repo.GetRelease(ctx, h.ID, binding.DocumentID); err == nil {
+		return existing, nil
+	} else if !errors.Is(err, ErrReleaseNotFound) {
+		return Release{}, err
+	}
 	if err := s.authority.Check(ctx); err != nil {
 		s.record(ctx, in.PersonaID, "document_release_refused", "refused", "document_authority_unreachable", map[string]string{"document_id": in.DocumentID, "handoff_id": in.HandoffID})
 		return Release{}, fmt.Errorf("%w: %v", ErrDocumentAuthorityUnavailable, err)
@@ -154,7 +165,15 @@ func (s *service) ReleaseIntoHandoff(ctx context.Context, in ReleaseInput) (Rele
 		s.record(ctx, in.PersonaID, "document_release_refused", "refused", "document_authority_release_failed", map[string]string{"document_id": in.DocumentID, "handoff_id": in.HandoffID})
 		return Release{}, err
 	}
-	release := Release{ID: releaseID, HandoffID: h.ID, DocumentID: binding.DocumentID, ReleasedAt: s.clock.Now().UTC()}
+	release := Release{ID: releaseID, PersonaID: in.PersonaID, HandoffID: h.ID, DocumentID: binding.DocumentID, ReleasedAt: s.clock.Now().UTC()}
+	if persisted, err := s.repo.CreateRelease(ctx, release); err != nil {
+		if existing, getErr := s.repo.GetRelease(ctx, h.ID, binding.DocumentID); getErr == nil {
+			return existing, nil
+		}
+		return Release{}, err
+	} else {
+		release = persisted
+	}
 	s.record(ctx, in.PersonaID, "document_released", "granted", "", map[string]string{"document_id": release.DocumentID, "handoff_id": release.HandoffID})
 	return release, nil
 }

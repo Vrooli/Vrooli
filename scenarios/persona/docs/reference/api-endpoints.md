@@ -65,6 +65,23 @@ The scenario ships seven product-domain vertical slices. Add endpoint
 documentation here as each domain evolves; there is no template example
 surface left to remove.
 
+### AccessService.ResolvePersona
+
+`POST /vrooli.persona.v1.access.AccessService/ResolvePersona`
+
+Resolves one named persona through the server-side entitlement policy. The
+caller supplies a live Agent Manager identity in
+`X-Agent-Identity-Token`; the request names `persona_id` and may ask for
+known field names. The response always contains `persona_id` and `kind`.
+
+| | |
+|---|---|
+| **Entitlement** | `persona.resolve.display` permits `display_name`; `persona.resolve.legal` permits `legal_subject_id`. Unentitled requested fields are omitted. |
+| **Sensitive payloads** | The contract never returns document bytes, credential values, secrets, or any other document/credential payload. |
+| **Errors** | `invalid_argument` when `persona_id` is absent; `permission_denied` for an invalid or expired identity; `unavailable` when Agent Manager cannot verify the identity. |
+| **Journal** | Every resolution records the verified caller, persona, outcome, and exact `returned_fields` set. |
+| **CLI** | `persona access resolve <persona-id>` |
+
 ---
 
 ## Adding a new endpoint

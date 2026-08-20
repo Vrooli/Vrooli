@@ -16,6 +16,7 @@ type connectHandler struct{ service domain.Service }
 func NewConnectHandler(service domain.Service) *connectHandler {
 	return &connectHandler{service: service}
 }
+
 func (h *connectHandler) BindDocument(ctx context.Context, req *connect.Request[documentsv1.BindDocumentRequest]) (*connect.Response[documentsv1.BindDocumentResponse], error) {
 	b, err := h.service.Bind(ctx, domain.BindingInput{PersonaID: req.Msg.GetPersonaId(), DocumentID: req.Msg.GetDocumentId(), DocumentKind: req.Msg.GetDocumentKind(), ValidUntil: timeFromProto(req.Msg.GetValidUntil())})
 	if err != nil {
@@ -23,6 +24,7 @@ func (h *connectHandler) BindDocument(ctx context.Context, req *connect.Request[
 	}
 	return connect.NewResponse(&documentsv1.BindDocumentResponse{Binding: toProto(b)}), nil
 }
+
 func (h *connectHandler) ListBindings(ctx context.Context, req *connect.Request[documentsv1.ListBindingsRequest]) (*connect.Response[documentsv1.ListBindingsResponse], error) {
 	items, err := h.service.List(ctx, req.Msg.GetPersonaId())
 	if err != nil {
@@ -34,6 +36,7 @@ func (h *connectHandler) ListBindings(ctx context.Context, req *connect.Request[
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h *connectHandler) ReleaseIntoHandoff(ctx context.Context, req *connect.Request[documentsv1.ReleaseIntoHandoffRequest]) (*connect.Response[documentsv1.ReleaseIntoHandoffResponse], error) {
 	release, err := h.service.ReleaseIntoHandoff(ctx, domain.ReleaseInput{PersonaID: req.Msg.GetPersonaId(), DocumentID: req.Msg.GetDocumentId(), HandoffID: req.Msg.GetHandoffId()})
 	if err != nil {
@@ -41,6 +44,7 @@ func (h *connectHandler) ReleaseIntoHandoff(ctx context.Context, req *connect.Re
 	}
 	return connect.NewResponse(&documentsv1.ReleaseIntoHandoffResponse{ReleaseId: release.ID, HandoffId: release.HandoffID, DocumentId: release.DocumentID, ReleasedAt: timestamppb.New(release.ReleasedAt)}), nil
 }
+
 func documentError(err error) error {
 	code := connect.CodeInternal
 	if errors.Is(err, domain.ErrMissingPersona) || errors.Is(err, domain.ErrMissingDocument) || errors.Is(err, domain.ErrMissingHandoff) {
@@ -52,14 +56,19 @@ func documentError(err error) error {
 	if errors.Is(err, domain.ErrHandoffMismatch) {
 		code = connect.CodePermissionDenied
 	}
+	if errors.Is(err, domain.ErrHandoffClosed) {
+		code = connect.CodeFailedPrecondition
+	}
 	return connect.NewError(code, err)
 }
+
 func timeFromProto(ts *timestamppb.Timestamp) time.Time {
 	if ts == nil {
 		return time.Time{}
 	}
 	return ts.AsTime()
 }
+
 func toProto(b domain.Binding) *documentsv1.DocumentBinding {
 	out := &documentsv1.DocumentBinding{Id: b.ID, PersonaId: b.PersonaID, DocumentId: b.DocumentID, DocumentKind: b.DocumentKind, CreatedAt: timestamppb.New(b.CreatedAt)}
 	if !b.ValidUntil.IsZero() {

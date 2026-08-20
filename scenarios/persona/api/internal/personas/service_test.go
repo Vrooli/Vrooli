@@ -2,9 +2,13 @@ package personas
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"reflect"
 	"testing"
+	"time"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestCreateRequiresLegalBasisAndKindSpecificIdentifier(t *testing.T) {
@@ -86,5 +90,39 @@ func TestCheckHealthSurfacesDependencyFindings(t *testing.T) {
 	findings, err := service.CheckHealth(context.Background(), "persona-1")
 	if err != nil || len(findings) != 3 {
 		t.Fatalf("dependency health = %#v, %v", findings, err)
+	}
+}
+
+func TestSQLiteRepositoryReadsActivePersonaWithNullArchivedAt(t *testing.T) {
+	// The active-persona path leaves archived_at NULL. This is the production
+	// shape returned by SQLite and must remain readable by handoff callers.
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer db.Close()
+	if _, err := db.ExecContext(context.Background(), Schema()); err != nil {
+		t.Fatalf("apply persona schema: %v", err)
+	}
+
+	repo := NewSQLiteRepository(db, nil)
+	created, err := repo.Create(context.Background(), Persona{
+		Kind:        KindPersonal,
+		LegalBasis:  LegalBasis{SubjectID: "subject-1", SubjectName: "Ada", BasisType: "test"},
+		DisplayName: "Ada",
+		Identifiers: []Identifier{{Type: "passport", Value: "P-1"}},
+		Status:      StatusActive,
+		CreatedAt:   time.Date(2026, 8, 19, 18, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("create persona: %v", err)
+	}
+
+	got, err := repo.Get(context.Background(), created.ID)
+	if err != nil {
+		t.Fatalf("get active persona with NULL archived_at: %v", err)
+	}
+	if got.ArchivedAt != nil || got.Status != StatusActive {
+		t.Fatalf("active persona = %#v, want nil archived_at and active status", got)
 	}
 }

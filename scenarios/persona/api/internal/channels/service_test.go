@@ -3,8 +3,11 @@ package channels
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/provenance"
 
 	"persona/internal/journal"
 	"persona/internal/personas"
@@ -94,20 +97,59 @@ func TestControlledChannelSendsAndReadsOnlyThroughItsBinding(t *testing.T) {
 	if !errors.Is(err, ErrChannelOwnership) {
 		t.Fatalf("cross-persona send error = %v", err)
 	}
+	_, err = service.RetrieveCode(context.Background(), "other-persona", "channel-1", "no")
+	if !errors.Is(err, ErrChannelOwnership) {
+		t.Fatalf("cross-persona retrieve error = %v", err)
+	}
 	if len(j.entries) < 3 || j.entries[len(j.entries)-1].Outcome != "refused" {
 		t.Fatalf("channel journal = %#v", j.entries)
 	}
 }
 
 func TestUnavailableAdapterDoesNotFallback(t *testing.T) {
-	// [REQ:PSN-P0-006] an unavailable route is a named refusal, never another persona's route.
+	// [REQ:PSN-P0-006] every adapter exposes the same named refusal and never
+	// falls back to another persona's route.
+	for _, adapter := range []Adapter{
+		EmailAdapter{Source: NewUnavailableSource("email")},
+		SMSAdapter{Source: NewUnavailableSource("sms")},
+		DeviceAdapter{Source: NewUnavailableSource("device")},
+	} {
+		name := adapter.Name()
+		repo := FakeRepository{GetFunc: func(context.Context, string) (Channel, error) {
+			return Channel{ID: "channel-1", PersonaID: "persona-1", Adapter: name, Enabled: true}, nil
+		}}
+		service := NewService(repo, channelPersonaFunc(func(context.Context, string) (personas.Persona, error) { return channelPersona(), nil }), Registry{name: adapter}, nil, nil)
+		_, err := service.RetrieveCode(context.Background(), "persona-1", "channel-1", "signup")
+		if !errors.Is(err, ErrAdapterUnavailable) || !strings.Contains(err.Error(), name) {
+			t.Fatalf("%s unavailable adapter error = %v", name, err)
+		}
+	}
+}
+
+func TestCodeRetrievalJournalCarriesVerifiedRun(t *testing.T) {
+	// [REQ:PSN-P0-006] code retrieval records expiry and the verified requesting run.
 	repo := FakeRepository{GetFunc: func(context.Context, string) (Channel, error) {
 		return Channel{ID: "channel-1", PersonaID: "persona-1", Adapter: "email", Enabled: true}, nil
 	}}
-	service := NewService(repo, channelPersonaFunc(func(context.Context, string) (personas.Persona, error) { return channelPersona(), nil }), Registry{"email": EmailAdapter{Source: NewUnavailableSource("email")}}, nil, nil)
-	_, err := service.RetrieveCode(context.Background(), "persona-1", "channel-1", "signup")
-	if !errors.Is(err, ErrAdapterUnavailable) {
-		t.Fatalf("unavailable adapter error = %v", err)
+	expires := time.Now().UTC().Add(time.Minute)
+	j := &channelJournal{}
+	service := NewService(repo, channelPersonaFunc(func(context.Context, string) (personas.Persona, error) { return channelPersona(), nil }), Registry{"email": EmailAdapter{Source: channelSource{code: Code{Value: "123456", ExpiresAt: expires}}}}, j, nil)
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-otp", Subject: "human-1"})
+	if _, err := service.RetrieveCode(ctx, "persona-1", "channel-1", "signup"); err != nil {
+		t.Fatalf("RetrieveCode() error = %v", err)
+	}
+	if len(j.entries) != 1 || j.entries[0].RunID != "run-otp" || j.entries[0].AuthorisingHuman != "human-1" || j.entries[0].Details["expires_at"] == "" {
+		t.Fatalf("code retrieval journal = %#v", j.entries)
+	}
+}
+
+func TestChannelSchemaStoresOnlyCredentialReference(t *testing.T) {
+	// [REQ:PSN-P0-005] channel storage has a reference slot, never a credential value.
+	if strings.Contains(strings.ToLower(Schema()), "password") || strings.Contains(strings.ToLower(Schema()), "secret_value") || strings.Contains(strings.ToLower(Schema()), "credential_value") {
+		t.Fatalf("channel schema contains credential material fields: %s", Schema())
+	}
+	if !strings.Contains(Schema(), "credential_ref") {
+		t.Fatalf("channel schema lost credential reference field: %s", Schema())
 	}
 }
 

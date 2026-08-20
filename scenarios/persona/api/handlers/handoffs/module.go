@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 
+	"persona/internal/access"
 	"persona/internal/handoffs"
 	"persona/internal/journal"
 	"persona/internal/module"
@@ -19,11 +20,12 @@ import (
 func Module(db *database.RoutedDB, clock schedule.Clock) module.Module {
 	p := personas.NewService(personas.NewSQLiteRepository(db, clock))
 	j := journal.NewService(journal.NewSQLiteRepository(db, clock))
+	a := access.NewService(access.NewSQLiteRepository(db, clock), p, j, access.LiveVerifier{}, access.ServiceOptions{Clock: clock, Secret: []byte(os.Getenv("PERSONA_ATTESTATION_SECRET")), KeyID: "persona-local"})
 	var relay handoffs.Relay
 	if baseURL := strings.TrimSpace(os.Getenv("PERSONA_NOTIFICATION_HUB_API_BASE")); baseURL != "" {
 		relay = handoffs.HTTPRelay{BaseURL: baseURL}
 	}
-	return ModuleWithService(handoffs.NewServiceWithRelay(handoffs.NewSQLiteRepository(db, clock), p, j, relay, clock))
+	return ModuleWithService(handoffs.NewServiceWithRelayAndAuthorizer(handoffs.NewSQLiteRepository(db, clock), p, j, relay, a, clock))
 }
 
 func ModuleWithService(service handoffs.Service) module.Module {

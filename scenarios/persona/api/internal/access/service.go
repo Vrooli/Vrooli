@@ -25,6 +25,7 @@ var (
 	ErrScopeMissing         = errors.New("identity token lacks the persona act-as scope")
 	ErrGrantMissing         = errors.New("verified subject has no grant for this persona")
 	ErrProposeOnly          = errors.New("verified subject may propose but may not act")
+	ErrAgentACLMutation     = errors.New("persona ACL mutations are operator-only")
 	ErrGrantNotFound        = errors.New("persona grant not found")
 	ErrAttestationExpiry    = errors.New("attestation expiry must be in the future and no later than the run token")
 	ErrAttestationSigner    = errors.New("attestation signer is not configured")
@@ -82,8 +83,10 @@ func (LiveVerifier) Verify(_ context.Context, token string) (*Claims, error) {
 
 type Service interface {
 	ActAs(context.Context, string, string, string) (ActSession, error)
+	AuthorizeProposal(context.Context, string, string) (string, string, error)
 	ResolvePersona(context.Context, string, string, []string) (Resolution, error)
 	CreateGrant(context.Context, GrantInput) (Grant, error)
+	ChangeGrant(context.Context, GrantChangeInput) (Grant, error)
 	ListGrants(context.Context, string) ([]Grant, error)
 	RemoveGrant(context.Context, string) error
 	IssueAttestation(context.Context, string, string, string, time.Time) (Attestation, error)
@@ -94,6 +97,12 @@ type GrantInput struct {
 	HumanSubject string
 	Level        GrantLevel
 	Source       string
+}
+
+type GrantChangeInput struct {
+	GrantID string
+	Level   GrantLevel
+	Source  string
 }
 
 type ActSession struct {
@@ -195,6 +204,45 @@ func (s *service) ActAs(ctx context.Context, personaID, token, action string) (A
 	return ActSession{PersonaID: personaID, RunID: claims.RunID, AccountSubject: claims.Subject, AuthorisingHuman: grant.HumanSubject, GrantedAt: at}, nil
 }
 
+// AuthorizeProposal verifies the caller and permits either ACL level to open a
+// human handoff. It deliberately does not grant any act-as capability.
+func (s *service) AuthorizeProposal(ctx context.Context, personaID, token string) (string, string, error) {
+	if strings.TrimSpace(personaID) == "" {
+		return "", "", ErrMissingPersona
+	}
+	claims, err := s.verify(ctx, token)
+	if err != nil {
+		s.record(ctx, personaID, "handoff_proposal_refused", claimsOrEmpty(claims), "refused", "identity_unverified", nil)
+		return "", "", err
+	}
+	if bound := strings.TrimSpace(claims.Meta["persona_id"]); bound != "" && bound != personaID {
+		s.record(ctx, personaID, "handoff_proposal_refused", claims, "refused", "persona_binding_mismatch", nil)
+		return "", "", ErrPersonaBinding
+	}
+	if !hasScope(claims.Scopes, "persona.propose:"+personaID) {
+		s.record(ctx, personaID, "handoff_proposal_refused", claims, "refused", "proposal_scope_missing", nil)
+		return "", "", ErrScopeMissing
+	}
+	grants, err := s.repo.ListGrants(ctx, personaID)
+	if err != nil {
+		return "", "", fmt.Errorf("list persona grants: %w", err)
+	}
+	grant := findGrant(grants, claims.Subject)
+	if grant == nil {
+		s.record(ctx, personaID, "handoff_proposal_refused", claims, "refused", "grant_missing", nil)
+		return "", "", ErrGrantMissing
+	}
+	if grant.Level != GrantAct && grant.Level != GrantPropose {
+		s.record(ctx, personaID, "handoff_proposal_refused", claims, "refused", "grant_level_invalid", nil)
+		return "", "", ErrProposeOnly
+	}
+	if _, err := s.personas.Get(ctx, personaID); err != nil {
+		return "", "", fmt.Errorf("resolve persona: %w", err)
+	}
+	s.record(ctx, personaID, "handoff_proposal_granted", claims, "granted", "", map[string]string{"grant_id": grant.ID})
+	return claims.RunID, grant.HumanSubject, nil
+}
+
 func (s *service) ResolvePersona(ctx context.Context, personaID, token string, fields []string) (Resolution, error) {
 	if strings.TrimSpace(personaID) == "" {
 		return Resolution{}, ErrMissingPersona
@@ -237,7 +285,30 @@ func (s *service) CreateGrant(ctx context.Context, in GrantInput) (Grant, error)
 	}
 	grant, err := s.repo.CreateGrant(ctx, Grant{PersonaID: in.PersonaID, HumanSubject: in.HumanSubject, Level: in.Level, Source: sourceOrLocal(in.Source)})
 	if err == nil {
-		s.record(ctx, grant.PersonaID, "grant_created", &Claims{Subject: grant.HumanSubject}, "granted", "", map[string]string{"grant_id": grant.ID, "level": string(grant.Level), "source": grant.Source})
+		s.recordGrantChange(ctx, grant, "grant_created", map[string]string{"grant_id": grant.ID, "level": string(grant.Level), "source": grant.Source})
+	}
+	return grant, err
+}
+
+func (s *service) ChangeGrant(ctx context.Context, in GrantChangeInput) (Grant, error) {
+	if strings.TrimSpace(in.GrantID) == "" {
+		return Grant{}, ErrGrantNotFound
+	}
+	if in.Level != GrantAct && in.Level != GrantPropose {
+		return Grant{}, errors.New("grant level must be act or propose")
+	}
+	grant, err := s.repo.GetGrant(ctx, in.GrantID)
+	if err != nil {
+		return Grant{}, err
+	}
+	previousLevel := grant.Level
+	grant.Level = in.Level
+	if strings.TrimSpace(in.Source) != "" {
+		grant.Source = in.Source
+	}
+	grant, err = s.repo.UpdateGrant(ctx, grant)
+	if err == nil {
+		s.recordGrantChange(ctx, grant, "grant_changed", map[string]string{"grant_id": grant.ID, "previous_level": string(previousLevel), "level": string(grant.Level), "source": grant.Source})
 	}
 	return grant, err
 }
@@ -257,7 +328,7 @@ func (s *service) RemoveGrant(ctx context.Context, grantID string) error {
 	if err := s.repo.RemoveGrant(ctx, grantID); err != nil {
 		return err
 	}
-	s.record(ctx, grant.PersonaID, "grant_removed", &Claims{Subject: grant.HumanSubject}, "granted", "", map[string]string{"grant_id": grantID})
+	s.recordGrantChange(ctx, grant, "grant_removed", map[string]string{"grant_id": grantID})
 	return nil
 }
 
@@ -319,6 +390,13 @@ func (s *service) record(ctx context.Context, personaID string, verb string, cla
 		runID, human = claims.RunID, claims.Subject
 	}
 	_, _ = s.journal.Append(ctx, journal.Entry{PersonaID: personaID, Actor: "agent", Verb: verb, RunID: runID, AuthorisingHuman: human, Outcome: outcome, Constraint: constraint, Details: details})
+}
+
+func (s *service) recordGrantChange(ctx context.Context, grant Grant, verb string, details map[string]string) {
+	if s.journal == nil {
+		return
+	}
+	_, _ = s.journal.Append(ctx, journal.Entry{PersonaID: grant.PersonaID, Actor: "operator", Verb: verb, Outcome: "granted", AuthorisingHuman: grant.HumanSubject, Details: details})
 }
 
 func claimsOrEmpty(claims *Claims) *Claims {

@@ -3,8 +3,12 @@ package access
 import (
 	"context"
 	"errors"
+	"reflect"
+	"sort"
 	"testing"
 	"time"
+
+	accessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/access"
 
 	"persona/internal/journal"
 	"persona/internal/personas"
@@ -50,6 +54,16 @@ func (r *accessRepository) ListGrants(context.Context, string) ([]Grant, error) 
 func (r *accessRepository) GetGrant(_ context.Context, id string) (Grant, error) {
 	for _, grant := range r.grants {
 		if grant.ID == id {
+			return grant, nil
+		}
+	}
+	return Grant{}, ErrGrantNotFound
+}
+
+func (r *accessRepository) UpdateGrant(_ context.Context, grant Grant) (Grant, error) {
+	for i := range r.grants {
+		if r.grants[i].ID == grant.ID {
+			r.grants[i] = grant
 			return grant, nil
 		}
 	}
@@ -121,6 +135,34 @@ func TestProposeGrantCannotAct(t *testing.T) {
 	}
 }
 
+func TestActAsWithoutGrantRefuses(t *testing.T) {
+	// [REQ:PSN-P0-004] a verified subject without a persona grant is refused.
+	j := &accessJournal{}
+	service := newAccessService(&accessRepository{}, accessVerifierFunc(func(context.Context, string) (*Claims, error) { return accessClaims(), nil }), j)
+	_, err := service.ActAs(context.Background(), "persona-1", "token", "send_message")
+	if !errors.Is(err, ErrGrantMissing) {
+		t.Fatalf("no-grant ActAs() error = %v", err)
+	}
+	if len(j.entries) != 1 || j.entries[0].Verb != "act_as_refused" || j.entries[0].Constraint != "grant_missing" {
+		t.Fatalf("no-grant refusal journal = %#v", j.entries)
+	}
+}
+
+func TestProposeGrantAuthorizesHandoffProposal(t *testing.T) {
+	// [REQ:PSN-P0-004] a propose grant authorizes a human handoff, not act-as.
+	claims := accessClaims()
+	claims.Scopes = []string{"persona.propose:persona-1"}
+	repo := &accessRepository{grants: []Grant{{ID: "grant-1", PersonaID: "persona-1", HumanSubject: "human-1", Level: GrantPropose}}}
+	service := newAccessService(repo, accessVerifierFunc(func(context.Context, string) (*Claims, error) { return claims, nil }), &accessJournal{})
+	runID, human, err := service.AuthorizeProposal(context.Background(), "persona-1", "token")
+	if err != nil {
+		t.Fatalf("AuthorizeProposal() error = %v", err)
+	}
+	if runID != "run-1" || human != "human-1" {
+		t.Fatalf("proposal attribution = run %q human %q", runID, human)
+	}
+}
+
 func TestGrantSourceIsRecordedForOrganisationalPolicy(t *testing.T) {
 	// [REQ:PSN-P1-006] prompt-manager may supply the organisational grant; the source is auditable.
 	repo := &accessRepository{}
@@ -128,6 +170,31 @@ func TestGrantSourceIsRecordedForOrganisationalPolicy(t *testing.T) {
 	grant, err := service.CreateGrant(context.Background(), GrantInput{PersonaID: "persona-1", HumanSubject: "human-1", Level: GrantAct, Source: "prompt-manager"})
 	if err != nil || grant.Source != "prompt-manager" {
 		t.Fatalf("CreateGrant() = %#v, %v", grant, err)
+	}
+}
+
+func TestGrantLifecycleIsJournaled(t *testing.T) {
+	// [REQ:PSN-P0-004] create, change, and remove each leave an operator journal row.
+	repo := &accessRepository{}
+	j := &accessJournal{}
+	service := newAccessService(repo, accessVerifierFunc(func(context.Context, string) (*Claims, error) { return accessClaims(), nil }), j)
+	grant, err := service.CreateGrant(context.Background(), GrantInput{PersonaID: "persona-1", HumanSubject: "human-1", Level: GrantPropose, Source: "operator"})
+	if err != nil {
+		t.Fatalf("CreateGrant() error = %v", err)
+	}
+	if _, err := service.ChangeGrant(context.Background(), GrantChangeInput{GrantID: grant.ID, Level: GrantAct, Source: "operator-change"}); err != nil {
+		t.Fatalf("ChangeGrant() error = %v", err)
+	}
+	if err := service.RemoveGrant(context.Background(), grant.ID); err != nil {
+		t.Fatalf("RemoveGrant() error = %v", err)
+	}
+	if len(j.entries) != 3 || j.entries[0].Verb != "grant_created" || j.entries[1].Verb != "grant_changed" || j.entries[2].Verb != "grant_removed" {
+		t.Fatalf("grant lifecycle journal = %#v", j.entries)
+	}
+	for _, entry := range j.entries {
+		if entry.Actor != "operator" || entry.Outcome != "granted" {
+			t.Fatalf("grant journal attribution = %#v", entry)
+		}
 	}
 }
 
@@ -152,6 +219,52 @@ func TestResolvePersonaReturnsOnlyEntitledFields(t *testing.T) {
 	}
 	if _, err := service.ResolvePersona(context.Background(), "", "token", nil); !errors.Is(err, ErrMissingPersona) {
 		t.Fatalf("unnamed resolution error = %v", err)
+	}
+}
+
+func TestResolvePersonaEntitlementLevels(t *testing.T) {
+	// [REQ:PSN-P0-012] the same typed RPC returns a narrower or wider field set
+	// based on the verified scopes, never on a consumer-side policy.
+	claims := accessClaims()
+	claims.Scopes = nil
+	service := newAccessService(&accessRepository{}, accessVerifierFunc(func(context.Context, string) (*Claims, error) { return claims, nil }), &accessJournal{})
+	low, err := service.ResolvePersona(context.Background(), "persona-1", "token", []string{"display_name", "legal_subject_id"})
+	if err != nil {
+		t.Fatalf("low-entitlement ResolvePersona() error = %v", err)
+	}
+	if got, want := low.ReturnedFields, []string{"kind", "persona_id"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("low-entitlement fields = %v, want %v", got, want)
+	}
+
+	claims.Scopes = []string{"persona.resolve.display", "persona.resolve.legal"}
+	high, err := service.ResolvePersona(context.Background(), "persona-1", "token", []string{"display_name", "legal_subject_id"})
+	if err != nil {
+		t.Fatalf("high-entitlement ResolvePersona() error = %v", err)
+	}
+	if got, want := high.ReturnedFields, []string{"display_name", "kind", "legal_subject_id", "persona_id"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("high-entitlement fields = %v, want %v", got, want)
+	}
+}
+
+func TestResolvePersonaDescriptorHasNoSensitivePayloadFields(t *testing.T) {
+	// [REQ:PSN-P0-013] the wire contract contains no document bytes or
+	// credential values for any caller or scope.
+	service := accessv1.File_persona_v1_access_access_proto.Services().ByName("AccessService")
+	method := service.Methods().ByName("ResolvePersona")
+	response := method.Output().Fields().ByName("persona").Message()
+	fields := make([]string, 0, response.Fields().Len())
+	for i := 0; i < response.Fields().Len(); i++ {
+		fields = append(fields, string(response.Fields().Get(i).Name()))
+	}
+	sort.Strings(fields)
+	want := []string{"address_ids", "controlled_email", "display_name", "kind", "legal_subject_id", "persona_id", "returned_fields"}
+	if !reflect.DeepEqual(fields, want) {
+		t.Fatalf("ResolvePersona response fields = %v, want %v", fields, want)
+	}
+	for _, field := range fields {
+		if field == "document_bytes" || field == "credential_value" || field == "secret" {
+			t.Fatalf("sensitive payload field %q is present", field)
+		}
 	}
 }
 

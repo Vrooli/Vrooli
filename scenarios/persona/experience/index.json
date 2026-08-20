@@ -7,43 +7,43 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "persona",
-  "description": "Experience contract for Persona. The scenario's centre of gravity is the handoff queue: everything else exists so that when an agent meets a wall it must not cross, a person can finish the step in one action with the context already assembled. Page specs are authored ahead of the build and carry draft status; claims stay aspirational until real routes and selectors exist.",
+  "description": "Experience contract for Persona. The scenario's centre of gravity is the handoff queue: everything else exists so that when an agent meets a wall it must not cross, a person can finish the step in one action with the context already assembled. All declared page routes are implemented and their page specs are active; journey specs remain draft until their full cross-page flows are driven end to end.",
   "pages": [
     {
       "id": "dashboard",
       "path": "pages/dashboard.json",
       "title": "What Needs You",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "handoffs",
       "path": "pages/handoffs.json",
       "title": "Handoffs",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "personas",
       "path": "pages/personas.json",
       "title": "Personas",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "persona-detail",
       "path": "pages/persona-detail.json",
       "title": "Persona",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "journal",
       "path": "pages/journal.json",
       "title": "Journal",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",
-      "status": "draft"
+      "status": "active"
     }
   ],
   "journeys": [

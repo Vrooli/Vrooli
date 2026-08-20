@@ -22,6 +22,7 @@ func (j *handoffJournal) Append(_ context.Context, entry journal.Entry) (journal
 	j.entries = append(j.entries, entry)
 	return entry, nil
 }
+
 func (j *handoffJournal) List(context.Context, string, int) ([]journal.Entry, error) {
 	return j.entries, nil
 }
@@ -29,6 +30,16 @@ func (j *handoffJournal) List(context.Context, string, int) ([]journal.Entry, er
 type handoffRelay struct{ err error }
 
 func (r handoffRelay) Deliver(context.Context, Handoff) error { return r.err }
+
+type handoffProposalAuthorizer struct {
+	runID string
+	human string
+	err   error
+}
+
+func (a handoffProposalAuthorizer) AuthorizeProposal(context.Context, string, string) (string, string, error) {
+	return a.runID, a.human, a.err
+}
 
 type handoffRepository struct {
 	handoff Handoff
@@ -48,9 +59,11 @@ func (r *handoffRepository) Get(_ context.Context, id string) (Handoff, error) {
 	}
 	return r.handoff, nil
 }
+
 func (r *handoffRepository) List(context.Context, string, int) ([]Handoff, error) {
 	return []Handoff{r.handoff}, nil
 }
+
 func (r *handoffRepository) UpdateState(_ context.Context, id string, state State, actor, reason string) (Handoff, error) {
 	if id != r.handoff.ID {
 		return Handoff{}, ErrNotFound
@@ -103,6 +116,20 @@ func TestHandoffCarriesCheckpointAndResumesWithoutOriginatingRun(t *testing.T) {
 	}
 }
 
+func TestProposeAuthorizationOpensAttributedHandoff(t *testing.T) {
+	// [REQ:PSN-P0-004] a proposal-authorized caller may open a handoff, but the
+	// authorizing service remains the sole ACL decision point.
+	repo := &handoffRepository{}
+	service := NewServiceWithRelayAndAuthorizer(repo, handoffPersonaFunc(func(context.Context, string) (personas.Persona, error) { return handoffPersona(), nil }), nil, nil, handoffProposalAuthorizer{runID: "run-proposal", human: "human-proposer"}, nil)
+	handoff, err := service.Open(context.Background(), OpenInput{PersonaID: "persona-1", Kind: "captcha", HumanAction: "Complete the CAPTCHA in the counterparty console.", IdentityToken: "proposal-token", Checkpoint: Checkpoint{ResumeToken: "checkpoint-1"}})
+	if err != nil {
+		t.Fatalf("proposal Open() error = %v", err)
+	}
+	if handoff.OpenedByRunID != "run-proposal" || handoff.AuthorisingHuman != "human-proposer" || handoff.State != StateAwaitingHuman {
+		t.Fatalf("proposal handoff attribution = %#v", handoff)
+	}
+}
+
 func TestHandoffRejectsUnnamedTransitionsAndRecordsRelayDegradation(t *testing.T) {
 	// [REQ:PSN-P0-007] and [REQ:PSN-P1-004] require a strict state table and an optional relay.
 	repo := &handoffRepository{}
@@ -128,6 +155,37 @@ func TestHandoffRejectsUnnamedTransitionsAndRecordsRelayDegradation(t *testing.T
 	// [REQ:PSN-P0-007] the terminal states deliberately have no implicit retry edge.
 	if len(AllowedTransitions[StateExpired]) != 0 || len(AllowedTransitions[StateCancelled]) != 0 || len(AllowedTransitions[StateResumed]) != 0 {
 		t.Fatal("terminal handoff state has an outgoing transition")
+	}
+}
+
+func TestEveryUnnamedHandoffTransitionIsRefused(t *testing.T) {
+	// [REQ:PSN-P0-007] the transition table is closed: every edge not named by
+	// the product state machine must remain refused.
+	states := []State{
+		StateOpen,
+		StateDelivered,
+		StateAwaitingHuman,
+		StateCompleted,
+		StateExpired,
+		StateCancelled,
+		StateResumed,
+	}
+	wanted := map[[2]State]bool{
+		{StateOpen, StateDelivered}:          true,
+		{StateDelivered, StateAwaitingHuman}: true,
+		{StateAwaitingHuman, StateCompleted}: true,
+		{StateAwaitingHuman, StateExpired}:   true,
+		{StateAwaitingHuman, StateCancelled}: true,
+		{StateCompleted, StateResumed}:       true,
+	}
+
+	for _, from := range states {
+		for _, to := range states {
+			transition := [2]State{from, to}
+			if got := AllowedTransitions[from][to]; got != wanted[transition] {
+				t.Errorf("transition %s -> %s allowed = %t, want %t", from, to, got, wanted[transition])
+			}
+		}
 	}
 }
 

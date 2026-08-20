@@ -65,6 +65,18 @@ func (r *sqliteRepository) GetGrant(ctx context.Context, id string) (Grant, erro
 	return grant, err
 }
 
+func (r *sqliteRepository) UpdateGrant(ctx context.Context, grant Grant) (Grant, error) {
+	grant.UpdatedAt = r.clock.Now().UTC()
+	result, err := r.db.ExecContext(ctx, `UPDATE persona_grants SET level = ?, source = ?, updated_at = ? WHERE id = ?`, grant.Level, grant.Source, grant.UpdatedAt.Format(time.RFC3339Nano), grant.ID)
+	if err != nil {
+		return Grant{}, fmt.Errorf("update persona grant: %w", err)
+	}
+	if n, _ := result.RowsAffected(); n == 0 {
+		return Grant{}, ErrGrantNotFound
+	}
+	return grant, nil
+}
+
 func (r *sqliteRepository) RemoveGrant(ctx context.Context, id string) error {
 	result, err := r.db.ExecContext(ctx, `DELETE FROM persona_grants WHERE id = ?`, id)
 	if err != nil {

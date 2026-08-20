@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/schedule"
 
 	"persona/internal/journal"
@@ -357,7 +358,13 @@ func (s *service) record(ctx context.Context, channel Channel, verb string, deta
 	if s.journal == nil {
 		return
 	}
-	_, _ = s.journal.Append(ctx, journal.Entry{PersonaID: channel.PersonaID, Actor: "agent", Verb: verb, Outcome: outcome, Details: details})
+	entry := journal.Entry{PersonaID: channel.PersonaID, Actor: "agent", Verb: verb, Outcome: outcome, Details: details}
+	verified := provenance.FromContext(ctx)
+	if verified.IsVerifiedAgent() {
+		entry.RunID = verified.RunID
+		entry.AuthorisingHuman = verified.Subject
+	}
+	_, _ = s.journal.Append(ctx, entry)
 }
 
 // Schema returns the controlled-channel SQL contribution.

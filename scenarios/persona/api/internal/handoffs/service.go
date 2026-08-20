@@ -20,6 +20,7 @@ var (
 	ErrNotFound          = errors.New("handoff not found")
 	ErrInvalidTransition = errors.New("handoff transition is not allowed")
 	ErrExpired           = errors.New("handoff is expired")
+	ErrProposalDenied    = errors.New("handoff proposal is not authorised")
 )
 
 type State string
@@ -60,6 +61,9 @@ type (
 	PersonaResolver interface {
 		Get(context.Context, string) (personas.Persona, error)
 	}
+	ProposalAuthorizer interface {
+		AuthorizeProposal(context.Context, string, string) (string, string, error)
+	}
 	Service interface {
 		Open(context.Context, OpenInput) (Handoff, error)
 		Get(context.Context, string) (Handoff, error)
@@ -76,13 +80,13 @@ type (
 
 type (
 	OpenInput struct {
-		PersonaID, Kind, Title, HumanAction, OpenedByRunID, AuthorisingHuman string
-		Checkpoint                                                           Checkpoint
-		Deadline                                                             time.Time
+		PersonaID, Kind, Title, HumanAction, OpenedByRunID, AuthorisingHuman, IdentityToken string
+		Checkpoint                                                                          Checkpoint
+		Deadline                                                                            time.Time
 	}
 	EnrolmentInput struct {
-		PersonaID, Target string
-		RequiredFields    []string
+		PersonaID, Target, IdentityToken string
+		RequiredFields                   []string
 	}
 )
 
@@ -91,18 +95,23 @@ type service struct {
 	personas PersonaResolver
 	journal  journal.Service
 	relay    Relay
+	proposer ProposalAuthorizer
 	clock    schedule.Clock
 }
 
 func NewService(repo Repository, resolver PersonaResolver, actionJournal journal.Service, clock schedule.Clock) Service {
-	return NewServiceWithRelay(repo, resolver, actionJournal, nil, clock)
+	return NewServiceWithRelayAndAuthorizer(repo, resolver, actionJournal, nil, nil, clock)
 }
 
 func NewServiceWithRelay(repo Repository, resolver PersonaResolver, actionJournal journal.Service, relay Relay, clock schedule.Clock) Service {
+	return NewServiceWithRelayAndAuthorizer(repo, resolver, actionJournal, relay, nil, clock)
+}
+
+func NewServiceWithRelayAndAuthorizer(repo Repository, resolver PersonaResolver, actionJournal journal.Service, relay Relay, proposer ProposalAuthorizer, clock schedule.Clock) Service {
 	if clock == nil {
 		clock = schedule.System()
 	}
-	return &service{repo: repo, personas: resolver, journal: actionJournal, relay: relay, clock: clock}
+	return &service{repo: repo, personas: resolver, journal: actionJournal, relay: relay, proposer: proposer, clock: clock}
 }
 
 var _ Service = (*service)(nil)
@@ -126,6 +135,15 @@ func (s *service) Open(ctx context.Context, in OpenInput) (Handoff, error) {
 	}
 	if _, err := s.personas.Get(ctx, in.PersonaID); err != nil {
 		return Handoff{}, err
+	}
+	if s.proposer != nil {
+		runID, human, err := s.proposer.AuthorizeProposal(ctx, in.PersonaID, in.IdentityToken)
+		if err != nil {
+			s.record(ctx, Handoff{PersonaID: in.PersonaID, OpenedByRunID: in.OpenedByRunID, AuthorisingHuman: in.AuthorisingHuman}, "handoff_open_refused", "refused", "proposal_not_authorised")
+			return Handoff{}, fmt.Errorf("%w: %v", ErrProposalDenied, err)
+		}
+		in.OpenedByRunID = runID
+		in.AuthorisingHuman = human
 	}
 	now := s.clock.Now().UTC()
 	deadline := in.Deadline.UTC()
@@ -257,7 +275,7 @@ func (s *service) PrepareEnrolment(ctx context.Context, in EnrolmentInput) ([]En
 		fields = append(fields, EnrolmentField{Name: name, HumanOnly: true})
 		names = append(names, name)
 	}
-	h, err := s.Open(ctx, OpenInput{PersonaID: in.PersonaID, Kind: "identity_enrolment", Title: "Complete " + in.Target, HumanAction: "Complete the human-only identity steps for this enrolment.", Checkpoint: Checkpoint{ResumeToken: strings.Join(names, ",")}})
+	h, err := s.Open(ctx, OpenInput{PersonaID: in.PersonaID, Kind: "identity_enrolment", Title: "Complete " + in.Target, HumanAction: "Complete the human-only identity steps for this enrolment.", IdentityToken: in.IdentityToken, Checkpoint: Checkpoint{ResumeToken: strings.Join(names, ",")}})
 	if err != nil {
 		return nil, Handoff{}, err
 	}

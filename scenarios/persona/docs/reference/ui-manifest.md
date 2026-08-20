@@ -65,3 +65,21 @@ in `scenarios/react-component-library/PRD.md`.)
 - Concept: [`UI-ARCHITECTURE.md`](../concepts/UI-ARCHITECTURE.md)
 - Schema: `.vrooli/schemas/scenario-ui-manifest.schema.json`
 - Resolver: `scenarios/react-component-library/api/internal/adoptions/pathresolver.go`
+
+## Persona Routes
+
+Persona's declared page specs are active because these routes exist in
+`ui/src/app/routes.tsx`:
+
+| Route | Page | Experience spec |
+|---|---|---|
+| `/` | Dashboard | `experience/pages/dashboard.json` |
+| `/handoffs` and `/handoffs/:handoffId` | Handoff queue and detail | `experience/pages/handoffs.json` |
+| `/personas` | Persona registry | `experience/pages/personas.json` |
+| `/personas/:personaId` | Persona record | `experience/pages/persona-detail.json` |
+| `/journal` | Append-only evidence | `experience/pages/journal.json` |
+| `/settings` | Operator settings | `experience/pages/settings.json` |
+
+The handoff queue is the primary operator surface. State labels, human action
+sentences, keyboard-completable actions, and the live announcement for a
+one-time code and expiry are product-level accessibility requirements.
