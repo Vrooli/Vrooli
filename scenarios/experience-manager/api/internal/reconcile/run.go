@@ -33,6 +33,7 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 			findings = append(findings, expectedDraftFindings(loc, page)...)
 			continue
 		}
+		findings = append(findings, floorWaiverFindings(loc, page.FloorOptOuts)...)
 		page = pageWithBaselineClaims(page)
 		if status != "active" || !hasMachineClaim(page) {
 			continue
@@ -64,6 +65,9 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 					continue
 				}
 				snapshots[target.StateID] = snapshot
+				if target.ExampleName != "" {
+					snapshots[target.ExampleName] = snapshot
+				}
 				fingerprints[target.StateID] = snapshotFingerprint(snapshot)
 			}
 			for _, target := range targets {
@@ -72,7 +76,7 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 					continue
 				}
 				target.StateFingerprints = fingerprints
-				result := reconcileActivePage(loc, page, target, snapshot)
+				result := reconcileActivePage(loc, page, target, snapshot, snapshots)
 				findings = append(findings, result.Findings...)
 				findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, snapshot, result.Evidence)...)
 			}
@@ -87,6 +91,7 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		if status != "active" {
 			continue
 		}
+		findings = append(findings, floorWaiverFindings(loc, component.FloorOptOuts)...)
 		findings = append(findings, componentSourceFindings(report, loc, component)...)
 		page := componentAsPage(componentWithBaselineClaims(component))
 		if !hasMachineClaim(page) {
@@ -119,6 +124,9 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 					continue
 				}
 				snapshots[target.StateID] = snapshot
+				if target.ExampleName != "" {
+					snapshots[target.ExampleName] = snapshot
+				}
 				fingerprints[target.StateID] = snapshotFingerprint(snapshot)
 			}
 			for _, target := range targets {
@@ -127,7 +135,7 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 					continue
 				}
 				target.StateFingerprints = fingerprints
-				result := reconcileActivePage(loc, page, target, snapshot)
+				result := reconcileActivePage(loc, page, target, snapshot, snapshots)
 				findings = append(findings, result.Findings...)
 				findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, snapshot, result.Evidence)...)
 			}
@@ -135,6 +143,23 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		findings = append(findings, unverifiableOutOfMatrixFindings(loc, page, profiles)...)
 	}
 	sortFindings(findings)
+	return findings
+}
+
+// A waiver is intentionally a required warning, not a silent opt-out. The
+// maturity mapping for CodeClaimUnproven therefore keeps a waived asset out
+// of production-ready while preserving the authored reason in coverage.
+func floorWaiverFindings(location string, waivers []spec.FloorOptOut) []spec.Finding {
+	findings := make([]spec.Finding, 0, len(waivers))
+	for _, waiver := range waivers {
+		findings = append(findings, spec.Finding{
+			Code:       spec.CodeClaimUnproven,
+			Severity:   spec.SeverityWarning,
+			Message:    fmt.Sprintf("floor %q is waived: %s", waiver.Floor, waiver.Reason),
+			Locations:  []string{location},
+			Suggestion: "Remove the waiver after the asset satisfies the archetype floor.",
+		})
+	}
 	return findings
 }
 
@@ -171,7 +196,7 @@ func captureTargetsForProfile(scenario string, page spec.PageDocument, profile C
 			ViewportAliases: append([]string(nil), profile.Aliases...),
 			ViewportWidth:   profile.Width,
 			ViewportHeight:  profile.Height,
-			ColorScheme:     profile.ColorScheme, Locale: profile.Locale, MotionPreference: profile.MotionPreference, InteractionState: profile.InteractionState,
+			ColorScheme:     profile.ColorScheme, Locale: profile.Locale, Direction: profile.Direction, MotionPreference: profile.MotionPreference, InteractionState: profile.InteractionState,
 			SettleMs: settleMsForState(state),
 		}
 		if !pageHasMachineClaimForTarget(page, target) {
@@ -203,7 +228,7 @@ func captureTargetsForComponentProfile(scenario string, component spec.Component
 			ViewportAliases: append([]string(nil), profile.Aliases...),
 			ViewportWidth:   profile.Width,
 			ViewportHeight:  profile.Height,
-			ColorScheme:     profile.ColorScheme, Locale: profile.Locale, MotionPreference: profile.MotionPreference, InteractionState: profile.InteractionState,
+			ColorScheme:     profile.ColorScheme, Locale: profile.Locale, Direction: profile.Direction, MotionPreference: profile.MotionPreference, InteractionState: profile.InteractionState,
 			SettleMs: defaultSettleMs,
 		}
 		if !pageHasMachineClaimForTarget(page, target) {

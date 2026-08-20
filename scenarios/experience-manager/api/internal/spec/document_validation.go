@@ -165,6 +165,7 @@ func checkPageShape(report *Report, loc string, page PageDocument, ref DocumentR
 	checkUniqueIDs(report, loc, "element", elementIDs(page.Elements))
 	checkUniqueIDs(report, loc, "claim", claimIDs(page.Claims))
 	checkUniqueIDs(report, loc, "region", regionIDs(page.Regions))
+	checkFloorOptOuts(report, loc, page.FloorOptOuts)
 	if pageRequiresRuntimeReadiness(page) && pageDeclaresAsyncLifecycle(page) && !pageHasRequiredAsyncRegion(page) {
 		report.add(CodeSchemaInvalid, SeverityError, "page declares loading or recovery states without a required async region", loc, "Declare the primary async region with lifecycle.kind async and a runtime binding, or remove lifecycle states from a static page.")
 	}
@@ -365,6 +366,15 @@ func checkStructuredClaimShape(report *Report, loc string, claim Claim) {
 		}
 		if value, ok := numericParam(claim.Params, "tolerance"); ok && value < 0 {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("size-parity claim %q tolerance must be non-negative", claim.ID), loc, "Use a non-negative CSS-pixel tolerance.")
+		}
+	case "differential":
+		if strings.TrimSpace(claim.Subject) == "" || strings.TrimSpace(claim.Metric) == "" || len(claim.Contexts) < 2 || claim.Require != "contexts-differ" {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("differential claim %q must declare subject, metric, two contexts, and require=contexts-differ", claim.ID), loc, "Declare two captured contexts with expected values and require contexts-differ.")
+		}
+		for _, context := range claim.Contexts {
+			if strings.TrimSpace(context.ID) == "" || strings.TrimSpace(context.Story) == "" || strings.TrimSpace(context.Expect) == "" {
+				report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("differential claim %q has an incomplete context", claim.ID), loc, "Each differential context needs id, story, and expect.")
+			}
 		}
 	}
 }

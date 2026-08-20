@@ -23,6 +23,39 @@ func newTestStorage(t *testing.T) *Storage {
 	return NewStorageAt(resolver, t.TempDir())
 }
 
+func TestNewStorageUsesLifecycleVariantNamespace(t *testing.T) {
+	t.Setenv(storage.EnvScenario, "git-control-tower")
+	t.Setenv(storage.EnvVariant, "shadow")
+	t.Setenv(storage.EnvStorageNamespace, "git-control-tower_shadow")
+
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli"})
+	if err != nil {
+		t.Fatalf("NewResolver: %v", err)
+	}
+	got := NewStorage(resolver)
+	if got.scenarioD != "git-control-tower_shadow" {
+		t.Fatalf("scenario storage id = %q, want git-control-tower_shadow", got.scenarioD)
+	}
+}
+
+func TestNewStorageFailsClosedWhenLifecycleNamespaceIsMissing(t *testing.T) {
+	t.Setenv(storage.EnvScenario, "git-control-tower")
+	t.Setenv(storage.EnvVariant, "shadow")
+	t.Setenv(storage.EnvStorageNamespace, "")
+
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli"})
+	if err != nil {
+		t.Fatalf("NewResolver: %v", err)
+	}
+	got := NewStorage(resolver)
+	if got.scenarioD != "" {
+		t.Fatalf("scenario storage id = %q, want empty fail-closed id", got.scenarioD)
+	}
+	if _, err := got.branchDir(1, "scenario", "agi"); err == nil {
+		t.Fatal("branchDir succeeded without a lifecycle storage namespace")
+	}
+}
+
 func sampleManifest(name, branch string) BaselineManifest {
 	return BaselineManifest{
 		Name:      name,

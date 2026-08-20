@@ -67,6 +67,7 @@ type Server struct {
 	downloadHosting      *delivery.Service
 	downloadAuthorizer   *delivery.DownloadAuthorizer
 	accountService       *commerce.Service
+	receiptValidators    commerce.ReceiptValidators
 	landingConfigService *landing.LandingConfigService
 	paymentSettings      *commerce.PaymentSettingsService
 	paymentAnomaly       *commerce.PaymentAnomalyService
@@ -305,6 +306,7 @@ func NewServer() (*Server, error) {
 		downloadHosting:      downloadHosting,
 		downloadAuthorizer:   downloadAuthorizer,
 		accountService:       accountService,
+		receiptValidators:    commerce.ReceiptValidators{},
 		landingConfigService: newLandingConfigService(configStore, planService, downloadService, stripeService),
 		paymentSettings:      paymentSettings,
 		paymentAnomaly:       paymentAnomaly,

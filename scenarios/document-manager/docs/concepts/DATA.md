@@ -33,19 +33,27 @@ Two stores, with different guarantees:
 
 No external storage resource is declared. Embeddings live in SQLite
 beside the units they describe, and the `retrieval` domain queries them.
-That is deliberate and is an established pattern here — **nine**
-scenarios declare embedding tables in their own schema
-(`agent-metareasoning-manager`, `api-library`, `audio-tools`,
-`calendar`, `prompt-injection-arena`, `task-planner`, `text-tools`,
-`vrooli-assistant`, `vrooli-memory`), with `calendar.event_embeddings`
-and `task-planner.embedding_metadata` as the worked examples. A further
-~38 scenarios touch embeddings in Go without owning a table; do not
-conflate the two counts.
+That is deliberate, and it is an established pattern here rather than an
+exception: multiple scenarios declare their own embedding tables, with
+`calendar.event_embeddings` and `text-tools.text_embeddings` as the
+worked examples.
+
+The load-bearing distinction is **owning a table** versus **touching
+embeddings in Go**. Far more scenarios do the latter, and conflating the
+two inflates a normal pattern into a universal one. No roster or count is
+recorded here, deliberately: the set changes whenever a scenario is added
+or retired, and a number in prose has no way to fail loudly when it goes
+stale — it just keeps being cited. Re-derive it at the moment you need it:
+
+    grep -rniE "CREATE TABLE[^;']*(embedding|_vectors)" \
+      --include="*.sql" --include="*.go" scenarios/ \
+      | sed -E 's|scenarios/([^/]*)/.*|\1|' | sort -u
 
 Vectors are stored as little-endian `float32` blobs with a leading
-dimension header, following `vrooli-memory/api/internal/vector/codec.go`.
-Blob storage rather than JSON is not an optimisation detail — it is what
-kept that scenario's 8,181 vectors at 32 MB instead of 125 MB.
+dimension header, following
+`source-ledger/api/internal/vector/codec.go`. Blob storage rather than
+JSON is not an optimisation detail — it is what kept that engine's 8,181
+vectors at 32 MB instead of 125 MB.
 
 **What this store must never hold is ledger content.** Sources and
 findings are different content classes: sources are permanent and never

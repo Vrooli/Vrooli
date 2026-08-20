@@ -85,6 +85,78 @@ func TestPrecommitServiceSaveGetAndRun(t *testing.T) {
 	}
 }
 
+// A run on a never-configured repo records its result without authoring config.
+// Regression: the result upsert used to create the row from the column defaults
+// (enabled 0, empty command), so the first run permanently reported pre-commit
+// as disabled — which silently switched the UI off the streamed pre-commit and
+// left the commit with no progress indicator while git ran the installed hook.
+func TestPrecommitRunOnUnconfiguredRepoKeepsDefaultsEnabled(t *testing.T) {
+	svc := newTestPrecommitService(t)
+	repo := t.TempDir()
+	ctx := context.Background()
+
+	before, err := svc.Get(ctx, repo)
+	if err != nil {
+		t.Fatalf("Get before run: %v", err)
+	}
+
+	if _, err := svc.Run(ctx, repo, PrecommitRunRequest{}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	after, err := svc.Get(ctx, repo)
+	if err != nil {
+		t.Fatalf("Get after run: %v", err)
+	}
+	if !after.Enabled {
+		t.Fatalf("run disabled pre-commit; config after run = %#v", after)
+	}
+	if after.Command != before.Command {
+		t.Fatalf("run rewrote command: got %q, want %q", after.Command, before.Command)
+	}
+	if after.WorkingDirectory != before.WorkingDirectory || after.TimeoutSeconds != before.TimeoutSeconds {
+		t.Fatalf("run rewrote config: before %#v, after %#v", before, after)
+	}
+	if !after.RunBeforeCommit || !after.AllowOverride {
+		t.Fatalf("run cleared commit-time flags; config after run = %#v", after)
+	}
+	if after.LastResult == nil || after.LastResult.Status != "passed" {
+		t.Fatalf("run result not recorded: %#v", after.LastResult)
+	}
+}
+
+// A saved config must survive later runs untouched.
+func TestPrecommitRunDoesNotOverwriteSavedConfig(t *testing.T) {
+	svc := newTestPrecommitService(t)
+	repo := t.TempDir()
+	ctx := context.Background()
+
+	saved, err := svc.Save(ctx, repo, PrecommitConfig{
+		Enabled:         true,
+		Command:         "printf ok",
+		TimeoutSeconds:  30,
+		RunBeforeCommit: false,
+		AllowOverride:   false,
+	})
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	if _, err := svc.Run(ctx, repo, PrecommitRunRequest{}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	after, err := svc.Get(ctx, repo)
+	if err != nil {
+		t.Fatalf("Get after run: %v", err)
+	}
+	if after.Enabled != saved.Enabled || after.Command != saved.Command ||
+		after.TimeoutSeconds != saved.TimeoutSeconds ||
+		after.RunBeforeCommit != saved.RunBeforeCommit || after.AllowOverride != saved.AllowOverride {
+		t.Fatalf("run overwrote saved config: saved %#v, after %#v", saved, after)
+	}
+}
+
 func TestCreateCommitPrecommitBlocksAndOverrideSkips(t *testing.T) {
 	svc := newTestPrecommitServiceWithRunner(t, fakeCommandRunner{stderr: "nope", exitCode: 7})
 	repo := t.TempDir()

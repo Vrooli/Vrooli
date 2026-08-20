@@ -29,6 +29,7 @@ type CaptureProfile struct {
 	Aliases          []string
 	ColorScheme      string
 	Locale           string
+	Direction        string
 	MotionPreference string
 	InteractionState string
 }
@@ -159,6 +160,7 @@ type CaptureTarget struct {
 	ViewportHeight    int
 	ColorScheme       string
 	Locale            string
+	Direction         string
 	MotionPreference  string
 	InteractionState  string
 	SettleMs          int
@@ -170,7 +172,7 @@ type pageReconciliation struct {
 	Evidence []Evidence
 }
 
-func reconcileActivePage(loc string, page spec.PageDocument, target CaptureTarget, snapshot Snapshot) pageReconciliation {
+func reconcileActivePage(loc string, page spec.PageDocument, target CaptureTarget, snapshot Snapshot, contextSnapshots ...map[string]Snapshot) pageReconciliation {
 	nodes := snapshot.Flatten()
 	var findings []spec.Finding
 	var evidence []Evidence
@@ -223,7 +225,7 @@ func reconcileActivePage(loc string, page spec.PageDocument, target CaptureTarge
 			}
 			continue
 		}
-		claimEvidence, ok := evaluateClaim(page, claim, target, nodes)
+		claimEvidence, ok := evaluateClaim(page, claim, target, nodes, contextSnapshots...)
 		evidence = append(evidence, claimEvidence)
 		if ok {
 			continue
@@ -291,7 +293,7 @@ func skippedEvidence(page spec.PageDocument, target CaptureTarget, message strin
 	return out
 }
 
-func evaluateClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) (Evidence, bool) {
+func evaluateClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode, contextSnapshots ...map[string]Snapshot) (Evidence, bool) {
 	evidence := Evidence{
 		PageID:         page.Page.ID,
 		Route:          targetEvidenceRoute(page, target),
@@ -304,15 +306,32 @@ func evaluateClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarge
 		Verdict:        "passed",
 		Message:        "claim proven by accessibility snapshot",
 	}
-	evaluator := claimEvaluator(claim.Type)
-	if evaluator == nil {
-		evidence.Verdict = "unverifiable"
-		evidence.Message = "claim type has no deterministic structure checker"
-		return evidence, false
+	var result claimEvaluation
+	if claim.Type == "differential" && len(contextSnapshots) > 0 {
+		result = evaluateDifferentialClaim(page, claim, contextSnapshots[0])
+	} else {
+		evaluator := claimEvaluator(claim.Type)
+		if evaluator == nil {
+			evidence.Verdict = "unverifiable"
+			evidence.Message = "claim type has no deterministic structure checker"
+			return evidence, false
+		}
+		result = evaluator(page, claim, target, nodes)
 	}
-	result := evaluator(page, claim, target, nodes)
+	if !result.Pass && result.Measurement == nil {
+		subjects := measuredSubjects(page, claim.Elements, nodes)
+		if len(subjects) == 0 {
+			subjects = []MeasuredSubject{{ElementID: claim.ID}}
+		}
+		result.Measurement = measurement(claim.Type, "", "", nil, nil, subjects)
+	}
 	if result.AXNodeJSON != "" {
 		evidence.AXNodeJSON = result.AXNodeJSON
+	}
+	if result.Measurement != nil {
+		if encoded, err := json.Marshal(result.Measurement); err == nil {
+			evidence.MeasurementJSON = string(encoded)
+		}
 	}
 	if result.Unverifiable != "" {
 		evidence.Verdict = "unverifiable"
@@ -324,6 +343,8 @@ func evaluateClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarge
 		evidence.Message = "claim was not proven by accessibility snapshot"
 		if result.Failure != "" {
 			evidence.Message = result.Failure
+		} else {
+			evidence.Message = measurementFailure(result.Measurement)
 		}
 	}
 	return evidence, result.Pass
@@ -381,6 +402,7 @@ func (c Check) persistEvidence(ctx context.Context, scenario, loc string, page s
 		if item.ViewportHeight == 0 {
 			item.ViewportHeight = target.ViewportHeight
 		}
+		item.MeasurementJSON = withCaptureContext(item.MeasurementJSON, target)
 		item.CaptureRef = captureRef
 		item.CheckedAt = checkedAt
 		if strings.TrimSpace(item.AXNodeJSON) == "" {
@@ -398,6 +420,32 @@ func (c Check) persistEvidence(ctx context.Context, scenario, loc string, page s
 		}
 	}
 	return nil
+}
+
+// withCaptureContext keeps the independent browser context beside the AX
+// measurement. The evidence table predates direction and motion as first-class
+// axes, so embedding this small typed envelope is backwards compatible with
+// existing measurements while allowing differential gates to pair captures
+// without guessing from a viewport or story name.
+func withCaptureContext(raw string, target CaptureTarget) string {
+	var value map[string]any
+	if strings.TrimSpace(raw) == "" || strings.TrimSpace(raw) == "{}" {
+		value = map[string]any{}
+	} else if json.Unmarshal([]byte(raw), &value) != nil || value == nil {
+		value = map[string]any{"legacy": json.RawMessage(raw)}
+	}
+	value["captureContext"] = map[string]string{
+		"colorScheme":      target.ColorScheme,
+		"locale":           target.Locale,
+		"direction":        target.Direction,
+		"motionPreference": target.MotionPreference,
+		"interactionState": target.InteractionState,
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return raw
+	}
+	return string(encoded)
 }
 
 func encodeAXNode(node *AXNode) string {

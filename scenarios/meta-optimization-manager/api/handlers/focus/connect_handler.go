@@ -96,11 +96,16 @@ func (h *connectHandler) ListCondition(ctx context.Context, _ *connect.Request[f
 		Dormant: int32(report.Instrumentation.Dormant), Uninstrumented: int32(report.Instrumentation.Uninstrumented),
 		Unavailable: int32(report.Instrumentation.Unavailable), Instrumented: int32(report.Instrumentation.Instrumented),
 		Total: int32(report.Instrumentation.Total), FilteredOut: int32(report.Instrumentation.FilteredOut),
+		LedgerExercise: exerciseBasisToProto(report.Instrumentation.LedgerExercise), ReceiptExercise: exerciseBasisToProto(report.Instrumentation.ReceiptExercise),
 	}}
 	for _, gap := range report.Gaps {
 		resp.Gaps = append(resp.Gaps, gapToProto(gap))
 	}
 	return connect.NewResponse(resp), err
+}
+
+func exerciseBasisToProto(basis internalfocus.ExerciseBasisInstrumentation) *focusv1.ExerciseBasisInstrumentation {
+	return &focusv1.ExerciseBasisInstrumentation{Basis: basis.Basis, Instrumented: int32(basis.Instrumented), Total: int32(basis.Total), Invocations: basis.Invocations}
 }
 
 func (h *connectHandler) ExplainCondition(ctx context.Context, req *connect.Request[focusv1.ExplainConditionRequest]) (*connect.Response[focusv1.ExplainConditionResponse], error) {

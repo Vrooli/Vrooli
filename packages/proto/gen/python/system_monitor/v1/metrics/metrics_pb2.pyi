@@ -11,32 +11,64 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class MetricsResponse(_message.Message):
-    __slots__ = ("cpu_usage", "memory_usage", "tcp_connections", "gpu_usage", "timestamp")
+    __slots__ = ("cpu_usage", "memory_usage", "tcp_connections", "gpu_usage", "timestamp", "cpu", "memory", "connections", "gpu", "disk")
     CPU_USAGE_FIELD_NUMBER: _ClassVar[int]
     MEMORY_USAGE_FIELD_NUMBER: _ClassVar[int]
     TCP_CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
     GPU_USAGE_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    CPU_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_FIELD_NUMBER: _ClassVar[int]
+    CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
+    GPU_FIELD_NUMBER: _ClassVar[int]
+    DISK_FIELD_NUMBER: _ClassVar[int]
     cpu_usage: float
     memory_usage: float
     tcp_connections: int
     gpu_usage: float
     timestamp: _timestamp_pb2.Timestamp
-    def __init__(self, cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    cpu: MetricValue
+    memory: MetricValue
+    connections: MetricValue
+    gpu: MetricValue
+    disk: MetricValue
+    def __init__(self, cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cpu: _Optional[_Union[MetricValue, _Mapping]] = ..., memory: _Optional[_Union[MetricValue, _Mapping]] = ..., connections: _Optional[_Union[MetricValue, _Mapping]] = ..., gpu: _Optional[_Union[MetricValue, _Mapping]] = ..., disk: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
+
+class MetricValue(_message.Message):
+    __slots__ = ("measured", "unsupported_reason", "failed_error", "provenance", "observed_at")
+    MEASURED_FIELD_NUMBER: _ClassVar[int]
+    UNSUPPORTED_REASON_FIELD_NUMBER: _ClassVar[int]
+    FAILED_ERROR_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    measured: float
+    unsupported_reason: str
+    failed_error: str
+    provenance: str
+    observed_at: _timestamp_pb2.Timestamp
+    def __init__(self, measured: _Optional[float] = ..., unsupported_reason: _Optional[str] = ..., failed_error: _Optional[str] = ..., provenance: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class MetricTimelineSample(_message.Message):
-    __slots__ = ("timestamp", "cpu_usage", "memory_usage", "tcp_connections", "gpu_usage")
+    __slots__ = ("timestamp", "cpu_usage", "memory_usage", "tcp_connections", "gpu_usage", "cpu", "memory", "connections", "gpu")
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     CPU_USAGE_FIELD_NUMBER: _ClassVar[int]
     MEMORY_USAGE_FIELD_NUMBER: _ClassVar[int]
     TCP_CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
     GPU_USAGE_FIELD_NUMBER: _ClassVar[int]
+    CPU_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_FIELD_NUMBER: _ClassVar[int]
+    CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
+    GPU_FIELD_NUMBER: _ClassVar[int]
     timestamp: _timestamp_pb2.Timestamp
     cpu_usage: float
     memory_usage: float
     tcp_connections: int
     gpu_usage: float
-    def __init__(self, timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ...) -> None: ...
+    cpu: MetricValue
+    memory: MetricValue
+    connections: MetricValue
+    gpu: MetricValue
+    def __init__(self, timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ..., cpu: _Optional[_Union[MetricValue, _Mapping]] = ..., memory: _Optional[_Union[MetricValue, _Mapping]] = ..., connections: _Optional[_Union[MetricValue, _Mapping]] = ..., gpu: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
 
 class MetricsTimelineResponse(_message.Message):
     __slots__ = ("window_seconds", "sample_interval_seconds", "samples")

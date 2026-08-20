@@ -97,6 +97,31 @@ message CreateAgentSessionResponse {
   domain.AgentSession session = 1;
 }
 
+// ChangeAgentSessionKindRequest changes the kind of an unstarted draft and
+// supplies the client-staged context so the server can enforce kind policy.
+message ChangeAgentSessionKindRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // @constraint one of: meta_orchestration, swarm_operations, workflow_authoring
+  string kind = 2 [(buf.validate.field).string = {
+    in: [
+      "meta_orchestration",
+      "swarm_operations",
+      "workflow_authoring"
+    ]
+  }];
+
+  repeated AgentSessionContextRef context_refs = 3;
+}
+
+// ChangeAgentSessionKindResponse reports the updated session and any local
+// draft state that the client must discard.
+message ChangeAgentSessionKindResponse {
+  domain.AgentSession session = 1;
+  repeated AgentSessionContextRef dropped_context_refs = 2;
+  bool starter_job_cleared = 3;
+}
+
 // StartAgentSessionRequest sends the first real operator prompt and spawns
 // the Agent Manager run for a draft session.
 message StartAgentSessionRequest {

@@ -1,6 +1,6 @@
 {
   "name": "@vrooli/proto-types",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Protocol Buffer generated TypeScript types for Vrooli",
   "type": "module",
   "dependencies": {

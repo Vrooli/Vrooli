@@ -2,6 +2,7 @@ package studio
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 
 	"connectrpc.com/connect"
@@ -247,9 +248,32 @@ func protoEvidence(e reconcile.Evidence) *contractv1.ReconciliationEvidence {
 		Verdict:        e.Verdict,
 		CaptureRef:     e.CaptureRef,
 		AxNodeJson:     e.AXNodeJSON,
+		Measurement:    protoMeasurement(e.MeasurementJSON),
 		Message:        e.Message,
 		CheckedAt:      e.CheckedAt,
 	}
+}
+
+func protoMeasurement(raw string) *contractv1.ClaimMeasurement {
+	var measurement reconcile.ClaimMeasurement
+	if raw == "" || raw == "{}" || json.Unmarshal([]byte(raw), &measurement) != nil {
+		return nil
+	}
+	out := &contractv1.ClaimMeasurement{
+		Metric:     measurement.Metric,
+		Observed:   measurement.Observed,
+		Required:   measurement.Required,
+		Unit:       measurement.Unit,
+		Comparator: measurement.Comparator,
+	}
+	for _, subject := range measurement.Subjects {
+		item := &contractv1.MeasuredSubject{ElementId: subject.ElementID, TestId: subject.TestID, ContextId: subject.ContextID, Value: subject.Value}
+		if subject.Bounds != nil {
+			item.Bounds = &contractv1.MeasuredBounds{X: subject.Bounds.X, Y: subject.Bounds.Y, Width: subject.Bounds.Width, Height: subject.Bounds.Height}
+		}
+		out.Subjects = append(out.Subjects, item)
+	}
+	return out
 }
 
 func protoValidation(report spec.Report) *contractv1.ValidateScenarioResponse {

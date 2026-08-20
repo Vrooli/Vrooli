@@ -345,6 +345,7 @@ func (s *Service) GetEntitlementsContext(ctx context.Context, userIdentity strin
 	}
 
 	payload := &EntitlementPayload{
+		UserIdentity:      userIdentity,
 		Status:            SubscriptionStateLabel(subscription.State),
 		PlanTier:          subscription.GetPlanTier(),
 		PlanRank:          PlanRankForTier(subscription.GetPlanTier()),

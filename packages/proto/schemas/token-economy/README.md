@@ -1,17 +1,8 @@
-# Template proto sources
+# Token Economy proto sources
 
-This folder is **not** a regular template directory.
-
-At scenario generation time, `template-manager generate` reads the
-`relocations` block in `template.json` and copies this entire `proto/`
-tree into `packages/proto/schemas/<your-scenario>/`, substituting
-`token-economy` and `token_economy` in both path components
-and file content. The `proto/` folder does **not** appear inside the
-generated scenario.
-
-After relocation, the generator runs `make generate` in
-`packages/proto/` so the scenario's `api/`, `ui/`, and `cli/` can
-import generated Go and TypeScript types immediately.
+This directory is the canonical source of truth for Token Economy wire
+contracts. Generated Go, Python, and TypeScript artifacts live under
+`packages/proto/gen/` and must be refreshed after source changes.
 
 ## What's here
 
@@ -21,38 +12,17 @@ import generated Go and TypeScript types immediately.
   the api-core handler chain produces JSON that decodes into the
   generated proto type without translation.
 
-  After relocation this lands at
-  `packages/proto/schemas/<your-scenario>/v1/shared/health.proto`. The
-  namespace comes from the relocation `to` path in `template.json`,
-  not from a directory inside `proto/` — matching the convention used
-  by every existing scenario in `packages/proto/schemas/`.
-
-The `notes` example-domain proto files carry `@template react-vite/example`.
-That annotation is intentional. It lets proto-health distinguish scaffold
-reference contracts from scenario-owned contracts without guessing based on
-generic domain names. Generated scenarios should remove the annotation only
-when the contract is intentionally adopted as real scenario surface or
-replaced by the scenario's own domain proto. The shared `health` and `errors`
-contracts are conventional infrastructure contracts, not example-domain
-scaffold, so they do not carry `@template`.
+- `v1/shared/errors.proto` — common error envelope for deliberate REST edges.
+- `v1/{mints,journal,grants,holders,earning,catalog,redemption}/` — the seven
+  product-domain contracts. Each domain owns its messages and services.
 
 ## Adding a new schema
 
-After the scenario is generated, add new `.proto` files under
-`packages/proto/schemas/<your-scenario>/v1/` (or a `v1/<domain>/`
-subdirectory if the domain warrants its own folder). Then run
-`cd packages/proto && make generate && make lint` and commit the
-regenerated artifacts in `packages/proto/gen/`.
+Add new `.proto` files under the owning `v1/<domain>/` directory. Then run
+`make generate SCENARIO=token-economy` from `packages/proto/`, run the proto
+lint target, and commit the regenerated artifacts in `packages/proto/gen/`.
 
 ## Why this layout
 
-`packages/proto/schemas/` is the canonical source of truth for every
-scenario's wire contracts. Keeping the template's protos here as a
-relocation source — rather than directly in `packages/proto/schemas/` —
-prevents the template's protos from leaking into builds: a scenario's
-generated artifacts always come from its own substituted copy at
-`packages/proto/schemas/<your-scenario>/`, never from this template tree.
-
-See `templates/scenarios/react-vite/template.json::relocations` for the
-generator wiring and `internal/cli/scenariohandlers/template_runtime.go`
-for the relocation implementation.
+Keeping each product domain in its own directory makes contract ownership
+match the API package boundary and permits scoped generation and review.

@@ -145,11 +145,27 @@ export interface ReconciliationEvidenceRow {
   verdict: string;
   captureRef: string;
   axNodeJson: string;
+  measurement?: ClaimMeasurement;
   message: string;
   checkedAt: string;
   viewport: string;
   viewportWidth: number;
   viewportHeight: number;
+}
+
+export interface MeasuredSubject {
+  elementId: string;
+  testId: string;
+  bounds?: { x: number; y: number; width: number; height: number };
+}
+
+export interface ClaimMeasurement {
+  metric: string;
+  observed?: number;
+  required?: number;
+  unit: string;
+  comparator: string;
+  subjects: MeasuredSubject[];
 }
 
 export async function fetchFleet() {

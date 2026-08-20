@@ -2,29 +2,26 @@ package prompt_manager
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"development-toolchain-validator/internal/httpc"
 	vrun "development-toolchain-validator/internal/validation_run"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
+	skillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills/skills_v1connect"
 )
 
-// skillGetPath is the prompt-manager REST endpoint returning a single
-// skill with its full markdown content.
-const skillGetPath = "/api/v1/skills/"
-
 // SkillContentRESTAdapter implements validation_run.SkillContentSource by
-// calling prompt-manager's GET /api/v1/skills/{id} endpoint. It returns
-// the skill's markdown body, which the validation_run worker injects as
-// the sandboxed agent's prompt so the agent executes the actual skill.
+// calling prompt-manager's generated Connect client. It returns the skill's
+// markdown body, which the validation_run worker injects as the sandboxed
+// agent's prompt so the agent executes the actual skill. Its historical name
+// is retained to avoid breaking downstream constructor call sites.
 type SkillContentRESTAdapter struct {
 	resolver    *discovery.Resolver
 	doer        httpc.Doer
@@ -87,38 +84,17 @@ func (a *SkillContentRESTAdapter) SkillContent(ctx context.Context, skillID stri
 }
 
 func (a *SkillContentRESTAdapter) fetchOnce(ctx context.Context, base, id string) (string, error) {
-	u := strings.TrimRight(base, "/") + skillGetPath + url.PathEscape(id)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	client := skillsconnect.NewSkillsServiceClient(a.doer, strings.TrimRight(base, "/"))
+	resp, err := client.GetSkill(ctx, connect.NewRequest(&skillsv1.GetSkillRequest{Id: id}))
 	if err != nil {
-		return "", fmt.Errorf("build request: %w", err)
+		return "", fmt.Errorf("get skill: %w", err)
 	}
-	req.Header.Set("Accept", "application/json")
-	resp, err := a.doer.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("get %s: %w", u, err)
+	if resp.Msg.GetSkill() == nil {
+		return "", fmt.Errorf("skill %q returned no record", id)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 500 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<14))
-		return "", transportError{status: resp.StatusCode, snippet: strings.TrimSpace(string(body))}
-	}
-	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<14))
-		return "", fmt.Errorf("prompt-manager returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-	}
-	var payload skillContentPayload
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
-	}
-	content := strings.TrimSpace(payload.Content)
+	content := strings.TrimSpace(resp.Msg.GetSkill().GetContent())
 	if content == "" {
 		return "", fmt.Errorf("skill %q returned empty content", id)
 	}
-	return payload.Content, nil
-}
-
-// skillContentPayload mirrors the fields we need from prompt-manager's
-// single-skill response; unknown fields are tolerated.
-type skillContentPayload struct {
-	Content string `json:"content"`
+	return resp.Msg.GetSkill().GetContent(), nil
 }

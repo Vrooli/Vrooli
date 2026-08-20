@@ -2,7 +2,7 @@
   "_metadata": {
     "auto_sync_enabled": true,
     "description": "Lighthouse performance and accessibility requirements for browser-automation-studio",
-    "last_validated_at": "2026-08-19T08:02:04-04:00",
+    "last_validated_at": "2026-08-19T22:03:02-04:00",
     "module": "performance.vrooli",
     "schema_version": "1.0.0"
   },
@@ -10,7 +10,7 @@
     {
       "id": "BAS-PERF-DASHBOARD-LOAD",
       "title": "Dashboard loads with acceptable performance score",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Performance Requirements \u003e Dashboard Load Time",
       "category": "performance.vrooli",
       "description": "Home page (dashboard) must achieve Lighthouse performance score of 0.75+ on desktop. This ensures users experience fast initial load and time-to-interactive for the primary entry point.",
@@ -19,7 +19,7 @@
           "type": "lighthouse",
           "ref": ".vrooli/lighthouse.json",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Lighthouse audit via test-performance.sh phase"
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "BAS-A11Y-DASHBOARD",
       "title": "Dashboard meets WCAG 2.1 AA accessibility standards",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Accessibility Requirements \u003e WCAG 2.1 AA Compliance",
       "category": "accessibility.vrooli",
       "description": "Dashboard page achieves Lighthouse accessibility score of 0.90+, ensuring keyboard navigation, screen reader support, color contrast, and ARIA labeling meet WCAG 2.1 AA standards.",
@@ -36,7 +36,7 @@
           "type": "lighthouse",
           "ref": ".vrooli/lighthouse.json",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Lighthouse audit via test-performance.sh phase"
         }
       ]
@@ -44,7 +44,7 @@
     {
       "id": "BAS-PERF-WORKFLOW-INTERACTIVE",
       "title": "Workflow builder becomes interactive within acceptable timeframe",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Performance Requirements \u003e Workflow Builder Interactivity",
       "category": "performance.vrooli",
       "description": "Workflow builder page achieves Lighthouse performance score of 0.65+. Lower threshold accounts for heavy Monaco editor and React Flow canvas initialization. Focus on Time to Interactive (TTI) and Total Blocking Time (TBT).",
@@ -53,7 +53,7 @@
           "type": "lighthouse",
           "ref": ".vrooli/lighthouse.json",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Lower threshold due to canvas + Monaco editor. Focus on interactivity metrics."
         }
       ]
@@ -61,7 +61,7 @@
     {
       "id": "BAS-PERF-PROJECTS-PAGE",
       "title": "Projects page loads efficiently",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Performance Requirements \u003e Project Management Performance",
       "category": "performance.vrooli",
       "description": "Projects listing/management page achieves Lighthouse performance score of 0.75+, ensuring fast navigation between projects.",
@@ -70,14 +70,14 @@
           "type": "lighthouse",
           "ref": ".vrooli/lighthouse.json",
           "phase": "performance",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "BAS-A11Y-MOBILE",
       "title": "Mobile UI meets accessibility standards",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Accessibility Requirements \u003e Mobile Accessibility",
       "category": "accessibility.vrooli",
       "description": "Mobile viewport maintains Lighthouse accessibility score of 0.90+, ensuring touch targets, viewport configuration, and responsive design maintain accessibility on mobile devices.",
@@ -86,7 +86,7 @@
           "type": "lighthouse",
           "ref": ".vrooli/lighthouse.json",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Mobile viewport validation"
         }
       ]

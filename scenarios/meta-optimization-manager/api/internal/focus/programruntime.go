@@ -47,15 +47,17 @@ type ProgramConditionObservation struct {
 }
 
 type ProgramConditionReport struct {
-	Conditions     []ProgramConditionObservation
-	Healthy        int
-	Degraded       int
-	Dormant        int
-	Uninstrumented int
-	Unavailable    int
-	Instrumented   int
-	Total          int
-	FilteredOut    int
+	Conditions      []ProgramConditionObservation
+	Healthy         int
+	Degraded        int
+	Dormant         int
+	Uninstrumented  int
+	Unavailable     int
+	Instrumented    int
+	Total           int
+	FilteredOut     int
+	LedgerExercise  ExerciseBasisInstrumentation
+	ReceiptExercise ExerciseBasisInstrumentation
 }
 
 // ProgramFrictionReader is deliberately declared by the consumer. The focus
@@ -196,11 +198,18 @@ func (s *programRuntimeConditionGapSource) DerivedGaps(ctx context.Context) ([]G
 			EvidenceSource:  "program-runtime",
 			EvidenceLocator: "program-runtime://bindings/" + condition.BindingID,
 			Recurrence:      recurrence,
-			Notes:           []string{note},
+			Notes:           []string{note, "exercise_basis=" + receiptExerciseBasisName(report)},
 			ProviderIDs:     []string{condition.Scenario},
 		})
 	}
 	return out, nil
+}
+
+func receiptExerciseBasisName(report ProgramConditionReport) string {
+	if basis := strings.TrimSpace(report.ReceiptExercise.Basis); basis != "" {
+		return basis
+	}
+	return "fleet_receipt_aggregate"
 }
 
 func (r *programRuntimeFrictionReader) ReadFriction(ctx context.Context) (ProgramFrictionReport, error) {
@@ -257,6 +266,15 @@ func (r *programRuntimeFrictionReader) ReadCondition(ctx context.Context) (Progr
 	report := ProgramConditionReport{
 		Instrumented: int(response.Msg.GetInstrumentedBindings()),
 		Total:        int(response.Msg.GetTotalBindings()),
+		LedgerExercise: ExerciseBasisInstrumentation{
+			Basis: response.Msg.GetLedgerExercise().GetBasis(), Instrumented: int(response.Msg.GetLedgerExercise().GetInstrumentedBindings()), Total: int(response.Msg.GetLedgerExercise().GetTotalBindings()), Invocations: response.Msg.GetLedgerExercise().GetInvocations(),
+		},
+		ReceiptExercise: ExerciseBasisInstrumentation{
+			Basis: response.Msg.GetReceiptExercise().GetBasis(), Instrumented: int(response.Msg.GetReceiptExercise().GetInstrumentedBindings()), Total: int(response.Msg.GetReceiptExercise().GetTotalBindings()), Invocations: response.Msg.GetReceiptExercise().GetInvocations(),
+		},
+	}
+	if report.ReceiptExercise.Basis != "" {
+		report.Instrumented = report.ReceiptExercise.Instrumented
 	}
 	allowed := map[string]struct{}(nil)
 	if r.conditionPopulation != nil {

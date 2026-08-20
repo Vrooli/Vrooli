@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "metadata": {
     "catalogId": "agent-manager-coding-permission-policy",
-    "updatedAt": "2026-07-10"
+    "updatedAt": "2026-08-19"
   },
   "targetScopes": ["user"],
   "rules": [
@@ -11,6 +11,33 @@
       "action": "deny",
       "matcher": {"kind": "bash", "pattern": "rm -rf /"},
       "rationale": "Never permit recursive deletion of the filesystem root.",
+      "owner": "agent-manager",
+      "targetScope": "user",
+      "requiresHardEnforcement": false
+    },
+    {
+      "id": "deny-destructive-find-delete",
+      "action": "deny",
+      "matcher": {"kind": "bash", "pattern": "find"},
+      "rationale": "Route find -delete through the path-aware Vrooli hook so only approved ephemeral descendants can be removed.",
+      "owner": "agent-manager",
+      "targetScope": "user",
+      "requiresHardEnforcement": false
+    },
+    {
+      "id": "deny-destructive-truncate",
+      "action": "deny",
+      "matcher": {"kind": "bash", "pattern": "truncate"},
+      "rationale": "Route truncate through the path-aware Vrooli hook so system and repository files cannot be emptied accidentally.",
+      "owner": "agent-manager",
+      "targetScope": "user",
+      "requiresHardEnforcement": false
+    },
+    {
+      "id": "deny-destructive-rm-path",
+      "action": "deny",
+      "matcher": {"kind": "bash", "pattern": "rm"},
+      "rationale": "Route every rm variant through resolved-path policy; a raw glob cannot safely express ephemeral-root containment.",
       "owner": "agent-manager",
       "targetScope": "user",
       "requiresHardEnforcement": false

@@ -4,12 +4,13 @@
   "app": {
     "name": "browser-automation-studio",
     "version": "1.0.0",
-    "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging"
+    "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging",
+    "scenario": "browser-automation-studio"
   },
   "ipc": {
     "mode": "loopback-http",
     "host": "127.0.0.1",
-    "port": 39200,
+    "port": 0,
     "auth_token_path": "runtime/auth_token"
   },
   "telemetry": {
@@ -47,6 +48,21 @@
       "replacement": "event-emitter",
       "reason": "Recommended bundle-safe alternative from dependency metadata",
       "limitations": ""
+    }
+  ],
+  "peers": [
+    {
+      "scenario": "landing-page-business-suite",
+      "bundle_policy": "discover",
+      "degraded_behavior": "LPBS-backed Class-A entitlement and shared-session operations report unavailable while the authority is stopped; local Class-B work remains usable under a still-valid cached lease.",
+      "bindings": [
+        {
+          "env_var": "BAS_ENTITLEMENT_SERVICE_URL",
+          "form": "http_base_url",
+          "port": "api",
+          "when_unavailable": "omit"
+        }
+      ]
     }
   ],
   "services": [

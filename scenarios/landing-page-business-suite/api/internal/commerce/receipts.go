@@ -11,6 +11,7 @@ var (
 	ErrReceiptUnsupported = errors.New("receipt source is unsupported")
 	ErrReceiptInvalid     = errors.New("receipt could not be verified")
 	ErrReceiptBound       = errors.New("receipt is bound to another account")
+	ErrReceiptReplay      = errors.New("receipt has already been registered")
 )
 
 // Receipt is the platform-neutral input accepted by the purchase rail seam.
@@ -101,7 +102,8 @@ func (v StripeReceiptValidator) Validate(ctx context.Context, receipt Receipt) (
 }
 
 // RegisterReceipt persists a normalized receipt result. The source/external
-// pair is unique, so replaying a receipt cannot create a second subscription.
+// pair is unique, so replaying a receipt is rejected rather than refreshing
+// an existing row or silently creating a second subscription.
 func (s *Service) RegisterReceipt(ctx context.Context, validators ReceiptValidators, receipt Receipt) (*EntitlementPayload, error) {
 	user := s.normalizeEmail(receipt.UserIdentity)
 	if user == "" || strings.TrimSpace(receipt.Token) == "" {
@@ -117,13 +119,16 @@ func (s *Service) RegisterReceipt(ctx context.Context, validators ReceiptValidat
 	if normalized.SubscriptionID == "" || normalized.ExternalSubscription == "" {
 		return nil, ErrReceiptInvalid
 	}
-	_, err = s.db.ExecContext(ctx, `
+	result, err := s.db.ExecContext(ctx, `
 		INSERT INTO subscriptions (subscription_id, customer_email, status, source, external_subscription_id, plan_tier, price_id, bundle_key, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())
-		ON CONFLICT (source, external_subscription_id) DO UPDATE SET updated_at = NOW()
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+		ON CONFLICT DO NOTHING
 	`, normalized.SubscriptionID, user, normalized.Status, strings.ToLower(receipt.Source), normalized.ExternalSubscription, normalized.PlanTier, normalized.PriceID, normalized.BundleKey)
 	if err != nil {
 		return nil, fmt.Errorf("persist validated receipt: %w", err)
+	}
+	if rows, rowsErr := result.RowsAffected(); rowsErr == nil && rows == 0 {
+		return nil, ErrReceiptReplay
 	}
 	s.cacheMutex.Lock()
 	delete(s.cache, user)

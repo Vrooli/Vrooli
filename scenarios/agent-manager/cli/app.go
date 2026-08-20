@@ -110,6 +110,8 @@ func (a *App) runCommands() []cliapp.Command {
 		{"list", "List runs", "agent-manager run list [options]", a.runList},
 		{"get", "Get a run", "agent-manager run get <id> [--json]", a.runGet},
 		{"report", "Show bounded investigation diagnostics", "agent-manager run report <id> [--json]", a.runReport},
+		{"attach", "Attach an operator-started harness session", "agent-manager run attach --harness-kind kind --harness-session-id id [options]", a.runAttach},
+		{"detach", "Close an attached harness session", "agent-manager run detach <id> [--reason text]", a.runDetach},
 		{"recent", "Show recent work and evidence-bounded durability", "agent-manager run recent [--limit n] [--json]", a.runRecent},
 		{"stats", "Show filtered aggregate run statistics", "agent-manager run stats [--profile UUID] [--since RFC3339] [--tag-prefix prefix]", a.runStats},
 		{"result", "Show final-output and structured-result provenance", "agent-manager run result <id>", a.runResult},

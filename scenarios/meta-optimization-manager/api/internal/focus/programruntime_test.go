@@ -41,7 +41,7 @@ func TestProgramRuntimeGapSourceRanksDurableFrictionShapes(t *testing.T) {
 }
 
 func TestProgramRuntimeConditionGapSourceRanksDegradedAboveDormant(t *testing.T) {
-	gaps, err := NewProgramRuntimeConditionGapSource(fakeProgramFrictionReader{condition: ProgramConditionReport{Conditions: []ProgramConditionObservation{
+	gaps, err := NewProgramRuntimeConditionGapSource(fakeProgramFrictionReader{condition: ProgramConditionReport{ReceiptExercise: ExerciseBasisInstrumentation{Basis: "fleet_receipt_aggregate"}, Conditions: []ProgramConditionObservation{
 		{BindingID: "demo/read", Scenario: "demo", Status: "dormant", Reason: "no invocation"},
 		{BindingID: "demo/write", Scenario: "demo", Status: "degraded", Reason: "failure majority"},
 		{BindingID: "demo/list", Scenario: "demo", Status: "healthy"},
@@ -54,6 +54,9 @@ func TestProgramRuntimeConditionGapSourceRanksDegradedAboveDormant(t *testing.T)
 	}
 	if importanceWeight(gaps[1]) <= importanceWeight(gaps[0]) {
 		t.Fatalf("degraded condition should outrank dormant: degraded=%v dormant=%v", importanceWeight(gaps[1]), importanceWeight(gaps[0]))
+	}
+	if len(gaps[0].Notes) < 2 || gaps[0].Notes[1] != "exercise_basis=fleet_receipt_aggregate" {
+		t.Fatalf("condition basis notes=%v", gaps[0].Notes)
 	}
 }
 

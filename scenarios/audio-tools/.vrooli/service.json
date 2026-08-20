@@ -122,66 +122,17 @@
     },
     "setup": {
       "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/audio-tools-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "audio-tools"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
       "steps": [
         {
           "name": "build-api",
-          "run": "go -C api mod download \u0026\u0026 go -C api run ./cmd/build",
+          "exec": [
+            "go",
+            "-C",
+            "api",
+            "run",
+            "./cmd/build"
+          ],
           "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "corepack pnpm --dir ui install --ignore-workspace",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "corepack pnpm --dir ui --ignore-workspace run build",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "./api/audio-tools-api",
-          "description": "Start Go API through the managed Go module lifecycle",
-          "background": true,
-          "condition": {
-            "file_exists": "api/go.mod"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "node ui/server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
         }
       ]
     }
@@ -221,7 +172,16 @@
       "landing-page-business-suite": {
         "required": false,
         "startup_policy": "try_start",
-        "degraded_behavior": "LPBS-backed audio routing remains unavailable while landing-page-business-suite is stopped; local and BYOK providers continue to serve supported requests."
+        "degraded_behavior": "LPBS-backed audio routing remains unavailable while landing-page-business-suite is stopped; local and BYOK providers continue to serve supported requests.",
+        "bundle_policy": "discover",
+        "bindings": [
+          {
+            "env_var": "AUDIO_LPBS_BASE_URL",
+            "form": "http_base_url",
+            "port": "api",
+            "when_unavailable": "omit"
+          }
+        ]
       }
     }
   },
@@ -239,5 +199,34 @@
     "AUDIO_TOOLS_ENABLE_STREAM_TEST_FAULTS": "false",
     "AUDIO_AVAIL_TTL_BYOK": "5m",
     "AUDIO_AVAIL_TTL_VROOLI": "30s"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "ui/server.js"
+        ],
+        "port": "ui"
+      }
+    }
   }
 }

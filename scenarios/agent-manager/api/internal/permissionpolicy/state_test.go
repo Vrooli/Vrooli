@@ -110,7 +110,7 @@ func TestRepositoryCatalogIsStrict(t *testing.T) {
 		t.Fatalf("Load repository permission catalog: %v", err)
 	}
 	catalog := revision.Catalog()
-	if catalog.Metadata.CatalogID != "agent-manager-coding-permission-policy" || len(catalog.Rules) != 1 {
+	if catalog.Metadata.CatalogID != "agent-manager-coding-permission-policy" || len(catalog.Rules) != 4 {
 		t.Fatalf("catalog = %#v", catalog)
 	}
 }

@@ -100,106 +100,18 @@
       "interval": 30000,
       "startup_grace_period": 15000
     },
-    "setup": {
-      "description": "Initialize Calendar system",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/calendar-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "calendar",
-            "targets": [
-              "calendar"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o calendar-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build React UI for production"
-        }
-      ]
-    },
     "develop": {
       "description": "Start calendar system with API and UI servers",
       "steps": [
         {
-          "name": "ensure-env",
-          "run": "export VROOLI_LIFECYCLE_MANAGED=true",
-          "description": "Set lifecycle environment flag"
-        },
-        {
           "name": "setup-database",
-          "run": "resource-postgres content create-database calendar_system",
+          "exec": [
+            "resource-postgres",
+            "content",
+            "create-database",
+            "calendar_system"
+          ],
           "description": "Create calendar database if not exists (idempotent)"
-        },
-        {
-          "name": "start-api",
-          "run": "cd api && eval \"$(resource-postgres content get --database calendar_system --as-env)\" && ENVIRONMENT=test VROOLI_LIFECYCLE_MANAGED=true QDRANT_URL=http://localhost:6333 JWT_SECRET=development-secret-for-calendar-system AUTH_SERVICE_URL=http://localhost:15785 NOTIFICATION_SERVICE_URL=http://localhost:15310 NOTIFICATION_PROFILE_ID=calendar-system-prod ./calendar-api",
-          "description": "Start Go API server with auth and notification integration",
-          "background": true,
-          "condition": {
-            "file_exists": "api/calendar-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.cjs",
-          "description": "Start Express server with built React app",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for calendar",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute calendar --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop calendar services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"scenarios/calendar.*calendar-api\" || true; sleep 1; pkill -9 -f \"scenarios/calendar.*calendar-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/calendar/ui/server.cjs\" || pkill -f \"calendar-ui.*server.cjs\" || true; sleep 1; pkill -9 -f \"scenarios/calendar/ui/server.cjs\" 2>/dev/null || pkill -9 -f \"calendar-ui.*server.cjs\" 2>/dev/null || true",
-          "description": "Stop UI process"
         }
       ]
     }
@@ -247,16 +159,49 @@
         "required": false,
         "startup_policy": "try_start",
         "description": "Multi-user authentication and user context",
-        "degraded_behavior": "Single-user mode without authentication"
+        "degraded_behavior": "Single-user mode without authentication",
+        "bundle_policy": "discover",
+        "bindings": [
+          {
+            "env_var": "AUTH_SERVICE_URL",
+            "form": "http_base_url",
+            "port": "api",
+            "when_unavailable": "omit"
+          }
+        ]
       },
       "notification-hub": {
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
         "description": "Event reminders and schedule change notifications",
-        "degraded_behavior": "In-memory reminder queue without delivery"
+        "degraded_behavior": "In-memory reminder queue without delivery",
+        "bundle_policy": "discover",
+        "bindings": [
+          {
+            "env_var": "NOTIFICATION_SERVICE_URL",
+            "form": "http_base_url",
+            "port": "api",
+            "when_unavailable": "omit"
+          }
+        ]
       }
     }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/calendar",
+        "field": "jwt-secret",
+        "env": "JWT_SECRET",
+        "label": "Calendar JWT signing secret",
+        "description": "Signs Calendar API tokens and must be provisioned through the credential authority.",
+        "required": true,
+        "tiers": [
+          "tier-1-local"
+        ]
+      }
+    ]
   },
   "cli": {
     "enabled": true,
@@ -277,6 +222,42 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "env": {
+          "ENVIRONMENT": "test",
+          "VROOLI_LIFECYCLE_MANAGED": "true",
+          "NOTIFICATION_PROFILE_ID": "calendar-system-prod"
+        },
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.cjs"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

@@ -138,5 +138,14 @@ func scenarioDBPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return resolver.Path(storage.Options{ScenarioID: "git-control-tower"}, storage.ClassData, "git-control-tower.db")
+	scenarioID := "git-control-tower"
+	variant := strings.ToLower(strings.TrimSpace(os.Getenv(storage.EnvVariant)))
+	if strings.TrimSpace(os.Getenv(storage.EnvScenario)) == scenarioID && variant != "" && variant != "live" {
+		namespace, err := storage.ScenarioNamespace(scenarioID)
+		if err != nil {
+			return "", fmt.Errorf("resolve variant-aware storage namespace: %w", err)
+		}
+		scenarioID = namespace
+	}
+	return resolver.Path(storage.Options{ScenarioID: scenarioID}, storage.ClassData, "git-control-tower.db")
 }

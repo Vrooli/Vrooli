@@ -271,7 +271,7 @@ func TestListConditionReportIncludesProgramRuntimeInstrumentation(t *testing.T) 
 	svc := NewService(Deps{
 		Source:          &fakeSource{gaps: []Gap{{ID: "condition/program-runtime/demo/read", Axis: AxisEmpirical, ConditionStatus: "degraded"}}},
 		Repo:            newFakeRepo(),
-		ConditionReader: fakeConditionReader{report: ProgramConditionReport{Healthy: 4, Degraded: 2, Dormant: 1, Uninstrumented: 3, Instrumented: 7, Total: 10}},
+		ConditionReader: fakeConditionReader{report: ProgramConditionReport{Healthy: 4, Degraded: 2, Dormant: 1, Uninstrumented: 3, Instrumented: 7, Total: 10, LedgerExercise: ExerciseBasisInstrumentation{Basis: "local_invocation_ledger", Instrumented: 9, Total: 10, Invocations: 12}, ReceiptExercise: ExerciseBasisInstrumentation{Basis: "fleet_receipt_aggregate", Instrumented: 7, Total: 10, Invocations: 8}}},
 	})
 	report, err := svc.ListConditionReport(context.Background())
 	if err != nil {
@@ -282,6 +282,9 @@ func TestListConditionReportIncludesProgramRuntimeInstrumentation(t *testing.T) 
 	}
 	if report.Instrumentation.Degraded != 2 || report.Instrumentation.Instrumented != 7 || report.Instrumentation.Total != 10 {
 		t.Fatalf("instrumentation=%+v", report.Instrumentation)
+	}
+	if report.Instrumentation.LedgerExercise.Instrumented != 9 || report.Instrumentation.ReceiptExercise.Instrumented != 7 {
+		t.Fatalf("exercise instrumentation=%+v", report.Instrumentation)
 	}
 }
 

@@ -14,18 +14,38 @@ import (
 	promptmanager "development-toolchain-validator/integrations/prompt_manager"
 	skillcatalog "development-toolchain-validator/internal/skill_catalog"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/discovery"
+	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
+	skillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills/skills_v1connect"
 )
 
-const happyPath = `{
-  "skills": [
-    {"id":"implementation-plan-authoring","content":"hello","updatedAt":"2026-05-01T00:00:00Z"},
-    {"id":"test","content":"world","updatedAt":"2026-05-02T00:00:00Z"}
-  ],
-  "lastUpdated":"2026-05-02T00:00:00Z",
-  "hash":"deadbeef"
-}`
+type fakeSkillsService struct {
+	skillsconnect.UnimplementedSkillsServiceHandler
+	sync func(context.Context) (*skillsv1.SyncSkillsResponse, error)
+}
+
+func (f fakeSkillsService) SyncSkills(ctx context.Context, _ *connect.Request[skillsv1.SyncSkillsRequest]) (*connect.Response[skillsv1.SyncSkillsResponse], error) {
+	response, err := f.sync(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(response), nil
+}
+
+func happyResponse() *skillsv1.SyncSkillsResponse {
+	return &skillsv1.SyncSkillsResponse{Skills: []*skillsv1.Skill{
+		{Id: "implementation-plan-authoring", Content: "hello", UpdatedAt: "2026-05-01T00:00:00Z"},
+		{Id: "test", Content: "world", UpdatedAt: "2026-05-02T00:00:00Z"},
+	}, LastUpdated: "2026-05-02T00:00:00Z", Hash: "deadbeef"}
+}
+
+func newSkillsServer(t *testing.T, service fakeSkillsService) *httptest.Server {
+	t.Helper()
+	_, handler := skillsconnect.NewSkillsServiceHandler(service)
+	return httptest.NewServer(handler)
+}
 
 func newAdapter(t *testing.T, srv *httptest.Server) *promptmanager.SkillCatalogRESTAdapter {
 	t.Helper()
@@ -38,12 +58,7 @@ func newAdapter(t *testing.T, srv *httptest.Server) *promptmanager.SkillCatalogR
 }
 
 func TestFetch_HappyPath(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/api/v1/skills/sync", r.URL.Path)
-		require.Equal(t, http.MethodGet, r.Method)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(happyPath))
-	}))
+	srv := newSkillsServer(t, fakeSkillsService{sync: func(context.Context) (*skillsv1.SyncSkillsResponse, error) { return happyResponse(), nil }})
 	defer srv.Close()
 
 	adapter := newAdapter(t, srv)
@@ -57,15 +72,13 @@ func TestFetch_HappyPath(t *testing.T) {
 
 func TestFetch_RetriesOn5xx(t *testing.T) {
 	var calls atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newSkillsServer(t, fakeSkillsService{sync: func(context.Context) (*skillsv1.SyncSkillsResponse, error) {
 		c := calls.Add(1)
 		if c < 2 {
-			http.Error(w, "upstream busy", http.StatusServiceUnavailable)
-			return
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("upstream busy"))
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(happyPath))
-	}))
+		return happyResponse(), nil
+	}})
 	defer srv.Close()
 
 	adapter := newAdapter(t, srv)
@@ -77,10 +90,10 @@ func TestFetch_RetriesOn5xx(t *testing.T) {
 
 func TestFetch_4xxIsNotRetried(t *testing.T) {
 	var calls atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := newSkillsServer(t, fakeSkillsService{sync: func(context.Context) (*skillsv1.SyncSkillsResponse, error) {
 		calls.Add(1)
-		http.Error(w, "bad request", http.StatusBadRequest)
-	}))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("bad request"))
+	}})
 	defer srv.Close()
 
 	adapter := newAdapter(t, srv)
@@ -92,10 +105,9 @@ func TestFetch_4xxIsNotRetried(t *testing.T) {
 }
 
 func TestFetch_DropsBlankIDs(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"skills":[{"id":"","content":"x","updatedAt":"2026-05-01T00:00:00Z"},{"id":"good","content":"y","updatedAt":"2026-05-01T00:00:00Z"}]}`))
-	}))
+	srv := newSkillsServer(t, fakeSkillsService{sync: func(context.Context) (*skillsv1.SyncSkillsResponse, error) {
+		return &skillsv1.SyncSkillsResponse{Skills: []*skillsv1.Skill{{Content: "x", UpdatedAt: "2026-05-01T00:00:00Z"}, {Id: "good", Content: "y", UpdatedAt: "2026-05-01T00:00:00Z"}}}, nil
+	}})
 	defer srv.Close()
 
 	adapter := newAdapter(t, srv)

@@ -141,9 +141,11 @@ func (h *handlers) conditionStatus(ctx cliapp.RunContext) error {
 		results = append(results, fmt.Sprintf("%s status=%s provider=%s recurrence=%d %s", gap.GetId(), gap.GetConditionStatus(), strings.Join(gap.GetProviderIds(), ","), gap.GetRecurrence(), gap.GetTitle()))
 	}
 	instrumentation := resp.Msg.GetInstrumentation()
+	ledger := instrumentation.GetLedgerExercise()
+	receipts := instrumentation.GetReceiptExercise()
 	summary := []string{
 		fmt.Sprintf("%d observed condition finding(s).", len(results)),
-		fmt.Sprintf("Verdicts: healthy=%d degraded=%d dormant=%d uninstrumented=%d unavailable=%d; instrumented=%d total=%d.", instrumentation.GetHealthy(), instrumentation.GetDegraded(), instrumentation.GetDormant(), instrumentation.GetUninstrumented(), instrumentation.GetUnavailable(), instrumentation.GetInstrumented(), instrumentation.GetTotal()),
+		fmt.Sprintf("Verdicts: healthy=%d degraded=%d dormant=%d uninstrumented=%d unavailable=%d; ledger instrumented=%d/%d invocations=%d basis=%s; receipts instrumented=%d/%d invocations=%d basis=%s.", instrumentation.GetHealthy(), instrumentation.GetDegraded(), instrumentation.GetDormant(), instrumentation.GetUninstrumented(), instrumentation.GetUnavailable(), ledger.GetInstrumented(), ledger.GetTotal(), ledger.GetInvocations(), ledger.GetBasis(), receipts.GetInstrumented(), receipts.GetTotal(), receipts.GetInvocations(), receipts.GetBasis()),
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: summary, ResultsHeading: "Condition", Results: results, RetrievalHints: []string{"`condition explain-leg <provider-id>` — trace one leg"}})
 }

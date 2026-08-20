@@ -23,6 +23,7 @@
     "lucide-react": "^0.424.0",
     "minimatch": "^10.2.6",
     "monaco-editor": "^0.56.0",
+    "nanoid": "3.3.18",
     "path-to-regexp": "0.1.13",
     "picomatch": "4.0.5",
     "qs": "6.15.2",

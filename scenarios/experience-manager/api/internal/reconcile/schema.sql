@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS reconcile_evidence (
   verdict TEXT NOT NULL,
   capture_ref TEXT NOT NULL,
   ax_node_json TEXT NOT NULL,
+  measurement_json TEXT NOT NULL DEFAULT '{}',
   message TEXT NOT NULL,
   checked_at TEXT NOT NULL
 );

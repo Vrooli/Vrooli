@@ -182,6 +182,30 @@ func TestServiceCaptureFailureDoesNotPublishEmptyBaseline(t *testing.T) {
 	}
 }
 
+func TestServiceCaptureRejectsRunWithNoPhaseResult(t *testing.T) {
+	result := terminalResult()
+	result.Success = false
+	result.Phases = nil
+	exec := &fakeExecutor{result: result}
+	runs := &fakeRuns{}
+	svc, storage := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
+
+	_, err := svc.Create(context.Background(), CreateRequest{RepoID: 1, Scenario: "foo", Name: "phase-less"})
+	if err == nil || !strings.Contains(err.Error(), "no phase result") {
+		t.Fatalf("phase-less capture error = %v, want typed missing-phase evidence failure", err)
+	}
+	if _, getErr := svc.Get(context.Background(), 1, "foo", "agi", "phase-less"); !errors.Is(getErr, ErrNotFound) {
+		t.Fatalf("phase-less capture published a manifest: %v", getErr)
+	}
+	lifecycle, lifecycleErr := storage.LoadLifecycle(1, "foo", "agi", "phase-less")
+	if lifecycleErr != nil || lifecycle.Status != LifecycleFailed || lifecycle.Error == "" {
+		t.Fatalf("phase-less lifecycle = %+v, err=%v", lifecycle, lifecycleErr)
+	}
+	if len(runs.pins) != 0 {
+		t.Fatalf("phase-less capture pinned a run: %+v", runs.pins)
+	}
+}
+
 func TestServiceCaptureRetainsBeforeResultWithIncompletePhaseCoverage(t *testing.T) {
 	exec := &fakeExecutor{result: terminalResult()}
 	runs := &fakeRuns{compare: CompareResult{Verdict: string(VerdictNotComparable), Phases: []*runspb.PhaseDiff{{Phase: "architecture", Verdict: string(VerdictNotComparable)}}}}

@@ -71,18 +71,19 @@ func TestListEvidenceReturnsRepositoryRows(t *testing.T) {
 	scenarioDir := filepath.Join(root, "scenarios", "demo")
 	writeStudioFixture(t, scenarioDir)
 	repo := &fakeEvidenceRepository{rows: []reconcile.Evidence{{
-		ID:         "ev-1",
-		Scenario:   "demo",
-		PageID:     "home",
-		Route:      "/",
-		StateID:    "default",
-		ClaimID:    "primary-present",
-		ClaimType:  "element-present",
-		Verdict:    "passed",
-		CaptureRef: "scenario=demo,path=/",
-		AXNodeJSON: `{"role":"button"}`,
-		Message:    "claim proven",
-		CheckedAt:  "2026-07-05T12:00:00Z",
+		ID:              "ev-1",
+		Scenario:        "demo",
+		PageID:          "home",
+		Route:           "/",
+		StateID:         "default",
+		ClaimID:         "primary-present",
+		ClaimType:       "element-present",
+		Verdict:         "passed",
+		CaptureRef:      "scenario=demo,path=/",
+		AXNodeJSON:      `{"role":"button"}`,
+		MeasurementJSON: `{"metric":"inline-gap","observed":2,"required":8,"unit":"px","comparator":"gte","subjects":[{"elementId":"start-icon","testId":"button-start-icon","bounds":{"x":8,"y":4,"width":16,"height":16}}]}`,
+		Message:         "claim proven",
+		CheckedAt:       "2026-07-05T12:00:00Z",
 	}}}
 	h := &handler{service: authoring.Service{RepoRoot: root, Evidence: repo}}
 
@@ -104,6 +105,9 @@ func TestListEvidenceReturnsRepositoryRows(t *testing.T) {
 	got := resp.Msg.GetEvidence()[0]
 	if got.GetId() != "ev-1" || got.GetVerdict() != "passed" || got.GetAxNodeJson() == "" {
 		t.Fatalf("evidence = %+v", got)
+	}
+	if got.GetMeasurement() == nil || got.GetMeasurement().GetMetric() != "inline-gap" || got.GetMeasurement().GetObserved() != 2 || len(got.GetMeasurement().GetSubjects()) != 1 || got.GetMeasurement().GetSubjects()[0].GetBounds().GetWidth() != 16 {
+		t.Fatalf("measurement = %+v, want typed numeric evidence and bounds", got.GetMeasurement())
 	}
 }
 

@@ -210,8 +210,8 @@ These automation modules execute inside the SmartNotes API, so no external workf
 - ✅ Health checks now pass validation (API: ✅ healthy with DB connected, UI: ✅ healthy with API connected)
 - ✅ All tests passing with no regressions
 
-**Session 5 (Test Lifecycle Standardization - 2025-10-27):**
-- ✅ Resolved service_test_steps HIGH-severity violation (lifecycle.test now uses test/run-tests.sh)
+**Session 5 (Historical Test Runner Standardization - 2025-10-27):**
+- ✅ Routed the then-current manifest test entrypoint through `test/run-tests.sh` (this mechanism was later replaced by server-owned Test Genie runs)
 - ✅ Enhanced test runner with automatic port detection (API_PORT and UI_PORT via lsof)
 - ✅ Configured comprehensive test execution: smoke, structure, dependencies, integration, business, performance
 - ✅ Reduced standards violations from 35 to 34 (2.9% reduction)
@@ -538,8 +538,8 @@ vrooli scenario test notes
   - Make test command now works correctly - was completely broken before
   - Zero regressions, all P0 requirements remain fully functional
   - **Impact**: Tests went from 100% failure rate (due to infrastructure bugs) to 100% pass rate
-- 2025-10-27 Session 12: Test lifecycle standardization
-  - Updated service.json lifecycle.test to use test/run-tests.sh for comprehensive testing
+- 2025-10-27 Session 12: Historical test runner standardization
+  - Routed the then-current manifest test entrypoint through `test/run-tests.sh`; current testing uses `vrooli scenario test notes`
   - Enhanced test/run-tests.sh to detect both API_PORT and UI_PORT automatically via lsof
   - Configured test runner to execute all test phases: smoke, structure, dependencies, integration, business, performance
   - Aligned with v2.0 contract requirement for standardized test execution

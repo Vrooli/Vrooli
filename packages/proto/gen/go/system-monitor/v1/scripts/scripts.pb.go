@@ -35,6 +35,8 @@ const (
 	ScriptExecutionStatus_SCRIPT_EXECUTION_STATUS_COMPLETED ScriptExecutionStatus = 2
 	// Script failed with error.
 	ScriptExecutionStatus_SCRIPT_EXECUTION_STATUS_FAILED ScriptExecutionStatus = 3
+	// The declared shell tools or native backend are unavailable on this host.
+	ScriptExecutionStatus_SCRIPT_EXECUTION_STATUS_SKIPPED ScriptExecutionStatus = 4
 )
 
 // Enum value maps for ScriptExecutionStatus.
@@ -44,12 +46,14 @@ var (
 		1: "SCRIPT_EXECUTION_STATUS_RUNNING",
 		2: "SCRIPT_EXECUTION_STATUS_COMPLETED",
 		3: "SCRIPT_EXECUTION_STATUS_FAILED",
+		4: "SCRIPT_EXECUTION_STATUS_SKIPPED",
 	}
 	ScriptExecutionStatus_value = map[string]int32{
 		"SCRIPT_EXECUTION_STATUS_UNSPECIFIED": 0,
 		"SCRIPT_EXECUTION_STATUS_RUNNING":     1,
 		"SCRIPT_EXECUTION_STATUS_COMPLETED":   2,
 		"SCRIPT_EXECUTION_STATUS_FAILED":      3,
+		"SCRIPT_EXECUTION_STATUS_SKIPPED":     4,
 	}
 )
 
@@ -98,7 +102,14 @@ type InvestigationScript struct {
 	// Author of the script.
 	Author string `protobuf:"bytes,7,opt,name=author,proto3" json:"author,omitempty"`
 	// Whether this script is enabled for execution.
-	Enabled       bool `protobuf:"varint,8,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Enabled bool `protobuf:"varint,8,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// Execution path used by the investigation service: native query or shell
+	// escape hatch. Consumers must not infer portability from the file suffix.
+	ExecutionMode string `protobuf:"bytes,13,opt,name=execution_mode,json=executionMode,proto3" json:"execution_mode,omitempty"`
+	// Tools required by a shell-gated investigation on the current host.
+	RequiredTools []string `protobuf:"bytes,14,rep,name=required_tools,json=requiredTools,proto3" json:"required_tools,omitempty"`
+	// Populated when the declared execution path is unavailable on this host.
+	SkipReason    string `protobuf:"bytes,15,opt,name=skip_reason,json=skipReason,proto3" json:"skip_reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -189,6 +200,27 @@ func (x *InvestigationScript) GetEnabled() bool {
 	return false
 }
 
+func (x *InvestigationScript) GetExecutionMode() string {
+	if x != nil {
+		return x.ExecutionMode
+	}
+	return ""
+}
+
+func (x *InvestigationScript) GetRequiredTools() []string {
+	if x != nil {
+		return x.RequiredTools
+	}
+	return nil
+}
+
+func (x *InvestigationScript) GetSkipReason() string {
+	if x != nil {
+		return x.SkipReason
+	}
+	return ""
+}
+
 // ScriptExecution represents the result of executing an investigation script.
 type ScriptExecution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -216,8 +248,12 @@ type ScriptExecution struct {
 	TimedOut bool `protobuf:"varint,11,opt,name=timed_out,json=timedOut,proto3" json:"timed_out,omitempty"`
 	// Duration of execution in seconds.
 	DurationSeconds *float64 `protobuf:"fixed64,12,opt,name=duration_seconds,json=durationSeconds,proto3,oneof" json:"duration_seconds,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Native query or shell escape hatch used for this run.
+	ExecutionMode string `protobuf:"bytes,13,opt,name=execution_mode,json=executionMode,proto3" json:"execution_mode,omitempty"`
+	// Why execution was skipped, when status is SKIPPED.
+	SkipReason    string `protobuf:"bytes,14,opt,name=skip_reason,json=skipReason,proto3" json:"skip_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ScriptExecution) Reset() {
@@ -332,6 +368,20 @@ func (x *ScriptExecution) GetDurationSeconds() float64 {
 		return *x.DurationSeconds
 	}
 	return 0
+}
+
+func (x *ScriptExecution) GetExecutionMode() string {
+	if x != nil {
+		return x.ExecutionMode
+	}
+	return ""
+}
+
+func (x *ScriptExecution) GetSkipReason() string {
+	if x != nil {
+		return x.SkipReason
+	}
+	return ""
 }
 
 // ListScriptsRequest is empty - no parameters needed.
@@ -623,7 +673,7 @@ var File_system_monitor_v1_scripts_scripts_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_scripts_scripts_proto_rawDesc = "" +
 	"\n" +
-	"'system-monitor/v1/scripts/scripts.proto\x12 vrooli.system_monitor.v1.scripts\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9f\x02\n" +
+	"'system-monitor/v1/scripts/scripts.proto\x12 vrooli.system_monitor.v1.scripts\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8e\x03\n" +
 	"\x13InvestigationScript\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -634,7 +684,11 @@ const file_system_monitor_v1_scripts_scripts_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x16\n" +
 	"\x06author\x18\a \x01(\tR\x06author\x12\x18\n" +
-	"\aenabled\x18\b \x01(\bR\aenabled\"\xa2\x04\n" +
+	"\aenabled\x18\b \x01(\bR\aenabled\x12%\n" +
+	"\x0eexecution_mode\x18\r \x01(\tR\rexecutionMode\x12%\n" +
+	"\x0erequired_tools\x18\x0e \x03(\tR\rrequiredTools\x12\x1f\n" +
+	"\vskip_reason\x18\x0f \x01(\tR\n" +
+	"skipReason\"\xea\x04\n" +
 	"\x0fScriptExecution\x12\x1b\n" +
 	"\tscript_id\x18\x01 \x01(\tR\bscriptId\x12!\n" +
 	"\fexecution_id\x18\x02 \x01(\tR\vexecutionId\x12O\n" +
@@ -649,7 +703,10 @@ const file_system_monitor_v1_scripts_scripts_proto_rawDesc = "" +
 	"\x06stderr\x18\n" +
 	" \x01(\tR\x06stderr\x12\x1b\n" +
 	"\ttimed_out\x18\v \x01(\bR\btimedOut\x12.\n" +
-	"\x10duration_seconds\x18\f \x01(\x01H\x02R\x0fdurationSeconds\x88\x01\x01B\x0f\n" +
+	"\x10duration_seconds\x18\f \x01(\x01H\x02R\x0fdurationSeconds\x88\x01\x01\x12%\n" +
+	"\x0eexecution_mode\x18\r \x01(\tR\rexecutionMode\x12\x1f\n" +
+	"\vskip_reason\x18\x0e \x01(\tR\n" +
+	"skipReasonB\x0f\n" +
 	"\r_completed_atB\f\n" +
 	"\n" +
 	"_exit_codeB\x13\n" +
@@ -668,12 +725,13 @@ const file_system_monitor_v1_scripts_scripts_proto_rawDesc = "" +
 	"\n" +
 	"\b_content\"h\n" +
 	"\x15ExecuteScriptResponse\x12O\n" +
-	"\texecution\x18\x01 \x01(\v21.vrooli.system_monitor.v1.scripts.ScriptExecutionR\texecution*\xb0\x01\n" +
+	"\texecution\x18\x01 \x01(\v21.vrooli.system_monitor.v1.scripts.ScriptExecutionR\texecution*\xd5\x01\n" +
 	"\x15ScriptExecutionStatus\x12'\n" +
 	"#SCRIPT_EXECUTION_STATUS_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fSCRIPT_EXECUTION_STATUS_RUNNING\x10\x01\x12%\n" +
 	"!SCRIPT_EXECUTION_STATUS_COMPLETED\x10\x02\x12\"\n" +
-	"\x1eSCRIPT_EXECUTION_STATUS_FAILED\x10\x032\x94\x04\n" +
+	"\x1eSCRIPT_EXECUTION_STATUS_FAILED\x10\x03\x12#\n" +
+	"\x1fSCRIPT_EXECUTION_STATUS_SKIPPED\x10\x042\x94\x04\n" +
 	"\x0eScriptsService\x12\xa2\x01\n" +
 	"\vListScripts\x124.vrooli.system_monitor.v1.scripts.ListScriptsRequest\x1a5.vrooli.system_monitor.v1.scripts.ListScriptsResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/api/v1/investigations/scripts\x12\xa1\x01\n" +
 	"\tGetScript\x122.vrooli.system_monitor.v1.scripts.GetScriptRequest\x1a3.vrooli.system_monitor.v1.scripts.GetScriptResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/investigations/scripts/{id}\x12\xb8\x01\n" +

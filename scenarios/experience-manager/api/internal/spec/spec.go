@@ -157,6 +157,7 @@ type PageDocument struct {
 	Kind          string                     `json:"kind"`
 	SchemaVersion string                     `json:"schemaVersion"`
 	Page          PageIdentity               `json:"page"`
+	Archetype     string                     `json:"archetype,omitempty"`
 	Priorities    []Priority                 `json:"priorities"`
 	States        []State                    `json:"states"`
 	Elements      []Element                  `json:"elements"`
@@ -217,7 +218,18 @@ type Claim struct {
 	Locales    []string                   `json:"locales"`
 	Params     map[string]any             `json:"params"`
 	Rationale  string                     `json:"rationale"`
+	Subject    string                     `json:"subject,omitempty"`
+	Metric     string                     `json:"metric,omitempty"`
+	Contexts   []DifferentialContext      `json:"contexts,omitempty"`
+	Require    string                     `json:"require,omitempty"`
 	Extensions map[string]json.RawMessage `json:"-"`
+}
+
+type DifferentialContext struct {
+	ID     string `json:"id"`
+	Story  string `json:"story,omitempty"`
+	Parent string `json:"parent,omitempty"`
+	Expect string `json:"expect,omitempty"`
 }
 
 func (c *Claim) UnmarshalJSON(data []byte) error {
@@ -333,6 +345,7 @@ type ComponentDocument struct {
 	Kind          string                     `json:"kind"`
 	SchemaVersion string                     `json:"schemaVersion"`
 	Component     ComponentIdentity          `json:"component"`
+	Archetype     string                     `json:"archetype,omitempty"`
 	Priorities    []Priority                 `json:"priorities"`
 	States        []ComponentState           `json:"states"`
 	Elements      []Element                  `json:"elements"`

@@ -91,6 +91,7 @@ func checkComponentShape(report *Report, loc string, component ComponentDocument
 	checkUniqueIDs(report, loc, "state", componentStateIDs(component.States))
 	checkUniqueIDs(report, loc, "element", elementIDs(component.Elements))
 	checkUniqueIDs(report, loc, "claim", claimIDs(component.Claims))
+	checkFloorOptOuts(report, loc, component.FloorOptOuts)
 	for _, state := range component.States {
 		if !idPattern.MatchString(state.Example) {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("component state %q has invalid example %q", state.ID, state.Example), loc, "Anchor each component state to a kebab-case example name.")
@@ -106,6 +107,23 @@ func checkComponentShape(report *Report, loc string, component ComponentDocument
 	}
 }
 
+func checkFloorOptOuts(report *Report, loc string, optOuts []FloorOptOut) {
+	seen := map[string]bool{}
+	for _, optOut := range optOuts {
+		floor := strings.TrimSpace(optOut.Floor)
+		reason := strings.TrimSpace(optOut.Reason)
+		if floor == "" || len(reason) < 15 {
+			report.add(CodeSchemaInvalid, SeverityError,
+				fmt.Sprintf("floor waiver %q must name a floor and provide a reason of at least 15 characters", floor),
+				loc, "Name the waived floor and explain the intentional exception.")
+		}
+		if floor != "" && seen[floor] {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("duplicate floor waiver %q", floor), loc, "Keep one explicit waiver per floor.")
+		}
+		seen[floor] = true
+	}
+}
+
 func checkComponentReferences(report *Report, loc, path, scenarioDir string, component ComponentDocument) {
 	elementSet := stringSet(elementIDs(component.Elements))
 	stateSet := stringSet(componentStateIDs(component.States))
@@ -114,6 +132,18 @@ func checkComponentReferences(report *Report, loc, path, scenarioDir string, com
 		for _, el := range claim.Elements {
 			if !elementSet[el] {
 				report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("claim %q references unknown element %q", claim.ID, el), loc, "Declare the element or remove the reference.")
+			}
+		}
+		if claim.Type == "differential" {
+			if !elementSet[claim.Subject] {
+				report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("differential claim %q references unknown subject %q", claim.ID, claim.Subject), loc, "Declare the subject as an element in the component.")
+			} else if !bindingFor(component.Bindings.Elements, claim.Subject) {
+				report.add(CodeBindingOrphan, SeverityError, fmt.Sprintf("differential claim %q references unbound subject %q", claim.ID, claim.Subject), loc, "Bind the differential subject to a test id or selector.")
+			}
+			for _, context := range claim.Contexts {
+				if context.Story != "" && !specimenSet[context.Story] {
+					report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("differential claim %q references unknown context story %q", claim.ID, context.Story), loc, "Reference a story declared by the component catalog asset.")
+				}
 			}
 		}
 		for _, state := range claim.States {
@@ -280,7 +310,11 @@ func validTier(tier string) bool {
 }
 
 func knownClaimType(t string) bool {
-	return t == "custom" || claimtypes.IsImplemented(t)
+	// `custom` remains parse-compatible for older registered scenario
+	// documents; portable library contracts explicitly reject it at their
+	// boundary in checkPortableContract. New library contracts use the named
+	// manual-review vocabulary instead.
+	return t == "custom" || t == "manual-review" || claimtypes.IsImplemented(t)
 }
 
 func paramString(params map[string]any, keys ...string) string {

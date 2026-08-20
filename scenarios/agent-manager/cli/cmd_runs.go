@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"agent-manager/cli/internal/support"
 	"github.com/vrooli/cli-core/cliapp"
@@ -32,6 +33,10 @@ func (a *App) cmdRun(args []string) error {
 		return a.runGet(args[1:])
 	case "report":
 		return a.runReport(args[1:])
+	case "attach":
+		return a.runAttach(args[1:])
+	case "detach":
+		return a.runDetach(args[1:])
 	case "recent":
 		return a.runRecent(args[1:])
 	case "cohort-report":
@@ -140,6 +145,8 @@ Subcommands:
   list                        List runs (with optional filters)
   get <id>                    Get run details by UUID
   report <id>                 Show bounded investigation diagnostics
+	attach --harness-kind kind --harness-session-id id  Attach an external harness session
+	detach <id>                 Close an attached harness session
 	  recent                      Show recent work, lanes, coverage, and durability
 	  cohort-report --run-ids ids  Show ranked, bounded evidence across selected runs
 	  invocation-facts <id>        Drill into redacted normalized invocation evidence
@@ -402,6 +409,91 @@ func (a *App) runGet(args []string) error {
 		fmt.Printf("Changed Files:   %d\n", run.ChangedFiles)
 	}
 
+	return nil
+}
+
+// =============================================================================
+// Run Attach / Detach
+// =============================================================================
+
+func (a *App) runAttach(args []string) error {
+	fs := flag.NewFlagSet("run attach", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	harnessKind := fs.String("harness-kind", "", "Stable harness kind, such as claude-code or codex")
+	harnessSessionID := fs.String("harness-session-id", "", "Harness-owned session identifier")
+	taskID := fs.String("task-id", "", "Optional task UUID to associate with the session")
+	processID := fs.Int("process-id", 0, "Optional harness process ID")
+	harnessTitle := fs.String("harness-title", "", "Optional title from harness transcript metadata")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*harnessKind) == "" || strings.TrimSpace(*harnessSessionID) == "" {
+		return fmt.Errorf("usage: agent-manager run attach --harness-kind kind --harness-session-id id [--task-id uuid] [--process-id pid] [--harness-title title]")
+	}
+	if *processID < 0 {
+		return fmt.Errorf("--process-id must be positive when provided")
+	}
+	req := &apipb.AttachRunRequest{
+		HarnessKind:      *harnessKind,
+		HarnessSessionId: *harnessSessionID,
+	}
+	if *taskID != "" {
+		req.TaskId = proto.String(*taskID)
+	}
+	if *processID > 0 {
+		value := int32(*processID)
+		req.ProcessId = &value
+	}
+	if *harnessTitle != "" {
+		req.HarnessTitle = proto.String(*harnessTitle)
+	}
+	body, response, err := a.services.Runs.Attach(req)
+	if err != nil {
+		return apiError(body, err)
+	}
+	if *jsonOutput || response == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	runID := ""
+	if response.Run != nil {
+		runID = response.Run.Id
+	}
+	fmt.Printf("Attached run: %s\nIdentity token: %s\n", runID, response.IdentityToken)
+	if response.ExpiresAt != nil {
+		fmt.Printf("Token expires: %s\n", response.ExpiresAt.AsTime().Format(time.RFC3339))
+	}
+	return nil
+}
+
+func (a *App) runDetach(args []string) error {
+	fs := flag.NewFlagSet("run detach", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	reason := fs.String("reason", "", "Optional operator reason for detaching the session")
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run detach <id> [--reason text]")
+	}
+	body, response, err := a.services.Runs.Detach(id, *reason)
+	if err != nil {
+		return apiError(body, err)
+	}
+	if *jsonOutput || response == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	status := "terminal"
+	if response.Run != nil {
+		status = formatEnumValue(response.Run.Status, "RUN_STATUS_", "_")
+	}
+	fmt.Printf("Detached run: %s\nStatus: %s\n", id, status)
 	return nil
 }
 

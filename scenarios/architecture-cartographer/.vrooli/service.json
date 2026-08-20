@@ -107,115 +107,6 @@
         }
       ],
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/architecture-cartographer-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "architecture-cartographer"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o architecture-cartographer-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./architecture-cartographer-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/architecture-cartographer-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute architecture-cartographer --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    }
-  },
-  "resources": {
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "startup_policy": "try_start",
-      "description": "Vector database for cross-scenario domain-map semantic search (collection: architecture-cartographer-domains).",
-      "degraded_behavior": "Domain-map search falls back to BM25-style text matching over freshly derived domains; reindex is deferred."
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "startup_policy": "try_start",
-      "description": "Local embedding role for the domain-map index.",
-      "degraded_behavior": "Embedding generation is unavailable; text-mode domain search still works.",
-      "model_roles": [
-        "embedding.default"
-      ]
-    },
-    "reranker": {
-      "type": "reranker",
-      "enabled": true,
-      "required": false,
-      "startup_policy": "try_start",
-      "description": "Cross-encoder reranker (BAAI/bge-reranker-v2-m3 via TEI) that reorders the dense domain-search shortlist and collapses gibberish leakage to ~0, separating junk from weak-but-real domain matches that overlap in the dense cosine band.",
-      "degraded_behavior": "Reranking falls back to raw dense (cosine) order; search still returns results, but honest no-match rejection is weaker until the reranker is reachable."
     }
   },
   "dependencies": {
@@ -244,6 +135,35 @@
         "description": "Extracts TypeScript code graphs for cartographer graph snapshots.",
         "degraded_behavior": "TypeScript graph extraction fails for scenarios with TypeScript surfaces until typescript-code-graph is available."
       }
+    },
+    "resources": {
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Vector database for cross-scenario domain-map semantic search (collection: architecture-cartographer-domains).",
+        "degraded_behavior": "Domain-map search falls back to BM25-style text matching over freshly derived domains; reindex is deferred."
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Local embedding role for the domain-map index.",
+        "degraded_behavior": "Embedding generation is unavailable; text-mode domain search still works.",
+        "model_roles": [
+          "embedding.default"
+        ]
+      },
+      "reranker": {
+        "type": "reranker",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Cross-encoder reranker (BAAI/bge-reranker-v2-m3 via TEI) that reorders the dense domain-search shortlist and collapses gibberish leakage to ~0, separating junk from weak-but-real domain matches that overlap in the dense cosine band.",
+        "degraded_behavior": "Reranking falls back to raw dense (cosine) order; search still returns results, but honest no-match rejection is weaker until the reranker is reachable."
+      }
     }
   },
   "environment": {
@@ -262,6 +182,37 @@
         "max_bytes": "5GiB",
         "pruner": "custom",
         "rationale": "graph_snapshots grows without bound by construction: a unique index on (scenario, content_hash) retains every distinct code state forever. Selection is keep-newest-N-per-scenario and cannot be an age rule - a generic age bound would delete the only snapshot of a stable scenario while keeping twenty of a noisy one. The scenario registers a custom Pruner under this budget key; the framework still owns whether the table is within budget. 5GiB is a starting figure, not a measured optimum: the 2026-07-31 incident cleanup took this table from 77.2 GB to 3.26 GB."
+      }
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
       }
     }
   }

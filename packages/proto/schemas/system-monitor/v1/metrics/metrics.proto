@@ -39,6 +39,32 @@ message MetricsResponse {
 
   // When these metrics were collected.
   google.protobuf.Timestamp timestamp = 5;
+
+  // Honest state for each primary metric. The legacy scalar fields above are
+  // retained for wire compatibility while consumers migrate; new consumers
+  // must use these oneof-backed values and never infer absence from zero.
+  MetricValue cpu = 6;
+  MetricValue memory = 7;
+  MetricValue connections = 8;
+  MetricValue gpu = 9;
+  MetricValue disk = 10;
+}
+
+// MetricValue carries a measurement or an explicit non-measured state.
+// A zero is a valid measured value; unsupported and failed values are never
+// represented as numeric zero.
+message MetricValue {
+  oneof state {
+    double measured = 1;
+    string unsupported_reason = 2;
+    string failed_error = 3;
+  }
+
+  // Source of the measurement or probe mechanism that produced the state.
+  string provenance = 4;
+
+  // Time at which this individual value was observed.
+  google.protobuf.Timestamp observed_at = 5;
 }
 
 // MetricTimelineSample represents a single sample in a metrics timeline.
@@ -57,6 +83,11 @@ message MetricTimelineSample {
 
   // GPU usage percentage (if available).
   optional double gpu_usage = 5;
+
+  MetricValue cpu = 6;
+  MetricValue memory = 7;
+  MetricValue connections = 8;
+  MetricValue gpu = 9;
 }
 
 // MetricsTimelineResponse contains a windowed series of metric samples.

@@ -100,85 +100,6 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize AI Chatbot Manager",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/ai-chatbot-manager-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "ai-chatbot-manager"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o ai-chatbot-manager-api .",
-          "description": "Build Go API server with WebSocket support"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install React dashboard dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build React dashboard for production"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start AI Chatbot Manager with API server and React dashboard",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./ai-chatbot-manager-api",
-          "description": "Start Go API server with WebSocket support",
-          "background": true,
-          "condition": {
-            "file_exists": "api/ai-chatbot-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start production UI server that serves the dist bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for ai-chatbot-manager",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute ai-chatbot-manager --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -219,6 +140,37 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

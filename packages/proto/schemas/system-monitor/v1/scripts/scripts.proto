@@ -46,6 +46,16 @@ message InvestigationScript {
 
   // Whether this script is enabled for execution.
   bool enabled = 8;
+
+  // Execution path used by the investigation service: native query or shell
+  // escape hatch. Consumers must not infer portability from the file suffix.
+  string execution_mode = 13;
+
+  // Tools required by a shell-gated investigation on the current host.
+  repeated string required_tools = 14;
+
+  // Populated when the declared execution path is unavailable on this host.
+  string skip_reason = 15;
 }
 
 // ScriptExecutionStatus represents the state of a script execution.
@@ -61,6 +71,9 @@ enum ScriptExecutionStatus {
 
   // Script failed with error.
   SCRIPT_EXECUTION_STATUS_FAILED = 3;
+
+  // The declared shell tools or native backend are unavailable on this host.
+  SCRIPT_EXECUTION_STATUS_SKIPPED = 4;
 }
 
 // ScriptExecution represents the result of executing an investigation script.
@@ -100,6 +113,12 @@ message ScriptExecution {
 
   // Duration of execution in seconds.
   optional double duration_seconds = 12;
+
+  // Native query or shell escape hatch used for this run.
+  string execution_mode = 13;
+
+  // Why execution was skipped, when status is SKIPPED.
+  string skip_reason = 14;
 }
 
 // =============================================================================

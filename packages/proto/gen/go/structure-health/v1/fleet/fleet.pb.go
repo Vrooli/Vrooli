@@ -149,8 +149,6 @@ type ScanFleetResponse struct {
 	ScenarioCount int32 `protobuf:"varint,4,opt,name=scenario_count,json=scenarioCount,proto3" json:"scenario_count,omitempty"`
 	// Scenarios with no error-severity structure findings.
 	PassingCount int32 `protobuf:"varint,5,opt,name=passing_count,json=passingCount,proto3" json:"passing_count,omitempty"`
-	// Scenarios missing at least one buildable-surface freshness check.
-	MissingFreshnessCount int32 `protobuf:"varint,6,opt,name=missing_freshness_count,json=missingFreshnessCount,proto3" json:"missing_freshness_count,omitempty"`
 	// Total auto-fixable findings across the fleet.
 	AutofixableTotal int32 `protobuf:"varint,7,opt,name=autofixable_total,json=autofixableTotal,proto3" json:"autofixable_total,omitempty"`
 	// Scenarios that could not be graded (enumerated but failed to validate),
@@ -228,13 +226,6 @@ func (x *ScanFleetResponse) GetPassingCount() int32 {
 	return 0
 }
 
-func (x *ScanFleetResponse) GetMissingFreshnessCount() int32 {
-	if x != nil {
-		return x.MissingFreshnessCount
-	}
-	return 0
-}
-
 func (x *ScanFleetResponse) GetAutofixableTotal() int32 {
 	if x != nil {
 		return x.AutofixableTotal
@@ -278,9 +269,6 @@ type FleetScenarioEntry struct {
 	TotalFindings     int32 `protobuf:"varint,7,opt,name=total_findings,json=totalFindings,proto3" json:"total_findings,omitempty"`
 	// Auto-fixable findings in this scenario.
 	AutofixableCount int32 `protobuf:"varint,8,opt,name=autofixable_count,json=autofixableCount,proto3" json:"autofixable_count,omitempty"`
-	// True when the scenario is missing a buildable-surface freshness check
-	// (a FRESHNESS_CHECK_MISSING finding) — the silent-rebuild offender signal.
-	MissingFreshnessCheck bool `protobuf:"varint,9,opt,name=missing_freshness_check,json=missingFreshnessCheck,proto3" json:"missing_freshness_check,omitempty"`
 	// Declared surfaces for this scenario, e.g. ["api", "cli", "ui"].
 	Surfaces []string `protobuf:"bytes,10,rep,name=surfaces,proto3" json:"surfaces,omitempty"`
 	// Non-empty when the scenario was graded in a degraded mode.
@@ -378,13 +366,6 @@ func (x *FleetScenarioEntry) GetAutofixableCount() int32 {
 	return 0
 }
 
-func (x *FleetScenarioEntry) GetMissingFreshnessCheck() bool {
-	if x != nil {
-		return x.MissingFreshnessCheck
-	}
-	return false
-}
-
 func (x *FleetScenarioEntry) GetSurfaces() []string {
 	if x != nil {
 		return x.Surfaces
@@ -423,7 +404,7 @@ func (x *FleetScenarioEntry) GetTargetPath() string {
 // RuleConformance rolls one finding code up across the fleet.
 type RuleConformance struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Finding code, e.g. "FRESHNESS_CHECK_MISSING" or "PROFILE_ENV_VALIDATION".
+	// Finding code, e.g. "SCENARIO_COMPONENT_INVALID" or "PROFILE_ENV_VALIDATION".
 	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	// Number of scenarios with at least one finding of this code.
 	OffendingScenarios int32 `protobuf:"varint,2,opt,name=offending_scenarios,json=offendingScenarios,proto3" json:"offending_scenarios,omitempty"`
@@ -628,19 +609,18 @@ const file_structure_health_v1_fleet_fleet_proto_rawDesc = "" +
 	"\vFleetTarget\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
-	"\x04path\x18\x03 \x01(\tR\x04path\"\xfb\x04\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\"\xc3\x04\n" +
 	"\x11ScanFleetResponse\x12N\n" +
 	"\aentries\x18\x01 \x03(\v24.vrooli.structure_health.v1.fleet.FleetScenarioEntryR\aentries\x12\\\n" +
 	"\x10rule_conformance\x18\x02 \x03(\v21.vrooli.structure_health.v1.fleet.RuleConformanceR\x0fruleConformance\x12h\n" +
 	"\x14profile_distribution\x18\x03 \x03(\v25.vrooli.structure_health.v1.fleet.ProfileDistributionR\x13profileDistribution\x12%\n" +
 	"\x0escenario_count\x18\x04 \x01(\x05R\rscenarioCount\x12#\n" +
-	"\rpassing_count\x18\x05 \x01(\x05R\fpassingCount\x126\n" +
-	"\x17missing_freshness_count\x18\x06 \x01(\x05R\x15missingFreshnessCount\x12+\n" +
+	"\rpassing_count\x18\x05 \x01(\x05R\fpassingCount\x12+\n" +
 	"\x11autofixable_total\x18\a \x01(\x05R\x10autofixableTotal\x12H\n" +
 	"\x06errors\x18\b \x03(\v20.vrooli.structure_health.v1.fleet.FleetScanErrorR\x06errors\x12!\n" +
 	"\ftarget_count\x18\t \x01(\x05R\vtargetCount\x120\n" +
 	"\x14passing_target_count\x18\n" +
-	" \x01(\x05R\x12passingTargetCount\"\x8c\x04\n" +
+	" \x01(\x05R\x12passingTargetCount\"\xd4\x03\n" +
 	"\x12FleetScenarioEntry\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12\x1d\n" +
@@ -651,8 +631,7 @@ const file_structure_health_v1_fleet_fleet_proto_rawDesc = "" +
 	"errorCount\x12#\n" +
 	"\rwarning_count\x18\x06 \x01(\x05R\fwarningCount\x12%\n" +
 	"\x0etotal_findings\x18\a \x01(\x05R\rtotalFindings\x12+\n" +
-	"\x11autofixable_count\x18\b \x01(\x05R\x10autofixableCount\x126\n" +
-	"\x17missing_freshness_check\x18\t \x01(\bR\x15missingFreshnessCheck\x12\x1a\n" +
+	"\x11autofixable_count\x18\b \x01(\x05R\x10autofixableCount\x12\x1a\n" +
 	"\bsurfaces\x18\n" +
 	" \x03(\tR\bsurfaces\x12'\n" +
 	"\x0fdegraded_reason\x18\v \x01(\tR\x0edegradedReason\x12\x1f\n" +

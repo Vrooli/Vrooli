@@ -34,33 +34,7 @@
       }
     }
   },
-  "environment": {
-    "GCT_SQLITE_PATH": "${SCENARIO_DATA_DIR}/git-control-tower.db"
-  },
   "lifecycle": {
-    "develop": {
-      "description": "Start Git Control Tower services for development",
-      "steps": [
-        {
-          "background": true,
-          "condition": {
-            "file_exists": "api/git-control-tower-api"
-          },
-          "description": "Start Go API server",
-          "name": "start-api",
-          "run": "cd api && ./git-control-tower-api"
-        },
-        {
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          },
-          "description": "Serve production UI bundle",
-          "name": "start-ui",
-          "run": "cd ui && node server.js"
-        }
-      ]
-    },
     "health": {
       "checks": [
         {
@@ -86,64 +60,6 @@
         "ui": "/health"
       },
       "startup_grace_period": 10000
-    },
-    "setup": {
-      "condition": {
-        "checks": [
-          {
-            "targets": [
-              "api/git-control-tower-api"
-            ],
-            "type": "binaries"
-          },
-          {
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src",
-            "type": "ui-bundle"
-          },
-          {
-            "command": "git-control-tower",
-            "targets": [
-              "git-control-tower"
-            ],
-            "type": "cli"
-          }
-        ]
-      },
-      "description": "Initialize Git Control Tower (build + install)",
-      "steps": [
-        {
-          "description": "Build Go API binary",
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o git-control-tower-api ."
-        },
-        {
-          "condition": {
-            "file_exists": "ui/package.json"
-          },
-          "description": "Install UI dependencies",
-          "name": "install-ui-deps",
-          "run": "cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace)"
-        },
-        {
-          "description": "Build production UI bundle",
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop all services gracefully"
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "description": "Execute phased scenario test suite",
-          "name": "run-phased-tests",
-          "run": "vrooli scenario start git-control-tower && test-genie execute git-control-tower --preset comprehensive --skip playbooks"
-        }
-      ]
     },
     "version": "2.0.0"
   },
@@ -232,5 +148,36 @@
       }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
   }
 }

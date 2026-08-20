@@ -61,6 +61,69 @@ func TestRunCreateModelOverrideIsOptional(t *testing.T) {
 	}
 }
 
+func TestRunAttachAndDetachUseTypedIdentityEndpoints(t *testing.T) {
+	var attachRequest apipb.AttachRunRequest
+	var detachRequest apipb.DetachRunRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/runs/attach":
+			if r.Method != http.MethodPost {
+				t.Errorf("attach method = %s", r.Method)
+			}
+			if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(readAll(t, r), &attachRequest); err != nil {
+				t.Error(err)
+			}
+			body, err := protojson.Marshal(&apipb.AttachRunResponse{
+				Run:           &domainpb.Run{Id: "attached-run"},
+				IdentityToken: "token-once",
+			})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			_, _ = w.Write(body)
+		case "/api/v1/runs/attached-run/detach":
+			if r.Method != http.MethodPost {
+				t.Errorf("detach method = %s", r.Method)
+			}
+			if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(readAll(t, r), &detachRequest); err != nil {
+				t.Error(err)
+			}
+			body, err := protojson.Marshal(&apipb.DetachRunResponse{Run: &domainpb.Run{
+				Id:     "attached-run",
+				Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
+			}})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			_, _ = w.Write(body)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{DefaultBase: server.URL}
+	}, nil)
+	app := &App{services: NewServices(api)}
+
+	if err := app.cmdRun([]string{"attach", "--harness-kind=codex", "--harness-session-id=session-1", "--process-id=42", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	if attachRequest.GetHarnessKind() != "codex" || attachRequest.GetHarnessSessionId() != "session-1" || attachRequest.GetProcessId() != 42 {
+		t.Fatalf("attach request = %+v", attachRequest)
+	}
+
+	if err := app.cmdRun([]string{"detach", "attached-run", "--reason", "finished", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	if detachRequest.GetRunId() != "attached-run" || detachRequest.GetReason() != "finished" {
+		t.Fatalf("detach request = %+v", detachRequest)
+	}
+}
+
 func TestRejectRunIdentityLifecycleCommand(t *testing.T) {
 	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "run-token")
 

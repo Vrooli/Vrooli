@@ -20,15 +20,12 @@ make stop
 make start
 ```
 
-If a process is genuinely orphaned, find and kill it:
+If a process is genuinely orphaned, let the control plane reconcile its owned state:
 
 ```bash
 vrooli scenario status device-sync-hub
-# Then either:
 make stop
-# Or, as last resort:
-pkill -f 'device-sync-hub-api'
-pkill -f 'node server.js'
+vrooli scenario start device-sync-hub --clean-stale
 ```
 
 **Don't** use `make stop && make start` on autopilot — `make restart`

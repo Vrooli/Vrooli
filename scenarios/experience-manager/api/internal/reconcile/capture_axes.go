@@ -58,6 +58,10 @@ func CaptureProfilesFromAxes(path string, budget int) ([]CaptureProfile, error) 
 
 	profile := func(viewport, color, locale, motion, interaction string) CaptureProfile {
 		width, height := axisDimensions(params["viewport"][viewport])
+		direction, _ := params["locale"][locale]["direction"].(string)
+		if direction == "" {
+			direction = "ltr"
+		}
 		return CaptureProfile{
 			ID:               viewport,
 			MatrixID:         viewport + "-" + color + "-" + locale + "-" + motion + "-" + interaction,
@@ -65,6 +69,7 @@ func CaptureProfilesFromAxes(path string, budget int) ([]CaptureProfile, error) 
 			Height:           height,
 			ColorScheme:      color,
 			Locale:           locale,
+			Direction:        direction,
 			MotionPreference: motion,
 			InteractionState: interaction,
 		}

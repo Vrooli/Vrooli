@@ -36,8 +36,8 @@ const (
 	insertEvidenceSQL = `
 INSERT INTO reconcile_evidence (
   id, scenario, document_kind, page_id, component_id, component_title, example_name, route, state_id, claim_id, claim_type, verdict,
-  capture_ref, ax_node_json, message, checked_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  capture_ref, ax_node_json, measurement_json, message, checked_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
   scenario=excluded.scenario,
   document_kind=excluded.document_kind,
@@ -52,6 +52,7 @@ ON CONFLICT(id) DO UPDATE SET
   verdict=excluded.verdict,
   capture_ref=excluded.capture_ref,
   ax_node_json=excluded.ax_node_json,
+  measurement_json=excluded.measurement_json,
   message=excluded.message,
   checked_at=excluded.checked_at`
 
@@ -67,7 +68,7 @@ ON CONFLICT(evidence_id) DO UPDATE SET
 	evidenceColumns = `
 reconcile_evidence.id, scenario, document_kind, page_id, component_id, component_title, example_name, route, state_id,
 COALESCE(viewport_id, ''), COALESCE(viewport_width, 0), COALESCE(viewport_height, 0),
-claim_id, claim_type, verdict, capture_ref, ax_node_json, message, checked_at`
+claim_id, claim_type, verdict, capture_ref, ax_node_json, measurement_json, message, checked_at`
 )
 
 func (r *sqliteRepository) SaveEvidence(ctx context.Context, evidence Evidence) error {
@@ -89,6 +90,7 @@ func (r *sqliteRepository) SaveEvidence(ctx context.Context, evidence Evidence) 
 		evidence.Verdict,
 		evidence.CaptureRef,
 		evidence.AXNodeJSON,
+		firstNonEmpty(evidence.MeasurementJSON, "{}"),
 		evidence.Message,
 		evidence.CheckedAt,
 	); err != nil {
@@ -161,10 +163,14 @@ LEFT JOIN reconcile_evidence_viewports ON reconcile_evidence_viewports.evidence_
 			&e.Verdict,
 			&e.CaptureRef,
 			&e.AXNodeJSON,
+			&e.MeasurementJSON,
 			&e.Message,
 			&e.CheckedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan reconcile evidence: %w", err)
+		}
+		if e.MeasurementJSON == "{}" {
+			e.MeasurementJSON = ""
 		}
 		out = append(out, e)
 	}

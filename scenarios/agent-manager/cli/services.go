@@ -633,6 +633,45 @@ func (s *RunService) Get(id string) ([]byte, *domainpb.Run, error) {
 	return body, resp.Run, nil
 }
 
+// Attach registers an operator-started harness session and returns its
+// scoped, one-time identity token.
+func (s *RunService) Attach(req *apipb.AttachRunRequest) ([]byte, *apipb.AttachRunResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/attach", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+	var resp apipb.AttachRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
+// Detach closes an attached harness session without terminating its process.
+func (s *RunService) Detach(id, reason string) ([]byte, *apipb.DetachRunResponse, error) {
+	req := &apipb.DetachRunRequest{RunId: id}
+	if reason != "" {
+		req.Reason = proto.String(reason)
+	}
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/detach", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+	var resp apipb.DetachRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
 // GetReport retrieves the bounded shared run-report projection.
 func (s *RunService) GetReport(id string) ([]byte, error) {
 	return s.api.Get("/api/v1/runs/"+id+"/report", nil)

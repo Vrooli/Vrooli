@@ -310,9 +310,17 @@ func (s *PrecommitService) saveLastResult(ctx context.Context, repoDir string, r
 	if s == nil || s.db == nil {
 		return nil
 	}
+	// Recording a run must never author configuration. This upsert creates the row
+	// when a repo has never been configured, so it seeds every config column from
+	// defaultPrecommitConfig — the same values Get returns for an absent row. Left
+	// to the column defaults (enabled=0, command='') the first run would persist a
+	// disabled pre-commit nobody asked for, and Get would return it forever after.
+	// On conflict only the last_* columns are written, so a saved config is never
+	// disturbed by a run.
+	defaults := defaultPrecommitConfig(repoDir)
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO git_repo_precommit (repo_path, timeout_seconds, run_before_commit, allow_override, last_status, last_exit_code, last_summary, last_stdout, last_stderr, last_duration_ms, last_timestamp, updated_at)
-		VALUES (?, ?, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO git_repo_precommit (repo_path, enabled, command, working_directory, timeout_seconds, run_before_commit, allow_override, last_status, last_exit_code, last_summary, last_stdout, last_stderr, last_duration_ms, last_timestamp, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(repo_path) DO UPDATE SET
 			last_status = excluded.last_status,
 			last_exit_code = excluded.last_exit_code,
@@ -322,7 +330,9 @@ func (s *PrecommitService) saveLastResult(ctx context.Context, repoDir string, r
 			last_duration_ms = excluded.last_duration_ms,
 			last_timestamp = excluded.last_timestamp,
 			updated_at = excluded.updated_at
-	`, repoDir, defaultPrecommitTimeoutSeconds, result.Status, result.ExitCode, result.Summary, result.Stdout, result.Stderr, result.DurationMs, result.Timestamp.Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano))
+	`, repoDir, boolInt(defaults.Enabled), defaults.Command, defaults.WorkingDirectory, defaults.TimeoutSeconds,
+		boolInt(defaults.RunBeforeCommit), boolInt(defaults.AllowOverride),
+		result.Status, result.ExitCode, result.Summary, result.Stdout, result.Stderr, result.DurationMs, result.Timestamp.Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano))
 	return err
 }
 

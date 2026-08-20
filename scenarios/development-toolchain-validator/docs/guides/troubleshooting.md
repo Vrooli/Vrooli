@@ -20,15 +20,12 @@ make stop
 make start
 ```
 
-If a process is genuinely orphaned, find and kill it:
+If a process is genuinely orphaned, let the control plane reconcile its owned state:
 
 ```bash
 vrooli scenario status development-toolchain-validator
-# Then either:
 make stop
-# Or, as last resort:
-pkill -f 'development-toolchain-validator-api'
-pkill -f 'node server.js'
+vrooli scenario start development-toolchain-validator --clean-stale
 ```
 
 **Don't** use `make stop && make start` on autopilot — `make restart`

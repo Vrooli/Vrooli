@@ -20,15 +20,12 @@ make stop
 make start
 ```
 
-If a process is genuinely orphaned, find and kill it:
+If a process is genuinely orphaned, let the control plane reconcile its owned state:
 
 ```bash
 vrooli scenario status architecture-cartographer
-# Then either:
 make stop
-# Or, as last resort:
-pkill -f 'architecture-cartographer-api'
-pkill -f 'node server.js'
+vrooli scenario start architecture-cartographer --clean-stale
 ```
 
 **Don't** use `make stop && make start` on autopilot — `make restart`

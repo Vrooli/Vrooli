@@ -111,81 +111,6 @@
           "critical": true
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/agent-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "agent-manager"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o agent-manager-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && PROJECT_ROOT=\"${PROJECT_ROOT:-${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}}\" ./agent-manager-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/agent-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "vrooli scenario start agent-manager && for url in \"http://localhost:${API_PORT}/health\" \"http://localhost:${UI_PORT}/health\"; do ok=0; for i in $(seq 1 45); do if curl -fsS \"$url\" >/dev/null; then ok=1; break; fi; sleep 1; done; if [ \"$ok\" -ne 1 ]; then echo \"Timed out waiting for $url\"; exit 1; fi; done; test-genie execute agent-manager --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -261,6 +186,48 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "readiness": {
+          "type": "http",
+          "path": "/health",
+          "timeout_ms": 30000
+        },
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "depends_on": [
+          {
+            "component": "api",
+            "wait": "ready"
+          }
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

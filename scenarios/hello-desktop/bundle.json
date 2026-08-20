@@ -4,12 +4,13 @@
   "app": {
     "name": "Hello Desktop",
     "version": "0.1.0",
-    "description": "Minimal scenario for validating desktop deployment pipeline"
+    "description": "Minimal scenario for validating desktop deployment pipeline",
+    "scenario": "hello-desktop"
   },
   "ipc": {
     "mode": "loopback-http",
     "host": "127.0.0.1",
-    "port": 39200,
+    "port": 0,
     "auth_token_path": "runtime/auth_token"
   },
   "telemetry": {

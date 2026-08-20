@@ -65,7 +65,23 @@ type Storage struct {
 
 // NewStorage builds a Storage over the given api-core resolver.
 func NewStorage(resolver *storage.Resolver) *Storage {
-	return &Storage{resolver: resolver, scenarioD: "git-control-tower"}
+	return &Storage{resolver: resolver, scenarioD: runtimeStorageScenarioID()}
+}
+
+func runtimeStorageScenarioID() string {
+	const scenario = "git-control-tower"
+	variant := strings.ToLower(strings.TrimSpace(os.Getenv(storage.EnvVariant)))
+	if strings.TrimSpace(os.Getenv(storage.EnvScenario)) != scenario || variant == "" || variant == "live" {
+		return scenario
+	}
+	namespace, err := storage.ScenarioNamespace(scenario)
+	if err != nil {
+		// A lifecycle-launched non-live instance without a valid namespace must
+		// fail closed. An empty scenario id makes every resolver operation return
+		// a validation error instead of aliasing the live filesystem.
+		return ""
+	}
+	return namespace
 }
 
 // NewStorageAt builds a Storage whose class roots are forced under root. Test

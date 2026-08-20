@@ -49,6 +49,7 @@ func EnsureMigrations(ctx context.Context, db SQLExecutor) error {
 		{"component_id", "ALTER TABLE reconcile_evidence ADD COLUMN component_id TEXT NOT NULL DEFAULT ''"},
 		{"component_title", "ALTER TABLE reconcile_evidence ADD COLUMN component_title TEXT NOT NULL DEFAULT ''"},
 		{"example_name", "ALTER TABLE reconcile_evidence ADD COLUMN example_name TEXT NOT NULL DEFAULT ''"},
+		{"measurement_json", "ALTER TABLE reconcile_evidence ADD COLUMN measurement_json TEXT NOT NULL DEFAULT '{}'"},
 	} {
 		if present[change.name] {
 			continue

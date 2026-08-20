@@ -500,6 +500,17 @@
       "install_steps": [],
       "storefronts": [],
       "platforms": []
+    },
+    {
+      "bundle_key": "business_suite",
+      "app_key": "audio-tools",
+      "name": "Vrooli Audio Tools",
+      "tagline": "Durable voice infrastructure",
+      "description": "Hosted audio capability for long-form dictation, speech synthesis, and speaker services.",
+      "install_overview": "Hosted service; audio-tools is provisioned as part of the Vrooli workspace.",
+      "install_steps": [],
+      "storefronts": [],
+      "platforms": []
     }
   ]
 }

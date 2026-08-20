@@ -1111,6 +1111,99 @@
           }
         },
         {
+          "name": "attach",
+          "description": "Attach an operator-started harness session and mint its scoped identity token",
+          "flags": [
+            {
+              "name": "harness-kind",
+              "required": true,
+              "description": "Stable harness kind, such as claude-code or codex",
+              "bind": {
+                "field": "harness_kind"
+              }
+            },
+            {
+              "name": "harness-session-id",
+              "required": true,
+              "description": "Harness-owned session identifier",
+              "bind": {
+                "field": "harness_session_id"
+              }
+            },
+            {
+              "name": "task-id",
+              "description": "Optional task UUID to associate with the attached session",
+              "bind": {
+                "field": "task_id"
+              }
+            },
+            {
+              "name": "process-id",
+              "description": "Optional harness process ID",
+              "bind": {
+                "field": "process_id"
+              }
+            },
+            {
+              "name": "harness-title",
+              "description": "Optional title from harness transcript metadata",
+              "bind": {
+                "field": "harness_title"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "AttachRun"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "detach",
+          "description": "Close an attached harness session and revoke its scoped identity token",
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Attached run UUID",
+              "bind": {
+                "field": "run_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "description": "Optional operator reason for detaching the session"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "DetachRun"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
           "name": "recent",
           "description": "Show recent work with attribution lanes, coverage, and evidence-bounded durability",
           "flags": [

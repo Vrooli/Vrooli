@@ -17,13 +17,15 @@ class ScriptExecutionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SCRIPT_EXECUTION_STATUS_RUNNING: _ClassVar[ScriptExecutionStatus]
     SCRIPT_EXECUTION_STATUS_COMPLETED: _ClassVar[ScriptExecutionStatus]
     SCRIPT_EXECUTION_STATUS_FAILED: _ClassVar[ScriptExecutionStatus]
+    SCRIPT_EXECUTION_STATUS_SKIPPED: _ClassVar[ScriptExecutionStatus]
 SCRIPT_EXECUTION_STATUS_UNSPECIFIED: ScriptExecutionStatus
 SCRIPT_EXECUTION_STATUS_RUNNING: ScriptExecutionStatus
 SCRIPT_EXECUTION_STATUS_COMPLETED: ScriptExecutionStatus
 SCRIPT_EXECUTION_STATUS_FAILED: ScriptExecutionStatus
+SCRIPT_EXECUTION_STATUS_SKIPPED: ScriptExecutionStatus
 
 class InvestigationScript(_message.Message):
-    __slots__ = ("id", "name", "description", "category", "created_at", "updated_at", "author", "enabled")
+    __slots__ = ("id", "name", "description", "category", "created_at", "updated_at", "author", "enabled", "execution_mode", "required_tools", "skip_reason")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -32,6 +34,9 @@ class InvestigationScript(_message.Message):
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     AUTHOR_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_TOOLS_FIELD_NUMBER: _ClassVar[int]
+    SKIP_REASON_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     description: str
@@ -40,10 +45,13 @@ class InvestigationScript(_message.Message):
     updated_at: _timestamp_pb2.Timestamp
     author: str
     enabled: bool
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., category: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., author: _Optional[str] = ..., enabled: _Optional[bool] = ...) -> None: ...
+    execution_mode: str
+    required_tools: _containers.RepeatedScalarFieldContainer[str]
+    skip_reason: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., category: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., author: _Optional[str] = ..., enabled: _Optional[bool] = ..., execution_mode: _Optional[str] = ..., required_tools: _Optional[_Iterable[str]] = ..., skip_reason: _Optional[str] = ...) -> None: ...
 
 class ScriptExecution(_message.Message):
-    __slots__ = ("script_id", "execution_id", "status", "started_at", "completed_at", "output", "error", "exit_code", "stdout", "stderr", "timed_out", "duration_seconds")
+    __slots__ = ("script_id", "execution_id", "status", "started_at", "completed_at", "output", "error", "exit_code", "stdout", "stderr", "timed_out", "duration_seconds", "execution_mode", "skip_reason")
     SCRIPT_ID_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -56,6 +64,8 @@ class ScriptExecution(_message.Message):
     STDERR_FIELD_NUMBER: _ClassVar[int]
     TIMED_OUT_FIELD_NUMBER: _ClassVar[int]
     DURATION_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
+    SKIP_REASON_FIELD_NUMBER: _ClassVar[int]
     script_id: str
     execution_id: str
     status: ScriptExecutionStatus
@@ -68,7 +78,9 @@ class ScriptExecution(_message.Message):
     stderr: str
     timed_out: bool
     duration_seconds: float
-    def __init__(self, script_id: _Optional[str] = ..., execution_id: _Optional[str] = ..., status: _Optional[_Union[ScriptExecutionStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., output: _Optional[str] = ..., error: _Optional[str] = ..., exit_code: _Optional[int] = ..., stdout: _Optional[str] = ..., stderr: _Optional[str] = ..., timed_out: _Optional[bool] = ..., duration_seconds: _Optional[float] = ...) -> None: ...
+    execution_mode: str
+    skip_reason: str
+    def __init__(self, script_id: _Optional[str] = ..., execution_id: _Optional[str] = ..., status: _Optional[_Union[ScriptExecutionStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., output: _Optional[str] = ..., error: _Optional[str] = ..., exit_code: _Optional[int] = ..., stdout: _Optional[str] = ..., stderr: _Optional[str] = ..., timed_out: _Optional[bool] = ..., duration_seconds: _Optional[float] = ..., execution_mode: _Optional[str] = ..., skip_reason: _Optional[str] = ...) -> None: ...
 
 class ListScriptsRequest(_message.Message):
     __slots__ = ()

@@ -101,14 +101,23 @@ type MaturityFinding struct {
 }
 
 type ConditionInstrumentation struct {
-	Healthy        int
-	Degraded       int
-	Dormant        int
-	Uninstrumented int
-	Unavailable    int
-	Instrumented   int
-	Total          int
-	FilteredOut    int
+	Healthy         int
+	Degraded        int
+	Dormant         int
+	Uninstrumented  int
+	Unavailable     int
+	Instrumented    int
+	Total           int
+	FilteredOut     int
+	LedgerExercise  ExerciseBasisInstrumentation
+	ReceiptExercise ExerciseBasisInstrumentation
+}
+
+type ExerciseBasisInstrumentation struct {
+	Basis        string
+	Instrumented int
+	Total        int
+	Invocations  int64
 }
 
 type ConditionReport struct {

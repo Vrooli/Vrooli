@@ -250,6 +250,7 @@ func (s *service) ListConditionReport(ctx context.Context) (ConditionReport, err
 				Dormant: condition.Dormant, Uninstrumented: condition.Uninstrumented,
 				Unavailable: condition.Unavailable, Instrumented: condition.Instrumented,
 				Total: condition.Total, FilteredOut: condition.FilteredOut,
+				LedgerExercise: condition.LedgerExercise, ReceiptExercise: condition.ReceiptExercise,
 			}
 		}
 	}

@@ -78,7 +78,7 @@ func TestEnsureMigrationsAddsComponentIdentityToLegacyEvidence(t *testing.T) {
 		}
 		found[name] = true
 	}
-	for _, name := range []string{"document_kind", "component_id", "component_title", "example_name"} {
+	for _, name := range []string{"document_kind", "component_id", "component_title", "example_name", "measurement_json"} {
 		if !found[name] {
 			t.Fatalf("missing migrated column %q", name)
 		}

@@ -1,6 +1,7 @@
 package reconcile
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -11,11 +12,81 @@ import (
 	"experience-manager/internal/spec"
 )
 
+// archetypeFloors is data-driven so a floor set can be reviewed and changed
+// without editing evaluator logic. The empty archetype intentionally retains
+// the conservative legacy set while contracts migrate to explicit archetypes.
+//
+//go:embed archetype_floors.json
+var archetypeFloors []byte
+
 type claimEvaluation struct {
 	Pass         bool
 	AXNodeJSON   string
+	Measurement  *ClaimMeasurement
 	Failure      string
 	Unverifiable string
+}
+
+// ClaimMeasurement is the structured, numeric evidence behind a machine
+// claim. It is deliberately independent of the human-facing failure message:
+// consumers can render, compare, and overlay these values without parsing
+// prose.
+type ClaimMeasurement struct {
+	Metric     string            `json:"metric"`
+	Observed   *float64          `json:"observed,omitempty"`
+	Required   *float64          `json:"required,omitempty"`
+	Unit       string            `json:"unit,omitempty"`
+	Comparator string            `json:"comparator,omitempty"`
+	Subjects   []MeasuredSubject `json:"subjects"`
+}
+
+type MeasuredSubject struct {
+	ElementID string  `json:"elementId"`
+	TestID    string  `json:"testId,omitempty"`
+	Bounds    *Bounds `json:"bounds,omitempty"`
+	ContextID string  `json:"contextId,omitempty"`
+	Value     string  `json:"value,omitempty"`
+}
+
+func measurement(metric, unit, comparator string, observed, required *float64, subjects []MeasuredSubject) *ClaimMeasurement {
+	return &ClaimMeasurement{Metric: metric, Unit: unit, Comparator: comparator, Observed: observed, Required: required, Subjects: subjects}
+}
+
+func measuredSubjects(page spec.PageDocument, elements []string, nodes []*AXNode) []MeasuredSubject {
+	subjects := make([]MeasuredSubject, 0, len(elements))
+	for _, elementID := range elements {
+		node := findBoundNode(nodes, page.Bindings.Elements[elementID], elementRole(page, elementID))
+		subject := MeasuredSubject{ElementID: elementID}
+		if node != nil {
+			subject.TestID = node.DOM.TestID
+			subject.Bounds = node.Bounds
+		}
+		subjects = append(subjects, subject)
+	}
+	return subjects
+}
+
+func measuredNodeSubject(elementID string, node *AXNode) []MeasuredSubject {
+	if node == nil {
+		return []MeasuredSubject{{ElementID: elementID}}
+	}
+	return []MeasuredSubject{{ElementID: elementID, TestID: node.DOM.TestID, Bounds: node.Bounds}}
+}
+
+func measurementFailure(m *ClaimMeasurement) string {
+	if m == nil {
+		return "claim failed without a structured measurement"
+	}
+	if m.Observed != nil && m.Required != nil {
+		comparison := "did not satisfy"
+		if m.Comparator == "gte" {
+			comparison = "below"
+		} else if m.Comparator == "lte" {
+			comparison = "above"
+		}
+		return fmt.Sprintf("%s claim failed: observed %.2f%s %s required %.2f%s", m.Metric, *m.Observed, m.Unit, comparison, *m.Required, m.Unit)
+	}
+	return fmt.Sprintf("%s claim failed: measured subjects did not satisfy the declared requirement", m.Metric)
 }
 
 type claimEvaluatorFunc func(spec.PageDocument, spec.Claim, CaptureTarget, []*AXNode) claimEvaluation
@@ -28,6 +99,7 @@ var claimEvaluators = map[string]claimEvaluatorFunc{
 	"no-document-horizontal-overflow": evaluateNoDocumentHorizontalOverflowClaim,
 	"viewport-fill":                   evaluateViewportFillClaim,
 	"chrome-pinned":                   evaluateChromePinnedClaim,
+	"content-not-clipped":             evaluateContentNotClippedClaim,
 	"safe-area-tap-targets":           evaluateSafeAreaTapTargetsClaim,
 	"single-line-chrome":              evaluateSingleLineChromeClaim,
 	"tap-target-size":                 evaluateTapTargetSizeClaim,
@@ -50,10 +122,15 @@ var claimEvaluators = map[string]claimEvaluatorFunc{
 	"size-parity":                     evaluateSizeParityClaim,
 	"visible-without-scroll":          evaluateVisibleWithoutScrollClaim,
 	"reading-order":                   evaluateReadingOrderClaim,
+	"differential":                    evaluateDifferentialWithoutContexts,
 }
 
 func claimEvaluator(claimType string) claimEvaluatorFunc {
 	return claimEvaluators[claimType]
+}
+
+func evaluateDifferentialWithoutContexts(_ spec.PageDocument, _ spec.Claim, _ CaptureTarget, _ []*AXNode) claimEvaluation {
+	return claimEvaluation{Unverifiable: "differential claims require their paired render contexts"}
 }
 
 func evaluateElementAbsentClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
@@ -127,9 +204,11 @@ func evaluateSpacingClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTar
 		return claimEvaluation{Unverifiable: fmt.Sprintf("spacing axis %q is unsupported", axis)}
 	}
 	if gap+0.01 < minimum {
-		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(second), Failure: fmt.Sprintf("declared elements %q and %q are separated by %.1fpx, below %.1fpx", claim.Elements[0], claim.Elements[1], gap, minimum)}
+		m := measurement("inline-gap", "px", "gte", &gap, &minimum, measuredSubjects(page, claim.Elements, nodes))
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(second), Measurement: m, Failure: measurementFailure(m)}
 	}
-	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(second)}
+	m := measurement("inline-gap", "px", "gte", &gap, &minimum, measuredSubjects(page, claim.Elements, nodes))
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(second), Measurement: m}
 }
 
 func evaluateStateContrastClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
@@ -164,9 +243,11 @@ func evaluateStateContrastClaim(page spec.PageDocument, claim spec.Claim, target
 		return claimEvaluation{Unverifiable: fmt.Sprintf("computed appearance colors are invalid: %v", err)}
 	}
 	if ratio+0.001 < minimum {
-		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(control), Failure: fmt.Sprintf("state %q contrast is %.2f:1, below %.2f:1", state, ratio, minimum)}
+		m := measurement("state-contrast", "ratio", "gte", &ratio, &minimum, measuredSubjects(page, claim.Elements, nodes))
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(control), Measurement: m, Failure: measurementFailure(m)}
 	}
-	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(control)}
+	m := measurement("state-contrast", "ratio", "gte", &ratio, &minimum, measuredSubjects(page, claim.Elements, nodes))
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(control), Measurement: m}
 }
 
 func evaluateSizeParityClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
@@ -189,9 +270,11 @@ func evaluateSizeParityClaim(page spec.PageDocument, claim spec.Claim, _ Capture
 	}
 	delta := math.Abs(firstHeight - secondHeight)
 	if delta > tolerance+0.01 {
-		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(second), Failure: fmt.Sprintf("declared elements %q and %q differ by %.1fpx in height, above %.1fpx tolerance", claim.Elements[0], claim.Elements[1], delta, tolerance)}
+		m := measurement("size-parity", "px", "lte", &delta, &tolerance, measuredSubjects(page, claim.Elements, nodes))
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(second), Measurement: m, Failure: measurementFailure(m)}
 	}
-	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(second)}
+	m := measurement("size-parity", "px", "lte", &delta, &tolerance, measuredSubjects(page, claim.Elements, nodes))
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(second), Measurement: m}
 }
 
 func evaluateAnnouncedClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
@@ -556,12 +639,19 @@ func evaluateSingleLineChromeClaim(_ spec.PageDocument, _ spec.Claim, target Cap
 	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: describeBoundsFailure("chrome label appears wrapped or too tall for a single-line control", node, target)}
 }
 
-func evaluateTapTargetSizeClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+func evaluateTapTargetSizeClaim(_ spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
 	node := firstUndersizedTapTarget(nodes, target)
 	if node == nil {
 		return claimEvaluation{Pass: true}
 	}
-	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: describeBoundsFailure("mobile interactive target is smaller than 44px", node, target)}
+	minimum := 44.0
+	observed := math.Min(node.Bounds.Width, node.Bounds.Height)
+	elementID := "tap-target"
+	if len(claim.Elements) > 0 {
+		elementID = claim.Elements[0]
+	}
+	m := measurement("tap-target-size", "px", "gte", &observed, &minimum, measuredNodeSubject(elementID, node))
+	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Measurement: m, Failure: measurementFailure(m)}
 }
 
 func evaluateStateCoveredClaim(_ spec.PageDocument, claim spec.Claim, target CaptureTarget, _ []*AXNode) claimEvaluation {
@@ -659,6 +749,68 @@ func evaluateVisibleWithoutScrollClaim(page spec.PageDocument, claim spec.Claim,
 	return claimEvaluation{Pass: pass, AXNodeJSON: axNodeJSON}
 }
 
+func evaluateContentNotClippedClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) != 1 {
+		return claimEvaluation{Unverifiable: "content-not-clipped requires exactly one declared element"}
+	}
+	node := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	if node == nil {
+		return claimEvaluation{Unverifiable: fmt.Sprintf("declared element %q was not found in the accessibility snapshot", claim.Elements[0])}
+	}
+	clientWidth, widthOK := layoutMetric(node, "clientWidth", "client-width")
+	scrollWidth, scrollWidthOK := layoutMetric(node, "scrollWidth", "scroll-width")
+	clientHeight, heightOK := layoutMetric(node, "clientHeight", "client-height")
+	scrollHeight, scrollHeightOK := layoutMetric(node, "scrollHeight", "scroll-height")
+	if !widthOK || !scrollWidthOK || !heightOK || !scrollHeightOK {
+		return claimEvaluation{Unverifiable: "content-not-clipped requires client and scroll dimensions in layout evidence"}
+	}
+	overflowX := firstNonEmpty(computedStyleValue(node, "overflow-x"), computedStyleValue(node, "overflow"))
+	overflowY := firstNonEmpty(computedStyleValue(node, "overflow-y"), computedStyleValue(node, "overflow"))
+	if strings.TrimSpace(overflowX) == "" || strings.TrimSpace(overflowY) == "" {
+		return claimEvaluation{Unverifiable: "content-not-clipped requires computed overflow evidence"}
+	}
+	widthOverflow := scrollWidth > clientWidth+0.01 && !hasReachableOverflow(overflowX)
+	heightOverflow := scrollHeight > clientHeight+0.01 && !hasReachableOverflow(overflowY)
+	if widthOverflow || heightOverflow {
+		axis := "horizontal"
+		if heightOverflow && !widthOverflow {
+			axis = "vertical"
+		} else if widthOverflow && heightOverflow {
+			axis = "horizontal and vertical"
+		}
+		return claimEvaluation{
+			Pass:       false,
+			AXNodeJSON: encodeAXNode(node),
+			Failure:    fmt.Sprintf("element %q (%s) has %s content clipping: client=%gx%g scroll=%gx%g overflow=%q/%q", claim.Elements[0], firstNonEmpty(node.DOM.TestID, node.Name, node.Role), axis, clientWidth, clientHeight, scrollWidth, scrollHeight, overflowX, overflowY),
+		}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(node)}
+}
+
+func layoutMetric(node *AXNode, keys ...string) (float64, bool) {
+	for _, key := range keys {
+		value := strings.TrimSpace(computedStyleValue(node, key))
+		if value == "" {
+			continue
+		}
+		value = strings.TrimSuffix(value, "px")
+		metric, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+		if err == nil && metric >= 0 {
+			return metric, true
+		}
+	}
+	return 0, false
+}
+
+func hasReachableOverflow(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "visible", "auto", "scroll":
+		return true
+	default:
+		return false
+	}
+}
+
 func evaluateReadingOrderClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
 	if len(claim.Elements) <= 1 {
 		return claimEvaluation{}
@@ -693,7 +845,7 @@ func pageWithBaselineClaims(page spec.PageDocument) spec.PageDocument {
 	for _, optOut := range page.FloorOptOuts {
 		optedOut[optOut.Floor] = true
 	}
-	for _, floor := range baselineFloorClaims() {
+	for _, floor := range floorClaimsForArchetype(page.Archetype, false) {
 		if optedOut[floor.Type] || hasClaimType(page, floor.Type) {
 			continue
 		}
@@ -718,13 +870,49 @@ func componentWithBaselineClaims(component spec.ComponentDocument) spec.Componen
 	for _, optOut := range component.FloorOptOuts {
 		optedOut[optOut.Floor] = true
 	}
-	for _, floor := range componentBaselineFloorClaims() {
+	for _, floor := range floorClaimsForArchetype(component.Archetype, true) {
 		if optedOut[floor.Type] || componentHasClaimType(component, floor.Type) {
 			continue
 		}
 		component.Claims = append(component.Claims, floor)
 	}
 	return component
+}
+
+type floorSetDocument struct {
+	Archetypes map[string][]string `json:"archetypes"`
+}
+
+func floorClaimsForArchetype(archetype string, component bool) []spec.Claim {
+	var document floorSetDocument
+	if err := json.Unmarshal(archetypeFloors, &document); err != nil {
+		if component {
+			return componentBaselineFloorClaims()
+		}
+		return baselineFloorClaims()
+	}
+	key := strings.ToLower(strings.TrimSpace(archetype))
+	types, ok := document.Archetypes[key]
+	if !ok {
+		if component {
+			return componentBaselineFloorClaims()
+		}
+		return baselineFloorClaims()
+	}
+	claims := make([]spec.Claim, 0, len(types))
+	for _, floorType := range types {
+		candidates := baselineFloorClaims()
+		if component {
+			candidates = componentBaselineFloorClaims()
+		}
+		for _, candidate := range candidates {
+			if candidate.Type == floorType {
+				claims = append(claims, candidate)
+				break
+			}
+		}
+	}
+	return claims
 }
 
 func componentBaselineFloorClaims() []spec.Claim {

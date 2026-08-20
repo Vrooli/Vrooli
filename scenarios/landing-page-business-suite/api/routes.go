@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -40,6 +41,7 @@ func (s *Server) setupRoutes() {
 	registerAuthRoutes(s)
 	registerFixtureRoutes(s)
 	registerAccountRoutes(s)
+	registerReceiptRoutes(s)
 	registerBillingRoutes(s)
 	registerAdminCoreRoutes(s)
 	registerRemoteProfileRoutes(s)
@@ -57,6 +59,17 @@ func (s *Server) setupRoutes() {
 	registerUpdateRoutes(s)
 	registerMeasuresRoutes(s)
 	registerDeployReadinessRoute(s)
+}
+
+func registerReceiptRoutes(s *Server) {
+	s.router.HandleFunc("/api/v1/subscriptions/receipts", s.requireUserAuth(billinghttp.RegisterReceipt(billinghttp.ReceiptDependencies{
+		Validators: s.receiptValidators,
+		Register:   s.accountService.RegisterReceipt,
+		UserIdentity: func(ctx context.Context) string {
+			return getUserEmail(ctx)
+		},
+		WriteError: writeJSONError,
+	}))).Methods(http.MethodPost)
 }
 
 func registerMeasuresRoutes(s *Server) {

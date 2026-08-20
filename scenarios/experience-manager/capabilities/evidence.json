@@ -42,6 +42,20 @@
       "notes": "Needed to prove that an error state is a designed state rather than a crash — a surface that renders its error UI while also throwing is not honestly in the error state."
     },
     {
+      "id": "console",
+      "title": "Console health",
+      "description": "Console errors, uncaught page errors, and failed requests observed during a successful story render.",
+      "producer": { "kind": "component-harness", "detail": "Playwright console, pageerror, and requestfailed listeners", "engineWorkRequired": false },
+      "notes": "A successful mount with a React warning is not console-clean; this evidence remains attached to the story result instead of being discarded."
+    },
+    {
+      "id": "performance",
+      "title": "Render performance",
+      "description": "Mount time, React commit and rerender counts, long tasks, user-timing measures, and rendered node count for one story.",
+      "producer": { "kind": "component-harness", "detail": "React Profiler and PerformanceObserver in the versioned story harness", "engineWorkRequired": false },
+      "notes": "These measurements are observations, not declarations; the catalog performance gate compares mountMs against the asset kind or explicit budget."
+    },
+    {
       "id": "timing",
       "title": "Capture and transition timing",
       "description": "How long the surface took to settle, and the measured duration of an observed transition.",

@@ -9,6 +9,8 @@ var implemented = []string{
 	"affordance-present",
 	"announced",
 	"chrome-pinned",
+	"content-not-clipped",
+	"differential",
 	"element-absent",
 	"element-present",
 	"error-association",

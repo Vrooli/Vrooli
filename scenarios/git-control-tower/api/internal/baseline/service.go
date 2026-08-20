@@ -243,7 +243,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 		_ = s.setLifecycle(req.RepoID, manifest, LifecycleFailed, h.RunID, err.Error())
 		return CreateResult{}, err
 	}
-	if err := s.validateBaselineEvidence(ctx, req.Scenario, terminal.RunID); err != nil {
+	if err := s.validateBaselineEvidence(ctx, req.Scenario, terminal.RunID, terminal.Phases); err != nil {
 		_ = s.setLifecycle(req.RepoID, manifest, LifecycleFailed, h.RunID, err.Error())
 		return CreateResult{}, err
 	}
@@ -336,7 +336,7 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 		_ = s.saveSnapshotIntent(ctx, pending, "failed", msg)
 		return CreateResult{}, errors.New(msg)
 	}
-	if err := s.validateBaselineEvidence(ctx, pending.Req.Scenario, res.RunID); err != nil {
+	if err := s.validateBaselineEvidence(ctx, pending.Req.Scenario, res.RunID, res.Phases); err != nil {
 		_ = s.setLifecycle(pending.Req.RepoID, pending.Manifest, LifecycleFailed, pending.Run.RunID, err.Error())
 		_ = s.saveSnapshotIntent(ctx, pending, "failed", err.Error())
 		return CreateResult{}, err
@@ -477,7 +477,16 @@ func isStableScopedEvidence(res ExecResult) bool {
 // phase was unavailable or incomparable: that condition belongs to the later
 // comparison's coverage axis. Retaining the baseline lets a later rerun measure
 // that phase without losing the durable before behavior for every other phase.
-func (s *Service) validateBaselineEvidence(ctx context.Context, scenario, runID string) error {
+func (s *Service) validateBaselineEvidence(ctx context.Context, scenario, runID string, phases []PhaseStatus) error {
+	// A terminal Test Genie run with no phase result is not a behavioral
+	// baseline. It can be a preflight failure or an admission/lifecycle
+	// interruption; publishing it as ready makes every later comparison report
+	// a baseline-missing phase while the collection falsely claims complete
+	// coverage. Failed runs with actual phase results remain valid evidence and
+	// are intentionally retained for preexisting-failure comparisons.
+	if len(phases) == 0 {
+		return fmt.Errorf("validate baseline evidence for run %s: Test Genie returned no phase result", runID)
+	}
 	if s.runs == nil {
 		return fmt.Errorf("validate baseline evidence: Test Genie runs client is unavailable")
 	}

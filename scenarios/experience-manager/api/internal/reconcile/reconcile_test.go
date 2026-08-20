@@ -41,6 +41,22 @@ func TestBASCapturerLiveCaptureContract(t *testing.T) {
 	}
 }
 
+func TestFloorWaiverRemainsVisibleAndBlocksCleanReadiness(t *testing.T) {
+	findings := floorWaiverFindings("experience/components/dialog.json", []spec.FloorOptOut{{
+		Floor:  "content-not-clipped",
+		Reason: "The legacy overlay is being replaced in the next release.",
+	}})
+	if len(findings) != 1 {
+		t.Fatalf("expected one waiver finding, got %+v", findings)
+	}
+	if findings[0].Code != spec.CodeClaimUnproven || findings[0].Severity != spec.SeverityWarning {
+		t.Fatalf("waiver must remain a required warning, got %+v", findings[0])
+	}
+	if !strings.Contains(findings[0].Message, "legacy overlay") {
+		t.Fatalf("waiver reason was not preserved: %+v", findings[0])
+	}
+}
+
 func TestParseCaptureMillisecondsAcceptsConnectAndLegacyJSON(t *testing.T) {
 	for _, tc := range []struct {
 		raw  json.RawMessage
@@ -457,6 +473,28 @@ func TestVisibleWithoutScrollChecksBoundGeometry(t *testing.T) {
 	}
 }
 
+func TestContentNotClippedChecksElementScrollMetrics(t *testing.T) {
+	page := spec.PageDocument{
+		Page:     spec.PageIdentity{ID: "dialog"},
+		Elements: []spec.Element{{ID: "body", Role: "region"}},
+		Bindings: spec.Bindings{Elements: map[string]spec.Binding{"body": {TestID: "dialog-body"}}},
+	}
+	claim := spec.Claim{ID: "body-not-clipped", Type: "content-not-clipped", Tier: "machine", Elements: []string{"body"}}
+	node := &AXNode{Role: "region", DOM: DOMNode{TestID: "dialog-body"}, ComputedStyle: map[string]string{
+		"clientWidth": "320", "scrollWidth": "620", "clientHeight": "180", "scrollHeight": "360", "overflow": "hidden",
+	}}
+	result := claimEvaluator("content-not-clipped")(page, claim, CaptureTarget{}, []*AXNode{node})
+	if result.Pass || !strings.Contains(result.Failure, "dialog-body") || !strings.Contains(result.Failure, "clipping") {
+		t.Fatalf("result = %+v, want named clipping failure", result)
+	}
+
+	node.ComputedStyle["overflow"] = "auto"
+	result = claimEvaluator("content-not-clipped")(page, claim, CaptureTarget{}, []*AXNode{node})
+	if !result.Pass {
+		t.Fatalf("result = %+v, want reachable overflow to pass", result)
+	}
+}
+
 func TestStructuredComponentClaimsEvaluateGeometryAndAppearance(t *testing.T) {
 	page := spec.PageDocument{
 		Page: spec.PageIdentity{ID: "control", Routes: []string{"/"}},
@@ -483,12 +521,21 @@ func TestStructuredComponentClaimsEvaluateGeometryAndAppearance(t *testing.T) {
 	nodes[1].Bounds.X = 25
 	if result := claimEvaluator("spacing")(page, spacing, target, nodes); result.Pass || !strings.Contains(result.Failure, "below") {
 		t.Fatalf("spacing should fail with a named gap: %+v", result)
+	} else {
+		if result.Measurement == nil || result.Measurement.Observed == nil || result.Measurement.Required == nil || len(result.Measurement.Subjects) != 2 {
+			t.Fatalf("spacing measurement = %+v, want numeric values and two subjects", result.Measurement)
+		}
+		if result.Measurement.Subjects[0].ElementID != "icon" || result.Measurement.Subjects[1].ElementID != "label" || result.Measurement.Subjects[1].Bounds == nil {
+			t.Fatalf("spacing subjects = %+v, want both declared elements and bounds", result.Measurement.Subjects)
+		}
 	}
 
 	contrast := spec.Claim{ID: "contrast", Type: "state-contrast", Tier: "machine", Elements: []string{"control"}, Params: map[string]any{"state": "hover", "background": "#020617", "minContrastRatio": 3}}
 	contrastNode := &AXNode{Role: "button", DOM: DOMNode{TestID: "control"}, Appearance: &Appearance{States: map[string]AppearanceState{"hover": {Foreground: "#111827", Background: "#020617"}}}}
 	if result := claimEvaluator("state-contrast")(page, contrast, target, []*AXNode{contrastNode}); result.Pass || !strings.Contains(result.Failure, "contrast") {
 		t.Fatalf("low hover contrast should fail: %+v", result)
+	} else if result.Measurement == nil || result.Measurement.Observed == nil || result.Measurement.Required == nil || len(result.Measurement.Subjects) != 1 {
+		t.Fatalf("contrast measurement = %+v, want numeric value and subject", result.Measurement)
 	}
 	contrastNode.Appearance.States["hover"] = AppearanceState{Foreground: "#ffffff", Background: "#020617"}
 	if result := claimEvaluator("state-contrast")(page, contrast, target, []*AXNode{contrastNode}); !result.Pass {
@@ -502,10 +549,59 @@ func TestStructuredComponentClaimsEvaluateGeometryAndAppearance(t *testing.T) {
 	}
 	if result := claimEvaluator("size-parity")(page, parity, target, parityNodes); result.Pass {
 		t.Fatalf("size parity should fail outside tolerance: %+v", result)
+	} else if result.Measurement == nil || result.Measurement.Observed == nil || result.Measurement.Required == nil || len(result.Measurement.Subjects) != 2 {
+		t.Fatalf("size parity measurement = %+v, want numeric values and two subjects", result.Measurement)
 	}
 	parityNodes[1].Bounds.Height = 41
 	if result := claimEvaluator("size-parity")(page, parity, target, parityNodes); !result.Pass {
 		t.Fatalf("size parity should pass within tolerance: %+v", result)
+	}
+
+	presence := spec.Claim{ID: "missing", Type: "element-present", Tier: "machine", Elements: []string{"missing"}}
+	evidence, ok := evaluateClaim(page, presence, target, nil)
+	if ok || evidence.MeasurementJSON == "" || !strings.Contains(evidence.MeasurementJSON, `"elementId":"missing"`) {
+		t.Fatalf("presence failure measurement = %+v, want subjects-only structured evidence", evidence)
+	}
+}
+
+func TestDifferentialClaimRequiresExpectedChange(t *testing.T) {
+	page := spec.PageDocument{
+		Page:     spec.PageIdentity{ID: "card", Routes: []string{"/"}},
+		Elements: []spec.Element{{ID: "surface", Role: "region"}},
+		Bindings: spec.Bindings{Elements: map[string]spec.Binding{"surface": {TestID: "surface"}}},
+	}
+	claim := spec.Claim{
+		ID:       "elevation-changes",
+		Type:     "differential",
+		Tier:     "machine",
+		Subject:  "surface",
+		Metric:   "elevation",
+		Require:  "contexts-differ",
+		Contexts: []spec.DifferentialContext{{ID: "base", Story: "base", Expect: "base"}, {ID: "raised", Story: "raised", Expect: "raised"}},
+	}
+	snapshots := map[string]Snapshot{
+		"base":   {Contract: snapshotContract, Root: AXNode{Children: []AXNode{{Role: "region", DOM: DOMNode{TestID: "surface", Attributes: map[string]string{"data-rcl-elevation": "base"}}}}}},
+		"raised": {Contract: snapshotContract, Root: AXNode{Children: []AXNode{{Role: "region", DOM: DOMNode{TestID: "surface", Attributes: map[string]string{"data-rcl-elevation": "raised"}}}}}},
+	}
+	evidence, ok := evaluateClaim(page, claim, CaptureTarget{}, snapshots["raised"].Flatten(), snapshots)
+	if !ok || evidence.Verdict != "passed" {
+		t.Fatalf("differential evidence = %+v, want pass", evidence)
+	}
+	if !strings.Contains(evidence.MeasurementJSON, `"contextId":"base"`) || !strings.Contains(evidence.MeasurementJSON, `"value":"raised"`) {
+		t.Fatalf("differential measurement = %s, want both context subjects", evidence.MeasurementJSON)
+	}
+
+	snapshots["raised"] = snapshots["base"]
+	evidence, ok = evaluateClaim(page, claim, CaptureTarget{}, snapshots["base"].Flatten(), snapshots)
+	if ok || evidence.Verdict != "failed" || !strings.Contains(evidence.Message, "expected") {
+		t.Fatalf("hard-coded differential evidence = %+v, want expected-value failure", evidence)
+	}
+
+	equalClaim := claim
+	equalClaim.Contexts = []spec.DifferentialContext{{ID: "base", Story: "base", Expect: "base"}, {ID: "raised", Story: "raised", Expect: "base"}}
+	evidence, ok = evaluateClaim(page, equalClaim, CaptureTarget{}, snapshots["base"].Flatten(), snapshots)
+	if ok || evidence.Verdict != "failed" || !strings.Contains(evidence.Message, "equal") {
+		t.Fatalf("equal differential evidence = %+v, want contexts-differ failure", evidence)
 	}
 }
 
@@ -734,6 +830,24 @@ func TestBaselineFloorClaimsFailFromGeometry(t *testing.T) {
 		if !hasCode(findings, code) {
 			t.Fatalf("missing %s in findings: %+v", code, findings)
 		}
+	}
+}
+
+func TestArchetypeFloorSetIsAppliedWhenContractDeclaresNoFloors(t *testing.T) {
+	page := pageWithBaselineClaims(spec.PageDocument{Archetype: "overlay"})
+	if !hasClaimType(page, "chrome-pinned") || !hasClaimType(page, "single-line-chrome") {
+		t.Fatalf("overlay archetype did not receive its floor set: %+v", page.Claims)
+	}
+	if hasClaimType(page, "safe-area-tap-targets") {
+		t.Fatalf("overlay archetype received a page-only floor: %+v", page.Claims)
+	}
+
+	component := componentWithBaselineClaims(spec.ComponentDocument{Archetype: "primitive"})
+	if !componentHasClaimType(component, "tap-target-size") {
+		t.Fatalf("primitive component did not receive its floor set: %+v", component.Claims)
+	}
+	if componentHasClaimType(component, "viewport-fill") {
+		t.Fatalf("primitive component received a page-only floor: %+v", component.Claims)
 	}
 }
 

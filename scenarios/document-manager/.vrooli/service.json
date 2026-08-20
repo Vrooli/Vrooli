@@ -91,122 +91,21 @@
         }
       ],
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/document-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "document-manager"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o document-manager-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api \u0026\u0026 ./document-manager-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/document-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "build": {},
-    "deploy": {},
-    "clean": {},
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute document-manager --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'document-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
     "resources": {
       "doc-parse": {
         "required": true,
-        "notes": "Local content, table, geometry, and PDF classification handler for intake and derivation."
+        "description": "Local content, table, geometry, and PDF classification handler for intake and derivation."
       },
       "doc-ocr": {
         "required": false,
-        "notes": "Portable tier-2 OCR handler for scanned PDFs and raster images."
+        "description": "Portable tier-2 OCR handler for scanned PDFs and raster images."
       },
       "unstructured-io": {
         "required": false,
-        "notes": "Measured Docker fallback for breadth, typed elements, and OCR when available."
+        "description": "Measured Docker fallback for breadth, typed elements, and OCR when available."
       }
     },
     "scenarios": {
@@ -232,17 +131,17 @@
   },
   "storage": {
     "entries": {
-    "raw_documents": {
-      "rung": "owned",
-      "subpath": "documents",
+      "raw_documents": {
+        "rung": "owned",
+        "subpath": "documents",
         "kind": "dir",
         "class": "data",
         "regenerable": false,
         "rationale": "Original content-addressed document bytes; never pruned or regenerated."
       },
-    "derivations": {
-      "rung": "owned",
-      "subpath": "derivations",
+      "derivations": {
+        "rung": "owned",
+        "subpath": "derivations",
         "kind": "dir",
         "class": "cache",
         "regenerable": true,
@@ -250,20 +149,20 @@
           "max_bytes": "1TiB",
           "rationale": "Derived readings are reproducible from the durable raw bytes."
         },
-      "rationale": "Versioned parser output may be rebuilt after retention."
-    },
-    "retrieval_index": {
-      "rung": "owned",
-      "subpath": "retrieval_index",
-      "kind": "dir",
-      "class": "cache",
-      "regenerable": true,
-      "budget": {
-        "max_bytes": "1TiB",
-        "rationale": "The FTS and vector index is rebuildable from units and enrichment metadata."
+        "rationale": "Versioned parser output may be rebuilt after retention."
       },
-      "rationale": "Retrieval state is a derived cache and is never the source of corpus truth."
-    },
+      "retrieval_index": {
+        "rung": "owned",
+        "subpath": "retrieval_index",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "The FTS and vector index is rebuildable from units and enrichment metadata."
+        },
+        "rationale": "Retrieval state is a derived cache and is never the source of corpus truth."
+      },
       "custody": {
         "rung": "owned",
         "subpath": "custody",
@@ -286,5 +185,36 @@
   "credentials": {},
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/document-manager.db"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
   }
 }

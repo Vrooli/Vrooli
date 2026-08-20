@@ -101,84 +101,6 @@
           "interval": 30000
         }
       ]
-    },
-    "setup": {
-      "description": "Initialize API Library",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/api-library-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "api-library",
-            "targets": [
-              "api-library"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o api-library-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace --filter api-library-ui --config.lockfile-dir=./ --no-frozen-lockfile",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Development mode",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && unset POSTGRES_URL && VROOLI_LIFECYCLE_MANAGED=true API_PORT=${API_PORT:-15100} POSTGRES_HOST=localhost POSTGRES_PORT=5433 POSTGRES_USER=vrooli POSTGRES_PASSWORD=lUq9qvemypKpuEeXCV6Vnxak1 POSTGRES_DB=api_library QDRANT_URL=http://localhost:6333 OLLAMA_URL=http://localhost:11434 ./api-library-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/api-library-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start production UI server",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for api-library",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute api-library --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
     }
   },
   "cli": {
@@ -200,6 +122,40 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "env": {
+          "VROOLI_LIFECYCLE_MANAGED": "true"
+        },
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

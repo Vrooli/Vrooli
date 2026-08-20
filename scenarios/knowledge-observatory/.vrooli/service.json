@@ -107,106 +107,6 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI, initialize database",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/knowledge-observatory-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "knowledge-observatory",
-            "targets": [
-              "knowledge-observatory"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o knowledge-observatory-api .",
-          "description": "Build Go API binary (knowledge-observatory-api) in api/ directory"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "install-mermaid-lint-deps",
-          "run": "if [ -f tools/mermaid-lint/package.json ]; then cd tools/mermaid-lint && pnpm install --ignore-workspace; else echo 'tools/mermaid-lint not present yet'; fi",
-          "description": "Install exact-pinned Mermaid parser dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and production UI bundle via Node server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./knowledge-observatory-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/knowledge-observatory-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "ensure-ui-build",
-          "run": "if [ -f ui/package.json ] && [ ! -f ui/dist/index.html ]; then cd ui && pnpm run build; else echo 'UI build already present'; fi",
-          "description": "Ensure UI bundle exists before Lighthouse audits"
-        },
-        {
-          "name": "run-tests",
-          "run": "ui_url=\"http://localhost:${UI_PORT}\"\ncheck_health() { curl -sS -o /dev/null -w \"%{http_code}\" \"$ui_url/health\" 2>/dev/null || true; }\nif curl -sS \"$ui_url/\" 2>/dev/null | grep -q \"Knowledge Observatory UI\"; then\n  echo \"Using existing Knowledge Observatory UI at $ui_url\"\n  test-genie execute knowledge-observatory --preset comprehensive --ui-url \"$ui_url\"\n  exit $?\nfi\nif [ \"$(check_health)\" != \"000\" ]; then\n  echo \"Port ${UI_PORT} is already serving a different UI. Stop the conflicting service or free the port.\"\n  exit 1\nfi\n( cd ui && node server.js ) &\nui_pid=$!\ntrap 'kill $ui_pid 2>/dev/null || true' EXIT\ni=0\nwhile [ \"$i\" -lt 30 ]; do\n  if [ \"$(check_health)\" != \"000\" ]; then\n    break\n  fi\n  i=$((i+1))\n  sleep 1\ndone\nif [ \"$(check_health)\" = \"000\" ]; then\n  echo \"UI failed to start on $ui_url\"\n  exit 1\nfi\ntest-genie execute knowledge-observatory --preset comprehensive --ui-url \"$ui_url\"",
-          "description": "Run structure/unit/integration/business/performance phases (ensures Knowledge Observatory UI is the Lighthouse target)"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'knowledge-observatory-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -282,6 +182,37 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

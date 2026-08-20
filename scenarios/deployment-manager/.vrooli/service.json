@@ -23,8 +23,7 @@
     "template": {
       "id": "react-vite",
       "version": "1.6.5"
-    },
-    "adopted": true
+    }
   },
   "service": {
     "parent": "vrooli",
@@ -105,81 +104,6 @@
           "timeout": 5000,
           "interval": 30000,
           "critical": false
-        }
-      ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI, initialize database",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/deployment-manager-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "deployment-manager",
-            "targets": [
-              "deployment-manager"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o deployment-manager-api .",
-          "description": "Build Go API binary (deployment-manager-api) in api/ directory"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and production UI bundle via Node server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./deployment-manager-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/deployment-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute deployment-manager --preset comprehensive",
-          "description": "Run structure/unit/integration/business/performance phases"
         }
       ]
     }
@@ -269,6 +193,37 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

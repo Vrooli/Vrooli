@@ -48,7 +48,10 @@
         "label": "OpenRouter API key",
         "description": "User-provisioned OpenRouter credential used by the gateway-backed vision navigator. The value is never returned or stored in browser local storage.",
         "required": false,
-        "obtain_url": "https://openrouter.ai/keys"
+        "obtain_url": "https://openrouter.ai/keys",
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/claude-code",
@@ -153,111 +156,6 @@
       "timeout": 10000,
       "interval": 30000,
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize Vrooli Ascension",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/browser-automation-studio-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "playwright-driver/dist/server.js",
-            "source_dir": "playwright-driver/src"
-          },
-          {
-            "type": "cli",
-            "command": "browser-automation-studio",
-            "targets": [
-              "browser-automation-studio"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "create-data-dirs",
-          "run": "mkdir -p data/workflows data/executions data/screenshots",
-          "description": "Create data directories for workflow storage"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o browser-automation-studio-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "build-cli",
-          "run": "cd cli && go build -o browser-automation-studio .",
-          "description": "Build the scenario-local CLI used by runtime contract validation"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then pnpm install --ignore-workspace; else echo 'No package.json found, skipping pnpm install'; fi",
-          "description": "Install React UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build React UI for production"
-        },
-        {
-          "name": "install-playwright-driver-deps",
-          "run": "cd playwright-driver && pnpm install --force --ignore-workspace",
-          "description": "Install Playwright driver dependencies and refresh generated local proto types"
-        },
-        {
-          "name": "build-playwright-driver",
-          "run": "cd playwright-driver && pnpm run build",
-          "description": "Build Playwright driver for production"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start browser automation studio with production UI bundle",
-      "steps": [
-        {
-          "name": "start-playwright-driver",
-          "run": "echo 'ℹ️  Playwright driver lifecycle managed by API sidecar supervisor'",
-          "description": "Skipped - API manages playwright driver lifecycle via sidecar supervisor. Set BAS_SIDECAR_ENABLED=false or PLAYWRIGHT_DRIVER_URL to use external driver."
-        },
-        {
-          "name": "start-api",
-          "run": "export REQUEST_TIMEOUT_MS=7200000 SESSION_IDLE_TIMEOUT_MS=7200000 BAS_DRIVER_EXECUTION_TIMEOUT_MS=7200000 BAS_EXECUTION_MAX_TIMEOUT_MS=7200000; if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; if lpbs_api_port=\"$(vrooli scenario port landing-page-business-suite API_PORT 2>/dev/null)\"; then export BAS_ENTITLEMENT_SERVICE_URL=\"http://127.0.0.1:${lpbs_api_port}\"; fi; cd api && ./browser-automation-studio-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/browser-automation-studio-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start Express server with built React app",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for browser-automation-studio",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute browser-automation-studio --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -302,7 +200,16 @@
         "description": "LPBS is the authoritative monetization and subscription provider",
         "runtime_only": true,
         "runtime_only_rationale": "BAS reaches LPBS through its configured entitlement HTTP boundary and the control-plane-discovered local port; no Go package import is expected or desirable across scenario modules.",
-        "degraded_behavior": "LPBS-backed Class-A entitlement and shared-session operations report unavailable while the authority is stopped; local Class-B work remains usable under a still-valid cached lease."
+        "degraded_behavior": "LPBS-backed Class-A entitlement and shared-session operations report unavailable while the authority is stopped; local Class-B work remains usable under a still-valid cached lease.",
+        "bundle_policy": "discover",
+        "bindings": [
+          {
+            "env_var": "BAS_ENTITLEMENT_SERVICE_URL",
+            "form": "http_base_url",
+            "port": "api",
+            "when_unavailable": "omit"
+          }
+        ]
       }
     }
   },
@@ -318,7 +225,7 @@
       "notes": "Replay export features degrade when ffmpeg is unavailable"
     }
   ],
-  "deployment": {
+  "tier_feasibility": {
     "metadata_version": 1,
     "tiers": {
       "tier-1-local": {
@@ -332,13 +239,6 @@
           "confidence": "medium"
         },
         "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel. Persistent storage is local SQLite via api-core/storage.",
-        "secrets": [
-          {
-            "secret_id": "openrouter/api-key",
-            "classification": "user",
-            "notes": "Prompt desktop users for their own API key when using remote LLMs"
-          }
-        ],
         "artifacts": [
           {
             "type": "cloudflare-proxy",
@@ -348,7 +248,7 @@
           }
         ]
       },
-        "tier-2-desktop": {
+      "tier-2-desktop": {
         "requirements": {
           "ram_mb": 6144,
           "disk_mb": 8192,
@@ -358,30 +258,30 @@
           "source": "estimated",
           "confidence": "low"
         },
-          "adaptations": [
-            {
-              "dependency": "playwright-driver",
-              "swap": "playwright-packaged-sidecar",
-              "impact": "Ship the built driver and its Node dependencies as an Electron bundle asset; the API supervises it locally",
-              "effort_days": 0,
-              "notes": "Implemented by bundle/bundle.json and the API sidecar supervisor"
-            },
-            {
-              "dependency": "minio",
-              "swap": "filesystem-store",
-              "impact": "Store artifacts in user data folder",
-              "effort_days": 0,
-              "notes": "Implemented by BAS_SCREENSHOT_STORAGE=local in the desktop bundle"
-            }
-          ],
-          "notes": "Desktop ships the API, UI, CLI, supervised Playwright driver, and SQLite-backed local artifact storage; no MinIO or remote API is required for the bundled runtime.",
-          "artifacts": [
-            {
-              "type": "electron-app",
-              "producer": "scenario-to-desktop",
-              "status": "bundled",
-              "notes": "Bundle proof stages the BAS API, UI, CLI, Playwright driver dist, and node_modules; monetized Class A calls remain LPBS-authorized."
-            }
+        "adaptations": [
+          {
+            "dependency": "playwright-driver",
+            "swap": "playwright-packaged-sidecar",
+            "impact": "Ship the built driver and its Node dependencies as an Electron bundle asset; the API supervises it locally",
+            "effort_days": 0,
+            "notes": "Implemented by bundle/bundle.json and the API sidecar supervisor"
+          },
+          {
+            "dependency": "minio",
+            "swap": "filesystem-store",
+            "impact": "Store artifacts in user data folder",
+            "effort_days": 0,
+            "notes": "Implemented by BAS_SCREENSHOT_STORAGE=local in the desktop bundle"
+          }
+        ],
+        "notes": "Desktop ships the API, UI, CLI, supervised Playwright driver, and SQLite-backed local artifact storage; no MinIO or remote API is required for the bundled runtime.",
+        "artifacts": [
+          {
+            "type": "electron-app",
+            "producer": "scenario-to-desktop",
+            "status": "bundled",
+            "notes": "Bundle proof stages the BAS API, UI, CLI, Playwright driver dist, and node_modules; monetized Class A calls remain LPBS-authorized."
+          }
         ]
       },
       "tier-3-mobile": {
@@ -542,6 +442,66 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "env": {
+          "REQUEST_TIMEOUT_MS": "7200000",
+          "SESSION_IDLE_TIMEOUT_MS": "7200000",
+          "BAS_DRIVER_EXECUTION_TIMEOUT_MS": "7200000",
+          "BAS_EXECUTION_MAX_TIMEOUT_MS": "7200000",
+          "PLAYWRIGHT_DRIVER_URL": "http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}"
+        },
+        "port": "api",
+        "data_dirs": [
+          "data/executions",
+          "data/screenshots",
+          "data/workflows"
+        ],
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    },
+    "playwright-driver": {
+      "role": "sidecar",
+      "build": {
+        "kind": "node_bundle",
+        "dir": "playwright-driver",
+        "output": "playwright-driver/dist/server.js"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "dist/server.js"
+        ],
+        "cwd": "playwright-driver",
+        "port": "playwright_driver",
+        "supervised_by": "api"
+      }
     }
   }
 }

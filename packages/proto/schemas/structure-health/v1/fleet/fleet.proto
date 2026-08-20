@@ -57,8 +57,6 @@ message ScanFleetResponse {
   int32 scenario_count = 4;
   // Scenarios with no error-severity structure findings.
   int32 passing_count = 5;
-  // Scenarios missing at least one buildable-surface freshness check.
-  int32 missing_freshness_count = 6;
   // Total auto-fixable findings across the fleet.
   int32 autofixable_total = 7;
   // Scenarios that could not be graded (enumerated but failed to validate),
@@ -83,9 +81,6 @@ message FleetScenarioEntry {
   int32 total_findings = 7;
   // Auto-fixable findings in this scenario.
   int32 autofixable_count = 8;
-  // True when the scenario is missing a buildable-surface freshness check
-  // (a FRESHNESS_CHECK_MISSING finding) — the silent-rebuild offender signal.
-  bool missing_freshness_check = 9;
   // Declared surfaces for this scenario, e.g. ["api", "cli", "ui"].
   repeated string surfaces = 10;
   // Non-empty when the scenario was graded in a degraded mode.
@@ -97,7 +92,7 @@ message FleetScenarioEntry {
 
 // RuleConformance rolls one finding code up across the fleet.
 message RuleConformance {
-  // Finding code, e.g. "FRESHNESS_CHECK_MISSING" or "PROFILE_ENV_VALIDATION".
+  // Finding code, e.g. "SCENARIO_COMPONENT_INVALID" or "PROFILE_ENV_VALIDATION".
   string code = 1;
   // Number of scenarios with at least one finding of this code.
   int32 offending_scenarios = 2;

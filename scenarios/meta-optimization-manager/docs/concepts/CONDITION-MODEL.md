@@ -263,20 +263,20 @@ The surface being four scenarios rather than the whole fleet is what makes this 
 
 ## Current State
 
-Recorded as of 2026-08-13, as data. This section is the measured distance from the model above and is expected to change; the model is not expected to change with it.
+Recorded as of 2026-08-19, as data. This section is the measured distance from the model above and is expected to change; the model is not expected to change with it.
 
-| Fact | Value |
-|---|---|
-| Scenarios declaring any measure | 14 of 118 |
-| Total declared measures, fleet-wide | 97 |
-| Projection owners with a per-leg serving signal | 2 of 4 (`search-hub`, `program-runtime`) |
-| Projection owners whose numerator publishes condition beside coverage | 1 of 4 (`test-genie`) |
-| Projection owners with any freshness signal | 0 of 4 |
-| Projection owners with any exercise signal | 1 of 4 (`program-runtime`) |
-| `program-runtime` condition snapshot | 641 of 1,188 bindings instrumented; 79 degraded; 68 dormant; 932 filtered out because their owners do not back a live Act `NOW` cell |
-| Condition source registered on the board | Typed program-runtime binding-condition legs and Search Hub insight legs are filtered to owners backing live Act `NOW` cells; maturity blockers remain a separate Search Hub evidence source |
-| Condition read surface | `FocusService.ListCondition` and `FocusService.ExplainCondition` plus CLI `condition status` / `condition explain-leg` |
-| Overall instrumentation coverage | not yet a fleet percentage; missing owner signals remain `UNINSTRUMENTED`, never healthy |
+| Fact | Value | Measurement command |
+|---|---|---|
+| Scenarios declaring any measure | 24 of 122 scenarios contain at least one command measure | `find scenarios -path '*/cli/manifest.json' -type f -print0 \| xargs -0 -n1 jq -r '[.. \| objects \| select(has("measure")) \| .measure] \| length'` (non-zero files), with `find scenarios -mindepth 1 -maxdepth 1 -type d \| wc -l` for the scenario denominator |
+| Total declared measures, fleet-wide | 119 source declarations; 103 currently indexed | Source-manifest count above; `measures-health search status --json` |
+| Projection owners with a per-leg serving signal | 2 of 4 (`search-hub`, `program-runtime`) | `program-runtime bindings condition --json`; Search Hub condition provider registered in `meta-optimization-manager coverage status --json` |
+| Projection owners whose numerator publishes condition beside coverage | 2 of 4 (`test-genie`, `program-runtime`) | `meta-optimization-manager coverage status --json` (`PROJECTION_VALIDATE` and `PROJECTION_ACT` condition counts) |
+| Projection owners with any freshness signal | 1 of 4 (`program-runtime`) | `program-runtime bindings condition --json` (`conditions[].freshness`) |
+| Projection owners with any exercise signal | 1 of 4 (`program-runtime`) | `program-runtime bindings condition --json` (`ledger_exercise`, `receipt_exercise`) |
+| `program-runtime` condition snapshot | 1,482 bindings total. Local ledger: 719 instrumented from 1,799 invocations. Fleet receipt aggregate: 3 instrumented from 8 invocations. Combined verdicts: 2 healthy, 293 degraded, 1,187 dormant. | `program-runtime bindings condition --json` |
+| Condition source registered on the board | Typed Program Runtime binding-condition legs and Search Hub insight legs are joined to the live projection populations; maturity blockers remain a separate Search Hub evidence source | `meta-optimization-manager coverage status --json`; `meta-optimization-manager condition status --json` |
+| Condition read surface | `FocusService.ListCondition` and `FocusService.ExplainCondition` plus CLI `condition status` / `condition explain-leg` | `meta-optimization-manager condition help` |
+| Overall instrumentation coverage | No single fleet percentage is asserted: the local ledger and fleet receipt aggregate have different populations and report 719/1,482 and 3/1,482 respectively | `program-runtime bindings condition --json` |
 
 Two scenarios outside the projection owners already demonstrate the target shape and are worth copying rather than reinventing:
 
@@ -287,9 +287,9 @@ Two scenarios outside the projection owners already demonstrate the target shape
 
 These are known blockers on the model above. They are recorded so the gap is scheduled rather than rediscovered:
 
-1. **Fleet-wide Exercise needs a counting surface.** `vrooli-events` exposes `events query` by type, source, and correlation id, but no aggregate or count operation. It also ships no `cli/manifest.json` and declares no measures of its own, so it is neither bindable nor measurable today. The single cheapest signal in this model is blocked on its owner growing a counting surface.
+1. **Fleet-wide Exercise has a counting surface, but adoption remains sparse.** `vrooli-events aggregate --json` now exposes a typed, governed 24-hour aggregate. On 2026-08-19 it returned 3 operation aggregates and 8 invocations across 2 target scenarios. The transport prerequisite is closed; broad receipt emission and leg-to-operation mapping remain the adoption work.
 2. **Exercise attribution is bounded by agent identity.** Only verified `agent-manager` identity claims may set a receipt's subject and agent correlation. `exercise.invocations` and `exercise.last_invoked_at` are unaffected, but `exercise.distinct_callers` degrades to a count of *attributable* callers and must report the unattributed remainder rather than silently undercounting.
-3. **Owner-wide condition measure federation remains open.** Test-genie now publishes its phase condition and the focus source publishes fleet evidence; freshness and exercise measures for every owner remain future work.
+3. **Owner-wide condition measure federation remains open.** Test Genie publishes phase condition, Program Runtime publishes serving/freshness/exercise binding condition, and the focus source publishes fleet evidence. Equivalent freshness and exercise signals for the remaining projection owners are future work.
 
 ## Governing Principles
 

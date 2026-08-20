@@ -21,6 +21,18 @@
       "rationale": "Already an inherited floor with a working evaluator. Declared here so the capability is countable per asset rather than existing only as an implicit floor."
     },
     {
+      "id": "content-container-safety",
+      "title": "Content stays reachable inside its container",
+      "facets": ["promises"],
+      "description": "Content and controls remain reachable inside their own surface; clipped overflow is only acceptable when the container exposes a deliberate scroll affordance.",
+      "proves": {
+        "evidence": ["layout-box"],
+        "claimTypes": ["content-not-clipped"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The content-not-clipped evaluator now compares rendered and scroll geometry and recognizes reachable overflow. This capability makes the newly computable visual-bar check visible in the derived capability report."
+    },
+    {
       "id": "viewport-fill",
       "title": "Fills the viewport without dead space",
       "facets": ["promises"],

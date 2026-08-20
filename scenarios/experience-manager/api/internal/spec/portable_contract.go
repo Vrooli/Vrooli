@@ -66,10 +66,16 @@ func checkPortableContract(report *Report, scenarioDir, path string) {
 			claim.Statement = legacy.Description
 		}
 		if claim.Type == "" {
-			claim.Type = "custom"
+			// Description-only legacy catalog claims remain visible as explicitly
+			// aspirational review items. They must not silently re-enter the
+			// retired custom vocabulary.
+			claim.Type = "visual-review"
 		}
 		if claim.Tier == "" {
 			claim.Tier = "manual"
+		}
+		if claim.Type == "custom" {
+			report.add(CodeTierViolation, SeverityError, fmt.Sprintf("custom claim %q is retired", claim.ID), location, "Replace it with an implemented claim type or the explicit manual-review type.")
 		}
 		checkClaimShape(report, location, claim)
 		claims = append(claims, claim)

@@ -1,24 +1,11 @@
 // Package prompt_manager adapts DTV's outbound view of prompt-manager.
-//
-// Today prompt-manager exposes a REST surface for skills (no proto).
-// This adapter implements the skill_catalog.SkillCatalogSource seam by
-// calling prompt-manager's /api/v1/skills/sync endpoint and translating
-// the response into domain Skill values.
-//
-// When prompt-manager grows a Connect-RPC surface for skills, swap this
-// file's body without touching the SkillCatalogSource seam in
-// internal/skill_catalog/. The migration is tracked in
-// docs/internal/PROBLEMS.md.
 package prompt_manager
 
 import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -26,22 +13,17 @@ import (
 	"development-toolchain-validator/internal/httpc"
 	skillcatalog "development-toolchain-validator/internal/skill_catalog"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
+	skillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills/skills_v1connect"
 )
 
-const (
-	// skillsSyncPath is the prompt-manager REST endpoint that returns
-	// the full skill catalog with content. The DTV adapter prefers this
-	// over /skills because we need per-skill content to compute the
-	// content_hash that manifests pin against.
-	skillsSyncPath = "/api/v1/skills/sync"
+const promptManagerScenario = "prompt-manager"
 
-	// promptManagerScenario is the scenario slug used by discovery.
-	promptManagerScenario = "prompt-manager"
-)
-
-// SkillCatalogRESTAdapter implements skill_catalog.SkillCatalogSource by
-// calling prompt-manager's /api/v1/skills/sync endpoint.
+// SkillCatalogRESTAdapter implements skill_catalog.SkillCatalogSource through
+// prompt-manager's generated Connect client. Its historical name is retained
+// to avoid breaking downstream constructor call sites.
 type SkillCatalogRESTAdapter struct {
 	resolver *discovery.Resolver
 	doer     httpc.Doer
@@ -79,8 +61,8 @@ func NewSkillCatalogRESTAdapter(opts Options) *SkillCatalogRESTAdapter {
 
 var _ skillcatalog.SkillCatalogSource = (*SkillCatalogRESTAdapter)(nil)
 
-// Fetch resolves prompt-manager's base URL via discovery, GETs
-// /api/v1/skills/sync, and translates the response into Skill values.
+// Fetch resolves prompt-manager's base URL via discovery, invokes SyncSkills,
+// and translates the response into Skill values.
 // Re-resolves the base URL on transport failure to survive scenario
 // restart cycles.
 func (a *SkillCatalogRESTAdapter) Fetch(ctx context.Context) ([]skillcatalog.Skill, error) {
@@ -115,58 +97,24 @@ func (a *SkillCatalogRESTAdapter) Fetch(ctx context.Context) ([]skillcatalog.Ski
 }
 
 func (a *SkillCatalogRESTAdapter) fetchOnce(ctx context.Context, base string) ([]skillcatalog.Skill, error) {
-	u := strings.TrimRight(base, "/") + skillsSyncPath
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	client := skillsconnect.NewSkillsServiceClient(a.doer, strings.TrimRight(base, "/"))
+	resp, err := client.SyncSkills(ctx, connect.NewRequest(&skillsv1.SyncSkillsRequest{}))
 	if err != nil {
-		return nil, fmt.Errorf("build request: %w", err)
+		return nil, skillcatalog.ErrSyncFailed{Reason: "sync skills", Wrapped: err}
 	}
-	req.Header.Set("Accept", "application/json")
-	resp, err := a.doer.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("get %s: %w", u, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 500 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<14))
-		return nil, transportError{status: resp.StatusCode, snippet: strings.TrimSpace(string(body))}
-	}
-	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<14))
-		return nil, skillcatalog.ErrSyncFailed{
-			Reason:  fmt.Sprintf("upstream returned %d", resp.StatusCode),
-			Wrapped: fmt.Errorf("%s", strings.TrimSpace(string(body))),
-		}
-	}
-	var payload syncPayload
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return nil, skillcatalog.ErrSyncFailed{Reason: "decode response", Wrapped: err}
-	}
-	out := make([]skillcatalog.Skill, 0, len(payload.Skills))
-	for _, s := range payload.Skills {
-		id := strings.TrimSpace(s.ID)
+	out := make([]skillcatalog.Skill, 0, len(resp.Msg.GetSkills()))
+	for _, s := range resp.Msg.GetSkills() {
+		id := strings.TrimSpace(s.GetId())
 		if id == "" {
 			continue
 		}
 		out = append(out, skillcatalog.Skill{
 			ID:          id,
-			Version:     versionFromUpdatedAt(s.UpdatedAt),
-			ContentHash: contentHash(s.Content),
+			Version:     versionFromUpdatedAt(s.GetUpdatedAt()),
+			ContentHash: contentHash(s.GetContent()),
 		})
 	}
 	return out, nil
-}
-
-// syncPayload mirrors prompt-manager's skills.SyncResponse / Response
-// shape. We only extract the fields we need and rely on json.Decoder's
-// default unknown-field tolerance for forward compatibility.
-type syncPayload struct {
-	Skills []syncSkill `json:"skills"`
-}
-
-type syncSkill struct {
-	ID        string `json:"id"`
-	Content   string `json:"content"`
-	UpdatedAt string `json:"updatedAt"`
 }
 
 // versionFromUpdatedAt normalizes prompt-manager's RFC3339 updated_at
@@ -185,23 +133,9 @@ func contentHash(content string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// transportError marks errors that are worth retrying (5xx, network
-// flakes). isRetriable consults this type via errors.As.
-type transportError struct {
-	status  int
-	snippet string
-}
-
-func (e transportError) Error() string {
-	if e.snippet != "" {
-		return fmt.Sprintf("upstream %d: %s", e.status, e.snippet)
-	}
-	return fmt.Sprintf("upstream %d", e.status)
-}
-
 func isRetriable(err error) bool {
-	var te transportError
-	if errors.As(err, &te) {
+	var ce *connect.Error
+	if errors.As(err, &ce) && (ce.Code() == connect.CodeUnavailable || ce.Code() == connect.CodeInternal || ce.Code() == connect.CodeDeadlineExceeded) {
 		return true
 	}
 	// Bare network errors from the doer are also retriable. Heuristic:
