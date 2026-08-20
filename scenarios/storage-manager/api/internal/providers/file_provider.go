@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -190,6 +192,17 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 			skipped = append(skipped, item.ID)
 			continue
 		}
+		if _, err := p.files.Stat(ctx, item.Path); err != nil {
+			if isFileMissing(err) {
+				// A prior apply or an operator may have removed the item after
+				// preview. Do not count planned bytes for an entry that is already
+				// gone; this keeps retries honest.
+				continue
+			}
+			skipped = append(skipped, item.ID)
+			warnings = append(warnings, fmt.Sprintf("%s: %s", item.ID, cleanup.Redact(err.Error())))
+			continue
+		}
 		if err := p.files.RemoveAll(ctx, item.Path); err != nil {
 			// A single unremovable entry must not abandon the rest of the run.
 			//
@@ -243,8 +256,8 @@ func (p *FileProvider) preview(ctx context.Context, scope cleanup.ObservationSco
 
 // memoKey identifies a measurement by everything that changes its result.
 func memoKey(scope cleanup.ObservationScope, policy cleanup.ProviderPolicy) string {
-	return fmt.Sprintf("%v|%v|%v|%v|%v|%v",
-		scope.Now.UnixNano(), scope.RootPaths,
+	return fmt.Sprintf("%v|%v|%v|%v|%v|%v|%v",
+		scope.Now.UnixNano(), scope.RootPaths, scope.CompleteCensus,
 		policy.Enabled, policy.MinAge, policy.MaxBytes, policy.ApprovalMode)
 }
 
@@ -268,7 +281,10 @@ func (p *FileProvider) measure(ctx context.Context, scope cleanup.ObservationSco
 	// would scale the worst case with however many roots a provider happens to
 	// have — the trash alone has two (files/ and info/), which doubled its
 	// share of the API write timeout for no reason.
-	deadline := p.observedNow(now).Add(p.budget())
+	var deadline time.Time
+	if !scope.CompleteCensus {
+		deadline = p.observedNow(now).Add(p.budget())
+	}
 	for _, root := range roots {
 		var err error
 		if p.topLevelEntries {
@@ -332,10 +348,16 @@ func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, 
 		return err
 	}
 
-	// ReadDir is already ordered on the platforms we target, but sorting here
-	// makes the byte-cap selection reproducible regardless of what the seam
-	// guarantees.
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
+	// Spend the shared budget on the entries most likely to be eligible first.
+	// Alphabetical order starves late names when a root is large; own mtime is a
+	// safe prioritisation signal because it never makes a fresh entry eligible.
+	// Path is the deterministic tie-breaker, independent of filesystem order.
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].ModTime.Equal(entries[j].ModTime) {
+			return entries[i].Path < entries[j].Path
+		}
+		return entries[i].ModTime.Before(entries[j].ModTime)
+	})
 
 	var unmeasured int
 
@@ -346,9 +368,17 @@ func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, 
 		if !p.withinConfiguredRoot(entry.Path) || activePath(entry.Path) {
 			continue
 		}
+		// The newest mtime in a subtree is at least as new as its top-level
+		// entry's own mtime. A fresh entry therefore cannot contain an entirely
+		// stale subtree and may be skipped without walking it. The converse is
+		// unsound: an old directory may contain a fresh descendant, so old
+		// entries still receive the full newest-mtime walk below.
+		if policy.MinAge > 0 && entry.ModTime.After(now.Add(-policy.MinAge)) {
+			continue
+		}
 		// Checked per entry rather than per file, so an entry is always either
 		// fully measured or not measured at all.
-		if !p.observedNow(now).Before(deadline) {
+		if !deadline.IsZero() && !p.observedNow(now).Before(deadline) {
 			unmeasured++
 			continue
 		}
@@ -412,7 +442,7 @@ func (p *FileProvider) aggregateEntry(ctx context.Context, entry cleanup.FileInf
 		// overhead, while 1024 files is a small enough stride that overshoot
 		// stays negligible.
 		checked++
-		if checked%1024 == 0 && !p.observedNow(time.Time{}).Before(deadline) {
+		if checked%1024 == 0 && !deadline.IsZero() && !p.observedNow(time.Time{}).Before(deadline) {
 			return errMeasurementBudgetExhausted
 		}
 		if info.Path == entry.Path {
@@ -512,7 +542,22 @@ func intersectRoots(configured []string, scoped []string) []string {
 
 func activePath(path string) bool {
 	name := filepath.Base(path)
-	return strings.HasPrefix(name, ".") || strings.HasSuffix(name, ".lock") || strings.HasSuffix(name, ".sock") || strings.Contains(path, string(filepath.Separator)+"proc"+string(filepath.Separator))
+	if strings.HasPrefix(name, ".") || strings.HasSuffix(name, ".lock") || strings.HasSuffix(name, ".sock") || strings.HasPrefix(name, "systemd-private-") || strings.Contains(path, string(filepath.Separator)+"proc"+string(filepath.Separator)) {
+		return true
+	}
+	// This directory contains live agent session scratchpads, including the
+	// session performing cleanup. It is a hard safety boundary, not a
+	// retention decision, so keep the exact path protected across previews and
+	// applies even when its contents are old.
+	return filepath.Clean(path) == filepath.Join(os.TempDir(), "claude-1000")
+}
+
+func isFileMissing(err error) bool {
+	if errors.Is(err, fs.ErrNotExist) {
+		return true
+	}
+	errText := strings.ToLower(err.Error())
+	return strings.Contains(errText, "not found") || strings.Contains(errText, "does not exist")
 }
 
 func stableItemID(providerID, path string) string {

@@ -10,13 +10,11 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// TestCommandGroups exercises the flat-commands aggregator. The
-// template ships zero flat commands, so the contract is "returns nil";
-// the test exists so a future scenario that adds CommandGroups gets
-// caller-side wiring for free (the call goes through unchanged).
+// TestCommandGroups pins the headroom space denominator contract.
 func TestCommandGroups(t *testing.T) {
 	got := CommandGroups(&cliapp.ScenarioApp{})
-	require.Nil(t, got, "CommandGroups should return nil until a domain registers a flat group")
+	require.Len(t, got, 1)
+	require.Equal(t, "Coverage Space", got[0].Title)
 }
 
 // TestSubcommandGroups proves the aggregator returns whatever domains

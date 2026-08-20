@@ -7,6 +7,8 @@ import (
 	"storage-manager/cli/domains/fleet"
 	"storage-manager/cli/domains/validate"
 
+	"github.com/vrooli/api-core/spacecli"
+	"github.com/vrooli/api-core/spacedoc"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -18,7 +20,7 @@ import (
 // default architecture; do not treat flat command files as the long-term plan.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	_ = core
-	return nil
+	return []cliapp.CommandGroup{spacecli.CommandGroup(spacecli.Config{Owner: "storage-manager", Projection: spacedoc.ProjectionHeadroom})}
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.

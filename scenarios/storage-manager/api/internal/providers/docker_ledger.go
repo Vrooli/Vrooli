@@ -93,7 +93,7 @@ type FileDockerUsageLedger struct {
 
 func NewFileDockerUsageLedger(path string) (*FileDockerUsageLedger, error) {
 	l := &FileDockerUsageLedger{path: path, Entries: map[string]ledgerEntry{}}
-	return loadFileDockerUsageLedger(l, context.Background())
+	return loadFileDockerUsageLedger(context.Background(), l)
 }
 
 // NewRoutedFileDockerUsageLedger loads the durable ledger from the primary
@@ -104,10 +104,10 @@ func NewRoutedFileDockerUsageLedger(roots *filerouting.RoutedRoots) (*FileDocker
 	if roots == nil {
 		return nil, fmt.Errorf("file docker usage ledger: routed roots are nil")
 	}
-	return loadFileDockerUsageLedger(&FileDockerUsageLedger{roots: roots, Entries: map[string]ledgerEntry{}}, context.Background())
+	return loadFileDockerUsageLedger(context.Background(), &FileDockerUsageLedger{roots: roots, Entries: map[string]ledgerEntry{}})
 }
 
-func loadFileDockerUsageLedger(l *FileDockerUsageLedger, ctx context.Context) (*FileDockerUsageLedger, error) {
+func loadFileDockerUsageLedger(ctx context.Context, l *FileDockerUsageLedger) (*FileDockerUsageLedger, error) {
 	if err := l.reload(ctx); err != nil {
 		return nil, err
 	}

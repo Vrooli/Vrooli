@@ -63,6 +63,7 @@ func (r *Registry) List() []cleanup.ProviderMetadata {
 
 func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 	providers := []cleanup.Provider{
+		NewScenarioBinariesProvider(deps.FileSystem, deps.ProcessLiveness, deps.Clock, ScenarioBinariesProviderConfig{Root: deps.ScenarioBinariesRoot}),
 		NewTrashProvider(deps.FileSystem, deps.Clock, FileProviderConfig{
 			ID:          "trash",
 			Name:        "Trash",
@@ -177,6 +178,7 @@ func OwnerScenarioBuiltIns(client cleanup.ScenarioProviderClient) []cleanup.Prov
 
 type BuiltInDeps struct {
 	FileSystem           cleanup.FileSystem
+	ProcessLiveness      cleanup.ProcessLiveness
 	ProcessRunner        cleanup.ProcessRunner
 	Docker               cleanup.DockerClient
 	DockerImageLedger    imageUsageLedger
@@ -188,4 +190,5 @@ type BuiltInDeps struct {
 	TmpRoots             []string
 	GoBuildCacheRoots    []string
 	PlaywrightCacheRoots []string
+	ScenarioBinariesRoot string
 }

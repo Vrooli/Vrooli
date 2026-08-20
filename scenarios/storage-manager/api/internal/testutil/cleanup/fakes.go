@@ -3,6 +3,7 @@ package cleanupfakes
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -20,11 +21,28 @@ func (c Clock) Now() time.Time { return c.Time }
 type FileSystem struct {
 	Root        string
 	Files       map[string]cleanup.FileInfo
+	Contents    map[string][]byte
 	Removed     []string
 	AllowRemove bool
 }
 
+func (fsys *FileSystem) ReadFile(ctx context.Context, path string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if contents, ok := fsys.Contents[path]; ok {
+		return append([]byte(nil), contents...), nil
+	}
+	if _, ok := fsys.Files[path]; !ok {
+		return nil, fs.ErrNotExist
+	}
+	return nil, fmt.Errorf("read %s: no fake contents", path)
+}
+
 func (fsys *FileSystem) Stat(_ context.Context, path string) (cleanup.FileInfo, error) {
+	if filepath.Clean(path) == filepath.Clean(fsys.Root) && fsys.Root != "" {
+		return cleanup.FileInfo{Path: fsys.Root, IsDir: true}, nil
+	}
 	info, ok := fsys.Files[path]
 	if !ok {
 		return cleanup.FileInfo{}, fmt.Errorf("stat %s: not found", path)

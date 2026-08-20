@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"storage-manager/internal/cleanup"
@@ -32,13 +33,24 @@ type ProviderPlan struct {
 }
 
 type Plan struct {
-	ID            string
-	PolicyVersion string
-	CreatedAt     time.Time
-	Providers     []ProviderPlan
-	TotalBytes    int64
-	TotalItems    int
+	ID                string
+	PolicyVersion     string
+	CreatedAt         time.Time
+	Providers         []ProviderPlan
+	TotalBytes        int64
+	TotalItems        int
+	CensusID          string
+	CensusStatus      string
+	CensusStartedAt   time.Time
+	CensusCompletedAt time.Time
 }
+
+const (
+	CensusStatusRunning  = "running"
+	CensusStatusComplete = "complete"
+	CensusStatusPartial  = "partial"
+	CensusStatusFailed   = "failed"
+)
 
 type ApplyInput struct {
 	PlanID         string
@@ -88,6 +100,21 @@ type Service struct {
 	pressure        *pressureGuard
 	autonomousMu    sync.RWMutex
 	autonomousApply bool
+
+	// Census jobs are server-owned. A request may stop waiting without
+	// cancelling the measurement, so a slow filesystem walk cannot be turned
+	// into a misleading partial-as-total response or abandoned work.
+	censusMu       sync.Mutex
+	censusJobs     map[string]*censusJob
+	censusSeq      uint64
+	latestCensusID string
+}
+
+type censusJob struct {
+	done     chan struct{}
+	result   Plan
+	err      error
+	consumed bool
 }
 
 // defaultPressureDedupWindow is how long a completed autonomous execution
@@ -106,6 +133,7 @@ func NewService(registry *providers.Registry, store Store, clock cleanup.Clock) 
 		// nothing acted overnight. The kill switch exists to turn remediation
 		// off deliberately, not to require a deliberate act to turn it on.
 		autonomousApply: true,
+		censusJobs:      make(map[string]*censusJob),
 	}
 }
 
@@ -146,10 +174,102 @@ func (s *Service) CurrentPolicy(ctx context.Context) (Policy, error) {
 }
 
 func (s *Service) Plan(ctx context.Context, scope cleanup.ObservationScope) (Plan, error) {
+	// If a previous caller stopped waiting after the HTTP deadline, reuse its
+	// still-owned job instead of starting a second full-host walk. This makes a
+	// follow-up plan a retrieval of the completed census rather than a poll.
+	if job := s.latestUnconsumedCensus(); job != nil {
+		plan, err := waitCensus(ctx, job)
+		if err == nil || ctx.Err() == nil {
+			s.markCensusConsumedJob(job)
+		}
+		return plan, err
+	}
+	id, err := s.StartCensus(ctx, scope)
+	if err != nil {
+		return Plan{}, err
+	}
+	plan, err := s.WaitCensus(ctx, id)
+	if err == nil || ctx.Err() == nil {
+		s.markCensusConsumed(id)
+	}
+	return plan, err
+}
+
+// StartCensus dispatches a tracked measurement that is independent of the
+// caller's request lifetime. It returns before providers are walked.
+func (s *Service) StartCensus(_ context.Context, scope cleanup.ObservationScope) (string, error) {
+	id := fmt.Sprintf("census-%d", atomic.AddUint64(&s.censusSeq, 1))
+	job := &censusJob{done: make(chan struct{})}
+	scope.CompleteCensus = true
+	s.censusMu.Lock()
+	s.censusJobs[id] = job
+	s.latestCensusID = id
+	s.censusMu.Unlock()
+	go s.runCensus(id, scope, job)
+	return id, nil
+}
+
+// WaitCensus waits for one server-owned census. Cancelling this wait does not
+// cancel the underlying job; another caller can retrieve the same result by
+// census ID once it completes.
+func (s *Service) WaitCensus(ctx context.Context, id string) (Plan, error) {
+	s.censusMu.Lock()
+	job, ok := s.censusJobs[id]
+	s.censusMu.Unlock()
+	if !ok {
+		return Plan{}, fmt.Errorf("census %q not found", id)
+	}
+	return waitCensus(ctx, job)
+}
+
+func waitCensus(ctx context.Context, job *censusJob) (Plan, error) {
+	select {
+	case <-job.done:
+		return job.result, job.err
+	case <-ctx.Done():
+		return Plan{}, ctx.Err()
+	}
+}
+
+func (s *Service) latestUnconsumedCensus() *censusJob {
+	s.censusMu.Lock()
+	defer s.censusMu.Unlock()
+	job := s.censusJobs[s.latestCensusID]
+	if job == nil || job.consumed {
+		return nil
+	}
+	return job
+}
+
+func (s *Service) markCensusConsumed(id string) {
+	s.censusMu.Lock()
+	defer s.censusMu.Unlock()
+	if job := s.censusJobs[id]; job != nil {
+		job.consumed = true
+	}
+}
+
+func (s *Service) markCensusConsumedJob(job *censusJob) {
+	s.censusMu.Lock()
+	defer s.censusMu.Unlock()
+	job.consumed = true
+}
+
+func (s *Service) runCensus(id string, scope cleanup.ObservationScope, job *censusJob) {
+	plan, err := s.planSync(context.Background(), id, scope)
+	s.censusMu.Lock()
+	job.result = plan
+	job.err = err
+	s.censusMu.Unlock()
+	close(job.done)
+}
+
+func (s *Service) planSync(ctx context.Context, censusID string, scope cleanup.ObservationScope) (Plan, error) {
 	current, err := s.CurrentPolicy(ctx)
 	if err != nil {
 		return Plan{}, err
 	}
+	started := s.now()
 	providerPlans := make([]ProviderPlan, 0)
 	for _, meta := range s.registry.List() {
 		provider, ok := s.registry.Get(meta.ID)
@@ -174,10 +294,21 @@ func (s *Service) Plan(ctx context.Context, scope cleanup.ObservationScope) (Pla
 		})
 	}
 	sort.Slice(providerPlans, func(i, j int) bool { return providerPlans[i].ProviderID < providerPlans[j].ProviderID })
-	out := Plan{PolicyVersion: current.Version, CreatedAt: s.now(), Providers: providerPlans}
+	out := Plan{
+		PolicyVersion:     current.Version,
+		CreatedAt:         s.now(),
+		Providers:         providerPlans,
+		CensusID:          censusID,
+		CensusStatus:      CensusStatusComplete,
+		CensusStartedAt:   started,
+		CensusCompletedAt: s.now(),
+	}
 	for _, pp := range out.Providers {
 		out.TotalBytes += pp.Estimate.EstimatedBytes
 		out.TotalItems += pp.Estimate.ItemCount
+		if len(pp.Preview.Warnings) > 0 {
+			out.CensusStatus = CensusStatusPartial
+		}
 	}
 	out.ID = stablePlanID(out)
 	if err := s.store.SavePlan(ctx, out); err != nil {
@@ -188,6 +319,12 @@ func (s *Service) Plan(ctx context.Context, scope cleanup.ObservationScope) (Pla
 }
 
 func (s *Service) Apply(ctx context.Context, input ApplyInput) (ApplyReport, error) {
+	// Apply is server-owned once approval and replay validation begin. A CLI
+	// request may hit its transport deadline while a large trash root is being
+	// removed; cancelling the filesystem context at that point would leave an
+	// unreported half-apply. The idempotency record below is the durable
+	// retrieval point for the completed result.
+	ctx = context.WithoutCancel(ctx)
 	if strings.TrimSpace(input.IdempotencyKey) == "" {
 		return ApplyReport{}, fmt.Errorf("idempotency key is required")
 	}
@@ -307,6 +444,13 @@ func previewSkipReason(preview cleanup.Preview) string {
 
 func requireProviderApproval(pp ProviderPlan, input ApplyInput) error {
 	if pp.Policy.ApprovalMode == cleanup.ApprovalModeNone || input.ApprovalMode == pp.Policy.ApprovalMode {
+		return nil
+	}
+	// An operator approval is also accepted for safe_with_owner providers.
+	// Their provider contract explicitly permits either owner or operator
+	// approval; keeping the orchestrator gate aligned with that contract lets a
+	// single cleanup plan with mixed safe tiers be applied atomically.
+	if pp.Policy.ApprovalMode == cleanup.ApprovalModeOwner && input.ApprovalMode == cleanup.ApprovalModeOperator {
 		return nil
 	}
 	return fmt.Errorf("provider %s requires %s approval", pp.ProviderID, pp.Policy.ApprovalMode)

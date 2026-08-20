@@ -50,8 +50,8 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		t.Fatalf("NewRegistry() error = %v", err)
 	}
 	got := registry.List()
-	if len(got) != 12 {
-		t.Fatalf("List() len = %d, want 11", len(got))
+	if len(got) != 13 {
+		t.Fatalf("List() len = %d, want 13", len(got))
 	}
 	for i := 1; i < len(got); i++ {
 		if got[i-1].ID > got[i].ID {

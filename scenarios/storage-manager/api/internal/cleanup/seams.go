@@ -17,6 +17,7 @@ type FileInfo struct {
 // FileSystem is the only seam allowed to mutate filesystem cleanup targets.
 type FileSystem interface {
 	Stat(ctx context.Context, path string) (FileInfo, error)
+	ReadFile(ctx context.Context, path string) ([]byte, error)
 
 	// ReadDir lists the immediate children of a directory, without descending.
 	//
@@ -49,6 +50,12 @@ type ProcessResult struct {
 // ProcessRunner is the only seam allowed to execute host cleanup commands.
 type ProcessRunner interface {
 	Run(ctx context.Context, cmd ProcessCommand) (ProcessResult, error)
+}
+
+// ProcessLiveness reports whether a path is currently held by a running
+// process. Cleanup providers use it as a fail-closed guard for executables.
+type ProcessLiveness interface {
+	IsRunning(ctx context.Context, path string) (bool, error)
 }
 
 type DockerUsage struct {

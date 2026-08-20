@@ -16,6 +16,7 @@ func (isoRoutedSeams) Kinds() []corestorage.OwnerKind     { return scenarioOwner
 func (isoFileRoutedSeams) Kinds() []corestorage.OwnerKind { return scenarioOwnerKinds }
 func (isoUnverified) Kinds() []corestorage.OwnerKind      { return scenarioOwnerKinds }
 func (isoNamespace) Kinds() []corestorage.OwnerKind       { return scenarioOwnerKinds }
+func (isoDatabasePath) Kinds() []corestorage.OwnerKind    { return scenarioOwnerKinds }
 
 func (schemaHasAlter) Kinds() []corestorage.OwnerKind      { return scenarioOwnerKinds }
 func (schemaNotIdempotent) Kinds() []corestorage.OwnerKind { return scenarioOwnerKinds }

@@ -69,6 +69,14 @@ func (f *FS) Stat(ctx context.Context, path string) (cleanup.FileInfo, error) {
 	return toFileInfo(filepath.Clean(path), info), nil
 }
 
+// ReadFile reads provider metadata through the filesystem seam.
+func (f *FS) ReadFile(ctx context.Context, path string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return os.ReadFile(path)
+}
+
 // ReadDir lists the immediate children of a directory.
 //
 // Like Walk it is forgiving about individual entries: one child that vanished

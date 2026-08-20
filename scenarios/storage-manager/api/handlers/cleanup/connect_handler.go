@@ -8,6 +8,7 @@ import (
 	cleanupcore "storage-manager/internal/cleanup"
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/policy"
+
 	"connectrpc.com/connect"
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -210,11 +211,15 @@ func policyToProto(pol orchestrator.Policy) *cleanupv1.Policy {
 
 func planToProto(plan orchestrator.Plan) *cleanupv1.Plan {
 	out := &cleanupv1.Plan{
-		Id:            plan.ID,
-		PolicyVersion: plan.PolicyVersion,
-		CreatedAt:     timestamppb.New(plan.CreatedAt),
-		TotalBytes:    plan.TotalBytes,
-		TotalItems:    int32(plan.TotalItems),
+		Id:                plan.ID,
+		PolicyVersion:     plan.PolicyVersion,
+		CreatedAt:         timestamppb.New(plan.CreatedAt),
+		TotalBytes:        plan.TotalBytes,
+		TotalItems:        int32(plan.TotalItems),
+		CensusId:          plan.CensusID,
+		CensusStatus:      plan.CensusStatus,
+		CensusStartedAt:   timestamppb.New(plan.CensusStartedAt),
+		CensusCompletedAt: timestamppb.New(plan.CensusCompletedAt),
 	}
 	for _, pp := range plan.Providers {
 		provider := &cleanupv1.ProviderPlan{

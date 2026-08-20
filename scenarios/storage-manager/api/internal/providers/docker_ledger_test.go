@@ -22,6 +22,7 @@ type ledgerDockerClient struct {
 func (c *ledgerDockerClient) SystemUsage(context.Context) (cleanup.DockerUsage, error) {
 	return cleanup.DockerUsage{}, nil
 }
+
 func (c *ledgerDockerClient) Prune(context.Context, cleanup.DockerPruneRequest) (cleanup.DockerPruneResult, error) {
 	return cleanup.DockerPruneResult{}, nil
 }

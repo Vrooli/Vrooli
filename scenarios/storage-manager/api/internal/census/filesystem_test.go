@@ -155,12 +155,15 @@ func (t treeFileSystem) WalkDir(root string, fn fs.WalkDirFunc) error {
 		return fn(path, entry, err)
 	})
 }
+
 func (t treeFileSystem) Stat(path string) (os.FileInfo, error) {
 	return fs.Stat(t.FS, t.virtual(path))
 }
+
 func (t treeFileSystem) Lstat(path string) (os.FileInfo, error) {
 	return fs.Stat(t.FS, t.virtual(path))
 }
+
 func (t treeFileSystem) virtual(path string) string {
 	if path == t.HostRoot {
 		return "root"

@@ -11,9 +11,10 @@ import (
 	"strings"
 	"testing"
 
+	"storage-manager/internal/providers"
+
 	"github.com/gorilla/mux"
 	corestorage "github.com/vrooli/api-core/storage"
-	"storage-manager/internal/providers"
 )
 
 func TestCensusEndpointReturnsClosedAccounting(t *testing.T) {
@@ -70,6 +71,7 @@ type fakeOllamaInventory struct {
 func (f fakeOllamaInventory) ListModels(context.Context) ([]providers.OllamaModel, error) {
 	return f.models, nil
 }
+
 func (f fakeOllamaInventory) ListRunningModels(context.Context) ([]providers.OllamaModel, error) {
 	return nil, nil
 }

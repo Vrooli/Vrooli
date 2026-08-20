@@ -1,6 +1,7 @@
 package cleanup
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -88,9 +89,15 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 	if repoRoot == "" {
 		repoRoot, _ = os.Getwd()
 	}
+	home, _ := os.UserHomeDir()
+	binRoot, err := resolveScenarioBinariesRoot(repoRoot, home)
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario binary root: %w", err)
+	}
 	ollama := providers.NewHTTPOllamaModelInventory(resolveOllamaBaseURL())
 	builtIns, err := providers.ConservativeBuiltIns(providers.BuiltInDeps{
 		FileSystem:        files,
+		ProcessLiveness:   hostfs.NewProcessLiveness(),
 		Clock:             schedule.System(),
 		DockerImageLedger: ledger,
 		OllamaModelProvider: providers.NewOllamaModelRetentionProvider(
@@ -104,11 +111,24 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		TmpRoots:             roots.Tmp,
 		GoBuildCacheRoots:    roots.GoBuildCache,
 		PlaywrightCacheRoots: roots.PlaywrightCache,
+		ScenarioBinariesRoot: binRoot,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return providers.NewRegistry(builtIns...)
+}
+
+func resolveScenarioBinariesRoot(repoRoot, home string) (string, error) {
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return "", err
+	}
+	entry, err := contract.RuntimeHomeEntry(home, repocontract.HomeKeyBin)
+	if err != nil {
+		return "", err
+	}
+	return entry.AbsPath, nil
 }
 
 func resolveOllamaBaseURL() string {

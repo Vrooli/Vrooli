@@ -115,6 +115,72 @@ func TestTopLevelEntries_AgeUsesNewestDescendant(t *testing.T) {
 	}
 }
 
+func TestTopLevelEntries_FreshOwnMtimeSkipsSubtreeWalk(t *testing.T) {
+	t.Parallel()
+
+	staging := filepath.Join(tmpRoot, "vrooli-build-fresh-entry")
+	fsys := &countingFS{FileSystem: &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{
+		staging:                           dir(staging, at(31, 11)),
+		filepath.Join(staging, "old.bin"): file(filepath.Join(staging, "old.bin"), 1000, at(20, 0)),
+	}}}
+	provider := NewTmpProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{
+		ID: "tmp", Name: "Temporary files", Roots: []string{tmpRoot}, TopLevelEntries: true,
+	})
+
+	preview := previewWithMinAge(t, provider, 24*time.Hour)
+	if len(preview.Items) != 0 {
+		t.Fatalf("fresh top-level entry was selected: %#v", preview.Items)
+	}
+	if fsys.walks != 0 {
+		t.Fatalf("fresh top-level entry walked %d times; sound own-mtime prefilter should skip the walk", fsys.walks)
+	}
+}
+
+func TestTopLevelEntries_OldOwnMtimeStillWalksForFreshDescendant(t *testing.T) {
+	t.Parallel()
+
+	staging := filepath.Join(tmpRoot, "vrooli-build-old-entry-active")
+	fsys := &countingFS{FileSystem: &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{
+		staging:                               dir(staging, at(20, 0)),
+		filepath.Join(staging, "in-progress"): file(filepath.Join(staging, "in-progress"), 1000, at(31, 11)),
+	}}}
+	provider := NewTmpProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{
+		ID: "tmp", Name: "Temporary files", Roots: []string{tmpRoot}, TopLevelEntries: true,
+	})
+
+	preview := previewWithMinAge(t, provider, 24*time.Hour)
+	if len(preview.Items) != 0 {
+		t.Fatalf("active descendant was selected: %#v", preview.Items)
+	}
+	if fsys.walks != 1 {
+		t.Fatalf("old top-level entry walk count = %d, want 1", fsys.walks)
+	}
+}
+
+func TestTopLevelEntries_CompleteCensusIgnoresRequestBudget(t *testing.T) {
+	t.Parallel()
+
+	staging := filepath.Join(tmpRoot, "vrooli-build-complete-census")
+	provider := NewTmpProvider(&cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{
+		staging:                           dir(staging, at(20, 0)),
+		filepath.Join(staging, "payload"): file(filepath.Join(staging, "payload"), 1000, at(20, 0)),
+	}}, cleanupfakes.Clock{Time: now}, FileProviderConfig{
+		ID: "tmp", Name: "Temporary files", Roots: []string{tmpRoot}, TopLevelEntries: true,
+		MeasureBudget: time.Nanosecond,
+	})
+
+	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{
+		Scope:  cleanup.ObservationScope{CompleteCensus: true},
+		Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: 24 * time.Hour, ApprovalMode: cleanup.ApprovalModeOperator},
+	})
+	if err != nil {
+		t.Fatalf("Preview() error = %v", err)
+	}
+	if len(preview.Items) != 1 || len(preview.Warnings) != 0 {
+		t.Fatalf("complete census preview = %#v, want one measured item and no budget warning", preview)
+	}
+}
+
 // TestTopLevelEntries_FullyStaleDirectoryIsSelected is the counterpart: when
 // nothing in the subtree is recent, the entry is genuinely reclaimable.
 func TestTopLevelEntries_FullyStaleDirectoryIsSelected(t *testing.T) {
@@ -146,7 +212,11 @@ func TestTopLevelEntries_SkipsActiveAndHiddenEntries(t *testing.T) {
 		file(filepath.Join(tmpRoot, ".X11-unix", "X0"), 0, at(1, 0)),
 		file(filepath.Join(tmpRoot, "agent.sock"), 0, at(1, 0)),
 		file(filepath.Join(tmpRoot, "build.lock"), 0, at(1, 0)),
+		dir(filepath.Join(tmpRoot, "claude-1000"), at(1, 0)),
+		dir(filepath.Join(tmpRoot, "systemd-private-boot"), at(1, 0)),
 	)
+	// These exclusions are hard safety boundaries: the session directory and
+	// systemd private directories must remain present even when old.
 
 	preview := previewWithMinAge(t, provider, 24*time.Hour)
 

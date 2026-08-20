@@ -14,7 +14,12 @@
     "contract": "scenario-validation/v1"
   },
   "targets": {
-    "kinds": ["scenario", "resource", "tool", "safeguard"],
+    "kinds": [
+      "scenario",
+      "resource",
+      "tool",
+      "safeguard"
+    ],
     "selection": "enumerate"
   },
   "applicability": {
@@ -213,12 +218,44 @@
         "id": "declaration_accountability",
         "label": "Declaration Accountability",
         "description": "Whether declared storage matches observed writers, paths, sidecars, budgets, and enforcement.",
-        "appliesTo": ["scenario", "resource", "tool", "safeguard"],
+        "appliesTo": [
+          "scenario",
+          "resource",
+          "tool",
+          "safeguard"
+        ],
         "levels": [
-          { "id": "L0", "name": "Declaration unknown", "status_label": "Unavailable", "description": "Storage declarations cannot be evaluated.", "capability_summary": "Declaration accountability is unknown.", "next_unlock": "A readable owner manifest and storage surface." },
-          { "id": "L1", "name": "Declared", "status_label": "Foundation", "description": "The owner has a readable declaration, but reconciliation is incomplete.", "capability_summary": "Storage intent is declared.", "next_unlock": "Reconcile declared paths with writers and observed bytes." },
-          { "id": "L2", "name": "Reconciled", "status_label": "Ready", "description": "Declared paths, writers, sidecars, and observed storage agree.", "capability_summary": "Storage declarations match reality.", "next_unlock": "Bound and enforce every durable surface." },
-          { "id": "L3", "name": "Governed", "status_label": "Complete", "description": "Reconciled storage is bounded and enforcement is visible.", "capability_summary": "Storage declarations are governed end to end." }
+          {
+            "id": "L0",
+            "name": "Declaration unknown",
+            "status_label": "Unavailable",
+            "description": "Storage declarations cannot be evaluated.",
+            "capability_summary": "Declaration accountability is unknown.",
+            "next_unlock": "A readable owner manifest and storage surface."
+          },
+          {
+            "id": "L1",
+            "name": "Declared",
+            "status_label": "Foundation",
+            "description": "The owner has a readable declaration, but reconciliation is incomplete.",
+            "capability_summary": "Storage intent is declared.",
+            "next_unlock": "Reconcile declared paths with writers and observed bytes."
+          },
+          {
+            "id": "L2",
+            "name": "Reconciled",
+            "status_label": "Ready",
+            "description": "Declared paths, writers, sidecars, and observed storage agree.",
+            "capability_summary": "Storage declarations match reality.",
+            "next_unlock": "Bound and enforce every durable surface."
+          },
+          {
+            "id": "L3",
+            "name": "Governed",
+            "status_label": "Complete",
+            "description": "Reconciled storage is bounded and enforcement is visible.",
+            "capability_summary": "Storage declarations are governed end to end."
+          }
         ]
       }
     ],
@@ -490,7 +527,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "A writer may be missing, generated, or intentionally suppressed; remediation needs owner judgment."
       },
@@ -501,7 +540,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "The storage-manager suite gates resource, tool, and safeguard declaration errors and blockers."
       },
@@ -512,7 +553,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_INFO",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "Advisory drift is reported by the suite without blocking adoption."
       },
@@ -523,7 +566,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "The owner must choose the correct class for durable versus regenerable data."
       },
@@ -534,7 +579,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "The owner must provide a reclaim command or measured budget."
       },
@@ -545,7 +592,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "The owner must declare live SQLite sidecars alongside the database."
       },
@@ -556,7 +605,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "The owner must reconcile observed bytes with its declared ceiling."
       },
@@ -567,7 +618,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "The owner must make retention and durable-data declarations agree."
       },
@@ -578,7 +631,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "The owner must adopt observed bytes into an accountable declaration."
       },
@@ -589,7 +644,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "The stale scenario directory must be removed or given a canonical owner manifest."
       },
@@ -600,7 +657,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "Choosing a portable token or an explicit per-platform map requires owner knowledge of the upstream layout."
       },
@@ -611,7 +670,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "Correcting a platform mismatch requires deciding whether the declaration or its applicability is wrong."
       },
@@ -622,7 +683,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "The owner must add a branch or explicitly declare absence with null."
       },
@@ -633,7 +696,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "Replacing repeated platform branches with one token requires confirming the logical location."
       },
@@ -644,7 +709,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_INFO",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "Without a storage.entries declaration the durable surface cannot be evaluated, so no higher rung can be claimed. Blocks L1; the owner sits at L0."
       },
@@ -655,7 +722,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "A declaration that disagrees with observed writers, paths, sidecars, or ceilings is declared but not reconciled. Blocks L2; the owner sits at L1."
       },
@@ -666,7 +735,9 @@
         "dimension": "storage",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["storage-steer"],
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
         "fix_class": "manual",
         "reason": "Reconciled storage with no budget and no reclaim command has no visible enforcement. Blocks L3; the owner sits at L2."
       }
@@ -689,7 +760,7 @@
   },
   "determinism": {
     "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "reason": "Storage validation measures observed on-disk usage against declared budgets and inspects live databases for migration and isolation hygiene. Both read host filesystem and database state that changes without any file in the scenario changing."
   },
   "dimensions": [
     "storage"

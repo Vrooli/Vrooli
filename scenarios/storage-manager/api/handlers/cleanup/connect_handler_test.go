@@ -9,6 +9,7 @@ import (
 	cleanupcore "storage-manager/internal/cleanup"
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/policy"
+
 	"connectrpc.com/connect"
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup"
 )
@@ -117,6 +118,28 @@ func TestModuleShape(t *testing.T) {
 	module := ModuleWithService(&fakeCleanupService{policy: samplePolicy()})
 	if module.Name != "cleanup" || module.Mount == nil || len(module.Endpoints) != len(Endpoints) {
 		t.Fatalf("module shape = %#v", module)
+	}
+}
+
+func TestDefaultRegistryWiresContractResolvedScenarioBinaryRoot(t *testing.T) {
+	t.Parallel()
+
+	registry, err := defaultRegistry(nil)
+	if err != nil {
+		t.Fatalf("defaultRegistry() error = %v", err)
+	}
+	provider, ok := registry.Get("scenario-binaries")
+	if !ok {
+		t.Fatal("scenario-binaries provider is not registered")
+	}
+	preview, err := provider.Preview(context.Background(), cleanupcore.PreviewRequest{
+		Policy: cleanupcore.ProviderPolicy{Enabled: true, ApprovalMode: cleanupcore.ApprovalModeOwner},
+	})
+	if err != nil {
+		t.Fatalf("scenario-binaries Preview() error = %v", err)
+	}
+	if preview.BlockedReason != "" {
+		t.Fatalf("scenario-binaries provider is not wired to a usable contract root: %q", preview.BlockedReason)
 	}
 }
 

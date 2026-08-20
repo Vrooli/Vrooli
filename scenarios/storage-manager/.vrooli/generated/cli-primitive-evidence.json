@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "storage-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "ddbcb44d38900c0e91c2e86f9884eca9d32b54c93b3c5f48230c69aea3271585",
+  "manifest_hash": "3f00adb55036aaac008feb2fdec1959b8460ea7f51bd63abc044c4290d484da3",
   "commands": [
     {
       "path": "advisor engines",

@@ -14,15 +14,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/retention"
-	corestorage "github.com/vrooli/api-core/storage"
 	"storage-manager/internal/census"
 	"storage-manager/internal/module"
 	"storage-manager/internal/placement"
 	"storage-manager/internal/providers"
 	managerRetention "storage-manager/internal/retention"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/retention"
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 type ModuleDeps struct {

@@ -85,10 +85,14 @@ func (h *handlers) createPlanReport(_ cliapp.OperationContext, msg *cleanupv1.Cr
 	plan := msg.GetPlan()
 	results := make([]string, 0, len(plan.GetProviders()))
 	for _, provider := range plan.GetProviders() {
-		results = append(results, fmt.Sprintf("%s %d bytes %d item(s) blocked=%q approval=%s", provider.GetProviderId(), provider.GetEstimatedBytes(), provider.GetItemCount(), provider.GetBlockedReason(), provider.GetApprovalMode()))
+		row := fmt.Sprintf("%s %d bytes %d item(s) blocked=%q approval=%s", provider.GetProviderId(), provider.GetEstimatedBytes(), provider.GetItemCount(), provider.GetBlockedReason(), provider.GetApprovalMode())
+		for _, warning := range provider.GetWarnings() {
+			row += "\n  warning: " + warning
+		}
+		results = append(results, row)
 	}
 	return cliapp.OperationalReport{
-		Status:    []string{fmt.Sprintf("Plan %s estimates %d bytes across %d item(s).", plan.GetId(), plan.GetTotalBytes(), plan.GetTotalItems())},
+		Status:    []string{fmt.Sprintf("Plan %s estimates %d bytes across %d item(s); census=%s (%s).", plan.GetId(), plan.GetTotalBytes(), plan.GetTotalItems(), plan.GetCensusId(), plan.GetCensusStatus())},
 		Triage:    []cliapp.TriageGroup{{Heading: "Providers", Items: results}},
 		NextSteps: []string{fmt.Sprintf("`cleanup apply --plan-id %s --policy-version %s --idempotency-key <key> --approval-mode operator --approval-token <token>`", plan.GetId(), plan.GetPolicyVersion())},
 	}

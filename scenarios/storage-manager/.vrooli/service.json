@@ -28,83 +28,83 @@
           "rationale": "Durable storage-manager audit and census history."
         },
         "rationale": "The manager's own control-plane database.",
-    "subpath": "storage-manager.db"
+        "subpath": "storage-manager.db"
       },
       "database_wal": {
         "rung": "owned",
         "kind": "file",
-      "class": "data",
+        "class": "data",
         "regenerable": true,
         "rationale": "SQLite WAL sidecar for the manager database; it is recreated by SQLite and must be counted while live.",
-    "subpath": "storage-manager.db-wal",
+        "subpath": "storage-manager.db-wal",
         "budget": {
           "max_age": "30d",
           "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
         }
       },
-    "database_shm": {
+      "database_shm": {
         "rung": "owned",
         "kind": "file",
-      "class": "data",
+        "class": "data",
         "regenerable": true,
-      "rationale": "SQLite shared-memory sidecar for the manager database; it is recreated by SQLite and must be counted while live.",
-      "subpath": "storage-manager.db-shm",
-      "budget": {
-        "max_age": "30d",
-        "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
-      }
-    },
-    "cleanup_database": {
-      "rung": "owned",
-      "kind": "file",
-      "class": "data",
-      "format": "sqlite",
-      "regenerable": false,
-      "budget": {
-        "max_bytes": "2GiB",
-        "max_age": "30d",
-        "rationale": "Durable cleanup policy and audit storage."
+        "rationale": "SQLite shared-memory sidecar for the manager database; it is recreated by SQLite and must be counted while live.",
+        "subpath": "storage-manager.db-shm",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
       },
-      "rationale": "The cleanup domain's legacy SQLite database remains a declared control-plane surface.",
-      "subpath": "cleanup-manager.db"
-    },
-    "cleanup_database_wal": {
-      "rung": "owned",
-      "kind": "file",
-      "class": "data",
-      "regenerable": true,
-      "rationale": "SQLite WAL sidecar for cleanup-manager.db; it is recreated by SQLite and counted while live.",
-      "subpath": "cleanup-manager.db-wal",
-      "budget": {
-        "max_age": "30d",
-        "rationale": "Regenerable SQLite sidecar budgeted by age."
-      }
-    },
-    "cleanup_database_shm": {
-      "rung": "owned",
-      "kind": "file",
-      "class": "data",
-      "regenerable": true,
-      "rationale": "SQLite shared-memory sidecar for cleanup-manager.db; it is recreated by SQLite and counted while live.",
-      "subpath": "cleanup-manager.db-shm",
-      "budget": {
-        "max_age": "30d",
-        "rationale": "Regenerable SQLite sidecar budgeted by age."
-      }
-    },
-    "deployment_report": {
-      "rung": "owned",
-      "kind": "file",
-      "class": "data",
-      "format": "json",
-      "regenerable": true,
-      "subpath": "deployment/deployment-report.json",
-      "budget": {
-        "max_age": "30d",
-        "rationale": "Regenerable deployment status report budgeted by age."
+      "cleanup_database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "sqlite",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "max_age": "30d",
+          "rationale": "Durable cleanup policy and audit storage."
+        },
+        "rationale": "The cleanup domain's legacy SQLite database remains a declared control-plane surface.",
+        "subpath": "cleanup-manager.db"
       },
-      "rationale": "The lifecycle deployment report is written under the scenario data root."
-    }
+      "cleanup_database_wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "SQLite WAL sidecar for cleanup-manager.db; it is recreated by SQLite and counted while live.",
+        "subpath": "cleanup-manager.db-wal",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable SQLite sidecar budgeted by age."
+        }
+      },
+      "cleanup_database_shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for cleanup-manager.db; it is recreated by SQLite and counted while live.",
+        "subpath": "cleanup-manager.db-shm",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable SQLite sidecar budgeted by age."
+        }
+      },
+      "deployment_report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "json",
+        "regenerable": true,
+        "subpath": "deployment/deployment-report.json",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable deployment status report budgeted by age."
+        },
+        "rationale": "The lifecycle deployment report is written under the scenario data root."
+      }
     }
   },
   "generation": {
@@ -184,86 +184,6 @@
         }
       ],
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/storage-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "storage-manager"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o storage-manager-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./storage-manager-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/storage-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute storage-manager --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -279,7 +199,37 @@
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/storage-manager.db",
     "STORAGE_CENSUS_INTERVAL": "30m"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
   }
 }

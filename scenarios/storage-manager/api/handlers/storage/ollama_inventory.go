@@ -10,8 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	corestorage "github.com/vrooli/api-core/storage"
 	"storage-manager/internal/providers"
+
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 // storageInventoryResponse extends the owner declaration inventory with

@@ -34,6 +34,90 @@ func TestPlanIDStableForSamePolicyProviderVersionsAndPreview(t *testing.T) {
 	}
 }
 
+func TestCensusContinuesAfterCallerStopsWaiting(t *testing.T) {
+	t.Parallel()
+
+	provider := &blockingProvider{
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	registry, err := providers.NewRegistry(provider)
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	observedAt := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
+	svc := NewService(registry, NewMemoryStore(), cleanupfakes.Clock{Time: observedAt})
+	if err := svc.store.SavePolicy(context.Background(), Policy{
+		Version:   "policy-test",
+		Profile:   policy.ProfileConservative,
+		Providers: map[string]cleanup.ProviderPolicy{"blocking": {Enabled: true, ApprovalMode: cleanup.ApprovalModeNone}},
+	}); err != nil {
+		t.Fatalf("SavePolicy: %v", err)
+	}
+
+	id, err := svc.StartCensus(context.Background(), cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatalf("StartCensus: %v", err)
+	}
+	<-provider.started
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := svc.WaitCensus(ctx, id); err == nil {
+		t.Fatal("WaitCensus with canceled caller context succeeded")
+	}
+	close(provider.release)
+	plan, err := svc.WaitCensus(context.Background(), id)
+	if err != nil {
+		t.Fatalf("WaitCensus after release: %v", err)
+	}
+	if plan.CensusID != id || plan.CensusStatus != CensusStatusComplete {
+		t.Fatalf("census plan = %#v, want completed tracked census %q", plan, id)
+	}
+	reused, err := svc.Plan(context.Background(), cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatalf("follow-up Plan() error = %v", err)
+	}
+	if reused.CensusID != id {
+		t.Fatalf("follow-up Plan() started a new census %q, want completed census %q", reused.CensusID, id)
+	}
+}
+
+type blockingProvider struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (*blockingProvider) Metadata() cleanup.ProviderMetadata {
+	return cleanup.ProviderMetadata{
+		ID: "blocking", Name: "Blocking", Version: "v1", OwnerScenario: "storage-manager",
+		SafetyTier: cleanup.SafetyTierSafe, DefaultMode: cleanup.ProviderModeEnabled,
+		DefaultApproval: cleanup.ApprovalModeNone, SupportedPlatforms: []string{"linux"},
+		IrreversibleEffects: []string{"none"}, TestSubstitute: "blocking-provider",
+	}
+}
+
+func (p *blockingProvider) Estimate(context.Context, cleanup.EstimateRequest) (cleanup.Estimate, error) {
+	select {
+	case <-p.started:
+	default:
+		close(p.started)
+	}
+	<-p.release
+	return cleanup.Estimate{ProviderID: "blocking", ProviderVersion: "v1"}, nil
+}
+
+func (*blockingProvider) Preview(context.Context, cleanup.PreviewRequest) (cleanup.Preview, error) {
+	return cleanup.Preview{ProviderID: "blocking", ProviderVersion: "v1"}, nil
+}
+
+func (*blockingProvider) Apply(context.Context, cleanup.ApplyRequest) (cleanup.ApplyResult, error) {
+	return cleanup.ApplyResult{ProviderID: "blocking"}, nil
+}
+
+func (*blockingProvider) Verify(context.Context, cleanup.VerifyRequest) (cleanup.VerifyResult, error) {
+	return cleanup.VerifyResult{Verified: true}, nil
+}
+
 // [REQ:CLN-P0-004]
 func TestApplyRequiresPolicyVersionApprovalAndIdempotency(t *testing.T) {
 	t.Parallel()
@@ -92,6 +176,29 @@ func TestApplyRequiresPolicyVersionApprovalAndIdempotency(t *testing.T) {
 	}
 	if len(fsys.Removed) != 1 {
 		t.Fatalf("fake removals after replay = %d, want still 1", len(fsys.Removed))
+	}
+}
+
+func TestOperatorApprovalCanApplyOwnerProvider(t *testing.T) {
+	t.Parallel()
+
+	svc, _ := newTestService(t, cleanup.ProviderModeEnabled, cleanup.ApprovalModeOwner)
+	plan, err := svc.Plan(context.Background(), cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
+	}
+	result, err := svc.Apply(context.Background(), ApplyInput{
+		PlanID:         plan.ID,
+		PolicyVersion:  plan.PolicyVersion,
+		ApprovalMode:   cleanup.ApprovalModeOperator,
+		ApprovalToken:  "operator-ok",
+		IdempotencyKey: "owner-provider-operator-approval",
+	})
+	if err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if result.ReclaimedBytes != 64 {
+		t.Fatalf("reclaimed bytes = %d, want 64", result.ReclaimedBytes)
 	}
 }
 

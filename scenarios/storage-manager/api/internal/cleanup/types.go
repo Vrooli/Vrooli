@@ -145,6 +145,12 @@ func validApprovalMode(m ApprovalMode) bool {
 type ObservationScope struct {
 	RootPaths []string
 	Now       time.Time
+
+	// CompleteCensus lets a server-owned census run without the short
+	// request-oriented measurement budget. Providers still observe context
+	// cancellation and safety filters; this only removes the HTTP-timeout
+	// ceiling from a tracked job.
+	CompleteCensus bool
 }
 
 type EstimateRequest struct {
