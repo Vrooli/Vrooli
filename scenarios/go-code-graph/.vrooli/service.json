@@ -113,7 +113,8 @@
     "resources": {}
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/go-code-graph.db"
+    "GOMAXPROCS": "8",
+    "GO_CODE_GRAPH_MAX_CONCURRENT_EXTRACTS": "1"
   },
   "components": {
     "api": {

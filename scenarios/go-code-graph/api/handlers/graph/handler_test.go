@@ -77,6 +77,31 @@ func TestHandlerExtractHappyPath(t *testing.T) {
 	}
 }
 
+func TestHandlerExtractReportsProfileOmissions(t *testing.T) {
+	t.Parallel()
+	root := writeMinimalScenario(t)
+	loader := &graphmocks.FakeLoader{
+		LoadFunc: func(_ context.Context, _ string, _ intgraph.LoadOptions) ([]*packages.Package, error) {
+			return []*packages.Package{{PkgPath: "example.com/m", Name: "m"}}, nil
+		},
+	}
+	client := newTestClient(t, intgraph.NewService(loader, intgraph.NewPathMutex()))
+
+	resp, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{
+		ModulePath: root,
+		Profile:    graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL,
+	}))
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if got := resp.Msg.GetProfile(); got != graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL {
+		t.Fatalf("profile=%v want structural", got)
+	}
+	if len(resp.Msg.GetOmittedInformation()) == 0 {
+		t.Fatal("structural response did not explain omitted information")
+	}
+}
+
 func TestHandlerExtractInvalidArgument(t *testing.T) {
 	t.Parallel()
 	svc := intgraph.NewService(&graphmocks.FakeLoader{}, intgraph.NewPathMutex())

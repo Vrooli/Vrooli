@@ -522,7 +522,7 @@ func (r *SQLiteCacheRepository) Status(ctx context.Context, targetRoot, key stri
 	defer rows.Close()
 	var out []cacheEntry
 	for rows.Next() {
-		entry, err := scanCacheEntry(rows)
+		entry, err := scanCacheEntryMetadata(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -770,17 +770,36 @@ func cacheEntrySelect() string {
 	return `SELECT cache_key, logical_key, scope, target_root, analyzer, provider, provider_version, schema_version, graph_hash, source_hash, config_hash, family_key, payload_bytes, codec, payload_json, warnings_json, extraction_ms, created_at_unix, last_used_at_unix, hit_count FROM code_facts_cache_entries`
 }
 
+// cacheEntryMetadataSelect intentionally excludes payload_json and
+// warnings_json. Status and inspection endpoints only expose cache metadata;
+// reading compressed graph/report bodies here can materialize the entire cache
+// in the Go heap without decoding or returning any of those bytes.
+func cacheEntryMetadataSelect() string {
+	return `SELECT cache_key, logical_key, scope, target_root, analyzer, provider, provider_version, schema_version, graph_hash, source_hash, config_hash, family_key, payload_bytes, codec, extraction_ms, created_at_unix, last_used_at_unix, hit_count FROM code_facts_cache_entries`
+}
+
+func scanCacheEntryMetadata(scanner cacheScanner) (cacheEntry, error) {
+	var entry cacheEntry
+	err := scanner.Scan(
+		&entry.Key, &entry.LogicalKey, &entry.Scope, &entry.TargetRoot, &entry.Analyzer, &entry.Provider,
+		&entry.ProviderVer, &entry.SchemaVersion, &entry.GraphHash, &entry.SourceHash,
+		&entry.ConfigHash, &entry.FamilyKey, &entry.PayloadBytes, &entry.Codec,
+		&entry.ExtractionMs, &entry.CreatedAtUnix, &entry.LastUsedAtUnix, &entry.HitCount,
+	)
+	return entry, err
+}
+
 func cacheStatusQuery(targetRoot, key string) (string, []any) {
 	const order = ` ORDER BY scope, cache_key`
 	switch {
 	case targetRoot != "" && key != "":
-		return cacheEntrySelect() + ` WHERE target_root = ? AND cache_key = ?` + order, []any{targetRoot, key}
+		return cacheEntryMetadataSelect() + ` WHERE target_root = ? AND cache_key = ?` + order, []any{targetRoot, key}
 	case targetRoot != "":
-		return cacheEntrySelect() + ` WHERE target_root = ?` + order, []any{targetRoot}
+		return cacheEntryMetadataSelect() + ` WHERE target_root = ?` + order, []any{targetRoot}
 	case key != "":
-		return cacheEntrySelect() + ` WHERE cache_key = ?` + order, []any{key}
+		return cacheEntryMetadataSelect() + ` WHERE cache_key = ?` + order, []any{key}
 	default:
-		return cacheEntrySelect() + order, nil
+		return cacheEntryMetadataSelect() + order, nil
 	}
 }
 

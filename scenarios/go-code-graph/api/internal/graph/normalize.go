@@ -457,8 +457,10 @@ func packageUsageFacts(p *packages.Package, pkgID, moduleRoot string) []Node {
 				attrs := usageAttributes(LanguageGo, pkgID, fileID, p.Fset, x.Pos(), x.End())
 				attrs["type"] = exprString(p.Fset, x.Type)
 				attrs["usage"] = "composite_literal"
-				if typ := p.TypesInfo.TypeOf(x.Type); typ != nil {
-					attrs["resolved_type"] = typ.String()
+				if p.TypesInfo != nil {
+					if typ := p.TypesInfo.TypeOf(x.Type); typ != nil {
+						attrs["resolved_type"] = typ.String()
+					}
 				}
 				attrs["address_of"] = boolAttr(isAddressOfComposite(syn, x))
 				attrs["enclosing_symbol"] = enclosingFunctionName(p.Fset, syn, x.Pos())

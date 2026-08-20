@@ -4,13 +4,14 @@ import (
 	"context"
 	"log"
 	"strings"
-	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/schedule"
 
 	intgraph "go-code-graph/internal/graph"
 	intrewrite "go-code-graph/internal/rewrite"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph/graph_v1connect"
 )
@@ -25,6 +26,7 @@ type Deps struct {
 	GraphService   *intgraph.Service
 	RewriteService *intrewrite.Service
 	Logger         *log.Logger
+	Clock          schedule.Clock
 	// FixturesDir is the directory holding golden determinism fixtures
 	// (bas/fixtures by default, resolved relative to the server's working
 	// directory). Empty falls back to "bas/fixtures". Powers the
@@ -43,6 +45,9 @@ func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
+	if d.Clock == nil {
+		d.Clock = schedule.System()
+	}
 	return &connectHandler{deps: d}
 }
 
@@ -51,13 +56,15 @@ func NewConnectHandler(d Deps) *connectHandler {
 // ExtractResponse. Internal errors are logged; client errors are not.
 func (h *connectHandler) Extract(ctx context.Context, req *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
 	in := intgraph.ExtractInput{
-		ModulePath:    req.Msg.GetModulePath(),
-		IncludeVendor: req.Msg.GetIncludeVendor(),
+		ModulePath:      req.Msg.GetModulePath(),
+		IncludeVendor:   req.Msg.GetIncludeVendor(),
+		Profile:         extractionProfile(req.Msg.GetProfile()),
+		PackagePatterns: req.Msg.GetPackagePatterns(),
 	}
 
-	start := time.Now()
-	g, warnings, err := h.deps.GraphService.Extract(ctx, in)
-	elapsedMs := time.Since(start).Milliseconds()
+	start := h.deps.Clock.Now()
+	g, warnings, stats, err := h.deps.GraphService.ExtractWithStats(ctx, in)
+	elapsedMs := schedule.Since(start).Milliseconds()
 	if err != nil {
 		connectErr := intgraph.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
@@ -67,12 +74,52 @@ func (h *connectHandler) Extract(ctx context.Context, req *connect.Request[graph
 	}
 
 	resp := &graphv1.ExtractResponse{
-		Graph:        domainToProtoGraph(g),
-		Warnings:     warningsToProto(warnings),
-		ExtractionMs: elapsedMs,
-		GraphHash:    intgraph.GraphHash(g),
+		Graph:              domainToProtoGraph(g),
+		Warnings:           warningsToProto(warnings),
+		ExtractionMs:       elapsedMs,
+		GraphHash:          intgraph.GraphHash(g),
+		FingerprintMs:      stats.Fingerprint.Milliseconds(),
+		LoadMs:             stats.Load.Milliseconds(),
+		NormalizeMs:        stats.Normalize.Milliseconds(),
+		CacheHit:           stats.CacheHit,
+		Profile:            profileToProto(in.Profile),
+		OmittedInformation: omissionsToProto(in.Profile),
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func profileToProto(profile intgraph.ExtractionProfile) graphv1.ExtractionProfile {
+	switch profile {
+	case intgraph.ExtractionProfileSemantic:
+		return graphv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC
+	case intgraph.ExtractionProfileStructural:
+		return graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL
+	default:
+		return graphv1.ExtractionProfile_EXTRACTION_PROFILE_FULL
+	}
+}
+
+func omissionsToProto(profile intgraph.ExtractionProfile) []*commonv1.CodeGraphOmission {
+	omissions := profile.OmittedInformation()
+	out := make([]*commonv1.CodeGraphOmission, 0, len(omissions))
+	for _, omission := range omissions {
+		out = append(out, &commonv1.CodeGraphOmission{
+			Capability: omission.Capability,
+			Reason:     omission.Reason,
+		})
+	}
+	return out
+}
+
+func extractionProfile(profile graphv1.ExtractionProfile) intgraph.ExtractionProfile {
+	switch profile {
+	case graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL:
+		return intgraph.ExtractionProfileStructural
+	case graphv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC:
+		return intgraph.ExtractionProfileSemantic
+	default:
+		return intgraph.ExtractionProfileFull
+	}
 }
 
 // RewritePlan translates the proto request into a PlanInput, calls the

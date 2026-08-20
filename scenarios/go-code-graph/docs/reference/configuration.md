@@ -29,9 +29,13 @@ for the full policy.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/go-code-graph.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
+| _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+| `GOMAXPROCS` | `8` | Bounds Go runtime parallelism so one type-checking extraction cannot consume every host core. |
+| `GO_CODE_GRAPH_MAX_CONCURRENT_EXTRACTS` | `1` | Global cap on concurrent module loads. Raise only when measured throughput is worth the additional CPU and memory pressure. |
+| `GO_CODE_GRAPH_CACHE_DIR` | `${SCENARIO_DATA_DIR}/extraction-cache` | Overrides the disposable extraction-cache directory. Cache is disabled if neither this nor `SCENARIO_DATA_DIR` is set. |
+| `GO_CODE_GRAPH_CACHE_MAX_BYTES` | `536870912` | Maximum disposable cache size before oldest JSON entries are evicted. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

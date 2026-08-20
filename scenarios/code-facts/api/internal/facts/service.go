@@ -1,6 +1,7 @@
 package facts
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -33,10 +34,6 @@ func NewService(opts ...ServiceOption) *Service {
 	}
 	if s.cache == nil {
 		s.cache = NewMemoryCacheRepository()
-	}
-	if root, err := resolveRepoRoot(""); err == nil {
-		s.projectIdx = newLexicalProjectIndex(root)
-		go s.projectIdx.build()
 	}
 	return s
 }
@@ -199,7 +196,7 @@ func (s *Service) Search(ctx context.Context, req *factsv1.SearchRequest) (*fact
 			factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
 		}
 	}
-	report, err := s.searchReport(ctx, target, families, query)
+	report, err := s.searchReport(ctx, target, families, query, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +391,7 @@ func (s *Service) lexicalEdgeExpansions(hit *factsv1.SearchHit, query string) []
 	return result
 }
 
-func (s *Service) searchReport(ctx context.Context, target *factsv1.CodeTarget, families []factsv1.FactFamily, query string) (*factsv1.CodeFactsReport, error) {
+func (s *Service) searchReport(ctx context.Context, target *factsv1.CodeTarget, families []factsv1.FactFamily, query string, limit int) (*factsv1.CodeFactsReport, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -407,11 +404,11 @@ func (s *Service) searchReport(ctx context.Context, target *factsv1.CodeTarget, 
 	}
 	if s.projectIdx != nil && filepath.Clean(s.projectIdx.root) == filepath.Clean(repoRoot) {
 		if !s.projectIdx.isReady() {
-			return lexicalProjectReport(ctx, repoRoot, target, families, query)
+			return lexicalProjectReport(ctx, repoRoot, target, families, query, limit)
 		}
 		return s.projectIdx.report(ctx, target, families, query)
 	}
-	return lexicalProjectReport(ctx, repoRoot, target, families, query)
+	return lexicalProjectReport(ctx, repoRoot, target, families, query, limit)
 }
 
 type lexicalProjectIndex struct {
@@ -619,9 +616,32 @@ func lexicalFact(path string, line int, subject string, family factsv1.FactFamil
 // while preserving source paths and an explicit evidence condition. Describe
 // remains the authoritative graph-backed detail endpoint for callers that need
 // references, calls, or analyzer-specific facts.
-func lexicalProjectReport(ctx context.Context, repoRoot string, target *factsv1.CodeTarget, families []factsv1.FactFamily, query string) (*factsv1.CodeFactsReport, error) {
+func lexicalProjectReport(ctx context.Context, repoRoot string, target *factsv1.CodeTarget, families []factsv1.FactFamily, query string, limit int) (*factsv1.CodeFactsReport, error) {
 	terms := searchQueryTokens(query)
 	report := &factsv1.CodeFactsReport{Target: &factsv1.TargetContext{Requested: target, ResolvedKind: target.GetKind(), RootPath: repoRoot, RootPaths: []string{filepath.Join(repoRoot, "scenarios"), filepath.Join(repoRoot, "packages")}}}
+	if limit <= 0 || limit > 100 {
+		limit = 10
+	}
+	type rankedFact struct {
+		fact  *factsv1.GenericFact
+		score float64
+	}
+	best := make([]rankedFact, 0, limit)
+	retain := func(candidate rankedFact) {
+		if len(best) < limit {
+			best = append(best, candidate)
+			return
+		}
+		worst := 0
+		for i := 1; i < len(best); i++ {
+			if best[i].score < best[worst].score || (best[i].score == best[worst].score && best[i].fact.GetId() > best[worst].fact.GetId()) {
+				worst = i
+			}
+		}
+		if candidate.score > best[worst].score || (candidate.score == best[worst].score && candidate.fact.GetId() < best[worst].fact.GetId()) {
+			best[worst] = candidate
+		}
+	}
 	allowed := map[string]bool{".go": true, ".ts": true, ".tsx": true, ".proto": true}
 	roots := []string{filepath.Join(repoRoot, "scenarios"), filepath.Join(repoRoot, "packages")}
 	for _, root := range roots {
@@ -641,27 +661,36 @@ func lexicalProjectReport(ctx context.Context, repoRoot string, target *factsv1.
 			if !allowed[filepath.Ext(path)] {
 				return nil
 			}
-			payload, err := os.ReadFile(path)
+			file, err := os.Open(path)
 			if err != nil {
 				return nil
 			}
-			for lineNumber, line := range strings.Split(string(payload), "\n") {
-				rel, _ := filepath.Rel(repoRoot, path)
-				family := factsv1.FactFamily_FACT_FAMILY_SYMBOLS
-				if filepath.Ext(path) == ".proto" {
-					family = factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION
+			defer file.Close()
+			rel, _ := filepath.Rel(repoRoot, path)
+			rel = filepath.ToSlash(rel)
+			family := factsv1.FactFamily_FACT_FAMILY_SYMBOLS
+			if filepath.Ext(path) == ".proto" {
+				family = factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION
+			}
+			if !hasFamily(families, family) {
+				return nil
+			}
+			scanner := bufio.NewScanner(file)
+			scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
+			lineNumber := 0
+			for scanner.Scan() {
+				lineNumber++
+				if err := ctx.Err(); err != nil {
+					return err
 				}
-				if !hasFamily(families, family) {
+				subject := strings.TrimSpace(scanner.Text())
+				if !shouldIndexLexicalLine(rel, lineNumber, subject) {
 					continue
 				}
-				subject := strings.TrimSpace(line)
-				fact := &factsv1.GenericFact{
-					Id: "code-facts:lexical:" + filepath.ToSlash(rel) + ":" + strconv.Itoa(lineNumber+1), Family: family, Kind: "lexical_source", Subject: subject,
-					Attributes: map[string]string{"path": filepath.ToSlash(rel), "line": strconv.Itoa(lineNumber + 1), "analyzer": "code-facts.lexical"},
-					Evidence:   []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, Confidence: 0.7, Analyzer: "code-facts.lexical", Message: "Matched source text in the bounded project lexical index.", Range: &factsv1.SourceRange{File: filepath.ToSlash(rel), StartLine: int32(lineNumber + 1), EndLine: int32(lineNumber + 1)}}},
-				}
-				if scoreSearchFact(fact, query, terms) > 0 {
-					report.Facts = append(report.Facts, fact)
+				fact := lexicalFact(rel, lineNumber, subject, family)
+				score := scoreSearchFact(fact, query, terms)
+				if score > 0 {
+					retain(rankedFact{fact: fact, score: score})
 				}
 			}
 			return nil
@@ -673,7 +702,15 @@ func lexicalProjectReport(ctx context.Context, repoRoot string, target *factsv1.
 			return nil, err
 		}
 	}
-	sort.SliceStable(report.Facts, func(i, j int) bool { return report.Facts[i].GetId() < report.Facts[j].GetId() })
+	sort.SliceStable(best, func(i, j int) bool {
+		if best[i].score != best[j].score {
+			return best[i].score > best[j].score
+		}
+		return best[i].fact.GetId() < best[j].fact.GetId()
+	})
+	for _, candidate := range best {
+		report.Facts = append(report.Facts, candidate.fact)
+	}
 	return report, nil
 }
 
@@ -982,7 +1019,8 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 		// hash would invalidate every language surface when one file changes,
 		// defeating the cache's purpose for incremental edits.
 		unitSourceHash, unitConfigHash := sourceFingerprintForUnit(unit)
-		graphPlan := graphCachePlan(target, unit, provider, unitSourceHash, unitConfigHash)
+		extractionProfile := providerExtractionProfile(provider, include)
+		graphPlan := graphCachePlan(target, unit, provider, extractionProfile, unitSourceHash, unitConfigHash)
 		var result *GraphResult
 		if useCache {
 			cached, entry, ok, err := s.cache.GetGraph(ctx, graphPlan.Key)
@@ -1001,7 +1039,7 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 		}
 		var err error
 		if result == nil {
-			result, err = provider.Extract(ctx, unit)
+			result, err = extractForFamilies(ctx, provider, unit, include)
 		}
 		if err != nil {
 			var unsupported ProviderUnsupportedError
@@ -1355,12 +1393,12 @@ func reportCachePlan(targetReq *factsv1.CodeTarget, target *factsv1.TargetContex
 	}
 }
 
-func graphCachePlan(target *factsv1.TargetContext, unit *factsv1.ParseUnit, provider GraphProvider, sourceHash string, configHash string) cacheEntry {
+func graphCachePlan(target *factsv1.TargetContext, unit *factsv1.ParseUnit, provider GraphProvider, extractionProfile string, sourceHash string, configHash string) cacheEntry {
 	providerVer := provider.AnalyzerName() + ":phase8"
-	key := cacheKey(cacheScopeGraph, cacheAnalyzerVersion, cacheSchemaVersion, providerVer, target.GetRootPath(), unit.GetId(), unit.GetRootPath(), unit.GetConfigPath(), sourceHash, configHash)
+	key := cacheKey(cacheScopeGraph, cacheAnalyzerVersion, cacheSchemaVersion, providerVer, extractionProfile, target.GetRootPath(), unit.GetId(), unit.GetRootPath(), unit.GetConfigPath(), sourceHash, configHash)
 	return cacheEntry{
 		Key:           key,
-		LogicalKey:    cacheKey(cacheScopeGraph, target.GetRootPath(), cacheAnalyzerVersion, unit.GetLanguage(), provider.AnalyzerName(), unit.GetId(), unit.GetRootPath(), unit.GetConfigPath()),
+		LogicalKey:    cacheKey(cacheScopeGraph, target.GetRootPath(), cacheAnalyzerVersion, unit.GetLanguage(), provider.AnalyzerName(), extractionProfile, unit.GetId(), unit.GetRootPath(), unit.GetConfigPath()),
 		Scope:         cacheScopeGraph,
 		TargetRoot:    target.GetRootPath(),
 		Analyzer:      cacheAnalyzerVersion,
@@ -1369,8 +1407,8 @@ func graphCachePlan(target *factsv1.TargetContext, unit *factsv1.ParseUnit, prov
 		SchemaVersion: cacheSchemaVersion,
 		SourceHash:    sourceHash,
 		ConfigHash:    configHash,
-		FamilyKey:     unit.GetLanguage(),
-		Identity:      cacheKey(provider.AnalyzerName(), unit.GetId(), unit.GetRootPath(), unit.GetConfigPath()),
+		FamilyKey:     unit.GetLanguage() + ":" + extractionProfile,
+		Identity:      cacheKey(provider.AnalyzerName(), extractionProfile, unit.GetId(), unit.GetRootPath(), unit.GetConfigPath()),
 	}
 }
 

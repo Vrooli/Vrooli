@@ -27,22 +27,35 @@ Use this document to answer:
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet. | n/a | n/a | 2026-05-23 |
+| Full profile, go-usage-facts fixture | 657ms load / 0.21ms normalize | `GOMAXPROCS=8 GOWORK=off go test ./internal/graph -run '^$' -bench '^BenchmarkExtractProfiles$' -benchtime=1x -count=1` | 2026-08-20 |
+| Semantic profile, go-usage-facts fixture | 587ms load / 0.21ms normalize | same benchmark | 2026-08-20 |
+| Structural profile, go-usage-facts fixture | 104ms load / 0.10ms normalize | same benchmark | 2026-08-20 |
+| Warm in-process cache hit, go-usage-facts fixture | ~0.12ms total / ~0.068ms fingerprint | `GOWORK=off go test ./internal/graph -run '^$' -bench '^BenchmarkExtractCacheHit$' -benchtime=1x` | 2026-08-20 |
+| Warm in-process cache hit, API module | 15ms total / 1.7ms fingerprint | `GO_CODE_GRAPH_BENCH_LARGE=1 GOWORK=off go test ./internal/graph -run '^$' -bench '^BenchmarkExtractCacheHitLarge$' -benchtime=1x` | 2026-08-20 |
 
-Measurements will be captured during implementation against `bas/fixtures/`.
+These are relative local measurements, not the CI SLA gate. They show the structural profile removes the dominant type-checking cost for consumers that do not need semantic facts.
+
+Consumers must treat profiles as explicit information contracts. Every successful
+response returns its effective profile and typed `omitted_information` metadata;
+an empty resolved-facts field under `structural` is therefore an intentional
+omission, not an unexplained failure. Architecture-cartographer currently uses
+`structural` for its production Go inventory path and preserves the omission
+metadata in its snapshots.
 
 ## Known Constraints
 
-- **`go/packages` load mode**: the fixed load mode (`NeedFiles | NeedImports | NeedTypes | NeedSyntax | NeedTypesInfo | NeedName | NeedDeps`) is CPU-heavy because it triggers full type checking. There is no lighter mode that preserves import resolution and type info. This is the dominant cost driver for `Extract`.
-- **Per-path serialization**: two concurrent `Extract` calls for the same path serialize. By design — the second call would do duplicate work otherwise. Different paths run in parallel, bounded by `GOMAXPROCS`.
-- **No internal cache**: every `Extract` call re-parses. Cartographer caches snapshots at its layer. If profiling later shows the bottleneck is repeated identical extractions, revisit the no-cache decision.
+- **`go/packages` load mode**: the default full load mode (`NeedFiles | NeedImports | NeedTypes | NeedSyntax | NeedTypesInfo | NeedName | NeedDeps`) is CPU-heavy because it triggers full type checking. The explicit structural profile omits type checking and is the quick path when semantic facts are unnecessary.
+- **Profiles and scope**: `full` is the compatibility default; `semantic` retains type analysis but excludes test variants; `structural` returns structural facts only. `package_patterns` accepts module-relative Go patterns such as `./api/...` to avoid loading unrelated packages.
+- **Per-path serialization**: two concurrent `Extract` calls for the same path serialize. By design — the second call would do duplicate work otherwise. Different paths can run in parallel up to the global extraction cap.
+- **CPU containment**: production extraction is capped at one concurrent module load by default (`GO_CODE_GRAPH_MAX_CONCURRENT_EXTRACTS=1`) and the lifecycle sets `GOMAXPROCS=8`. This prevents one fleet-wide request from multiplying type-checking work across modules or consuming every host core. Raise either limit only from measured host capacity; per-path locking still provides the correctness boundary independently of the global throughput cap.
+- **Content-fingerprint cache**: successful extractions are reused when source content, profile, scope, vendor setting, Go runtime, and loader-affecting environment are unchanged. Fingerprinting still walks the module, so a future optimization should make fingerprinting package-aware or incremental. The cache is bounded and disposable: 8 in-process entries/128 MiB, with a 512 MiB disk limit by default.
 - **Vendored deps**: by default `vendor/` is excluded (REQ-P1-003). Including vendor can double parse time on modules that vendor heavily; the `--include-vendor` flag exists for callers that need it.
 - **Vite production builds** may process thousands of modules and take several minutes (inherited template constraint).
 
 ## Regression Procedure
 
 1. Run `make test`.
-2. Run the dedicated performance suite: `go test ./api/internal/graph -run=Performance -bench=. -benchtime=5x`.
+2. Run the dedicated performance suite from `scenarios/go-code-graph/api`: `GOWORK=off go test ./internal/graph -run '^$' -bench '^BenchmarkExtractProfiles$' -benchtime=5x`.
 3. Compare results against the budgets table above. A regression beyond budget is a CI failure for `Extract — small` and `Extract — medium` (OT-P0-010 is gating).
 4. For UI interaction regressions, use `ui/perf/README.md` and the provided capture template.
 5. Record persistent findings here (as a row in **Current Measurements**) or in [`PROBLEMS.md`](PROBLEMS.md) depending on whether they are accepted constraints or unresolved debt.

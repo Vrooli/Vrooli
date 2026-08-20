@@ -46,7 +46,7 @@ If go-code-graph is ever exposed beyond a single-host local install (e.g. as a h
 | Path traversal via `FileMove.to` | Same as above for file moves. | `RewritePlan` validates every `to` resolves inside the target module's root. Reject otherwise. | required at implementation |
 | Race between plan and apply (TOCTOU) | Source code changes between `RewritePlan` and `RewriteApply`; apply mutates a different graph than was planned. | Apply recomputes the content hash from the current ops and compares to the supplied `plan_id`. Mismatch → `plan_content_mismatch` error. | required at implementation |
 | Mid-apply crash leaves working tree corrupted | A panic between op N and op N+1 leaves disk torn. | Accepted by design. Operator recovers via `git restore .`. Documented explicitly in FLOWS.md and PRD. | accepted |
-| Denial of service via giant module | A consumer points `Extract` at a huge module (10k+ files) and consumes server resources. | Per-path mutex prevents same-path DoS. Different-path concurrency is bounded by `GOMAXPROCS` in practice. No explicit per-call resource limits in v1. | accepted-for-local-use |
+| Denial of service via giant module | A consumer points `Extract` at a huge module (10k+ files) and consumes server resources. | Per-path mutex prevents duplicate same-path work; production defaults to one global extraction at a time and `GOMAXPROCS=8`. Per-call file-count and memory ceilings are not yet enforced. | accepted-for-local-use |
 
 ## Security Gaps
 

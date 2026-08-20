@@ -5,7 +5,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"golang.org/x/tools/go/packages"
@@ -95,6 +97,63 @@ func TestServiceExtractMultipleGoMod(t *testing.T) {
 	}
 }
 
+func TestServiceExtractGlobalConcurrencyCap(t *testing.T) {
+	first := writeScenario(t, map[string]string{"go.mod": "module first\n\ngo 1.25\n"})
+	second := writeScenario(t, map[string]string{"go.mod": "module second\n\ngo 1.25\n"})
+
+	started := make(chan string, 2)
+	release := make(chan struct{})
+	var once sync.Once
+	loader := &graphmocks.FakeLoader{LoadFunc: func(_ context.Context, modulePath string, _ intgraph.LoadOptions) ([]*packages.Package, error) {
+		started <- modulePath
+		<-release
+		return nil, nil
+	}}
+	svc := intgraph.NewServiceWithMaxConcurrent(loader, intgraph.NewPathMutex(), 1)
+
+	var wg sync.WaitGroup
+	var firstErr, secondErr error
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, _, firstErr = svc.Extract(context.Background(), intgraph.ExtractInput{ModulePath: first})
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("first extraction did not start")
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, _, secondErr = svc.Extract(context.Background(), intgraph.ExtractInput{ModulePath: second})
+	}()
+
+	select {
+	case <-started:
+		t.Fatal("second extraction bypassed the global concurrency cap")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	once.Do(func() { close(release) })
+	wg.Wait()
+	if firstErr != nil {
+		t.Fatalf("first extraction: %v", firstErr)
+	}
+	if secondErr != nil {
+		t.Fatalf("second extraction: %v", secondErr)
+	}
+}
+
+func TestDefaultConcurrencyCapProtectsHost(t *testing.T) {
+	t.Parallel()
+	if got := intgraph.DefaultMaxConcurrentExtracts; got != 1 {
+		t.Fatalf("DefaultMaxConcurrentExtracts = %d, want 1", got)
+	}
+}
+
 func TestServiceExtractWorkspaceUnsupported(t *testing.T) {
 	t.Parallel()
 	root := writeScenario(t, map[string]string{
@@ -166,6 +225,88 @@ func TestServiceExtractHappyPath(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected package node, got %+v", g.Nodes)
+	}
+}
+
+func TestServiceExtractPassesProfileAndPatterns(t *testing.T) {
+	t.Parallel()
+	root := writeScenario(t, map[string]string{
+		"go.mod":  "module example.com/m\n\ngo 1.25\n",
+		"main.go": "package m\n",
+	})
+	var got intgraph.LoadOptions
+	loader := &graphmocks.FakeLoader{LoadFunc: func(_ context.Context, _ string, opts intgraph.LoadOptions) ([]*packages.Package, error) {
+		got = opts
+		return nil, nil
+	}}
+	svc := intgraph.NewService(loader, intgraph.NewPathMutex())
+	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{
+		ModulePath:      root,
+		Profile:         intgraph.ExtractionProfileStructural,
+		PackagePatterns: []string{"./api/...", "./internal/...", "./api/..."},
+	})
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if got.Profile != intgraph.ExtractionProfileStructural {
+		t.Fatalf("profile = %q, want structural", got.Profile)
+	}
+	if got.PackagePatterns == nil || len(got.PackagePatterns) != 2 {
+		t.Fatalf("patterns = %#v, want deduplicated patterns", got.PackagePatterns)
+	}
+}
+
+func TestServiceExtractRejectsEscapingPackagePattern(t *testing.T) {
+	t.Parallel()
+	root := writeScenario(t, map[string]string{
+		"go.mod":  "module example.com/m\n\ngo 1.25\n",
+		"main.go": "package m\n",
+	})
+	svc := intgraph.NewService(&graphmocks.FakeLoader{}, intgraph.NewPathMutex())
+	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{
+		ModulePath:      root,
+		PackagePatterns: []string{"../outside/..."},
+	})
+	var ex intgraph.ExtractError
+	if !errors.As(err, &ex) || ex.Kind != intgraph.ExtractErrorInvalidInput {
+		t.Fatalf("want invalid package pattern error, got %v", err)
+	}
+}
+
+func TestServiceExtractUsesContentCacheBeforeLoading(t *testing.T) {
+	t.Parallel()
+	root := writeScenario(t, map[string]string{
+		"go.mod":  "module example.com/m\n\ngo 1.25\n",
+		"main.go": "package m\n",
+	})
+	var loads int
+	loader := &graphmocks.FakeLoader{LoadFunc: func(_ context.Context, _ string, _ intgraph.LoadOptions) ([]*packages.Package, error) {
+		loads++
+		return nil, nil
+	}}
+	cache, err := intgraph.NewFileExtractionCache(t.TempDir())
+	if err != nil {
+		t.Fatalf("NewFileExtractionCache: %v", err)
+	}
+	svc := intgraph.NewServiceWithCache(loader, intgraph.NewPathMutex(), 1, cache)
+	input := intgraph.ExtractInput{ModulePath: root, Profile: intgraph.ExtractionProfileStructural}
+
+	_, _, firstStats, err := svc.ExtractWithStats(context.Background(), input)
+	if err != nil {
+		t.Fatalf("first Extract: %v", err)
+	}
+	_, _, secondStats, err := svc.ExtractWithStats(context.Background(), input)
+	if err != nil {
+		t.Fatalf("second Extract: %v", err)
+	}
+	if loads != 1 {
+		t.Fatalf("loader calls = %d, want 1", loads)
+	}
+	if firstStats.CacheHit {
+		t.Fatal("first extraction unexpectedly hit cache")
+	}
+	if !secondStats.CacheHit {
+		t.Fatal("second extraction missed cache")
 	}
 }
 

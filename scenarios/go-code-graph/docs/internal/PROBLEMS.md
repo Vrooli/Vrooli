@@ -97,6 +97,13 @@ Use this section for deferred findings from `screaming-architecture-audit`. Do n
 
 **Refs:** `internal/graph/normalize.go`, `requirements/01-deterministic-graph-extraction/module.json` (REQ-P1-004).
 
+## Work ladder
+
+- Rung: W3
+- Evidence: Focused graph, handler, and Code Facts provider tests pass. With production `GOMAXPROCS=8`, the real-loader benchmark measured structural extraction at 104ms versus 587-657ms for semantic/full. A lifecycle-managed cold Code Facts imports request drove six Go structural extractions in 16-231ms each; the identical report then hit cache. The latest go-code-graph suite completed 14/20 phases and Code Facts completed 19/20; their remaining failures are existing scenario maturity/unit gates outside this performance change.
+- Blocker: Full scenario-suite green status remains blocked by the pre-existing findings listed by test-genie.
+- Measured: 2026-08-20
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

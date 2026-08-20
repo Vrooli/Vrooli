@@ -217,7 +217,7 @@ Every public method on `GoCodeGraphService`. Maturity follows the standard scale
 
 | Method | Domain | Maturity | Notes |
 |---|---|---|---|
-| `Extract` | graph | L3 | Deterministic graph from a Go module. `ExtractRequest{module_path, include_vendor}` → `ExtractResponse{graph, warnings, extraction_ms, graph_hash}`. The graph includes files, packages, declarations, import specs, references, calls, type usages, and import edges. Per-file parse failures surface as `Warning`s, never errors. |
+| `Extract` | graph | L3 | Deterministic graph from a Go module. `ExtractRequest{module_path, include_vendor, profile, package_patterns}` → `ExtractResponse{graph, warnings, profile, omitted_information, extraction_ms, graph_hash}`. The graph includes files, packages, declarations, import specs, references, calls, type usages, and import edges when requested by the profile. Intentional profile omissions are reported as typed metadata, not warnings or errors. |
 | `RewritePlan` | rewrite | L3 | Validate + normalize operations and return a deterministic `plan_id`. No disk mutation. |
 | `RewriteApply` | rewrite | L3 | Execute a previously planned set of operations. Honors `X-Dry-Run: true` (mapped to `apply: false`-style synthetic result). Never invokes `git` or `go build`. |
 

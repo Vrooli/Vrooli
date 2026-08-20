@@ -111,6 +111,30 @@ func TestExtract_PassesIncludeVendorFlag(t *testing.T) {
 	require.True(t, svc.extractReqs[0].GetIncludeVendor())
 }
 
+func TestExtract_PassesProfileAndPackagePatterns(t *testing.T) {
+	svc := &fakeService{extractResp: &graphv1.ExtractResponse{Graph: &commonv1.CodeGraph{}}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "path", Required: true}},
+		Flags: []cliapp.Flag{
+			{Name: "include-vendor"},
+			{Name: "profile"},
+			{Name: "package-pattern"},
+		},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"path": "/tmp/mod"},
+		Flags:       map[string]string{"profile": "structural"},
+		FlagLists: map[string][]string{
+			"package-pattern": {"./internal/graph/...", "./handlers/..."},
+		},
+	})
+
+	require.NoError(t, h.extract(ctx))
+	require.Equal(t, graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL, svc.extractReqs[0].GetProfile())
+	require.Equal(t, []string{"./internal/graph/...", "./handlers/..."}, svc.extractReqs[0].GetPackagePatterns())
+}
+
 func TestExtract_SurfacesConnectErrors(t *testing.T) {
 	svc := &fakeService{extractErr: connect.NewError(connect.CodeInvalidArgument, io.ErrUnexpectedEOF)}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))

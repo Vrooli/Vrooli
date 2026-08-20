@@ -32,3 +32,10 @@ Phase 13 intentionally did not migrate additional consumers. Follow-up candidate
 - `test-genie`: use Code Facts for declared endpoint, CLI, and UI implementation evidence once command/widget proof families are designed.
 - `cli-health` and `ui-health`: consume Code Facts for discoverability and generated-client usage proof.
 - `swarm-manager`: consume Code Facts surface and capability inventory for higher-level ecosystem planning.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: The operator approved memory hardening against the observed 3.92 GB Code Facts RSS. Focused facts tests pass; lifecycle evidence now measures 25 MB idle RSS and 44 MB RSS after a complete streaming project search. Post-repair scenario run `20260820-205412-7b59545d` passed 19/20 phases, with the existing UI `pnpm test:coverage` failure as its only failure.
+- Blocker: Project search is memory-bounded but takes 30.6 seconds across the full repository; a compact persistent index remains the next performance capability.
+- Measured: 2026-08-20

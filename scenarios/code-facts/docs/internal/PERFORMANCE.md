@@ -57,12 +57,19 @@ budget so a future benchmark cannot silently accept a regression.
 | Measurement | Value | Source | Date |
 |---|---|---|---|
 | Repeated `DescribeCodeFacts` cache reuse | second identical request uses report cache and makes zero provider calls | `internal/facts` unit test | 2026-06-12 |
+| Cold `imports` describe for `scenario:go-code-graph` | Go parse units completed in 16-231 ms each with the structural profile; 1.5 s on the subsequent whole-report cache hit | lifecycle-managed live request and provider access logs | 2026-08-20 |
+| Idle API after startup cache sweep | 25 MB RSS / 2.6 MB live heap, down from 3.92 GB RSS / 2.21 GB heap with the eager resident index | lifecycle-managed process status and `/health` | 2026-08-20 |
+| Streaming project search, `provider demotion`, limit 5 | 30.6 s; post-request 44 MB RSS / 5.1 MB live heap | `code-facts facts search` plus lifecycle-managed process status | 2026-08-20 |
+| Whole-project cache status | 2.9 s with metadata-only SQL projection; payload bodies were not materialized | `code-facts cache status project:<repo-root>` | 2026-08-20 |
 
 ## Known Constraints
 
 - Vite production builds may process thousands of modules and take
   several minutes.
 - Cache fingerprinting walks bounded parse-unit roots and prunes dependency/build directories.
+- Go provider extraction is capability-aware: imports, symbols, and proto adoption request `structural`; references, calls, and endpoint proofs request `semantic`. The profile is part of the graph cache identity so a structural result cannot satisfy a semantic request.
+- Project/repository lexical search streams the bounded source roots per query; Code Facts does not eagerly build or retain a whole-repository protobuf/postings index at startup. This trades repeated-search latency for a bounded idle memory footprint until a compact persistent index replaces the retired resident representation.
+- Cache status and inspection select metadata only; compressed graph/report bodies are loaded exclusively by exact cache reads.
 - Performance budgets for proof synthesis should be revisited after Phase 11 exposes larger operator UI workflows and Phase 12 adds the first external consumer.
 
 ## Regression Procedure

@@ -44,6 +44,9 @@ The cache is bounded by logical identity and bytes:
 The `/health` and `/api/v1/health` payloads include cache metrics in the `metrics` block: `cache_total_rows`, `cache_total_payload_bytes`, `cache_budget_bytes`, `cache_utilization`, and `cache_last_sweep_at_unix`.
 
 Cache metadata exposes key, logical key, scope, state (`hit`, `miss`, `bypassed`, or `stored`), reason, analyzer version, provider version, schema version, source hash, config hash, graph hash, payload bytes, codec, age, and hit count.
+Status and inspection queries read only those metadata columns. They never load
+the compressed graph/report bodies, so diagnostics memory is independent of
+the retained payload volume.
 
 ## Clearing
 

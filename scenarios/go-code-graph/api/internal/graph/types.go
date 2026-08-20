@@ -16,6 +16,62 @@ import (
 	"fmt"
 )
 
+// ExtractionProfile controls the amount of analysis performed for one
+// request. Full is the compatibility profile and preserves the original
+// graph contract. The lighter profiles are explicit opt-ins for consumers
+// that do not need semantic usage facts.
+type ExtractionProfile string
+
+// InformationOmission describes a capability intentionally excluded by the
+// selected extraction profile. It is informational, not an extraction error.
+type InformationOmission struct {
+	Capability string
+	Reason     string
+}
+
+const (
+	ExtractionProfileFull       ExtractionProfile = "full"
+	ExtractionProfileSemantic   ExtractionProfile = "semantic"
+	ExtractionProfileStructural ExtractionProfile = "structural"
+)
+
+func (p ExtractionProfile) valid() bool {
+	switch p {
+	case ExtractionProfileFull, ExtractionProfileSemantic, ExtractionProfileStructural:
+		return true
+	default:
+		return false
+	}
+}
+
+func (p ExtractionProfile) normalized() ExtractionProfile {
+	if !p.valid() {
+		return ExtractionProfileFull
+	}
+	return p
+}
+
+// OmittedInformation returns the explicit capability contract for a profile.
+// Keep these identifiers stable so consumers can explain absent fields.
+func (p ExtractionProfile) OmittedInformation() []InformationOmission {
+	switch p.normalized() {
+	case ExtractionProfileSemantic:
+		return []InformationOmission{
+			{Capability: "test_variants", Reason: "semantic profile excludes test packages"},
+			{Capability: "test_only_relationships", Reason: "test packages were not loaded"},
+		}
+	case ExtractionProfileStructural:
+		return []InformationOmission{
+			{Capability: "resolved_type_information", Reason: "structural profile does not run Go type checking"},
+			{Capability: "resolved_usage_facts", Reason: "structural profile cannot resolve references, calls, or type usages"},
+			{Capability: "test_variants", Reason: "structural profile excludes test packages"},
+			{Capability: "test_only_relationships", Reason: "test packages were not loaded"},
+		}
+	default:
+		return nil
+	}
+}
+
 // Language is the source language a node/edge belongs to.
 type Language string
 
@@ -147,8 +203,10 @@ type Graph struct {
 // ExtractInput is the validated request payload threaded from handler
 // to Service. ModulePath is the absolute path to the module root.
 type ExtractInput struct {
-	ModulePath    string
-	IncludeVendor bool
+	ModulePath      string
+	IncludeVendor   bool
+	Profile         ExtractionProfile
+	PackagePatterns []string
 }
 
 // ExtractErrorKind names the catastrophic conditions that prevent a

@@ -24,6 +24,19 @@
             {
               "name": "include-vendor",
               "description": "Include vendor/ directories in extraction"
+            },
+            {
+              "name": "profile",
+              "description": "Extraction profile: full, semantic, or structural",
+              "default": "full",
+              "values": ["full", "semantic", "structural"]
+            },
+            {
+              "name": "package-pattern",
+              "description": "Module-relative Go package pattern; repeat to narrow extraction",
+              "bind": {
+                "field": "package_patterns"
+              }
             }
           ],
           "binding": {

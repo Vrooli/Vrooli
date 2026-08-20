@@ -32,6 +32,13 @@ type GraphProvider interface {
 	Extract(ctx context.Context, unit *factsv1.ParseUnit) (*GraphResult, error)
 }
 
+// familyAwareGraphProvider is an optional provider extension used when the
+// upstream graph API supports cheaper extraction profiles. Keeping it
+// optional preserves the provider seam for TypeScript and test doubles.
+type familyAwareGraphProvider interface {
+	ExtractForFamilies(ctx context.Context, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*GraphResult, error)
+}
+
 type GraphResult struct {
 	Graph        *commonv1.CodeGraph
 	Warnings     []*commonv1.CodeGraphWarning
@@ -121,6 +128,14 @@ func (p *goGraphProvider) Language() string     { return "go" }
 func (p *goGraphProvider) AnalyzerName() string { return goProviderScenario }
 
 func (p *goGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*GraphResult, error) {
+	return p.extract(ctx, unit, gographv1.ExtractionProfile_EXTRACTION_PROFILE_FULL)
+}
+
+func (p *goGraphProvider) ExtractForFamilies(ctx context.Context, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*GraphResult, error) {
+	return p.extract(ctx, unit, goExtractionProfile(families))
+}
+
+func (p *goGraphProvider) extract(ctx context.Context, unit *factsv1.ParseUnit, profile gographv1.ExtractionProfile) (*GraphResult, error) {
 	if p.resolver == nil {
 		return nil, ProviderUnavailableError{Analyzer: p.AnalyzerName(), Err: errors.New("missing URL resolver")}
 	}
@@ -130,6 +145,7 @@ func (p *goGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) 
 	}
 	resp, err := gographconnect.NewGoCodeGraphServiceClient(p.httpClient, baseURL).Extract(ctx, connect.NewRequest(&gographv1.ExtractRequest{
 		ModulePath: unit.GetRootPath(),
+		Profile:    profile,
 	}))
 	if err != nil {
 		return nil, classifyProviderError(p.AnalyzerName(), err)
@@ -140,6 +156,37 @@ func (p *goGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) 
 		GraphHash:    resp.Msg.GetGraphHash(),
 		ExtractionMs: resp.Msg.GetExtractionMs(),
 	}, nil
+}
+
+// goExtractionProfile returns the cheapest profile that can produce every
+// requested Code Facts family. Imports, declarations, and proto-adoption need
+// syntax only. References, calls, and endpoint proof synthesis require
+// resolved semantic usage facts. Code Facts has no test-only fact family, so
+// it never needs the full compatibility profile.
+func goExtractionProfile(families []factsv1.FactFamily) gographv1.ExtractionProfile {
+	for _, family := range families {
+		switch family {
+		case factsv1.FactFamily_FACT_FAMILY_REFERENCES,
+			factsv1.FactFamily_FACT_FAMILY_CALLS,
+			factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS:
+			return gographv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC
+		}
+	}
+	return gographv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL
+}
+
+func extractForFamilies(ctx context.Context, provider GraphProvider, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*GraphResult, error) {
+	if aware, ok := provider.(familyAwareGraphProvider); ok {
+		return aware.ExtractForFamilies(ctx, unit, families)
+	}
+	return provider.Extract(ctx, unit)
+}
+
+func providerExtractionProfile(provider GraphProvider, families []factsv1.FactFamily) string {
+	if provider != nil && provider.Language() == "go" {
+		return goExtractionProfile(families).String()
+	}
+	return "default"
 }
 
 type tsGraphProvider struct {

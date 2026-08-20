@@ -24,7 +24,7 @@ Use this document to answer:
 
 - **API port**: assigned by lifecycle as `API_PORT`.
 - **UI port**: assigned by lifecycle as `UI_PORT`.
-- **Storage**: `SQLITE_PATH` local file (only required if/when P1 Operation Log lands).
+- **Storage**: embedded SQLite resolved by `api-core/storage` (only required if/when P1 Operation Log lands).
 - **Go toolchain**: required for the API + CLI binaries to build. Runtime does not require the toolchain on the host — `golang.org/x/tools/go/packages` is statically linked in, but it does require the target Go module to be loadable, which transitively means a recent Go SDK on the host is recommended.
 - **Resources**: none external by default. No Ollama, Qdrant, Postgres.
 - **Network**: local API/UI communication only.

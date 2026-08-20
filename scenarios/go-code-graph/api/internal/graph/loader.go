@@ -12,6 +12,14 @@ type LoadOptions struct {
 	// IncludeVendor enables walking vendor/ directories and the module
 	// cache. Default (false) matches REQ-P1-003.
 	IncludeVendor bool
+	// Profile selects the loader mode. Full is the compatibility default.
+	Profile ExtractionProfile
+	// PackagePatterns narrows the go/packages query. Empty means ./....
+	PackagePatterns []string
+	// EnvironmentFingerprint captures loader-affecting process settings. The
+	// production composition root supplies it; the graph package remains
+	// independent of process-global environment reads.
+	EnvironmentFingerprint string
 }
 
 // PackagesLoader is the production-vs-test seam wrapping

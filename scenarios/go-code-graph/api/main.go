@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"go-code-graph/internal/modules"
@@ -19,7 +19,6 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
-	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
 	graphH "go-code-graph/handlers/graph"
@@ -30,56 +29,6 @@ import (
 	intrewrite "go-code-graph/internal/rewrite"
 )
 
-// sqliteDSN resolves the SQLite database file path and wraps it in a DSN
-// with the canonical pragma string. Resolution order:
-//
-//  1. SQLITE_PATH env — the canonical override.
-//  2. SQLITE_DB env — alias accepted for symmetry with other scenarios.
-//  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
-//     filesystem-safe-by-default location.
-//
-// The pragmas mirror agent-inbox; tweak in lockstep with
-// internal/testutil/db.NewSQLite so production and tests open files the
-// same way.
-func sqliteDSN() (string, error) {
-	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
-		return sqliteFileDSN(path)
-	}
-
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		return "", fmt.Errorf("create storage resolver: %w", err)
-	}
-	path, err := resolver.Path(
-		storage.Options{ScenarioID: "go-code-graph"},
-		storage.ClassData,
-		"go-code-graph.db",
-	)
-	if err != nil {
-		return "", fmt.Errorf("resolve go-code-graph db path: %w", err)
-	}
-	return sqliteFileDSN(path)
-}
-
-func sqliteFileDSN(path string) (string, error) {
-	if strings.HasPrefix(path, "file:") {
-		return path, nil
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
-		path,
-	), nil
-}
-
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -87,14 +36,9 @@ func main() {
 		return
 	}
 
-	dsn, err := sqliteDSN()
-	if err != nil {
-		log.Fatalf("sqlite configuration failed: %v", err)
-	}
-
 	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          dsn,
+		Scenario:     "go-code-graph",
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})
@@ -111,7 +55,14 @@ func main() {
 	// module_path serialize against each other (OT-P0-006).
 	pathMutex := intgraph.NewPathMutex()
 	loader := intgraph.NewPackagesLoader()
-	graphSvc := intgraph.NewService(loader, pathMutex)
+	graphCache := configuredExtractionCache()
+	graphSvc := intgraph.NewServiceWithCacheAndEnvironment(
+		loader,
+		pathMutex,
+		configuredMaxConcurrentExtracts(),
+		graphCache,
+		extractionEnvironmentFingerprint(),
+	)
 
 	executor := intrewrite.NewFSExecutor()
 	planStore := intrewrite.NewSQLiteStore(db.Primary(), schedule.System())
@@ -142,4 +93,65 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func configuredExtractionCache() intgraph.ExtractionCache {
+	dir := strings.TrimSpace(os.Getenv("GO_CODE_GRAPH_CACHE_DIR"))
+	if dir == "" {
+		dataDir := strings.TrimSpace(os.Getenv("SCENARIO_DATA_DIR"))
+		if dataDir == "" {
+			log.Printf("SCENARIO_DATA_DIR is unset; extraction cache disabled")
+			return nil
+		}
+		dir = filepath.Join(dataDir, "extraction-cache")
+	}
+	cache, err := intgraph.NewFileExtractionCacheWithLimit(dir, configuredExtractionCacheMaxBytes())
+	if err != nil {
+		log.Printf("extraction cache disabled: %v", err)
+		return nil
+	}
+	return cache
+}
+
+func configuredExtractionCacheMaxBytes() int64 {
+	const (
+		envName = "GO_CODE_GRAPH_CACHE_MAX_BYTES"
+	)
+	raw := strings.TrimSpace(os.Getenv(envName))
+	if raw == "" {
+		return 512 << 20
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || value <= 0 {
+		log.Printf("invalid %s=%q; using default %d", envName, raw, 512<<20)
+		return 512 << 20
+	}
+	return value
+}
+
+func extractionEnvironmentFingerprint() string {
+	values := []string{
+		"GOFLAGS=" + os.Getenv("GOFLAGS"),
+		"GOOS=" + os.Getenv("GOOS"),
+		"GOARCH=" + os.Getenv("GOARCH"),
+		"CGO_ENABLED=" + os.Getenv("CGO_ENABLED"),
+		"GOEXPERIMENT=" + os.Getenv("GOEXPERIMENT"),
+		"GOAMD64=" + os.Getenv("GOAMD64"),
+		"GOARM=" + os.Getenv("GOARM"),
+	}
+	return strings.Join(values, "\x00")
+}
+
+func configuredMaxConcurrentExtracts() int {
+	const envName = "GO_CODE_GRAPH_MAX_CONCURRENT_EXTRACTS"
+	raw := strings.TrimSpace(os.Getenv(envName))
+	if raw == "" {
+		return intgraph.DefaultMaxConcurrentExtracts
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value <= 0 {
+		log.Printf("invalid %s=%q; using default %d", envName, raw, intgraph.DefaultMaxConcurrentExtracts)
+		return intgraph.DefaultMaxConcurrentExtracts
+	}
+	return value
 }

@@ -16,7 +16,7 @@ Use this document to answer:
 
 Go Code Graph is a **stateless** scenario in v1. `Extract` calls do not persist anything. `Rewrite plan` stores plans in an in-process registry with a 5-minute TTL (lost on restart, by design — operators must re-plan).
 
-The optional **Operation Log** (P1, REQ-P1-002) is the only persisted data. It lives in embedded SQLite via `modernc.org/sqlite`, with `SQLITE_PATH` provided by the lifecycle's `.vrooli/service.json`. The Operation Log records each `RewriteApply` invocation for audit purposes.
+The optional **Operation Log** (P1, REQ-P1-002) is the only persisted data. It lives in embedded SQLite via `modernc.org/sqlite`, at a path resolved from the scenario id by `api-core/storage`. The Operation Log records each `RewriteApply` invocation for audit purposes.
 
 External storage resources (Postgres, Qdrant, Ollama, etc.) are **not** required and **not** anticipated for this scenario. Document any additions in [`INTEGRATIONS.md`](INTEGRATIONS.md) before editing `.vrooli/service.json`.
 
@@ -24,7 +24,7 @@ External storage resources (Postgres, Qdrant, Ollama, etc.) are **not** required
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| Extracted Graph | graph | In-memory (returned in the response) | The target Go module's source code | Not retained; computed fresh each call | The graph is derived from source, not persisted. Consumers cache at their layer. |
+| Extracted Graph | graph | Response plus disposable content-keyed JSON cache | The target Go module's source code | Invalidated by source fingerprint, profile, scope, vendor setting, and loader environment; bounded cache eviction | The graph is derived from source. Cache failures never affect extraction correctness. |
 | Plan registry | rewrite | In-process map keyed by `plan_id` | The normalized operation list | 5-minute TTL, lost on restart | Deliberately ephemeral — apply requires a fresh plan, no resurrection across process boundaries. |
 | Operation Log (P1) | rewrite | SQLite | `api/internal/rewrite/schema.sql` | Indefinite (audit trail) | Append-only. One row per `RewriteApply` invocation including success/failure status per op. |
 | Recent-calls telemetry | explorer | In-memory bounded ring buffer (256 entries) | Live extraction activity | Lost on restart | UI-only diagnostic; not part of the durable contract. |

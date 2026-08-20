@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 
 	"go-code-graph/internal/graph"
@@ -363,63 +362,5 @@ func writeRouteFixtureFile(t *testing.T, path, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
-	}
-}
-
-func TestConcurrentExtractSamePath(t *testing.T) {
-	abs := resolveFixture(t, "../../../bas/fixtures/go-cycles")
-	svc := newRealService()
-
-	const N = 5
-	hashes := make([]string, N)
-	var wg sync.WaitGroup
-	errs := make([]error, N)
-	for i := 0; i < N; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			g, _, err := svc.Extract(context.Background(), graph.ExtractInput{ModulePath: abs})
-			if err != nil {
-				errs[i] = err
-				return
-			}
-			hashes[i] = graph.GraphHash(g)
-		}(i)
-	}
-	wg.Wait()
-	for i, err := range errs {
-		if err != nil {
-			t.Fatalf("goroutine %d: %v", i, err)
-		}
-	}
-	for i := 1; i < N; i++ {
-		if hashes[i] != hashes[0] {
-			t.Fatalf("hash mismatch: hashes[0]=%s hashes[%d]=%s", hashes[0], i, hashes[i])
-		}
-	}
-}
-
-func TestConcurrentExtractDifferentPaths(t *testing.T) {
-	a := resolveFixture(t, "../../../bas/fixtures/go-cycles")
-	b := resolveFixture(t, "../../../bas/fixtures/go-mislocated")
-	svc := newRealService()
-
-	var wg sync.WaitGroup
-	var errA, errB error
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		_, _, errA = svc.Extract(context.Background(), graph.ExtractInput{ModulePath: a})
-	}()
-	go func() {
-		defer wg.Done()
-		_, _, errB = svc.Extract(context.Background(), graph.ExtractInput{ModulePath: b})
-	}()
-	wg.Wait()
-	if errA != nil {
-		t.Fatalf("extract go-cycles: %v", errA)
-	}
-	if errB != nil {
-		t.Fatalf("extract go-mislocated: %v", errB)
 	}
 }

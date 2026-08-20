@@ -49,21 +49,27 @@
       "path": "/vrooli.go_code_graph.v1.graph.GoCodeGraphService/Extract",
       "method": "POST",
       "summary": "Extract a deterministic Go graph",
-      "description": "Loads the Go module rooted at module_path and returns the normalized graph + warnings + extraction time + graph hash.",
+      "description": "Loads the Go module rooted at module_path and returns the normalized graph, warnings, phase timings, and graph hash. Full extraction remains the default; callers can opt into lighter profiles or narrower package patterns.",
       "category": "graph",
       "request": {
         "type": "object",
         "properties": {
           "include_vendor": "boolean (default false)",
-          "module_path": "string (required, absolute or scenario-relative module root)"
+          "module_path": "string (required, absolute or scenario-relative module root)",
+          "package_patterns": "array<string> (optional, module-relative Go patterns; empty means ./...)",
+          "profile": "enum {full, semantic, structural} (default full)"
         }
       },
       "response": {
         "type": "object",
         "properties": {
+          "cache_hit": "boolean",
           "extraction_ms": "int64",
+          "fingerprint_ms": "int64",
           "graph": "common.v1.CodeGraph",
           "graph_hash": "string (hex sha256 of canonical graph)",
+          "load_ms": "int64",
+          "normalize_ms": "int64",
           "warnings": "array<common.v1.CodeGraphWarning>"
         }
       },

@@ -8,16 +8,14 @@ import (
 )
 
 // PackagesLoaderImpl is the production PackagesLoader implementation.
-// It wraps golang.org/x/tools/go/packages.Load with the hard-coded
-// load mode required by REQ-P0-001:
+// It wraps golang.org/x/tools/go/packages.Load with the full compatibility
+// mode required by REQ-P0-001 and supports explicit lighter profiles.
 //
 //	NeedFiles | NeedImports | NeedTypes | NeedSyntax |
 //	NeedTypesInfo | NeedName | NeedDeps
 //
-// The mode is intentionally fixed — a caller asking for "less" would
-// produce a non-deterministic subset and break byte-stability of the
-// extracted graph. No caching: every call yields a fresh
-// packages.Config.
+// Full mode remains fixed and is the default. Lighter modes are intentionally
+// opt-in because they omit semantic facts by contract.
 type PackagesLoaderImpl struct{}
 
 // NewPackagesLoader returns the production PackagesLoader.
@@ -33,6 +31,11 @@ var loadMode = packages.NeedFiles |
 	packages.NeedName |
 	packages.NeedDeps
 
+var structuralLoadMode = packages.NeedFiles |
+	packages.NeedImports |
+	packages.NeedSyntax |
+	packages.NeedName
+
 // Load runs packages.Load with the fixed mode rooted at modulePath.
 // IncludeVendor is honored by Service.Extract via a post-load directory
 // filter (filterVendorPackages); the packages loader itself runs with
@@ -41,15 +44,26 @@ var loadMode = packages.NeedFiles |
 func (l *PackagesLoaderImpl) Load(ctx context.Context, modulePath string, opts LoadOptions) ([]*packages.Package, error) {
 	cfg := &packages.Config{
 		Context: ctx,
-		Mode:    loadMode,
+		Mode:    modeForProfile(opts.Profile),
 		Dir:     modulePath,
-		Tests:   true,
+		Tests:   opts.Profile.normalized() == ExtractionProfileFull,
 	}
-	pkgs, err := packages.Load(cfg, "./...")
+	patterns := opts.PackagePatterns
+	if len(patterns) == 0 {
+		patterns = []string{"./..."}
+	}
+	pkgs, err := packages.Load(cfg, patterns...)
 	if err != nil {
 		return nil, fmt.Errorf("packages.Load(%q): %w", modulePath, err)
 	}
 	return pkgs, nil
+}
+
+func modeForProfile(profile ExtractionProfile) packages.LoadMode {
+	if profile.normalized() == ExtractionProfileStructural {
+		return structuralLoadMode
+	}
+	return loadMode
 }
 
 // Compile-time assertion: PackagesLoaderImpl satisfies PackagesLoader.

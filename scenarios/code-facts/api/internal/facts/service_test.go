@@ -18,8 +18,48 @@ import (
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	gographv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
 	_ "modernc.org/sqlite"
 )
+
+func TestGoExtractionProfileUsesCheapestCompatibleProfile(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		families []factsv1.FactFamily
+		want     gographv1.ExtractionProfile
+	}{
+		{name: "imports", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL},
+		{name: "symbols", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL},
+		{name: "proto adoption", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL},
+		{name: "references", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_REFERENCES}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC},
+		{name: "calls", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_CALLS}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC},
+		{name: "endpoint proofs", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := goExtractionProfile(tc.families); got != tc.want {
+				t.Fatalf("goExtractionProfile(%v) = %s, want %s", tc.families, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestGraphCacheKeyIncludesExtractionProfile(t *testing.T) {
+	t.Parallel()
+	target := &factsv1.TargetContext{RootPath: "/repo"}
+	unit := &factsv1.ParseUnit{Id: "go:/repo/api", Language: "go", RootPath: "/repo/api"}
+	provider := fakeProvider{language: "go", analyzer: "go-code-graph"}
+	structural := graphCachePlan(target, unit, provider, "structural", "source", "config")
+	semantic := graphCachePlan(target, unit, provider, "semantic", "source", "config")
+	if structural.Key == semantic.Key {
+		t.Fatal("structural and semantic graph extractions shared a cache key")
+	}
+	if structural.LogicalKey == semantic.LogicalKey {
+		t.Fatal("structural and semantic graph extractions shared a logical cache key")
+	}
+}
 
 func TestDescribeDiscoversGenericGoModule(t *testing.T) {
 	root := t.TempDir()
@@ -320,13 +360,20 @@ func TestSearchProjectIndexHonorsCancellation(t *testing.T) {
 	}
 }
 
-func TestSearchProjectIndexColdStateUsesCompleteFallback(t *testing.T) {
+func TestNewServiceDoesNotBuildResidentProjectIndex(t *testing.T) {
+	t.Parallel()
+	if idx := NewService().projectIdx; idx != nil {
+		t.Fatal("NewService created a resident whole-repository project index")
+	}
+}
+
+func TestSearchProjectUsesCompleteStreamingFallback(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "scenarios", "demo", "api", "demotion.go"), "package demo\nfunc ProviderDemotion() {}\n")
 	if err := os.MkdirAll(filepath.Join(root, "packages"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	svc := &Service{projectIdx: newLexicalProjectIndex(root)}
+	svc := NewService()
 	response, err := svc.Search(context.Background(), &factsv1.SearchRequest{
 		Query: "provider demotion", Limit: 5,
 		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PROJECT, RepoRoot: root},
@@ -336,7 +383,29 @@ func TestSearchProjectIndexColdStateUsesCompleteFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(response.GetResults()) == 0 || response.GetResults()[0].GetPath() != "scenarios/demo/api/demotion.go" {
-		t.Fatalf("cold-index results = %#v, want complete fallback result", response.GetResults())
+		t.Fatalf("streaming results = %#v, want complete fallback result", response.GetResults())
+	}
+}
+
+func TestLexicalProjectReportRetainsOnlyRequestedLimit(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	var source strings.Builder
+	source.WriteString("package demo\n")
+	for i := 0; i < 25; i++ {
+		fmt.Fprintf(&source, "func ProviderDemotion%d() {}\n", i)
+	}
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "api", "demotion.go"), source.String())
+	if err := os.MkdirAll(filepath.Join(root, "packages"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	target := &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PROJECT, RepoRoot: root}
+	report, err := lexicalProjectReport(context.Background(), root, target, []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS}, "provider demotion", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(report.GetFacts()); got != 3 {
+		t.Fatalf("retained facts = %d, want 3", got)
 	}
 }
 
@@ -1050,6 +1119,32 @@ func TestCachePayloadRoundTripMemory(t *testing.T) {
 func TestCachePayloadRoundTripSQLite(t *testing.T) {
 	db := openCacheTestDB(t)
 	exerciseCachePayloadRoundTrip(t, NewSQLiteCacheRepository(db, 0))
+}
+
+func TestSQLiteCacheStatusDoesNotMaterializePayloads(t *testing.T) {
+	t.Parallel()
+	db := openCacheTestDB(t)
+	repo := NewSQLiteCacheRepository(db, 0)
+	ctx := context.Background()
+	entry := cacheTestEntry("metadata-only-status", "metadata-only-status", "source")
+	entry.TargetRoot = "/metadata-only"
+	if err := repo.PutGraph(ctx, entry, cacheTestGraph("metadata-only-status")); err != nil {
+		t.Fatalf("PutGraph: %v", err)
+	}
+	entries, err := repo.Status(ctx, entry.TargetRoot, entry.Key)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("Status entries = %d, want 1", len(entries))
+	}
+	got := entries[0]
+	if got.PayloadBytes == 0 || got.Codec != cacheCodecGzip {
+		t.Fatalf("metadata missing payload size/codec: %#v", got)
+	}
+	if got.PayloadJSON != "" || got.WarningsJSON != "" {
+		t.Fatalf("status materialized cache bodies: payload=%d warnings=%d", len(got.PayloadJSON), len(got.WarningsJSON))
+	}
 }
 
 func TestCacheStatusReportsBudgetTotalsAndScopes(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -36,10 +37,21 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 func (h *handlers) extract(ctx cliapp.RunContext) error {
 	path := ctx.Positional("path")
 	includeVendor := ctx.BoolFlag("include-vendor")
+	profileValue := ""
+	if ctx.FlagDeclared("profile") {
+		profileValue = ctx.Flag("profile")
+	}
+	profile := extractionProfile(profileValue)
+	var packagePatterns []string
+	if ctx.FlagDeclared("package-pattern") {
+		packagePatterns = ctx.FlagValues("package-pattern")
+	}
 
 	resp, err := h.client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{
-		ModulePath:    path,
-		IncludeVendor: includeVendor,
+		ModulePath:      path,
+		IncludeVendor:   includeVendor,
+		Profile:         profile,
+		PackagePatterns: append([]string(nil), packagePatterns...),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("extract %q", path), err, nil)
@@ -83,6 +95,17 @@ func (h *handlers) extract(ctx cliapp.RunContext) error {
 			fmt.Sprintf("`rewrite plan <ops.json> --module-path %s` — plan a rewrite for this module", path),
 		},
 	})
+}
+
+func extractionProfile(value string) graphv1.ExtractionProfile {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "semantic":
+		return graphv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC
+	case "structural":
+		return graphv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL
+	default:
+		return graphv1.ExtractionProfile_EXTRACTION_PROFILE_FULL
+	}
 }
 
 // listFixtures calls GoCodeGraphService.ListFixtures and renders the fixture
