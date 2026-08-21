@@ -24,6 +24,7 @@ import (
 
 	factsH "code-facts/handlers/facts"
 	healthH "code-facts/handlers/health"
+	"code-facts/internal/catalog"
 	localdb "code-facts/internal/database"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
@@ -78,6 +79,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(catalog.Schema),
 		apidb.SchemaProviderFunc(factsH.Schema),
 	}
 }

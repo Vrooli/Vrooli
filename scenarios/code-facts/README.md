@@ -58,7 +58,10 @@ runtime behavior and integration seams.
 ## Search registration
 
 The committed `.vrooli/search.json` is the provider contract. It separates
-code evidence from contract evidence, declares node-oriented families, and
-uses the shared index-age status field. Search registration is best-effort and
+indexed implementation evidence from indexed contract/proof evidence, carries
+scenario/path scope plus explicit stage budgets, and uses the typed generation
+status surface for freshness, counts, drift, and degraded stages. Both leaves
+implement the shared token-gated reindex protocol; their tuning is intentionally
+pinned, so they advertise no config-write endpoint. Search registration is best-effort and
 must never prevent Code Facts from serving its own API; a missing Search Hub is
 reported as degraded rather than hidden.

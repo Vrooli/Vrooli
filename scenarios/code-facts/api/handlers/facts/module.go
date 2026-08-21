@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"code-facts/internal/indexcontrol"
 	"code-facts/internal/module"
 
 	"github.com/gorilla/mux"
@@ -14,9 +15,10 @@ import (
 	internalfacts "code-facts/internal/facts"
 
 	factsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts/facts_v1connect"
+	controlconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control/control_v1connect"
 )
 
-func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64) module.Module {
+func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64, admission *Admission, indexControlToken string, dynamicTokens ...func(string) bool) module.Module {
 	resolver := discovery.NewResolver(discovery.ResolverConfig{})
 	opts := []internalfacts.ServiceOption{
 		internalfacts.WithBroker(internalfacts.NewBroker(
@@ -24,19 +26,37 @@ func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64) module.Module {
 			internalfacts.NewTypeScriptGraphProvider(resolver, http.DefaultClient),
 		)),
 		internalfacts.WithFileDomainProvider(internalfacts.NewCartographerFileDomainProvider(resolver, http.DefaultClient)),
+		internalfacts.WithAdmission(admission),
 	}
 	if db != nil {
 		opts = append(opts, internalfacts.WithCacheRepository(internalfacts.NewSQLiteCacheRepository(db, cacheMaxBytes)))
 	}
 	svc := internalfacts.NewService(opts...)
+	var indexController IndexController
+	var jobs indexcontrol.JobStore
+	var tokenMatcher func(string) bool
+	if len(dynamicTokens) > 0 {
+		tokenMatcher = dynamicTokens[0]
+	}
+	if db != nil {
+		jobs = indexcontrol.NewSQLiteJobStore(db)
+		indexController = NewRuntimeIndexController(indexcontrol.NewSQLiteStatusReader(db, jobs), nil)
+	}
+	authorizer := NewCompositeIndexAuthorizer(indexControlToken, tokenMatcher)
 	connectPath, connectHandler := factsconnect.NewCodeFactsServiceHandler(NewConnectHandler(Deps{
-		Service: svc,
-		Logger:  logger,
+		Service:         svc,
+		Index:           indexController,
+		IndexAuthorizer: authorizer,
+		Logger:          logger,
 	}))
+	controlPath, controlHandler := controlconnect.NewSearchControlServiceHandler(&SearchControlHandler{
+		Controller: indexController, Authorizer: authorizer, Jobs: jobs,
+	})
 	return module.Module{
 		Name: "facts",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: controlPath, Handler: controlHandler})
 		},
 		Endpoints: Endpoints,
 	}
@@ -202,6 +222,34 @@ var Endpoints = []module.EndpointDescriptor{
 		}},
 		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
 	},
+	indexEndpoint("index_status", factsconnect.CodeFactsServiceGetIndexStatusProcedure, "Get index status", "Returns active generation, durable jobs, drift, counts, storage, and degraded stages."),
+	indexEndpoint("index_reconcile", factsconnect.CodeFactsServiceReconcileIndexProcedure, "Reconcile index", "Applies bounded changed and deleted source work to a generation."),
+	indexEndpoint("index_reindex", factsconnect.CodeFactsServiceReindexProcedure, "Reindex into a shadow generation", "Starts a confirmed full shadow-generation rebuild."),
+	indexEndpoint("index_cancel", factsconnect.CodeFactsServiceCancelIndexJobProcedure, "Cancel index job", "Durably requests cancellation of an active index job."),
+	indexEndpoint("index_promote", factsconnect.CodeFactsServicePromoteIndexGenerationProcedure, "Promote index generation", "Validates and atomically promotes a confirmed complete generation."),
+	indexEndpoint("index_rollback", factsconnect.CodeFactsServiceRollbackIndexGenerationProcedure, "Rollback index generation", "Restores a confirmed retained complete generation."),
+	indexEndpoint("index_cleanup", factsconnect.CodeFactsServiceCleanupIndexProcedure, "Clean retired index generations", "Plans or deletes derived generations while retaining rollback state."),
+	sharedControlEndpoint("search_control_reindex", controlconnect.SearchControlServiceReindexProcedure, "Start provider-neutral reindex", "Adapts the shared token-gated Search Hub reindex request onto Code Facts shadow generation controls."),
+	sharedControlEndpoint("search_control_status", controlconnect.SearchControlServiceReindexStatusProcedure, "Inspect provider-neutral reindex", "Returns durable Code Facts job progress through the shared Search Hub control contract."),
+	sharedControlEndpoint("search_control_cancel", controlconnect.SearchControlServiceReindexCancelProcedure, "Cancel provider-neutral reindex", "Cooperatively cancels a durable Code Facts index job through the shared Search Hub control contract."),
+}
+
+func indexEndpoint(id, path, summary, description string) module.EndpointDescriptor {
+	return module.EndpointDescriptor{
+		ID: "facts_" + id, Path: path, Method: "POST", Summary: summary, Description: description, Category: "index",
+		Request:  &module.Schema{Type: "object", Properties: map[string]string{"generation": "string", "confirmed": "bool", "dry_run": "bool", "job_id": "string"}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"job": "IndexJob", "status": "IndexStatus", "message": "string"}},
+		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Required identifier is missing"}, {Status: 412, Code: "failed_precondition", Description: "Confirmation is required"}, {Status: 503, Code: "unavailable", Description: "Index controller is unavailable"}},
+	}
+}
+
+func sharedControlEndpoint(id, path, summary, description string) module.EndpointDescriptor {
+	return module.EndpointDescriptor{
+		ID: id, Path: path, Method: "POST", Summary: summary, Description: description, Category: "index",
+		Request:  &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string", "scope": "string", "dry_run": "bool", "control_token": "string (required)"}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string", "state": "string", "processed": "int32", "total": "int32", "cancelled": "bool"}},
+		Errors:   []module.ErrorDesc{{Status: 403, Code: "permission_denied", Description: "Control token is missing or invalid"}, {Status: 503, Code: "unavailable", Description: "Index controller is unavailable"}},
+	}
 }
 
 func targetRequestSchema() *module.Schema {

@@ -21,6 +21,17 @@
 - [x] OT-P0-008 | Deterministic Cache | Cache keys and invalidation are deterministic, inspectable, and tied to analyzer version, target/options, source hashes, graph hashes, and requested fact families.
 - [x] OT-P0-009 | API/CLI Parity | CLI and Connect API expose equivalent core operations for describe, surfaces, proto adoption, endpoint proof, and cache diagnostics.
 - [x] OT-P0-010 | Operator Workbench | Operator UI can inspect targets, surfaces, parse units, facts, warnings, evidence, and cache status.
+- [x] OT-P0-011 | Governed Source Catalog | When a governed project root changes, Code Facts MUST maintain one authoritative catalog generation that classifies every eligible source as implementation, contract, generated alias, test, fixture, documentation, or transient and excludes transient artifacts from retrieval.
+- [x] OT-P0-012 | Indexed Exact Retrieval | When an exact identifier, symbol, or path query arrives, Code Facts MUST answer from the persistent catalog and FTS index without opening repository source files, with p95 wall time at most 100 ms on the current corpus and 200 ms on the three-times corpus.
+- [x] OT-P0-013 | Selective Hybrid Retrieval | When a natural-language code query arrives, Code Facts MUST fuse evaluated lexical and semantic code-card candidates, reach recall@5 of at least 95% and MRR@3 of at least 85%, and keep p95 wall time at most 500 ms on the current corpus and 750 ms on the three-times corpus.
+- [ ] OT-P0-014 | Generation-Safe Freshness | When source, extraction policy, schema, or model state changes, Code Facts MUST reconcile through an isolated generation, suppress stale candidates, make ordinary file changes searchable within 15 seconds p95, and repair missed events within five minutes.
+- [x] OT-P0-015 | Stable Evidence Provenance | When Code Facts returns a result or relationship, it MUST provide a stable content or symbol identity, current source range and hash, active generation, retrieval regime, relevance explanation, analyzer provenance, and an evidence status that is independent of relevance score.
+- [x] OT-P0-016 | Truthful Degradation | If Qdrant, Ollama, the reranker, or a graph projection is unavailable, then Code Facts MUST keep correct lexical retrieval available and name each unavailable or bypassed stage without presenting lexical similarity as relationship proof.
+- [x] OT-P0-017 | Governed Index Controls | When an authorized operator reconciles, reindexes, cancels, promotes, rolls back, or cleans an index generation, Code Facts MUST expose the same durable and truthful job state through typed API, CLI, UI, and Search Hub control surfaces while preserving the last complete generation on failure.
+- [x] OT-P0-018 | Bounded Resource Governance | While search, indexing, embedding, graph extraction, fleet analysis, and cache maintenance run concurrently, Code Facts MUST enforce one process-wide admission budget, bounded queues and caches, cancellation, steady RSS at most 150 MiB, query memory delta at most 50 MiB, index RSS at most 500 MiB, and current-corpus derived storage below 1.5 GiB.
+- [x] OT-P0-019 | Descriptor-Backed Contract Authority | When Code Facts indexes protobuf contracts, it MUST read resolved structure and the digest from `descriptorimage.Source`, join canonical identities to authoritative `.proto` provenance, and retain the previous valid contract generation when the descriptor image is missing, invalid, or stale.
+- [ ] OT-P0-020 | Search Hub Indexed Provider | While the active generation is healthy, Code Facts MUST self-register truthful scoped `local_index` code and contract leaves whose status exposes generation, freshness, drift, document counts, degraded stages, and request-budget behavior.
+- [ ] OT-P0-021 | Evidence Workspace | When an operator searches or manages the corpus, the responsive UI MUST make ranked evidence, provenance, relationships, contracts, freshness, degradation, generation controls, and evaluation comparisons understandable through WCAG 2.2 AA keyboard-accessible journeys at desktop, tablet, and mobile widths.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -38,16 +49,16 @@
 ## 🧱 Tech Direction Snapshot
 
 - Preferred stacks / frameworks: Generated React-Vite scenario with Go API, Go CLI, Connect-RPC, protobuf contracts in `packages/proto/schemas/code-facts/v1`, and the `vrooli-default` design kit.
-- Data + storage expectations: v1 uses local SQLite for derived graph/report cache entries and in-memory fakes for focused tests. No shared resource is required for Code Facts cache storage.
+- Data + storage expectations: SQLite is the authority for the source catalog, FTS index, generation state, normalized projections, jobs, and bounded derived cache data. Qdrant stores selective semantic code cards as optional derived data. The active SQLite generation remains queryable without AI resources.
 - Integration strategy: Code Facts calls `go-code-graph` for Go parse units and `typescript-code-graph` for TypeScript projects. It reads Vrooli repo/scenario metadata shallowly (`.vrooli/service.json`, `.vrooli/endpoints.json`, CLI manifests, testing metadata) but does not parse supported source languages itself.
-- Non-goals / guardrails: No language parser logic in Code Facts for Go or TypeScript. No proto-health policy inside graph providers. No compatibility aliases for greenfield contracts. No unbounded monorepo analysis in v1; callers must provide explicit bounded targets.
+- Non-goals / guardrails: No language parser logic in Code Facts for Go or TypeScript. No proto-health policy inside graph providers. No compatibility aliases for greenfield contracts. No unbounded in-memory repository index, per-query global source scan, line-by-line embedding corpus, or mandatory AI dependency for exact search.
 
 ## 🤝 Dependencies & Launch Plan
 
-- Required resources: None for v1. Local filesystem access is sufficient for target resolution, metadata reads, and cache files.
+- Required resources: SQLite and local filesystem access are required. Qdrant, Ollama, and the reranker are optional acceleration and relevance resources; their loss must preserve lexical service with explicit degradation.
 - Scenario dependencies: `go-code-graph` and `typescript-code-graph` are production provider dependencies once analyzer brokering is implemented. `proto-health` is the first planned consumer after Code Facts exposes proto adoption and endpoint proof families.
-- Operational risks: Provider outages must degrade to typed `unsupported` or `unknown` evidence instead of silent success. Cache staleness must be visible through key material and invalidation reasons. Scenario metadata may be incomplete, so surface inventory must distinguish `missing`, `ambiguous`, and `unknown`.
-- Launch sequencing: Phase 5 creates the scenario and product contract. Phase 6 defines proto/API/CLI core. Phase 7 implements target and surface discovery. Phase 8 brokers graph providers. Phase 9 adds cache/performance. Phase 10 adds proof synthesis. Phase 11 builds the operator UI. Phase 12 migrates `proto-health`.
+- Operational risks: Provider outages must degrade to typed `unsupported` or `unknown` evidence instead of silent success. Catalog, vector, and graph freshness must be fenced by source hash and generation. Long shadow builds must replay bounded later changes before promotion. Scenario metadata may be incomplete, so surface inventory must distinguish `missing`, `ambiguous`, and `unknown`.
+- Launch sequencing: Establish the measured corpus and evaluation contract; introduce capability boundaries; build the shared reconciliation substrate; ship the authoritative catalog and FTS index; add selective semantic and graph retrieval; expose generation controls; adopt Search Hub `local_index`; harden resource governance; complete the evidence workspace; then remove the streaming scan and transitional implementations after scale proof.
 
 ## 🎨 UX & Branding
 

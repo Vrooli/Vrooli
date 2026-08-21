@@ -10,9 +10,9 @@
 package server
 
 import (
-	"log"
 	"net/http"
 
+	"code-facts/internal/logging"
 	"code-facts/internal/middleware"
 	"code-facts/internal/module"
 
@@ -32,7 +32,7 @@ import (
 // limited to what the middleware stack reads.
 type Deps struct {
 	Clock  schedule.Clock
-	Logger *log.Logger
+	Logger logging.Logger
 }
 
 // Server is the wired HTTP application: cross-cutting deps + router
@@ -45,8 +45,8 @@ type Server struct {
 }
 
 // New builds a Server with logging middleware applied and every module's
-// Mount invoked. Logger defaults to log.Default() if nil; Clock has no
-// default and is required so the logging middleware never hides its time seam.
+// Mount invoked. Logger and Clock are required so the middleware never hides
+// ambient dependencies behind package-global defaults.
 //
 // The handler test in handlers/health/handler_test.go reproduces a
 // stripped-down version of the middleware composition; if you add
@@ -54,7 +54,7 @@ type Server struct {
 // composition into a shared helper.
 func New(d Deps, modules ...module.Module) *Server {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("server.New requires Deps.Logger")
 	}
 	if d.Clock == nil {
 		panic("server.New requires Deps.Clock")

@@ -473,6 +473,21 @@
           }
         },
         {
+          "path": "reference/corpus-policy.md",
+          "docType": "corpus-policy",
+          "title": "Corpus Policy",
+          "aliases": ["corpus", "source-policy", "index-policy"],
+          "description": "Governed roots, source roles, search eligibility, language capabilities, and scale fixture",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["corpus-policy", "source-role-policy", "language-capabilities"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required",
+          "validation": {
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
           "path": "reference/configuration.md",
           "docType": "configuration-reference",
           "title": "Configuration",

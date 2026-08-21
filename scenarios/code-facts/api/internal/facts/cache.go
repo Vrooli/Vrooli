@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -23,6 +24,7 @@ import (
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -31,7 +33,11 @@ const (
 	cacheScopeGraph      = "graph"
 	cacheScopeReport     = "report"
 	DefaultCacheMaxBytes = int64(2 * 1024 * 1024 * 1024)
+	DefaultCacheTTL      = 7 * 24 * time.Hour
+	cacheCleanupBatch    = 100
 	cacheCodecGzip       = "gzip"
+	cacheCodecProto      = "proto"
+	cacheCodecGzipProto  = "gzip+proto"
 )
 
 var lastCacheSweepAtUnix atomic.Int64
@@ -45,6 +51,10 @@ type CacheRepository interface {
 	Stats(ctx context.Context) (CacheStats, error)
 	Clear(ctx context.Context, targetRoot string, dryRun bool) (matched int64, cleared int64, err error)
 	Sweep(ctx context.Context) (CacheSweepResult, error)
+}
+
+type PagedReportCache interface {
+	GetReportPage(context.Context, string, int, int) (*factsv1.CodeFactsReport, *cacheEntry, bool, error)
 }
 
 type CacheStats struct {
@@ -63,6 +73,7 @@ type CacheScopeStats struct {
 
 type CacheSweepResult struct {
 	StaleRows     int64
+	ExpiredRows   int64
 	EvictedRows   int64
 	ReclaimedByte int64
 	RemainingByte int64
@@ -132,16 +143,13 @@ func NewMemoryCacheRepository(maxBytes ...int64) CacheRepository {
 }
 
 func (r *memoryCacheRepository) GetReport(_ context.Context, key string) (*factsv1.CodeFactsReport, *cacheEntry, bool, error) {
-	r.mu.Lock()
+	r.mu.RLock()
 	entry, ok := r.entries[key]
 	if !ok || entry.Scope != cacheScopeReport {
-		r.mu.Unlock()
+		r.mu.RUnlock()
 		return nil, nil, false, nil
 	}
-	entry.HitCount++
-	entry.LastUsedAtUnix = time.Now().Unix()
-	r.entries[key] = entry
-	r.mu.Unlock()
+	r.mu.RUnlock()
 	var report factsv1.CodeFactsReport
 	if err := protojson.Unmarshal([]byte(entry.PayloadJSON), &report); err != nil {
 		return nil, nil, false, err
@@ -169,16 +177,13 @@ func (r *memoryCacheRepository) PutReport(_ context.Context, entry cacheEntry, r
 }
 
 func (r *memoryCacheRepository) GetGraph(_ context.Context, key string) (*GraphResult, *cacheEntry, bool, error) {
-	r.mu.Lock()
+	r.mu.RLock()
 	entry, ok := r.entries[key]
 	if !ok || entry.Scope != cacheScopeGraph {
-		r.mu.Unlock()
+		r.mu.RUnlock()
 		return nil, nil, false, nil
 	}
-	entry.HitCount++
-	entry.LastUsedAtUnix = time.Now().Unix()
-	r.entries[key] = entry
-	r.mu.Unlock()
+	r.mu.RUnlock()
 	result, err := graphResultFromEntry(entry)
 	if err != nil {
 		return nil, nil, false, err
@@ -195,7 +200,8 @@ func (r *memoryCacheRepository) PutGraph(_ context.Context, entry cacheEntry, re
 		return err
 	}
 	entry.Scope = cacheScopeGraph
-	entry.PayloadJSON = payload
+	entry.Codec = cacheCodecProto
+	entry.PayloadJSON = string(payload)
 	entry.WarningsJSON = warnings
 	entry.ExtractionMs = result.ExtractionMs
 	entry.CreatedAtUnix = nowIfZero(entry.CreatedAtUnix)
@@ -375,6 +381,40 @@ CREATE TABLE IF NOT EXISTS code_facts_cache_entries (
 CREATE INDEX IF NOT EXISTS idx_code_facts_cache_target ON code_facts_cache_entries(target_root);
 CREATE INDEX IF NOT EXISTS idx_code_facts_cache_scope ON code_facts_cache_entries(scope);
 CREATE INDEX IF NOT EXISTS idx_code_facts_cache_logical_key ON code_facts_cache_entries(logical_key);
+CREATE TABLE IF NOT EXISTS code_facts_cache_report_facts (
+  cache_key TEXT NOT NULL REFERENCES code_facts_cache_entries(cache_key) ON DELETE CASCADE,
+  ordinal INTEGER NOT NULL,
+  payload BLOB NOT NULL,
+  PRIMARY KEY(cache_key,ordinal)
+);
+CREATE TRIGGER IF NOT EXISTS code_facts_cache_report_facts_parent_ad AFTER DELETE ON code_facts_cache_entries BEGIN
+  DELETE FROM code_facts_cache_report_facts WHERE cache_key=old.cache_key;
+END;
+` + cacheAccountingSchema() + `
+`
+}
+
+func cacheAccountingSchema() string {
+	return `
+CREATE TABLE IF NOT EXISTS code_facts_cache_stats (
+  scope TEXT PRIMARY KEY,
+  row_count INTEGER NOT NULL DEFAULT 0 CHECK (row_count >= 0),
+  payload_bytes INTEGER NOT NULL DEFAULT 0 CHECK (payload_bytes >= 0)
+);
+CREATE TRIGGER IF NOT EXISTS code_facts_cache_stats_ai AFTER INSERT ON code_facts_cache_entries BEGIN
+  INSERT INTO code_facts_cache_stats(scope,row_count,payload_bytes) VALUES(new.scope,1,new.payload_bytes)
+  ON CONFLICT(scope) DO UPDATE SET row_count=row_count+1,payload_bytes=payload_bytes+new.payload_bytes;
+END;
+CREATE TRIGGER IF NOT EXISTS code_facts_cache_stats_ad AFTER DELETE ON code_facts_cache_entries BEGIN
+  UPDATE code_facts_cache_stats SET row_count=row_count-1,payload_bytes=payload_bytes-old.payload_bytes WHERE scope=old.scope;
+  DELETE FROM code_facts_cache_stats WHERE scope=old.scope AND row_count=0;
+END;
+CREATE TRIGGER IF NOT EXISTS code_facts_cache_stats_au AFTER UPDATE OF scope,payload_bytes ON code_facts_cache_entries BEGIN
+  UPDATE code_facts_cache_stats SET row_count=row_count-1,payload_bytes=payload_bytes-old.payload_bytes WHERE scope=old.scope;
+  DELETE FROM code_facts_cache_stats WHERE scope=old.scope AND row_count=0;
+  INSERT INTO code_facts_cache_stats(scope,row_count,payload_bytes) VALUES(new.scope,1,new.payload_bytes)
+  ON CONFLICT(scope) DO UPDATE SET row_count=row_count+1,payload_bytes=payload_bytes+new.payload_bytes;
+END;
 `
 }
 
@@ -406,6 +446,18 @@ func MigrateCacheSchema(ctx context.Context, db *sql.DB) error {
 	}
 	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_code_facts_cache_logical_key ON code_facts_cache_entries(logical_key)`); err != nil {
 		return fmt.Errorf("create cache logical key index: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, cacheAccountingSchema()); err != nil {
+		return fmt.Errorf("create cache accounting: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS code_facts_cache_report_facts (cache_key TEXT NOT NULL REFERENCES code_facts_cache_entries(cache_key) ON DELETE CASCADE, ordinal INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(cache_key,ordinal))`); err != nil {
+		return fmt.Errorf("create normalized report facts: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TRIGGER IF NOT EXISTS code_facts_cache_report_facts_parent_ad AFTER DELETE ON code_facts_cache_entries BEGIN DELETE FROM code_facts_cache_report_facts WHERE cache_key=old.cache_key; END`); err != nil {
+		return fmt.Errorf("create normalized report cleanup: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM code_facts_cache_stats; INSERT INTO code_facts_cache_stats(scope,row_count,payload_bytes) SELECT scope,COUNT(*),COALESCE(SUM(payload_bytes),0) FROM code_facts_cache_entries GROUP BY scope`); err != nil {
+		return fmt.Errorf("backfill cache accounting: %w", err)
 	}
 	return nil
 }
@@ -451,6 +503,10 @@ func ensureCacheColumn(ctx context.Context, db *sql.DB, column string, definitio
 }
 
 func (r *SQLiteCacheRepository) GetReport(ctx context.Context, key string) (*factsv1.CodeFactsReport, *cacheEntry, bool, error) {
+	return r.GetReportPage(ctx, key, 0, 0)
+}
+
+func (r *SQLiteCacheRepository) GetReportPage(ctx context.Context, key string, offset, limit int) (*factsv1.CodeFactsReport, *cacheEntry, bool, error) {
 	entry, ok, err := r.get(ctx, key, cacheScopeReport)
 	if err != nil || !ok {
 		return nil, nil, ok, err
@@ -463,11 +519,38 @@ func (r *SQLiteCacheRepository) GetReport(ctx context.Context, key string) (*fac
 	if err := protojson.Unmarshal(payload, &report); err != nil {
 		return nil, nil, false, err
 	}
+	query := `SELECT payload FROM code_facts_cache_report_facts WHERE cache_key=? ORDER BY ordinal`
+	args := []any{key}
+	if limit > 0 {
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, limit, offset)
+	}
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, nil, false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var payload []byte
+		if err := rows.Scan(&payload); err != nil {
+			return nil, nil, false, err
+		}
+		var fact factsv1.GenericFact
+		if err := proto.Unmarshal(payload, &fact); err != nil {
+			return nil, nil, false, err
+		}
+		report.Facts = append(report.Facts, &fact)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, false, err
+	}
 	return &report, &entry, true, nil
 }
 
 func (r *SQLiteCacheRepository) PutReport(ctx context.Context, entry cacheEntry, report *factsv1.CodeFactsReport) error {
-	payload, err := protojson.Marshal(report)
+	header := proto.Clone(report).(*factsv1.CodeFactsReport)
+	header.Facts = nil
+	payload, err := protojson.Marshal(header)
 	if err != nil {
 		return err
 	}
@@ -478,7 +561,17 @@ func (r *SQLiteCacheRepository) PutReport(ctx context.Context, entry cacheEntry,
 	}
 	entry.Codec = cacheCodecGzip
 	entry.PayloadJSON = string(compressed)
-	return r.put(ctx, entry)
+	facts := make([][]byte, 0, len(report.GetFacts()))
+	entry.PayloadBytes = int64(len(compressed))
+	for _, fact := range report.GetFacts() {
+		encoded, err := proto.Marshal(fact)
+		if err != nil {
+			return err
+		}
+		facts = append(facts, encoded)
+		entry.PayloadBytes += int64(len(encoded))
+	}
+	return r.put(ctx, entry, facts)
 }
 
 func (r *SQLiteCacheRepository) GetGraph(ctx context.Context, key string) (*GraphResult, *cacheEntry, bool, error) {
@@ -502,15 +595,15 @@ func (r *SQLiteCacheRepository) PutGraph(ctx context.Context, entry cacheEntry, 
 		return err
 	}
 	entry.Scope = cacheScopeGraph
-	compressed, err := gzipPayload([]byte(payload))
+	compressed, err := gzipPayload(payload)
 	if err != nil {
 		return err
 	}
-	entry.Codec = cacheCodecGzip
+	entry.Codec = cacheCodecGzipProto
 	entry.PayloadJSON = string(compressed)
 	entry.WarningsJSON = warnings
 	entry.ExtractionMs = result.ExtractionMs
-	return r.put(ctx, entry)
+	return r.put(ctx, entry, nil)
 }
 
 func (r *SQLiteCacheRepository) Status(ctx context.Context, targetRoot, key string) ([]cacheEntry, error) {
@@ -535,11 +628,11 @@ func (r *SQLiteCacheRepository) Stats(ctx context.Context) (CacheStats, error) {
 	var stats CacheStats
 	stats.BudgetBytes = r.maxBytes
 	stats.LastSweepAtUnix = lastCacheSweepAtUnix.Load()
-	row := r.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(payload_bytes), 0) FROM code_facts_cache_entries`)
+	row := r.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(row_count),0), COALESCE(SUM(payload_bytes),0) FROM code_facts_cache_stats`)
 	if err := row.Scan(&stats.TotalRows, &stats.TotalPayloadBytes); err != nil {
 		return stats, err
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT scope, COUNT(*), COALESCE(SUM(payload_bytes), 0) FROM code_facts_cache_entries GROUP BY scope ORDER BY scope`)
+	rows, err := r.db.QueryContext(ctx, `SELECT scope,row_count,payload_bytes FROM code_facts_cache_stats ORDER BY scope`)
 	if err != nil {
 		return stats, err
 	}
@@ -587,29 +680,21 @@ func (r *SQLiteCacheRepository) get(ctx context.Context, key, scope string) (cac
 	if err != nil {
 		return cacheEntry{}, false, err
 	}
-	now := time.Now().Unix()
-	if _, err := r.db.ExecContext(ctx, `UPDATE code_facts_cache_entries SET hit_count = hit_count + 1, last_used_at_unix = ? WHERE cache_key = ?`, now, key); err != nil {
-		return cacheEntry{}, false, err
-	}
-	entry.HitCount++
-	entry.LastUsedAtUnix = now
 	return entry, true, nil
 }
 
-func (r *SQLiteCacheRepository) put(ctx context.Context, entry cacheEntry) error {
+func (r *SQLiteCacheRepository) put(ctx context.Context, entry cacheEntry, normalizedFacts [][]byte) error {
 	entry.CreatedAtUnix = nowIfZero(entry.CreatedAtUnix)
 	entry.LastUsedAtUnix = entry.CreatedAtUnix
 	entry.LogicalKey = logicalKeyForEntry(entry)
-	entry.PayloadBytes = int64(len(entry.PayloadJSON))
+	if entry.PayloadBytes == 0 {
+		entry.PayloadBytes = int64(len(entry.PayloadJSON))
+	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
-		}
-	}()
+	defer tx.Rollback()
 	if _, err = tx.ExecContext(ctx, `DELETE FROM code_facts_cache_entries WHERE logical_key = ? AND cache_key != ?`, entry.LogicalKey, entry.Key); err != nil {
 		return err
 	}
@@ -647,31 +732,56 @@ ON CONFLICT(cache_key) DO UPDATE SET
 	if err != nil {
 		return err
 	}
+	if normalizedFacts != nil {
+		if _, err = tx.ExecContext(ctx, `DELETE FROM code_facts_cache_report_facts WHERE cache_key=?`, entry.Key); err != nil {
+			return err
+		}
+		statement, prepareErr := tx.PrepareContext(ctx, `INSERT INTO code_facts_cache_report_facts(cache_key,ordinal,payload) VALUES(?,?,?)`)
+		if prepareErr != nil {
+			return prepareErr
+		}
+		defer statement.Close()
+		for ordinal, payload := range normalizedFacts {
+			if _, err = statement.ExecContext(ctx, entry.Key, ordinal, payload); err != nil {
+				return err
+			}
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return err
+	}
+	if r.maxBytes > 0 {
+		if _, err = r.enforceScopeBudget(ctx, entry.Scope, entry.Key, cacheScopeBudget(r.maxBytes, entry.Scope)); err != nil {
+			return err
+		}
 	}
 	_, err = r.enforceBudget(ctx, entry.Key)
 	return err
 }
 
+func cacheScopeBudget(total int64, scope string) int64 {
+	if scope == cacheScopeGraph {
+		return total * 3 / 4
+	}
+	return total / 2
+}
+
 func (r *SQLiteCacheRepository) Sweep(ctx context.Context) (CacheSweepResult, error) {
 	var result CacheSweepResult
-	for {
-		res, err := r.db.ExecContext(ctx, `DELETE FROM code_facts_cache_entries WHERE rowid IN (
-			SELECT rowid FROM code_facts_cache_entries WHERE schema_version != ? LIMIT 100
-		)`, cacheSchemaVersion)
-		if err != nil {
-			return result, err
-		}
-		rows, err := res.RowsAffected()
-		if err != nil {
-			return result, err
-		}
-		if rows == 0 {
-			break
-		}
-		result.StaleRows += rows
+	res, err := r.db.ExecContext(ctx, `DELETE FROM code_facts_cache_entries WHERE rowid IN (
+		SELECT rowid FROM code_facts_cache_entries WHERE schema_version != ? LIMIT ?
+	)`, cacheSchemaVersion, cacheCleanupBatch)
+	if err != nil {
+		return result, err
 	}
+	result.StaleRows, _ = res.RowsAffected()
+	res, err = r.db.ExecContext(ctx, `DELETE FROM code_facts_cache_entries WHERE rowid IN (
+		SELECT rowid FROM code_facts_cache_entries WHERE created_at_unix < ? ORDER BY created_at_unix LIMIT ?
+	)`, time.Now().Add(-DefaultCacheTTL).Unix(), cacheCleanupBatch)
+	if err != nil {
+		return result, err
+	}
+	result.ExpiredRows, _ = res.RowsAffected()
 	evicted, err := r.enforceBudget(ctx, "")
 	if err != nil {
 		return result, err
@@ -681,11 +791,11 @@ func (r *SQLiteCacheRepository) Sweep(ctx context.Context) (CacheSweepResult, er
 	result.RemainingByte = evicted.RemainingByte
 	result.SweptAtUnix = time.Now().Unix()
 	lastCacheSweepAtUnix.Store(result.SweptAtUnix)
-	if result.StaleRows > 0 || result.EvictedRows > 0 {
-		if _, err := r.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
+	if result.StaleRows > 0 || result.ExpiredRows > 0 || result.EvictedRows > 0 {
+		if _, err := r.db.ExecContext(ctx, `PRAGMA wal_checkpoint(PASSIVE)`); err != nil {
 			return result, fmt.Errorf("checkpoint cache storage: %w", err)
 		}
-		if _, err := r.db.ExecContext(ctx, `VACUUM`); err != nil {
+		if _, err := r.db.ExecContext(ctx, `PRAGMA incremental_vacuum(128)`); err != nil {
 			return result, fmt.Errorf("reclaim cache storage: %w", err)
 		}
 	}
@@ -728,13 +838,47 @@ func (r *SQLiteCacheRepository) enforceBudget(ctx context.Context, protectedKey 
 
 func (r *SQLiteCacheRepository) totalPayloadBytes(ctx context.Context) (int64, error) {
 	var total sql.NullInt64
-	if err := r.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(payload_bytes), 0) FROM code_facts_cache_entries`).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(payload_bytes), 0) FROM code_facts_cache_stats`).Scan(&total); err != nil {
 		return 0, err
 	}
 	if !total.Valid {
 		return 0, nil
 	}
 	return total.Int64, nil
+}
+
+func (r *SQLiteCacheRepository) enforceScopeBudget(ctx context.Context, scope, protectedKey string, budget int64) (CacheSweepResult, error) {
+	var result CacheSweepResult
+	if budget <= 0 {
+		return result, nil
+	}
+	for {
+		if err := r.db.QueryRowContext(ctx, `SELECT COALESCE(payload_bytes,0) FROM code_facts_cache_stats WHERE scope=?`, scope).Scan(&result.RemainingByte); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return result, nil
+			}
+			return result, err
+		}
+		if result.RemainingByte <= budget {
+			return result, nil
+		}
+		var key string
+		var bytes int64
+		err := r.db.QueryRowContext(ctx, `SELECT cache_key,payload_bytes FROM code_facts_cache_entries WHERE scope=? AND cache_key!=? ORDER BY created_at_unix,cache_key LIMIT 1`, scope, protectedKey).Scan(&key, &bytes)
+		if errors.Is(err, sql.ErrNoRows) {
+			return result, nil
+		}
+		if err != nil {
+			return result, err
+		}
+		res, err := r.db.ExecContext(ctx, `DELETE FROM code_facts_cache_entries WHERE cache_key=?`, key)
+		if err != nil {
+			return result, err
+		}
+		rows, _ := res.RowsAffected()
+		result.EvictedRows += rows
+		result.ReclaimedByte += bytes * rows
+	}
 }
 
 func (r *SQLiteCacheRepository) oldestEvictableEntry(ctx context.Context, protectedKey string) (string, int64, bool, error) {
@@ -856,24 +1000,24 @@ func sortedScopeStats(byScope map[string]*CacheScopeStats) []CacheScopeStats {
 	return out
 }
 
-func marshalGraphResult(result *GraphResult) (string, string, error) {
-	graph, err := protojson.Marshal(result.Graph)
+func marshalGraphResult(result *GraphResult) ([]byte, string, error) {
+	graph, err := proto.Marshal(result.Graph)
 	if err != nil {
-		return "", "", err
+		return nil, "", err
 	}
 	warnings := make([]json.RawMessage, 0, len(result.Warnings))
 	for _, warning := range result.Warnings {
 		payload, err := protojson.Marshal(warning)
 		if err != nil {
-			return "", "", err
+			return nil, "", err
 		}
 		warnings = append(warnings, json.RawMessage(payload))
 	}
 	warningsJSON, err := json.Marshal(warnings)
 	if err != nil {
-		return "", "", err
+		return nil, "", err
 	}
-	return string(graph), string(warningsJSON), nil
+	return graph, string(warningsJSON), nil
 }
 
 func graphResultFromEntry(entry cacheEntry) (*GraphResult, error) {
@@ -882,8 +1026,15 @@ func graphResultFromEntry(entry cacheEntry) (*GraphResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := protojson.Unmarshal(payload, &graph); err != nil {
-		return nil, err
+	switch entry.Codec {
+	case cacheCodecProto, cacheCodecGzipProto:
+		if err := proto.Unmarshal(payload, &graph); err != nil {
+			return nil, err
+		}
+	default:
+		if err := protojson.Unmarshal(payload, &graph); err != nil {
+			return nil, err
+		}
 	}
 	var rawWarnings []json.RawMessage
 	if strings.TrimSpace(entry.WarningsJSON) != "" {
@@ -917,9 +1068,9 @@ func gzipPayload(payload []byte) ([]byte, error) {
 
 func decodeCachePayload(entry cacheEntry) ([]byte, error) {
 	switch entry.Codec {
-	case "":
+	case "", cacheCodecProto:
 		return []byte(entry.PayloadJSON), nil
-	case cacheCodecGzip:
+	case cacheCodecGzip, cacheCodecGzipProto:
 		reader, err := gzip.NewReader(bytes.NewReader([]byte(entry.PayloadJSON)))
 		if err != nil {
 			return nil, err

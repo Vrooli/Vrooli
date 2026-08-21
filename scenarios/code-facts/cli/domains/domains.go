@@ -3,6 +3,7 @@ package domains
 import (
 	"code-facts/cli/domains/cache"
 	"code-facts/cli/domains/facts"
+	indexdomain "code-facts/cli/domains/index"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -45,5 +46,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{factsGroup, cacheGroup}, nil
+	indexGroup, err := indexdomain.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{factsGroup, cacheGroup, indexGroup}, nil
 }

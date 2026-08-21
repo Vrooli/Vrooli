@@ -112,6 +112,12 @@ func TestServer_NewRequiresClock(t *testing.T) {
 	})
 }
 
+func TestServer_NewRequiresLogger(t *testing.T) {
+	require.PanicsWithValue(t, "server.New requires Deps.Logger", func() {
+		server.New(server.Deps{Clock: schedule.System()})
+	})
+}
+
 func newTestDeps() server.Deps {
 	return server.Deps{
 		Clock:  schedule.System(),

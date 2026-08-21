@@ -300,6 +300,96 @@
           }
         }
       ]
+    },
+    {
+      "name": "index",
+      "description": "Inspect and control the persistent Code Facts index",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show generations, counts, storage, drift, degradation, and active jobs",
+          "architecture": {"primitive": "proto_list"},
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "GetIndexStatus"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "measure": {
+            "domain": "index",
+            "intent": "How many source files are present in the active Code Facts index generation.",
+            "questions": [
+              "how many source files are indexed by code facts",
+              "code facts active index size",
+              "how many files are in the current code facts generation"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "source_files",
+              "unit": "files",
+              "summary_template": "{source_files} source files in active generation {active_generation}"
+            }
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Apply bounded changed and deleted source work",
+          "architecture": {"primitive": "proto_mutation"},
+          "flags": [
+            {"name": "generation", "description": "Optional generation; defaults to active"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "ReconcileIndex"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "reindex",
+          "description": "Build a full shadow generation",
+          "architecture": {"primitive": "proto_mutation"},
+          "positionals": [{"name": "generation", "required": true, "description": "New shadow generation identifier"}],
+          "flags": [
+            {"name": "confirm", "bool": true, "description": "Confirm the full rebuild"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "Reindex"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "cancel",
+          "description": "Request durable cancellation of an index job",
+          "architecture": {"primitive": "proto_mutation"},
+          "positionals": [{"name": "job-id", "required": true, "description": "Index job identifier"}],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "CancelIndexJob"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "promote",
+          "description": "Validate and promote a complete shadow generation",
+          "architecture": {"primitive": "proto_mutation"},
+          "positionals": [{"name": "generation", "required": true, "description": "Shadow generation identifier"}],
+          "flags": [
+            {"name": "confirm", "bool": true, "description": "Confirm generation promotion"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "PromoteIndexGeneration"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "rollback",
+          "description": "Restore a retained complete generation",
+          "architecture": {"primitive": "proto_mutation"},
+          "positionals": [{"name": "generation", "required": true, "description": "Retained generation identifier"}],
+          "flags": [
+            {"name": "confirm", "bool": true, "description": "Confirm generation rollback"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "RollbackIndexGeneration"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "cleanup",
+          "description": "Plan or delete retired derived generations",
+          "architecture": {"primitive": "proto_mutation"},
+          "flags": [
+            {"name": "dry-run", "bool": true, "description": "Report cleanup without deleting"},
+            {"name": "confirm", "bool": true, "description": "Confirm deletion when dry-run is false"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "CleanupIndex"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        }
+      ]
     }
   ],
   "omitted": [
@@ -320,6 +410,11 @@
         "domain": "cache",
         "stateful": true,
         "reason": "Cache status, inspect, and clear expose operational state and dry-run mutation counts."
+      },
+      {
+        "domain": "index",
+        "stateful": true,
+        "reason": "Index status and controls expose durable jobs, generations, cancellation, promotion, rollback, and cleanup."
       }
     ]
   }

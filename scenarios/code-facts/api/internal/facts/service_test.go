@@ -360,6 +360,38 @@ func TestSearchProjectIndexHonorsCancellation(t *testing.T) {
 	}
 }
 
+func TestSearchScopeRoleAndLanguageFiltersAreApplied(t *testing.T) {
+	fact := lexicalFact("scenarios/code-facts/api/internal/facts/service.go", 1, "func Search", factsv1.FactFamily_FACT_FAMILY_SYMBOLS)
+	if !searchFactMatchesFilters(fact, &factsv1.SearchRequest{Scope: "scenario:code-facts", Roles: []string{"implementation"}, Languages: []string{"go"}}) {
+		t.Fatalf("matching scoped implementation fact was rejected: %+v", fact.GetAttributes())
+	}
+	if searchFactMatchesFilters(fact, &factsv1.SearchRequest{Scope: "scenario:search-hub"}) {
+		t.Fatal("cross-scenario fact leaked through scope filter")
+	}
+	if searchFactMatchesFilters(fact, &factsv1.SearchRequest{Roles: []string{"contract"}}) {
+		t.Fatal("implementation fact leaked through role filter")
+	}
+	if searchFactMatchesFilters(fact, &factsv1.SearchRequest{Languages: []string{"typescript"}}) {
+		t.Fatal("Go fact leaked through language filter")
+	}
+}
+
+func TestScopedSearchTargetMapsScenarioPathAndPackage(t *testing.T) {
+	base := &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PROJECT, RepoRoot: "/repo"}
+	scenario := scopedSearchTarget(base, "scenario:code-facts")
+	if scenario.GetKind() != factsv1.TargetKind_TARGET_KIND_SCENARIO || scenario.GetScenario() != "code-facts" {
+		t.Fatalf("scenario target = %+v", scenario)
+	}
+	path := scopedSearchTarget(base, "path:packages/ai-go")
+	if path.GetKind() != factsv1.TargetKind_TARGET_KIND_PATH || path.GetPath() != "packages/ai-go" {
+		t.Fatalf("path target = %+v", path)
+	}
+	pkg := scopedSearchTarget(base, "package:github.com/vrooli/ai-go/search")
+	if pkg.GetKind() != factsv1.TargetKind_TARGET_KIND_PACKAGE || pkg.GetPackageName() == "" {
+		t.Fatalf("package target = %+v", pkg)
+	}
+}
+
 func TestNewServiceDoesNotBuildResidentProjectIndex(t *testing.T) {
 	t.Parallel()
 	if idx := NewService().projectIdx; idx != nil {
@@ -1139,7 +1171,7 @@ func TestSQLiteCacheStatusDoesNotMaterializePayloads(t *testing.T) {
 		t.Fatalf("Status entries = %d, want 1", len(entries))
 	}
 	got := entries[0]
-	if got.PayloadBytes == 0 || got.Codec != cacheCodecGzip {
+	if got.PayloadBytes == 0 || got.Codec != cacheCodecGzipProto {
 		t.Fatalf("metadata missing payload size/codec: %#v", got)
 	}
 	if got.PayloadJSON != "" || got.WarningsJSON != "" {
@@ -1248,11 +1280,88 @@ func TestSQLiteCacheCompressesGraphPayload(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("entries = %d, want 1", len(entries))
 	}
-	if entries[0].Codec != cacheCodecGzip {
-		t.Fatalf("codec = %q, want gzip", entries[0].Codec)
+	if entries[0].Codec != cacheCodecGzipProto {
+		t.Fatalf("codec = %q, want gzip+proto", entries[0].Codec)
 	}
 	if entries[0].PayloadBytes >= int64(len(rawPayload))/3 {
 		t.Fatalf("compressed payload bytes = %d, raw bytes = %d, want at least 3x reduction", entries[0].PayloadBytes, len(rawPayload))
+	}
+}
+
+func TestSQLiteCacheHitDoesNotRewriteStorage(t *testing.T) {
+	db := openCacheTestDB(t)
+	repo := NewSQLiteCacheRepository(db, 0)
+	entry := cacheTestEntry("read-only-hit", "read-only-hit", "source")
+	if err := repo.PutGraph(context.Background(), entry, cacheTestGraph("read-only-hit")); err != nil {
+		t.Fatalf("PutGraph: %v", err)
+	}
+	var before int64
+	if err := db.QueryRow(`SELECT total_changes()`).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, ok, err := repo.GetGraph(context.Background(), entry.Key); err != nil || !ok {
+		t.Fatalf("GetGraph ok=%v err=%v", ok, err)
+	}
+	var after int64
+	if err := db.QueryRow(`SELECT total_changes()`).Scan(&after); err != nil {
+		t.Fatal(err)
+	}
+	if after != before {
+		t.Fatalf("cache hit changed SQLite rows: before=%d after=%d", before, after)
+	}
+}
+
+func TestSQLiteCacheCleanupIsTTLandBatchBounded(t *testing.T) {
+	db := openCacheTestDB(t)
+	repo := NewSQLiteCacheRepository(db, 0)
+	for index := 0; index < cacheCleanupBatch+5; index++ {
+		key := fmt.Sprintf("expired-%03d", index)
+		entry := cacheTestEntry(key, key, key)
+		entry.CreatedAtUnix = time.Now().Add(-DefaultCacheTTL - time.Hour).Unix()
+		if err := repo.PutGraph(context.Background(), entry, cacheTestGraph(key)); err != nil {
+			t.Fatalf("PutGraph(%d): %v", index, err)
+		}
+	}
+	sweep, err := repo.Sweep(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sweep.ExpiredRows != cacheCleanupBatch {
+		t.Fatalf("expired rows = %d, want bounded batch %d", sweep.ExpiredRows, cacheCleanupBatch)
+	}
+	stats, err := repo.Stats(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.TotalRows != 5 {
+		t.Fatalf("remaining rows = %d, want 5", stats.TotalRows)
+	}
+}
+
+func TestSQLiteReportCacheReadsOnlyRequestedNormalizedFactRows(t *testing.T) {
+	db := openCacheTestDB(t)
+	repo := NewSQLiteCacheRepository(db, 0)
+	entry := cacheTestEntry("paged-report", "paged-report", "source")
+	report := &factsv1.CodeFactsReport{TotalFacts: 5}
+	for index := 0; index < 5; index++ {
+		report.Facts = append(report.Facts, &factsv1.GenericFact{Id: fmt.Sprintf("fact-%d", index), Subject: fmt.Sprintf("subject-%d", index)})
+	}
+	if err := repo.PutReport(context.Background(), entry, report); err != nil {
+		t.Fatal(err)
+	}
+	page, _, ok, err := repo.GetReportPage(context.Background(), entry.Key, 2, 2)
+	if err != nil || !ok {
+		t.Fatalf("GetReportPage ok=%v err=%v", ok, err)
+	}
+	if len(page.GetFacts()) != 2 || page.GetFacts()[0].GetId() != "fact-2" || page.GetFacts()[1].GetId() != "fact-3" {
+		t.Fatalf("bounded normalized page = %+v", page.GetFacts())
+	}
+	var rows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM code_facts_cache_report_facts WHERE cache_key=?`, entry.Key).Scan(&rows); err != nil {
+		t.Fatal(err)
+	}
+	if rows != 5 {
+		t.Fatalf("normalized fact rows = %d, want 5", rows)
 	}
 }
 
@@ -2337,16 +2446,30 @@ func exerciseCacheBudgetEvictsLRUAndRefreshChangesOrder(t *testing.T, newRepo fu
 	graphA := cacheTestGraph("graph-a")
 	graphB := cacheTestGraph("graph-b")
 	graphC := cacheTestGraph("graph-c")
-	sizeA := graphPayloadBytes(t, graphA)
-	sizeB := graphPayloadBytes(t, graphB)
-	sizeC := graphPayloadBytes(t, graphC)
-	repo := newRepo(sizeA + sizeB + sizeC - 1)
 	entryA := cacheTestEntry("key-a", "unit-a", "source-a")
 	entryA.CreatedAtUnix = 1
 	entryB := cacheTestEntry("key-b", "unit-b", "source-b")
 	entryB.CreatedAtUnix = 2
 	entryC := cacheTestEntry("key-c", "unit-c", "source-c")
 	entryC.CreatedAtUnix = 3
+	probe := newRepo(0)
+	for _, item := range []struct {
+		entry cacheEntry
+		graph *GraphResult
+	}{{entryA, graphA}, {entryB, graphB}, {entryC, graphC}} {
+		if err := probe.PutGraph(ctx, item.entry, item.graph); err != nil {
+			t.Fatalf("probe PutGraph: %v", err)
+		}
+	}
+	probeStats, err := probe.Stats(ctx)
+	if err != nil {
+		t.Fatalf("probe Stats: %v", err)
+	}
+	if _, _, err := probe.Clear(ctx, "", false); err != nil {
+		t.Fatalf("probe Clear: %v", err)
+	}
+	budget := probeStats.TotalPayloadBytes - 1
+	repo := newRepo(budget)
 	if err := repo.PutGraph(ctx, entryA, graphA); err != nil {
 		t.Fatalf("PutGraph(a): %v", err)
 	}
@@ -2359,11 +2482,11 @@ func exerciseCacheBudgetEvictsLRUAndRefreshChangesOrder(t *testing.T, newRepo fu
 	if err := repo.PutGraph(ctx, entryC, graphC); err != nil {
 		t.Fatalf("PutGraph(c): %v", err)
 	}
-	if _, _, ok, err := repo.GetGraph(ctx, entryB.Key); err != nil || ok {
-		t.Fatalf("GetGraph(b) ok=%v err=%v, want LRU miss", ok, err)
+	if _, _, ok, err := repo.GetGraph(ctx, entryA.Key); err != nil || ok {
+		t.Fatalf("GetGraph(a) ok=%v err=%v, want immutable-hit-policy miss", ok, err)
 	}
-	if _, _, ok, err := repo.GetGraph(ctx, entryA.Key); err != nil || !ok {
-		t.Fatalf("GetGraph(a after eviction) ok=%v err=%v, want hit", ok, err)
+	if _, _, ok, err := repo.GetGraph(ctx, entryB.Key); err != nil || !ok {
+		t.Fatalf("GetGraph(b after eviction) ok=%v err=%v, want hit", ok, err)
 	}
 	if _, _, ok, err := repo.GetGraph(ctx, entryC.Key); err != nil || !ok {
 		t.Fatalf("GetGraph(c after eviction) ok=%v err=%v, want hit", ok, err)
@@ -2372,8 +2495,8 @@ func exerciseCacheBudgetEvictsLRUAndRefreshChangesOrder(t *testing.T, newRepo fu
 	if err != nil {
 		t.Fatalf("Status: %v", err)
 	}
-	if totalCachePayloadBytes(entries) > sizeA+sizeB+sizeC-1 {
-		t.Fatalf("payload bytes = %d, want <= %d", totalCachePayloadBytes(entries), sizeA+sizeB+sizeC-1)
+	if totalCachePayloadBytes(entries) > budget {
+		t.Fatalf("payload bytes = %d, want <= %d", totalCachePayloadBytes(entries), budget)
 	}
 }
 
@@ -2383,15 +2506,16 @@ func exerciseCacheSweepDropsStaleSchemaAndEnforcesBudget(t *testing.T, repo Cach
 	graphA := cacheTestGraph("sweep-a")
 	graphB := cacheTestGraph("sweep-b")
 	graphC := cacheTestGraph("sweep-c")
+	now := time.Now().Unix()
 	sizeB := graphPayloadBytes(t, graphB)
 	sizeC := graphPayloadBytes(t, graphC)
 	entryA := cacheTestEntry("sweep-a", "sweep-a", "source-a")
-	entryA.CreatedAtUnix = 1
+	entryA.CreatedAtUnix = now - 3
 	entryA.SchemaVersion = "old-schema"
 	entryB := cacheTestEntry("sweep-b", "sweep-b", "source-b")
-	entryB.CreatedAtUnix = 2
+	entryB.CreatedAtUnix = now - 2
 	entryC := cacheTestEntry("sweep-c", "sweep-c", "source-c")
-	entryC.CreatedAtUnix = 3
+	entryC.CreatedAtUnix = now - 1
 	if err := repo.PutGraph(ctx, entryA, graphA); err != nil {
 		t.Fatalf("PutGraph(stale): %v", err)
 	}

@@ -23,6 +23,10 @@ workflow model.
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Describe request | facts | API/CLI/UI requests selected fact families for a bounded target. | Report returns target context, selected fact families, evidence, warnings, and cache metadata. | Cache state stores graph/report entries with deterministic hash evidence. | Unit/API/CLI/UI smoke tests plus resolver/analyzer/cache unit tests. |
+| Catalog generation | catalog | Startup, watcher reconciliation, or explicit reindex starts a build. | A validated shadow generation becomes active without exposing partial state. | Shadow, active, retired, and failed generation rows. | SQLite migration, rollback, paging, dirty-worktree, and activation tests. |
+| Descriptor refresh | proof | The descriptor artifact or watched manifest stamp changes. | A valid snapshot replaces the prior snapshot; an invalid refresh keeps and marks the last known-good snapshot. | Descriptor digest, generation, and reload failure evidence. | Descriptor fixture and committed-image tests. |
+| Incremental reconcile | indexcontrol | A debounced file event, five-minute audit, or operator request supplies bounded changes. | Catalog, FTS, vectors, and graph projections converge without source-wide work. | Durable job cursor, progress, cancellation, outcome, and timestamps. | Coordinator batching, debounce, no-change, cancellation, and restart tests. |
+| Generation promotion | indexcontrol | An operator confirms promotion of a validated shadow generation. | Qdrant alias and SQLite active pointer converge; compensation preserves the former active generation on failure. | Durable prepared, alias-promoted, committed, rolled-back, or failed promotion record. | Promotion compensation and catalog rollback tests. |
 
 ## Flow Details
 
@@ -46,6 +50,40 @@ workflow model.
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
 | facts / describe request | validated, described, unsupported, failed | report before validation, silent unsupported family omission | handler/service tests and CLI/UI smoke tests |
+| catalog / generation | shadow, active, retired, failed | empty shadow to active, retired to active, writes to retired, partial failure to active | `catalog.SQLiteRepository` transaction guards and tests |
+| indexcontrol / job | queued, running, cancellation_requested, succeeded, failed, cancelled, interrupted | terminal job to running, cancellation without durable state, non-advancing cursor | `indexcontrol.Coordinator` and `SQLiteJobStore` tests |
+| indexcontrol / promotion | prepared, alias_promoted, committed, rolled_back, failed | commit before alias, active pointer after failed alias, split generation left unrecorded | durable promotion ledger and compensation tests |
+
+### Catalog generation
+
+1. Resolve governed repository roots.
+2. Stream tracked and non-ignored files from Git. Use the filesystem iterator for an external root.
+3. Skip deleted tracked paths, symlinked directories, ignored trees, vendor trees, build output, and transient protobuf verification trees.
+4. Hash and classify one regular file at a time.
+5. Write bounded batches to the shadow generation.
+6. Record the source and descriptor digests.
+7. Validate that the shadow generation is complete.
+8. Retire the former active generation and promote the shadow generation in one transaction.
+
+Cancellation or a discovery/write failure marks the shadow generation failed. It does not change the active generation.
+
+### Incremental reconciliation and control
+
+1. Coalesce repeated path events for 500 ms and cap event delay at 10 seconds.
+2. Deduplicate by path and retain the latest operation.
+3. Read at most 256 changes by durable cursor unless a lower configured limit applies.
+4. Apply one bounded catalog, lexical, vector, and graph batch.
+5. Persist cursor, progress, cancellation, error, and outcome after every batch.
+6. Mark a running job `interrupted` after restart; resume or explicitly replace it from its durable cursor.
+7. Run a manifest audit every five minutes so a missed watcher event repairs.
+8. Validate a shadow generation before any alias or catalog promotion.
+9. Record promotion intent, move the vector alias, and then activate SQLite. If SQLite activation fails, restore the former alias and record `rolled_back`.
+10. Keep the previous complete generation until confirmed rollback or cleanup.
+
+Typed Connect RPCs and the `code-facts index` CLI group expose status,
+reconcile, reindex, cancel, promote, rollback, and cleanup. Reindex, promote,
+rollback, and mutating cleanup require explicit confirmation. Cleanup supports
+a non-mutating preview.
 
 ## Maturity Ladder
 

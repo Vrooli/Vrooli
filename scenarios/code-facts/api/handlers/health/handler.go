@@ -10,7 +10,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"runtime"
+	"strconv"
+	"strings"
+	"syscall"
 	"time"
 
 	"code-facts/internal/database"
@@ -98,9 +102,28 @@ type dependencyStatus struct {
 func runtimeMetrics(startedAt, now time.Time) map[string]any {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
-	return map[string]any{
+	metrics := map[string]any{
 		"goroutines":     runtime.NumGoroutine(),
 		"heap_mb":        float64(mem.HeapAlloc) / 1024 / 1024,
 		"uptime_seconds": now.Sub(startedAt).Seconds(),
 	}
+	if payload, err := os.ReadFile("/proc/self/statm"); err == nil { // #nosec G304 -- fixed Linux process accounting path.
+		fields := strings.Fields(string(payload))
+		if len(fields) > 1 {
+			if pages, err := strconv.ParseInt(fields[1], 10, 64); err == nil {
+				metrics["rss_mb"] = float64(pages*int64(os.Getpagesize())) / 1024 / 1024
+			}
+		}
+	}
+	var usage syscall.Rusage
+	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &usage); err == nil {
+		metrics["cpu_seconds"] = timevalSeconds(usage.Utime) + timevalSeconds(usage.Stime)
+		// Linux reports ru_maxrss in KiB.
+		metrics["rss_high_water_mb"] = float64(usage.Maxrss) / 1024
+	}
+	return metrics
+}
+
+func timevalSeconds(value syscall.Timeval) float64 {
+	return float64(value.Sec) + float64(value.Usec)/1_000_000
 }

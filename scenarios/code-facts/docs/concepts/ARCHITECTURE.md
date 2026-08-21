@@ -31,16 +31,23 @@ Out of bounds:
 
 ## Contracts And Data Flow
 
-```text
-request target
-  -> target resolver
-  -> surface inventory + parse-unit discovery
-  -> analyzer broker
-  -> fact normalizer
-  -> framework endpoint adapters
-  -> proof synthesizer
-  -> cache metadata
-  -> CodeFactsReport
+```mermaid
+flowchart TB
+    H[handlers] --> T[targets]
+    H --> R[retrieval]
+    H --> IC[indexcontrol]
+    H --> P[proof]
+    C[composition root] --> T
+    C --> CA[catalog]
+    C --> A[analysis]
+    C --> R
+    C --> IC
+    C --> P
+    CA --> DB[(SQLite catalog and FTS)]
+    R --> DB
+    R --> VS[vector-store seam]
+    A --> GP[indexed graph projections]
+    P --> GP
 ```
 
 Fact-family filtering is applied at the Code Facts service boundary. Provider-level extraction may still be full graph extraction until providers add selective extraction.
@@ -60,6 +67,51 @@ only the resulting proof statuses and evidence.
 | Target filesystem | Resolve paths and metadata deterministically | API internal target seams |
 | Cache store | Store graph/report entries, hash evidence, and diagnostics | API internal cache seams with SQLite production repository and in-memory tests |
 | Rendering | Keep CLI output thin and proto-shaped for JSON | CLI domain renderers |
+
+## Zone Map
+
+| Directory | Zone | May import | Enforcement |
+|---|---|---|---|
+| `api/handlers/facts/` | Transport edge | generated proto, Connect, domain contracts, module/httpx substrate | architecture tests and endpoint coverage |
+| `api/handlers/health/` | Transport edge | health contract and substrate | architecture tests and endpoint coverage |
+| `api/internal/targets/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
+| `api/internal/catalog/` | Domain core and persistence contract | standard library and `database/sql` only in adapter files | transport, sibling-domain, and ambient-dependency gate |
+| `api/internal/analysis/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
+| `api/internal/retrieval/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
+| `api/internal/proof/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
+| `api/internal/indexcontrol/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
+| `api/internal/cache/` | Domain core and persistence contract | standard library and `database/sql` only in adapter files | transport, sibling-domain, and ambient-dependency gate |
+| `api/internal/facts/` | Transitional orchestration | legacy providers and cache implementation | retirement is gated by vertical replacement tests in Phases 4-9 |
+| `api/internal/database/` | Cross-cutting substrate | database drivers and standard library | package tests |
+| `api/internal/logging/` | Cross-cutting substrate | standard library only | compile-time interface use |
+| `api/internal/httpc/` | Cross-cutting substrate | `net/http` | package tests |
+| `api/internal/httpx/` | Cross-cutting substrate | `net/http` | package tests |
+| `api/internal/middleware/` | Cross-cutting substrate | HTTP and logging | package tests |
+| `api/internal/module/` | Transport substrate | Gorilla mux and endpoint descriptors | module tests |
+| `api/internal/modules/` | Composition registry | handler modules | registry tests |
+| `api/internal/registration/` | Search Hub integration adapter | HTTP, Connect, generated registry client | integration tests |
+| `api/internal/server/` | Composition root | all mounted modules and transport substrate | server tests |
+| `api/internal/testutil/` | Test-only substrate | domain contracts and deterministic fakes | no-production-import gate |
+| `api/main.go` | Composition root | all concrete adapters | lifecycle and server tests |
+| `api/cmd/` | Operator/build tooling | domain and substrate packages | command tests |
+| `cli/` | Transport edge | generated clients and renderers | manifest/service coverage tests |
+| `ui/src/api/` | UI transport edge | generated web clients | UI unit tests |
+| `ui/src/features/` | UI capability domains | UI types and shared components | UI unit and selector tests |
+
+`api/internal/facts/` is not a destination domain. It is the legacy
+orchestration package whose vertical slices are removed as `targets`, `catalog`,
+`analysis`, `retrieval`, `proof`, `indexcontrol`, and `cache` gain production
+implementations. New storage, retrieval, or control behavior must land in the
+owning domain.
+
+## Boundary Maturity
+
+| Zone | Level | Evidence | Remaining drift |
+|---|---:|---|---|
+| New API domains | 5 | `TestDomainPackagesAreTransportFreeAndIndependent` and seam reconciliation | Production adapters arrive with their owning phases |
+| API transport/substrate | 4 | Existing handler, module, server, and no-production-test-import tests | `facts` still hosts legacy orchestration and provider transports |
+| CLI | 3 | Manifest-driven generated Connect client | Index-control commands are not implemented yet |
+| UI | 3 | Feature folders and shared API client | Evidence workspace domains and journeys are not implemented yet |
 
 ## Extension Rules
 

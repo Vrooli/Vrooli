@@ -10,7 +10,7 @@ import (
 )
 
 func TestModuleWithoutDatabaseStillMountsFactsEndpoints(t *testing.T) {
-	got := Module((*sql.DB)(nil), nil, DefaultCacheMaxBytes())
+	got := Module((*sql.DB)(nil), nil, DefaultCacheMaxBytes(), NewAdmission(), "")
 
 	require.Equal(t, "facts", got.Name)
 	require.NotNil(t, got.Mount)
@@ -21,6 +21,9 @@ func TestModuleWithoutDatabaseStillMountsFactsEndpoints(t *testing.T) {
 		"facts_cache_status",
 		"facts_cache_inspect",
 		"facts_cache_clear",
+		"search_control_reindex",
+		"search_control_status",
+		"search_control_cancel",
 	)
 }
 

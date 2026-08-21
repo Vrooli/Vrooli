@@ -8,34 +8,39 @@ This document names the real Code Facts bounded contexts before implementation.
 
 | Domain | Responsibility | Surface(s) | Primary Archetype | Secondary Traits | Source Paths | Notes |
 |---|---|---|---|---|---|---|
-| target | Turns caller input into a bounded code target. | API, CLI, UI | Policy/rules | Filesystem metadata | `api/internal/target`, `cli/domains/target`, `ui/src/features/target` | Resolves path/scenario/module/project inputs. |
-| surface | Discovers the analyzable surfaces and parse units of a target. | API, CLI, UI | Reporting/query | Scenario metadata | `api/internal/surface`, `ui/src/features/surfaces` | Inventories scenario surfaces and parse units. |
-| analyzer | Coordinates graph-provider calls and their failure semantics. | API | Integration/client | Graceful degradation | `api/internal/analyzer` | Brokers graph providers through seams. |
-| facts | Normalizes graph output into requested fact families. | API, CLI, UI | Reporting/query | Normalization | `api/internal/facts`, `ui/src/features/facts` | Normalizes graph output and filters fact families. |
-| proof | Synthesizes explicit adoption and endpoint evidence. | API, CLI, UI | Policy/rules | Evidence synthesis | `api/internal/proof`, `cli/domains/proof` | Produces proto adoption and endpoint proof evidence. |
-| cache | Provides deterministic fact-cache lifecycle and diagnostics. | API, CLI, UI | Configuration/settings | Reporting/query | `api/internal/cache`, `cli/domains/cache`, `ui/src/features/cache` | Owns cache keys, invalidation, and diagnostics. |
+| targets | Turns caller input into a bounded code target. | API, CLI, UI | Policy/rules | Filesystem metadata | `api/internal/targets` | Resolves path/scenario/module/project/package inputs. |
+| catalog | Owns governed source identity, roles, scopes, hashes, and generations. | API, CLI, UI | Persistence/workflow | Corpus discovery | `api/internal/catalog` | SQLite is the authority for every derived retrieval leg. |
+| analysis | Coordinates graph providers and normalized projections. | API | Integration/client | Graceful degradation | `api/internal/analysis` | Brokers analyzers; never parses supported languages itself. |
+| retrieval | Plans exact, semantic, relationship, and contract queries. | API, CLI, UI | Reporting/query | Fusion and ranking | `api/internal/retrieval` | Owns FTS, vector seams, fusion, freshness fences, and explanations. |
+| proof | Synthesizes explicit contract and relationship evidence. | API, CLI, UI | Policy/rules | Evidence synthesis | `api/internal/proof` | Keeps proof status independent from retrieval relevance. |
+| indexcontrol | Owns reconciliation jobs and generation lifecycle. | API, CLI, UI | Workflow | Authorization and cancellation | `api/internal/indexcontrol` | Reconcile, reindex, cancel, promote, rollback, and cleanup. |
+| cache | Provides bounded derived-result lifecycle and diagnostics. | API, CLI, UI | Configuration/settings | Reporting/query | `api/internal/cache` | Owns TTL, quotas, orphan collection, and no-write-on-hit policy. |
 
 ## Domain Details
 
-### target
+### targets
 
 Owns target kind parsing, repo-root detection, canonical path resolution, scenario-context detection, and bounded-target errors.
 
-### surface
+### catalog
 
-Owns scenario metadata reads, API/CLI/UI/sidecar surface inventory, endpoint and CLI metadata references, and parse-unit discovery.
+Owns repository-aware discovery, source roles, stable identities, active and shadow generations, and the normalized persistence model used by retrieval and proof projections.
 
-### analyzer
+### analysis
 
 Owns provider routing and failure mapping. It calls graph providers but does not interpret proto-health or endpoint policy.
 
-### facts
+### retrieval
 
-Owns normalized fact families: surfaces, parse units, imports, symbols, references, calls, type usages, warnings, and provider provenance.
+Owns query regimes, scoped lexical and semantic legs, deterministic fusion, reranking, freshness fences, and result explanations.
 
 ### proof
 
 Owns evidence synthesis for proto adoption and endpoint proofs. It consumes normalized facts and emits explicit evidence statuses.
+
+### indexcontrol
+
+Owns durable jobs, progress, cancellation, shadow promotion, rollback, and cleanup. Watcher events are latency hints; catalog reconciliation is the correctness authority.
 
 ### cache
 
@@ -48,11 +53,12 @@ Owns deterministic key construction, hit/miss/stale diagnostics, storage seam, a
 - Fact family: requested subset of facts/proofs.
 - Evidence: status plus source/provenance.
 
-## Deferred Domains
+## Transitional Package
 
-- CLI proof and UI widget proof are P1 until consumers are ready.
-- Cross-provider snapshot diffing is P1.
-- Additional language providers are P2.
+`api/internal/facts` contains the pre-platform implementation. It may orchestrate
+legacy behavior during comparison, but no new storage, retrieval, proof, or
+control policy belongs there. Each owning phase moves one vertical slice and
+deletes its superseded symbols after targeted parity tests pass.
 
 ## Non-Domains
 

@@ -36,6 +36,6 @@ Phase 13 intentionally did not migrate additional consumers. Follow-up candidate
 ## Work ladder
 
 - Rung: W3
-- Evidence: The operator approved memory hardening against the observed 3.92 GB Code Facts RSS. Focused facts tests pass; lifecycle evidence now measures 25 MB idle RSS and 44 MB RSS after a complete streaming project search. Post-repair scenario run `20260820-205412-7b59545d` passed 19/20 phases, with the existing UI `pnpm test:coverage` failure as its only failure.
-- Blocker: Project search is memory-bounded but takes 30.6 seconds across the full repository; a compact persistent index remains the next performance capability.
+- Evidence: W0 now matches the approved objective through OT-P0-011 to OT-P0-021. `business-health validate scenario code-facts` and `vrooli scenario requirements validate code-facts --json` both passed; focused corpus-contract tests passed. Baseline run `20260820-225937-4625b831` was green, but `api/internal/facts/service.go` still serves ordinary project queries through `lexicalProjectReport`, which opens and scans repository source files, so the new indexed-search contract is not implemented.
+- Blocker: Implement and validate the active `world-class-code-facts-hybrid-search` plan from the persistent catalog through final cutover.
 - Measured: 2026-08-20

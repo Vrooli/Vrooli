@@ -15,20 +15,23 @@ import (
 	"sync"
 	"time"
 
+	"code-facts/internal/catalog"
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
 type Service struct {
-	broker      *Broker
-	cache       CacheRepository
-	fileDomains FileDomainProvider
-	projectIdx  *lexicalProjectIndex
+	broker       *Broker
+	cache        CacheRepository
+	fileDomains  FileDomainProvider
+	projectIdx   *lexicalProjectIndex
+	admission    *WeightedAdmission
+	graphFlights *graphFlightGroup
 }
 
 type ServiceOption func(*Service)
 
 func NewService(opts ...ServiceOption) *Service {
-	s := &Service{broker: NewBroker(), cache: NewMemoryCacheRepository()}
+	s := &Service{broker: NewBroker(), cache: NewMemoryCacheRepository(), admission: NewWeightedAdmission(16, 64, 2*time.Second), graphFlights: newGraphFlightGroup()}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -56,6 +59,14 @@ func WithFileDomainProvider(provider FileDomainProvider) ServiceOption {
 	}
 }
 
+func WithAdmission(admission *WeightedAdmission) ServiceOption {
+	return func(s *Service) {
+		if admission != nil {
+			s.admission = admission
+		}
+	}
+}
+
 func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRequest) (*factsv1.CodeFactsReport, error) {
 	if err := validateTarget(req.GetTarget()); err != nil {
 		return nil, err
@@ -69,6 +80,28 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 	sourceHash, configHash := sourceFingerprint(target, parseUnits)
 	reportPlan := reportCachePlan(req.GetTarget(), target, parseUnits, include, sourceHash, configHash, req.GetMaxDepth())
 	if req.GetUseCache() {
+		if paged, ok := s.cache.(PagedReportCache); ok && req.GetPageSize() > 0 {
+			offset, err := pageOffset(req.GetPageToken())
+			if err != nil {
+				return nil, err
+			}
+			report, entry, hit, err := paged.GetReportPage(ctx, reportPlan.Key, offset, int(req.GetPageSize()))
+			if err != nil {
+				return nil, err
+			}
+			if hit {
+				total := int(report.GetTotalFacts())
+				if offset > total {
+					return nil, fmt.Errorf("page_token offset %d exceeds total facts %d", offset, total)
+				}
+				report.Cache = entry.metadata("hit", "report cache reused for identical target, options, source/config hashes, and analyzer versions")
+				end := offset + len(report.GetFacts())
+				if end < total {
+					report.NextPageToken = strconv.Itoa(end)
+				}
+				return report, nil
+			}
+		}
 		report, entry, ok, err := s.cache.GetReport(ctx, reportPlan.Key)
 		if err != nil {
 			return nil, err
@@ -147,13 +180,9 @@ func pageReport(report *factsv1.CodeFactsReport, pageSize int32, pageToken strin
 	if report == nil || pageSize <= 0 {
 		return report, nil
 	}
-	offset := 0
-	if strings.TrimSpace(pageToken) != "" {
-		parsed, err := strconv.Atoi(pageToken)
-		if err != nil || parsed < 0 {
-			return nil, fmt.Errorf("invalid page_token %q", pageToken)
-		}
-		offset = parsed
+	offset, err := pageOffset(pageToken)
+	if err != nil {
+		return nil, err
 	}
 	facts := report.GetFacts()
 	if offset > len(facts) {
@@ -172,11 +201,24 @@ func pageReport(report *factsv1.CodeFactsReport, pageSize int32, pageToken strin
 	return report, nil
 }
 
+func pageOffset(token string) (int, error) {
+	if strings.TrimSpace(token) == "" {
+		return 0, nil
+	}
+	parsed, err := strconv.Atoi(token)
+	if err != nil || parsed < 0 {
+		return 0, fmt.Errorf("invalid page_token %q", token)
+	}
+	return parsed, nil
+}
+
 // Search performs a bounded lexical search over node-oriented evidence. It is
 // the deliberately small query surface used by Search Hub: callers receive
 // identifiers and provenance, while DescribeCodeFacts remains the authoritative
 // detail endpoint. No graph edge family is embedded in this response.
 func (s *Service) Search(ctx context.Context, req *factsv1.SearchRequest) (*factsv1.SearchResponse, error) {
+	searchCtx, cancelSearch := boundedSearchContext(ctx, req.GetBudgetMs(), 1500*time.Millisecond)
+	defer cancelSearch()
 	query := strings.TrimSpace(req.GetQuery())
 	if query == "" {
 		return nil, fmt.Errorf("query is required")
@@ -189,6 +231,7 @@ func (s *Service) Search(ctx context.Context, req *factsv1.SearchRequest) (*fact
 	if target == nil {
 		target = &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PROJECT}
 	}
+	target = scopedSearchTarget(target, req.GetScope())
 	families := req.GetFamilies()
 	if len(families) == 0 {
 		families = []factsv1.FactFamily{
@@ -196,7 +239,9 @@ func (s *Service) Search(ctx context.Context, req *factsv1.SearchRequest) (*fact
 			factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
 		}
 	}
-	report, err := s.searchReport(ctx, target, families, query, limit)
+	lexicalCtx, cancelLexical := boundedSearchContext(searchCtx, req.GetLexicalBudgetMs(), 1*time.Second)
+	report, err := s.searchReport(lexicalCtx, target, families, query, limit)
+	cancelLexical()
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +254,7 @@ func (s *Service) Search(ctx context.Context, req *factsv1.SearchRequest) (*fact
 		}
 	}
 	for _, fact := range report.GetFacts() {
-		if fact == nil || len(terms) == 0 {
+		if fact == nil || len(terms) == 0 || !searchFactMatchesFilters(fact, req) {
 			continue
 		}
 		var score float64
@@ -263,7 +308,7 @@ func (s *Service) Search(ctx context.Context, req *factsv1.SearchRequest) (*fact
 		// an answer and keeps one cold graph lookup from multiplying by the
 		// provider's result limit.
 		if len(hits) > 0 {
-			hits[0].EdgeExpansions = s.expandEdges(ctx, target, hits[0], req.GetQuery())
+			hits[0].EdgeExpansions = s.expandEdges(searchCtx, target, hits[0], req.GetQuery(), req.GetGraphBudgetMs())
 		}
 	}
 	return &factsv1.SearchResponse{Results: hits}, nil
@@ -272,7 +317,7 @@ func (s *Service) Search(ctx context.Context, req *factsv1.SearchRequest) (*fact
 // expandEdges resolves graph relationships only after a node hit has been
 // selected. This keeps the Search Hub corpus small while preserving the
 // authoritative graph evidence for callers that need callers or references.
-func (s *Service) expandEdges(ctx context.Context, target *factsv1.CodeTarget, hit *factsv1.SearchHit, query string) []*factsv1.SearchExpansion {
+func (s *Service) expandEdges(ctx context.Context, target *factsv1.CodeTarget, hit *factsv1.SearchHit, query string, budgetMS int32) []*factsv1.SearchExpansion {
 	edgeTarget := target
 	if target.GetKind() == factsv1.TargetKind_TARGET_KIND_PROJECT || target.GetKind() == factsv1.TargetKind_TARGET_KIND_REPO {
 		// Resolve only the hit's source file for a fleet search. A whole-scenario
@@ -282,7 +327,7 @@ func (s *Service) expandEdges(ctx context.Context, target *factsv1.CodeTarget, h
 			edgeTarget = &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: filepath.Join(root, filepath.FromSlash(hit.GetPath()))}
 		}
 	}
-	edgeCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+	edgeCtx, cancel := boundedSearchContext(ctx, budgetMS, 1500*time.Millisecond)
 	defer cancel()
 	report, err := s.Describe(edgeCtx, &factsv1.DescribeCodeFactsRequest{
 		Target: edgeTarget,
@@ -346,6 +391,17 @@ func (s *Service) expandEdges(ctx context.Context, target *factsv1.CodeTarget, h
 	return expansions
 }
 
+func boundedSearchContext(ctx context.Context, milliseconds int32, fallback time.Duration) (context.Context, context.CancelFunc) {
+	budget := time.Duration(milliseconds) * time.Millisecond
+	if budget <= 0 {
+		budget = fallback
+	}
+	if budget > 30*time.Second {
+		budget = 30 * time.Second
+	}
+	return context.WithTimeout(ctx, budget)
+}
+
 // lexicalEdgeExpansions is an explicit, lower-confidence fallback for a cold
 // analyzer graph. It keeps Search Hub useful inside its provider deadline and
 // never presents lexical relationships as analyzer-backed graph evidence.
@@ -402,6 +458,11 @@ func (s *Service) searchReport(ctx context.Context, target *factsv1.CodeTarget, 
 	if err != nil {
 		return nil, err
 	}
+	release, err := s.admission.Acquire(ctx, "fallback", 0)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	if s.projectIdx != nil && filepath.Clean(s.projectIdx.root) == filepath.Clean(repoRoot) {
 		if !s.projectIdx.isReady() {
 			return lexicalProjectReport(ctx, repoRoot, target, families, query, limit)
@@ -603,11 +664,62 @@ func (idx *lexicalProjectIndex) scoreFacts(query string, queryTokens []string) m
 }
 
 func lexicalFact(path string, line int, subject string, family factsv1.FactFamily) *factsv1.GenericFact {
+	classification := catalog.Classify(path, nil)
 	return &factsv1.GenericFact{
 		Id: "code-facts:lexical:" + path + ":" + strconv.Itoa(line), Family: family, Kind: "lexical_source", Subject: subject,
-		Attributes: map[string]string{"path": path, "line": strconv.Itoa(line), "analyzer": "code-facts.lexical"},
-		Evidence:   []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, Confidence: 0.7, Analyzer: "code-facts.lexical", Message: "Matched source text in the bounded project lexical index.", Range: &factsv1.SourceRange{File: path, StartLine: int32(line), EndLine: int32(line)}}},
+		Attributes: map[string]string{
+			"path": path, "line": strconv.Itoa(line), "analyzer": "code-facts.lexical",
+			"role": string(classification.Role), "scope": classification.Scope, "language": classification.Language.Name,
+		},
+		Evidence: []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, Confidence: 0.7, Analyzer: "code-facts.lexical", Message: "Matched source text in the bounded project lexical index.", Range: &factsv1.SourceRange{File: path, StartLine: int32(line), EndLine: int32(line)}}},
 	}
+}
+
+func scopedSearchTarget(target *factsv1.CodeTarget, scope string) *factsv1.CodeTarget {
+	copy := *target
+	scope = strings.TrimSpace(scope)
+	switch {
+	case strings.HasPrefix(scope, "scenario:") && strings.TrimSpace(strings.TrimPrefix(scope, "scenario:")) != "":
+		copy.Kind = factsv1.TargetKind_TARGET_KIND_SCENARIO
+		copy.Scenario = strings.TrimSpace(strings.TrimPrefix(scope, "scenario:"))
+	case strings.HasPrefix(scope, "path:") && strings.TrimSpace(strings.TrimPrefix(scope, "path:")) != "":
+		copy.Kind = factsv1.TargetKind_TARGET_KIND_PATH
+		copy.Path = strings.TrimSpace(strings.TrimPrefix(scope, "path:"))
+	case strings.HasPrefix(scope, "package:") && strings.TrimSpace(strings.TrimPrefix(scope, "package:")) != "":
+		copy.Kind = factsv1.TargetKind_TARGET_KIND_PACKAGE
+		copy.PackageName = strings.TrimSpace(strings.TrimPrefix(scope, "package:"))
+	}
+	if len(target.GetLanguageFilter()) > 0 {
+		copy.LanguageFilter = append([]string(nil), target.GetLanguageFilter()...)
+	}
+	return &copy
+}
+
+func searchFactMatchesFilters(fact *factsv1.GenericFact, req *factsv1.SearchRequest) bool {
+	attrs := fact.GetAttributes()
+	if !matchesSearchValue(attrs["role"], req.GetRoles()) || !matchesSearchValue(attrs["language"], req.GetLanguages()) {
+		return false
+	}
+	scope := strings.TrimSpace(req.GetScope())
+	if scope == "" || scope == "global" || scope == "project:" {
+		return true
+	}
+	if strings.HasPrefix(scope, "path:") {
+		return strings.HasPrefix(attrs["path"], strings.TrimSpace(strings.TrimPrefix(scope, "path:")))
+	}
+	return attrs["scope"] == scope
+}
+
+func matchesSearchValue(actual string, allowed []string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	for _, value := range allowed {
+		if strings.EqualFold(strings.TrimSpace(actual), strings.TrimSpace(value)) {
+			return true
+		}
+	}
+	return false
 }
 
 // lexicalProjectReport is the bounded lexical leg for fleet search. It reads
@@ -724,7 +836,12 @@ func (s *Service) DescribeFleetImports(ctx context.Context, req *factsv1.Describ
 	}
 	scenarios := normalizeScenarioList(req.GetScenarios())
 	if len(scenarios) == 0 {
+		release, admissionErr := s.admission.Acquire(ctx, "fleet", 0)
+		if admissionErr != nil {
+			return nil, admissionErr
+		}
 		scenarios, err = listScenarioSlugs(repoRoot)
+		release()
 		if err != nil {
 			return nil, err
 		}
@@ -1039,7 +1156,31 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 		}
 		var err error
 		if result == nil {
-			result, err = extractForFamilies(ctx, provider, unit, include)
+			result, err = s.graphFlights.Do(ctx, graphPlan.Key, func(workCtx context.Context) (*GraphResult, error) {
+				if useCache {
+					cached, _, ok, cacheErr := s.cache.GetGraph(workCtx, graphPlan.Key)
+					if cacheErr != nil {
+						return nil, cacheErr
+					}
+					if ok {
+						return cached, nil
+					}
+				}
+				release, admissionErr := s.admission.Acquire(workCtx, "graph", 0)
+				if admissionErr != nil {
+					return nil, admissionErr
+				}
+				defer release()
+				extracted, extractionErr := extractForFamilies(workCtx, provider, unit, include)
+				if extractionErr != nil {
+					return nil, extractionErr
+				}
+				graphPlan.GraphHash = extracted.GraphHash
+				if cacheErr := s.cache.PutGraph(workCtx, graphPlan, extracted); cacheErr != nil {
+					return nil, cacheErr
+				}
+				return extracted, nil
+			})
 		}
 		if err != nil {
 			var unsupported ProviderUnsupportedError
@@ -1064,10 +1205,6 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 				})
 				continue
 			}
-			return nil, nil, nil, "", err
-		}
-		graphPlan.GraphHash = result.GraphHash
-		if err := s.cache.PutGraph(ctx, graphPlan, result); err != nil {
 			return nil, nil, nil, "", err
 		}
 		graphHashes = append(graphHashes, result.GraphHash)

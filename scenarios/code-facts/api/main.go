@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"code-facts/internal/catalog"
 	"code-facts/internal/modules"
 	"code-facts/internal/registration"
 	"code-facts/internal/server"
@@ -49,6 +50,7 @@ func main() {
 	if preflight.Run(preflight.Config{ScenarioName: "code-facts"}) {
 		return
 	}
+	logger := log.New(os.Stderr, "", log.LstdFlags)
 
 	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
@@ -57,37 +59,42 @@ func main() {
 		MaxIdleConns: 1,
 	})
 	if err != nil {
-		log.Fatalf("Database connection failed: %v", err)
+		logger.Fatalf("Database connection failed: %v", err)
 	}
 
 	ctx := context.Background()
 	if err := factsH.MigrateSchema(ctx, db.Primary()); err != nil {
-		log.Fatalf("schema migration failed: %v", err)
+		logger.Fatalf("schema migration failed: %v", err)
+	}
+	if err := catalog.Migrate(ctx, db.Primary()); err != nil {
+		logger.Fatalf("catalog schema migration failed: %v", err)
 	}
 	if err := database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...); err != nil {
-		log.Fatalf("schema initialization failed: %v", err)
+		logger.Fatalf("schema initialization failed: %v", err)
 	}
 	cacheMaxBytes, err := cacheMaxBytesFromEnv()
 	if err != nil {
-		log.Fatalf("cache configuration failed: %v", err)
+		logger.Fatalf("cache configuration failed: %v", err)
 	}
+	searchTokens := registration.NewTokenStore()
+	admission := factsH.NewAdmission()
 	go func() {
 		time.Sleep(10 * time.Second)
 		sweep, err := factsH.SweepCache(context.Background(), db.Primary(), cacheMaxBytes)
 		if err != nil {
-			log.Printf("code-facts cache startup sweep failed: %v", err)
+			logger.Printf("code-facts cache startup sweep failed: %v", err)
 			return
 		}
-		log.Printf("code-facts cache startup sweep: stale_rows=%d evicted_rows=%d reclaimed_bytes=%d remaining_bytes=%d max_bytes=%d",
+		logger.Printf("code-facts cache startup sweep: stale_rows=%d evicted_rows=%d reclaimed_bytes=%d remaining_bytes=%d max_bytes=%d",
 			sweep.StaleRows, sweep.EvictedRows, sweep.ReclaimedByte, sweep.RemainingByte, cacheMaxBytes)
 	}()
 
 	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "code-facts-api", "1.0.0", func(ctx context.Context) (map[string]any, error) {
-			return factsH.CacheMetrics(ctx, db.Primary(), cacheMaxBytes)
+			return factsH.OperationalMetrics(ctx, db.Primary(), cacheMaxBytes, admission)
 		}),
-		factsH.Module(db.Primary(), log.Default(), cacheMaxBytes),
+		factsH.Module(db.Primary(), logger, cacheMaxBytes, admission, os.Getenv("CODE_FACTS_INDEX_CONTROL_TOKEN"), searchTokens.Matches),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -97,7 +104,7 @@ func main() {
 	devrouting.Register(rootMux, db)
 
 	rootMux.Handle("/", srv.Handler())
-	go registration.Register(ctx, searchDescriptorPath(), log.Default())
+	go registration.Register(ctx, searchDescriptorPath(), logger, searchTokens)
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
@@ -108,7 +115,7 @@ func main() {
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
-		log.Fatalf("Server error: %v", err)
+		logger.Fatalf("Server error: %v", err)
 	}
 }
 

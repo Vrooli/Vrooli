@@ -1023,7 +1023,9 @@ lower the gate.
 - **Seams definition + adding new seams**: [`SEAMS.md`](SEAMS.md).
 - **Skill bundle for testing-related work** (load before substantial test changes):
   ```bash
-  prompt-manager skill read seam-discovery-and-enforcement test unit-testing-architecture-steer
+  prompt-manager skill read seam-discovery-and-enforcement
+  prompt-manager skill read test
+  prompt-manager skill read unit-testing-architecture-steer
   ```
 - **Test runner used by CI and `vrooli scenario test`**: see
   `.github/workflows/test.yml` and `packages/cli-core/cmd/scenario_test.go`.

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P0 requirements for Code Facts target resolution, fact selection, evidence status, proof synthesis, cache, and programmatic surfaces.",
-    "last_validated_at": "2026-06-12T15:52:24-04:00",
+    "last_validated_at": "2026-08-20T21:01:31-04:00",
     "module": "core-contract",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -238,6 +238,301 @@
           "type": "test",
           "status": "implemented",
           "notes": "FactsWorkbench tests cover target entry, include filtering, populated evidence/fact/surface/parse-unit tables, warnings, cache panel, path targets, cache preference, and error states."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-011",
+      "title": "When a governed root changes, the catalog shall classify every eligible source in one active generation.",
+      "status": "complete",
+      "prd_ref": "OT-P0-011",
+      "category": "catalog",
+      "criticality": "P0",
+      "description": "Code Facts must inventory governed roots deterministically, assign one explicit corpus role, exclude transient artifacts, and report role counts against the versioned corpus policy.",
+      "tags": [
+        "catalog",
+        "corpus-policy",
+        "roles"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/facts/corpus_contract_test.go::TestCorpusPolicyFixtureIsComplete",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The fixture gate protects the complete role vocabulary, governed roots, exclusions, and deterministic three-times multiplier. Catalog behavior coverage is added with the catalog implementation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/catalog_test.go::TestRepositoryCorpusInventory",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The opt-in live inventory streams Git-tracked and non-ignored files, proves every governed root and role, and rejects transient catalog entries. Classification goldens cover every role."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-012",
+      "title": "When an exact code query arrives, the service shall answer from the persistent index within the exact-search budgets.",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "category": "retrieval.lexical",
+      "criticality": "P0",
+      "description": "Exact identifier, symbol, and path queries must read no repository source files and must meet the current and three-times-corpus wall-time and CPU budgets.",
+      "tags": [
+        "fts",
+        "exact",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/retrieval/evaluation_test.go::TestSQLiteExactSearchPerformanceBudgets",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "The deterministic 32,000- and 96,000-document scale proof records p50, p95, p99, and allocations. Latest measured p95 is 11.96 ms and 72.51 ms against 100 ms and 200 ms budgets, with 91 allocations per query. TestRetrievalProductionDoesNotOpenRepositorySourceFiles rejects serving filesystem access. Public-handler cutover remains planned."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-013",
+      "title": "When a natural-language query arrives, the service shall fuse evaluated lexical and semantic candidates within the hybrid-search budgets.",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "category": "retrieval.hybrid",
+      "criticality": "P0",
+      "description": "Hybrid retrieval must meet recall@5, MRR@3, category, latency, and CPU gates on the reviewed evaluation corpus without regressing exact queries.",
+      "tags": [
+        "hybrid",
+        "semantic",
+        "quality",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/facts/corpus_contract_test.go::TestRetrievalEvaluationCorpusHasAuthoritativeLocators",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The evaluation-contract test verifies reviewed categories, immutable quality gates, and source-backed locators. Retrieval evaluation is added with the fusion engine."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/retrieval/hybrid_test.go::TestHybridEngineRunsLegsConcurrentlyAndExplainsFusion",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Shared concurrent lexical and semantic fusion preserves per-leg reciprocal-rank evidence. Exact queries bypass semantic and reranking, while embedder, vector-store, and reranker failures preserve truthful lexical service. The versioned installed-host profile report passes recall@5 and MRR@3 gates; final full-provider latency and evaluation remain planned."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-014",
+      "title": "When indexed inputs change, the reconciler shall promote only a complete fresh generation.",
+      "status": "planned",
+      "prd_ref": "OT-P0-014",
+      "category": "index.generation",
+      "criticality": "P0",
+      "description": "Changed files must become searchable within 15 seconds p95, missed events must repair within five minutes, and stale or deleted candidates must never cross the active-generation fence.",
+      "tags": [
+        "generation",
+        "freshness",
+        "reconcile"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Generation transition, watcher loss, stale-candidate, delete, rename, restart, cancellation, promotion-failure, and rollback tests will cover this requirement."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/sqlite_test.go::TestSQLiteRepositoryPromotesOnlyCompleteShadowGeneration",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Catalog generation tests prove transactional activation, retained serving generation on failed promotion, immutable retired generations, restart-safe migration, rollback, changed/renamed/deleted convergence, and bounded paging. Watcher freshness remains planned."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/indexcontrol/coordinator_test.go::TestDebouncerDeduplicatesAndBoundsFreshnessLatency",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Watcher work deduplicates by path and becomes due within 10 seconds. The periodic manifest audit becomes due at exactly five minutes. Coordinator tests also cover bounded changes, no-change work, interruption, cancellation, promotion compensation, shadow completion, and rollback."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-015",
+      "title": "When a result is returned, the service shall separate stable provenance, retrieval relevance, and relationship proof.",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
+      "category": "evidence",
+      "criticality": "P0",
+      "description": "Every result must carry a stable identity, current range and source hash, generation, role, scope, retrieval regime, score explanation, analyzer provenance, and independent evidence status.",
+      "tags": [
+        "identity",
+        "provenance",
+        "proof"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/catalog_test.go::TestStableEvidenceIdentityIgnoresMutableLinePosition",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Stable file, symbol, contract, and content-anchor identities exclude mutable line ranges. Search-response separation remains planned for the retrieval phase."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/retrieval/sqlite_test.go::TestSQLiteIndexExactBM25FiltersAndExplanations",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Persistent retrieval returns stable ID, current range, source hash, generation, role, scope, authority, regime, score factors, retrieval explanation, evidence freshness, and independent proof state."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/analysis/sqlite_test.go::TestSQLiteProjectionStoreReturnsOnlyCurrentAnalyzerEvidence",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Indexed relationship expansion returns analyzer name/version and proof status only when generation and source hash remain current; retrieval relevance never manufactures graph proof."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-016",
+      "title": "If an optional retrieval stage is unavailable, then the service shall preserve lexical search and name the degradation.",
+      "status": "complete",
+      "prd_ref": "OT-P0-016",
+      "category": "retrieval.degradation",
+      "criticality": "P0",
+      "description": "Qdrant, Ollama, reranker, and graph failures must degrade independently; exact identifier and path queries must bypass unnecessary model work.",
+      "tags": [
+        "degradation",
+        "fallback",
+        "availability"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/retrieval/hybrid_test.go::TestHybridDegradedMatrixPreservesLexicalResults",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Embedder, vector-store, reranker, and graph failures name the unavailable stage and preserve lexical results. Exact queries invoke neither semantic retrieval nor reranking. Live resource-stop validation remains a final integration gate."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-017",
+      "title": "When an authorized operator changes index state, every control surface shall report the same durable job outcome.",
+      "status": "complete",
+      "prd_ref": "OT-P0-017",
+      "category": "index.control",
+      "criticality": "P0",
+      "description": "Reconcile, reindex, cancel, promote, rollback, and cleanup must use typed API, CLI, UI, and Search Hub contracts, enforce authorization and confirmation, and preserve the last complete generation on failure.",
+      "tags": [
+        "control-plane",
+        "jobs",
+        "rollback"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/indexcontrol/coordinator_test.go::TestSQLiteJobStorePersistsCancellationAndRestartEvidence",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The durable SQLite job and promotion ledgers, typed Connect RPCs, confirmation guards, and governed `code-facts index` CLI commands cover status, reconcile, reindex, cancel, promote, rollback, and cleanup. UI parity remains planned."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-018",
+      "title": "While expensive workloads run concurrently, the service shall enforce bounded admission, memory, and storage.",
+      "status": "complete",
+      "prd_ref": "OT-P0-018",
+      "category": "resource-governance",
+      "criticality": "P0",
+      "description": "One weighted controller must bound indexing, embedding, graph extraction, fleet analysis, and fallback work; caches and derived storage must honor quotas without write-on-hit behavior or full-table health scans.",
+      "tags": [
+        "admission",
+        "memory",
+        "storage",
+        "cache"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Concurrent workload, RSS, allocation, queue-release, cancellation, no-write-on-hit, quota, orphan, TTL, and storage-growth tests will enforce the budgets."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-019",
+      "title": "When protobuf contracts are indexed, the service shall use the descriptor image for structure and `.proto` files for provenance.",
+      "status": "complete",
+      "prd_ref": "OT-P0-019",
+      "category": "contract-index",
+      "criticality": "P0",
+      "description": "Contract indexing must consume the current descriptor digest through descriptorimage.Source, join canonical declarations to source files, and retain the last valid snapshot after load or drift failure.",
+      "tags": [
+        "protobuf",
+        "descriptor",
+        "provenance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/proof/descriptor_test.go::TestCommittedDescriptorImageResolvesCodeFactsSearchToAuthoritativeProto",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Descriptor fixture and committed-image tests cover resolved services, RPCs, messages, fields, enums, imports, generated aliases, digest/source joins, missing ranges, invalid reloads, and last-known-good retention. Endpoint option projection remains planned."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-020",
+      "title": "While a complete generation is active, Search Hub shall receive truthful scoped local-index capabilities and status.",
+      "status": "planned",
+      "prd_ref": "OT-P0-020",
+      "category": "integration.search-hub",
+      "criticality": "P0",
+      "description": "Code and contract leaves must propagate scenario, package, path, family, and role scopes; expose generation, freshness, drift, counts, and degraded stages; and avoid provider timeout replacement storms.",
+      "tags": [
+        "search-hub",
+        "local-index",
+        "scope"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Direct-provider and federated suites will verify scope bodies, status parsing, cancellation, coalescing, healthy timeout behavior, and unrelated-provider compatibility."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-021",
+      "title": "When an operator searches or manages the corpus, the evidence workspace shall make trust and index state understandable on every supported viewport.",
+      "status": "planned",
+      "prd_ref": "OT-P0-021",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The responsive workspace must expose search, ranked evidence, provenance, graph relationships, contract proof, corpus generations, controls, degradation, and evaluation comparison with WCAG 2.2 AA keyboard behavior.",
+      "tags": [
+        "ui",
+        "accessibility",
+        "responsive",
+        "evidence"
+      ],
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Desktop, tablet, and mobile BAS journeys plus accessibility checks and approved screenshots will cover every primary workspace journey and non-happy state.",
+          "scenario": "browser-automation-studio"
         }
       ]
     }

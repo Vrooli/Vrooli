@@ -45,8 +45,26 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import { createElement, type ReactElement } from "react";
+import {
+  renderWithProviders as renderWithBaseProviders,
+  type ProviderRenderOptions,
+  type ProviderRenderResult,
+} from "@vrooli/api-base/testing";
+import { Providers } from "../app/providers";
+import { i18n } from "../i18n";
+
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
+
+export function renderWithProviders(
+  element: ReactElement,
+  options?: ProviderRenderOptions,
+): ProviderRenderResult {
+  return renderWithBaseProviders(createElement(Providers, null, element), {
+    ...options,
+    i18n: options?.i18n ?? i18n,
+  });
+}
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 // Note: HealthResponse is the *generated proto type* re-exported by
