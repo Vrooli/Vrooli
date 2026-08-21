@@ -63,6 +63,33 @@ def test_readiness_distinguishes_live_process_from_loaded_model():
         server.MODEL.loaded = old_loaded
 
 
+def test_durable_event_queue_fails_closed_at_memory_budget():
+    """A stalled consumer cannot turn durable transcript delivery into an
+    unbounded resource allocation; already queued events remain intact for
+    the drain/recovery path."""
+    old_events, old_bytes = server.MAX_DURABLE_EVENTS, server.MAX_DURABLE_BYTES
+    try:
+        server.MAX_DURABLE_EVENTS = 2
+        server.MAX_DURABLE_BYTES = 1024 * 1024
+        session = server.StreamSession(FakeWS())
+        session._enqueue_durable({"type": "segment", "text": "first"})
+        session._enqueue_durable({"type": "segment", "text": "second"})
+        queued_bytes = session._durable_bytes
+
+        try:
+            session._enqueue_durable({"type": "segment", "text": "third"})
+        except server.DurableQueueOverflow:
+            pass
+        else:
+            raise AssertionError("durable queue overflow must fail closed")
+
+        assert len(session._durables) == 2
+        assert session._durable_bytes == queued_bytes
+        assert session._durable_overflow is True
+    finally:
+        server.MAX_DURABLE_EVENTS, server.MAX_DURABLE_BYTES = old_events, old_bytes
+
+
 class FakeWS:
     """Minimal WebSocket capturing every JSON frame the session emits."""
 
@@ -104,7 +131,11 @@ class FakeTokenizer:
         return " ".join(f"w{i}" for i in ids)
 
 
-def _install_fake_model(max_segment_frames: int, silence_commit_frames: int = 16):
+def _install_fake_model(
+    max_segment_frames: int,
+    silence_commit_frames: int = 16,
+    stream_reset_interval_frames: int = 0,
+):
     """Stub the module-global MODEL so segmentation logic runs without torch."""
     m = server.MODEL
     m.text_padding_id = 3
@@ -114,6 +145,7 @@ def _install_fake_model(max_segment_frames: int, silence_commit_frames: int = 16
     m._tokenizer = FakeTokenizer()
     server.MAX_SEGMENT_FRAMES = max_segment_frames
     server.SILENCE_COMMIT_FRAMES = silence_commit_frames
+    server.STREAM_RESET_INTERVAL_FRAMES = stream_reset_interval_frames
 
 
 async def _step(session, tokens):
@@ -155,6 +187,79 @@ def test_continuous_speech_force_commits_before_pause():
     )
     # Roughly one segment per ~max_segment_frames window (with word alignment).
     assert len(segs) >= 2, f"expected multiple force-commits over 200 frames, got {len(segs)}"
+
+
+def test_long_stream_resets_decoder_only_after_durable_boundary():
+    """Finite model context resets at a committed word boundary, not mid-word."""
+    _install_fake_model(max_segment_frames=4, stream_reset_interval_frames=4)
+    ws = FakeWS()
+    session = server.StreamSession(ws)
+
+    class Resettable:
+        def __init__(self):
+            self.reset_calls = 0
+
+        def reset_streaming(self):
+            self.reset_calls += 1
+
+    mimi = Resettable()
+    lm_gen = Resettable()
+    old_mimi, old_lm_gen = server.MODEL._mimi, server.MODEL._lm_gen
+    server.MODEL._mimi, server.MODEL._lm_gen = mimi, lm_gen
+
+    try:
+        asyncio.run(_step(session, [TEXT, BOUNDARY] * 8))
+        assert len(_segments(ws)) >= 2
+        assert mimi.reset_calls >= 1
+        assert lm_gen.reset_calls == mimi.reset_calls
+    finally:
+        server.MODEL._mimi, server.MODEL._lm_gen = old_mimi, old_lm_gen
+
+
+def test_decoder_reset_replays_bounded_acoustic_tail_without_emitting_text():
+    """Reset warm-up must replay only recent frames and never commit replay text."""
+    _install_fake_model(max_segment_frames=4, stream_reset_interval_frames=4)
+    old_replay = server.STREAM_RESET_REPLAY_FRAMES
+    server.STREAM_RESET_REPLAY_FRAMES = 2
+    ws = FakeWS()
+    session = server.StreamSession(ws)
+
+    class FakeTorch:
+        @staticmethod
+        def no_grad():
+            return contextlib.nullcontext()
+
+    class Resettable:
+        def __init__(self):
+            self.reset_calls = 0
+            self.replayed = 0
+
+        def reset_streaming(self):
+            self.reset_calls += 1
+
+        def encode(self, _frame):
+            self.replayed += 1
+            return object()
+
+        def step(self, _tokens):
+            self.replayed += 1
+            return None
+
+    old_torch, old_mimi, old_lm_gen = server.MODEL._torch, server.MODEL._mimi, server.MODEL._lm_gen
+    mimi = Resettable()
+    lm_gen = Resettable()
+    server.MODEL._torch, server.MODEL._mimi, server.MODEL._lm_gen = FakeTorch, mimi, lm_gen
+    session._recent_frames.extend([object(), object(), object()])
+    try:
+        asyncio.run(_step(session, [TEXT, BOUNDARY] * 8))
+        assert mimi.reset_calls >= 1
+        assert lm_gen.reset_calls == mimi.reset_calls
+        assert mimi.replayed == 2 * mimi.reset_calls
+        assert lm_gen.replayed == 2 * lm_gen.reset_calls
+        assert len(_segments(ws)) >= 2
+    finally:
+        server.STREAM_RESET_REPLAY_FRAMES = old_replay
+        server.MODEL._torch, server.MODEL._mimi, server.MODEL._lm_gen = old_torch, old_mimi, old_lm_gen
 
 
 def test_silence_commit_still_fires():

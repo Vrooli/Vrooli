@@ -1,6 +1,7 @@
 package hostreqcheck
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -186,4 +187,44 @@ func assertFinding(t *testing.T, report Report, code FindingCode, ownerKind, own
 		}
 	}
 	t.Fatalf("missing finding %s %s %s %s in %+v", code, ownerKind, ownerName, requirement, report.Findings)
+}
+
+// A safeguard whose TEST files mention system paths as fixtures must not be
+// pushed into declaring elevated privilege.
+//
+// This is a regression guard with real stakes rather than a style rule: the
+// only way to satisfy a false elevation finding is to declare
+// `privilege: elevated`, which makes `vrooli setup` request elevation the
+// safeguard does not need. Privilege is a consent boundary, so over-declaring
+// it is a defect in the same direction as under-declaring it.
+func TestSourceElevationScanIgnoresTestFixtures(t *testing.T) {
+	dir := t.TempDir()
+
+	// A handler that only touches the user's home directory.
+	handler := "package example\n\nconst target = \"$HOME/.bashrc\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "handler.go"), []byte(handler), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if sourceRequiresElevation(dir) {
+		t.Fatal("a handler touching only $HOME must not require elevation")
+	}
+
+	// A test in the same package naming a system path as a PATH fixture. This
+	// is exactly path-hygiene's shape.
+	fixture := "package example\n\nvar cases = []string{\"/usr/bin:/bin\"}\n"
+	if err := os.WriteFile(filepath.Join(dir, "rewrite_test.go"), []byte(fixture), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if sourceRequiresElevation(dir) {
+		t.Fatal("a system path appearing only in a _test.go fixture must not force an elevated declaration")
+	}
+
+	// Real evidence in non-test source is still detected.
+	privileged := "package example\n\nconst unit = \"/etc/systemd/system/example.service\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "install.go"), []byte(privileged), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !sourceRequiresElevation(dir) {
+		t.Fatal("a system path in real handler source must still require elevation")
+	}
 }

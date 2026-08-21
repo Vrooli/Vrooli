@@ -996,8 +996,18 @@ type ProviderHealth struct {
 	EmbeddingModel string `protobuf:"bytes,25,opt,name=embedding_model,json=embeddingModel,proto3" json:"embedding_model,omitempty"`
 	// Effective freshness budget used by the automatic-routing gate.
 	FreshnessBudget string `protobuf:"bytes,26,opt,name=freshness_budget,json=freshnessBudget,proto3" json:"freshness_budget,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Provider-owned index generation and corpus state. These fields are copied
+	// generically from the declared status endpoint; Search Hub never infers
+	// provider state from scenario identity.
+	ActiveGeneration string   `protobuf:"bytes,27,opt,name=active_generation,json=activeGeneration,proto3" json:"active_generation,omitempty"`
+	SourceFiles      int64    `protobuf:"varint,28,opt,name=source_files,json=sourceFiles,proto3" json:"source_files,omitempty"`
+	SemanticCards    int64    `protobuf:"varint,29,opt,name=semantic_cards,json=semanticCards,proto3" json:"semantic_cards,omitempty"`
+	GraphFacts       int64    `protobuf:"varint,30,opt,name=graph_facts,json=graphFacts,proto3" json:"graph_facts,omitempty"`
+	IndexState       string   `protobuf:"bytes,31,opt,name=index_state,json=indexState,proto3" json:"index_state,omitempty"`
+	DegradedStages   []string `protobuf:"bytes,32,rep,name=degraded_stages,json=degradedStages,proto3" json:"degraded_stages,omitempty"`
+	Drifted          bool     `protobuf:"varint,33,opt,name=drifted,proto3" json:"drifted,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ProviderHealth) Reset() {
@@ -1203,6 +1213,55 @@ func (x *ProviderHealth) GetFreshnessBudget() string {
 		return x.FreshnessBudget
 	}
 	return ""
+}
+
+func (x *ProviderHealth) GetActiveGeneration() string {
+	if x != nil {
+		return x.ActiveGeneration
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetSourceFiles() int64 {
+	if x != nil {
+		return x.SourceFiles
+	}
+	return 0
+}
+
+func (x *ProviderHealth) GetSemanticCards() int64 {
+	if x != nil {
+		return x.SemanticCards
+	}
+	return 0
+}
+
+func (x *ProviderHealth) GetGraphFacts() int64 {
+	if x != nil {
+		return x.GraphFacts
+	}
+	return 0
+}
+
+func (x *ProviderHealth) GetIndexState() string {
+	if x != nil {
+		return x.IndexState
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetDegradedStages() []string {
+	if x != nil {
+		return x.DegradedStages
+	}
+	return nil
+}
+
+func (x *ProviderHealth) GetDrifted() bool {
+	if x != nil {
+		return x.Drifted
+	}
+	return false
 }
 
 type StatusResponse struct {
@@ -1547,7 +1606,8 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12\x14\n" +
 	"\x05reset\x18\x02 \x01(\bR\x05reset\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\x9a\b\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\x96\n" +
+	"\n" +
 	"\x0eProviderHealth\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12\x1c\n" +
@@ -1578,7 +1638,16 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\vdeclared_at\x18\x18 \x01(\tR\n" +
 	"declaredAt\x12'\n" +
 	"\x0fembedding_model\x18\x19 \x01(\tR\x0eembeddingModel\x12)\n" +
-	"\x10freshness_budget\x18\x1a \x01(\tR\x0ffreshnessBudgetB\b\n" +
+	"\x10freshness_budget\x18\x1a \x01(\tR\x0ffreshnessBudget\x12+\n" +
+	"\x11active_generation\x18\x1b \x01(\tR\x10activeGeneration\x12!\n" +
+	"\fsource_files\x18\x1c \x01(\x03R\vsourceFiles\x12%\n" +
+	"\x0esemantic_cards\x18\x1d \x01(\x03R\rsemanticCards\x12\x1f\n" +
+	"\vgraph_facts\x18\x1e \x01(\x03R\n" +
+	"graphFacts\x12\x1f\n" +
+	"\vindex_state\x18\x1f \x01(\tR\n" +
+	"indexState\x12'\n" +
+	"\x0fdegraded_stages\x18  \x03(\tR\x0edegradedStages\x12\x18\n" +
+	"\adrifted\x18! \x01(\bR\adriftedB\b\n" +
 	"\x06_stuckJ\x04\b\x03\x10\x04\"\x98\x05\n" +
 	"\x0eStatusResponse\x12J\n" +
 	"\tproviders\x18\x01 \x03(\v2,.vrooli.search_hub.v1.routing.ProviderHealthR\tproviders\x12U\n" +

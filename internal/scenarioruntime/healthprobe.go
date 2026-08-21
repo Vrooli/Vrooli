@@ -126,7 +126,10 @@ func (p HealthProbe) performCheck(ctx context.Context, client *http.Client, chec
 }
 
 func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, check scenario.HealthCheck, ports map[string]int) checkProbeResult {
-	target := scenario.ExpandTarget(check.Target, ports)
+	target, err := scenario.ExpandHealthTarget(check.Target, ports)
+	if err != nil {
+		return checkProbeResult{err: err}
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return checkProbeResult{err: fmt.Errorf("invalid URL %q: %w", target, err)}

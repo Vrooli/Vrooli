@@ -172,10 +172,10 @@ func TestFailedStartWritesFailedOperationRecord(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	manifest := lifecycleFixtureManifest("alpha")
-	// Break the develop step so the start fails fast.
-	manifest.Lifecycle.Develop.Steps[0].Run = "exit 7"
-	manifest.Lifecycle.Develop.Steps[0].Background = false
-	manifest.Lifecycle.Develop.Steps[0].Condition = nil
+	// Break the declared component command so the start fails fast.
+	component := manifest.Components["api"]
+	component.Run.Argv = []string{"false"}
+	manifest.Components["api"] = component
 	writeLifecycleFixtureManifest(t, root, manifest)
 	runner, err := NewRunner(root, home, io.Discard, io.Discard)
 	if err != nil {

@@ -61,6 +61,10 @@ type ResourceRequirements struct {
 
 type GPURequirement struct{ MinCUDACompute string }
 
+// PlatformDeclaration is the authored, not-yet-validated platform claim for a
+// single host OS. Status stays a raw string because it carries the token
+// exactly as the manifest wrote it, including tokens outside the vocabulary;
+// ParsePlatformStatus is the only thing that turns it into vocabulary.
 type PlatformDeclaration struct {
 	Status    string
 	Mechanism string
@@ -132,9 +136,6 @@ type Resolution struct {
 }
 
 const (
-	platformSupported   = "supported"
-	platformPartial     = "partial"
-	platformUnsupported = "unsupported"
 	minimumMobileWeight = 3
 	minimumMobileRAMMB  = 4096
 	minimumMobileCPU    = 2
@@ -180,16 +181,24 @@ func resolveDependency(dependency DependencyDeclaration, tier DeliveryTier, os H
 	if !exists {
 		return unknownDependency(result, Reason{Code: "platform_declaration_missing", Dependency: result.Name, Message: fmt.Sprintf("dependency has no declaration for %s", os)})
 	}
-	switch strings.ToLower(strings.TrimSpace(platform.Status)) {
-	case platformUnsupported:
-		result.Verdict = VerdictIneligible
-		result.Reasons = append(result.Reasons, Reason{Code: "platform_unsupported", Dependency: result.Name, Message: fmt.Sprintf("platform declaration marks %s unsupported on %s", result.Name, os)})
-	case platformPartial:
+	status, statusErr := ParsePlatformStatus(platform.Status)
+	if statusErr != nil {
+		return unknownDependency(result, Reason{Code: "platform_status_unknown", Dependency: result.Name, Message: statusErr.Error()})
+	}
+	switch status {
+	case StatusSupported:
+	case StatusBuildVerified:
+		result.Verdict = VerdictDegraded
+		result.Reasons = append(result.Reasons, Reason{Code: "platform_build_verified", Dependency: result.Name, Message: fmt.Sprintf("%s %s on %s", result.Name, QualificationBuildVerified.Reason(), os)})
+	case StatusExperimental, StatusUnqualified:
+		result.Verdict = VerdictDegraded
+		result.Reasons = append(result.Reasons, Reason{Code: "platform_" + string(status), Dependency: result.Name, Message: fmt.Sprintf("%s is declared %s on %s: %s", result.Name, status, os, QualificationUnqualified.Reason())})
+	case StatusPartial:
 		result.Verdict = VerdictDegraded
 		result.Reasons = append(result.Reasons, Reason{Code: "platform_partial", Dependency: result.Name, Message: fmt.Sprintf("platform declaration is partial on %s", os)})
-	case platformSupported:
-	default:
-		return unknownDependency(result, Reason{Code: "platform_status_unknown", Dependency: result.Name, Message: fmt.Sprintf("platform status %q is not supported by the resolver", platform.Status)})
+	case StatusUnsupported:
+		result.Verdict = VerdictIneligible
+		result.Reasons = append(result.Reasons, Reason{Code: "platform_unsupported", Dependency: result.Name, Message: fmt.Sprintf("platform declaration marks %s unsupported on %s", result.Name, os)})
 	}
 
 	if dependency.Requirements == nil {

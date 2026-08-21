@@ -181,7 +181,7 @@ class RepromoteResponse(_message.Message):
     def __init__(self, provider_id: _Optional[str] = ..., reset: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
 class ProviderHealth(_message.Message):
-    __slots__ = ("provider_id", "reachable", "point_count", "degraded", "demoted", "demotion_reason", "times_routed", "total_hits", "reachability", "index_age", "automatic_eligible", "automatic_exclusion_reason", "circuit_state", "quality_withheld", "quality_withheld_reason", "quality_evidence_run_id", "quality_gate_opted_out", "quality_gate_opt_out_reason", "last_indexed_at", "stuck", "recovery_state", "lifecycle", "declared_at", "embedding_model", "freshness_budget")
+    __slots__ = ("provider_id", "reachable", "point_count", "degraded", "demoted", "demotion_reason", "times_routed", "total_hits", "reachability", "index_age", "automatic_eligible", "automatic_exclusion_reason", "circuit_state", "quality_withheld", "quality_withheld_reason", "quality_evidence_run_id", "quality_gate_opted_out", "quality_gate_opt_out_reason", "last_indexed_at", "stuck", "recovery_state", "lifecycle", "declared_at", "embedding_model", "freshness_budget", "active_generation", "source_files", "semantic_cards", "graph_facts", "index_state", "degraded_stages", "drifted")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     REACHABLE_FIELD_NUMBER: _ClassVar[int]
     POINT_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -207,6 +207,13 @@ class ProviderHealth(_message.Message):
     DECLARED_AT_FIELD_NUMBER: _ClassVar[int]
     EMBEDDING_MODEL_FIELD_NUMBER: _ClassVar[int]
     FRESHNESS_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FILES_FIELD_NUMBER: _ClassVar[int]
+    SEMANTIC_CARDS_FIELD_NUMBER: _ClassVar[int]
+    GRAPH_FACTS_FIELD_NUMBER: _ClassVar[int]
+    INDEX_STATE_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_STAGES_FIELD_NUMBER: _ClassVar[int]
+    DRIFTED_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     reachable: bool
     point_count: int
@@ -232,7 +239,14 @@ class ProviderHealth(_message.Message):
     declared_at: str
     embedding_model: str
     freshness_budget: str
-    def __init__(self, provider_id: _Optional[str] = ..., reachable: _Optional[bool] = ..., point_count: _Optional[int] = ..., degraded: _Optional[bool] = ..., demoted: _Optional[bool] = ..., demotion_reason: _Optional[str] = ..., times_routed: _Optional[int] = ..., total_hits: _Optional[int] = ..., reachability: _Optional[str] = ..., index_age: _Optional[str] = ..., automatic_eligible: _Optional[bool] = ..., automatic_exclusion_reason: _Optional[str] = ..., circuit_state: _Optional[str] = ..., quality_withheld: _Optional[bool] = ..., quality_withheld_reason: _Optional[str] = ..., quality_evidence_run_id: _Optional[str] = ..., quality_gate_opted_out: _Optional[bool] = ..., quality_gate_opt_out_reason: _Optional[str] = ..., last_indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., stuck: _Optional[bool] = ..., recovery_state: _Optional[str] = ..., lifecycle: _Optional[str] = ..., declared_at: _Optional[str] = ..., embedding_model: _Optional[str] = ..., freshness_budget: _Optional[str] = ...) -> None: ...
+    active_generation: str
+    source_files: int
+    semantic_cards: int
+    graph_facts: int
+    index_state: str
+    degraded_stages: _containers.RepeatedScalarFieldContainer[str]
+    drifted: bool
+    def __init__(self, provider_id: _Optional[str] = ..., reachable: _Optional[bool] = ..., point_count: _Optional[int] = ..., degraded: _Optional[bool] = ..., demoted: _Optional[bool] = ..., demotion_reason: _Optional[str] = ..., times_routed: _Optional[int] = ..., total_hits: _Optional[int] = ..., reachability: _Optional[str] = ..., index_age: _Optional[str] = ..., automatic_eligible: _Optional[bool] = ..., automatic_exclusion_reason: _Optional[str] = ..., circuit_state: _Optional[str] = ..., quality_withheld: _Optional[bool] = ..., quality_withheld_reason: _Optional[str] = ..., quality_evidence_run_id: _Optional[str] = ..., quality_gate_opted_out: _Optional[bool] = ..., quality_gate_opt_out_reason: _Optional[str] = ..., last_indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., stuck: _Optional[bool] = ..., recovery_state: _Optional[str] = ..., lifecycle: _Optional[str] = ..., declared_at: _Optional[str] = ..., embedding_model: _Optional[str] = ..., freshness_budget: _Optional[str] = ..., active_generation: _Optional[str] = ..., source_files: _Optional[int] = ..., semantic_cards: _Optional[int] = ..., graph_facts: _Optional[int] = ..., index_state: _Optional[str] = ..., degraded_stages: _Optional[_Iterable[str]] = ..., drifted: _Optional[bool] = ...) -> None: ...
 
 class StatusResponse(_message.Message):
     __slots__ = ("providers", "audit_providers", "classifier_available", "reranker_available", "circuit_open_share", "circuit_open_quorum", "federation_degraded", "incubating", "reranker_leg", "active_strategy", "strategies")

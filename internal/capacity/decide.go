@@ -37,6 +37,18 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 		return Verdict{Kind: VerdictDeny, Reason: resolveWarn}
 	}
 
+	// A host that is swapping heavily has already run out of memory; granting
+	// more memory-hungry work makes it worse rather than better. AvailableBytes
+	// alone cannot see this — once pages are on disk it can look healthy while
+	// the machine thrashes.
+	if req.ResourceKind == ResourceKindRAM && SwapPressure(snapshot, policy.SwapPressureThresholdPct) {
+		return Verdict{
+			Kind: VerdictDeny,
+			Reason: fmt.Sprintf("host is under swap pressure (at or above %d%% of swap in use); "+
+				"admitting more memory would deepen the thrashing", policy.SwapPressureThresholdPct),
+		}
+	}
+
 	// effectiveUsed is the more conservative of observed usage and the sum of
 	// outstanding ledger commitments on this resource — so two simultaneous
 	// grants before either materializes don't both think the space is free.
@@ -174,10 +186,73 @@ func resolveCapacity(req CapacityRequest, snapshot hostinventory.Snapshot) (tota
 		// CPU claims use millicores as the generic amount unit: one logical
 		// core is 1000 units. This keeps the frozen claim schema unchanged while
 		// allowing the same ledger and admission algorithm to enforce CPU.
-		return int64(snapshot.CPU.Cores) * 1000, 0, true, ""
+		total = int64(snapshot.CPU.Cores) * 1000
+		used, warn = observedCPUMillis(snapshot)
+		return total, used, true, warn
 	default:
 		return 0, 0, false, fmt.Sprintf("unknown resource kind %q", req.ResourceKind)
 	}
+}
+
+// observedCPUMillis estimates how much CPU the host is already using, in the
+// same millicore unit the claims use.
+//
+// This used to return a literal 0, which meant admission believed every core
+// was free no matter what the host was doing. The snapshot already carried the
+// answer: it collects Load and Swap on every capture, and both were discarded.
+// Admission was therefore blind to load while being the component whose whole
+// job is deciding whether the host can take more work — so a saturated machine
+// admitted phases exactly as readily as an idle one.
+//
+// NormalizedLoad1 is preferred: it is already load-per-core, so it does not
+// have to be divided by a core count that may differ from the one the snapshot
+// reports. Raw Load1 is the fallback. Both are run-queue length rather than
+// true utilization, so a value above 1.0 per core means processes are waiting;
+// it is clamped to the total, because "more than fully busy" is still just
+// fully busy as far as remaining capacity is concerned.
+//
+// A snapshot with no load signal at all reports 0 used, with a warning. That is
+// the old behaviour, kept only as an explicit, visible degradation rather than
+// as the silent default it used to be.
+func observedCPUMillis(snapshot hostinventory.Snapshot) (int64, string) {
+	total := int64(snapshot.CPU.Cores) * 1000
+
+	perCore := snapshot.Load.NormalizedLoad1
+	if perCore <= 0 && snapshot.Load.Load1 > 0 && snapshot.CPU.Cores > 0 {
+		perCore = snapshot.Load.Load1 / float64(snapshot.CPU.Cores)
+	}
+	if perCore <= 0 {
+		return 0, "host CPU load is unknown; admission is treating the host as idle"
+	}
+
+	used := int64(perCore * float64(total))
+	if used > total {
+		used = total
+	}
+	if used < 0 {
+		used = 0
+	}
+	return used, ""
+}
+
+// SwapPressure reports whether the host is swapping heavily enough that
+// admitting more memory-hungry work would make things worse rather than better.
+//
+// Swap usage is a lagging signal of memory exhaustion that the RAM figures miss:
+// once pages are on disk, AvailableBytes can look healthy while the machine
+// thrashes. The snapshot has carried Swap all along without anything reading it.
+//
+// A host with no swap configured is not under swap pressure, which is why the
+// zero-total case returns false rather than dividing by zero.
+func SwapPressure(snapshot hostinventory.Snapshot, thresholdPct int) bool {
+	if thresholdPct <= 0 {
+		return false // the check is disabled
+	}
+	if snapshot.Swap.TotalBytes == 0 {
+		return false // no swap configured is not swap pressure
+	}
+	usedPct := 100 * (1 - float64(snapshot.Swap.FreeBytes)/float64(snapshot.Swap.TotalBytes))
+	return usedPct >= float64(thresholdPct)
 }
 
 // selectGPU picks the GPU matching the requested index, defaulting to index 0,

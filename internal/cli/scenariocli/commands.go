@@ -602,13 +602,12 @@ func ParsePhaseArgs(command string, args []string) (string, lifecycle.PhaseOptio
 			opts.CustomPath = args[index]
 		default:
 			if strings.HasPrefix(arg, "-") {
-				opts.Args = append(opts.Args, arg)
-				continue
+				return "", lifecycle.PhaseOptions{}, clipolicy.UsageErrorf("scenario "+command, "scenario %s does not accept %s", command, arg)
 			}
 			if name == "" {
 				name = arg
 			} else {
-				opts.Args = append(opts.Args, arg)
+				return "", lifecycle.PhaseOptions{}, clipolicy.UsageErrorf("scenario "+command, "scenario %s accepts only a scenario name and --path", command)
 			}
 		}
 	}

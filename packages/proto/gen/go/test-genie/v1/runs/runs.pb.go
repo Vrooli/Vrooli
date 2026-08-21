@@ -1320,8 +1320,13 @@ type GetCostReportRequest struct {
 	Scenario             string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
 	WindowSeconds        int64                  `protobuf:"varint,2,opt,name=window_seconds,json=windowSeconds,proto3" json:"window_seconds,omitempty"`                        // 0 = 7 days
 	CompareWindowSeconds int64                  `protobuf:"varint,3,opt,name=compare_window_seconds,json=compareWindowSeconds,proto3" json:"compare_window_seconds,omitempty"` // 0 = no comparison
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// fleet aggregates by PHASE across every scenario instead of reporting one
+	// row per scenario/phase pair. A fleet-wide answer to "where does suite time
+	// go" is a per-phase question; per-scenario rows number in the hundreds and
+	// bury it.
+	Fleet         bool `protobuf:"varint,4,opt,name=fleet,proto3" json:"fleet,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetCostReportRequest) Reset() {
@@ -1375,6 +1380,13 @@ func (x *GetCostReportRequest) GetCompareWindowSeconds() int64 {
 	return 0
 }
 
+func (x *GetCostReportRequest) GetFleet() bool {
+	if x != nil {
+		return x.Fleet
+	}
+	return false
+}
+
 type CostPhaseSummary struct {
 	state                              protoimpl.MessageState `protogen:"open.v1"`
 	Scenario                           string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -1408,8 +1420,22 @@ type CostPhaseSummary struct {
 	CacheAuditWallClockMs              int64                  `protobuf:"varint,29,opt,name=cache_audit_wall_clock_ms,json=cacheAuditWallClockMs,proto3" json:"cache_audit_wall_clock_ms,omitempty"`
 	EstimatedGrossSavedWallClockMs     int64                  `protobuf:"varint,30,opt,name=estimated_gross_saved_wall_clock_ms,json=estimatedGrossSavedWallClockMs,proto3" json:"estimated_gross_saved_wall_clock_ms,omitempty"`
 	EstimatedNetSavedWallClockMs       int64                  `protobuf:"varint,31,opt,name=estimated_net_saved_wall_clock_ms,json=estimatedNetSavedWallClockMs,proto3" json:"estimated_net_saved_wall_clock_ms,omitempty"`
-	unknownFields                      protoimpl.UnknownFields
-	sizeCache                          protoimpl.SizeCache
+	// provider_scenario names the scenario whose provider owns this phase, so a
+	// cost row points at something ownable. Empty for a native phase.
+	ProviderScenario string `protobuf:"bytes,32,opt,name=provider_scenario,json=providerScenario,proto3" json:"provider_scenario,omitempty"`
+	// Queue latency is the wait between a run being requested and it getting a
+	// concurrency slot. It is invisible to phase timings and is frequently the
+	// larger half of "why was my suite slow". Both are -1 when unknown, which is
+	// the case for runs recorded before requested_at existed.
+	QueueLatencyMedianMs int64 `protobuf:"varint,33,opt,name=queue_latency_median_ms,json=queueLatencyMedianMs,proto3" json:"queue_latency_median_ms,omitempty"`
+	QueueLatencyP90Ms    int64 `protobuf:"varint,34,opt,name=queue_latency_p90_ms,json=queueLatencyP90Ms,proto3" json:"queue_latency_p90_ms,omitempty"`
+	// Repeat-failure cost is wall-clock spent re-deriving a failure the phase had
+	// already produced under an identical cache identity. It is the direct
+	// measure of what caching failed results reclaims.
+	RepeatFailureWallClockMs int64 `protobuf:"varint,35,opt,name=repeat_failure_wall_clock_ms,json=repeatFailureWallClockMs,proto3" json:"repeat_failure_wall_clock_ms,omitempty"`
+	RepeatFailureSampleCount int32 `protobuf:"varint,36,opt,name=repeat_failure_sample_count,json=repeatFailureSampleCount,proto3" json:"repeat_failure_sample_count,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *CostPhaseSummary) Reset() {
@@ -1655,6 +1681,41 @@ func (x *CostPhaseSummary) GetEstimatedGrossSavedWallClockMs() int64 {
 func (x *CostPhaseSummary) GetEstimatedNetSavedWallClockMs() int64 {
 	if x != nil {
 		return x.EstimatedNetSavedWallClockMs
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetProviderScenario() string {
+	if x != nil {
+		return x.ProviderScenario
+	}
+	return ""
+}
+
+func (x *CostPhaseSummary) GetQueueLatencyMedianMs() int64 {
+	if x != nil {
+		return x.QueueLatencyMedianMs
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetQueueLatencyP90Ms() int64 {
+	if x != nil {
+		return x.QueueLatencyP90Ms
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetRepeatFailureWallClockMs() int64 {
+	if x != nil {
+		return x.RepeatFailureWallClockMs
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetRepeatFailureSampleCount() int32 {
+	if x != nil {
+		return x.RepeatFailureSampleCount
 	}
 	return 0
 }
@@ -8170,11 +8231,12 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\v2(.vrooli.test_genie.v1.runs.RunLiveStatusR\x06status\"H\n" +
 	"\x13GetRunStatusRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
-	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\x8f\x01\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xa5\x01\n" +
 	"\x14GetCostReportRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
 	"\x0ewindow_seconds\x18\x02 \x01(\x03R\rwindowSeconds\x124\n" +
-	"\x16compare_window_seconds\x18\x03 \x01(\x03R\x14compareWindowSeconds\"\xf0\f\n" +
+	"\x16compare_window_seconds\x18\x03 \x01(\x03R\x14compareWindowSeconds\x12\x14\n" +
+	"\x05fleet\x18\x04 \x01(\bR\x05fleet\"\x84\x0f\n" +
 	"\x10CostPhaseSummary\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x14\n" +
 	"\x05phase\x18\x02 \x01(\tR\x05phase\x12!\n" +
@@ -8207,7 +8269,12 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x15cache_no_saving_count\x18\x1c \x01(\x05R\x12cacheNoSavingCount\x128\n" +
 	"\x19cache_audit_wall_clock_ms\x18\x1d \x01(\x03R\x15cacheAuditWallClockMs\x12K\n" +
 	"#estimated_gross_saved_wall_clock_ms\x18\x1e \x01(\x03R\x1eestimatedGrossSavedWallClockMs\x12G\n" +
-	"!estimated_net_saved_wall_clock_ms\x18\x1f \x01(\x03R\x1cestimatedNetSavedWallClockMs\"\xb9\x01\n" +
+	"!estimated_net_saved_wall_clock_ms\x18\x1f \x01(\x03R\x1cestimatedNetSavedWallClockMs\x12+\n" +
+	"\x11provider_scenario\x18  \x01(\tR\x10providerScenario\x125\n" +
+	"\x17queue_latency_median_ms\x18! \x01(\x03R\x14queueLatencyMedianMs\x12/\n" +
+	"\x14queue_latency_p90_ms\x18\" \x01(\x03R\x11queueLatencyP90Ms\x12>\n" +
+	"\x1crepeat_failure_wall_clock_ms\x18# \x01(\x03R\x18repeatFailureWallClockMs\x12=\n" +
+	"\x1brepeat_failure_sample_count\x18$ \x01(\x05R\x18repeatFailureSampleCount\"\xb9\x01\n" +
 	"\x15GetCostReportResponse\x12C\n" +
 	"\x06phases\x18\x01 \x03(\v2+.vrooli.test_genie.v1.runs.CostPhaseSummaryR\x06phases\x12%\n" +
 	"\x0ewindow_seconds\x18\x02 \x01(\x03R\rwindowSeconds\x124\n" +

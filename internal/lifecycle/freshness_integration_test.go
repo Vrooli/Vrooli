@@ -48,17 +48,18 @@ func freshnessTestItem(appPath string) scenario.Scenario {
 		Slug: "alpha",
 		Path: appPath,
 		Manifest: scenario.ServiceManifest{
-			Lifecycle: scenario.Lifecycle{
-				Setup: scenario.Phase{
-					Condition: &scenario.Condition{
-						Checks: []scenario.ConditionCheck{
-							{Type: "binaries", Targets: []string{"api/alpha-api"}},
-						},
-					},
+			Components: map[string]scenario.Component{
+				"api": {
+					Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api", Output: "api/alpha-api"},
+					Run:   scenario.ComponentRun{Argv: []string{"{{bin.api}}"}},
 				},
 			},
 		},
 	}
+}
+
+func freshnessBinaryCheck() scenario.ConditionCheck {
+	return scenario.ConditionCheck{Type: "binaries", Targets: []string{"api/alpha-api"}}
 }
 
 func TestBinariesFreshnessBootstrapStampsManifest(t *testing.T) {
@@ -66,7 +67,7 @@ func TestBinariesFreshnessBootstrapStampsManifest(t *testing.T) {
 	r := &Runner{Root: repoRoot}
 	item := freshnessTestItem(appPath)
 
-	stale, _, err := r.binariesFreshness(item, item.Manifest.Lifecycle.Setup.Condition.Checks[0])
+	stale, _, err := r.binariesFreshness(item, freshnessBinaryCheck())
 	if err != nil {
 		t.Fatalf("binariesFreshness: %v", err)
 	}
@@ -84,7 +85,7 @@ func TestBinariesFreshnessManifestAuthoritative(t *testing.T) {
 	repoRoot, appPath, _, srcPath := freshnessTestScene(t)
 	r := &Runner{Root: repoRoot}
 	item := freshnessTestItem(appPath)
-	check := item.Manifest.Lifecycle.Setup.Condition.Checks[0]
+	check := freshnessBinaryCheck()
 
 	// First call bootstraps + stamps.
 	if stale, _, err := r.binariesFreshness(item, check); err != nil || stale {
@@ -111,7 +112,7 @@ func TestBinariesFreshnessUnrelatedScenarioEditStaysFresh(t *testing.T) {
 	repoRoot, appPath, _, _ := freshnessTestScene(t)
 	r := &Runner{Root: repoRoot}
 	item := freshnessTestItem(appPath)
-	check := item.Manifest.Lifecycle.Setup.Condition.Checks[0]
+	check := freshnessBinaryCheck()
 
 	// Bootstrap + stamp.
 	if stale, _, err := r.binariesFreshness(item, check); err != nil || stale {
@@ -141,7 +142,7 @@ func TestBinariesFreshnessToolchainChangeIsStale(t *testing.T) {
 	repoRoot, appPath, binPath, _ := freshnessTestScene(t)
 	r := &Runner{Root: repoRoot}
 	item := freshnessTestItem(appPath)
-	check := item.Manifest.Lifecycle.Setup.Condition.Checks[0]
+	check := freshnessBinaryCheck()
 
 	if stale, _, err := r.binariesFreshness(item, check); err != nil || stale {
 		t.Fatalf("bootstrap fresh expected: stale=%v err=%v", stale, err)

@@ -557,9 +557,15 @@ type GraphSnapshot struct {
 	Packages []*PackageNode `protobuf:"bytes,8,rep,name=packages,proto3" json:"packages,omitempty"`
 	Symbols  []*SymbolNode  `protobuf:"bytes,9,rep,name=symbols,proto3" json:"symbols,omitempty"`
 	// All edges in the graph, deduped by (from, to_package_id) pair.
-	Imports       []*ImportEdge `protobuf:"bytes,10,rep,name=imports,proto3" json:"imports,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Imports []*ImportEdge `protobuf:"bytes,10,rep,name=imports,proto3" json:"imports,omitempty"`
+	// Effective profile(s) used by language adapters. Empty only for legacy
+	// snapshots created before profile metadata was persisted.
+	ExtractionProfiles []string `protobuf:"bytes,11,rep,name=extraction_profiles,json=extractionProfiles,proto3" json:"extraction_profiles,omitempty"`
+	// Capabilities intentionally omitted by an adapter profile. These are
+	// informational and do not indicate a failed extraction.
+	OmittedInformation []*v1.CodeGraphOmission `protobuf:"bytes,12,rep,name=omitted_information,json=omittedInformation,proto3" json:"omitted_information,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GraphSnapshot) Reset() {
@@ -658,6 +664,20 @@ func (x *GraphSnapshot) GetSymbols() []*SymbolNode {
 func (x *GraphSnapshot) GetImports() []*ImportEdge {
 	if x != nil {
 		return x.Imports
+	}
+	return nil
+}
+
+func (x *GraphSnapshot) GetExtractionProfiles() []string {
+	if x != nil {
+		return x.ExtractionProfiles
+	}
+	return nil
+}
+
+func (x *GraphSnapshot) GetOmittedInformation() []*v1.CodeGraphOmission {
+	if x != nil {
+		return x.OmittedInformation
 	}
 	return nil
 }
@@ -2692,7 +2712,7 @@ var File_architecture_cartographer_v1_graph_graph_proto protoreflect.FileDescrip
 
 const file_architecture_cartographer_v1_graph_graph_proto_rawDesc = "" +
 	"\n" +
-	".architecture-cartographer/v1/graph/graph.proto\x12)vrooli.architecture_cartographer.v1.graph\x1a2architecture-cartographer/v1/domains/domains.proto\x1a0architecture-cartographer/v1/shared/shared.proto\x1a\x1bcommon/v1/attestation.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcd\x01\n" +
+	".architecture-cartographer/v1/graph/graph.proto\x12)vrooli.architecture_cartographer.v1.graph\x1a2architecture-cartographer/v1/domains/domains.proto\x1a0architecture-cartographer/v1/shared/shared.proto\x1a\x1bcommon/v1/attestation.proto\x1a\x1acommon/v1/code_graph.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcd\x01\n" +
 	"\bFileNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1d\n" +
@@ -2727,7 +2747,7 @@ const file_architecture_cartographer_v1_graph_graph_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\afile_id\x18\x02 \x01(\tR\x06fileId\x12\x12\n" +
 	"\x04path\x18\x03 \x01(\tR\x04path\x12%\n" +
-	"\x0ecurrent_domain\x18\x04 \x01(\tR\rcurrentDomain\"\xd6\x04\n" +
+	"\x0ecurrent_domain\x18\x04 \x01(\tR\rcurrentDomain\"\xd6\x05\n" +
 	"\rGraphSnapshot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12!\n" +
@@ -2739,7 +2759,9 @@ const file_architecture_cartographer_v1_graph_graph_proto_rawDesc = "" +
 	"\bpackages\x18\b \x03(\v26.vrooli.architecture_cartographer.v1.graph.PackageNodeR\bpackages\x12O\n" +
 	"\asymbols\x18\t \x03(\v25.vrooli.architecture_cartographer.v1.graph.SymbolNodeR\asymbols\x12O\n" +
 	"\aimports\x18\n" +
-	" \x03(\v25.vrooli.architecture_cartographer.v1.graph.ImportEdgeR\aimports\"\xad\x01\n" +
+	" \x03(\v25.vrooli.architecture_cartographer.v1.graph.ImportEdgeR\aimports\x12/\n" +
+	"\x13extraction_profiles\x18\v \x03(\tR\x12extractionProfiles\x12M\n" +
+	"\x13omitted_information\x18\f \x03(\v2\x1c.common.v1.CodeGraphOmissionR\x12omittedInformation\"\xad\x01\n" +
 	"\x13ExtractGraphRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12Q\n" +
 	"\tlanguages\x18\x02 \x03(\x0e23.vrooli.architecture_cartographer.v1.graph.LanguageR\tlanguages\x12'\n" +
@@ -2970,9 +2992,10 @@ var file_architecture_cartographer_v1_graph_graph_proto_goTypes = []any{
 	(*ApplySnapshotRetentionRequest)(nil),    // 38: vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionRequest
 	(*ApplySnapshotRetentionResponse)(nil),   // 39: vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionResponse
 	(*timestamppb.Timestamp)(nil),            // 40: google.protobuf.Timestamp
-	(*v1.AttestedAnswer)(nil),                // 41: common.v1.AttestedAnswer
-	(shared.Severity)(0),                     // 42: vrooli.architecture_cartographer.v1.shared.Severity
-	(*domains.DomainArchetype)(nil),          // 43: vrooli.architecture_cartographer.v1.domains.DomainArchetype
+	(*v1.CodeGraphOmission)(nil),             // 41: common.v1.CodeGraphOmission
+	(*v1.AttestedAnswer)(nil),                // 42: common.v1.AttestedAnswer
+	(shared.Severity)(0),                     // 43: vrooli.architecture_cartographer.v1.shared.Severity
+	(*domains.DomainArchetype)(nil),          // 44: vrooli.architecture_cartographer.v1.domains.DomainArchetype
 }
 var file_architecture_cartographer_v1_graph_graph_proto_depIdxs = []int32{
 	0,  // 0: vrooli.architecture_cartographer.v1.graph.FileNode.language:type_name -> vrooli.architecture_cartographer.v1.graph.Language
@@ -2983,53 +3006,54 @@ var file_architecture_cartographer_v1_graph_graph_proto_depIdxs = []int32{
 	3,  // 5: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.packages:type_name -> vrooli.architecture_cartographer.v1.graph.PackageNode
 	4,  // 6: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.symbols:type_name -> vrooli.architecture_cartographer.v1.graph.SymbolNode
 	5,  // 7: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.imports:type_name -> vrooli.architecture_cartographer.v1.graph.ImportEdge
-	0,  // 8: vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest.languages:type_name -> vrooli.architecture_cartographer.v1.graph.Language
-	7,  // 9: vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse.snapshot:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
-	7,  // 10: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse.snapshot:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
-	7,  // 11: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse.snapshots:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
-	20, // 12: vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse.zone_map:type_name -> vrooli.architecture_cartographer.v1.graph.ZoneMap
-	21, // 13: vrooli.architecture_cartographer.v1.graph.ZoneMap.packages:type_name -> vrooli.architecture_cartographer.v1.graph.ZonePackage
-	23, // 14: vrooli.architecture_cartographer.v1.graph.ZoneMap.violations:type_name -> vrooli.architecture_cartographer.v1.graph.ZoneViolation
-	1,  // 15: vrooli.architecture_cartographer.v1.graph.ZoneMap.authority_confidence:type_name -> vrooli.architecture_cartographer.v1.graph.AuthorityConfidence
-	41, // 16: vrooli.architecture_cartographer.v1.graph.ZoneMap.attestation:type_name -> common.v1.AttestedAnswer
-	22, // 17: vrooli.architecture_cartographer.v1.graph.ZonePackage.evidence:type_name -> vrooli.architecture_cartographer.v1.graph.ZoneEvidence
-	42, // 18: vrooli.architecture_cartographer.v1.graph.ZoneViolation.severity:type_name -> vrooli.architecture_cartographer.v1.shared.Severity
-	26, // 19: vrooli.architecture_cartographer.v1.graph.GetSliceResponse.slice:type_name -> vrooli.architecture_cartographer.v1.graph.DomainSlice
-	27, // 20: vrooli.architecture_cartographer.v1.graph.DomainSlice.rungs:type_name -> vrooli.architecture_cartographer.v1.graph.SliceRung
-	31, // 21: vrooli.architecture_cartographer.v1.graph.DomainSlice.layer_edges:type_name -> vrooli.architecture_cartographer.v1.graph.SliceEdge
-	41, // 22: vrooli.architecture_cartographer.v1.graph.DomainSlice.attestation:type_name -> common.v1.AttestedAnswer
-	28, // 23: vrooli.architecture_cartographer.v1.graph.SliceRung.evidence:type_name -> vrooli.architecture_cartographer.v1.graph.SliceEvidence
-	29, // 24: vrooli.architecture_cartographer.v1.graph.SliceRung.files:type_name -> vrooli.architecture_cartographer.v1.graph.SliceFile
-	30, // 25: vrooli.architecture_cartographer.v1.graph.SliceRung.symbols:type_name -> vrooli.architecture_cartographer.v1.graph.SliceSymbol
-	34, // 26: vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse.reports:type_name -> vrooli.architecture_cartographer.v1.graph.ArchetypeReport
-	43, // 27: vrooli.architecture_cartographer.v1.graph.ArchetypeReport.archetypes:type_name -> vrooli.architecture_cartographer.v1.domains.DomainArchetype
-	41, // 28: vrooli.architecture_cartographer.v1.graph.ArchetypeReport.attestation:type_name -> common.v1.AttestedAnswer
-	35, // 29: vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionResponse.scenarios:type_name -> vrooli.architecture_cartographer.v1.graph.ScenarioSnapshotCount
-	8,  // 30: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest
-	10, // 31: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:input_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest
-	12, // 32: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest
-	14, // 33: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest
-	36, // 34: vrooli.architecture_cartographer.v1.graph.GraphService.PreviewSnapshotRetention:input_type -> vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionRequest
-	38, // 35: vrooli.architecture_cartographer.v1.graph.GraphService.ApplySnapshotRetention:input_type -> vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionRequest
-	16, // 36: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphRequest
-	18, // 37: vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap:input_type -> vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest
-	24, // 38: vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice:input_type -> vrooli.architecture_cartographer.v1.graph.GetSliceRequest
-	32, // 39: vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype:input_type -> vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest
-	9,  // 40: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse
-	11, // 41: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:output_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse
-	13, // 42: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse
-	15, // 43: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse
-	37, // 44: vrooli.architecture_cartographer.v1.graph.GraphService.PreviewSnapshotRetention:output_type -> vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionResponse
-	39, // 45: vrooli.architecture_cartographer.v1.graph.GraphService.ApplySnapshotRetention:output_type -> vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionResponse
-	17, // 46: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphResponse
-	19, // 47: vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap:output_type -> vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse
-	25, // 48: vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice:output_type -> vrooli.architecture_cartographer.v1.graph.GetSliceResponse
-	33, // 49: vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype:output_type -> vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse
-	40, // [40:50] is the sub-list for method output_type
-	30, // [30:40] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	41, // 8: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.omitted_information:type_name -> common.v1.CodeGraphOmission
+	0,  // 9: vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest.languages:type_name -> vrooli.architecture_cartographer.v1.graph.Language
+	7,  // 10: vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse.snapshot:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
+	7,  // 11: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse.snapshot:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
+	7,  // 12: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse.snapshots:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
+	20, // 13: vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse.zone_map:type_name -> vrooli.architecture_cartographer.v1.graph.ZoneMap
+	21, // 14: vrooli.architecture_cartographer.v1.graph.ZoneMap.packages:type_name -> vrooli.architecture_cartographer.v1.graph.ZonePackage
+	23, // 15: vrooli.architecture_cartographer.v1.graph.ZoneMap.violations:type_name -> vrooli.architecture_cartographer.v1.graph.ZoneViolation
+	1,  // 16: vrooli.architecture_cartographer.v1.graph.ZoneMap.authority_confidence:type_name -> vrooli.architecture_cartographer.v1.graph.AuthorityConfidence
+	42, // 17: vrooli.architecture_cartographer.v1.graph.ZoneMap.attestation:type_name -> common.v1.AttestedAnswer
+	22, // 18: vrooli.architecture_cartographer.v1.graph.ZonePackage.evidence:type_name -> vrooli.architecture_cartographer.v1.graph.ZoneEvidence
+	43, // 19: vrooli.architecture_cartographer.v1.graph.ZoneViolation.severity:type_name -> vrooli.architecture_cartographer.v1.shared.Severity
+	26, // 20: vrooli.architecture_cartographer.v1.graph.GetSliceResponse.slice:type_name -> vrooli.architecture_cartographer.v1.graph.DomainSlice
+	27, // 21: vrooli.architecture_cartographer.v1.graph.DomainSlice.rungs:type_name -> vrooli.architecture_cartographer.v1.graph.SliceRung
+	31, // 22: vrooli.architecture_cartographer.v1.graph.DomainSlice.layer_edges:type_name -> vrooli.architecture_cartographer.v1.graph.SliceEdge
+	42, // 23: vrooli.architecture_cartographer.v1.graph.DomainSlice.attestation:type_name -> common.v1.AttestedAnswer
+	28, // 24: vrooli.architecture_cartographer.v1.graph.SliceRung.evidence:type_name -> vrooli.architecture_cartographer.v1.graph.SliceEvidence
+	29, // 25: vrooli.architecture_cartographer.v1.graph.SliceRung.files:type_name -> vrooli.architecture_cartographer.v1.graph.SliceFile
+	30, // 26: vrooli.architecture_cartographer.v1.graph.SliceRung.symbols:type_name -> vrooli.architecture_cartographer.v1.graph.SliceSymbol
+	34, // 27: vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse.reports:type_name -> vrooli.architecture_cartographer.v1.graph.ArchetypeReport
+	44, // 28: vrooli.architecture_cartographer.v1.graph.ArchetypeReport.archetypes:type_name -> vrooli.architecture_cartographer.v1.domains.DomainArchetype
+	42, // 29: vrooli.architecture_cartographer.v1.graph.ArchetypeReport.attestation:type_name -> common.v1.AttestedAnswer
+	35, // 30: vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionResponse.scenarios:type_name -> vrooli.architecture_cartographer.v1.graph.ScenarioSnapshotCount
+	8,  // 31: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest
+	10, // 32: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:input_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest
+	12, // 33: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest
+	14, // 34: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest
+	36, // 35: vrooli.architecture_cartographer.v1.graph.GraphService.PreviewSnapshotRetention:input_type -> vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionRequest
+	38, // 36: vrooli.architecture_cartographer.v1.graph.GraphService.ApplySnapshotRetention:input_type -> vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionRequest
+	16, // 37: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphRequest
+	18, // 38: vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap:input_type -> vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest
+	24, // 39: vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice:input_type -> vrooli.architecture_cartographer.v1.graph.GetSliceRequest
+	32, // 40: vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype:input_type -> vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest
+	9,  // 41: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse
+	11, // 42: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:output_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse
+	13, // 43: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse
+	15, // 44: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse
+	37, // 45: vrooli.architecture_cartographer.v1.graph.GraphService.PreviewSnapshotRetention:output_type -> vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionResponse
+	39, // 46: vrooli.architecture_cartographer.v1.graph.GraphService.ApplySnapshotRetention:output_type -> vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionResponse
+	17, // 47: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphResponse
+	19, // 48: vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap:output_type -> vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse
+	25, // 49: vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice:output_type -> vrooli.architecture_cartographer.v1.graph.GetSliceResponse
+	33, // 50: vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype:output_type -> vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse
+	41, // [41:51] is the sub-list for method output_type
+	31, // [31:41] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_graph_graph_proto_init() }

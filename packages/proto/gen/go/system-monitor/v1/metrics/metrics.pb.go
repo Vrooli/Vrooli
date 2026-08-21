@@ -26,6 +26,8 @@ const (
 // MetricsResponse represents the current system metrics snapshot.
 type MetricsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Explicit identity for one coherent collection cycle.
+	CycleId string `protobuf:"bytes,11,opt,name=cycle_id,json=cycleId,proto3" json:"cycle_id,omitempty"`
 	// Current CPU usage percentage.
 	CpuUsage float64 `protobuf:"fixed64,1,opt,name=cpu_usage,json=cpuUsage,proto3" json:"cpu_usage,omitempty"`
 	// Current memory usage percentage.
@@ -76,6 +78,13 @@ func (x *MetricsResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use MetricsResponse.ProtoReflect.Descriptor instead.
 func (*MetricsResponse) Descriptor() ([]byte, []int) {
 	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *MetricsResponse) GetCycleId() string {
+	if x != nil {
+		return x.CycleId
+	}
+	return ""
 }
 
 func (x *MetricsResponse) GetCpuUsage() float64 {
@@ -158,13 +167,18 @@ type MetricValue struct {
 	//	*MetricValue_Measured
 	//	*MetricValue_UnsupportedReason
 	//	*MetricValue_FailedError
+	//	*MetricValue_StaleReason
+	//	*MetricValue_NotYetSampledReason
 	State isMetricValue_State `protobuf_oneof:"state"`
 	// Source of the measurement or probe mechanism that produced the state.
 	Provenance string `protobuf:"bytes,4,opt,name=provenance,proto3" json:"provenance,omitempty"`
 	// Time at which this individual value was observed.
-	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ObservedAt       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	CycleId          string                 `protobuf:"bytes,6,opt,name=cycle_id,json=cycleId,proto3" json:"cycle_id,omitempty"`
+	FreshnessSeconds float64                `protobuf:"fixed64,7,opt,name=freshness_seconds,json=freshnessSeconds,proto3" json:"freshness_seconds,omitempty"`
+	Units            string                 `protobuf:"bytes,10,opt,name=units,proto3" json:"units,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *MetricValue) Reset() {
@@ -231,6 +245,24 @@ func (x *MetricValue) GetFailedError() string {
 	return ""
 }
 
+func (x *MetricValue) GetStaleReason() string {
+	if x != nil {
+		if x, ok := x.State.(*MetricValue_StaleReason); ok {
+			return x.StaleReason
+		}
+	}
+	return ""
+}
+
+func (x *MetricValue) GetNotYetSampledReason() string {
+	if x != nil {
+		if x, ok := x.State.(*MetricValue_NotYetSampledReason); ok {
+			return x.NotYetSampledReason
+		}
+	}
+	return ""
+}
+
 func (x *MetricValue) GetProvenance() string {
 	if x != nil {
 		return x.Provenance
@@ -243,6 +275,27 @@ func (x *MetricValue) GetObservedAt() *timestamppb.Timestamp {
 		return x.ObservedAt
 	}
 	return nil
+}
+
+func (x *MetricValue) GetCycleId() string {
+	if x != nil {
+		return x.CycleId
+	}
+	return ""
+}
+
+func (x *MetricValue) GetFreshnessSeconds() float64 {
+	if x != nil {
+		return x.FreshnessSeconds
+	}
+	return 0
+}
+
+func (x *MetricValue) GetUnits() string {
+	if x != nil {
+		return x.Units
+	}
+	return ""
 }
 
 type isMetricValue_State interface {
@@ -261,15 +314,29 @@ type MetricValue_FailedError struct {
 	FailedError string `protobuf:"bytes,3,opt,name=failed_error,json=failedError,proto3,oneof"`
 }
 
+type MetricValue_StaleReason struct {
+	StaleReason string `protobuf:"bytes,8,opt,name=stale_reason,json=staleReason,proto3,oneof"`
+}
+
+type MetricValue_NotYetSampledReason struct {
+	NotYetSampledReason string `protobuf:"bytes,9,opt,name=not_yet_sampled_reason,json=notYetSampledReason,proto3,oneof"`
+}
+
 func (*MetricValue_Measured) isMetricValue_State() {}
 
 func (*MetricValue_UnsupportedReason) isMetricValue_State() {}
 
 func (*MetricValue_FailedError) isMetricValue_State() {}
 
+func (*MetricValue_StaleReason) isMetricValue_State() {}
+
+func (*MetricValue_NotYetSampledReason) isMetricValue_State() {}
+
 // MetricTimelineSample represents a single sample in a metrics timeline.
 type MetricTimelineSample struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Explicit identity for one coherent collection cycle.
+	CycleId string `protobuf:"bytes,10,opt,name=cycle_id,json=cycleId,proto3" json:"cycle_id,omitempty"`
 	// When this sample was collected.
 	Timestamp *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// CPU usage percentage.
@@ -316,6 +383,13 @@ func (x *MetricTimelineSample) ProtoReflect() protoreflect.Message {
 // Deprecated: Use MetricTimelineSample.ProtoReflect.Descriptor instead.
 func (*MetricTimelineSample) Descriptor() ([]byte, []int) {
 	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *MetricTimelineSample) GetCycleId() string {
+	if x != nil {
+		return x.CycleId
+	}
+	return ""
 }
 
 func (x *MetricTimelineSample) GetTimestamp() *timestamppb.Timestamp {
@@ -3806,8 +3880,9 @@ var File_system_monitor_v1_metrics_metrics_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\n" +
-	"'system-monitor/v1/metrics/metrics.proto\x12 vrooli.system_monitor.v1.metrics\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc1\x04\n" +
-	"\x0fMetricsResponse\x12\x1b\n" +
+	"'system-monitor/v1/metrics/metrics.proto\x12 vrooli.system_monitor.v1.metrics\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdc\x04\n" +
+	"\x0fMetricsResponse\x12\x19\n" +
+	"\bcycle_id\x18\v \x01(\tR\acycleId\x12\x1b\n" +
 	"\tcpu_usage\x18\x01 \x01(\x01R\bcpuUsage\x12!\n" +
 	"\fmemory_usage\x18\x02 \x01(\x01R\vmemoryUsage\x12'\n" +
 	"\x0ftcp_connections\x18\x03 \x01(\x05R\x0etcpConnections\x12 \n" +
@@ -3820,18 +3895,26 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x04disk\x18\n" +
 	" \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x04diskB\f\n" +
 	"\n" +
-	"_gpu_usage\"\xe7\x01\n" +
+	"_gpu_usage\"\xa1\x03\n" +
 	"\vMetricValue\x12\x1c\n" +
 	"\bmeasured\x18\x01 \x01(\x01H\x00R\bmeasured\x12/\n" +
 	"\x12unsupported_reason\x18\x02 \x01(\tH\x00R\x11unsupportedReason\x12#\n" +
-	"\ffailed_error\x18\x03 \x01(\tH\x00R\vfailedError\x12\x1e\n" +
+	"\ffailed_error\x18\x03 \x01(\tH\x00R\vfailedError\x12#\n" +
+	"\fstale_reason\x18\b \x01(\tH\x00R\vstaleReason\x125\n" +
+	"\x16not_yet_sampled_reason\x18\t \x01(\tH\x00R\x13notYetSampledReason\x12\x1e\n" +
 	"\n" +
 	"provenance\x18\x04 \x01(\tR\n" +
 	"provenance\x12;\n" +
 	"\vobserved_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAtB\a\n" +
-	"\x05state\"\x83\x04\n" +
-	"\x14MetricTimelineSample\x128\n" +
+	"observedAt\x12\x19\n" +
+	"\bcycle_id\x18\x06 \x01(\tR\acycleId\x12+\n" +
+	"\x11freshness_seconds\x18\a \x01(\x01R\x10freshnessSeconds\x12\x14\n" +
+	"\x05units\x18\n" +
+	" \x01(\tR\x05unitsB\a\n" +
+	"\x05state\"\x9e\x04\n" +
+	"\x14MetricTimelineSample\x12\x19\n" +
+	"\bcycle_id\x18\n" +
+	" \x01(\tR\acycleId\x128\n" +
 	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1b\n" +
 	"\tcpu_usage\x18\x02 \x01(\x01R\bcpuUsage\x12!\n" +
 	"\fmemory_usage\x18\x03 \x01(\x01R\vmemoryUsage\x12'\n" +
@@ -4300,6 +4383,8 @@ func file_system_monitor_v1_metrics_metrics_proto_init() {
 		(*MetricValue_Measured)(nil),
 		(*MetricValue_UnsupportedReason)(nil),
 		(*MetricValue_FailedError)(nil),
+		(*MetricValue_StaleReason)(nil),
+		(*MetricValue_NotYetSampledReason)(nil),
 	}
 	file_system_monitor_v1_metrics_metrics_proto_msgTypes[2].OneofWrappers = []any{}
 	file_system_monitor_v1_metrics_metrics_proto_msgTypes[4].OneofWrappers = []any{}

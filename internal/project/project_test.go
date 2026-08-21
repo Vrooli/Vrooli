@@ -92,7 +92,7 @@ func TestRunProjectPhaseRejectsUndefinedPhase(t *testing.T) {
 	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 		Lifecycle: scenario.Lifecycle{
-			Develop: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Run: "true"}}},
+			Develop: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Exec: []string{"true"}}}},
 		},
 	})
 
@@ -109,7 +109,7 @@ func TestRunProjectPhaseRejectsNativeOnlyPhase(t *testing.T) {
 	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 		Lifecycle: scenario.Lifecycle{
-			Build: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Run: "true"}}},
+			Build: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Exec: []string{"true"}}}},
 		},
 	})
 
@@ -367,7 +367,7 @@ func TestRunProjectPhaseExecutesDefinedLifecycle(t *testing.T) {
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 		Lifecycle: scenario.Lifecycle{
 			Clean: scenario.Phase{
-				Steps: []scenario.PhaseStep{{Name: "write-clean-file", Run: "mkdir -p build && printf 'cleaned\n' > build/clean.txt"}},
+				Steps: []scenario.PhaseStep{{Name: "write-clean-file", Exec: []string{"bash", "-c", "mkdir -p build && printf 'cleaned\\n' > build/clean.txt"}}},
 			},
 		},
 	})
@@ -392,7 +392,7 @@ func TestRunProjectPhaseUsesInjectedPhaseRunner(t *testing.T) {
 	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 		Lifecycle: scenario.Lifecycle{
-			Clean: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Run: "true"}}},
+			Clean: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Exec: []string{"true"}}}},
 		},
 	})
 

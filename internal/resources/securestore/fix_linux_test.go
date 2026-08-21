@@ -36,6 +36,55 @@ func TestHostBoundFixNamesTheGroupBlockingTheTPM(t *testing.T) {
 	}
 }
 
+// The two ways a process can be outside the TPM group need two different
+// answers, and giving the wrong one costs the operator the fix. An account that
+// was never granted the group is told to run setup, which grants it. An account
+// that already holds the grant is in a running process that cannot see it,
+// because supplementary groups are attached at login — telling that operator to
+// run setup "to grant it" sends them to a command that correctly reports the
+// membership already present and changes nothing.
+func TestHostBoundFixSeparatesAStaleSessionFromAMissingGrant(t *testing.T) {
+	_, gid := groupAccessibleTPM(t)
+	if slices.Contains(currentGroupIDs(), gid) {
+		t.Skipf("this process is already in group %s, so no grant is outstanding", groupLabel(gid))
+	}
+
+	fix := hostBoundFix()
+	if accountInGroupID(gid) {
+		if !strings.Contains(fix, "log out") {
+			t.Fatalf("fix = %q, want it to tell an account that already holds the grant to start a new session", fix)
+		}
+		if strings.Contains(fix, "to grant it") {
+			t.Fatalf("fix = %q, want it not to ask for a grant this account already holds", fix)
+		}
+		return
+	}
+	if !strings.Contains(fix, "to grant it") {
+		t.Fatalf("fix = %q, want it to ask setup to grant a membership this account does not hold", fix)
+	}
+}
+
+// The grant an operator holds but a running process cannot use is the one setup
+// can act on within the same run, and it is the only group this ever names.
+func TestPendingGroupGrantReportsOnlyAnUnusableTPMGrant(t *testing.T) {
+	_, gid := groupAccessibleTPM(t)
+	pending := PendingGroupGrant()
+	switch {
+	case slices.Contains(currentGroupIDs(), gid):
+		if pending != "" {
+			t.Fatalf("PendingGroupGrant() = %q, want \"\" when this process can already use the group", pending)
+		}
+	case accountInGroupID(gid):
+		if pending != groupLabel(gid) {
+			t.Fatalf("PendingGroupGrant() = %q, want %q", pending, groupLabel(gid))
+		}
+	default:
+		if pending != "" {
+			t.Fatalf("PendingGroupGrant() = %q, want \"\" when the account holds no grant to pick up", pending)
+		}
+	}
+}
+
 // A fix is only honest when membership would actually change the outcome. On a
 // host with no TPM at all there is nothing to join, and the caller must print
 // nothing rather than send the operator after a group that will not help.

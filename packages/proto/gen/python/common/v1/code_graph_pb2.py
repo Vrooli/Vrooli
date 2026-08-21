@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1a\x63ommon/v1/code_graph.proto\x12\tcommon.v1\"k\n\tCodeGraph\x12.\n\x05nodes\x18\x01 \x03(\x0b\x32\x18.common.v1.CodeGraphNodeR\x05nodes\x12.\n\x05\x65\x64ges\x18\x02 \x03(\x0b\x32\x18.common.v1.CodeGraphEdgeR\x05\x65\x64ges\"\xa4\x02\n\rCodeGraphNode\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\'\n\x04kind\x18\x02 \x01(\x0e\x32\x13.common.v1.NodeKindR\x04kind\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\x12\x12\n\x04path\x18\x04 \x01(\tR\x04path\x12H\n\nattributes\x18\x05 \x03(\x0b\x32(.common.v1.CodeGraphNode.AttributesEntryR\nattributes\x12)\n\x10leading_comments\x18\x06 \x03(\tR\x0fleadingComments\x1a=\n\x0f\x41ttributesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\x91\x02\n\rCodeGraphEdge\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\'\n\x04kind\x18\x02 \x01(\x0e\x32\x13.common.v1.EdgeKindR\x04kind\x12 \n\x0c\x66rom_node_id\x18\x03 \x01(\tR\nfromNodeId\x12\x1c\n\nto_node_id\x18\x04 \x01(\tR\x08toNodeId\x12H\n\nattributes\x18\x05 \x03(\x0b\x32(.common.v1.CodeGraphEdge.AttributesEntryR\nattributes\x1a=\n\x0f\x41ttributesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"u\n\x10\x43odeGraphWarning\x12\x33\n\x04kind\x18\x01 \x01(\x0e\x32\x1f.common.v1.CodeGraphWarningKindR\x04kind\x12\x12\n\x04\x66ile\x18\x02 \x01(\tR\x04\x66ile\x12\x18\n\x07message\x18\x03 \x01(\tR\x07message*u\n\x08NodeKind\x12\x19\n\x15NODE_KIND_UNSPECIFIED\x10\x00\x12\x12\n\x0eNODE_KIND_FILE\x10\x01\x12\x15\n\x11NODE_KIND_PACKAGE\x10\x02\x12\x14\n\x10NODE_KIND_MODULE\x10\x03\"\x05\x08\x64\x10\xc7\x01\"\x06\x08\xc8\x01\x10\xab\x02*u\n\x08\x45\x64geKind\x12\x19\n\x15\x45\x44GE_KIND_UNSPECIFIED\x10\x00\x12\x14\n\x10\x45\x44GE_KIND_IMPORT\x10\x01\x12\x1f\n\x1b\x45\x44GE_KIND_INTRA_PACKAGE_REF\x10\x02\x12\x17\n\x13\x45\x44GE_KIND_RE_EXPORT\x10\x03*\xfa\x01\n\x14\x43odeGraphWarningKind\x12\'\n#CODE_GRAPH_WARNING_KIND_UNSPECIFIED\x10\x00\x12\'\n#CODE_GRAPH_WARNING_KIND_PARSE_ERROR\x10\x01\x12-\n)CODE_GRAPH_WARNING_KIND_UNRESOLVED_IMPORT\x10\x02\x12.\n*CODE_GRAPH_WARNING_KIND_TYPE_CHECK_FAILURE\x10\x03\x12\x31\n-CODE_GRAPH_WARNING_KIND_AMBIGUOUS_DECLARATION\x10\x04\x42\x43ZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1a\x63ommon/v1/code_graph.proto\x12\tcommon.v1\"k\n\tCodeGraph\x12.\n\x05nodes\x18\x01 \x03(\x0b\x32\x18.common.v1.CodeGraphNodeR\x05nodes\x12.\n\x05\x65\x64ges\x18\x02 \x03(\x0b\x32\x18.common.v1.CodeGraphEdgeR\x05\x65\x64ges\"\xa4\x02\n\rCodeGraphNode\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\'\n\x04kind\x18\x02 \x01(\x0e\x32\x13.common.v1.NodeKindR\x04kind\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\x12\x12\n\x04path\x18\x04 \x01(\tR\x04path\x12H\n\nattributes\x18\x05 \x03(\x0b\x32(.common.v1.CodeGraphNode.AttributesEntryR\nattributes\x12)\n\x10leading_comments\x18\x06 \x03(\tR\x0fleadingComments\x1a=\n\x0f\x41ttributesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\x91\x02\n\rCodeGraphEdge\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\'\n\x04kind\x18\x02 \x01(\x0e\x32\x13.common.v1.EdgeKindR\x04kind\x12 \n\x0c\x66rom_node_id\x18\x03 \x01(\tR\nfromNodeId\x12\x1c\n\nto_node_id\x18\x04 \x01(\tR\x08toNodeId\x12H\n\nattributes\x18\x05 \x03(\x0b\x32(.common.v1.CodeGraphEdge.AttributesEntryR\nattributes\x1a=\n\x0f\x41ttributesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"u\n\x10\x43odeGraphWarning\x12\x33\n\x04kind\x18\x01 \x01(\x0e\x32\x1f.common.v1.CodeGraphWarningKindR\x04kind\x12\x12\n\x04\x66ile\x18\x02 \x01(\tR\x04\x66ile\x12\x18\n\x07message\x18\x03 \x01(\tR\x07message\"K\n\x11\x43odeGraphOmission\x12\x1e\n\ncapability\x18\x01 \x01(\tR\ncapability\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reason*u\n\x08NodeKind\x12\x19\n\x15NODE_KIND_UNSPECIFIED\x10\x00\x12\x12\n\x0eNODE_KIND_FILE\x10\x01\x12\x15\n\x11NODE_KIND_PACKAGE\x10\x02\x12\x14\n\x10NODE_KIND_MODULE\x10\x03\"\x05\x08\x64\x10\xc7\x01\"\x06\x08\xc8\x01\x10\xab\x02*u\n\x08\x45\x64geKind\x12\x19\n\x15\x45\x44GE_KIND_UNSPECIFIED\x10\x00\x12\x14\n\x10\x45\x44GE_KIND_IMPORT\x10\x01\x12\x1f\n\x1b\x45\x44GE_KIND_INTRA_PACKAGE_REF\x10\x02\x12\x17\n\x13\x45\x44GE_KIND_RE_EXPORT\x10\x03*\xfa\x01\n\x14\x43odeGraphWarningKind\x12\'\n#CODE_GRAPH_WARNING_KIND_UNSPECIFIED\x10\x00\x12\'\n#CODE_GRAPH_WARNING_KIND_PARSE_ERROR\x10\x01\x12-\n)CODE_GRAPH_WARNING_KIND_UNRESOLVED_IMPORT\x10\x02\x12.\n*CODE_GRAPH_WARNING_KIND_TYPE_CHECK_FAILURE\x10\x03\x12\x31\n-CODE_GRAPH_WARNING_KIND_AMBIGUOUS_DECLARATION\x10\x04\x42\x43ZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,12 +36,12 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_CODEGRAPHNODE_ATTRIBUTESENTRY']._serialized_options = b'8\001'
   _globals['_CODEGRAPHEDGE_ATTRIBUTESENTRY']._loaded_options = None
   _globals['_CODEGRAPHEDGE_ATTRIBUTESENTRY']._serialized_options = b'8\001'
-  _globals['_NODEKIND']._serialized_start=840
-  _globals['_NODEKIND']._serialized_end=957
-  _globals['_EDGEKIND']._serialized_start=959
-  _globals['_EDGEKIND']._serialized_end=1076
-  _globals['_CODEGRAPHWARNINGKIND']._serialized_start=1079
-  _globals['_CODEGRAPHWARNINGKIND']._serialized_end=1329
+  _globals['_NODEKIND']._serialized_start=917
+  _globals['_NODEKIND']._serialized_end=1034
+  _globals['_EDGEKIND']._serialized_start=1036
+  _globals['_EDGEKIND']._serialized_end=1153
+  _globals['_CODEGRAPHWARNINGKIND']._serialized_start=1156
+  _globals['_CODEGRAPHWARNINGKIND']._serialized_end=1406
   _globals['_CODEGRAPH']._serialized_start=41
   _globals['_CODEGRAPH']._serialized_end=148
   _globals['_CODEGRAPHNODE']._serialized_start=151
@@ -54,4 +54,6 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_CODEGRAPHEDGE_ATTRIBUTESENTRY']._serialized_end=443
   _globals['_CODEGRAPHWARNING']._serialized_start=721
   _globals['_CODEGRAPHWARNING']._serialized_end=838
+  _globals['_CODEGRAPHOMISSION']._serialized_start=840
+  _globals['_CODEGRAPHOMISSION']._serialized_end=915
 # @@protoc_insertion_point(module_scope)

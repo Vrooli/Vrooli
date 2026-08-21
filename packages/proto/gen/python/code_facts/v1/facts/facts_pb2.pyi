@@ -67,6 +67,17 @@ class SurfaceStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SURFACE_STATUS_UNSUPPORTED: _ClassVar[SurfaceStatus]
     SURFACE_STATUS_AMBIGUOUS: _ClassVar[SurfaceStatus]
     SURFACE_STATUS_UNKNOWN: _ClassVar[SurfaceStatus]
+
+class IndexJobState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    INDEX_JOB_STATE_UNSPECIFIED: _ClassVar[IndexJobState]
+    INDEX_JOB_STATE_QUEUED: _ClassVar[IndexJobState]
+    INDEX_JOB_STATE_RUNNING: _ClassVar[IndexJobState]
+    INDEX_JOB_STATE_CANCELLATION_REQUESTED: _ClassVar[IndexJobState]
+    INDEX_JOB_STATE_SUCCEEDED: _ClassVar[IndexJobState]
+    INDEX_JOB_STATE_FAILED: _ClassVar[IndexJobState]
+    INDEX_JOB_STATE_CANCELLED: _ClassVar[IndexJobState]
+    INDEX_JOB_STATE_INTERRUPTED: _ClassVar[IndexJobState]
 TARGET_KIND_UNSPECIFIED: TargetKind
 TARGET_KIND_PATH: TargetKind
 TARGET_KIND_SCENARIO: TargetKind
@@ -113,6 +124,14 @@ SURFACE_STATUS_MISSING: SurfaceStatus
 SURFACE_STATUS_UNSUPPORTED: SurfaceStatus
 SURFACE_STATUS_AMBIGUOUS: SurfaceStatus
 SURFACE_STATUS_UNKNOWN: SurfaceStatus
+INDEX_JOB_STATE_UNSPECIFIED: IndexJobState
+INDEX_JOB_STATE_QUEUED: IndexJobState
+INDEX_JOB_STATE_RUNNING: IndexJobState
+INDEX_JOB_STATE_CANCELLATION_REQUESTED: IndexJobState
+INDEX_JOB_STATE_SUCCEEDED: IndexJobState
+INDEX_JOB_STATE_FAILED: IndexJobState
+INDEX_JOB_STATE_CANCELLED: IndexJobState
+INDEX_JOB_STATE_INTERRUPTED: IndexJobState
 
 class CodeTarget(_message.Message):
     __slots__ = ("kind", "path", "scenario", "repo_root", "language_filter", "strict", "package_name")
@@ -155,21 +174,35 @@ class DescribeCodeFactsRequest(_message.Message):
     def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., include: _Optional[_Iterable[_Union[FactFamily, str]]] = ..., endpoint_ids: _Optional[_Iterable[str]] = ..., command_ids: _Optional[_Iterable[str]] = ..., widget_ids: _Optional[_Iterable[str]] = ..., max_depth: _Optional[int] = ..., use_cache: _Optional[bool] = ..., page_size: _Optional[int] = ..., page_token: _Optional[str] = ...) -> None: ...
 
 class SearchRequest(_message.Message):
-    __slots__ = ("query", "limit", "target", "families", "expand_edges")
+    __slots__ = ("query", "limit", "target", "families", "expand_edges", "roles", "languages", "scope", "budget_ms", "lexical_budget_ms", "semantic_budget_ms", "graph_budget_ms")
     QUERY_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
     FAMILIES_FIELD_NUMBER: _ClassVar[int]
     EXPAND_EDGES_FIELD_NUMBER: _ClassVar[int]
+    ROLES_FIELD_NUMBER: _ClassVar[int]
+    LANGUAGES_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_MS_FIELD_NUMBER: _ClassVar[int]
+    LEXICAL_BUDGET_MS_FIELD_NUMBER: _ClassVar[int]
+    SEMANTIC_BUDGET_MS_FIELD_NUMBER: _ClassVar[int]
+    GRAPH_BUDGET_MS_FIELD_NUMBER: _ClassVar[int]
     query: str
     limit: int
     target: CodeTarget
     families: _containers.RepeatedScalarFieldContainer[FactFamily]
     expand_edges: bool
-    def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., target: _Optional[_Union[CodeTarget, _Mapping]] = ..., families: _Optional[_Iterable[_Union[FactFamily, str]]] = ..., expand_edges: _Optional[bool] = ...) -> None: ...
+    roles: _containers.RepeatedScalarFieldContainer[str]
+    languages: _containers.RepeatedScalarFieldContainer[str]
+    scope: str
+    budget_ms: int
+    lexical_budget_ms: int
+    semantic_budget_ms: int
+    graph_budget_ms: int
+    def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., target: _Optional[_Union[CodeTarget, _Mapping]] = ..., families: _Optional[_Iterable[_Union[FactFamily, str]]] = ..., expand_edges: _Optional[bool] = ..., roles: _Optional[_Iterable[str]] = ..., languages: _Optional[_Iterable[str]] = ..., scope: _Optional[str] = ..., budget_ms: _Optional[int] = ..., lexical_budget_ms: _Optional[int] = ..., semantic_budget_ms: _Optional[int] = ..., graph_budget_ms: _Optional[int] = ...) -> None: ...
 
 class SearchHit(_message.Message):
-    __slots__ = ("id", "title", "text", "score", "path", "analyzer", "evidence_status", "fact_kind", "edge_expansions")
+    __slots__ = ("id", "title", "text", "score", "path", "analyzer", "evidence_status", "fact_kind", "edge_expansions", "source_hash", "generation", "role", "scope", "retrieval_regime", "retrieval_explanation", "proof_status", "start_line", "end_line", "rank_factors")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
@@ -179,6 +212,16 @@ class SearchHit(_message.Message):
     EVIDENCE_STATUS_FIELD_NUMBER: _ClassVar[int]
     FACT_KIND_FIELD_NUMBER: _ClassVar[int]
     EDGE_EXPANSIONS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_HASH_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    RETRIEVAL_REGIME_FIELD_NUMBER: _ClassVar[int]
+    RETRIEVAL_EXPLANATION_FIELD_NUMBER: _ClassVar[int]
+    PROOF_STATUS_FIELD_NUMBER: _ClassVar[int]
+    START_LINE_FIELD_NUMBER: _ClassVar[int]
+    END_LINE_FIELD_NUMBER: _ClassVar[int]
+    RANK_FACTORS_FIELD_NUMBER: _ClassVar[int]
     id: str
     title: str
     text: str
@@ -188,7 +231,29 @@ class SearchHit(_message.Message):
     evidence_status: EvidenceStatus
     fact_kind: str
     edge_expansions: _containers.RepeatedCompositeFieldContainer[SearchExpansion]
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., text: _Optional[str] = ..., score: _Optional[float] = ..., path: _Optional[str] = ..., analyzer: _Optional[str] = ..., evidence_status: _Optional[_Union[EvidenceStatus, str]] = ..., fact_kind: _Optional[str] = ..., edge_expansions: _Optional[_Iterable[_Union[SearchExpansion, _Mapping]]] = ...) -> None: ...
+    source_hash: str
+    generation: str
+    role: str
+    scope: str
+    retrieval_regime: str
+    retrieval_explanation: str
+    proof_status: str
+    start_line: int
+    end_line: int
+    rank_factors: _containers.RepeatedCompositeFieldContainer[SearchRankFactor]
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., text: _Optional[str] = ..., score: _Optional[float] = ..., path: _Optional[str] = ..., analyzer: _Optional[str] = ..., evidence_status: _Optional[_Union[EvidenceStatus, str]] = ..., fact_kind: _Optional[str] = ..., edge_expansions: _Optional[_Iterable[_Union[SearchExpansion, _Mapping]]] = ..., source_hash: _Optional[str] = ..., generation: _Optional[str] = ..., role: _Optional[str] = ..., scope: _Optional[str] = ..., retrieval_regime: _Optional[str] = ..., retrieval_explanation: _Optional[str] = ..., proof_status: _Optional[str] = ..., start_line: _Optional[int] = ..., end_line: _Optional[int] = ..., rank_factors: _Optional[_Iterable[_Union[SearchRankFactor, _Mapping]]] = ...) -> None: ...
+
+class SearchRankFactor(_message.Message):
+    __slots__ = ("name", "value", "leg", "rank")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    LEG_FIELD_NUMBER: _ClassVar[int]
+    RANK_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    value: float
+    leg: str
+    rank: int
+    def __init__(self, name: _Optional[str] = ..., value: _Optional[float] = ..., leg: _Optional[str] = ..., rank: _Optional[int] = ...) -> None: ...
 
 class SearchExpansion(_message.Message):
     __slots__ = ("id", "title", "text", "path", "analyzer", "evidence_status", "fact_kind", "family")
@@ -211,10 +276,132 @@ class SearchExpansion(_message.Message):
     def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., text: _Optional[str] = ..., path: _Optional[str] = ..., analyzer: _Optional[str] = ..., evidence_status: _Optional[_Union[EvidenceStatus, str]] = ..., fact_kind: _Optional[str] = ..., family: _Optional[_Union[FactFamily, str]] = ...) -> None: ...
 
 class SearchResponse(_message.Message):
-    __slots__ = ("results",)
+    __slots__ = ("results", "degraded_stages", "generation", "retrieval_regime")
     RESULTS_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_STAGES_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    RETRIEVAL_REGIME_FIELD_NUMBER: _ClassVar[int]
     results: _containers.RepeatedCompositeFieldContainer[SearchHit]
-    def __init__(self, results: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ...) -> None: ...
+    degraded_stages: _containers.RepeatedScalarFieldContainer[str]
+    generation: str
+    retrieval_regime: str
+    def __init__(self, results: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., degraded_stages: _Optional[_Iterable[str]] = ..., generation: _Optional[str] = ..., retrieval_regime: _Optional[str] = ...) -> None: ...
+
+class IndexJob(_message.Message):
+    __slots__ = ("id", "kind", "state", "generation", "processed", "total", "cursor", "error", "created_at_unix", "updated_at_unix", "cancellation_requested")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    PROCESSED_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    CURSOR_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_UNIX_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_UNIX_FIELD_NUMBER: _ClassVar[int]
+    CANCELLATION_REQUESTED_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    kind: str
+    state: IndexJobState
+    generation: str
+    processed: int
+    total: int
+    cursor: str
+    error: str
+    created_at_unix: int
+    updated_at_unix: int
+    cancellation_requested: bool
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., state: _Optional[_Union[IndexJobState, str]] = ..., generation: _Optional[str] = ..., processed: _Optional[int] = ..., total: _Optional[int] = ..., cursor: _Optional[str] = ..., error: _Optional[str] = ..., created_at_unix: _Optional[int] = ..., updated_at_unix: _Optional[int] = ..., cancellation_requested: _Optional[bool] = ...) -> None: ...
+
+class GetIndexStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class IndexStatus(_message.Message):
+    __slots__ = ("active_generation", "previous_generation", "state", "source_files", "search_documents", "semantic_cards", "graph_facts", "storage_bytes", "last_reconcile_at_unix", "last_reconcile_outcome", "descriptor_digest", "source_digest", "degraded_stages", "active_jobs")
+    ACTIVE_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FILES_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    SEMANTIC_CARDS_FIELD_NUMBER: _ClassVar[int]
+    GRAPH_FACTS_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    LAST_RECONCILE_AT_UNIX_FIELD_NUMBER: _ClassVar[int]
+    LAST_RECONCILE_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTOR_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_STAGES_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_JOBS_FIELD_NUMBER: _ClassVar[int]
+    active_generation: str
+    previous_generation: str
+    state: str
+    source_files: int
+    search_documents: int
+    semantic_cards: int
+    graph_facts: int
+    storage_bytes: int
+    last_reconcile_at_unix: int
+    last_reconcile_outcome: str
+    descriptor_digest: str
+    source_digest: str
+    degraded_stages: _containers.RepeatedScalarFieldContainer[str]
+    active_jobs: _containers.RepeatedCompositeFieldContainer[IndexJob]
+    def __init__(self, active_generation: _Optional[str] = ..., previous_generation: _Optional[str] = ..., state: _Optional[str] = ..., source_files: _Optional[int] = ..., search_documents: _Optional[int] = ..., semantic_cards: _Optional[int] = ..., graph_facts: _Optional[int] = ..., storage_bytes: _Optional[int] = ..., last_reconcile_at_unix: _Optional[int] = ..., last_reconcile_outcome: _Optional[str] = ..., descriptor_digest: _Optional[str] = ..., source_digest: _Optional[str] = ..., degraded_stages: _Optional[_Iterable[str]] = ..., active_jobs: _Optional[_Iterable[_Union[IndexJob, _Mapping]]] = ...) -> None: ...
+
+class ReconcileIndexRequest(_message.Message):
+    __slots__ = ("generation",)
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    generation: str
+    def __init__(self, generation: _Optional[str] = ...) -> None: ...
+
+class ReindexRequest(_message.Message):
+    __slots__ = ("generation", "confirmed")
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMED_FIELD_NUMBER: _ClassVar[int]
+    generation: str
+    confirmed: bool
+    def __init__(self, generation: _Optional[str] = ..., confirmed: _Optional[bool] = ...) -> None: ...
+
+class CancelIndexJobRequest(_message.Message):
+    __slots__ = ("job_id",)
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    job_id: str
+    def __init__(self, job_id: _Optional[str] = ...) -> None: ...
+
+class PromoteIndexGenerationRequest(_message.Message):
+    __slots__ = ("generation", "confirmed")
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMED_FIELD_NUMBER: _ClassVar[int]
+    generation: str
+    confirmed: bool
+    def __init__(self, generation: _Optional[str] = ..., confirmed: _Optional[bool] = ...) -> None: ...
+
+class RollbackIndexGenerationRequest(_message.Message):
+    __slots__ = ("generation", "confirmed")
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMED_FIELD_NUMBER: _ClassVar[int]
+    generation: str
+    confirmed: bool
+    def __init__(self, generation: _Optional[str] = ..., confirmed: _Optional[bool] = ...) -> None: ...
+
+class CleanupIndexRequest(_message.Message):
+    __slots__ = ("dry_run", "confirmed")
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMED_FIELD_NUMBER: _ClassVar[int]
+    dry_run: bool
+    confirmed: bool
+    def __init__(self, dry_run: _Optional[bool] = ..., confirmed: _Optional[bool] = ...) -> None: ...
+
+class IndexControlResponse(_message.Message):
+    __slots__ = ("job", "status", "message")
+    JOB_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    job: IndexJob
+    status: IndexStatus
+    message: str
+    def __init__(self, job: _Optional[_Union[IndexJob, _Mapping]] = ..., status: _Optional[_Union[IndexStatus, _Mapping]] = ..., message: _Optional[str] = ...) -> None: ...
 
 class DescribeFleetImportsRequest(_message.Message):
     __slots__ = ("scenarios", "limit", "use_cache", "repo_root", "language_filter")

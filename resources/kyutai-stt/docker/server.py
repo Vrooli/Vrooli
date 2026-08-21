@@ -106,6 +106,25 @@ SILENCE_COMMIT_FRAMES = int(os.environ.get("KYUTAI_STT_SILENCE_COMMIT_FRAMES", "
 # pause-or-flush-only behaviour). Sibling knob to SILENCE_COMMIT_FRAMES.
 MAX_SEGMENT_FRAMES = int(os.environ.get("KYUTAI_STT_MAX_SEGMENT_FRAMES", "48"))
 
+# The bundled STT checkpoint has a finite attention context. Its streaming
+# ring-cache is intended to make that context bounded, but sustained live
+# decoding can still drift after several context rotations. Reset both the
+# acoustic and language-model streaming state at a durable word boundary before
+# that drift becomes transcript loss. Set to 0 only when testing an alternative
+# model/runtime with a verified indefinite streaming state.
+STREAM_RESET_INTERVAL_FRAMES = max(
+    0, int(os.environ.get("KYUTAI_STT_STREAM_RESET_INTERVAL_FRAMES", "600"))
+)
+
+# After a decoder reset, replay a bounded tail of already-decoded acoustic
+# frames to warm the new streaming state. The replay is not emitted as text;
+# it exists to preserve phonetic context across a finite-context rotation.
+# Keeping this as model-rate frames rather than unbounded PCM makes the memory
+# cost explicit (32 frames is about 2.56s for the bundled 12.5 Hz model).
+STREAM_RESET_REPLAY_FRAMES = max(
+    0, int(os.environ.get("KYUTAI_STT_STREAM_RESET_REPLAY_FRAMES", "32"))
+)
+
 # Bounded wait (seconds) to acquire the single-session MODEL.lock before a new
 # connection reaps an abandoned/wedged prior session. A stuck stream (e.g. a
 # half-open consumer that stopped reading) can no longer starve the next
@@ -137,6 +156,20 @@ ACTIVITY_WEDGE_TIMEOUT_S = float(os.environ.get("KYUTAI_STT_ACTIVITY_WEDGE_S", "
 # it. Sibling to the relay's drain deadline on the audio-tools side.
 SEND_DRAIN_TIMEOUT_S = float(os.environ.get("KYUTAI_STT_SEND_DRAIN_TIMEOUT_S", "5"))
 
+# Durable transcript events are lossless, but they must not become an
+# unbounded memory queue when a consumer stops reading. The normal sender
+# keeps this queue close to empty; these limits are a fail-closed guard for a
+# stalled or hostile client. On overflow decoding stops before another
+# processed acknowledgement can be emitted, so audio-tools retains the
+# unacknowledged tail for replay/recovery.
+MAX_DURABLE_EVENTS = max(
+    16, int(os.environ.get("KYUTAI_STT_MAX_DURABLE_EVENTS", "1024"))
+)
+MAX_DURABLE_BYTES = max(
+    64 * 1024,
+    int(os.environ.get("KYUTAI_STT_MAX_DURABLE_BYTES", str(4 * 1024 * 1024))),
+)
+
 # Model stepping is compute-heavy and normally synchronous. Yield periodically
 # during a multi-frame input batch so the WebSocket sender can emit processed
 # credits and the ASGI runtime can service control traffic. This is scheduling,
@@ -158,6 +191,10 @@ class AdmissionRejected(Exception):
 
 class AdmissionTimedOut(Exception):
     """A queued session exceeded its explicit operator wait bound."""
+
+
+class DurableQueueOverflow(Exception):
+    """A slow consumer exceeded the bounded durable-event memory budget."""
 
 
 class FIFOAdmission:
@@ -416,6 +453,10 @@ class StreamSession:
         self.last_partial = ""  # de-dupe identical partial emissions
         self.started_at = time.monotonic()
         self.segments_emitted = 0
+        self.next_stream_reset_frame = (
+            STREAM_RESET_INTERVAL_FRAMES if STREAM_RESET_INTERVAL_FRAMES > 0 else 0
+        )
+        self._recent_frames: Deque[object] = deque(maxlen=STREAM_RESET_REPLAY_FRAMES)
 
         # ── Decode/send decoupling (event-durability contract) ──
         # The decode loop ENQUEUES events and keeps stepping regardless of
@@ -425,6 +466,8 @@ class StreamSession:
         # and MUST NEVER back-pressure decode. See
         # scenarios/audio-tools/docs/domains/stt/streaming-pipeline.md#event-durability-contract.
         self._durables: Deque[dict] = deque()  # ordered, never dropped
+        self._durable_bytes = 0
+        self._durable_overflow = False
         self._latest_partial: Optional[str] = None  # coalesced-to-latest
         self._last_sent_partial = ""  # de-dupe on the wire
         # Absolute count of binary batches accepted by this session. This is a
@@ -459,8 +502,23 @@ class StreamSession:
 
     def _enqueue_durable(self, obj: dict) -> None:
         """Queue a durable event (segment/done/error): ordered and lossless.
-        Non-blocking — decode never waits on the consumer."""
+        Non-blocking — decode never waits on the consumer. A stalled consumer
+        fails closed once the bounded queue budget is exhausted; it never
+        turns transcript durability into unbounded resource memory."""
+        if self._durable_overflow:
+            raise DurableQueueOverflow("durable transcript event budget exhausted")
+        encoded_size = len(json.dumps(obj, separators=(",", ":")))
+        if (
+            len(self._durables) >= MAX_DURABLE_EVENTS
+            or self._durable_bytes + encoded_size > MAX_DURABLE_BYTES
+        ):
+            self._durable_overflow = True
+            self._wake.set()
+            raise DurableQueueOverflow(
+                "durable transcript event budget exhausted; retained audio must be replayed"
+            )
         self._durables.append(obj)
+        self._durable_bytes += encoded_size
         self._wake.set()
 
     def _enqueue_partial(self, text: str) -> None:
@@ -497,12 +555,57 @@ class StreamSession:
                 "end_ms": self._ms_for_frame(end_frame),
             }
         )
+        await self._reset_streaming_state_if_due()
+
+    async def _reset_streaming_state_if_due(self) -> None:
+        """Reset decoder state after a durable boundary, before context drift.
+
+        A reset alone gives the decoder no acoustic context at the rotation
+        boundary. Replay is deliberately performed after the reset and before
+        the next live frame, with all generated tokens suppressed so duplicated
+        text cannot reach the durable transcript.
+        """
+        if self.next_stream_reset_frame <= 0 or self.frames_consumed < self.next_stream_reset_frame:
+            return
+        for component in (MODEL._mimi, MODEL._lm_gen):
+            reset_streaming = getattr(component, "reset_streaming", None)
+            if callable(reset_streaming):
+                reset_streaming()
+        await self._replay_recent_frames()
+        while self.next_stream_reset_frame <= self.frames_consumed:
+            self.next_stream_reset_frame += STREAM_RESET_INTERVAL_FRAMES
+
+    async def _replay_recent_frames(self) -> None:
+        """Warm a freshly reset decoder with a bounded acoustic tail.
+
+        The frames are detached copies captured before the reset, so replay
+        cannot retain the full turn or alias a mutable input tensor. No token
+        is passed through ``_step_token``: replay is state warm-up only.
+        """
+        if not self._recent_frames or MODEL._torch is None:
+            return
+        torch = MODEL._torch
+        mimi = MODEL._mimi
+        lm_gen = MODEL._lm_gen
+        if mimi is None or lm_gen is None:
+            return
+        for frame in tuple(self._recent_frames):
+            with torch.no_grad():
+                audio_tokens = mimi.encode(frame)
+                lm_gen.step(audio_tokens)
 
     def enqueue_error(self, message: str, code: Optional[str] = None) -> None:
         obj = {"type": "error", "message": message}
         if code:
             obj["code"] = code
-        self._enqueue_durable(obj)
+        try:
+            self._enqueue_durable(obj)
+        except DurableQueueOverflow:
+            # The queue is already over budget; raising a second exception
+            # from an error handler would hide the original recovery signal.
+            # The outer stream teardown still closes the socket, and the
+            # unacknowledged audio remains owned by audio-tools for replay.
+            return
 
     def enqueue_done(self) -> None:
         self._enqueue_durable({"type": "done"})
@@ -521,6 +624,7 @@ class StreamSession:
 
         while self._durables:
             obj = self._durables.popleft()
+            self._durable_bytes -= len(json.dumps(obj, separators=(",", ":")))
             # Providers treat done as terminal and stop consuming immediately.
             # The final processed cursor must therefore cross the wire first,
             # otherwise a fully decoded tail can remain in the browser journal
@@ -602,6 +706,8 @@ class StreamSession:
 
         for i in range(n_frames):
             chunk = framed[:, i * fs:(i + 1) * fs].unsqueeze(0)  # [1,1,fs]
+            if STREAM_RESET_REPLAY_FRAMES > 0 and hasattr(chunk, "detach"):
+                self._recent_frames.append(chunk.detach().clone())
             with torch.no_grad():
                 audio_tokens = mimi.encode(chunk)
                 text_tokens = lm_gen.step(audio_tokens)
@@ -832,8 +938,9 @@ async def stream(ws: WebSocket) -> None:
                     mtype = payload.get("type")
                     if mtype == "start":
                         # The validated start frame was consumed before
-                        # admission. A second start has no useful meaning and
-                        # is rejected rather than silently resetting a turn.
+                        # admission. A second start has no useful meaning
+                        # and is rejected rather than silently resetting a
+                        # turn.
                         session.enqueue_error("duplicate start control frame", "duplicate_start")
                         break
                     elif mtype == "end":
@@ -850,8 +957,8 @@ async def stream(ws: WebSocket) -> None:
                     await session.feed(msg["bytes"])
                     # Credit every accepted binary batch, including a short
                     # chunk retained as codec/model-frame remainder. The
-                    # client window is transport flow control, not a count of
-                    # fully stepped model frames.
+                    # client window is transport flow control, not a count
+                    # of fully stepped model frames.
                     session.processed_batches += 1
                     session._wake.set()
     except WebSocketDisconnect:
@@ -862,6 +969,9 @@ async def stream(ws: WebSocket) -> None:
         # next recording proceeds.
         close_reason = "reaped"
         log.info("streaming session cancelled (reaped)")
+    except DurableQueueOverflow as exc:
+        close_reason = "durable-queue-overflow"
+        log.warning("stream closed after bounded durable-event queue overflow: %s", exc)
     except Exception as exc:  # noqa: BLE001 - report to client, don't crash
         close_reason = "error"
         log.exception("stream error")

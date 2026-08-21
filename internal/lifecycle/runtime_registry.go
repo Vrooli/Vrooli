@@ -16,6 +16,7 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioenv"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -348,6 +349,43 @@ func (s *runtimeRegistrySession) markRunning(ctx context.Context) error {
 	}
 	s.instance = updated
 	return nil
+}
+
+func (s runtimeRegistrySession) publishPeerRecord(ctx context.Context, home string) error {
+	if !s.enabled {
+		return nil
+	}
+	refs, err := s.store.ListProcessRefs(ctx, s.instance.InstanceID)
+	if err != nil {
+		return fmt.Errorf("read peer owner process: %w", err)
+	}
+	ownerPID := 0
+	for _, ref := range refs {
+		if ref.Status == "running" && ref.PID != nil && *ref.PID > 0 {
+			ownerPID = *ref.PID
+			break
+		}
+	}
+	if ownerPID == 0 {
+		// A scenario with no durable process has nothing discoverable to publish.
+		// This is valid for lifecycle-only helpers and avoids advertising the
+		// short-lived control-plane command as the peer owner.
+		return nil
+	}
+	ports := make(map[string]int, len(s.claims))
+	for name, claim := range s.claims {
+		if claim.Status == scenarioruntime.ClaimStatusBound {
+			ports[name] = claim.Port
+		}
+	}
+	return scenarioenv.Write(home, scenarioenv.PeerRecord{
+		Scenario:  s.instance.Scenario,
+		Instance:  s.instance.Variant,
+		Tier:      1,
+		OwnerPID:  ownerPID,
+		StartedAt: s.instance.StartedAt,
+		Ports:     ports,
+	})
 }
 
 // attachSupervision hands the freshly-started instance to the runtime

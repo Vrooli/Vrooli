@@ -1,9 +1,28 @@
 package hostreqspec
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
+
+func TestDeclarationMinVersionRoundTrips(t *testing.T) {
+	raw := []byte(`{"name":"node","required":true,"min_version":"20.0.0","reason":"Builds the TypeScript sidecar."}`)
+	var declaration Declaration
+	if err := json.Unmarshal(raw, &declaration); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if declaration.MinVersion != "20.0.0" {
+		t.Fatalf("MinVersion = %q, want 20.0.0", declaration.MinVersion)
+	}
+	encoded, err := json.Marshal(declaration)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(encoded), `"min_version":"20.0.0"`) {
+		t.Fatalf("round-trip output = %s", encoded)
+	}
+}
 
 func TestNormalizePlatform(t *testing.T) {
 	tests := []struct {

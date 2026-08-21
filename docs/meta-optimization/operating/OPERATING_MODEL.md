@@ -219,6 +219,8 @@ flowchart LR
   TOOLCHAINAUD[(toolchain-audit/*)]
   %% @node TV member:toolchain-validator
   TV[Toolchain Validator]
+  %% @node METAOPTIMIZA instrument:meta-optimization-manager
+  METAOPTIMIZA[meta-optimization-manager]
 
   OP --> DC
   OP --> RI

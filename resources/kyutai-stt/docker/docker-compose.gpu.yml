@@ -25,6 +25,9 @@ services:
       # utterance still produces durable segments (0 disables force-commit).
       - KYUTAI_STT_SILENCE_COMMIT_FRAMES=${KYUTAI_STT_SILENCE_COMMIT_FRAMES:-16}
       - KYUTAI_STT_MAX_SEGMENT_FRAMES=${KYUTAI_STT_MAX_SEGMENT_FRAMES:-48}
+      # Reset finite model streaming state at durable boundaries before
+      # sustained context rotation can degrade transcript quality (0 disables).
+      - KYUTAI_STT_STREAM_RESET_INTERVAL_FRAMES=${KYUTAI_STT_STREAM_RESET_INTERVAL_FRAMES:-600}
       - HF_HOME=/models
       - HF_TOKEN=${KYUTAI_STT_HF_TOKEN:-}
       - NVIDIA_VISIBLE_DEVICES=all

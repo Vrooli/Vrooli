@@ -1577,6 +1577,24 @@ func TestLoadResourceEnvironmentReturnsEmptyWhenMetadataMissing(t *testing.T) {
 	}
 }
 
+func TestExpandTemplateUsesClosedManifestPlaceholderLanguage(t *testing.T) {
+	got, err := ExpandTemplate("http://127.0.0.1:${API_PORT}/$PATH_NAME", map[string]string{
+		"API_PORT":  "18080",
+		"PATH_NAME": "health",
+	})
+	if err != nil {
+		t.Fatalf("ExpandTemplate: %v", err)
+	}
+	if got != "http://127.0.0.1:18080/health" {
+		t.Fatalf("ExpandTemplate = %q", got)
+	}
+	for _, value := range []string{"${resource.ollama.enabled}", "${API_PORT:-18080}", "${MISSING}", "$"} {
+		if _, err := ExpandTemplate(value, map[string]string{"API_PORT": "18080"}); err == nil {
+			t.Fatalf("ExpandTemplate(%q) unexpectedly succeeded", value)
+		}
+	}
+}
+
 func writePortRegistry(t *testing.T, root string, ports map[string]int) {
 	t.Helper()
 	ensureTypedResourceMetadata(t, root)

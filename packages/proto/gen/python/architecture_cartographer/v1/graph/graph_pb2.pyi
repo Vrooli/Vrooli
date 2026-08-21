@@ -3,6 +3,7 @@ import datetime
 from architecture_cartographer.v1.domains import domains_pb2 as _domains_pb2
 from architecture_cartographer.v1.shared import shared_pb2 as _shared_pb2
 from common.v1 import attestation_pb2 as _attestation_pb2
+from common.v1 import code_graph_pb2 as _code_graph_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -99,7 +100,7 @@ class Chunk(_message.Message):
     def __init__(self, id: _Optional[str] = ..., file_id: _Optional[str] = ..., path: _Optional[str] = ..., current_domain: _Optional[str] = ...) -> None: ...
 
 class GraphSnapshot(_message.Message):
-    __slots__ = ("id", "scenario", "content_hash", "languages", "extracted_at", "extraction_ms", "files", "packages", "symbols", "imports")
+    __slots__ = ("id", "scenario", "content_hash", "languages", "extracted_at", "extraction_ms", "files", "packages", "symbols", "imports", "extraction_profiles", "omitted_information")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
@@ -110,6 +111,8 @@ class GraphSnapshot(_message.Message):
     PACKAGES_FIELD_NUMBER: _ClassVar[int]
     SYMBOLS_FIELD_NUMBER: _ClassVar[int]
     IMPORTS_FIELD_NUMBER: _ClassVar[int]
+    EXTRACTION_PROFILES_FIELD_NUMBER: _ClassVar[int]
+    OMITTED_INFORMATION_FIELD_NUMBER: _ClassVar[int]
     id: str
     scenario: str
     content_hash: str
@@ -120,7 +123,9 @@ class GraphSnapshot(_message.Message):
     packages: _containers.RepeatedCompositeFieldContainer[PackageNode]
     symbols: _containers.RepeatedCompositeFieldContainer[SymbolNode]
     imports: _containers.RepeatedCompositeFieldContainer[ImportEdge]
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., content_hash: _Optional[str] = ..., languages: _Optional[_Iterable[_Union[Language, str]]] = ..., extracted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., extraction_ms: _Optional[int] = ..., files: _Optional[_Iterable[_Union[FileNode, _Mapping]]] = ..., packages: _Optional[_Iterable[_Union[PackageNode, _Mapping]]] = ..., symbols: _Optional[_Iterable[_Union[SymbolNode, _Mapping]]] = ..., imports: _Optional[_Iterable[_Union[ImportEdge, _Mapping]]] = ...) -> None: ...
+    extraction_profiles: _containers.RepeatedScalarFieldContainer[str]
+    omitted_information: _containers.RepeatedCompositeFieldContainer[_code_graph_pb2.CodeGraphOmission]
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., content_hash: _Optional[str] = ..., languages: _Optional[_Iterable[_Union[Language, str]]] = ..., extracted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., extraction_ms: _Optional[int] = ..., files: _Optional[_Iterable[_Union[FileNode, _Mapping]]] = ..., packages: _Optional[_Iterable[_Union[PackageNode, _Mapping]]] = ..., symbols: _Optional[_Iterable[_Union[SymbolNode, _Mapping]]] = ..., imports: _Optional[_Iterable[_Union[ImportEdge, _Mapping]]] = ..., extraction_profiles: _Optional[_Iterable[str]] = ..., omitted_information: _Optional[_Iterable[_Union[_code_graph_pb2.CodeGraphOmission, _Mapping]]] = ...) -> None: ...
 
 class ExtractGraphRequest(_message.Message):
     __slots__ = ("scenario", "languages", "idempotency_key")

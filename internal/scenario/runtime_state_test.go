@@ -9,7 +9,7 @@ import (
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=1 | LAST: 2026-04-11
 
-func TestDescribeRuntimeUsesSharedPortInferenceAndHealth(t *testing.T) {
+func TestDescribeRuntimeUsesDeclaredPortKeysAndHealth(t *testing.T) {
 	startedAt := time.Date(2026, time.April, 11, 12, 0, 0, 0, time.UTC)
 	manifest := ServiceManifest{
 		Ports: map[string]Port{
@@ -30,8 +30,8 @@ func TestDescribeRuntimeUsesSharedPortInferenceAndHealth(t *testing.T) {
 		Runtime:      "5m",
 		StartedAt:    &startedAt,
 		Records: []process.Record{
-			{PID: 123, Step: "start-api", Port: 18080, StartedAt: startedAt},
-			{PID: 124, Step: "launch-ui", Port: 38080, StartedAt: startedAt},
+			{PID: 123, Step: "start-api", Port: 18080, PortKey: "API_PORT", StartedAt: startedAt},
+			{PID: 124, Step: "launch-ui", Port: 38080, PortKey: "UI_PORT", StartedAt: startedAt},
 		},
 	}
 
@@ -59,30 +59,6 @@ func TestDescribeRuntimeUsesSharedPortInferenceAndHealth(t *testing.T) {
 	}
 	if details.Health != "unhealthy" {
 		t.Fatalf("details.Health = %q, want unhealthy", details.Health)
-	}
-}
-
-func TestInferPortEnvVarNormalizesHistoricalStepNames(t *testing.T) {
-	manifest := ServiceManifest{
-		Ports: map[string]Port{
-			"api":       {EnvVar: "API_PORT"},
-			"ui":        {EnvVar: "UI_PORT"},
-			"websocket": {EnvVar: "WS_PORT"},
-		},
-	}
-
-	cases := map[string]string{
-		"start-api":    "API_PORT",
-		"run-ui":       "UI_PORT",
-		"launch-vite":  "UI_PORT",
-		"serve-ws":     "WS_PORT",
-		"socket-proxy": "WS_PORT",
-	}
-
-	for step, want := range cases {
-		if got := InferPortEnvVar(manifest, step); got != want {
-			t.Fatalf("InferPortEnvVar(%q) = %q, want %q", step, got, want)
-		}
 	}
 }
 

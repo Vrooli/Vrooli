@@ -31,6 +31,10 @@ const (
 	DefaultRecoveryCooldown     = 5 * time.Minute
 	DefaultRecoveryConcurrency  = 1
 	DefaultPressureSomeAvg10    = 10.0
+	// DefaultPressureCPUSomeAvg10 is deliberately much higher than the memory
+	// threshold: CPU contention is normal on a build host, and only a run queue
+	// deep enough to stall most work should gate recovery.
+	DefaultPressureCPUSomeAvg10 = 50.0
 
 	ModeEnv  = "VROOLI_RUNTIME_SUPERVISOR"
 	ModeOff  = "off"
@@ -909,6 +913,7 @@ func normalizeBatchSize(v int) int {
 
 func EnvConfig() Config {
 	pressureThreshold := floatEnv("VROOLI_RUNTIME_PRESSURE_SOME_AVG10", DefaultPressureSomeAvg10)
+	cpuPressureThreshold := floatEnv("VROOLI_RUNTIME_PRESSURE_CPU_SOME_AVG10", DefaultPressureCPUSomeAvg10)
 	return Config{
 		RenewInterval:        durationEnv("VROOLI_RUNTIME_SUPERVISOR_RENEW_INTERVAL", DefaultRenewInterval),
 		LeaseTTL:             durationEnv("VROOLI_RUNTIME_SUPERVISOR_LEASE_TTL", DefaultLeaseTTL),
@@ -919,7 +924,7 @@ func EnvConfig() Config {
 		RecoveryCooldown:     durationEnv("VROOLI_RUNTIME_RECOVERY_COOLDOWN", DefaultRecoveryCooldown),
 		RecoveryConcurrency:  intEnv("VROOLI_RUNTIME_RECOVERY_CONCURRENCY", DefaultRecoveryConcurrency),
 		PressureSomeAvg10:    pressureThreshold,
-		PressureProvider:     NewHostPressureProvider(pressureThreshold),
+		PressureProvider:     NewHostPressureProviderWithCPU(pressureThreshold, cpuPressureThreshold),
 	}
 }
 

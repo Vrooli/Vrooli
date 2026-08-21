@@ -10,9 +10,11 @@ import (
 	"time"
 )
 
-const nativeScheduleProvider = "windows-task-scheduler-user"
-const nativeScheduleSupported = true
-const credentialCopyTask = "VrooliCredentialStoreCopy"
+const (
+	nativeScheduleProvider  = "windows-task-scheduler-user"
+	nativeScheduleSupported = true
+	credentialCopyTask      = "VrooliCredentialStoreCopy"
+)
 
 func installNativeCopySchedule(executable string, interval time.Duration, enabled bool) error {
 	if !enabled {

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "search-hub",
-  "input_digest": "sha256:76d4d2f9cbc1a3178c6c707535ecbd29bf41b6c7a2d9a6f7a6ac572986b3e1fd",
+  "input_digest": "sha256:8be104806008d353860037e7b400894dd88bdde055d1936f03d27cb6f8484cd0",
   "input_files": [
     "schemas/common/v1/attestation.proto",
     "schemas/common/v1/confidence.proto",
@@ -40,7 +40,7 @@
     "gen/go/search-hub/v1/metrics/metrics_v1connect/metrics.connect.go": "sha256:e141b4fe97958e5dadbd3119a33cf806b44fa6ccbda305b846441048fe12fc0e",
     "gen/go/search-hub/v1/registry/registry.pb.go": "sha256:8cc03a5784dbd27553d775fe98adec3b3077867b4de378e613fed978f96108c6",
     "gen/go/search-hub/v1/registry/registry_v1connect/registry.connect.go": "sha256:f398ffc90e25dedd1b09bdf73fe17b3cf370e7e27dc7b27b88d6ec05f4fbd1e9",
-    "gen/go/search-hub/v1/routing/routing.pb.go": "sha256:e139040d9b1e93d3c0667422f49f488eee09d3de0f335e7d3ea5971c22101faf",
+    "gen/go/search-hub/v1/routing/routing.pb.go": "sha256:1aef9fd4570890b6a1bd24045b72bd0495a503bcf9804291d0a232bc49807201",
     "gen/go/search-hub/v1/routing/routing_v1connect/routing.connect.go": "sha256:c04cb0384e4d6e396d3b6a36f6343f23775a429663c21f23024b6e0374fd1628",
     "gen/go/search-hub/v1/shared/routing_trace.pb.go": "sha256:bedc278bf7ffc500d02c269c5e0136b5abc7d5ba97536662b173dc0bbd2a24b9",
     "gen/python/search_hub/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -67,8 +67,8 @@
     "gen/python/search_hub/v1/registry/registry_pb2.py": "sha256:76882062732d0eecc87522684eb98c6715815716017685ca7b9566774993e4df",
     "gen/python/search_hub/v1/registry/registry_pb2.pyi": "sha256:ab6b784c28451f3012a80a3ff4d272962f834cbfe2de3413a545db5983ca3e6a",
     "gen/python/search_hub/v1/routing/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/search_hub/v1/routing/routing_pb2.py": "sha256:13eb0bd516f2961950733cee75cbe6306b1dbf91c16e86d0aa7854afd9e8bbe5",
-    "gen/python/search_hub/v1/routing/routing_pb2.pyi": "sha256:435394e1630a0b41470adcf68acaa563eb859f511971383d66ba1f5c8872c632",
+    "gen/python/search_hub/v1/routing/routing_pb2.py": "sha256:d89ca6ceb29210059aac26fbd973ae3d3bede4c587714a069fb59fa7090c74fe",
+    "gen/python/search_hub/v1/routing/routing_pb2.pyi": "sha256:26f2e066e1127e88aa7277b3d808f03578c7d310bea60766099ea309b4c605a5",
     "gen/python/search_hub/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/search_hub/v1/shared/routing_trace_pb2.py": "sha256:d947a766dfede3147dc8dc9db532a4ac367f542739b877c3a84ab8023b6f5783",
     "gen/python/search_hub/v1/shared/routing_trace_pb2.pyi": "sha256:88461c72d457b0e86cfac2229054d88c1c5c49c9c3bb6dcdb5db5b8de6b7f642",
@@ -79,7 +79,7 @@
     "gen/typescript/js/search-hub/v1/measures/measures_pb.js": "sha256:704ed6c44466e3daf1f1181ae6fd5f926f13f1defa53a0dd9707949ef364b4c1",
     "gen/typescript/js/search-hub/v1/metrics/metrics_pb.js": "sha256:83b4bf20b97a4ede188ae982349a17ded323a6ab523e6beb1a1cfd36f2c1bf98",
     "gen/typescript/js/search-hub/v1/registry/registry_pb.js": "sha256:6458b42110181f1939ad851851d19e142d55d9b6ba81429fefdfb8ae6a1bb961",
-    "gen/typescript/js/search-hub/v1/routing/routing_pb.js": "sha256:47b6cae1968a879cff40ed4621b230223adbb950068d0da4ee706d91fae61063",
+    "gen/typescript/js/search-hub/v1/routing/routing_pb.js": "sha256:f335145412edd8a281f1690241fbfdd89ea196b7120a8abd1b886deb21362202",
     "gen/typescript/js/search-hub/v1/shared/routing_trace_pb.js": "sha256:8892c991e133b5732f1cdf78f9db20f7690b5ca8856277549137db55ed835c38",
     "gen/typescript/search-hub/v1/control/control_pb.ts": "sha256:f73495ffd25fba6fb18a9e3a1c8d85c2e66f62510a39b1c5be7ea9f5b0168a4c",
     "gen/typescript/search-hub/v1/errors/errors_pb.ts": "sha256:b7f15cc6754a7e7e7f128020da85a878bd9e150bfbee9f7ddb3cf02586130b12",
@@ -88,7 +88,7 @@
     "gen/typescript/search-hub/v1/measures/measures_pb.ts": "sha256:0eb57c0c519273c17ee54a51ea49d8065c197fdaaff73e239fc9acea858cd2de",
     "gen/typescript/search-hub/v1/metrics/metrics_pb.ts": "sha256:b38f20dc66c629f108d3e31e7dbd28f69c9b8301128383bd14044298492420cc",
     "gen/typescript/search-hub/v1/registry/registry_pb.ts": "sha256:84d4a66d6034e8d74464d36d46148be61906368cc3adaf3066e4ad45669127cd",
-    "gen/typescript/search-hub/v1/routing/routing_pb.ts": "sha256:2afa2fa08e6ba085846624bd26ec2d07cd74afe09701827392ebb525660b0572",
+    "gen/typescript/search-hub/v1/routing/routing_pb.ts": "sha256:634fba80e7c5b9cfe47cf12a640a8ad21d92e6b1b5e7dc397cf78c17fb5b13f5",
     "gen/typescript/search-hub/v1/shared/routing_trace_pb.ts": "sha256:43f8265c76dee54adcae1fcf2508b657860337e5e4b15942fe3f9264854d853a"
   }
 }

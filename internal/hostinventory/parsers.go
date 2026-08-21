@@ -269,6 +269,92 @@ func ParseWindowsGPUNames(input string) []GPU {
 	return gpus
 }
 
+// ParseNvidiaPCIBusIDCSV maps each nvidia-smi GPU index to the normalised PCI
+// address of the device it describes. nvidia-smi prints an eight-digit domain
+// ("00000000:01:00.0"); sysfs and every other consumer use four
+// ("0000:01:00.0"), so the address is normalised here rather than at each
+// comparison site.
+func ParseNvidiaPCIBusIDCSV(input string) map[int]string {
+	addresses := map[int]string{}
+	for _, line := range strings.Split(strings.TrimSpace(input), "\n") {
+		index, address, found := strings.Cut(line, ",")
+		if !found {
+			continue
+		}
+		gpuIndex, err := strconv.Atoi(strings.TrimSpace(index))
+		if err != nil {
+			continue
+		}
+		normalized := NormalizePCIAddress(address)
+		if normalized == "" {
+			continue
+		}
+		addresses[gpuIndex] = normalized
+	}
+	return addresses
+}
+
+// NormalizePCIAddress renders a PCI address in the four-digit-domain form the
+// Linux device tree uses. It returns an empty string when the input is not a
+// PCI address.
+func NormalizePCIAddress(input string) string {
+	address := strings.ToLower(strings.TrimSpace(input))
+	parts := strings.Split(address, ":")
+	if len(parts) != 3 {
+		return ""
+	}
+	domain := strings.TrimLeft(parts[0], "0")
+	if domain == "" {
+		domain = "0"
+	}
+	if len(domain) > 4 {
+		return ""
+	}
+	return fmt.Sprintf("%04s:%s:%s", domain, parts[1], parts[2])
+}
+
+// ParseWindowsVideoControllers builds device records from the key=value blocks
+// wmic emits for win32_VideoController. Identity is the PNP device instance
+// ID, which the PnP manager derives from bus topology and which therefore does
+// not depend on enumeration order.
+func ParseWindowsVideoControllers(input string) []Device {
+	var devices []Device
+	current := map[string]string{}
+	flush := func() {
+		defer func() { current = map[string]string{} }()
+		id := strings.TrimSpace(current["PNPDeviceID"])
+		if id == "" {
+			return
+		}
+		devices = append(devices, Device{
+			ID:            "pnp:" + strings.ToUpper(id),
+			Class:         DeviceClassGraphics,
+			Vendor:        strings.TrimSpace(current["AdapterCompatibility"]),
+			Model:         strings.TrimSpace(current["Name"]),
+			DriverVersion: strings.TrimSpace(current["DriverVersion"]),
+			DiscoveredBy:  "windows-pnp-device-tree",
+		})
+	}
+	for _, raw := range strings.Split(input, "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			flush()
+			continue
+		}
+		key, value, found := strings.Cut(line, "=")
+		if !found {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		if _, repeated := current[key]; repeated {
+			flush()
+		}
+		current[key] = value
+	}
+	flush()
+	return devices
+}
+
 func ParseUintBytes(input string) (uint64, error) {
 	value, err := strconv.ParseUint(strings.TrimSpace(input), 10, 64)
 	if err != nil {

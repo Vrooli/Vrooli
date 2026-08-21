@@ -16,7 +16,7 @@ audio-tools scenario.
 
 - Low-latency streaming transcription for voice and multimodal workflows.
 - A reusable streaming STT service for scenarios and automation.
-- Pair with the `kokoro` TTS resource for end-to-end voice pipelines.
+- Pair with the native `sherpa-onnx` resource for end-to-end voice pipelines.
 
 ## Model
 
@@ -73,9 +73,11 @@ Environment exports for scenarios: `KYUTAI_STT_URL`, `KYUTAI_STT_BASE_URL`,
 
 ## Notes
 
-- Requires an NVIDIA CUDA GPU for real-time streaming. The GPU compose overlay
-  (`docker/docker-compose.gpu.yml`) is applied automatically when the nvidia
-  probe succeeds.
+- Requires an NVIDIA CUDA GPU with compute capability 8.9 or newer for the
+  qualified real-time path. The manifest records that requirement and the GPU
+  compose overlay (`docker/docker-compose.gpu.yml`) is applied automatically
+  when the nvidia probe succeeds. Hosts without that capability must use the
+  native Whisper or sherpa streaming cell instead; Kyutai is not a CPU fallback.
 - First run downloads multi-GB weights into the bind-mounted HF cache; they
   persist across container recreations.
 - `KYUTAI_STT_HF_TOKEN` is optional (public models); only needed to avoid

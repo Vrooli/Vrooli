@@ -35,6 +35,9 @@ const (
 const (
 	// LadderServiceGetLadderProcedure is the fully-qualified name of the LadderService's GetLadder RPC.
 	LadderServiceGetLadderProcedure = "/vrooli.infrastructure_manager.v1.ladder.LadderService/GetLadder"
+	// LadderServiceListDevicesProcedure is the fully-qualified name of the LadderService's ListDevices
+	// RPC.
+	LadderServiceListDevicesProcedure = "/vrooli.infrastructure_manager.v1.ladder.LadderService/ListDevices"
 	// LadderServiceListCellsProcedure is the fully-qualified name of the LadderService's ListCells RPC.
 	LadderServiceListCellsProcedure = "/vrooli.infrastructure_manager.v1.ladder.LadderService/ListCells"
 	// LadderServiceListSourcesProcedure is the fully-qualified name of the LadderService's ListSources
@@ -48,9 +51,12 @@ const (
 // LadderServiceClient is a client for the vrooli.infrastructure_manager.v1.ladder.LadderService
 // service.
 type LadderServiceClient interface {
-	// GetLadder returns the whole ladder readout: every cell, every source's
-	// availability, and the cascade-ranked findings.
+	// GetLadder returns the whole ladder readout: every cell, every graded
+	// device, every source's availability, and the cascade-ranked findings.
 	GetLadder(context.Context, *connect.Request[ladder.GetLadderRequest]) (*connect.Response[ladder.GetLadderResponse], error)
+	// ListDevices returns the graded hardware inventory the cells were computed
+	// from, so a reader can see the evidence and not only the verdict.
+	ListDevices(context.Context, *connect.Request[ladder.ListDevicesRequest]) (*connect.Response[ladder.ListDevicesResponse], error)
 	// ListCells returns the ladder cells, optionally filtered.
 	ListCells(context.Context, *connect.Request[ladder.ListCellsRequest]) (*connect.Response[ladder.ListCellsResponse], error)
 	// ListSources returns each source's availability and reason.
@@ -78,6 +84,12 @@ func NewLadderServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(ladderServiceMethods.ByName("GetLadder")),
 			connect.WithClientOptions(opts...),
 		),
+		listDevices: connect.NewClient[ladder.ListDevicesRequest, ladder.ListDevicesResponse](
+			httpClient,
+			baseURL+LadderServiceListDevicesProcedure,
+			connect.WithSchema(ladderServiceMethods.ByName("ListDevices")),
+			connect.WithClientOptions(opts...),
+		),
 		listCells: connect.NewClient[ladder.ListCellsRequest, ladder.ListCellsResponse](
 			httpClient,
 			baseURL+LadderServiceListCellsProcedure,
@@ -102,6 +114,7 @@ func NewLadderServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 // ladderServiceClient implements LadderServiceClient.
 type ladderServiceClient struct {
 	getLadder    *connect.Client[ladder.GetLadderRequest, ladder.GetLadderResponse]
+	listDevices  *connect.Client[ladder.ListDevicesRequest, ladder.ListDevicesResponse]
 	listCells    *connect.Client[ladder.ListCellsRequest, ladder.ListCellsResponse]
 	listSources  *connect.Client[ladder.ListSourcesRequest, ladder.ListSourcesResponse]
 	rankFindings *connect.Client[ladder.RankFindingsRequest, ladder.RankFindingsResponse]
@@ -110,6 +123,11 @@ type ladderServiceClient struct {
 // GetLadder calls vrooli.infrastructure_manager.v1.ladder.LadderService.GetLadder.
 func (c *ladderServiceClient) GetLadder(ctx context.Context, req *connect.Request[ladder.GetLadderRequest]) (*connect.Response[ladder.GetLadderResponse], error) {
 	return c.getLadder.CallUnary(ctx, req)
+}
+
+// ListDevices calls vrooli.infrastructure_manager.v1.ladder.LadderService.ListDevices.
+func (c *ladderServiceClient) ListDevices(ctx context.Context, req *connect.Request[ladder.ListDevicesRequest]) (*connect.Response[ladder.ListDevicesResponse], error) {
+	return c.listDevices.CallUnary(ctx, req)
 }
 
 // ListCells calls vrooli.infrastructure_manager.v1.ladder.LadderService.ListCells.
@@ -130,9 +148,12 @@ func (c *ladderServiceClient) RankFindings(ctx context.Context, req *connect.Req
 // LadderServiceHandler is an implementation of the
 // vrooli.infrastructure_manager.v1.ladder.LadderService service.
 type LadderServiceHandler interface {
-	// GetLadder returns the whole ladder readout: every cell, every source's
-	// availability, and the cascade-ranked findings.
+	// GetLadder returns the whole ladder readout: every cell, every graded
+	// device, every source's availability, and the cascade-ranked findings.
 	GetLadder(context.Context, *connect.Request[ladder.GetLadderRequest]) (*connect.Response[ladder.GetLadderResponse], error)
+	// ListDevices returns the graded hardware inventory the cells were computed
+	// from, so a reader can see the evidence and not only the verdict.
+	ListDevices(context.Context, *connect.Request[ladder.ListDevicesRequest]) (*connect.Response[ladder.ListDevicesResponse], error)
 	// ListCells returns the ladder cells, optionally filtered.
 	ListCells(context.Context, *connect.Request[ladder.ListCellsRequest]) (*connect.Response[ladder.ListCellsResponse], error)
 	// ListSources returns each source's availability and reason.
@@ -153,6 +174,12 @@ func NewLadderServiceHandler(svc LadderServiceHandler, opts ...connect.HandlerOp
 		LadderServiceGetLadderProcedure,
 		svc.GetLadder,
 		connect.WithSchema(ladderServiceMethods.ByName("GetLadder")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ladderServiceListDevicesHandler := connect.NewUnaryHandler(
+		LadderServiceListDevicesProcedure,
+		svc.ListDevices,
+		connect.WithSchema(ladderServiceMethods.ByName("ListDevices")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ladderServiceListCellsHandler := connect.NewUnaryHandler(
@@ -177,6 +204,8 @@ func NewLadderServiceHandler(svc LadderServiceHandler, opts ...connect.HandlerOp
 		switch r.URL.Path {
 		case LadderServiceGetLadderProcedure:
 			ladderServiceGetLadderHandler.ServeHTTP(w, r)
+		case LadderServiceListDevicesProcedure:
+			ladderServiceListDevicesHandler.ServeHTTP(w, r)
 		case LadderServiceListCellsProcedure:
 			ladderServiceListCellsHandler.ServeHTTP(w, r)
 		case LadderServiceListSourcesProcedure:
@@ -194,6 +223,10 @@ type UnimplementedLadderServiceHandler struct{}
 
 func (UnimplementedLadderServiceHandler) GetLadder(context.Context, *connect.Request[ladder.GetLadderRequest]) (*connect.Response[ladder.GetLadderResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.infrastructure_manager.v1.ladder.LadderService.GetLadder is not implemented"))
+}
+
+func (UnimplementedLadderServiceHandler) ListDevices(context.Context, *connect.Request[ladder.ListDevicesRequest]) (*connect.Response[ladder.ListDevicesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.infrastructure_manager.v1.ladder.LadderService.ListDevices is not implemented"))
 }
 
 func (UnimplementedLadderServiceHandler) ListCells(context.Context, *connect.Request[ladder.ListCellsRequest]) (*connect.Response[ladder.ListCellsResponse], error) {

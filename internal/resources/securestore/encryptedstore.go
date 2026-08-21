@@ -213,10 +213,22 @@ func (store *encryptedStore) openLoadedLocked(file *sealedFile) (*sealedFile, []
 		return file, store.dataKey, nil
 	}
 	fingerprint := storeFingerprint(file)
-	if dataKey, found := store.cache.Load(fingerprint); found {
-		store.dataKey = dataKey
-		store.openedBy, store.keyStore = cachedWrapFor(file)
-		return file, dataKey, nil
+	if fingerprint != "" {
+		dataKey, found := store.cache.Load(fingerprint)
+		if !found {
+			// An entry written under the previous identity scheme still opens
+			// this store, and is migrated in place so the next read is a
+			// straight hit.
+			if legacy, legacyFound := store.cache.Load(legacyStoreFingerprint(file)); legacyFound {
+				dataKey, found = legacy, true
+				_ = store.cache.Save(fingerprint, dataKey)
+			}
+		}
+		if found {
+			store.dataKey = dataKey
+			store.openedBy, store.keyStore = cachedWrapFor(file)
+			return file, dataKey, nil
+		}
 	}
 
 	dataKey, provider, keyStore, err := store.unwrapDataKey(file)
@@ -227,7 +239,7 @@ func (store *encryptedStore) openLoadedLocked(file *sealedFile) (*sealedFile, []
 	// Only a passphrase unlock is worth caching. The host-bound wrap opens the
 	// store with no human action, so caching there would write a data key into
 	// the session directory to save an operator nothing at all.
-	if provider == providerPassphrase {
+	if provider == providerPassphrase && fingerprint != "" {
 		if err := store.cache.Save(fingerprint, dataKey); err != nil {
 			return nil, nil, fmt.Errorf("%w: %v", ErrUnavailable, err)
 		}

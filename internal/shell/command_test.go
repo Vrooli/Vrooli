@@ -76,17 +76,3 @@ func TestCommandUsesProvidedSpec(t *testing.T) {
 		t.Fatal("expected stdout writer to be preserved")
 	}
 }
-
-func TestBashCommandWrapsCommandLine(t *testing.T) {
-	cmd := BashCommand("echo hello", Spec{Dir: "/fixture"})
-
-	if cmd.Path == "" || cmd.Args[0] != "bash" {
-		t.Fatalf("cmd.Path = %q", cmd.Path)
-	}
-	if len(cmd.Args) != 3 || cmd.Args[1] != "-lc" || cmd.Args[2] != "echo hello" {
-		t.Fatalf("cmd.Args = %#v", cmd.Args)
-	}
-	if cmd.Dir != "/fixture" {
-		t.Fatalf("cmd.Dir = %q", cmd.Dir)
-	}
-}

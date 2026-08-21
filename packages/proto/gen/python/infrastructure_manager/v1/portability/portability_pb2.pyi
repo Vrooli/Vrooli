@@ -277,8 +277,10 @@ class FleetReadout(_message.Message):
     def __init__(self, blocked_by_os: _Optional[_Iterable[_Union[ScenarioBlock, _Mapping]]] = ..., docker_blocked: _Optional[_Iterable[_Union[ScenarioBlock, _Mapping]]] = ..., peerless: _Optional[_Iterable[_Union[ScenarioPeerless, _Mapping]]] = ..., tier_upgrades: _Optional[_Iterable[_Union[TierUpgrade, _Mapping]]] = ..., desktop_bundling: _Optional[_Union[DesktopBundlingVerdict, _Mapping]] = ..., manifest_root: _Optional[str] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetFleetRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("view",)
+    VIEW_FIELD_NUMBER: _ClassVar[int]
+    view: str
+    def __init__(self, view: _Optional[str] = ...) -> None: ...
 
 class GetFleetResponse(_message.Message):
     __slots__ = ("fleet",)

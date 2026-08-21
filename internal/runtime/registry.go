@@ -14,11 +14,14 @@ import (
 	"github.com/vrooli/vrooli/internal/safeguards"
 	autohealrecoveryprivileges "github.com/vrooli/vrooli/internal/safeguards/autoheal-recovery-privileges"
 	"github.com/vrooli/vrooli/internal/safeguards/clock"
+	codingagentshims "github.com/vrooli/vrooli/internal/safeguards/coding-agent-shims"
 	crashkernelreserve "github.com/vrooli/vrooli/internal/safeguards/crashkernel-reserve"
 	dnsresolution "github.com/vrooli/vrooli/internal/safeguards/dns-resolution"
 	dockerhostfirewall "github.com/vrooli/vrooli/internal/safeguards/docker-host-firewall"
 	edacmodules "github.com/vrooli/vrooli/internal/safeguards/edac-modules"
+	emergencywatchdog "github.com/vrooli/vrooli/internal/safeguards/emergency-watchdog"
 	hosthardening "github.com/vrooli/vrooli/internal/safeguards/host-hardening"
+	kdumpobservability "github.com/vrooli/vrooli/internal/safeguards/kdump-observability"
 	kernelconfig "github.com/vrooli/vrooli/internal/safeguards/kernel-config"
 	loginkeyringunlock "github.com/vrooli/vrooli/internal/safeguards/login-keyring-unlock"
 	modelpolicydrift "github.com/vrooli/vrooli/internal/safeguards/model-policy-drift"
@@ -84,7 +87,9 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"docker_host_firewall":         dockerhostfirewall.NewHandler,
 	"tpm_credential_access":        tpmcredentialaccess.NewHandler,
 	"edac_modules":                 edacmodules.NewHandler,
+	"emergency_watchdog":           emergencywatchdog.NewHandler,
 	"host_hardening":               hosthardening.NewHandler,
+	"kdump_observability":          kdumpobservability.NewHandler,
 	"kernel_config":                kernelconfig.NewHandler,
 	"login_keyring_unlock":         loginkeyringunlock.NewHandler,
 	"nat_protection":               natprotection.NewHandler,
@@ -98,6 +103,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"remote_session_protection":    remotesessionprotection.NewHandler,
 	"tcp_tuning":                   tcptuning.NewHandler,
 	"vrooli_launcher":              vroolilauncher.NewHandler,
+	"coding_agent_shims":           codingagentshims.NewHandler,
 	"workspace_sandbox_userns":     workspacesandboxuserns.NewHandler,
 }
 

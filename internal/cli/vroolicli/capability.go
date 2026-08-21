@@ -3,14 +3,17 @@ package vroolicli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/capabilitycatalog"
-	"github.com/vrooli/vrooli/internal/capabilityledger"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
+	portabilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/portability"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 func (app *App) runCapabilityCommand(ctx *CommandContext, args []string) error {
@@ -42,63 +45,114 @@ func (app *App) runCapabilityCommand(ctx *CommandContext, args []string) error {
 			return fmt.Errorf("unknown capability ledger option %q", arg)
 		}
 	}
+	// Both readouts are owned by the infrastructure-manager instrument. The
+	// control plane delegates and renders; it does not keep a second
+	// aggregation that could disagree with the owner's.
+	requestCtx, cancel := context.WithTimeout(context.Background(), capabilityRequestTimeout)
+	defer cancel()
+
 	if args[0] == "fleet" {
-		readout, err := capabilityledger.GenerateFleet(ctx.Root)
+		readout, err := fetchCapabilityFleet(requestCtx)
 		if err != nil {
-			return err
+			return reportCapabilityDegraded(ctx, jsonOutput, err)
 		}
-		if jsonOutput {
-			var value interface{} = readout
-			switch query {
-			case "blocked":
-				value = readout.BlockedByOS
-			case "docker":
-				value = readout.DockerBlocked
-			case "peerless":
-				value = readout.Peerless
-			case "upgrades":
-				value = readout.TierUpgrades
-			case "desktop":
-				value = readout.DesktopBundling
-			}
-			return json.NewEncoder(ctx.Stdout).Encode(value)
-		}
-		switch query {
-		case "blocked":
-			fmt.Fprintf(ctx.Stdout, "blocked_by_os=%d\n", len(readout.BlockedByOS))
-			return nil
-		case "docker":
-			fmt.Fprintf(ctx.Stdout, "docker_blocked=%d\n", len(readout.DockerBlocked))
-			return nil
-		case "peerless":
-			fmt.Fprintf(ctx.Stdout, "peerless=%d\n", len(readout.Peerless))
-			return nil
-		case "upgrades":
-			fmt.Fprintf(ctx.Stdout, "tier_upgrades=%d\n", len(readout.TierUpgrades))
-			return nil
-		case "desktop":
-			fmt.Fprintln(ctx.Stdout, readout.DesktopBundling.Reason)
-			return nil
-		}
-		fmt.Fprintf(ctx.Stdout, "blocked_by_os=%d docker_blocked=%d peerless=%d tier_upgrades=%d\n", len(readout.BlockedByOS), len(readout.DockerBlocked), len(readout.Peerless), len(readout.TierUpgrades))
-		fmt.Fprintf(ctx.Stdout, "desktop_bundling: %s\n", readout.DesktopBundling.Reason)
-		return nil
+		return renderCapabilityFleet(ctx, jsonOutput, query, readout)
 	}
-	ledger, err := capabilityledger.Generate(ctx.Root)
+	grid, err := fetchCapabilityGrid(requestCtx)
 	if err != nil {
+		return reportCapabilityDegraded(ctx, jsonOutput, err)
+	}
+	return renderCapabilityGrid(ctx, jsonOutput, grid)
+}
+
+// reportCapabilityDegraded renders the degraded state and still fails. A
+// machine consumer gets an envelope whose `state` is `degraded`, so it can
+// never mistake the response for a grid; a human gets the error naming the
+// owner and the command that starts it.
+func reportCapabilityDegraded(ctx *CommandContext, jsonOutput bool, err error) error {
+	var degraded capabilityDegradedError
+	if !errors.As(err, &degraded) {
 		return err
 	}
 	if jsonOutput {
-		return json.NewEncoder(ctx.Stdout).Encode(ledger)
+		if encodeErr := json.NewEncoder(ctx.Stdout).Encode(newCapabilityDegradedReadout(degraded)); encodeErr != nil {
+			return encodeErr
+		}
 	}
-	for _, entry := range ledger.Capabilities {
-		fmt.Fprintln(ctx.Stdout, entry.Capability)
-		for _, hostOS := range []string{"linux", "macos", "windows"} {
-			platform := entry.Platforms[hostOS]
-			fmt.Fprintf(ctx.Stdout, "  %-7s %-10s %s\n", hostOS, platform.Status, firstNonEmpty(platform.Implementer, platform.Mechanism, platform.Reason))
+	return degraded
+}
+
+func renderCapabilityGrid(ctx *CommandContext, jsonOutput bool, grid *portabilityv1.Grid) error {
+	if jsonOutput {
+		return writeCapabilityJSON(ctx, grid)
+	}
+	fmt.Fprintf(ctx.Stdout, "manifest_root=%s manifests_read=%d\n", grid.GetManifestRoot(), grid.GetManifestsRead())
+	for _, entry := range grid.GetCapabilities() {
+		fmt.Fprintln(ctx.Stdout, entry.GetCapability())
+		for _, platform := range entry.GetPlatforms() {
+			fmt.Fprintf(ctx.Stdout, "  %-7s %-12s %-14s %s\n",
+				enumToken(platform.GetHostOs().String(), "HOST_OS_"),
+				enumToken(platform.GetStatus().String(), "RESOLUTION_STATUS_"),
+				enumToken(platform.GetQualification().String(), "QUALIFICATION_"),
+				firstNonEmpty(platform.GetImplementer(), platform.GetMechanism(), platform.GetReason()))
 		}
 	}
 	return nil
+}
+
+func renderCapabilityFleet(ctx *CommandContext, jsonOutput bool, query string, readout *portabilityv1.FleetReadout) error {
+	if jsonOutput {
+		var value proto.Message = readout
+		switch query {
+		case "blocked":
+			value = &portabilityv1.FleetReadout{BlockedByOs: readout.GetBlockedByOs()}
+		case "docker":
+			value = &portabilityv1.FleetReadout{DockerBlocked: readout.GetDockerBlocked()}
+		case "peerless":
+			value = &portabilityv1.FleetReadout{Peerless: readout.GetPeerless()}
+		case "upgrades":
+			value = &portabilityv1.FleetReadout{TierUpgrades: readout.GetTierUpgrades()}
+		case "desktop":
+			value = &portabilityv1.FleetReadout{DesktopBundling: readout.GetDesktopBundling()}
+		}
+		return writeCapabilityJSON(ctx, value)
+	}
+	switch query {
+	case "blocked":
+		fmt.Fprintf(ctx.Stdout, "blocked_by_os=%d\n", len(readout.GetBlockedByOs()))
+		return nil
+	case "docker":
+		fmt.Fprintf(ctx.Stdout, "docker_blocked=%d\n", len(readout.GetDockerBlocked()))
+		return nil
+	case "peerless":
+		fmt.Fprintf(ctx.Stdout, "peerless=%d\n", len(readout.GetPeerless()))
+		return nil
+	case "upgrades":
+		fmt.Fprintf(ctx.Stdout, "tier_upgrades=%d\n", len(readout.GetTierUpgrades()))
+		return nil
+	case "desktop":
+		fmt.Fprintln(ctx.Stdout, readout.GetDesktopBundling().GetReason())
+		return nil
+	}
+	fmt.Fprintf(ctx.Stdout, "blocked_by_os=%d docker_blocked=%d peerless=%d tier_upgrades=%d\n", len(readout.GetBlockedByOs()), len(readout.GetDockerBlocked()), len(readout.GetPeerless()), len(readout.GetTierUpgrades()))
+	fmt.Fprintf(ctx.Stdout, "desktop_bundling: %s\n", readout.GetDesktopBundling().GetReason())
+	return nil
+}
+
+// writeCapabilityJSON emits the owner's proto message through protojson so the
+// CLI's JSON is the wire contract, not a second hand-written shape that can
+// drift from it.
+func writeCapabilityJSON(ctx *CommandContext, message proto.Message) error {
+	data, err := protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(message)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(ctx.Stdout, string(data))
+	return err
+}
+
+func enumToken(full, prefix string) string {
+	return strings.ToLower(strings.TrimPrefix(full, prefix))
 }
 
 func (app *App) runCapabilityWorkflow(ctx *CommandContext, args []string) error {

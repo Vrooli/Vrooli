@@ -363,8 +363,8 @@ func TestBuildListPortsSortsAndMapsRecords(t *testing.T) {
 	}
 
 	listPorts, ports := BuildListPorts(manifest, []process.Record{
-		{Step: "start-ui", Port: 38080},
-		{Step: "start-api", Port: 18080},
+		{Step: "start-ui", Port: 38080, PortKey: "UI_PORT"},
+		{Step: "start-api", Port: 18080, PortKey: "API_PORT"},
 	})
 
 	if len(listPorts) != 2 {
@@ -386,8 +386,8 @@ func TestBuildListPortsKeepsFirstExplicitRecordPerPort(t *testing.T) {
 	}
 
 	listPorts, ports := BuildListPorts(manifest, []process.Record{
-		{Step: "start-api", Port: 18080},
-		{Step: "run-api", Port: 19090},
+		{Step: "start-api", Port: 18080, PortKey: "API_PORT"},
+		{Step: "run-api", Port: 19090, PortKey: "API_PORT"},
 	})
 
 	if len(listPorts) != 1 {
@@ -484,7 +484,7 @@ func TestBuildScenarioStatusItemAndHumanWriters(t *testing.T) {
 		Runtime:      "2m",
 		StartedAt:    &startedAt,
 		Records: []process.Record{
-			{Step: "start-api", PID: 1234, Port: 18080, StartedAt: startedAt},
+			{Step: "start-api", PID: 1234, Port: 18080, PortKey: "API_PORT", StartedAt: startedAt},
 		},
 	}
 
@@ -633,9 +633,10 @@ func TestBuildListPortsFallsBackToEnvironment(t *testing.T) {
 	var ports map[string]int
 	for attempt := 0; attempt < 20; attempt++ {
 		listPorts, ports = BuildListPorts(manifest, []process.Record{{
-			PID:  cmd.Process.Pid,
-			Step: "start-api",
-			Port: 18080,
+			PID:     cmd.Process.Pid,
+			Step:    "start-api",
+			Port:    18080,
+			PortKey: "API_PORT",
 		}})
 		if ports["WS_PORT"] == 28080 {
 			break

@@ -61,6 +61,53 @@ var tpmResourceManagers = []string{"/dev/tpmrm0", "/dev/tpm0"}
 // It returns "" when it cannot identify a concrete action, so a caller never
 // prints a guess.
 func hostBoundFix() string {
+	grant, found := tpmDeviceGrant()
+	if !found || grant.processMember {
+		return ""
+	}
+	if grant.accountMember {
+		// This is a different condition from "not in the group", and conflating
+		// the two costs the operator the fix. Supplementary groups are attached
+		// by the kernel at login and never change for a running process, so a
+		// session that started before the grant reports a live membership as
+		// missing. Telling that operator to run setup "to grant it" sends them
+		// to a command that correctly reports the grant already present and
+		// changes nothing, which is a loop with no exit.
+		return fmt.Sprintf(
+			"%s is readable only by group %s; %s is a member, but this login session started before the grant and cannot use it. Re-run `vrooli setup`, which applies the wrap from a session that can, or log out and back in. Until then the passphrase wrap is the only way to open the store, and an unattended reboot cannot unlock it",
+			grant.device, grant.group, userLabel())
+	}
+	return fmt.Sprintf(
+		"%s is readable only by group %s, and %s is not in it; run `vrooli setup` to grant it and add the unattended wrap in the same run. Until then the passphrase wrap is the only way to open the store, and an unattended reboot cannot unlock it",
+		grant.device, grant.group, userLabel())
+}
+
+// PendingGroupGrant names a group this operator account already holds that this
+// process cannot use, or "" when there is none.
+//
+// It exists so a caller that is about to run the credential store in a
+// subprocess can pick up a grant `vrooli setup` made moments earlier, instead
+// of telling the operator to log out. It reports only the TPM device group, so
+// there is no input that can aim it at an unrelated group.
+func PendingGroupGrant() string {
+	grant, found := tpmDeviceGrant()
+	if !found || grant.processMember || !grant.accountMember {
+		return ""
+	}
+	return grant.group
+}
+
+// tpmGrant is the membership picture for one grantable TPM device. The account
+// answer and the process answer are kept apart on purpose: `usermod -aG`
+// changes the first immediately and the second never.
+type tpmGrant struct {
+	device        string
+	group         string
+	accountMember bool
+	processMember bool
+}
+
+func tpmDeviceGrant() (tpmGrant, bool) {
 	for _, device := range tpmResourceManagers {
 		info, err := os.Stat(device)
 		if err != nil {
@@ -76,15 +123,30 @@ func hostBoundFix() string {
 		if info.Mode().Perm()&0o060 == 0 {
 			continue
 		}
-		if slices.Contains(currentGroupIDs(), int(stat.Gid)) {
-			// Already a member, so group access is not what is blocking this.
-			continue
-		}
-		return fmt.Sprintf(
-			"%s is readable only by group %s, and %s is not in it; run `vrooli setup` to grant it. Until then the passphrase wrap is the only way to open the store, and an unattended reboot cannot unlock it",
-			device, groupLabel(int(stat.Gid)), userLabel())
+		gid := int(stat.Gid)
+		return tpmGrant{
+			device:        device,
+			group:         groupLabel(gid),
+			accountMember: accountInGroupID(gid),
+			processMember: slices.Contains(currentGroupIDs(), gid),
+		}, true
 	}
-	return ""
+	return tpmGrant{}, false
+}
+
+// accountInGroupID asks the operating system about this account rather than
+// reading this process's own group set, which is what os.Getgroups() returns
+// and which is fixed at login.
+func accountInGroupID(gid int) bool {
+	current, err := user.Current()
+	if err != nil {
+		return false
+	}
+	ids, err := current.GroupIds()
+	if err != nil {
+		return false
+	}
+	return slices.Contains(ids, strconv.Itoa(gid))
 }
 
 func currentGroupIDs() []int {

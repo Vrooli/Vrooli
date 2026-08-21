@@ -116,11 +116,20 @@ func defaultEncryptedStore() Store {
 	if err != nil {
 		return Absent(fmt.Sprintf("cannot resolve the credential store path: %v", err))
 	}
-	return newEncryptedStore(filepath.Clean(path),
+	return newEncryptedStore(filepath.Clean(path), defaultKeyProviders()...)
+}
+
+// defaultKeyProviders are the wraps a store on this host is built with,
+// strongest first. It is a variable so a test can pin the set: whether a real
+// TPM happens to be reachable on the machine running the suite must not decide
+// which wraps a store under test has, or the same test passes on one developer
+// host and fails on another for reasons that have nothing to do with the code.
+var defaultKeyProviders = func() []keyProvider {
+	return []keyProvider{
 		newNativeWrapProvider(),
 		newHostBoundProvider(),
 		passphraseProvider{source: passphraseSource},
-	)
+	}
 }
 
 // chainStore delegates every operation to whichever backend is the authority on

@@ -105,6 +105,61 @@ func (GoNodeKind) EnumDescriptor() ([]byte, []int) {
 	return file_go_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{0}
 }
 
+type ExtractionProfile int32
+
+const (
+	ExtractionProfile_EXTRACTION_PROFILE_UNSPECIFIED ExtractionProfile = 0
+	// Full type information and usage facts, excluding test variants.
+	ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC ExtractionProfile = 1
+	// Files, packages, declarations, syntax, and imports without type-checking.
+	ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL ExtractionProfile = 2
+	// Explicit compatibility profile: semantic facts plus test variants.
+	ExtractionProfile_EXTRACTION_PROFILE_FULL ExtractionProfile = 3
+)
+
+// Enum value maps for ExtractionProfile.
+var (
+	ExtractionProfile_name = map[int32]string{
+		0: "EXTRACTION_PROFILE_UNSPECIFIED",
+		1: "EXTRACTION_PROFILE_SEMANTIC",
+		2: "EXTRACTION_PROFILE_STRUCTURAL",
+		3: "EXTRACTION_PROFILE_FULL",
+	}
+	ExtractionProfile_value = map[string]int32{
+		"EXTRACTION_PROFILE_UNSPECIFIED": 0,
+		"EXTRACTION_PROFILE_SEMANTIC":    1,
+		"EXTRACTION_PROFILE_STRUCTURAL":  2,
+		"EXTRACTION_PROFILE_FULL":        3,
+	}
+)
+
+func (x ExtractionProfile) Enum() *ExtractionProfile {
+	p := new(ExtractionProfile)
+	*p = x
+	return p
+}
+
+func (x ExtractionProfile) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ExtractionProfile) Descriptor() protoreflect.EnumDescriptor {
+	return file_go_code_graph_v1_graph_graph_proto_enumTypes[1].Descriptor()
+}
+
+func (ExtractionProfile) Type() protoreflect.EnumType {
+	return &file_go_code_graph_v1_graph_graph_proto_enumTypes[1]
+}
+
+func (x ExtractionProfile) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ExtractionProfile.Descriptor instead.
+func (ExtractionProfile) EnumDescriptor() ([]byte, []int) {
+	return file_go_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{1}
+}
+
 type ExtractRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Absolute or repo-relative path to a Go module root. Must contain exactly
@@ -114,8 +169,15 @@ type ExtractRequest struct {
 	// When false (default) the loader skips vendor/ directories and module
 	// cache paths. REQ-P1-003.
 	IncludeVendor bool `protobuf:"varint,2,opt,name=include_vendor,json=includeVendor,proto3" json:"include_vendor,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Selects the amount of analysis performed. FULL preserves the original
+	// extraction contract, including tests and semantic usage facts.
+	Profile ExtractionProfile `protobuf:"varint,3,opt,name=profile,proto3,enum=vrooli.go_code_graph.v1.graph.ExtractionProfile" json:"profile,omitempty"`
+	// Optional package patterns relative to module_path. An empty list keeps
+	// the legacy ./... scope; callers can narrow extraction with values such as
+	// ./api/... or ./internal/graph/....
+	PackagePatterns []string `protobuf:"bytes,4,rep,name=package_patterns,json=packagePatterns,proto3" json:"package_patterns,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ExtractRequest) Reset() {
@@ -162,6 +224,20 @@ func (x *ExtractRequest) GetIncludeVendor() bool {
 	return false
 }
 
+func (x *ExtractRequest) GetProfile() ExtractionProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return ExtractionProfile_EXTRACTION_PROFILE_UNSPECIFIED
+}
+
+func (x *ExtractRequest) GetPackagePatterns() []string {
+	if x != nil {
+		return x.PackagePatterns
+	}
+	return nil
+}
+
 type ExtractResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The graph in the shared envelope.
@@ -174,9 +250,20 @@ type ExtractResponse struct {
 	ExtractionMs int64 `protobuf:"varint,3,opt,name=extraction_ms,json=extractionMs,proto3" json:"extraction_ms,omitempty"`
 	// Hex sha256 of the normalized JSON serialization of `graph`. Consumers
 	// use this for cache-hit detection without re-diffing. REQ-P1-005.
-	GraphHash     string `protobuf:"bytes,4,opt,name=graph_hash,json=graphHash,proto3" json:"graph_hash,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	GraphHash string `protobuf:"bytes,4,opt,name=graph_hash,json=graphHash,proto3" json:"graph_hash,omitempty"`
+	// Phase timings for performance diagnostics. These are wall-clock
+	// measurements inside the service and are zero when a phase did not run.
+	FingerprintMs int64 `protobuf:"varint,5,opt,name=fingerprint_ms,json=fingerprintMs,proto3" json:"fingerprint_ms,omitempty"`
+	LoadMs        int64 `protobuf:"varint,6,opt,name=load_ms,json=loadMs,proto3" json:"load_ms,omitempty"`
+	NormalizeMs   int64 `protobuf:"varint,7,opt,name=normalize_ms,json=normalizeMs,proto3" json:"normalize_ms,omitempty"`
+	CacheHit      bool  `protobuf:"varint,8,opt,name=cache_hit,json=cacheHit,proto3" json:"cache_hit,omitempty"`
+	// Effective profile used for this response. Explicitly returned so
+	// consumers do not infer it from empty fields.
+	Profile ExtractionProfile `protobuf:"varint,9,opt,name=profile,proto3,enum=vrooli.go_code_graph.v1.graph.ExtractionProfile" json:"profile,omitempty"`
+	// Capabilities intentionally omitted by profile. These are not errors.
+	OmittedInformation []*v1.CodeGraphOmission `protobuf:"bytes,10,rep,name=omitted_information,json=omittedInformation,proto3" json:"omitted_information,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ExtractResponse) Reset() {
@@ -235,6 +322,48 @@ func (x *ExtractResponse) GetGraphHash() string {
 		return x.GraphHash
 	}
 	return ""
+}
+
+func (x *ExtractResponse) GetFingerprintMs() int64 {
+	if x != nil {
+		return x.FingerprintMs
+	}
+	return 0
+}
+
+func (x *ExtractResponse) GetLoadMs() int64 {
+	if x != nil {
+		return x.LoadMs
+	}
+	return 0
+}
+
+func (x *ExtractResponse) GetNormalizeMs() int64 {
+	if x != nil {
+		return x.NormalizeMs
+	}
+	return 0
+}
+
+func (x *ExtractResponse) GetCacheHit() bool {
+	if x != nil {
+		return x.CacheHit
+	}
+	return false
+}
+
+func (x *ExtractResponse) GetProfile() ExtractionProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return ExtractionProfile_EXTRACTION_PROFILE_UNSPECIFIED
+}
+
+func (x *ExtractResponse) GetOmittedInformation() []*v1.CodeGraphOmission {
+	if x != nil {
+		return x.OmittedInformation
+	}
+	return nil
 }
 
 type RewritePlanRequest struct {
@@ -747,17 +876,26 @@ var File_go_code_graph_v1_graph_graph_proto protoreflect.FileDescriptor
 
 const file_go_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\n" +
-	"\"go-code-graph/v1/graph/graph.proto\x12\x1dvrooli.go_code_graph.v1.graph\x1a\x1acommon/v1/code_graph.proto\x1a&go-code-graph/v1/rewrite/rewrite.proto\"X\n" +
+	"\"go-code-graph/v1/graph/graph.proto\x12\x1dvrooli.go_code_graph.v1.graph\x1a\x1acommon/v1/code_graph.proto\x1a&go-code-graph/v1/rewrite/rewrite.proto\"\xcf\x01\n" +
 	"\x0eExtractRequest\x12\x1f\n" +
 	"\vmodule_path\x18\x01 \x01(\tR\n" +
 	"modulePath\x12%\n" +
-	"\x0einclude_vendor\x18\x02 \x01(\bR\rincludeVendor\"\xba\x01\n" +
+	"\x0einclude_vendor\x18\x02 \x01(\bR\rincludeVendor\x12J\n" +
+	"\aprofile\x18\x03 \x01(\x0e20.vrooli.go_code_graph.v1.graph.ExtractionProfileR\aprofile\x12)\n" +
+	"\x10package_patterns\x18\x04 \x03(\tR\x0fpackagePatterns\"\xd5\x03\n" +
 	"\x0fExtractResponse\x12*\n" +
 	"\x05graph\x18\x01 \x01(\v2\x14.common.v1.CodeGraphR\x05graph\x127\n" +
 	"\bwarnings\x18\x02 \x03(\v2\x1b.common.v1.CodeGraphWarningR\bwarnings\x12#\n" +
 	"\rextraction_ms\x18\x03 \x01(\x03R\fextractionMs\x12\x1d\n" +
 	"\n" +
-	"graph_hash\x18\x04 \x01(\tR\tgraphHash\"\x81\x01\n" +
+	"graph_hash\x18\x04 \x01(\tR\tgraphHash\x12%\n" +
+	"\x0efingerprint_ms\x18\x05 \x01(\x03R\rfingerprintMs\x12\x17\n" +
+	"\aload_ms\x18\x06 \x01(\x03R\x06loadMs\x12!\n" +
+	"\fnormalize_ms\x18\a \x01(\x03R\vnormalizeMs\x12\x1b\n" +
+	"\tcache_hit\x18\b \x01(\bR\bcacheHit\x12J\n" +
+	"\aprofile\x18\t \x01(\x0e20.vrooli.go_code_graph.v1.graph.ExtractionProfileR\aprofile\x12M\n" +
+	"\x13omitted_information\x18\n" +
+	" \x03(\v2\x1c.common.v1.CodeGraphOmissionR\x12omittedInformation\"\x81\x01\n" +
 	"\x12RewritePlanRequest\x12\x1f\n" +
 	"\vmodule_path\x18\x01 \x01(\tR\n" +
 	"modulePath\x12J\n" +
@@ -805,7 +943,12 @@ const file_go_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\x16GO_NODE_KIND_REFERENCE\x10k\x12\x15\n" +
 	"\x11GO_NODE_KIND_CALL\x10l\x12\x1b\n" +
 	"\x17GO_NODE_KIND_TYPE_USAGE\x10m\x12#\n" +
-	"\x1fGO_NODE_KIND_ROUTE_REGISTRATION\x10n2\xf3\x04\n" +
+	"\x1fGO_NODE_KIND_ROUTE_REGISTRATION\x10n*\x98\x01\n" +
+	"\x11ExtractionProfile\x12\"\n" +
+	"\x1eEXTRACTION_PROFILE_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bEXTRACTION_PROFILE_SEMANTIC\x10\x01\x12!\n" +
+	"\x1dEXTRACTION_PROFILE_STRUCTURAL\x10\x02\x12\x1b\n" +
+	"\x17EXTRACTION_PROFILE_FULL\x10\x032\xf3\x04\n" +
 	"\x12GoCodeGraphService\x12j\n" +
 	"\aExtract\x12-.vrooli.go_code_graph.v1.graph.ExtractRequest\x1a..vrooli.go_code_graph.v1.graph.ExtractResponse\"\x00\x12v\n" +
 	"\vRewritePlan\x121.vrooli.go_code_graph.v1.graph.RewritePlanRequest\x1a2.vrooli.go_code_graph.v1.graph.RewritePlanResponse\"\x00\x12y\n" +
@@ -825,48 +968,53 @@ func file_go_code_graph_v1_graph_graph_proto_rawDescGZIP() []byte {
 	return file_go_code_graph_v1_graph_graph_proto_rawDescData
 }
 
-var file_go_code_graph_v1_graph_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_go_code_graph_v1_graph_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_go_code_graph_v1_graph_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_go_code_graph_v1_graph_graph_proto_goTypes = []any{
 	(GoNodeKind)(0),                 // 0: vrooli.go_code_graph.v1.graph.GoNodeKind
-	(*ExtractRequest)(nil),          // 1: vrooli.go_code_graph.v1.graph.ExtractRequest
-	(*ExtractResponse)(nil),         // 2: vrooli.go_code_graph.v1.graph.ExtractResponse
-	(*RewritePlanRequest)(nil),      // 3: vrooli.go_code_graph.v1.graph.RewritePlanRequest
-	(*RewritePlanResponse)(nil),     // 4: vrooli.go_code_graph.v1.graph.RewritePlanResponse
-	(*RewriteApplyRequest)(nil),     // 5: vrooli.go_code_graph.v1.graph.RewriteApplyRequest
-	(*RewriteApplyResponse)(nil),    // 6: vrooli.go_code_graph.v1.graph.RewriteApplyResponse
-	(*ListFixturesRequest)(nil),     // 7: vrooli.go_code_graph.v1.graph.ListFixturesRequest
-	(*FixtureInfo)(nil),             // 8: vrooli.go_code_graph.v1.graph.FixtureInfo
-	(*ListFixturesResponse)(nil),    // 9: vrooli.go_code_graph.v1.graph.ListFixturesResponse
-	(*ValidateFixtureRequest)(nil),  // 10: vrooli.go_code_graph.v1.graph.ValidateFixtureRequest
-	(*ValidateFixtureResponse)(nil), // 11: vrooli.go_code_graph.v1.graph.ValidateFixtureResponse
-	(*v1.CodeGraph)(nil),            // 12: common.v1.CodeGraph
-	(*v1.CodeGraphWarning)(nil),     // 13: common.v1.CodeGraphWarning
-	(*rewrite.Operation)(nil),       // 14: vrooli.go_code_graph.v1.rewrite.Operation
-	(*rewrite.OperationResult)(nil), // 15: vrooli.go_code_graph.v1.rewrite.OperationResult
+	(ExtractionProfile)(0),          // 1: vrooli.go_code_graph.v1.graph.ExtractionProfile
+	(*ExtractRequest)(nil),          // 2: vrooli.go_code_graph.v1.graph.ExtractRequest
+	(*ExtractResponse)(nil),         // 3: vrooli.go_code_graph.v1.graph.ExtractResponse
+	(*RewritePlanRequest)(nil),      // 4: vrooli.go_code_graph.v1.graph.RewritePlanRequest
+	(*RewritePlanResponse)(nil),     // 5: vrooli.go_code_graph.v1.graph.RewritePlanResponse
+	(*RewriteApplyRequest)(nil),     // 6: vrooli.go_code_graph.v1.graph.RewriteApplyRequest
+	(*RewriteApplyResponse)(nil),    // 7: vrooli.go_code_graph.v1.graph.RewriteApplyResponse
+	(*ListFixturesRequest)(nil),     // 8: vrooli.go_code_graph.v1.graph.ListFixturesRequest
+	(*FixtureInfo)(nil),             // 9: vrooli.go_code_graph.v1.graph.FixtureInfo
+	(*ListFixturesResponse)(nil),    // 10: vrooli.go_code_graph.v1.graph.ListFixturesResponse
+	(*ValidateFixtureRequest)(nil),  // 11: vrooli.go_code_graph.v1.graph.ValidateFixtureRequest
+	(*ValidateFixtureResponse)(nil), // 12: vrooli.go_code_graph.v1.graph.ValidateFixtureResponse
+	(*v1.CodeGraph)(nil),            // 13: common.v1.CodeGraph
+	(*v1.CodeGraphWarning)(nil),     // 14: common.v1.CodeGraphWarning
+	(*v1.CodeGraphOmission)(nil),    // 15: common.v1.CodeGraphOmission
+	(*rewrite.Operation)(nil),       // 16: vrooli.go_code_graph.v1.rewrite.Operation
+	(*rewrite.OperationResult)(nil), // 17: vrooli.go_code_graph.v1.rewrite.OperationResult
 }
 var file_go_code_graph_v1_graph_graph_proto_depIdxs = []int32{
-	12, // 0: vrooli.go_code_graph.v1.graph.ExtractResponse.graph:type_name -> common.v1.CodeGraph
-	13, // 1: vrooli.go_code_graph.v1.graph.ExtractResponse.warnings:type_name -> common.v1.CodeGraphWarning
-	14, // 2: vrooli.go_code_graph.v1.graph.RewritePlanRequest.operations:type_name -> vrooli.go_code_graph.v1.rewrite.Operation
-	14, // 3: vrooli.go_code_graph.v1.graph.RewritePlanResponse.normalized_operations:type_name -> vrooli.go_code_graph.v1.rewrite.Operation
-	15, // 4: vrooli.go_code_graph.v1.graph.RewriteApplyResponse.results:type_name -> vrooli.go_code_graph.v1.rewrite.OperationResult
-	8,  // 5: vrooli.go_code_graph.v1.graph.ListFixturesResponse.fixtures:type_name -> vrooli.go_code_graph.v1.graph.FixtureInfo
-	1,  // 6: vrooli.go_code_graph.v1.graph.GoCodeGraphService.Extract:input_type -> vrooli.go_code_graph.v1.graph.ExtractRequest
-	3,  // 7: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewritePlan:input_type -> vrooli.go_code_graph.v1.graph.RewritePlanRequest
-	5,  // 8: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewriteApply:input_type -> vrooli.go_code_graph.v1.graph.RewriteApplyRequest
-	7,  // 9: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ListFixtures:input_type -> vrooli.go_code_graph.v1.graph.ListFixturesRequest
-	10, // 10: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ValidateFixture:input_type -> vrooli.go_code_graph.v1.graph.ValidateFixtureRequest
-	2,  // 11: vrooli.go_code_graph.v1.graph.GoCodeGraphService.Extract:output_type -> vrooli.go_code_graph.v1.graph.ExtractResponse
-	4,  // 12: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewritePlan:output_type -> vrooli.go_code_graph.v1.graph.RewritePlanResponse
-	6,  // 13: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewriteApply:output_type -> vrooli.go_code_graph.v1.graph.RewriteApplyResponse
-	9,  // 14: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ListFixtures:output_type -> vrooli.go_code_graph.v1.graph.ListFixturesResponse
-	11, // 15: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ValidateFixture:output_type -> vrooli.go_code_graph.v1.graph.ValidateFixtureResponse
-	11, // [11:16] is the sub-list for method output_type
-	6,  // [6:11] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	1,  // 0: vrooli.go_code_graph.v1.graph.ExtractRequest.profile:type_name -> vrooli.go_code_graph.v1.graph.ExtractionProfile
+	13, // 1: vrooli.go_code_graph.v1.graph.ExtractResponse.graph:type_name -> common.v1.CodeGraph
+	14, // 2: vrooli.go_code_graph.v1.graph.ExtractResponse.warnings:type_name -> common.v1.CodeGraphWarning
+	1,  // 3: vrooli.go_code_graph.v1.graph.ExtractResponse.profile:type_name -> vrooli.go_code_graph.v1.graph.ExtractionProfile
+	15, // 4: vrooli.go_code_graph.v1.graph.ExtractResponse.omitted_information:type_name -> common.v1.CodeGraphOmission
+	16, // 5: vrooli.go_code_graph.v1.graph.RewritePlanRequest.operations:type_name -> vrooli.go_code_graph.v1.rewrite.Operation
+	16, // 6: vrooli.go_code_graph.v1.graph.RewritePlanResponse.normalized_operations:type_name -> vrooli.go_code_graph.v1.rewrite.Operation
+	17, // 7: vrooli.go_code_graph.v1.graph.RewriteApplyResponse.results:type_name -> vrooli.go_code_graph.v1.rewrite.OperationResult
+	9,  // 8: vrooli.go_code_graph.v1.graph.ListFixturesResponse.fixtures:type_name -> vrooli.go_code_graph.v1.graph.FixtureInfo
+	2,  // 9: vrooli.go_code_graph.v1.graph.GoCodeGraphService.Extract:input_type -> vrooli.go_code_graph.v1.graph.ExtractRequest
+	4,  // 10: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewritePlan:input_type -> vrooli.go_code_graph.v1.graph.RewritePlanRequest
+	6,  // 11: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewriteApply:input_type -> vrooli.go_code_graph.v1.graph.RewriteApplyRequest
+	8,  // 12: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ListFixtures:input_type -> vrooli.go_code_graph.v1.graph.ListFixturesRequest
+	11, // 13: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ValidateFixture:input_type -> vrooli.go_code_graph.v1.graph.ValidateFixtureRequest
+	3,  // 14: vrooli.go_code_graph.v1.graph.GoCodeGraphService.Extract:output_type -> vrooli.go_code_graph.v1.graph.ExtractResponse
+	5,  // 15: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewritePlan:output_type -> vrooli.go_code_graph.v1.graph.RewritePlanResponse
+	7,  // 16: vrooli.go_code_graph.v1.graph.GoCodeGraphService.RewriteApply:output_type -> vrooli.go_code_graph.v1.graph.RewriteApplyResponse
+	10, // 17: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ListFixtures:output_type -> vrooli.go_code_graph.v1.graph.ListFixturesResponse
+	12, // 18: vrooli.go_code_graph.v1.graph.GoCodeGraphService.ValidateFixture:output_type -> vrooli.go_code_graph.v1.graph.ValidateFixtureResponse
+	14, // [14:19] is the sub-list for method output_type
+	9,  // [9:14] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_go_code_graph_v1_graph_graph_proto_init() }
@@ -879,7 +1027,7 @@ func file_go_code_graph_v1_graph_graph_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_go_code_graph_v1_graph_graph_proto_rawDesc), len(file_go_code_graph_v1_graph_graph_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,

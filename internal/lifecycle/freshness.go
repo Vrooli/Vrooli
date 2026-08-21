@@ -34,41 +34,6 @@ type artifactFreshness struct {
 	CheckType    string
 }
 
-// binariesFreshness is the "binaries" setup-condition check, backed by the
-// content-fingerprint freshness engine. It is stale iff any target artifact is
-// missing/non-runnable or any declared input's content (or a keyed build input)
-// differs from the recorded manifest.
-func (r *Runner) binariesFreshness(item scenario.Scenario, check scenario.ConditionCheck) (bool, string, error) {
-	deps := defaultHostProbeDeps()
-	arts, err := binariesFreshnessArtifacts(item.Path, r.Root, check, item.Manifest.Lifecycle.Setup.Steps, deps)
-	if err != nil {
-		return false, "", err
-	}
-	for _, art := range arts {
-		verdict, err := r.evaluateArtifactFreshness(art, deps)
-		if err != nil {
-			return false, "", err
-		}
-		if verdict.Stale {
-			return true, verdict.HumanReason, nil
-		}
-	}
-	return false, "", nil
-}
-
-// uiBundleFreshness is the "ui-bundle" setup-condition check, backed by the
-// freshness engine over the UI source tree, build config, and local file:
-// dependencies, with NODE_ENV folded into the digest.
-func (r *Runner) uiBundleFreshness(item scenario.Scenario, check scenario.ConditionCheck) (bool, string, error) {
-	deps := defaultHostProbeDeps()
-	art := uiBundleFreshnessArtifact(item.Path, r.Root, check, deps)
-	verdict, err := r.evaluateArtifactFreshness(art, deps)
-	if err != nil {
-		return false, "", err
-	}
-	return verdict.Stale, verdict.HumanReason, nil
-}
-
 // FreshnessCheckResult is one artifact's freshness verdict within a
 // FreshnessReport.
 type FreshnessCheckResult struct {
@@ -119,29 +84,26 @@ func (r *Runner) FreshnessReport(item scenario.Scenario) (FreshnessReport, error
 	report := FreshnessReport{Scenario: item.Slug}
 	deps := defaultHostProbeDeps()
 
-	if condition := item.Manifest.Lifecycle.Setup.Condition; condition != nil {
-		for _, check := range condition.Checks {
-			switch strings.TrimSpace(check.Type) {
-			case "", "binaries":
-				arts, err := binariesFreshnessArtifacts(item.Path, r.Root, check, item.Manifest.Lifecycle.Setup.Steps, deps)
-				if err != nil {
-					return FreshnessReport{}, err
-				}
-				for _, art := range arts {
-					verdict, err := r.evaluateArtifactFreshness(art, deps)
-					if err != nil {
-						return FreshnessReport{}, err
-					}
-					report.appendVerdict("binaries", verdict)
-				}
-			case "ui-bundle":
-				art := uiBundleFreshnessArtifact(item.Path, r.Root, check, deps)
-				verdict, err := r.evaluateArtifactFreshness(art, deps)
-				if err != nil {
-					return FreshnessReport{}, err
-				}
-				report.appendVerdict("ui-bundle", verdict)
+	componentNames := make([]string, 0, len(item.Manifest.Components))
+	for name := range item.Manifest.Components {
+		componentNames = append(componentNames, name)
+	}
+	sort.Strings(componentNames)
+	for _, name := range componentNames {
+		component := item.Manifest.Components[name]
+		if strings.TrimSpace(component.Build.Reuse) != "" {
+			continue
+		}
+		artifacts, err := componentFreshnessArtifacts(item.Path, r.Root, component, deps)
+		if err != nil {
+			return FreshnessReport{}, fmt.Errorf("component %s freshness: %w", name, err)
+		}
+		for _, artifact := range artifacts {
+			verdict, err := r.evaluateArtifactFreshness(artifact, deps)
+			if err != nil {
+				return FreshnessReport{}, err
 			}
+			report.appendVerdict(component.Build.Kind, verdict)
 		}
 	}
 
@@ -174,34 +136,22 @@ func (report *FreshnessReport) appendVerdict(checkType string, verdict artifactV
 // freshness check is manifest-authoritative (and the artifact-digest gate has a
 // baseline). Best-effort: a stamp failure is logged, never fatal to start.
 func (r *Runner) stampScenarioFreshness(item scenario.Scenario) {
-	condition := item.Manifest.Lifecycle.Setup.Condition
-	if condition == nil {
-		return
-	}
 	deps := defaultHostProbeDeps()
-	for _, check := range condition.Checks {
-		switch strings.TrimSpace(check.Type) {
-		case "", "binaries":
-			arts, err := binariesFreshnessArtifacts(item.Path, r.Root, check, item.Manifest.Lifecycle.Setup.Steps, deps)
-			if err != nil {
-				r.logDebug("Freshness stamp skipped (binaries spec error)", logx.AttrScenario, item.Slug, "error", err.Error())
+	for name, component := range item.Manifest.Components {
+		if strings.TrimSpace(component.Build.Reuse) != "" {
+			continue
+		}
+		artifacts, err := componentFreshnessArtifacts(item.Path, r.Root, component, deps)
+		if err != nil {
+			r.logDebug("Freshness stamp skipped (component spec error)", logx.AttrScenario, item.Slug, "component", name, "error", err.Error())
+			continue
+		}
+		for _, artifact := range artifacts {
+			if _, statErr := deps.stat(artifact.ArtifactPath); statErr != nil {
 				continue
 			}
-			for _, art := range arts {
-				if _, statErr := deps.stat(art.ArtifactPath); statErr != nil {
-					continue // artifact not built (e.g. setup produced nothing for this target)
-				}
-				if err := r.stampArtifactFreshness(art); err != nil {
-					r.logDebug("Freshness stamp failed", logx.AttrScenario, item.Slug, "artifact", art.ArtifactPath, "error", err.Error())
-				}
-			}
-		case "ui-bundle":
-			art := uiBundleFreshnessArtifact(item.Path, r.Root, check, deps)
-			if _, statErr := deps.stat(art.ArtifactPath); statErr != nil {
-				continue
-			}
-			if err := r.stampArtifactFreshness(art); err != nil {
-				r.logDebug("Freshness stamp failed", logx.AttrScenario, item.Slug, "artifact", art.ArtifactPath, "error", err.Error())
+			if err := r.stampArtifactFreshness(artifact); err != nil {
+				r.logDebug("Freshness stamp failed", logx.AttrScenario, item.Slug, "artifact", artifact.ArtifactPath, "error", err.Error())
 			}
 		}
 	}
@@ -213,7 +163,7 @@ func (r *Runner) stampScenarioFreshness(item scenario.Scenario) {
 // repo-root replace (`=> ../../..`) is deliberately excluded so an edit to an
 // unrelated scenario never marks this artifact stale. _test.go files and the
 // recorded manifest itself are excluded from the input set.
-func binariesFreshnessArtifacts(appRoot, repoRoot string, check scenario.ConditionCheck, setupSteps []scenario.PhaseStep, deps hostProbeDeps) ([]artifactFreshness, error) {
+func binariesFreshnessArtifacts(appRoot, repoRoot string, check scenario.ConditionCheck, deps hostProbeDeps) ([]artifactFreshness, error) {
 	root := repoRoot
 	if strings.TrimSpace(root) == "" {
 		root = appRoot
@@ -229,10 +179,9 @@ func binariesFreshnessArtifacts(appRoot, repoRoot string, check scenario.Conditi
 			return nil, err
 		}
 
-		// Each target keys its own build environment plus the flags from the
-		// setup step that builds it; a multi-target scenario binds the right
-		// command to the right target. The file input set is unaffected.
-		keyInputs := goBuildKeyInputs(deps, matchBuildCommand(setupSteps, target))
+		// The canonical builder is the sole build-command authority. Freshness
+		// keys therefore follow the same declared command that setup executes.
+		keyInputs := goBuildKeyInputs(deps, strings.Join(goModuleBuildArgv(), " "))
 
 		out = append(out, artifactFreshness{
 			Target:       target,
@@ -364,68 +313,6 @@ func pathUnderRoot(root, target string) bool {
 		return true
 	}
 	return strings.HasPrefix(target, root+string(filepath.Separator))
-}
-
-// uiBundleFreshnessArtifact builds the freshness contract for a "ui-bundle"
-// check. The recorded artifact is the dist bundle's index.html; inputs are the
-// UI source tree plus the build config files. NODE_ENV is keyed because Vite
-// emits different output for dev vs prod from identical source.
-func uiBundleFreshnessArtifact(appRoot, repoRoot string, check scenario.ConditionCheck, deps hostProbeDeps) artifactFreshness {
-	root := repoRoot
-	if strings.TrimSpace(root) == "" {
-		root = appRoot
-	}
-	bundlePath := resolveCheckPath(appRoot, defaultIfEmpty(check.BundlePath, "ui/dist/index.html"))
-	sourceDir := resolveCheckPath(appRoot, defaultIfEmpty(check.SourceDir, "ui/src"))
-	uiDir := filepath.Dir(filepath.Dir(bundlePath))
-
-	inputs := []string{relUnder(root, sourceDir)}
-	for _, file := range []string{"package.json", "vite.config.ts", "vite.config.js", "tsconfig.json", "index.html"} {
-		inputs = append(inputs, relUnder(root, filepath.Join(uiDir, file)))
-	}
-
-	// Local file: dependencies (workspace packages) are inputs too: a change in
-	// a linked package must rebuild the bundle. Honor watch_file_dependencies
-	// and dependency_excludes, mirroring the legacy check.
-	watchDeps := true
-	if check.WatchFileDependencies != nil {
-		watchDeps = *check.WatchFileDependencies
-	}
-	if watchDeps {
-		if specs, err := fileDependenciesWithDeps(filepath.Join(uiDir, "package.json"), deps); err == nil {
-			excluded := make(map[string]struct{}, len(check.DependencyExcludes))
-			for _, path := range check.DependencyExcludes {
-				excluded[resolveCheckPath(uiDir, path)] = struct{}{}
-			}
-			for _, spec := range specs {
-				resolved := resolveCheckPath(uiDir, strings.TrimPrefix(spec.Spec, "file:"))
-				if _, skip := excluded[resolved]; skip {
-					continue
-				}
-				inputs = append(inputs, uiFileDependencyFreshnessInputs(root, sourceDir, spec.Name, resolved, deps)...)
-			}
-		}
-	}
-
-	keyInputs := uiBuildKeyInputs(deps)
-	for key, value := range sharedPackageFreshnessKeyInputs(repoRoot, uiDir) {
-		keyInputs[key] = value
-	}
-
-	return artifactFreshness{
-		Target:       defaultIfEmpty(check.BundlePath, "ui/dist/index.html"),
-		ArtifactPath: bundlePath,
-		ManifestPath: cliutil.FreshnessManifestPath(bundlePath),
-		CheckType:    "ui-bundle",
-		KeyInputs:    keyInputs,
-		Spec: cliutil.FreshnessSpec{
-			SourceRoot:      uiDir,
-			ContextRoot:     root,
-			Inputs:          inputs,
-			SkipSuffixes:    []string{cliutil.FreshnessManifestSuffix},
-			CaseInsensitive: deps.volumeCaseInsensitive(bundlePath),
-		},
-	}
 }
 
 // sharedPackageFreshnessKeyInputs adds the digest of each governed package's
@@ -904,24 +791,6 @@ func tokenizeCommand(cmd string) []string {
 	}
 	flush()
 	return tokens
-}
-
-// matchBuildCommand returns the setup step's Run command that builds the given
-// target — the first step whose Run contains "go build" and the target's binary
-// base name. Returns "" when none matches (flags simply absent), so an
-// unrecognized build shape degrades to no flag keys rather than a wrong guess.
-func matchBuildCommand(steps []scenario.PhaseStep, target string) string {
-	base := filepath.Base(strings.TrimSpace(target))
-	for _, step := range steps {
-		run := step.Run
-		if !strings.Contains(run, "go build") {
-			continue
-		}
-		if base != "" && strings.Contains(run, base) {
-			return run
-		}
-	}
-	return ""
 }
 
 // hostGoToolchain returns the host Go toolchain version string (e.g.

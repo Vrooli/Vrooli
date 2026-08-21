@@ -244,7 +244,7 @@ func WriteScenarioSetupOnlyFixture(t *testing.T, root, name string) {
 		WithDescription("Setup validation scenario"),
 		WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
-			Setup:   scenario.Phase{Steps: []scenario.PhaseStep{{Name: "write-file", Run: "mkdir -p build && printf 'ok\n' > build/setup.txt"}}},
+			Setup:   scenario.Phase{Steps: []scenario.PhaseStep{{Name: "write-file", Exec: []string{"bash", "-c", "mkdir -p build && printf 'ok\\n' > build/setup.txt"}}}},
 		}),
 	))
 }
@@ -256,20 +256,6 @@ func WriteScenarioWithoutSetupFixture(t *testing.T, root, name string) {
 		WithDisplayName("No Setup "+DefaultDisplayName(name)),
 		WithDescription("Scenario without setup phase"),
 		WithLifecycle(scenario.Lifecycle{Version: "2.0.0"}),
-	))
-}
-
-func WriteScenarioTestPhaseFixture(t *testing.T, root, name string) {
-	t.Helper()
-	testkitgo.WriteRelativeExecutable(t, root, filepath.Join("scenarios", name, "run-test.sh"), "#!/usr/bin/env bash\nset -e\nmkdir -p coverage\nprintf '%s\\n' \"$1\" > coverage/selector.txt\n")
-	WriteScenarioService(t, root, name, ScenarioServiceManifest(
-		name,
-		WithDisplayName("Test "+DefaultDisplayName(name)),
-		WithDescription("Test validation scenario"),
-		WithLifecycle(scenario.Lifecycle{
-			Version: "2.0.0",
-			Test:    scenario.Phase{Steps: []scenario.PhaseStep{{Name: "run-tests", Run: "./run-test.sh"}}},
-		}),
 	))
 }
 
@@ -286,8 +272,8 @@ func WriteScenarioServiceWithPorts(t *testing.T, root, name string) {
 		WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Develop: scenario.Phase{Steps: []scenario.PhaseStep{
-				{Name: "start-api", Run: "sleep 10", Background: true},
-				{Name: "start-ui", Run: "sleep 10", Background: true},
+				{Name: "start-api", Exec: []string{"sleep", "10"}, Background: true},
+				{Name: "start-ui", Exec: []string{"sleep", "10"}, Background: true},
 			}},
 		}),
 	))
@@ -338,20 +324,14 @@ func LifecycleScenarioManifest(name string, fixedPort *int, dependency string) s
 				Interval:           250,
 			},
 			Setup: scenario.Phase{
-				Condition: &scenario.Condition{
-					Checks: []scenario.ConditionCheck{{
-						Type:    "binaries",
-						Targets: []string{"api/mock-api"},
-					}},
-				},
 				Steps: []scenario.PhaseStep{{
 					Name: "build-api",
-					Run:  "mkdir -p api public && printf '#!/usr/bin/env bash\npython3 -m http.server \"$API_PORT\" --bind 127.0.0.1 --directory ../public\n' > api/mock-api && chmod +x api/mock-api && printf 'ok\n' > public/health",
+					Exec: []string{"bash", "-c", "mkdir -p api public && printf '#!/usr/bin/env bash\\npython3 -m http.server \\\"$API_PORT\\\" --bind 127.0.0.1 --directory ../public\\n' > api/mock-api && chmod +x api/mock-api && printf 'ok\\n' > public/health"},
 				}},
 			},
 			Develop: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name:       "start-api",
-				Run:        "cd api && ./mock-api",
+				Exec:       []string{"api/mock-api"},
 				Background: true,
 				Condition:  &scenario.Condition{FileExists: "api/mock-api"},
 			}}},

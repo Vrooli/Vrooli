@@ -103,3 +103,11 @@ class CodeGraphWarning(_message.Message):
     file: str
     message: str
     def __init__(self, kind: _Optional[_Union[CodeGraphWarningKind, str]] = ..., file: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class CodeGraphOmission(_message.Message):
+    __slots__ = ("capability", "reason")
+    CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    capability: str
+    reason: str
+    def __init__(self, capability: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...

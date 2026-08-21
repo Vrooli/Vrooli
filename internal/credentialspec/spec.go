@@ -13,12 +13,15 @@ package credentialspec
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
 // DefaultField is the field name used when a descriptor omits one. A single
 // unnamed value is the common case; naming it keeps the store key total.
 const DefaultField = "value"
+
+var tierNamePattern = regexp.MustCompile(`^tier-[1-5]-[a-z0-9-]+$`)
 
 // Descriptor declares one credential without binding it to Vault, an
 // environment variable, or a local file. Values are always held by the
@@ -52,6 +55,9 @@ type Descriptor struct {
 	// is available and should not be requested from the operator.
 	Provisioning string `json:"provisioning,omitempty"`
 	DerivedFrom  string `json:"derived_from,omitempty"`
+	// Tiers limits a descriptor to named deployment tiers. Empty means all
+	// tiers, preserving the ordinary runtime credential declaration.
+	Tiers []string `json:"tiers,omitempty"`
 }
 
 // ResolvedField returns the field this descriptor addresses, applying the
@@ -117,6 +123,17 @@ func (c Declaration) Validate(owner string) error {
 		}
 		if provisioning == "derived" && strings.TrimSpace(descriptor.DerivedFrom) == "" {
 			return fmt.Errorf("%s credential %s:%s derived provisioning requires derived_from", owner, identity, field)
+		}
+		seenTiers := map[string]struct{}{}
+		for _, tier := range descriptor.Tiers {
+			tier = strings.TrimSpace(tier)
+			if !tierNamePattern.MatchString(tier) {
+				return fmt.Errorf("%s credential %s:%s has invalid tier %q", owner, identity, field, tier)
+			}
+			if _, duplicate := seenTiers[tier]; duplicate {
+				return fmt.Errorf("%s credential %s:%s declares tier %q twice", owner, identity, field, tier)
+			}
+			seenTiers[tier] = struct{}{}
 		}
 
 		// Two descriptors addressing one store key is a declaration that

@@ -396,6 +396,59 @@ func (CascadeStage) EnumDescriptor() ([]byte, []int) {
 	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{5}
 }
 
+// ConfidenceLevel is the denominator confidence vocabulary.
+type ConfidenceLevel int32
+
+const (
+	ConfidenceLevel_CONFIDENCE_LEVEL_UNSPECIFIED   ConfidenceLevel = 0
+	ConfidenceLevel_CONFIDENCE_LEVEL_AUTHORITATIVE ConfidenceLevel = 1
+	ConfidenceLevel_CONFIDENCE_LEVEL_PARTIAL       ConfidenceLevel = 2
+	ConfidenceLevel_CONFIDENCE_LEVEL_SKETCH        ConfidenceLevel = 3
+)
+
+// Enum value maps for ConfidenceLevel.
+var (
+	ConfidenceLevel_name = map[int32]string{
+		0: "CONFIDENCE_LEVEL_UNSPECIFIED",
+		1: "CONFIDENCE_LEVEL_AUTHORITATIVE",
+		2: "CONFIDENCE_LEVEL_PARTIAL",
+		3: "CONFIDENCE_LEVEL_SKETCH",
+	}
+	ConfidenceLevel_value = map[string]int32{
+		"CONFIDENCE_LEVEL_UNSPECIFIED":   0,
+		"CONFIDENCE_LEVEL_AUTHORITATIVE": 1,
+		"CONFIDENCE_LEVEL_PARTIAL":       2,
+		"CONFIDENCE_LEVEL_SKETCH":        3,
+	}
+)
+
+func (x ConfidenceLevel) Enum() *ConfidenceLevel {
+	p := new(ConfidenceLevel)
+	*p = x
+	return p
+}
+
+func (x ConfidenceLevel) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ConfidenceLevel) Descriptor() protoreflect.EnumDescriptor {
+	return file_infrastructure_manager_v1_ladder_ladder_proto_enumTypes[6].Descriptor()
+}
+
+func (ConfidenceLevel) Type() protoreflect.EnumType {
+	return &file_infrastructure_manager_v1_ladder_ladder_proto_enumTypes[6]
+}
+
+func (x ConfidenceLevel) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ConfidenceLevel.Descriptor instead.
+func (ConfidenceLevel) EnumDescriptor() ([]byte, []int) {
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{6}
+}
+
 // LadderCell is one (device class, rung, host OS) cell.
 type LadderCell struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
@@ -433,8 +486,27 @@ type LadderCell struct {
 	CapabilityStatus string                 `protobuf:"bytes,24,opt,name=capability_status,json=capabilityStatus,proto3" json:"capability_status,omitempty"`
 	CapabilityReason string                 `protobuf:"bytes,25,opt,name=capability_reason,json=capabilityReason,proto3" json:"capability_reason,omitempty"`
 	ObservedAt       *timestamppb.Timestamp `protobuf:"bytes,26,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// fault_unit is the quantity this cell's bar grades, spelled as the operator
+	// authored it. fault_counted is false when no quantity could be computed, in
+	// which case fault_count carries no meaning.
+	FaultUnit    string  `protobuf:"bytes,27,opt,name=fault_unit,json=faultUnit,proto3" json:"fault_unit,omitempty"`
+	FaultCount   float64 `protobuf:"fixed64,28,opt,name=fault_count,json=faultCount,proto3" json:"fault_count,omitempty"`
+	FaultCounted bool    `protobuf:"varint,29,opt,name=fault_counted,json=faultCounted,proto3" json:"fault_counted,omitempty"`
+	// severity projects the graded verdict onto the substrate projection's
+	// ordered severity: 0 OK, 1 WARNING, 2 CRITICAL. severity_known is false for
+	// every ungraded cell — an ungraded cell has NO severity, and defaulting it
+	// to 0 would read as OK, which is the exact failure this projection exists
+	// to prevent.
+	Severity      int32 `protobuf:"varint,30,opt,name=severity,proto3" json:"severity,omitempty"`
+	SeverityKnown bool  `protobuf:"varint,31,opt,name=severity_known,json=severityKnown,proto3" json:"severity_known,omitempty"`
+	// gap_opened_on and gap_open_days are the blindness age. gap_open_days is 0
+	// both for a gap opened today and for a gap nobody ever dated, so gap_dated
+	// is what tells them apart.
+	GapOpenedOn   string `protobuf:"bytes,32,opt,name=gap_opened_on,json=gapOpenedOn,proto3" json:"gap_opened_on,omitempty"`
+	GapOpenDays   int32  `protobuf:"varint,33,opt,name=gap_open_days,json=gapOpenDays,proto3" json:"gap_open_days,omitempty"`
+	GapDated      bool   `protobuf:"varint,34,opt,name=gap_dated,json=gapDated,proto3" json:"gap_dated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LadderCell) Reset() {
@@ -649,6 +721,62 @@ func (x *LadderCell) GetObservedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *LadderCell) GetFaultUnit() string {
+	if x != nil {
+		return x.FaultUnit
+	}
+	return ""
+}
+
+func (x *LadderCell) GetFaultCount() float64 {
+	if x != nil {
+		return x.FaultCount
+	}
+	return 0
+}
+
+func (x *LadderCell) GetFaultCounted() bool {
+	if x != nil {
+		return x.FaultCounted
+	}
+	return false
+}
+
+func (x *LadderCell) GetSeverity() int32 {
+	if x != nil {
+		return x.Severity
+	}
+	return 0
+}
+
+func (x *LadderCell) GetSeverityKnown() bool {
+	if x != nil {
+		return x.SeverityKnown
+	}
+	return false
+}
+
+func (x *LadderCell) GetGapOpenedOn() string {
+	if x != nil {
+		return x.GapOpenedOn
+	}
+	return ""
+}
+
+func (x *LadderCell) GetGapOpenDays() int32 {
+	if x != nil {
+		return x.GapOpenDays
+	}
+	return 0
+}
+
+func (x *LadderCell) GetGapDated() bool {
+	if x != nil {
+		return x.GapDated
+	}
+	return false
+}
+
 // CheckPlatformCoverage is the substrate sensing declared for one host OS: how
 // many registered autoheal checks apply there, out of how many exist. It is a
 // triple rather than a bare count because "4 checks apply on windows" is
@@ -742,11 +870,14 @@ func (x *CheckPlatformCoverage) GetReason() string {
 }
 
 type SourceState struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Available     bool                   `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
-	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	CheckedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Available bool                   `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
+	Reason    string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	CheckedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
+	// trust is the source's own verdict. A source that could not be read is
+	// UNAVAILABLE — a gap in the fan-out, never a verdict about the plant.
+	Trust         TrustVerdict `protobuf:"varint,5,opt,name=trust,proto3,enum=vrooli.infrastructure_manager.v1.ladder.TrustVerdict" json:"trust,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -809,6 +940,310 @@ func (x *SourceState) GetCheckedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *SourceState) GetTrust() TrustVerdict {
+	if x != nil {
+		return x.Trust
+	}
+	return TrustVerdict_TRUST_VERDICT_UNSPECIFIED
+}
+
+// Confidence is the substrate space's denominator confidence. It is a message
+// carried beside the cells rather than an optional extra: a ratio computed
+// over this denominator and reported without it is not a valid instrument
+// response. `available` is false when the space document could not be read, in
+// which case there is NO confidence rather than a defaulted one.
+type Confidence struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Level         ConfidenceLevel        `protobuf:"varint,1,opt,name=level,proto3,enum=vrooli.infrastructure_manager.v1.ladder.ConfidenceLevel" json:"level,omitempty"`
+	Rationale     string                 `protobuf:"bytes,2,opt,name=rationale,proto3" json:"rationale,omitempty"`
+	Available     bool                   `protobuf:"varint,3,opt,name=available,proto3" json:"available,omitempty"`
+	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Confidence) Reset() {
+	*x = Confidence{}
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Confidence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Confidence) ProtoMessage() {}
+
+func (x *Confidence) ProtoReflect() protoreflect.Message {
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Confidence.ProtoReflect.Descriptor instead.
+func (*Confidence) Descriptor() ([]byte, []int) {
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Confidence) GetLevel() ConfidenceLevel {
+	if x != nil {
+		return x.Level
+	}
+	return ConfidenceLevel_CONFIDENCE_LEVEL_UNSPECIFIED
+}
+
+func (x *Confidence) GetRationale() string {
+	if x != nil {
+		return x.Rationale
+	}
+	return ""
+}
+
+func (x *Confidence) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *Confidence) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+// DeviceRung is one rung of one device.
+type DeviceRung struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Rung  Rung                   `protobuf:"varint,1,opt,name=rung,proto3,enum=vrooli.infrastructure_manager.v1.ladder.Rung" json:"rung,omitempty"`
+	// observation is the device graph owner's grade, verbatim. MEASURED,
+	// UNMEASURABLE, UNAVAILABLE and NOT_APPLICABLE are four different facts:
+	// the host produced a value; the host refused a value it should have; the
+	// mechanism is absent from this host entirely; the rung is meaningless for
+	// this class. None is ever collapsed into another.
+	Observation Observation `protobuf:"varint,2,opt,name=observation,proto3,enum=vrooli.infrastructure_manager.v1.ladder.Observation" json:"observation,omitempty"`
+	// ladder_observation is the grade after the ladder's dependency ordering. It
+	// differs from observation only by becoming BLOCKED when a rung beneath this
+	// one is blind. The two answer different questions — "what did the sensor
+	// find?" and "may a claim rest on it?" — so both are carried.
+	LadderObservation Observation `protobuf:"varint,3,opt,name=ladder_observation,json=ladderObservation,proto3,enum=vrooli.infrastructure_manager.v1.ladder.Observation" json:"ladder_observation,omitempty"`
+	Reason            string      `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	Mechanism         string      `protobuf:"bytes,5,opt,name=mechanism,proto3" json:"mechanism,omitempty"`
+	Remediation       string      `protobuf:"bytes,6,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	BlockedBy         Rung        `protobuf:"varint,7,opt,name=blocked_by,json=blockedBy,proto3,enum=vrooli.infrastructure_manager.v1.ladder.Rung" json:"blocked_by,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *DeviceRung) Reset() {
+	*x = DeviceRung{}
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceRung) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceRung) ProtoMessage() {}
+
+func (x *DeviceRung) ProtoReflect() protoreflect.Message {
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceRung.ProtoReflect.Descriptor instead.
+func (*DeviceRung) Descriptor() ([]byte, []int) {
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *DeviceRung) GetRung() Rung {
+	if x != nil {
+		return x.Rung
+	}
+	return Rung_RUNG_UNSPECIFIED
+}
+
+func (x *DeviceRung) GetObservation() Observation {
+	if x != nil {
+		return x.Observation
+	}
+	return Observation_OBSERVATION_UNSPECIFIED
+}
+
+func (x *DeviceRung) GetLadderObservation() Observation {
+	if x != nil {
+		return x.LadderObservation
+	}
+	return Observation_OBSERVATION_UNSPECIFIED
+}
+
+func (x *DeviceRung) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *DeviceRung) GetMechanism() string {
+	if x != nil {
+		return x.Mechanism
+	}
+	return ""
+}
+
+func (x *DeviceRung) GetRemediation() string {
+	if x != nil {
+		return x.Remediation
+	}
+	return ""
+}
+
+func (x *DeviceRung) GetBlockedBy() Rung {
+	if x != nil {
+		return x.BlockedBy
+	}
+	return Rung_RUNG_UNSPECIFIED
+}
+
+// Device is one graded hardware device.
+type Device struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// id is the durable, platform-stable address, e.g. "pci:0000:01:00.0".
+	Id       string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Class    string `protobuf:"bytes,2,opt,name=class,proto3" json:"class,omitempty"`
+	ParentId string `protobuf:"bytes,3,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
+	Vendor   string `protobuf:"bytes,4,opt,name=vendor,proto3" json:"vendor,omitempty"`
+	Model    string `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	Driver   string `protobuf:"bytes,6,opt,name=driver,proto3" json:"driver,omitempty"`
+	// sys_path is the platform path the device was enumerated from. It is
+	// provenance, not identity.
+	SysPath string `protobuf:"bytes,7,opt,name=sys_path,json=sysPath,proto3" json:"sys_path,omitempty"`
+	// attributes carry the owner's per-class facts, including kernel node names,
+	// passed through whole rather than filtered to a known key list.
+	Attributes    map[string]string  `protobuf:"bytes,8,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Readings      map[string]float64 `protobuf:"bytes,9,rep,name=readings,proto3" json:"readings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
+	Rungs         []*DeviceRung      `protobuf:"bytes,10,rep,name=rungs,proto3" json:"rungs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Device) Reset() {
+	*x = Device{}
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Device) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Device) ProtoMessage() {}
+
+func (x *Device) ProtoReflect() protoreflect.Message {
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Device.ProtoReflect.Descriptor instead.
+func (*Device) Descriptor() ([]byte, []int) {
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Device) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Device) GetClass() string {
+	if x != nil {
+		return x.Class
+	}
+	return ""
+}
+
+func (x *Device) GetParentId() string {
+	if x != nil {
+		return x.ParentId
+	}
+	return ""
+}
+
+func (x *Device) GetVendor() string {
+	if x != nil {
+		return x.Vendor
+	}
+	return ""
+}
+
+func (x *Device) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *Device) GetDriver() string {
+	if x != nil {
+		return x.Driver
+	}
+	return ""
+}
+
+func (x *Device) GetSysPath() string {
+	if x != nil {
+		return x.SysPath
+	}
+	return ""
+}
+
+func (x *Device) GetAttributes() map[string]string {
+	if x != nil {
+		return x.Attributes
+	}
+	return nil
+}
+
+func (x *Device) GetReadings() map[string]float64 {
+	if x != nil {
+		return x.Readings
+	}
+	return nil
+}
+
+func (x *Device) GetRungs() []*DeviceRung {
+	if x != nil {
+		return x.Rungs
+	}
+	return nil
+}
+
 type RankedFinding struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Rank      int32                  `protobuf:"varint,1,opt,name=rank,proto3" json:"rank,omitempty"`
@@ -832,7 +1267,7 @@ type RankedFinding struct {
 
 func (x *RankedFinding) Reset() {
 	*x = RankedFinding{}
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[3]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -844,7 +1279,7 @@ func (x *RankedFinding) String() string {
 func (*RankedFinding) ProtoMessage() {}
 
 func (x *RankedFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[3]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -857,7 +1292,7 @@ func (x *RankedFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RankedFinding.ProtoReflect.Descriptor instead.
 func (*RankedFinding) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{3}
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RankedFinding) GetRank() int32 {
@@ -961,14 +1396,18 @@ type Ladder struct {
 	// declarations onto the host OS axis, read live from the owner's typed
 	// surface rather than parsed out of its source.
 	CheckPlatforms []*CheckPlatformCoverage `protobuf:"bytes,7,rep,name=check_platforms,json=checkPlatforms,proto3" json:"check_platforms,omitempty"`
-	ComputedAt     *timestamppb.Timestamp   `protobuf:"bytes,8,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// devices is the graded hardware inventory the cells were computed from.
+	Devices []*Device `protobuf:"bytes,8,rep,name=devices,proto3" json:"devices,omitempty"`
+	// confidence is the substrate space's denominator confidence.
+	Confidence    *Confidence            `protobuf:"bytes,9,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	ComputedAt    *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Ladder) Reset() {
 	*x = Ladder{}
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[4]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -980,7 +1419,7 @@ func (x *Ladder) String() string {
 func (*Ladder) ProtoMessage() {}
 
 func (x *Ladder) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[4]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -993,7 +1432,7 @@ func (x *Ladder) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ladder.ProtoReflect.Descriptor instead.
 func (*Ladder) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{4}
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Ladder) GetCells() []*LadderCell {
@@ -1045,6 +1484,20 @@ func (x *Ladder) GetCheckPlatforms() []*CheckPlatformCoverage {
 	return nil
 }
 
+func (x *Ladder) GetDevices() []*Device {
+	if x != nil {
+		return x.Devices
+	}
+	return nil
+}
+
+func (x *Ladder) GetConfidence() *Confidence {
+	if x != nil {
+		return x.Confidence
+	}
+	return nil
+}
+
 func (x *Ladder) GetComputedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ComputedAt
@@ -1060,7 +1513,7 @@ type GetLadderRequest struct {
 
 func (x *GetLadderRequest) Reset() {
 	*x = GetLadderRequest{}
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[5]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1072,7 +1525,7 @@ func (x *GetLadderRequest) String() string {
 func (*GetLadderRequest) ProtoMessage() {}
 
 func (x *GetLadderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[5]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1085,7 +1538,7 @@ func (x *GetLadderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLadderRequest.ProtoReflect.Descriptor instead.
 func (*GetLadderRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{5}
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{8}
 }
 
 type GetLadderResponse struct {
@@ -1097,7 +1550,7 @@ type GetLadderResponse struct {
 
 func (x *GetLadderResponse) Reset() {
 	*x = GetLadderResponse{}
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[6]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1109,7 +1562,7 @@ func (x *GetLadderResponse) String() string {
 func (*GetLadderResponse) ProtoMessage() {}
 
 func (x *GetLadderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[6]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1122,7 +1575,7 @@ func (x *GetLadderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLadderResponse.ProtoReflect.Descriptor instead.
 func (*GetLadderResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{6}
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetLadderResponse) GetLadder() *Ladder {
@@ -1145,7 +1598,7 @@ type ListCellsRequest struct {
 
 func (x *ListCellsRequest) Reset() {
 	*x = ListCellsRequest{}
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[7]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1157,7 +1610,7 @@ func (x *ListCellsRequest) String() string {
 func (*ListCellsRequest) ProtoMessage() {}
 
 func (x *ListCellsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[7]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1170,7 +1623,7 @@ func (x *ListCellsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCellsRequest.ProtoReflect.Descriptor instead.
 func (*ListCellsRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{7}
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListCellsRequest) GetDeviceClass() string {
@@ -1211,7 +1664,7 @@ type ListCellsResponse struct {
 
 func (x *ListCellsResponse) Reset() {
 	*x = ListCellsResponse{}
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[8]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1223,7 +1676,7 @@ func (x *ListCellsResponse) String() string {
 func (*ListCellsResponse) ProtoMessage() {}
 
 func (x *ListCellsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[8]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1236,7 +1689,7 @@ func (x *ListCellsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCellsResponse.ProtoReflect.Descriptor instead.
 func (*ListCellsResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{8}
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListCellsResponse) GetCells() []*LadderCell {
@@ -1253,6 +1706,130 @@ func (x *ListCellsResponse) GetComputedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type ListDevicesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional filters. An unset filter matches everything.
+	DeviceClass   string `protobuf:"bytes,1,opt,name=device_class,json=deviceClass,proto3" json:"device_class,omitempty"`
+	DeviceId      string `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDevicesRequest) Reset() {
+	*x = ListDevicesRequest{}
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDevicesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDevicesRequest) ProtoMessage() {}
+
+func (x *ListDevicesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDevicesRequest.ProtoReflect.Descriptor instead.
+func (*ListDevicesRequest) Descriptor() ([]byte, []int) {
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListDevicesRequest) GetDeviceClass() string {
+	if x != nil {
+		return x.DeviceClass
+	}
+	return ""
+}
+
+func (x *ListDevicesRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+type ListDevicesResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Devices []*Device              `protobuf:"bytes,1,rep,name=devices,proto3" json:"devices,omitempty"`
+	// available is false when the device-graph source could not be read. The
+	// empty device list is then a failure to observe, NOT a host with no
+	// hardware, and unavailable_reason says which.
+	Available         bool                   `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
+	UnavailableReason string                 `protobuf:"bytes,3,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
+	ComputedAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ListDevicesResponse) Reset() {
+	*x = ListDevicesResponse{}
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDevicesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDevicesResponse) ProtoMessage() {}
+
+func (x *ListDevicesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDevicesResponse.ProtoReflect.Descriptor instead.
+func (*ListDevicesResponse) Descriptor() ([]byte, []int) {
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListDevicesResponse) GetDevices() []*Device {
+	if x != nil {
+		return x.Devices
+	}
+	return nil
+}
+
+func (x *ListDevicesResponse) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *ListDevicesResponse) GetUnavailableReason() string {
+	if x != nil {
+		return x.UnavailableReason
+	}
+	return ""
+}
+
+func (x *ListDevicesResponse) GetComputedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ComputedAt
+	}
+	return nil
+}
+
 type ListSourcesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1261,7 +1838,7 @@ type ListSourcesRequest struct {
 
 func (x *ListSourcesRequest) Reset() {
 	*x = ListSourcesRequest{}
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[9]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1273,7 +1850,7 @@ func (x *ListSourcesRequest) String() string {
 func (*ListSourcesRequest) ProtoMessage() {}
 
 func (x *ListSourcesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[9]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1286,21 +1863,22 @@ func (x *ListSourcesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSourcesRequest.ProtoReflect.Descriptor instead.
 func (*ListSourcesRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{9}
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{14}
 }
 
 type ListSourcesResponse struct {
 	state          protoimpl.MessageState   `protogen:"open.v1"`
 	Sources        []*SourceState           `protobuf:"bytes,1,rep,name=sources,proto3" json:"sources,omitempty"`
 	CheckPlatforms []*CheckPlatformCoverage `protobuf:"bytes,2,rep,name=check_platforms,json=checkPlatforms,proto3" json:"check_platforms,omitempty"`
-	ComputedAt     *timestamppb.Timestamp   `protobuf:"bytes,3,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	Confidence     *Confidence              `protobuf:"bytes,3,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	ComputedAt     *timestamppb.Timestamp   `protobuf:"bytes,4,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ListSourcesResponse) Reset() {
 	*x = ListSourcesResponse{}
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[10]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1312,7 +1890,7 @@ func (x *ListSourcesResponse) String() string {
 func (*ListSourcesResponse) ProtoMessage() {}
 
 func (x *ListSourcesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[10]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1325,7 +1903,7 @@ func (x *ListSourcesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSourcesResponse.ProtoReflect.Descriptor instead.
 func (*ListSourcesResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{10}
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListSourcesResponse) GetSources() []*SourceState {
@@ -1338,6 +1916,13 @@ func (x *ListSourcesResponse) GetSources() []*SourceState {
 func (x *ListSourcesResponse) GetCheckPlatforms() []*CheckPlatformCoverage {
 	if x != nil {
 		return x.CheckPlatforms
+	}
+	return nil
+}
+
+func (x *ListSourcesResponse) GetConfidence() *Confidence {
+	if x != nil {
+		return x.Confidence
 	}
 	return nil
 }
@@ -1359,7 +1944,7 @@ type RankFindingsRequest struct {
 
 func (x *RankFindingsRequest) Reset() {
 	*x = RankFindingsRequest{}
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[11]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1371,7 +1956,7 @@ func (x *RankFindingsRequest) String() string {
 func (*RankFindingsRequest) ProtoMessage() {}
 
 func (x *RankFindingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[11]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1384,7 +1969,7 @@ func (x *RankFindingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RankFindingsRequest.ProtoReflect.Descriptor instead.
 func (*RankFindingsRequest) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{11}
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RankFindingsRequest) GetStage() CascadeStage {
@@ -1407,7 +1992,7 @@ type RankFindingsResponse struct {
 
 func (x *RankFindingsResponse) Reset() {
 	*x = RankFindingsResponse{}
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[12]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1419,7 +2004,7 @@ func (x *RankFindingsResponse) String() string {
 func (*RankFindingsResponse) ProtoMessage() {}
 
 func (x *RankFindingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[12]
+	mi := &file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1432,7 +2017,7 @@ func (x *RankFindingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RankFindingsResponse.ProtoReflect.Descriptor instead.
 func (*RankFindingsResponse) Descriptor() ([]byte, []int) {
-	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{12}
+	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RankFindingsResponse) GetFindings() []*RankedFinding {
@@ -1460,7 +2045,7 @@ var File_infrastructure_manager_v1_ladder_ladder_proto protoreflect.FileDescript
 
 const file_infrastructure_manager_v1_ladder_ladder_proto_rawDesc = "" +
 	"\n" +
-	"-infrastructure-manager/v1/ladder/ladder.proto\x12'vrooli.infrastructure_manager.v1.ladder\x1a\x1fgoogle/protobuf/timestamp.proto\"\x83\t\n" +
+	"-infrastructure-manager/v1/ladder/ladder.proto\x12'vrooli.infrastructure_manager.v1.ladder\x1a\x1fgoogle/protobuf/timestamp.proto\"\x90\v\n" +
 	"\n" +
 	"LadderCell\x12!\n" +
 	"\fdevice_class\x18\x01 \x01(\tR\vdeviceClass\x12A\n" +
@@ -1493,7 +2078,17 @@ const file_infrastructure_manager_v1_ladder_ladder_proto_rawDesc = "" +
 	"\x11capability_status\x18\x18 \x01(\tR\x10capabilityStatus\x12+\n" +
 	"\x11capability_reason\x18\x19 \x01(\tR\x10capabilityReason\x12;\n" +
 	"\vobserved_at\x18\x1a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAt\"\xba\x01\n" +
+	"observedAt\x12\x1d\n" +
+	"\n" +
+	"fault_unit\x18\x1b \x01(\tR\tfaultUnit\x12\x1f\n" +
+	"\vfault_count\x18\x1c \x01(\x01R\n" +
+	"faultCount\x12#\n" +
+	"\rfault_counted\x18\x1d \x01(\bR\ffaultCounted\x12\x1a\n" +
+	"\bseverity\x18\x1e \x01(\x05R\bseverity\x12%\n" +
+	"\x0eseverity_known\x18\x1f \x01(\bR\rseverityKnown\x12\"\n" +
+	"\rgap_opened_on\x18  \x01(\tR\vgapOpenedOn\x12\"\n" +
+	"\rgap_open_days\x18! \x01(\x05R\vgapOpenDays\x12\x1b\n" +
+	"\tgap_dated\x18\" \x01(\bR\bgapDated\"\xba\x01\n" +
 	"\x15CheckPlatformCoverage\x12\x17\n" +
 	"\ahost_os\x18\x01 \x01(\tR\x06hostOs\x12\x1e\n" +
 	"\n" +
@@ -1502,13 +2097,50 @@ const file_infrastructure_manager_v1_ladder_ladder_proto_rawDesc = "" +
 	"\x05total\x18\x03 \x01(\x05R\x05total\x12\x1c\n" +
 	"\tuniversal\x18\x04 \x01(\x05R\tuniversal\x12\x1c\n" +
 	"\tavailable\x18\x05 \x01(\bR\tavailable\x12\x16\n" +
-	"\x06reason\x18\x06 \x01(\tR\x06reason\"\x8e\x01\n" +
+	"\x06reason\x18\x06 \x01(\tR\x06reason\"\xdb\x01\n" +
 	"\vSourceState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\tavailable\x18\x02 \x01(\bR\tavailable\x12\x16\n" +
 	"\x06reason\x18\x03 \x01(\tR\x06reason\x129\n" +
 	"\n" +
-	"checked_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcheckedAt\"\x95\x03\n" +
+	"checked_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcheckedAt\x12K\n" +
+	"\x05trust\x18\x05 \x01(\x0e25.vrooli.infrastructure_manager.v1.ladder.TrustVerdictR\x05trust\"\xb0\x01\n" +
+	"\n" +
+	"Confidence\x12N\n" +
+	"\x05level\x18\x01 \x01(\x0e28.vrooli.infrastructure_manager.v1.ladder.ConfidenceLevelR\x05level\x12\x1c\n" +
+	"\trationale\x18\x02 \x01(\tR\trationale\x12\x1c\n" +
+	"\tavailable\x18\x03 \x01(\bR\tavailable\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xb2\x03\n" +
+	"\n" +
+	"DeviceRung\x12A\n" +
+	"\x04rung\x18\x01 \x01(\x0e2-.vrooli.infrastructure_manager.v1.ladder.RungR\x04rung\x12V\n" +
+	"\vobservation\x18\x02 \x01(\x0e24.vrooli.infrastructure_manager.v1.ladder.ObservationR\vobservation\x12c\n" +
+	"\x12ladder_observation\x18\x03 \x01(\x0e24.vrooli.infrastructure_manager.v1.ladder.ObservationR\x11ladderObservation\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\x12\x1c\n" +
+	"\tmechanism\x18\x05 \x01(\tR\tmechanism\x12 \n" +
+	"\vremediation\x18\x06 \x01(\tR\vremediation\x12L\n" +
+	"\n" +
+	"blocked_by\x18\a \x01(\x0e2-.vrooli.infrastructure_manager.v1.ladder.RungR\tblockedBy\"\xaf\x04\n" +
+	"\x06Device\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05class\x18\x02 \x01(\tR\x05class\x12\x1b\n" +
+	"\tparent_id\x18\x03 \x01(\tR\bparentId\x12\x16\n" +
+	"\x06vendor\x18\x04 \x01(\tR\x06vendor\x12\x14\n" +
+	"\x05model\x18\x05 \x01(\tR\x05model\x12\x16\n" +
+	"\x06driver\x18\x06 \x01(\tR\x06driver\x12\x19\n" +
+	"\bsys_path\x18\a \x01(\tR\asysPath\x12_\n" +
+	"\n" +
+	"attributes\x18\b \x03(\v2?.vrooli.infrastructure_manager.v1.ladder.Device.AttributesEntryR\n" +
+	"attributes\x12Y\n" +
+	"\breadings\x18\t \x03(\v2=.vrooli.infrastructure_manager.v1.ladder.Device.ReadingsEntryR\breadings\x12I\n" +
+	"\x05rungs\x18\n" +
+	" \x03(\v23.vrooli.infrastructure_manager.v1.ladder.DeviceRungR\x05rungs\x1a=\n" +
+	"\x0fAttributesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
+	"\rReadingsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"\x95\x03\n" +
 	"\rRankedFinding\x12\x12\n" +
 	"\x04rank\x18\x01 \x01(\x05R\x04rank\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x16\n" +
@@ -1524,7 +2156,7 @@ const file_infrastructure_manager_v1_ladder_ladder_proto_rawDesc = "" +
 	" \x01(\x05R\bseverity\x12\x1f\n" +
 	"\vtrust_valid\x18\v \x01(\bR\n" +
 	"trustValid\x12'\n" +
-	"\x0fexpected_return\x18\f \x01(\tR\x0eexpectedReturn\"\x8e\x04\n" +
+	"\x0fexpected_return\x18\f \x01(\tR\x0eexpectedReturn\"\xae\x05\n" +
 	"\x06Ladder\x12I\n" +
 	"\x05cells\x18\x01 \x03(\v23.vrooli.infrastructure_manager.v1.ladder.LadderCellR\x05cells\x12N\n" +
 	"\asources\x18\x02 \x03(\v24.vrooli.infrastructure_manager.v1.ladder.SourceStateR\asources\x12R\n" +
@@ -1532,8 +2164,13 @@ const file_infrastructure_manager_v1_ladder_ladder_proto_rawDesc = "" +
 	"\ahost_os\x18\x04 \x01(\tR\x06hostOs\x12-\n" +
 	"\x12coverage_available\x18\x05 \x01(\bR\x11coverageAvailable\x12'\n" +
 	"\x0fcoverage_reason\x18\x06 \x01(\tR\x0ecoverageReason\x12g\n" +
-	"\x0fcheck_platforms\x18\a \x03(\v2>.vrooli.infrastructure_manager.v1.ladder.CheckPlatformCoverageR\x0echeckPlatforms\x12;\n" +
-	"\vcomputed_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"\x0fcheck_platforms\x18\a \x03(\v2>.vrooli.infrastructure_manager.v1.ladder.CheckPlatformCoverageR\x0echeckPlatforms\x12I\n" +
+	"\adevices\x18\b \x03(\v2/.vrooli.infrastructure_manager.v1.ladder.DeviceR\adevices\x12S\n" +
+	"\n" +
+	"confidence\x18\t \x01(\v23.vrooli.infrastructure_manager.v1.ladder.ConfidenceR\n" +
+	"confidence\x12;\n" +
+	"\vcomputed_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"computedAt\"\x12\n" +
 	"\x10GetLadderRequest\"\\\n" +
 	"\x11GetLadderResponse\x12G\n" +
@@ -1546,12 +2183,24 @@ const file_infrastructure_manager_v1_ladder_ladder_proto_rawDesc = "" +
 	"\x11ListCellsResponse\x12I\n" +
 	"\x05cells\x18\x01 \x03(\v23.vrooli.infrastructure_manager.v1.ladder.LadderCellR\x05cells\x12;\n" +
 	"\vcomputed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"computedAt\"T\n" +
+	"\x12ListDevicesRequest\x12!\n" +
+	"\fdevice_class\x18\x01 \x01(\tR\vdeviceClass\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\"\xea\x01\n" +
+	"\x13ListDevicesResponse\x12I\n" +
+	"\adevices\x18\x01 \x03(\v2/.vrooli.infrastructure_manager.v1.ladder.DeviceR\adevices\x12\x1c\n" +
+	"\tavailable\x18\x02 \x01(\bR\tavailable\x12-\n" +
+	"\x12unavailable_reason\x18\x03 \x01(\tR\x11unavailableReason\x12;\n" +
+	"\vcomputed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"computedAt\"\x14\n" +
-	"\x12ListSourcesRequest\"\x8b\x02\n" +
+	"\x12ListSourcesRequest\"\xe0\x02\n" +
 	"\x13ListSourcesResponse\x12N\n" +
 	"\asources\x18\x01 \x03(\v24.vrooli.infrastructure_manager.v1.ladder.SourceStateR\asources\x12g\n" +
-	"\x0fcheck_platforms\x18\x02 \x03(\v2>.vrooli.infrastructure_manager.v1.ladder.CheckPlatformCoverageR\x0echeckPlatforms\x12;\n" +
-	"\vcomputed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"\x0fcheck_platforms\x18\x02 \x03(\v2>.vrooli.infrastructure_manager.v1.ladder.CheckPlatformCoverageR\x0echeckPlatforms\x12S\n" +
+	"\n" +
+	"confidence\x18\x03 \x01(\v23.vrooli.infrastructure_manager.v1.ladder.ConfidenceR\n" +
+	"confidence\x12;\n" +
+	"\vcomputed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"computedAt\"b\n" +
 	"\x13RankFindingsRequest\x12K\n" +
 	"\x05stage\x18\x01 \x01(\x0e25.vrooli.infrastructure_manager.v1.ladder.CascadeStageR\x05stage\"\xd0\x01\n" +
@@ -1605,9 +2254,15 @@ const file_infrastructure_manager_v1_ladder_ladder_proto_rawDesc = "" +
 	"\x1cCASCADE_STAGE_HOST_SUBSTRATE\x10\x02\x12)\n" +
 	"%CASCADE_STAGE_CAPABILITY_AVAILABILITY\x10\x03\x12\x1c\n" +
 	"\x18CASCADE_STAGE_EFFICIENCY\x10\x04\x12)\n" +
-	"%CASCADE_STAGE_MEASUREMENT_IMPROVEMENT\x10\x052\xb2\x04\n" +
+	"%CASCADE_STAGE_MEASUREMENT_IMPROVEMENT\x10\x05*\x92\x01\n" +
+	"\x0fConfidenceLevel\x12 \n" +
+	"\x1cCONFIDENCE_LEVEL_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eCONFIDENCE_LEVEL_AUTHORITATIVE\x10\x01\x12\x1c\n" +
+	"\x18CONFIDENCE_LEVEL_PARTIAL\x10\x02\x12\x1b\n" +
+	"\x17CONFIDENCE_LEVEL_SKETCH\x10\x032\xbd\x05\n" +
 	"\rLadderService\x12\x82\x01\n" +
-	"\tGetLadder\x129.vrooli.infrastructure_manager.v1.ladder.GetLadderRequest\x1a:.vrooli.infrastructure_manager.v1.ladder.GetLadderResponse\x12\x82\x01\n" +
+	"\tGetLadder\x129.vrooli.infrastructure_manager.v1.ladder.GetLadderRequest\x1a:.vrooli.infrastructure_manager.v1.ladder.GetLadderResponse\x12\x88\x01\n" +
+	"\vListDevices\x12;.vrooli.infrastructure_manager.v1.ladder.ListDevicesRequest\x1a<.vrooli.infrastructure_manager.v1.ladder.ListDevicesResponse\x12\x82\x01\n" +
 	"\tListCells\x129.vrooli.infrastructure_manager.v1.ladder.ListCellsRequest\x1a:.vrooli.infrastructure_manager.v1.ladder.ListCellsResponse\x12\x88\x01\n" +
 	"\vListSources\x12;.vrooli.infrastructure_manager.v1.ladder.ListSourcesRequest\x1a<.vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse\x12\x8b\x01\n" +
 	"\fRankFindings\x12<.vrooli.infrastructure_manager.v1.ladder.RankFindingsRequest\x1a=.vrooli.infrastructure_manager.v1.ladder.RankFindingsResponseB[ZYgithub.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/ladder;ladder_v1b\x06proto3"
@@ -1624,8 +2279,8 @@ func file_infrastructure_manager_v1_ladder_ladder_proto_rawDescGZIP() []byte {
 	return file_infrastructure_manager_v1_ladder_ladder_proto_rawDescData
 }
 
-var file_infrastructure_manager_v1_ladder_ladder_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_infrastructure_manager_v1_ladder_ladder_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_infrastructure_manager_v1_ladder_ladder_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_infrastructure_manager_v1_ladder_ladder_proto_goTypes = []any{
 	(Rung)(0),                     // 0: vrooli.infrastructure_manager.v1.ladder.Rung
 	(Observation)(0),              // 1: vrooli.infrastructure_manager.v1.ladder.Observation
@@ -1633,20 +2288,28 @@ var file_infrastructure_manager_v1_ladder_ladder_proto_goTypes = []any{
 	(TrustVerdict)(0),             // 3: vrooli.infrastructure_manager.v1.ladder.TrustVerdict
 	(BandVerdict)(0),              // 4: vrooli.infrastructure_manager.v1.ladder.BandVerdict
 	(CascadeStage)(0),             // 5: vrooli.infrastructure_manager.v1.ladder.CascadeStage
-	(*LadderCell)(nil),            // 6: vrooli.infrastructure_manager.v1.ladder.LadderCell
-	(*CheckPlatformCoverage)(nil), // 7: vrooli.infrastructure_manager.v1.ladder.CheckPlatformCoverage
-	(*SourceState)(nil),           // 8: vrooli.infrastructure_manager.v1.ladder.SourceState
-	(*RankedFinding)(nil),         // 9: vrooli.infrastructure_manager.v1.ladder.RankedFinding
-	(*Ladder)(nil),                // 10: vrooli.infrastructure_manager.v1.ladder.Ladder
-	(*GetLadderRequest)(nil),      // 11: vrooli.infrastructure_manager.v1.ladder.GetLadderRequest
-	(*GetLadderResponse)(nil),     // 12: vrooli.infrastructure_manager.v1.ladder.GetLadderResponse
-	(*ListCellsRequest)(nil),      // 13: vrooli.infrastructure_manager.v1.ladder.ListCellsRequest
-	(*ListCellsResponse)(nil),     // 14: vrooli.infrastructure_manager.v1.ladder.ListCellsResponse
-	(*ListSourcesRequest)(nil),    // 15: vrooli.infrastructure_manager.v1.ladder.ListSourcesRequest
-	(*ListSourcesResponse)(nil),   // 16: vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse
-	(*RankFindingsRequest)(nil),   // 17: vrooli.infrastructure_manager.v1.ladder.RankFindingsRequest
-	(*RankFindingsResponse)(nil),  // 18: vrooli.infrastructure_manager.v1.ladder.RankFindingsResponse
-	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
+	(ConfidenceLevel)(0),          // 6: vrooli.infrastructure_manager.v1.ladder.ConfidenceLevel
+	(*LadderCell)(nil),            // 7: vrooli.infrastructure_manager.v1.ladder.LadderCell
+	(*CheckPlatformCoverage)(nil), // 8: vrooli.infrastructure_manager.v1.ladder.CheckPlatformCoverage
+	(*SourceState)(nil),           // 9: vrooli.infrastructure_manager.v1.ladder.SourceState
+	(*Confidence)(nil),            // 10: vrooli.infrastructure_manager.v1.ladder.Confidence
+	(*DeviceRung)(nil),            // 11: vrooli.infrastructure_manager.v1.ladder.DeviceRung
+	(*Device)(nil),                // 12: vrooli.infrastructure_manager.v1.ladder.Device
+	(*RankedFinding)(nil),         // 13: vrooli.infrastructure_manager.v1.ladder.RankedFinding
+	(*Ladder)(nil),                // 14: vrooli.infrastructure_manager.v1.ladder.Ladder
+	(*GetLadderRequest)(nil),      // 15: vrooli.infrastructure_manager.v1.ladder.GetLadderRequest
+	(*GetLadderResponse)(nil),     // 16: vrooli.infrastructure_manager.v1.ladder.GetLadderResponse
+	(*ListCellsRequest)(nil),      // 17: vrooli.infrastructure_manager.v1.ladder.ListCellsRequest
+	(*ListCellsResponse)(nil),     // 18: vrooli.infrastructure_manager.v1.ladder.ListCellsResponse
+	(*ListDevicesRequest)(nil),    // 19: vrooli.infrastructure_manager.v1.ladder.ListDevicesRequest
+	(*ListDevicesResponse)(nil),   // 20: vrooli.infrastructure_manager.v1.ladder.ListDevicesResponse
+	(*ListSourcesRequest)(nil),    // 21: vrooli.infrastructure_manager.v1.ladder.ListSourcesRequest
+	(*ListSourcesResponse)(nil),   // 22: vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse
+	(*RankFindingsRequest)(nil),   // 23: vrooli.infrastructure_manager.v1.ladder.RankFindingsRequest
+	(*RankFindingsResponse)(nil),  // 24: vrooli.infrastructure_manager.v1.ladder.RankFindingsResponse
+	nil,                           // 25: vrooli.infrastructure_manager.v1.ladder.Device.AttributesEntry
+	nil,                           // 26: vrooli.infrastructure_manager.v1.ladder.Device.ReadingsEntry
+	(*timestamppb.Timestamp)(nil), // 27: google.protobuf.Timestamp
 }
 var file_infrastructure_manager_v1_ladder_ladder_proto_depIdxs = []int32{
 	0,  // 0: vrooli.infrastructure_manager.v1.ladder.LadderCell.rung:type_name -> vrooli.infrastructure_manager.v1.ladder.Rung
@@ -1655,37 +2318,53 @@ var file_infrastructure_manager_v1_ladder_ladder_proto_depIdxs = []int32{
 	0,  // 3: vrooli.infrastructure_manager.v1.ladder.LadderCell.blocked_by:type_name -> vrooli.infrastructure_manager.v1.ladder.Rung
 	3,  // 4: vrooli.infrastructure_manager.v1.ladder.LadderCell.trust:type_name -> vrooli.infrastructure_manager.v1.ladder.TrustVerdict
 	4,  // 5: vrooli.infrastructure_manager.v1.ladder.LadderCell.band:type_name -> vrooli.infrastructure_manager.v1.ladder.BandVerdict
-	19, // 6: vrooli.infrastructure_manager.v1.ladder.LadderCell.observed_at:type_name -> google.protobuf.Timestamp
-	19, // 7: vrooli.infrastructure_manager.v1.ladder.SourceState.checked_at:type_name -> google.protobuf.Timestamp
-	5,  // 8: vrooli.infrastructure_manager.v1.ladder.RankedFinding.stage:type_name -> vrooli.infrastructure_manager.v1.ladder.CascadeStage
-	6,  // 9: vrooli.infrastructure_manager.v1.ladder.Ladder.cells:type_name -> vrooli.infrastructure_manager.v1.ladder.LadderCell
-	8,  // 10: vrooli.infrastructure_manager.v1.ladder.Ladder.sources:type_name -> vrooli.infrastructure_manager.v1.ladder.SourceState
-	9,  // 11: vrooli.infrastructure_manager.v1.ladder.Ladder.findings:type_name -> vrooli.infrastructure_manager.v1.ladder.RankedFinding
-	7,  // 12: vrooli.infrastructure_manager.v1.ladder.Ladder.check_platforms:type_name -> vrooli.infrastructure_manager.v1.ladder.CheckPlatformCoverage
-	19, // 13: vrooli.infrastructure_manager.v1.ladder.Ladder.computed_at:type_name -> google.protobuf.Timestamp
-	10, // 14: vrooli.infrastructure_manager.v1.ladder.GetLadderResponse.ladder:type_name -> vrooli.infrastructure_manager.v1.ladder.Ladder
-	0,  // 15: vrooli.infrastructure_manager.v1.ladder.ListCellsRequest.rung:type_name -> vrooli.infrastructure_manager.v1.ladder.Rung
-	6,  // 16: vrooli.infrastructure_manager.v1.ladder.ListCellsResponse.cells:type_name -> vrooli.infrastructure_manager.v1.ladder.LadderCell
-	19, // 17: vrooli.infrastructure_manager.v1.ladder.ListCellsResponse.computed_at:type_name -> google.protobuf.Timestamp
-	8,  // 18: vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse.sources:type_name -> vrooli.infrastructure_manager.v1.ladder.SourceState
-	7,  // 19: vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse.check_platforms:type_name -> vrooli.infrastructure_manager.v1.ladder.CheckPlatformCoverage
-	19, // 20: vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse.computed_at:type_name -> google.protobuf.Timestamp
-	5,  // 21: vrooli.infrastructure_manager.v1.ladder.RankFindingsRequest.stage:type_name -> vrooli.infrastructure_manager.v1.ladder.CascadeStage
-	9,  // 22: vrooli.infrastructure_manager.v1.ladder.RankFindingsResponse.findings:type_name -> vrooli.infrastructure_manager.v1.ladder.RankedFinding
-	19, // 23: vrooli.infrastructure_manager.v1.ladder.RankFindingsResponse.computed_at:type_name -> google.protobuf.Timestamp
-	11, // 24: vrooli.infrastructure_manager.v1.ladder.LadderService.GetLadder:input_type -> vrooli.infrastructure_manager.v1.ladder.GetLadderRequest
-	13, // 25: vrooli.infrastructure_manager.v1.ladder.LadderService.ListCells:input_type -> vrooli.infrastructure_manager.v1.ladder.ListCellsRequest
-	15, // 26: vrooli.infrastructure_manager.v1.ladder.LadderService.ListSources:input_type -> vrooli.infrastructure_manager.v1.ladder.ListSourcesRequest
-	17, // 27: vrooli.infrastructure_manager.v1.ladder.LadderService.RankFindings:input_type -> vrooli.infrastructure_manager.v1.ladder.RankFindingsRequest
-	12, // 28: vrooli.infrastructure_manager.v1.ladder.LadderService.GetLadder:output_type -> vrooli.infrastructure_manager.v1.ladder.GetLadderResponse
-	14, // 29: vrooli.infrastructure_manager.v1.ladder.LadderService.ListCells:output_type -> vrooli.infrastructure_manager.v1.ladder.ListCellsResponse
-	16, // 30: vrooli.infrastructure_manager.v1.ladder.LadderService.ListSources:output_type -> vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse
-	18, // 31: vrooli.infrastructure_manager.v1.ladder.LadderService.RankFindings:output_type -> vrooli.infrastructure_manager.v1.ladder.RankFindingsResponse
-	28, // [28:32] is the sub-list for method output_type
-	24, // [24:28] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	27, // 6: vrooli.infrastructure_manager.v1.ladder.LadderCell.observed_at:type_name -> google.protobuf.Timestamp
+	27, // 7: vrooli.infrastructure_manager.v1.ladder.SourceState.checked_at:type_name -> google.protobuf.Timestamp
+	3,  // 8: vrooli.infrastructure_manager.v1.ladder.SourceState.trust:type_name -> vrooli.infrastructure_manager.v1.ladder.TrustVerdict
+	6,  // 9: vrooli.infrastructure_manager.v1.ladder.Confidence.level:type_name -> vrooli.infrastructure_manager.v1.ladder.ConfidenceLevel
+	0,  // 10: vrooli.infrastructure_manager.v1.ladder.DeviceRung.rung:type_name -> vrooli.infrastructure_manager.v1.ladder.Rung
+	1,  // 11: vrooli.infrastructure_manager.v1.ladder.DeviceRung.observation:type_name -> vrooli.infrastructure_manager.v1.ladder.Observation
+	1,  // 12: vrooli.infrastructure_manager.v1.ladder.DeviceRung.ladder_observation:type_name -> vrooli.infrastructure_manager.v1.ladder.Observation
+	0,  // 13: vrooli.infrastructure_manager.v1.ladder.DeviceRung.blocked_by:type_name -> vrooli.infrastructure_manager.v1.ladder.Rung
+	25, // 14: vrooli.infrastructure_manager.v1.ladder.Device.attributes:type_name -> vrooli.infrastructure_manager.v1.ladder.Device.AttributesEntry
+	26, // 15: vrooli.infrastructure_manager.v1.ladder.Device.readings:type_name -> vrooli.infrastructure_manager.v1.ladder.Device.ReadingsEntry
+	11, // 16: vrooli.infrastructure_manager.v1.ladder.Device.rungs:type_name -> vrooli.infrastructure_manager.v1.ladder.DeviceRung
+	5,  // 17: vrooli.infrastructure_manager.v1.ladder.RankedFinding.stage:type_name -> vrooli.infrastructure_manager.v1.ladder.CascadeStage
+	7,  // 18: vrooli.infrastructure_manager.v1.ladder.Ladder.cells:type_name -> vrooli.infrastructure_manager.v1.ladder.LadderCell
+	9,  // 19: vrooli.infrastructure_manager.v1.ladder.Ladder.sources:type_name -> vrooli.infrastructure_manager.v1.ladder.SourceState
+	13, // 20: vrooli.infrastructure_manager.v1.ladder.Ladder.findings:type_name -> vrooli.infrastructure_manager.v1.ladder.RankedFinding
+	8,  // 21: vrooli.infrastructure_manager.v1.ladder.Ladder.check_platforms:type_name -> vrooli.infrastructure_manager.v1.ladder.CheckPlatformCoverage
+	12, // 22: vrooli.infrastructure_manager.v1.ladder.Ladder.devices:type_name -> vrooli.infrastructure_manager.v1.ladder.Device
+	10, // 23: vrooli.infrastructure_manager.v1.ladder.Ladder.confidence:type_name -> vrooli.infrastructure_manager.v1.ladder.Confidence
+	27, // 24: vrooli.infrastructure_manager.v1.ladder.Ladder.computed_at:type_name -> google.protobuf.Timestamp
+	14, // 25: vrooli.infrastructure_manager.v1.ladder.GetLadderResponse.ladder:type_name -> vrooli.infrastructure_manager.v1.ladder.Ladder
+	0,  // 26: vrooli.infrastructure_manager.v1.ladder.ListCellsRequest.rung:type_name -> vrooli.infrastructure_manager.v1.ladder.Rung
+	7,  // 27: vrooli.infrastructure_manager.v1.ladder.ListCellsResponse.cells:type_name -> vrooli.infrastructure_manager.v1.ladder.LadderCell
+	27, // 28: vrooli.infrastructure_manager.v1.ladder.ListCellsResponse.computed_at:type_name -> google.protobuf.Timestamp
+	12, // 29: vrooli.infrastructure_manager.v1.ladder.ListDevicesResponse.devices:type_name -> vrooli.infrastructure_manager.v1.ladder.Device
+	27, // 30: vrooli.infrastructure_manager.v1.ladder.ListDevicesResponse.computed_at:type_name -> google.protobuf.Timestamp
+	9,  // 31: vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse.sources:type_name -> vrooli.infrastructure_manager.v1.ladder.SourceState
+	8,  // 32: vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse.check_platforms:type_name -> vrooli.infrastructure_manager.v1.ladder.CheckPlatformCoverage
+	10, // 33: vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse.confidence:type_name -> vrooli.infrastructure_manager.v1.ladder.Confidence
+	27, // 34: vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse.computed_at:type_name -> google.protobuf.Timestamp
+	5,  // 35: vrooli.infrastructure_manager.v1.ladder.RankFindingsRequest.stage:type_name -> vrooli.infrastructure_manager.v1.ladder.CascadeStage
+	13, // 36: vrooli.infrastructure_manager.v1.ladder.RankFindingsResponse.findings:type_name -> vrooli.infrastructure_manager.v1.ladder.RankedFinding
+	27, // 37: vrooli.infrastructure_manager.v1.ladder.RankFindingsResponse.computed_at:type_name -> google.protobuf.Timestamp
+	15, // 38: vrooli.infrastructure_manager.v1.ladder.LadderService.GetLadder:input_type -> vrooli.infrastructure_manager.v1.ladder.GetLadderRequest
+	19, // 39: vrooli.infrastructure_manager.v1.ladder.LadderService.ListDevices:input_type -> vrooli.infrastructure_manager.v1.ladder.ListDevicesRequest
+	17, // 40: vrooli.infrastructure_manager.v1.ladder.LadderService.ListCells:input_type -> vrooli.infrastructure_manager.v1.ladder.ListCellsRequest
+	21, // 41: vrooli.infrastructure_manager.v1.ladder.LadderService.ListSources:input_type -> vrooli.infrastructure_manager.v1.ladder.ListSourcesRequest
+	23, // 42: vrooli.infrastructure_manager.v1.ladder.LadderService.RankFindings:input_type -> vrooli.infrastructure_manager.v1.ladder.RankFindingsRequest
+	16, // 43: vrooli.infrastructure_manager.v1.ladder.LadderService.GetLadder:output_type -> vrooli.infrastructure_manager.v1.ladder.GetLadderResponse
+	20, // 44: vrooli.infrastructure_manager.v1.ladder.LadderService.ListDevices:output_type -> vrooli.infrastructure_manager.v1.ladder.ListDevicesResponse
+	18, // 45: vrooli.infrastructure_manager.v1.ladder.LadderService.ListCells:output_type -> vrooli.infrastructure_manager.v1.ladder.ListCellsResponse
+	22, // 46: vrooli.infrastructure_manager.v1.ladder.LadderService.ListSources:output_type -> vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse
+	24, // 47: vrooli.infrastructure_manager.v1.ladder.LadderService.RankFindings:output_type -> vrooli.infrastructure_manager.v1.ladder.RankFindingsResponse
+	43, // [43:48] is the sub-list for method output_type
+	38, // [38:43] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_infrastructure_manager_v1_ladder_ladder_proto_init() }
@@ -1698,8 +2377,8 @@ func file_infrastructure_manager_v1_ladder_ladder_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_infrastructure_manager_v1_ladder_ladder_proto_rawDesc), len(file_infrastructure_manager_v1_ladder_ladder_proto_rawDesc)),
-			NumEnums:      6,
-			NumMessages:   13,
+			NumEnums:      7,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

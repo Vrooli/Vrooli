@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file infrastructure-manager/v1/ladder/ladder.proto.
  */
 export const file_infrastructure_manager_v1_ladder_ladder: GenFile = /*@__PURE__*/
-  fileDesc("Ci1pbmZyYXN0cnVjdHVyZS1tYW5hZ2VyL3YxL2xhZGRlci9sYWRkZXIucHJvdG8SJ3Zyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlciLfBgoKTGFkZGVyQ2VsbBIUCgxkZXZpY2VfY2xhc3MYASABKAkSOwoEcnVuZxgCIAEoDjItLnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5SdW5nEg8KB2hvc3Rfb3MYAyABKAkSCwoDa2V5GAQgASgJEhAKCGNlbGxfcmVmGAUgASgJEhAKCHF1ZXN0aW9uGAYgASgJEkMKBnN0YXR1cxgHIAEoDjIzLnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5DZWxsU3RhdHVzEhUKDXN0YXR1c19zb3VyY2UYCCABKAkSSQoLb2JzZXJ2YXRpb24YCSABKA4yNC52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuT2JzZXJ2YXRpb24SDgoGcmVhc29uGAogASgJEhEKCW1lY2hhbmlzbRgLIAEoCRITCgtyZW1lZGlhdGlvbhgMIAEoCRJBCgpibG9ja2VkX2J5GA0gASgOMi0udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLlJ1bmcSRAoFdHJ1c3QYDiABKA4yNS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuVHJ1c3RWZXJkaWN0EhoKEnVuYXZhaWxhYmxlX3JlYXNvbhgPIAEoCRIUCgxkZXZpY2VfY291bnQYECABKAUSFQoNYmxpbmRfZGV2aWNlcxgRIAEoBRIOCgZiYXJfaWQYEiABKAkSDgoGZ3JhZGVkGBMgASgIEhcKD3VuZ3JhZGVkX3JlYXNvbhgUIAEoCRJCCgRiYW5kGBUgASgOMjQudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkJhbmRWZXJkaWN0EhMKC3Byb3Zpc2lvbmFsGBYgASgIEhIKCmNhcGFiaWxpdHkYFyABKAkSGQoRY2FwYWJpbGl0eV9zdGF0dXMYGCABKAkSGQoRY2FwYWJpbGl0eV9yZWFzb24YGSABKAkSLwoLb2JzZXJ2ZWRfYXQYGiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIoEBChVDaGVja1BsYXRmb3JtQ292ZXJhZ2USDwoHaG9zdF9vcxgBIAEoCRISCgphcHBsaWNhYmxlGAIgASgFEg0KBXRvdGFsGAMgASgFEhEKCXVuaXZlcnNhbBgEIAEoBRIRCglhdmFpbGFibGUYBSABKAgSDgoGcmVhc29uGAYgASgJImwKC1NvdXJjZVN0YXRlEgoKAmlkGAEgASgJEhEKCWF2YWlsYWJsZRgCIAEoCBIOCgZyZWFzb24YAyABKAkSLgoKY2hlY2tlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAioAIKDVJhbmtlZEZpbmRpbmcSDAoEcmFuaxgBIAEoBRIKCgJpZBgCIAEoCRIOCgZzb3VyY2UYAyABKAkSEAoIY2VsbF9yZWYYBCABKAkSEgoKc2Vuc29yX3JlZhgFIAEoCRINCgV0aXRsZRgGIAEoCRIPCgdtZXNzYWdlGAcgASgJEkQKBXN0YWdlGAggASgOMjUudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkNhc2NhZGVTdGFnZRIZChFzdGFnZV9leHBsYW5hdGlvbhgJIAEoCRIQCghzZXZlcml0eRgKIAEoBRITCgt0cnVzdF92YWxpZBgLIAEoCBIXCg9leHBlY3RlZF9yZXR1cm4YDCABKAkirQMKBkxhZGRlchJCCgVjZWxscxgBIAMoCzIzLnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5MYWRkZXJDZWxsEkUKB3NvdXJjZXMYAiADKAsyNC52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuU291cmNlU3RhdGUSSAoIZmluZGluZ3MYAyADKAsyNi52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuUmFua2VkRmluZGluZxIPCgdob3N0X29zGAQgASgJEhoKEmNvdmVyYWdlX2F2YWlsYWJsZRgFIAEoCBIXCg9jb3ZlcmFnZV9yZWFzb24YBiABKAkSVwoPY2hlY2tfcGxhdGZvcm1zGAcgAygLMj4udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkNoZWNrUGxhdGZvcm1Db3ZlcmFnZRIvCgtjb21wdXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiEgoQR2V0TGFkZGVyUmVxdWVzdCJUChFHZXRMYWRkZXJSZXNwb25zZRI/CgZsYWRkZXIYASABKAsyLy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuTGFkZGVyIogBChBMaXN0Q2VsbHNSZXF1ZXN0EhQKDGRldmljZV9jbGFzcxgBIAEoCRI7CgRydW5nGAIgASgOMi0udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLlJ1bmcSDwoHaG9zdF9vcxgDIAEoCRIQCghjZWxsX3JlZhgEIAEoCSKIAQoRTGlzdENlbGxzUmVzcG9uc2USQgoFY2VsbHMYASADKAsyMy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuTGFkZGVyQ2VsbBIvCgtjb21wdXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiFAoSTGlzdFNvdXJjZXNSZXF1ZXN0IuYBChNMaXN0U291cmNlc1Jlc3BvbnNlEkUKB3NvdXJjZXMYASADKAsyNC52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuU291cmNlU3RhdGUSVwoPY2hlY2tfcGxhdGZvcm1zGAIgAygLMj4udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkNoZWNrUGxhdGZvcm1Db3ZlcmFnZRIvCgtjb21wdXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiWwoTUmFua0ZpbmRpbmdzUmVxdWVzdBJECgVzdGFnZRgBIAEoDjI1LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5DYXNjYWRlU3RhZ2UiqgEKFFJhbmtGaW5kaW5nc1Jlc3BvbnNlEkgKCGZpbmRpbmdzGAEgAygLMjYudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLlJhbmtlZEZpbmRpbmcSFwoPYXBwbGllZF9jYXNjYWRlGAIgASgJEi8KC2NvbXB1dGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCp/CgRSdW5nEhQKEFJVTkdfVU5TUEVDSUZJRUQQABIRCg1SVU5HX0lERU5USVRZEAESEgoOUlVOR19URUxFTUVUUlkQAhIRCg1SVU5HX0VWSURFTkNFEAMSEAoMUlVOR19DT05UUk9MEAQSFQoRUlVOR19BTlRJQ0lQQVRJT04QBSrQAQoLT2JzZXJ2YXRpb24SGwoXT0JTRVJWQVRJT05fVU5TUEVDSUZJRUQQABIYChRPQlNFUlZBVElPTl9NRUFTVVJFRBABEhwKGE9CU0VSVkFUSU9OX1VOTUVBU1VSQUJMRRACEhsKF09CU0VSVkFUSU9OX1VOQVZBSUxBQkxFEAMSHgoaT0JTRVJWQVRJT05fTk9UX0FQUExJQ0FCTEUQBBIXChNPQlNFUlZBVElPTl9CTE9DS0VEEAUSFgoST0JTRVJWQVRJT05fVU5SRUFEEAYqjQEKCkNlbGxTdGF0dXMSGwoXQ0VMTF9TVEFUVVNfVU5TUEVDSUZJRUQQABITCg9DRUxMX1NUQVRVU19OT1cQARIYChRDRUxMX1NUQVRVU19JTl9SRUFDSBACEhcKE0NFTExfU1RBVFVTX01JU1NJTkcQAxIaChZDRUxMX1NUQVRVU19VTkFVVEhPUkVEEAQq9AEKDFRydXN0VmVyZGljdBIdChlUUlVTVF9WRVJESUNUX1VOU1BFQ0lGSUVEEAASFwoTVFJVU1RfVkVSRElDVF9WQUxJRBABEhcKE1RSVVNUX1ZFUkRJQ1RfR0hPU1QQAhIbChdUUlVTVF9WRVJESUNUX1NBVFVSQVRFRBADEhkKFVRSVVNUX1ZFUkRJQ1RfU0hFTFZFRBAEEh8KG1RSVVNUX1ZFUkRJQ1RfVU5JVF9NSVNNQVRDSBAFEh0KGVRSVVNUX1ZFUkRJQ1RfVU5BVkFJTEFCTEUQBhIbChdUUlVTVF9WRVJESUNUX1VOVFJVU1RFRBAHKuYBCgtCYW5kVmVyZGljdBIcChhCQU5EX1ZFUkRJQ1RfVU5TUEVDSUZJRUQQABIYChRCQU5EX1ZFUkRJQ1RfSU5fQkFORBABEhwKGEJBTkRfVkVSRElDVF9PVVRfT0ZfQkFORBACEiAKHEJBTkRfVkVSRElDVF9QRU5ESU5HX1NVU1RBSU4QAxIfChtCQU5EX1ZFUkRJQ1RfTkVFRFNfQkFTRUxJTkUQBBIeChpCQU5EX1ZFUkRJQ1RfTk9UX0VWQUxVQVRFRBAFEh4KGkJBTkRfVkVSRElDVF9OT1RfR1JBREVBQkxFEAYq7wEKDENhc2NhZGVTdGFnZRIdChlDQVNDQURFX1NUQUdFX1VOU1BFQ0lGSUVEEAASKgomQ0FTQ0FERV9TVEFHRV9TRU5TT1JfQ0hBTk5FTF9JTlRFR1JJVFkQARIgChxDQVNDQURFX1NUQUdFX0hPU1RfU1VCU1RSQVRFEAISKQolQ0FTQ0FERV9TVEFHRV9DQVBBQklMSVRZX0FWQUlMQUJJTElUWRADEhwKGENBU0NBREVfU1RBR0VfRUZGSUNJRU5DWRAEEikKJUNBU0NBREVfU1RBR0VfTUVBU1VSRU1FTlRfSU1QUk9WRU1FTlQQBTKyBAoNTGFkZGVyU2VydmljZRKCAQoJR2V0TGFkZGVyEjkudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkdldExhZGRlclJlcXVlc3QaOi52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuR2V0TGFkZGVyUmVzcG9uc2USggEKCUxpc3RDZWxscxI5LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5MaXN0Q2VsbHNSZXF1ZXN0GjoudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkxpc3RDZWxsc1Jlc3BvbnNlEogBCgtMaXN0U291cmNlcxI7LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5MaXN0U291cmNlc1JlcXVlc3QaPC52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuTGlzdFNvdXJjZXNSZXNwb25zZRKLAQoMUmFua0ZpbmRpbmdzEjwudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLlJhbmtGaW5kaW5nc1JlcXVlc3QaPS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuUmFua0ZpbmRpbmdzUmVzcG9uc2VCW1pZZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbmZyYXN0cnVjdHVyZS1tYW5hZ2VyL3YxL2xhZGRlcjtsYWRkZXJfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("Ci1pbmZyYXN0cnVjdHVyZS1tYW5hZ2VyL3YxL2xhZGRlci9sYWRkZXIucHJvdG8SJ3Zyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlciKKCAoKTGFkZGVyQ2VsbBIUCgxkZXZpY2VfY2xhc3MYASABKAkSOwoEcnVuZxgCIAEoDjItLnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5SdW5nEg8KB2hvc3Rfb3MYAyABKAkSCwoDa2V5GAQgASgJEhAKCGNlbGxfcmVmGAUgASgJEhAKCHF1ZXN0aW9uGAYgASgJEkMKBnN0YXR1cxgHIAEoDjIzLnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5DZWxsU3RhdHVzEhUKDXN0YXR1c19zb3VyY2UYCCABKAkSSQoLb2JzZXJ2YXRpb24YCSABKA4yNC52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuT2JzZXJ2YXRpb24SDgoGcmVhc29uGAogASgJEhEKCW1lY2hhbmlzbRgLIAEoCRITCgtyZW1lZGlhdGlvbhgMIAEoCRJBCgpibG9ja2VkX2J5GA0gASgOMi0udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLlJ1bmcSRAoFdHJ1c3QYDiABKA4yNS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuVHJ1c3RWZXJkaWN0EhoKEnVuYXZhaWxhYmxlX3JlYXNvbhgPIAEoCRIUCgxkZXZpY2VfY291bnQYECABKAUSFQoNYmxpbmRfZGV2aWNlcxgRIAEoBRIOCgZiYXJfaWQYEiABKAkSDgoGZ3JhZGVkGBMgASgIEhcKD3VuZ3JhZGVkX3JlYXNvbhgUIAEoCRJCCgRiYW5kGBUgASgOMjQudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkJhbmRWZXJkaWN0EhMKC3Byb3Zpc2lvbmFsGBYgASgIEhIKCmNhcGFiaWxpdHkYFyABKAkSGQoRY2FwYWJpbGl0eV9zdGF0dXMYGCABKAkSGQoRY2FwYWJpbGl0eV9yZWFzb24YGSABKAkSLwoLb2JzZXJ2ZWRfYXQYGiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCmZhdWx0X3VuaXQYGyABKAkSEwoLZmF1bHRfY291bnQYHCABKAESFQoNZmF1bHRfY291bnRlZBgdIAEoCBIQCghzZXZlcml0eRgeIAEoBRIWCg5zZXZlcml0eV9rbm93bhgfIAEoCBIVCg1nYXBfb3BlbmVkX29uGCAgASgJEhUKDWdhcF9vcGVuX2RheXMYISABKAUSEQoJZ2FwX2RhdGVkGCIgASgIIoEBChVDaGVja1BsYXRmb3JtQ292ZXJhZ2USDwoHaG9zdF9vcxgBIAEoCRISCgphcHBsaWNhYmxlGAIgASgFEg0KBXRvdGFsGAMgASgFEhEKCXVuaXZlcnNhbBgEIAEoBRIRCglhdmFpbGFibGUYBSABKAgSDgoGcmVhc29uGAYgASgJIrIBCgtTb3VyY2VTdGF0ZRIKCgJpZBgBIAEoCRIRCglhdmFpbGFibGUYAiABKAgSDgoGcmVhc29uGAMgASgJEi4KCmNoZWNrZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEkQKBXRydXN0GAUgASgOMjUudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLlRydXN0VmVyZGljdCKLAQoKQ29uZmlkZW5jZRJHCgVsZXZlbBgBIAEoDjI4LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5Db25maWRlbmNlTGV2ZWwSEQoJcmF0aW9uYWxlGAIgASgJEhEKCWF2YWlsYWJsZRgDIAEoCBIOCgZyZWFzb24YBCABKAki4QIKCkRldmljZVJ1bmcSOwoEcnVuZxgBIAEoDjItLnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5SdW5nEkkKC29ic2VydmF0aW9uGAIgASgOMjQudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLk9ic2VydmF0aW9uElAKEmxhZGRlcl9vYnNlcnZhdGlvbhgDIAEoDjI0LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5PYnNlcnZhdGlvbhIOCgZyZWFzb24YBCABKAkSEQoJbWVjaGFuaXNtGAUgASgJEhMKC3JlbWVkaWF0aW9uGAYgASgJEkEKCmJsb2NrZWRfYnkYByABKA4yLS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuUnVuZyLFAwoGRGV2aWNlEgoKAmlkGAEgASgJEg0KBWNsYXNzGAIgASgJEhEKCXBhcmVudF9pZBgDIAEoCRIOCgZ2ZW5kb3IYBCABKAkSDQoFbW9kZWwYBSABKAkSDgoGZHJpdmVyGAYgASgJEhAKCHN5c19wYXRoGAcgASgJElMKCmF0dHJpYnV0ZXMYCCADKAsyPy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuRGV2aWNlLkF0dHJpYnV0ZXNFbnRyeRJPCghyZWFkaW5ncxgJIAMoCzI9LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5EZXZpY2UuUmVhZGluZ3NFbnRyeRJCCgVydW5ncxgKIAMoCzIzLnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5EZXZpY2VSdW5nGjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGi8KDVJlYWRpbmdzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4ASKgAgoNUmFua2VkRmluZGluZxIMCgRyYW5rGAEgASgFEgoKAmlkGAIgASgJEg4KBnNvdXJjZRgDIAEoCRIQCghjZWxsX3JlZhgEIAEoCRISCgpzZW5zb3JfcmVmGAUgASgJEg0KBXRpdGxlGAYgASgJEg8KB21lc3NhZ2UYByABKAkSRAoFc3RhZ2UYCCABKA4yNS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuQ2FzY2FkZVN0YWdlEhkKEXN0YWdlX2V4cGxhbmF0aW9uGAkgASgJEhAKCHNldmVyaXR5GAogASgFEhMKC3RydXN0X3ZhbGlkGAsgASgIEhcKD2V4cGVjdGVkX3JldHVybhgMIAEoCSK4BAoGTGFkZGVyEkIKBWNlbGxzGAEgAygLMjMudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkxhZGRlckNlbGwSRQoHc291cmNlcxgCIAMoCzI0LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5Tb3VyY2VTdGF0ZRJICghmaW5kaW5ncxgDIAMoCzI2LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5SYW5rZWRGaW5kaW5nEg8KB2hvc3Rfb3MYBCABKAkSGgoSY292ZXJhZ2VfYXZhaWxhYmxlGAUgASgIEhcKD2NvdmVyYWdlX3JlYXNvbhgGIAEoCRJXCg9jaGVja19wbGF0Zm9ybXMYByADKAsyPi52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuQ2hlY2tQbGF0Zm9ybUNvdmVyYWdlEkAKB2RldmljZXMYCCADKAsyLy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuRGV2aWNlEkcKCmNvbmZpZGVuY2UYCSABKAsyMy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuQ29uZmlkZW5jZRIvCgtjb21wdXRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiEgoQR2V0TGFkZGVyUmVxdWVzdCJUChFHZXRMYWRkZXJSZXNwb25zZRI/CgZsYWRkZXIYASABKAsyLy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuTGFkZGVyIogBChBMaXN0Q2VsbHNSZXF1ZXN0EhQKDGRldmljZV9jbGFzcxgBIAEoCRI7CgRydW5nGAIgASgOMi0udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLlJ1bmcSDwoHaG9zdF9vcxgDIAEoCRIQCghjZWxsX3JlZhgEIAEoCSKIAQoRTGlzdENlbGxzUmVzcG9uc2USQgoFY2VsbHMYASADKAsyMy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuTGFkZGVyQ2VsbBIvCgtjb21wdXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiPQoSTGlzdERldmljZXNSZXF1ZXN0EhQKDGRldmljZV9jbGFzcxgBIAEoCRIRCglkZXZpY2VfaWQYAiABKAkitwEKE0xpc3REZXZpY2VzUmVzcG9uc2USQAoHZGV2aWNlcxgBIAMoCzIvLnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5EZXZpY2USEQoJYXZhaWxhYmxlGAIgASgIEhoKEnVuYXZhaWxhYmxlX3JlYXNvbhgDIAEoCRIvCgtjb21wdXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiFAoSTGlzdFNvdXJjZXNSZXF1ZXN0Iq8CChNMaXN0U291cmNlc1Jlc3BvbnNlEkUKB3NvdXJjZXMYASADKAsyNC52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuU291cmNlU3RhdGUSVwoPY2hlY2tfcGxhdGZvcm1zGAIgAygLMj4udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkNoZWNrUGxhdGZvcm1Db3ZlcmFnZRJHCgpjb25maWRlbmNlGAMgASgLMjMudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkNvbmZpZGVuY2USLwoLY29tcHV0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlsKE1JhbmtGaW5kaW5nc1JlcXVlc3QSRAoFc3RhZ2UYASABKA4yNS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuQ2FzY2FkZVN0YWdlIqoBChRSYW5rRmluZGluZ3NSZXNwb25zZRJICghmaW5kaW5ncxgBIAMoCzI2LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5SYW5rZWRGaW5kaW5nEhcKD2FwcGxpZWRfY2FzY2FkZRgCIAEoCRIvCgtjb21wdXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAqfwoEUnVuZxIUChBSVU5HX1VOU1BFQ0lGSUVEEAASEQoNUlVOR19JREVOVElUWRABEhIKDlJVTkdfVEVMRU1FVFJZEAISEQoNUlVOR19FVklERU5DRRADEhAKDFJVTkdfQ09OVFJPTBAEEhUKEVJVTkdfQU5USUNJUEFUSU9OEAUq0AEKC09ic2VydmF0aW9uEhsKF09CU0VSVkFUSU9OX1VOU1BFQ0lGSUVEEAASGAoUT0JTRVJWQVRJT05fTUVBU1VSRUQQARIcChhPQlNFUlZBVElPTl9VTk1FQVNVUkFCTEUQAhIbChdPQlNFUlZBVElPTl9VTkFWQUlMQUJMRRADEh4KGk9CU0VSVkFUSU9OX05PVF9BUFBMSUNBQkxFEAQSFwoTT0JTRVJWQVRJT05fQkxPQ0tFRBAFEhYKEk9CU0VSVkFUSU9OX1VOUkVBRBAGKo0BCgpDZWxsU3RhdHVzEhsKF0NFTExfU1RBVFVTX1VOU1BFQ0lGSUVEEAASEwoPQ0VMTF9TVEFUVVNfTk9XEAESGAoUQ0VMTF9TVEFUVVNfSU5fUkVBQ0gQAhIXChNDRUxMX1NUQVRVU19NSVNTSU5HEAMSGgoWQ0VMTF9TVEFUVVNfVU5BVVRIT1JFRBAEKvQBCgxUcnVzdFZlcmRpY3QSHQoZVFJVU1RfVkVSRElDVF9VTlNQRUNJRklFRBAAEhcKE1RSVVNUX1ZFUkRJQ1RfVkFMSUQQARIXChNUUlVTVF9WRVJESUNUX0dIT1NUEAISGwoXVFJVU1RfVkVSRElDVF9TQVRVUkFURUQQAxIZChVUUlVTVF9WRVJESUNUX1NIRUxWRUQQBBIfChtUUlVTVF9WRVJESUNUX1VOSVRfTUlTTUFUQ0gQBRIdChlUUlVTVF9WRVJESUNUX1VOQVZBSUxBQkxFEAYSGwoXVFJVU1RfVkVSRElDVF9VTlRSVVNURUQQByrmAQoLQmFuZFZlcmRpY3QSHAoYQkFORF9WRVJESUNUX1VOU1BFQ0lGSUVEEAASGAoUQkFORF9WRVJESUNUX0lOX0JBTkQQARIcChhCQU5EX1ZFUkRJQ1RfT1VUX09GX0JBTkQQAhIgChxCQU5EX1ZFUkRJQ1RfUEVORElOR19TVVNUQUlOEAMSHwobQkFORF9WRVJESUNUX05FRURTX0JBU0VMSU5FEAQSHgoaQkFORF9WRVJESUNUX05PVF9FVkFMVUFURUQQBRIeChpCQU5EX1ZFUkRJQ1RfTk9UX0dSQURFQUJMRRAGKu8BCgxDYXNjYWRlU3RhZ2USHQoZQ0FTQ0FERV9TVEFHRV9VTlNQRUNJRklFRBAAEioKJkNBU0NBREVfU1RBR0VfU0VOU09SX0NIQU5ORUxfSU5URUdSSVRZEAESIAocQ0FTQ0FERV9TVEFHRV9IT1NUX1NVQlNUUkFURRACEikKJUNBU0NBREVfU1RBR0VfQ0FQQUJJTElUWV9BVkFJTEFCSUxJVFkQAxIcChhDQVNDQURFX1NUQUdFX0VGRklDSUVOQ1kQBBIpCiVDQVNDQURFX1NUQUdFX01FQVNVUkVNRU5UX0lNUFJPVkVNRU5UEAUqkgEKD0NvbmZpZGVuY2VMZXZlbBIgChxDT05GSURFTkNFX0xFVkVMX1VOU1BFQ0lGSUVEEAASIgoeQ09ORklERU5DRV9MRVZFTF9BVVRIT1JJVEFUSVZFEAESHAoYQ09ORklERU5DRV9MRVZFTF9QQVJUSUFMEAISGwoXQ09ORklERU5DRV9MRVZFTF9TS0VUQ0gQAzK9BQoNTGFkZGVyU2VydmljZRKCAQoJR2V0TGFkZGVyEjkudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkdldExhZGRlclJlcXVlc3QaOi52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuR2V0TGFkZGVyUmVzcG9uc2USiAEKC0xpc3REZXZpY2VzEjsudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkxpc3REZXZpY2VzUmVxdWVzdBo8LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5MaXN0RGV2aWNlc1Jlc3BvbnNlEoIBCglMaXN0Q2VsbHMSOS52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuTGlzdENlbGxzUmVxdWVzdBo6LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5MaXN0Q2VsbHNSZXNwb25zZRKIAQoLTGlzdFNvdXJjZXMSOy52cm9vbGkuaW5mcmFzdHJ1Y3R1cmVfbWFuYWdlci52MS5sYWRkZXIuTGlzdFNvdXJjZXNSZXF1ZXN0GjwudnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLkxpc3RTb3VyY2VzUmVzcG9uc2USiwEKDFJhbmtGaW5kaW5ncxI8LnZyb29saS5pbmZyYXN0cnVjdHVyZV9tYW5hZ2VyLnYxLmxhZGRlci5SYW5rRmluZGluZ3NSZXF1ZXN0Gj0udnJvb2xpLmluZnJhc3RydWN0dXJlX21hbmFnZXIudjEubGFkZGVyLlJhbmtGaW5kaW5nc1Jlc3BvbnNlQltaWWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vaW5mcmFzdHJ1Y3R1cmUtbWFuYWdlci92MS9sYWRkZXI7bGFkZGVyX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * LadderCell is one (device class, rung, host OS) cell.
@@ -162,6 +162,60 @@ export type LadderCell = Message<"vrooli.infrastructure_manager.v1.ladder.Ladder
    * @generated from field: google.protobuf.Timestamp observed_at = 26;
    */
   observedAt?: Timestamp | undefined;
+
+  /**
+   * fault_unit is the quantity this cell's bar grades, spelled as the operator
+   * authored it. fault_counted is false when no quantity could be computed, in
+   * which case fault_count carries no meaning.
+   *
+   * @generated from field: string fault_unit = 27;
+   */
+  faultUnit: string;
+
+  /**
+   * @generated from field: double fault_count = 28;
+   */
+  faultCount: number;
+
+  /**
+   * @generated from field: bool fault_counted = 29;
+   */
+  faultCounted: boolean;
+
+  /**
+   * severity projects the graded verdict onto the substrate projection's
+   * ordered severity: 0 OK, 1 WARNING, 2 CRITICAL. severity_known is false for
+   * every ungraded cell — an ungraded cell has NO severity, and defaulting it
+   * to 0 would read as OK, which is the exact failure this projection exists
+   * to prevent.
+   *
+   * @generated from field: int32 severity = 30;
+   */
+  severity: number;
+
+  /**
+   * @generated from field: bool severity_known = 31;
+   */
+  severityKnown: boolean;
+
+  /**
+   * gap_opened_on and gap_open_days are the blindness age. gap_open_days is 0
+   * both for a gap opened today and for a gap nobody ever dated, so gap_dated
+   * is what tells them apart.
+   *
+   * @generated from field: string gap_opened_on = 32;
+   */
+  gapOpenedOn: string;
+
+  /**
+   * @generated from field: int32 gap_open_days = 33;
+   */
+  gapOpenDays: number;
+
+  /**
+   * @generated from field: bool gap_dated = 34;
+   */
+  gapDated: boolean;
 };
 
 /**
@@ -246,6 +300,14 @@ export type SourceState = Message<"vrooli.infrastructure_manager.v1.ladder.Sourc
    * @generated from field: google.protobuf.Timestamp checked_at = 4;
    */
   checkedAt?: Timestamp | undefined;
+
+  /**
+   * trust is the source's own verdict. A source that could not be read is
+   * UNAVAILABLE — a gap in the fan-out, never a verdict about the plant.
+   *
+   * @generated from field: vrooli.infrastructure_manager.v1.ladder.TrustVerdict trust = 5;
+   */
+  trust: TrustVerdict;
 };
 
 /**
@@ -254,6 +316,176 @@ export type SourceState = Message<"vrooli.infrastructure_manager.v1.ladder.Sourc
  */
 export const SourceStateSchema: GenMessage<SourceState> = /*@__PURE__*/
   messageDesc(file_infrastructure_manager_v1_ladder_ladder, 2);
+
+/**
+ * Confidence is the substrate space's denominator confidence. It is a message
+ * carried beside the cells rather than an optional extra: a ratio computed
+ * over this denominator and reported without it is not a valid instrument
+ * response. `available` is false when the space document could not be read, in
+ * which case there is NO confidence rather than a defaulted one.
+ *
+ * @generated from message vrooli.infrastructure_manager.v1.ladder.Confidence
+ */
+export type Confidence = Message<"vrooli.infrastructure_manager.v1.ladder.Confidence"> & {
+  /**
+   * @generated from field: vrooli.infrastructure_manager.v1.ladder.ConfidenceLevel level = 1;
+   */
+  level: ConfidenceLevel;
+
+  /**
+   * @generated from field: string rationale = 2;
+   */
+  rationale: string;
+
+  /**
+   * @generated from field: bool available = 3;
+   */
+  available: boolean;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.infrastructure_manager.v1.ladder.Confidence.
+ * Use `create(ConfidenceSchema)` to create a new message.
+ */
+export const ConfidenceSchema: GenMessage<Confidence> = /*@__PURE__*/
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 3);
+
+/**
+ * DeviceRung is one rung of one device.
+ *
+ * @generated from message vrooli.infrastructure_manager.v1.ladder.DeviceRung
+ */
+export type DeviceRung = Message<"vrooli.infrastructure_manager.v1.ladder.DeviceRung"> & {
+  /**
+   * @generated from field: vrooli.infrastructure_manager.v1.ladder.Rung rung = 1;
+   */
+  rung: Rung;
+
+  /**
+   * observation is the device graph owner's grade, verbatim. MEASURED,
+   * UNMEASURABLE, UNAVAILABLE and NOT_APPLICABLE are four different facts:
+   * the host produced a value; the host refused a value it should have; the
+   * mechanism is absent from this host entirely; the rung is meaningless for
+   * this class. None is ever collapsed into another.
+   *
+   * @generated from field: vrooli.infrastructure_manager.v1.ladder.Observation observation = 2;
+   */
+  observation: Observation;
+
+  /**
+   * ladder_observation is the grade after the ladder's dependency ordering. It
+   * differs from observation only by becoming BLOCKED when a rung beneath this
+   * one is blind. The two answer different questions — "what did the sensor
+   * find?" and "may a claim rest on it?" — so both are carried.
+   *
+   * @generated from field: vrooli.infrastructure_manager.v1.ladder.Observation ladder_observation = 3;
+   */
+  ladderObservation: Observation;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string mechanism = 5;
+   */
+  mechanism: string;
+
+  /**
+   * @generated from field: string remediation = 6;
+   */
+  remediation: string;
+
+  /**
+   * @generated from field: vrooli.infrastructure_manager.v1.ladder.Rung blocked_by = 7;
+   */
+  blockedBy: Rung;
+};
+
+/**
+ * Describes the message vrooli.infrastructure_manager.v1.ladder.DeviceRung.
+ * Use `create(DeviceRungSchema)` to create a new message.
+ */
+export const DeviceRungSchema: GenMessage<DeviceRung> = /*@__PURE__*/
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 4);
+
+/**
+ * Device is one graded hardware device.
+ *
+ * @generated from message vrooli.infrastructure_manager.v1.ladder.Device
+ */
+export type Device = Message<"vrooli.infrastructure_manager.v1.ladder.Device"> & {
+  /**
+   * id is the durable, platform-stable address, e.g. "pci:0000:01:00.0".
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string class = 2;
+   */
+  class: string;
+
+  /**
+   * @generated from field: string parent_id = 3;
+   */
+  parentId: string;
+
+  /**
+   * @generated from field: string vendor = 4;
+   */
+  vendor: string;
+
+  /**
+   * @generated from field: string model = 5;
+   */
+  model: string;
+
+  /**
+   * @generated from field: string driver = 6;
+   */
+  driver: string;
+
+  /**
+   * sys_path is the platform path the device was enumerated from. It is
+   * provenance, not identity.
+   *
+   * @generated from field: string sys_path = 7;
+   */
+  sysPath: string;
+
+  /**
+   * attributes carry the owner's per-class facts, including kernel node names,
+   * passed through whole rather than filtered to a known key list.
+   *
+   * @generated from field: map<string, string> attributes = 8;
+   */
+  attributes: { [key: string]: string };
+
+  /**
+   * @generated from field: map<string, double> readings = 9;
+   */
+  readings: { [key: string]: number };
+
+  /**
+   * @generated from field: repeated vrooli.infrastructure_manager.v1.ladder.DeviceRung rungs = 10;
+   */
+  rungs: DeviceRung[];
+};
+
+/**
+ * Describes the message vrooli.infrastructure_manager.v1.ladder.Device.
+ * Use `create(DeviceSchema)` to create a new message.
+ */
+export const DeviceSchema: GenMessage<Device> = /*@__PURE__*/
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 5);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.ladder.RankedFinding
@@ -329,7 +561,7 @@ export type RankedFinding = Message<"vrooli.infrastructure_manager.v1.ladder.Ran
  * Use `create(RankedFindingSchema)` to create a new message.
  */
 export const RankedFindingSchema: GenMessage<RankedFinding> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 3);
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 6);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.ladder.Ladder
@@ -382,7 +614,21 @@ export type Ladder = Message<"vrooli.infrastructure_manager.v1.ladder.Ladder"> &
   checkPlatforms: CheckPlatformCoverage[];
 
   /**
-   * @generated from field: google.protobuf.Timestamp computed_at = 8;
+   * devices is the graded hardware inventory the cells were computed from.
+   *
+   * @generated from field: repeated vrooli.infrastructure_manager.v1.ladder.Device devices = 8;
+   */
+  devices: Device[];
+
+  /**
+   * confidence is the substrate space's denominator confidence.
+   *
+   * @generated from field: vrooli.infrastructure_manager.v1.ladder.Confidence confidence = 9;
+   */
+  confidence?: Confidence | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp computed_at = 10;
    */
   computedAt?: Timestamp | undefined;
 };
@@ -392,7 +638,7 @@ export type Ladder = Message<"vrooli.infrastructure_manager.v1.ladder.Ladder"> &
  * Use `create(LadderSchema)` to create a new message.
  */
 export const LadderSchema: GenMessage<Ladder> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 4);
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 7);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.ladder.GetLadderRequest
@@ -405,7 +651,7 @@ export type GetLadderRequest = Message<"vrooli.infrastructure_manager.v1.ladder.
  * Use `create(GetLadderRequestSchema)` to create a new message.
  */
 export const GetLadderRequestSchema: GenMessage<GetLadderRequest> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 5);
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 8);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.ladder.GetLadderResponse
@@ -422,7 +668,7 @@ export type GetLadderResponse = Message<"vrooli.infrastructure_manager.v1.ladder
  * Use `create(GetLadderResponseSchema)` to create a new message.
  */
 export const GetLadderResponseSchema: GenMessage<GetLadderResponse> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 6);
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 9);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.ladder.ListCellsRequest
@@ -456,7 +702,7 @@ export type ListCellsRequest = Message<"vrooli.infrastructure_manager.v1.ladder.
  * Use `create(ListCellsRequestSchema)` to create a new message.
  */
 export const ListCellsRequestSchema: GenMessage<ListCellsRequest> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 7);
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 10);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.ladder.ListCellsResponse
@@ -478,7 +724,67 @@ export type ListCellsResponse = Message<"vrooli.infrastructure_manager.v1.ladder
  * Use `create(ListCellsResponseSchema)` to create a new message.
  */
 export const ListCellsResponseSchema: GenMessage<ListCellsResponse> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 8);
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 11);
+
+/**
+ * @generated from message vrooli.infrastructure_manager.v1.ladder.ListDevicesRequest
+ */
+export type ListDevicesRequest = Message<"vrooli.infrastructure_manager.v1.ladder.ListDevicesRequest"> & {
+  /**
+   * Optional filters. An unset filter matches everything.
+   *
+   * @generated from field: string device_class = 1;
+   */
+  deviceClass: string;
+
+  /**
+   * @generated from field: string device_id = 2;
+   */
+  deviceId: string;
+};
+
+/**
+ * Describes the message vrooli.infrastructure_manager.v1.ladder.ListDevicesRequest.
+ * Use `create(ListDevicesRequestSchema)` to create a new message.
+ */
+export const ListDevicesRequestSchema: GenMessage<ListDevicesRequest> = /*@__PURE__*/
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 12);
+
+/**
+ * @generated from message vrooli.infrastructure_manager.v1.ladder.ListDevicesResponse
+ */
+export type ListDevicesResponse = Message<"vrooli.infrastructure_manager.v1.ladder.ListDevicesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.infrastructure_manager.v1.ladder.Device devices = 1;
+   */
+  devices: Device[];
+
+  /**
+   * available is false when the device-graph source could not be read. The
+   * empty device list is then a failure to observe, NOT a host with no
+   * hardware, and unavailable_reason says which.
+   *
+   * @generated from field: bool available = 2;
+   */
+  available: boolean;
+
+  /**
+   * @generated from field: string unavailable_reason = 3;
+   */
+  unavailableReason: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp computed_at = 4;
+   */
+  computedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.infrastructure_manager.v1.ladder.ListDevicesResponse.
+ * Use `create(ListDevicesResponseSchema)` to create a new message.
+ */
+export const ListDevicesResponseSchema: GenMessage<ListDevicesResponse> = /*@__PURE__*/
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 13);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.ladder.ListSourcesRequest
@@ -491,7 +797,7 @@ export type ListSourcesRequest = Message<"vrooli.infrastructure_manager.v1.ladde
  * Use `create(ListSourcesRequestSchema)` to create a new message.
  */
 export const ListSourcesRequestSchema: GenMessage<ListSourcesRequest> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 9);
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 14);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.ladder.ListSourcesResponse
@@ -508,7 +814,12 @@ export type ListSourcesResponse = Message<"vrooli.infrastructure_manager.v1.ladd
   checkPlatforms: CheckPlatformCoverage[];
 
   /**
-   * @generated from field: google.protobuf.Timestamp computed_at = 3;
+   * @generated from field: vrooli.infrastructure_manager.v1.ladder.Confidence confidence = 3;
+   */
+  confidence?: Confidence | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp computed_at = 4;
    */
   computedAt?: Timestamp | undefined;
 };
@@ -518,7 +829,7 @@ export type ListSourcesResponse = Message<"vrooli.infrastructure_manager.v1.ladd
  * Use `create(ListSourcesResponseSchema)` to create a new message.
  */
 export const ListSourcesResponseSchema: GenMessage<ListSourcesResponse> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 10);
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 15);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.ladder.RankFindingsRequest
@@ -537,7 +848,7 @@ export type RankFindingsRequest = Message<"vrooli.infrastructure_manager.v1.ladd
  * Use `create(RankFindingsRequestSchema)` to create a new message.
  */
 export const RankFindingsRequestSchema: GenMessage<RankFindingsRequest> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 11);
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 16);
 
 /**
  * @generated from message vrooli.infrastructure_manager.v1.ladder.RankFindingsResponse
@@ -567,7 +878,7 @@ export type RankFindingsResponse = Message<"vrooli.infrastructure_manager.v1.lad
  * Use `create(RankFindingsResponseSchema)` to create a new message.
  */
 export const RankFindingsResponseSchema: GenMessage<RankFindingsResponse> = /*@__PURE__*/
-  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 12);
+  messageDesc(file_infrastructure_manager_v1_ladder_ladder, 17);
 
 /**
  * Rung is the capability ladder in DEPENDENCY order. A rung is never reported
@@ -859,12 +1170,45 @@ export const CascadeStageSchema: GenEnum<CascadeStage> = /*@__PURE__*/
   enumDesc(file_infrastructure_manager_v1_ladder_ladder, 5);
 
 /**
+ * ConfidenceLevel is the denominator confidence vocabulary.
+ *
+ * @generated from enum vrooli.infrastructure_manager.v1.ladder.ConfidenceLevel
+ */
+export enum ConfidenceLevel {
+  /**
+   * @generated from enum value: CONFIDENCE_LEVEL_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: CONFIDENCE_LEVEL_AUTHORITATIVE = 1;
+   */
+  AUTHORITATIVE = 1,
+
+  /**
+   * @generated from enum value: CONFIDENCE_LEVEL_PARTIAL = 2;
+   */
+  PARTIAL = 2,
+
+  /**
+   * @generated from enum value: CONFIDENCE_LEVEL_SKETCH = 3;
+   */
+  SKETCH = 3,
+}
+
+/**
+ * Describes the enum vrooli.infrastructure_manager.v1.ladder.ConfidenceLevel.
+ */
+export const ConfidenceLevelSchema: GenEnum<ConfidenceLevel> = /*@__PURE__*/
+  enumDesc(file_infrastructure_manager_v1_ladder_ladder, 6);
+
+/**
  * @generated from service vrooli.infrastructure_manager.v1.ladder.LadderService
  */
 export const LadderService: GenService<{
   /**
-   * GetLadder returns the whole ladder readout: every cell, every source's
-   * availability, and the cascade-ranked findings.
+   * GetLadder returns the whole ladder readout: every cell, every graded
+   * device, every source's availability, and the cascade-ranked findings.
    *
    * @generated from rpc vrooli.infrastructure_manager.v1.ladder.LadderService.GetLadder
    */
@@ -872,6 +1216,17 @@ export const LadderService: GenService<{
     methodKind: "unary";
     input: typeof GetLadderRequestSchema;
     output: typeof GetLadderResponseSchema;
+  },
+  /**
+   * ListDevices returns the graded hardware inventory the cells were computed
+   * from, so a reader can see the evidence and not only the verdict.
+   *
+   * @generated from rpc vrooli.infrastructure_manager.v1.ladder.LadderService.ListDevices
+   */
+  listDevices: {
+    methodKind: "unary";
+    input: typeof ListDevicesRequestSchema;
+    output: typeof ListDevicesResponseSchema;
   },
   /**
    * ListCells returns the ladder cells, optionally filtered.

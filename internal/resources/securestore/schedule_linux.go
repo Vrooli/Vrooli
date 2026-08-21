@@ -11,9 +11,11 @@ import (
 	"time"
 )
 
-const nativeScheduleProvider = "systemd-user"
-const nativeScheduleSupported = true
-const credentialCopyTimer = "vrooli-credential-store-copy.timer"
+const (
+	nativeScheduleProvider  = "systemd-user"
+	nativeScheduleSupported = true
+	credentialCopyTimer     = "vrooli-credential-store-copy.timer"
+)
 
 func installNativeCopySchedule(executable string, interval time.Duration, enabled bool) error {
 	home, err := os.UserHomeDir()

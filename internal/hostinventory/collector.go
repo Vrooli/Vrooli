@@ -45,6 +45,9 @@ type Collector struct {
 	GOOS     string
 	GOARCH   string
 	CPUCount func() int
+	// DeviceRoots overrides the filesystem locations device-tree enumeration
+	// reads. The zero value means the live host.
+	DeviceRoots DeviceRoots
 }
 
 type (
@@ -124,7 +127,9 @@ func (c Collector) CollectGPUFacts(ctx context.Context) (Snapshot, error) {
 	c = c.withDefaults()
 	now := c.Clock.Now()
 	snap := Snapshot{OS: c.GOOS, Arch: c.GOARCH, RuntimeTools: map[string]Tool{}, ProbeStatuses: map[string]string{}, FieldProvenance: map[string]Provenance{}}
+	c.collectDevices(ctx, &snap, now)
 	c.collectNvidiaGPUs(ctx, &snap, now)
+	c.linkNvidiaDevices(ctx, &snap, now)
 	c.collectDockerGPU(ctx, &snap, now)
 	return snap, nil
 }
@@ -152,7 +157,9 @@ func (c Collector) Collect(ctx context.Context) (Snapshot, error) {
 	c.collectPlatformFacts(ctx, &snap, now)
 	c.collectMemory(&snap, now)
 	c.collectLoad(&snap, now)
+	c.collectDevices(ctx, &snap, now)
 	c.collectNvidiaGPUs(ctx, &snap, now)
+	c.linkNvidiaDevices(ctx, &snap, now)
 	c.collectDarwinGPUs(ctx, &snap, now)
 	c.collectWindowsGPUs(ctx, &snap, now)
 	c.collectDockerGPU(ctx, &snap, now)

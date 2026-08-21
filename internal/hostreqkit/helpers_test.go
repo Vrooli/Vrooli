@@ -700,6 +700,22 @@ func TestVersionMatches(t *testing.T) {
 	}
 }
 
+func TestCompareVersions(t *testing.T) {
+	for _, test := range []struct {
+		left  string
+		right string
+		want  int
+	}{
+		{left: "v20.11.1", right: "20.0.0", want: 1},
+		{left: "10.14", right: "10.14.0", want: 0},
+		{left: "node v18.19.0", right: "20.0.0", want: -1},
+	} {
+		if got := CompareVersions(test.left, test.right); got != test.want {
+			t.Fatalf("CompareVersions(%q, %q) = %d, want %d", test.left, test.right, got, test.want)
+		}
+	}
+}
+
 func TestRunVerificationCheckFilesPass(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()

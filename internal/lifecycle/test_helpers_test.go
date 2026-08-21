@@ -1,6 +1,8 @@
 package lifecycle
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -28,6 +30,32 @@ func writeLifecycleFixtureManifest(t *testing.T, root string, manifest scenario.
 	// overwrite this fixture.
 	testscenario.WriteProjectService(t, root, testscenario.ProjectServiceManifest())
 	testscenario.WriteScenarioService(t, root, manifest.Service.Name, manifest)
+	for _, component := range manifest.Components {
+		if component.Build.Kind != "go_module" || component.Build.Output != "api/mock-api" {
+			continue
+		}
+		apiDir := filepath.Join(root, "scenarios", manifest.Service.Name, "api")
+		if err := os.MkdirAll(apiDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module fixture\n\ngo 1.25.0\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		mainSource := `package main
+import (
+ "fmt"
+ "net/http"
+ "os"
+)
+func main() {
+ http.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { _, _ = fmt.Fprint(w, "ok") })
+ _ = http.ListenAndServe("127.0.0.1:"+os.Getenv("API_PORT"), nil)
+}
+`
+		if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(mainSource), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func lifecycleFixtureManifest(name string) scenario.ServiceManifest {
@@ -43,6 +71,13 @@ func lifecycleFixtureManifest(name string) scenario.ServiceManifest {
 			"api": {
 				EnvVar: "API_PORT",
 				Range:  "22000-22010",
+			},
+		},
+		Components: map[string]scenario.Component{
+			"api": {
+				Role:  "api",
+				Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api", Output: "api/mock-api"},
+				Run:   scenario.ComponentRun{Argv: []string{"{{bin.api}}"}, CWD: "api", Port: "api"},
 			},
 		},
 		Lifecycle: scenario.Lifecycle{
@@ -61,29 +96,8 @@ func lifecycleFixtureManifest(name string) scenario.ServiceManifest {
 				Timeout:            5000,
 				Interval:           250,
 			},
-			Setup: scenario.Phase{
-				Condition: &scenario.Condition{
-					Checks: []scenario.ConditionCheck{
-						{Type: "binaries", Targets: []string{"api/mock-api"}},
-					},
-				},
-				Steps: []scenario.PhaseStep{
-					{
-						Name: "build-api",
-						Run:  "mkdir -p api public && printf 'package main\\n' > api/handler.go && printf '#!/usr/bin/env bash\\npython3 -m http.server \"$API_PORT\" --bind 127.0.0.1 --directory ../public\\n' > api/mock-api && chmod +x api/mock-api && printf 'ok\\n' > public/health",
-					},
-				},
-			},
-			Develop: scenario.Phase{
-				Steps: []scenario.PhaseStep{
-					{
-						Name:       "start-api",
-						Run:        "cd api && ./mock-api",
-						Background: true,
-						Condition:  &scenario.Condition{FileExists: "api/mock-api"},
-					},
-				},
-			},
+			Setup:   scenario.Phase{},
+			Develop: scenario.Phase{},
 		},
 	}
 }

@@ -27,6 +27,7 @@ type Record struct {
 	WorkingDir string    `json:"working_dir,omitempty"`
 	LogFile    string    `json:"log_file,omitempty"`
 	Port       int       `json:"port,omitempty"`
+	PortKey    string    `json:"port_key,omitempty"`
 	StartedAt  time.Time `json:"started_at"`
 	Status     string    `json:"status,omitempty"`
 }

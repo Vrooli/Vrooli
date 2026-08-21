@@ -38,6 +38,7 @@ func hostSnapshotResponse(s hostinventory.Snapshot) *cliv1.CliHostSnapshot {
 		},
 		DockerGpu:         &cliv1.CliHostDockerGPU{NvidiaRuntime: s.DockerGPU.NvidiaRuntime},
 		NvidiaDeviceNodes: s.NvidiaDeviceNodes,
+		Devices:           hostDeviceResponses(s.Devices),
 		Warnings:          s.Warnings,
 		DisplayAttached:   s.DisplayAttached,
 		DisplayServer:     s.DisplayServer,
@@ -152,4 +153,35 @@ func formatTime(t time.Time) string {
 // writeHostSnapshotJSON emits the host-inventory wire contract as JSON.
 func writeHostSnapshotJSON(w io.Writer, s hostinventory.Snapshot) error {
 	return cliout.WriteProtoJSON(w, hostSnapshotResponse(s))
+}
+
+// hostDeviceResponses maps the device-tree enumeration onto the wire contract.
+//
+// It carries `discovered_by` and `enriched_by` through verbatim rather than
+// collapsing them into one "source" field. That distinction is the whole point
+// of the enumeration: a device found by the device tree and enriched by a
+// vendor tool is a different fact from a device that only a vendor tool knows
+// about, and flattening the two is what previously hid an entire GPU.
+func hostDeviceResponses(devices []hostinventory.Device) []*cliv1.CliHostDevice {
+	if len(devices) == 0 {
+		return nil
+	}
+	out := make([]*cliv1.CliHostDevice, 0, len(devices))
+	for _, device := range devices {
+		out = append(out, &cliv1.CliHostDevice{
+			Id:            device.ID,
+			Class:         string(device.Class),
+			Parent:        device.Parent,
+			Vendor:        device.Vendor,
+			VendorId:      device.VendorID,
+			Model:         device.Model,
+			ModelId:       device.ModelID,
+			Driver:        device.Driver,
+			DriverVersion: device.DriverVersion,
+			Nodes:         device.Nodes,
+			DiscoveredBy:  device.DiscoveredBy,
+			EnrichedBy:    device.EnrichedBy,
+		})
+	}
+	return out
 }

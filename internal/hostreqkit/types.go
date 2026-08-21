@@ -98,6 +98,12 @@ const (
 	// BlockingNeedsReboot: install/apply succeeded but the machine must be
 	// rebooted before the change takes effect.
 	BlockingNeedsReboot BlockingReason = "needs_reboot"
+	// BlockingPrerequisiteMissing: the item is well-formed and supported, but
+	// another host requirement it depends on is not satisfied yet. Applying it
+	// now would be worse than leaving it pending — the canonical case is a
+	// panic-on-oops policy without an armed crash-dump capture, which converts
+	// survivable oopses into reboots that produce no diagnostics.
+	BlockingPrerequisiteMissing BlockingReason = "prerequisite_missing"
 	// BlockingManual: handler is manual-only; operator must run the
 	// documented procedure.
 	BlockingManual BlockingReason = "manual"
@@ -120,6 +126,7 @@ type ItemStatus struct {
 	Kind                 hostreqspec.Kind           `json:"kind"`
 	Command              string                     `json:"command,omitempty"`
 	Version              string                     `json:"version,omitempty"`
+	MinVersion           string                     `json:"min_version,omitempty"`
 	Installed            bool                       `json:"installed"`
 	Applied              bool                       `json:"applied,omitempty"`
 	Required             bool                       `json:"required"`

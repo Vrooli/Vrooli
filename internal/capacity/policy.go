@@ -82,6 +82,10 @@ type Policy struct {
 	// observed peak when right-sizing recommends a smaller reservation (§Phase 4).
 	// A recommendation is NEVER below observed_peak * (1 + pct/100).
 	RecommendHeadroomPct int `json:"recommend_headroom"`
+	// SwapPressureThresholdPct is the percentage of swap in use above which a
+	// RAM request is denied rather than granted. Swap usage is a lagging signal
+	// of memory exhaustion that AvailableBytes misses. 0 disables the check.
+	SwapPressureThresholdPct int `json:"swap_pressure_threshold"`
 }
 
 // DefaultPolicy returns the conservative V1 defaults: advisory enforcement,
@@ -102,6 +106,8 @@ func DefaultPolicy() Policy {
 		TerminalRetention:      DefaultTerminalRetention,
 		ObservedPeakHalflife:   DefaultObservedPeakHalflife,
 		RecommendHeadroomPct:   DefaultRecommendHeadroomPct,
+
+		SwapPressureThresholdPct: DefaultSwapPressureThreshold,
 	}
 }
 
@@ -122,6 +128,7 @@ var PolicyKeys = []string{
 	"observed_peak_halflife",
 	"default_idle_unload_ttl",
 	"recommend_headroom",
+	"swap_pressure_threshold",
 }
 
 // Get returns the string value of a policy key (for `policy get`).
@@ -157,6 +164,8 @@ func (p Policy) Get(key string) (string, error) {
 		return p.DefaultIdleUnloadTTL.String(), nil
 	case "recommend_headroom":
 		return strconv.Itoa(p.RecommendHeadroomPct), nil
+	case "swap_pressure_threshold":
+		return strconv.Itoa(p.SwapPressureThresholdPct), nil
 	default:
 		return "", fmt.Errorf("%w: unknown policy key %q", ErrInvalidClaim, key)
 	}
@@ -249,6 +258,12 @@ func (p Policy) withKey(key, value string) (Policy, error) {
 			return p, fmt.Errorf("%w: default_idle_unload_ttl must be a non-negative duration (0 = off)", ErrInvalidClaim)
 		}
 		out.DefaultIdleUnloadTTL = d
+	case "swap_pressure_threshold":
+		n, err := strconv.Atoi(strings.TrimSpace(value))
+		if err != nil || n < 0 || n > 100 {
+			return p, fmt.Errorf("%w: swap_pressure_threshold must be an integer percent between 0 and 100", ErrInvalidClaim)
+		}
+		out.SwapPressureThresholdPct = n
 	case "recommend_headroom":
 		n, err := strconv.Atoi(strings.TrimSpace(value))
 		if err != nil || n < 0 {

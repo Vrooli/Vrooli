@@ -53,7 +53,7 @@ func TestBinariesFreshnessMissingBinary(t *testing.T) {
 	}
 	r := &Runner{Root: repoRoot}
 	item := freshnessTestItem(appPath)
-	stale, reason, err := r.binariesFreshness(item, item.Manifest.Lifecycle.Setup.Condition.Checks[0])
+	stale, reason, err := r.binariesFreshness(item, freshnessBinaryCheck())
 	if err != nil {
 		t.Fatalf("binariesFreshness: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestBinariesFreshnessSourceNewerNamesFile(t *testing.T) {
 	chtimes(t, srcPath, time.Now()) // source newer than binary
 	r := &Runner{Root: repoRoot}
 	item := freshnessTestItem(appPath)
-	stale, reason, err := r.binariesFreshness(item, item.Manifest.Lifecycle.Setup.Condition.Checks[0])
+	stale, reason, err := r.binariesFreshness(item, freshnessBinaryCheck())
 	if err != nil {
 		t.Fatalf("binariesFreshness: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestBinariesFreshnessIgnoresTestFiles(t *testing.T) {
 	chtimes(t, testFile, time.Now())
 	r := &Runner{Root: repoRoot}
 	item := freshnessTestItem(appPath)
-	stale, reason, err := r.binariesFreshness(item, item.Manifest.Lifecycle.Setup.Condition.Checks[0])
+	stale, reason, err := r.binariesFreshness(item, freshnessBinaryCheck())
 	if err != nil {
 		t.Fatalf("binariesFreshness: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestBinariesFreshnessFresh(t *testing.T) {
 	chtimes(t, binPath, time.Now())
 	r := &Runner{Root: repoRoot}
 	item := freshnessTestItem(appPath)
-	stale, _, err := r.binariesFreshness(item, item.Manifest.Lifecycle.Setup.Condition.Checks[0])
+	stale, _, err := r.binariesFreshness(item, freshnessBinaryCheck())
 	if err != nil {
 		t.Fatalf("binariesFreshness: %v", err)
 	}
@@ -168,65 +168,22 @@ func TestDependencyRestartReason(t *testing.T) {
 	}
 }
 
-// TestProvisioningDoesNotMarkFreshnessStale pins the partition: an empty data/
-// directory makes SetupNeeded (full) true but freshness false, so a healthy
-// running process is never bounced for a provisioning reason.
-func TestProvisioningDoesNotMarkFreshnessStale(t *testing.T) {
-	root := t.TempDir()
-	appPath := filepath.Join(root, "scenarios", "alpha")
-	dataDir := filepath.Join(appPath, "data")
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
-		t.Fatalf("mkdir data: %v", err)
-	}
-	// Build a binary that is newer than its (only) source so binaries is fresh.
-	apiDir := filepath.Join(appPath, "api")
-	if err := os.MkdirAll(apiDir, 0o755); err != nil {
-		t.Fatalf("mkdir api: %v", err)
-	}
-	srcPath := filepath.Join(apiDir, "main.go")
-	if err := os.WriteFile(srcPath, []byte("package main"), 0o644); err != nil {
-		t.Fatalf("write src: %v", err)
-	}
-	binPath := filepath.Join(apiDir, "alpha-api")
-	if err := os.WriteFile(binPath, []byte("\x7fELFbinary"), 0o755); err != nil {
-		t.Fatalf("write bin: %v", err)
-	}
-	future := time.Now().Add(2 * time.Hour)
-	if err := os.Chtimes(binPath, future, future); err != nil {
-		t.Fatalf("chtimes bin: %v", err)
-	}
-
-	item := scenario.Scenario{
-		Slug: "alpha",
-		Path: appPath,
-		Manifest: scenario.ServiceManifest{
-			Lifecycle: scenario.Lifecycle{
-				Setup: scenario.Phase{
-					Condition: &scenario.Condition{
-						Checks: []scenario.ConditionCheck{
-							{Type: "binaries", Targets: []string{"api/alpha-api"}},
-							{Type: "data", Path: "data"},
-						},
-					},
-				},
-			},
-		},
-	}
-	r := &Runner{Root: root}
-
-	full, fullReasons, err := r.SetupNeeded(item, false)
+// binariesFreshness keeps the focused fingerprint tests at the artifact seam;
+// production setup authority comes exclusively from components[].build.
+func (r *Runner) binariesFreshness(item scenario.Scenario, check scenario.ConditionCheck) (bool, string, error) {
+	deps := defaultHostProbeDeps()
+	artifacts, err := binariesFreshnessArtifacts(item.Path, r.Root, check, deps)
 	if err != nil {
-		t.Fatalf("SetupNeeded: %v", err)
+		return false, "", err
 	}
-	if !full {
-		t.Fatalf("expected SetupNeeded true (empty data dir), reasons=%v", fullReasons)
+	for _, artifact := range artifacts {
+		verdict, err := r.evaluateArtifactFreshness(artifact, deps)
+		if err != nil {
+			return false, "", err
+		}
+		if verdict.Stale {
+			return true, verdict.HumanReason, nil
+		}
 	}
-
-	stale, staleReasons, err := r.freshnessStaleCached(item, false, make(setupCheckCache))
-	if err != nil {
-		t.Fatalf("freshnessStaleCached: %v", err)
-	}
-	if stale {
-		t.Fatalf("freshness must be false (binary fresh; data is provisioning), reasons=%v", staleReasons)
-	}
+	return false, "", nil
 }

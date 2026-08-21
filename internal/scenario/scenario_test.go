@@ -1,6 +1,7 @@
 package scenario
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -8,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -661,6 +663,47 @@ func TestDependencyUnmarshalNoExtraKeysLeavesConfigEmpty(t *testing.T) {
 	}
 }
 
+func TestScenarioDependencyContractRoundTrip(t *testing.T) {
+	input := []byte(`{
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "versionRange": ">=2.3.0 <3.0.0",
+        "runtime_only": true,
+        "runtime_only_rationale": "Loaded only when the operator enables remote publishing"
+    }`)
+
+	var dependency Dependency
+	if err := json.Unmarshal(input, &dependency); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if err := dependency.Validate("scenarios", "publisher"); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if dependency.VersionRange != ">=2.3.0 <3.0.0" || !dependency.RuntimeOnly || dependency.RuntimeOnlyRationale == "" {
+		t.Fatalf("canonical scenario fields were not decoded: %+v", dependency)
+	}
+
+	encoded, err := json.Marshal(dependency)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var roundTrip Dependency
+	if err := json.Unmarshal(encoded, &roundTrip); err != nil {
+		t.Fatalf("unmarshal round-trip: %v", err)
+	}
+	if roundTrip.VersionRange != dependency.VersionRange || roundTrip.RuntimeOnly != dependency.RuntimeOnly || roundTrip.RuntimeOnlyRationale != dependency.RuntimeOnlyRationale {
+		t.Fatalf("scenario dependency fields drifted: got %+v want %+v", roundTrip, dependency)
+	}
+}
+
+func TestRuntimeOnlyDependencyRequiresRationale(t *testing.T) {
+	err := (Dependency{Enabled: true, RuntimeOnly: true}).Validate("scenarios", "publisher")
+	if err == nil || !strings.Contains(err.Error(), "runtime_only_rationale") {
+		t.Fatalf("Validate() error = %v, want runtime_only_rationale requirement", err)
+	}
+}
+
 func TestDependencyNormalizedStartupPolicyUsesContractDefaults(t *testing.T) {
 	if policy := (Dependency{Enabled: true, Required: true}).NormalizedStartupPolicy(); policy != DependencyStartupPolicyMustStart {
 		t.Fatalf("required dependency policy = %q, want %q", policy, DependencyStartupPolicyMustStart)
@@ -989,8 +1032,8 @@ func TestManifestHelpers(t *testing.T) {
 	}
 
 	phases := manifest.PhaseSummaries()
-	if len(phases) != 10 {
-		t.Fatalf("phase count = %d, want 10", len(phases))
+	if len(phases) != 9 {
+		t.Fatalf("phase count = %d, want 9", len(phases))
 	}
 	if !phases[0].Defined || phases[0].Name != "setup" || phases[0].Steps != 1 {
 		t.Fatalf("setup summary = %#v", phases[0])
@@ -1000,11 +1043,92 @@ func TestManifestHelpers(t *testing.T) {
 	}
 }
 
-func TestExpandTargetAndParsePostgresAddress(t *testing.T) {
-	expanded := ExpandTarget("http://127.0.0.1:${API_PORT}/health?ui=$UI_PORT", map[string]int{
+func TestLifecycleMarshalOmitsZeroPhases(t *testing.T) {
+	manifest := ServiceManifest{
+		Service: ServiceMetadata{Name: "declared"},
+		Lifecycle: Lifecycle{
+			Version: "2.0.0",
+			Health:  &HealthConfig{},
+		},
+	}
+	raw, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatalf("decode marshaled manifest: %v", err)
+	}
+	lifecycle, ok := document["lifecycle"].(map[string]any)
+	if !ok {
+		t.Fatalf("lifecycle = %#v, want object", document["lifecycle"])
+	}
+	for _, retiredOrEmpty := range []string{"defaults", "setup", "develop", "build", "deploy", "clean", "test", "backup", "restore", "production", "stop"} {
+		if _, exists := lifecycle[retiredOrEmpty]; exists {
+			t.Fatalf("zero or retired lifecycle field %q was serialized: %s", retiredOrEmpty, raw)
+		}
+	}
+}
+
+func TestDeclaredComponentContractRoundTrips(t *testing.T) {
+	raw := []byte(`{
+  "service": {"name": "browser-automation-studio"},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {"kind": "go_module", "dir": "api"},
+      "run": {"argv": ["{{bin.api}}"], "port": "api", "data_dirs": ["data/workflows"], "readiness": {"type": "http", "path": "/health", "timeout_ms": 30000}}
+    },
+    "playwright-driver": {
+      "role": "sidecar",
+      "build": {"kind": "node_bundle", "dir": "playwright-driver", "output": "playwright-driver/dist/server.js"},
+      "run": {"argv": ["node", "dist/server.js"], "cwd": "playwright-driver", "port": "playwright_driver", "supervised_by": "api", "depends_on": [{"component": "api", "wait": "ready"}]}
+    }
+  },
+  "dependencies": {"scenarios": {"landing-page-business-suite": {"required": true, "startup_policy": "try_start", "degraded_behavior": "Local work remains available.", "bundle_policy": "discover", "bindings": [{"env_var": "BAS_ENTITLEMENT_SERVICE_URL", "form": "http_base_url", "port": "api", "when_unavailable": "omit"}]}}},
+  "lifecycle": {"setup": {"steps": [{"name": "provision", "exec": ["resource-minio", "create-bucket", "test"], "cwd": "api", "env": {"MODE": "test"}, "on_error": "retry", "retry": {"max_attempts": 3, "delay": 50, "backoff": "linear"}, "timeout": 1000}]}}
+}`)
+
+	var manifest ServiceManifest
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got := manifest.Components["playwright-driver"].Run.SupervisedBy; got != "api" {
+		t.Fatalf("supervised_by = %q, want api", got)
+	}
+	dependency := manifest.Dependencies.Scenarios["landing-page-business-suite"]
+	if dependency.BundlePolicy != "discover" || len(dependency.Bindings) != 1 {
+		t.Fatalf("dependency contract = %#v", dependency)
+	}
+	step := manifest.Lifecycle.Setup.Steps[0]
+	if step.OnError != "retry" || step.Retry == nil || step.Retry.MaxAttempts != 3 || step.Timeout != 1000 {
+		t.Fatalf("exec step = %#v", step)
+	}
+
+	encoded, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, field := range []string{`"components"`, `"bindings"`, `"bundle_policy"`, `"exec"`, `"on_error"`} {
+		if !bytes.Contains(encoded, []byte(field)) {
+			t.Fatalf("round-trip output missing %s: %s", field, encoded)
+		}
+	}
+
+	componentType := reflect.TypeOf(Component{})
+	if _, exists := componentType.FieldByName("Secrets"); exists {
+		t.Fatal("Component must not introduce a second credential authority")
+	}
+}
+
+func TestExpandHealthTargetAndParsePostgresAddress(t *testing.T) {
+	expanded, err := ExpandHealthTarget("http://127.0.0.1:${API_PORT}/health?ui=$UI_PORT", map[string]int{
 		"API_PORT": 18080,
 		"UI_PORT":  38080,
 	})
+	if err != nil {
+		t.Fatalf("ExpandHealthTarget: %v", err)
+	}
 	if expanded != "http://127.0.0.1:18080/health?ui=38080" {
 		t.Fatalf("expanded target = %q", expanded)
 	}
@@ -1108,7 +1232,7 @@ func writeScenarioServiceAtPath(t *testing.T, scenarioPath, description string) 
 				Description: "Run the scenario",
 				Steps: []PhaseStep{{
 					Name:       "start-api",
-					Run:        "sleep 10",
+					Exec:       []string{"sleep", "10"},
 					Background: true,
 				}},
 			},

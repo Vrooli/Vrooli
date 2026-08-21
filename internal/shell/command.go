@@ -117,12 +117,6 @@ func CommandWithDefaults(spec Spec) *exec.Cmd {
 	return cmd
 }
 
-func BashCommand(command string, spec Spec) *exec.Cmd {
-	spec.Name = "bash"
-	spec.Args = []string{"-lc", command}
-	return CommandWithDefaults(spec)
-}
-
 func Run(spec Spec) error {
 	return CommandWithDefaults(spec).Run()
 }

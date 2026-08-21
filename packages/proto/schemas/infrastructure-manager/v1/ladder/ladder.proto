@@ -16,9 +16,12 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructu
 // letter, so no restart, reconcile or mutate verb may ever be added here.
 
 service LadderService {
-  // GetLadder returns the whole ladder readout: every cell, every source's
-  // availability, and the cascade-ranked findings.
+  // GetLadder returns the whole ladder readout: every cell, every graded
+  // device, every source's availability, and the cascade-ranked findings.
   rpc GetLadder(GetLadderRequest) returns (GetLadderResponse);
+  // ListDevices returns the graded hardware inventory the cells were computed
+  // from, so a reader can see the evidence and not only the verdict.
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
   // ListCells returns the ladder cells, optionally filtered.
   rpc ListCells(ListCellsRequest) returns (ListCellsResponse);
   // ListSources returns each source's availability and reason.
@@ -145,6 +148,28 @@ message LadderCell {
   string capability_reason = 25;
 
   google.protobuf.Timestamp observed_at = 26;
+
+  // fault_unit is the quantity this cell's bar grades, spelled as the operator
+  // authored it. fault_counted is false when no quantity could be computed, in
+  // which case fault_count carries no meaning.
+  string fault_unit = 27;
+  double fault_count = 28;
+  bool fault_counted = 29;
+
+  // severity projects the graded verdict onto the substrate projection's
+  // ordered severity: 0 OK, 1 WARNING, 2 CRITICAL. severity_known is false for
+  // every ungraded cell — an ungraded cell has NO severity, and defaulting it
+  // to 0 would read as OK, which is the exact failure this projection exists
+  // to prevent.
+  int32 severity = 30;
+  bool severity_known = 31;
+
+  // gap_opened_on and gap_open_days are the blindness age. gap_open_days is 0
+  // both for a gap opened today and for a gap nobody ever dated, so gap_dated
+  // is what tells them apart.
+  string gap_opened_on = 32;
+  int32 gap_open_days = 33;
+  bool gap_dated = 34;
 }
 
 // CheckPlatformCoverage is the substrate sensing declared for one host OS: how
@@ -169,6 +194,68 @@ message SourceState {
   bool available = 2;
   string reason = 3;
   google.protobuf.Timestamp checked_at = 4;
+  // trust is the source's own verdict. A source that could not be read is
+  // UNAVAILABLE — a gap in the fan-out, never a verdict about the plant.
+  TrustVerdict trust = 5;
+}
+
+// ConfidenceLevel is the denominator confidence vocabulary.
+enum ConfidenceLevel {
+  CONFIDENCE_LEVEL_UNSPECIFIED = 0;
+  CONFIDENCE_LEVEL_AUTHORITATIVE = 1;
+  CONFIDENCE_LEVEL_PARTIAL = 2;
+  CONFIDENCE_LEVEL_SKETCH = 3;
+}
+
+// Confidence is the substrate space's denominator confidence. It is a message
+// carried beside the cells rather than an optional extra: a ratio computed
+// over this denominator and reported without it is not a valid instrument
+// response. `available` is false when the space document could not be read, in
+// which case there is NO confidence rather than a defaulted one.
+message Confidence {
+  ConfidenceLevel level = 1;
+  string rationale = 2;
+  bool available = 3;
+  string reason = 4;
+}
+
+// DeviceRung is one rung of one device.
+message DeviceRung {
+  Rung rung = 1;
+  // observation is the device graph owner's grade, verbatim. MEASURED,
+  // UNMEASURABLE, UNAVAILABLE and NOT_APPLICABLE are four different facts:
+  // the host produced a value; the host refused a value it should have; the
+  // mechanism is absent from this host entirely; the rung is meaningless for
+  // this class. None is ever collapsed into another.
+  Observation observation = 2;
+  // ladder_observation is the grade after the ladder's dependency ordering. It
+  // differs from observation only by becoming BLOCKED when a rung beneath this
+  // one is blind. The two answer different questions — "what did the sensor
+  // find?" and "may a claim rest on it?" — so both are carried.
+  Observation ladder_observation = 3;
+  string reason = 4;
+  string mechanism = 5;
+  string remediation = 6;
+  Rung blocked_by = 7;
+}
+
+// Device is one graded hardware device.
+message Device {
+  // id is the durable, platform-stable address, e.g. "pci:0000:01:00.0".
+  string id = 1;
+  string class = 2;
+  string parent_id = 3;
+  string vendor = 4;
+  string model = 5;
+  string driver = 6;
+  // sys_path is the platform path the device was enumerated from. It is
+  // provenance, not identity.
+  string sys_path = 7;
+  // attributes carry the owner's per-class facts, including kernel node names,
+  // passed through whole rather than filtered to a known key list.
+  map<string, string> attributes = 8;
+  map<string, double> readings = 9;
+  repeated DeviceRung rungs = 10;
 }
 
 message RankedFinding {
@@ -205,7 +292,11 @@ message Ladder {
   // declarations onto the host OS axis, read live from the owner's typed
   // surface rather than parsed out of its source.
   repeated CheckPlatformCoverage check_platforms = 7;
-  google.protobuf.Timestamp computed_at = 8;
+  // devices is the graded hardware inventory the cells were computed from.
+  repeated Device devices = 8;
+  // confidence is the substrate space's denominator confidence.
+  Confidence confidence = 9;
+  google.protobuf.Timestamp computed_at = 10;
 }
 
 message GetLadderRequest {}
@@ -227,12 +318,29 @@ message ListCellsResponse {
   google.protobuf.Timestamp computed_at = 2;
 }
 
+message ListDevicesRequest {
+  // Optional filters. An unset filter matches everything.
+  string device_class = 1;
+  string device_id = 2;
+}
+
+message ListDevicesResponse {
+  repeated Device devices = 1;
+  // available is false when the device-graph source could not be read. The
+  // empty device list is then a failure to observe, NOT a host with no
+  // hardware, and unavailable_reason says which.
+  bool available = 2;
+  string unavailable_reason = 3;
+  google.protobuf.Timestamp computed_at = 4;
+}
+
 message ListSourcesRequest {}
 
 message ListSourcesResponse {
   repeated SourceState sources = 1;
   repeated CheckPlatformCoverage check_platforms = 2;
-  google.protobuf.Timestamp computed_at = 3;
+  Confidence confidence = 3;
+  google.protobuf.Timestamp computed_at = 4;
 }
 
 message RankFindingsRequest {

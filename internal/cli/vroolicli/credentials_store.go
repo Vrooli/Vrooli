@@ -33,7 +33,7 @@ func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error
 			"  vrooli credentials store unlock < passphrase\n"+
 			"  vrooli credentials store lock\n"+
 			"  vrooli credentials store change-passphrase < current-passphrase\\nnew-passphrase\n"+
-			"  vrooli credentials store rewrap < passphrase\n"+
+			"  vrooli credentials store rewrap [--format json] < passphrase\n"+
 			"  vrooli credentials store copy --sink <directory|s3://bucket/prefix> [--format json]\n"+
 			"  vrooli credentials store copy configure --sink <directory|s3://bucket/prefix> [--interval 15m]\n"+
 			"  vrooli credentials store copy scheduled [--format json]\n"+
@@ -443,6 +443,32 @@ func storePassphrase(input io.Reader) (string, error) {
 	return strings.TrimSpace(string(value)), nil
 }
 
+// optionalStorePassphrase reads a passphrase when one was piped in, and reports
+// none when standard input is a terminal or the null device.
+//
+// It is the right shape for rewrap and the wrong shape for init and unlock. A
+// store that is already open — the normal case, because setup or onboarding has
+// just unlocked it — needs no passphrase at all to gain a wrap, so demanding
+// one would refuse the convergence on exactly the hosts that are ready for it.
+// init and unlock genuinely cannot proceed without the secret, so they keep the
+// strict guard that tells an operator how to supply it.
+func optionalStorePassphrase(input io.Reader) (string, error) {
+	if input == nil {
+		return "", nil
+	}
+	if file, ok := input.(*os.File); ok {
+		info, err := file.Stat()
+		if err != nil || info.Mode()&os.ModeCharDevice != 0 {
+			return "", nil
+		}
+	}
+	value, err := io.ReadAll(io.LimitReader(input, 64*1024))
+	if err != nil {
+		return "", fmt.Errorf("read credential store passphrase: %w", err)
+	}
+	return strings.TrimSpace(string(value)), nil
+}
+
 func storeFormatFlag(name string, args []string) (string, error) {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -511,22 +537,20 @@ func writeStoreStatus(ctx *CommandContext, status securestore.StoreStatus) {
 	for _, wrap := range status.Wraps {
 		fmt.Fprintf(ctx.Stdout, "    %-12s %s%s\n", wrap.Provider, wrap.KeyStore, keyStoreCaveat(wrap.KeyStore))
 	}
-	// A store with no host-bound wrap, on a host that could have one, is the
-	// case worth naming: the operator is typing a passphrase after every boot
-	// and may not know that is avoidable.
-	if status.HostBoundBlocked != "" && !hasWrap(status, "host-bound") {
-		fmt.Fprintf(ctx.Stdout, "\nThis store has no unattended wrap, so it needs a passphrase after every reboot.\n  %s\n", status.HostBoundBlocked)
-		fmt.Fprintf(ctx.Stdout, "Once `vrooli setup` has granted it, `vrooli credentials store rewrap` adds the\nhost-bound wrap. It keeps the same data key, so no stored value is re-encrypted.\n")
+	// Whether a reboot needs a human is the fact an operator most needs from
+	// this command, and it is not readable from the wrap list: a wrap that has
+	// stopped opening is still listed. So the verified answer is stated
+	// outright.
+	if status.Unattended.Enabled {
+		fmt.Fprintf(ctx.Stdout, "  Unattended:  yes — the %s wrap (%s) opens this store after a reboot with no passphrase\n",
+			status.Unattended.Provider, status.Unattended.KeyStore)
+		return
 	}
-}
-
-func hasWrap(status securestore.StoreStatus, provider string) bool {
-	for _, wrap := range status.Wraps {
-		if wrap.Provider == provider {
-			return true
-		}
+	fmt.Fprintf(ctx.Stdout, "  Unattended:  no — this store needs a passphrase after every reboot\n")
+	if status.Unattended.Blocked != "" {
+		fmt.Fprintf(ctx.Stdout, "\nWhy:\n  %s\n", status.Unattended.Blocked)
 	}
-	return false
+	fmt.Fprintf(ctx.Stdout, "\nRun `vrooli setup`; it grants what the host needs and adds the wrap in the same\nrun. It keeps the same data key, so no stored value is re-encrypted.\n")
 }
 
 // keyStoreCaveat states the difference between the wraps rather than letting an
@@ -576,6 +600,22 @@ func credentialsStoreInit(ctx *CommandContext, args []string, input io.Reader) e
 	return nil
 }
 
+// convergeUnattended is what makes "supply the passphrase once" true. Any
+// command that leaves the store open ends by making sure this host can open it
+// again without one, and says which. A blocked host is reported, never failed:
+// the store is usable either way, and the only difference is whether a reboot
+// needs a human.
+func convergeUnattended(ctx *CommandContext, passphrase string) {
+	status, err := securestore.EnsureUnattendedWrap(passphrase)
+	if err != nil {
+		fmt.Fprintf(ctx.Stdout, "Unattended access could not be evaluated: %v\n", err)
+		return
+	}
+	if status.Added || status.Repaired || !status.Enabled {
+		writeUnattendedStatus(ctx.Stdout, status)
+	}
+}
+
 func credentialsStoreUnlock(ctx *CommandContext, args []string, input io.Reader) error {
 	if len(args) != 0 {
 		return fmt.Errorf("credentials store unlock accepts no arguments")
@@ -591,10 +631,13 @@ func credentialsStoreUnlock(ctx *CommandContext, args []string, input io.Reader)
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(ctx.Stdout,
+	if _, err := fmt.Fprintf(ctx.Stdout,
 		"Credential store unlocked with the %s wrap. Later commands in this login session will not prompt; run `vrooli credentials store lock` to end that.\n",
-		status.ActiveWrap)
-	return err
+		status.ActiveWrap); err != nil {
+		return err
+	}
+	convergeUnattended(ctx, passphrase)
+	return nil
 }
 
 func credentialsStoreLock(ctx *CommandContext, args []string) error {
@@ -609,21 +652,54 @@ func credentialsStoreLock(ctx *CommandContext, args []string) error {
 }
 
 func credentialsStoreRewrap(ctx *CommandContext, args []string, input io.Reader) error {
-	if len(args) != 0 {
-		return fmt.Errorf("credentials store rewrap accepts no arguments")
-	}
-	passphrase, err := storePassphrase(input)
+	format, err := storeFormatFlag("credentials store rewrap", args)
 	if err != nil {
 		return err
 	}
-	wrap, err := securestore.RewrapStore(passphrase)
+	passphrase, err := optionalStorePassphrase(input)
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(ctx.Stdout,
-		"Added a %s wrap protected by %s%s.\nNo stored value was re-encrypted: only the wrap changed.\n",
-		wrap.Provider, wrap.KeyStore, keyStoreCaveat(wrap.KeyStore))
-	return err
+	status, err := securestore.EnsureUnattendedWrap(passphrase)
+	if err != nil {
+		return err
+	}
+	// The status is printed before the command decides its exit code, so a
+	// caller that reads the JSON gets the reason a host is still attended
+	// rather than only a non-zero exit. Setup depends on that: it reports the
+	// blocked reason to the operator instead of failing the whole run over a
+	// host that simply has no TPM.
+	if format == "json" {
+		if encodeErr := json.NewEncoder(ctx.Stdout).Encode(status); encodeErr != nil {
+			return encodeErr
+		}
+	} else {
+		writeUnattendedStatus(ctx.Stdout, status)
+	}
+	if !status.Enabled {
+		return fmt.Errorf("no unattended key wrap can protect this store: %s", status.Blocked)
+	}
+	return nil
+}
+
+// writeUnattendedStatus is the one rendering of the unattended answer, shared by
+// `store status`, `store rewrap`, and the lines setup prints.
+func writeUnattendedStatus(out io.Writer, status securestore.UnattendedStatus) {
+	if !status.Enabled {
+		fmt.Fprintf(out, "This store still needs a passphrase after every reboot.\n  %s\n", status.Blocked)
+		return
+	}
+	switch {
+	case status.Added:
+		fmt.Fprintf(out, "Added a %s wrap protected by %s%s.\nNo stored value was re-encrypted: only the wrap changed.\n",
+			status.Provider, status.KeyStore, keyStoreCaveat(status.KeyStore))
+	case status.Repaired:
+		fmt.Fprintf(out, "Replaced the %s wrap, which had stopped opening, with a working one protected by %s%s.\nNo stored value was re-encrypted: only the wrap changed.\n",
+			status.Provider, status.KeyStore, keyStoreCaveat(status.KeyStore))
+	default:
+		fmt.Fprintf(out, "This store already opens with no passphrase, through its %s wrap protected by %s%s.\n",
+			status.Provider, status.KeyStore, keyStoreCaveat(status.KeyStore))
+	}
 }
 
 func credentialsStoreChangePassphrase(ctx *CommandContext, args []string, input io.Reader) error {

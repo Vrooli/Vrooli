@@ -135,7 +135,9 @@
     "ram_mb": 4096,
     "disk_mb": 8192,
     "cpu_cores": 2,
-    "gpu": {},
+    "gpu": {
+      "min_cuda_compute": "8.9"
+    },
     "network": "required",
     "bucket": "large",
     "source": "estimated",

@@ -230,10 +230,23 @@ func hasPortableToolSource(manifest hostreqkit.ToolManifest) bool {
 	return false
 }
 
+// sourceRequiresElevation reports whether a tool or safeguard's implementation
+// shows evidence of needing elevated privilege.
+//
+// TEST FILES ARE EXCLUDED. A test names system paths as FIXTURES — path-hygiene
+// builds `"/usr/bin:/bin"` to exercise PATH rewriting, and matching on that
+// concluded the safeguard mutates `/usr`, when it only edits shell rc files
+// under $HOME. The consequence of that false positive is not a noisy warning:
+// the only way to satisfy it is to declare `privilege: elevated`, which would
+// make `vrooli setup` request elevation a safeguard does not need. Privilege is
+// a consent boundary, so over-declaring it is a real defect, not a safe default.
 func sourceRequiresElevation(dir string) bool {
 	requires := false
 	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() || (filepath.Ext(path) != ".go" && filepath.Ext(path) != ".sh") {
+			return nil
+		}
+		if strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
 		data, err := os.ReadFile(path)

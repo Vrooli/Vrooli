@@ -209,9 +209,6 @@ func TestRunnerStartReusesHealthyDependencyWhenOnlyCLICheckWouldBeStale(t *testi
 		SourceBuild: &scenario.CLISourceBuildConfig{Kind: "go_module"},
 		Freshness:   &scenario.CLIFreshnessCheck{Inputs: []string{"cli/**", ".vrooli/service.json"}},
 	}
-	beta.Lifecycle.Setup.Condition.Checks = append(beta.Lifecycle.Setup.Condition.Checks,
-		scenario.ConditionCheck{Type: "cli", Command: "beta"},
-	)
 	writeLifecycleFixtureManifest(t, root, beta)
 
 	alpha := lifecycleFixtureManifest("alpha")

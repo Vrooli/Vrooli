@@ -122,5 +122,6 @@ ffmpeg -i input.mp3 -ac 1 -ar 16000 -acodec pcm_s16le sample_16k_mono.wav
   connections on the shared GPU model instance.
 - `partial` frames are best-effort interim hypotheses; `segment` frames are the
   committed results you should persist.
-- For end-to-end voice (STT + TTS), pair `kyutai-stt` with the `kokoro`
-  resource.
+- For end-to-end voice (STT + TTS), pair `kyutai-stt` with the native
+  `sherpa-onnx` resource. The Kyutai resource is an optional Linux/CUDA
+  streaming accelerator, not the required TTS or streaming backend.

@@ -25,6 +25,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monit
 
 // MetricsResponse represents the current system metrics snapshot.
 message MetricsResponse {
+	// Explicit identity for one coherent collection cycle.
+	string cycle_id = 11;
   // Current CPU usage percentage.
   double cpu_usage = 1;
 
@@ -58,6 +60,8 @@ message MetricValue {
     double measured = 1;
     string unsupported_reason = 2;
     string failed_error = 3;
+    string stale_reason = 8;
+    string not_yet_sampled_reason = 9;
   }
 
   // Source of the measurement or probe mechanism that produced the state.
@@ -65,10 +69,15 @@ message MetricValue {
 
   // Time at which this individual value was observed.
   google.protobuf.Timestamp observed_at = 5;
+  string cycle_id = 6;
+  double freshness_seconds = 7;
+  string units = 10;
 }
 
 // MetricTimelineSample represents a single sample in a metrics timeline.
 message MetricTimelineSample {
+	// Explicit identity for one coherent collection cycle.
+	string cycle_id = 10;
   // When this sample was collected.
   google.protobuf.Timestamp timestamp = 1;
 

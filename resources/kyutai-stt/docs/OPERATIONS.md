@@ -71,6 +71,7 @@ on any of three triggers; the two frame-count knobs below are env-configurable
 |---|---|---|
 | `KYUTAI_STT_SILENCE_COMMIT_FRAMES` | `16` (~1.3 s) | A run of this many padding (no-text) frames after words is treated as a speaking pause and commits the pending segment. |
 | `KYUTAI_STT_MAX_SEGMENT_FRAMES` | `48` (~3.8 s) | During *continuous* speech (no pause), force-commit the pending segment once it has spanned this many frames, at the next word boundary. Prevents a long unbroken utterance from stalling as a volatile partial until the end flush (silent tail-loss). `0` disables force-commit. |
+| `KYUTAI_STT_STREAM_RESET_INTERVAL_FRAMES` | `600` (~48 s) | Reset the Mimi and LMGen streaming state at the next durable word boundary after this many model frames. The bundled checkpoint has finite attention context; this prevents sustained context rotation from degrading long-form transcript quality. `0` disables the guard only for a runtime independently verified to stream indefinitely. |
 
 The end flush (on `{"type":"end"}`) always drains the ~0.5 s delayed-streams
 tail and commits the final segment regardless of these knobs; a cold
@@ -79,16 +80,21 @@ disconnect with no `end` does **not** flush, so clients must send `end`.
 ### Backpressure-safety / decoupling tuning
 
 The decode loop is decoupled from socket sends: it enqueues events and keeps
-stepping regardless of consumer speed, while a background send worker drains
-them. Per the event-durability contract, `partial` events are coalesced to the
-latest value and may be dropped under pressure (they never back-pressure
-decode); `segment`/`done`/`error` events are ordered and lossless. This is what
-makes a slow/stalled browser consumer unable to freeze the backend decode loop.
-The knobs below bound teardown and the single-session lock.
+stepping while a background send worker drains them. Per the event-durability
+contract, `partial` events are coalesced to the latest value and may be dropped
+under pressure; `segment`/`done`/`error` events are ordered and lossless while
+they remain within the explicit durable-event budget. If a slow/stalled
+consumer exceeds that budget, the resource fails closed before issuing another
+processed acknowledgement. Audio Tools therefore retains the unacknowledged
+audio tail for replay instead of allowing resource memory to grow without
+bound. The knobs below bound teardown, event memory, and the single-session
+lock.
 
 | Name | Default | Notes |
 |---|---|---|
 | `KYUTAI_STT_SEND_DRAIN_TIMEOUT_S` | `5` | Bounded wait for the send worker to flush queued durable events to a slow consumer during teardown before the socket is force-closed. Committed text is flushed within this window; a dead consumer cannot hang teardown past it. |
+| `KYUTAI_STT_MAX_DURABLE_EVENTS` | `1024` | Maximum queued `segment`/`done`/`error` events per stream. A stalled consumer beyond this bound fails closed; it never permits unbounded transcript-event memory. |
+| `KYUTAI_STT_MAX_DURABLE_BYTES` | `4194304` | Maximum serialized bytes in the durable event queue. On overflow, decoding stops before another processed acknowledgement and Audio Tools retains the unacknowledged audio for replay. |
 | `KYUTAI_STT_ADMISSION_MAX_DEPTH` | `8` | Maximum FIFO admission queue depth, excluding the active decoder holder. Excess sessions receive `rejected/admission_full` before sending audio. |
 | `KYUTAI_STT_ADMISSION_MAX_WAIT_S` | `30` | Bounded FIFO admission wait. Expired sessions receive `timed_out/admission_timeout`; clients retain audio for explicit recovery. |
 | `KYUTAI_STT_START_FRAME_TIMEOUT_S` | `5` | Maximum wait for the required `start` control frame before joining admission. A bare WebSocket is rejected and cannot reserve the decoder. |

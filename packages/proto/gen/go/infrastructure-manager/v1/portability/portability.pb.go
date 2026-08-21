@@ -1436,7 +1436,15 @@ func (x *FleetReadout) GetComputedAt() *timestamppb.Timestamp {
 }
 
 type GetFleetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// view optionally narrows the readout to one section: "blocked", "docker",
+	// "peerless", "upgrades" or "desktop". Empty returns every section.
+	//
+	// It is a REQUEST field rather than a client-side print filter because the
+	// sections are computed independently: narrowing here lets the server skip
+	// the work, and it keeps the CLI's --view flag bound to something real
+	// instead of declaring an argument the contract cannot honour.
+	View          string `protobuf:"bytes,1,opt,name=view,proto3" json:"view,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1469,6 +1477,13 @@ func (x *GetFleetRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetFleetRequest.ProtoReflect.Descriptor instead.
 func (*GetFleetRequest) Descriptor() ([]byte, []int) {
 	return file_infrastructure_manager_v1_portability_portability_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetFleetRequest) GetView() string {
+	if x != nil {
+		return x.View
+	}
+	return ""
 }
 
 type GetFleetResponse struct {
@@ -1612,8 +1627,9 @@ const file_infrastructure_manager_v1_portability_portability_proto_rawDesc = "" 
 	"\x10desktop_bundling\x18\x05 \x01(\v2D.vrooli.infrastructure_manager.v1.portability.DesktopBundlingVerdictR\x0fdesktopBundling\x12#\n" +
 	"\rmanifest_root\x18\x06 \x01(\tR\fmanifestRoot\x12;\n" +
 	"\vcomputed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"computedAt\"\x11\n" +
-	"\x0fGetFleetRequest\"d\n" +
+	"computedAt\"%\n" +
+	"\x0fGetFleetRequest\x12\x12\n" +
+	"\x04view\x18\x01 \x01(\tR\x04view\"d\n" +
 	"\x10GetFleetResponse\x12P\n" +
 	"\x05fleet\x18\x01 \x01(\v2:.vrooli.infrastructure_manager.v1.portability.FleetReadoutR\x05fleet*\\\n" +
 	"\x06HostOS\x12\x17\n" +

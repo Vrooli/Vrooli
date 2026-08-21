@@ -197,7 +197,7 @@ func (h toolHandler) inspectPackage(host hostreqkit.Host, requirement hostreqspe
 		h.versionProbeUnavailable(&status, probeErr)
 		return status
 	}
-	if !h.versionSatisfied(&status) {
+	if !h.versionSatisfied(&status, requirement.MinVersion) {
 		return status
 	}
 	if passed, detail := hostreqkit.RunVerificationCheck(h.manifest.VerificationCheck); !passed {
@@ -242,7 +242,7 @@ func (h toolHandler) inspectFetch(host hostreqkit.Host, requirement hostreqspec.
 			h.versionProbeUnavailable(&status, probeErr)
 			return status
 		}
-		if !h.versionSatisfied(&status) {
+		if !h.versionSatisfied(&status, status.MinVersion) {
 			// A verified release target can converge an incompatible command on
 			// PATH. The source-installed launcher is deliberately preferred on
 			// subsequent inspection, so this does not keep selecting the stale
@@ -377,7 +377,7 @@ func (h toolHandler) applyPackage(host hostreqkit.Host, status hostreqkit.ItemSt
 			h.versionProbeUnavailable(&status, probeErr)
 			return status, nil
 		}
-		if !h.versionSatisfied(&status) {
+		if !h.versionSatisfied(&status, status.MinVersion) {
 			return status, nil
 		}
 		if passed, detail := hostreqkit.RunVerificationCheck(h.manifest.VerificationCheck); !passed {
@@ -500,7 +500,7 @@ func (h toolHandler) applyFetch(host hostreqkit.Host, status hostreqkit.ItemStat
 			h.versionProbeUnavailable(&status, probeErr)
 			return status, nil
 		}
-		if !h.versionSatisfied(&status) {
+		if !h.versionSatisfied(&status, status.MinVersion) {
 			return status, nil
 		}
 		if !h.runtimeEnvironmentSatisfied(host, &status) {
@@ -710,14 +710,21 @@ func localFetchCommandPath(binDir, command string) string {
 // manifest. VersionArgs output is intentionally left human-readable in the
 // status; VersionMatches handles common prefixes such as go1.25.12 and
 // v1.25.12 without accepting a partial version match.
-func (h toolHandler) versionSatisfied(status *hostreqkit.ItemStatus) bool {
+func (h toolHandler) versionSatisfied(status *hostreqkit.ItemStatus, minimum string) bool {
 	expected := strings.TrimSpace(h.manifest.Version)
-	if expected == "" || hostreqkit.VersionMatches(status.Version, expected) {
+	if expected != "" && !hostreqkit.VersionMatches(status.Version, expected) {
+		status.Installed = false
+		status.ExecutionState = hostreqkit.ExecutionPending
+		status.Notes = append(status.Notes, fmt.Sprintf("version mismatch: found %q; require exactly %s", status.Version, expected))
+		return false
+	}
+	minimum = strings.TrimSpace(minimum)
+	if minimum == "" || hostreqkit.CompareVersions(status.Version, minimum) >= 0 {
 		return true
 	}
 	status.Installed = false
 	status.ExecutionState = hostreqkit.ExecutionPending
-	status.Notes = append(status.Notes, fmt.Sprintf("version mismatch: found %q; require exactly %s", status.Version, expected))
+	status.Notes = append(status.Notes, fmt.Sprintf("version mismatch: found %q; require at least %s", status.Version, minimum))
 	return false
 }
 

@@ -828,6 +828,7 @@ func validateDependencySchema(raw json.RawMessage) error {
 		"enabled":           {},
 		"required":          {},
 		"startup_policy":    {},
+		"freshness_policy":  {},
 		"version":           {},
 		"purpose":           {},
 		"description":       {},

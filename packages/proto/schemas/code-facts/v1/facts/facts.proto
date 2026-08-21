@@ -53,6 +53,27 @@ service CodeFactsService {
 
   // ClearCache plans or clears cache entries for a target/options tuple.
   rpc ClearCache(ClearCacheRequest) returns (ClearCacheResponse) {}
+
+  // GetIndexStatus returns the durable active generation and reconciliation jobs.
+  rpc GetIndexStatus(GetIndexStatusRequest) returns (IndexStatus) {}
+
+  // ReconcileIndex applies bounded catalog changes to the selected generation.
+  rpc ReconcileIndex(ReconcileIndexRequest) returns (IndexControlResponse) {}
+
+  // Reindex starts a full shadow-generation rebuild.
+  rpc Reindex(ReindexRequest) returns (IndexControlResponse) {}
+
+  // CancelIndexJob durably requests cancellation of an active index job.
+  rpc CancelIndexJob(CancelIndexJobRequest) returns (IndexControlResponse) {}
+
+  // PromoteIndexGeneration validates and promotes a complete shadow generation.
+  rpc PromoteIndexGeneration(PromoteIndexGenerationRequest) returns (IndexControlResponse) {}
+
+  // RollbackIndexGeneration restores a retained complete generation.
+  rpc RollbackIndexGeneration(RollbackIndexGenerationRequest) returns (IndexControlResponse) {}
+
+  // CleanupIndex plans or deletes retired derived generations.
+  rpc CleanupIndex(CleanupIndexRequest) returns (IndexControlResponse) {}
 }
 
 enum TargetKind {
@@ -155,6 +176,15 @@ message SearchRequest {
   // Describe path at query time. Edges are never embedded in the Search Hub
   // corpus.
   bool expand_edges = 5;
+  repeated string roles = 6;
+  repeated string languages = 7;
+  string scope = 8;
+  // Explicit provider-stage budgets supplied by Search Hub. Zero uses the
+  // provider default; a caller deadline always remains the outer bound.
+  int32 budget_ms = 9;
+  int32 lexical_budget_ms = 10;
+  int32 semantic_budget_ms = 11;
+  int32 graph_budget_ms = 12;
 }
 
 message SearchHit {
@@ -167,6 +197,23 @@ message SearchHit {
   EvidenceStatus evidence_status = 7;
   string fact_kind = 8;
   repeated SearchExpansion edge_expansions = 9;
+  string source_hash = 10;
+  string generation = 11;
+  string role = 12;
+  string scope = 13;
+  string retrieval_regime = 14;
+  string retrieval_explanation = 15;
+  string proof_status = 16;
+  int32 start_line = 17;
+  int32 end_line = 18;
+  repeated SearchRankFactor rank_factors = 19;
+}
+
+message SearchRankFactor {
+  string name = 1;
+  double value = 2;
+  string leg = 3;
+  int32 rank = 4;
 }
 
 message SearchExpansion {
@@ -182,6 +229,87 @@ message SearchExpansion {
 
 message SearchResponse {
   repeated SearchHit results = 1;
+  repeated string degraded_stages = 2;
+  string generation = 3;
+  string retrieval_regime = 4;
+}
+
+enum IndexJobState {
+  INDEX_JOB_STATE_UNSPECIFIED = 0;
+  INDEX_JOB_STATE_QUEUED = 1;
+  INDEX_JOB_STATE_RUNNING = 2;
+  INDEX_JOB_STATE_CANCELLATION_REQUESTED = 3;
+  INDEX_JOB_STATE_SUCCEEDED = 4;
+  INDEX_JOB_STATE_FAILED = 5;
+  INDEX_JOB_STATE_CANCELLED = 6;
+  INDEX_JOB_STATE_INTERRUPTED = 7;
+}
+
+message IndexJob {
+  string id = 1;
+  string kind = 2;
+  IndexJobState state = 3;
+  string generation = 4;
+  int64 processed = 5;
+  int64 total = 6;
+  string cursor = 7;
+  string error = 8;
+  int64 created_at_unix = 9;
+  int64 updated_at_unix = 10;
+  bool cancellation_requested = 11;
+}
+
+message GetIndexStatusRequest {}
+
+message IndexStatus {
+  string active_generation = 1;
+  string previous_generation = 2;
+  string state = 3;
+  int64 source_files = 4;
+  int64 search_documents = 5;
+  int64 semantic_cards = 6;
+  int64 graph_facts = 7;
+  int64 storage_bytes = 8;
+  int64 last_reconcile_at_unix = 9;
+  string last_reconcile_outcome = 10;
+  string descriptor_digest = 11;
+  string source_digest = 12;
+  repeated string degraded_stages = 13;
+  repeated IndexJob active_jobs = 14;
+}
+
+message ReconcileIndexRequest {
+  string generation = 1;
+}
+
+message ReindexRequest {
+  string generation = 1;
+  bool confirmed = 2;
+}
+
+message CancelIndexJobRequest {
+  string job_id = 1;
+}
+
+message PromoteIndexGenerationRequest {
+  string generation = 1;
+  bool confirmed = 2;
+}
+
+message RollbackIndexGenerationRequest {
+  string generation = 1;
+  bool confirmed = 2;
+}
+
+message CleanupIndexRequest {
+  bool dry_run = 1;
+  bool confirmed = 2;
+}
+
+message IndexControlResponse {
+  IndexJob job = 1;
+  IndexStatus status = 2;
+  string message = 3;
 }
 
 message DescribeFleetImportsRequest {

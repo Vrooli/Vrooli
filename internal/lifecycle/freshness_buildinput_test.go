@@ -52,11 +52,9 @@ func TestFileSetInvariance(t *testing.T) {
 		buildInputDeps(map[string]string{"GOOS": "darwin", "GOARCH": "arm64", "CGO_ENABLED": "0"}, "18"),      // cross-compile
 		buildInputDeps(map[string]string{"GOOS": "linux", "GOARCH": "amd64", "GOFLAGS": "-mod=vendor"}, "22"), // extra determinant
 	}
-	steps := []scenario.PhaseStep{{Run: "cd api && go build -tags foo -o demo-api ."}}
-
 	var baseline []string
 	for i, deps := range variants {
-		arts, err := binariesFreshnessArtifacts(appRoot, repoRoot, check, steps, deps)
+		arts, err := binariesFreshnessArtifacts(appRoot, repoRoot, check, deps)
 		if err != nil {
 			t.Fatalf("variant %d: %v", i, err)
 		}
@@ -211,25 +209,6 @@ func TestParseBuildCommandFlags(t *testing.T) {
 	}
 }
 
-// TestMatchBuildCommand binds the right build step to the right target in a
-// multi-target scenario; a step without a matching binary name yields "".
-func TestMatchBuildCommand(t *testing.T) {
-	steps := []scenario.PhaseStep{
-		{Run: "cd api && go build -tags api -o demo-api ."},
-		{Run: "cd cli && go build -tags cli -o demo-cli ."},
-		{Run: "echo not-a-build"},
-	}
-	if got := matchBuildCommand(steps, "api/demo-api"); got != steps[0].Run {
-		t.Fatalf("api target matched %q", got)
-	}
-	if got := matchBuildCommand(steps, "cli/demo-cli"); got != steps[1].Run {
-		t.Fatalf("cli target matched %q", got)
-	}
-	if got := matchBuildCommand(steps, "web/demo-web"); got != "" {
-		t.Fatalf("unmatched target should yield empty, got %q", got)
-	}
-}
-
 // TestUIBuildKeyInputs: node_major keyed when present, omitted when absent.
 func TestUIBuildKeyInputs(t *testing.T) {
 	withNode := buildInputDeps(map[string]string{}, "20")
@@ -267,7 +246,7 @@ func TestBinariesFreshnessBuildDeterminantNamesKeyInExplain(t *testing.T) {
 	repoRoot, appPath, binPath, _ := freshnessTestScene(t)
 	r := &Runner{Root: repoRoot}
 	item := freshnessTestItem(appPath)
-	check := item.Manifest.Lifecycle.Setup.Condition.Checks[0]
+	check := freshnessBinaryCheck()
 
 	if stale, _, err := r.binariesFreshness(item, check); err != nil || stale {
 		t.Fatalf("bootstrap fresh expected: stale=%v err=%v", stale, err)

@@ -59,6 +59,27 @@ const (
 	// CodeFactsServiceClearCacheProcedure is the fully-qualified name of the CodeFactsService's
 	// ClearCache RPC.
 	CodeFactsServiceClearCacheProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/ClearCache"
+	// CodeFactsServiceGetIndexStatusProcedure is the fully-qualified name of the CodeFactsService's
+	// GetIndexStatus RPC.
+	CodeFactsServiceGetIndexStatusProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/GetIndexStatus"
+	// CodeFactsServiceReconcileIndexProcedure is the fully-qualified name of the CodeFactsService's
+	// ReconcileIndex RPC.
+	CodeFactsServiceReconcileIndexProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/ReconcileIndex"
+	// CodeFactsServiceReindexProcedure is the fully-qualified name of the CodeFactsService's Reindex
+	// RPC.
+	CodeFactsServiceReindexProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/Reindex"
+	// CodeFactsServiceCancelIndexJobProcedure is the fully-qualified name of the CodeFactsService's
+	// CancelIndexJob RPC.
+	CodeFactsServiceCancelIndexJobProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/CancelIndexJob"
+	// CodeFactsServicePromoteIndexGenerationProcedure is the fully-qualified name of the
+	// CodeFactsService's PromoteIndexGeneration RPC.
+	CodeFactsServicePromoteIndexGenerationProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/PromoteIndexGeneration"
+	// CodeFactsServiceRollbackIndexGenerationProcedure is the fully-qualified name of the
+	// CodeFactsService's RollbackIndexGeneration RPC.
+	CodeFactsServiceRollbackIndexGenerationProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/RollbackIndexGeneration"
+	// CodeFactsServiceCleanupIndexProcedure is the fully-qualified name of the CodeFactsService's
+	// CleanupIndex RPC.
+	CodeFactsServiceCleanupIndexProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/CleanupIndex"
 )
 
 // CodeFactsServiceClient is a client for the vrooli.code_facts.v1.facts.CodeFactsService service.
@@ -90,6 +111,20 @@ type CodeFactsServiceClient interface {
 	InspectCache(context.Context, *connect.Request[facts.InspectCacheRequest]) (*connect.Response[facts.CacheStatus], error)
 	// ClearCache plans or clears cache entries for a target/options tuple.
 	ClearCache(context.Context, *connect.Request[facts.ClearCacheRequest]) (*connect.Response[facts.ClearCacheResponse], error)
+	// GetIndexStatus returns the durable active generation and reconciliation jobs.
+	GetIndexStatus(context.Context, *connect.Request[facts.GetIndexStatusRequest]) (*connect.Response[facts.IndexStatus], error)
+	// ReconcileIndex applies bounded catalog changes to the selected generation.
+	ReconcileIndex(context.Context, *connect.Request[facts.ReconcileIndexRequest]) (*connect.Response[facts.IndexControlResponse], error)
+	// Reindex starts a full shadow-generation rebuild.
+	Reindex(context.Context, *connect.Request[facts.ReindexRequest]) (*connect.Response[facts.IndexControlResponse], error)
+	// CancelIndexJob durably requests cancellation of an active index job.
+	CancelIndexJob(context.Context, *connect.Request[facts.CancelIndexJobRequest]) (*connect.Response[facts.IndexControlResponse], error)
+	// PromoteIndexGeneration validates and promotes a complete shadow generation.
+	PromoteIndexGeneration(context.Context, *connect.Request[facts.PromoteIndexGenerationRequest]) (*connect.Response[facts.IndexControlResponse], error)
+	// RollbackIndexGeneration restores a retained complete generation.
+	RollbackIndexGeneration(context.Context, *connect.Request[facts.RollbackIndexGenerationRequest]) (*connect.Response[facts.IndexControlResponse], error)
+	// CleanupIndex plans or deletes retired derived generations.
+	CleanupIndex(context.Context, *connect.Request[facts.CleanupIndexRequest]) (*connect.Response[facts.IndexControlResponse], error)
 }
 
 // NewCodeFactsServiceClient constructs a client for the vrooli.code_facts.v1.facts.CodeFactsService
@@ -157,20 +192,69 @@ func NewCodeFactsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(codeFactsServiceMethods.ByName("ClearCache")),
 			connect.WithClientOptions(opts...),
 		),
+		getIndexStatus: connect.NewClient[facts.GetIndexStatusRequest, facts.IndexStatus](
+			httpClient,
+			baseURL+CodeFactsServiceGetIndexStatusProcedure,
+			connect.WithSchema(codeFactsServiceMethods.ByName("GetIndexStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		reconcileIndex: connect.NewClient[facts.ReconcileIndexRequest, facts.IndexControlResponse](
+			httpClient,
+			baseURL+CodeFactsServiceReconcileIndexProcedure,
+			connect.WithSchema(codeFactsServiceMethods.ByName("ReconcileIndex")),
+			connect.WithClientOptions(opts...),
+		),
+		reindex: connect.NewClient[facts.ReindexRequest, facts.IndexControlResponse](
+			httpClient,
+			baseURL+CodeFactsServiceReindexProcedure,
+			connect.WithSchema(codeFactsServiceMethods.ByName("Reindex")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelIndexJob: connect.NewClient[facts.CancelIndexJobRequest, facts.IndexControlResponse](
+			httpClient,
+			baseURL+CodeFactsServiceCancelIndexJobProcedure,
+			connect.WithSchema(codeFactsServiceMethods.ByName("CancelIndexJob")),
+			connect.WithClientOptions(opts...),
+		),
+		promoteIndexGeneration: connect.NewClient[facts.PromoteIndexGenerationRequest, facts.IndexControlResponse](
+			httpClient,
+			baseURL+CodeFactsServicePromoteIndexGenerationProcedure,
+			connect.WithSchema(codeFactsServiceMethods.ByName("PromoteIndexGeneration")),
+			connect.WithClientOptions(opts...),
+		),
+		rollbackIndexGeneration: connect.NewClient[facts.RollbackIndexGenerationRequest, facts.IndexControlResponse](
+			httpClient,
+			baseURL+CodeFactsServiceRollbackIndexGenerationProcedure,
+			connect.WithSchema(codeFactsServiceMethods.ByName("RollbackIndexGeneration")),
+			connect.WithClientOptions(opts...),
+		),
+		cleanupIndex: connect.NewClient[facts.CleanupIndexRequest, facts.IndexControlResponse](
+			httpClient,
+			baseURL+CodeFactsServiceCleanupIndexProcedure,
+			connect.WithSchema(codeFactsServiceMethods.ByName("CleanupIndex")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // codeFactsServiceClient implements CodeFactsServiceClient.
 type codeFactsServiceClient struct {
-	describeCodeFacts    *connect.Client[facts.DescribeCodeFactsRequest, facts.CodeFactsReport]
-	search               *connect.Client[facts.SearchRequest, facts.SearchResponse]
-	describeFleetImports *connect.Client[facts.DescribeFleetImportsRequest, facts.DescribeFleetImportsResponse]
-	listSurfaces         *connect.Client[facts.ListSurfacesRequest, facts.ListSurfacesResponse]
-	checkProtoAdoption   *connect.Client[facts.CheckProtoAdoptionRequest, facts.ProofReport]
-	checkEndpointProof   *connect.Client[facts.CheckEndpointProofRequest, facts.ProofReport]
-	getCacheStatus       *connect.Client[facts.GetCacheStatusRequest, facts.CacheStatus]
-	inspectCache         *connect.Client[facts.InspectCacheRequest, facts.CacheStatus]
-	clearCache           *connect.Client[facts.ClearCacheRequest, facts.ClearCacheResponse]
+	describeCodeFacts       *connect.Client[facts.DescribeCodeFactsRequest, facts.CodeFactsReport]
+	search                  *connect.Client[facts.SearchRequest, facts.SearchResponse]
+	describeFleetImports    *connect.Client[facts.DescribeFleetImportsRequest, facts.DescribeFleetImportsResponse]
+	listSurfaces            *connect.Client[facts.ListSurfacesRequest, facts.ListSurfacesResponse]
+	checkProtoAdoption      *connect.Client[facts.CheckProtoAdoptionRequest, facts.ProofReport]
+	checkEndpointProof      *connect.Client[facts.CheckEndpointProofRequest, facts.ProofReport]
+	getCacheStatus          *connect.Client[facts.GetCacheStatusRequest, facts.CacheStatus]
+	inspectCache            *connect.Client[facts.InspectCacheRequest, facts.CacheStatus]
+	clearCache              *connect.Client[facts.ClearCacheRequest, facts.ClearCacheResponse]
+	getIndexStatus          *connect.Client[facts.GetIndexStatusRequest, facts.IndexStatus]
+	reconcileIndex          *connect.Client[facts.ReconcileIndexRequest, facts.IndexControlResponse]
+	reindex                 *connect.Client[facts.ReindexRequest, facts.IndexControlResponse]
+	cancelIndexJob          *connect.Client[facts.CancelIndexJobRequest, facts.IndexControlResponse]
+	promoteIndexGeneration  *connect.Client[facts.PromoteIndexGenerationRequest, facts.IndexControlResponse]
+	rollbackIndexGeneration *connect.Client[facts.RollbackIndexGenerationRequest, facts.IndexControlResponse]
+	cleanupIndex            *connect.Client[facts.CleanupIndexRequest, facts.IndexControlResponse]
 }
 
 // DescribeCodeFacts calls vrooli.code_facts.v1.facts.CodeFactsService.DescribeCodeFacts.
@@ -218,6 +302,42 @@ func (c *codeFactsServiceClient) ClearCache(ctx context.Context, req *connect.Re
 	return c.clearCache.CallUnary(ctx, req)
 }
 
+// GetIndexStatus calls vrooli.code_facts.v1.facts.CodeFactsService.GetIndexStatus.
+func (c *codeFactsServiceClient) GetIndexStatus(ctx context.Context, req *connect.Request[facts.GetIndexStatusRequest]) (*connect.Response[facts.IndexStatus], error) {
+	return c.getIndexStatus.CallUnary(ctx, req)
+}
+
+// ReconcileIndex calls vrooli.code_facts.v1.facts.CodeFactsService.ReconcileIndex.
+func (c *codeFactsServiceClient) ReconcileIndex(ctx context.Context, req *connect.Request[facts.ReconcileIndexRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return c.reconcileIndex.CallUnary(ctx, req)
+}
+
+// Reindex calls vrooli.code_facts.v1.facts.CodeFactsService.Reindex.
+func (c *codeFactsServiceClient) Reindex(ctx context.Context, req *connect.Request[facts.ReindexRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return c.reindex.CallUnary(ctx, req)
+}
+
+// CancelIndexJob calls vrooli.code_facts.v1.facts.CodeFactsService.CancelIndexJob.
+func (c *codeFactsServiceClient) CancelIndexJob(ctx context.Context, req *connect.Request[facts.CancelIndexJobRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return c.cancelIndexJob.CallUnary(ctx, req)
+}
+
+// PromoteIndexGeneration calls vrooli.code_facts.v1.facts.CodeFactsService.PromoteIndexGeneration.
+func (c *codeFactsServiceClient) PromoteIndexGeneration(ctx context.Context, req *connect.Request[facts.PromoteIndexGenerationRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return c.promoteIndexGeneration.CallUnary(ctx, req)
+}
+
+// RollbackIndexGeneration calls
+// vrooli.code_facts.v1.facts.CodeFactsService.RollbackIndexGeneration.
+func (c *codeFactsServiceClient) RollbackIndexGeneration(ctx context.Context, req *connect.Request[facts.RollbackIndexGenerationRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return c.rollbackIndexGeneration.CallUnary(ctx, req)
+}
+
+// CleanupIndex calls vrooli.code_facts.v1.facts.CodeFactsService.CleanupIndex.
+func (c *codeFactsServiceClient) CleanupIndex(ctx context.Context, req *connect.Request[facts.CleanupIndexRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return c.cleanupIndex.CallUnary(ctx, req)
+}
+
 // CodeFactsServiceHandler is an implementation of the vrooli.code_facts.v1.facts.CodeFactsService
 // service.
 type CodeFactsServiceHandler interface {
@@ -248,6 +368,20 @@ type CodeFactsServiceHandler interface {
 	InspectCache(context.Context, *connect.Request[facts.InspectCacheRequest]) (*connect.Response[facts.CacheStatus], error)
 	// ClearCache plans or clears cache entries for a target/options tuple.
 	ClearCache(context.Context, *connect.Request[facts.ClearCacheRequest]) (*connect.Response[facts.ClearCacheResponse], error)
+	// GetIndexStatus returns the durable active generation and reconciliation jobs.
+	GetIndexStatus(context.Context, *connect.Request[facts.GetIndexStatusRequest]) (*connect.Response[facts.IndexStatus], error)
+	// ReconcileIndex applies bounded catalog changes to the selected generation.
+	ReconcileIndex(context.Context, *connect.Request[facts.ReconcileIndexRequest]) (*connect.Response[facts.IndexControlResponse], error)
+	// Reindex starts a full shadow-generation rebuild.
+	Reindex(context.Context, *connect.Request[facts.ReindexRequest]) (*connect.Response[facts.IndexControlResponse], error)
+	// CancelIndexJob durably requests cancellation of an active index job.
+	CancelIndexJob(context.Context, *connect.Request[facts.CancelIndexJobRequest]) (*connect.Response[facts.IndexControlResponse], error)
+	// PromoteIndexGeneration validates and promotes a complete shadow generation.
+	PromoteIndexGeneration(context.Context, *connect.Request[facts.PromoteIndexGenerationRequest]) (*connect.Response[facts.IndexControlResponse], error)
+	// RollbackIndexGeneration restores a retained complete generation.
+	RollbackIndexGeneration(context.Context, *connect.Request[facts.RollbackIndexGenerationRequest]) (*connect.Response[facts.IndexControlResponse], error)
+	// CleanupIndex plans or deletes retired derived generations.
+	CleanupIndex(context.Context, *connect.Request[facts.CleanupIndexRequest]) (*connect.Response[facts.IndexControlResponse], error)
 }
 
 // NewCodeFactsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -311,6 +445,48 @@ func NewCodeFactsServiceHandler(svc CodeFactsServiceHandler, opts ...connect.Han
 		connect.WithSchema(codeFactsServiceMethods.ByName("ClearCache")),
 		connect.WithHandlerOptions(opts...),
 	)
+	codeFactsServiceGetIndexStatusHandler := connect.NewUnaryHandler(
+		CodeFactsServiceGetIndexStatusProcedure,
+		svc.GetIndexStatus,
+		connect.WithSchema(codeFactsServiceMethods.ByName("GetIndexStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	codeFactsServiceReconcileIndexHandler := connect.NewUnaryHandler(
+		CodeFactsServiceReconcileIndexProcedure,
+		svc.ReconcileIndex,
+		connect.WithSchema(codeFactsServiceMethods.ByName("ReconcileIndex")),
+		connect.WithHandlerOptions(opts...),
+	)
+	codeFactsServiceReindexHandler := connect.NewUnaryHandler(
+		CodeFactsServiceReindexProcedure,
+		svc.Reindex,
+		connect.WithSchema(codeFactsServiceMethods.ByName("Reindex")),
+		connect.WithHandlerOptions(opts...),
+	)
+	codeFactsServiceCancelIndexJobHandler := connect.NewUnaryHandler(
+		CodeFactsServiceCancelIndexJobProcedure,
+		svc.CancelIndexJob,
+		connect.WithSchema(codeFactsServiceMethods.ByName("CancelIndexJob")),
+		connect.WithHandlerOptions(opts...),
+	)
+	codeFactsServicePromoteIndexGenerationHandler := connect.NewUnaryHandler(
+		CodeFactsServicePromoteIndexGenerationProcedure,
+		svc.PromoteIndexGeneration,
+		connect.WithSchema(codeFactsServiceMethods.ByName("PromoteIndexGeneration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	codeFactsServiceRollbackIndexGenerationHandler := connect.NewUnaryHandler(
+		CodeFactsServiceRollbackIndexGenerationProcedure,
+		svc.RollbackIndexGeneration,
+		connect.WithSchema(codeFactsServiceMethods.ByName("RollbackIndexGeneration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	codeFactsServiceCleanupIndexHandler := connect.NewUnaryHandler(
+		CodeFactsServiceCleanupIndexProcedure,
+		svc.CleanupIndex,
+		connect.WithSchema(codeFactsServiceMethods.ByName("CleanupIndex")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.code_facts.v1.facts.CodeFactsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CodeFactsServiceDescribeCodeFactsProcedure:
@@ -331,6 +507,20 @@ func NewCodeFactsServiceHandler(svc CodeFactsServiceHandler, opts ...connect.Han
 			codeFactsServiceInspectCacheHandler.ServeHTTP(w, r)
 		case CodeFactsServiceClearCacheProcedure:
 			codeFactsServiceClearCacheHandler.ServeHTTP(w, r)
+		case CodeFactsServiceGetIndexStatusProcedure:
+			codeFactsServiceGetIndexStatusHandler.ServeHTTP(w, r)
+		case CodeFactsServiceReconcileIndexProcedure:
+			codeFactsServiceReconcileIndexHandler.ServeHTTP(w, r)
+		case CodeFactsServiceReindexProcedure:
+			codeFactsServiceReindexHandler.ServeHTTP(w, r)
+		case CodeFactsServiceCancelIndexJobProcedure:
+			codeFactsServiceCancelIndexJobHandler.ServeHTTP(w, r)
+		case CodeFactsServicePromoteIndexGenerationProcedure:
+			codeFactsServicePromoteIndexGenerationHandler.ServeHTTP(w, r)
+		case CodeFactsServiceRollbackIndexGenerationProcedure:
+			codeFactsServiceRollbackIndexGenerationHandler.ServeHTTP(w, r)
+		case CodeFactsServiceCleanupIndexProcedure:
+			codeFactsServiceCleanupIndexHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -374,4 +564,32 @@ func (UnimplementedCodeFactsServiceHandler) InspectCache(context.Context, *conne
 
 func (UnimplementedCodeFactsServiceHandler) ClearCache(context.Context, *connect.Request[facts.ClearCacheRequest]) (*connect.Response[facts.ClearCacheResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.ClearCache is not implemented"))
+}
+
+func (UnimplementedCodeFactsServiceHandler) GetIndexStatus(context.Context, *connect.Request[facts.GetIndexStatusRequest]) (*connect.Response[facts.IndexStatus], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.GetIndexStatus is not implemented"))
+}
+
+func (UnimplementedCodeFactsServiceHandler) ReconcileIndex(context.Context, *connect.Request[facts.ReconcileIndexRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.ReconcileIndex is not implemented"))
+}
+
+func (UnimplementedCodeFactsServiceHandler) Reindex(context.Context, *connect.Request[facts.ReindexRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.Reindex is not implemented"))
+}
+
+func (UnimplementedCodeFactsServiceHandler) CancelIndexJob(context.Context, *connect.Request[facts.CancelIndexJobRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.CancelIndexJob is not implemented"))
+}
+
+func (UnimplementedCodeFactsServiceHandler) PromoteIndexGeneration(context.Context, *connect.Request[facts.PromoteIndexGenerationRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.PromoteIndexGeneration is not implemented"))
+}
+
+func (UnimplementedCodeFactsServiceHandler) RollbackIndexGeneration(context.Context, *connect.Request[facts.RollbackIndexGenerationRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.RollbackIndexGeneration is not implemented"))
+}
+
+func (UnimplementedCodeFactsServiceHandler) CleanupIndex(context.Context, *connect.Request[facts.CleanupIndexRequest]) (*connect.Response[facts.IndexControlResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.CleanupIndex is not implemented"))
 }

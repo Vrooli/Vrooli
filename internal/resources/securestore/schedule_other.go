@@ -4,7 +4,9 @@ package securestore
 
 import "time"
 
-const nativeScheduleProvider = "unsupported"
-const nativeScheduleSupported = false
+const (
+	nativeScheduleProvider  = "unsupported"
+	nativeScheduleSupported = false
+)
 
 func installNativeCopySchedule(string, time.Duration, bool) error { return nil }

@@ -50,6 +50,7 @@ const (
 type Declaration struct {
 	Name         string    `json:"name"`
 	Required     bool      `json:"required"`
+	MinVersion   string    `json:"min_version,omitempty"`
 	Reason       string    `json:"reason"`
 	When         []string  `json:"when,omitempty"`
 	Environments []string  `json:"environments,omitempty"`
@@ -250,6 +251,7 @@ type ResolvedRequirement struct {
 	Name           string         `json:"name"`
 	Kind           Kind           `json:"kind"`
 	Required       bool           `json:"required"`
+	MinVersion     string         `json:"min_version,omitempty"`
 	OperatorChoice OperatorChoice `json:"operator_choice"`
 	Config         map[string]any `json:"config,omitempty"`
 	ConfigError    string         `json:"config_error,omitempty"`

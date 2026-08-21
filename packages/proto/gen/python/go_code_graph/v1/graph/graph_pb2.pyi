@@ -23,6 +23,13 @@ class GoNodeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     GO_NODE_KIND_CALL: _ClassVar[GoNodeKind]
     GO_NODE_KIND_TYPE_USAGE: _ClassVar[GoNodeKind]
     GO_NODE_KIND_ROUTE_REGISTRATION: _ClassVar[GoNodeKind]
+
+class ExtractionProfile(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EXTRACTION_PROFILE_UNSPECIFIED: _ClassVar[ExtractionProfile]
+    EXTRACTION_PROFILE_SEMANTIC: _ClassVar[ExtractionProfile]
+    EXTRACTION_PROFILE_STRUCTURAL: _ClassVar[ExtractionProfile]
+    EXTRACTION_PROFILE_FULL: _ClassVar[ExtractionProfile]
 GO_NODE_KIND_UNSPECIFIED: GoNodeKind
 GO_NODE_KIND_TYPE: GoNodeKind
 GO_NODE_KIND_FUNC: GoNodeKind
@@ -35,26 +42,46 @@ GO_NODE_KIND_REFERENCE: GoNodeKind
 GO_NODE_KIND_CALL: GoNodeKind
 GO_NODE_KIND_TYPE_USAGE: GoNodeKind
 GO_NODE_KIND_ROUTE_REGISTRATION: GoNodeKind
+EXTRACTION_PROFILE_UNSPECIFIED: ExtractionProfile
+EXTRACTION_PROFILE_SEMANTIC: ExtractionProfile
+EXTRACTION_PROFILE_STRUCTURAL: ExtractionProfile
+EXTRACTION_PROFILE_FULL: ExtractionProfile
 
 class ExtractRequest(_message.Message):
-    __slots__ = ("module_path", "include_vendor")
+    __slots__ = ("module_path", "include_vendor", "profile", "package_patterns")
     MODULE_PATH_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_VENDOR_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_PATTERNS_FIELD_NUMBER: _ClassVar[int]
     module_path: str
     include_vendor: bool
-    def __init__(self, module_path: _Optional[str] = ..., include_vendor: _Optional[bool] = ...) -> None: ...
+    profile: ExtractionProfile
+    package_patterns: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, module_path: _Optional[str] = ..., include_vendor: _Optional[bool] = ..., profile: _Optional[_Union[ExtractionProfile, str]] = ..., package_patterns: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ExtractResponse(_message.Message):
-    __slots__ = ("graph", "warnings", "extraction_ms", "graph_hash")
+    __slots__ = ("graph", "warnings", "extraction_ms", "graph_hash", "fingerprint_ms", "load_ms", "normalize_ms", "cache_hit", "profile", "omitted_information")
     GRAPH_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
     EXTRACTION_MS_FIELD_NUMBER: _ClassVar[int]
     GRAPH_HASH_FIELD_NUMBER: _ClassVar[int]
+    FINGERPRINT_MS_FIELD_NUMBER: _ClassVar[int]
+    LOAD_MS_FIELD_NUMBER: _ClassVar[int]
+    NORMALIZE_MS_FIELD_NUMBER: _ClassVar[int]
+    CACHE_HIT_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
+    OMITTED_INFORMATION_FIELD_NUMBER: _ClassVar[int]
     graph: _code_graph_pb2.CodeGraph
     warnings: _containers.RepeatedCompositeFieldContainer[_code_graph_pb2.CodeGraphWarning]
     extraction_ms: int
     graph_hash: str
-    def __init__(self, graph: _Optional[_Union[_code_graph_pb2.CodeGraph, _Mapping]] = ..., warnings: _Optional[_Iterable[_Union[_code_graph_pb2.CodeGraphWarning, _Mapping]]] = ..., extraction_ms: _Optional[int] = ..., graph_hash: _Optional[str] = ...) -> None: ...
+    fingerprint_ms: int
+    load_ms: int
+    normalize_ms: int
+    cache_hit: bool
+    profile: ExtractionProfile
+    omitted_information: _containers.RepeatedCompositeFieldContainer[_code_graph_pb2.CodeGraphOmission]
+    def __init__(self, graph: _Optional[_Union[_code_graph_pb2.CodeGraph, _Mapping]] = ..., warnings: _Optional[_Iterable[_Union[_code_graph_pb2.CodeGraphWarning, _Mapping]]] = ..., extraction_ms: _Optional[int] = ..., graph_hash: _Optional[str] = ..., fingerprint_ms: _Optional[int] = ..., load_ms: _Optional[int] = ..., normalize_ms: _Optional[int] = ..., cache_hit: _Optional[bool] = ..., profile: _Optional[_Union[ExtractionProfile, str]] = ..., omitted_information: _Optional[_Iterable[_Union[_code_graph_pb2.CodeGraphOmission, _Mapping]]] = ...) -> None: ...
 
 class RewritePlanRequest(_message.Message):
     __slots__ = ("module_path", "operations")

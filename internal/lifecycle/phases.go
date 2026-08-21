@@ -5,9 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +24,6 @@ import (
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/shell"
 )
 
 type PhaseExecutionStatus string
@@ -159,12 +163,11 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 		}
 	}
 
-	args := append([]string(nil), opts.Args...)
 	var result PhaseResult
 	logPath, _ := process.ScenarioLifecycleLogPath(r.Home, item.Slug)
 	meta, runErr := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "phase", Phase: phaseName, RunID: strings.TrimSpace(opts.RunID)}, func(logWriter, childWriter io.Writer) error {
 		var executeErr error
-		result, executeErr = r.ExecutePhaseDetailed(item, phaseName, env, args, logWriter, childWriter)
+		result, executeErr = r.ExecutePhaseDetailed(item, phaseName, env, logWriter, childWriter)
 		return executeErr
 	})
 	result.RunID = meta.RunID
@@ -188,16 +191,11 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 
 func phaseRequiresBootstrap(phaseName string) bool {
 	switch strings.TrimSpace(phaseName) {
-	case "develop", "test":
+	case "develop":
 		return true
 	default:
 		return false
 	}
-}
-
-func (r *Runner) ExecutePhase(item scenario.Scenario, phaseName string, env map[string]string, args []string, logWriter io.Writer) error {
-	_, err := r.ExecutePhaseDetailed(item, phaseName, env, args, logWriter, logWriter)
-	return err
 }
 
 // ExecutePhaseDetailed runs a phase's steps. logWriter receives orchestrator
@@ -208,37 +206,46 @@ func (r *Runner) ExecutePhase(item scenario.Scenario, phaseName string, env map[
 // tees to the scenario lifecycle log file plus the console at the current
 // verbosity, and a childWriter that tees to the log file plus the console
 // only at verbose — see runWithLifecycleLog.
-func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, env map[string]string, args []string, logWriter io.Writer, childWriter io.Writer) (PhaseResult, error) {
+func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, env map[string]string, logWriter io.Writer, childWriter io.Writer) (PhaseResult, error) {
 	if childWriter == nil {
 		childWriter = logWriter
 	}
 	phase, ok := lookupPhase(item.Manifest, phaseName)
-	if !ok {
+	derivedComponentPhase := len(item.Manifest.Components) > 0 && (phaseName == "setup" || phaseName == "develop")
+	if !ok && !derivedComponentPhase {
 		r.logDebug("Scenario phase not defined", logx.AttrScenario, item.Slug, logx.AttrPhase, phaseName)
 		return undefinedPhaseResult(item.Slug, phaseName), nil
 	}
-	if !phaseDefined(phase) {
+	if !phaseDefined(phase) && !derivedComponentPhase {
 		r.logDebug("Scenario phase empty; treating as undefined", logx.AttrScenario, item.Slug, logx.AttrPhase, phaseName)
 		return undefinedPhaseResult(item.Slug, phaseName), nil
 	}
-	if phaseName == "setup" {
-		if err := r.provisionSharedPackages(item, env, logWriter, childWriter); err != nil {
-			return PhaseResult{}, err
-		}
-	}
-
 	result := PhaseResult{
 		Scenario: item.Slug,
 		Phase:    phaseName,
 		Defined:  true,
 		Status:   PhaseExecutionSkipped,
 	}
+	if phaseName == "setup" {
+		if err := r.provisionSharedPackages(item, env, logWriter, childWriter); err != nil {
+			return PhaseResult{}, err
+		}
+		built, err := r.buildDeclaredComponents(item, env, childWriter)
+		if err != nil {
+			return result, err
+		}
+		result.ExecutedSteps += built
+		if built > 0 {
+			result.Status = PhaseExecutionCompleted
+		}
+	}
+	steps := declaredPhaseSteps(item.Manifest, phaseName, phase.Steps)
 	lifecycleLogPath, err := process.ScenarioLifecycleLogPath(r.Home, item.Slug)
 	if err != nil {
 		return result, err
 	}
-	for index, step := range phase.Steps {
-		if strings.TrimSpace(step.Run) == "" {
+	for index, step := range steps {
+		if len(step.Exec) == 0 {
 			continue
 		}
 		ok, reason, err := stepConditionsMet(item, step.Condition, env)
@@ -246,7 +253,7 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 			return result, err
 		}
 		if !ok {
-			r.infof(logWriter, "[%d/%d] Skipping %s - %s", index+1, len(phase.Steps), step.Name, reason)
+			r.infof(logWriter, "[%d/%d] Skipping %s - %s", index+1, len(steps), step.Name, reason)
 			r.logDebug("Skipping lifecycle step",
 				logx.AttrScenario, item.Slug,
 				logx.AttrPhase, phaseName,
@@ -256,26 +263,25 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 			result.SkippedSteps++
 			continue
 		}
+		if _, component, isComponent := componentForStep(item.Manifest, step.Name); isComponent {
+			ok, reason, err = stepConditionsMet(item, component.Run.Condition, env)
+			if err != nil {
+				return result, err
+			}
+			if !ok {
+				r.infof(logWriter, "[%d/%d] Skipping %s - %s", index+1, len(steps), step.Name, reason)
+				result.SkippedSteps++
+				continue
+			}
+		}
 
-		r.infof(logWriter, "[%d/%d] %s", index+1, len(phase.Steps), step.Name)
+		r.infof(logWriter, "[%d/%d] %s", index+1, len(steps), step.Name)
 		r.logDebug("Executing lifecycle step",
 			logx.AttrScenario, item.Slug,
 			logx.AttrPhase, phaseName,
 			logx.AttrStep, step.Name,
 			"background", step.Background,
 		)
-
-		finalCmd := step.Run
-		if phaseName == "test" {
-			if len(args) > 0 && isTestGenieExecuteCommand(finalCmd) {
-				quotedArgs := make([]string, 0, len(args))
-				for _, arg := range args {
-					quotedArgs = append(quotedArgs, shellQuote(arg))
-				}
-				finalCmd += " " + strings.Join(quotedArgs, " ")
-			}
-			finalCmd = injectTestGenieTestFlags(finalCmd)
-		}
 
 		if step.Background {
 			if err := r.startTrackedProcess(item, phaseName, step, env); err != nil {
@@ -287,7 +293,7 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 		}
 
 		sink := newStepSink(childWriter)
-		stepErr := r.runForegroundStep(item, phaseName, finalCmd, env, sink)
+		stepErr := r.runForegroundStep(item, phaseName, step, env, sink)
 		sink.Flush()
 		if stepErr != nil {
 			if phaseName == "stop" {
@@ -317,87 +323,181 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 	return result, nil
 }
 
-// injectTestGenieTestFlags rewrites a lifecycle `test-genie execute` test step to
-// carry the one flag the lifecycle path requires, idempotently:
-//
-//   - `--auto-start` (a global test-genie flag, before the subcommand): the
-//     lifecycle owns the target scenario's runtime, so the suite may auto-start
-//     surfaces it needs.
-//
-// The server owns the run and `execute` owns foreground/background policy. A
-// caller that wants inline blocking can pass `--wait` through `vrooli scenario
-// test`; the wrapper does not force it.
-func injectTestGenieTestFlags(command string) string {
-	fields := strings.Fields(command)
-
-	binIdx, execIdx := testGenieExecuteIndexes(fields)
-	if binIdx < 0 || execIdx < 0 {
-		return command
-	}
-
-	hasAutoStart := false
-	for i := binIdx + 1; i < execIdx; i++ {
-		if fields[i] == "--auto-start" || strings.HasPrefix(fields[i], "--auto-start=") {
-			hasAutoStart = true
+// declaredPhaseSteps makes components the sole authority for process launch.
+// Setup shell mirrors are ignored because buildDeclaredComponents derives the
+// same work from build.kind. Develop shell mirrors are replaced by one typed
+// background launch per component. Explicit argv provisioning steps remain.
+func declaredPhaseSteps(manifest scenario.ServiceManifest, phaseName string, authored []scenario.PhaseStep) []scenario.PhaseStep {
+	steps := make([]scenario.PhaseStep, 0, len(authored)+len(manifest.Components))
+	for _, step := range authored {
+		if phaseName != "setup" && phaseName != "develop" || len(step.Exec) > 0 {
+			steps = append(steps, step)
 		}
 	}
-	if hasAutoStart {
-		return command
+	if phaseName != "develop" {
+		return steps
 	}
-
-	// Splice --auto-start (a test-genie GLOBAL flag) into the binary..execute
-	// span, preserving the possibly-quoted tail byte-for-byte. The span replace
-	// touches only the binary + any existing global flags + the `execute` token,
-	// leaving the scenario positional and the rest of the command untouched.
-	span := strings.Join(fields[binIdx:execIdx+1], " ")
-	rebuilt := fields[binIdx]
-	for i := binIdx + 1; i < execIdx; i++ {
-		rebuilt += " " + fields[i]
+	for _, name := range orderedComponentNames(manifest.Components) {
+		component := manifest.Components[name]
+		steps = append(steps, scenario.PhaseStep{
+			Name:       "start-" + name,
+			Exec:       append([]string(nil), component.Run.Argv...),
+			Background: true,
+			Condition:  component.Run.Condition,
+		})
 	}
-	if !hasAutoStart {
-		rebuilt += " --auto-start"
-	}
-	rebuilt += " execute"
-	return strings.Replace(command, span, rebuilt, 1)
+	return steps
 }
 
-func isTestGenieExecuteCommand(command string) bool {
-	fields := strings.Fields(command)
-	_, execIdx := testGenieExecuteIndexes(fields)
-	return execIdx >= 0
+func orderedComponentNames(components map[string]scenario.Component) []string {
+	indegree := make(map[string]int, len(components))
+	dependents := make(map[string][]string, len(components))
+	for name := range components {
+		indegree[name] = 0
+	}
+	for name, component := range components {
+		dependencies := make([]string, 0, len(component.Run.DependsOn)+1)
+		for _, dependency := range component.Run.DependsOn {
+			dependencies = append(dependencies, dependency.Component)
+		}
+		if component.Run.SupervisedBy != "" {
+			dependencies = append(dependencies, component.Run.SupervisedBy)
+		}
+		for _, dependency := range uniqueStrings(dependencies) {
+			if _, ok := components[dependency]; !ok {
+				continue
+			}
+			indegree[name]++
+			dependents[dependency] = append(dependents[dependency], name)
+		}
+	}
+	ready := make([]string, 0, len(components))
+	for name, degree := range indegree {
+		if degree == 0 {
+			ready = append(ready, name)
+		}
+	}
+	sortComponentNames(ready, components)
+	ordered := make([]string, 0, len(components))
+	for len(ready) > 0 {
+		name := ready[0]
+		ready = ready[1:]
+		ordered = append(ordered, name)
+		for _, dependent := range dependents[name] {
+			indegree[dependent]--
+			if indegree[dependent] == 0 {
+				ready = append(ready, dependent)
+				sortComponentNames(ready, components)
+			}
+		}
+	}
+	return ordered
 }
 
-func testGenieExecuteIndexes(fields []string) (int, int) {
-	// Locate the test-genie binary (the first token that is not an env
-	// assignment).
-	binIdx := -1
-	for i, f := range fields {
-		if strings.Contains(f, "=") && !strings.HasPrefix(f, "-") {
+func sortComponentNames(names []string, components map[string]scenario.Component) {
+	roleOrder := map[string]int{"api": 0, "worker": 1, "sidecar": 1, "ui": 2}
+	sort.Slice(names, func(i, j int) bool {
+		left, leftOK := roleOrder[components[names[i]].Role]
+		right, rightOK := roleOrder[components[names[j]].Role]
+		if !leftOK {
+			left = 3
+		}
+		if !rightOK {
+			right = 3
+		}
+		if left == right {
+			return names[i] < names[j]
+		}
+		return left < right
+	})
+}
+
+func (r *Runner) buildDeclaredComponents(item scenario.Scenario, env map[string]string, writer io.Writer) (int, error) {
+	executed := 0
+	registry := BuilderRegistry()
+	for _, name := range orderedComponentNames(item.Manifest.Components) {
+		component := item.Manifest.Components[name]
+		if component.Build.Reuse != "" {
 			continue
 		}
-		binIdx = i
-		break
+		ok, _, err := stepConditionsMet(item, component.Run.Condition, env)
+		if err != nil {
+			return executed, err
+		}
+		if !ok {
+			continue
+		}
+		spec, exists := registry[component.Build.Kind]
+		if !exists || spec.Reserved {
+			return executed, fmt.Errorf("component %s has no executable builder %q", name, component.Build.Kind)
+		}
+		output := ""
+		if slicesContainTemplate(spec.Build, "{output}") {
+			output, err = componentArtifact(name, item.Path, item.Slug, item.Manifest.Components, runtimeGOOS(), map[string]bool{})
+			if err != nil {
+				return executed, err
+			}
+		}
+		entry := strings.TrimSpace(component.Build.Entry)
+		if entry == "" {
+			entry = "."
+		}
+		replacer := strings.NewReplacer(
+			"{dir}", component.Build.Dir,
+			"{scenario}", item.Slug,
+			"{component}", name,
+			"{entry}", entry,
+			"{output}", output,
+		)
+		commands := [][]string{spec.Install, spec.Build}
+		for commandIndex, template := range commands {
+			if len(template) == 0 {
+				continue
+			}
+			argv := make([]string, len(template))
+			for index, value := range template {
+				argv[index] = replacer.Replace(value)
+			}
+			stepEnv := cloneStringMap(spec.Environment)
+			step := scenario.PhaseStep{
+				Name: fmt.Sprintf("build-%s-%d", name, commandIndex+1),
+				Exec: argv,
+				CWD:  filepath.ToSlash(component.Build.Dir),
+				Env:  stepEnv,
+			}
+			if err := r.runForegroundStep(item, "setup", step, env, writer); err != nil {
+				return executed, fmt.Errorf("build component %s: %w", name, err)
+			}
+			executed++
+		}
 	}
-	if binIdx < 0 || filepath.Base(fields[binIdx]) != "test-genie" {
-		return -1, -1
-	}
+	return executed, nil
+}
 
-	// Locate the `execute` subcommand, allowing global flags (e.g. an existing
-	// --auto-start) between the binary and the subcommand.
-	execIdx := -1
-	for i := binIdx + 1; i < len(fields); i++ {
-		if fields[i] == "execute" {
-			execIdx = i
-			break
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if _, exists := seen[value]; exists {
+			continue
 		}
-		if !strings.HasPrefix(fields[i], "-") {
-			break // a positional before `execute` — not a test-genie execute command
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
+func slicesContainTemplate(values []string, token string) bool {
+	for _, value := range values {
+		if strings.Contains(value, token) {
+			return true
 		}
 	}
-	if execIdx < 0 {
-		return -1, -1
-	}
-	return binIdx, execIdx
+	return false
+}
+
+func runtimeGOOS() string {
+	return runtime.GOOS
 }
 
 func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string) error {
@@ -424,11 +524,6 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	}
 	defer file.Close()
 
-	sourceDir, err := r.effectiveSourceDir(item)
-	if err != nil {
-		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
-	}
-
 	stepEnv := lifecycleStepEnv(phase, env)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_PROCESS_ID", processID)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_PHASE", phase)
@@ -436,23 +531,33 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	stepEnv = setEnvValue(stepEnv, "VROOLI_STEP", step.Name)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", "true")
 
-	port := inferStepPort(item.Manifest, step.Name, env)
+	declared, _, err := declaredCommandForStep(item, step, stepEnv)
+	if err != nil {
+		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
+	}
+	if _, component, ok := componentForStep(item.Manifest, step.Name); ok {
+		if err := r.waitForComponentDependencies(item, component, env); err != nil {
+			return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
+		}
+		if err := createComponentRuntimeDirectories(item.Path, component); err != nil {
+			return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
+		}
+	}
+	port := declared.Port
 	if port > 0 {
 		if inspection := r.runtimeDeps().inspectPort(port); len(inspection.Listeners) > 0 {
 			return newPhaseStepError(item.Slug, phase, step.Name, logFile, portConflictError(port, inspection))
 		}
 	}
 
-	// Scenario lifecycle steps remain shell-defined by the service.json contract.
-	// Week 6 removes project-level Bash orchestration, but scenario steps
-	// intentionally continue to run as user-authored shell commands.
-	cmd := shell.BashCommand(step.Run, shell.Spec{
-		Dir:    sourceDir,
-		Env:    stepEnv,
-		Stdin:  strings.NewReader(""),
-		Stdout: file,
-		Stderr: file,
-	})
+	cmd := exec.CommandContext(context.Background(), declared.Argv[0], declared.Argv[1:]...)
+	cmd.Dir = declared.Dir
+	cmd.Env = declared.Env
+	cmd.Stdin = strings.NewReader("")
+	cmd.Stdout = file
+	cmd.Stderr = file
+	workingDir := declared.Dir
+	commandText := strings.Join(declared.Argv, " ")
 	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}
@@ -468,10 +573,11 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 		Phase:      phase,
 		Scenario:   item.Slug,
 		Step:       step.Name,
-		Command:    step.Run,
-		WorkingDir: sourceDir,
+		Command:    commandText,
+		WorkingDir: workingDir,
 		LogFile:    logFile,
 		Port:       port,
+		PortKey:    declared.PortKey,
 		StartedAt:  time.Now().UTC(),
 		Status:     "running",
 	}
@@ -497,6 +603,129 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 			logFile,
 			exitErr,
 		)
+	}
+	return nil
+}
+
+func (r *Runner) waitForComponentDependencies(item scenario.Scenario, component scenario.Component, env map[string]string) error {
+	for _, dependency := range component.Run.DependsOn {
+		target, exists := item.Manifest.Components[dependency.Component]
+		if !exists {
+			return fmt.Errorf("component dependency %q is not declared", dependency.Component)
+		}
+		records, err := process.ReadScenarioRecords(r.Home, recordSlug(item))
+		if err != nil {
+			return err
+		}
+		started := false
+		for _, record := range process.LiveRecords(records) {
+			if record.Step == "start-"+dependency.Component {
+				started = true
+				break
+			}
+		}
+		if !started {
+			return fmt.Errorf("component dependency %q has not started", dependency.Component)
+		}
+		if dependency.Wait == "ready" {
+			if target.Run.Readiness == nil {
+				return fmt.Errorf("component dependency %q requests wait=ready but declares no readiness probe", dependency.Component)
+			}
+			if err := r.awaitComponentReadiness(item.Manifest, target, env); err != nil {
+				return fmt.Errorf("component dependency %q readiness: %w", dependency.Component, err)
+			}
+		}
+	}
+	return nil
+}
+
+func (r *Runner) awaitComponentReadiness(manifest scenario.ServiceManifest, component scenario.Component, env map[string]string) error {
+	readiness := component.Run.Readiness
+	if readiness == nil {
+		return nil
+	}
+	timeout := time.Duration(readiness.TimeoutMS) * time.Millisecond
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for {
+		lastErr = checkComponentReadiness(manifest, component, env)
+		if lastErr == nil {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timed out after %s: %w", timeout, lastErr)
+		}
+		r.runtimeDeps().sleep(100 * time.Millisecond)
+	}
+}
+
+func checkComponentReadiness(manifest scenario.ServiceManifest, component scenario.Component, env map[string]string) error {
+	readiness := component.Run.Readiness
+	if readiness == nil {
+		return nil
+	}
+	portValue, exists := envPortValue(manifest.PortEnvVar(component.Run.Port), env)
+	if !exists {
+		return fmt.Errorf("run.port %q has no allocated value", component.Run.Port)
+	}
+	switch readiness.Type {
+	case "port_open":
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(portValue)), 500*time.Millisecond)
+		if err != nil {
+			return err
+		}
+		return conn.Close()
+	case "http":
+		path, err := ports.ExpandTemplate(readiness.Path, env)
+		if err != nil {
+			return err
+		}
+		if path == "" {
+			path = "/"
+		}
+		if !strings.HasPrefix(path, "/") {
+			path = "/" + path
+		}
+		client := http.Client{Timeout: 500 * time.Millisecond}
+		response, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d%s", portValue, path))
+		if err != nil {
+			return err
+		}
+		defer response.Body.Close()
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			return fmt.Errorf("HTTP %d", response.StatusCode)
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported readiness type %q", readiness.Type)
+	}
+}
+
+func envPortValue(envVar string, env map[string]string) (int, bool) {
+	value, exists := env[envVar]
+	if !exists {
+		return 0, false
+	}
+	port, err := strconv.Atoi(value)
+	return port, err == nil && port > 0
+}
+
+func createComponentRuntimeDirectories(scenarioPath string, component scenario.Component) error {
+	paths := append([]string(nil), component.Run.DataDirs...)
+	if strings.TrimSpace(component.Run.LogDir) != "" {
+		paths = append(paths, component.Run.LogDir)
+	}
+	for _, relative := range paths {
+		dir, err := componentWorkingDir(scenarioPath, relative)
+		if err != nil {
+			return fmt.Errorf("runtime directory %q: %w", relative, err)
+		}
+		if _, err := config.EnsureOwnedDir(dir); err != nil {
+			return fmt.Errorf("create runtime directory %q: %w", relative, err)
+		}
 	}
 	return nil
 }
@@ -545,27 +774,137 @@ func lastLogLine(path string) string {
 	return ""
 }
 
-func (r *Runner) runForegroundStep(item scenario.Scenario, phase, command string, env map[string]string, logWriter io.Writer) error {
-	sourceDir, err := r.effectiveSourceDir(item)
+func (r *Runner) runForegroundStep(item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string, logWriter io.Writer) error {
+	stepEnv := lifecycleStepEnv(phase, env)
+
+	declared, _, err := declaredCommandForStep(item, step, stepEnv)
 	if err != nil {
 		return err
 	}
-
-	stepEnv := lifecycleStepEnv(phase, env)
-
-	// Scenario lifecycle steps remain shell-defined by the service.json contract.
-	cmd := shell.BashCommand(command, shell.Spec{
-		Dir:    sourceDir,
-		Env:    stepEnv,
-		Stdin:  strings.NewReader(""),
-		Stdout: logWriter,
-		Stderr: logWriter,
-	})
+	cmd := exec.CommandContext(context.Background(), declared.Argv[0], declared.Argv[1:]...)
+	cmd.Dir = declared.Dir
+	cmd.Env = declared.Env
+	cmd.Stdin = strings.NewReader("")
+	cmd.Stdout = logWriter
+	cmd.Stderr = logWriter
+	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{}); err != nil {
+		return err
+	}
 	return cmd.Run()
 }
 
-// lifecycleStepEnv makes setup and test phases safe for server-owned
-// execution. Those phases may invoke package managers and other tools that
+type declaredStepCommand struct {
+	Argv    []string
+	Dir     string
+	Env     []string
+	Port    int
+	PortKey string
+}
+
+func componentForStep(manifest scenario.ServiceManifest, stepName string) (string, scenario.Component, bool) {
+	name := strings.TrimPrefix(strings.TrimSpace(stepName), "start-")
+	component, ok := manifest.Components[name]
+	return name, component, ok
+}
+
+func declaredCommandForStep(item scenario.Scenario, step scenario.PhaseStep, baseEnv []string) (declaredStepCommand, bool, error) {
+	_, component, isComponent := componentForStep(item.Manifest, step.Name)
+	if isComponent {
+		argv, err := ResolveComponentArgv(component.Run.Argv, item.Path, item.Slug, item.Manifest.Components)
+		if err != nil {
+			return declaredStepCommand{}, false, err
+		}
+		environment := envSliceMap(baseEnv)
+		argv, err = expandDeclaredValues(argv, environment)
+		if err != nil {
+			return declaredStepCommand{}, false, fmt.Errorf("component %s run.argv: %w", step.Name, err)
+		}
+		dir, err := componentWorkingDir(item.Path, component.Run.CWD)
+		if err != nil {
+			return declaredStepCommand{}, false, err
+		}
+		commandEnv := append([]string(nil), baseEnv...)
+		keys := make([]string, 0, len(component.Run.Env))
+		for key := range component.Run.Env {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			value, err := ports.ExpandTemplate(component.Run.Env[key], environment)
+			if err != nil {
+				return declaredStepCommand{}, false, fmt.Errorf("component %s run.env.%s: %w", step.Name, key, err)
+			}
+			commandEnv = setEnvValue(commandEnv, key, value)
+			environment[key] = value
+		}
+		portKey := ""
+		port := 0
+		if strings.TrimSpace(component.Run.Port) != "" {
+			portKey = item.Manifest.PortEnvVar(component.Run.Port)
+			if portKey == "" {
+				return declaredStepCommand{}, false, fmt.Errorf("component %s run.port %q is not declared", step.Name, component.Run.Port)
+			}
+			port, _ = strconv.Atoi(environment[portKey])
+		}
+		return declaredStepCommand{Argv: argv, Dir: dir, Env: commandEnv, Port: port, PortKey: portKey}, true, nil
+	}
+	if len(step.Exec) == 0 {
+		return declaredStepCommand{}, false, nil
+	}
+	environment := envSliceMap(baseEnv)
+	argv, err := expandDeclaredValues(step.Exec, environment)
+	if err != nil {
+		return declaredStepCommand{}, false, fmt.Errorf("step %s exec: %w", step.Name, err)
+	}
+	dir, err := componentWorkingDir(item.Path, step.CWD)
+	if err != nil {
+		return declaredStepCommand{}, false, err
+	}
+	commandEnv := append([]string(nil), baseEnv...)
+	keys := make([]string, 0, len(step.Env))
+	for key := range step.Env {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		value, err := ports.ExpandTemplate(step.Env[key], environment)
+		if err != nil {
+			return declaredStepCommand{}, false, fmt.Errorf("step %s env.%s: %w", step.Name, key, err)
+		}
+		commandEnv = setEnvValue(commandEnv, key, value)
+		environment[key] = value
+	}
+	return declaredStepCommand{Argv: argv, Dir: dir, Env: commandEnv}, true, nil
+}
+
+func expandDeclaredValues(values []string, environment map[string]string) ([]string, error) {
+	out := make([]string, len(values))
+	for index, value := range values {
+		expanded, err := ports.ExpandTemplate(value, environment)
+		if err != nil {
+			return nil, fmt.Errorf("argv[%d]: %w", index, err)
+		}
+		out[index] = expanded
+	}
+	if len(out) == 0 || strings.TrimSpace(out[0]) == "" {
+		return nil, errors.New("declared argv requires an executable")
+	}
+	return out, nil
+}
+
+func envSliceMap(values []string) map[string]string {
+	out := make(map[string]string, len(values))
+	for _, value := range values {
+		key, resolved, ok := strings.Cut(value, "=")
+		if ok {
+			out[key] = resolved
+		}
+	}
+	return out
+}
+
+// lifecycleStepEnv makes setup safe for server-owned execution. Setup may
+// invoke package managers and other tools that
 // prompt when they detect stale state; a lifecycle request has no interactive
 // stdin to answer such prompts, so fail deterministically instead.
 func lifecycleStepEnv(phase string, overrides map[string]string) []string {
@@ -577,7 +916,7 @@ func lifecycleStepEnv(phase string, overrides map[string]string) []string {
 	))
 	stepEnv = setEnvValue(stepEnv, "LIFECYCLE_PHASE", phase)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", "true")
-	if phase == "setup" || phase == "test" {
+	if phase == "setup" {
 		stepEnv = setEnvValue(stepEnv, "CI", "true")
 		stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_NONINTERACTIVE", "true")
 	}
@@ -707,8 +1046,6 @@ func lookupPhase(manifest scenario.ServiceManifest, phaseName string) (scenario.
 		return manifest.Lifecycle.Deploy, true
 	case "clean":
 		return manifest.Lifecycle.Clean, true
-	case "test":
-		return manifest.Lifecycle.Test, true
 	case "backup":
 		return manifest.Lifecycle.Backup, true
 	case "restore":
@@ -739,7 +1076,7 @@ func undefinedPhaseResult(scenarioName, phaseName string) PhaseResult {
 }
 
 func phaseDefined(phase scenario.Phase) bool {
-	return strings.TrimSpace(phase.Description) != "" || phase.Condition != nil || len(phase.Steps) > 0
+	return strings.TrimSpace(phase.Description) != "" || len(phase.Steps) > 0
 }
 
 func newPhaseStepError(scenarioName, phaseName, stepName, logPath string, err error) error {

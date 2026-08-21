@@ -1,21 +1,27 @@
 package deployability
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestResolveCapabilityUsesDeclaredPeersAndMechanisms(t *testing.T) {
 	implementations := []CapabilityImplementation{
 		{Name: "linux-primary", Capability: "credential-storage", Role: "primary", Platforms: map[HostOS]PlatformDeclaration{
-			HostOSLinux: {Status: platformSupported},
-			HostOSMacOS: {Status: platformUnsupported, Mechanism: "native-keychain adapter"},
+			HostOSLinux: {Status: string(StatusSupported)},
+			HostOSMacOS: {Status: string(StatusUnsupported), Mechanism: "native-keychain adapter"},
 		}},
 		{Name: "mac-peer", Capability: "credential-storage", Role: "peer", Platforms: map[HostOS]PlatformDeclaration{
-			HostOSMacOS: {Status: platformSupported},
+			HostOSMacOS: {Status: string(StatusSupported)},
 		}},
 	}
 
 	mac := ResolveCapability(implementations, "credential-storage", HostOSMacOS)
 	if mac.Status != CapabilityImplemented || mac.Implementer != "mac-peer" {
 		t.Fatalf("expected macOS peer, got %+v", mac)
+	}
+	if mac.Qualification != QualificationQualified {
+		t.Fatalf("expected a qualified macOS peer, got %+v", mac)
 	}
 
 	windows := ResolveCapability(implementations, "credential-storage", HostOSWindows)
@@ -25,9 +31,123 @@ func TestResolveCapabilityUsesDeclaredPeersAndMechanisms(t *testing.T) {
 
 	unwired := ResolveCapability([]CapabilityImplementation{{
 		Name: "linux-only", Capability: "credential-storage", Role: "primary",
-		Platforms: map[HostOS]PlatformDeclaration{HostOSWindows: {Status: platformUnsupported, Mechanism: "Windows Credential Manager adapter"}},
+		Platforms: map[HostOS]PlatformDeclaration{HostOSWindows: {Status: string(StatusUnsupported), Mechanism: "Windows Credential Manager adapter"}},
 	}}, "credential-storage", HostOSWindows)
 	if unwired.Status != CapabilityUnwired || unwired.Mechanism == "" {
 		t.Fatalf("expected named unwired mechanism, got %+v", unwired)
+	}
+	if !strings.Contains(unwired.Reason, "no implementation is declared") {
+		t.Fatalf("unwired reason must say no implementation is declared, got %q", unwired.Reason)
+	}
+	if strings.Contains(unwired.Reason, "wired for this host OS") {
+		t.Fatalf("unwired reason must not claim a wiring gap it cannot know, got %q", unwired.Reason)
+	}
+}
+
+func TestResolveCapabilityGivesEveryVocabularyMemberAnExplicitOutcome(t *testing.T) {
+	cases := []struct {
+		name          string
+		declaration   PlatformDeclaration
+		status        CapabilityResolutionStatus
+		qualification Qualification
+	}{
+		{
+			name:          "supported is implemented and qualified",
+			declaration:   PlatformDeclaration{Status: string(StatusSupported)},
+			status:        CapabilityImplemented,
+			qualification: QualificationQualified,
+		},
+		{
+			// This is the defect: system-monitor declares build-verified macOS
+			// collectors with real darwin code behind them, and the ledger used
+			// to call them unwired.
+			name:          "build-verified is implemented, not unwired",
+			declaration:   PlatformDeclaration{Status: string(StatusBuildVerified), Mechanism: "host_statistics"},
+			status:        CapabilityImplemented,
+			qualification: QualificationBuildVerified,
+		},
+		{
+			name:          "experimental is implemented but unqualified",
+			declaration:   PlatformDeclaration{Status: string(StatusExperimental), Mechanism: "systemd-analyze"},
+			status:        CapabilityImplemented,
+			qualification: QualificationUnqualified,
+		},
+		{
+			name:          "unqualified is implemented but unqualified",
+			declaration:   PlatformDeclaration{Status: string(StatusUnqualified), Mechanism: "host-integrity probe"},
+			status:        CapabilityImplemented,
+			qualification: QualificationUnqualified,
+		},
+		{
+			name:          "partial is degraded",
+			declaration:   PlatformDeclaration{Status: string(StatusPartial)},
+			status:        CapabilityDegraded,
+			qualification: QualificationDegraded,
+		},
+		{
+			name:          "unsupported without a mechanism is ineligible",
+			declaration:   PlatformDeclaration{Status: string(StatusUnsupported)},
+			status:        CapabilityIneligible,
+			qualification: QualificationIneligible,
+		},
+		{
+			name:          "unsupported with a named mechanism is unwired",
+			declaration:   PlatformDeclaration{Status: string(StatusUnsupported), Mechanism: "Windows Credential Manager adapter"},
+			status:        CapabilityUnwired,
+			qualification: QualificationUndeclared,
+		},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			resolution := ResolveCapability([]CapabilityImplementation{{
+				Name: "collector", Capability: "host-metrics", Role: "primary",
+				Platforms: map[HostOS]PlatformDeclaration{HostOSMacOS: testCase.declaration},
+			}}, "host-metrics", HostOSMacOS)
+			if resolution.Status != testCase.status {
+				t.Fatalf("expected status %q, got %+v", testCase.status, resolution)
+			}
+			if resolution.Qualification != testCase.qualification {
+				t.Fatalf("expected qualification %q, got %+v", testCase.qualification, resolution)
+			}
+			if resolution.Status == CapabilityUnwired {
+				return
+			}
+			if resolution.Status.HasImplementation() != (testCase.qualification.AtLeast(QualificationDegraded)) {
+				t.Fatalf("HasImplementation disagrees with the ladder for %+v", resolution)
+			}
+			if strings.TrimSpace(resolution.Reason) == "" {
+				t.Fatalf("resolution carries no reason: %+v", resolution)
+			}
+		})
+	}
+}
+
+func TestResolveCapabilityRejectsUnknownStatusTokens(t *testing.T) {
+	resolution := ResolveCapability([]CapabilityImplementation{{
+		Name: "collector", Capability: "host-metrics", Role: "primary",
+		Platforms: map[HostOS]PlatformDeclaration{HostOSMacOS: {Status: "bundled", Mechanism: "electron-app"}},
+	}}, "host-metrics", HostOSMacOS)
+	if resolution.Status != CapabilityStatusInvalid {
+		t.Fatalf("expected an invalid-status verdict, got %+v", resolution)
+	}
+	if resolution.Status.HasImplementation() {
+		t.Fatalf("an invalid status must never claim an implementation: %+v", resolution)
+	}
+	if !strings.Contains(resolution.Reason, "bundled") {
+		t.Fatalf("verdict must name the offending token, got %q", resolution.Reason)
+	}
+}
+
+func TestResolveCapabilityPrefersTheBestProvenImplementer(t *testing.T) {
+	resolution := ResolveCapability([]CapabilityImplementation{
+		{Name: "unproven-primary", Capability: "host-metrics", Role: "primary", Platforms: map[HostOS]PlatformDeclaration{
+			HostOSLinux: {Status: string(StatusExperimental)},
+		}},
+		{Name: "proven-peer", Capability: "host-metrics", Role: "peer", Platforms: map[HostOS]PlatformDeclaration{
+			HostOSLinux: {Status: string(StatusSupported)},
+		}},
+	}, "host-metrics", HostOSLinux)
+	if resolution.Implementer != "proven-peer" || resolution.Qualification != QualificationQualified {
+		t.Fatalf("expected the qualified peer to win over an experimental primary, got %+v", resolution)
 	}
 }

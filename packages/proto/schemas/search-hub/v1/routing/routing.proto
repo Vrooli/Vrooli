@@ -274,6 +274,16 @@ message ProviderHealth {
   string embedding_model = 25;
   // Effective freshness budget used by the automatic-routing gate.
   string freshness_budget = 26;
+  // Provider-owned index generation and corpus state. These fields are copied
+  // generically from the declared status endpoint; Search Hub never infers
+  // provider state from scenario identity.
+  string active_generation = 27;
+  int64 source_files = 28;
+  int64 semantic_cards = 29;
+  int64 graph_facts = 30;
+  string index_state = 31;
+  repeated string degraded_stages = 32;
+  bool drifted = 33;
 }
 
 message StatusResponse {

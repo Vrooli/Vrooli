@@ -128,3 +128,16 @@ func TestDescriptorProvisioningValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestDescriptorTierScopeValidation(t *testing.T) {
+	valid := Descriptor{LogicalID: "vrooli/test", Field: "token", Tiers: []string{"tier-1-local", "tier-2-desktop"}}
+	if err := (Declaration{Descriptors: []Descriptor{valid}}).Validate("test"); err != nil {
+		t.Fatalf("tier-scoped descriptor rejected: %v", err)
+	}
+	for _, tiers := range [][]string{{"desktop"}, {"tier-1-local", "tier-1-local"}} {
+		descriptor := Descriptor{LogicalID: "vrooli/test", Field: "token", Tiers: tiers}
+		if err := (Declaration{Descriptors: []Descriptor{descriptor}}).Validate("test"); err == nil {
+			t.Fatalf("tiers %v unexpectedly validated", tiers)
+		}
+	}
+}

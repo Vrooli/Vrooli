@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file code-facts/v1/facts/facts.proto.
  */
 export const file_code_facts_v1_facts_facts: GenFile = /*@__PURE__*/
-  fileDesc("Ch9jb2RlLWZhY3RzL3YxL2ZhY3RzL2ZhY3RzLnByb3RvEhp2cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cyK0AQoKQ29kZVRhcmdldBI0CgRraW5kGAEgASgOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuVGFyZ2V0S2luZBIMCgRwYXRoGAIgASgJEhAKCHNjZW5hcmlvGAMgASgJEhEKCXJlcG9fcm9vdBgEIAEoCRIXCg9sYW5ndWFnZV9maWx0ZXIYBSADKAkSDgoGc3RyaWN0GAYgASgIEhQKDHBhY2thZ2VfbmFtZRgHIAEoCSKXAgoYRGVzY3JpYmVDb2RlRmFjdHNSZXF1ZXN0EjYKBnRhcmdldBgBIAEoCzImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVUYXJnZXQSNwoHaW5jbHVkZRgCIAMoDjImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkZhY3RGYW1pbHkSFAoMZW5kcG9pbnRfaWRzGAMgAygJEhMKC2NvbW1hbmRfaWRzGAQgAygJEhIKCndpZGdldF9pZHMYBSADKAkSEQoJbWF4X2RlcHRoGAYgASgFEhEKCXVzZV9jYWNoZRgHIAEoCBIRCglwYWdlX3NpemUYCCABKAUSEgoKcGFnZV90b2tlbhgJIAEoCSK1AQoNU2VhcmNoUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBRI2CgZ0YXJnZXQYAyABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0EjgKCGZhbWlsaWVzGAQgAygOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRmFjdEZhbWlseRIUCgxleHBhbmRfZWRnZXMYBSABKAgigQIKCVNlYXJjaEhpdBIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIMCgR0ZXh0GAMgASgJEg0KBXNjb3JlGAQgASgBEgwKBHBhdGgYBSABKAkSEAoIYW5hbHl6ZXIYBiABKAkSQwoPZXZpZGVuY2Vfc3RhdHVzGAcgASgOMioudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRXZpZGVuY2VTdGF0dXMSEQoJZmFjdF9raW5kGAggASgJEkQKD2VkZ2VfZXhwYW5zaW9ucxgJIAMoCzIrLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlNlYXJjaEV4cGFuc2lvbiLqAQoPU2VhcmNoRXhwYW5zaW9uEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEgwKBHRleHQYAyABKAkSDAoEcGF0aBgEIAEoCRIQCghhbmFseXplchgFIAEoCRJDCg9ldmlkZW5jZV9zdGF0dXMYBiABKA4yKi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5FdmlkZW5jZVN0YXR1cxIRCglmYWN0X2tpbmQYByABKAkSNgoGZmFtaWx5GAggASgOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRmFjdEZhbWlseSJICg5TZWFyY2hSZXNwb25zZRI2CgdyZXN1bHRzGAEgAygLMiUudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuU2VhcmNoSGl0In4KG0Rlc2NyaWJlRmxlZXRJbXBvcnRzUmVxdWVzdBIRCglzY2VuYXJpb3MYASADKAkSDQoFbGltaXQYAiABKAUSEQoJdXNlX2NhY2hlGAMgASgIEhEKCXJlcG9fcm9vdBgEIAEoCRIXCg9sYW5ndWFnZV9maWx0ZXIYBSADKAkibwoPQ29kZUZhY3RzUmVzdWx0EhAKCHNjZW5hcmlvGAEgASgJEjsKBnJlcG9ydBgCIAEoCzIrLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVGYWN0c1JlcG9ydBINCgVlcnJvchgDIAEoCSJcChxEZXNjcmliZUZsZWV0SW1wb3J0c1Jlc3BvbnNlEjwKB3Jlc3VsdHMYASADKAsyKy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlRmFjdHNSZXN1bHQiYAoTTGlzdFN1cmZhY2VzUmVxdWVzdBI2CgZ0YXJnZXQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0EhEKCXVzZV9jYWNoZRgCIAEoCCJ4ChlDaGVja1Byb3RvQWRvcHRpb25SZXF1ZXN0EjYKBnRhcmdldBgBIAEoCzImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVUYXJnZXQSEAoIc3VyZmFjZXMYAiADKAkSEQoJdXNlX2NhY2hlGAMgASgIInwKGUNoZWNrRW5kcG9pbnRQcm9vZlJlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIUCgxlbmRwb2ludF9pZHMYAiADKAkSEQoJdXNlX2NhY2hlGAMgASgIIk8KFUdldENhY2hlU3RhdHVzUmVxdWVzdBI2CgZ0YXJnZXQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0ImAKE0luc3BlY3RDYWNoZVJlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIRCgljYWNoZV9rZXkYAiABKAkiaQoRQ2xlYXJDYWNoZVJlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIPCgdkcnlfcnVuGAIgASgIEgsKA2FsbBgDIAEoCCLaAQoNVGFyZ2V0Q29udGV4dBI5CglyZXF1ZXN0ZWQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0Ej0KDXJlc29sdmVkX2tpbmQYAiABKA4yJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5UYXJnZXRLaW5kEhEKCXJvb3RfcGF0aBgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRIWCg5zY2VuYXJpb19hd2FyZRgFIAEoCBISCgpyb290X3BhdGhzGAYgAygJImsKC1NvdXJjZVJhbmdlEgwKBGZpbGUYASABKAkSEgoKc3RhcnRfbGluZRgCIAEoBRIUCgxzdGFydF9jb2x1bW4YAyABKAUSEAoIZW5kX2xpbmUYBCABKAUSEgoKZW5kX2NvbHVtbhgFIAEoBSLFAQoIRXZpZGVuY2USOgoGc3RhdHVzGAEgASgOMioudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRXZpZGVuY2VTdGF0dXMSEgoKY29uZmlkZW5jZRgCIAEoARI2CgVyYW5nZRgDIAEoCzInLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlNvdXJjZVJhbmdlEg4KBnN5bWJvbBgEIAEoCRIQCghhbmFseXplchgFIAEoCRIPCgdtZXNzYWdlGAYgASgJIsUBCglQYXJzZVVuaXQSCgoCaWQYASABKAkSEAoIbGFuZ3VhZ2UYAiABKAkSEQoJcm9vdF9wYXRoGAMgASgJEhMKC2NvbmZpZ19wYXRoGAQgASgJEjoKBnN0YXR1cxgFIAEoDjIqLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlU3RhdHVzEjYKCGV2aWRlbmNlGAYgAygLMiQudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRXZpZGVuY2UizQEKB1N1cmZhY2USCgoCaWQYASABKAkSNQoEa2luZBgCIAEoDjInLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlN1cmZhY2VLaW5kEgwKBHBhdGgYAyABKAkSOQoGc3RhdHVzGAQgASgOMikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuU3VyZmFjZVN0YXR1cxI2CghldmlkZW5jZRgFIAMoCzIkLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlIqgCCgtHZW5lcmljRmFjdBIKCgJpZBgBIAEoCRI2CgZmYW1pbHkYAiABKA4yJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5GYWN0RmFtaWx5EgwKBGtpbmQYAyABKAkSDwoHc3ViamVjdBgEIAEoCRI2CghldmlkZW5jZRgFIAMoCzIkLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlEksKCmF0dHJpYnV0ZXMYBiADKAsyNy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5HZW5lcmljRmFjdC5BdHRyaWJ1dGVzRW50cnkaMQoPQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiZAoHV2FybmluZxIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSOgoGc3RhdHVzGAMgASgOMioudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRXZpZGVuY2VTdGF0dXMi/gIKDUNhY2hlTWV0YWRhdGESEQoJY2FjaGVfa2V5GAEgASgJEgsKA2hpdBgCIAEoCBIYChBhbmFseXplcl92ZXJzaW9uGAMgASgJEhIKCmdyYXBoX2hhc2gYBCABKAkSEwoLYWdlX3NlY29uZHMYBSABKAMSDQoFc3RhdGUYBiABKAkSDgoGcmVhc29uGAcgASgJEhMKC3NvdXJjZV9oYXNoGAggASgJEhMKC2NvbmZpZ19oYXNoGAkgASgJEhgKEHByb3ZpZGVyX3ZlcnNpb24YCiABKAkSFgoOc2NoZW1hX3ZlcnNpb24YCyABKAkSFwoPY3JlYXRlZF9hdF91bml4GAwgASgDEhkKEWxhc3RfdXNlZF9hdF91bml4GA0gASgDEhEKCWhpdF9jb3VudBgOIAEoAxINCgVzY29wZRgPIAEoCRITCgtsb2dpY2FsX2tleRgQIAEoCRIVCg1wYXlsb2FkX2J5dGVzGBEgASgDEg0KBWNvZGVjGBIgASgJIkwKEUNhY2hlU2NvcGVTdW1tYXJ5Eg0KBXNjb3BlGAEgASgJEhEKCXJvd19jb3VudBgCIAEoAxIVCg1wYXlsb2FkX2J5dGVzGAMgASgDIuUCCgtDYWNoZVN0YXR1cxI2CgZ0YXJnZXQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0EhEKCWNhY2hlX2tleRgCIAEoCRIPCgdlbnRyaWVzGAMgASgDEkMKEGVudHJpZXNfbWV0YWRhdGEYBCADKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DYWNoZU1ldGFkYXRhEhIKCnRvdGFsX3Jvd3MYBSABKAMSGwoTdG90YWxfcGF5bG9hZF9ieXRlcxgGIAEoAxIUCgxidWRnZXRfYnl0ZXMYByABKAMSEwoLdXRpbGl6YXRpb24YCCABKAESPQoGc2NvcGVzGAkgAygLMi0udnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2FjaGVTY29wZVN1bW1hcnkSGgoSbGFzdF9zd2VlcF9hdF91bml4GAogASgDImoKEkNsZWFyQ2FjaGVSZXNwb25zZRIRCgljYWNoZV9rZXkYASABKAkSFwoPbWF0Y2hlZF9lbnRyaWVzGAIgASgDEhcKD2NsZWFyZWRfZW50cmllcxgDIAEoAxIPCgdkcnlfcnVuGAQgASgIIs4DCg9Db2RlRmFjdHNSZXBvcnQSOQoGdGFyZ2V0GAEgASgLMikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuVGFyZ2V0Q29udGV4dBI6CgtwYXJzZV91bml0cxgCIAMoCzIlLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlBhcnNlVW5pdBI1CghzdXJmYWNlcxgDIAMoCzIjLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlN1cmZhY2USNgoFZmFjdHMYBCADKAsyJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5HZW5lcmljRmFjdBI2CghldmlkZW5jZRgFIAMoCzIkLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlEjUKCHdhcm5pbmdzGAYgAygLMiMudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuV2FybmluZxI4CgVjYWNoZRgHIAEoCzIpLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNhY2hlTWV0YWRhdGESFwoPbmV4dF9wYWdlX3Rva2VuGAggASgJEhMKC3RvdGFsX2ZhY3RzGAkgASgFIvkBChRMaXN0U3VyZmFjZXNSZXNwb25zZRI5CgZ0YXJnZXQYASABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5UYXJnZXRDb250ZXh0EjUKCHN1cmZhY2VzGAIgAygLMiMudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuU3VyZmFjZRI1Cgh3YXJuaW5ncxgDIAMoCzIjLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLldhcm5pbmcSOAoFY2FjaGUYBCABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DYWNoZU1ldGFkYXRhIuECCgtQcm9vZlJlcG9ydBI5CgZ0YXJnZXQYASABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5UYXJnZXRDb250ZXh0EjYKBmZhbWlseRgCIAEoDjImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkZhY3RGYW1pbHkSNgoFZmFjdHMYAyADKAsyJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5HZW5lcmljRmFjdBI2CghldmlkZW5jZRgEIAMoCzIkLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlEjUKCHdhcm5pbmdzGAUgAygLMiMudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuV2FybmluZxI4CgVjYWNoZRgGIAEoCzIpLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNhY2hlTWV0YWRhdGEqzwIKClRhcmdldEtpbmQSGwoXVEFSR0VUX0tJTkRfVU5TUEVDSUZJRUQQABIUChBUQVJHRVRfS0lORF9QQVRIEAESGAoUVEFSR0VUX0tJTkRfU0NFTkFSSU8QAhIUChBUQVJHRVRfS0lORF9SRVBPEAMSFgoSVEFSR0VUX0tJTkRfTU9EVUxFEAQSFwoTVEFSR0VUX0tJTkRfUFJPSkVDVBAFEh0KGVRBUkdFVF9LSU5EX0NPTlRST0xfUExBTkUQBhIXChNUQVJHRVRfS0lORF9QQUNLQUdFEAcSGAoUVEFSR0VUX0tJTkRfUkVTT1VSQ0UQCBIUChBUQVJHRVRfS0lORF9UT09MEAkSGQoVVEFSR0VUX0tJTkRfU0FGRUdVQVJEEAoSFAoQVEFSR0VUX0tJTkRfRE9DUxALEhQKEFRBUkdFVF9LSU5EX1RFQU0QDCr2AgoKRmFjdEZhbWlseRIbChdGQUNUX0ZBTUlMWV9VTlNQRUNJRklFRBAAEhgKFEZBQ1RfRkFNSUxZX1NVUkZBQ0VTEAESGwoXRkFDVF9GQU1JTFlfUEFSU0VfVU5JVFMQAhIXChNGQUNUX0ZBTUlMWV9JTVBPUlRTEAMSFwoTRkFDVF9GQU1JTFlfU1lNQk9MUxAEEhoKFkZBQ1RfRkFNSUxZX1JFRkVSRU5DRVMQBRIVChFGQUNUX0ZBTUlMWV9DQUxMUxAGEh4KGkZBQ1RfRkFNSUxZX1BST1RPX0FET1BUSU9OEAcSHwobRkFDVF9GQU1JTFlfRU5EUE9JTlRfUFJPT0ZTEAgSGgoWRkFDVF9GQU1JTFlfQ0xJX1BST09GUxAJEiAKHEZBQ1RfRkFNSUxZX1VJX1dJREdFVF9QUk9PRlMQChIbChdGQUNUX0ZBTUlMWV9GSUxFX0RPTUFJThALEhMKD0ZBQ1RfRkFNSUxZX0FMTBBjKsoBCg5FdmlkZW5jZVN0YXR1cxIfChtFVklERU5DRV9TVEFUVVNfVU5TUEVDSUZJRUQQABIaChZFVklERU5DRV9TVEFUVVNfUFJPVkVOEAESGwoXRVZJREVOQ0VfU1RBVFVTX01JU1NJTkcQAhIgChxFVklERU5DRV9TVEFUVVNfQ09OVFJBRElDVEVEEAMSHwobRVZJREVOQ0VfU1RBVFVTX1VOU1VQUE9SVEVEEAQSGwoXRVZJREVOQ0VfU1RBVFVTX1VOS05PV04QBSrPAQoLU3VyZmFjZUtpbmQSHAoYU1VSRkFDRV9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQU1VSRkFDRV9LSU5EX0FQSRABEhQKEFNVUkZBQ0VfS0lORF9DTEkQAhITCg9TVVJGQUNFX0tJTkRfVUkQAxIYChRTVVJGQUNFX0tJTkRfU0lERUNBUhAEEhcKE1NVUkZBQ0VfS0lORF9XT1JLRVIQBRIUChBTVVJGQUNFX0tJTkRfSk9CEAYSGAoUU1VSRkFDRV9LSU5EX1JVTlRJTUUQByq/AQoNU3VyZmFjZVN0YXR1cxIeChpTVVJGQUNFX1NUQVRVU19VTlNQRUNJRklFRBAAEhgKFFNVUkZBQ0VfU1RBVFVTX0tOT1dOEAESGgoWU1VSRkFDRV9TVEFUVVNfTUlTU0lORxACEh4KGlNVUkZBQ0VfU1RBVFVTX1VOU1VQUE9SVEVEEAMSHAoYU1VSRkFDRV9TVEFUVVNfQU1CSUdVT1VTEAQSGgoWU1VSRkFDRV9TVEFUVVNfVU5LTk9XThAFMq0IChBDb2RlRmFjdHNTZXJ2aWNlEngKEURlc2NyaWJlQ29kZUZhY3RzEjQudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRGVzY3JpYmVDb2RlRmFjdHNSZXF1ZXN0GisudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZUZhY3RzUmVwb3J0IgASYQoGU2VhcmNoEikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuU2VhcmNoUmVxdWVzdBoqLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlNlYXJjaFJlc3BvbnNlIgASiwEKFERlc2NyaWJlRmxlZXRJbXBvcnRzEjcudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRGVzY3JpYmVGbGVldEltcG9ydHNSZXF1ZXN0GjgudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRGVzY3JpYmVGbGVldEltcG9ydHNSZXNwb25zZSIAEnMKDExpc3RTdXJmYWNlcxIvLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkxpc3RTdXJmYWNlc1JlcXVlc3QaMC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5MaXN0U3VyZmFjZXNSZXNwb25zZSIAEnYKEkNoZWNrUHJvdG9BZG9wdGlvbhI1LnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNoZWNrUHJvdG9BZG9wdGlvblJlcXVlc3QaJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Qcm9vZlJlcG9ydCIAEnYKEkNoZWNrRW5kcG9pbnRQcm9vZhI1LnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNoZWNrRW5kcG9pbnRQcm9vZlJlcXVlc3QaJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Qcm9vZlJlcG9ydCIAEm4KDkdldENhY2hlU3RhdHVzEjEudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuR2V0Q2FjaGVTdGF0dXNSZXF1ZXN0GicudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2FjaGVTdGF0dXMiABJqCgxJbnNwZWN0Q2FjaGUSLy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5JbnNwZWN0Q2FjaGVSZXF1ZXN0GicudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2FjaGVTdGF0dXMiABJtCgpDbGVhckNhY2hlEi0udnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2xlYXJDYWNoZVJlcXVlc3QaLi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DbGVhckNhY2hlUmVzcG9uc2UiAEJNWktnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvZGUtZmFjdHMvdjEvZmFjdHM7ZmFjdHNfdjFiBnByb3RvMw");
+  fileDesc("Ch9jb2RlLWZhY3RzL3YxL2ZhY3RzL2ZhY3RzLnByb3RvEhp2cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cyK0AQoKQ29kZVRhcmdldBI0CgRraW5kGAEgASgOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuVGFyZ2V0S2luZBIMCgRwYXRoGAIgASgJEhAKCHNjZW5hcmlvGAMgASgJEhEKCXJlcG9fcm9vdBgEIAEoCRIXCg9sYW5ndWFnZV9maWx0ZXIYBSADKAkSDgoGc3RyaWN0GAYgASgIEhQKDHBhY2thZ2VfbmFtZRgHIAEoCSKXAgoYRGVzY3JpYmVDb2RlRmFjdHNSZXF1ZXN0EjYKBnRhcmdldBgBIAEoCzImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVUYXJnZXQSNwoHaW5jbHVkZRgCIAMoDjImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkZhY3RGYW1pbHkSFAoMZW5kcG9pbnRfaWRzGAMgAygJEhMKC2NvbW1hbmRfaWRzGAQgAygJEhIKCndpZGdldF9pZHMYBSADKAkSEQoJbWF4X2RlcHRoGAYgASgFEhEKCXVzZV9jYWNoZRgHIAEoCBIRCglwYWdlX3NpemUYCCABKAUSEgoKcGFnZV90b2tlbhgJIAEoCSLJAgoNU2VhcmNoUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBRI2CgZ0YXJnZXQYAyABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0EjgKCGZhbWlsaWVzGAQgAygOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRmFjdEZhbWlseRIUCgxleHBhbmRfZWRnZXMYBSABKAgSDQoFcm9sZXMYBiADKAkSEQoJbGFuZ3VhZ2VzGAcgAygJEg0KBXNjb3BlGAggASgJEhEKCWJ1ZGdldF9tcxgJIAEoBRIZChFsZXhpY2FsX2J1ZGdldF9tcxgKIAEoBRIaChJzZW1hbnRpY19idWRnZXRfbXMYCyABKAUSFwoPZ3JhcGhfYnVkZ2V0X21zGAwgASgFIoAECglTZWFyY2hIaXQSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDAoEdGV4dBgDIAEoCRINCgVzY29yZRgEIAEoARIMCgRwYXRoGAUgASgJEhAKCGFuYWx5emVyGAYgASgJEkMKD2V2aWRlbmNlX3N0YXR1cxgHIAEoDjIqLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlU3RhdHVzEhEKCWZhY3Rfa2luZBgIIAEoCRJECg9lZGdlX2V4cGFuc2lvbnMYCSADKAsyKy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5TZWFyY2hFeHBhbnNpb24SEwoLc291cmNlX2hhc2gYCiABKAkSEgoKZ2VuZXJhdGlvbhgLIAEoCRIMCgRyb2xlGAwgASgJEg0KBXNjb3BlGA0gASgJEhgKEHJldHJpZXZhbF9yZWdpbWUYDiABKAkSHQoVcmV0cmlldmFsX2V4cGxhbmF0aW9uGA8gASgJEhQKDHByb29mX3N0YXR1cxgQIAEoCRISCgpzdGFydF9saW5lGBEgASgFEhAKCGVuZF9saW5lGBIgASgFEkIKDHJhbmtfZmFjdG9ycxgTIAMoCzIsLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlNlYXJjaFJhbmtGYWN0b3IiSgoQU2VhcmNoUmFua0ZhY3RvchIMCgRuYW1lGAEgASgJEg0KBXZhbHVlGAIgASgBEgsKA2xlZxgDIAEoCRIMCgRyYW5rGAQgASgFIuoBCg9TZWFyY2hFeHBhbnNpb24SCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDAoEdGV4dBgDIAEoCRIMCgRwYXRoGAQgASgJEhAKCGFuYWx5emVyGAUgASgJEkMKD2V2aWRlbmNlX3N0YXR1cxgGIAEoDjIqLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlU3RhdHVzEhEKCWZhY3Rfa2luZBgHIAEoCRI2CgZmYW1pbHkYCCABKA4yJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5GYWN0RmFtaWx5Io8BCg5TZWFyY2hSZXNwb25zZRI2CgdyZXN1bHRzGAEgAygLMiUudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuU2VhcmNoSGl0EhcKD2RlZ3JhZGVkX3N0YWdlcxgCIAMoCRISCgpnZW5lcmF0aW9uGAMgASgJEhgKEHJldHJpZXZhbF9yZWdpbWUYBCABKAkihQIKCEluZGV4Sm9iEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkSOAoFc3RhdGUYAyABKA4yKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5JbmRleEpvYlN0YXRlEhIKCmdlbmVyYXRpb24YBCABKAkSEQoJcHJvY2Vzc2VkGAUgASgDEg0KBXRvdGFsGAYgASgDEg4KBmN1cnNvchgHIAEoCRINCgVlcnJvchgIIAEoCRIXCg9jcmVhdGVkX2F0X3VuaXgYCSABKAMSFwoPdXBkYXRlZF9hdF91bml4GAogASgDEh4KFmNhbmNlbGxhdGlvbl9yZXF1ZXN0ZWQYCyABKAgiFwoVR2V0SW5kZXhTdGF0dXNSZXF1ZXN0Io4DCgtJbmRleFN0YXR1cxIZChFhY3RpdmVfZ2VuZXJhdGlvbhgBIAEoCRIbChNwcmV2aW91c19nZW5lcmF0aW9uGAIgASgJEg0KBXN0YXRlGAMgASgJEhQKDHNvdXJjZV9maWxlcxgEIAEoAxIYChBzZWFyY2hfZG9jdW1lbnRzGAUgASgDEhYKDnNlbWFudGljX2NhcmRzGAYgASgDEhMKC2dyYXBoX2ZhY3RzGAcgASgDEhUKDXN0b3JhZ2VfYnl0ZXMYCCABKAMSHgoWbGFzdF9yZWNvbmNpbGVfYXRfdW5peBgJIAEoAxIeChZsYXN0X3JlY29uY2lsZV9vdXRjb21lGAogASgJEhkKEWRlc2NyaXB0b3JfZGlnZXN0GAsgASgJEhUKDXNvdXJjZV9kaWdlc3QYDCABKAkSFwoPZGVncmFkZWRfc3RhZ2VzGA0gAygJEjkKC2FjdGl2ZV9qb2JzGA4gAygLMiQudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuSW5kZXhKb2IiKwoVUmVjb25jaWxlSW5kZXhSZXF1ZXN0EhIKCmdlbmVyYXRpb24YASABKAkiNwoOUmVpbmRleFJlcXVlc3QSEgoKZ2VuZXJhdGlvbhgBIAEoCRIRCgljb25maXJtZWQYAiABKAgiJwoVQ2FuY2VsSW5kZXhKb2JSZXF1ZXN0Eg4KBmpvYl9pZBgBIAEoCSJGCh1Qcm9tb3RlSW5kZXhHZW5lcmF0aW9uUmVxdWVzdBISCgpnZW5lcmF0aW9uGAEgASgJEhEKCWNvbmZpcm1lZBgCIAEoCCJHCh5Sb2xsYmFja0luZGV4R2VuZXJhdGlvblJlcXVlc3QSEgoKZ2VuZXJhdGlvbhgBIAEoCRIRCgljb25maXJtZWQYAiABKAgiOQoTQ2xlYW51cEluZGV4UmVxdWVzdBIPCgdkcnlfcnVuGAEgASgIEhEKCWNvbmZpcm1lZBgCIAEoCCKTAQoUSW5kZXhDb250cm9sUmVzcG9uc2USMQoDam9iGAEgASgLMiQudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuSW5kZXhKb2ISNwoGc3RhdHVzGAIgASgLMicudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuSW5kZXhTdGF0dXMSDwoHbWVzc2FnZRgDIAEoCSJ+ChtEZXNjcmliZUZsZWV0SW1wb3J0c1JlcXVlc3QSEQoJc2NlbmFyaW9zGAEgAygJEg0KBWxpbWl0GAIgASgFEhEKCXVzZV9jYWNoZRgDIAEoCBIRCglyZXBvX3Jvb3QYBCABKAkSFwoPbGFuZ3VhZ2VfZmlsdGVyGAUgAygJIm8KD0NvZGVGYWN0c1Jlc3VsdBIQCghzY2VuYXJpbxgBIAEoCRI7CgZyZXBvcnQYAiABKAsyKy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlRmFjdHNSZXBvcnQSDQoFZXJyb3IYAyABKAkiXAocRGVzY3JpYmVGbGVldEltcG9ydHNSZXNwb25zZRI8CgdyZXN1bHRzGAEgAygLMisudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZUZhY3RzUmVzdWx0ImAKE0xpc3RTdXJmYWNlc1JlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIRCgl1c2VfY2FjaGUYAiABKAgieAoZQ2hlY2tQcm90b0Fkb3B0aW9uUmVxdWVzdBI2CgZ0YXJnZXQYASABKAsyJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Db2RlVGFyZ2V0EhAKCHN1cmZhY2VzGAIgAygJEhEKCXVzZV9jYWNoZRgDIAEoCCJ8ChlDaGVja0VuZHBvaW50UHJvb2ZSZXF1ZXN0EjYKBnRhcmdldBgBIAEoCzImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVUYXJnZXQSFAoMZW5kcG9pbnRfaWRzGAIgAygJEhEKCXVzZV9jYWNoZRgDIAEoCCJPChVHZXRDYWNoZVN0YXR1c1JlcXVlc3QSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldCJgChNJbnNwZWN0Q2FjaGVSZXF1ZXN0EjYKBnRhcmdldBgBIAEoCzImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVUYXJnZXQSEQoJY2FjaGVfa2V5GAIgASgJImkKEUNsZWFyQ2FjaGVSZXF1ZXN0EjYKBnRhcmdldBgBIAEoCzImLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNvZGVUYXJnZXQSDwoHZHJ5X3J1bhgCIAEoCBILCgNhbGwYAyABKAgi2gEKDVRhcmdldENvbnRleHQSOQoJcmVxdWVzdGVkGAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBI9Cg1yZXNvbHZlZF9raW5kGAIgASgOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuVGFyZ2V0S2luZBIRCglyb290X3BhdGgYAyABKAkSEAoIc2NlbmFyaW8YBCABKAkSFgoOc2NlbmFyaW9fYXdhcmUYBSABKAgSEgoKcm9vdF9wYXRocxgGIAMoCSJrCgtTb3VyY2VSYW5nZRIMCgRmaWxlGAEgASgJEhIKCnN0YXJ0X2xpbmUYAiABKAUSFAoMc3RhcnRfY29sdW1uGAMgASgFEhAKCGVuZF9saW5lGAQgASgFEhIKCmVuZF9jb2x1bW4YBSABKAUixQEKCEV2aWRlbmNlEjoKBnN0YXR1cxgBIAEoDjIqLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlU3RhdHVzEhIKCmNvbmZpZGVuY2UYAiABKAESNgoFcmFuZ2UYAyABKAsyJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Tb3VyY2VSYW5nZRIOCgZzeW1ib2wYBCABKAkSEAoIYW5hbHl6ZXIYBSABKAkSDwoHbWVzc2FnZRgGIAEoCSLFAQoJUGFyc2VVbml0EgoKAmlkGAEgASgJEhAKCGxhbmd1YWdlGAIgASgJEhEKCXJvb3RfcGF0aBgDIAEoCRITCgtjb25maWdfcGF0aBgEIAEoCRI6CgZzdGF0dXMYBSABKA4yKi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5FdmlkZW5jZVN0YXR1cxI2CghldmlkZW5jZRgGIAMoCzIkLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlIs0BCgdTdXJmYWNlEgoKAmlkGAEgASgJEjUKBGtpbmQYAiABKA4yJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5TdXJmYWNlS2luZBIMCgRwYXRoGAMgASgJEjkKBnN0YXR1cxgEIAEoDjIpLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlN1cmZhY2VTdGF0dXMSNgoIZXZpZGVuY2UYBSADKAsyJC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5FdmlkZW5jZSKoAgoLR2VuZXJpY0ZhY3QSCgoCaWQYASABKAkSNgoGZmFtaWx5GAIgASgOMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRmFjdEZhbWlseRIMCgRraW5kGAMgASgJEg8KB3N1YmplY3QYBCABKAkSNgoIZXZpZGVuY2UYBSADKAsyJC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5FdmlkZW5jZRJLCgphdHRyaWJ1dGVzGAYgAygLMjcudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuR2VuZXJpY0ZhY3QuQXR0cmlidXRlc0VudHJ5GjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBImQKB1dhcm5pbmcSDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEjoKBnN0YXR1cxgDIAEoDjIqLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkV2aWRlbmNlU3RhdHVzIv4CCg1DYWNoZU1ldGFkYXRhEhEKCWNhY2hlX2tleRgBIAEoCRILCgNoaXQYAiABKAgSGAoQYW5hbHl6ZXJfdmVyc2lvbhgDIAEoCRISCgpncmFwaF9oYXNoGAQgASgJEhMKC2FnZV9zZWNvbmRzGAUgASgDEg0KBXN0YXRlGAYgASgJEg4KBnJlYXNvbhgHIAEoCRITCgtzb3VyY2VfaGFzaBgIIAEoCRITCgtjb25maWdfaGFzaBgJIAEoCRIYChBwcm92aWRlcl92ZXJzaW9uGAogASgJEhYKDnNjaGVtYV92ZXJzaW9uGAsgASgJEhcKD2NyZWF0ZWRfYXRfdW5peBgMIAEoAxIZChFsYXN0X3VzZWRfYXRfdW5peBgNIAEoAxIRCgloaXRfY291bnQYDiABKAMSDQoFc2NvcGUYDyABKAkSEwoLbG9naWNhbF9rZXkYECABKAkSFQoNcGF5bG9hZF9ieXRlcxgRIAEoAxINCgVjb2RlYxgSIAEoCSJMChFDYWNoZVNjb3BlU3VtbWFyeRINCgVzY29wZRgBIAEoCRIRCglyb3dfY291bnQYAiABKAMSFQoNcGF5bG9hZF9ieXRlcxgDIAEoAyLlAgoLQ2FjaGVTdGF0dXMSNgoGdGFyZ2V0GAEgASgLMiYudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZVRhcmdldBIRCgljYWNoZV9rZXkYAiABKAkSDwoHZW50cmllcxgDIAEoAxJDChBlbnRyaWVzX21ldGFkYXRhGAQgAygLMikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2FjaGVNZXRhZGF0YRISCgp0b3RhbF9yb3dzGAUgASgDEhsKE3RvdGFsX3BheWxvYWRfYnl0ZXMYBiABKAMSFAoMYnVkZ2V0X2J5dGVzGAcgASgDEhMKC3V0aWxpemF0aW9uGAggASgBEj0KBnNjb3BlcxgJIAMoCzItLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNhY2hlU2NvcGVTdW1tYXJ5EhoKEmxhc3Rfc3dlZXBfYXRfdW5peBgKIAEoAyJqChJDbGVhckNhY2hlUmVzcG9uc2USEQoJY2FjaGVfa2V5GAEgASgJEhcKD21hdGNoZWRfZW50cmllcxgCIAEoAxIXCg9jbGVhcmVkX2VudHJpZXMYAyABKAMSDwoHZHJ5X3J1bhgEIAEoCCLOAwoPQ29kZUZhY3RzUmVwb3J0EjkKBnRhcmdldBgBIAEoCzIpLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlRhcmdldENvbnRleHQSOgoLcGFyc2VfdW5pdHMYAiADKAsyJS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5QYXJzZVVuaXQSNQoIc3VyZmFjZXMYAyADKAsyIy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5TdXJmYWNlEjYKBWZhY3RzGAQgAygLMicudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuR2VuZXJpY0ZhY3QSNgoIZXZpZGVuY2UYBSADKAsyJC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5FdmlkZW5jZRI1Cgh3YXJuaW5ncxgGIAMoCzIjLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLldhcm5pbmcSOAoFY2FjaGUYByABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DYWNoZU1ldGFkYXRhEhcKD25leHRfcGFnZV90b2tlbhgIIAEoCRITCgt0b3RhbF9mYWN0cxgJIAEoBSL5AQoUTGlzdFN1cmZhY2VzUmVzcG9uc2USOQoGdGFyZ2V0GAEgASgLMikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuVGFyZ2V0Q29udGV4dBI1CghzdXJmYWNlcxgCIAMoCzIjLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlN1cmZhY2USNQoId2FybmluZ3MYAyADKAsyIy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5XYXJuaW5nEjgKBWNhY2hlGAQgASgLMikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2FjaGVNZXRhZGF0YSLhAgoLUHJvb2ZSZXBvcnQSOQoGdGFyZ2V0GAEgASgLMikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuVGFyZ2V0Q29udGV4dBI2CgZmYW1pbHkYAiABKA4yJi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5GYWN0RmFtaWx5EjYKBWZhY3RzGAMgAygLMicudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuR2VuZXJpY0ZhY3QSNgoIZXZpZGVuY2UYBCADKAsyJC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5FdmlkZW5jZRI1Cgh3YXJuaW5ncxgFIAMoCzIjLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLldhcm5pbmcSOAoFY2FjaGUYBiABKAsyKS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DYWNoZU1ldGFkYXRhKs8CCgpUYXJnZXRLaW5kEhsKF1RBUkdFVF9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQVEFSR0VUX0tJTkRfUEFUSBABEhgKFFRBUkdFVF9LSU5EX1NDRU5BUklPEAISFAoQVEFSR0VUX0tJTkRfUkVQTxADEhYKElRBUkdFVF9LSU5EX01PRFVMRRAEEhcKE1RBUkdFVF9LSU5EX1BST0pFQ1QQBRIdChlUQVJHRVRfS0lORF9DT05UUk9MX1BMQU5FEAYSFwoTVEFSR0VUX0tJTkRfUEFDS0FHRRAHEhgKFFRBUkdFVF9LSU5EX1JFU09VUkNFEAgSFAoQVEFSR0VUX0tJTkRfVE9PTBAJEhkKFVRBUkdFVF9LSU5EX1NBRkVHVUFSRBAKEhQKEFRBUkdFVF9LSU5EX0RPQ1MQCxIUChBUQVJHRVRfS0lORF9URUFNEAwq9gIKCkZhY3RGYW1pbHkSGwoXRkFDVF9GQU1JTFlfVU5TUEVDSUZJRUQQABIYChRGQUNUX0ZBTUlMWV9TVVJGQUNFUxABEhsKF0ZBQ1RfRkFNSUxZX1BBUlNFX1VOSVRTEAISFwoTRkFDVF9GQU1JTFlfSU1QT1JUUxADEhcKE0ZBQ1RfRkFNSUxZX1NZTUJPTFMQBBIaChZGQUNUX0ZBTUlMWV9SRUZFUkVOQ0VTEAUSFQoRRkFDVF9GQU1JTFlfQ0FMTFMQBhIeChpGQUNUX0ZBTUlMWV9QUk9UT19BRE9QVElPThAHEh8KG0ZBQ1RfRkFNSUxZX0VORFBPSU5UX1BST09GUxAIEhoKFkZBQ1RfRkFNSUxZX0NMSV9QUk9PRlMQCRIgChxGQUNUX0ZBTUlMWV9VSV9XSURHRVRfUFJPT0ZTEAoSGwoXRkFDVF9GQU1JTFlfRklMRV9ET01BSU4QCxITCg9GQUNUX0ZBTUlMWV9BTEwQYyrKAQoORXZpZGVuY2VTdGF0dXMSHwobRVZJREVOQ0VfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGgoWRVZJREVOQ0VfU1RBVFVTX1BST1ZFThABEhsKF0VWSURFTkNFX1NUQVRVU19NSVNTSU5HEAISIAocRVZJREVOQ0VfU1RBVFVTX0NPTlRSQURJQ1RFRBADEh8KG0VWSURFTkNFX1NUQVRVU19VTlNVUFBPUlRFRBAEEhsKF0VWSURFTkNFX1NUQVRVU19VTktOT1dOEAUqzwEKC1N1cmZhY2VLaW5kEhwKGFNVUkZBQ0VfS0lORF9VTlNQRUNJRklFRBAAEhQKEFNVUkZBQ0VfS0lORF9BUEkQARIUChBTVVJGQUNFX0tJTkRfQ0xJEAISEwoPU1VSRkFDRV9LSU5EX1VJEAMSGAoUU1VSRkFDRV9LSU5EX1NJREVDQVIQBBIXChNTVVJGQUNFX0tJTkRfV09SS0VSEAUSFAoQU1VSRkFDRV9LSU5EX0pPQhAGEhgKFFNVUkZBQ0VfS0lORF9SVU5USU1FEAcqvwEKDVN1cmZhY2VTdGF0dXMSHgoaU1VSRkFDRV9TVEFUVVNfVU5TUEVDSUZJRUQQABIYChRTVVJGQUNFX1NUQVRVU19LTk9XThABEhoKFlNVUkZBQ0VfU1RBVFVTX01JU1NJTkcQAhIeChpTVVJGQUNFX1NUQVRVU19VTlNVUFBPUlRFRBADEhwKGFNVUkZBQ0VfU1RBVFVTX0FNQklHVU9VUxAEEhoKFlNVUkZBQ0VfU1RBVFVTX1VOS05PV04QBSqQAgoNSW5kZXhKb2JTdGF0ZRIfChtJTkRFWF9KT0JfU1RBVEVfVU5TUEVDSUZJRUQQABIaChZJTkRFWF9KT0JfU1RBVEVfUVVFVUVEEAESGwoXSU5ERVhfSk9CX1NUQVRFX1JVTk5JTkcQAhIqCiZJTkRFWF9KT0JfU1RBVEVfQ0FOQ0VMTEFUSU9OX1JFUVVFU1RFRBADEh0KGUlOREVYX0pPQl9TVEFURV9TVUNDRUVERUQQBBIaChZJTkRFWF9KT0JfU1RBVEVfRkFJTEVEEAUSHQoZSU5ERVhfSk9CX1NUQVRFX0NBTkNFTExFRBAGEh8KG0lOREVYX0pPQl9TVEFURV9JTlRFUlJVUFRFRBAHMoUPChBDb2RlRmFjdHNTZXJ2aWNlEngKEURlc2NyaWJlQ29kZUZhY3RzEjQudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRGVzY3JpYmVDb2RlRmFjdHNSZXF1ZXN0GisudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ29kZUZhY3RzUmVwb3J0IgASYQoGU2VhcmNoEikudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuU2VhcmNoUmVxdWVzdBoqLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlNlYXJjaFJlc3BvbnNlIgASiwEKFERlc2NyaWJlRmxlZXRJbXBvcnRzEjcudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRGVzY3JpYmVGbGVldEltcG9ydHNSZXF1ZXN0GjgudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuRGVzY3JpYmVGbGVldEltcG9ydHNSZXNwb25zZSIAEnMKDExpc3RTdXJmYWNlcxIvLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkxpc3RTdXJmYWNlc1JlcXVlc3QaMC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5MaXN0U3VyZmFjZXNSZXNwb25zZSIAEnYKEkNoZWNrUHJvdG9BZG9wdGlvbhI1LnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNoZWNrUHJvdG9BZG9wdGlvblJlcXVlc3QaJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Qcm9vZlJlcG9ydCIAEnYKEkNoZWNrRW5kcG9pbnRQcm9vZhI1LnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkNoZWNrRW5kcG9pbnRQcm9vZlJlcXVlc3QaJy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5Qcm9vZlJlcG9ydCIAEm4KDkdldENhY2hlU3RhdHVzEjEudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuR2V0Q2FjaGVTdGF0dXNSZXF1ZXN0GicudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2FjaGVTdGF0dXMiABJqCgxJbnNwZWN0Q2FjaGUSLy52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5JbnNwZWN0Q2FjaGVSZXF1ZXN0GicudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2FjaGVTdGF0dXMiABJtCgpDbGVhckNhY2hlEi0udnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2xlYXJDYWNoZVJlcXVlc3QaLi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DbGVhckNhY2hlUmVzcG9uc2UiABJuCg5HZXRJbmRleFN0YXR1cxIxLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkdldEluZGV4U3RhdHVzUmVxdWVzdBonLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkluZGV4U3RhdHVzIgASdwoOUmVjb25jaWxlSW5kZXgSMS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5SZWNvbmNpbGVJbmRleFJlcXVlc3QaMC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5JbmRleENvbnRyb2xSZXNwb25zZSIAEmkKB1JlaW5kZXgSKi52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5SZWluZGV4UmVxdWVzdBowLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkluZGV4Q29udHJvbFJlc3BvbnNlIgASdwoOQ2FuY2VsSW5kZXhKb2ISMS52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5DYW5jZWxJbmRleEpvYlJlcXVlc3QaMC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5JbmRleENvbnRyb2xSZXNwb25zZSIAEocBChZQcm9tb3RlSW5kZXhHZW5lcmF0aW9uEjkudnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuUHJvbW90ZUluZGV4R2VuZXJhdGlvblJlcXVlc3QaMC52cm9vbGkuY29kZV9mYWN0cy52MS5mYWN0cy5JbmRleENvbnRyb2xSZXNwb25zZSIAEokBChdSb2xsYmFja0luZGV4R2VuZXJhdGlvbhI6LnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLlJvbGxiYWNrSW5kZXhHZW5lcmF0aW9uUmVxdWVzdBowLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkluZGV4Q29udHJvbFJlc3BvbnNlIgAScwoMQ2xlYW51cEluZGV4Ei8udnJvb2xpLmNvZGVfZmFjdHMudjEuZmFjdHMuQ2xlYW51cEluZGV4UmVxdWVzdBowLnZyb29saS5jb2RlX2ZhY3RzLnYxLmZhY3RzLkluZGV4Q29udHJvbFJlc3BvbnNlIgBCTVpLZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jb2RlLWZhY3RzL3YxL2ZhY3RzO2ZhY3RzX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CodeTarget
@@ -153,6 +153,44 @@ export type SearchRequest = Message<"vrooli.code_facts.v1.facts.SearchRequest"> 
    * @generated from field: bool expand_edges = 5;
    */
   expandEdges: boolean;
+
+  /**
+   * @generated from field: repeated string roles = 6;
+   */
+  roles: string[];
+
+  /**
+   * @generated from field: repeated string languages = 7;
+   */
+  languages: string[];
+
+  /**
+   * @generated from field: string scope = 8;
+   */
+  scope: string;
+
+  /**
+   * Explicit provider-stage budgets supplied by Search Hub. Zero uses the
+   * provider default; a caller deadline always remains the outer bound.
+   *
+   * @generated from field: int32 budget_ms = 9;
+   */
+  budgetMs: number;
+
+  /**
+   * @generated from field: int32 lexical_budget_ms = 10;
+   */
+  lexicalBudgetMs: number;
+
+  /**
+   * @generated from field: int32 semantic_budget_ms = 11;
+   */
+  semanticBudgetMs: number;
+
+  /**
+   * @generated from field: int32 graph_budget_ms = 12;
+   */
+  graphBudgetMs: number;
 };
 
 /**
@@ -210,6 +248,56 @@ export type SearchHit = Message<"vrooli.code_facts.v1.facts.SearchHit"> & {
    * @generated from field: repeated vrooli.code_facts.v1.facts.SearchExpansion edge_expansions = 9;
    */
   edgeExpansions: SearchExpansion[];
+
+  /**
+   * @generated from field: string source_hash = 10;
+   */
+  sourceHash: string;
+
+  /**
+   * @generated from field: string generation = 11;
+   */
+  generation: string;
+
+  /**
+   * @generated from field: string role = 12;
+   */
+  role: string;
+
+  /**
+   * @generated from field: string scope = 13;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: string retrieval_regime = 14;
+   */
+  retrievalRegime: string;
+
+  /**
+   * @generated from field: string retrieval_explanation = 15;
+   */
+  retrievalExplanation: string;
+
+  /**
+   * @generated from field: string proof_status = 16;
+   */
+  proofStatus: string;
+
+  /**
+   * @generated from field: int32 start_line = 17;
+   */
+  startLine: number;
+
+  /**
+   * @generated from field: int32 end_line = 18;
+   */
+  endLine: number;
+
+  /**
+   * @generated from field: repeated vrooli.code_facts.v1.facts.SearchRankFactor rank_factors = 19;
+   */
+  rankFactors: SearchRankFactor[];
 };
 
 /**
@@ -218,6 +306,38 @@ export type SearchHit = Message<"vrooli.code_facts.v1.facts.SearchHit"> & {
  */
 export const SearchHitSchema: GenMessage<SearchHit> = /*@__PURE__*/
   messageDesc(file_code_facts_v1_facts_facts, 3);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.SearchRankFactor
+ */
+export type SearchRankFactor = Message<"vrooli.code_facts.v1.facts.SearchRankFactor"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: double value = 2;
+   */
+  value: number;
+
+  /**
+   * @generated from field: string leg = 3;
+   */
+  leg: string;
+
+  /**
+   * @generated from field: int32 rank = 4;
+   */
+  rank: number;
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.SearchRankFactor.
+ * Use `create(SearchRankFactorSchema)` to create a new message.
+ */
+export const SearchRankFactorSchema: GenMessage<SearchRankFactor> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 4);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.SearchExpansion
@@ -269,7 +389,7 @@ export type SearchExpansion = Message<"vrooli.code_facts.v1.facts.SearchExpansio
  * Use `create(SearchExpansionSchema)` to create a new message.
  */
 export const SearchExpansionSchema: GenMessage<SearchExpansion> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 4);
+  messageDesc(file_code_facts_v1_facts_facts, 5);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.SearchResponse
@@ -279,6 +399,21 @@ export type SearchResponse = Message<"vrooli.code_facts.v1.facts.SearchResponse"
    * @generated from field: repeated vrooli.code_facts.v1.facts.SearchHit results = 1;
    */
   results: SearchHit[];
+
+  /**
+   * @generated from field: repeated string degraded_stages = 2;
+   */
+  degradedStages: string[];
+
+  /**
+   * @generated from field: string generation = 3;
+   */
+  generation: string;
+
+  /**
+   * @generated from field: string retrieval_regime = 4;
+   */
+  retrievalRegime: string;
 };
 
 /**
@@ -286,7 +421,318 @@ export type SearchResponse = Message<"vrooli.code_facts.v1.facts.SearchResponse"
  * Use `create(SearchResponseSchema)` to create a new message.
  */
 export const SearchResponseSchema: GenMessage<SearchResponse> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 5);
+  messageDesc(file_code_facts_v1_facts_facts, 6);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.IndexJob
+ */
+export type IndexJob = Message<"vrooli.code_facts.v1.facts.IndexJob"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: vrooli.code_facts.v1.facts.IndexJobState state = 3;
+   */
+  state: IndexJobState;
+
+  /**
+   * @generated from field: string generation = 4;
+   */
+  generation: string;
+
+  /**
+   * @generated from field: int64 processed = 5;
+   */
+  processed: bigint;
+
+  /**
+   * @generated from field: int64 total = 6;
+   */
+  total: bigint;
+
+  /**
+   * @generated from field: string cursor = 7;
+   */
+  cursor: string;
+
+  /**
+   * @generated from field: string error = 8;
+   */
+  error: string;
+
+  /**
+   * @generated from field: int64 created_at_unix = 9;
+   */
+  createdAtUnix: bigint;
+
+  /**
+   * @generated from field: int64 updated_at_unix = 10;
+   */
+  updatedAtUnix: bigint;
+
+  /**
+   * @generated from field: bool cancellation_requested = 11;
+   */
+  cancellationRequested: boolean;
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.IndexJob.
+ * Use `create(IndexJobSchema)` to create a new message.
+ */
+export const IndexJobSchema: GenMessage<IndexJob> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 7);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.GetIndexStatusRequest
+ */
+export type GetIndexStatusRequest = Message<"vrooli.code_facts.v1.facts.GetIndexStatusRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.GetIndexStatusRequest.
+ * Use `create(GetIndexStatusRequestSchema)` to create a new message.
+ */
+export const GetIndexStatusRequestSchema: GenMessage<GetIndexStatusRequest> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 8);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.IndexStatus
+ */
+export type IndexStatus = Message<"vrooli.code_facts.v1.facts.IndexStatus"> & {
+  /**
+   * @generated from field: string active_generation = 1;
+   */
+  activeGeneration: string;
+
+  /**
+   * @generated from field: string previous_generation = 2;
+   */
+  previousGeneration: string;
+
+  /**
+   * @generated from field: string state = 3;
+   */
+  state: string;
+
+  /**
+   * @generated from field: int64 source_files = 4;
+   */
+  sourceFiles: bigint;
+
+  /**
+   * @generated from field: int64 search_documents = 5;
+   */
+  searchDocuments: bigint;
+
+  /**
+   * @generated from field: int64 semantic_cards = 6;
+   */
+  semanticCards: bigint;
+
+  /**
+   * @generated from field: int64 graph_facts = 7;
+   */
+  graphFacts: bigint;
+
+  /**
+   * @generated from field: int64 storage_bytes = 8;
+   */
+  storageBytes: bigint;
+
+  /**
+   * @generated from field: int64 last_reconcile_at_unix = 9;
+   */
+  lastReconcileAtUnix: bigint;
+
+  /**
+   * @generated from field: string last_reconcile_outcome = 10;
+   */
+  lastReconcileOutcome: string;
+
+  /**
+   * @generated from field: string descriptor_digest = 11;
+   */
+  descriptorDigest: string;
+
+  /**
+   * @generated from field: string source_digest = 12;
+   */
+  sourceDigest: string;
+
+  /**
+   * @generated from field: repeated string degraded_stages = 13;
+   */
+  degradedStages: string[];
+
+  /**
+   * @generated from field: repeated vrooli.code_facts.v1.facts.IndexJob active_jobs = 14;
+   */
+  activeJobs: IndexJob[];
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.IndexStatus.
+ * Use `create(IndexStatusSchema)` to create a new message.
+ */
+export const IndexStatusSchema: GenMessage<IndexStatus> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 9);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.ReconcileIndexRequest
+ */
+export type ReconcileIndexRequest = Message<"vrooli.code_facts.v1.facts.ReconcileIndexRequest"> & {
+  /**
+   * @generated from field: string generation = 1;
+   */
+  generation: string;
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.ReconcileIndexRequest.
+ * Use `create(ReconcileIndexRequestSchema)` to create a new message.
+ */
+export const ReconcileIndexRequestSchema: GenMessage<ReconcileIndexRequest> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 10);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.ReindexRequest
+ */
+export type ReindexRequest = Message<"vrooli.code_facts.v1.facts.ReindexRequest"> & {
+  /**
+   * @generated from field: string generation = 1;
+   */
+  generation: string;
+
+  /**
+   * @generated from field: bool confirmed = 2;
+   */
+  confirmed: boolean;
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.ReindexRequest.
+ * Use `create(ReindexRequestSchema)` to create a new message.
+ */
+export const ReindexRequestSchema: GenMessage<ReindexRequest> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 11);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.CancelIndexJobRequest
+ */
+export type CancelIndexJobRequest = Message<"vrooli.code_facts.v1.facts.CancelIndexJobRequest"> & {
+  /**
+   * @generated from field: string job_id = 1;
+   */
+  jobId: string;
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.CancelIndexJobRequest.
+ * Use `create(CancelIndexJobRequestSchema)` to create a new message.
+ */
+export const CancelIndexJobRequestSchema: GenMessage<CancelIndexJobRequest> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 12);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.PromoteIndexGenerationRequest
+ */
+export type PromoteIndexGenerationRequest = Message<"vrooli.code_facts.v1.facts.PromoteIndexGenerationRequest"> & {
+  /**
+   * @generated from field: string generation = 1;
+   */
+  generation: string;
+
+  /**
+   * @generated from field: bool confirmed = 2;
+   */
+  confirmed: boolean;
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.PromoteIndexGenerationRequest.
+ * Use `create(PromoteIndexGenerationRequestSchema)` to create a new message.
+ */
+export const PromoteIndexGenerationRequestSchema: GenMessage<PromoteIndexGenerationRequest> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 13);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.RollbackIndexGenerationRequest
+ */
+export type RollbackIndexGenerationRequest = Message<"vrooli.code_facts.v1.facts.RollbackIndexGenerationRequest"> & {
+  /**
+   * @generated from field: string generation = 1;
+   */
+  generation: string;
+
+  /**
+   * @generated from field: bool confirmed = 2;
+   */
+  confirmed: boolean;
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.RollbackIndexGenerationRequest.
+ * Use `create(RollbackIndexGenerationRequestSchema)` to create a new message.
+ */
+export const RollbackIndexGenerationRequestSchema: GenMessage<RollbackIndexGenerationRequest> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 14);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.CleanupIndexRequest
+ */
+export type CleanupIndexRequest = Message<"vrooli.code_facts.v1.facts.CleanupIndexRequest"> & {
+  /**
+   * @generated from field: bool dry_run = 1;
+   */
+  dryRun: boolean;
+
+  /**
+   * @generated from field: bool confirmed = 2;
+   */
+  confirmed: boolean;
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.CleanupIndexRequest.
+ * Use `create(CleanupIndexRequestSchema)` to create a new message.
+ */
+export const CleanupIndexRequestSchema: GenMessage<CleanupIndexRequest> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 15);
+
+/**
+ * @generated from message vrooli.code_facts.v1.facts.IndexControlResponse
+ */
+export type IndexControlResponse = Message<"vrooli.code_facts.v1.facts.IndexControlResponse"> & {
+  /**
+   * @generated from field: vrooli.code_facts.v1.facts.IndexJob job = 1;
+   */
+  job?: IndexJob | undefined;
+
+  /**
+   * @generated from field: vrooli.code_facts.v1.facts.IndexStatus status = 2;
+   */
+  status?: IndexStatus | undefined;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message vrooli.code_facts.v1.facts.IndexControlResponse.
+ * Use `create(IndexControlResponseSchema)` to create a new message.
+ */
+export const IndexControlResponseSchema: GenMessage<IndexControlResponse> = /*@__PURE__*/
+  messageDesc(file_code_facts_v1_facts_facts, 16);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.DescribeFleetImportsRequest
@@ -323,7 +769,7 @@ export type DescribeFleetImportsRequest = Message<"vrooli.code_facts.v1.facts.De
  * Use `create(DescribeFleetImportsRequestSchema)` to create a new message.
  */
 export const DescribeFleetImportsRequestSchema: GenMessage<DescribeFleetImportsRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 6);
+  messageDesc(file_code_facts_v1_facts_facts, 17);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CodeFactsResult
@@ -350,7 +796,7 @@ export type CodeFactsResult = Message<"vrooli.code_facts.v1.facts.CodeFactsResul
  * Use `create(CodeFactsResultSchema)` to create a new message.
  */
 export const CodeFactsResultSchema: GenMessage<CodeFactsResult> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 7);
+  messageDesc(file_code_facts_v1_facts_facts, 18);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.DescribeFleetImportsResponse
@@ -367,7 +813,7 @@ export type DescribeFleetImportsResponse = Message<"vrooli.code_facts.v1.facts.D
  * Use `create(DescribeFleetImportsResponseSchema)` to create a new message.
  */
 export const DescribeFleetImportsResponseSchema: GenMessage<DescribeFleetImportsResponse> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 8);
+  messageDesc(file_code_facts_v1_facts_facts, 19);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ListSurfacesRequest
@@ -389,7 +835,7 @@ export type ListSurfacesRequest = Message<"vrooli.code_facts.v1.facts.ListSurfac
  * Use `create(ListSurfacesRequestSchema)` to create a new message.
  */
 export const ListSurfacesRequestSchema: GenMessage<ListSurfacesRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 9);
+  messageDesc(file_code_facts_v1_facts_facts, 20);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CheckProtoAdoptionRequest
@@ -416,7 +862,7 @@ export type CheckProtoAdoptionRequest = Message<"vrooli.code_facts.v1.facts.Chec
  * Use `create(CheckProtoAdoptionRequestSchema)` to create a new message.
  */
 export const CheckProtoAdoptionRequestSchema: GenMessage<CheckProtoAdoptionRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 10);
+  messageDesc(file_code_facts_v1_facts_facts, 21);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CheckEndpointProofRequest
@@ -443,7 +889,7 @@ export type CheckEndpointProofRequest = Message<"vrooli.code_facts.v1.facts.Chec
  * Use `create(CheckEndpointProofRequestSchema)` to create a new message.
  */
 export const CheckEndpointProofRequestSchema: GenMessage<CheckEndpointProofRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 11);
+  messageDesc(file_code_facts_v1_facts_facts, 22);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.GetCacheStatusRequest
@@ -460,7 +906,7 @@ export type GetCacheStatusRequest = Message<"vrooli.code_facts.v1.facts.GetCache
  * Use `create(GetCacheStatusRequestSchema)` to create a new message.
  */
 export const GetCacheStatusRequestSchema: GenMessage<GetCacheStatusRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 12);
+  messageDesc(file_code_facts_v1_facts_facts, 23);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.InspectCacheRequest
@@ -482,7 +928,7 @@ export type InspectCacheRequest = Message<"vrooli.code_facts.v1.facts.InspectCac
  * Use `create(InspectCacheRequestSchema)` to create a new message.
  */
 export const InspectCacheRequestSchema: GenMessage<InspectCacheRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 13);
+  messageDesc(file_code_facts_v1_facts_facts, 24);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ClearCacheRequest
@@ -509,7 +955,7 @@ export type ClearCacheRequest = Message<"vrooli.code_facts.v1.facts.ClearCacheRe
  * Use `create(ClearCacheRequestSchema)` to create a new message.
  */
 export const ClearCacheRequestSchema: GenMessage<ClearCacheRequest> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 14);
+  messageDesc(file_code_facts_v1_facts_facts, 25);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.TargetContext
@@ -551,7 +997,7 @@ export type TargetContext = Message<"vrooli.code_facts.v1.facts.TargetContext"> 
  * Use `create(TargetContextSchema)` to create a new message.
  */
 export const TargetContextSchema: GenMessage<TargetContext> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 15);
+  messageDesc(file_code_facts_v1_facts_facts, 26);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.SourceRange
@@ -588,7 +1034,7 @@ export type SourceRange = Message<"vrooli.code_facts.v1.facts.SourceRange"> & {
  * Use `create(SourceRangeSchema)` to create a new message.
  */
 export const SourceRangeSchema: GenMessage<SourceRange> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 16);
+  messageDesc(file_code_facts_v1_facts_facts, 27);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.Evidence
@@ -630,7 +1076,7 @@ export type Evidence = Message<"vrooli.code_facts.v1.facts.Evidence"> & {
  * Use `create(EvidenceSchema)` to create a new message.
  */
 export const EvidenceSchema: GenMessage<Evidence> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 17);
+  messageDesc(file_code_facts_v1_facts_facts, 28);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ParseUnit
@@ -672,7 +1118,7 @@ export type ParseUnit = Message<"vrooli.code_facts.v1.facts.ParseUnit"> & {
  * Use `create(ParseUnitSchema)` to create a new message.
  */
 export const ParseUnitSchema: GenMessage<ParseUnit> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 18);
+  messageDesc(file_code_facts_v1_facts_facts, 29);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.Surface
@@ -709,7 +1155,7 @@ export type Surface = Message<"vrooli.code_facts.v1.facts.Surface"> & {
  * Use `create(SurfaceSchema)` to create a new message.
  */
 export const SurfaceSchema: GenMessage<Surface> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 19);
+  messageDesc(file_code_facts_v1_facts_facts, 30);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.GenericFact
@@ -751,7 +1197,7 @@ export type GenericFact = Message<"vrooli.code_facts.v1.facts.GenericFact"> & {
  * Use `create(GenericFactSchema)` to create a new message.
  */
 export const GenericFactSchema: GenMessage<GenericFact> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 20);
+  messageDesc(file_code_facts_v1_facts_facts, 31);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.Warning
@@ -778,7 +1224,7 @@ export type Warning = Message<"vrooli.code_facts.v1.facts.Warning"> & {
  * Use `create(WarningSchema)` to create a new message.
  */
 export const WarningSchema: GenMessage<Warning> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 21);
+  messageDesc(file_code_facts_v1_facts_facts, 32);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CacheMetadata
@@ -880,7 +1326,7 @@ export type CacheMetadata = Message<"vrooli.code_facts.v1.facts.CacheMetadata"> 
  * Use `create(CacheMetadataSchema)` to create a new message.
  */
 export const CacheMetadataSchema: GenMessage<CacheMetadata> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 22);
+  messageDesc(file_code_facts_v1_facts_facts, 33);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CacheScopeSummary
@@ -907,7 +1353,7 @@ export type CacheScopeSummary = Message<"vrooli.code_facts.v1.facts.CacheScopeSu
  * Use `create(CacheScopeSummarySchema)` to create a new message.
  */
 export const CacheScopeSummarySchema: GenMessage<CacheScopeSummary> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 23);
+  messageDesc(file_code_facts_v1_facts_facts, 34);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CacheStatus
@@ -969,7 +1415,7 @@ export type CacheStatus = Message<"vrooli.code_facts.v1.facts.CacheStatus"> & {
  * Use `create(CacheStatusSchema)` to create a new message.
  */
 export const CacheStatusSchema: GenMessage<CacheStatus> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 24);
+  messageDesc(file_code_facts_v1_facts_facts, 35);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ClearCacheResponse
@@ -1001,7 +1447,7 @@ export type ClearCacheResponse = Message<"vrooli.code_facts.v1.facts.ClearCacheR
  * Use `create(ClearCacheResponseSchema)` to create a new message.
  */
 export const ClearCacheResponseSchema: GenMessage<ClearCacheResponse> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 25);
+  messageDesc(file_code_facts_v1_facts_facts, 36);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.CodeFactsReport
@@ -1058,7 +1504,7 @@ export type CodeFactsReport = Message<"vrooli.code_facts.v1.facts.CodeFactsRepor
  * Use `create(CodeFactsReportSchema)` to create a new message.
  */
 export const CodeFactsReportSchema: GenMessage<CodeFactsReport> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 26);
+  messageDesc(file_code_facts_v1_facts_facts, 37);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ListSurfacesResponse
@@ -1090,7 +1536,7 @@ export type ListSurfacesResponse = Message<"vrooli.code_facts.v1.facts.ListSurfa
  * Use `create(ListSurfacesResponseSchema)` to create a new message.
  */
 export const ListSurfacesResponseSchema: GenMessage<ListSurfacesResponse> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 27);
+  messageDesc(file_code_facts_v1_facts_facts, 38);
 
 /**
  * @generated from message vrooli.code_facts.v1.facts.ProofReport
@@ -1132,7 +1578,7 @@ export type ProofReport = Message<"vrooli.code_facts.v1.facts.ProofReport"> & {
  * Use `create(ProofReportSchema)` to create a new message.
  */
 export const ProofReportSchema: GenMessage<ProofReport> = /*@__PURE__*/
-  messageDesc(file_code_facts_v1_facts_facts, 28);
+  messageDesc(file_code_facts_v1_facts_facts, 39);
 
 /**
  * @generated from enum vrooli.code_facts.v1.facts.TargetKind
@@ -1427,6 +1873,57 @@ export const SurfaceStatusSchema: GenEnum<SurfaceStatus> = /*@__PURE__*/
   enumDesc(file_code_facts_v1_facts_facts, 4);
 
 /**
+ * @generated from enum vrooli.code_facts.v1.facts.IndexJobState
+ */
+export enum IndexJobState {
+  /**
+   * @generated from enum value: INDEX_JOB_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: INDEX_JOB_STATE_QUEUED = 1;
+   */
+  QUEUED = 1,
+
+  /**
+   * @generated from enum value: INDEX_JOB_STATE_RUNNING = 2;
+   */
+  RUNNING = 2,
+
+  /**
+   * @generated from enum value: INDEX_JOB_STATE_CANCELLATION_REQUESTED = 3;
+   */
+  CANCELLATION_REQUESTED = 3,
+
+  /**
+   * @generated from enum value: INDEX_JOB_STATE_SUCCEEDED = 4;
+   */
+  SUCCEEDED = 4,
+
+  /**
+   * @generated from enum value: INDEX_JOB_STATE_FAILED = 5;
+   */
+  FAILED = 5,
+
+  /**
+   * @generated from enum value: INDEX_JOB_STATE_CANCELLED = 6;
+   */
+  CANCELLED = 6,
+
+  /**
+   * @generated from enum value: INDEX_JOB_STATE_INTERRUPTED = 7;
+   */
+  INTERRUPTED = 7,
+}
+
+/**
+ * Describes the enum vrooli.code_facts.v1.facts.IndexJobState.
+ */
+export const IndexJobStateSchema: GenEnum<IndexJobState> = /*@__PURE__*/
+  enumDesc(file_code_facts_v1_facts_facts, 5);
+
+/**
  * @generated from service vrooli.code_facts.v1.facts.CodeFactsService
  */
 export const CodeFactsService: GenService<{
@@ -1528,6 +2025,76 @@ export const CodeFactsService: GenService<{
     methodKind: "unary";
     input: typeof ClearCacheRequestSchema;
     output: typeof ClearCacheResponseSchema;
+  },
+  /**
+   * GetIndexStatus returns the durable active generation and reconciliation jobs.
+   *
+   * @generated from rpc vrooli.code_facts.v1.facts.CodeFactsService.GetIndexStatus
+   */
+  getIndexStatus: {
+    methodKind: "unary";
+    input: typeof GetIndexStatusRequestSchema;
+    output: typeof IndexStatusSchema;
+  },
+  /**
+   * ReconcileIndex applies bounded catalog changes to the selected generation.
+   *
+   * @generated from rpc vrooli.code_facts.v1.facts.CodeFactsService.ReconcileIndex
+   */
+  reconcileIndex: {
+    methodKind: "unary";
+    input: typeof ReconcileIndexRequestSchema;
+    output: typeof IndexControlResponseSchema;
+  },
+  /**
+   * Reindex starts a full shadow-generation rebuild.
+   *
+   * @generated from rpc vrooli.code_facts.v1.facts.CodeFactsService.Reindex
+   */
+  reindex: {
+    methodKind: "unary";
+    input: typeof ReindexRequestSchema;
+    output: typeof IndexControlResponseSchema;
+  },
+  /**
+   * CancelIndexJob durably requests cancellation of an active index job.
+   *
+   * @generated from rpc vrooli.code_facts.v1.facts.CodeFactsService.CancelIndexJob
+   */
+  cancelIndexJob: {
+    methodKind: "unary";
+    input: typeof CancelIndexJobRequestSchema;
+    output: typeof IndexControlResponseSchema;
+  },
+  /**
+   * PromoteIndexGeneration validates and promotes a complete shadow generation.
+   *
+   * @generated from rpc vrooli.code_facts.v1.facts.CodeFactsService.PromoteIndexGeneration
+   */
+  promoteIndexGeneration: {
+    methodKind: "unary";
+    input: typeof PromoteIndexGenerationRequestSchema;
+    output: typeof IndexControlResponseSchema;
+  },
+  /**
+   * RollbackIndexGeneration restores a retained complete generation.
+   *
+   * @generated from rpc vrooli.code_facts.v1.facts.CodeFactsService.RollbackIndexGeneration
+   */
+  rollbackIndexGeneration: {
+    methodKind: "unary";
+    input: typeof RollbackIndexGenerationRequestSchema;
+    output: typeof IndexControlResponseSchema;
+  },
+  /**
+   * CleanupIndex plans or deletes retired derived generations.
+   *
+   * @generated from rpc vrooli.code_facts.v1.facts.CodeFactsService.CleanupIndex
+   */
+  cleanupIndex: {
+    methodKind: "unary";
+    input: typeof CleanupIndexRequestSchema;
+    output: typeof IndexControlResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_code_facts_v1_facts_facts, 0);

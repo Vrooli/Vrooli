@@ -19,27 +19,57 @@ type CapabilityImplementation struct {
 type CapabilityResolutionStatus string
 
 const (
+	// CapabilityImplemented means an implementation is available on this host
+	// OS. How much that implementation has been proven is carried separately
+	// by CapabilityResolution.Qualification.
 	CapabilityImplemented CapabilityResolutionStatus = "implemented"
-	CapabilityUnwired     CapabilityResolutionStatus = "unwired"
-	CapabilityPeerless    CapabilityResolutionStatus = "peerless"
+	// CapabilityDegraded means an implementation is available with known
+	// functional limits on this host OS.
+	CapabilityDegraded CapabilityResolutionStatus = "degraded"
+	// CapabilityIneligible means every declaration deliberately marks this
+	// host OS out of scope and none names a mechanism to wire.
+	CapabilityIneligible CapabilityResolutionStatus = "ineligible"
+	// CapabilityUnwired means a mechanism is named for this host OS but no
+	// implementation is declared for it.
+	CapabilityUnwired CapabilityResolutionStatus = "unwired"
+	// CapabilityPeerless means nothing at all is declared for this host OS.
+	CapabilityPeerless CapabilityResolutionStatus = "peerless"
+	// CapabilityStatusInvalid is a terminal verdict, not a resolution: a
+	// declaration authored a platform status outside the vocabulary.
+	CapabilityStatusInvalid CapabilityResolutionStatus = "status_invalid"
 )
 
+// HasImplementation reports whether the resolution found code that runs on
+// this host OS, whatever its proof level. Callers that only ask "is this
+// implemented?" should use this rather than comparing against a single status.
+func (s CapabilityResolutionStatus) HasImplementation() bool {
+	return s == CapabilityImplemented || s == CapabilityDegraded
+}
+
 type CapabilityResolution struct {
-	Capability  string                     `json:"capability"`
-	OS          HostOS                     `json:"host_os"`
-	Status      CapabilityResolutionStatus `json:"status"`
-	Implementer string                     `json:"implementer,omitempty"`
-	Mechanism   string                     `json:"mechanism,omitempty"`
-	Reason      string                     `json:"reason"`
+	Capability string                     `json:"capability"`
+	OS         HostOS                     `json:"host_os"`
+	Status     CapabilityResolutionStatus `json:"status"`
+	// Qualification is the honesty rung of the winning declaration: how much
+	// real-world proof it carries, independent of whether it resolved.
+	Qualification Qualification `json:"qualification"`
+	Implementer   string        `json:"implementer,omitempty"`
+	Mechanism     string        `json:"mechanism,omitempty"`
+	Reason        string        `json:"reason"`
+}
+
+type capabilityCandidate struct {
+	implementation CapabilityImplementation
+	qualification  Qualification
 }
 
 // ResolveCapability finds a platform implementation without maintaining a
-// second catalog. A declared mechanism with no implementation is unwired;
-// absence of both is peerless. Unknown input is represented by peerless with
-// an explicit reason rather than a permissive fallback.
+// second catalog. Every member of the platform status vocabulary gets an
+// explicit outcome; an unrecognised token is a terminal invalid verdict rather
+// than a silent downgrade.
 func ResolveCapability(implementations []CapabilityImplementation, capability string, os HostOS) CapabilityResolution {
 	capability = strings.TrimSpace(capability)
-	result := CapabilityResolution{Capability: capability, OS: os}
+	result := CapabilityResolution{Capability: capability, OS: os, Qualification: QualificationUndeclared}
 	if capability == "" {
 		result.Status = CapabilityPeerless
 		result.Reason = "capability is empty"
@@ -52,7 +82,8 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 	}
 
 	var unwired []string
-	var candidates []CapabilityImplementation
+	var ineligible bool
+	var candidates []capabilityCandidate
 	for _, implementation := range implementations {
 		if strings.TrimSpace(implementation.Capability) != capability {
 			continue
@@ -61,38 +92,67 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 		if !declared {
 			continue
 		}
-		switch strings.ToLower(strings.TrimSpace(platform.Status)) {
-		case platformSupported, platformPartial:
-			if strings.TrimSpace(implementation.Name) != "" {
-				candidates = append(candidates, implementation)
+		status, err := ParsePlatformStatus(platform.Status)
+		if err != nil {
+			result.Status = CapabilityStatusInvalid
+			result.Implementer = strings.TrimSpace(implementation.Name)
+			result.Mechanism = strings.TrimSpace(platform.Mechanism)
+			result.Reason = err.Error()
+			return result
+		}
+		named := strings.TrimSpace(implementation.Name) != ""
+		switch status {
+		case StatusSupported, StatusBuildVerified, StatusExperimental, StatusUnqualified, StatusPartial:
+			if named {
+				candidates = append(candidates, capabilityCandidate{implementation: implementation, qualification: status.Qualification()})
+				continue
 			}
-		case platformUnsupported:
+			// A declaration that claims an implementation without naming one is
+			// exactly the unwired case: the mechanism is described, the code is not.
 			if mechanism := strings.TrimSpace(platform.Mechanism); mechanism != "" {
 				unwired = append(unwired, mechanism)
 			}
-		default:
+		case StatusUnsupported:
 			if mechanism := strings.TrimSpace(platform.Mechanism); mechanism != "" {
 				unwired = append(unwired, mechanism)
+				continue
 			}
+			ineligible = true
 		}
 	}
 	if len(candidates) > 0 {
 		sort.SliceStable(candidates, func(i, j int) bool {
-			if candidates[i].Role != candidates[j].Role {
-				return candidates[i].Role == "primary"
+			if candidates[i].qualification != candidates[j].qualification {
+				return candidates[i].qualification.Rank() > candidates[j].qualification.Rank()
 			}
-			return candidates[i].Name < candidates[j].Name
+			if candidates[i].implementation.Role != candidates[j].implementation.Role {
+				return candidates[i].implementation.Role == "primary"
+			}
+			return candidates[i].implementation.Name < candidates[j].implementation.Name
 		})
+		winner := candidates[0]
+		result.Qualification = winner.qualification
 		result.Status = CapabilityImplemented
-		result.Implementer = candidates[0].Name
-		result.Reason = "declared implementation is available on this host OS"
+		if winner.qualification == QualificationDegraded {
+			result.Status = CapabilityDegraded
+		}
+		result.Implementer = winner.implementation.Name
+		result.Mechanism = strings.TrimSpace(winner.implementation.Platforms[os].Mechanism)
+		result.Reason = winner.qualification.Reason()
 		return result
 	}
 	if len(unwired) > 0 {
 		sort.Strings(unwired)
 		result.Status = CapabilityUnwired
 		result.Mechanism = unwired[0]
-		result.Reason = "a mechanism is named but no implementation is wired for this host OS"
+		result.Qualification = QualificationUndeclared
+		result.Reason = "a mechanism is named but no implementation is declared for this host OS"
+		return result
+	}
+	if ineligible {
+		result.Status = CapabilityIneligible
+		result.Qualification = QualificationIneligible
+		result.Reason = QualificationIneligible.Reason()
 		return result
 	}
 	result.Status = CapabilityPeerless

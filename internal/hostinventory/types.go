@@ -28,6 +28,7 @@ type Snapshot struct {
 	Memory                  Memory                  `json:"memory"`
 	Swap                    Swap                    `json:"swap"`
 	GPUs                    []GPU                   `json:"gpus"`
+	Devices                 []Device                `json:"devices,omitempty"`
 	NvidiaDeviceNodes       []string                `json:"nvidia_device_nodes,omitempty"`
 	GPUProcesses            []GPUProcess            `json:"gpu_processes,omitempty"`
 	RuntimeTools            map[string]Tool         `json:"runtime_tools,omitempty"`
@@ -164,6 +165,11 @@ type GPU struct {
 	SMClockMHz               *float64 `json:"sm_clock_mhz,omitempty"`
 	MemoryClockMHz           *float64 `json:"memory_clock_mhz,omitempty"`
 	Source                   string   `json:"source"`
+	// DeviceID binds this vendor-tool telemetry record to the device-tree
+	// identity of the hardware it describes. Empty means the vendor tool
+	// reported a GPU the device tree did not enumerate, which the collector
+	// also records as a warning.
+	DeviceID string `json:"device_id,omitempty"`
 }
 
 type GPUProcess struct {

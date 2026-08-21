@@ -177,9 +177,31 @@ func (p *storeProvider) Apply(ctx context.Context, inputs operatorcapability.Inp
 	if err != nil {
 		return operatorcapability.Result{CapabilityID: StoreCapabilityID, State: operatorcapability.StateRetryableFailure, Outcome: "store_access_failed", Retryable: true, ErrorCode: "store_access_failed", Remediation: "credential-store access failed; correct the passphrase or backend session and retry"}, nil
 	}
+
+	// This is the moment that decides whether the operator ever types this
+	// passphrase again. The store is open and the passphrase is in hand, which
+	// are the two things adding an unattended wrap requires; a return from here
+	// without doing it is a host that asks for the same secret at every boot
+	// forever. Onboarding is the surface most operators reach, so leaving the
+	// convergence to some other path left it effectively unreachable.
+	//
+	// A host that cannot hold an unattended wrap is still ready — it just needs
+	// its passphrase again — so the outcome is reported rather than failed.
+	unattended, unattendedErr := securestore.EnsureUnattendedWrap(passphrase)
+	outcome := "credential_store_ready"
+	remediation := ""
+	switch {
+	case unattendedErr != nil:
+		remediation = fmt.Sprintf("credential store is open; unattended access could not be evaluated: %v", unattendedErr)
+	case unattended.Enabled:
+		outcome = "credential_store_ready_unattended"
+	default:
+		remediation = "credential store is open, but this host needs its passphrase after every reboot: " + unattended.Blocked
+	}
 	return operatorcapability.Result{
-		CapabilityID: StoreCapabilityID, State: operatorcapability.StateReady, Outcome: "credential_store_ready", Retryable: true,
-		Evidence: []operatorcapability.EvidenceReference{{Kind: "credential-store-access", ArtifactIdentity: "encrypted-credential-store", ObservedAt: time.Now().UTC(), Verified: true}},
+		CapabilityID: StoreCapabilityID, State: operatorcapability.StateReady, Outcome: outcome, Retryable: true,
+		Remediation: remediation,
+		Evidence:    []operatorcapability.EvidenceReference{{Kind: "credential-store-access", ArtifactIdentity: "encrypted-credential-store", ObservedAt: time.Now().UTC(), Verified: true}},
 	}, nil
 }
 

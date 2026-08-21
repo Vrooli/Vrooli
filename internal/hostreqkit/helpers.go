@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -113,6 +114,7 @@ func BaseStatus(requirement hostreqspec.ResolvedRequirement) ItemStatus {
 		Name:             requirement.Name,
 		Kind:             requirement.Kind,
 		Required:         requirement.Required,
+		MinVersion:       requirement.MinVersion,
 		OperatorChoice:   requirement.OperatorChoice,
 		Config:           requirement.Config,
 		ConfigNonDefault: requirement.ConfigNonDefault,
@@ -325,6 +327,62 @@ func VersionMatches(observed, expected string) bool {
 		}
 	}
 	return false
+}
+
+// CompareVersions compares the first numeric dotted version in each value.
+// It returns -1, 0, or 1 and treats missing trailing segments as zero.
+func CompareVersions(left, right string) int {
+	l := numericVersion(left)
+	r := numericVersion(right)
+	limit := len(l)
+	if len(r) > limit {
+		limit = len(r)
+	}
+	for index := 0; index < limit; index++ {
+		lv, rv := 0, 0
+		if index < len(l) {
+			lv = l[index]
+		}
+		if index < len(r) {
+			rv = r[index]
+		}
+		if lv < rv {
+			return -1
+		}
+		if lv > rv {
+			return 1
+		}
+	}
+	return 0
+}
+
+func numericVersion(value string) []int {
+	start := -1
+	for index, char := range value {
+		if char >= '0' && char <= '9' {
+			start = index
+			break
+		}
+	}
+	if start < 0 {
+		return nil
+	}
+	var numbers []int
+	for _, token := range strings.Split(value[start:], ".") {
+		digits := strings.Builder{}
+		for _, char := range token {
+			if char < '0' || char > '9' {
+				break
+			}
+			digits.WriteRune(char)
+		}
+		if digits.Len() == 0 {
+			break
+		}
+		number, _ := strconv.Atoi(digits.String())
+		numbers = append(numbers, number)
+	}
+	return numbers
 }
 
 func normalizeVersionToken(value string) string {

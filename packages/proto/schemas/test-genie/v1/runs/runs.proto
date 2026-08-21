@@ -327,6 +327,11 @@ message GetCostReportRequest {
   string scenario = 1;
   int64 window_seconds = 2; // 0 = 7 days
   int64 compare_window_seconds = 3; // 0 = no comparison
+  // fleet aggregates by PHASE across every scenario instead of reporting one
+  // row per scenario/phase pair. A fleet-wide answer to "where does suite time
+  // go" is a per-phase question; per-scenario rows number in the hundreds and
+  // bury it.
+  bool fleet = 4;
 }
 
 message CostPhaseSummary {
@@ -361,6 +366,20 @@ message CostPhaseSummary {
   int64 cache_audit_wall_clock_ms = 29;
   int64 estimated_gross_saved_wall_clock_ms = 30;
   int64 estimated_net_saved_wall_clock_ms = 31;
+  // provider_scenario names the scenario whose provider owns this phase, so a
+  // cost row points at something ownable. Empty for a native phase.
+  string provider_scenario = 32;
+  // Queue latency is the wait between a run being requested and it getting a
+  // concurrency slot. It is invisible to phase timings and is frequently the
+  // larger half of "why was my suite slow". Both are -1 when unknown, which is
+  // the case for runs recorded before requested_at existed.
+  int64 queue_latency_median_ms = 33;
+  int64 queue_latency_p90_ms = 34;
+  // Repeat-failure cost is wall-clock spent re-deriving a failure the phase had
+  // already produced under an identical cache identity. It is the direct
+  // measure of what caching failed results reclaims.
+  int64 repeat_failure_wall_clock_ms = 35;
+  int32 repeat_failure_sample_count = 36;
 }
 
 message GetCostReportResponse {

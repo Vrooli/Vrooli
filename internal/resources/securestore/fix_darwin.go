@@ -10,4 +10,8 @@ func absentBackendFix() string {
 // systemd-creds facility, so it is never the reason a store stays locked here.
 func hostBoundFix() string { return "" }
 
+// PendingGroupGrant has no meaning here: the native wrap on this platform is a
+// per-user facility, not a device a group grants access to.
+func PendingGroupGrant() string { return "" }
+
 func nativeStorageStrength() (string, string) { return "", "" }

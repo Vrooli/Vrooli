@@ -464,6 +464,64 @@ func (x *CodeGraphWarning) GetMessage() string {
 	return ""
 }
 
+// CodeGraphOmission explains information that was intentionally not produced
+// because the caller selected a lighter extraction profile. This is distinct
+// from a warning: the producer completed successfully, but the omitted
+// capability was outside the requested contract.
+type CodeGraphOmission struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable capability identifier, for example "resolved_type_information".
+	Capability string `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
+	// Human-readable explanation of why the capability is absent.
+	Reason        string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CodeGraphOmission) Reset() {
+	*x = CodeGraphOmission{}
+	mi := &file_common_v1_code_graph_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CodeGraphOmission) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CodeGraphOmission) ProtoMessage() {}
+
+func (x *CodeGraphOmission) ProtoReflect() protoreflect.Message {
+	mi := &file_common_v1_code_graph_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CodeGraphOmission.ProtoReflect.Descriptor instead.
+func (*CodeGraphOmission) Descriptor() ([]byte, []int) {
+	return file_common_v1_code_graph_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CodeGraphOmission) GetCapability() string {
+	if x != nil {
+		return x.Capability
+	}
+	return ""
+}
+
+func (x *CodeGraphOmission) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_common_v1_code_graph_proto protoreflect.FileDescriptor
 
 const file_common_v1_code_graph_proto_rawDesc = "" +
@@ -500,7 +558,12 @@ const file_common_v1_code_graph_proto_rawDesc = "" +
 	"\x10CodeGraphWarning\x123\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1f.common.v1.CodeGraphWarningKindR\x04kind\x12\x12\n" +
 	"\x04file\x18\x02 \x01(\tR\x04file\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*u\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"K\n" +
+	"\x11CodeGraphOmission\x12\x1e\n" +
+	"\n" +
+	"capability\x18\x01 \x01(\tR\n" +
+	"capability\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason*u\n" +
 	"\bNodeKind\x12\x19\n" +
 	"\x15NODE_KIND_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eNODE_KIND_FILE\x10\x01\x12\x15\n" +
@@ -531,7 +594,7 @@ func file_common_v1_code_graph_proto_rawDescGZIP() []byte {
 }
 
 var file_common_v1_code_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_common_v1_code_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_common_v1_code_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_common_v1_code_graph_proto_goTypes = []any{
 	(NodeKind)(0),             // 0: common.v1.NodeKind
 	(EdgeKind)(0),             // 1: common.v1.EdgeKind
@@ -540,16 +603,17 @@ var file_common_v1_code_graph_proto_goTypes = []any{
 	(*CodeGraphNode)(nil),     // 4: common.v1.CodeGraphNode
 	(*CodeGraphEdge)(nil),     // 5: common.v1.CodeGraphEdge
 	(*CodeGraphWarning)(nil),  // 6: common.v1.CodeGraphWarning
-	nil,                       // 7: common.v1.CodeGraphNode.AttributesEntry
-	nil,                       // 8: common.v1.CodeGraphEdge.AttributesEntry
+	(*CodeGraphOmission)(nil), // 7: common.v1.CodeGraphOmission
+	nil,                       // 8: common.v1.CodeGraphNode.AttributesEntry
+	nil,                       // 9: common.v1.CodeGraphEdge.AttributesEntry
 }
 var file_common_v1_code_graph_proto_depIdxs = []int32{
 	4, // 0: common.v1.CodeGraph.nodes:type_name -> common.v1.CodeGraphNode
 	5, // 1: common.v1.CodeGraph.edges:type_name -> common.v1.CodeGraphEdge
 	0, // 2: common.v1.CodeGraphNode.kind:type_name -> common.v1.NodeKind
-	7, // 3: common.v1.CodeGraphNode.attributes:type_name -> common.v1.CodeGraphNode.AttributesEntry
+	8, // 3: common.v1.CodeGraphNode.attributes:type_name -> common.v1.CodeGraphNode.AttributesEntry
 	1, // 4: common.v1.CodeGraphEdge.kind:type_name -> common.v1.EdgeKind
-	8, // 5: common.v1.CodeGraphEdge.attributes:type_name -> common.v1.CodeGraphEdge.AttributesEntry
+	9, // 5: common.v1.CodeGraphEdge.attributes:type_name -> common.v1.CodeGraphEdge.AttributesEntry
 	2, // 6: common.v1.CodeGraphWarning.kind:type_name -> common.v1.CodeGraphWarningKind
 	7, // [7:7] is the sub-list for method output_type
 	7, // [7:7] is the sub-list for method input_type
@@ -569,7 +633,7 @@ func file_common_v1_code_graph_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_v1_code_graph_proto_rawDesc), len(file_common_v1_code_graph_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

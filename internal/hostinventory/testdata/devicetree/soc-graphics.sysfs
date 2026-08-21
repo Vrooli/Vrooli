@@ -1,0 +1,14 @@
+# An ARM board whose GPU is on the SoC and therefore on no PCI bus at all.
+# There is no PCI address to key on; the firmware device-tree path is the
+# durable identity.
+
+>>> file devices/platform/fd4a0000.gpu/uevent
+DRIVER=panfrost
+OF_NAME=gpu
+OF_FULLNAME=/gpu@fd4a0000
+OF_COMPATIBLE_0=arm,mali-g610
+MODALIAS=of:NgpuT(null)Carm,mali-g610
+
+>>> dir devices/platform/fd4a0000.gpu/drm/card0
+>>> dir devices/platform/fd4a0000.gpu/drm/renderD128
+>>> dir devices/platform/serial8250

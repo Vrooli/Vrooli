@@ -53,8 +53,15 @@ type StoreStatus struct {
 	// difference between "this host reboots unattended" and "this host needs a
 	// passphrase typed at every boot" is invisible otherwise, and an operator
 	// who assumes the wrong one finds out during an outage.
-	HostBoundBlocked string      `json:"host_bound_blocked,omitempty"`
-	Copy             *CopyStatus `json:"copy,omitempty"`
+	HostBoundBlocked string `json:"host_bound_blocked,omitempty"`
+	// Unattended is the verified answer to the only question that decides
+	// whether a reboot needs a human: does a wrap open this store with no
+	// operator action? It is proved by opening one, never inferred from a wrap
+	// being listed, because a wrap that has stopped working still appears in
+	// the file and would otherwise report this host as unattended right up
+	// until the reboot that strands it.
+	Unattended UnattendedStatus `json:"unattended"`
+	Copy       *CopyStatus      `json:"copy,omitempty"`
 }
 
 // CopyStatus is non-secret freshness metadata for the encrypted root copy.
@@ -147,6 +154,7 @@ func DescribeStore() (StoreStatus, error) {
 	if status.ActiveWrap == providerHostBound || status.ActiveWrap == providerNativeWrap {
 		status.UnlockCache = ""
 	}
+	status.Unattended = inspectUnattendedWrap(file)
 	return status, nil
 }
 
@@ -449,25 +457,148 @@ func LockStore() error {
 	return nil
 }
 
-// RewrapStore adds or refreshes the host-bound wrap of an existing store. It is
-// how a host that gains a TPM starts using it: the data key does not change, so
-// no stored value is re-encrypted and nothing can be lost.
-func RewrapStore(passphrase string) (WrapInfo, error) {
+// UnattendedStatus answers whether this host opens its credential store with no
+// human action, and what had to change to make that true. It is the shape both
+// `credentials store status` and setup report from, so the operator is told the
+// same thing by both.
+type UnattendedStatus struct {
+	// Enabled is proved, not declared: a wrap was opened to produce it.
+	Enabled  bool   `json:"enabled"`
+	Provider string `json:"provider,omitempty"`
+	KeyStore string `json:"key_store,omitempty"`
+	// Added is true when this call created the wrap; Repaired when it replaced
+	// one that had stopped opening. They are separate because they mean
+	// different things to an operator: the first is a host reaching its
+	// intended state, the second is a host that had silently left it.
+	Added    bool `json:"added,omitempty"`
+	Repaired bool `json:"repaired,omitempty"`
+	// Blocked says why this host still needs a human at boot, in terms of
+	// something that can be changed. It is empty when Enabled is true.
+	Blocked string `json:"blocked,omitempty"`
+}
+
+// unattendedProviders are the wraps that need no human at boot, strongest
+// first. The passphrase provider is deliberately absent: it is the recovery
+// path that makes the store portable to a new host, not a way to boot without
+// an operator, and counting it here would let a host report itself unattended
+// because it can still be opened by hand.
+// It is a variable so a test can substitute providers whose availability it
+// controls: neither a TPM that has been cleared nor a Keychain item that has
+// been deleted can be produced on demand on a real machine, and those are the
+// states this logic exists to handle.
+var unattendedProviders = func() []keyProvider {
+	providers := defaultKeyProviders()
+	unattended := make([]keyProvider, 0, len(providers))
+	for _, provider := range providers {
+		if provider.Name() == providerPassphrase {
+			continue
+		}
+		unattended = append(unattended, provider)
+	}
+	return unattended
+}
+
+// inspectUnattendedWrap reports the unattended state and changes nothing. It
+// opens each candidate wrap rather than trusting its presence, which is what
+// makes a TPM that was cleared, a Keychain item that was deleted, or a wrap
+// invalidated by a firmware update show up as the passphrase prompt it will
+// actually become.
+func inspectUnattendedWrap(file *sealedFile) UnattendedStatus {
+	var reasons []string
+	for _, provider := range unattendedProviders() {
+		wrap, found := file.wrapFor(provider.Name())
+		if !found {
+			if _, err := provider.Available(); err != nil {
+				reasons = append(reasons, provider.Name()+": "+conciseReason(err))
+				continue
+			}
+			reasons = append(reasons, provider.Name()+": this host supports it but the store has no such wrap yet")
+			continue
+		}
+		if _, err := provider.Unwrap(wrap); err != nil {
+			reasons = append(reasons, provider.Name()+": the store has this wrap and it no longer opens: "+conciseReason(err))
+			continue
+		}
+		return UnattendedStatus{Enabled: true, Provider: wrap.Provider, KeyStore: wrap.KeyStore}
+	}
+	return UnattendedStatus{Blocked: strings.Join(reasons, "; ")}
+}
+
+// EnsureUnattendedWrap converges this host on opening its credential store
+// without a human, and reports what it found or changed.
+//
+// It is the single place that decision is made. Every path that has the store
+// open — setup, onboarding, an explicit unlock, an explicit rewrap — calls it,
+// because the alternative shipped once already: the wrap was added on exactly
+// one code path, the two paths an operator actually reaches supplied a
+// passphrase and returned without it, and the host typed a passphrase at every
+// boot for as long as it existed.
+//
+// The data key is never regenerated, so no stored value is re-encrypted and a
+// failure part-way through cannot lose a credential.
+func EnsureUnattendedWrap(passphrase string) (UnattendedStatus, error) {
 	encrypted, _, err := encryptedStoreForAdmin()
 	if err != nil {
-		return WrapInfo{}, err
+		return UnattendedStatus{}, err
+	}
+	if !encrypted.initialized() {
+		return UnattendedStatus{}, fmt.Errorf("%w: no credential store on this host; run `vrooli credentials store init`", ErrAbsent)
 	}
 	if passphrase != "" {
 		SetPassphrase(passphrase)
 	}
-	wrap, err := encrypted.addWrap(newNativeWrapProvider())
+	return ensureUnattendedWrap(encrypted)
+}
+
+func ensureUnattendedWrap(encrypted *encryptedStore) (UnattendedStatus, error) {
+	file, err := readSealedFile(encrypted.path)
 	if err != nil {
-		wrap, err = encrypted.addWrap(newHostBoundProvider())
+		return UnattendedStatus{}, encrypted.classifyFileError(err)
 	}
+	if status := inspectUnattendedWrap(file); status.Enabled {
+		return status, nil
+	}
+
+	var reasons []string
+	for _, provider := range unattendedProviders() {
+		if _, err := provider.Available(); err != nil {
+			reasons = append(reasons, provider.Name()+": "+conciseReason(err))
+			continue
+		}
+		_, replacing := file.wrapFor(provider.Name())
+		// addWrap opens the store first, so this is where a missing passphrase
+		// surfaces — and it surfaces as a reason rather than a hard failure,
+		// because a host that cannot add an unattended wrap is degraded, not
+		// broken.
+		wrap, addErr := encrypted.addWrap(provider)
+		if addErr != nil {
+			reasons = append(reasons, provider.Name()+": "+conciseReason(addErr))
+			continue
+		}
+		return UnattendedStatus{
+			Enabled:  true,
+			Provider: wrap.Provider,
+			KeyStore: wrap.KeyStore,
+			Added:    !replacing,
+			Repaired: replacing,
+		}, nil
+	}
+	return UnattendedStatus{Blocked: strings.Join(reasons, "; ")}, nil
+}
+
+// RewrapStore adds or refreshes the unattended wrap of an existing store. It is
+// how a host that gains a TPM starts using it: the data key does not change, so
+// no stored value is re-encrypted and nothing can be lost.
+func RewrapStore(passphrase string) (WrapInfo, error) {
+	status, err := EnsureUnattendedWrap(passphrase)
 	if err != nil {
 		return WrapInfo{}, err
 	}
-	return WrapInfo{Provider: wrap.Provider, KeyStore: wrap.KeyStore}, nil
+	if !status.Enabled {
+		return WrapInfo{}, fmt.Errorf("%w: no unattended key wrap can protect this store (%s)",
+			errKeyProviderUnavailable, status.Blocked)
+	}
+	return WrapInfo{Provider: status.Provider, KeyStore: status.KeyStore}, nil
 }
 
 // ChangePassphraseStore replaces the passphrase wrap around the existing data

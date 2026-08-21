@@ -4,7 +4,7 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { CodeGraph, CodeGraphWarning } from "../../../common/v1/code_graph_pb";
+import type { CodeGraph, CodeGraphOmission, CodeGraphWarning } from "../../../common/v1/code_graph_pb";
 import { file_common_v1_code_graph } from "../../../common/v1/code_graph_pb";
 import type { Operation, OperationResult } from "../rewrite/rewrite_pb";
 import { file_go_code_graph_v1_rewrite_rewrite } from "../rewrite/rewrite_pb";
@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file go-code-graph/v1/graph/graph.proto.
  */
 export const file_go_code_graph_v1_graph_graph: GenFile = /*@__PURE__*/
-  fileDesc("CiJnby1jb2RlLWdyYXBoL3YxL2dyYXBoL2dyYXBoLnByb3RvEh12cm9vbGkuZ29fY29kZV9ncmFwaC52MS5ncmFwaCI9Cg5FeHRyYWN0UmVxdWVzdBITCgttb2R1bGVfcGF0aBgBIAEoCRIWCg5pbmNsdWRlX3ZlbmRvchgCIAEoCCKQAQoPRXh0cmFjdFJlc3BvbnNlEiMKBWdyYXBoGAEgASgLMhQuY29tbW9uLnYxLkNvZGVHcmFwaBItCgh3YXJuaW5ncxgCIAMoCzIbLmNvbW1vbi52MS5Db2RlR3JhcGhXYXJuaW5nEhUKDWV4dHJhY3Rpb25fbXMYAyABKAMSEgoKZ3JhcGhfaGFzaBgEIAEoCSJpChJSZXdyaXRlUGxhblJlcXVlc3QSEwoLbW9kdWxlX3BhdGgYASABKAkSPgoKb3BlcmF0aW9ucxgCIAMoCzIqLnZyb29saS5nb19jb2RlX2dyYXBoLnYxLnJld3JpdGUuT3BlcmF0aW9uInEKE1Jld3JpdGVQbGFuUmVzcG9uc2USDwoHcGxhbl9pZBgBIAEoCRJJChVub3JtYWxpemVkX29wZXJhdGlvbnMYAiADKAsyKi52cm9vbGkuZ29fY29kZV9ncmFwaC52MS5yZXdyaXRlLk9wZXJhdGlvbiJKChNSZXdyaXRlQXBwbHlSZXF1ZXN0EhMKC21vZHVsZV9wYXRoGAEgASgJEg8KB3BsYW5faWQYAiABKAkSDQoFYXBwbHkYAyABKAgiewoUUmV3cml0ZUFwcGx5UmVzcG9uc2USDwoHcGxhbl9pZBgBIAEoCRJBCgdyZXN1bHRzGAIgAygLMjAudnJvb2xpLmdvX2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb25SZXN1bHQSDwoHZHJ5X3J1bhgDIAEoCCIVChNMaXN0Rml4dHVyZXNSZXF1ZXN0Ij8KC0ZpeHR1cmVJbmZvEgwKBG5hbWUYASABKAkSDAoEcGF0aBgCIAEoCRIUCgxoYXNfZXhwZWN0ZWQYAyABKAgiVAoUTGlzdEZpeHR1cmVzUmVzcG9uc2USPAoIZml4dHVyZXMYASADKAsyKi52cm9vbGkuZ29fY29kZV9ncmFwaC52MS5ncmFwaC5GaXh0dXJlSW5mbyImChZWYWxpZGF0ZUZpeHR1cmVSZXF1ZXN0EgwKBG5hbWUYASABKAkieQoXVmFsaWRhdGVGaXh0dXJlUmVzcG9uc2USDgoGcGFzc2VkGAEgASgIEgwKBGRpZmYYAiABKAkSFgoOZXhwZWN0ZWRfYnl0ZXMYAyABKAMSFAoMYWN0dWFsX2J5dGVzGAQgASgDEhIKCmdyYXBoX2hhc2gYBSABKAkqzgIKCkdvTm9kZUtpbmQSHAoYR09fTk9ERV9LSU5EX1VOU1BFQ0lGSUVEEAASFQoRR09fTk9ERV9LSU5EX1RZUEUQZBIVChFHT19OT0RFX0tJTkRfRlVOQxBlEhQKEEdPX05PREVfS0lORF9WQVIQZhIWChJHT19OT0RFX0tJTkRfQ09OU1QQZxIaChZHT19OT0RFX0tJTkRfSU5URVJGQUNFEGgSFwoTR09fTk9ERV9LSU5EX01FVEhPRBBpEhwKGEdPX05PREVfS0lORF9JTVBPUlRfU1BFQxBqEhoKFkdPX05PREVfS0lORF9SRUZFUkVOQ0UQaxIVChFHT19OT0RFX0tJTkRfQ0FMTBBsEhsKF0dPX05PREVfS0lORF9UWVBFX1VTQUdFEG0SIwofR09fTk9ERV9LSU5EX1JPVVRFX1JFR0lTVFJBVElPThBuMvMEChJHb0NvZGVHcmFwaFNlcnZpY2USagoHRXh0cmFjdBItLnZyb29saS5nb19jb2RlX2dyYXBoLnYxLmdyYXBoLkV4dHJhY3RSZXF1ZXN0Gi4udnJvb2xpLmdvX2NvZGVfZ3JhcGgudjEuZ3JhcGguRXh0cmFjdFJlc3BvbnNlIgASdgoLUmV3cml0ZVBsYW4SMS52cm9vbGkuZ29fY29kZV9ncmFwaC52MS5ncmFwaC5SZXdyaXRlUGxhblJlcXVlc3QaMi52cm9vbGkuZ29fY29kZV9ncmFwaC52MS5ncmFwaC5SZXdyaXRlUGxhblJlc3BvbnNlIgASeQoMUmV3cml0ZUFwcGx5EjIudnJvb2xpLmdvX2NvZGVfZ3JhcGgudjEuZ3JhcGguUmV3cml0ZUFwcGx5UmVxdWVzdBozLnZyb29saS5nb19jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVBcHBseVJlc3BvbnNlIgASeQoMTGlzdEZpeHR1cmVzEjIudnJvb2xpLmdvX2NvZGVfZ3JhcGgudjEuZ3JhcGguTGlzdEZpeHR1cmVzUmVxdWVzdBozLnZyb29saS5nb19jb2RlX2dyYXBoLnYxLmdyYXBoLkxpc3RGaXh0dXJlc1Jlc3BvbnNlIgASggEKD1ZhbGlkYXRlRml4dHVyZRI1LnZyb29saS5nb19jb2RlX2dyYXBoLnYxLmdyYXBoLlZhbGlkYXRlRml4dHVyZVJlcXVlc3QaNi52cm9vbGkuZ29fY29kZV9ncmFwaC52MS5ncmFwaC5WYWxpZGF0ZUZpeHR1cmVSZXNwb25zZSIAQlBaTmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZ28tY29kZS1ncmFwaC92MS9ncmFwaDtncmFwaF92MWIGcHJvdG8z", [file_common_v1_code_graph, file_go_code_graph_v1_rewrite_rewrite]);
+  fileDesc("CiJnby1jb2RlLWdyYXBoL3YxL2dyYXBoL2dyYXBoLnByb3RvEh12cm9vbGkuZ29fY29kZV9ncmFwaC52MS5ncmFwaCKaAQoORXh0cmFjdFJlcXVlc3QSEwoLbW9kdWxlX3BhdGgYASABKAkSFgoOaW5jbHVkZV92ZW5kb3IYAiABKAgSQQoHcHJvZmlsZRgDIAEoDjIwLnZyb29saS5nb19jb2RlX2dyYXBoLnYxLmdyYXBoLkV4dHJhY3Rpb25Qcm9maWxlEhgKEHBhY2thZ2VfcGF0dGVybnMYBCADKAki4AIKD0V4dHJhY3RSZXNwb25zZRIjCgVncmFwaBgBIAEoCzIULmNvbW1vbi52MS5Db2RlR3JhcGgSLQoId2FybmluZ3MYAiADKAsyGy5jb21tb24udjEuQ29kZUdyYXBoV2FybmluZxIVCg1leHRyYWN0aW9uX21zGAMgASgDEhIKCmdyYXBoX2hhc2gYBCABKAkSFgoOZmluZ2VycHJpbnRfbXMYBSABKAMSDwoHbG9hZF9tcxgGIAEoAxIUCgxub3JtYWxpemVfbXMYByABKAMSEQoJY2FjaGVfaGl0GAggASgIEkEKB3Byb2ZpbGUYCSABKA4yMC52cm9vbGkuZ29fY29kZV9ncmFwaC52MS5ncmFwaC5FeHRyYWN0aW9uUHJvZmlsZRI5ChNvbWl0dGVkX2luZm9ybWF0aW9uGAogAygLMhwuY29tbW9uLnYxLkNvZGVHcmFwaE9taXNzaW9uImkKElJld3JpdGVQbGFuUmVxdWVzdBITCgttb2R1bGVfcGF0aBgBIAEoCRI+CgpvcGVyYXRpb25zGAIgAygLMioudnJvb2xpLmdvX2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb24icQoTUmV3cml0ZVBsYW5SZXNwb25zZRIPCgdwbGFuX2lkGAEgASgJEkkKFW5vcm1hbGl6ZWRfb3BlcmF0aW9ucxgCIAMoCzIqLnZyb29saS5nb19jb2RlX2dyYXBoLnYxLnJld3JpdGUuT3BlcmF0aW9uIkoKE1Jld3JpdGVBcHBseVJlcXVlc3QSEwoLbW9kdWxlX3BhdGgYASABKAkSDwoHcGxhbl9pZBgCIAEoCRINCgVhcHBseRgDIAEoCCJ7ChRSZXdyaXRlQXBwbHlSZXNwb25zZRIPCgdwbGFuX2lkGAEgASgJEkEKB3Jlc3VsdHMYAiADKAsyMC52cm9vbGkuZ29fY29kZV9ncmFwaC52MS5yZXdyaXRlLk9wZXJhdGlvblJlc3VsdBIPCgdkcnlfcnVuGAMgASgIIhUKE0xpc3RGaXh0dXJlc1JlcXVlc3QiPwoLRml4dHVyZUluZm8SDAoEbmFtZRgBIAEoCRIMCgRwYXRoGAIgASgJEhQKDGhhc19leHBlY3RlZBgDIAEoCCJUChRMaXN0Rml4dHVyZXNSZXNwb25zZRI8CghmaXh0dXJlcxgBIAMoCzIqLnZyb29saS5nb19jb2RlX2dyYXBoLnYxLmdyYXBoLkZpeHR1cmVJbmZvIiYKFlZhbGlkYXRlRml4dHVyZVJlcXVlc3QSDAoEbmFtZRgBIAEoCSJ5ChdWYWxpZGF0ZUZpeHR1cmVSZXNwb25zZRIOCgZwYXNzZWQYASABKAgSDAoEZGlmZhgCIAEoCRIWCg5leHBlY3RlZF9ieXRlcxgDIAEoAxIUCgxhY3R1YWxfYnl0ZXMYBCABKAMSEgoKZ3JhcGhfaGFzaBgFIAEoCSrOAgoKR29Ob2RlS2luZBIcChhHT19OT0RFX0tJTkRfVU5TUEVDSUZJRUQQABIVChFHT19OT0RFX0tJTkRfVFlQRRBkEhUKEUdPX05PREVfS0lORF9GVU5DEGUSFAoQR09fTk9ERV9LSU5EX1ZBUhBmEhYKEkdPX05PREVfS0lORF9DT05TVBBnEhoKFkdPX05PREVfS0lORF9JTlRFUkZBQ0UQaBIXChNHT19OT0RFX0tJTkRfTUVUSE9EEGkSHAoYR09fTk9ERV9LSU5EX0lNUE9SVF9TUEVDEGoSGgoWR09fTk9ERV9LSU5EX1JFRkVSRU5DRRBrEhUKEUdPX05PREVfS0lORF9DQUxMEGwSGwoXR09fTk9ERV9LSU5EX1RZUEVfVVNBR0UQbRIjCh9HT19OT0RFX0tJTkRfUk9VVEVfUkVHSVNUUkFUSU9OEG4qmAEKEUV4dHJhY3Rpb25Qcm9maWxlEiIKHkVYVFJBQ1RJT05fUFJPRklMRV9VTlNQRUNJRklFRBAAEh8KG0VYVFJBQ1RJT05fUFJPRklMRV9TRU1BTlRJQxABEiEKHUVYVFJBQ1RJT05fUFJPRklMRV9TVFJVQ1RVUkFMEAISGwoXRVhUUkFDVElPTl9QUk9GSUxFX0ZVTEwQAzLzBAoSR29Db2RlR3JhcGhTZXJ2aWNlEmoKB0V4dHJhY3QSLS52cm9vbGkuZ29fY29kZV9ncmFwaC52MS5ncmFwaC5FeHRyYWN0UmVxdWVzdBouLnZyb29saS5nb19jb2RlX2dyYXBoLnYxLmdyYXBoLkV4dHJhY3RSZXNwb25zZSIAEnYKC1Jld3JpdGVQbGFuEjEudnJvb2xpLmdvX2NvZGVfZ3JhcGgudjEuZ3JhcGguUmV3cml0ZVBsYW5SZXF1ZXN0GjIudnJvb2xpLmdvX2NvZGVfZ3JhcGgudjEuZ3JhcGguUmV3cml0ZVBsYW5SZXNwb25zZSIAEnkKDFJld3JpdGVBcHBseRIyLnZyb29saS5nb19jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVBcHBseVJlcXVlc3QaMy52cm9vbGkuZ29fY29kZV9ncmFwaC52MS5ncmFwaC5SZXdyaXRlQXBwbHlSZXNwb25zZSIAEnkKDExpc3RGaXh0dXJlcxIyLnZyb29saS5nb19jb2RlX2dyYXBoLnYxLmdyYXBoLkxpc3RGaXh0dXJlc1JlcXVlc3QaMy52cm9vbGkuZ29fY29kZV9ncmFwaC52MS5ncmFwaC5MaXN0Rml4dHVyZXNSZXNwb25zZSIAEoIBCg9WYWxpZGF0ZUZpeHR1cmUSNS52cm9vbGkuZ29fY29kZV9ncmFwaC52MS5ncmFwaC5WYWxpZGF0ZUZpeHR1cmVSZXF1ZXN0GjYudnJvb2xpLmdvX2NvZGVfZ3JhcGgudjEuZ3JhcGguVmFsaWRhdGVGaXh0dXJlUmVzcG9uc2UiAEJQWk5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2dvLWNvZGUtZ3JhcGgvdjEvZ3JhcGg7Z3JhcGhfdjFiBnByb3RvMw", [file_common_v1_code_graph, file_go_code_graph_v1_rewrite_rewrite]);
 
 /**
  * @generated from message vrooli.go_code_graph.v1.graph.ExtractRequest
@@ -36,6 +36,23 @@ export type ExtractRequest = Message<"vrooli.go_code_graph.v1.graph.ExtractReque
    * @generated from field: bool include_vendor = 2;
    */
   includeVendor: boolean;
+
+  /**
+   * Selects the amount of analysis performed. FULL preserves the original
+   * extraction contract, including tests and semantic usage facts.
+   *
+   * @generated from field: vrooli.go_code_graph.v1.graph.ExtractionProfile profile = 3;
+   */
+  profile: ExtractionProfile;
+
+  /**
+   * Optional package patterns relative to module_path. An empty list keeps
+   * the legacy ./... scope; callers can narrow extraction with values such as
+   * ./api/... or ./internal/graph/....
+   *
+   * @generated from field: repeated string package_patterns = 4;
+   */
+  packagePatterns: string[];
 };
 
 /**
@@ -79,6 +96,44 @@ export type ExtractResponse = Message<"vrooli.go_code_graph.v1.graph.ExtractResp
    * @generated from field: string graph_hash = 4;
    */
   graphHash: string;
+
+  /**
+   * Phase timings for performance diagnostics. These are wall-clock
+   * measurements inside the service and are zero when a phase did not run.
+   *
+   * @generated from field: int64 fingerprint_ms = 5;
+   */
+  fingerprintMs: bigint;
+
+  /**
+   * @generated from field: int64 load_ms = 6;
+   */
+  loadMs: bigint;
+
+  /**
+   * @generated from field: int64 normalize_ms = 7;
+   */
+  normalizeMs: bigint;
+
+  /**
+   * @generated from field: bool cache_hit = 8;
+   */
+  cacheHit: boolean;
+
+  /**
+   * Effective profile used for this response. Explicitly returned so
+   * consumers do not infer it from empty fields.
+   *
+   * @generated from field: vrooli.go_code_graph.v1.graph.ExtractionProfile profile = 9;
+   */
+  profile: ExtractionProfile;
+
+  /**
+   * Capabilities intentionally omitted by profile. These are not errors.
+   *
+   * @generated from field: repeated common.v1.CodeGraphOmission omitted_information = 10;
+   */
+  omittedInformation: CodeGraphOmission[];
 };
 
 /**
@@ -411,6 +466,43 @@ export enum GoNodeKind {
  */
 export const GoNodeKindSchema: GenEnum<GoNodeKind> = /*@__PURE__*/
   enumDesc(file_go_code_graph_v1_graph_graph, 0);
+
+/**
+ * @generated from enum vrooli.go_code_graph.v1.graph.ExtractionProfile
+ */
+export enum ExtractionProfile {
+  /**
+   * @generated from enum value: EXTRACTION_PROFILE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Full type information and usage facts, excluding test variants.
+   *
+   * @generated from enum value: EXTRACTION_PROFILE_SEMANTIC = 1;
+   */
+  SEMANTIC = 1,
+
+  /**
+   * Files, packages, declarations, syntax, and imports without type-checking.
+   *
+   * @generated from enum value: EXTRACTION_PROFILE_STRUCTURAL = 2;
+   */
+  STRUCTURAL = 2,
+
+  /**
+   * Explicit compatibility profile: semantic facts plus test variants.
+   *
+   * @generated from enum value: EXTRACTION_PROFILE_FULL = 3;
+   */
+  FULL = 3,
+}
+
+/**
+ * Describes the enum vrooli.go_code_graph.v1.graph.ExtractionProfile.
+ */
+export const ExtractionProfileSchema: GenEnum<ExtractionProfile> = /*@__PURE__*/
+  enumDesc(file_go_code_graph_v1_graph_graph, 1);
 
 /**
  * @generated from service vrooli.go_code_graph.v1.graph.GoCodeGraphService

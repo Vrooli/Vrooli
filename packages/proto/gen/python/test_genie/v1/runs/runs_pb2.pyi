@@ -260,17 +260,19 @@ class GetRunStatusRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
 
 class GetCostReportRequest(_message.Message):
-    __slots__ = ("scenario", "window_seconds", "compare_window_seconds")
+    __slots__ = ("scenario", "window_seconds", "compare_window_seconds", "fleet")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
     COMPARE_WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    FLEET_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     window_seconds: int
     compare_window_seconds: int
-    def __init__(self, scenario: _Optional[str] = ..., window_seconds: _Optional[int] = ..., compare_window_seconds: _Optional[int] = ...) -> None: ...
+    fleet: bool
+    def __init__(self, scenario: _Optional[str] = ..., window_seconds: _Optional[int] = ..., compare_window_seconds: _Optional[int] = ..., fleet: _Optional[bool] = ...) -> None: ...
 
 class CostPhaseSummary(_message.Message):
-    __slots__ = ("scenario", "phase", "sample_count", "reliable_sample_count", "excluded_sample_count", "total_wall_clock_ms", "median_wall_clock_ms", "p90_wall_clock_ms", "total_cpu_user_ms", "max_peak_rss_bytes", "change_wall_clock_ms", "change_percent", "prediction_sample_count", "prediction_error_total_ms", "prediction_mean_absolute_error_ms", "prediction_mean_absolute_error_percent", "passing_sample_count", "failing_sample_count", "passing_median_wall_clock_ms", "passing_p90_wall_clock_ms", "failing_median_wall_clock_ms", "failing_p90_wall_clock_ms", "cache_hit_count", "executed_sample_count", "cache_hit_rate_percent", "cache_audit_count", "cache_audit_mismatch_count", "cache_no_saving_count", "cache_audit_wall_clock_ms", "estimated_gross_saved_wall_clock_ms", "estimated_net_saved_wall_clock_ms")
+    __slots__ = ("scenario", "phase", "sample_count", "reliable_sample_count", "excluded_sample_count", "total_wall_clock_ms", "median_wall_clock_ms", "p90_wall_clock_ms", "total_cpu_user_ms", "max_peak_rss_bytes", "change_wall_clock_ms", "change_percent", "prediction_sample_count", "prediction_error_total_ms", "prediction_mean_absolute_error_ms", "prediction_mean_absolute_error_percent", "passing_sample_count", "failing_sample_count", "passing_median_wall_clock_ms", "passing_p90_wall_clock_ms", "failing_median_wall_clock_ms", "failing_p90_wall_clock_ms", "cache_hit_count", "executed_sample_count", "cache_hit_rate_percent", "cache_audit_count", "cache_audit_mismatch_count", "cache_no_saving_count", "cache_audit_wall_clock_ms", "estimated_gross_saved_wall_clock_ms", "estimated_net_saved_wall_clock_ms", "provider_scenario", "queue_latency_median_ms", "queue_latency_p90_ms", "repeat_failure_wall_clock_ms", "repeat_failure_sample_count")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
     SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -302,6 +304,11 @@ class CostPhaseSummary(_message.Message):
     CACHE_AUDIT_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
     ESTIMATED_GROSS_SAVED_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
     ESTIMATED_NET_SAVED_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    QUEUE_LATENCY_MEDIAN_MS_FIELD_NUMBER: _ClassVar[int]
+    QUEUE_LATENCY_P90_MS_FIELD_NUMBER: _ClassVar[int]
+    REPEAT_FAILURE_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
+    REPEAT_FAILURE_SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     phase: str
     sample_count: int
@@ -333,7 +340,12 @@ class CostPhaseSummary(_message.Message):
     cache_audit_wall_clock_ms: int
     estimated_gross_saved_wall_clock_ms: int
     estimated_net_saved_wall_clock_ms: int
-    def __init__(self, scenario: _Optional[str] = ..., phase: _Optional[str] = ..., sample_count: _Optional[int] = ..., reliable_sample_count: _Optional[int] = ..., excluded_sample_count: _Optional[int] = ..., total_wall_clock_ms: _Optional[int] = ..., median_wall_clock_ms: _Optional[int] = ..., p90_wall_clock_ms: _Optional[int] = ..., total_cpu_user_ms: _Optional[int] = ..., max_peak_rss_bytes: _Optional[int] = ..., change_wall_clock_ms: _Optional[int] = ..., change_percent: _Optional[float] = ..., prediction_sample_count: _Optional[int] = ..., prediction_error_total_ms: _Optional[int] = ..., prediction_mean_absolute_error_ms: _Optional[int] = ..., prediction_mean_absolute_error_percent: _Optional[float] = ..., passing_sample_count: _Optional[int] = ..., failing_sample_count: _Optional[int] = ..., passing_median_wall_clock_ms: _Optional[int] = ..., passing_p90_wall_clock_ms: _Optional[int] = ..., failing_median_wall_clock_ms: _Optional[int] = ..., failing_p90_wall_clock_ms: _Optional[int] = ..., cache_hit_count: _Optional[int] = ..., executed_sample_count: _Optional[int] = ..., cache_hit_rate_percent: _Optional[float] = ..., cache_audit_count: _Optional[int] = ..., cache_audit_mismatch_count: _Optional[int] = ..., cache_no_saving_count: _Optional[int] = ..., cache_audit_wall_clock_ms: _Optional[int] = ..., estimated_gross_saved_wall_clock_ms: _Optional[int] = ..., estimated_net_saved_wall_clock_ms: _Optional[int] = ...) -> None: ...
+    provider_scenario: str
+    queue_latency_median_ms: int
+    queue_latency_p90_ms: int
+    repeat_failure_wall_clock_ms: int
+    repeat_failure_sample_count: int
+    def __init__(self, scenario: _Optional[str] = ..., phase: _Optional[str] = ..., sample_count: _Optional[int] = ..., reliable_sample_count: _Optional[int] = ..., excluded_sample_count: _Optional[int] = ..., total_wall_clock_ms: _Optional[int] = ..., median_wall_clock_ms: _Optional[int] = ..., p90_wall_clock_ms: _Optional[int] = ..., total_cpu_user_ms: _Optional[int] = ..., max_peak_rss_bytes: _Optional[int] = ..., change_wall_clock_ms: _Optional[int] = ..., change_percent: _Optional[float] = ..., prediction_sample_count: _Optional[int] = ..., prediction_error_total_ms: _Optional[int] = ..., prediction_mean_absolute_error_ms: _Optional[int] = ..., prediction_mean_absolute_error_percent: _Optional[float] = ..., passing_sample_count: _Optional[int] = ..., failing_sample_count: _Optional[int] = ..., passing_median_wall_clock_ms: _Optional[int] = ..., passing_p90_wall_clock_ms: _Optional[int] = ..., failing_median_wall_clock_ms: _Optional[int] = ..., failing_p90_wall_clock_ms: _Optional[int] = ..., cache_hit_count: _Optional[int] = ..., executed_sample_count: _Optional[int] = ..., cache_hit_rate_percent: _Optional[float] = ..., cache_audit_count: _Optional[int] = ..., cache_audit_mismatch_count: _Optional[int] = ..., cache_no_saving_count: _Optional[int] = ..., cache_audit_wall_clock_ms: _Optional[int] = ..., estimated_gross_saved_wall_clock_ms: _Optional[int] = ..., estimated_net_saved_wall_clock_ms: _Optional[int] = ..., provider_scenario: _Optional[str] = ..., queue_latency_median_ms: _Optional[int] = ..., queue_latency_p90_ms: _Optional[int] = ..., repeat_failure_wall_clock_ms: _Optional[int] = ..., repeat_failure_sample_count: _Optional[int] = ...) -> None: ...
 
 class GetCostReportResponse(_message.Message):
     __slots__ = ("phases", "window_seconds", "compare_window_seconds")

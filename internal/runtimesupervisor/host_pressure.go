@@ -11,14 +11,27 @@ import (
 	"time"
 )
 
-// HostPressureProvider reads the kernel's bounded memory-pressure evidence.
-// It deliberately reports unknown on unsupported or degraded hosts; recovery
-// must never treat a missing /proc source as a pressure-clear signal.
+// HostPressureProvider reads the kernel's bounded pressure evidence for both
+// memory and CPU. It deliberately reports unknown on unsupported or degraded
+// hosts; recovery must never treat a missing /proc source as a pressure-clear
+// signal.
+//
+// Memory and CPU are separate signals with separate thresholds because they
+// mean different things. Memory stall is nearly always pathological. CPU stall
+// is normal on a busy build host, so its threshold is much higher — it is meant
+// to catch the state where the run queue is so deep that restarting a service
+// makes things worse, not ordinary contention.
+//
+// CPU was added after 2026-08-19, when this host reached a load average of 110
+// on 32 CPUs with a 132-deep run queue while memory sat at 40% used. Memory PSI
+// alone never crossed its threshold, so nothing gated the restarts that were
+// being attempted into a machine that could not schedule them.
 type HostPressureProvider struct {
-	someAvg10Threshold float64
-	now                func() time.Time
-	readFile           func(string) ([]byte, error)
-	goos               string
+	someAvg10Threshold    float64
+	cpuSomeAvg10Threshold float64
+	now                   func() time.Time
+	readFile              func(string) ([]byte, error)
+	goos                  string
 
 	mu           sync.Mutex
 	lastOOMKills int64
@@ -26,14 +39,24 @@ type HostPressureProvider struct {
 }
 
 func NewHostPressureProvider(someAvg10Threshold float64) *HostPressureProvider {
+	return NewHostPressureProviderWithCPU(someAvg10Threshold, DefaultPressureCPUSomeAvg10)
+}
+
+// NewHostPressureProviderWithCPU builds a provider with an explicit CPU stall
+// threshold. A non-positive value falls back to the default.
+func NewHostPressureProviderWithCPU(someAvg10Threshold, cpuSomeAvg10Threshold float64) *HostPressureProvider {
 	if someAvg10Threshold <= 0 {
 		someAvg10Threshold = DefaultPressureSomeAvg10
 	}
+	if cpuSomeAvg10Threshold <= 0 {
+		cpuSomeAvg10Threshold = DefaultPressureCPUSomeAvg10
+	}
 	return &HostPressureProvider{
-		someAvg10Threshold: someAvg10Threshold,
-		now:                time.Now,
-		readFile:           os.ReadFile,
-		goos:               runtime.GOOS,
+		someAvg10Threshold:    someAvg10Threshold,
+		cpuSomeAvg10Threshold: cpuSomeAvg10Threshold,
+		now:                   time.Now,
+		readFile:              os.ReadFile,
+		goos:                  runtime.GOOS,
 	}
 }
 
@@ -58,16 +81,34 @@ func (p *HostPressureProvider) Snapshot(context.Context) PressureState {
 		return PressureState{Source: "host-psi", Reason: "oom_kill counter is unavailable"}
 	}
 
+	// CPU stall is a second, independent way for the host to be unable to act
+	// on a restart. An unreadable CPU PSI file degrades that signal to absent
+	// rather than failing the whole snapshot: memory evidence is still worth
+	// acting on, and reporting unknown here would disable gating entirely.
+	cpuSomeAvg10, cpuKnown := 0.0, false
+	if cpuRaw, cpuErr := p.readFile("/proc/pressure/cpu"); cpuErr == nil {
+		cpuSomeAvg10, cpuKnown = psiSomeAvg10(string(cpuRaw))
+	}
+
 	p.mu.Lock()
 	oomAdvanced := p.hasBaseline && oomKills > p.lastOOMKills
 	p.lastOOMKills = oomKills
 	p.hasBaseline = true
 	p.mu.Unlock()
 
-	underPressure := someAvg10 >= p.someAvg10Threshold || oomAdvanced
+	cpuSaturated := cpuKnown && cpuSomeAvg10 >= p.cpuSomeAvg10Threshold
+	underPressure := someAvg10 >= p.someAvg10Threshold || oomAdvanced || cpuSaturated
 	reason := fmt.Sprintf("memory PSI some.avg10=%.2f threshold=%.2f oom_kill=%d", someAvg10, p.someAvg10Threshold, oomKills)
+	if cpuKnown {
+		reason += fmt.Sprintf(" cpu PSI some.avg10=%.2f threshold=%.2f", cpuSomeAvg10, p.cpuSomeAvg10Threshold)
+	} else {
+		reason += " cpu PSI unavailable"
+	}
 	if oomAdvanced {
 		reason += " (oom_kill advanced)"
+	}
+	if cpuSaturated {
+		reason += " (cpu saturated)"
 	}
 	return PressureState{Known: true, UnderPressure: underPressure, ObservedAt: p.now(), Source: "host-psi", Reason: reason}
 }

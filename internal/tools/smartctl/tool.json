@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "smartctl",
+  "storage": {
+    "entries": {},
+    "rationale": "smartctl is a one-shot reader with no daemon and no state directory; it writes nothing outside the invoking workflow. The explicit empty declaration records that."
+  },
+  "description": "SMART attribute reader (smartmontools) — reports storage wear, reallocated and pending sectors, media errors and power-on hours for the system-monitor device graph",
+  "commands": [
+    "smartctl"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "defaultPackage": "smartmontools",
+  "packages": {
+    "brew": "smartmontools",
+    "dnf": "smartmontools",
+    "pacman": "smartmontools",
+    "apk": "smartmontools"
+  },
+  "installHint": "Install smartmontools via your package manager. Presence on PATH is not sufficient: smartctl must open the raw block device, so the account running system-monitor also needs raw device access. Where it does not have that access the device graph reports storage wear as unmeasurable with the reason 'permission denied' rather than reporting a healthy drive. Granting that access is a commissioning-time decision made during `vrooli setup`; the scenario never escalates at runtime. Windows is not declared here because smartmontools has no verified governed package identity on that platform; the Windows device graph uses Get-StorageReliabilityCounter instead.",
+  "platforms": [
+    "linux",
+    "macos"
+  ],
+  "bundling": "host-required",
+  "capability": "hardware-error-telemetry",
+  "capability_role": "peer",
+  "notes": "Peer to rasdaemon: rasdaemon is the primary for memory and PCIe error telemetry, smartctl covers the storage half. Consumed by scenarios/system-monitor/api/internal/devicegraph/smart.go, which parses the -j output for both the NVMe health log and the ATA attribute table."
+}

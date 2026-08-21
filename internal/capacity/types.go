@@ -108,6 +108,16 @@ const DefaultObservedPeakHalflife = 10 * time.Minute
 // (§Phase 4). A recommendation is never below observed_peak * (1 + pct/100).
 const DefaultRecommendHeadroomPct = 20
 
+// DefaultSwapPressureThreshold is the fraction of swap in use at which the host
+// is considered to be under memory pressure, expressed as a percent.
+//
+// Swap usage is the lagging signal the RAM figures miss: once pages are on
+// disk, AvailableBytes can look healthy while the machine thrashes, and
+// admitting more memory-hungry work then makes the situation worse rather than
+// better. 50% is deliberately not aggressive — a host that has touched swap at
+// all is not necessarily in trouble, but one running on half of it is.
+const DefaultSwapPressureThreshold = 50
+
 // DefaultTerminalRetention is how long a terminal (released/expired/preempted)
 // claim survives in the ledger before terminal-claim GC prunes it. Terminal
 // claims hold no capacity; they are kept briefly so a `capacity list` right after

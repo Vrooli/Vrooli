@@ -67,6 +67,17 @@ message CodeGraphWarning {
   string message = 3;
 }
 
+// CodeGraphOmission explains information that was intentionally not produced
+// because the caller selected a lighter extraction profile. This is distinct
+// from a warning: the producer completed successfully, but the omitted
+// capability was outside the requested contract.
+message CodeGraphOmission {
+  // Stable capability identifier, for example "resolved_type_information".
+  string capability = 1;
+  // Human-readable explanation of why the capability is absent.
+  string reason = 2;
+}
+
 enum NodeKind {
   NODE_KIND_UNSPECIFIED = 0;
   NODE_KIND_FILE = 1;

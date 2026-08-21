@@ -70,21 +70,23 @@ type Scenario struct {
 }
 
 type ServiceManifest struct {
-	Schema         string                                 `json:"$schema,omitempty"`
-	Version        string                                 `json:"version,omitempty"`
-	Service        ServiceMetadata                        `json:"service"`
-	Generation     *GenerationMetadata                    `json:"generation,omitempty"`
-	CLI            *CLIConfig                             `json:"cli,omitempty"`
-	Ports          map[string]Port                        `json:"ports,omitempty"`
-	Lifecycle      Lifecycle                              `json:"lifecycle,omitempty"`
-	Health         *HealthConfig                          `json:"health,omitempty"`
-	Dependencies   Dependencies                           `json:"dependencies,omitempty"`
-	Credentials    credentialspec.Declaration             `json:"credentials,omitempty"`
-	Capabilities   []operatorcapability.ManifestReference `json:"operator_capabilities,omitempty"`
-	TrustSigning   *TrustSigningConfig                    `json:"trust_signing,omitempty"`
-	Environment    map[string]string                      `json:"environment,omitempty"`
-	HostTools      []hostreqspec.Declaration              `json:"hostTools,omitempty"`
-	HostSafeguards []hostreqspec.Declaration              `json:"hostSafeguards,omitempty"`
+	Schema          string                                 `json:"$schema,omitempty"`
+	Version         string                                 `json:"version,omitempty"`
+	Service         ServiceMetadata                        `json:"service"`
+	Generation      *GenerationMetadata                    `json:"generation,omitempty"`
+	CLI             *CLIConfig                             `json:"cli,omitempty"`
+	Ports           map[string]Port                        `json:"ports,omitempty"`
+	Components      map[string]Component                   `json:"components,omitempty"`
+	Lifecycle       Lifecycle                              `json:"lifecycle,omitempty,omitzero"`
+	Health          *HealthConfig                          `json:"health,omitempty"`
+	Dependencies    Dependencies                           `json:"dependencies,omitempty"`
+	Credentials     credentialspec.Declaration             `json:"credentials,omitempty"`
+	Capabilities    []operatorcapability.ManifestReference `json:"operator_capabilities,omitempty"`
+	TrustSigning    *TrustSigningConfig                    `json:"trust_signing,omitempty"`
+	Environment     map[string]string                      `json:"environment,omitempty"`
+	HostTools       []hostreqspec.Declaration              `json:"hostTools,omitempty"`
+	HostSafeguards  []hostreqspec.Declaration              `json:"hostSafeguards,omitempty"`
+	TierFeasibility *TierFeasibility                       `json:"tier_feasibility,omitempty"`
 }
 
 // TrustSigningConfig is a declarative lifecycle contract for a scenario that
@@ -219,20 +221,168 @@ type Dependencies struct {
 }
 
 type Dependency struct {
-	Type             string `json:"type,omitempty"`
-	Enabled          bool   `json:"enabled,omitempty"`
-	Required         bool   `json:"required,omitempty"`
-	StartupPolicy    string `json:"startup_policy,omitempty"`
-	FreshnessPolicy  string `json:"freshness_policy,omitempty"`
-	DegradedBehavior string `json:"degraded_behavior,omitempty"`
-	Purpose          string `json:"purpose,omitempty"`
-	Description      string `json:"description,omitempty"`
-	Database         string `json:"database,omitempty"`
+	Type                 string    `json:"type,omitempty"`
+	Enabled              bool      `json:"enabled,omitempty"`
+	Required             bool      `json:"required,omitempty"`
+	StartupPolicy        string    `json:"startup_policy,omitempty"`
+	FreshnessPolicy      string    `json:"freshness_policy,omitempty"`
+	DegradedBehavior     string    `json:"degraded_behavior,omitempty"`
+	Purpose              string    `json:"purpose,omitempty"`
+	Description          string    `json:"description,omitempty"`
+	Database             string    `json:"database,omitempty"`
+	VersionRange         string    `json:"versionRange,omitempty"`
+	RuntimeOnly          bool      `json:"runtime_only,omitempty"`
+	RuntimeOnlyRationale string    `json:"runtime_only_rationale,omitempty"`
+	BundlePolicy         string    `json:"bundle_policy,omitempty"`
+	Bindings             []Binding `json:"bindings,omitempty"`
 
 	// Config holds dependency-specific keys that aren't modeled as typed fields.
 	// The declaring scenario and the dependency own the config schema together.
 	// Always a JSON object when non-empty.
 	Config json.RawMessage `json:"config,omitempty"`
+}
+
+// Component is one long-running process owned by a scenario. Build declares
+// the portable artifact and Run declares how that artifact is launched. It
+// intentionally has no secret field: credentials and resource exports keep
+// their existing authorities.
+type Component struct {
+	Role  string         `json:"role"`
+	Build ComponentBuild `json:"build"`
+	Run   ComponentRun   `json:"run"`
+}
+
+type ComponentBuild struct {
+	Kind   string `json:"kind,omitempty"`
+	Dir    string `json:"dir,omitempty"`
+	Entry  string `json:"entry,omitempty"`
+	Output string `json:"output,omitempty"`
+	Reuse  string `json:"reuse,omitempty"`
+}
+
+type ComponentRun struct {
+	Argv         []string              `json:"argv"`
+	CWD          string                `json:"cwd,omitempty"`
+	Env          map[string]string     `json:"env,omitempty"`
+	Port         string                `json:"port,omitempty"`
+	DataDirs     []string              `json:"data_dirs,omitempty"`
+	LogDir       string                `json:"log_dir,omitempty"`
+	Readiness    *ComponentReadiness   `json:"readiness,omitempty"`
+	DependsOn    []ComponentDependency `json:"depends_on,omitempty"`
+	SupervisedBy string                `json:"supervised_by,omitempty"`
+	Condition    *Condition            `json:"condition,omitempty"`
+}
+
+type ComponentReadiness struct {
+	Type      string `json:"type"`
+	Path      string `json:"path,omitempty"`
+	TimeoutMS int    `json:"timeout_ms,omitempty"`
+}
+
+type ComponentDependency struct {
+	Component string `json:"component"`
+	Wait      string `json:"wait"`
+}
+
+type Binding struct {
+	EnvVar          string `json:"env_var"`
+	Form            string `json:"form"`
+	Port            string `json:"port"`
+	WhenUnavailable string `json:"when_unavailable"`
+}
+
+// TierFeasibility is authored evidence about where a scenario can run. It is
+// an input to deployment analysis, never a persisted analyzer verdict.
+type TierFeasibility struct {
+	MetadataVersion  int                           `json:"metadata_version,omitempty"`
+	Tiers            map[string]DeploymentTier     `json:"tiers,omitempty"`
+	Dependencies     DeploymentDependencyCatalog   `json:"dependencies,omitempty"`
+	Overrides        []DeploymentOverride          `json:"overrides,omitempty"`
+	SupportedTiers   []int                         `json:"supported_tiers,omitempty"`
+	Platforms        []string                      `json:"platforms,omitempty"`
+	DesktopReady     bool                          `json:"desktop_ready,omitempty"`
+	MinimalResources []string                      `json:"minimal_resources,omitempty"`
+	BuildConfigs     map[string]ServiceBuildConfig `json:"build_configs,omitempty"`
+}
+
+type ServiceBuildConfig struct {
+	Type          string `json:"type,omitempty"`
+	SourceDir     string `json:"source_dir,omitempty"`
+	EntryPoint    string `json:"entry_point,omitempty"`
+	OutputPattern string `json:"output_pattern,omitempty"`
+}
+
+type DeploymentDependencyCatalog struct {
+	Resources map[string]DeploymentDependency `json:"resources,omitempty"`
+	Scenarios map[string]DeploymentDependency `json:"scenarios,omitempty"`
+}
+
+type DeploymentDependency struct {
+	ResourceType    string                           `json:"resource_type,omitempty"`
+	Footprint       *DeploymentRequirements          `json:"footprint,omitempty"`
+	PlatformSupport map[string]DependencyTierSupport `json:"platform_support,omitempty"`
+	SwappableWith   []DependencySwap                 `json:"swappable_with,omitempty"`
+	PackagingHints  []string                         `json:"packaging_hints,omitempty"`
+}
+
+type DeploymentRequirements struct {
+	Class            string   `json:"class,omitempty"`
+	Weight           *float64 `json:"weight,omitempty"`
+	RAMMB            *float64 `json:"ram_mb,omitempty"`
+	DiskMB           *float64 `json:"disk_mb,omitempty"`
+	CPUCores         *float64 `json:"cpu_cores,omitempty"`
+	GPU              *bool    `json:"gpu,omitempty"`
+	Network          string   `json:"network,omitempty"`
+	StorageMBPerUser *float64 `json:"storage_mb_per_user,omitempty"`
+	StartupTimeMS    *float64 `json:"startup_time_ms,omitempty"`
+	Bucket           string   `json:"bucket,omitempty"`
+	Source           string   `json:"source,omitempty"`
+	Confidence       string   `json:"confidence,omitempty"`
+}
+
+type DependencyTierSupport struct {
+	Supported    *bool                   `json:"supported,omitempty"`
+	FitnessScore *float64                `json:"fitness_score,omitempty"`
+	Reason       string                  `json:"reason,omitempty"`
+	Requirements *DeploymentRequirements `json:"requirements,omitempty"`
+	Alternatives []string                `json:"alternatives,omitempty"`
+	Notes        string                  `json:"notes,omitempty"`
+}
+
+type DependencySwap struct {
+	ID           string `json:"id,omitempty"`
+	Relationship string `json:"relationship,omitempty"`
+	Notes        string `json:"notes,omitempty"`
+}
+
+type DeploymentTier struct {
+	Requirements *DeploymentRequirements `json:"requirements,omitempty"`
+	Adaptations  []DeploymentAdaptation  `json:"adaptations,omitempty"`
+	Artifacts    []DeploymentArtifact    `json:"artifacts,omitempty"`
+	Notes        string                  `json:"notes,omitempty"`
+}
+
+type DeploymentAdaptation struct {
+	Dependency string  `json:"dependency,omitempty"`
+	Swap       string  `json:"swap,omitempty"`
+	Impact     string  `json:"impact,omitempty"`
+	EffortDays float64 `json:"effort_days,omitempty"`
+	Notes      string  `json:"notes,omitempty"`
+}
+
+type DeploymentArtifact struct {
+	Type     string `json:"type,omitempty"`
+	Producer string `json:"producer,omitempty"`
+	Status   string `json:"status,omitempty"`
+	Notes    string `json:"notes,omitempty"`
+}
+
+type DeploymentOverride struct {
+	Tier      string      `json:"tier,omitempty"`
+	Field     string      `json:"field,omitempty"`
+	Value     interface{} `json:"value,omitempty"`
+	Reason    string      `json:"reason,omitempty"`
+	ExpiresAt string      `json:"expires_at,omitempty"`
 }
 
 const (
@@ -273,31 +423,47 @@ type Port struct {
 
 type Lifecycle struct {
 	Version    string        `json:"version,omitempty"`
+	Defaults   PhaseDefaults `json:"defaults,omitempty,omitzero"`
 	Health     *HealthConfig `json:"health,omitempty"`
-	Setup      Phase         `json:"setup,omitempty"`
-	Develop    Phase         `json:"develop,omitempty"`
-	Build      Phase         `json:"build,omitempty"`
-	Deploy     Phase         `json:"deploy,omitempty"`
-	Clean      Phase         `json:"clean,omitempty"`
-	Test       Phase         `json:"test,omitempty"`
-	Backup     Phase         `json:"backup,omitempty"`
-	Restore    Phase         `json:"restore,omitempty"`
-	Production Phase         `json:"production,omitempty"`
-	Stop       Phase         `json:"stop,omitempty"`
+	Setup      Phase         `json:"setup,omitempty,omitzero"`
+	Develop    Phase         `json:"develop,omitempty,omitzero"`
+	Build      Phase         `json:"build,omitempty,omitzero"`
+	Deploy     Phase         `json:"deploy,omitempty,omitzero"`
+	Clean      Phase         `json:"clean,omitempty,omitzero"`
+	Backup     Phase         `json:"backup,omitempty,omitzero"`
+	Restore    Phase         `json:"restore,omitempty,omitzero"`
+	Production Phase         `json:"production,omitempty,omitzero"`
+	Stop       Phase         `json:"stop,omitempty,omitzero"`
+}
+
+type PhaseDefaults struct {
+	Error string `json:"error,omitempty"`
 }
 
 type Phase struct {
 	Description string      `json:"description,omitempty"`
-	Condition   *Condition  `json:"condition,omitempty"`
 	Steps       []PhaseStep `json:"steps,omitempty"`
 }
 
 type PhaseStep struct {
-	Name        string     `json:"name,omitempty"`
-	Run         string     `json:"run,omitempty"`
-	Description string     `json:"description,omitempty"`
-	Background  bool       `json:"background,omitempty"`
-	Condition   *Condition `json:"condition,omitempty"`
+	Name        string            `json:"name,omitempty"`
+	Exec        []string          `json:"exec,omitempty"`
+	CWD         string            `json:"cwd,omitempty"`
+	Env         map[string]string `json:"env,omitempty"`
+	OnError     string            `json:"on_error,omitempty"`
+	Retry       *RetryPolicy      `json:"retry,omitempty"`
+	Timeout     int               `json:"timeout,omitempty"`
+	Description string            `json:"description,omitempty"`
+	Background  bool              `json:"background,omitempty"`
+	Error       string            `json:"error,omitempty"`
+	Environment map[string]string `json:"environment,omitempty"`
+	Condition   *Condition        `json:"condition,omitempty"`
+}
+
+type RetryPolicy struct {
+	MaxAttempts int    `json:"max_attempts,omitempty"`
+	Delay       int    `json:"delay,omitempty"`
+	Backoff     string `json:"backoff,omitempty"`
 }
 
 type Condition struct {
@@ -309,6 +475,8 @@ type Condition struct {
 	CommandExists   string           `json:"command_exists,omitempty"`
 	BinaryExists    string           `json:"binary_exists,omitempty"`
 	EnvVarSet       string           `json:"env_var_set,omitempty"`
+	EnvSet          string           `json:"env_set,omitempty"`
+	EnvNotSet       string           `json:"env_not_set,omitempty"`
 	Always          string           `json:"always,omitempty"`
 	Checks          []ConditionCheck `json:"checks,omitempty"`
 }
@@ -744,6 +912,24 @@ func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 	if err := takeString("database", &dependency.Database); err != nil {
 		return err
 	}
+	if err := takeString("versionRange", &dependency.VersionRange); err != nil {
+		return err
+	}
+	if _, err := takeBool("runtime_only", &dependency.RuntimeOnly); err != nil {
+		return err
+	}
+	if err := takeString("runtime_only_rationale", &dependency.RuntimeOnlyRationale); err != nil {
+		return err
+	}
+	if err := takeString("bundle_policy", &dependency.BundlePolicy); err != nil {
+		return err
+	}
+	if v, ok := raw["bindings"]; ok {
+		if err := json.Unmarshal(v, &dependency.Bindings); err != nil {
+			return fmt.Errorf("bindings: %w", err)
+		}
+		delete(raw, "bindings")
+	}
 	if v, ok := raw["config"]; ok {
 		var cfg map[string]json.RawMessage
 		if err := json.Unmarshal(v, &cfg); err != nil {
@@ -763,6 +949,9 @@ func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 	dependency.Purpose = strings.TrimSpace(dependency.Purpose)
 	dependency.Description = strings.TrimSpace(dependency.Description)
 	dependency.Database = strings.TrimSpace(dependency.Database)
+	dependency.VersionRange = strings.TrimSpace(dependency.VersionRange)
+	dependency.RuntimeOnlyRationale = strings.TrimSpace(dependency.RuntimeOnlyRationale)
+	dependency.BundlePolicy = strings.TrimSpace(dependency.BundlePolicy)
 
 	if len(raw) > 0 {
 		cfg := map[string]json.RawMessage{}
@@ -847,6 +1036,23 @@ func (dependency Dependency) MarshalJSON() ([]byte, error) {
 	if err := emitIfNonEmpty("database", dependency.Database); err != nil {
 		return nil, err
 	}
+	if err := emitIfNonEmpty("versionRange", dependency.VersionRange); err != nil {
+		return nil, err
+	}
+	if err := emitIfTrue("runtime_only", dependency.RuntimeOnly); err != nil {
+		return nil, err
+	}
+	if err := emitIfNonEmpty("runtime_only_rationale", dependency.RuntimeOnlyRationale); err != nil {
+		return nil, err
+	}
+	if err := emitIfNonEmpty("bundle_policy", dependency.BundlePolicy); err != nil {
+		return nil, err
+	}
+	if len(dependency.Bindings) > 0 {
+		if err := emit("bindings", dependency.Bindings); err != nil {
+			return nil, err
+		}
+	}
 	if len(dependency.Config) > 0 {
 		out["config"] = append([]byte(nil), dependency.Config...)
 	}
@@ -894,6 +1100,9 @@ func validateDependencyCollection(kind string, dependencies map[string]Dependenc
 }
 
 func (dependency Dependency) Validate(kind, name string) error {
+	if dependency.RuntimeOnly && strings.TrimSpace(dependency.RuntimeOnlyRationale) == "" {
+		return fmt.Errorf("%s.%s.runtime_only requires runtime_only_rationale", kind, name)
+	}
 	policy := dependency.NormalizedStartupPolicy()
 	if !dependency.Enabled {
 		return nil
@@ -1045,7 +1254,6 @@ func (manifest ServiceManifest) PhaseSummaries() []PhaseSummary {
 		{name: "build", phase: manifest.Lifecycle.Build},
 		{name: "deploy", phase: manifest.Lifecycle.Deploy},
 		{name: "clean", phase: manifest.Lifecycle.Clean},
-		{name: "test", phase: manifest.Lifecycle.Test},
 		{name: "backup", phase: manifest.Lifecycle.Backup},
 		{name: "restore", phase: manifest.Lifecycle.Restore},
 		{name: "production", phase: manifest.Lifecycle.Production},
@@ -1054,7 +1262,7 @@ func (manifest ServiceManifest) PhaseSummaries() []PhaseSummary {
 
 	summaries := make([]PhaseSummary, 0, len(phases))
 	for _, phase := range phases {
-		defined := len(phase.phase.Steps) > 0 || phase.phase.Description != "" || phase.phase.Condition != nil
+		defined := len(phase.phase.Steps) > 0 || phase.phase.Description != ""
 		summaries = append(summaries, PhaseSummary{
 			Name:        phase.name,
 			Description: phase.phase.Description,
@@ -1065,14 +1273,76 @@ func (manifest ServiceManifest) PhaseSummaries() []PhaseSummary {
 	return summaries
 }
 
-func ExpandTarget(target string, ports map[string]int) string {
-	expanded := target
-	for key, port := range ports {
-		value := strconv.Itoa(port)
-		expanded = strings.ReplaceAll(expanded, "${"+key+"}", value)
-		expanded = strings.ReplaceAll(expanded, "$"+key, value)
+// ExpandTemplate resolves the manifest's closed ${NAME}/$NAME placeholder
+// language. Every value must be present before expansion; shell defaults and
+// dotted expression languages are deliberately rejected.
+func ExpandTemplate(value string, environment map[string]string) (string, error) {
+	var output strings.Builder
+	for cursor := 0; cursor < len(value); {
+		dollar := strings.IndexByte(value[cursor:], '$')
+		if dollar < 0 {
+			output.WriteString(value[cursor:])
+			break
+		}
+		dollar += cursor
+		output.WriteString(value[cursor:dollar])
+		nameStart := dollar + 1
+		if nameStart >= len(value) {
+			return "", fmt.Errorf("invalid placeholder at byte %d", dollar)
+		}
+		nameEnd := nameStart
+		if value[nameStart] == '{' {
+			nameStart++
+			closing := strings.IndexByte(value[nameStart:], '}')
+			if closing < 0 {
+				return "", fmt.Errorf("unterminated placeholder at byte %d", dollar)
+			}
+			nameEnd = nameStart + closing
+			cursor = nameEnd + 1
+		} else {
+			for nameEnd < len(value) && isTemplateIdentifierByte(value[nameEnd], nameEnd == nameStart) {
+				nameEnd++
+			}
+			cursor = nameEnd
+		}
+		name := value[nameStart:nameEnd]
+		if !validTemplateIdentifier(name) {
+			return "", fmt.Errorf("invalid placeholder %q", name)
+		}
+		resolved, ok := environment[name]
+		if !ok {
+			return "", fmt.Errorf("unresolved placeholder %s", name)
+		}
+		output.WriteString(resolved)
 	}
-	return expanded
+	return output.String(), nil
+}
+
+func validTemplateIdentifier(value string) bool {
+	if value == "" {
+		return false
+	}
+	for index := 0; index < len(value); index++ {
+		if !isTemplateIdentifierByte(value[index], index == 0) {
+			return false
+		}
+	}
+	return true
+}
+
+func isTemplateIdentifierByte(value byte, first bool) bool {
+	if value == '_' || value >= 'A' && value <= 'Z' || value >= 'a' && value <= 'z' {
+		return true
+	}
+	return !first && value >= '0' && value <= '9'
+}
+
+func ExpandHealthTarget(target string, ports map[string]int) (string, error) {
+	environment := make(map[string]string, len(ports))
+	for key, port := range ports {
+		environment[key] = strconv.Itoa(port)
+	}
+	return ExpandTemplate(target, environment)
 }
 
 func EvaluateHealth(health *HealthConfig, ports map[string]int) string {
@@ -1105,7 +1375,10 @@ func EvaluateHealth(health *HealthConfig, ports map[string]int) string {
 func PerformHealthCheck(check HealthCheck, ports map[string]int) error {
 	switch strings.TrimSpace(check.Type) {
 	case "", "http":
-		target := ExpandTarget(check.Target, ports)
+		target, err := ExpandHealthTarget(check.Target, ports)
+		if err != nil {
+			return err
+		}
 		if _, err := url.Parse(target); err != nil {
 			return fmt.Errorf("invalid URL %q: %w", target, err)
 		}
@@ -1131,7 +1404,10 @@ func PerformHealthCheck(check HealthCheck, ports map[string]int) error {
 		// shape generated *_v1connect handlers expect for unary unary calls
 		// and lets scenarios that have migrated their health domain off
 		// REST keep using the standard lifecycle.checks config.
-		target := ExpandTarget(check.Target, ports)
+		target, err := ExpandHealthTarget(check.Target, ports)
+		if err != nil {
+			return err
+		}
 		if _, err := url.Parse(target); err != nil {
 			return fmt.Errorf("invalid URL %q: %w", target, err)
 		}

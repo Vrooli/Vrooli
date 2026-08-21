@@ -11,9 +11,11 @@ import (
 	"time"
 )
 
-const nativeScheduleProvider = "launchd-user"
-const nativeScheduleSupported = true
-const credentialCopyLaunchLabel = "com.vrooli.credential-store-copy"
+const (
+	nativeScheduleProvider    = "launchd-user"
+	nativeScheduleSupported   = true
+	credentialCopyLaunchLabel = "com.vrooli.credential-store-copy"
+)
 
 func installNativeCopySchedule(executable string, interval time.Duration, enabled bool) error {
 	home, err := os.UserHomeDir()

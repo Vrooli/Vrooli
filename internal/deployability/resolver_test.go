@@ -1,6 +1,9 @@
 package deployability
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func testDependency(name string, requirements *ResourceRequirements) DependencyDeclaration {
 	return DependencyDeclaration{
@@ -180,4 +183,70 @@ func TestValidateObservedPlatformRejectsContradictoryObservation(t *testing.T) {
 	if len(result.Reasons) == 0 || result.Reasons[len(result.Reasons)-1].Code != "observed_platform_unavailable" {
 		t.Fatalf("reasons = %#v, want observed_platform_unavailable", result.Reasons)
 	}
+}
+
+func TestResolveGivesEveryPlatformStatusAnExplicitVerdict(t *testing.T) {
+	cases := []struct {
+		status  PlatformStatus
+		verdict Verdict
+		code    string
+	}{
+		{status: StatusSupported, verdict: VerdictEligible},
+		{status: StatusBuildVerified, verdict: VerdictDegraded, code: "platform_build_verified"},
+		{status: StatusExperimental, verdict: VerdictDegraded, code: "platform_experimental"},
+		{status: StatusUnqualified, verdict: VerdictDegraded, code: "platform_unqualified"},
+		{status: StatusPartial, verdict: VerdictDegraded, code: "platform_partial"},
+		{status: StatusUnsupported, verdict: VerdictIneligible, code: "platform_unsupported"},
+	}
+	for _, testCase := range cases {
+		t.Run(string(testCase.status), func(t *testing.T) {
+			dependency := testDependency("subject", &ResourceRequirements{Class: "service", Weight: 1})
+			dependency.PlatformSupport = map[HostOS]PlatformDeclaration{HostOSLinux: {Status: string(testCase.status)}}
+			result := Resolve(ResolutionInput{
+				Target: TargetDeclaration{Name: "sample", Dependencies: []DependencyDeclaration{dependency}},
+				Tier:   TierLocal, OS: HostOSLinux,
+			})
+			if result.Verdict != testCase.verdict {
+				t.Fatalf("verdict = %s, want %s: %+v", result.Verdict, testCase.verdict, result.Reasons)
+			}
+			if testCase.code == "" {
+				if len(result.Reasons) != 0 {
+					t.Fatalf("a fully supported platform should need no reasons, got %+v", result.Reasons)
+				}
+				return
+			}
+			if !hasReasonCode(result.Reasons, testCase.code) {
+				t.Fatalf("expected reason code %q, got %+v", testCase.code, result.Reasons)
+			}
+		})
+	}
+}
+
+func TestResolveRejectsAPlatformStatusOutsideTheVocabulary(t *testing.T) {
+	dependency := testDependency("subject", &ResourceRequirements{Class: "service", Weight: 1})
+	dependency.PlatformSupport = map[HostOS]PlatformDeclaration{HostOSLinux: {Status: "available"}}
+	result := Resolve(ResolutionInput{
+		Target: TargetDeclaration{Name: "sample", Dependencies: []DependencyDeclaration{dependency}},
+		Tier:   TierLocal, OS: HostOSLinux,
+	})
+	if result.Verdict != VerdictUnknown {
+		t.Fatalf("verdict = %s, want unknown", result.Verdict)
+	}
+	if !hasReasonCode(result.Reasons, "platform_status_unknown") {
+		t.Fatalf("expected platform_status_unknown, got %+v", result.Reasons)
+	}
+	for _, reason := range result.Reasons {
+		if reason.Code == "platform_status_unknown" && !strings.Contains(reason.Message, "available") {
+			t.Fatalf("rejection must name the offending token, got %q", reason.Message)
+		}
+	}
+}
+
+func hasReasonCode(reasons []Reason, code string) bool {
+	for _, reason := range reasons {
+		if reason.Code == code {
+			return true
+		}
+	}
+	return false
 }

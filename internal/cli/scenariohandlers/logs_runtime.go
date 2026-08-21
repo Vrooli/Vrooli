@@ -301,7 +301,6 @@ func expectedScenarioBackgroundSteps(root, name string) map[string]struct{} {
 	}
 	appendPhase("setup", item.Manifest.Lifecycle.Setup)
 	appendPhase("develop", item.Manifest.Lifecycle.Develop)
-	appendPhase("test", item.Manifest.Lifecycle.Test)
 	appendPhase("production", item.Manifest.Lifecycle.Production)
 	appendPhase("stop", item.Manifest.Lifecycle.Stop)
 	return out

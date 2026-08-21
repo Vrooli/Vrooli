@@ -3,6 +3,7 @@ package hostinventory
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -56,6 +57,7 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 			out: map[string][]byte{
 				"nvidia-smi --query-gpu=index,name,uuid,driver_version,utilization.gpu,utilization.memory,memory.total,memory.used,temperature.gpu,fan.speed,power.draw,power.limit,clocks.sm,clocks.mem --format=csv,noheader,nounits": []byte("0, NVIDIA RTX 4090, GPU-abc, 555.42, 35, 20, 24564, 4096, 65, 40, 180, 450, 2100, 10000\n"),
 				"nvidia-smi --query-gpu=index,compute_cap --format=csv,noheader,nounits":                              []byte("0, 8.9\n"),
+				"nvidia-smi --query-gpu=index,pci.bus_id --format=csv,noheader,nounits":                               []byte("0, 00000000:01:00.0\n"),
 				"nvidia-smi --query-compute-apps=pid,process_name,used_memory,gpu_uuid --format=csv,noheader,nounits": []byte("1234, python, 2048, GPU-abc\n"),
 				"docker info": []byte("Runtimes: io.containerd.runc.v2 nvidia runc\n"),
 			},
@@ -68,6 +70,10 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 		GOOS:     "linux",
 		GOARCH:   "amd64",
 		CPUCount: func() int { return 12 },
+		DeviceRoots: DeviceRoots{
+			Sysfs:  materializeSysfs(t, "two-graphics.sysfs"),
+			PCIIDs: []string{filepath.Join("testdata", "devicetree", "pci.ids")},
+		},
 	}
 	got, err := c.Collect(context.Background())
 	if err != nil {
@@ -100,13 +106,25 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 	if got.FieldProvenance["memory.total_bytes"].ObservedAt != now {
 		t.Fatalf("memory provenance = %#v", got.FieldProvenance["memory.total_bytes"])
 	}
+	// The GPU list stays exactly what vendor telemetry reports, while the
+	// device tree sees every graphics controller on the host.
+	if len(got.DevicesOfClass(DeviceClassGraphics)) != 2 {
+		t.Fatalf("graphics devices = %#v, want both controllers", got.Devices)
+	}
+	if got.GPUs[0].DeviceID != "pci:0000:01:00.0" {
+		t.Fatalf("gpu device identity = %q", got.GPUs[0].DeviceID)
+	}
+	if got.FieldProvenance["devices"].SourceKind != SourceKindFile {
+		t.Fatalf("device provenance must not be a vendor command: %#v", got.FieldProvenance["devices"])
+	}
 }
 
 func TestCollectGPUReportsAbsentNvidiaDevice(t *testing.T) {
 	c := Collector{
-		Commands: fakeCommandRunner{},
-		GOOS:     "linux",
-		GOARCH:   "amd64",
+		Commands:    fakeCommandRunner{},
+		GOOS:        "linux",
+		GOARCH:      "amd64",
+		DeviceRoots: DeviceRoots{Sysfs: materializeSysfs(t, "one-graphics.sysfs")},
 	}
 
 	got, err := c.CollectGPUFacts(context.Background())

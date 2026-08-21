@@ -17,11 +17,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
 
 	aisearch "github.com/vrooli/ai-go/search"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Descriptor maps one parsed search.json provider block to the registry
@@ -147,6 +149,16 @@ func Descriptor(p aisearch.ProviderConfig) (*registryv1.ProviderDescriptor, erro
 		obj["index_timestamp_field"], err = json.Marshal(field)
 		if err != nil {
 			return nil, fmt.Errorf("marshal index_timestamp_field: %w", err)
+		}
+	}
+	if raw := strings.TrimSpace(p.FreshnessBudget); raw != "" {
+		budget, parseErr := time.ParseDuration(raw)
+		if parseErr != nil || budget < 0 {
+			return nil, fmt.Errorf("provider %q has invalid freshness_budget %q", p.ProviderID, raw)
+		}
+		obj["freshness_budget"], err = protojson.Marshal(durationpb.New(budget))
+		if err != nil {
+			return nil, fmt.Errorf("marshal freshness_budget: %w", err)
 		}
 	}
 	if len(p.ResultMapping) > 0 {

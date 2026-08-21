@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "typescript-code-graph",
-  "input_digest": "sha256:85d245f8fe7c3d21bc7f2113ddf1a5d269a8d8d03b78a2c23724023596d0e616",
+  "input_digest": "sha256:d25fec0ec45a8920eea3642703c72f0e0fc7bbebd4bc19aa8e9d1c3bfcbf417a",
   "input_files": [
     "schemas/common/v1/code_graph.proto",
     "schemas/typescript-code-graph/v1/errors/errors.proto",

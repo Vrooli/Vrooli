@@ -363,7 +363,8 @@ func runSystemdCreds(args []string, stdin []byte) ([]byte, error) {
 	if _, err := exec.LookPath("systemd-creds"); err != nil {
 		return nil, fmt.Errorf("%w: systemd-creds is not installed", errKeyProviderUnavailable)
 	}
-	cmd := exec.Command("systemd-creds", args...)
+	name, argv := withDeviceGroup("systemd-creds", args)
+	cmd := exec.Command(name, argv...)
 	cmd.Stdin = bytes.NewReader(stdin)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -378,6 +379,46 @@ func runSystemdCreds(args []string, stdin []byte) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
+// withDeviceGroup re-enters a TPM command under a group this account holds and
+// this process cannot use, and is a no-op whenever there is nothing to pick up.
+//
+// It sits at the one place that touches the TPM rather than at any single
+// caller, because every caller has the same problem and none of them can solve
+// it for itself: supplementary groups are attached by the kernel at login, so a
+// process that was already running when `vrooli setup` granted the group can
+// never see the grant, no matter which entry point it was reached through. The
+// case that forces this is the ordinary one — vrooli-onboarding is a
+// long-running scenario, started before setup ran, and it is where the operator
+// types the passphrase. Without this, the wrap that removes the need for that
+// passphrase could not be added by the very command the operator supplied it
+// to, and the host would go on asking at every boot until someone happened to
+// log out.
+//
+// No credential material passes through the shell: the data key and the wrapped
+// key travel on standard input, and only the non-secret systemd-creds arguments
+// are quoted into the command string.
+func withDeviceGroup(name string, args []string) (string, []string) {
+	group := PendingGroupGrant()
+	if group == "" {
+		return name, args
+	}
+	sg, err := exec.LookPath("sg")
+	if err != nil {
+		return name, args
+	}
+	quoted := make([]string, 0, len(args)+1)
+	for _, part := range append([]string{name}, args...) {
+		quoted = append(quoted, shellQuoteArgument(part))
+	}
+	return sg, []string{group, "-c", strings.Join(quoted, " ")}
+}
+
+// shellQuoteArgument wraps a value so a shell reproduces it exactly, including
+// one that contains a quote of its own.
+func shellQuoteArgument(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
+}
+
 // hostBoundKeyModes are tried strongest first. `tpm2-absent` is deliberately
 // absent from this list: systemd-creds accepts it and encrypts under a null
 // key, announcing that it provides neither confidentiality nor authenticity.
@@ -387,17 +428,50 @@ var hostBoundKeyModes = []struct {
 	flag     string
 	keyStore string
 }{
-	{flag: "tpm2", keyStore: keyStoreTPM2},
+	{flag: hostBoundTPM2Mode, keyStore: keyStoreTPM2},
 	{flag: "host", keyStore: keyStoreHostKey},
 }
 
+// hostBoundTPM2Mode is the systemd-creds key mode that seals to the TPM.
+const hostBoundTPM2Mode = "tpm2"
+
+// tpm2PCRPolicy is the PCR set the host-bound wrap binds to, and it is
+// deliberately empty. Passing the flag explicitly is the point: systemd-creds
+// binds to PCR 7 when it is omitted.
+//
+// PCR 7 measures Secure Boot policy — the signature databases, their revocation
+// list, and the certificate that signed the running bootloader. Distributions
+// ship dbx revocation updates through fwupd as ordinary security updates, and
+// any of them changes PCR 7. A wrap bound to it stops opening after a routine
+// update, with no failed action to attribute it to: the operator simply finds
+// themselves typing a passphrase at boot again, which is the exact outcome this
+// provider exists to remove. A mechanism that silently reverts to the thing it
+// replaced is worse than one that was never installed, because the operator
+// stops checking.
+//
+// Binding to no PCRs makes the wrap mean "this TPM, on this machine". What is
+// given up is resistance to someone with physical possession who boots another
+// OS on the same board. What is kept is resistance to theft of the disk, the
+// store file, or a backup containing it — and the store file is designed to
+// travel in backups, so that is the threat this key actually faces. It is also
+// the same guarantee the macOS Keychain and Windows DPAPI wraps give, which
+// keeps one promise across the three platforms instead of three different ones.
+//
+// An operator who wants PCR binding has a stronger option than this flag: seal
+// the whole disk with systemd-cryptenroll, where a broken policy fails at boot
+// in front of a human rather than silently at first credential read.
+const tpm2PCRPolicy = ""
+
 func (provider hostBoundProvider) encrypt(mode string, plaintext []byte) ([]byte, error) {
-	return provider.run([]string{
+	args := []string{
 		"encrypt",
 		"--name=" + systemdCredsName,
 		"--with-key=" + mode,
-		"-", "-",
-	}, plaintext)
+	}
+	if mode == hostBoundTPM2Mode {
+		args = append(args, "--tpm2-pcrs="+tpm2PCRPolicy)
+	}
+	return provider.run(append(args, "-", "-"), plaintext)
 }
 
 func (provider hostBoundProvider) decrypt(ciphertext []byte) ([]byte, error) {

@@ -31,6 +31,48 @@ func runCredentialStoreAsOperator(name string, args []string, input string, opts
 	})
 }
 
+// ensureUnattendedCredentialAccess is the step that makes "supply the
+// passphrase once" true rather than aspirational: it converges this host on
+// opening its credential store after a reboot with no human, and says which
+// outcome it reached.
+//
+// It reports and never fails. A host with no TPM and no native wrap is fully
+// working through its passphrase, and failing setup over it would break
+// installation on the hardware the passphrase wrap exists to serve. What is not
+// acceptable is silence, which is what shipped before: the operator could not
+// tell an unattended host from one that would stop at a prompt on the next
+// reboot until the reboot happened.
+func ensureUnattendedCredentialAccess(executable, passphrase string, stdout io.Writer) {
+	var output bytes.Buffer
+	runErr := runCredentialStoreFn(executable,
+		[]string{"credentials", "store", "rewrap", "--format", "json"}, passphrase,
+		commandOptions(&output, io.Discard))
+	var status securestore.UnattendedStatus
+	if err := json.Unmarshal(bytes.TrimSpace(output.Bytes()), &status); err != nil {
+		_, _ = fmt.Fprintf(stdout, "[WARN]    Unattended credential access: could not be evaluated on this host\n")
+		if runErr != nil {
+			_, _ = fmt.Fprintf(stdout, "[WARN]    Reason: %s\n", runErr.Error())
+		}
+		return
+	}
+	switch {
+	case status.Enabled && status.Added:
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Unattended credential access: enabled via the %s wrap (%s); this host no longer needs a passphrase after a reboot\n",
+			status.Provider, status.KeyStore)
+	case status.Enabled && status.Repaired:
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Unattended credential access: repaired; the %s wrap had stopped opening and was replaced (%s)\n",
+			status.Provider, status.KeyStore)
+	case status.Enabled:
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Unattended credential access: already enabled via the %s wrap (%s)\n",
+			status.Provider, status.KeyStore)
+	default:
+		_, _ = fmt.Fprintf(stdout, "[WARN]    Unattended credential access: not available; this host needs its passphrase after every reboot\n")
+		if status.Blocked != "" {
+			_, _ = fmt.Fprintf(stdout, "[WARN]    Reason: %s\n", status.Blocked)
+		}
+	}
+}
+
 func configureCredentialBackend(stdout, stderr io.Writer) error {
 	return configureCredentialBackendWithPassphrase(stdout, stderr, "")
 }
@@ -121,6 +163,7 @@ func initializeEncryptedBackendWithPassphrase(stdout io.Writer, passphrase strin
 		return fmt.Errorf("initialize or unlock encrypted credential store: %w", err)
 	}
 	_, _ = fmt.Fprintln(stdout, "[INFO]    Credential backend selected: encrypted-file (write-ready)")
+	ensureUnattendedCredentialAccess(executable, passphrase, stdout)
 	return nil
 }
 
@@ -141,6 +184,7 @@ func initializeEncryptedBackend(stdout, stderr io.Writer) error {
 		if initErr := runCredentialStoreFn(executable,
 			[]string{"credentials", "store", "init", "--format", "json"}, "",
 			commandOptions(io.Discard, io.Discard)); initErr == nil {
+			ensureUnattendedCredentialAccess(executable, "", stdout)
 			return nil
 		}
 	} else {
@@ -153,7 +197,7 @@ func initializeEncryptedBackend(stdout, stderr io.Writer) error {
 			[]string{"credentials", "store", "status", "--format", "json"}, "",
 			commandOptions(&output, io.Discard)); statusErr == nil {
 			if decodeErr := json.Unmarshal(output.Bytes(), &current); decodeErr == nil && current.Unlocked {
-				maybeAddHostBoundWrap(executable)
+				ensureUnattendedCredentialAccess(executable, "", stdout)
 				return nil
 			}
 		}
@@ -197,14 +241,4 @@ func enqueueCredentialStoreInput(initialized bool, stdout io.Writer) error {
 
 func commandOptions(stdout, stderr io.Writer) hostreqkit.EnsureOptions {
 	return hostreqkit.EnsureOptions{Stdout: stdout, Stderr: stderr}
-}
-
-func maybeAddHostBoundWrap(executable string) {
-	// Rewrap is intentionally best-effort here. A host without a usable TPM is
-	// already fully ready through its operator passphrase; when setup's
-	// safeguard has made the TPM available, this convergent step upgrades the
-	// existing store without asking the operator to run a second command.
-	_ = runCredentialStoreFn(executable,
-		[]string{"credentials", "store", "rewrap"}, "",
-		commandOptions(io.Discard, io.Discard))
 }

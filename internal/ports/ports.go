@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioenv"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
@@ -190,6 +190,13 @@ func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, _ []
 	for key, value := range resolution.Values {
 		envVars[key] = value
 	}
+	peerValues, err := scenarioenv.Resolve(context.Background(), m.Home, item.Manifest, resolution.Values)
+	if err != nil {
+		return Environment{}, err
+	}
+	for key, value := range peerValues {
+		envVars[key] = value
+	}
 
 	scenarioVars := map[string]string{
 		"SCENARIO_NAME":       item.Slug,
@@ -212,7 +219,11 @@ func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, _ []
 
 	expandedManifestEnv := make(map[string]string, len(item.Manifest.Environment))
 	for key, value := range item.Manifest.Environment {
-		expandedManifestEnv[key] = expandTemplate(value, envVars)
+		expanded, err := ExpandTemplate(value, envVars)
+		if err != nil {
+			return Environment{}, fmt.Errorf("environment %s: %w", key, err)
+		}
+		expandedManifestEnv[key] = expanded
 	}
 	for key, value := range expandedManifestEnv {
 		envVars[key] = value
@@ -259,7 +270,11 @@ func (m *Manager) BuildProjectEnvironment(item scenario.Scenario) (Environment, 
 
 	expandedManifestEnv := make(map[string]string, len(item.Manifest.Environment))
 	for key, value := range item.Manifest.Environment {
-		expandedManifestEnv[key] = expandTemplate(value, envVars)
+		expanded, err := ExpandTemplate(value, envVars)
+		if err != nil {
+			return Environment{}, fmt.Errorf("environment %s: %w", key, err)
+		}
+		expandedManifestEnv[key] = expanded
 	}
 	for key, value := range expandedManifestEnv {
 		envVars[key] = value
@@ -896,18 +911,10 @@ func (m *Manager) loadResourceEnvironment(key scenarioruntime.InstanceKey, manif
 	return resourceenv.ResolveScenario(m.Root, m.Home, key.Scenario, key.Variant, manifest)
 }
 
-func expandTemplate(value string, env map[string]string) string {
-	expanded := value
-
-	keys := make([]string, 0, len(env))
-	for key := range env {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		expanded = strings.ReplaceAll(expanded, "${"+key+"}", env[key])
-		expanded = strings.ReplaceAll(expanded, "$"+key, env[key])
-	}
-	return expanded
+// ExpandTemplate resolves the manifest's closed ${NAME}/$NAME placeholder
+// language. Shell operators and default-value forms are intentionally not part
+// of the contract: every referenced value must already exist in the resolved
+// scenario environment.
+func ExpandTemplate(value string, env map[string]string) (string, error) {
+	return scenario.ExpandTemplate(value, env)
 }

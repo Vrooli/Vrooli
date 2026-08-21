@@ -371,7 +371,7 @@ func (r *Runner) applyDependencyFreshnessPolicy(startingScenario string, dep sce
 func (r *Runner) rebuildDependencyArtifacts(item scenario.Scenario, view registryRuntimeView) error {
 	env := envFromRuntimeView(item.Manifest, view)
 	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, "rebuild", "setup"), func(logWriter, childWriter io.Writer) error {
-		_, execErr := r.ExecutePhaseDetailed(item, "setup", env, nil, logWriter, childWriter)
+		_, execErr := r.ExecutePhaseDetailed(item, "setup", env, logWriter, childWriter)
 		return execErr
 	}); err != nil {
 		return err
@@ -473,7 +473,7 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 		if resourceDependencyReady(status) {
 			r.publish(ProgressEvent{Kind: EventResourceReused, Scenario: item.Slug, Dependency: resourceName})
 			r.logDebug("Resource dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, resourceName)
-			if err := r.ensureResourceConfig(item.Slug, resourceName, dependency.Config, decision); err != nil {
+			if err := r.ensureResourceConfig(item.Slug, resourceName, dependency, decision); err != nil {
 				if decision.continueOnFailure {
 					failed = append(failed, resourceName)
 					continue
@@ -521,7 +521,7 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 
 		_, err = r.waitForResourceDependencyReady(resourceName)
 		if err == nil {
-			if ensureErr := r.ensureResourceConfig(item.Slug, resourceName, dependency.Config, decision); ensureErr != nil {
+			if ensureErr := r.ensureResourceConfig(item.Slug, resourceName, dependency, decision); ensureErr != nil {
 				if decision.continueOnFailure {
 					failed = append(failed, resourceName)
 					continue
@@ -545,13 +545,14 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 	return failed, nil
 }
 
-// ensureResourceConfig calls the resource CLI's `ensure` verb with the raw
-// dependency config blob, if the dependency declared extra keys AND the
+// ensureResourceConfig calls the resource CLI's `ensure` verb with the
+// dependency-specific config plus typed resource fields, if either is
+// declared and the
 // resource's manifest advertises `supports_ensure`. Errors are wrapped with
 // context and returned to the caller, which applies the dependency's
 // continueOnFailure policy.
-func (r *Runner) ensureResourceConfig(scenarioSlug, resourceName string, cfg json.RawMessage, decision dependencyDecision) error {
-	if len(cfg) == 0 {
+func (r *Runner) ensureResourceConfig(scenarioSlug, resourceName string, dependency scenario.Dependency, decision dependencyDecision) error {
+	if len(dependency.Config) == 0 && strings.TrimSpace(dependency.Database) == "" {
 		return nil
 	}
 	deps := r.runtimeDeps()
@@ -573,6 +574,19 @@ func (r *Runner) ensureResourceConfig(scenarioSlug, resourceName string, cfg jso
 		return nil
 	}
 
+	payload := map[string]any{}
+	if len(dependency.Config) != 0 {
+		if err := json.Unmarshal(dependency.Config, &payload); err != nil {
+			return fmt.Errorf("decode resource dependency %s config: %w", resourceName, err)
+		}
+	}
+	if database := strings.TrimSpace(dependency.Database); database != "" {
+		payload["database"] = database
+	}
+	cfg, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("encode resource dependency %s config: %w", resourceName, err)
+	}
 	encoded := base64.StdEncoding.EncodeToString(cfg)
 	args := []string{"ensure", "--config-base64", encoded}
 	r.publish(ProgressEvent{Kind: EventResourceEnsureConfig, Scenario: scenarioSlug, Dependency: resourceName})

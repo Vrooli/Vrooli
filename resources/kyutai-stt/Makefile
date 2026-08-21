@@ -59,6 +59,6 @@ test-python: ## Run the dependency-light Kyutai server tests
 		exit 1; \
 	fi
 
-check: check-go ## Run Go quality gates
+check: check-go test-python ## Run Go and server-state-machine quality gates
 
 check-go: lint-go type-go test-go ## Run Go quality gates

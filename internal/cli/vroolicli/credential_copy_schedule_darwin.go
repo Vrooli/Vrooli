@@ -3,8 +3,9 @@
 package vroolicli
 
 import (
-	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
 
 func installCredentialCopySchedule(executable string, interval time.Duration, enabled bool) error {

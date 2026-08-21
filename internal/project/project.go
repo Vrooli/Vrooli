@@ -166,7 +166,6 @@ func (c *Controller) RunProjectPhase(phase string, args []string) error {
 	}
 	return runner.RunPhase(project.Slug, phase, lifecycle.PhaseOptions{
 		CustomPath:  c.Root,
-		Args:        append([]string(nil), args...),
 		ProjectMode: true,
 	})
 }

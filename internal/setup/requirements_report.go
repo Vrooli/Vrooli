@@ -308,7 +308,7 @@ func groupItemsByOutcome(items []vrooliruntime.ItemStatus) outcomeGroups {
 			hostreqkit.BlockingOperatorChoiceMissing, hostreqkit.BlockingOperatorDeclined,
 			hostreqkit.BlockingInvalidParameter, hostreqkit.BlockingCredentialStoreLocked,
 			hostreqkit.BlockingCredentialStoreUnresponsive, hostreqkit.BlockingCredentialStoreUnavailable,
-			hostreqkit.BlockingCredentialStoreEmpty:
+			hostreqkit.BlockingCredentialStoreEmpty, hostreqkit.BlockingPrerequisiteMissing:
 			groups.NeedsOperatorInput = append(groups.NeedsOperatorInput, item)
 			continue
 		}

@@ -142,7 +142,7 @@ func RuntimePortBindings(manifest ServiceManifest, records []process.Record) ([]
 			continue
 		}
 
-		key := InferPortEnvVar(manifest, record.Step)
+		key := strings.TrimSpace(record.PortKey)
 		if key == "" {
 			continue
 		}
@@ -201,47 +201,4 @@ func runtimePortCandidates(manifest ServiceManifest, requested string) []string 
 		out = append(out, key)
 	}
 	return out
-}
-
-// InferPortEnvVar maps lifecycle step names like "start-api" or "launch-ui"
-// back to manifest port keys. The process metadata is historical and not fully
-// normalized, so the mapping intentionally uses lightweight heuristics.
-func InferPortEnvVar(manifest ServiceManifest, step string) string {
-	step = strings.ToLower(strings.TrimSpace(step))
-	step = strings.TrimPrefix(step, "start-")
-	step = strings.TrimPrefix(step, "run-")
-	step = strings.TrimPrefix(step, "serve-")
-	step = strings.TrimPrefix(step, "launch-")
-
-	if step != "" {
-		if envVar := manifest.PortEnvVar(step); envVar != "" {
-			return envVar
-		}
-	}
-
-	switch {
-	case strings.Contains(step, "ui"), strings.Contains(step, "frontend"), strings.Contains(step, "vite"):
-		if envVar := manifest.PortEnvVar("ui"); envVar != "" {
-			return envVar
-		}
-	case strings.Contains(step, "ws"), strings.Contains(step, "socket"):
-		for _, candidate := range []string{"websocket", "ws"} {
-			if envVar := manifest.PortEnvVar(candidate); envVar != "" {
-				return envVar
-			}
-		}
-	}
-
-	for _, definition := range manifest.SortedPorts() {
-		name := strings.ToLower(definition.Name)
-		if step == name || strings.Contains(step, name) || strings.Contains(name, step) {
-			return definition.EnvVar
-		}
-		normalizedEnv := strings.TrimSuffix(strings.ToLower(definition.EnvVar), "_port")
-		if normalizedEnv != "" && (step == normalizedEnv || strings.Contains(step, normalizedEnv)) {
-			return definition.EnvVar
-		}
-	}
-
-	return ""
 }

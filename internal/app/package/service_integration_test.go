@@ -80,7 +80,7 @@ func TestRefreshScenarioSetupRunsBuildAndSetup(t *testing.T) {
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
-				Run:  "mkdir -p build && printf setup > build/setup.txt",
+				Exec: []string{"bash", "-c", "mkdir -p build && printf setup > build/setup.txt"},
 			}}},
 		}),
 	))
@@ -123,7 +123,7 @@ func TestRefreshGenerateThenSetupRunsGenerateBuildAndSetup(t *testing.T) {
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
-				Run:  "mkdir -p build && printf setup > build/setup.txt",
+				Exec: []string{"bash", "-c", "mkdir -p build && printf setup > build/setup.txt"},
 			}}},
 		}),
 	))
@@ -208,7 +208,7 @@ func TestRefreshTargetFiltersAffectedScenario(t *testing.T) {
 				Version: "2.0.0",
 				Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 					Name: "capture-setup",
-					Run:  "mkdir -p build && printf setup > build/setup.txt",
+					Exec: []string{"bash", "-c", "mkdir -p build && printf setup > build/setup.txt"},
 				}}},
 			}),
 		))
@@ -246,7 +246,7 @@ func TestRefreshIncludesTemplateConsumersExplicitly(t *testing.T) {
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
-				Run:  "mkdir -p build && printf setup > build/setup.txt",
+				Exec: []string{"bash", "-c", "mkdir -p build && printf setup > build/setup.txt"},
 			}}},
 		}),
 	))
@@ -341,7 +341,7 @@ func TestRefreshDedupesMultiSurfaceScenarioSetup(t *testing.T) {
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
-				Run:  "mkdir -p build && printf setup >> build/setup.txt",
+				Exec: []string{"bash", "-c", "mkdir -p build && printf setup >> build/setup.txt"},
 			}}},
 		}),
 	))
@@ -393,11 +393,11 @@ func TestRefreshRestartsRunningScenario(t *testing.T) {
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
-				Run:  "mkdir -p build && printf setup > build/setup.txt",
+				Exec: []string{"bash", "-c", "mkdir -p build && printf setup > build/setup.txt"},
 			}}},
 			Develop: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name:       "stay-running",
-				Run:        "sleep 30",
+				Exec:       []string{"sleep", "30"},
 				Background: true,
 			}}},
 		}),
@@ -444,6 +444,7 @@ func TestRefreshNoRestartLeavesScenarioStopped(t *testing.T) {
 	testresource.WritePortRegistry(t, fixture.Root, nil)
 	testpackage.WritePackageManifest(t, fixture.Root, "alpha", testpackage.PackageManifest(
 		"alpha",
+		testpackage.WithPackageBuildCommands(commandSpec("build", "mkdir -p build && printf build > build/build.txt")),
 		testpackage.WithPackageRefresh(packagegov.RefreshScenarioSetup, true),
 	))
 	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo",
@@ -451,11 +452,11 @@ func TestRefreshNoRestartLeavesScenarioStopped(t *testing.T) {
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
-				Run:  "mkdir -p build && printf setup > build/setup.txt",
+				Exec: []string{"bash", "-c", "mkdir -p build && printf setup > build/setup.txt"},
 			}}},
 			Develop: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name:       "stay-running",
-				Run:        "sleep 30",
+				Exec:       []string{"sleep", "30"},
 				Background: true,
 			}}},
 		}),
@@ -518,7 +519,8 @@ func newIntegrationPackageService(fixture testkitgo.RepoFixture, json bool) Serv
 
 func commandSpec(name, shellCommand string) packagegov.CommandSpec {
 	return packagegov.CommandSpec{
-		Name: name,
-		Run:  []string{"bash", "-lc", shellCommand},
+		Name:    name,
+		Run:     []string{"bash", "-lc", shellCommand},
+		Outputs: []string{"build/**"},
 	}
 }

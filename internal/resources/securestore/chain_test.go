@@ -10,6 +10,21 @@ import (
 	"testing"
 )
 
+// usePassphraseOnlyProviders pins a store under test to the passphrase wrap.
+// Without it these tests assert a different thing on a machine with a reachable
+// TPM than on one without: the store would be built with an unattended wrap as
+// well, and "the passphrase no longer opens it" stops being observable because
+// the other wrap opens it regardless — which is the correct behaviour and the
+// wrong thing for a test about the passphrase wrap to measure.
+func usePassphraseOnlyProviders(t *testing.T) {
+	t.Helper()
+	previous := defaultKeyProviders
+	defaultKeyProviders = func() []keyProvider {
+		return []keyProvider{passphraseProvider{source: passphraseSource}}
+	}
+	t.Cleanup(func() { defaultKeyProviders = previous })
+}
+
 // useTestStorePath points the whole chain at a temporary store file and puts
 // the real resolver back afterwards, so one test cannot leave the package
 // aimed at a path the next one did not choose.
@@ -176,6 +191,7 @@ func TestBackendOverrideSelectsTheEncryptedStoreOnAHostThatHasANativeOne(t *test
 func TestDiagnoseNamesTheBackendAndTheKeyWrap(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "credentials.enc.json")
 	useTestStorePath(t, path)
+	usePassphraseOnlyProviders(t)
 	t.Setenv(BackendOverrideEnv, BackendEncryptedFile)
 
 	// Before initialization the diagnosis must be absent and must name the
@@ -225,6 +241,7 @@ func TestDiagnoseNamesTheBackendAndTheKeyWrap(t *testing.T) {
 func TestDescribeStoreListsWrapsWithoutUnlocking(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "credentials.enc.json")
 	useTestStorePath(t, path)
+	usePassphraseOnlyProviders(t)
 	t.Setenv(BackendOverrideEnv, BackendEncryptedFile)
 
 	if _, err := InitializeStore("passphrase"); err != nil {
@@ -250,6 +267,7 @@ func TestDescribeStoreListsWrapsWithoutUnlocking(t *testing.T) {
 func TestChangePassphraseReplacesOnlyTheWrap(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "credentials.enc.json")
 	useTestStorePath(t, path)
+	usePassphraseOnlyProviders(t)
 	t.Setenv(BackendOverrideEnv, BackendEncryptedFile)
 	if _, err := InitializeStore("old-passphrase"); err != nil {
 		t.Fatal(err)

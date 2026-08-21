@@ -83,6 +83,23 @@ message ExtractRequest {
   // When false (default) the loader skips vendor/ directories and module
   // cache paths. REQ-P1-003.
   bool include_vendor = 2;
+  // Selects the amount of analysis performed. FULL preserves the original
+  // extraction contract, including tests and semantic usage facts.
+  ExtractionProfile profile = 3;
+  // Optional package patterns relative to module_path. An empty list keeps
+  // the legacy ./... scope; callers can narrow extraction with values such as
+  // ./api/... or ./internal/graph/....
+  repeated string package_patterns = 4;
+}
+
+enum ExtractionProfile {
+  EXTRACTION_PROFILE_UNSPECIFIED = 0;
+  // Full type information and usage facts, excluding test variants.
+  EXTRACTION_PROFILE_SEMANTIC = 1;
+  // Files, packages, declarations, syntax, and imports without type-checking.
+  EXTRACTION_PROFILE_STRUCTURAL = 2;
+  // Explicit compatibility profile: semantic facts plus test variants.
+  EXTRACTION_PROFILE_FULL = 3;
 }
 
 message ExtractResponse {
@@ -97,6 +114,17 @@ message ExtractResponse {
   // Hex sha256 of the normalized JSON serialization of `graph`. Consumers
   // use this for cache-hit detection without re-diffing. REQ-P1-005.
   string graph_hash = 4;
+  // Phase timings for performance diagnostics. These are wall-clock
+  // measurements inside the service and are zero when a phase did not run.
+  int64 fingerprint_ms = 5;
+  int64 load_ms = 6;
+  int64 normalize_ms = 7;
+  bool cache_hit = 8;
+  // Effective profile used for this response. Explicitly returned so
+  // consumers do not infer it from empty fields.
+  ExtractionProfile profile = 9;
+  // Capabilities intentionally omitted by profile. These are not errors.
+  repeated common.v1.CodeGraphOmission omitted_information = 10;
 }
 
 // -----------------------------------------------------------------------------

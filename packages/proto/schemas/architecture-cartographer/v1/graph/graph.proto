@@ -5,6 +5,7 @@ package vrooli.architecture_cartographer.v1.graph;
 import "architecture-cartographer/v1/domains/domains.proto";
 import "architecture-cartographer/v1/shared/shared.proto";
 import "common/v1/attestation.proto";
+import "common/v1/code_graph.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph;graph_v1";
@@ -142,6 +143,12 @@ message GraphSnapshot {
   repeated SymbolNode symbols = 9;
   // All edges in the graph, deduped by (from, to_package_id) pair.
   repeated ImportEdge imports = 10;
+  // Effective profile(s) used by language adapters. Empty only for legacy
+  // snapshots created before profile metadata was persisted.
+  repeated string extraction_profiles = 11;
+  // Capabilities intentionally omitted by an adapter profile. These are
+  // informational and do not indicate a failed extraction.
+  repeated common.v1.CodeGraphOmission omitted_information = 12;
 }
 
 // =============================================================================

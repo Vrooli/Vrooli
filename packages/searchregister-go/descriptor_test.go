@@ -2,6 +2,7 @@ package searchregister_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -187,6 +188,21 @@ func TestDescriptorMapsControlEndpoints(t *testing.T) {
 	cf := d.GetConfigEndpoint().GetHttpJson()
 	require.NotNil(t, cf, "config_endpoint must be carried onto the descriptor")
 	require.Equal(t, "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig", cf.GetPath())
+}
+
+func TestDescriptorMapsFreshnessBudget(t *testing.T) {
+	p := aisearch.ProviderConfig{
+		ProviderID: "demo.code", ProviderGroup: "demo", Type: "code",
+		FreshnessBudget: "24h",
+	}
+	d, err := searchregister.Descriptor(p)
+	require.NoError(t, err)
+	require.Equal(t, 24*time.Hour, d.GetFreshnessBudget().AsDuration())
+}
+
+func TestDescriptorRejectsInvalidFreshnessBudget(t *testing.T) {
+	_, err := searchregister.Descriptor(aisearch.ProviderConfig{ProviderID: "demo.code", FreshnessBudget: "tomorrow"})
+	require.ErrorContains(t, err, "freshness_budget")
 }
 
 // TestTuningProtoRoundTrip proves the proto<->TuningConfig converters are exact

@@ -27,7 +27,6 @@ import (
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
-	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
@@ -35,6 +34,7 @@ import (
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioenv"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -276,7 +276,6 @@ type StopOptions struct {
 
 type PhaseOptions struct {
 	CustomPath              string
-	Args                    []string
 	AllowSkipMissingRuntime bool
 	ManageRuntime           bool
 	ProjectMode             bool
@@ -681,7 +680,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		}
 		if err := runtimeSession.keepLeaseAlive(context.Background(), r.leaseRenewalWarning(item, "setup"), func() error {
 			_, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
-				_, err := r.ExecutePhaseDetailed(item, "setup", env.EnvVars, nil, logWriter, childWriter)
+				_, err := r.ExecutePhaseDetailed(item, "setup", env.EnvVars, logWriter, childWriter)
 				return err
 			})
 			return err
@@ -706,7 +705,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	}
 	if err := runtimeSession.keepLeaseAlive(context.Background(), r.leaseRenewalWarning(item, "develop"), func() error {
 		_, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "develop"), func(logWriter, childWriter io.Writer) error {
-			_, err := r.ExecutePhaseDetailed(item, "develop", env.EnvVars, nil, logWriter, childWriter)
+			_, err := r.ExecutePhaseDetailed(item, "develop", env.EnvVars, logWriter, childWriter)
 			return err
 		})
 		return err
@@ -739,6 +738,9 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	// Ownership must change hands before this process does, or the instance is
 	// left leased to a PID that is about to disappear.
 	r.attachSupervision(context.Background(), &runtimeSession, item)
+	if err := runtimeSession.publishPeerRecord(context.Background(), r.Home); err != nil {
+		return Result{}, err
+	}
 
 	if len(failedDeps) > 0 {
 		r.logWarn("Scenario started in degraded mode",
@@ -967,6 +969,9 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, variant, customPath st
 
 	if err := runtimeStop.finish(ctx); err != nil {
 		return err
+	}
+	if err := scenarioenv.Remove(r.Home, key.Scenario); err != nil {
+		return fmt.Errorf("remove scenario peer record: %w", err)
 	}
 	return nil
 }
@@ -1414,6 +1419,16 @@ func stepConditionsMetWithDeps(item scenario.Scenario, condition *scenario.Condi
 			return false, fmt.Sprintf("environment variable %q is not set", key), nil
 		}
 	}
+	if key := condition.EnvSet; key != "" {
+		if strings.TrimSpace(env[key]) == "" && strings.TrimSpace(deps.getenv(key)) == "" {
+			return false, fmt.Sprintf("environment variable %q is not set", key), nil
+		}
+	}
+	if key := condition.EnvNotSet; key != "" {
+		if strings.TrimSpace(env[key]) != "" || strings.TrimSpace(deps.getenv(key)) != "" {
+			return false, fmt.Sprintf("environment variable %q is set", key), nil
+		}
+	}
 	if always := condition.Always; always != "" {
 		lower := strings.ToLower(strings.TrimSpace(always))
 		if lower == "false" || lower == "0" {
@@ -1460,85 +1475,6 @@ func jsonPathExistsWithDeps(filePath, spec string, deps hostProbeDeps) (bool, er
 		}
 	}
 	return current != nil, nil
-}
-
-func resourcesNeedSetup(home, appRoot string, check scenario.ConditionCheck) bool {
-	locator, err := projectstate.NewLocator(home, appRoot)
-	if err != nil {
-		return true
-	}
-	if check.Populated {
-		return !locator.HasResourcesPopulated()
-	}
-	if len(check.Resources) == 0 {
-		return !locator.HasResourcesPopulated()
-	}
-	for _, resourceName := range check.Resources {
-		if !locator.HasResourcePopulated(resourceName) {
-			return true
-		}
-	}
-	return false
-}
-
-func dependenciesNeedSetup(appRoot string, check scenario.ConditionCheck) bool {
-	for _, path := range check.Paths {
-		resolved := resolveCheckPath(appRoot, path)
-		switch {
-		case strings.HasSuffix(resolved, "package.json"):
-			if _, err := os.Stat(filepath.Join(filepath.Dir(resolved), "node_modules")); err != nil {
-				return true
-			}
-		case strings.HasSuffix(resolved, "go.mod"):
-			if _, err := os.Stat(filepath.Join(filepath.Dir(resolved), "go.sum")); err != nil {
-				if _, err := os.Stat(filepath.Join(filepath.Dir(resolved), "vendor")); err != nil {
-					return true
-				}
-			}
-		case strings.HasSuffix(resolved, "requirements.txt"):
-			if _, err := os.Stat(filepath.Join(filepath.Dir(resolved), "venv")); err != nil {
-				if _, err := os.Stat(filepath.Join(filepath.Dir(resolved), ".venv")); err != nil {
-					return true
-				}
-			}
-		case strings.HasSuffix(resolved, "Cargo.toml"):
-			if _, err := os.Stat(filepath.Join(filepath.Dir(resolved), "target")); err != nil {
-				return true
-			}
-		default:
-			if _, err := os.Stat(resolved); err != nil {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func dataNeedsSetup(appRoot string, check scenario.ConditionCheck) bool {
-	target := resolveCheckPath(appRoot, defaultIfEmpty(check.Path, "data"))
-	entries, err := os.ReadDir(target)
-	return err != nil || len(entries) == 0
-}
-
-func filesNeedSetup(appRoot string, check scenario.ConditionCheck) bool {
-	for _, path := range check.Paths {
-		resolved := resolveCheckPath(appRoot, path)
-		if _, err := os.Stat(resolved); err != nil {
-			return true
-		}
-	}
-	return false
-}
-
-func directoriesNeedSetup(appRoot string, check scenario.ConditionCheck) bool {
-	for _, path := range check.Targets {
-		resolved := resolveCheckPath(appRoot, path)
-		info, err := os.Stat(resolved)
-		if err != nil || !info.IsDir() {
-			return true
-		}
-	}
-	return false
 }
 
 func localReplacePathsWithDeps(goModPath string, deps hostProbeDeps) ([]string, error) {
@@ -1768,15 +1704,6 @@ func envValue(env []string, key string) string {
 	return ""
 }
 
-func inferStepPort(manifest scenario.ServiceManifest, step string, env map[string]string) int {
-	key := scenario.InferPortEnvVar(manifest, step)
-	if key == "" {
-		return 0
-	}
-	port, _ := strconv.Atoi(env[key])
-	return port
-}
-
 func healthPortsFromEnv(manifest scenario.ServiceManifest, env map[string]string) map[string]int {
 	ports := make(map[string]int)
 	for _, key := range manifest.PortEnvVars() {
@@ -1800,8 +1727,4 @@ func defaultIfEmpty(value, fallback string) string {
 		return fallback
 	}
 	return value
-}
-
-func shellQuote(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
 }

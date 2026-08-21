@@ -180,6 +180,8 @@ func diagnoseStore(store Store, checkWrites bool) Diagnosis {
 			// visible in its own field.
 			if remedy := remediationFor(err); remedy != "" {
 				diagnosis.Fix = remedy
+			} else if locked := lockedStoreFix(store); locked != "" {
+				diagnosis.Fix = locked
 			} else if session := sessionDiagnosis(); session != "" {
 				diagnosis.Fix = session
 			}
@@ -240,6 +242,31 @@ func backendName(store Store) string {
 	default:
 		return AdapterName(store)
 	}
+}
+
+// lockedStoreFix names the action for the condition an encrypted store reports
+// most often and that nothing else here explains: the file is present and
+// intact, and no wrap on this host opened it. That is neither a broken host nor
+// a missing backend — it is a store waiting for the passphrase it was sealed
+// with. Leaving it without a fix is how an operator ends up reading "secure
+// storage is unavailable" and concluding the backend failed.
+//
+// Where the host could hold an unattended wrap and does not, that is the more
+// useful answer, because it addresses why the store was asking at all rather
+// than only what to type this time.
+func lockedStoreFix(store Store) string {
+	if backendName(store) != adapterEncryptedFile {
+		return ""
+	}
+	encrypted, ok := encryptedBackend(store)
+	if !ok || !encrypted.initialized() {
+		return ""
+	}
+	const unlock = "supply the store passphrase with `vrooli credentials store unlock`, which reads it from stdin"
+	if blocked := hostBoundFix(); blocked != "" {
+		return unlock + ". This host is asking at all because it has no unattended wrap: " + blocked
+	}
+	return unlock + ", or run `vrooli setup` to add an unattended wrap so this host opens the store after a reboot with no passphrase at all"
 }
 
 // absentBackendFixFor names the action that reaches a working state. On a host

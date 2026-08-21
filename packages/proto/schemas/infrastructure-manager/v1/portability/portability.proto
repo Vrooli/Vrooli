@@ -208,7 +208,16 @@ message FleetReadout {
   google.protobuf.Timestamp computed_at = 7;
 }
 
-message GetFleetRequest {}
+message GetFleetRequest {
+  // view optionally narrows the readout to one section: "blocked", "docker",
+  // "peerless", "upgrades" or "desktop". Empty returns every section.
+  //
+  // It is a REQUEST field rather than a client-side print filter because the
+  // sections are computed independently: narrowing here lets the server skip
+  // the work, and it keeps the CLI's --view flag bound to something real
+  // instead of declaring an argument the contract cannot honour.
+  string view = 1;
+}
 
 message GetFleetResponse {
   FleetReadout fleet = 1;

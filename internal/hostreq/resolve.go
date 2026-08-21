@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -375,6 +376,7 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 			Name:               key,
 			Kind:               kind,
 			Required:           declaration.Required,
+			MinVersion:         strings.TrimSpace(declaration.MinVersion),
 			Manual:             declaration.Manual,
 			Privilege:          privilege,
 			Bundling:           bundling,
@@ -396,6 +398,9 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 	}
 
 	resolved.Required = resolved.Required || declaration.Required
+	if stricterMinimum(declaration.MinVersion, resolved.MinVersion) {
+		resolved.MinVersion = strings.TrimSpace(declaration.MinVersion)
+	}
 	if resolved.OperatorChoice == hostreqspec.OperatorChoiceNotRecorded {
 		resolved.OperatorChoice = s.operatorState.choice(kind, key)
 	}
@@ -450,6 +455,18 @@ func sortedRequirements(items map[string]*ResolvedRequirement) []ResolvedRequire
 		result = append(result, item)
 	}
 	return result
+}
+
+func stricterMinimum(candidate, current string) bool {
+	candidate = strings.TrimSpace(candidate)
+	current = strings.TrimSpace(current)
+	if candidate == "" {
+		return false
+	}
+	if current == "" {
+		return true
+	}
+	return hostreqkit.CompareVersions(candidate, current) > 0
 }
 
 func uniqueStrings(values []string) []string {

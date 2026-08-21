@@ -115,6 +115,8 @@ func requirementRemediation(report runtime.Report) string {
 			return "A required safeguard parameter is invalid. Correct operator-state config, then re-run setup."
 		case hostreqkit.BlockingManual:
 			return "A required dependency needs the documented manual action. Complete it, then re-run setup."
+		case hostreqkit.BlockingPrerequisiteMissing:
+			return "A required safeguard is waiting on another host requirement. Satisfy the prerequisite named in the diagnostics, then re-run setup."
 		}
 	}
 	if len(report.MissingRequired) > 0 {
