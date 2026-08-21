@@ -187,6 +187,8 @@ presented as current functionality.
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
+`brand-manager:theme-color-token-override` — the browser/PWA theme color intentionally uses `#020617`, the persistent Tunnel Manager operational chrome, rather than the light work-surface token. This keeps installed and shared-link chrome aligned with the product's always-on control-plane identity while the workspace remains light by default.
+
 ## How To Read This Document
 
 This file mixes two kinds of guidance, and the distinction matters.

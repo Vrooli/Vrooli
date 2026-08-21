@@ -3,7 +3,7 @@ package recovery
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -189,7 +189,7 @@ func (e *engine) Evaluate(ctx context.Context) (RecoveryEvent, bool, error) {
 		e.state.ConsecFailures = 0
 		if !e.dormant {
 			e.dormant = true
-			log.Printf("[tunnel-manager] no managed cloudflared resource present; recovery dormant")
+			slog.Info("recovery dormant because no managed cloudflared resource is present", "component", "tunnel-manager")
 		}
 		e.mu.Unlock()
 		return RecoveryEvent{}, false, nil
@@ -198,7 +198,7 @@ func (e *engine) Evaluate(ctx context.Context) (RecoveryEvent, bool, error) {
 	e.mu.Lock()
 	if e.dormant {
 		e.dormant = false
-		log.Printf("[tunnel-manager] managed cloudflared resource present; recovery active")
+		slog.Info("recovery active because managed cloudflared resource is present", "component", "tunnel-manager")
 	}
 	e.state.LastCheck = e.clock.Now().UTC()
 

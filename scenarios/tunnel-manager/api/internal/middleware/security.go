@@ -18,7 +18,9 @@ func NewSecurityHeadersMiddleware() func(http.Handler) http.Handler {
 			h := w.Header()
 			h.Set("X-Frame-Options", "DENY")
 			h.Set("X-Content-Type-Options", "nosniff")
-			h.Set("X-XSS-Protection", "1; mode=block")
+			// The legacy XSS auditor is obsolete and can introduce security
+			// bypasses in modern browsers; explicitly disable it.
+			h.Set("X-XSS-Protection", "0")
 			h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 			h.Set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=()")
 

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
-  "title": "react-vite template UI manifest",
-  "description": "Declares where UI building blocks live in scenarios generated from the react-vite template. Consumed by react-component-library's adoption resolver to compute canonical filesystem paths for adopted components.",
+  "title": "Tunnel Manager UI manifest",
+  "description": "Declares the feature, layout, page, API, and design-system boundaries for the Tunnel Manager Exposure Command Center.",
   "contract": {
     "kind": "scenario-ui",
     "schema": "scenario-ui-manifest/v1",

@@ -25,29 +25,33 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-func (h *handlers) run(ctx cliapp.RunContext) error {
+func (h *handlers) runCall(_ cliapp.OperationContext) (*auditv1.RunAuditResponse, error) {
 	resp, err := h.client.RunAudit(context.Background(), connect.NewRequest(&auditv1.RunAuditRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("run audit", err, nil)
+		return nil, cliapp.WrapAPIError("run audit", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no audit response")
+		return nil, fmt.Errorf("server returned no audit response")
 	}
-	results := make([]string, 0, len(resp.Msg.Results))
-	for _, r := range resp.Msg.Results {
+	return resp.Msg, nil
+}
+
+func (h *handlers) runReport(_ cliapp.OperationContext, message *auditv1.RunAuditResponse) cliapp.ListReport {
+	results := make([]string, 0, len(message.Results))
+	for _, r := range message.Results {
 		results = append(results, formatResult(r))
 	}
 	summary := []string{
-		fmt.Sprintf("Audited %d route(s); %d violation(s).", len(resp.Msg.Results), resp.Msg.ViolationCount),
+		fmt.Sprintf("Audited %d route(s); %d violation(s).", len(message.Results), message.ViolationCount),
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Findings",
 		Results:        results,
 		RetrievalHints: []string{
 			"`routes list` — show the manifest the audit checks",
 		},
-	})
+	}
 }
 
 // formatResult renders one finding as a single human-readable line.

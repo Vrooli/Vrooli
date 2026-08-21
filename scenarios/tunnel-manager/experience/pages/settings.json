@@ -2,31 +2,148 @@
   "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
   "schemaVersion": "1.0.0",
-  "page": {"id": "settings", "title": "Settings & Readiness", "routes": ["/settings"], "purpose": "Make local versus remote operation, Cloudflare credential readiness, synchronization, and the /public/* policy understandable and safe to configure.", "prd_refs": ["OT-P0-008", "OT-P1-004", "OT-P1-008"]},
+  "page": {
+    "id": "settings",
+    "title": "Settings & Readiness",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Expose mode, credential metadata, capability-scoped readiness, sync preview, and the protected-versus-anonymous public-assets boundary."
+  },
   "priorities": [
-    {"statement": "The operator can see exactly which capability is blocked and why."},
-    {"statement": "Credential values are write-only and their source, presence, and scope readiness are visible without exposing secrets."},
-    {"statement": "The /public/* policy is narrow, default-off, and visibly separate from primary application protection."},
-    {"statement": "Sync previews changes before applying them."}
+    {
+      "statement": "Name the exact capability affected by missing credentials or insufficient scopes."
+    },
+    {
+      "statement": "Keep credential values write-only and never render stored secret material."
+    },
+    {
+      "statement": "Explain that only /public/* can bypass Access and the primary application remains protected."
+    }
   ],
   "states": [
-    {"id": "loading", "description": "Configuration and credential metadata are loading."},
-    {"id": "ready", "description": "Mode, credential presence, sync controls, and public-asset policy are visible."},
-    {"id": "partial", "description": "Some readiness metadata is unavailable while known values remain visible."},
-    {"id": "credentials-missing", "description": "One or more required credentials are absent; the missing field and affected capabilities are named."},
-    {"id": "insufficient-scope", "description": "Credentials are present but a required Cloudflare permission is missing for the selected capability."},
-    {"id": "sync-preview", "description": "The proposed ingress or Access policy changes are shown before apply."},
-    {"id": "success", "description": "Credential or configuration mutation succeeded and reports its redacted result."},
-    {"id": "request-error", "description": "Configuration failed to load or save and provides retry."}
+    {
+      "id": "loading",
+      "description": "Configuration and credential metadata are loading.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "ready",
+      "description": "Mode, credential presence, sync controls, and public-asset policy are visible.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some readiness metadata is unavailable while known values remain visible.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "credentials-missing",
+      "description": "Absent credentials and affected capabilities are named.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "insufficient-scope",
+      "description": "Credentials are present but a selected capability lacks a required permission.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "sync-preview",
+      "description": "Proposed ingress or Access policy changes are shown before apply.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "success",
+      "description": "A configuration mutation succeeded and reports a redacted result.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "Configuration failed to load or save and provides retry.",
+      "setup": {
+        "route": "/settings"
+      }
+    }
+  ],
+  "regions": [{"id":"settings-readiness","purpose":"Render credential readiness and public-assets policy through loading, ready, partial, and failed states.","component":{"library":{"component":"experience-surface","version":"1.0.0"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
+  "elements": [
+    {
+      "id": "page",
+      "role": "region",
+      "name": "Tunnel settings"
+    },
+    {
+      "id": "readiness",
+      "role": "region",
+      "name": "Credential readiness"
+    },
+    {
+      "id": "credentials",
+      "role": "form",
+      "name": "Cloudflare credentials"
+    },
+    {
+      "id": "publicness",
+      "role": "region",
+      "name": "Public assets policy"
+    }
   ],
   "claims": [
-    {"id": "readiness-is-capability-scoped", "type": "custom", "statement": "Readiness names the exact capability affected by missing credentials or insufficient scopes rather than showing a generic unavailable state.", "tier": "aspirational"},
-    {"id": "secret-values-never-returned", "type": "custom", "statement": "The settings experience never displays stored secret values after save.", "tier": "aspirational"},
-    {"id": "public-assets-boundary", "type": "custom", "statement": "The public-assets policy states that only /public/* can bypass Access and that the primary application remains protected.", "tier": "aspirational"}
+    {
+      "id": "page-present",
+      "type": "element-present",
+      "statement": "The Settings & Readiness page exposes a stable named main region.",
+      "tier": "machine",
+      "elements": [
+        "page"
+      ],
+      "states": [
+        "loading",
+        "ready",
+        "partial",
+        "credentials-missing",
+        "insufficient-scope",
+        "sync-preview",
+        "success",
+        "request-error"
+      ]
+    },
+    {
+      "id": "secret-values-write-only",
+      "type": "custom",
+      "statement": "Stored secret values are never rendered after save.",
+      "tier": "manual"
+    },
+    {
+      "id": "publicness-boundary",
+      "type": "custom",
+      "statement": "Only /public/* can bypass Access; the primary application remains protected.",
+      "tier": "manual"
+    }
   ],
-  "sketch": {"viewport": "desktop", "regions": [
-    {"id": "readiness", "grid": {"x": 0, "y": 0, "w": 12, "h": 3}},
-    {"id": "credentials", "grid": {"x": 0, "y": 3, "w": 6, "h": 5}},
-    {"id": "policy", "grid": {"x": 6, "y": 3, "w": 6, "h": 5}}
-  ]}
+  "bindings": {
+    "regions": {"settings-readiness":{"selector":"[data-experience-surface=\"settings-readiness\"]"}},
+    "elements": {
+      "page": {
+        "testid": "page-settings"
+      },
+      "readiness": { "testid": "settings-config-panel" },
+      "credentials": { "testid": "settings-credentials-form" },
+      "publicness": { "testid": "settings-public-exposure-panel" }
+    }
+  }
 }

@@ -21,12 +21,12 @@ const GroupName = "probes"
 // and wires Connect-RPC bindings to handlers in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"ProbesService.RunProbes":  h.run,
-		"ProbesService.ListProbes": h.history,
-		"ProbesService.Classify":   h.classify,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"ProbesService.RunProbes":  cliapp.ProtoMutation(h.runCall, h.runReport),
+		"ProbesService.ListProbes": cliapp.ProtoList(h.historyCall, h.historyReport),
+		"ProbesService.Classify":   cliapp.ProtoList(h.classifyCall, h.classifyReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("probes: load from manifest: %w", err)
 	}

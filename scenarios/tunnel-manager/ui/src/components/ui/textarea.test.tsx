@@ -13,6 +13,8 @@ import userEvent from "@testing-library/user-event";
 
 import { Textarea } from "./textarea";
 
+// provider-free-exception: this leaf has no provider dependencies.
+
 describe("Textarea", () => {
   it("emits the base className chunk so the cn() merge contract holds", () => {
     render(<Textarea data-testid="t" />);

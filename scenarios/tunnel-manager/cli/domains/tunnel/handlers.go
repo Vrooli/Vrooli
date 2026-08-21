@@ -27,83 +27,95 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-func (h *handlers) status(ctx cliapp.RunContext) error {
+func (h *handlers) statusCall(_ cliapp.OperationContext) (*tunnelv1.GetStatusResponse, error) {
 	resp, err := h.client.GetStatus(context.Background(), connect.NewRequest(&tunnelv1.GetStatusRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("get tunnel status", err, nil)
+		return nil, cliapp.WrapAPIError("get tunnel status", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Status == nil {
-		return fmt.Errorf("server returned no status")
+		return nil, fmt.Errorf("server returned no status")
 	}
-	results := []string{formatStatus(resp.Msg.Status)}
-	if resp.Msg.LatestMetrics != nil {
-		results = append(results, "latest metrics: "+formatSample(resp.Msg.LatestMetrics))
+	return resp.Msg, nil
+}
+
+func (h *handlers) statusReport(_ cliapp.OperationContext, message *tunnelv1.GetStatusResponse) cliapp.ListReport {
+	results := []string{formatStatus(message.Status)}
+	if message.LatestMetrics != nil {
+		results = append(results, "latest metrics: "+formatSample(message.LatestMetrics))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Tunnel is %s (score %d).", resp.Msg.Status.Status, resp.Msg.Status.Score)},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Tunnel is %s (score %d).", message.Status.Status, message.Status.Score)},
 		ResultsHeading: "Status",
 		Results:        results,
 		RetrievalHints: []string{
 			"`tunnel metrics` — show the scraped metrics time-series",
 			"`tunnel scrape` — force one scrape now",
 		},
-	})
+	}
 }
 
-func (h *handlers) metrics(ctx cliapp.RunContext) error {
+func (h *handlers) metricsCall(ctx cliapp.OperationContext) (*tunnelv1.ListMetricsResponse, error) {
 	req := &tunnelv1.ListMetricsRequest{}
 	if v := strings.TrimSpace(ctx.Flag("from")); v != "" {
 		ts, err := parseTime(v)
 		if err != nil {
-			return fmt.Errorf("--from must be RFC3339: %w", err)
+			return nil, fmt.Errorf("--from must be RFC3339: %w", err)
 		}
 		req.From = timestamppb.New(ts)
 	}
 	if v := strings.TrimSpace(ctx.Flag("to")); v != "" {
 		ts, err := parseTime(v)
 		if err != nil {
-			return fmt.Errorf("--to must be RFC3339: %w", err)
+			return nil, fmt.Errorf("--to must be RFC3339: %w", err)
 		}
 		req.To = timestamppb.New(ts)
 	}
 	resp, err := h.client.ListMetrics(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError("list tunnel metrics", err, nil)
+		return nil, cliapp.WrapAPIError("list tunnel metrics", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no metrics response")
+		return nil, fmt.Errorf("server returned no metrics response")
 	}
-	results := make([]string, 0, len(resp.Msg.Samples))
-	for _, s := range resp.Msg.Samples {
+	return resp.Msg, nil
+}
+
+func (h *handlers) metricsReport(_ cliapp.OperationContext, message *tunnelv1.ListMetricsResponse) cliapp.ListReport {
+	results := make([]string, 0, len(message.Samples))
+	for _, s := range message.Samples {
 		results = append(results, formatSample(s))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d metrics sample(s).", len(resp.Msg.Samples))},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d metrics sample(s).", len(message.Samples))},
 		ResultsHeading: "Metrics",
 		Results:        results,
 		RetrievalHints: []string{
 			"`tunnel scrape` — capture a fresh sample",
 			"`tunnel status` — show composite health",
 		},
-	})
+	}
 }
 
-func (h *handlers) scrape(ctx cliapp.RunContext) error {
+func (h *handlers) scrapeCall(_ cliapp.OperationContext) (*tunnelv1.ScrapeResponse, error) {
 	resp, err := h.client.Scrape(context.Background(), connect.NewRequest(&tunnelv1.ScrapeRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("scrape tunnel metrics", err, nil)
+		return nil, cliapp.WrapAPIError("scrape tunnel metrics", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Sample == nil {
-		return fmt.Errorf("server returned no sample")
+		return nil, fmt.Errorf("server returned no sample")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Scraped metrics sample %s.", resp.Msg.Sample.Id)},
-		Changes: []string{formatSample(resp.Msg.Sample)},
+	return resp.Msg, nil
+}
+
+func (h *handlers) scrapeReport(_ cliapp.OperationContext, message *tunnelv1.ScrapeResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Scraped metrics sample %s.", message.Sample.Id)},
+		Changes: []string{formatSample(message.Sample)},
 		NextCommand: []string{
 			"`tunnel metrics` — show the metrics time-series",
 			"`tunnel status` — show composite health",
 		},
-	})
+	}
 }
 
 // parseTime accepts RFC3339 / RFC3339Nano timestamps.

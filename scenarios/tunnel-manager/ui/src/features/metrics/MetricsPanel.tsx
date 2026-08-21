@@ -76,10 +76,13 @@ export function MetricsPanel() {
   const unhealthyRoutes = classifications.filter(
     (cls) => cls.classification !== FailureClass.HEALTHY && cls.classification !== FailureClass.UNSPECIFIED,
   );
+  const metricsLoading = metricsQuery.isLoading || probesQuery.isLoading || classifyQuery.isLoading;
+  const metricsError = metricsQuery.error || probesQuery.error || classifyQuery.error;
+  const experienceState = metricsLoading ? "loading" : metricsError && samples.length === 0 && probes.length === 0 ? "error" : samples.length === 0 && probes.length === 0 ? "empty" : metricsError ? "partial" : "ready";
 
   return (
     <div className="flex flex-col gap-8">
-      <section data-testid={selectors.metrics.panel} className="flex flex-col gap-3">
+      <section data-testid={selectors.metrics.panel} data-experience-surface="metrics-results" data-experience-state={experienceState} className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">{t(strings.metrics.heading)}</h2>
           <Button
@@ -90,6 +93,15 @@ export function MetricsPanel() {
             {t(strings.metrics.scrapeButton)}
           </Button>
         </div>
+        {(scrapeMutation.isError || scrapeMutation.isSuccess) && (
+          <p
+            data-testid={selectors.metrics.scrapeActionFeedback}
+            role={scrapeMutation.isError ? "alert" : undefined}
+            className={`text-sm ${scrapeMutation.isError ? "text-app-danger" : "text-app-success"}`}
+          >
+            {scrapeMutation.isError ? t(strings.metrics.scrapeError) : t(strings.metrics.scrapeSuccess)}
+          </p>
+        )}
 
         <div data-testid={selectors.metrics.summary} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryStat
@@ -170,9 +182,20 @@ export function MetricsPanel() {
             {t(strings.metrics.runProbesButton)}
           </Button>
         </div>
+        {(runProbesMutation.isError || runProbesMutation.isSuccess) && (
+          <p
+            data-testid={selectors.metrics.probesActionFeedback}
+            role={runProbesMutation.isError ? "alert" : undefined}
+            className={`text-sm ${runProbesMutation.isError ? "text-app-danger" : "text-app-success"}`}
+          >
+            {runProbesMutation.isError
+              ? t(strings.metrics.probesErrorAction)
+              : t(strings.metrics.probesSuccess)}
+          </p>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <SummaryStat label={t(strings.metrics.classifiedRoutes)} value={classifications.length} />
+          <SummaryStat label={t(strings.metrics.classifiedRoutes)} value={classifyQuery.error ? t(strings.common.notAvailable) : classifications.length} testId={selectors.metrics.classifiedCount} />
           <SummaryStat
             label={t(strings.metrics.routesNeedingAttention)}
             value={unhealthyRoutes.length}
@@ -196,6 +219,13 @@ export function MetricsPanel() {
           {t(strings.metrics.classificationScope)}
         </p>
 
+        <QueryState
+          isLoading={classifyQuery.isLoading}
+          error={classifyQuery.error}
+          onRetry={() => void classifyQuery.refetch()}
+          loadingLabel={t(strings.metrics.loading)}
+          errorLabel={t(strings.overview.classificationUnavailable)}
+        >
         {classifications.length > 0 && (
           <div data-testid={selectors.metrics.classification} className="flex flex-col gap-2">
             <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
@@ -219,6 +249,7 @@ export function MetricsPanel() {
             </ul>
           </div>
         )}
+        </QueryState>
 
         <QueryState
           isLoading={probesQuery.isLoading}

@@ -104,4 +104,16 @@ describe("MetricsPanel", () => {
       expect(screen.getAllByTestId(selectors.queryState.error).length).toBeGreaterThanOrEqual(1);
     });
   });
+
+  it("does not report zero classified routes when classification fails", async () => {
+    const { probesClient } = await import("../../api/probes");
+    vi.mocked(probesClient.classify).mockRejectedValueOnce(new Error("classification unavailable"));
+
+    renderWithProviders(<MetricsPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.queryState.error)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId(selectors.metrics.classifiedCount)).not.toHaveTextContent("0");
+  });
 });

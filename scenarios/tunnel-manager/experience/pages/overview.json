@@ -5,32 +5,131 @@
   "page": {
     "id": "overview",
     "title": "Overview",
-    "routes": ["/"],
-    "purpose": "Show how local scenarios become publicly reachable, which routes are trustworthy, and what the operator should do next.",
-    "prd_refs": ["OT-P0-001", "OT-P0-003", "OT-P0-004", "OT-P0-009", "OT-P0-010", "OT-P1-004", "OT-P1-008"]
+    "routes": [
+      "/"
+    ],
+    "purpose": "Give operators a truthful command-center view of tunnel readiness, exposed routes, policy state, recovery risk, and the next actions that can change those states."
   },
   "priorities": [
-    {"statement": "The exposure boundary is understandable at a glance.", "notes": "The hero visualization should show the tunnel, exposed scenarios, route health, lease state, and the protected-versus-public asset boundary."},
-    {"statement": "The next operator action is explicit.", "notes": "Missing credentials, port violations, failed probes, and expiring leases must become actionable findings, not passive badges."},
-    {"statement": "Every aggregate is decomposable.", "notes": "Counts and any health score must link to the routes and checks that produced them."}
+    {
+      "statement": "Show the route topology and its operational evidence before aggregate success numbers."
+    },
+    {
+      "statement": "Keep missing credentials and partial read failures scoped to the capability they affect."
+    },
+    {
+      "statement": "Make every actionable finding lead to a route, settings, diagnostics, or recovery surface."
+    }
   ],
   "states": [
-    {"id": "loading", "description": "Tunnel, exposure, readiness, and recovery data are loading."},
-    {"id": "ready", "description": "The exposure constellation and operator findings are visible."},
-    {"id": "partial", "description": "Some domain data is unavailable while the remaining route picture stays visible and names the missing source."},
-    {"id": "stale", "description": "The last complete picture remains visible while refresh is pending."},
-    {"id": "credentials-missing", "description": "Local operation is available, but remote Cloudflare reconciliation is blocked by missing credentials."},
-    {"id": "empty", "description": "No routes are exposed; the page explains that local scenarios remain private and offers the first exposure action."},
-    {"id": "request-error", "description": "The page names which operational read failed and provides retry."}
+    {
+      "id": "loading",
+      "description": "Tunnel, route, policy, classification, and recovery data are loading.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "ready",
+      "description": "The constellation, route index, readiness summary, and findings are visible.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some sources are unavailable while remaining route evidence stays visible and attributed.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "stale",
+      "description": "The last known operational picture remains visible while refresh is pending.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "credentials-missing",
+      "description": "Local operation remains available while remote reconciliation is blocked by missing credentials.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No exposed routes exist and the first exposure action explains the safety boundary.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "A read failed and the affected source has a retry action.",
+      "setup": {
+        "route": "/"
+      }
+    }
+  ],
+  "regions": [{"id":"overview-results","purpose":"Render command-center readiness, tunnel, route, and recovery evidence through loading, ready, partial, and failed states.","component":{"library":{"component":"experience-surface","version":"1.0.0"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
+  "elements": [
+    {
+      "id": "page",
+      "role": "region",
+      "name": "Tunnel Manager overview"
+    },
+    {
+      "id": "constellation",
+      "role": "region",
+      "name": "Exposure constellation"
+    },
+    {
+      "id": "findings",
+      "role": "region",
+      "name": "Actionable findings"
+    },
+    {
+      "id": "mobile-topology",
+      "role": "region",
+      "name": "Mobile route topology"
+    }
   ],
   "claims": [
-    {"id": "topology-is-decomposable", "type": "custom", "statement": "The exposure topology is a meaningful operational projection: every scenario node and connection corresponds to route, probe, lease, or policy state.", "tier": "aspirational"},
-    {"id": "finding-has-next-action", "type": "custom", "statement": "Every non-healthy finding names its cause, scope, and next operator action.", "tier": "aspirational"},
-    {"id": "missing-credentials-visible", "type": "custom", "statement": "When remote operation is unavailable, the missing credential and the blocked capability are visible without navigating away from the overview.", "tier": "aspirational"}
+    {
+      "id": "page-present",
+      "type": "element-present",
+      "statement": "The Overview page exposes a stable named main region.",
+      "tier": "machine",
+      "elements": [
+        "page"
+      ],
+      "states": [
+        "loading",
+        "ready",
+        "partial",
+        "stale",
+        "credentials-missing",
+        "empty",
+        "request-error"
+      ]
+    },
+    {
+      "id": "topology-is-operational",
+      "type": "custom",
+      "statement": "Each displayed route node is derived from a route exposure and associated readiness evidence; decorative nodes are not presented as live routes.",
+      "tier": "manual"
+    }
   ],
-  "sketch": {"viewport": "wide", "regions": [
-    {"id": "shell", "grid": {"x": 0, "y": 0, "w": 12, "h": 1}, "note": "Product identity, tunnel state, refresh, and settings."},
-    {"id": "topology", "grid": {"x": 0, "y": 1, "w": 8, "h": 7}, "note": "Large visual hero: central tunnel with scenario nodes, health rings, and lease arcs."},
-    {"id": "findings", "grid": {"x": 8, "y": 1, "w": 4, "h": 7}, "note": "Action-oriented companion rail."}
-  ]}
+  "bindings": {
+    "regions": {"overview-results":{"selector":"[data-experience-surface=\"overview-results\"]"}},
+    "elements": {
+      "page": {
+        "testid": "page-overview"
+      },
+      "constellation": { "testid": "overview-exposure-constellation" },
+      "findings": { "testid": "overview-actionable-finding" },
+      "mobile-topology": { "testid": "overview-mobile-topology" }
+    }
+  }
 }

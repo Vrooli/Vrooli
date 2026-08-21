@@ -129,6 +129,26 @@ describe("SettingsPage", () => {
     expect(screen.getByTestId(selectors.settingsPage.apiTokenInput)).toHaveValue("");
   });
 
+  it("verifies remote capabilities and renders per-check scope remediation", async () => {
+    const { configClient } = await import("../api/config");
+    vi.mocked(configClient.verifyCredentials).mockResolvedValueOnce({
+      ready: false,
+      checks: [
+        { name: "cloudflare.zone_dns_edit", state: 4, detail: "example.com", remediation: "Add Zone:DNS:Edit." },
+        { name: "cloudflare.access_apps_edit", state: 1, detail: "access reachable", remediation: "" },
+      ],
+    } as never);
+
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsPage />);
+    await user.click(await screen.findByTestId(selectors.settingsPage.credentialVerificationButton));
+
+    await waitFor(() => expect(configClient.verifyCredentials).toHaveBeenCalledWith({}));
+    expect(screen.getByTestId(selectors.settingsPage.credentialVerificationResult)).toHaveTextContent("Insufficient scope");
+    expect(screen.getByTestId(selectors.settingsPage.credentialVerificationResult)).toHaveTextContent("Add Zone:DNS:Edit.");
+    expect(screen.getByTestId(selectors.settingsPage.credentialVerificationResult)).toHaveTextContent("Passed");
+  });
+
   it("clears saved Cloudflare credentials", async () => {
     const { configClient } = await import("../api/config");
     const user = userEvent.setup();

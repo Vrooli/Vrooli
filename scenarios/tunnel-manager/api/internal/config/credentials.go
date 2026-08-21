@@ -11,12 +11,13 @@ import (
 
 const (
 	credentialSourceMissing   = "missing"
-	credentialSourceAuthority = "credential-authority"
+	credentialSourceAuthority = "credential-authority" // #nosec G101 -- status label, not a secret
 	credentialSourceMixed     = "mixed"
-	cloudflareCredentialID    = "vrooli/tunnel-manager"
-	credentialKeyAccountID    = "cloudflare.account_id"
-	credentialKeyTunnelID     = "cloudflare.tunnel_id"
-	credentialKeyAPIToken     = "cloudflare.api_token"
+	// These are credential-authority identifiers, never credential values.
+	cloudflareCredentialID = "vrooli/tunnel-manager" // #nosec G101 -- authority identity, not a secret
+	credentialKeyAccountID = "cloudflare.account_id" // #nosec G101 -- field identifier, not a secret
+	credentialKeyTunnelID  = "cloudflare.tunnel_id"  // #nosec G101 -- field identifier, not a secret
+	credentialKeyAPIToken  = "cloudflare.api_token"  // #nosec G101 -- field identifier, not a secret
 )
 
 // CredentialStoreOptions injects the canonical credential authority. The

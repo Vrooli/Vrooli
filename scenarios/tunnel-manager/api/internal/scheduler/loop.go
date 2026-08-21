@@ -4,22 +4,23 @@ package scheduler
 
 import (
 	"context"
-	"log"
 	"time"
+
+	"tunnel-manager/internal/logging"
 )
 
 type Action func(context.Context, string)
 
 type Runner struct {
 	Interval time.Duration
-	Logger   *log.Logger
+	Logger   logging.Logger
 	Ticks    <-chan time.Time
 	Action   Action
 }
 
-func NewRunner(interval time.Duration, logger *log.Logger, ticks <-chan time.Time, action Action) *Runner {
+func NewRunner(interval time.Duration, logger logging.Logger, ticks <-chan time.Time, action Action) *Runner {
 	if logger == nil {
-		logger = log.Default()
+		logger = logging.Default()
 	}
 	return &Runner{
 		Interval: interval,

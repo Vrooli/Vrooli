@@ -10,6 +10,8 @@ import { i18n, setLocale } from "../../i18n";
 import { selectors } from "../../consts/selectors";
 import { QueryState } from "./QueryState";
 
+// provider-free-exception: the focused i18next provider is the only dependency under test.
+
 const renderState = (ui: React.ReactElement) =>
   render(<I18nextProvider i18n={i18n}>{ui}</I18nextProvider>);
 

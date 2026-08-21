@@ -13,6 +13,7 @@ import (
 	configconnect "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config/config_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"google.golang.org/protobuf/proto"
 )
 
 type handlers struct {
@@ -28,19 +29,23 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-func (h *handlers) get(ctx cliapp.RunContext) error {
+func (h *handlers) getCall(_ cliapp.OperationContext) (*configv1.GetConfigResponse, error) {
 	resp, err := h.client.GetConfig(context.Background(), connect.NewRequest(&configv1.GetConfigRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("get config", err, nil)
+		return nil, cliapp.WrapAPIError("get config", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Config == nil {
-		return fmt.Errorf("server returned no config")
+		return nil, fmt.Errorf("server returned no config")
 	}
-	results := []string{formatConfig(resp.Msg.Config)}
-	if resp.Msg.Readiness != nil {
-		results = append(results, formatReadiness(resp.Msg.Readiness))
+	return resp.Msg, nil
+}
+
+func (h *handlers) getReport(_ cliapp.OperationContext, msg *configv1.GetConfigResponse) cliapp.ListReport {
+	results := []string{formatConfig(msg.Config)}
+	if msg.Readiness != nil {
+		results = append(results, formatReadiness(msg.Readiness))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        []string{"Fetched tunnel configuration."},
 		ResultsHeading: "Config",
 		Results:        results,
@@ -48,15 +53,15 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 			"`config sync --dry-run` — preview ingress reconciliation",
 			"`config mode --target remote|local` — switch management mode",
 		},
-	})
+	}
 }
 
-func (h *handlers) sync(ctx cliapp.RunContext) error {
+func (h *handlers) syncCall(ctx cliapp.OperationContext) (*configv1.SyncResponse, error) {
 	dryRun := false
 	if v := strings.TrimSpace(ctx.Flag("dry-run")); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err != nil {
-			return fmt.Errorf("--dry-run must be true or false: %w", err)
+			return nil, fmt.Errorf("--dry-run must be true or false: %w", err)
 		}
 		dryRun = parsed
 	}
@@ -64,80 +69,115 @@ func (h *handlers) sync(ctx cliapp.RunContext) error {
 	if v := strings.TrimSpace(ctx.Flag("prune")); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err != nil {
-			return fmt.Errorf("--prune must be true or false: %w", err)
+			return nil, fmt.Errorf("--prune must be true or false: %w", err)
 		}
 		prune = parsed
 	}
 	resp, err := h.client.Sync(context.Background(), connect.NewRequest(&configv1.SyncRequest{DryRun: dryRun, Prune: prune}))
 	if err != nil {
-		return cliapp.WrapAPIError("sync ingress", err, nil)
+		return nil, cliapp.WrapAPIError("sync ingress", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no sync response")
+		return nil, fmt.Errorf("server returned no sync response")
 	}
-	changes := make([]string, 0, len(resp.Msg.Added)+len(resp.Msg.Pruned)+len(resp.Msg.DriftUnmanaged)+len(resp.Msg.Orphaned))
-	for _, host := range resp.Msg.Added {
-		changes = append(changes, "+ "+host)
-	}
-	for _, host := range resp.Msg.Pruned {
-		changes = append(changes, "- "+host)
-	}
-	for _, host := range resp.Msg.Orphaned {
-		changes = append(changes, "orphaned (prune candidate): "+host)
-	}
-	for _, host := range resp.Msg.DriftUnmanaged {
-		changes = append(changes, "drift/unmanaged (left intact): "+host)
-	}
-	result := fmt.Sprintf("Synced ingress additively (%s mode).", strings.ToLower(resp.Msg.Mode.String()))
-	if resp.Msg.NoChanges {
-		result = fmt.Sprintf("Ingress already in sync (%s mode); no changes.", strings.ToLower(resp.Msg.Mode.String()))
-	} else if resp.Msg.SetupRequired {
-		result = "Dry-run: remote mode setup is incomplete; no live ingress diff was attempted."
-	} else if dryRun {
-		result = fmt.Sprintf("Dry-run: %d to add, %d to prune, %d unmanaged (not applied).", len(resp.Msg.Added), len(resp.Msg.Pruned), len(resp.Msg.DriftUnmanaged))
-	}
-	if resp.Msg.Message != "" {
-		result = result + " " + resp.Msg.Message
-	}
-	if len(resp.Msg.MissingFields) > 0 {
-		changes = append(changes, "missing: "+strings.Join(resp.Msg.MissingFields, ", "))
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{result},
-		Changes: changes,
-	})
+	return resp.Msg, nil
 }
 
-func (h *handlers) credentialsStatus(ctx cliapp.RunContext) error {
+func (h *handlers) syncReport(ctx cliapp.OperationContext, msg *configv1.SyncResponse) cliapp.MutationReport {
+	dryRun := false
+	if v := strings.TrimSpace(ctx.Flag("dry-run")); v != "" {
+		dryRun, _ = strconv.ParseBool(v)
+	}
+	changes := make([]string, 0, len(msg.Added)+len(msg.Pruned)+len(msg.DriftUnmanaged)+len(msg.Orphaned))
+	for _, host := range msg.Added {
+		changes = append(changes, "+ "+host)
+	}
+	for _, host := range msg.Pruned {
+		changes = append(changes, "- "+host)
+	}
+	for _, host := range msg.Orphaned {
+		changes = append(changes, "orphaned (prune candidate): "+host)
+	}
+	for _, host := range msg.DriftUnmanaged {
+		changes = append(changes, "drift/unmanaged (left intact): "+host)
+	}
+	result := fmt.Sprintf("Synced ingress additively (%s mode).", strings.ToLower(msg.Mode.String()))
+	if msg.NoChanges {
+		result = fmt.Sprintf("Ingress already in sync (%s mode); no changes.", strings.ToLower(msg.Mode.String()))
+	} else if msg.SetupRequired {
+		result = "Dry-run: remote mode setup is incomplete; no live ingress diff was attempted."
+	} else if dryRun {
+		result = fmt.Sprintf("Dry-run: %d to add, %d to prune, %d unmanaged (not applied).", len(msg.Added), len(msg.Pruned), len(msg.DriftUnmanaged))
+	}
+	if msg.Message != "" {
+		result = result + " " + msg.Message
+	}
+	if len(msg.MissingFields) > 0 {
+		changes = append(changes, "missing: "+strings.Join(msg.MissingFields, ", "))
+	}
+	return cliapp.MutationReport{
+		Result:  []string{result},
+		Changes: changes,
+	}
+}
+
+func (h *handlers) credentialsStatusCall(ctx cliapp.OperationContext) (proto.Message, error) {
 	if verify, _ := strconv.ParseBool(strings.TrimSpace(ctx.Flag("verify"))); verify {
-		return h.credentialsVerify(ctx)
+		resp, err := h.client.VerifyCredentials(context.Background(), connect.NewRequest(&configv1.VerifyCredentialsRequest{}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("verify credentials", err, nil)
+		}
+		if resp == nil || resp.Msg == nil {
+			return nil, fmt.Errorf("server returned no verification response")
+		}
+		return resp.Msg, nil
 	}
 	resp, err := h.client.GetCredentialStatus(context.Background(), connect.NewRequest(&configv1.GetCredentialStatusRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("get credential status", err, nil)
+		return nil, cliapp.WrapAPIError("get credential status", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Status == nil {
-		return fmt.Errorf("server returned no credential status")
+		return nil, fmt.Errorf("server returned no credential status")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{credentialStatusSummary(resp.Msg.Status)},
-		ResultsHeading: "Credential fields",
-		Results:        formatCredentialFields(resp.Msg.Status.Fields),
-		RetrievalHints: []string{
-			"`config credentials-status --verify` — run LIVE Cloudflare scope checks (token, account, tunnel, DNS:Edit)",
-			"`printf '%s' <token> | config credentials-set --account-id <id> --tunnel-id <id> --api-token-stdin` — save a missing API token without argv exposure",
-			"`config sync --dry-run` — preview ingress reconciliation after credentials are ready",
-		},
-	})
+	return resp.Msg, nil
 }
 
-func (h *handlers) bootstrap(ctx cliapp.RunContext) error {
+func (h *handlers) credentialsStatusReport(_ cliapp.OperationContext, message proto.Message) cliapp.ListReport {
+	switch msg := message.(type) {
+	case *configv1.GetCredentialStatusResponse:
+		return cliapp.ListReport{
+			Summary:        []string{credentialStatusSummary(msg.Status)},
+			ResultsHeading: "Credential fields",
+			Results:        formatCredentialFields(msg.Status.Fields),
+			RetrievalHints: []string{
+				"`config credentials-status --verify` — run LIVE Cloudflare scope checks (token, account, tunnel, DNS:Edit)",
+				"`printf '%s' <token> | config credentials-set --account-id <id> --tunnel-id <id> --api-token-stdin` — save a missing API token without argv exposure",
+				"`config sync --dry-run` — preview ingress reconciliation after credentials are ready",
+			},
+		}
+	case *configv1.VerifyCredentialsResponse:
+		summary := "Live Cloudflare credential checks: all OK — DNS automation is unblocked."
+		if !msg.Ready {
+			summary = "Live Cloudflare credential checks found issues (see remediation below)."
+		}
+		return cliapp.ListReport{
+			Summary:        []string{summary},
+			ResultsHeading: "Credential checks",
+			Results:        formatCredentialChecks(msg.Checks),
+			RetrievalHints: []string{"`printf '%s' <token> | config credentials-set --api-token-stdin` — store a re-issued token with the missing scope without argv exposure"},
+		}
+	default:
+		return cliapp.ListReport{Summary: []string{"Credential status response unavailable."}}
+	}
+}
+
+func (h *handlers) bootstrapCall(ctx cliapp.OperationContext) (*configv1.BootstrapCloudflareResponse, error) {
 	if !ctx.BoolFlag("api-token-stdin") {
-		return fmt.Errorf("--api-token-stdin is required; provide the token on standard input so it never appears in argv")
+		return nil, fmt.Errorf("--api-token-stdin is required; provide the token on standard input so it never appears in argv")
 	}
 	apiToken, err := readSecretFromStdin("Cloudflare API token")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	request := &configv1.BootstrapCloudflareRequest{
 		ApiToken:   apiToken,
@@ -148,23 +188,27 @@ func (h *handlers) bootstrap(ctx cliapp.RunContext) error {
 	request.DryRun = ctx.BoolFlag("dry-run")
 	resp, err := h.client.BootstrapCloudflare(context.Background(), connect.NewRequest(request))
 	if err != nil {
-		return cliapp.WrapAPIError("bootstrap Cloudflare tunnel", err, nil)
+		return nil, cliapp.WrapAPIError("bootstrap Cloudflare tunnel", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no bootstrap response")
+		return nil, fmt.Errorf("server returned no bootstrap response")
 	}
-	result := fmt.Sprintf("Cloudflare tunnel %s resolved in account %s.", resp.Msg.TunnelId, resp.Msg.AccountId)
-	if resp.Msg.Adopted {
+	return resp.Msg, nil
+}
+
+func (h *handlers) bootstrapReport(ctx cliapp.OperationContext, msg *configv1.BootstrapCloudflareResponse) cliapp.MutationReport {
+	result := fmt.Sprintf("Cloudflare tunnel %s resolved in account %s.", msg.TunnelId, msg.AccountId)
+	if msg.Adopted {
 		result = "Adopted existing Cloudflare tunnel. " + result
-	} else if resp.Msg.Created {
+	} else if msg.Created {
 		result = "Created Cloudflare tunnel. " + result
 	}
-	if request.DryRun {
+	if ctx.BoolFlag("dry-run") {
 		result = "Dry-run: " + result + " No credentials were written."
-	} else if resp.Msg.Written {
+	} else if msg.Written {
 		result += " Authority-backed credentials were written."
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{result}})
+	return cliapp.MutationReport{Result: []string{result}}
 }
 
 func readSecretFromStdin(label string) (string, error) {
@@ -186,38 +230,13 @@ func readSecret(reader io.Reader, label string) (string, error) {
 	return value, nil
 }
 
-// credentialsVerify runs the live VerifyCredentials probe and renders the
-// per-check verdict. Distinct from the presence-only default path so the
-// readiness fast-path never makes a network call.
-func (h *handlers) credentialsVerify(ctx cliapp.RunContext) error {
-	resp, err := h.client.VerifyCredentials(context.Background(), connect.NewRequest(&configv1.VerifyCredentialsRequest{}))
-	if err != nil {
-		return cliapp.WrapAPIError("verify credentials", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no verification response")
-	}
-	summary := "Live Cloudflare credential checks: all OK — DNS automation is unblocked."
-	if !resp.Msg.Ready {
-		summary = "Live Cloudflare credential checks found issues (see remediation below)."
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{summary},
-		ResultsHeading: "Credential checks",
-		Results:        formatCredentialChecks(resp.Msg.Checks),
-		RetrievalHints: []string{
-			"`printf '%s' <token> | config credentials-set --api-token-stdin` — store a re-issued token with the missing scope without argv exposure",
-		},
-	})
-}
-
-func (h *handlers) credentialsSet(ctx cliapp.RunContext) error {
+func (h *handlers) credentialsSetCall(ctx cliapp.OperationContext) (*configv1.SetCloudflareCredentialsResponse, error) {
 	apiToken := ""
 	if ctx.BoolFlag("api-token-stdin") {
 		var err error
 		apiToken, err = readSecretFromStdin("Cloudflare API token")
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	req := &configv1.SetCloudflareCredentialsRequest{
@@ -226,24 +245,28 @@ func (h *handlers) credentialsSet(ctx cliapp.RunContext) error {
 		ApiToken:  apiToken,
 	}
 	if req.AccountId == "" && req.TunnelId == "" && req.ApiToken == "" {
-		return fmt.Errorf("at least one credential flag is required")
+		return nil, fmt.Errorf("at least one credential flag is required")
 	}
 	resp, err := h.client.SetCloudflareCredentials(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError("set Cloudflare credentials", err, nil)
+		return nil, cliapp.WrapAPIError("set Cloudflare credentials", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Status == nil {
-		return fmt.Errorf("server returned no credential status")
+		return nil, fmt.Errorf("server returned no credential status")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{credentialStatusSummary(resp.Msg.Status)},
-		Changes: append([]string{
-			"Saved provided credential fields; token value will not be shown again.",
-		}, formatCredentialFields(resp.Msg.Status.Fields)...),
-	})
+	return resp.Msg, nil
 }
 
-func (h *handlers) credentialsClear(ctx cliapp.RunContext) error {
+func (h *handlers) credentialsSetReport(_ cliapp.OperationContext, msg *configv1.SetCloudflareCredentialsResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{
+		Result: []string{credentialStatusSummary(msg.Status)},
+		Changes: append([]string{
+			"Saved provided credential fields; token value will not be shown again.",
+		}, formatCredentialFields(msg.Status.Fields)...),
+	}
+}
+
+func (h *handlers) credentialsClearCall(ctx cliapp.OperationContext) (*configv1.ClearCloudflareCredentialsResponse, error) {
 	field := strings.TrimSpace(ctx.Flag("field"))
 	fields := []string{"all"}
 	if field != "" {
@@ -253,66 +276,76 @@ func (h *handlers) credentialsClear(ctx cliapp.RunContext) error {
 		Fields: fields,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("clear Cloudflare credentials", err, nil)
+		return nil, cliapp.WrapAPIError("clear Cloudflare credentials", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Status == nil {
-		return fmt.Errorf("server returned no credential status")
+		return nil, fmt.Errorf("server returned no credential status")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{credentialStatusSummary(resp.Msg.Status)},
-		Changes: formatCredentialFields(resp.Msg.Status.Fields),
-	})
+	return resp.Msg, nil
 }
 
-func (h *handlers) mode(ctx cliapp.RunContext) error {
+func (h *handlers) credentialsClearReport(_ cliapp.OperationContext, msg *configv1.ClearCloudflareCredentialsResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{
+		Result:  []string{credentialStatusSummary(msg.Status)},
+		Changes: formatCredentialFields(msg.Status.Fields),
+	}
+}
+
+func (h *handlers) modeCall(ctx cliapp.OperationContext) (*configv1.SwitchModeResponse, error) {
 	target, err := modeFlag(ctx.Flag("target"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	resp, err := h.client.SwitchMode(context.Background(), connect.NewRequest(&configv1.SwitchModeRequest{TargetMode: target}))
 	if err != nil {
-		return cliapp.WrapAPIError("switch mode", err, nil)
+		return nil, cliapp.WrapAPIError("switch mode", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no switch-mode response")
+		return nil, fmt.Errorf("server returned no switch-mode response")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Switched mode %s → %s.",
-			strings.ToLower(resp.Msg.PreviousMode.String()), strings.ToLower(resp.Msg.CurrentMode.String()))},
-	})
+	return resp.Msg, nil
+}
+
+func (h *handlers) modeReport(_ cliapp.OperationContext, msg *configv1.SwitchModeResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Switched mode %s → %s.",
+		strings.ToLower(msg.PreviousMode.String()), strings.ToLower(msg.CurrentMode.String()))}}
 }
 
 // publicExposure flips the global /public Access-bypass switch. Exactly one
 // of --on/--off must be supplied; the resulting global state is rendered.
-func (h *handlers) publicExposure(ctx cliapp.RunContext) error {
+func (h *handlers) publicExposureCall(ctx cliapp.OperationContext) (*configv1.SetPublicExposureResponse, error) {
 	on := ctx.BoolFlag("on")
 	off := ctx.BoolFlag("off")
 	switch {
 	case on && off:
-		return fmt.Errorf("--on and --off are mutually exclusive")
+		return nil, fmt.Errorf("--on and --off are mutually exclusive")
 	case !on && !off:
-		return fmt.Errorf("one of --on or --off is required")
+		return nil, fmt.Errorf("one of --on or --off is required")
 	}
 	enabled := on
 	resp, err := h.client.SetPublicExposure(context.Background(), connect.NewRequest(&configv1.SetPublicExposureRequest{Enabled: enabled}))
 	if err != nil {
-		return cliapp.WrapAPIError("set public exposure", err, nil)
+		return nil, cliapp.WrapAPIError("set public exposure", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Config == nil {
-		return fmt.Errorf("server returned no config")
+		return nil, fmt.Errorf("server returned no config")
 	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) publicExposureReport(_ cliapp.OperationContext, msg *configv1.SetPublicExposureResponse) cliapp.MutationReport {
 	state := "disabled"
-	if resp.Msg.Config.PublicExposureEnabled {
+	if msg.Config.PublicExposureEnabled {
 		state = "enabled"
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+	return cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("Global /public Access-bypass exposure is now %s.", state)},
-		Changes: []string{formatConfig(resp.Msg.Config)},
+		Changes: []string{formatConfig(msg.Config)},
 		NextCommand: []string{
 			"`access status --dry-run` — preview the Bypass apps that would be created/removed",
 			"`access status` — show effective per-host bypass state",
 		},
-	})
+	}
 }
 
 // modeFlag maps a --target value (remote|local) to the proto enum.

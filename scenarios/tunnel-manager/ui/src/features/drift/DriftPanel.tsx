@@ -1,19 +1,14 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { IngressEntry } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
+import { Link } from "react-router-dom";
 
 import { Button } from "../../components/ui/button";
+import { IngressDriftTable } from "./IngressDriftTable";
 import { QueryState } from "../../components/ui/QueryState";
-import { StatusBadge } from "../../components/ui/StatusBadge";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { configClient } from "../../api/config";
-import {
-  ownershipStateLabel,
-  ownershipStateTone,
-  ingressSourceLabel,
-} from "./labels";
 
 const DRIFT_QUERY_KEY = ["drift"] as const;
 
@@ -53,9 +48,13 @@ export function DriftPanel() {
   const entries = driftQuery.data?.entries ?? [];
   const counts = driftQuery.data?.counts;
   const externalTracked = (counts?.externalOk ?? 0) + (counts?.ignored ?? 0);
+  // A remote-capability failure leaves this page usable: the operator can
+  // still understand the limitation and follow the setup/remediation action.
+  // Model that as partial rather than making the required page surface fatal.
+  const experienceState = driftQuery.isLoading ? "loading" : driftQuery.error ? "partial" : entries.length === 0 ? "empty" : "ready";
 
   return (
-    <section data-testid={selectors.drift.panel} className="flex flex-col gap-6">
+    <section data-testid={selectors.drift.panel} data-experience-surface="drift-results" data-experience-state={experienceState} className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 rounded-panel border border-app-border bg-app-surface p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col gap-1">
@@ -63,12 +62,14 @@ export function DriftPanel() {
               {t(strings.drift.heading)}
             </p>
             <p data-testid={selectors.drift.summary} className="text-sm text-app-muted-foreground">
-              {t(strings.drift.summary, {
-                total: entries.length,
-                managed: counts?.managed ?? 0,
-                external: externalTracked,
-                drift: counts?.unmanaged ?? 0,
-              })}
+              {driftQuery.error
+                ? t(strings.drift.summaryUnavailable)
+                : t(strings.drift.summary, {
+                    total: entries.length,
+                    managed: counts?.managed ?? 0,
+                    external: externalTracked,
+                    drift: counts?.unmanaged ?? 0,
+                  })}
             </p>
           </div>
           <Button
@@ -95,76 +96,25 @@ export function DriftPanel() {
         error={driftQuery.error}
         isEmpty={entries.length === 0}
         loadingLabel={t(strings.drift.loading)}
-        errorLabel={t(strings.drift.error)}
+        errorLabel={t(strings.overview.driftUnavailable)}
         emptyLabel={t(strings.drift.empty)}
+        onRetry={() => void driftQuery.refetch()}
+        errorAction={
+          <Link
+            to="/settings"
+            className="inline-flex min-h-11 items-center rounded-control border border-app-primary/40 px-4 text-sm font-medium text-app-primary transition-colors hover:bg-app-primary/10"
+          >
+            {t(strings.overview.configure)}
+          </Link>
+        }
       >
-        <div className="overflow-x-auto rounded-panel border border-app-border">
-          <table data-testid={selectors.drift.table} className="w-full text-left text-sm">
-            <thead className="border-b border-app-border bg-app-surface-muted text-xs uppercase text-app-muted-foreground">
-              <tr>
-                <th className="px-3 py-2">{t(strings.drift.colHostname)}</th>
-                <th className="px-3 py-2">{t(strings.drift.colTarget)}</th>
-                <th className="px-3 py-2">{t(strings.drift.colState)}</th>
-                <th className="px-3 py-2">{t(strings.drift.colSource)}</th>
-                <th className="px-3 py-2">{t(strings.drift.colActions)}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((entry: IngressEntry) => (
-                <tr
-                  key={entry.hostname}
-                  data-testid={selectors.drift.row}
-                  className="border-b border-app-border last:border-0"
-                >
-                  <td data-testid={selectors.drift.hostname} className="px-3 py-2 font-medium">
-                    {entry.hostname}
-                  </td>
-                  <td data-testid={selectors.drift.target} className="px-3 py-2 text-app-muted-foreground">
-                    {entry.serviceTarget || "—"}
-                  </td>
-                  <td className="px-3 py-2">
-                    <StatusBadge tone={ownershipStateTone(entry.state)} data-testid={selectors.drift.stateBadge}>
-                      {t(ownershipStateLabel(entry.state))}
-                    </StatusBadge>
-                  </td>
-                  <td className="px-3 py-2">
-                    <StatusBadge tone="neutral" data-testid={selectors.drift.sourceBadge}>
-                      {t(ingressSourceLabel(entry.source))}
-                    </StatusBadge>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        data-testid={selectors.drift.adoptButton({ hostname: entry.hostname })}
-                        disabled={actionPending}
-                        onClick={() => adoptMutation.mutate(entry.hostname)}
-                      >
-                        {t(strings.drift.adoptButton)}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        data-testid={selectors.drift.ignoreButton({ hostname: entry.hostname })}
-                        disabled={actionPending}
-                        onClick={() => ignoreMutation.mutate(entry.hostname)}
-                      >
-                        {t(strings.drift.ignoreButton)}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        data-testid={selectors.drift.pruneButton({ hostname: entry.hostname })}
-                        disabled={actionPending}
-                        onClick={() => setPruneTarget(entry.hostname)}
-                      >
-                        {t(strings.drift.pruneButton)}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <IngressDriftTable
+          entries={entries}
+          actionPending={actionPending}
+          onAdopt={(hostname) => adoptMutation.mutate(hostname)}
+          onIgnore={(hostname) => ignoreMutation.mutate(hostname)}
+          onPrune={setPruneTarget}
+        />
       </QueryState>
 
       {pruneTarget && (

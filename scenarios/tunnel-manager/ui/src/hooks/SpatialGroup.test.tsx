@@ -26,6 +26,9 @@ import { cleanup, render } from "@testing-library/react";
 import { SpatialGroup } from "./SpatialGroup";
 import { makeMockSpatialNavController } from "../test-utils";
 
+// provider-free-exception: this hook test supplies its controller directly and
+// has no query, locale, or application-provider dependency.
+
 afterEach(() => {
   cleanup();
 });

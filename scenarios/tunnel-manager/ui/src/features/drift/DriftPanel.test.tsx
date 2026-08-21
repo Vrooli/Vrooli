@@ -4,7 +4,7 @@
  * that each row action calls the right mutation (Prune behind a confirm).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OwnershipState, IngressSource } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
@@ -34,10 +34,12 @@ describe("DriftPanel", () => {
 
   it("shows the loading state, then the classified table", async () => {
     renderWithProviders(<DriftPanel />);
+    expect(screen.getByTestId(selectors.drift.panel)).toHaveAttribute("data-experience-state", "loading");
     expect(screen.getByTestId(selectors.queryState.loading)).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId(selectors.drift.table)).toBeInTheDocument();
     });
+    expect(screen.getByTestId(selectors.drift.panel)).toHaveAttribute("data-experience-state", "ready");
     expect(screen.getByTestId(selectors.drift.hostname)).toHaveTextContent(HOST);
     expect(screen.getByTestId(selectors.drift.stateBadge)).toHaveTextContent("Managed");
     expect(screen.getByTestId(selectors.drift.sourceBadge)).toHaveTextContent("Scenario");
@@ -45,12 +47,15 @@ describe("DriftPanel", () => {
 
   it("renders the error state when getDrift rejects", async () => {
     const { configClient } = await import("../../api/config");
-    vi.mocked(configClient.getDrift).mockRejectedValueOnce(new Error("boom"));
+    vi.mocked(configClient.getDrift).mockRejectedValueOnce(new Error("remote mode unavailable"));
 
     renderWithProviders(<DriftPanel />);
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.queryState.error)).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.queryState.error)).toHaveTextContent("Remote drift evidence is unavailable");
     });
+    expect(screen.getByTestId(selectors.drift.panel)).toHaveAttribute("data-experience-state", "partial");
+    expect(screen.getByRole("link", { name: "Open setup" })).toHaveAttribute("href", "/settings");
+    expect(within(screen.getByTestId(selectors.queryState.error)).getByRole("button", { name: "Refresh" })).toBeInTheDocument();
   });
 
   it("renders the empty state when there is no live ingress", async () => {

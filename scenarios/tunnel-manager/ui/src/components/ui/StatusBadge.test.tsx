@@ -6,6 +6,8 @@ import { cleanup, render, screen } from "@testing-library/react";
 
 import { StatusBadge, type BadgeTone } from "./StatusBadge";
 
+// provider-free-exception: this pure presentational leaf has no provider dependency.
+
 describe("StatusBadge", () => {
   afterEach(() => cleanup());
 

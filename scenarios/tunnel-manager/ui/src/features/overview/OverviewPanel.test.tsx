@@ -18,6 +18,7 @@ import {
 import { makeTunnelMocks, makeTunnelStatus } from "../../test-utils/mocks/tunnel";
 import { makeExposureMocks, makeExposure, makeLeasedExposure } from "../../test-utils/mocks/exposure";
 import { makeRecoveryMocks, makeRecoveryState } from "../../test-utils/mocks/recovery";
+import { makeProbesMocks } from "../../test-utils/mocks/probes";
 
 vi.mock("../../api/config", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/config")>();
@@ -35,10 +36,15 @@ vi.mock("../../api/recovery", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/recovery")>();
   return { ...actual, ...makeRecoveryMocks() };
 });
+vi.mock("../../api/probes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/probes")>();
+  return { ...actual, ...makeProbesMocks() };
+});
 
 import { OverviewPanel } from "./OverviewPanel";
 import { selectors } from "../../consts/selectors";
-import { setLocale } from "../../i18n";
+import { strings } from "../../consts/strings";
+import { i18n, setLocale } from "../../i18n";
 
 describe("OverviewPanel", () => {
   beforeEach(async () => {
@@ -67,13 +73,14 @@ describe("OverviewPanel", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId(selectors.overview.readinessStatus)).toHaveTextContent("Sync ready");
-      expect(screen.getByTestId(selectors.overview.tunnelStatus)).toHaveTextContent("healthy");
+      expect(screen.getByTestId(selectors.overview.tunnelStatus)).toHaveTextContent(i18n.t(strings.overview.tunnelStatus.healthy));
     });
     expect(screen.getByTestId(selectors.overview.modeBadge)).toHaveTextContent("Local");
     expect(screen.getByTestId(selectors.overview.tunnelScore)).toHaveTextContent("100");
     expect(screen.getByTestId(selectors.overview.coreCount)).toHaveTextContent("2");
     expect(screen.getByTestId(selectors.overview.leasedCount)).toHaveTextContent("1");
     expect(screen.getByTestId(selectors.overview.recoveryStatus)).toHaveTextContent("Monitoring");
+    expect(screen.getAllByTestId(selectors.overview.mobileRoute)).toHaveLength(3);
   });
 
   it("shows missing Cloudflare fields when remote setup is incomplete", async () => {
@@ -92,6 +99,44 @@ describe("OverviewPanel", () => {
       expect(screen.getByTestId(selectors.overview.readinessStatus)).toHaveTextContent("Setup required");
     });
     expect(screen.getByTestId(selectors.overview.missingFields)).toHaveTextContent("CLOUDFLARE_API_TOKEN");
+  });
+
+  it("surfaces capability-scoped failures when remote drift or Access evidence cannot load", async () => {
+    const { configClient } = await import("../../api/config");
+    vi.mocked(configClient.getDrift).mockRejectedValueOnce(new Error("missing Cloudflare token"));
+    vi.mocked(configClient.getAccessStatus).mockRejectedValueOnce(new Error("Access unavailable"));
+
+    renderWithProviders(<OverviewPanel />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(i18n.t(strings.overview.driftUnavailable)).length).toBeGreaterThan(0);
+      expect(screen.getByText(i18n.t(strings.overview.accessUnavailable))).toBeInTheDocument();
+    });
+    expect(screen.getByText(i18n.t(strings.overview.accessUnavailable)).closest("a")).toHaveAttribute("href", "/drift");
+  });
+
+  it("surfaces unavailable route classification instead of a healthy-looking zero", async () => {
+    const { probesClient } = await import("../../api/probes");
+    vi.mocked(probesClient.classify).mockRejectedValueOnce(new Error("classification unavailable"));
+
+    renderWithProviders(<OverviewPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText(i18n.t(strings.overview.classificationUnavailable))).toBeInTheDocument();
+    });
+  });
+
+  it("does not render an empty topology when the exposure inventory fails", async () => {
+    const { exposureClient } = await import("../../api/exposure");
+    vi.mocked(exposureClient.listExposures).mockRejectedValueOnce(new Error("inventory unavailable"));
+
+    renderWithProviders(<OverviewPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.overview.constellationError)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId(selectors.overview.constellationRetry)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.overview.constellation)).not.toHaveTextContent("0 URL");
   });
 
   it("warns when the recovery circuit breaker is open", async () => {
@@ -114,7 +159,7 @@ describe("OverviewPanel", () => {
 
     renderWithProviders(<OverviewPanel />);
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.overview.tunnelStatus)).toHaveTextContent("degraded");
+      expect(screen.getByTestId(selectors.overview.tunnelStatus)).toHaveTextContent(i18n.t(strings.overview.tunnelStatus.degraded));
     });
     expect(screen.getByTestId(selectors.overview.recoveryCard)).toBeInTheDocument();
   });

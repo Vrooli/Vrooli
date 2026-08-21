@@ -33,6 +33,7 @@ describe("RecoveryPanel", () => {
     await waitFor(() => {
       expect(screen.getByTestId(selectors.recovery.statusValue)).toHaveTextContent("Monitoring");
     });
+    expect(screen.getByTestId(selectors.recovery.statePanel)).toHaveAttribute("data-experience-state", "ready");
     expect(screen.getByTestId(selectors.recovery.circuitValue)).toHaveTextContent("Closed");
     expect(screen.getByTestId(selectors.recovery.summary)).toHaveTextContent("No restart is queued");
     expect(screen.getByTestId(selectors.recovery.policyNote)).toHaveTextContent("Automatic recovery follows server policy");

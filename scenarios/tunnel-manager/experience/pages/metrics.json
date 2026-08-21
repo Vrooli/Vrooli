@@ -2,24 +2,111 @@
   "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
   "schemaVersion": "1.0.0",
-  "page": {"id": "metrics", "title": "Diagnostics", "routes": ["/metrics"], "purpose": "Diagnose route reachability from local listener through tunnel ingress to the external URL, with honest probe and metric boundaries.", "prd_refs": ["OT-P0-009", "OT-P0-010", "OT-P1-002", "OT-P1-004"]},
+  "page": {
+    "id": "metrics",
+    "title": "Diagnostics",
+    "routes": [
+      "/metrics"
+    ],
+    "purpose": "Attribute tunnel metrics, probe history, and reachability classifications to the stage and source that produced them."
+  },
   "priorities": [
-    {"statement": "Diagnostics follow the route journey from local to edge to public."},
-    {"statement": "A failed signal is classified rather than collapsed into a generic unhealthy state."},
-    {"statement": "Refresh, stale data, manual probe, and retry are visible affordances."}
+    {
+      "statement": "Keep tunnel metrics distinct from route probe evidence."
+    },
+    {
+      "statement": "Never present unavailable signals as healthy or failed routes."
+    }
   ],
   "states": [
-    {"id": "loading", "description": "Metrics and probe history are loading."},
-    {"id": "ready", "description": "Route health, tunnel metrics, and probe history are visible."},
-    {"id": "partial", "description": "Some diagnostic sources are unavailable while other signals remain attributed."},
-    {"id": "stale", "description": "Last known diagnostic data remains visible during refresh."},
-    {"id": "empty", "description": "No probe history exists yet; the page offers a first probe action."},
-    {"id": "request-error", "description": "A diagnostic request failed and names the failed source."}
+    {
+      "id": "loading",
+      "description": "Metrics and probe history are loading.",
+      "setup": {
+        "route": "/metrics"
+      }
+    },
+    {
+      "id": "ready",
+      "description": "Metrics, classifications, and probe history are visible.",
+      "setup": {
+        "route": "/metrics"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some diagnostic sources are unavailable while other signals remain attributed.",
+      "setup": {
+        "route": "/metrics"
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Last known diagnostic data remains visible during refresh.",
+      "setup": {
+        "route": "/metrics"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No probe history exists and the first probe action is available.",
+      "setup": {
+        "route": "/metrics"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "A diagnostic request failed and names its source.",
+      "setup": {
+        "route": "/metrics"
+      }
+    }
   ],
-  "claims": [{"id": "diagnostics-are-attributed", "type": "custom", "statement": "Each diagnostic result identifies the stage and source that produced it; unavailable signals are not presented as healthy or failed routes.", "tier": "aspirational"}],
-  "sketch": {"viewport": "desktop", "regions": [
-    {"id": "journey", "grid": {"x": 0, "y": 0, "w": 12, "h": 3}},
-    {"id": "metrics", "grid": {"x": 0, "y": 3, "w": 5, "h": 4}},
-    {"id": "history", "grid": {"x": 5, "y": 3, "w": 7, "h": 5}}
-  ]}
+  "regions": [{"id":"metrics-results","purpose":"Render tunnel metrics and probe evidence through loading, ready, partial, and failed states.","component":{"library":{"component":"experience-surface","version":"1.0.0"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
+  "elements": [
+    {
+      "id": "page",
+      "role": "region",
+      "name": "Tunnel diagnostics"
+    },
+    {
+      "id": "metrics",
+      "role": "region",
+      "name": "Tunnel metrics"
+    },
+    {
+      "id": "probes",
+      "role": "region",
+      "name": "Probe evidence"
+    }
+  ],
+  "claims": [
+    {
+      "id": "page-present",
+      "type": "element-present",
+      "statement": "The Diagnostics page exposes a stable named main region.",
+      "tier": "machine",
+      "elements": [
+        "page"
+      ],
+      "states": [
+        "loading",
+        "ready",
+        "partial",
+        "stale",
+        "empty",
+        "request-error"
+      ]
+    }
+  ],
+  "bindings": {
+    "regions": {"metrics-results":{"selector":"[data-experience-surface=\"metrics-results\"]"}},
+    "elements": {
+      "page": {
+        "testid": "page-metrics"
+      },
+      "metrics": { "testid": "metrics-table" },
+      "probes": { "testid": "metrics-probes-panel" }
+    }
+  }
 }

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm strings:gen && tsc --noEmit && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build": "pnpm strings:gen && tsc --noEmit && vite build",
     "build:profile": "pnpm strings:gen && tsc --noEmit && vite build --mode profile",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "strings:gen": "node scripts/gen-strings.mjs",
-    "strings:check": "node scripts/gen-strings.mjs --check"
+    "strings:check": "node scripts/gen-strings.mjs --check",
+    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",
@@ -55,7 +56,7 @@
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.11",
     "globals": "^15.15.0",
     "jsdom": "^25.0.1",

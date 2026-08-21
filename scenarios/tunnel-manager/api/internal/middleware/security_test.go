@@ -18,6 +18,7 @@ func TestSecurityHeadersMiddleware_SetsDefensiveHeaders(t *testing.T) {
 	want := map[string]string{
 		"X-Frame-Options":        "DENY",
 		"X-Content-Type-Options": "nosniff",
+		"X-XSS-Protection":       "0",
 		"Referrer-Policy":        "strict-origin-when-cross-origin",
 	}
 	for k, v := range want {

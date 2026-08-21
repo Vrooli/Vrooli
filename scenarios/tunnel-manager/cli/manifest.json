@@ -27,6 +27,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -50,6 +53,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -105,6 +111,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -166,6 +175,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -189,6 +201,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         }
       ]
@@ -212,6 +227,9 @@
               "filesystem:read",
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         }
       ]
@@ -234,6 +252,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -260,6 +281,9 @@
             "permissions": [
               "network:external"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -281,6 +305,9 @@
             "effect": "write",
             "run_eligible": false,
             "permissions": ["network:external", "admin"]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -305,6 +332,9 @@
               "network:internal",
               "network:external"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -337,6 +367,9 @@
               "network:internal",
               "admin"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -360,6 +393,9 @@
               "network:internal",
               "admin"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -383,6 +419,9 @@
             "permissions": [
               "network:external"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -411,6 +450,9 @@
             "permissions": [
               "network:external"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         }
       ]
@@ -441,6 +483,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         }
       ]
@@ -463,6 +508,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -496,6 +544,9 @@
             "permissions": [
               "network:external"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -525,6 +576,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -548,6 +602,9 @@
             "permissions": [
               "network:external"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         }
       ]
@@ -592,6 +649,9 @@
               "network:external",
               "admin"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -621,6 +681,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -644,6 +707,9 @@
             "permissions": [
               "network:external"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -667,6 +733,9 @@
             "permissions": [
               "network:external"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -689,6 +758,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -705,6 +777,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -728,6 +803,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -745,6 +823,9 @@
               "network:external",
               "admin"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         }
       ]
@@ -767,6 +848,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -793,6 +877,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -809,6 +896,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         }
       ]
@@ -831,6 +921,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -853,6 +946,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -876,6 +972,9 @@
             "permissions": [
               "admin"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         }
       ]
@@ -898,6 +997,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -924,6 +1026,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -940,6 +1045,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         }
       ]

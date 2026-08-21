@@ -55,6 +55,20 @@ describe("ThemeProvider", () => {
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe("dark");
   });
 
+  it("falls back to system for an invalid stored choice", () => {
+    window.localStorage.setItem(STORAGE_KEY, "solar");
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(result.current.choice).toBe("system");
+  });
+
+  it("falls back to light when system media-query support is unavailable", () => {
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: undefined });
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("system") });
+    expect(result.current.resolved).toBe("light");
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
+  });
+
   it("resolves system to dark when prefers-color-scheme matches", () => {
     const matchMediaSpy = vi.spyOn(window, "matchMedia").mockImplementation((q) => ({
       matches: q === "(prefers-color-scheme: dark)",

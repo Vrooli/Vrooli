@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -180,7 +181,7 @@ func exposureSchedulerIntervalFromEnv() time.Duration {
 	}
 	d, err := time.ParseDuration(raw)
 	if err != nil || d <= 0 {
-		log.Printf("invalid TUNNEL_MANAGER_EXPOSURE_RECONCILE_INTERVAL=%q; using %s", raw, internalexposure.DefaultReconcileInterval)
+		slog.Warn("invalid exposure reconcile interval; using default", "value", raw, "default", internalexposure.DefaultReconcileInterval.String())
 		return internalexposure.DefaultReconcileInterval
 	}
 	return d
@@ -198,7 +199,7 @@ func probeSchedulerIntervalFromEnv() time.Duration {
 	}
 	d, err := time.ParseDuration(raw)
 	if err != nil || d <= 0 {
-		log.Printf("invalid TUNNEL_MANAGER_PROBE_INTERVAL=%q; using %s", raw, internalprobes.DefaultProbeInterval)
+		slog.Warn("invalid probe interval; using default", "value", raw, "default", internalprobes.DefaultProbeInterval.String())
 		return internalprobes.DefaultProbeInterval
 	}
 	return d
@@ -216,7 +217,7 @@ func recoverySchedulerIntervalFromEnv() time.Duration {
 	}
 	d, err := time.ParseDuration(raw)
 	if err != nil || d <= 0 {
-		log.Printf("invalid TUNNEL_MANAGER_RECOVERY_EVALUATE_INTERVAL=%q; using %s", raw, internalrecovery.DefaultEvaluationInterval)
+		slog.Warn("invalid recovery evaluation interval; using default", "value", raw, "default", internalrecovery.DefaultEvaluationInterval.String())
 		return internalrecovery.DefaultEvaluationInterval
 	}
 	return d

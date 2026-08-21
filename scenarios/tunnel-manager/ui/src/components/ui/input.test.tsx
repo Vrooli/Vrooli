@@ -22,6 +22,8 @@ import userEvent from "@testing-library/user-event";
 
 import { Input } from "./input";
 
+// provider-free-exception: this leaf has no provider dependencies.
+
 describe("Input", () => {
   it("emits the base className chunk so the cn() merge contract holds", () => {
     render(<Input data-testid="i" />);

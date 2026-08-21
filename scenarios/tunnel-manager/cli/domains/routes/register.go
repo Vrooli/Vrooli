@@ -21,14 +21,14 @@ const GroupName = "routes"
 // and wires Connect-RPC bindings to handlers in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"RoutesService.ListRoutes":  h.list,
-		"RoutesService.GetRoute":    h.get,
-		"RoutesService.CreateRoute": h.create,
-		"RoutesService.UpdateRoute": h.update,
-		"RoutesService.DeleteRoute": h.delete,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"RoutesService.ListRoutes":  cliapp.ProtoList(h.listCall, h.listReport),
+		"RoutesService.GetRoute":    cliapp.ProtoList(h.getCall, h.getReport),
+		"RoutesService.CreateRoute": cliapp.ProtoMutation(h.createCall, h.createReport),
+		"RoutesService.UpdateRoute": cliapp.ProtoMutation(h.updateCall, h.updateReport),
+		"RoutesService.DeleteRoute": cliapp.ProtoMutation(h.deleteCall, h.deleteReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("routes: load from manifest: %w", err)
 	}

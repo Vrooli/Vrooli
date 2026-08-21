@@ -8,6 +8,7 @@ interface PageProps {
   headingId: string;
   title: string;
   description?: string;
+  experienceSurface?: string;
   children: ReactNode;
 }
 
@@ -16,11 +17,11 @@ interface PageProps {
  * optional description, and a document title. Every routed page composes it so
  * headings, titles, and landmark labelling stay consistent across surfaces.
  */
-export function Page({ testId, headingId, title, description, children }: PageProps) {
+export function Page({ testId, headingId, title, description, experienceSurface, children }: PageProps) {
   useDocumentTitle(title);
 
   return (
-    <section data-testid={testId} aria-labelledby={headingId} className="flex flex-col gap-4">
+    <section data-testid={testId} data-experience-surface={experienceSurface} aria-labelledby={headingId} className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">
         <h1 id={headingId} className="text-2xl font-semibold">
           {title}

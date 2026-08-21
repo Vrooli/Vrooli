@@ -161,6 +161,7 @@ export const makeConfigMocks = () => ({
     pruneIngress: vi.fn().mockResolvedValue({ pruned: true }),
     setPublicExposure: vi.fn().mockResolvedValue({ config: makeTunnelConfig({ publicExposureEnabled: true }) }),
     getAccessStatus: vi.fn().mockResolvedValue(makeAccessStatusResponse()),
+    verifyCredentials: vi.fn().mockResolvedValue({ ready: true, checks: [] }),
   },
   getConfigState: vi.fn().mockResolvedValue(makeConfigResponse()),
   getConfig: vi.fn().mockResolvedValue(makeTunnelConfig()),

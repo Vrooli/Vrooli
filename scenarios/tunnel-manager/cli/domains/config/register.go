@@ -21,17 +21,17 @@ const GroupName = "config"
 // and wires Connect-RPC bindings to handlers in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"ConfigService.GetConfig":                  h.get,
-		"ConfigService.BootstrapCloudflare":        h.bootstrap,
-		"ConfigService.GetCredentialStatus":        h.credentialsStatus,
-		"ConfigService.SetCloudflareCredentials":   h.credentialsSet,
-		"ConfigService.ClearCloudflareCredentials": h.credentialsClear,
-		"ConfigService.Sync":                       h.sync,
-		"ConfigService.SwitchMode":                 h.mode,
-		"ConfigService.SetPublicExposure":          h.publicExposure,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"ConfigService.GetConfig":                  cliapp.ProtoList(h.getCall, h.getReport),
+		"ConfigService.BootstrapCloudflare":        cliapp.ProtoMutation(h.bootstrapCall, h.bootstrapReport),
+		"ConfigService.GetCredentialStatus":        cliapp.ProtoList(h.credentialsStatusCall, h.credentialsStatusReport),
+		"ConfigService.SetCloudflareCredentials":   cliapp.ProtoMutation(h.credentialsSetCall, h.credentialsSetReport),
+		"ConfigService.ClearCloudflareCredentials": cliapp.ProtoMutation(h.credentialsClearCall, h.credentialsClearReport),
+		"ConfigService.Sync":                       cliapp.ProtoMutation(h.syncCall, h.syncReport),
+		"ConfigService.SwitchMode":                 cliapp.ProtoMutation(h.modeCall, h.modeReport),
+		"ConfigService.SetPublicExposure":          cliapp.ProtoMutation(h.publicExposureCall, h.publicExposureReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("config: load from manifest: %w", err)
 	}

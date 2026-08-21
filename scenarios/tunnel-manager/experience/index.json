@@ -7,20 +7,20 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "tunnel-manager",
-  "description": "Draft experience contract for a polished exposure command center. The contract preserves the current route truth while defining the intended operator journeys, security disclosures, readiness states, and exposure topology visual language.",
+  "description": "Active experience contract for the Tunnel Manager Exposure Command Center. It binds operator surfaces to route, probe, lease, policy, recovery, and credential evidence without implying remote Cloudflare capability when credentials are absent.",
   "pages": [
-    {"id": "overview", "path": "pages/overview.json", "title": "Overview", "status": "draft"},
-    {"id": "exposure", "path": "pages/exposure.json", "title": "Exposure", "status": "draft"},
-    {"id": "recovery", "path": "pages/recovery.json", "title": "Recovery & Events", "status": "draft"},
-    {"id": "metrics", "path": "pages/metrics.json", "title": "Diagnostics", "status": "draft"},
-    {"id": "audit", "path": "pages/audit.json", "title": "Governance", "status": "draft"},
-    {"id": "drift", "path": "pages/drift.json", "title": "Ingress Drift", "status": "draft"},
-    {"id": "settings", "path": "pages/settings.json", "title": "Settings & Readiness", "status": "draft"}
+    {"id": "overview", "path": "pages/overview.json", "title": "Overview", "status": "active"},
+    {"id": "exposure", "path": "pages/exposure.json", "title": "Exposure", "status": "active"},
+    {"id": "recovery", "path": "pages/recovery.json", "title": "Recovery & Events", "status": "active"},
+    {"id": "metrics", "path": "pages/metrics.json", "title": "Diagnostics", "status": "active"},
+    {"id": "audit", "path": "pages/audit.json", "title": "Governance", "status": "active"},
+    {"id": "drift", "path": "pages/drift.json", "title": "Ingress Drift", "status": "active"},
+    {"id": "settings", "path": "pages/settings.json", "title": "Settings & Readiness", "status": "active"}
   ],
   "journeys": [
-    {"id": "expose-scenario", "path": "journeys/expose-scenario.json", "title": "Expose a scenario", "status": "draft"},
-    {"id": "reexpose-expired-route", "path": "journeys/reexpose-expired-route.json", "title": "Re-expose an expired route", "status": "draft"},
-    {"id": "enable-public-assets", "path": "journeys/enable-public-assets.json", "title": "Enable anonymous public assets", "status": "draft"},
-    {"id": "diagnose-route", "path": "journeys/diagnose-route.json", "title": "Diagnose a route", "status": "draft"}
+    {"id": "expose-scenario", "path": "journeys/expose-scenario.json", "title": "Expose a scenario", "status": "active"},
+    {"id": "reexpose-expired-route", "path": "journeys/reexpose-expired-route.json", "title": "Re-expose an expired route", "status": "active"},
+    {"id": "enable-public-assets", "path": "journeys/enable-public-assets.json", "title": "Enable anonymous public assets", "status": "active"},
+    {"id": "diagnose-route", "path": "journeys/diagnose-route.json", "title": "Diagnose a route", "status": "active"}
   ]
 }

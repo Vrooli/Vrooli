@@ -19,17 +19,17 @@ const GroupName = "exposure"
 // and wires Connect-RPC bindings to handlers in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"ExposureService.Expose":        h.expose,
-		"ExposureService.ExtendLease":   h.extend,
-		"ExposureService.RevokeLease":   h.revoke,
-		"ExposureService.Unexpose":      h.unexpose,
-		"ExposureService.ListLeases":    h.leases,
-		"ExposureService.ListExposures": h.list,
-		"ExposureService.IsExposed":     h.check,
-		"ExposureService.Reconcile":     h.reconcile,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"ExposureService.Expose":        cliapp.ProtoMutation(h.exposeCall, h.exposeReport),
+		"ExposureService.ExtendLease":   cliapp.ProtoMutation(h.extendCall, h.extendReport),
+		"ExposureService.RevokeLease":   cliapp.ProtoMutation(h.revokeCall, h.revokeReport),
+		"ExposureService.Unexpose":      cliapp.ProtoMutation(h.unexposeCall, h.unexposeReport),
+		"ExposureService.ListLeases":    cliapp.ProtoList(h.leasesCall, h.leasesReport),
+		"ExposureService.ListExposures": cliapp.ProtoList(h.listCall, h.listReport),
+		"ExposureService.IsExposed":     cliapp.ProtoList(h.checkCall, h.checkReport),
+		"ExposureService.Reconcile":     cliapp.ProtoMutation(h.reconcileCall, h.reconcileReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("exposure: load from manifest: %w", err)
 	}

@@ -21,10 +21,10 @@ const GroupName = "audit"
 // wires Connect-RPC bindings to handlers in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"AuditService.RunAudit": h.run,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"AuditService.RunAudit": cliapp.ProtoList(h.runCall, h.runReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("audit: load from manifest: %w", err)
 	}

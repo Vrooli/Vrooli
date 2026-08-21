@@ -4,8 +4,9 @@
 package middleware
 
 import (
-	"log"
 	"net/http"
+
+	"tunnel-manager/internal/logging"
 
 	"github.com/vrooli/api-core/schedule"
 )
@@ -15,9 +16,9 @@ import (
 // Clock so tests using scheduletest.FakeClock can assert exact durations
 // without depending on the wall schedule. Logger defaults to log.Default()
 // when nil; tests inject a buffer-backed *log.Logger to capture output.
-func NewLoggingMiddleware(clk schedule.Clock, logger *log.Logger) func(http.Handler) http.Handler {
+func NewLoggingMiddleware(clk schedule.Clock, logger logging.Logger) func(http.Handler) http.Handler {
 	if logger == nil {
-		logger = log.Default()
+		logger = logging.Default()
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

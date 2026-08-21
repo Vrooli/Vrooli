@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { TFunction } from "i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
@@ -38,7 +39,7 @@ type RecoveryNextActionKey =
   | typeof strings.recovery.nextActionCircuitOpen
   | typeof strings.recovery.nextActionRecovering;
 
-function whenLabel(t: ReturnType<typeof useTranslation>["t"], ts?: Timestamp): string {
+function whenLabel(t: TFunction, ts?: Timestamp): string {
   if (!ts) return t(strings.common.never);
   return formatDate(timestampDate(ts), { dateStyle: "medium", timeStyle: "short" });
 }
@@ -94,11 +95,20 @@ export function RecoveryPanel() {
 
   const state = stateQuery.data?.state;
   const events = eventsQuery.data?.events ?? [];
+  const experienceState = stateQuery.isLoading || eventsQuery.isLoading
+    ? "loading"
+    : stateQuery.error
+      ? "error"
+      : eventsQuery.error
+        ? "partial"
+        : "ready";
 
   return (
     <div className="flex flex-col gap-6">
       <section
         data-testid={selectors.recovery.statePanel}
+        data-experience-surface="recovery-results"
+        data-experience-state={experienceState}
         className="flex flex-col gap-4 rounded-panel border border-app-border bg-app-surface p-4"
       >
         <div className="flex items-center justify-between">

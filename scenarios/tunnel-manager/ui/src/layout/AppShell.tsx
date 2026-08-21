@@ -29,7 +29,7 @@ export function AppShell() {
         <main
           data-testid={selectors.layout.main}
           aria-label={t(strings.layout.mainLabel)}
-          className="min-w-0 flex-1 overflow-auto p-6"
+          className="min-w-0 flex-1 overflow-auto p-4 pb-6 sm:p-6 sm:pb-8"
         >
           <Outlet />
         </main>

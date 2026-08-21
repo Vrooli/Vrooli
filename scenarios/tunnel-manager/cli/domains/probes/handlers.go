@@ -26,29 +26,33 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-func (h *handlers) run(ctx cliapp.RunContext) error {
+func (h *handlers) runCall(_ cliapp.OperationContext) (*probesv1.RunProbesResponse, error) {
 	resp, err := h.client.RunProbes(context.Background(), connect.NewRequest(&probesv1.RunProbesRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("run probes", err, nil)
+		return nil, cliapp.WrapAPIError("run probes", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no probe response")
+		return nil, fmt.Errorf("server returned no probe response")
 	}
-	results := make([]string, 0, len(resp.Msg.Results))
-	for _, r := range resp.Msg.Results {
+	return resp.Msg, nil
+}
+
+func (h *handlers) runReport(_ cliapp.OperationContext, message *probesv1.RunProbesResponse) cliapp.MutationReport {
+	results := make([]string, 0, len(message.Results))
+	for _, r := range message.Results {
 		results = append(results, formatResult(r))
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Ran %d probe(s).", len(resp.Msg.Results))},
+	return cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Ran %d probe(s).", len(message.Results))},
 		Changes: results,
 		NextCommand: []string{
 			"`probes classify` — diagnose per-route reachability",
 			"`probes history` — show recent probe history",
 		},
-	})
+	}
 }
 
-func (h *handlers) history(ctx cliapp.RunContext) error {
+func (h *handlers) historyCall(ctx cliapp.OperationContext) (*probesv1.ListProbesResponse, error) {
 	var limit int32
 	if v := strings.TrimSpace(ctx.Flag("limit")); v != "" {
 		// Parse with an explicit 32-bit width so the value provably fits int32
@@ -56,7 +60,7 @@ func (h *handlers) history(ctx cliapp.RunContext) error {
 		// gosec flags as G109.
 		n, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
-			return fmt.Errorf("--limit must be an integer: %w", err)
+			return nil, fmt.Errorf("--limit must be an integer: %w", err)
 		}
 		limit = int32(n)
 	}
@@ -65,46 +69,54 @@ func (h *handlers) history(ctx cliapp.RunContext) error {
 		Limit:     limit,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("list probe history", err, nil)
+		return nil, cliapp.WrapAPIError("list probe history", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no probe history response")
+		return nil, fmt.Errorf("server returned no probe history response")
 	}
-	results := make([]string, 0, len(resp.Msg.Results))
-	for _, r := range resp.Msg.Results {
+	return resp.Msg, nil
+}
+
+func (h *handlers) historyReport(_ cliapp.OperationContext, message *probesv1.ListProbesResponse) cliapp.ListReport {
+	results := make([]string, 0, len(message.Results))
+	for _, r := range message.Results {
 		results = append(results, formatResult(r))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d probe(s).", len(resp.Msg.Results))},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d probe(s).", len(message.Results))},
 		ResultsHeading: "Probe history",
 		Results:        results,
 		RetrievalHints: []string{
 			"`probes history --subdomain <s>` — filter by route",
 			"`probes run` — execute a fresh probe cycle",
 		},
-	})
+	}
 }
 
-func (h *handlers) classify(ctx cliapp.RunContext) error {
+func (h *handlers) classifyCall(_ cliapp.OperationContext) (*probesv1.ClassifyResponse, error) {
 	resp, err := h.client.Classify(context.Background(), connect.NewRequest(&probesv1.ClassifyRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("classify routes", err, nil)
+		return nil, cliapp.WrapAPIError("classify routes", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no classification response")
+		return nil, fmt.Errorf("server returned no classification response")
 	}
-	results := make([]string, 0, len(resp.Msg.Classifications))
-	for _, c := range resp.Msg.Classifications {
+	return resp.Msg, nil
+}
+
+func (h *handlers) classifyReport(_ cliapp.OperationContext, message *probesv1.ClassifyResponse) cliapp.ListReport {
+	results := make([]string, 0, len(message.Classifications))
+	for _, c := range message.Classifications {
 		results = append(results, formatClassification(c))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Classified %d route(s).", len(resp.Msg.Classifications))},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Classified %d route(s).", len(message.Classifications))},
 		ResultsHeading: "Classifications",
 		Results:        results,
 		RetrievalHints: []string{
 			"`probes run` — refresh probes before re-classifying",
 		},
-	})
+	}
 }
 
 func formatResult(r *probesv1.ProbeResult) string {

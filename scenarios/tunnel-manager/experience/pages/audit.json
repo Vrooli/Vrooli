@@ -2,23 +2,111 @@
   "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
   "schemaVersion": "1.0.0",
-  "page": {"id": "audit", "title": "Governance", "routes": ["/audit"], "purpose": "Keep exposure safe and explainable by surfacing fixed-port compliance, route ownership, and remediation guidance before or after exposure.", "prd_refs": ["OT-P0-007", "OT-P0-001", "OT-P1-004"]},
+  "page": {
+    "id": "audit",
+    "title": "Governance",
+    "routes": [
+      "/audit"
+    ],
+    "purpose": "Show fixed-port compliance findings with the contract and concrete remediation needed for each violation."
+  },
   "priorities": [
-    {"statement": "A route cannot be considered ready while its port contract is unclear."},
-    {"statement": "Every finding names the affected scenario, expected contract, and remediation."},
-    {"statement": "Governance actions are separated from ordinary exposure actions."}
+    {
+      "statement": "Make non-compliance actionable without hiding compliant routes."
+    },
+    {
+      "statement": "Keep partial audit results visible and attributed."
+    }
   ],
   "states": [
-    {"id": "loading", "description": "Compliance findings are loading."},
-    {"id": "ready", "description": "Findings, filters, and remediation guidance are visible."},
-    {"id": "empty", "description": "All observed exposed routes comply with the fixed-port contract."},
-    {"id": "partial", "description": "Some scenarios could not be audited while available findings remain visible."},
-    {"id": "stale", "description": "Last findings remain visible during refresh."},
-    {"id": "request-error", "description": "Audit failed and identifies the failed source."}
+    {
+      "id": "loading",
+      "description": "Compliance findings are loading.",
+      "setup": {
+        "route": "/audit"
+      }
+    },
+    {
+      "id": "ready",
+      "description": "Findings, filters, and remediation guidance are visible.",
+      "setup": {
+        "route": "/audit"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "All observed exposed routes comply with the fixed-port contract.",
+      "setup": {
+        "route": "/audit"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some scenarios could not be audited while available findings remain visible.",
+      "setup": {
+        "route": "/audit"
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Last findings remain visible during refresh.",
+      "setup": {
+        "route": "/audit"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "Audit failed and identifies the failed source.",
+      "setup": {
+        "route": "/audit"
+      }
+    }
   ],
-  "claims": [{"id": "findings-have-remediation", "type": "custom", "statement": "Every non-empty governance finding includes the expected fixed-port contract and a concrete remediation path.", "tier": "aspirational"}],
-  "sketch": {"viewport": "desktop", "regions": [
-    {"id": "summary", "grid": {"x": 0, "y": 0, "w": 12, "h": 2}},
-    {"id": "findings", "grid": {"x": 0, "y": 2, "w": 12, "h": 7}}
-  ]}
+  "regions": [{"id":"audit-results","purpose":"Render governance findings through loading, ready, empty, partial, stale, and failed states.","component":{"library":{"component":"experience-surface","version":"1.0.0"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
+  "elements": [
+    {
+      "id": "page",
+      "role": "region",
+      "name": "Tunnel governance"
+    },
+    {
+      "id": "findings",
+      "role": "region",
+      "name": "Port compliance findings"
+    }
+  ],
+  "claims": [
+    {
+      "id": "page-present",
+      "type": "element-present",
+      "statement": "The Governance page exposes a stable named main region.",
+      "tier": "machine",
+      "elements": [
+        "page"
+      ],
+      "states": [
+        "loading",
+        "ready",
+        "empty",
+        "partial",
+        "stale",
+        "request-error"
+      ]
+    },
+    {
+      "id": "remediation-is-concrete",
+      "type": "custom",
+      "statement": "Every non-empty governance finding includes the expected fixed-port contract and a concrete remediation path.",
+      "tier": "manual"
+    }
+  ],
+  "bindings": {
+    "regions": {"audit-results":{"selector":"[data-experience-surface=\"audit-results\"]"}},
+    "elements": {
+      "page": {
+        "testid": "page-audit"
+      },
+      "findings": { "testid": "audit-table" }
+    }
+  }
 }

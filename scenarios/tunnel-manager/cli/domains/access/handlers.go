@@ -30,22 +30,26 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // --dry-run — the pending create/remove diff (mutating nothing). The CLI
 // manifest contract binds exactly one command per RPC, so the view is chosen
 // by a flag rather than by separate dry-run/list verbs.
-func (h *handlers) status(ctx cliapp.RunContext) error {
+func (h *handlers) statusCall(_ cliapp.OperationContext) (*configv1.GetAccessStatusResponse, error) {
 	resp, err := h.client.GetAccessStatus(context.Background(), connect.NewRequest(&configv1.GetAccessStatusRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("get access status", err, nil)
+		return nil, cliapp.WrapAPIError("get access status", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Status == nil {
-		return fmt.Errorf("server returned no access status")
+		return nil, fmt.Errorf("server returned no access status")
 	}
-	st := resp.Msg.Status
-	if ctx.BoolFlag("dry-run") {
-		return renderDryRun(ctx, resp.Msg, st)
-	}
-	return renderStatus(ctx, resp.Msg, st)
+	return resp.Msg, nil
 }
 
-func renderStatus(ctx cliapp.RunContext, msg *configv1.GetAccessStatusResponse, st *configv1.AccessStatus) error {
+func (h *handlers) statusReport(ctx cliapp.OperationContext, msg *configv1.GetAccessStatusResponse) cliapp.ListReport {
+	st := msg.Status
+	if ctx.BoolFlag("dry-run") {
+		return dryRunReport(st)
+	}
+	return statusReport(st)
+}
+
+func statusReport(st *configv1.AccessStatus) cliapp.ListReport {
 	results := make([]string, 0, len(st.Hosts))
 	for _, host := range st.Hosts {
 		results = append(results, formatHostState(host))
@@ -53,7 +57,7 @@ func renderStatus(ctx cliapp.RunContext, msg *configv1.GetAccessStatusResponse, 
 	if len(results) == 0 {
 		results = []string{"(no exposed hosts)"}
 	}
-	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        []string{accessSummary(st)},
 		ResultsHeading: "Hosts",
 		Results:        results,
@@ -62,10 +66,10 @@ func renderStatus(ctx cliapp.RunContext, msg *configv1.GetAccessStatusResponse, 
 			"`config public-exposure --on|--off` — flip the global /public exposure switch",
 			"`routes update <id> --public-exposure inherit|enabled|disabled` — per-route override",
 		},
-	})
+	}
 }
 
-func renderDryRun(ctx cliapp.RunContext, msg *configv1.GetAccessStatusResponse, st *configv1.AccessStatus) error {
+func dryRunReport(st *configv1.AccessStatus) cliapp.ListReport {
 	changes := make([]string, 0, len(st.ToCreate)+len(st.ToRemove))
 	for _, host := range st.ToCreate {
 		changes = append(changes, fmt.Sprintf("+ %s — would create a Bypass-Everyone app scoped to %s/public", host, host))
@@ -78,7 +82,7 @@ func renderDryRun(ctx cliapp.RunContext, msg *configv1.GetAccessStatusResponse, 
 		summary = "Dry-run (no changes applied): Access bypass already in sync; nothing to create or remove."
 		changes = []string{"(no pending changes)"}
 	}
-	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        []string{accessSummary(st), summary},
 		ResultsHeading: "Pending Access-bypass changes",
 		Results:        changes,
@@ -86,7 +90,7 @@ func renderDryRun(ctx cliapp.RunContext, msg *configv1.GetAccessStatusResponse, 
 			"`access status` — show effective per-host bypass state",
 			"`config sync` — reconciliation applies these changes on the remote path",
 		},
-	})
+	}
 }
 
 func accessSummary(st *configv1.AccessStatus) string {

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"tunnel-manager/internal/cmdrunner"
+	"tunnel-manager/internal/envreader"
 	"tunnel-manager/internal/manifest"
 
 	"github.com/vrooli/api-core/schedule"
@@ -150,6 +151,9 @@ type Deps struct {
 	BootstrapAuthority CredentialAuthority
 	Runner             cmdrunner.Runner
 	Clock              schedule.Clock
+	// Env is the process-environment seam used for lifecycle-provided
+	// endpoints and bootstrap defaults.
+	Env envreader.Reader
 	// LocalConfigPath is where local mode writes the cloudflared config.yml.
 	// Defaults to ~/.cloudflared/config.yml when empty.
 	LocalConfigPath string
@@ -167,8 +171,11 @@ func NewService(d Deps) Service {
 	if d.Clock == nil {
 		d.Clock = schedule.System()
 	}
+	if d.Env == nil {
+		d.Env = envreader.System{}
+	}
 	if d.LocalConfigPath == "" {
-		d.LocalConfigPath = filepath.Join(os.Getenv("HOME"), ".cloudflared", "config.yml")
+		d.LocalConfigPath = filepath.Join(d.Env.Getenv("HOME"), ".cloudflared", "config.yml")
 	}
 	return &service{deps: d}
 }
@@ -181,7 +188,7 @@ func (s *service) GetConfig(ctx context.Context) (TunnelConfig, error) {
 	if err != nil {
 		return TunnelConfig{}, err
 	}
-	if endpoint := metricsEndpointFromEnvironment(); endpoint != "" && (strings.TrimSpace(cfg.PromEndpoint) == "" || cfg.PromEndpoint == DefaultPromEndpoint) {
+	if endpoint := metricsEndpointFromEnvironment(s.deps.Env); endpoint != "" && (strings.TrimSpace(cfg.PromEndpoint) == "" || cfg.PromEndpoint == DefaultPromEndpoint) {
 		cfg.PromEndpoint = endpoint
 	}
 	return cfg, nil
@@ -207,8 +214,8 @@ func (s *service) GetConfigState(ctx context.Context) (ConfigState, error) {
 // The persisted default remains the standalone fallback for direct library
 // use, while a lifecycle-managed process always reports the actual resource
 // endpoint rather than stale legacy-port metadata.
-func metricsEndpointFromEnvironment() string {
-	raw := strings.TrimSpace(os.Getenv("TUNNEL_METRICS_URL"))
+func metricsEndpointFromEnvironment(environment envreader.Reader) string {
+	raw := strings.TrimSpace(environment.Getenv("TUNNEL_METRICS_URL"))
 	if raw == "" {
 		return ""
 	}
@@ -270,7 +277,7 @@ func (s *service) BootstrapConfiguredCloudflare(ctx context.Context) (BootstrapR
 	if strings.TrimSpace(accountID) != "" && strings.TrimSpace(tunnelID) != "" && strings.TrimSpace(connectorToken) != "" {
 		return BootstrapResult{AccountID: strings.TrimSpace(accountID), TunnelID: strings.TrimSpace(tunnelID), Written: true}, nil
 	}
-	name := strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_TUNNEL_NAME"))
+	name := strings.TrimSpace(s.deps.Env.Getenv("TUNNEL_MANAGER_TUNNEL_NAME"))
 	if name == "" {
 		name = "vrooli"
 	}
@@ -1182,16 +1189,16 @@ func (s *service) readLocalIngress() ([]IngressRule, error) {
 // ingress, backing up any existing file first.
 func (s *service) writeLocalIngress(cfg TunnelConfig, desired []IngressRule) error {
 	dir := filepath.Dir(s.deps.LocalConfigPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("create config dir: %w", err)
 	}
 	if existing, err := os.ReadFile(s.deps.LocalConfigPath); err == nil {
 		backup := fmt.Sprintf("%s.backup.%s", s.deps.LocalConfigPath, s.deps.Clock.Now().UTC().Format("20060102-150405"))
-		if err := os.WriteFile(backup, existing, 0o644); err != nil {
+		if err := os.WriteFile(backup, existing, 0o600); err != nil {
 			return fmt.Errorf("write backup: %w", err)
 		}
 	}
-	if err := os.WriteFile(s.deps.LocalConfigPath, renderConfigYAML(cfg, desired), 0o644); err != nil {
+	if err := os.WriteFile(s.deps.LocalConfigPath, renderConfigYAML(cfg, desired), 0o600); err != nil {
 		return fmt.Errorf("write local config: %w", err)
 	}
 	return nil

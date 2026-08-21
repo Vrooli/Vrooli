@@ -18,6 +18,8 @@ interface QueryStateProps {
   /** Refetch the failed query when the operator wants to try again. */
   onRetry?: () => void;
   retryLabel?: string;
+  /** Optional capability-specific remediation action shown beside retry. */
+  errorAction?: ReactNode;
   children: ReactNode;
 }
 
@@ -40,6 +42,7 @@ export function QueryState({
   emptyLabel,
   onRetry,
   retryLabel,
+  errorAction,
   children,
 }: QueryStateProps) {
   const { t } = useTranslation();
@@ -65,14 +68,17 @@ export function QueryState({
       <div
         data-testid={selectors.queryState.error}
         role="alert"
-        className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-app-danger/30 bg-app-danger/5 p-4 text-sm"
+        className="flex flex-col items-stretch gap-3 rounded-control border border-app-danger/30 bg-app-danger/5 p-4 text-sm sm:flex-row sm:items-center sm:justify-between"
       >
-        <p className="min-w-0 flex-1 text-app-danger">{errorLabel ?? errorMessage(error, t)}</p>
-        {onRetry ? (
-          <Button type="button" variant="outline" onClick={onRetry}>
-            {retryLabel ?? t(strings.common.refresh)}
-          </Button>
-        ) : null}
+        <p className="w-full min-w-0 break-words text-app-danger sm:flex-1">{errorLabel ?? errorMessage(error, t)}</p>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {errorAction}
+          {onRetry ? (
+            <Button type="button" variant="outline" onClick={onRetry}>
+              {retryLabel ?? t(strings.common.refresh)}
+            </Button>
+          ) : null}
+        </div>
       </div>
     );
   }

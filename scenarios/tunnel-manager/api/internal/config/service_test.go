@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"tunnel-manager/internal/config"
+	"tunnel-manager/internal/envreader"
 	internalroutes "tunnel-manager/internal/routes"
 	"tunnel-manager/internal/testutil/mocks"
 
@@ -803,9 +804,20 @@ func TestGetConfig_PassesThrough(t *testing.T) {
 }
 
 func TestGetConfig_UsesManagedResourceEndpointWhenPersistedValueIsLegacyDefault(t *testing.T) {
-	t.Setenv("TUNNEL_METRICS_URL", "http://127.0.0.1:20242")
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote, PromEndpoint: config.DefaultPromEndpoint}}
-	svc := newSvc(repo, &fakeRoutes{}, &fakeIngress{}, &mocks.FakeCmdRunner{})
+	svc := config.NewService(config.Deps{
+		Repo:    repo,
+		Routes:  &fakeRoutes{},
+		Ingress: &fakeIngress{},
+		Runner:  (&mocks.FakeCmdRunner{}).Run,
+		Clock:   scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+		Env: envreader.Func(func(key string) string {
+			if key == "TUNNEL_METRICS_URL" {
+				return "http://127.0.0.1:20242"
+			}
+			return ""
+		}),
+	})
 
 	got, err := svc.GetConfig(context.Background())
 	require.NoError(t, err)

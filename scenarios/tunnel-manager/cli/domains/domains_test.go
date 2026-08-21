@@ -1,13 +1,12 @@
 package domains
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"tunnel-manager/cli/internal/testutil"
 )
 
 // TestCommandGroups exercises the flat-commands aggregator. The
@@ -30,7 +29,7 @@ func TestCommandGroups(t *testing.T) {
 // but forgets to set Name or has no
 // subcommands) still fails this test loudly.
 func TestSubcommandGroups(t *testing.T) {
-	manifest := readManifestForTest(t)
+	manifest := testutil.ReadManifest(t)
 	got, err := SubcommandGroups(&cliapp.ScenarioApp{}, manifest)
 	require.NoError(t, err, "SubcommandGroups must build cleanly from cli/manifest.json")
 	require.NotNil(t, got, "SubcommandGroups must return a slice (possibly empty), not nil")
@@ -38,14 +37,4 @@ func TestSubcommandGroups(t *testing.T) {
 		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)
 		require.NotEmpty(t, g.Subcommands, "group[%d] (%s) must register at least one subcommand", i, g.Name)
 	}
-}
-
-// readManifestForTest reads cli/manifest.json from the parent cli/ directory
-// (this test runs in cli/domains/). Mirrors what the embed in main does,
-// but at test time the embed isn't available since this package is not main.
-func readManifestForTest(t *testing.T) []byte {
-	t.Helper()
-	bytes, err := os.ReadFile(filepath.Join("..", "manifest.json"))
-	require.NoError(t, err, "read cli/manifest.json")
-	return bytes
 }

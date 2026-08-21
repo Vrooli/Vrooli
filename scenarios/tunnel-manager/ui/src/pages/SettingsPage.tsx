@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import type { TFunction } from "i18next";
 import { Link } from "react-router-dom";
 import { CheckCircle2, GitCompareArrows, Globe, KeyRound, RefreshCw, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
-import { Mode, type ConfigReadiness, type CredentialFieldStatus } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
+import { CheckState, Mode, type ConfigReadiness, type CredentialCheck, type CredentialFieldStatus } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -32,7 +33,22 @@ function readinessTone(syncReady: boolean, remoteAvailable: boolean): BadgeTone 
   return "warning";
 }
 
-function syncSummary(resp: Awaited<ReturnType<typeof configClient.sync>>, t: ReturnType<typeof useTranslation>["t"]) {
+function checkTone(state: CheckState): BadgeTone {
+  if (state === CheckState.OK) return "success";
+  if (state === CheckState.INSUFFICIENT_SCOPE || state === CheckState.INVALID) return "danger";
+  if (state === CheckState.MISSING) return "warning";
+  return "neutral";
+}
+
+function checkLabel(state: CheckState) {
+  if (state === CheckState.OK) return strings.config.checkOk;
+  if (state === CheckState.MISSING) return strings.config.checkMissing;
+  if (state === CheckState.INVALID) return strings.config.checkInvalid;
+  if (state === CheckState.INSUFFICIENT_SCOPE) return strings.config.checkInsufficientScope;
+  return strings.config.checkUnknown;
+}
+
+function syncSummary(resp: Awaited<ReturnType<typeof configClient.sync>>, t: TFunction) {
   if (resp.message) return resp.message;
   if (resp.setupRequired) {
     return t(strings.config.syncSetupRequired, { fields: resp.missingFields.join(", ") });
@@ -106,6 +122,9 @@ export function SettingsPage() {
     mutationFn: (enabled: boolean) => configClient.setPublicExposure({ enabled }),
     onSuccess: () => void refreshConfig(),
   });
+  const verifyCredentialsMutation = useMutation({
+    mutationFn: () => configClient.verifyCredentials({}),
+  });
 
   const config = configQuery.data?.config;
   const readiness = configQuery.data?.readiness;
@@ -121,6 +140,7 @@ export function SettingsPage() {
     saveCredentialsMutation.error ??
     clearCredentialsMutation.error ??
     publicExposureMutation.error;
+
   const actionPending =
     dryRunMutation.isPending ||
     syncMutation.isPending ||
@@ -128,12 +148,25 @@ export function SettingsPage() {
     reconcileMutation.isPending ||
     saveCredentialsMutation.isPending ||
     clearCredentialsMutation.isPending ||
-    publicExposureMutation.isPending;
+    publicExposureMutation.isPending ||
+    verifyCredentialsMutation.isPending;
+  const verification = verifyCredentialsMutation.data;
+  const verificationPending = verifyCredentialsMutation.isPending;
+  const verificationChecks = verification?.checks ?? [];
   const reconcileResult = reconcileMutation.data;
+  const settingsState = configQuery.isLoading
+    ? "loading"
+    : configQuery.error
+      ? "error"
+      : readiness
+        ? "ready"
+        : "empty";
 
   return (
     <section
       data-testid={selectors.pages.settings}
+      data-experience-surface="settings-readiness"
+      data-experience-state={settingsState}
       aria-labelledby="settings-heading"
       className="flex flex-col gap-6"
     >
@@ -293,6 +326,45 @@ export function SettingsPage() {
                     ))}
                   </ul>
                 )}
+                <section
+                  data-testid={selectors.settingsPage.credentialVerification}
+                  className="flex flex-col gap-3 border-t border-app-border pt-4 md:col-span-3"
+                  aria-labelledby="credential-verification-heading"
+                >
+                  <div className="flex flex-col gap-1">
+                    <h4 id="credential-verification-heading" className="text-sm font-semibold">
+                      {t(strings.config.verificationHeading)}
+                    </h4>
+                    <p className="text-sm text-app-muted-foreground">{t(strings.config.verificationDescription)}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={actionPending || verificationPending}
+                      data-testid={selectors.settingsPage.credentialVerificationButton}
+                      onClick={() => verifyCredentialsMutation.mutate()}
+                    >
+                      <ShieldCheck aria-hidden="true" className="mr-2 h-4 w-4" />
+                      {verificationPending ? t(strings.config.verifyCredentialsLoading) : t(strings.config.verifyCredentials)}
+                    </Button>
+                    {verification && (
+                      <StatusBadge tone={verification.ready ? "success" : "warning"}>
+                        {verification.ready ? t(strings.config.verificationReady) : t(strings.config.verificationNeedsAttention)}
+                      </StatusBadge>
+                    )}
+                  </div>
+                  {verifyCredentialsMutation.error && (
+                    <p role="alert" className="rounded-control border border-app-warning/40 bg-app-warning/10 p-3 text-sm text-app-warning">
+                      {t(strings.config.verificationUnavailable)}
+                    </p>
+                  )}
+                  {verificationChecks.length > 0 && (
+                    <ul data-testid={selectors.settingsPage.credentialVerificationResult} className="grid gap-2 md:grid-cols-2">
+                      {verificationChecks.map((check) => <CredentialCheckItem key={`${check.name}-${check.detail}`} check={check} t={t} />)}
+                    </ul>
+                  )}
+                </section>
               </form>
 
               <div className="flex flex-wrap gap-2 border-t border-app-border pt-4">
@@ -515,7 +587,7 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatCredentialField(field: CredentialFieldStatus, t: ReturnType<typeof useTranslation>["t"]) {
+function formatCredentialField(field: CredentialFieldStatus, t: TFunction) {
   return t(strings.config.credentialFieldStatus, {
     name: field.name,
     state: field.present ? t(strings.config.credentialPresent) : t(strings.config.credentialMissing),
@@ -529,12 +601,25 @@ function CredentialFieldItem({
   t,
 }: {
   field: CredentialFieldStatus;
-  t: ReturnType<typeof useTranslation>["t"];
+  t: TFunction;
 }) {
   return (
     <li className="rounded-control border border-app-border bg-app-surface-muted p-3">
       <span className="block break-words font-medium text-app-foreground">{field.name}</span>
       <span className="block text-app-muted-foreground">{formatCredentialField(field, t)}</span>
+    </li>
+  );
+}
+
+function CredentialCheckItem({ check, t }: { check: CredentialCheck; t: TFunction }) {
+  return (
+    <li data-testid={selectors.settingsPage.credentialVerificationCheck} className="rounded-control border border-app-border bg-app-surface-muted p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="break-words font-medium">{check.name}</span>
+        <StatusBadge tone={checkTone(check.state)}>{t(checkLabel(check.state))}</StatusBadge>
+      </div>
+      {check.detail && <p className="mt-1 text-xs text-app-muted-foreground">{check.detail}</p>}
+      {check.remediation && <p className="mt-2 text-xs text-app-warning">{t(strings.config.checkRemediation, { remediation: check.remediation })}</p>}
     </li>
   );
 }

@@ -25,20 +25,24 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-func (h *handlers) list(ctx cliapp.RunContext) error {
+func (h *handlers) listCall(_ cliapp.OperationContext) (*configv1.GetDriftResponse, error) {
 	resp, err := h.client.GetDrift(context.Background(), connect.NewRequest(&configv1.GetDriftRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("get drift", err, nil)
+		return nil, cliapp.WrapAPIError("get drift", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no drift response")
+		return nil, fmt.Errorf("server returned no drift response")
 	}
-	results := make([]string, 0, len(resp.Msg.Entries))
-	for _, e := range resp.Msg.Entries {
+	return resp.Msg, nil
+}
+
+func (h *handlers) listReport(_ cliapp.OperationContext, msg *configv1.GetDriftResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.Entries))
+	for _, e := range msg.Entries {
 		results = append(results, formatEntry(e))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{driftSummary(resp.Msg)},
+	return cliapp.ListReport{
+		Summary:        []string{driftSummary(msg)},
 		ResultsHeading: "Ingress entries",
 		Results:        results,
 		RetrievalHints: []string{
@@ -46,13 +50,13 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 			"`drift ignore <hostname> [--note <text>]` — acknowledge an external hostname",
 			"`drift prune <hostname>` — remove a single hostname from live ingress",
 		},
-	})
+	}
 }
 
-func (h *handlers) adopt(ctx cliapp.RunContext) error {
+func (h *handlers) adoptCall(ctx cliapp.OperationContext) (*configv1.AdoptIngressResponse, error) {
 	hostname := strings.TrimSpace(ctx.Positional("hostname"))
 	if hostname == "" {
-		return fmt.Errorf("hostname is required")
+		return nil, fmt.Errorf("hostname is required")
 	}
 	resp, err := h.client.AdoptIngress(context.Background(), connect.NewRequest(&configv1.AdoptIngressRequest{
 		Hostname: hostname,
@@ -60,63 +64,76 @@ func (h *handlers) adopt(ctx cliapp.RunContext) error {
 		Target:   strings.TrimSpace(ctx.Flag("target")),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("adopt %q", hostname), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("adopt %q", hostname), err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Entry == nil {
-		return fmt.Errorf("server returned no adopt response")
+		return nil, fmt.Errorf("server returned no adopt response")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+	return resp.Msg, nil
+}
+
+func (h *handlers) adoptReport(ctx cliapp.OperationContext, msg *configv1.AdoptIngressResponse) cliapp.MutationReport {
+	hostname := ctx.Positional("hostname")
+	return cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("Adopted %s.", hostname)},
-		Changes: []string{formatEntry(resp.Msg.Entry)},
+		Changes: []string{formatEntry(msg.Entry)},
 		NextCommand: []string{
 			"`drift list` — confirm the reclassified state",
 			"`config sync` — publish the adopted route additively",
 		},
-	})
+	}
 }
 
-func (h *handlers) ignore(ctx cliapp.RunContext) error {
+func (h *handlers) ignoreCall(ctx cliapp.OperationContext) (*configv1.IgnoreIngressResponse, error) {
 	hostname := strings.TrimSpace(ctx.Positional("hostname"))
 	if hostname == "" {
-		return fmt.Errorf("hostname is required")
+		return nil, fmt.Errorf("hostname is required")
 	}
 	resp, err := h.client.IgnoreIngress(context.Background(), connect.NewRequest(&configv1.IgnoreIngressRequest{
 		Hostname: hostname,
 		Note:     strings.TrimSpace(ctx.Flag("note")),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("ignore %q", hostname), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("ignore %q", hostname), err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Entry == nil {
-		return fmt.Errorf("server returned no ignore response")
+		return nil, fmt.Errorf("server returned no ignore response")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Ignored %s; reconcile will never push or prune it.", hostname)},
-		Changes: []string{formatEntry(resp.Msg.Entry)},
-	})
+	return resp.Msg, nil
 }
 
-func (h *handlers) prune(ctx cliapp.RunContext) error {
+func (h *handlers) ignoreReport(ctx cliapp.OperationContext, msg *configv1.IgnoreIngressResponse) cliapp.MutationReport {
+	hostname := ctx.Positional("hostname")
+	return cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Ignored %s; reconcile will never push or prune it.", hostname)},
+		Changes: []string{formatEntry(msg.Entry)},
+	}
+}
+
+func (h *handlers) pruneCall(ctx cliapp.OperationContext) (*configv1.PruneIngressResponse, error) {
 	hostname := strings.TrimSpace(ctx.Positional("hostname"))
 	if hostname == "" {
-		return fmt.Errorf("hostname is required")
+		return nil, fmt.Errorf("hostname is required")
 	}
 	resp, err := h.client.PruneIngress(context.Background(), connect.NewRequest(&configv1.PruneIngressRequest{
 		Hostname: hostname,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("prune %q", hostname), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("prune %q", hostname), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no prune response")
+		return nil, fmt.Errorf("server returned no prune response")
 	}
-	msg := fmt.Sprintf("Pruned %s from live ingress and the ledger.", hostname)
-	if !resp.Msg.Pruned {
-		msg = fmt.Sprintf("%s was neither live nor tracked; nothing to prune.", hostname)
+	return resp.Msg, nil
+}
+
+func (h *handlers) pruneReport(ctx cliapp.OperationContext, msg *configv1.PruneIngressResponse) cliapp.MutationReport {
+	hostname := ctx.Positional("hostname")
+	message := fmt.Sprintf("Pruned %s from live ingress and the ledger.", hostname)
+	if !msg.Pruned {
+		message = fmt.Sprintf("%s was neither live nor tracked; nothing to prune.", hostname)
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{msg},
-	})
+	return cliapp.MutationReport{Result: []string{message}}
 }
 
 func driftSummary(resp *configv1.GetDriftResponse) string {

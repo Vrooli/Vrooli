@@ -23,13 +23,13 @@ const GroupName = "drift"
 // wires Connect-RPC bindings to handlers in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"ConfigService.GetDrift":      h.list,
-		"ConfigService.AdoptIngress":  h.adopt,
-		"ConfigService.IgnoreIngress": h.ignore,
-		"ConfigService.PruneIngress":  h.prune,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"ConfigService.GetDrift":      cliapp.ProtoList(h.listCall, h.listReport),
+		"ConfigService.AdoptIngress":  cliapp.ProtoMutation(h.adoptCall, h.adoptReport),
+		"ConfigService.IgnoreIngress": cliapp.ProtoMutation(h.ignoreCall, h.ignoreReport),
+		"ConfigService.PruneIngress":  cliapp.ProtoMutation(h.pruneCall, h.pruneReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("drift: load from manifest: %w", err)
 	}

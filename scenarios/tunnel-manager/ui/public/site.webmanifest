@@ -7,7 +7,7 @@
   "scope": ".",
   "display": "standalone",
   "background_color": "#f8fafc",
-  "theme_color": "#f8fafc",
+  "theme_color": "#020617",
   "icons": [
     {
       "src": "manifest-icon-192.maskable.png",

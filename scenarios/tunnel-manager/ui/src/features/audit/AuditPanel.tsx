@@ -104,9 +104,10 @@ export function AuditPanel() {
   const violationCount = auditQuery.data?.violationCount ?? 0;
   const compliantCount = results.filter((result) => result.status === AuditStatus.COMPLIANT).length;
   const filteredResults = results.filter((result) => matchesFilter(result, filter));
+  const experienceState = auditQuery.isLoading ? "loading" : auditQuery.error ? "error" : results.length === 0 ? "empty" : "ready";
 
   return (
-    <section data-testid={selectors.audit.panel} className="flex flex-col gap-4">
+    <section data-testid={selectors.audit.panel} data-experience-surface="audit-results" data-experience-state={experienceState} className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold">{t(strings.audit.heading)}</h2>
@@ -129,15 +130,18 @@ export function AuditPanel() {
       </div>
 
       <div data-testid={selectors.audit.summary} className="grid gap-3 sm:grid-cols-3">
-        <AuditSummaryStat label={t(strings.audit.totalRoutes)} value={results.length} />
+        <AuditSummaryStat
+          label={t(strings.audit.totalRoutes)}
+          value={auditQuery.error ? t(strings.common.notAvailable) : results.length}
+        />
         <AuditSummaryStat
           label={t(strings.audit.compliantRoutes)}
-          value={compliantCount}
+          value={auditQuery.error ? t(strings.common.notAvailable) : compliantCount}
           tone={results.length > 0 && violationCount === 0 ? "success" : "neutral"}
         />
         <AuditSummaryStat
           label={t(strings.audit.routesToFix)}
-          value={violationCount}
+          value={auditQuery.error ? t(strings.common.notAvailable) : violationCount}
           tone={violationCount > 0 ? "danger" : "success"}
         />
       </div>
@@ -177,8 +181,9 @@ export function AuditPanel() {
             {t(strings.audit.filterEmpty)}
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-panel border border-app-border">
-            <table data-testid={selectors.audit.table} className="w-full text-left text-sm">
+          <div data-testid={selectors.audit.table} className="min-w-0 w-full max-w-full overflow-hidden rounded-panel border border-app-border">
+            <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-left text-sm">
               <thead className="border-b border-app-border bg-app-surface-muted text-xs uppercase text-app-muted-foreground">
                 <tr>
                   <th className="px-3 py-2">{t(strings.audit.colScenario)}</th>
@@ -217,6 +222,26 @@ export function AuditPanel() {
                 ))}
               </tbody>
             </table>
+            </div>
+            <div className="grid gap-3 p-3 md:hidden">
+              {filteredResults.map((result: PortAuditResult) => (
+                <article key={result.subdomain} className="min-w-0 w-full max-w-full break-words rounded-control border border-app-border bg-app-surface-muted p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium">{result.scenario}</p>
+                      <p className="truncate text-xs text-app-muted-foreground">{result.subdomain}</p>
+                    </div>
+                    <StatusBadge tone={auditStatusTone(result.status)}>{t(auditStatusLabel(result.status))}</StatusBadge>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div><dt className="text-app-muted-foreground">{t(strings.audit.colExpected)}</dt><dd className="font-medium tabular-nums">{result.expectedPort}</dd></div>
+                    <div><dt className="text-app-muted-foreground">{t(strings.audit.colActual)}</dt><dd className="font-medium tabular-nums">{result.actualPort || "—"}</dd></div>
+                  </dl>
+                  <p className="mt-3 text-sm text-app-muted-foreground">{result.detail}</p>
+                  <p className="mt-2 text-sm text-app-muted-foreground">{t(auditRemediation(result.status))}</p>
+                </article>
+              ))}
+            </div>
           </div>
         )}
       </QueryState>
@@ -230,7 +255,7 @@ function AuditSummaryStat({
   tone = "neutral",
 }: {
   label: string;
-  value: number;
+  value: number | string;
   tone?: "success" | "danger" | "neutral";
 }) {
   const toneClass = {

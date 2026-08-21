@@ -21,12 +21,12 @@ const GroupName = "tunnel"
 // wires Connect-RPC bindings to handlers in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"TunnelService.GetStatus":   h.status,
-		"TunnelService.ListMetrics": h.metrics,
-		"TunnelService.Scrape":      h.scrape,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"TunnelService.GetStatus":   cliapp.ProtoList(h.statusCall, h.statusReport),
+		"TunnelService.ListMetrics": cliapp.ProtoList(h.metricsCall, h.metricsReport),
+		"TunnelService.Scrape":      cliapp.ProtoMutation(h.scrapeCall, h.scrapeReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("tunnel: load from manifest: %w", err)
 	}

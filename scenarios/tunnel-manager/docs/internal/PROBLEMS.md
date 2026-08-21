@@ -142,6 +142,41 @@ As of the Phase 7 follow-up reconciliation, PRD/requirements no longer mark the 
 
 **Owner:** tunnel-manager maintainers. **Refs:** `api/internal/config/credentials.go`, `api/internal/config/production.go`, `api/handlers/config/connect_handler.go`, `cli/domains/config/handlers.go`, `ui/src/pages/SettingsPage.tsx`, plan `tunnel-manager-greenfield-config-and-secrets-consolidation`.
 
+## UX Issues
+
+### 2026-08-21 — Command-center interaction polish remains in progress
+
+**Status:** Substantially resolved; final desktop/mobile journey evidence and the remaining route-detail polish are still open under the active UX plan.
+
+**Symptom:** The exposure surface now renders live routes and responsive mobile cards, and the guided expose/review flow is manifest-backed with bounded duration, policy, verification, and remediation states. Remaining work is concentrated in complete browser evidence for the full desktop/mobile journeys and any final route-detail presentation gaps.
+
+**Root cause:** The first implementation prioritized wiring every API domain and satisfying broad runtime checks before completing the interaction model. Browser captures exposed visual and responsive gaps that static validation could not establish.
+
+**Workaround:** Use the exposure table on desktop or route cards on mobile; use the shared refresh/retry controls when a dependent probe or configuration query is unavailable. Live core read endpoints are currently responsive after the probe query optimization.
+
+**Real fix:** Finish focused desktop/mobile browser captures for the guided review, route detail, error, and dark-mode journeys; close any remaining presentation gaps; and reconcile the evidence into the experience contract before final plan validation.
+
+**Owner:** tunnel-manager maintainers.
+
+**Refs:** `ui/src/features/exposure/ExposurePanel.tsx`, `ui/src/features/overview/OverviewPanel.tsx`, plan `tunnel-manager-exposure-command-center-ux`, BAS captures under `/tmp/tunnel-manager-*`.
+
+### 2026-08-21 — Shared DataTable adoption is gated by the scenario token ramp
+
+**Status:** Deliberately deferred; the current route collection remains a maintained product-specific implementation.
+
+**Evidence:** `react-component-library adoptions preflight react-component-library:DataTable tunnel-manager --version 1.3.0 --json` reports native style fit and a strong responsive/async contract, but blocks on 19 semantic tokens that are not defined by Tunnel Manager. The token-sync command currently creates only an empty managed marker, so copying the component would produce unverified styling rather than a governed adoption.
+
+**Decision:** Keep the exposure collection bespoke for now. It has explicit lease lifecycle actions, probe classifications, route-specific detail, and a deliberate mobile-card/table split. Revisit adoption after the shared token contract is supplied and the component is previewed against Tunnel Manager's light/dark ramp.
+
+**Owner:** tunnel-manager and react-component-library maintainers. **Refs:** `ui/src/features/exposure/ExposurePanel.tsx`, `scenarios/react-component-library/library/components/DataTable/versions/1.3.0/experience-contract.json`.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: W0/W1/W2 remain internally reconciled; focused API, business, UI-health, UI, experience, and lifecycle checks pass. The experience contract now declares and canonically binds async regions for all seven pages, live DOM evidence confirms the rendered surface binding and real route data, and the focused experience run passed contract checks at L3 with no findings after workflow cases asserted each region lifecycle.
+- Blocker: no local acceptance blocker remains. Remote Cloudflare rehearsal remains unavailable without operator credentials; remote capability limits are surfaced explicitly in the UI and contract evidence.
+- Measured: 2026-08-21
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

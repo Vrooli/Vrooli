@@ -25,10 +25,10 @@ const GroupName = "access"
 // list all read GetAccessStatus and render distinct views of one response.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"ConfigService.GetAccessStatus": h.status,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"ConfigService.GetAccessStatus": cliapp.ProtoList(h.statusCall, h.statusReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("access: load from manifest: %w", err)
 	}

@@ -14,6 +14,7 @@ import { cleanup, screen } from "@testing-library/react";
 import { renderWithProviders } from "./test-utils";
 import { Providers } from "./app/providers";
 import { TestAppRouter } from "./app/routes";
+import { createAppQueryClient } from "./app/queryClient";
 import { selectors } from "./consts/selectors";
 
 describe("App composition", () => {
@@ -29,5 +30,13 @@ describe("App composition", () => {
       { withoutRouter: true },
     );
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+  });
+
+  it("uses immediate, visible capability failures in production", () => {
+    const defaults = createAppQueryClient().getDefaultOptions();
+
+    expect(defaults.queries?.retry).toBe(false);
+    expect(defaults.queries?.refetchOnWindowFocus).toBe(false);
+    expect(defaults.mutations?.retry).toBe(false);
   });
 });

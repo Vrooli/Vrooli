@@ -92,6 +92,29 @@ describe("AuditPanel", () => {
     expect(screen.getByTestId(selectors.audit.remediation)).toHaveTextContent("reconcile exposure");
   });
 
+  it("covers each typed compliance state and filter", async () => {
+    const { auditClient } = await import("../../api/audit");
+    const user = userEvent.setup();
+    vi.mocked(auditClient.runAudit).mockResolvedValueOnce({
+      results: [
+        makeAuditResult({ subdomain: "missing-scenario", status: 3 }),
+        makeAuditResult({ subdomain: "missing-port", status: 4 }),
+        makeAuditResult({ subdomain: "unknown", status: 99 }),
+      ],
+      violationCount: 3,
+    } as never);
+
+    renderWithProviders(<AuditPanel />);
+    await waitFor(() => expect(screen.getAllByTestId(selectors.audit.row)).toHaveLength(3));
+    const filter = screen.getByTestId(selectors.audit.statusFilter);
+    for (const value of ["compliant", "mismatch", "missing-scenario", "missing-port"]) {
+      await user.selectOptions(filter, value);
+      expect(screen.queryAllByTestId(selectors.audit.row).length).toBeLessThanOrEqual(1);
+    }
+    await user.selectOptions(filter, "all");
+    expect(screen.getAllByTestId(selectors.audit.statusBadge)).toHaveLength(3);
+  });
+
   it("re-runs the audit from the run button", async () => {
     const { auditClient } = await import("../../api/audit");
     const user = userEvent.setup();

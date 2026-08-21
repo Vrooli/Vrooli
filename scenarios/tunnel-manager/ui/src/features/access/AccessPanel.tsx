@@ -68,18 +68,26 @@ export function AccessPanel() {
           </Button>
         </div>
         <div data-testid={selectors.access.summary} className="flex flex-wrap gap-2">
-          <StatusBadge
-            tone={status?.enabled ? "success" : "neutral"}
-            data-testid={selectors.access.globalBadge}
-          >
-            {status?.enabled ? t(strings.access.globalEnabled) : t(strings.access.globalDisabled)}
-          </StatusBadge>
-          <StatusBadge
-            tone={status?.configured ? "success" : "warning"}
-            data-testid={selectors.access.configuredBadge}
-          >
-            {status?.configured ? t(strings.access.configured) : t(strings.access.notConfigured)}
-          </StatusBadge>
+          {accessQuery.error ? (
+            <StatusBadge tone="warning" data-testid={selectors.access.configuredBadge}>
+              {t(strings.access.summaryUnavailable)}
+            </StatusBadge>
+          ) : (
+            <>
+              <StatusBadge
+                tone={status?.enabled ? "success" : "neutral"}
+                data-testid={selectors.access.globalBadge}
+              >
+                {status?.enabled ? t(strings.access.globalEnabled) : t(strings.access.globalDisabled)}
+              </StatusBadge>
+              <StatusBadge
+                tone={status?.configured ? "success" : "warning"}
+                data-testid={selectors.access.configuredBadge}
+              >
+                {status?.configured ? t(strings.access.configured) : t(strings.access.notConfigured)}
+              </StatusBadge>
+            </>
+          )}
         </div>
         <p data-testid={selectors.access.note} className="text-sm text-app-muted-foreground">
           {t(strings.access.note)}

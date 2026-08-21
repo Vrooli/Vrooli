@@ -20,12 +20,12 @@ const GroupName = "recovery"
 // manifest and wires Connect-RPC bindings to handlers in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"RecoveryService.GetState":   h.state,
-		"RecoveryService.ListEvents": h.events,
-		"RecoveryService.Recover":    h.recover,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"RecoveryService.GetState":   cliapp.ProtoList(h.stateCall, h.stateReport),
+		"RecoveryService.ListEvents": cliapp.ProtoList(h.eventsCall, h.eventsReport),
+		"RecoveryService.Recover":    cliapp.ProtoMutation(h.recoverCall, h.recoverReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("recovery: load from manifest: %w", err)
 	}

@@ -2,24 +2,123 @@
   "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
   "schemaVersion": "1.0.0",
-  "page": {"id": "recovery", "title": "Recovery & Events", "routes": ["/recovery"], "purpose": "Explain whether automatic tunnel recovery is healthy, blocked, backing off, or awaiting a guarded operator action.", "prd_refs": ["OT-P0-011", "OT-P1-003", "OT-P1-004"]},
+  "page": {
+    "id": "recovery",
+    "title": "Recovery & Events",
+    "routes": [
+      "/recovery"
+    ],
+    "purpose": "Explain tunnel recovery state, breaker risk, next action, and the evidence timeline before an operator forces recovery."
+  },
   "priorities": [
-    {"statement": "The recovery state and next action are unambiguous."},
-    {"statement": "Breaker and backoff risk are visible before a manual force action."},
-    {"statement": "Events explain what changed and whether recovery improved reachability."}
+    {
+      "statement": "Show the state machine and next action before the event log."
+    },
+    {
+      "statement": "Make force recovery consequences and breaker risk explicit."
+    }
   ],
   "states": [
-    {"id": "loading", "description": "Recovery state and events are loading."},
-    {"id": "ready", "description": "State machine, next action, and event timeline are visible."},
-    {"id": "empty", "description": "No recovery events have occurred; the tunnel is operating normally."},
-    {"id": "partial", "description": "State is available but event history is incomplete."},
-    {"id": "stale", "description": "Last known recovery state remains visible during refresh."},
-    {"id": "request-error", "description": "Recovery data failed to load and can be retried."}
+    {
+      "id": "loading",
+      "description": "Recovery state and events are loading.",
+      "setup": {
+        "route": "/recovery"
+      }
+    },
+    {
+      "id": "ready",
+      "description": "State, next action, policy, and event timeline are visible.",
+      "setup": {
+        "route": "/recovery"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No recovery events have occurred and normal operation is explicit.",
+      "setup": {
+        "route": "/recovery"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "State is available while event history is incomplete.",
+      "setup": {
+        "route": "/recovery"
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Last known recovery state remains visible during refresh.",
+      "setup": {
+        "route": "/recovery"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "Recovery data failed and can be retried.",
+      "setup": {
+        "route": "/recovery"
+      }
+    }
   ],
-  "claims": [{"id": "force-action-is-guarded", "type": "custom", "statement": "A force recovery action explains its consequences, current breaker risk, and confirmation requirement before mutation.", "tier": "aspirational"}],
-  "sketch": {"viewport": "desktop", "regions": [
-    {"id": "state", "grid": {"x": 0, "y": 0, "w": 5, "h": 4}},
-    {"id": "timeline", "grid": {"x": 5, "y": 0, "w": 7, "h": 7}},
-    {"id": "action", "grid": {"x": 0, "y": 4, "w": 5, "h": 2}}
-  ]}
+  "regions": [{"id":"recovery-results","purpose":"Render recovery state and event evidence through loading, ready, partial, and failed states.","component":{"library":{"component":"experience-surface","version":"1.0.0"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
+  "elements": [
+    {
+      "id": "page",
+      "role": "region",
+      "name": "Recovery manager"
+    },
+    {
+      "id": "state",
+      "role": "region",
+      "name": "Recovery state"
+    },
+    {
+      "id": "timeline",
+      "role": "region",
+      "name": "Recovery event timeline"
+    },
+    {
+      "id": "confirm",
+      "role": "dialog",
+      "name": "Recovery confirmation"
+    }
+  ],
+  "claims": [
+    {
+      "id": "page-present",
+      "type": "element-present",
+      "statement": "The Recovery & Events page exposes a stable named main region.",
+      "tier": "machine",
+      "elements": [
+        "page"
+      ],
+      "states": [
+        "loading",
+        "ready",
+        "empty",
+        "partial",
+        "stale",
+        "request-error"
+      ]
+    },
+    {
+      "id": "force-is-guarded",
+      "type": "custom",
+      "statement": "Force recovery explains consequences and requires confirmation.",
+      "tier": "manual"
+    }
+  ],
+  "bindings": {
+    "regions": {"recovery-results":{"selector":"[data-experience-surface=\"recovery-results\"]"}},
+    "elements": {
+      "page": {
+        "testid": "page-recovery"
+      },
+      "state": { "testid": "recovery-state-panel" },
+      "timeline": { "testid": "recovery-timeline" },
+      "confirm": { "testid": "recovery-confirm-dialog" }
+    }
+  }
 }
