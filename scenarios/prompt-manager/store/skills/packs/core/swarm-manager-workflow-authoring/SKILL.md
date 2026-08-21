@@ -31,16 +31,16 @@ Prompt Manager teams are the autonomous, deferred counterpart to this session. T
 `meta-optimization` team proposes the same class of change on a heartbeat. When a finding is better
 served by that loop, say so and continue to a disposition here anyway.
 
-## Start with precedent, not with design
+## Start with retrieved precedent, not with design
 
 1. Read the attached `startup_brief`.
-2. Search for prior work on the same problem before designing anything:
-   `search-hub query "<the operator's problem>" --type record,skill,doc`.
-   Vrooli has solved most of its own problems once already, in another scenario. A solved instance
-   elsewhere in the repo outranks a fresh design.
-3. Read `docs/internal/SESSION-ARCHITECTURE-DESIGN-RECORD.md` and any design record the search
-   returns. A design record is the durable output of a previous session of this kind; it carries
-   decisions that the code does not state.
+2. Read the attached `related-work` section. The server queried it with the operator's message.
+   Vrooli has solved most of its own problems once already, in another scenario, and a solved
+   instance elsewhere in the repository outranks a fresh design. If retrieval is unavailable, do
+   not infer that no precedent exists.
+3. Read `docs/internal/SESSION-ARCHITECTURE-DESIGN-RECORD.md` and any design record named by the
+   startup brief. A design record is the durable output of a previous session of this kind; it
+   carries decisions that the code does not state.
 4. Give a useful first answer from those. Run at most one further targeted drill-down before it.
 
 Treat Plan Manager, Test Genie, Git Control Tower, and Agent Manager as the authorities for their
@@ -129,8 +129,9 @@ This session shares the `team:meta-optimization` Source Ledger scope with the au
 meta-optimization team. Recall prior knowledge with
 `source-ledger recall "<query>" --scope=team:meta-optimization` and, when useful, record a durable
 design decision with `source-ledger journal note "<prose>" --scope=team:meta-optimization
---kind=session-knowledge`. Writing is your choice; nothing writes automatically. Record knowledge
-and evidence, never a task for another agent to pick up.
+--kind=session-knowledge`. Swarm Manager records terminal proposal resolutions automatically.
+Recording other knowledge is your choice. Record knowledge and evidence, never a task for another
+agent to pick up.
 
 ## Response style
 

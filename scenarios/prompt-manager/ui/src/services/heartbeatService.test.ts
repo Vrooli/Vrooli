@@ -10,6 +10,10 @@ import {
 
 vi.mock('@/lib/api', () => ({
   API_BASE: 'http://example.test/api/v1',
+  // These tests exercise the shared REST error/fetch fallback used by routes
+  // outside the migrated slice. Generated-client routing has focused contract
+  // tests at the adapter boundary.
+  connectSlice4Request: vi.fn().mockResolvedValue({ handled: false }),
 }))
 
 vi.mock('@vrooli/api-base', () => ({

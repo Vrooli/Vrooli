@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@/test-utils/renderWithProviders'
 import type React from 'react'
 import { MemberDetailPanel } from './MemberDetailPanel'
 import type { TeamDetails, TeamMember } from '@/types/team'

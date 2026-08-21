@@ -24,6 +24,33 @@ func TestGorillaMuxAdapterMountsTrailingSlashServicesAsPrefixes(t *testing.T) {
 	}
 }
 
+func TestResolveOllamaEnabled(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     map[string]string
+		enabled bool
+		wantErr bool
+	}{
+		{name: "absent resource", env: map[string]string{}, enabled: false},
+		{name: "resource URL injected", env: map[string]string{"OLLAMA_BASE_URL": "http://localhost:11434"}, enabled: true},
+		{name: "resource port injected", env: map[string]string{"OLLAMA_PORT": "11434"}, enabled: true},
+		{name: "explicit disable wins", env: map[string]string{"OLLAMA_ENABLED": "false", "OLLAMA_BASE_URL": "http://localhost:11434"}, enabled: false},
+		{name: "explicit enable", env: map[string]string{"OLLAMA_ENABLED": "true"}, enabled: true},
+		{name: "invalid override", env: map[string]string{"OLLAMA_ENABLED": "sometimes"}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolveOllamaEnabled(func(key string) string { return tt.env[key] })
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got != tt.enabled {
+				t.Fatalf("enabled = %v, want %v", got, tt.enabled)
+			}
+		})
+	}
+}
+
 func TestDiscoverScenarioNames(t *testing.T) {
 	// Create a temporary directory structure mimicking scenarios/<name>/store
 	tmpDir := t.TempDir()

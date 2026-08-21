@@ -3,11 +3,12 @@
   "schemaVersion": 1,
   "id": "monetization",
   "displayName": "Monetization Team",
-  "mission": "Own the canonical monetization plan for Vrooli — catalog, tiers, funnel, revenue lines, and financial model — and surface the work items the operator must make each heartbeat to stay on a path to default-alive.",
+  "mission": "Own the canonical monetization plan for Vrooli \u2014 catalog, tiers, funnel, revenue lines, and financial model \u2014 and surface the work items the operator must make each heartbeat to stay on a path to default-alive.",
   "objectivesServed": [
     {
       "id": "T1",
-      "role": "primary"
+      "role": "primary",
+      "acknowledgedRevision": "eb66069cc894"
     }
   ],
   "instrument": {
@@ -84,7 +85,7 @@
     "documents": {
       "planOfRecord": [
         {
-          "id": "monetization-canon",
+          "id": "monetization-judgment",
           "hub": {
             "base": "repo-root",
             "path": "docs/monetization/README.md"
@@ -124,6 +125,78 @@
             },
             {
               "base": "repo-root",
+              "path": "docs/monetization/catalogs/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/evidence/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/evidence/BENCHMARKS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/evidence/TELEMETRY_ROADMAP.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/adoption-validation.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/changelog.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/editing.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-opportunity/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-opportunity/taxonomy.json"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-validation/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-validation/taxonomy.json"
+            }
+          ],
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "consumers": [
+            "monetization",
+            "director-swarm",
+            "marketing-crew",
+            "landing-page-business-suite",
+            "scenario-to-cloud",
+            "scenario-qa"
+          ],
+          "rationale": "The rules a member applies every heartbeat: positioning, lifecycle and packaging discipline, pricing principles, funnel definitions, evidence protocol, telemetry roadmap, taxonomies, governance, and operator-input guidance. None of these files carries live state \u2014 Offer Desk is authoritative for catalog, tier, channel, revenue-line, deliverable, pricing, and promotion state, and Money Ledger for financial posture.",
+          "useFor": "the rules and judgment a decision must satisfy; read this set every heartbeat and query the Offer Desk instrument for current state"
+        },
+        {
+          "id": "monetization-rationale",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/monetization/catalogs/CATALOG.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
               "path": "docs/monetization/strategy/PRICING.md"
             },
             {
@@ -132,15 +205,7 @@
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/catalogs/README.md"
-            },
-            {
-              "base": "repo-root",
               "path": "docs/monetization/catalogs/CATALOG.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/catalogs/channels/README.md"
             },
             {
               "base": "repo-root",
@@ -220,51 +285,7 @@
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/evidence/README.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/evidence/BENCHMARKS.md"
-            },
-            {
-              "base": "repo-root",
               "path": "docs/monetization/evidence/FINANCIAL_MODEL.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/evidence/TELEMETRY_ROADMAP.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/governance/adoption-validation.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/governance/changelog.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/governance/editing.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/taxonomies/monetization-opportunity/README.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/taxonomies/monetization-opportunity/taxonomy.json"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/taxonomies/monetization-validation/README.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/taxonomies/monetization-validation/taxonomy.json"
             }
           ],
           "writePolicy": "operator-curated-via-swarm-manager",
@@ -276,8 +297,8 @@
             "scenario-to-cloud",
             "scenario-qa"
           ],
-          "rationale": "Canonical monetization strategy, lifecycle judgment, delivery-tier and channel discipline, pricing principles, evidence protocols, taxonomies, and operator-input guidance. Offer Desk is the live instrument for catalog, tier, channel, revenue-line, deliverable, pricing, and promotion state; Money Ledger supplies the financial posture it covers.",
-          "useFor": "monetization strategy, lifecycle and packaging judgment, pricing principles, financial-model assumptions, funnel rules, revenue-line and channel discipline, telemetry roadmap, benchmark method, taxonomies, and operator-input guidance; query the Offer Desk instrument for current state"
+          "rationale": "The 23 sources the approved Phase 8 disposition classified `mixed`. Their live matrices and status tables were removed during adoption and each now carries an authority note pointing at the instrument; what remains is the reasoning behind a record \u2014 the hypothesis, the anti-patterns, the legal surface, the unresolved decisions. Read for why a record looks the way it does, never to learn what is currently true.",
+          "useFor": "background reasoning behind a specific offer, channel, revenue line, tier, or price when the instrument shows a record you need to interpret; never as a source of current state"
         }
       ],
       "sharedState": [
@@ -352,7 +373,7 @@
           "Every candidate needs a concrete revisit trigger.",
           "Every idea needs both acquisition and retention hypotheses.",
           "Do not nominate Tier 4 hardware work without explicit operator initiation.",
-          "Inbox triage must leave no entry under opportunity-inbox/* — promote (retag to monetization/opportunity/<slug>), observe (retag to scout-scan/YYYY-MM-DD), file work, or delete."
+          "Inbox triage must leave no entry under opportunity-inbox/* \u2014 promote (retag to monetization/opportunity/<slug>), observe (retag to scout-scan/YYYY-MM-DD), file work, or delete."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": true,
@@ -425,7 +446,7 @@
         "safetyCriticalRules": [
           "Every captured value needs a source, date, and applicability flag.",
           "Deep research stays scoped to the active tier and bundle.",
-          "Validation-inbox triage must leave no entry under validation-inbox/* — validate (retag to monetization-benchmark-record/<slug>), preserve adjacent evidence, file a work item, or delete.",
+          "Validation-inbox triage must leave no entry under validation-inbox/* \u2014 validate (retag to monetization-benchmark-record/<slug>), preserve adjacent evidence, file a work item, or delete.",
           "The staleness sweep enqueues but never re-fetches or resolves; resolution happens via the router and method skills only."
         ],
         "readOnlyModeBehavior": {

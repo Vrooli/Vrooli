@@ -2,6 +2,12 @@
 
 Use `program-runtime` when a task needs a persistent, governed program session, typed scenario operations, bounded result handles, or provenance-bearing failure discovery. Keep every operation inside the declared binding registry and make materialization, grants, and provenance explicit. For construction patterns, read `scenarios/program-runtime/docs/guides/program-construction.md`.
 
+It is especially appropriate for high-arity or multi-scenario work: fan out
+across governed scenario bindings, join cross-scenario reads, discard
+intermediate data inside the kernel, and return only bounded results. Prefer
+this shape when a task would otherwise require a long tool-call loop over many
+local capabilities.
+
 ### Scope
 
 In scope:
@@ -113,6 +119,17 @@ result = ai.classify(
 print(result.head(1))
 ```
 
+The inference helpers accept `text=` and `texts=` as additive aliases for
+`source=` on `ai.classify`, `ai.extract`, `ai.judge`, and `ai.write`.
+`ai.classify(texts=[...])` uses the governed batch route. `describe` accepts
+`binding_id=` as an additive alias for `binding=`. The canonical names remain
+supported, but supplying multiple spellings in one call is a `TypeError` rather
+than a silent precedence rule. For the common bounded classification shape,
+`ai.classify(text="...", labels=["bug", "feature"])` desugars to the same
+validated enum schema path as a caller-written `schema=`. `labels=` and
+`schema=` are mutually exclusive, and labels must be a non-empty list of
+strings.
+
 `meta()` preserves response fields that are not rows, such as latency and
 reranker information. `raw()` is available when a bounded decoded response is
 needed for diagnostics; neither method bypasses the output limit.
@@ -123,6 +140,31 @@ row = verdict.head(1)[0]
 if not row["binding_id"]:
     print({"stopped": True, "reason": row["reason"]})
 ```
+
+`ai`, `agent`, and `lib` are **namespaces, not callables**: write
+`ai.classify(...)`, `ai.extract(...)`, `ai.judge(...)`, `ai.write(...)`,
+`ai.batch(...)`, `agent.start/collect/run`, and `lib.list()`. Calling `ai(...)`
+directly raises `TypeError`. The remaining verbs are called directly.
+
+Every call returns a `Handle` — never a plain object or dict. A `Handle` has no
+`.get()` and no attributes named after response fields; take the row first with
+`row = handle.head(1)[0]`, then read `row["field"]`.
+
+`Handle.group_by(key)` returns a dict-shaped count mapping with a `count()`
+helper for the represented source rows. `Handle.join` accepts `key="id"` or
+the additive `on="id"` alias; supplying both names is an explicit error. Typed classification accepts either a
+single text string or a small list of strings; the list form uses the governed
+batch route and preserves input order. `recall` takes an intent and optional
+depth only, not a binding id or arbitrary source payload.
+
+```python
+classified = ai.classify(source=["one", "two"], labels=["bug", "feature"])
+print(classified.head(2))
+```
+
+`describe(binding_id="...")` returns argument rows. Use
+`row = describe(binding_id="...").head(1)[0]` and read `row["name"]`; the
+handle is not a single row containing an `arguments` field.
 
 The convenience roles are `classify.fast`, `extract.structured`,
 `judge.default`, and `write.default` (`ai.write(...)`). The first three
@@ -143,15 +185,62 @@ a shell call or a direct provider call.
 | Verb | Resolves through | Notes |
 |---|---|---|
 | `discover(intent)` | binding registry + Search Hub | One governed binding or an explicit null verdict. |
-| `recall(intent, depth=)` | search-hub | Governed records and docs. `depth="deep"` widens retrieval. |
-| `validate(scenario, depth=)` | test-genie | Reads the **latest recorded** run verdicts. It does not start a run. |
-| `capture(text, kind=)` | vrooli-memory | `kind="note"` or `"work-record"`; a work record also accepts `trigger`, `approach`, `evidence`, `outcome`. |
-| `guide(task)` | prompt-manager | **Currently unavailable** — prompt-manager exposes no governed binding, so the verb fails closed with that reason. Use `prompt-manager skill read <name>` meanwhile. |
+| `recall(intent, depth=, rows="ranked")` | search-hub | Returns the selected response rows directly; `ranked` is the default. `query=` is an additive alias for `intent=`. `depth="deep"` widens retrieval. |
+| `validate(scenario, depth=, rows="runs")` | test-genie | Returns the latest recorded run rows directly. It does not start a run. |
+| `capture(text, kind=)` | vrooli-memory | Returns a one-row Handle containing the append response; `kind="note"` or `"work-record"`. |
+| `guide(intent, rows="results")` | prompt-manager | Composes `prompt-manager/discover/discover` and returns ranked skill/action discovery rows. `task=`, `query=`, and `text=` are aliases for `intent=`. |
 
 Starting a test run stays a lifecycle operation: run `vrooli scenario test
 <name>`, then block **once** with `test-genie runs wait`. Never poll, and never
 implement a polling loop inside a program.
 
+Runtime verbs obey the same bounded result contract as scenario bindings:
+`count()`, `head()`, and `group_by()` operate on the owning operation's rows.
+`meta()` carries non-row response fields plus `verb`, `binding_id`, and `owner`,
+while `raw()` carries the decoded owning response. Use `rows="<field>"` to
+select a different repeated response field; an invalid selection fails closed
+and lists the available fields.
+
+The public keyword vocabulary is recovery-oriented. `recall(query="...")`,
+`validate(scenario="...")`, `capture(text="...")`, and `guide(task="...")`
+are accepted forms.
+Supplying two spellings of one value raises a `TypeError`. An unknown keyword
+names the offending keyword and lists the accepted keywords; use that list
+instead of guessing another spelling.
+
+`discover` takes `mode="fast"`, `"judged"` (default), or `"deep"`. Its row
+separates two outcomes that both carry an empty `binding_id`: `unavailable=False`
+is the honest verdict that nothing governed serves the intent, and is a **stop**;
+`unavailable=True` means discovery itself failed, is **not** evidence that the
+capability is absent, and should be retried or downgraded to `mode="fast"`.
+
+### Long-running programs
+
+A synchronous submission is bounded at two minutes. Longer work is submitted
+asynchronously and awaited once:
+
+```text
+program-runtime programs submit --session-id <id> --source-file work.py --provenance agent --async
+program-runtime programs wait <program-id> --timeout 300s
+```
+
+`--async --wait-timeout 300s` does both in one command. Block **once**; the wait
+is served by the runtime and wakes on the terminal transition, so a polling loop
+is never correct. A synchronous submission that outruns its bound reports
+`deadline_exceeded` and names the still-running program id to wait on.
+
+
+Before hand-authoring a repeated shape, inspect the reviewed library first:
+
+~~~python
+catalog = lib.list()
+print(catalog.head(20))
+result = lib.concurrent_fanout()
+~~~
+
+The catalog is frozen when the session starts. Use the exact promoted name and
+its documented arguments; if no entry fits, then author a bounded program.
+Start a new session after a library version or current selection changes.
 
 ### Worked examples
 
@@ -186,16 +275,17 @@ an explicit null verdict. A successful handle row includes `binding_id`,
 `row = result.head(1)` before invoking anything. A null row has an empty
 `binding_id` and a stated `reason`. Stop and ask for a clearer intent or use
 the governed `bindings describe` command; never shell out or guess a path.
-The public namespace is flat: `<scenario>.<group>.<command>`, with hyphens becoming underscores. `vrooli.` addresses the project CLI only and never a scenario; `__vrooli__` is the stable root when a local variable shadows a scenario name.
+The public namespace is flat: `<scenario>.<group>.<command>`, with hyphens becoming underscores. `vrooli.` addresses the project CLI only and never a scenario — and never a runtime verb, so `vrooli.discover(...)` and `vrooli.recall(...)` both fail; call verbs at the top level. `__vrooli__` is the stable root when a local variable shadows a scenario name.
+
+**There is no `vrooli` module.** `import vrooli` and `from vrooli import recall` raise `ModuleNotFoundError`; every runtime name is already bound in the program's globals.
+
+**A program is module scope, not a function body.** `return` at the top level is a `SyntaxError` — use `if`/`else`, or wrap the body in a `def` and call it.
 For a bounded projection, use `count()`, `head(n)`, `filter(...)`, or
 `group_by(...)`. Use `materialize(limit)` only when the rows themselves are
 needed, and always keep the limit explicit.
 
-The library holds explicitly promoted programs only and is frozen when the
-session starts; there are no seeded entries. Use `lib.list()` to enumerate what
-the session froze and `lib.<promoted_name>(...)` to call one. The standard
-library is the runtime verbs, not `lib`.
-library workflow; start a new session after changing a library current version.
+The standard library is the runtime verbs, not lib; lib is the reviewed
+program library. Start a new session after changing a library current version.
 
 ### Governance rules
 

@@ -34,6 +34,19 @@ The team uses its source-ledger scope as the single source for opportunity intak
 | `topic[old]:vision-walk/alpha/<topic>` (legacy) | vision-walk fallback | Generic alpha when no typed topic fits. Prefer the typed `opportunity-inbox/*` or `validation-inbox/*` forms. |
 
 Other judgment and operator guidance remain authored documents under this team's config tree; executable changes are routed through swarm-manager.
+
+## Reading the plan of record
+
+The canon is split into two documents so a heartbeat does not load 44 files to
+apply a rule:
+
+- **`monetization-judgment`** (21 paths) — the rules a decision must satisfy.
+  Read this every heartbeat.
+- **`monetization-rationale`** (23 paths) — the reasoning behind individual
+  offers, channels, revenue lines, tiers, and prices. Their live matrices were
+  removed at adoption and each carries an authority note. Read one when the
+  instrument shows a record you need to interpret. **Never read either set to
+  learn what is currently true** — that is what the instrument is for.
 - Money Ledger `/adapters` — operator-supplied financial input surface. It is not team-owned canon; leave missing values absent rather than fabricating them.
 - Source Ledger `team:monetization` — durable team context and handoff history.
 

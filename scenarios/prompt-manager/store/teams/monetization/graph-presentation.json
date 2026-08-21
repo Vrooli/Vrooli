@@ -8,21 +8,35 @@
     "member:market-validator": "MV",
     "member:monetization-contrarian": "CON",
     "member:opportunity-scout": "OS",
+    "por:docs/monetization/README.md": "DOCS",
+    "por:docs/monetization/catalogs/CATALOG.md": "CAT",
+    "por:docs/monetization/catalogs/README.md": "CATR",
+    "por:docs/monetization/evidence/BENCHMARKS.md": "BMK",
+    "por:docs/monetization/evidence/FINANCIAL_MODEL.md": "FINMOD",
+    "por:docs/monetization/evidence/README.md": "EVR",
+    "por:docs/monetization/evidence/TELEMETRY_ROADMAP.md": "TELE",
+    "por:docs/monetization/governance/HOW_TO_GATHER_INPUTS.md": "INPUTS",
+    "por:docs/monetization/governance/adoption-validation.md": "ADOPT",
+    "por:docs/monetization/governance/changelog.md": "CHLOG",
+    "por:docs/monetization/governance/editing.md": "EDIT",
+    "por:docs/monetization/operating/OPERATING_MODEL.md": "MODEL",
+    "por:docs/monetization/operating/README.md": "OPR",
+    "por:docs/monetization/strategy/FUNNEL.md": "FUNNEL",
+    "por:docs/monetization/strategy/PRICING.md": "PRICE",
+    "por:docs/monetization/strategy/README.md": "STRATR",
+    "por:docs/monetization/strategy/STRATEGY.md": "STRAT",
+    "por:docs/monetization/strategy/TIERS.md": "TIERS",
     "por:scenarios/offer-desk/docs/spaces/offers.json": "BOARD",
-    "process:offer-desk-condition": "SENSOR",
     "process:instrument-read": "READ",
+    "process:offer-desk-condition": "SENSOR",
     "team:infra-health": "INFRA",
     "topic:monetization-benchmark-adjacent-record/*": "ADJ",
     "topic:monetization-benchmark-record/*": "BENCH",
     "topic:monetization/opportunity/*": "OPP",
     "topic:opportunity-inbox/*": "OIN",
     "topic:scout-scan/*": "SCOUT",
-    "topic:validation-inbox/*": "VAIN",
-    "por:scenarios/offer-desk/docs/spaces/offers.json": "BOARD",
-    "por:docs/monetization/README.md": "DOCS",
-    "por:docs/monetization/operating/OPERATING_MODEL.md": "MODEL",
-    "por:docs/monetization/strategy/PRICING.md": "PRICE",
-    "por:docs/monetization/strategy/STRATEGY.md": "STRAT"
+    "topic:scout-scan/YYYY-MM-DD": "SCOUTSCANYYY",
+    "topic:validation-inbox/*": "VAIN"
   },
   "displays": {
     "external:operator": "Operator",
@@ -33,33 +47,81 @@
     "member:market-validator": "Market Validator",
     "member:monetization-contrarian": "Monetization Contrarian",
     "member:opportunity-scout": "Opportunity Scout",
-    "process:offer-desk-condition": "Offer Desk condition",
     "process:instrument-read": "Instrument read",
-    "por:scenarios/offer-desk/docs/spaces/offers.json": "Offer Desk live instrument",
+    "process:offer-desk-condition": "Offer Desk condition",
     "team:infra-health": "Infra Health"
   },
   "nodeOrder": [
-    "external:operator",
-    "external:signal-inbox",
-    "external:vision-walk",
-    "team:infra-health",
-    "por:scenarios/offer-desk/docs/spaces/offers.json",
-    "process:offer-desk-condition",
-    "process:instrument-read",
-    "member:catalog-strategist",
-    "member:financial-tracker",
-    "member:market-validator",
-    "member:monetization-contrarian",
-    "member:opportunity-scout",
-    "topic:opportunity-inbox/*",
-    "topic:validation-inbox/*",
     "topic:monetization-benchmark-adjacent-record/*",
+    "por:docs/monetization/governance/adoption-validation.md",
     "topic:monetization-benchmark-record/*",
-    "topic:scout-scan/*",
-    "topic:monetization/opportunity/*",
+    "por:docs/monetization/evidence/BENCHMARKS.md",
+    "por:scenarios/offer-desk/docs/spaces/offers.json",
+    "por:docs/monetization/catalogs/CATALOG.md",
+    "por:docs/monetization/catalogs/README.md",
+    "por:docs/monetization/governance/changelog.md",
+    "member:monetization-contrarian",
+    "member:catalog-strategist",
     "por:docs/monetization/README.md",
+    "por:docs/monetization/governance/editing.md",
+    "por:docs/monetization/evidence/README.md",
+    "por:docs/monetization/evidence/FINANCIAL_MODEL.md",
+    "member:financial-tracker",
+    "por:docs/monetization/strategy/FUNNEL.md",
+    "team:infra-health",
+    "por:docs/monetization/governance/HOW_TO_GATHER_INPUTS.md",
     "por:docs/monetization/operating/OPERATING_MODEL.md",
+    "member:market-validator",
+    "topic:opportunity-inbox/*",
+    "external:operator",
+    "topic:monetization/opportunity/*",
+    "por:docs/monetization/operating/README.md",
+    "member:opportunity-scout",
     "por:docs/monetization/strategy/PRICING.md",
-    "por:docs/monetization/strategy/STRATEGY.md"
+    "process:instrument-read",
+    "topic:scout-scan/*",
+    "topic:scout-scan/YYYY-MM-DD",
+    "process:offer-desk-condition",
+    "external:signal-inbox",
+    "por:docs/monetization/strategy/STRATEGY.md",
+    "por:docs/monetization/strategy/README.md",
+    "por:docs/monetization/evidence/TELEMETRY_ROADMAP.md",
+    "por:docs/monetization/strategy/TIERS.md",
+    "topic:validation-inbox/*",
+    "external:vision-walk"
+  ],
+  "readabilityEdges": [
+    {
+      "from": "por:scenarios/offer-desk/docs/spaces/offers.json",
+      "to": "process:instrument-read"
+    },
+    {
+      "from": "process:instrument-read",
+      "to": "member:catalog-strategist"
+    },
+    {
+      "from": "process:instrument-read",
+      "to": "member:financial-tracker"
+    },
+    {
+      "from": "process:instrument-read",
+      "to": "member:market-validator"
+    },
+    {
+      "from": "process:instrument-read",
+      "to": "member:monetization-contrarian"
+    },
+    {
+      "from": "process:instrument-read",
+      "to": "member:opportunity-scout"
+    },
+    {
+      "from": "process:offer-desk-condition",
+      "to": "por:scenarios/offer-desk/docs/spaces/offers.json"
+    },
+    {
+      "from": "team:infra-health",
+      "to": "process:offer-desk-condition"
+    }
   ]
 }

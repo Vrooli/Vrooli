@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@/test-utils/renderWithProviders'
 import { MemoryRouter } from 'react-router-dom'
 import { TeamDashboardTab } from './TeamDashboardTab'
 import type { TeamDetails } from '@/types/team'

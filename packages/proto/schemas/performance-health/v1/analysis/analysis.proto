@@ -53,6 +53,16 @@ message AnalyzeTraceResponse {
   // Cumulative Layout Shift. Unitless (not milliseconds), so it is a double
   // rather than one of the int64 timing fields above.
   double cls = 10;
+  // PerformanceNavigationTiming phases, milliseconds from navigation start.
+  // Monotonic: response_end <= dom_interactive <= dom_content_loaded <=
+  // load_event_end.
+  int64 response_end_ms = 11;
+  int64 dom_interactive_ms = 12;
+  int64 dom_content_loaded_ms = 13;
+  int64 load_event_end_ms = 14;
+  // Navigation kind ("navigate", "reload", "back_forward", "prerender").
+  // Context that qualifies the timings above, not a gated metric.
+  string navigation_type = 15;
 }
 
 // ComponentTiming is one React component's commit profile across the trace.

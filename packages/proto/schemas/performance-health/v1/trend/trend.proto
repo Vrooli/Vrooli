@@ -43,6 +43,15 @@ message TrendSample {
   int64 ui_build_ms = 4;
   int64 bundle_bytes = 5;
   int64 lcp_ms = 6;
+  // Cumulative Layout Shift (unitless).
+  double cls = 13;
+  // PerformanceNavigationTiming phases, milliseconds from navigation start.
+  int64 response_end_ms = 14;
+  int64 dom_interactive_ms = 15;
+  int64 dom_content_loaded_ms = 16;
+  int64 load_event_end_ms = 17;
+  // Navigation kind; a reload is not comparable with a cold navigate.
+  string navigation_type = 18;
   int64 startup_ms = 7;
   // Optional human note (e.g. degraded reason, axes captured).
   string note = 8;

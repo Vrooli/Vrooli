@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, waitFor } from '@testing-library/react'
+import { render, waitFor } from '@/test-utils/renderWithProviders'
 import { OperatingMapFlow } from './OperatingMapFlow'
 
 const { navigate, getOperatingMap, state } = vi.hoisted(() => ({

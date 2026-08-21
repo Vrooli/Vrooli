@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"prompt-manager/store"
+	"prompt-manager/internal/store"
 )
 
 func TestHeaderValue_OperatorDirectWhenEnvUnset(t *testing.T) {

@@ -45,7 +45,7 @@ Required file reads (every run):
 - `docs/marketing/strategy/CHANNELS.md` — sanitization rules and per-platform formatting.
 - `docs/marketing/strategy/ASSETS.md` and `docs/marketing/strategy/IMAGE_STYLE.md` — brand consistency rules for the asset.
 - The target scenario's `PRD.md` and `README.md` — verifiable claims about what the scenario actually does.
-- `docs/monetization/TIERS.md` and `docs/monetization/scenario-sku-map.json` — for tier-alignment of demo'd features against the CTA's tier.
+- `path:docs/monetization/strategy/TIERS.md` for tier judgment, and `offer-desk offers catalog-list` / `catalog-edges` for the live tier and scenario→SKU mapping — for tier-alignment of demo'd features against the CTA's tier.
 - `scenarios/prompt-manager/store/teams/content-desk subject-familiarity records` (filtered by audience) — to decide whether to apply intro-on-first-mention or use a one-line refresher.
 
 Optional reads:
@@ -77,7 +77,7 @@ Run the steps in order. Do not skip the verifiability passes — they are what d
 
 1. **Pull verifiable scenario state.** Read the scenario's `PRD.md`, `README.md`, and any `path:docs/concepts/` or `path:docs/guides/` material. Build a list of every claim that could appear in the post and tag each: `verified` (cross-checked against PRD/README) or `uncertain`. Discard `uncertain` claims before drafting.
 
-2. **Tier-align the demo'd features.** For every feature you might demo, look up its tier in `scenarios/<scenario>/.vrooli/service.json` and `docs/monetization/scenario-sku-map.json`. Mark any feature not reachable from the `conversion_rung`'s tier as `tier-mismatch` and exclude it.
+2. **Tier-align the demo'd features.** For every feature you might demo, look up its tier in `scenarios/<scenario>/.vrooli/service.json` and Offer Desk (`offer-desk offers catalog-list`, `offer-desk offers catalog-edges`). Mark any feature not reachable from the `conversion_rung`'s tier as `tier-mismatch` and exclude it.
 
 3. **Resolve audience familiarity.** Filter `content-desk subject-familiarity records` by `audience_persona`. If the scenario has not been mentioned to this audience before, plan a full intro (one sentence: what it is, why it exists, what it does at a high level). If mentioned ≥1 time, use a one-line refresher.
 
@@ -153,7 +153,7 @@ End your response with a fenced ` ```json ` block with this shape:
   "contrarian_self_check": {
     "capability_inflation": "no — every claim cross-checked against PRD",
     "demo_theater": "no — fresh user can replicate per scenes 1-3",
-    "pricing_tier_confusion": "no — features map to free-tier per scenario-sku-map",
+    "pricing_tier_confusion": "no — features map to free-tier per offer-desk catalog-edges",
     "brand_asset_drift": "no — overlay matches IMAGE_STYLE palette",
     "internal_vocabulary_leakage": "no — scanned for p\\d+, round-, batch ids",
     "recommendation_without_basis": "n/a — variant=direct",

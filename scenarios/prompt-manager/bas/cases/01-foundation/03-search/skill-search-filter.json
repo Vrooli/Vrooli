@@ -45,6 +45,98 @@
       }
     },
     {
+      "id": "wait-new-skill",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/sidebar.newSkillButton",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for new skill button"
+        }
+      }
+    },
+    {
+      "id": "click-new-skill",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/sidebar.newSkillButton"
+        },
+        "metadata": {
+          "label": "Create isolated draft skill"
+        }
+      }
+    },
+    {
+      "id": "wait-editor",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/editor.header",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for draft editor"
+        }
+      }
+    },
+    {
+      "id": "save-seed-skill",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/editor.saveButton"
+        },
+        "metadata": {
+          "label": "Persist isolated search fixture"
+        }
+      }
+    },
+    {
+      "id": "wait-expand-all",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/sidebar.expandAllButton",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for expand-all control"
+        }
+      }
+    },
+    {
+      "id": "expand-skill-groups",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/sidebar.expandAllButton"
+        },
+        "metadata": {
+          "label": "Expand skill groups"
+        }
+      }
+    },
+    {
+      "id": "wait-seed-skill",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/sidebar.skillRow",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for isolated search fixture"
+        }
+      }
+    },
+    {
       "id": "wait-search-input",
       "action": {
         "type": "ACTION_TYPE_WAIT",
@@ -148,44 +240,86 @@
       "target": "wait-sidebar",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "e2",
-      "source": "wait-sidebar",
-      "target": "wait-search-input",
+  {
+    "id": "e2",
+    "source": "wait-sidebar",
+    "target": "wait-new-skill",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
+  {
+    "id": "e3",
+    "source": "wait-new-skill",
+    "target": "click-new-skill",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
+  {
+    "id": "e4",
+    "source": "click-new-skill",
+    "target": "wait-editor",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
     {
-      "id": "e3",
-      "source": "wait-search-input",
-      "target": "type-non-matching-query",
+      "id": "e5",
+      "source": "wait-editor",
+      "target": "save-seed-skill",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "e4",
+  {
+    "id": "e6",
+    "source": "save-seed-skill",
+    "target": "wait-expand-all",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
+  {
+    "id": "e6a",
+    "source": "wait-expand-all",
+    "target": "expand-skill-groups",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
+  {
+    "id": "e6b",
+    "source": "expand-skill-groups",
+    "target": "wait-seed-skill",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
+  {
+    "id": "e7",
+    "source": "wait-seed-skill",
+    "target": "wait-search-input",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
+  {
+    "id": "e8",
+    "source": "wait-search-input",
+    "target": "type-non-matching-query",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+  {
+    "id": "e9",
       "source": "type-non-matching-query",
       "target": "wait-filter-update",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "e5",
+  {
+    "id": "e10",
       "source": "wait-filter-update",
       "target": "assert-empty-state",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "e6",
+  {
+    "id": "e11",
       "source": "assert-empty-state",
       "target": "clear-search",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "e7",
+  {
+    "id": "e12",
       "source": "clear-search",
       "target": "wait-clear-update",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "e8",
+  {
+    "id": "e13",
       "source": "wait-clear-update",
       "target": "assert-empty-state-cleared",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"

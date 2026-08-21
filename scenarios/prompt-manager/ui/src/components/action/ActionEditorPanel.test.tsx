@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@/test-utils/renderWithProviders'
 import { ActionEditorPanel } from './ActionEditorPanel'
 import { useActionsData } from '@/hooks/useActionsData'
 import type { Action, ActionValidationResponse } from '@/types'
@@ -109,7 +109,7 @@ describe('ActionEditorPanel', () => {
 
     expect(screen.getByText('List Team Work')).toBeDefined()
     expect(screen.getByText('team.swarm.work.list')).toBeDefined()
-    expect(screen.getAllByText('swarm-manager backlog list --json').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('prompt-manager team workItems list').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'Dry run' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled()
   })

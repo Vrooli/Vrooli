@@ -214,6 +214,9 @@ export function GraphNodePopover({
         <div
           data-testid="graph-node-popover-mobile"
           className="fixed inset-x-0 bottom-0 z-[101] max-h-[80vh] overflow-y-auto rounded-t-2xl border border-border bg-popover text-popover-foreground text-xs shadow-2xl motion-safe:animate-in motion-safe:slide-in-from-bottom-6 motion-safe:fade-in-0 motion-safe:duration-200"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Graph node ${node.label}`}
           onClick={(e) => e.stopPropagation()}
         >
           <GraphNodeDetails

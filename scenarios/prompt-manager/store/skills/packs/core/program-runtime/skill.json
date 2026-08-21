@@ -3,13 +3,13 @@
   "schemaVersion": 1,
   "id": "program-runtime",
   "name": "Program Runtime",
-  "description": "Write governed Python programs with persistent sessions, typed scenario bindings, bounded handles, provenance, typed inference, and failure-corpus discovery.",
+  "description": "Use for high-arity or multi-scenario work: write one governed Python program to fan out across scenario bindings, join cross-scenario reads, discard intermediate data, and return bounded results instead of long tool-call loops.",
   "modes": ["tools"],
-  "tags": ["skill", "program", "python", "session", "binding", "typed inference", "governance", "runtime"],
+  "tags": ["skill", "program", "python", "session", "binding", "typed inference", "governance", "runtime", "high arity", "multi-scenario", "cross-scenario", "fan-out", "bounded results", "return bounded results", "discard intermediates", "discard intermediate data", "tool-call compression"],
   "icon": "terminal",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 2,
+  "revision": 3,
   "createdAt": "2026-08-06T00:00:00Z",
-  "updatedAt": "2026-08-06T00:00:00Z"
+  "updatedAt": "2026-08-19T00:00:00Z"
 }

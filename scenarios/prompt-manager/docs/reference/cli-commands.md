@@ -4,10 +4,28 @@ Complete documentation for the prompt-manager CLI (`prompt-manager`).
 
 ## Installation
 
-```bash
-cd scenarios/prompt-manager/cli
-go build -o prompt-manager .
-```
+The CLI is installed and refreshed by the scenario lifecycle. Use
+`vrooli scenario start prompt-manager`; do not run or install the scenario
+binary directly.
+
+## Contract and maturity
+
+`cli/manifest.json` is the machine-readable command contract. The current
+surface contains 130 declared command leaves: 120 generated Connect bindings
+and 10 intentionally local compatibility/meta commands. The 75 proto methods
+without a standalone CLI workflow are listed in `omitted[]` with method-specific
+reasons; they remain available to generated clients. Eighteen runtime
+multiplexers or composite/local renderer modes are recorded in `exceptions[]`.
+
+CLI Health validates the manifest against the generated descriptors and Program
+Runtime resolves its callable bindings from the same file. A new command is not
+complete until its binding, arguments, effect, run eligibility, and permissions
+describe the behavior users actually invoke.
+
+Nine read commands also declare live analytical measures: `action list`,
+`agent list`, `discovery-metrics`, `graph health`, `skill-usage`, `skill list`,
+`tag list`, `team list`, and `topic list`. Their compute paths are served at
+`/measures` and read the same domain stores as the typed RPCs.
 
 ## Global Options
 
@@ -23,12 +41,18 @@ go build -o prompt-manager .
 | Command | Description |
 |---------|-------------|
 | `prompt-manager skill` | Manage skills (CRUD, versions, ratings) |
-| `prompt-manager agent` | Manage agents (CRUD, appearance, files) |
+| `prompt-manager agent` | Manage canonical agents (CRUD, soul, search) |
+| `prompt-manager member` | Deprecated avatar compatibility projection over agents |
+| `prompt-manager team` | Manage teams, heartbeat operations, handoffs, and task boards |
+| `prompt-manager experiment` | Manage governed skill experiments |
 | `prompt-manager tag` | Manage tags |
 | `prompt-manager test` | Test skills with Ollama |
 | `prompt-manager search` | Search skills |
 | `prompt-manager discover` | Discover relevant skills and opt-in Action matches |
 | `prompt-manager discovery-gaps` | Clustered unmet-capability queries (discovery misses) |
+| `prompt-manager discovery-metrics` | Inspect persisted discovery telemetry |
+| `prompt-manager skill-usage` | Inspect persisted skill-read and discovery usage |
+| `prompt-manager heartbeat-control` | Inspect and control global heartbeat scheduling |
 | `prompt-manager action` | Manage typed executable Action contracts |
 | `prompt-manager graph` | Relationship graph analysis |
 | `prompt-manager metadata` | Fetch URL metadata |
@@ -147,20 +171,6 @@ prompt-manager skill delete <id> [--force]
 | Flag | Description |
 |------|-------------|
 | `--force` | Skip confirmation prompt |
-
-### prompt-manager skill use
-
-Record usage and copy skill content to clipboard.
-
-```bash
-prompt-manager skill use <id>
-```
-
-**Example:**
-```bash
-prompt-manager skill use debugging
-# Output: Usage recorded! Content copied to clipboard.
-```
 
 ### prompt-manager skill sync
 

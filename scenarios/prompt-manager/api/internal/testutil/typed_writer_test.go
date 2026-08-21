@@ -32,10 +32,10 @@ func TestPersistedShapesUseTypedWriters(t *testing.T) {
 		// This fixture is malformed on purpose — it writes truncated JSON to
 		// exercise the loader's parse-error path. A typed writer cannot
 		// produce invalid JSON, which is exactly why it is exempt.
-		"store/action_store_test.go": "writes deliberately malformed JSON to test the parse-error path",
+		"internal/store/action_store_test.go": "writes deliberately malformed JSON to test the parse-error path",
 		// Same reason: por_manifest_invalid exists for manifests the parser
 		// rejects, and a typed writer cannot produce one.
-		"memberflow/plan_of_record_rules_behavior_test.go": "writes deliberately truncated JSON to test por_manifest_invalid",
+		"internal/memberflow/plan_of_record_rules_behavior_test.go": "writes deliberately truncated JSON to test por_manifest_invalid",
 	}
 
 	err := filepath.WalkDir(apiRoot, func(path string, entry os.DirEntry, walkErr error) error {

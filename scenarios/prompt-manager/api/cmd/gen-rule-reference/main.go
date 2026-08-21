@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"prompt-manager/memberflow"
+	"prompt-manager/internal/memberflow"
 )
 
 func main() {

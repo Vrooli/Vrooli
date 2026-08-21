@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@/test-utils/renderWithProviders'
 import { ActionListPanel } from './ActionListPanel'
 import { useActionsData } from '@/hooks/useActionsData'
 import type { Action } from '@/types'
@@ -81,7 +81,7 @@ describe('ActionListPanel', () => {
     fireEvent.click(screen.getByText('List Team Work'))
 
     expect(screen.getByText('team.swarm.work.list')).toBeDefined()
-    expect(screen.getByText('swarm-manager backlog list --json')).toBeDefined()
+    expect(screen.getByText('prompt-manager team workItems list')).toBeDefined()
     expect(screen.getByRole('button', { name: 'List Team Work, active Action owned by scenario:prompt-manager' })).toBeDefined()
     expect(onSelect).toHaveBeenCalledWith('team.swarm.work.list')
   })

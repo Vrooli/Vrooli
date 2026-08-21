@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-25T17:32:58-04:00"
+    "last_validated_at": "2026-08-21T12:08:34-04:00"
   },
   "requirements": [
     {
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "All agent CRUD endpoints return correct HTTP status codes"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Agent appearance, SOUL.md, capabilities validation"
         },
         {
@@ -29,25 +29,25 @@
           "status": "not_implemented",
           "notes": "Agent stored in file-based store (store/agents/)"
         },
-      {
-        "type": "test",
-        "phase": "performance",
-        "status": "implemented",
-        "notes": "Agent API response time under 100ms"
-      },
-      {
-        "type": "bas",
-        "phase": "workflow",
-        "status": "implemented",
-        "notes": "Member creation journey",
-        "ref": "bas/cases/01-foundation/04-members/member-create.json"
-      }
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "failing",
+          "notes": "Agent API response time under 100ms"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-foundation/04-members/member-create.json",
+          "phase": "workflow",
+          "status": "implemented",
+          "notes": "Member creation journey"
+        }
       ]
     },
     {
       "id": "REQ-P0-017",
       "title": "Agent Appearance Configuration",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "prompt-manager-must-have-agent-crud-operations-via-api",
       "category": "api",
       "description": "Agent appearance configuration with body, head, and accent colors for 3D visualization",
@@ -55,13 +55,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Appearance colors stored and retrieved correctly"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Hex color validation for appearance fields"
         }
       ]

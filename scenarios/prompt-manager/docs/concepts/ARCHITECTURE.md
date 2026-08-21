@@ -1,6 +1,73 @@
 # Architecture Overview
 
-This document describes the overall architecture of the prompt-manager scenario, including system components, data flow, and design decisions.
+This document describes prompt-manager's governing target architecture. The
+domain inventory, dependency graph, proto package map, binding policy, and
+migration order live in [DOMAINS.md](DOMAINS.md). During the staged migration,
+code that has not reached its assigned slice may still use the legacy REST
+shape documented below; that is transitional state, not a second supported
+architecture.
+
+## Governing target
+
+Prompt Manager is a **proto-first Connect API**. Each callable business domain
+owns one versioned proto package under
+`packages/proto/schemas/prompt-manager/v1/<domain>`. Generated Go and
+TypeScript artifacts are the transport contract. Connect handlers are thin
+adapters: decode, map to domain values, delegate once, map the result, and map
+typed errors. Business validation, persistence, ranking, scheduling, and
+policy do not live in handlers.
+
+The CLI is a **thin generated-client wrapper**. It owns flags, attribution,
+human/JSON rendering, and explicitly local conveniences only. It does not
+reimplement domain behavior or make hand-authored REST calls. Every
+runtime-visible command is either bound to one proto RPC with accurate
+governance or appears in `omitted[]` with a specific reason and owner.
+
+```text
+CLI / UI / Program Runtime
+          |
+          v
+generated Connect clients
+          |
+          v
+api/handlers/<domain>       transport-only mapping
+          |
+          v
+api/internal/<domain>       domain service + owned ports
+          |
+          v
+api/internal/store          filesystem / SQLite adapters
+          |
+          +--> Qdrant / Ollama / governed scenario clients
+```
+
+The composition root mounts services and wires ports. Domains do not import
+the composition root, handlers, CLI, or generated clients. Cross-domain reads
+use narrow consumer-owned interfaces. Heartbeat and memberflow retain distinct
+ownership but migrate together because their scheduling, declarations, and
+prompt construction form one temporal contract.
+
+Transport is portable by construction: clients resolve the lifecycle-managed
+API address, paths use Go's platform-aware APIs, and no contract depends on a
+shell, fixed home directory, executable suffix, or path separator.
+
+## Migration invariants
+
+- A migrated operation has one supported transport. Its REST registration is
+  removed only after repository consumer search and live CLI parity.
+- Generated messages are wire types, not the domain model.
+- Stateful domains expose real, data-bearing measures or a named waiver.
+- Reads are program-eligible by default; writes require bounded targets,
+  attribution, and truthful effect declarations. Destructive/operator-only
+  commands are omitted until those properties are proved.
+- `skill read`, `skill list`, and `discover` are mandatory bindings because
+  they are the exercised supply chain for agent recall and discovery.
+
+## Transitional current system
+
+The following snapshot describes the pre-migration implementation that the
+phased work is replacing. It is retained to make seams and storage decisions
+auditable, not to endorse hand-written REST as a parallel target.
 
 ## System Components
 
@@ -14,7 +81,7 @@ This document describes the overall architecture of the prompt-manager scenario,
 └───────┼────────────┼───────────────────────┼────────────────────┘
         │            │                       │
         └────────────┴───────────┬───────────┘
-                                 │ HTTP/REST
+                                 │ REST today; Connect is the target
                                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                        API Server (Go)                          │
@@ -46,7 +113,11 @@ This document describes the overall architecture of the prompt-manager scenario,
 
 ## Domain-Driven Design
 
-The API follows screaming architecture principles where folder structure reflects the business domain:
+The current tree groups much behavior by business name, but it does not yet
+meet the scenario layout contract: handlers and domain implementation are
+mixed in `api/<domain>`, while the target `api/handlers/*` and
+`api/internal/*` trees are mostly empty. Phase 11 normalizes that layout
+without changing behavior; [DOMAINS.md](DOMAINS.md) is the authoritative map.
 
 ```
 api/
@@ -181,7 +252,8 @@ Actions are not arbitrary code. They are typed contracts that call exactly one V
 
 ## CLI Architecture
 
-The CLI is an API-first client with a small amount of contract-aware flag resolution, following noun-verb command patterns:
+The target CLI is a Connect-first client with a small amount of
+contract-aware flag resolution, following noun-verb command patterns:
 
 ```
 cli/
@@ -200,7 +272,9 @@ cli/
     └── types/       # Shared types
 ```
 
-**Design Principle:** Every CLI command maps 1:1 to an API endpoint. No business logic in CLI.
+**Design Principle:** Every remote CLI command maps 1:1 to a generated RPC.
+CLI-local commands are explicitly omitted from program bindings. No business
+logic lives in the CLI.
 
 The Action CLI follows the same principle. `prompt-manager action run <id>` resolves an Action contract through the API and executes one controlled command through the governed runtime; it does not contain business logic or shell recipes.
 

@@ -76,8 +76,8 @@ curl http://localhost:PORT/api/v1/skills
 # Get a skill
 curl http://localhost:PORT/api/v1/skills/{id}
 
-# Search
-curl "http://localhost:PORT/api/v1/search/skills?q=debugging"
+# Search through the generated Connect-backed CLI
+prompt-manager search debugging --text --json
 ```
 
 ## Common Operations
@@ -148,7 +148,10 @@ make logs
 Prompt-manager creates its SQLite database automatically under the Vrooli storage root. If you need a known location for debugging, set an explicit file path before starting:
 
 ```bash
-export SQLITE_PATH=/tmp/prompt-manager.db
+# Redirect the whole storage tree, not one database file. The root is
+# scenario-agnostic, so every scenario beneath it still resolves to its own
+# separate path.
+export VROOLI_STORAGE_ROOT=/tmp/vrooli-storage
 make start
 ```
 

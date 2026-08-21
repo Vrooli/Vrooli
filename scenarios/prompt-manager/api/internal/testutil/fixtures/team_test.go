@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"prompt-manager/teamconfig"
+	"prompt-manager/internal/teamconfig"
 )
 
 func TestWriteTeamMarshalsTeamFixture(t *testing.T) {

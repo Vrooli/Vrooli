@@ -16,7 +16,7 @@
  */
 
 import { buildApiUrl } from '@vrooli/api-base'
-import { API_BASE } from '@/lib/api'
+import { API_BASE, connectSlice4Request } from '@/lib/api'
 import type {
   TopicDeclaration,
   TopicsGraphResponse,
@@ -38,6 +38,10 @@ async function apiRequest<T>(endpoint: string, opts: RequestOptions = {}): Promi
   }
   if (opts.body !== undefined) {
     init.body = JSON.stringify(opts.body)
+  }
+  const migrated = await connectSlice4Request(endpoint, init)
+  if (migrated.handled) {
+    return migrated.data as T
   }
   const response = await fetch(url, init)
   if (!response.ok) {

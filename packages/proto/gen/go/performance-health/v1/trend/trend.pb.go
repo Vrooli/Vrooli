@@ -136,7 +136,16 @@ type TrendSample struct {
 	UiBuildMs   int64  `protobuf:"varint,4,opt,name=ui_build_ms,json=uiBuildMs,proto3" json:"ui_build_ms,omitempty"`
 	BundleBytes int64  `protobuf:"varint,5,opt,name=bundle_bytes,json=bundleBytes,proto3" json:"bundle_bytes,omitempty"`
 	LcpMs       int64  `protobuf:"varint,6,opt,name=lcp_ms,json=lcpMs,proto3" json:"lcp_ms,omitempty"`
-	StartupMs   int64  `protobuf:"varint,7,opt,name=startup_ms,json=startupMs,proto3" json:"startup_ms,omitempty"`
+	// Cumulative Layout Shift (unitless).
+	Cls float64 `protobuf:"fixed64,13,opt,name=cls,proto3" json:"cls,omitempty"`
+	// PerformanceNavigationTiming phases, milliseconds from navigation start.
+	ResponseEndMs      int64 `protobuf:"varint,14,opt,name=response_end_ms,json=responseEndMs,proto3" json:"response_end_ms,omitempty"`
+	DomInteractiveMs   int64 `protobuf:"varint,15,opt,name=dom_interactive_ms,json=domInteractiveMs,proto3" json:"dom_interactive_ms,omitempty"`
+	DomContentLoadedMs int64 `protobuf:"varint,16,opt,name=dom_content_loaded_ms,json=domContentLoadedMs,proto3" json:"dom_content_loaded_ms,omitempty"`
+	LoadEventEndMs     int64 `protobuf:"varint,17,opt,name=load_event_end_ms,json=loadEventEndMs,proto3" json:"load_event_end_ms,omitempty"`
+	// Navigation kind; a reload is not comparable with a cold navigate.
+	NavigationType string `protobuf:"bytes,18,opt,name=navigation_type,json=navigationType,proto3" json:"navigation_type,omitempty"`
+	StartupMs      int64  `protobuf:"varint,7,opt,name=startup_ms,json=startupMs,proto3" json:"startup_ms,omitempty"`
 	// Optional human note (e.g. degraded reason, axes captured).
 	Note string `protobuf:"bytes,8,opt,name=note,proto3" json:"note,omitempty"`
 	// The slowest component (by average commit time) observed this run, if any.
@@ -221,6 +230,48 @@ func (x *TrendSample) GetLcpMs() int64 {
 	return 0
 }
 
+func (x *TrendSample) GetCls() float64 {
+	if x != nil {
+		return x.Cls
+	}
+	return 0
+}
+
+func (x *TrendSample) GetResponseEndMs() int64 {
+	if x != nil {
+		return x.ResponseEndMs
+	}
+	return 0
+}
+
+func (x *TrendSample) GetDomInteractiveMs() int64 {
+	if x != nil {
+		return x.DomInteractiveMs
+	}
+	return 0
+}
+
+func (x *TrendSample) GetDomContentLoadedMs() int64 {
+	if x != nil {
+		return x.DomContentLoadedMs
+	}
+	return 0
+}
+
+func (x *TrendSample) GetLoadEventEndMs() int64 {
+	if x != nil {
+		return x.LoadEventEndMs
+	}
+	return 0
+}
+
+func (x *TrendSample) GetNavigationType() string {
+	if x != nil {
+		return x.NavigationType
+	}
+	return ""
+}
+
 func (x *TrendSample) GetStartupMs() int64 {
 	if x != nil {
 		return x.StartupMs
@@ -266,7 +317,7 @@ const file_performance_health_v1_trend_trend_proto_rawDesc = "" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"y\n" +
 	"\x10GetTrendResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12I\n" +
-	"\asamples\x18\x02 \x03(\v2/.vrooli.performance_health.v1.trend.TrendSampleR\asamples\"\xa4\x03\n" +
+	"\asamples\x18\x02 \x03(\v2/.vrooli.performance_health.v1.trend.TrendSampleR\asamples\"\x93\x05\n" +
 	"\vTrendSample\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1f\n" +
 	"\vcaptured_at\x18\x02 \x01(\tR\n" +
@@ -274,7 +325,13 @@ const file_performance_health_v1_trend_trend_proto_rawDesc = "" +
 	"\vgo_build_ms\x18\x03 \x01(\x03R\tgoBuildMs\x12\x1e\n" +
 	"\vui_build_ms\x18\x04 \x01(\x03R\tuiBuildMs\x12!\n" +
 	"\fbundle_bytes\x18\x05 \x01(\x03R\vbundleBytes\x12\x15\n" +
-	"\x06lcp_ms\x18\x06 \x01(\x03R\x05lcpMs\x12\x1d\n" +
+	"\x06lcp_ms\x18\x06 \x01(\x03R\x05lcpMs\x12\x10\n" +
+	"\x03cls\x18\r \x01(\x01R\x03cls\x12&\n" +
+	"\x0fresponse_end_ms\x18\x0e \x01(\x03R\rresponseEndMs\x12,\n" +
+	"\x12dom_interactive_ms\x18\x0f \x01(\x03R\x10domInteractiveMs\x121\n" +
+	"\x15dom_content_loaded_ms\x18\x10 \x01(\x03R\x12domContentLoadedMs\x12)\n" +
+	"\x11load_event_end_ms\x18\x11 \x01(\x03R\x0eloadEventEndMs\x12'\n" +
+	"\x0fnavigation_type\x18\x12 \x01(\tR\x0enavigationType\x12\x1d\n" +
 	"\n" +
 	"startup_ms\x18\a \x01(\x03R\tstartupMs\x12\x12\n" +
 	"\x04note\x18\b \x01(\tR\x04note\x12+\n" +

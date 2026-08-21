@@ -9,7 +9,7 @@
  */
 
 import { buildApiUrl } from '@vrooli/api-base'
-import { API_BASE } from '@/lib/api'
+import { API_BASE, connectSlice4Request } from '@/lib/api'
 import { operatorDirectAttributionHeaders } from './attribution'
 
 // ============================================================================
@@ -317,6 +317,11 @@ async function apiRequest<T>(
   if (options?.headers) {
     const extraHeaders = options.headers as Record<string, string>
     Object.assign(headers, extraHeaders)
+  }
+
+  const migrated = await connectSlice4Request(endpoint, { ...options, headers })
+  if (migrated.handled) {
+    return migrated.data as T
   }
 
   const response = await fetch(url, {

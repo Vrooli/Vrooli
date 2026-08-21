@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	clitest "github.com/vrooli/cli-core/cliapptest"
+	clitest "prompt-manager/cli/internal/testutil"
 )
 
 func TestUsageTextMentionsTopicsAndDrainStatus(t *testing.T) {

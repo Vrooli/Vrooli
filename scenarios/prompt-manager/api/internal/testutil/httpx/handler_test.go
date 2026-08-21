@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 func TestJSONRequestEncodesBodyAndRouteVars(t *testing.T) {
@@ -31,7 +32,7 @@ func TestDecodeJSONAndAssertStatus(t *testing.T) {
 	recorder.Code = http.StatusAccepted
 	recorder.Body.WriteString(`{"ok":true}`)
 
-	AssertStatus(t, recorder, http.StatusAccepted)
+	apihttptest.AssertStatus(t, recorder.Result(), http.StatusAccepted)
 	resp := DecodeJSON[struct {
 		OK bool `json:"ok"`
 	}](t, recorder)

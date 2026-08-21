@@ -1,6 +1,11 @@
 package appctx
 
-import "testing"
+import (
+	"testing"
+
+	"connectrpc.com/connect"
+	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
+)
 
 func TestDecodeIgnoresNilResultAndEmptyBody(t *testing.T) {
 	if err := decode([]byte(`{"ok":true}`), nil); err != nil {
@@ -21,5 +26,35 @@ func TestDecodeUnmarshalsJSON(t *testing.T) {
 	}
 	if !result.OK {
 		t.Fatal("expected decoded true value")
+	}
+}
+
+func TestRPCBodyUnwrapsAnEmptyRepeatedFieldAsJSONArray(t *testing.T) {
+	body, handled, err := rpcBody(connect.NewResponse(&skillsv1.ListSkillVariantsResponse{}), "variants", true, nil)
+	if err != nil {
+		t.Fatalf("unwrap empty variants: %v", err)
+	}
+	if !handled || string(body) != "[]" {
+		t.Fatalf("body=%s handled=%t", body, handled)
+	}
+}
+
+func TestNormalizeInt64JSONFieldRestoresLegacyNumber(t *testing.T) {
+	body, err := normalizeInt64JSONField([]byte(`{"durationMs":"42","status":"dry-run"}`), "durationMs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != `{"durationMs":42,"status":"dry-run"}` {
+		t.Fatalf("body=%s", body)
+	}
+}
+
+func TestRenameJSONFieldPreservesLegacyDryRunShape(t *testing.T) {
+	body, err := renameJSONField([]byte(`{"dryRun":true,"plan":{}}`), "dryRun", "dry_run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != `{"dry_run":true,"plan":{}}` {
+		t.Fatalf("unexpected body: %s", body)
 	}
 }

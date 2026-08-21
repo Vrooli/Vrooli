@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file performance-health/v1/trend/trend.proto.
  */
 export const file_performance_health_v1_trend_trend: GenFile = /*@__PURE__*/
-  fileDesc("CidwZXJmb3JtYW5jZS1oZWFsdGgvdjEvdHJlbmQvdHJlbmQucHJvdG8SInZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEudHJlbmQiMgoPR2V0VHJlbmRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg0KBWxpbWl0GAIgASgFImYKEEdldFRyZW5kUmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSQAoHc2FtcGxlcxgCIAMoCzIvLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEudHJlbmQuVHJlbmRTYW1wbGUikwIKC1RyZW5kU2FtcGxlEhAKCHNjZW5hcmlvGAEgASgJEhMKC2NhcHR1cmVkX2F0GAIgASgJEhMKC2dvX2J1aWxkX21zGAMgASgDEhMKC3VpX2J1aWxkX21zGAQgASgDEhQKDGJ1bmRsZV9ieXRlcxgFIAEoAxIOCgZsY3BfbXMYBiABKAMSEgoKc3RhcnR1cF9tcxgHIAEoAxIMCgRub3RlGAggASgJEhkKEXNsb3dlc3RfY29tcG9uZW50GAogASgJEiAKGHNsb3dlc3RfY29tcG9uZW50X2F2Z19tcxgLIAEoARIgChhzbG93ZXN0X2NvbXBvbmVudF9tYXhfbXMYDCABKAFKBAgJEApSBnA5NV9tczKFAQoMVHJlbmRTZXJ2aWNlEnUKCEdldFRyZW5kEjMudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS50cmVuZC5HZXRUcmVuZFJlcXVlc3QaNC52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLnRyZW5kLkdldFRyZW5kUmVzcG9uc2VCVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wZXJmb3JtYW5jZS1oZWFsdGgvdjEvdHJlbmQ7dHJlbmRfdjFiBnByb3RvMw");
+  fileDesc("CidwZXJmb3JtYW5jZS1oZWFsdGgvdjEvdHJlbmQvdHJlbmQucHJvdG8SInZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEudHJlbmQiMgoPR2V0VHJlbmRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg0KBWxpbWl0GAIgASgFImYKEEdldFRyZW5kUmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSQAoHc2FtcGxlcxgCIAMoCzIvLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEudHJlbmQuVHJlbmRTYW1wbGUiqAMKC1RyZW5kU2FtcGxlEhAKCHNjZW5hcmlvGAEgASgJEhMKC2NhcHR1cmVkX2F0GAIgASgJEhMKC2dvX2J1aWxkX21zGAMgASgDEhMKC3VpX2J1aWxkX21zGAQgASgDEhQKDGJ1bmRsZV9ieXRlcxgFIAEoAxIOCgZsY3BfbXMYBiABKAMSCwoDY2xzGA0gASgBEhcKD3Jlc3BvbnNlX2VuZF9tcxgOIAEoAxIaChJkb21faW50ZXJhY3RpdmVfbXMYDyABKAMSHQoVZG9tX2NvbnRlbnRfbG9hZGVkX21zGBAgASgDEhkKEWxvYWRfZXZlbnRfZW5kX21zGBEgASgDEhcKD25hdmlnYXRpb25fdHlwZRgSIAEoCRISCgpzdGFydHVwX21zGAcgASgDEgwKBG5vdGUYCCABKAkSGQoRc2xvd2VzdF9jb21wb25lbnQYCiABKAkSIAoYc2xvd2VzdF9jb21wb25lbnRfYXZnX21zGAsgASgBEiAKGHNsb3dlc3RfY29tcG9uZW50X21heF9tcxgMIAEoAUoECAkQClIGcDk1X21zMoUBCgxUcmVuZFNlcnZpY2USdQoIR2V0VHJlbmQSMy52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLnRyZW5kLkdldFRyZW5kUmVxdWVzdBo0LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEudHJlbmQuR2V0VHJlbmRSZXNwb25zZUJVWlNnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BlcmZvcm1hbmNlLWhlYWx0aC92MS90cmVuZDt0cmVuZF92MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.performance_health.v1.trend.GetTrendRequest
@@ -95,6 +95,42 @@ export type TrendSample = Message<"vrooli.performance_health.v1.trend.TrendSampl
    * @generated from field: int64 lcp_ms = 6;
    */
   lcpMs: bigint;
+
+  /**
+   * Cumulative Layout Shift (unitless).
+   *
+   * @generated from field: double cls = 13;
+   */
+  cls: number;
+
+  /**
+   * PerformanceNavigationTiming phases, milliseconds from navigation start.
+   *
+   * @generated from field: int64 response_end_ms = 14;
+   */
+  responseEndMs: bigint;
+
+  /**
+   * @generated from field: int64 dom_interactive_ms = 15;
+   */
+  domInteractiveMs: bigint;
+
+  /**
+   * @generated from field: int64 dom_content_loaded_ms = 16;
+   */
+  domContentLoadedMs: bigint;
+
+  /**
+   * @generated from field: int64 load_event_end_ms = 17;
+   */
+  loadEventEndMs: bigint;
+
+  /**
+   * Navigation kind; a reload is not comparable with a cold navigate.
+   *
+   * @generated from field: string navigation_type = 18;
+   */
+  navigationType: string;
 
   /**
    * @generated from field: int64 startup_ms = 7;

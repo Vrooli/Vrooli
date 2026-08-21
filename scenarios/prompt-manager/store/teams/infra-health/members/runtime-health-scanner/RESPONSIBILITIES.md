@@ -11,10 +11,24 @@
 Prefer existing autoheal, system-monitor, scenario lifecycle, capacity, and investigation tooling. Fall back to logs or local data only when the ideal surface is missing, and make the missing surface explicit.
 
 ## Sensor-First Rule
-Every reliability target names its sensor, deadband, and actuator in the sensor map of `docs/infra-health/strategy/RELIABILITY_TARGETS.md`. Read the sensor named there; do not re-derive how to measure a target each heartbeat. A target with an empty sensor cell is an `instrumentation-gap` candidate, not a manual-scrape invitation. A signal inside its deadband is not a finding.
+The instrument, `infrastructure-manager`, names every cell's sensor, bar and actuator. Read it; do not re-derive how to measure a target each heartbeat, and do not maintain a private sensor map — the hand-maintained one was retired on 2026-08-20 precisely because it could disagree with the grid beside it.
+
+- `coverage cells --json` — every cell, its status and its owner.
+- `coverage open-loop --json` — the dated `MISSING` set. A `MISSING` cell is an `instrumentation-gap` candidate, not a manual-scrape invitation.
+- `condition status --json` — the live reading, trust verdict and band verdict per cell.
+
+A reading inside its band is not a finding. A `NOT_GRADEABLE` band verdict is not a finding either: it means the operator authored no threshold, and the fix is a setpoint review, not a scrape.
 
 ## Sensor-Integrity Rule
-A reading is evidence only if its check passes the sensor-integrity rules in `docs/infra-health/strategy/RELIABILITY_TARGETS.md` § Sensor integrity (ISA-18.2/EEMUA 191 discipline): the check's target still exists (not ghost), the check transitioned within the window (not saturated — the transition is the signal, repeat events are not), and the check is not shelved. Never cite the event-weighted `actions uptime` aggregate for a per-scenario claim — it is the alarm-flood sensor; per-scenario evidence comes from per-check `actions trends`. Discriminate sensor fault from plant fault before proposing plant-side work.
+A reading is evidence only if the instrument's trust verdict is `VALID`. The vocabulary is closed — `VALID`, `GHOST`, `SATURATED`, `SHELVED`, `UNIT_MISMATCH`, `UNAVAILABLE`, `UNTRUSTED` — and is computed for you: read `condition trust --json` for the distribution and `condition explain <cell-ref> --json` for one cell's evidence chain.
+
+Three distinctions decide where work routes, and each was a live defect before 2026-08-20:
+
+- **Ghost vs out-of-scope.** A ghost check targets something that no longer exists and is excluded from every aggregate. A check whose target exists but sits outside the derived core set is **out of scope** — its reading still counts. Treating the second as the first silently drops live plant from uptime.
+- **Untrusted vs saturated.** `UNTRUSTED` means the qualifying signal could not be read at all; `SATURATED` means it was read and showed no transition. A deadline is not a verdict about the plant.
+- **Sensor fault vs plant fault.** An untrusted reading routes to the instrument's owner, never as plant work. Discriminate before proposing a fix.
+
+Never cite the event-weighted `actions uptime` aggregate for a per-scenario claim — it is the alarm-flood sensor; per-scenario evidence comes from per-check `actions trends`.
 
 ## Capacity Supervision
 The capacity broker (`vrooli capacity`) arbitrates GPU/RAM/CPU claims. Infra-health supervises coverage and honesty; it never operates the broker (no policy-lever changes, no degrade/preempt/release):
@@ -32,12 +46,16 @@ The Test Genie phase cache is an optimization, not an authority shortcut. A cach
 Capability owners (search-hub, test-genie, prompt-manager, meta-optimization-manager, …) run their own scan → validate → aggregate loops over self-declared members (operating-model rule 6). Supervise the machinery and the derived aggregate only:
 
 - Never name, list, or check individual capability members — every set is defined by a derivation query (SDA core-set closure; the owner's load-bearing declared members). Member-level performance deadbands live in the member's own `.vrooli/` declaration, not in team targets.
-- Supervised-set coverage: the autoheal check registry must cover the derived should-be-supervised set. Until the Gap 10 `check reconcile` extension ships, this is a manual diff recorded as an `estimate`.
+- Supervised-set coverage: the autoheal check registry must cover the derived should-be-supervised set. `vrooli-autoheal check reconcile --json` computes this; the `unsupervisedPlant` array is the finding. If `ghostDetectionAvailable` is false the installed set could not be read, and no ghost classification is valid that heartbeat.
 - Capability availability: read each owner's derived aggregate once Gap 11 ships persistence; until then the rows are `pending-telemetry`, not a manual-scrape invitation.
 - Capability-architecture proposals (search performance, embedding centralization, provider-less availability) are never this team's findings — supply the out-of-band aggregate as evidence and route the work to the owner or meta-optimization.
 
 ## Cascade Discipline
 Do not chase an outer-layer reading while an inner layer is out of band. Layer order (inner → outer): sensor-channel integrity, host/process substrate, capability availability, efficiency and performance trends, measurement improvement. A search-latency finding raised during an unresolved host-level incident (e.g. a GPU flood or pending reboot) is premature by construction — resolve or shelve the inner excursion first.
+
+`infrastructure-manager focus next` already ranks in this order and reports the stage it applied on each finding, so the ladder is read rather than remembered. The **substrate** tier — kernel and device error signals, machine-check telemetry, crash evidence, accelerator device health, kernel/driver coherence, boot integrity, watchdog liveness — is the `substrate` projection, owned by `vrooli-autoheal` in `docs/spaces/substrate-space.md`. Substrate readings are ordered severities (`0` OK, `1` WARNING, `2` CRITICAL), not percentages: a device fault and a slow restart are different failures and must not share a unit.
+
+One open blind spot to keep in view: `substrate/SB6` (userspace crash accounting) is `MISSING`. No core-dump sensor exists anywhere in the platform, so a process crash loop is invisible unless it also fails a liveness check.
 
 ## Sudo Boundary
 Privileged host mutation exists only at commissioning time (`vrooli setup`, host tools, host safeguards — see `docs/configuration/host/`) and in operator-run autoheal remediation artifacts. A fix that needs sudo routes as a proposed host tool, host safeguard, or setup change, or as a remediation artifact the operator runs — never as runtime-loop work.

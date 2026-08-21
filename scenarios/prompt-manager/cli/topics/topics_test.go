@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	clitest "github.com/vrooli/cli-core/cliapptest"
+	clitest "prompt-manager/cli/internal/testutil"
 )
 
 func TestCommandsRegistersTopicCommand(t *testing.T) {
@@ -67,6 +67,31 @@ func TestCmdCreateRejectsMissingNameBeforeAPI(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	ctx.RequireNoRequests()
+}
+
+func TestCmdUpdateCanClearParentAndSkillsAndEmitJSON(t *testing.T) {
+	ctx := clitest.NewContext(t)
+	ctx.Respond("PUT", "/topics/child", Topic{ID: "child", Name: "Child", Skills: []string{}})
+
+	stdout, _, err := clitest.Output(t, func() error {
+		return cmdUpdate(ctx, []string{"child", "--parent=", "--skills=", "--json"})
+	})
+	if err != nil {
+		t.Fatalf("cmdUpdate: %v", err)
+	}
+	if !strings.Contains(stdout, `"id": "child"`) {
+		t.Fatalf("unexpected JSON output: %s", stdout)
+	}
+	payload, ok := ctx.LastRequest().Payload.(map[string]interface{})
+	if !ok {
+		t.Fatalf("payload type = %T", ctx.LastRequest().Payload)
+	}
+	if parent, exists := payload["parentTopicId"]; !exists || parent != "" {
+		t.Fatalf("parent clear missing: %#v", payload)
+	}
+	if skills, exists := payload["skills"].([]string); !exists || len(skills) != 0 {
+		t.Fatalf("skills clear missing: %#v", payload)
+	}
 }
 
 func TestCmdSearchPostsQueriesAndPrintsAccumulatedSkills(t *testing.T) {

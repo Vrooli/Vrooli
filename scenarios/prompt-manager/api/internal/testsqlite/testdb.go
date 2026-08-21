@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
+
 	// Registers the sqlite driver so test binaries that open a routed DB
 	// through this helper do not depend on package main's blank import.
 	_ "modernc.org/sqlite"
@@ -16,7 +18,7 @@ func Open(t *testing.T) *database.RoutedDB {
 	path := filepath.Join(t.TempDir(), "prompt-manager.db")
 	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          buildDSN(path),
+		DSN:          buildDSN(t, path),
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})
@@ -28,6 +30,13 @@ func Open(t *testing.T) *database.RoutedDB {
 	return db
 }
 
-func buildDSN(path string) string {
-	return "file:" + path + "?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)"
+// buildDSN routes test handles through the same seam production uses, so a
+// test opens a database the way the scenario does.
+func buildDSN(t *testing.T, path string) string {
+	t.Helper()
+	dsn, err := storage.SQLiteDSNAt(path, storage.SQLiteTuning{})
+	if err != nil {
+		t.Fatalf("build sqlite dsn: %v", err)
+	}
+	return dsn
 }

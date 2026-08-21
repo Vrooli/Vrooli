@@ -7,12 +7,14 @@
   "objectivesServed": [
     {
       "id": "T1",
-      "role": "supporting"
+      "role": "supporting",
+      "acknowledgedRevision": "eb66069cc894"
     },
     {
       "id": "T3",
       "coverage": "partial",
-      "note": "OSS surface only"
+      "note": "OSS surface only. Re-derived 2026-08-17: the discovery channel exists, but nothing yet addresses whether another operator can actually run the system, which is the larger half of T3.",
+      "acknowledgedRevision": "6f1333c6dc55"
     }
   ],
   "instrument": {
@@ -231,18 +233,14 @@
             {
               "base": "repo-root",
               "path": "docs/monetization/strategy/TIERS.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/catalogs/scenario-sku-map.json"
             }
           ],
           "writePolicy": "read-only",
           "consumers": [
             "marketing-crew"
           ],
-          "rationale": "Read-only SKU, pricing, tier, and scenario mapping facts for marketing claims.",
-          "useFor": "read-only SKU, pricing, delivery-tier, and scenario mapping facts for marketing claims"
+          "rationale": "Read-only SKU, pricing, and tier judgment for marketing claims. The scenario→SKU mapping is no longer a document: `docs/monetization/catalogs/scenario-sku-map.json` was retired into Offer Desk on 2026-08-16 and its 13 mappings are now typed `belongs_to` edges. Query them with `offer-desk offers catalog-edges` rather than declaring a path — a scenario that can answer at read time is cited, never copied.",
+          "useFor": "read-only SKU, pricing, and delivery-tier judgment for marketing claims; query `offer-desk offers catalog-list` and `catalog-edges` for live scenario→SKU mapping"
         }
       ],
       "sharedState": [

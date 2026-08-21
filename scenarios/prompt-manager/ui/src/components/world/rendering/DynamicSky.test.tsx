@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest'
-import { render, cleanup } from '@testing-library/react'
+import { render, cleanup } from '@/test-utils/renderWithProviders'
 import { act } from 'react'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import {

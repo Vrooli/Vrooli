@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@/test-utils/renderWithProviders'
 import { WorldSettingsContent } from './WorldSettingsContent'
 import { usePerformanceStore } from '@/stores/performanceStore'
 import { selectors } from '@/constants/selectors'

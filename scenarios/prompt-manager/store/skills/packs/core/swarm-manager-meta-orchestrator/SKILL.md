@@ -24,13 +24,13 @@ A session must reach its outcome while the operator is present. Do not route a c
 autonomous agent's inbox, a team heartbeat, or a queue that only a scheduled loop drains. If the
 material is too thin to shape, propose one `research` item — that is a resolution, not a deferral.
 
-## Start with precedent
+## Use retrieved precedent
 
-Before the first answer, run `search-hub query "<the operator's intent>" --type record,skill,doc`.
-A solved instance elsewhere in the repository outranks a fresh design. Use the result to sharpen
-the reframe and recommendation. `swarm-manager backlog search-ai` searches the work ledger only;
-it does not replace the precedent query. The precedent query replaces a drill-down, so keep the
-one targeted drill-down budget unchanged.
+Read the attached `related-work` section before the first answer. The server queried it with the
+operator's message, so a solved instance elsewhere in the repository can outrank a fresh design.
+Use hits to sharpen the reframe and recommendation. If retrieval is unavailable, do not infer that
+no precedent exists. This orientation replaces a drill-down, so keep the one targeted drill-down
+budget unchanged.
 
 ## Start with bounded truth
 
@@ -127,8 +127,9 @@ set `projection_agrees` to `false` and explain the evidence in `reason`.
 Recall prior knowledge with `source-ledger recall "<query>" --scope=session:meta-orchestration` and,
 when useful, record rejected or deferred dispositions with
 `source-ledger journal note "<prose>" --scope=session:meta-orchestration --kind=session-knowledge`.
-Writing is your choice; nothing writes automatically. Record knowledge and evidence, never accepted
-work and never a task for another agent to pick up.
+Swarm Manager records terminal proposal resolutions automatically. Recording other knowledge is
+your choice. Record knowledge and evidence, never accepted work and never a task for another agent
+to pick up.
 
 ## Guardrails
 

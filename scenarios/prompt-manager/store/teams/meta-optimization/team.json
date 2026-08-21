@@ -6,7 +6,8 @@
   "mission": "Apply evolutionary pressure to Vrooli's dev meta-layer — toolchain, skills, agents, teams, and recent agent runs — so the system gets measurably sharper, cheaper, and more programmatic over time.",
   "objectivesServed": [
     {
-      "id": "I2"
+      "id": "I2",
+      "acknowledgedRevision": "5de27857cc63"
     }
   ],
   "instrument": {

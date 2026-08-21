@@ -45,9 +45,15 @@ export const SkillSchema = z.object({
   folder: FolderTypeSchema,
   skillDir: z.string().nullable().optional(),    // Absolute path to skill directory
   contentPath: z.string().nullable().optional(), // Absolute path to SKILL.md file
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  usageCount: z.number(),
+  // Some legacy skills have no persisted timestamps. Normalize protobuf null
+  // values at the boundary so one malformed record cannot hide the entire
+  // list from the UI.
+  createdAt: z.string().nullable().optional().transform((val) => val ?? ''),
+  updatedAt: z.string().nullable().optional().transform((val) => val ?? ''),
+  // Protobuf JSON omits zero-valued scalars by default. Treat an omitted
+  // counter as its wire default instead of rejecting successful create/list
+  // responses for skills that have not been used yet.
+  usageCount: z.number().optional().transform((val) => val ?? 0),
   lastUsed: z.string().nullable().optional(),
   effectivenessRating: z.number().nullable().optional(),
 })

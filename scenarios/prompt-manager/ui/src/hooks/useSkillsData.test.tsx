@@ -150,6 +150,30 @@ describe('useSkillsData', () => {
       expect(skillService.createSkill).toHaveBeenCalledWith(request)
     })
 
+    it('should preserve read-after-write visibility when the refreshed list omits the new skill', async () => {
+      vi.mocked(skillService.getSkills).mockResolvedValue([])
+      const newSkill = createTestSkill({ id: 'new-1', name: 'New Skill' })
+      vi.mocked(skillService.createSkill).mockResolvedValue(newSkill)
+
+      const { result } = renderHookWithProviders(() => useSkillsData())
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      await result.current.createSkill({
+        name: 'New Skill',
+        description: 'New description',
+        content: 'New content',
+        folder: 'local',
+      })
+
+      await waitFor(() => {
+        expect(result.current.skills).toEqual([newSkill])
+      })
+      expect(skillService.getSkills).toHaveBeenCalledTimes(2)
+    })
+
     it('should set isCreating during creation', async () => {
       vi.mocked(skillService.getSkills).mockResolvedValue([])
       let resolveCreate: (value: Skill) => void = () => {}

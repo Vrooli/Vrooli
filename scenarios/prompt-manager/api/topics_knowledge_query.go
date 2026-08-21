@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"prompt-manager/memberflow"
-	"prompt-manager/store"
+	"prompt-manager/internal/memberflow"
+	"prompt-manager/internal/store"
 )
 
 type teamKnowledgeQuery struct {

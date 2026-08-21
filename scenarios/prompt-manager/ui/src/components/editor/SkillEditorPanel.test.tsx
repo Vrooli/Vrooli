@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@/test-utils/renderWithProviders'
 import { SkillEditorPanel } from './SkillEditorPanel'
 import type { Skill } from '@/types'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'

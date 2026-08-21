@@ -6,6 +6,35 @@ This document describes the testing seams in the prompt-manager scenario - delib
 
 The prompt-manager uses interface-based design to create clear testing seams. Each domain handler depends on interfaces rather than concrete types, enabling mock implementations for unit testing.
 
+## Normalized package layout
+
+The API now follows the scenario layout contract:
+
+```text
+api/
+├── handlers/<domain>/   # composition-facing transport facade
+└── internal/<domain>/   # domain behavior, ports, persistence adapters, tests
+```
+
+The phase-11 move was deliberately behavior-preserving. Each
+`handlers/<domain>/facade.go` re-exports only the composition-root surface from
+the moved implementation package. This keeps every unexported invariant and
+the exact REST behavior intact while making the dependency direction visible.
+The proto migration slices replace these compatibility facades with thin
+Connect adapters and progressively narrow their exports; new business logic
+must not be added to a facade.
+
+Database schema providers live under `internal/database/<domain>` rather than
+inside a domain package. That separation prevents schema bootstrap from
+creating domain import cycles (for example, skills uses metrics while the
+metrics integration test applies the skills schema).
+
+Tests moved with their implementation packages. Repository-relative fixtures
+were adjusted for the additional `internal/` path component, without changing
+their asserted behavior. The canonical before/after comparison is package
+outcome plus the invariant counts of 393 implementation/test Go files and 172
+test files; the normalized tree adds 16 facade files and removes no tests.
+
 ## API Seams
 
 ### Handler Layer
@@ -62,10 +91,10 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 ### Search Service Seams
 
 The `search` package provides dedicated seams for text and content search across all
-entity types, isolating search behavior from HTTP handlers and the UI:
+entity types, isolating search behavior from Connect handlers and consumers:
 
 ```
-HTTP handler (/search/skills, /search/agents, /search/teams)
+Connect handler (`SearchService` deterministic methods)
   ↓
 search.Service / AgentSearchService / TeamSearchService
   ↓
@@ -615,6 +644,48 @@ vi.mock('@/lib/api', () => ({
 const agents = await agentService.getAgents()
 expect(agents).toHaveLength(1)
 ```
+
+### Skills, actions, and tags Connect handlers
+
+The `handlers/{skills,actions,tags}` packages own the generated transport
+adapters for slice 1. Public REST registrations for these operations have been
+removed. The generated clients used by the CLI, UI, and scenario consumers are
+therefore the only supported network transport.
+
+The domains still contain mature behavior in their existing `net/http`
+handlers. `handlers/transportbridge` is a deliberately narrow in-process seam:
+it constructs a request, invokes that behavior without a loopback network
+call, maps HTTP failures to Connect codes, and decodes successful JSON with
+unknown protobuf fields rejected. This keeps the migration behavior-preserving
+while later domain-service extraction proceeds. It is not a second public
+transport, and new business logic must not be added to the bridge.
+
+Slice 1 exposes 25 RPC methods: 16 skills (including five variant operations),
+seven actions, and two tags. The CLI declares 22 bindings because variant get,
+variant update, and usage recording have no CLI commands. The retired surface contained 26 REST route
+registrations; action preview and create are represented by the single typed
+`AuthorAction` operation with an explicit `apply` field.
+
+### Search, AI search, and discovery Connect handlers
+
+Slice 2 applies the same behavior-preserving transport seam to
+`handlers/search` and `handlers/aisearch`. `SearchService` owns six
+deterministic entity/content queries, `AISearchService` owns four semantic
+queries plus status and reconciliation, and `DiscoveryService` owns unified
+discovery, gaps, metrics, and skill-usage reporting. Together they expose 18
+typed methods and replace 18 public REST registrations.
+
+The CLI has 11 exact governed bindings from this slice: the five search flats,
+four discovery/reporting flats, plus `agent search` and `team search`.
+Deterministic and content-search methods remain real generated-client paths
+behind those commands' `--text` and `--content` modes and carry explicit
+manifest omission reasons because they are not separate commands.
+
+All discovered consumers moved with the cutover: the prompt-manager UI uses
+generated TypeScript clients, Agent Inbox uses the generated Go AI-search
+client, and Search Hub's declarative descriptors target Connect-JSON
+procedure paths. The old `net/http` handlers are reachable only through the
+in-process compatibility adapter described above; they are not public routes.
 
 ### Graph Connect Handler (proto transport seam) {#graph-connect-handler}
 

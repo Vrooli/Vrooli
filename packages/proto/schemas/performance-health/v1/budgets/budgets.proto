@@ -62,6 +62,15 @@ message Budget {
   map<string, FlowBudget> flows = 20;
   // Used with SetBudgetRequest.flow to mark a flow budget as load-only.
   bool load_only = 21;
+  // Cumulative Layout Shift ceiling. Unitless and typically well below 1, so a
+  // double — an int64 threshold could only express 0 or 1.
+  double cls_max = 22;
+  // Navigation-phase ceilings in milliseconds. Scenario-level only: a targeted
+  // interaction flow reuses the same page load, so FlowBudget has no copy.
+  int64 response_end_max_ms = 23;
+  int64 dom_interactive_max_ms = 24;
+  int64 dom_content_loaded_max_ms = 25;
+  int64 load_event_end_max_ms = 26;
   // Field 8 was p95_max_ms — removed: no honest p95 latency producer exists, so
   // the axis could never trip. Reserved to prevent accidental reuse.
   reserved 8;
@@ -85,6 +94,8 @@ message FlowBudget {
   int64 input_event_count_min = 11;
   // load_only exempts the flow from fail-closed interaction evidence checks.
   bool load_only = 12;
+  // Cumulative Layout Shift ceiling for this flow (unitless).
+  double cls_max = 13;
 }
 
 message GetBudgetRequest {
@@ -136,4 +147,9 @@ message BudgetViolation {
   // "max" means measured exceeds budget; "min" means measured is below budget.
   string mode = 6;
   string detail = 7;
+  // Unrounded measured/budget values. `measured`/`budget` above are int64 and
+  // destroy the magnitude of a unitless ratio axis like cls (0.03 rounds to 0),
+  // so renderers use these when `unit` is empty.
+  double measured_value = 8;
+  double budget_value = 9;
 }

@@ -119,7 +119,7 @@ class ResultSpec(_message.Message):
     def __init__(self, version: _Optional[str] = ..., kind: _Optional[_Union[ResultSpecKind, str]] = ..., schema: _Optional[bytes] = ..., schema_digest: _Optional[str] = ..., classification_values: _Optional[_Iterable[str]] = ..., extraction_mode: _Optional[_Union[StructuredExtractionMode, str]] = ..., extraction_role: _Optional[str] = ..., schema_repair_attempts: _Optional[int] = ...) -> None: ...
 
 class RunConfig(_message.Message):
-    __slots__ = ("runner_type", "model", "role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "effort", "skip_permission_prompt", "features", "extra_flags", "network_access", "policy_snapshot", "sandbox_config", "allowed_paths", "denied_paths", "manifest_index_snapshot", "transcript_codec", "transcript_codec_score")
+    __slots__ = ("runner_type", "model", "role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "effort", "skip_permission_prompt", "features", "extra_flags", "network_access", "policy_snapshot", "sandbox_config", "allowed_paths", "denied_paths", "manifest_index_snapshot", "transcript_codec", "transcript_codec_score", "until")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -148,6 +148,7 @@ class RunConfig(_message.Message):
     MANIFEST_INDEX_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     TRANSCRIPT_CODEC_FIELD_NUMBER: _ClassVar[int]
     TRANSCRIPT_CODEC_SCORE_FIELD_NUMBER: _ClassVar[int]
+    UNTIL_FIELD_NUMBER: _ClassVar[int]
     runner_type: _types_pb2.RunnerType
     model: str
     role_ref: str
@@ -169,7 +170,8 @@ class RunConfig(_message.Message):
     manifest_index_snapshot: str
     transcript_codec: str
     transcript_codec_score: float
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., effort: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., policy_snapshot: _Optional[_Union[ExecutionPolicySnapshot, _Mapping]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., manifest_index_snapshot: _Optional[str] = ..., transcript_codec: _Optional[str] = ..., transcript_codec_score: _Optional[float] = ...) -> None: ...
+    until: str
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., effort: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., policy_snapshot: _Optional[_Union[ExecutionPolicySnapshot, _Mapping]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., manifest_index_snapshot: _Optional[str] = ..., transcript_codec: _Optional[str] = ..., transcript_codec_score: _Optional[float] = ..., until: _Optional[str] = ...) -> None: ...
 
 class ExecutionCandidate(_message.Message):
     __slots__ = ("runner_type", "selection_type", "model", "resource_role", "fallbacks", "available", "failure_code", "failure", "provenance", "enforcement", "policy_path", "policy_digest")

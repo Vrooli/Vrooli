@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"prompt-manager/store"
-	"prompt-manager/teamconfig"
-	"prompt-manager/teamcontract"
+	"prompt-manager/internal/store"
+	"prompt-manager/internal/teamconfig"
+	"prompt-manager/internal/teamcontract"
 )
 
 // WriteTeam writes team.json from the real store.Team type. Tests using this

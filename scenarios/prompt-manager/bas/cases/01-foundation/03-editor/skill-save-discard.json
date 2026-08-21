@@ -45,54 +45,28 @@
       }
     },
     {
-      "id": "wait-expand-all",
+      "id": "wait-new-skill",
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/sidebar.expandAllButton",
+          "selector": "@selector/sidebar.newSkillButton",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 10000
         },
         "metadata": {
-          "label": "Wait for expand all"
+          "label": "Wait for new skill button"
         }
       }
     },
     {
-      "id": "click-expand-all",
+      "id": "click-new-skill",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/sidebar.expandAllButton"
+          "selector": "@selector/sidebar.newSkillButton"
         },
         "metadata": {
-          "label": "Expand all nodes"
-        }
-      }
-    },
-    {
-      "id": "wait-skill-row",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "@selector/sidebar.skillRow",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 10000
-        },
-        "metadata": {
-          "label": "Wait for skill row"
-        }
-      }
-    },
-    {
-      "id": "open-first-skill",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "@selector/sidebar.skillRow"
-        },
-        "metadata": {
-          "label": "Open first skill"
+          "label": "Create isolated draft skill"
         }
       }
     },
@@ -433,34 +407,22 @@
       "target": "wait-sidebar",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "e2",
-      "source": "wait-sidebar",
-      "target": "wait-expand-all",
+  {
+    "id": "e2",
+    "source": "wait-sidebar",
+    "target": "wait-new-skill",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "e3",
-      "source": "wait-expand-all",
-      "target": "click-expand-all",
+  {
+    "id": "e3",
+    "source": "wait-new-skill",
+    "target": "click-new-skill",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "e4",
-      "source": "click-expand-all",
-      "target": "wait-skill-row",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e5",
-      "source": "wait-skill-row",
-      "target": "open-first-skill",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e6",
-      "source": "open-first-skill",
-      "target": "wait-editor-header",
+  {
+    "id": "e4",
+    "source": "click-new-skill",
+    "target": "wait-editor-header",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {

@@ -3,7 +3,27 @@
 Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Last Updated
-2026-04-09
+2026-08-19
+
+## 2026-08-19 Architecture Audit Residuals
+
+The proto re-platform plan owns API/CLI layout, transport, bindings, measures,
+and contract documentation. The following audit findings are intentionally not
+fixed by that plan and therefore have explicit owners.
+
+| Finding | Evidence / impact | Owner | Exit condition |
+|---|---|---|---|
+| UI architecture audit debt | The 2026-08-19 server-owned architecture audit (`20260819-032525-cd984dc1`) reports broad UI structure/documentation findings outside the transport plan's boundary. | Prompt Manager UI maintainers; follow-up UI architecture plan | A focused UI audit has a stored baseline and clears required structure/documentation findings without folding UI redesign into the API migration. |
+| Test coverage gaps in tags, agents, store, testing, search, and metrics | Package-level gaps listed below predate the migration and are not equivalent to transport parity. | Prompt Manager test-substrate plan | Each named package has behavior-focused unit coverage and the scenario test receipt records the new pass set. |
+| Graph recent-activity signal remains neutral | `RecentActivityScoreFromTimestamp` exists but graph nodes do not carry the required timestamp. | Graph domain owner | Node contracts carry authoritative update time and graph scoring tests prove non-neutral recent activity. |
+| Optional Qdrant degradation lacks a dedicated resilience SLO | Text fallback exists, but this plan does not define a resource-outage performance/recovery SLO. | AI Search domain owner | A resource-degraded test and measured recovery/latency target are documented and enforced. |
+
+Runtime/manifest divergence, empty layout scaffolding, the orphan Graph RPC,
+REST retirement, and missing stateful-domain measures were closed by phases
+11–16 of the re-platform plan. The 2026-08-19 live evidence is 120 Connect
+commands, 10 intentionally local commands, 75 typed omissions, 18 architecture
+exceptions, nine probed measures, six remaining non-domain REST registrations,
+and 117/117 callable Prompt Manager bindings in Program Runtime's doctor.
 
 ---
 
@@ -206,6 +226,7 @@ _No open crash issues identified. Team editor org chart now guards against self-
 |------|--------|---------|
 | 2025-01-25 | Aligned API with screaming architecture | All domains now have interfaces |
 | 2025-01-25 | Added CLI domains for all API endpoints | Full CLI coverage |
+| 2026-08-19 | Re-platformed Prompt Manager domains to generated proto/Connect bindings and retired their REST routes | 120 Connect commands; Program Runtime doctor reports 117/117 callable; measures-health probes all nine declared measures |
 
 ---
 
@@ -219,8 +240,14 @@ _No open wiring gaps._
 
 | Item | Reason | Priority |
 |------|--------|----------|
-| Full proto/Connect adoption | prompt-manager is now **L3 for the `graph` domain only**: `GraphService.GetHealthScores` is served over Connect (proto-typed) alongside the kept legacy REST routes, because meta-optimization-manager consumes it as a typed numerator client (see [SEAMS.md](SEAMS.md#graph-connect-handler)). The remaining domains stay hand-rolled gorilla/mux REST (L0–L1), and prompt-manager has **no** `internal/module`/`registry.go` template machinery or `gen-endpoints`/`endpoints.json` drift gate. Migrating the other domains to proto/Connect and adopting the drift gate is a dedicated follow-up plan — not started. | Medium |
 | Graph `recent-activity` scoring unwired | `RecentActivityScoreFromTimestamp` is implemented in [CODE: api/graph/scoring.go:RecentActivityScoreFromTimestamp] but `Node` lacks a timestamp field to feed it, so `recentActivityScore` returns a neutral 0.5. Wire it when nodes gain `updatedAt` metadata. | Medium |
 | Qdrant integration | Optional feature, not core | Low |
 | CLI shell completion | Nice-to-have | Low |
 | Semantic search | Requires Qdrant | Low |
+
+## Work ladder
+
+- Rung: W0
+- Evidence: goal `contribution-inbound-triage` directs a "new prompt-manager team that watches incoming submissions, decides disposition, and runs the rejection → typed evidence → plan-of-record learning loop"; no Prompt Manager P0 operational target names contribution triage or that learning loop. Goal `rapid-approval-flow` likewise directs agent recommendations, batch operations, keyboard shortcuts, and real-time updates, while no P0 target names those approval capabilities.
+- Blocker: reconcile the active Prompt Manager goals with the P0 contract before treating lower-rung health evidence as proof that the whole intended product is complete.
+- Measured: 2026-08-19

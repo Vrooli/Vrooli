@@ -40,6 +40,7 @@ type orientationCost struct {
 	Scenarios        []string              `json:"scenarios,omitempty"`
 	DomainAddresses  int                   `json:"domainAddresses"`
 	Addresses        []string              `json:"addresses,omitempty"`
+	CoveredReads     []string              `json:"coveredReads,omitempty"`
 	ExternalActors   []string              `json:"externalActors,omitempty"`
 	MissingCanon     []string              `json:"missingCanon,omitempty"`
 }
@@ -74,8 +75,9 @@ func cmdOrientationCost(ctx appctx.Context, args []string) error {
 			team.ScenarioCoverage, team.DomainAddresses)
 	}
 	for _, team := range resp.Teams {
-		if team.DomainAddresses > 1 {
-			fmt.Printf("\n%s names %d domain addresses: %s\n", team.TeamID, team.DomainAddresses, strings.Join(team.Addresses, ", "))
+		if team.DomainAddresses > 0 {
+			fmt.Printf("\n%s names %d address(es) its instrument does not account for: %s\n",
+				team.TeamID, team.DomainAddresses, strings.Join(team.Addresses, ", "))
 		}
 	}
 	for _, team := range resp.Teams {

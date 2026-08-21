@@ -79,40 +79,23 @@ The planned Actions store will follow the same per-entity, schema-validated post
 
 ## API Endpoints
 
-### Skills
-- `GET /api/v1/skills` - List skills with filters (folder, tag, mode)
-- `POST /api/v1/skills` - Create new skill
-- `GET /api/v1/skills/{id}` - Get skill details
-- `PUT /api/v1/skills/{id}` - Update skill
-- `DELETE /api/v1/skills/{id}` - Delete skill
-- `POST /api/v1/skills/{id}/use` - Record usage
-- `GET /api/v1/skills/{id}/versions` - Version history
-- `POST /api/v1/skills/{id}/revert/{ver}` - Revert to version
+Stable domains use generated Connect services under
+`/vrooli.prompt_manager.v1.<domain>.<Service>/<Method>`:
 
-### Agents
-- `GET /api/v1/agents` - List all agents
-- `POST /api/v1/agents` - Create agent
-- `GET /api/v1/agents/{id}` - Get agent details
-- `PUT /api/v1/agents/{id}` - Update agent
-- `DELETE /api/v1/agents/{id}` - Delete agent
+- `SkillsService`, `ActionsService`, and `TagsService` own authored capability state.
+- `SearchService`, `AISearchService`, and `DiscoveryService` own deterministic, semantic, and composed discovery.
+- `AgentsService` and `TeamsService` own identity, membership, team structure, files, roles, and exchange.
+- `TopicsService`, `TemplatesService`, `TestingService`, and `MetadataService` own supporting taxonomy, templates, skill tests, and link metadata.
+- `WorldScaleService` and `WorldSeatsService` own the interactive world configuration.
 
-### Teams
-- `GET /api/v1/teams` - List all teams
-- `POST /api/v1/teams` - Create team
-- `GET /api/v1/teams/{id}` - Get team with roles and members
-- `PUT /api/v1/teams/{id}` - Update team
-- `DELETE /api/v1/teams/{id}` - Delete team
-- `POST /api/v1/teams/{id}/members` - Add member
-- `PUT /api/v1/teams/{id}/members/{agentId}` - Update member
-- `DELETE /api/v1/teams/{id}/members/{agentId}` - Remove member
+Use the generated Go/TypeScript clients or the CLI instead of constructing
+service URLs by hand. REST remains only for domains still listed in
+[`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md#baseline-rest-route-inventory).
 
 ### Search & Discovery
-- `GET /api/v1/search/skills?q={query}` - Full-text search
-- `POST /api/v1/search/ai` - Vector similarity search
-
-### Tags
-- `GET /api/v1/tags` - List all tags
-- `POST /api/v1/tags` - Create tag
+- `SearchService.SearchSkills` - Full-text search
+- `AISearchService.SearchSkills` - Vector similarity search
+- `DiscoveryService.Discover` - Budgeted capability discovery
 
 ## CLI Commands
 

@@ -201,6 +201,9 @@ export function ViewOverlay({
           />
           <div
             className="fixed inset-x-0 bottom-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-2xl border border-border bg-popover text-popover-foreground shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={mobilePanelTitle}
             data-testid={selectors.viewOverlay.mobilePanelSheet}
           >
             <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-border" />

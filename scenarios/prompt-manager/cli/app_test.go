@@ -7,6 +7,10 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestNewApp_APIPortEnvVars_DoNotIncludeGenericAPIPort(t *testing.T) {
@@ -52,11 +56,13 @@ func TestBugCapturePreservesRequiredAttributionAlongsideInvocationHeaders(t *tes
 		case "/health":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"status":"ok","readiness":true}`))
-		case "/api/v1/teams/scenario-qa/bugs/capture":
+		case "/vrooli.prompt_manager.v1.heartbeat.HeartbeatService/CaptureBug":
 			attribution = r.Header.Get("X-Vrooli-Attribution")
 			invocation = r.Header.Get("X-Vrooli-Invocation-ID")
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"disposition":"published","knowledge":{"id":"knw-test","topic":"bug-inbox/code-defect/test"}}`))
+			w.Header().Set("Content-Type", "application/proto")
+			data, _ := structpb.NewValue(map[string]any{"disposition": "published", "knowledge": map[string]any{"id": "knw-test", "topic": "bug-inbox/code-defect/test"}})
+			encoded, _ := proto.Marshal(&heartbeatv1.JsonResponse{Data: data})
+			_, _ = w.Write(encoded)
 		default:
 			t.Fatalf("unexpected path %q", r.URL.Path)
 		}

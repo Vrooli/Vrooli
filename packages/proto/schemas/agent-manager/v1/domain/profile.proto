@@ -267,6 +267,9 @@ message RunConfig {
   string manifest_index_snapshot = 25;
   string transcript_codec = 26;
   double transcript_codec_score = 27;
+
+  // Engine-owned completion test for warm plan engagements.
+  string until = 28;
 }
 
 // ExecutionCandidate is one immutable runner/model attempt in resolved order.

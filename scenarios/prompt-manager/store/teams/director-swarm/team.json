@@ -6,12 +6,14 @@
   "mission": "Keep Vrooli's goal portfolio flowing through Swarm Manager and surface outcome-driven strategy from Command Center's measured outcomes and gaps registry.",
   "objectivesServed": [
     {
-      "id": "I1"
+      "id": "I1",
+      "acknowledgedRevision": "0ad42308ee4f"
     },
     {
       "id": "I3",
       "role": "primary",
-      "note": "Ranking authority only; detection of missing instruments stays distributed across teams."
+      "note": "Ranking authority only; detection of missing instruments stays distributed across teams.",
+      "acknowledgedRevision": "d19b30f48e11"
     }
   ],
   "instrument": {

@@ -46,6 +46,19 @@ describe('SkillSchema', () => {
     expect(result.draft).toBe(false)
   })
 
+  it('should default an omitted protobuf usage counter to zero', () => {
+    const { usageCount: _omitted, ...protobufJson } = minimalSkill
+
+    expect(SkillSchema.parse(protobufJson).usageCount).toBe(0)
+  })
+
+  it('should normalize legacy null timestamps without dropping the list item', () => {
+    const result = SkillSchema.parse({ ...minimalSkill, createdAt: null, updatedAt: null })
+
+    expect(result.createdAt).toBe('')
+    expect(result.updatedAt).toBe('')
+  })
+
   it('should provide defaults for optional arrays - prevents crashes', () => {
     // This tests the key safety feature: when API omits arrays, we get [] not undefined
     const skill = SkillSchema.parse(minimalSkill)

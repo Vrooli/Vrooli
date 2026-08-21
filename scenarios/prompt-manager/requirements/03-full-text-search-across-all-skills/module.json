@@ -12,7 +12,7 @@
       "description": "Implement full-text search across skill content and metadata with file-based storage",
       "id": "REQ-P0-004",
       "prd_ref": "prompt-manager-must-have-full-text-search-across-all-skills",
-      "status": "draft",
+      "status": "planned",
       "title": "Full-text Search Implementation",
       "validation": [
         {

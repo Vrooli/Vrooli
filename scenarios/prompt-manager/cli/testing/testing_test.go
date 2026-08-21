@@ -1,12 +1,13 @@
 package testing
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	stdtesting "testing"
 	"time"
 
-	clitest "github.com/vrooli/cli-core/cliapptest"
+	clitest "prompt-manager/cli/internal/testutil"
 )
 
 func TestCommandsRegistersTestingCommand(t *stdtesting.T) {
@@ -16,6 +17,26 @@ func TestCommandsRegistersTestingCommand(t *stdtesting.T) {
 	}
 	if group.Commands[0].Name != "test" || !group.Commands[0].NeedsAPI {
 		t.Fatalf("unexpected command metadata: %+v", group.Commands[0])
+	}
+}
+
+func TestRunJSONOutputContainsOnlyJSON(t *stdtesting.T) {
+	ctx := clitest.NewContext(t)
+	want := TestResponse{TestID: "test-1", Role: "chat.small", Response: "Generated answer"}
+	ctx.Respond("POST", "/skills/skill-1/test", want)
+
+	stdout, _, err := clitest.Output(t, func() error {
+		return route(ctx, []string{"run", "skill-1", "--json"})
+	})
+	if err != nil {
+		t.Fatalf("run test: %v", err)
+	}
+	var got TestResponse
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("JSON output must not contain progress text: %v\n%s", err, stdout)
+	}
+	if got.TestID != want.TestID {
+		t.Fatalf("unexpected response: %+v", got)
 	}
 }
 
@@ -86,5 +107,22 @@ func TestHistorySurfacesAPIError(t *stdtesting.T) {
 	err := route(ctx, []string{"history", "skill-1"})
 	if err == nil || !strings.Contains(err.Error(), "failed to get test history: history unavailable") {
 		t.Fatalf("expected history API error, got %v", err)
+	}
+}
+
+func TestHistoryHandlesShortResultID(t *stdtesting.T) {
+	ctx := clitest.NewContext(t)
+	ctx.Respond("GET", "/skills/skill-1/test-history", []TestResult{{
+		ID: "short", SkillID: "skill-1", Role: "chat.small", TestedAt: time.Now(),
+	}})
+
+	stdout, _, err := clitest.Output(t, func() error {
+		return route(ctx, []string{"history", "skill-1"})
+	})
+	if err != nil {
+		t.Fatalf("history: %v", err)
+	}
+	if !strings.Contains(stdout, "[short]") {
+		t.Fatalf("unexpected output: %s", stdout)
 	}
 }

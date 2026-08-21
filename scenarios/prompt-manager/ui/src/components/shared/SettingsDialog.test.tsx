@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@/test-utils/renderWithProviders'
 import { SettingsDialog } from './SettingsDialog'
 import { ThemeProvider } from '@/hooks/use-theme'
 

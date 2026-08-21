@@ -71,7 +71,7 @@ describe('formatActions', () => {
     const xml = formatActions([makeAction({ name: 'List <Work>' })], 'xml')
 
     expect(xml).toContain('<actions>')
-    expect(xml).toContain('<name>List &lt;Work Items&gt;</name>')
+    expect(xml).toContain('<name>List &lt;Work&gt;</name>')
     expect(xml).toContain('<field name="team">')
     expect(xml).toContain('<permission>apiRead</permission>')
   })

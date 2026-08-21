@@ -6,13 +6,24 @@
   "mission": "Watch the platform's own health — internal Vrooli code, lifecycle, autoheal/system-monitor history — and surface durable findings the operator can act on. Detect patterns across runtime incidents, audit internal code along the same dimensions scenario-qa applies to scenarios, and drive internal instrumentation forward so future findings are sharper.",
   "objectivesServed": [
     {
-      "id": "I2"
+      "id": "I2",
+      "acknowledgedRevision": "5de27857cc63"
     }
   ],
   "instrument": {
-    "status": "none",
+    "status": "partial",
+    "scenario": "infrastructure-manager",
     "archetype": "coverage-board",
-    "gapMarker": "2026-08-13 — ten *-health scenarios report per-capability condition and nothing aggregates them; the setpoint exists as prose deadbands in docs/infra-health/strategy/RELIABILITY_TARGETS.md. Closest to ready of the unequipped teams: the denominator is already authored, only the observer is missing."
+    "coversScenarios": [
+      "vrooli-autoheal",
+      "system-monitor",
+      "storage-manager",
+      "data-backup-manager",
+      "agent-manager",
+      "test-genie",
+      "scenario-dependency-analyzer"
+    ],
+    "gapMarker": "2026-08-20 (second revision) — the instrument is wired to its own condition domain and to a new substrate projection. Fixed since the first marker: the batch saturation read removed the N+1 per-check fan-out that was reporting deadline expiry as UNTRUSTED on roughly two thirds of checks; ghost classification now tests target existence rather than core-set membership, so installed scenarios outside the core set are reported as out-of-scope and stay in every aggregate; the focus surface now joins out-of-band and untrusted readings, so inner cascade tiers can outrank coverage gaps; and 24 of 28 setpoint bars now carry a unit and a numeric threshold, with the remaining four declared not-gradeable with stated reasons. Still open: substrate bars are provisional pending operator ratification, setpoint confidence is SKETCH, peer sources other than vrooli-autoheal have no typed reader, capability availability history is unavailable, the infra-health loop remains paused, and template provenance remains quarantined upstream. The plant remains the layer stack in docs/infra-health/operating/OPERATING_MODEL.md section Platform Under Control — not the *-health scenario fleet, which is scenario-qa's plant."
   },
   "enabled": true,
   "runtime": {
@@ -56,9 +67,9 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 1,
+  "revision": 4,
   "createdAt": "2026-04-28T00:00:00Z",
-  "updatedAt": "2026-04-28T00:00:00Z",
+  "updatedAt": "2026-08-20T00:00:00Z",
   "operatingContract": {
     "schemaVersion": 1,
     "documents": {
@@ -81,18 +92,6 @@
             {
               "base": "repo-root",
               "path": "docs/infra-health/operating/OPERATING_MODEL.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/infra-health/strategy/RELIABILITY_TARGETS.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md"
             }
           ],
           "writePolicy": "operator-curated-via-swarm-manager",
@@ -100,8 +99,8 @@
             "infra-health",
             "director-swarm"
           ],
-          "rationale": "Plan-of-record for reliability targets, instrumentation gaps, and cross-platform assumptions.",
-          "useFor": "runtime reliability targets, instrumentation roadmap, cross-platform portability ledger, and director-swarm morning-walk infrastructure work items"
+          "rationale": "Operating contract, cross-platform portability ledger, and editing authority. Reliability targets, sensor definitions and instrumentation gaps are NOT here — they are owned and computed by the infrastructure-manager instrument.",
+          "useFor": "team operating contract and routing rules, cross-platform portability ledger, and director-swarm morning-walk infrastructure work items"
         }
       ],
       "sharedState": [
@@ -143,6 +142,29 @@
           "ownerMemberId": "infra-contrarian",
           "kind": "rolling-snapshot",
           "required": true
+        }
+      ],
+      "instrument": [
+        {
+          "id": "infra-health-instrument",
+          "scenario": "infrastructure-manager",
+          "kind": "read-only-instrument",
+          "writePolicy": "no-write-path",
+          "consumers": [
+            "infra-health",
+            "director-swarm"
+          ],
+          "readSurfaces": {
+            "focus": "infrastructure-manager focus next --json",
+            "coverage": "infrastructure-manager coverage status --json",
+            "openLoop": "infrastructure-manager coverage open-loop --json",
+            "condition": "infrastructure-manager condition status --json",
+            "trust": "infrastructure-manager condition trust --json",
+            "explain": "infrastructure-manager condition explain <cell-ref> --json"
+          },
+          "setpoint": "scenarios/infrastructure-manager/setpoint/reliability-setpoint.json",
+          "rationale": "The team's instrument. Members read reliability state here instead of re-deriving it; no member may write to the setpoint, which is what stops the supervisor grading itself.",
+          "useFor": "what to work next, whether a cell is in band, whether a reading can be believed, and which cells have no sensor at all"
         }
       ]
     },

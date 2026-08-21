@@ -261,6 +261,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	skillsStr := fs.String("skills", "", "Comma-separated skill IDs (replaces all)")
 	icon := fs.String("icon", "", "New icon")
 	status := fs.String("status", "", "New status")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -276,11 +277,17 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	if *description != "" {
 		req["description"] = *description
 	}
-	if fs.Lookup("parent").Value.String() != "" || *parent != "" {
+	setFlags := make(map[string]bool)
+	fs.Visit(func(f *flag.Flag) { setFlags[f.Name] = true })
+	if setFlags["parent"] {
 		req["parentTopicId"] = *parent
 	}
-	if *skillsStr != "" {
-		req["skills"] = strings.Split(*skillsStr, ",")
+	if setFlags["skills"] {
+		if *skillsStr == "" {
+			req["skills"] = []string{}
+		} else {
+			req["skills"] = strings.Split(*skillsStr, ",")
+		}
 	}
 	if *icon != "" {
 		req["icon"] = *icon
@@ -293,19 +300,32 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	if err := ctx.Put("/topics/"+url.PathEscape(id), req, &topic); err != nil {
 		return fmt.Errorf("updating topic: %w", err)
 	}
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(topic)
+	}
 
 	fmt.Printf("Updated topic: %s (%s)\n", topic.Name, topic.ID)
 	return nil
 }
 
 func cmdDelete(ctx appctx.Context, args []string) error {
-	if len(args) < 1 {
+	fs := flag.NewFlagSet("topic delete", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
 		return fmt.Errorf("usage: topic delete <id>")
 	}
-	id := args[0]
+	id := fs.Arg(0)
 
 	if err := ctx.Delete("/topics/" + url.PathEscape(id)); err != nil {
 		return fmt.Errorf("deleting topic: %w", err)
+	}
+	if *jsonOut {
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"deleted": true, "id": id})
 	}
 
 	fmt.Printf("Deleted topic: %s\n", id)
@@ -410,7 +430,7 @@ func cmdTree(ctx appctx.Context, args []string) error {
 	}
 
 	var topics []Topic
-	if err := ctx.Get("/topics", &topics); err != nil {
+	if err := ctx.Get("/topics/tree", &topics); err != nil {
 		return fmt.Errorf("listing topics: %w", err)
 	}
 

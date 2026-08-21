@@ -47,7 +47,7 @@ const (
 )
 
 // Honesty flags for open-loop targets, sharing the vocabulary defined in
-// docs/infra-health/strategy/RELIABILITY_TARGETS.md §"Honesty flags".
+// scenarios/infrastructure-manager/docs/concepts/SETPOINT-MODEL.md.
 //
 // The distinction is a routing decision, not a label: pending-telemetry means
 // no instrument exists and one must be built, while pending-baseline means the

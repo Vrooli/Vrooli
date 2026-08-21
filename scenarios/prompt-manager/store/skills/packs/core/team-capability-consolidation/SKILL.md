@@ -4,6 +4,7 @@ Turn a team's hand-maintained state into a scenario, then re-derive the team's s
 
 Required reading:
 - `path:docs/agent-system/OPERATING_GRAPHS.md` — §"State belongs to scenarios; prose holds judgment" owns the four content classes, the read-time rule, and the `state-in-prose` defect class. This skill extends that rule from documents to rosters; it does not restate it.
+- `path:docs/agent-system/TOPICS_SCHEMA.md` — the declaration layer Phase 5 re-derives against. §"Coverage ledger" and `team.json::knowledgeTopics` ownership are the counter-indications that block a Phase 5 collapse; without them the collapse table over-fires on any topic family whose differing segment is an attribution key.
 - `prompt-manager skill read ecosystem-fit`
 
 Optional reading:
@@ -179,6 +180,18 @@ This is the phase that distinguishes this skill. Do not update the roster to mat
 **Artifacts:** the updated team contract, member files, and roles.
 
 The discriminator is: gates replace pipeline-stage separation and never replace adversarial separation. A producer that declares its own claims needs a different agent to find the claims it did not declare.
+
+**A differing field value is not automatically a lane.** Before collapsing on row two, check what the differing segment carries. Collapse is **blocked** when it carries any of:
+
+| Counter-indication | Where to check | Why it blocks |
+|---|---|---|
+| Declared ownership | `team.json::knowledgeTopics` maps one topic pattern to one `ownerMemberId` | One parameterized entry gets one owner, so collapsing silently reassigns every other lane's topics to a single member. |
+| Per-population attribution | `path:docs/agent-system/TOPICS_SCHEMA.md` §"Coverage ledger" | A sweep's ledger prefix names its population *so coverage is attributed per population rather than pooled*. Collapsing pools it and the sweep stops converging per population. |
+| A registered family shape | `path:docs/agent-system/TOPICS.md` § Topic families | The shape is canon. Changing it is an operator decision, not a roster re-derivation. |
+
+Two shapes trip this constantly. A team's **sweep coverage ledgers** look like N instances of one mechanic differing only by subject — but the subject names the population precisely so coverage is attributed per population, the shape is a registered family, and the ledgers often belong to more than one member; all three counter-indications fire at once. A team's **routed-report families**, where one path segment selects which member owns the record, look like one pattern with a variable — but that segment resolves to a distinct owner per value, so collapsing hands every lane's records to whichever single owner the merged entry declares.
+
+Row two is for a field the record *carries*, never for a segment the declaration layer *keys on*. Test it by asking what breaks if the segment were replaced by a literal constant: if the answer is "nothing", it is a field; if the answer is "attribution or ownership becomes ambiguous", it is a key and the collapse is blocked.
 
 ---
 

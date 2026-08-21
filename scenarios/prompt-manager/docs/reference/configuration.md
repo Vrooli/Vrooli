@@ -11,8 +11,6 @@ Environment variables and configuration options for prompt-manager.
 | `OLLAMA_ENABLED` | `false` | Enable skill testing through `resource-ollama gateway generate` |
 | `OLLAMA_GATEWAY_BIN` | `resource-ollama` | Gateway command used for Ollama-backed skill testing and AI search embeddings |
 | `STORE_DIR` | `../store` | Path to the store directory containing skills, agents, teams, and relations |
-| `SQLITE_PATH` | (storage root) | Optional explicit SQLite database file path |
-| `SQLITE_DB` | (storage root) | Alias for `SQLITE_PATH` for local debugging and tests |
 | `QDRANT_URL` | `http://localhost:6333` | Qdrant vector database URL for AI search |
 | `QDRANT_API_KEY` | (none) | API key for Qdrant authentication |
 | `AI_SEARCH_COLLECTION` | `prompt-manager-skills` | Qdrant collection name for skill embeddings |
@@ -40,7 +38,7 @@ make logs | grep "listening on"
 
 ## Database Configuration
 
-Prompt-manager uses embedded SQLite for relational runtime data. By default the database is resolved through `api-core/storage` under the prompt-manager data root, for example `~/.vrooli/data/vrooli/prompt-manager/prompt-manager.db`. Use `SQLITE_PATH` or `SQLITE_DB` only when a test or local debugging session needs an explicit file.
+Prompt-manager uses embedded SQLite for relational runtime data. By default the database is resolved through `api-core/storage` under the prompt-manager data root, for example `~/.vrooli/data/vrooli/prompt-manager/prompt-manager.db`. There is no environment variable for the file location. A test or local debugging session that needs an explicit file passes the path as an argument to `storage.SQLiteDSNAt`; to relocate the whole storage tree, set `VROOLI_STORAGE_ROOT`, which is scenario-agnostic and so cannot redirect one scenario at another's database.
 
 **Required Tables:**
 - `tags` - Tag definitions

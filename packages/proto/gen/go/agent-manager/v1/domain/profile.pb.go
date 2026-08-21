@@ -585,8 +585,10 @@ type RunConfig struct {
 	ManifestIndexSnapshot string  `protobuf:"bytes,25,opt,name=manifest_index_snapshot,json=manifestIndexSnapshot,proto3" json:"manifest_index_snapshot,omitempty"`
 	TranscriptCodec       string  `protobuf:"bytes,26,opt,name=transcript_codec,json=transcriptCodec,proto3" json:"transcript_codec,omitempty"`
 	TranscriptCodecScore  float64 `protobuf:"fixed64,27,opt,name=transcript_codec_score,json=transcriptCodecScore,proto3" json:"transcript_codec_score,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Engine-owned completion test for warm plan engagements.
+	Until         string `protobuf:"bytes,28,opt,name=until,proto3" json:"until,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunConfig) Reset() {
@@ -764,6 +766,13 @@ func (x *RunConfig) GetTranscriptCodecScore() float64 {
 		return x.TranscriptCodecScore
 	}
 	return 0
+}
+
+func (x *RunConfig) GetUntil() string {
+	if x != nil {
+		return x.Until
+	}
+	return ""
 }
 
 // ExecutionCandidate is one immutable runner/model attempt in resolved order.
@@ -1603,7 +1612,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0fextraction_mode\x18\x06 \x01(\x0e2*.agent_manager.v1.StructuredExtractionModeR\x0eextractionMode\x12'\n" +
 	"\x0fextraction_role\x18\a \x01(\tR\x0eextractionRole\x129\n" +
 	"\x16schema_repair_attempts\x18\b \x01(\x05H\x00R\x14schemaRepairAttempts\x88\x01\x01B\x19\n" +
-	"\x17_schema_repair_attempts\"\xfd\t\n" +
+	"\x17_schema_repair_attempts\"\x93\n" +
+	"\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
@@ -1629,7 +1639,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\x126\n" +
 	"\x17manifest_index_snapshot\x18\x19 \x01(\tR\x15manifestIndexSnapshot\x12)\n" +
 	"\x10transcript_codec\x18\x1a \x01(\tR\x0ftranscriptCodec\x124\n" +
-	"\x16transcript_codec_score\x18\x1b \x01(\x01R\x14transcriptCodecScore\x1a^\n" +
+	"\x16transcript_codec_score\x18\x1b \x01(\x01R\x14transcriptCodecScore\x12\x14\n" +
+	"\x05until\x18\x1c \x01(\tR\x05until\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
 	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\b\x10\tJ\x04\b\t\x10\n" +

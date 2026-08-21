@@ -6,7 +6,7 @@
  */
 
 import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { render } from '@/test-utils/renderWithProviders'
 import {
   R3FTestHarness,
   installR3FDOMWarningFilter,

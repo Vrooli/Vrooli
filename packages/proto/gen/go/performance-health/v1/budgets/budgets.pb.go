@@ -52,9 +52,18 @@ type Budget struct {
 	// startup remain scenario-level (no per-flow build).
 	Flows map[string]*FlowBudget `protobuf:"bytes,20,rep,name=flows,proto3" json:"flows,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Used with SetBudgetRequest.flow to mark a flow budget as load-only.
-	LoadOnly      bool `protobuf:"varint,21,opt,name=load_only,json=loadOnly,proto3" json:"load_only,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	LoadOnly bool `protobuf:"varint,21,opt,name=load_only,json=loadOnly,proto3" json:"load_only,omitempty"`
+	// Cumulative Layout Shift ceiling. Unitless and typically well below 1, so a
+	// double — an int64 threshold could only express 0 or 1.
+	ClsMax float64 `protobuf:"fixed64,22,opt,name=cls_max,json=clsMax,proto3" json:"cls_max,omitempty"`
+	// Navigation-phase ceilings in milliseconds. Scenario-level only: a targeted
+	// interaction flow reuses the same page load, so FlowBudget has no copy.
+	ResponseEndMaxMs      int64 `protobuf:"varint,23,opt,name=response_end_max_ms,json=responseEndMaxMs,proto3" json:"response_end_max_ms,omitempty"`
+	DomInteractiveMaxMs   int64 `protobuf:"varint,24,opt,name=dom_interactive_max_ms,json=domInteractiveMaxMs,proto3" json:"dom_interactive_max_ms,omitempty"`
+	DomContentLoadedMaxMs int64 `protobuf:"varint,25,opt,name=dom_content_loaded_max_ms,json=domContentLoadedMaxMs,proto3" json:"dom_content_loaded_max_ms,omitempty"`
+	LoadEventEndMaxMs     int64 `protobuf:"varint,26,opt,name=load_event_end_max_ms,json=loadEventEndMaxMs,proto3" json:"load_event_end_max_ms,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Budget) Reset() {
@@ -220,6 +229,41 @@ func (x *Budget) GetLoadOnly() bool {
 	return false
 }
 
+func (x *Budget) GetClsMax() float64 {
+	if x != nil {
+		return x.ClsMax
+	}
+	return 0
+}
+
+func (x *Budget) GetResponseEndMaxMs() int64 {
+	if x != nil {
+		return x.ResponseEndMaxMs
+	}
+	return 0
+}
+
+func (x *Budget) GetDomInteractiveMaxMs() int64 {
+	if x != nil {
+		return x.DomInteractiveMaxMs
+	}
+	return 0
+}
+
+func (x *Budget) GetDomContentLoadedMaxMs() int64 {
+	if x != nil {
+		return x.DomContentLoadedMaxMs
+	}
+	return 0
+}
+
+func (x *Budget) GetLoadEventEndMaxMs() int64 {
+	if x != nil {
+		return x.LoadEventEndMaxMs
+	}
+	return 0
+}
+
 // FlowBudget is one interaction flow's declared thresholds — only the axes a
 // targeted capture can measure (LCP, slowest component avg/max commit, and
 // frame/input/browser-work health).
@@ -237,7 +281,9 @@ type FlowBudget struct {
 	PaintTotalMaxMs         float64                `protobuf:"fixed64,10,opt,name=paint_total_max_ms,json=paintTotalMaxMs,proto3" json:"paint_total_max_ms,omitempty"`
 	InputEventCountMin      int64                  `protobuf:"varint,11,opt,name=input_event_count_min,json=inputEventCountMin,proto3" json:"input_event_count_min,omitempty"`
 	// load_only exempts the flow from fail-closed interaction evidence checks.
-	LoadOnly      bool `protobuf:"varint,12,opt,name=load_only,json=loadOnly,proto3" json:"load_only,omitempty"`
+	LoadOnly bool `protobuf:"varint,12,opt,name=load_only,json=loadOnly,proto3" json:"load_only,omitempty"`
+	// Cumulative Layout Shift ceiling for this flow (unitless).
+	ClsMax        float64 `protobuf:"fixed64,13,opt,name=cls_max,json=clsMax,proto3" json:"cls_max,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -354,6 +400,13 @@ func (x *FlowBudget) GetLoadOnly() bool {
 		return x.LoadOnly
 	}
 	return false
+}
+
+func (x *FlowBudget) GetClsMax() float64 {
+	if x != nil {
+		return x.ClsMax
+	}
+	return 0
 }
 
 type GetBudgetRequest struct {
@@ -686,8 +739,13 @@ type BudgetViolation struct {
 	// Flow slug when the violation is a per-flow breach; empty for scenario-level.
 	Flow string `protobuf:"bytes,5,opt,name=flow,proto3" json:"flow,omitempty"`
 	// "max" means measured exceeds budget; "min" means measured is below budget.
-	Mode          string `protobuf:"bytes,6,opt,name=mode,proto3" json:"mode,omitempty"`
-	Detail        string `protobuf:"bytes,7,opt,name=detail,proto3" json:"detail,omitempty"`
+	Mode   string `protobuf:"bytes,6,opt,name=mode,proto3" json:"mode,omitempty"`
+	Detail string `protobuf:"bytes,7,opt,name=detail,proto3" json:"detail,omitempty"`
+	// Unrounded measured/budget values. `measured`/`budget` above are int64 and
+	// destroy the magnitude of a unitless ratio axis like cls (0.03 rounds to 0),
+	// so renderers use these when `unit` is empty.
+	MeasuredValue float64 `protobuf:"fixed64,8,opt,name=measured_value,json=measuredValue,proto3" json:"measured_value,omitempty"`
+	BudgetValue   float64 `protobuf:"fixed64,9,opt,name=budget_value,json=budgetValue,proto3" json:"budget_value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -771,11 +829,25 @@ func (x *BudgetViolation) GetDetail() string {
 	return ""
 }
 
+func (x *BudgetViolation) GetMeasuredValue() float64 {
+	if x != nil {
+		return x.MeasuredValue
+	}
+	return 0
+}
+
+func (x *BudgetViolation) GetBudgetValue() float64 {
+	if x != nil {
+		return x.BudgetValue
+	}
+	return 0
+}
+
 var File_performance_health_v1_budgets_budgets_proto protoreflect.FileDescriptor
 
 const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\n" +
-	"+performance-health/v1/budgets/budgets.proto\x12$vrooli.performance_health.v1.budgets\"\xcd\a\n" +
+	"+performance-health/v1/budgets/budgets.proto\x12$vrooli.performance_health.v1.budgets\"\xb6\t\n" +
 	"\x06Budget\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
 	"\x0fgo_build_max_ms\x18\x02 \x01(\x03R\fgoBuildMaxMs\x12%\n" +
@@ -797,12 +869,17 @@ const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\x12paint_total_max_ms\x18\x12 \x01(\x01R\x0fpaintTotalMaxMs\x121\n" +
 	"\x15input_event_count_min\x18\x13 \x01(\x03R\x12inputEventCountMin\x12M\n" +
 	"\x05flows\x18\x14 \x03(\v27.vrooli.performance_health.v1.budgets.Budget.FlowsEntryR\x05flows\x12\x1b\n" +
-	"\tload_only\x18\x15 \x01(\bR\bloadOnly\x1aj\n" +
+	"\tload_only\x18\x15 \x01(\bR\bloadOnly\x12\x17\n" +
+	"\acls_max\x18\x16 \x01(\x01R\x06clsMax\x12-\n" +
+	"\x13response_end_max_ms\x18\x17 \x01(\x03R\x10responseEndMaxMs\x123\n" +
+	"\x16dom_interactive_max_ms\x18\x18 \x01(\x03R\x13domInteractiveMaxMs\x128\n" +
+	"\x19dom_content_loaded_max_ms\x18\x19 \x01(\x03R\x15domContentLoadedMaxMs\x120\n" +
+	"\x15load_event_end_max_ms\x18\x1a \x01(\x03R\x11loadEventEndMaxMs\x1aj\n" +
 	"\n" +
 	"FlowsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12F\n" +
 	"\x05value\x18\x02 \x01(\v20.vrooli.performance_health.v1.budgets.FlowBudgetR\x05value:\x028\x01J\x04\b\b\x10\tR\n" +
-	"p95_max_ms\"\xb0\x04\n" +
+	"p95_max_ms\"\xc9\x04\n" +
 	"\n" +
 	"FlowBudget\x12\x1c\n" +
 	"\n" +
@@ -818,7 +895,8 @@ const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\x12paint_total_max_ms\x18\n" +
 	" \x01(\x01R\x0fpaintTotalMaxMs\x121\n" +
 	"\x15input_event_count_min\x18\v \x01(\x03R\x12inputEventCountMin\x12\x1b\n" +
-	"\tload_only\x18\f \x01(\bR\bloadOnly\".\n" +
+	"\tload_only\x18\f \x01(\bR\bloadOnly\x12\x17\n" +
+	"\acls_max\x18\r \x01(\x01R\x06clsMax\".\n" +
 	"\x10GetBudgetRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\"u\n" +
 	"\x11GetBudgetResponse\x12D\n" +
@@ -838,7 +916,7 @@ const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12U\n" +
 	"\n" +
 	"violations\x18\x03 \x03(\v25.vrooli.performance_health.v1.budgets.BudgetViolationR\n" +
-	"violations\"\xad\x01\n" +
+	"violations\"\xf7\x01\n" +
 	"\x0fBudgetViolation\x12\x12\n" +
 	"\x04axis\x18\x01 \x01(\tR\x04axis\x12\x1a\n" +
 	"\bmeasured\x18\x02 \x01(\x03R\bmeasured\x12\x16\n" +
@@ -846,7 +924,9 @@ const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\x04unit\x18\x04 \x01(\tR\x04unit\x12\x12\n" +
 	"\x04flow\x18\x05 \x01(\tR\x04flow\x12\x12\n" +
 	"\x04mode\x18\x06 \x01(\tR\x04mode\x12\x16\n" +
-	"\x06detail\x18\a \x01(\tR\x06detail2\x90\x03\n" +
+	"\x06detail\x18\a \x01(\tR\x06detail\x12%\n" +
+	"\x0emeasured_value\x18\b \x01(\x01R\rmeasuredValue\x12!\n" +
+	"\fbudget_value\x18\t \x01(\x01R\vbudgetValue2\x90\x03\n" +
 	"\rBudgetService\x12|\n" +
 	"\tGetBudget\x126.vrooli.performance_health.v1.budgets.GetBudgetRequest\x1a7.vrooli.performance_health.v1.budgets.GetBudgetResponse\x12|\n" +
 	"\tSetBudget\x126.vrooli.performance_health.v1.budgets.SetBudgetRequest\x1a7.vrooli.performance_health.v1.budgets.SetBudgetResponse\x12\x82\x01\n" +

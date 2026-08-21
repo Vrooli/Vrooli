@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@/test-utils/renderWithProviders'
 import { LineagePanel } from './LineagePanel'
 
 type CapturedProps = { skillId?: string; currentContent?: string }

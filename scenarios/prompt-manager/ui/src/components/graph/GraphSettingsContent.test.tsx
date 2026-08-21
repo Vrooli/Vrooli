@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@/test-utils/renderWithProviders'
 import { useGraphStore } from '@/stores/graphStore'
 import { useGraphHealthConfigStore } from '@/stores/graphHealthConfigStore'
 import { GraphSettingsContent } from './GraphSettingsContent'

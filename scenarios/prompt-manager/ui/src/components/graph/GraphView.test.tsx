@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@/test-utils/renderWithProviders'
 import { MemoryRouter } from 'react-router-dom'
 import type { GraphResponse } from '@/lib/schemas'
 

@@ -14,7 +14,17 @@
  */
 
 import { parser } from '@shaderfrog/glsl-parser'
-import createGL from 'gl'
+import { createRequire } from 'node:module'
+
+type CreateGL = typeof import('gl')
+const require = createRequire(import.meta.url)
+let createGL: CreateGL | null = null
+try {
+  createGL = require('gl') as CreateGL
+} catch {
+  // The native headless-gl binding is optional. Parser/injection tests should
+  // still run in environments that intentionally omit native install scripts.
+}
 
 // =============================================================================
 // TYPES
@@ -44,6 +54,7 @@ export interface ShaderInjections {
 
 /** Whether a WebGL context can be created (false in headless environments without GPU) */
 export const hasWebGL = (() => {
+  if (!createGL) return false
   try {
     const ctx = createGL(1, 1) as unknown
     return ctx !== null
@@ -73,6 +84,9 @@ export function compileShaderWithWebGL(
   source: string,
   type: 'vertex' | 'fragment'
 ): WebGLCompilationResult {
+  if (!createGL) {
+    return { success: false, error: 'WebGL binding unavailable in this environment' }
+  }
   const gl = createGL(1, 1) as ReturnType<typeof createGL> | null // 1x1 pixel context is enough for compilation
   if (!gl) {
     return { success: false, error: 'WebGL context unavailable (headless environment without GPU)' }

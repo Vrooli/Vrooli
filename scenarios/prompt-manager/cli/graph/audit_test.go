@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	clitest "github.com/vrooli/cli-core/cliapptest"
+	clitest "prompt-manager/cli/internal/testutil"
 )
 
 // cleanAuditContext wires every endpoint the sweep reads with in-band values.
@@ -95,6 +95,7 @@ func TestCmdAuditCoversEveryFrameworkHealthTarget(t *testing.T) {
 		"Skill conditioning quality",
 		"Skill-experiment loop liveness",
 		"PoR entropy",
+		"Instrument coverage",
 		"Team orientation cost",
 		"Discovery budget pressure",
 		"Prompt structure invariant",

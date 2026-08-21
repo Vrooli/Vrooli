@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	clitest "github.com/vrooli/cli-core/cliapptest"
+	clitest "prompt-manager/cli/internal/testutil"
 )
 
 // The split exists so one command can gate and the other can report. These two

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@/test-utils/renderWithProviders'
 import { ViewOverlay } from './ViewOverlay'
 import { usePerformanceStore } from '@/stores/performanceStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'

@@ -11,7 +11,7 @@
  */
 
 import { afterEach, describe, it, expect, vi, beforeEach, type MockInstance } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@/test-utils/renderWithProviders'
 import { TaskKanbanBoard } from './TaskKanbanBoard'
 import type { TeamTask, TaskBoardResponse } from '@/services/heartbeatService'
 import type { TeamMember } from '@/types/team'

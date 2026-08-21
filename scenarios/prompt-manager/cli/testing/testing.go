@@ -134,7 +134,9 @@ func cmdRun(ctx appctx.Context, args []string) error {
 		Temperature: temperature,
 	}
 
-	fmt.Printf("Testing skill %s with %s...\n", skillID, *role)
+	if !*jsonOut {
+		fmt.Printf("Testing skill %s with %s...\n", skillID, *role)
+	}
 
 	var resp TestResponse
 	if err := ctx.Post(fmt.Sprintf("/skills/%s/test", skillID), req, &resp); err != nil {
@@ -190,12 +192,16 @@ func cmdHistory(ctx appctx.Context, args []string) error {
 		if r.TokenCount != nil {
 			tokens = fmt.Sprintf("%d tokens", *r.TokenCount)
 		}
+		shortID := r.ID
+		if len(shortID) > 8 {
+			shortID = shortID[:8]
+		}
 		fmt.Printf("  %s - %s - %s %s [%s]\n",
 			r.TestedAt.Format("2006-01-02 15:04"),
 			r.Role,
 			responseTime,
 			tokens,
-			r.ID[:8])
+			shortID)
 	}
 	return nil
 }

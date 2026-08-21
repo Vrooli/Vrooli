@@ -63,7 +63,8 @@ export type HealthMessage = z.infer<typeof HealthMessageSchema>
 
 export const HealthScoreSchema = z.object({
   nodeId: z.string(),
-  score: z.number(),
+  // ProtoJSON omits a zero-valued score, especially for external CLI nodes.
+  score: z.number().optional().default(0),
   factors: HealthFactorSchema,
   messages: nullableArray(HealthMessageSchema),
 })

@@ -155,11 +155,34 @@ check "No active reference to team-shared-docs-design" no_active_refs_to "team-s
 # 5. Technique-registry pairing: doc + paired skill discipline
 # ---------------------------------------------------------------------------
 #
-# Every <slug>.md (excluding README.md) under a registered technique-registry
-# directory MUST have a matching SKILL.md at
-# scenarios/prompt-manager/store/skills/packs/core/<slug>/SKILL.md, AND every
-# skill whose skill.json declares the registry's tag MUST have a matching PoR
-# doc in the registry directory.
+# Two directions, and they are deliberately not symmetric:
+#
+#   1. Every <slug>.md (excluding README.md) under a registered technique-registry
+#      directory MUST have a matching SKILL.md at
+#      scenarios/prompt-manager/store/skills/packs/core/<slug>/SKILL.md.
+#   2. Every skill *in the registry's live rotation* MUST have a matching PoR doc
+#      in the registry directory.
+#
+# Direction 2 keys on the rotation, not on the tag alone. Until 2026-08-17 it
+# keyed on the tag, which put it in disagreement with the contract it was
+# enforcing: the rotation is defined by
+# quality-auditor's taskParameters.rotationQuery as
+#
+#     skill list --mode steer --tag <tag> --without-programmatic-home
+#
+# so a skill that is provider-owned (programmaticHome set) or not a steer skill
+# is not a rotated lens. Demanding strategic canon for those produced exactly the
+# failure the registry README names — "a doc with no skill is a stale shrine" —
+# one doc per provider-owned skill that no auditor rotates through. It also read
+# as a pass for months while failing, because the check ran as an `external`
+# sensor that reported "not collected".
+#
+# The asymmetry is the point. A lens that *graduates* to a provider keeps both
+# its tag and its doc (screaming-architecture-audit is the worked case): the doc
+# holds why the lens applied and what the contrarian challenged, which stays
+# worth reading after detection mechanizes. Direction 1 keeps that doc honest by
+# requiring its skill to still exist. Direction 2 stops requiring a doc the
+# moment the lens leaves the rotation.
 #
 # Future registries plug in by appending one entry to TECHNIQUE_REGISTRIES.
 
@@ -185,14 +208,33 @@ docs_in_registry() {
 skills_with_tag() {
     local tag="$1"
     if [[ ! -d "$SKILL_PACK_DIR" ]]; then return 0; fi
-    # Find skill.json files containing the tag literal "<tag>" inside a
-    # tags array. Use grep then verify with ripgrep when available; fall
-    # back to grep + python-style awk.
     for sj in "$SKILL_PACK_DIR"/*/skill.json; do
         [[ -f "$sj" ]] || continue
-        if grep -q "\"$tag\"" "$sj" 2>/dev/null; then
-            basename "$(dirname "$sj")"
+        grep -q "\"$tag\"" "$sj" 2>/dev/null || continue
+        basename "$(dirname "$sj")"
+    done | sort -u
+}
+
+# skills_in_rotation mirrors quality-auditor's taskParameters.rotationQuery:
+# a rotated lens is a steer skill carrying the registry tag whose detection has
+# NOT graduated to a programmatic engine. Skills auto-prune from the rotation the
+# moment a programmaticHome is recorded, and this check prunes with them.
+skills_in_rotation() {
+    local tag="$1"
+    if [[ ! -d "$SKILL_PACK_DIR" ]]; then return 0; fi
+    for sj in "$SKILL_PACK_DIR"/*/skill.json; do
+        [[ -f "$sj" ]] || continue
+        grep -q "\"$tag\"" "$sj" 2>/dev/null || continue
+        # steer mode: the rotation is steer-only. "steer" appears in skill.json
+        # only inside the modes array, so a bare literal match is sufficient and
+        # avoids depending on a JSON parser in this harness.
+        grep -q '"steer"' "$sj" 2>/dev/null || continue
+        # graduated: a non-empty programmaticHome means a provider owns
+        # detection, so the skill is not a rotated judgment lens.
+        if grep -qE '"programmaticHome"[[:space:]]*:[[:space:]]*"[^"]' "$sj" 2>/dev/null; then
+            continue
         fi
+        basename "$(dirname "$sj")"
     done | sort -u
 }
 
@@ -200,26 +242,31 @@ registry_pairing_clean() {
     local entry="$1"
     local dir="${entry%|*}"
     local tag="${entry#*|}"
-    local docs skills
+    local docs skills rotated rc=0
     docs=$(docs_in_registry "$dir")
     skills=$(skills_with_tag "$tag")
-    # Doc without skill?
+    rotated=$(skills_in_rotation "$tag")
+    # Direction 1: a doc must have a paired skill, graduated or not.
     while IFS= read -r slug; do
         [[ -z "$slug" ]] && continue
         if ! grep -qx "$slug" <<<"$skills"; then
             red "    doc '$dir/$slug.md' has no paired skill at $SKILL_PACK_DIR/$slug/SKILL.md"
-            return 1
+            rc=1
         fi
     done <<<"$docs"
-    # Skill without doc?
+    # Direction 2: a *rotated* lens must have a paired PoR doc. A provider-owned
+    # or non-steer skill is not rotated and needs none.
     while IFS= read -r slug; do
         [[ -z "$slug" ]] && continue
         if ! grep -qx "$slug" <<<"$docs"; then
-            red "    skill '$slug' (tagged '$tag') has no paired PoR doc in $dir/"
-            return 1
+            red "    rotated lens '$slug' (steer + '$tag', no programmaticHome) has no paired PoR doc in $dir/"
+            rc=1
         fi
-    done <<<"$skills"
-    return 0
+    done <<<"$rotated"
+    # Report every violation, not just the first. The earlier version returned on
+    # the first mismatch, so fixing one entry revealed the next and the true
+    # count was never visible in one run.
+    return "$rc"
 }
 
 for entry in "${TECHNIQUE_REGISTRIES[@]}"; do

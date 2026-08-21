@@ -92,9 +92,19 @@ type AnalyzeTraceResponse struct {
 	InputEvents  []*EventSummary `protobuf:"bytes,9,rep,name=input_events,json=inputEvents,proto3" json:"input_events,omitempty"`
 	// Cumulative Layout Shift. Unitless (not milliseconds), so it is a double
 	// rather than one of the int64 timing fields above.
-	Cls           float64 `protobuf:"fixed64,10,opt,name=cls,proto3" json:"cls,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Cls float64 `protobuf:"fixed64,10,opt,name=cls,proto3" json:"cls,omitempty"`
+	// PerformanceNavigationTiming phases, milliseconds from navigation start.
+	// Monotonic: response_end <= dom_interactive <= dom_content_loaded <=
+	// load_event_end.
+	ResponseEndMs      int64 `protobuf:"varint,11,opt,name=response_end_ms,json=responseEndMs,proto3" json:"response_end_ms,omitempty"`
+	DomInteractiveMs   int64 `protobuf:"varint,12,opt,name=dom_interactive_ms,json=domInteractiveMs,proto3" json:"dom_interactive_ms,omitempty"`
+	DomContentLoadedMs int64 `protobuf:"varint,13,opt,name=dom_content_loaded_ms,json=domContentLoadedMs,proto3" json:"dom_content_loaded_ms,omitempty"`
+	LoadEventEndMs     int64 `protobuf:"varint,14,opt,name=load_event_end_ms,json=loadEventEndMs,proto3" json:"load_event_end_ms,omitempty"`
+	// Navigation kind ("navigate", "reload", "back_forward", "prerender").
+	// Context that qualifies the timings above, not a gated metric.
+	NavigationType string `protobuf:"bytes,15,opt,name=navigation_type,json=navigationType,proto3" json:"navigation_type,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AnalyzeTraceResponse) Reset() {
@@ -195,6 +205,41 @@ func (x *AnalyzeTraceResponse) GetCls() float64 {
 		return x.Cls
 	}
 	return 0
+}
+
+func (x *AnalyzeTraceResponse) GetResponseEndMs() int64 {
+	if x != nil {
+		return x.ResponseEndMs
+	}
+	return 0
+}
+
+func (x *AnalyzeTraceResponse) GetDomInteractiveMs() int64 {
+	if x != nil {
+		return x.DomInteractiveMs
+	}
+	return 0
+}
+
+func (x *AnalyzeTraceResponse) GetDomContentLoadedMs() int64 {
+	if x != nil {
+		return x.DomContentLoadedMs
+	}
+	return 0
+}
+
+func (x *AnalyzeTraceResponse) GetLoadEventEndMs() int64 {
+	if x != nil {
+		return x.LoadEventEndMs
+	}
+	return 0
+}
+
+func (x *AnalyzeTraceResponse) GetNavigationType() string {
+	if x != nil {
+		return x.NavigationType
+	}
+	return ""
 }
 
 // ComponentTiming is one React component's commit profile across the trace.
@@ -1028,7 +1073,7 @@ const file_performance_health_v1_analysis_analysis_proto_rawDesc = "" +
 	"-performance-health/v1/analysis/analysis.proto\x12%vrooli.performance_health.v1.analysis\"X\n" +
 	"\x13AnalyzeTraceRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
-	"\x0etrace_artifact\x18\x02 \x01(\tR\rtraceArtifact\"\xc6\x04\n" +
+	"\x0etrace_artifact\x18\x02 \x01(\tR\rtraceArtifact\"\xa3\x06\n" +
 	"\x14AnalyzeTraceResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12V\n" +
 	"\n" +
@@ -1043,7 +1088,12 @@ const file_performance_health_v1_analysis_analysis_proto_rawDesc = "" +
 	"\fbrowser_work\x18\b \x03(\v23.vrooli.performance_health.v1.analysis.EventSummaryR\vbrowserWork\x12V\n" +
 	"\finput_events\x18\t \x03(\v23.vrooli.performance_health.v1.analysis.EventSummaryR\vinputEvents\x12\x10\n" +
 	"\x03cls\x18\n" +
-	" \x01(\x01R\x03cls\"\xa0\x01\n" +
+	" \x01(\x01R\x03cls\x12&\n" +
+	"\x0fresponse_end_ms\x18\v \x01(\x03R\rresponseEndMs\x12,\n" +
+	"\x12dom_interactive_ms\x18\f \x01(\x03R\x10domInteractiveMs\x121\n" +
+	"\x15dom_content_loaded_ms\x18\r \x01(\x03R\x12domContentLoadedMs\x12)\n" +
+	"\x11load_event_end_ms\x18\x0e \x01(\x03R\x0eloadEventEndMs\x12'\n" +
+	"\x0fnavigation_type\x18\x0f \x01(\tR\x0enavigationType\"\xa0\x01\n" +
 	"\x0fComponentTiming\x12\x1c\n" +
 	"\tcomponent\x18\x01 \x01(\tR\tcomponent\x12!\n" +
 	"\fcommit_count\x18\x02 \x01(\x05R\vcommitCount\x12\x15\n" +

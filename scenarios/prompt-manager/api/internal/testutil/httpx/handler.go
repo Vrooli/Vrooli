@@ -45,10 +45,3 @@ func DecodeJSON[T any](t testing.TB, recorder *httptest.ResponseRecorder) T {
 	}
 	return out
 }
-
-func AssertStatus(t testing.TB, recorder *httptest.ResponseRecorder, want int) {
-	t.Helper()
-	if recorder.Code != want {
-		t.Fatalf("expected status %d, got %d: %s", want, recorder.Code, recorder.Body.String())
-	}
-}

@@ -1,8 +1,65 @@
 # API Reference
 
-Complete documentation for the prompt-manager REST API.
+Prompt Manager's supported programmatic contract is generated Connect-RPC.
+Resolve the live `API_PORT` through the scenario lifecycle; clients must not
+hard-code ports or construct legacy REST paths.
 
-**Base URL:** `http://localhost:{PORT}/api/v1`
+## Generated Connect surface
+
+The schemas live under `packages/proto/schemas/prompt-manager/v1/<domain>` and
+generated clients live under `packages/proto/gen/{go,ts}/prompt-manager/v1`.
+Connect procedures use the standard path
+`/<fully-qualified-service>/<method>` and work with binary protobuf or Connect
+JSON. The API mounts these generated services:
+
+| Domain | Service | RPCs | Responsibility |
+|---|---|---:|---|
+| skills | `SkillsService` | 16 | Skill CRUD, reads, sync, history, variants, ratings |
+| experiments | `ExperimentsService` | 14 | Experiment lifecycle, assignments, evidence, outcomes, promotion |
+| actions | `ActionsService` | 7 | Action authoring, validation, CRUD, governed execution |
+| tags | `TagsService` | 2 | Persisted tag taxonomy |
+| search | `SearchService` | 6 | Deterministic entity/content search |
+| aisearch | `AISearchService` | 8 | Semantic search and index reconciliation |
+| discovery | `DiscoveryService` | 4 | Capability discovery, gaps, telemetry, skill usage |
+| agents | `AgentsService` | 15 | Agent identity, soul, files, membership reads |
+| teams | `TeamsService` | 28 | Team aggregate, membership, roles, files, org, messages, exchange |
+| topics | `TopicsService` | 8 | Topic taxonomy, matching, accumulated skills |
+| templates | `TemplatesService` | 1 | Agent-file templates |
+| testing | `TestingService` | 2 | Skill tests and durable history |
+| metadata | `MetadataService` | 1 | Open Graph metadata lookup |
+| graph | `GraphService` | 13 | Relationship graph, health, config, and node projections |
+| heartbeat | `HeartbeatService` | 52 | Scheduling, runs, queues, prompts, handoffs, tasks, retention, bug intake |
+| memberflow | `MemberflowService` | 14 | Topics, rules, objectives, operating models, drain/orientation evidence |
+| worldscale | `WorldScaleService` | 2 | Persisted world-scale preference |
+| worldseats | `WorldSeatsService` | 2 | Persisted seat placement |
+
+Stable identifiers and method inputs are typed. Heartbeat/memberflow payloads
+whose upstream catalogs intentionally evolve are carried as
+`google.protobuf.Value` behind typed method and identity boundaries; consumers
+must still use the generated clients rather than reconstructing JSON routes.
+
+## Measures substrate
+
+- `GET /measures/declarations` returns the nine registered, read-only measure declarations.
+- `POST /measures/execute` executes a named measure and returns a scalar or table plus mandatory provenance.
+
+The measures endpoint is the fleet-wide `measures-go` contract and is not a
+second business API. Each compute function calls the owning domain's real store
+or telemetry service.
+
+## Remaining HTTP compatibility routes
+
+Only six hand-written registrations remain: `/health`, `/api/v1/health`, and
+the GET/PUT budget and discovery-filter configuration pairs. They are explicit
+compatibility/configuration seams. All former domain REST registrations were
+retired after generated-client consumers migrated.
+
+## Historical REST reference
+
+The material below documents the retired pre-Connect wire surface for migration
+archaeology only. It is not a supported client contract.
+
+**Historical base URL:** `http://localhost:{PORT}/api/v1`
 
 All endpoints return JSON. Error responses follow the format:
 ```json
@@ -472,11 +529,11 @@ Set effectiveness rating for a skill.
 
 [CODE: api/search/handlers.go]
 
-### GET /api/v1/search/skills
+### SearchService.SearchSkills
 
 Full-text search across skills.
 
-**Query Parameters:**
+**Request fields:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `q` | string | Search query (searches name, description, content) |
@@ -509,11 +566,11 @@ Full-text search across skills.
 
 ---
 
-### GET /api/v1/search/skills/content
+### SearchService.SearchSkillContent
 
 Content-only search across skill bodies (line-level matches).
 
-**Query Parameters:**
+**Request fields:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `q` | string | Search query (required) |
@@ -553,7 +610,7 @@ Content-only search across skill bodies (line-level matches).
 
 ## AI Search
 
-### POST /api/v1/search/ai
+### AISearchService.SearchSkills
 
 Semantic search powered by embeddings, with optional combined output formatting.
 
@@ -597,17 +654,17 @@ Semantic search powered by embeddings, with optional combined output formatting.
 }
 ```
 
-### GET /api/v1/search/ai/status
+### AISearchService.GetStatus
 
 Returns AI search availability status.
 
-### POST /api/v1/search/ai/reconcile
+### AISearchService.Reconcile
 
 Reconcile the qdrant index with on-disk content. The reconciler uses a
 content-hash diff (`payload_hash`) so unchanged items skip embedding
 entirely; ghost points whose backing files are gone are deleted.
 
-**Query parameters:**
+**Request fields:**
 - `collection=skills|agents|teams|topics|actions|all` — restrict to one
   collection. Defaults to `all`.
 - `dry_run=true` (or `X-Dry-Run: true` header) — return the planned
@@ -632,10 +689,9 @@ entirely; ghost points whose backing files are gone are deleted.
 }
 ```
 
-**Live response (202 Accepted):** the kickoff is async; poll the status
-endpoint for completion.
+**Live response:** the kickoff is asynchronous; use `GetReconcileStatus` for completion.
 
-### GET /api/v1/search/ai/reconcile/status
+### AISearchService.GetReconcileStatus
 
 Returns the reconciler's last-known state.
 
@@ -654,7 +710,7 @@ Returns the reconciler's last-known state.
 }
 ```
 
-### POST /api/v1/search/ai/reconcile/cancel
+### AISearchService.CancelReconcile
 
 Cancel an in-progress reconcile operation.
 
@@ -809,7 +865,7 @@ Execution uses the argv-shaped command contract from `action.json`. Branching an
 
 Rejected runs return `422` with status `rejected`. Concurrency saturation returns `429` with status `throttled`. Command failures and timeouts return `200` with status `failed` or `timed-out` so callers can inspect captured output and audit context.
 
-### POST /api/v1/discover
+### DiscoveryService.Discover
 
 Discover skills, Actions, or both. Omitting `type` preserves the legacy skill-only response shape.
 

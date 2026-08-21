@@ -15,7 +15,7 @@ import (
 	"sort"
 	"strings"
 
-	"prompt-manager/memberflow"
+	"prompt-manager/internal/memberflow"
 )
 
 func main() {

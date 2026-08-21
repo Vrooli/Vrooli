@@ -188,7 +188,7 @@ function SkillManagerLayoutImpl() {
       file: 'new.md',
       name: 'New Skill',
       description: '',
-      content: '',
+      content: '# New Skill\n\nEnter your skill content here...',
       modes: draftSkillModes,
       tags: [],
       draft: true,
@@ -565,14 +565,6 @@ function SkillManagerLayoutImpl() {
     onDelete: deleteSkillApi,
   })
 
-  // Seed the visible draft after the editor has established its empty
-  // baseline. This marks it dirty, which makes an explicit Save the only path
-  // that can call the create endpoint.
-  useEffect(() => {
-    if (!creatingSkillDraft || formState.content !== '') return
-    updateField('content', '# New Skill\n\nEnter your skill content here...')
-  }, [creatingSkillDraft, formState.content, updateField])
-
   // Agent editor state
   const {
     currentAgent: agentFromEditor,
@@ -690,7 +682,9 @@ function SkillManagerLayoutImpl() {
           draft: formState.draft,
           folder: formState.folder,
         })
-        useEditorStore.getState().removePrompt('new')
+        const editorStore = useEditorStore.getState()
+        editorStore.movePromptState('new', created.id)
+        editorStore.markAsSaved(created.id, created)
         setDraftSkillModes([])
         showSaveResultToast({ success: true, savedCount: 1, failedCount: 0, errors: [], newId: created.id }, false)
         navigate(skillDetailPath(created.id), { replace: true })
@@ -1175,7 +1169,7 @@ function SkillManagerLayoutImpl() {
   // Keyboard shortcuts (defined after callbacks so they're available)
   useKeyboardShortcuts({
     onSave: () => {
-      if (isDirty && validation.valid) {
+      if ((isDirty || creatingSkillDraft) && validation.valid) {
         void handleSaveCurrentSkill()
       }
     },
@@ -1608,7 +1602,7 @@ function SkillManagerLayoutImpl() {
                 originalContent={originalContent}
                 validation={validation}
                 allSkills={skills}
-                isDirty={isDirty}
+                isDirty={isDirty || creatingSkillDraft}
                 dirtyCount={dirtyCount}
                 onFieldChange={updateField}
                 availableTags={availableTags}
@@ -1649,7 +1643,7 @@ function SkillManagerLayoutImpl() {
 
       {/* Mobile sidebar overlay */}
       {isMobile && isMobileSidebarOpen && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Skill manager navigation">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -1885,7 +1879,12 @@ function SkillManagerLayoutImpl() {
 
       {/* Loading overlay */}
       {isLoading && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Loading prompt manager data"
+        >
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">Loading skills...</p>

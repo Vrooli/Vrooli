@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"prompt-manager/memberflow"
-	"prompt-manager/store"
+	"prompt-manager/internal/memberflow"
+	"prompt-manager/internal/store"
 )
 
 func TestTeamKnowledgeQuery_StripsWildcardAndDelegates(t *testing.T) {

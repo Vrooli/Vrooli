@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@/test-utils/renderWithProviders'
 import { SearchResultsList } from './SearchResultsList'
 import type { DiscoverResult, AISearchResult, AIActionSearchResult } from '@/lib/schemas'
 

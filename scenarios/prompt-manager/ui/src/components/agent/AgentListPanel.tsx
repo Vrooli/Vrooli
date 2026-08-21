@@ -10,6 +10,7 @@ import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { AgentContextMenu } from '@/components/agent/AgentContextMenu'
 import { selectors } from '@/constants/selectors'
+import { toast } from '@/hooks/use-toast'
 
 interface AgentListPanelProps {
   selectedAgentId: string | null
@@ -67,16 +68,22 @@ export function AgentListPanel({
     // agent. A timestamp suffix keeps the generated storage ID unique instead
     // of turning a normal "New Agent" click into a 409 conflict.
     const name = `Agent ${agents.length + 1}-${Date.now()}`
-    const newAgent = await createAgent({
-      displayName: name,
-      appearance: {
-        body: DEFAULT_AGENT_COLORS.body,
-        head: DEFAULT_AGENT_COLORS.head,
-        accent: DEFAULT_AGENT_COLORS.accent,
-      },
-    })
-    // Auto-select the newly created agent
-    onSelectAgent(newAgent.id)
+    try {
+      const newAgent = await createAgent({
+        displayName: name,
+        appearance: {
+          body: DEFAULT_AGENT_COLORS.body,
+          head: DEFAULT_AGENT_COLORS.head,
+          accent: DEFAULT_AGENT_COLORS.accent,
+        },
+      })
+      // Auto-select the newly created agent
+      onSelectAgent(newAgent.id)
+    } catch (error) {
+      const description = error instanceof Error ? error.message : 'Unable to create agent'
+      console.error('Failed to create agent:', error)
+      toast({ title: 'Agent creation failed', description, variant: 'destructive' })
+    }
   }
 
   const handleDeleteAgent = async (id: string) => {

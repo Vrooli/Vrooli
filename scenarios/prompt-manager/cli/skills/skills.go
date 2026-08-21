@@ -141,7 +141,7 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 					Name:        "skill",
 					Aliases:     []string{"skills", "s"},
 					NeedsAPI:    true,
-					Description: "Manage skills (list|show|read|add|update|delete|use|sync|rate|versions|revert|variants|add-variant|rm-variant)",
+					Description: "Manage skills (list|show|read|add|update|delete|sync|rate|versions|revert|variants|add-variant|rm-variant)",
 					Usage:       "prompt-manager skill <subcommand> [args]",
 					HelpText:    usageText(),
 					Run: func(args []string) error {

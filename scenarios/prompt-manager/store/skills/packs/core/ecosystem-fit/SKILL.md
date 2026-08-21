@@ -87,7 +87,7 @@ This skill **routes**, it does not decide strategy. Read the canon, pick the int
 
 | Need | Where (read-only — never edit canon) |
 |---|---|
-| Which bundle / SKU role | `path:docs/monetization/catalogs/CATALOG.md` + `scenario-sku-map.json` |
+| Which bundle / SKU role | `path:docs/monetization/catalogs/CATALOG.md` for judgment, and `offer-desk offers catalog-list` / `catalog-edges` for the live scenario→SKU map (`belongs_to` edges) |
 | Monetization posture / "should we even charge" | `path:docs/monetization/strategy/STRATEGY.md`; portfolio call → `morning-vision-walk` |
 | Free vs **metered** vs **gated**, and how to wire each | `path:docs/concepts/PAID_FEATURES.md` |
 | Wiring the bundle/entitlement integration | `prompt-manager skill read bundle-integration-steer` |

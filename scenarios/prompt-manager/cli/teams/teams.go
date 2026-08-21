@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"prompt-manager/cli/internal/appctx"
-	"prompt-manager/teamconfig"
-	"prompt-manager/teamcontract"
+	"prompt-manager/internal/teamconfig"
+	"prompt-manager/internal/teamcontract"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -854,11 +854,12 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 	}
 
 	req := CreateTeamRequest{
-		DisplayName:  name,
-		Mission:      *mission,
-		Runtime:      runtime,
-		Coordination: coordination,
-		Execution:    execution,
+		DisplayName:       name,
+		Mission:           *mission,
+		Runtime:           runtime,
+		Coordination:      coordination,
+		Execution:         execution,
+		OperatingContract: teamcontract.Minimal(""),
 	}
 
 	var team TeamDetails
@@ -1001,6 +1002,7 @@ func cmdValidateContract(ctx appctx.Context, args []string) error {
 func cmdDelete(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("delete", flag.ContinueOnError)
 	force := fs.Bool("force", false, "Skip confirmation prompt")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -1029,6 +1031,9 @@ func cmdDelete(ctx appctx.Context, args []string) error {
 
 	if err := ctx.Delete(fmt.Sprintf("/teams/%s", teamID)); err != nil {
 		return fmt.Errorf("failed to delete team: %w", err)
+	}
+	if *jsonOut {
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"deleted": true, "id": teamID, "displayName": team.DisplayName})
 	}
 
 	fmt.Printf("Deleted team: %s\n", team.DisplayName)
@@ -1122,6 +1127,7 @@ func cmdUpdateMember(ctx appctx.Context, args []string) error {
 func cmdRemoveMember(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("remove-member", flag.ContinueOnError)
 	force := fs.Bool("force", false, "Skip confirmation prompt")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -1145,6 +1151,9 @@ func cmdRemoveMember(ctx appctx.Context, args []string) error {
 
 	if err := ctx.Delete(fmt.Sprintf("/teams/%s/members/%s", teamID, agentID)); err != nil {
 		return fmt.Errorf("failed to remove member: %w", err)
+	}
+	if *jsonOut {
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"removed": true, "teamId": teamID, "agentId": agentID})
 	}
 
 	fmt.Printf("Removed member %s from team %s\n", agentID, teamID)
@@ -3195,7 +3204,7 @@ func cmdBugCapture(ctx appctx.Context, args []string) error {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team bug-capture scenario-qa --title=... --signal-type=... --severity=... --repro=... --expected=... --actual=... --description=...")
+		return fmt.Errorf("team bug-capture usage: scenario-qa --title=<title> --signal-type=<type> --severity=<severity> --repro=<step> --expected=<expected> --actual=<actual> --description=<description>")
 	}
 	return runBugCapture(ctx, false, fmt.Sprintf("/teams/%s/bugs/capture", fs.Arg(0)), flags.request(), *jsonOut)
 }
@@ -3496,40 +3505,4 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
-}
-
-func firstCLIContentLine(content string) string {
-	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "- "))
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		return line
-	}
-	return ""
-}
-
-func challengeStatusFromContent(content string) string {
-	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "status:") {
-			return strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "status:")), `"'`)
-		}
-		if strings.Contains(line, `"status"`) {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				return strings.Trim(strings.TrimSpace(strings.TrimRight(parts[1], ",}")), `"'`)
-			}
-		}
-	}
-	return ""
-}
-
-func challengeStatusIsClosed(status string) bool {
-	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "resolved", "overridden", "stale":
-		return true
-	default:
-		return false
-	}
 }

@@ -331,6 +331,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 func cmdDelete(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("delete", flag.ContinueOnError)
 	force := fs.Bool("force", false, "Skip confirmation prompt")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -359,6 +360,9 @@ func cmdDelete(ctx appctx.Context, args []string) error {
 
 	if err := ctx.Delete(fmt.Sprintf("/agents/%s", agentID)); err != nil {
 		return fmt.Errorf("failed to delete agent: %w", err)
+	}
+	if *jsonOut {
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"deleted": true, "id": agentID, "displayName": agent.DisplayName})
 	}
 
 	fmt.Printf("Deleted agent: %s\n", agent.DisplayName)

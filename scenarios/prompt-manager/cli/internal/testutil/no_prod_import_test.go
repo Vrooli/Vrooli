@@ -42,7 +42,7 @@ func TestProductionCodeDoesNotImportCLITestutil(t *testing.T) {
 		}
 		for _, imp := range file.Imports {
 			importPath := strings.Trim(imp.Path.Value, `"`)
-			if strings.HasPrefix(importPath, testutil "github.com/vrooli/cli-core/cliapptest") {
+			if strings.HasPrefix(importPath, "prompt-manager/cli/internal/testutil") {
 				rel, relErr := filepath.Rel(root, path)
 				if relErr != nil {
 					return relErr

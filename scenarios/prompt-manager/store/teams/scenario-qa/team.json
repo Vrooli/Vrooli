@@ -6,7 +6,8 @@
   "mission": "Ensure scenario quality through structural quality audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes — producing evidence-rich backlog items, audit logs, investigation logs, and challenge notes that downstream agents act on.",
   "objectivesServed": [
     {
-      "id": "I1"
+      "id": "I1",
+      "acknowledgedRevision": "0ad42308ee4f"
     }
   ],
   "instrument": {

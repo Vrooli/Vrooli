@@ -44,6 +44,33 @@ export default defineConfig(({ mode }): UserConfig => {
         },
       },
     },
+    test: {
+      environment: 'jsdom',
+      setupFiles: ['./src/test-setup.ts'],
+      coverage: {
+        provider: 'v8',
+        reporter: ['text', 'json-summary', 'json'],
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: [
+          'src/**/*.test.{ts,tsx}',
+          'src/**/*.spec.{ts,tsx}',
+          'src/**/*.d.ts',
+          'src/main.tsx',
+          'src/test-setup.ts',
+          'src/test-utils/**',
+          'src/consts/strings.generated.ts',
+          'src/i18n/locales/**',
+          'src/**/generated/**',
+        ],
+        reportOnFailure: true,
+        thresholds: {
+          lines: 85,
+          functions: 85,
+          branches: 85,
+          statements: 85,
+        },
+      },
+    },
     define: {
       // INTEROP-CRITICAL: Some browser-side dependencies probe process.env; provide an empty shim.
       'process.env': {}

@@ -192,10 +192,20 @@ Subcommands:
 }
 
 // cmdShow prints a summary of graph counts by type.
-func cmdShow(ctx appctx.Context, _ []string) error {
+func cmdShow(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("show", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
 	var idx graphIndex
 	if err := ctx.Get("/graph", &idx); err != nil {
 		return fmt.Errorf("failed to fetch graph: %w", err)
+	}
+	if *jsonOut {
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(idx)
 	}
 
 	g := idx.Graph

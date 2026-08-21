@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@/test-utils/renderWithProviders'
 import { RunListPanel } from './RunListPanel'
 import { listHeartbeatAttempts, listRuns } from '@/services/heartbeatService'
 

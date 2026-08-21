@@ -35,6 +35,12 @@
           "audience": ["developers"]
         },
         {
+          "path": "concepts/DOMAINS.md",
+          "title": "Domain Model and Migration Contract",
+          "description": "Live inventories, proto package map, omission policy, and governed slice order",
+          "audience": ["developers", "operators"]
+        },
+        {
           "path": "concepts/SWARM-MODEL.md",
           "title": "Swarm Coordination Model",
           "description": "How skills, agents, teams, and Actions work together",
@@ -187,6 +193,12 @@
           "path": "internal/SEAMS.md",
           "title": "Testing Seams",
           "description": "Integration boundaries, dependency injection points, and testing strategies",
+          "internal": true
+        },
+        {
+          "path": "internal/DECISIONS.md",
+          "title": "Architecture Decisions",
+          "description": "Durable architecture choices and rejected alternatives",
           "internal": true
         },
         {

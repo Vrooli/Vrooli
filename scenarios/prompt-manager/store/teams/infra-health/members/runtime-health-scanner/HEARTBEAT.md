@@ -6,21 +6,22 @@ Single-incident systems can hide repeated patterns. A successful heal can mask a
 ## Resume Protocol
 When the team resumes after a pause, the first heartbeat is a re-baselining pass, not a normal scan:
 
-1. Re-verify every sensor cell in the `RELIABILITY_TARGETS.md` sensor map against the live CLIs; flag cells whose command no longer exists or whose output shape changed.
-2. Clean the alarm channel before recording anything: reconcile the check registry against the installed scenario/resource set — both directions: ghost checks (→ retire finding) and unsupervised members of the derived should-be-supervised set (→ coverage finding) — and sweep for saturated checks (single status ≥24h → one durable finding, then shelve with expiry or retire). The `vrooli-autoheal check shelve` / `check reconcile` verbs are Gap 10 and not shipped yet — until then, record shelves and the reconcile diff manually per `RELIABILITY_TARGETS.md` § Sensor integrity. Baselines recorded over a polluted channel are dishonest.
-3. Record first baselines for `pending-baseline` rows (bootstrap clause — no waiting period).
-4. Reconcile `INSTRUMENTATION_ROADMAP.md` gaps against capabilities that shipped during the pause.
+1. Read the instrument's own integrity first: `infrastructure-manager coverage validate --json` and `coverage drift --json`. A setpoint-integrity or drift finding means the board itself is wrong; fix that before reading anything off it.
+2. Clean the alarm channel before recording anything: `vrooli-autoheal check reconcile --json` gives all three directions at once — ghost checks (target gone → retire finding), out-of-scope checks (target exists, outside the core set → supervision-scope finding, and their readings still count), and unsupervised plant (core-set member with no check → coverage finding). Then `vrooli-autoheal check saturation --json` for the whole registry in one read. If `ghostDetectionAvailable` is false, no check may be called a ghost that heartbeat. Baselines recorded over a polluted channel are dishonest.
+3. Read `infrastructure-manager condition trust --json`. If most readings are not `VALID`, the channel is still dirty and step 2 is not finished.
+4. Record first baselines for cells whose band verdict is `NEEDS_BASELINE` (bootstrap clause — no waiting period). A `NOT_GRADEABLE` verdict is not a missing baseline: it means the bar authors no threshold, which is a setpoint review item for the operator, not a reading to take.
 5. Only then return to the normal task loop.
 
 ## Task Loop
-1. Pull durable autoheal incidents first (`vrooli-autoheal incidents latest --json`), then runtime signals since the prior heartbeat.
-2. Walk the triage ladder in order: repeat failures, heal-loops, slow restarts, investigation clusters, capacity-claim mismatches (`vrooli capacity reconcile`), alarm-channel integrity (ghost or saturated checks, expired shelves, flood target out of band — see sensor-integrity rule), supervised-set coverage (unsupervised members of the derived should-be-supervised set — manual diff until the Gap 10 reconcile extension ships), capability availability (owner-derived aggregates out of band, once Gap 11 ships persistence; repeated unabsorbed degradation escalates per operating-model rule 1), validation cost and cache reliability (`test-genie runs cost --window 7d --json`, including reliable-sample composition, calibration freshness, cache-hit rate, audit/demotion counts, and net saving), quiet-day shortcut. Respect cascade discipline: skip an outer tier while an inner tier holds an unresolved excursion. On quiet days, run the protocol-debt check: did any update protocol (targets, roadmap, REPLACES-MANUAL sweep, actuation-efficacy re-reads) trigger without completing?
-3. Pick one signal not already covered by the rolling lessons.
-4. Investigate with existing tooling first; use manual fallback only when necessary.
-5. Update the runtime lessons artifact.
-6. Record the runtime-health knowledge snapshot.
-7. Check supersession on owned open work items.
-8. Propose work items when the finding is concrete.
+1. Read the ranked surface first: `infrastructure-manager focus next --json`. It merges out-of-band readings, untrusted readings, open-loop cells, coverage drift and source unavailability into one queue already ordered by cascade stage, and states which stage it applied. Check `sources` in the same response: a source reporting `available: false` means that whole finding class was not looked at, so an empty queue is not a quiet day.
+2. Take the top-ranked finding whose stage is the innermost unresolved tier. Do not skip down the list to a more interesting outer-tier item — that is the cascade violation the rubric fails mechanically. Pull the evidence with `infrastructure-manager condition explain <cell-ref> --json`, and the durable incident behind it with `vrooli-autoheal incidents latest --json`.
+3. Only when `focus next` is genuinely empty and every source is available, fall back to the wider sweep: capacity-claim mismatches (`vrooli capacity reconcile`), validation cost and cache reliability (`test-genie runs cost --window 7d --json`, including reliable-sample composition, calibration freshness, cache-hit rate, audit/demotion counts, and net saving), and capability availability aggregates. On quiet days, run the protocol-debt check: did any update protocol (setpoint review, REPLACES-MANUAL sweep, actuation-efficacy re-reads) trigger without completing?
+4. Pick one signal not already covered by the rolling lessons.
+5. Investigate with existing tooling first; use manual fallback only when necessary.
+6. Update the runtime lessons artifact.
+7. Record the runtime-health knowledge snapshot.
+8. Check supersession on owned open work items.
+9. Propose work items when the finding is concrete. Name the sensor the fix must move (`sensor_ref` on the finding) so actuation efficacy can be re-read afterwards.
 
 For validation-cost scans, treat the Test Genie report as the source of truth. Do not rerun a comprehensive suite merely to obtain a cost sample when the report already has a recent reliable sample. If calibration is due, record the scheduler work item and wait for the server-owned run once; do not start a duplicate run because the cost command is slow.
 

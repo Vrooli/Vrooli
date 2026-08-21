@@ -98,12 +98,29 @@ export default tseslint.config(
       // Relax some strict rules that are too noisy
       "@typescript-eslint/restrict-template-expressions": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
+
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/test-utils", "**/test-utils/*", "@/test-utils", "@/test-utils/*"],
+              message: "Production code must not import test-only helpers from src/test-utils.",
+            },
+            {
+              group: ["**/features/*/mocks", "**/features/*/mocks/*"],
+              message: "Production code must not import feature test mocks.",
+            },
+          ],
+        },
+      ],
     },
   },
   // Test file overrides
   {
     files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "**/*.integration.test.{ts,tsx}", "**/test/**/*.{ts,tsx}"],
     rules: {
+      "no-restricted-imports": "off",
       // Allow unbound methods in tests (common pattern with vi.mocked)
       "@typescript-eslint/unbound-method": "off",
       // Allow act from @testing-library/react (deprecation refers to react-dom/test-utils)

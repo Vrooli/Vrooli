@@ -24,13 +24,12 @@ A session must reach its outcome while the operator is present. Do not route a c
 autonomous agent's inbox, a team heartbeat, or a queue that only a scheduled loop drains. Leaving an
 item unchanged is a resolution when you state the reason.
 
-## Start with precedent
+## Use retrieved precedent
 
-Before the first answer, run `search-hub query "<the operator's intent>" --type record,skill,doc`.
-A solved instance elsewhere in the repository outranks a fresh triage. Prior decisions to leave
-an item unchanged are precedent for the current triage. `swarm-manager backlog search-ai` searches
-the work ledger only; it does not replace the precedent query. The precedent query replaces a
-drill-down, so keep the one targeted drill-down budget unchanged.
+Read the attached `related-work` section before the first answer. The server queried it with the
+operator's message. A solved instance elsewhere in the repository and a prior leave-alone decision
+can outrank a fresh triage. If retrieval is unavailable, do not infer that no precedent exists.
+This orientation replaces a drill-down, so keep the one targeted drill-down budget unchanged.
 
 ## Startup
 
@@ -121,8 +120,8 @@ Propose mutations; never apply them.
 Recall prior knowledge with `source-ledger recall "<query>" --scope=session:swarm-operations` and,
 when useful, record a keep verdict or a leave-alone decision with
 `source-ledger journal note "<prose>" --scope=session:swarm-operations --kind=session-knowledge`.
-Writing is your choice; nothing writes automatically. Record knowledge and evidence, never a task
-for another agent to pick up.
+Swarm Manager records terminal proposal resolutions automatically. Recording other knowledge is
+your choice. Record knowledge and evidence, never a task for another agent to pick up.
 
 ## Guardrails
 

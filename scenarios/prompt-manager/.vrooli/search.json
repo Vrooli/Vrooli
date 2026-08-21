@@ -11,12 +11,22 @@
       "description": "High-traffic internal skills: reusable operating instructions, implementation guidance, debugging methods, and project workflows for agents working in Vrooli.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
+      "index_timestamp_field": "finishedAt",
       "endpoint": {
         "http_json": {
           "scenario_id": "prompt-manager",
-          "path": "/api/v1/search/ai",
+          "path": "/vrooli.prompt_manager.v1.aisearch.AISearchService/SearchSkills",
           "method": "HTTP_METHOD_POST",
           "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"output\":\"results\"}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "prompt-manager",
+          "path": "/vrooli.prompt_manager.v1.aisearch.AISearchService/GetReconcileStatus",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
           "headers": {"Content-Type": "application/json"}
         }
       },
@@ -58,12 +68,22 @@
       "description": "High-traffic executable actions: reusable Vrooli operations and typed command capabilities discoverable by intent.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
+      "index_timestamp_field": "finishedAt",
       "endpoint": {
         "http_json": {
           "scenario_id": "prompt-manager",
-          "path": "/api/v1/search/actions/ai",
+          "path": "/vrooli.prompt_manager.v1.aisearch.AISearchService/SearchActions",
           "method": "HTTP_METHOD_POST",
           "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "prompt-manager",
+          "path": "/vrooli.prompt_manager.v1.aisearch.AISearchService/GetReconcileStatus",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
           "headers": {"Content-Type": "application/json"}
         }
       },

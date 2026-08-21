@@ -15,7 +15,7 @@ class AnalyzeTraceRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., trace_artifact: _Optional[str] = ...) -> None: ...
 
 class AnalyzeTraceResponse(_message.Message):
-    __slots__ = ("scenario", "components", "long_task_ms", "lcp_ms", "fcp_ms", "findings", "frame_summary", "browser_work", "input_events", "cls")
+    __slots__ = ("scenario", "components", "long_task_ms", "lcp_ms", "fcp_ms", "findings", "frame_summary", "browser_work", "input_events", "cls", "response_end_ms", "dom_interactive_ms", "dom_content_loaded_ms", "load_event_end_ms", "navigation_type")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     COMPONENTS_FIELD_NUMBER: _ClassVar[int]
     LONG_TASK_MS_FIELD_NUMBER: _ClassVar[int]
@@ -26,6 +26,11 @@ class AnalyzeTraceResponse(_message.Message):
     BROWSER_WORK_FIELD_NUMBER: _ClassVar[int]
     INPUT_EVENTS_FIELD_NUMBER: _ClassVar[int]
     CLS_FIELD_NUMBER: _ClassVar[int]
+    RESPONSE_END_MS_FIELD_NUMBER: _ClassVar[int]
+    DOM_INTERACTIVE_MS_FIELD_NUMBER: _ClassVar[int]
+    DOM_CONTENT_LOADED_MS_FIELD_NUMBER: _ClassVar[int]
+    LOAD_EVENT_END_MS_FIELD_NUMBER: _ClassVar[int]
+    NAVIGATION_TYPE_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     components: _containers.RepeatedCompositeFieldContainer[ComponentTiming]
     long_task_ms: int
@@ -36,7 +41,12 @@ class AnalyzeTraceResponse(_message.Message):
     browser_work: _containers.RepeatedCompositeFieldContainer[EventSummary]
     input_events: _containers.RepeatedCompositeFieldContainer[EventSummary]
     cls: float
-    def __init__(self, scenario: _Optional[str] = ..., components: _Optional[_Iterable[_Union[ComponentTiming, _Mapping]]] = ..., long_task_ms: _Optional[int] = ..., lcp_ms: _Optional[int] = ..., fcp_ms: _Optional[int] = ..., findings: _Optional[_Iterable[_Union[PerfFinding, _Mapping]]] = ..., frame_summary: _Optional[_Union[FrameSummary, _Mapping]] = ..., browser_work: _Optional[_Iterable[_Union[EventSummary, _Mapping]]] = ..., input_events: _Optional[_Iterable[_Union[EventSummary, _Mapping]]] = ..., cls: _Optional[float] = ...) -> None: ...
+    response_end_ms: int
+    dom_interactive_ms: int
+    dom_content_loaded_ms: int
+    load_event_end_ms: int
+    navigation_type: str
+    def __init__(self, scenario: _Optional[str] = ..., components: _Optional[_Iterable[_Union[ComponentTiming, _Mapping]]] = ..., long_task_ms: _Optional[int] = ..., lcp_ms: _Optional[int] = ..., fcp_ms: _Optional[int] = ..., findings: _Optional[_Iterable[_Union[PerfFinding, _Mapping]]] = ..., frame_summary: _Optional[_Union[FrameSummary, _Mapping]] = ..., browser_work: _Optional[_Iterable[_Union[EventSummary, _Mapping]]] = ..., input_events: _Optional[_Iterable[_Union[EventSummary, _Mapping]]] = ..., cls: _Optional[float] = ..., response_end_ms: _Optional[int] = ..., dom_interactive_ms: _Optional[int] = ..., dom_content_loaded_ms: _Optional[int] = ..., load_event_end_ms: _Optional[int] = ..., navigation_type: _Optional[str] = ...) -> None: ...
 
 class ComponentTiming(_message.Message):
     __slots__ = ("component", "commit_count", "avg_ms", "max_ms", "definition")

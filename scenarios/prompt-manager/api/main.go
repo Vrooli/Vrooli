@@ -20,27 +20,31 @@ import (
 	"strings"
 	"time"
 
-	"prompt-manager/actions"
-	"prompt-manager/agents"
-	"prompt-manager/aisearch"
-	"prompt-manager/graph"
-	"prompt-manager/heartbeat"
+	"prompt-manager/handlers/actions"
+	"prompt-manager/handlers/agents"
+	"prompt-manager/handlers/aisearch"
+	discoveryhandlers "prompt-manager/handlers/discovery"
+	"prompt-manager/handlers/experiments"
+	"prompt-manager/handlers/graph"
+	"prompt-manager/handlers/heartbeat"
+	"prompt-manager/handlers/memberflow"
+	"prompt-manager/handlers/metadata"
+	"prompt-manager/handlers/ogmeta"
+	"prompt-manager/handlers/search"
+	"prompt-manager/handlers/skills"
+	"prompt-manager/handlers/tags"
+	"prompt-manager/handlers/teams"
+	"prompt-manager/handlers/templates"
+	"prompt-manager/handlers/testing"
+	"prompt-manager/handlers/topics"
+	"prompt-manager/handlers/worldscale"
+	"prompt-manager/handlers/worldseats"
+	promptmeasures "prompt-manager/internal/measures"
+	"prompt-manager/internal/metrics"
 	localmodules "prompt-manager/internal/modules"
 	"prompt-manager/internal/paths"
-	"prompt-manager/memberflow"
-	"prompt-manager/metrics"
-	"prompt-manager/ogmeta"
-	"prompt-manager/search"
-	"prompt-manager/skills"
-	"prompt-manager/sourceledger"
-	"prompt-manager/store"
-	"prompt-manager/tags"
-	"prompt-manager/teams"
-	"prompt-manager/templates"
-	"prompt-manager/testing"
-	"prompt-manager/topics"
-	"prompt-manager/worldscale"
-	"prompt-manager/worldseats"
+	"prompt-manager/internal/sourceledger"
+	"prompt-manager/internal/store"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/connectx"
@@ -53,6 +57,7 @@ import (
 	"github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	measurelib "github.com/vrooli/measures-go"
 	searchregister "github.com/vrooli/searchregister-go"
 	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 
@@ -73,47 +78,61 @@ func (m gorillaMuxAdapter) Handle(pattern string, handler http.Handler) {
 	m.router.Handle(pattern, handler)
 }
 
-func sqliteDSN() (string, error) {
-	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
+func tableMeasure(rows []map[string]string, query string) measurelib.MeasureResult {
+	return measurelib.MeasureResult{
+		Fields:     rows,
+		Provenance: measurelib.Provenance{ExecutedQuery: query},
 	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
-		return sqliteFileDSN(path)
-	}
-
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		return "", fmt.Errorf("create storage resolver: %w", err)
-	}
-	scenarioID, err := storage.ScenarioNamespace("prompt-manager")
-	if err != nil {
-		return "", fmt.Errorf("resolve prompt-manager storage namespace: %w", err)
-	}
-	path, err := resolver.Path(
-		storage.Options{ScenarioID: scenarioID},
-		storage.ClassData,
-		"prompt-manager.db",
-	)
-	if err != nil {
-		return "", fmt.Errorf("resolve prompt-manager db path: %w", err)
-	}
-	return sqliteFileDSN(path)
 }
 
-func sqliteFileDSN(path string) (string, error) {
-	if strings.HasPrefix(path, "file:") {
-		return path, nil
+func scalarMeasure(value int, query string) measurelib.MeasureResult {
+	return measurelib.MeasureResult{
+		Value:      strconv.Itoa(value),
+		Provenance: measurelib.Provenance{ExecutedQuery: query},
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+}
+
+// securityHeaders applies the API-wide baseline before any route handler runs.
+// Keeping this at the router boundary prevents individual Connect and legacy
+// compatibility handlers from drifting on response hardening.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// parseMeasureWindow accepts the same Go-duration syntax as the existing
+// discovery endpoints and defaults to the bounded 30-day operational window.
+func parseMeasureWindow(raw string) time.Duration {
+	if window, err := time.ParseDuration(strings.TrimSpace(raw)); err == nil && window > 0 {
+		return window
 	}
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
-		path,
-	), nil
+	return 30 * 24 * time.Hour
+}
+
+func matchesActionMeasure(pack, status, owner, ownerID string, tags []string, params map[string]string) bool {
+	if value := params["pack"]; value != "" && value != pack {
+		return false
+	}
+	if value := params["status"]; value != "" && value != status {
+		return false
+	}
+	if value := params["owner"]; value != "" && value != owner && value != ownerID {
+		return false
+	}
+	if value := params["tag"]; value != "" {
+		for _, tag := range tags {
+			if tag == value {
+				return true
+			}
+		}
+		return false
+	}
+	return true
 }
 
 func receiptSignerFromRuntimeConfig() (receiptsigning.ReceiptSigner, bool, error) {
@@ -253,14 +272,9 @@ func main() {
 	}
 
 	// Configuration from environment
-	ollamaEnabled := false
-	if raw := strings.TrimSpace(os.Getenv("OLLAMA_ENABLED")); raw != "" {
-		parsed, err := strconv.ParseBool(raw)
-		if err != nil {
-			log.Printf("Invalid OLLAMA_ENABLED=%q - skill testing will be disabled", raw)
-		} else {
-			ollamaEnabled = parsed
-		}
+	ollamaEnabled, ollamaConfigErr := resolveOllamaEnabled(os.Getenv)
+	if ollamaConfigErr != nil {
+		log.Printf("%v - skill testing will be disabled", ollamaConfigErr)
 	}
 	ollamaGatewayBin := strings.TrimSpace(os.Getenv("OLLAMA_GATEWAY_BIN"))
 	if ollamaGatewayBin == "" {
@@ -288,10 +302,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Storage path resolution failed: %v", err)
 	}
-	dsn, err := sqliteDSN()
-	if err != nil {
-		log.Fatalf("SQLite configuration failed: %v", err)
-	}
 
 	// Open SQLite. Bound startup storage work so the lifecycle health gate gets
 	// a clear failure instead of killing a silent retry loop.
@@ -299,7 +309,7 @@ func main() {
 	defer dbCancel()
 	db, err := database.Open(dbCtx, database.Config{
 		Driver:       database.DriverSQLite,
-		DSN:          dsn,
+		Scenario:     "prompt-manager",
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 		Logger:       log.Printf,
@@ -361,6 +371,8 @@ func main() {
 	templateHandlers := templates.NewHandlers(templates.NewStore(roots.Config))
 	actionService := actions.NewService(fileStore.Actions(), actions.NewCLIHealthCommandResolver())
 	actionHandlers := actions.NewHandlers(actionService)
+	actionsConnectPath, actionsConnectHandler := actions.NewConnectMount(actionHandlers)
+	tagsConnectPath, tagsConnectHandler := tags.NewConnectMount(tagsHandlers)
 
 	// Agent handlers (new storage-backed, replaces member handlers)
 	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Indexes(), roots.Config, fileStore.Relations(), fileStore.Teams())
@@ -408,6 +420,7 @@ func main() {
 
 	// Variant and experiment handlers
 	variantHandlers := skills.NewVariantHandlers(fileStore.Variants(), fileStore.Skills())
+	skillsConnectPath, skillsConnectHandler := skills.NewConnectMount(skillHandlers, variantHandlers)
 	experimentHandlers := skills.NewExperimentHandlers(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
 	experimentHandlers.SetWorkPublisher(skills.NewHTTPWorkPublisherFromEnv())
 	// Lifecycle/Secrets Manager writes a standard runtime config into the
@@ -420,6 +433,7 @@ func main() {
 	}
 	experimentHandlers.SetReceiptSigner(receiptSigner)
 	experimentHandlers.SetProductionReceiptSigningRequired(productionReceiptSigning)
+	experimentsConnectPath, experimentsConnectHandler := experiments.NewConnectMount(experimentHandlers)
 
 	// Agent and team AI search vector stores
 	agentAICollection := collectionForDomain("AI_SEARCH_AGENT_COLLECTION", "agents")
@@ -477,7 +491,8 @@ func main() {
 	// rarely reads as a search-precision defect rather than as demand.
 	skillReadStore := store.NewSkillReadStore(roots.RuntimeData)
 	skillHandlers.SetReadRecorder(skills.NewReadRecorder(skillReadStore, discoveryCallStore, metricsAdapter))
-	skillHandlers.SetUsageReporter(skills.NewUsageReporter(skillReadStore, discoveryCallStore))
+	usageReporter := skills.NewUsageReporter(skillReadStore, discoveryCallStore)
+	skillHandlers.SetUsageReporter(usageReporter)
 	// Opt-in threshold-clipping probe (default off). DISCOVERY_PROBE_SAMPLE=N
 	// samples 1-in-N calls to re-search at threshold 0 and count clipped hits.
 	if sampleStr := os.Getenv("DISCOVERY_PROBE_SAMPLE"); sampleStr != "" {
@@ -592,6 +607,15 @@ func main() {
 	})
 
 	// Setup routes
+	searchConnectPath, searchConnectHandler := search.NewConnectMount(searchHandlers)
+	aiSearchConnectPath, aiSearchConnectHandler := aisearch.NewConnectMount(aiSearchHandlers)
+	discoveryConnectPath, discoveryConnectHandler := discoveryhandlers.NewConnectMount(aiSearchHandlers, skillHandlers)
+	agentsConnectPath, agentsConnectHandler := agents.NewConnectMount(agentHandlers)
+	templatesConnectPath, templatesConnectHandler := templates.NewConnectMount(templateHandlers)
+	testingConnectPath, testingConnectHandler := testing.NewConnectMount(testingHandlers)
+	metadataConnectPath, metadataConnectHandler := metadata.NewConnectMount(ogmetaHandlers)
+	worldScaleConnectPath, worldScaleConnectHandler := worldscale.NewConnectMount(roots.Config)
+	worldSeatsConnectPath, worldSeatsConnectHandler := worldseats.NewConnectMount(roots.Config)
 	router := mux.NewRouter()
 	if !devrouting.RegisterWithFileRoots(gorillaMuxAdapter{router: router}, db, fileRoots) {
 		log.Println("test-mode RoutingService disabled: scenario is not in development mode")
@@ -611,105 +635,28 @@ func main() {
 	// API v1 routes
 	v1 := router.PathPrefix("/api/v1").Subrouter()
 	v1.HandleFunc("/health", healthHandler).Methods("GET")
+	connectx.RegisterServices(
+		router,
+		connectx.ServiceMount{Path: skillsConnectPath, Handler: skillsConnectHandler},
+		connectx.ServiceMount{Path: actionsConnectPath, Handler: actionsConnectHandler},
+		connectx.ServiceMount{Path: tagsConnectPath, Handler: tagsConnectHandler},
+		connectx.ServiceMount{Path: searchConnectPath, Handler: searchConnectHandler},
+		connectx.ServiceMount{Path: aiSearchConnectPath, Handler: aiSearchConnectHandler},
+		connectx.ServiceMount{Path: discoveryConnectPath, Handler: discoveryConnectHandler},
+		connectx.ServiceMount{Path: agentsConnectPath, Handler: agentsConnectHandler},
+		connectx.ServiceMount{Path: templatesConnectPath, Handler: templatesConnectHandler},
+		connectx.ServiceMount{Path: testingConnectPath, Handler: testingConnectHandler},
+		connectx.ServiceMount{Path: metadataConnectPath, Handler: metadataConnectHandler},
+		connectx.ServiceMount{Path: worldScaleConnectPath, Handler: worldScaleConnectHandler},
+		connectx.ServiceMount{Path: worldSeatsConnectPath, Handler: worldSeatsConnectHandler},
+		connectx.ServiceMount{Path: experimentsConnectPath, Handler: experimentsConnectHandler},
+	)
 
-	// Skill routes
-	v1.HandleFunc("/skills", skillHandlers.List).Methods("GET")
-	v1.HandleFunc("/skills/sync", skillHandlers.Sync).Methods("GET")
-	v1.HandleFunc("/skills", skillHandlers.Create).Methods("POST")
-	v1.HandleFunc("/skills/read", skillHandlers.Read).Methods("POST")
-	v1.HandleFunc("/skills/{id}", skillHandlers.Get).Methods("GET")
-	v1.HandleFunc("/skills/{id}", skillHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/skills/{id}", skillHandlers.Delete).Methods("DELETE")
-
-	// Version history routes (part of skills domain)
-	v1.HandleFunc("/skills/{id}/versions", skillHandlers.GetVersions).Methods("GET")
-	v1.HandleFunc("/skills/{id}/revert/{version}", skillHandlers.RevertToVersion).Methods("POST")
-
-	// Action routes
-	v1.HandleFunc("/actions", actionHandlers.List).Methods("GET")
-	v1.HandleFunc("/actions/preview", actionHandlers.Preview).Methods("POST")
-	v1.HandleFunc("/actions", actionHandlers.Create).Methods("POST")
-	v1.HandleFunc("/actions/{id}/validate", actionHandlers.Validate).Methods("POST")
-	v1.HandleFunc("/actions/{id}/run", actionHandlers.Run).Methods("POST")
-	v1.HandleFunc("/actions/{id}", actionHandlers.Get).Methods("GET")
-	v1.HandleFunc("/actions/{id}", actionHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/actions/{id}", actionHandlers.Delete).Methods("DELETE")
-
-	// Variant routes
-	v1.HandleFunc("/skills/{id}/variants", variantHandlers.ListVariants).Methods("GET")
-	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.GetVariant).Methods("GET")
-	v1.HandleFunc("/skills/{id}/variants", variantHandlers.CreateVariant).Methods("POST")
-	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.UpdateVariant).Methods("PUT")
-	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.DeleteVariant).Methods("DELETE")
-
-	// Skill experiments (list by skill)
-	v1.HandleFunc("/skills/{id}/experiments", experimentHandlers.ListExperimentsBySkill).Methods("GET")
-
-	// Experiment routes
-	v1.HandleFunc("/experiments", experimentHandlers.ListExperiments).Methods("GET")
-	v1.HandleFunc("/experiments/{eid}", experimentHandlers.GetExperiment).Methods("GET")
-	v1.HandleFunc("/experiments", experimentHandlers.CreateExperiment).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}", experimentHandlers.UpdateExperiment).Methods("PUT")
-	v1.HandleFunc("/experiments/{eid}", experimentHandlers.DeleteExperiment).Methods("DELETE")
-	v1.HandleFunc("/experiments/{eid}/start", experimentHandlers.StartExperiment).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}/conclude", experimentHandlers.ConcludeExperiment).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.RecordOutcome).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.ListOutcomes).Methods("GET")
-	v1.HandleFunc("/experiments/{eid}/assignments", experimentHandlers.AssignExperiment).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}/audit-receipt", experimentHandlers.RecordAuditReceipt).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}/holdout-receipt", experimentHandlers.RecordHoldoutReceipt).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}/promote", experimentHandlers.PromoteExperiment).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}/report", experimentHandlers.GetExperimentReport).Methods("GET")
-
-	// Graph routes
-	v1.HandleFunc("/graph", graphHandlers.GetGraph).Methods("GET")
-	v1.HandleFunc("/graph/regenerate", graphHandlers.Regenerate).Methods("POST")
-	v1.HandleFunc("/graph/orphans", graphHandlers.GetOrphans).Methods("GET")
-	v1.HandleFunc("/graph/skillless", graphHandlers.GetSkillless).Methods("GET")
-	v1.HandleFunc("/graph/empty-teams", graphHandlers.GetEmptyTeams).Methods("GET")
-	v1.HandleFunc("/graph/unaffiliated", graphHandlers.GetUnaffiliated).Methods("GET")
-	v1.HandleFunc("/graph/popular", graphHandlers.GetPopular).Methods("GET")
-	v1.HandleFunc("/graph/cycles", graphHandlers.GetCycles).Methods("GET")
-	v1.HandleFunc("/graph/health", graphHandlers.GetHealthScores).Methods("GET")
-	v1.HandleFunc("/graph/health-config", graphHandlers.GetHealthConfig).Methods("GET")
-	v1.HandleFunc("/graph/health-config", graphHandlers.PutHealthConfig).Methods("PUT")
-	v1.HandleFunc("/graph/nodes/{id}", graphHandlers.GetNode).Methods("GET")
-	v1.HandleFunc("/graph/nodes/{id}/edges", graphHandlers.GetNodeEdges).Methods("GET")
-
-	// Graph Connect-RPC surface (additive — the REST routes above stay live).
-	// prompt-manager's first proto/Connect contract: GraphService.GetHealthScores,
-	// consumed by meta-optimization-manager's Guide numerator over a typed client.
+	// Graph Connect-RPC surface. This owns the complete graph contract, including
+	// the health projection consumed by meta-optimization-manager's Guide metric.
 	// See docs/internal/SEAMS.md#graph-connect-handler.
-	graphConnectPath, graphConnectHandler := graph.NewConnectMount(graphIndex)
+	graphConnectPath, graphConnectHandler := graph.NewConnectMount(graphIndex, graphHealthConfigStore)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: graphConnectPath, Handler: graphConnectHandler})
-
-	// Usage tracking routes (part of skills domain)
-	v1.HandleFunc("/skills/{id}/use", skillHandlers.RecordUsage).Methods("POST")
-	v1.HandleFunc("/skills/{id}/rating", skillHandlers.SetRating).Methods("PUT")
-	v1.HandleFunc("/skill-usage", skillHandlers.SkillUsage).Methods("GET")
-
-	// Search routes
-	v1.HandleFunc("/search/skills", searchHandlers.Search).Methods("GET")
-	v1.HandleFunc("/search/skills/content", searchHandlers.ContentSearch).Methods("GET")
-	v1.HandleFunc("/search/agents", searchHandlers.SearchAgents).Methods("GET")
-	v1.HandleFunc("/search/agents/content", searchHandlers.AgentContentSearch).Methods("GET")
-	v1.HandleFunc("/search/teams", searchHandlers.SearchTeams).Methods("GET")
-	v1.HandleFunc("/search/teams/content", searchHandlers.TeamContentSearch).Methods("GET")
-
-	// AI Search routes
-	v1.HandleFunc("/search/ai", aiSearchHandlers.Search).Methods("POST")
-	v1.HandleFunc("/search/agents/ai", aiSearchHandlers.SearchAgents).Methods("POST")
-	v1.HandleFunc("/search/actions/ai", aiSearchHandlers.SearchActions).Methods("POST")
-	v1.HandleFunc("/search/teams/ai", aiSearchHandlers.SearchTeams).Methods("POST")
-	v1.HandleFunc("/search/ai/status", aiSearchHandlers.Status).Methods("GET")
-	v1.HandleFunc("/search/ai/reconcile", aiSearchHandlers.Reconcile).Methods("POST")
-	v1.HandleFunc("/search/ai/reconcile/status", aiSearchHandlers.ReconcileStatus).Methods("GET")
-	v1.HandleFunc("/search/ai/reconcile/cancel", aiSearchHandlers.CancelReconcile).Methods("POST")
-
-	// Discovery route (unified topic + skill search)
-	v1.HandleFunc("/discover", aiSearchHandlers.Discover).Methods("POST")
-	v1.HandleFunc("/discovery-gaps", aiSearchHandlers.DiscoveryGaps).Methods("GET")
-	v1.HandleFunc("/discovery-metrics", aiSearchHandlers.DiscoveryMetrics).Methods("GET")
 
 	// Budget config routes
 	v1.HandleFunc("/config/budgets", aiSearchHandlers.GetBudgetConfig).Methods("GET")
@@ -719,67 +666,12 @@ func main() {
 	v1.HandleFunc("/config/discover-filters", aiSearchHandlers.GetDiscoverFilterConfig).Methods("GET")
 	v1.HandleFunc("/config/discover-filters", aiSearchHandlers.PutDiscoverFilterConfig).Methods("PUT")
 
-	// Tags routes
-	v1.HandleFunc("/tags", tagsHandlers.List).Methods("GET")
-	v1.HandleFunc("/tags", tagsHandlers.Create).Methods("POST")
-
-	// Testing routes
-	v1.HandleFunc("/skills/{id}/test", testingHandlers.Test).Methods("POST")
-	v1.HandleFunc("/skills/{id}/test-history", testingHandlers.GetHistory).Methods("GET")
-
-	// Agent routes
-	v1.HandleFunc("/agents", agentHandlers.List).Methods("GET")
-	v1.HandleFunc("/agents", agentHandlers.Create).Methods("POST")
-	v1.HandleFunc("/agents/{id}", agentHandlers.Get).Methods("GET")
-	v1.HandleFunc("/agents/{id}", agentHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/agents/{id}", agentHandlers.Delete).Methods("DELETE")
-	v1.HandleFunc("/agents/{id}/soul", agentHandlers.GetSoul).Methods("GET")
-	v1.HandleFunc("/agents/{id}/soul", agentHandlers.SetSoul).Methods("PUT")
-	v1.HandleFunc("/agents/{id}/files", agentHandlers.ListFiles).Methods("GET")
-	v1.HandleFunc("/agents/{id}/files/content", agentHandlers.GetFile).Methods("GET")
-	v1.HandleFunc("/agents/{id}/files/content", agentHandlers.SetFile).Methods("PUT")
-	v1.HandleFunc("/agents/{id}/files", agentHandlers.CreateFile).Methods("POST")
-	v1.HandleFunc("/agents/{id}/files/rename", agentHandlers.RenameFile).Methods("POST")
-	v1.HandleFunc("/agents/{id}/teams", agentHandlers.ListTeams).Methods("GET")
-	v1.HandleFunc("/agents/{id}/files", agentHandlers.DeleteFile).Methods("DELETE")
-
-	// Agent file templates
-	v1.HandleFunc("/agent-file-templates", templateHandlers.ListAgentFileTemplates).Methods("GET")
-
-	// Team routes
+	// Team services
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)
 	teamHandlers.SetGraphInvalidator(graphIndex)
 	teamHandlers.SetAIIndexer(aiSearchService)
-	// Import routes must come before /teams/{id} to avoid mux treating "import" as an ID
-	v1.HandleFunc("/teams/import/claude-code/available", teamHandlers.ListAvailableCCTeams).Methods("GET")
-	v1.HandleFunc("/teams/import/claude-code", teamHandlers.ImportClaudeCode).Methods("POST")
-	v1.HandleFunc("/teams", teamHandlers.List).Methods("GET")
-	v1.HandleFunc("/teams", teamHandlers.Create).Methods("POST")
-	v1.HandleFunc("/teams/{id}", teamHandlers.Get).Methods("GET")
-	v1.HandleFunc("/teams/{id}", teamHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/teams/{id}", teamHandlers.Delete).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/exclusive-members", teamHandlers.GetExclusiveMembers).Methods("GET")
-	v1.HandleFunc("/teams/{id}/members", teamHandlers.AddMember).Methods("POST")
-	v1.HandleFunc("/teams/{id}/members/{agentId}", teamHandlers.UpdateMember).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/members/{agentId}", teamHandlers.RemoveMember).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/roles", teamHandlers.GetRoles).Methods("GET")
-	v1.HandleFunc("/teams/{id}/roles", teamHandlers.SetRoles).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/shared/files", teamHandlers.ListSharedFiles).Methods("GET")
-	v1.HandleFunc("/teams/{id}/shared/files/content", teamHandlers.GetSharedFile).Methods("GET")
-	v1.HandleFunc("/teams/{id}/shared/files/content", teamHandlers.SetSharedFile).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/shared/files", teamHandlers.CreateSharedFile).Methods("POST")
-	v1.HandleFunc("/teams/{id}/shared/files/rename", teamHandlers.RenameSharedFile).Methods("POST")
-	v1.HandleFunc("/teams/{id}/shared/files", teamHandlers.DeleteSharedFile).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/org", teamHandlers.GetOrgChart).Methods("GET")
-	v1.HandleFunc("/teams/{id}/org", teamHandlers.SetOrgChart).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/org/edges/{reportId}", teamHandlers.UpdateOrgChartEdge).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/org/edges/{reportId}", teamHandlers.DeleteOrgChartEdge).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.ListTeamMessages).Methods("GET")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.SendTeamMessage).Methods("POST")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.ClearTeamMessages).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/messages/{messageId}", teamHandlers.DeleteTeamMessage).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/export/claude-code", teamHandlers.ExportClaudeCode).Methods("GET")
-
+	teamsConnectPath, teamsConnectHandler := teams.NewConnectMount(teamHandlers)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: teamsConnectPath, Handler: teamsConnectHandler})
 	// Member-flow (per-member topics.json) routes — declares each member's
 	// intake/output topic prefixes and feeds the team graph view.
 	// DOC: docs/agent-system/TOPICS_SCHEMA.md
@@ -788,39 +680,126 @@ func main() {
 		newTeamKnowledgeQuery(fileStore.Teams().(*store.FileTeamStore)),
 		memberflow.InboxAgingOptions{},
 	)
-	v1.HandleFunc("/teams/{id}/members/{agentId}/topics", memberFlowHandlers.GetMember).Methods("GET")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/topics", memberFlowHandlers.PutMember).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/topics", memberFlowHandlers.GetTeam).Methods("GET")
-	// Note: /topics/graph and /topics/drain-status are member-flow endpoints
-	// distinct from the content-taxonomy /topics CRUD below. Routes must be
-	// registered before /topics/{id} so mux does not treat "graph"/
-	// "drain-status" as topic IDs.
-	v1.HandleFunc("/topics/graph", memberFlowHandlers.GetGraph).Methods("GET")
-	v1.HandleFunc("/topics/rules", memberFlowHandlers.GetRules).Methods("GET")
-	v1.HandleFunc("/objectives", memberFlowHandlers.GetObjectives).Methods("GET")
-	v1.HandleFunc("/orientation-cost", memberFlowHandlers.GetOrientationCost).Methods("GET")
-	v1.HandleFunc("/instruments", memberFlowHandlers.GetInstruments).Methods("GET")
-	v1.HandleFunc("/topics/drain-status", memberFlowHandlers.GetDrainStatus).Methods("GET")
-	v1.HandleFunc("/operating-models", memberFlowHandlers.GetOperatingModels).Methods("GET")
-	v1.HandleFunc("/operating-models/map", graphHandlers.GetOperatingMap).Methods("GET")
-	v1.HandleFunc("/operating-models/validate", memberFlowHandlers.ValidateOperatingModelsHandler).Methods("GET")
-	v1.HandleFunc("/operating-models/diff", memberFlowHandlers.DiffOperatingModelsHandler).Methods("GET")
-	v1.HandleFunc("/operating-models/coverage", memberFlowHandlers.CoverageOperatingModelsHandler).Methods("GET")
+	memberflowConnectPath, memberflowConnectHandler := memberflow.NewConnectMount(memberFlowHandlers, graphHandlers)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: memberflowConnectPath, Handler: memberflowConnectHandler})
 
 	// Topic routes
 	topicHandlers := topics.NewHandlers(fileStore.Topics(), fileStore.Indexes())
 	topicHandlers.SetGraphInvalidator(graphIndex)
 	topicHandlers.SetAIIndexer(aiSearchService)
 	topicHandlers.SetTopicMatchFn(buildTopicMatchFn(aiSearchService, fileStore.Topics()))
-	// Match route must come before /topics/{id} to avoid mux treating "match" as an ID
-	v1.HandleFunc("/topics/match", topicHandlers.Match).Methods("POST")
-	v1.HandleFunc("/topics", topicHandlers.List).Methods("GET")
-	v1.HandleFunc("/topics", topicHandlers.Create).Methods("POST")
-	v1.HandleFunc("/topics/{id}", topicHandlers.Get).Methods("GET")
-	v1.HandleFunc("/topics/{id}", topicHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/topics/{id}", topicHandlers.Delete).Methods("DELETE")
-	v1.HandleFunc("/topics/{id}/skills", topicHandlers.AccumulatedSkills).Methods("GET")
+	topicsConnectPath, topicsConnectHandler := topics.NewConnectMount(topicHandlers)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: topicsConnectPath, Handler: topicsConnectHandler})
 
+	// The uniform measures substrate executes the same domain reads as the
+	// generated RPCs. It is mounted outside /api/v1 because measures-go defines
+	// the fleet-wide /measures/declarations and /measures/execute contract.
+	measureHandler, err := promptmeasures.Handler(map[string]promptmeasures.Provider{
+		"actions.list": func(ctx context.Context, req measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := fileStore.Actions().List(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				if !matchesActionMeasure(item.Pack, item.Status, item.Owner.Type+":"+item.Owner.ID, item.Owner.ID, item.Tags, req.Params) {
+					continue
+				}
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.Name, "status": item.Status})
+			}
+			return tableMeasure(rows, "action store list with manifest filters"), nil
+		},
+		"agents.list": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := fileStore.Agents().List(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.DisplayName, "status": item.Status})
+			}
+			return tableMeasure(rows, "agent store list"), nil
+		},
+		"aisearch.discovery-metrics": func(_ context.Context, req measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			window := parseMeasureWindow(req.Params["since"])
+			report, err := aiSearchService.DiscoveryMetrics(window, req.Params["type"])
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			return scalarMeasure(report.CallCount, fmt.Sprintf("discovery call telemetry over %s", window)), nil
+		},
+		"graph.health": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			index, err := graphIndex.Get(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(index.Graph.HealthScores))
+			for _, score := range index.Graph.HealthScores {
+				rows = append(rows, map[string]string{"node_id": score.NodeID, "score": strconv.FormatFloat(score.Score, 'f', -1, 64)})
+			}
+			return tableMeasure(rows, "materialized graph health scores"), nil
+		},
+		"metrics.skill-usage": func(_ context.Context, req measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			window := parseMeasureWindow(req.Params["since"])
+			report, err := usageReporter.Report(window)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(report.Rows))
+			for _, item := range report.Rows {
+				rows = append(rows, map[string]string{"skill_id": item.SkillID, "reads": strconv.Itoa(item.Reads), "returned": strconv.Itoa(item.Returned)})
+			}
+			return tableMeasure(rows, fmt.Sprintf("skill read and discovery telemetry over %s", window)), nil
+		},
+		"skills.list": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := fileStore.FileSkills().List(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.Name, "status": item.Status})
+			}
+			return tableMeasure(rows, "skill store list"), nil
+		},
+		"tags.list": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := tagsRepo.WithContext(ctx).GetAll()
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.Name})
+			}
+			return tableMeasure(rows, "tag repository list"), nil
+		},
+		"teams.list": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := fileStore.Teams().List(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.DisplayName, "enabled": strconv.FormatBool(item.Enabled)})
+			}
+			return tableMeasure(rows, "team store list"), nil
+		},
+		"topics.list": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := fileStore.Topics().List(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.Name, "status": item.Status})
+			}
+			return tableMeasure(rows, "topic store list"), nil
+		},
+	})
+	if err != nil {
+		log.Fatalf("initialize measure registry: %v", err)
+	}
+	router.PathPrefix("/measures/").Handler(http.StripPrefix("/measures", measureHandler))
 	// Heartbeat system: repo root flows from the repo contract via
 	// paths.Roots (resolved at startup). Empty when paths.Resolve already
 	// failed, but main.go would have log.Fatal'd long before here.
@@ -884,6 +863,8 @@ func main() {
 		TeamExecStore: teamExecStore,
 	})
 	heartbeatHandlers.SetControlStore(heartbeatControlStore)
+	heartbeatConnectPath, heartbeatConnectHandler := heartbeat.NewConnectMount(heartbeatHandlers)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: heartbeatConnectPath, Handler: heartbeatConnectHandler})
 	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
 
 	// Recover any active runs from a previous process
@@ -913,81 +894,6 @@ func main() {
 		}
 	}()
 
-	// Heartbeat routes - static paths before parameterized
-	v1.HandleFunc("/tasks", heartbeatHandlers.CreateTask).Methods("POST")
-	v1.HandleFunc("/runs", heartbeatHandlers.CreateRun).Methods("POST")
-	v1.HandleFunc("/runs", heartbeatHandlers.ListRuns).Methods("GET")
-	v1.HandleFunc("/heartbeat-attempts", heartbeatHandlers.ListHeartbeatAttempts).Methods("GET")
-	v1.HandleFunc("/runs/investigate", heartbeatHandlers.CreateInvestigationRun).Methods("POST")
-	v1.HandleFunc("/runs/investigation-apply", heartbeatHandlers.CreateInvestigationApplyRun).Methods("POST")
-	v1.HandleFunc("/runs/{runId}", heartbeatHandlers.GetRun).Methods("GET")
-	v1.HandleFunc("/runs/{runId}/retry", heartbeatHandlers.RetryRun).Methods("POST")
-	v1.HandleFunc("/runs/{runId}/events", heartbeatHandlers.GetRunEvents).Methods("GET")
-	v1.HandleFunc("/runs/{runId}/continue", heartbeatHandlers.ContinueRun).Methods("POST")
-	v1.HandleFunc("/heartbeats/control", heartbeatHandlers.GetHeartbeatControl).Methods("GET")
-	v1.HandleFunc("/heartbeats/control/policy", heartbeatHandlers.UpdateHeartbeatControlPolicy).Methods("PUT")
-	v1.HandleFunc("/heartbeats/control/pause", heartbeatHandlers.PauseHeartbeatControl).Methods("POST")
-	v1.HandleFunc("/heartbeats/control/resume", heartbeatHandlers.ResumeHeartbeatControl).Methods("POST")
-	v1.HandleFunc("/heartbeats/running", heartbeatHandlers.ListRunning).Methods("GET")
-	v1.HandleFunc("/heartbeats/running/{teamId}/{agentId}/stop", heartbeatHandlers.StopRunning).Methods("POST")
-	v1.HandleFunc("/prompt-preview", heartbeatHandlers.PreviewPrompt).Methods("POST")
-	v1.HandleFunc("/prompt-preview-structured", heartbeatHandlers.PreviewPromptStructured).Methods("POST")
-	v1.HandleFunc("/teams/{id}/prompt-matrix", heartbeatHandlers.PreviewPromptMatrix).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats/control", heartbeatHandlers.GetTeamHeartbeatControl).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats/control/policy", heartbeatHandlers.UpdateTeamHeartbeatControlPolicy).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/heartbeats/control/pause", heartbeatHandlers.PauseTeamHeartbeatControl).Methods("POST")
-	v1.HandleFunc("/teams/{id}/heartbeats/control/resume", heartbeatHandlers.ResumeTeamHeartbeatControl).Methods("POST")
-	v1.HandleFunc("/teams/{id}/heartbeats", heartbeatHandlers.ListHeartbeats).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.GetHeartbeat).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.CreateHeartbeat).Methods("POST")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.UpdateHeartbeat).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.DeleteHeartbeat).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/trigger", heartbeatHandlers.TriggerHeartbeat).Methods("POST")
-	v1.HandleFunc("/teams/{id}/trigger", heartbeatHandlers.TriggerTeam).Methods("POST")
-	v1.HandleFunc("/teams/{id}/execution-status", heartbeatHandlers.GetTeamExecutionStatus).Methods("GET")
-	v1.HandleFunc("/teams/{id}/queue/running/{agentId}", heartbeatHandlers.ClearTeamQueueRunning).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/heartbeats/logs", heartbeatHandlers.ListTeamLogs).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs", heartbeatHandlers.ListLogs).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs/{logId}", heartbeatHandlers.GetLog).Methods("GET")
-
-	// Member document routes (RESPONSIBILITIES.md and HEARTBEAT.md)
-	v1.HandleFunc("/teams/{id}/members/{agentId}/responsibilities", heartbeatHandlers.GetResponsibilities).Methods("GET")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/responsibilities", heartbeatHandlers.SetResponsibilities).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.GetHeartbeatInstructions).Methods("GET")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.SetHeartbeatInstructions).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/context", heartbeatHandlers.GetMemberContext).Methods("GET")
-
-	// Team state routes (handoff and task board)
-	v1.HandleFunc("/teams/{id}/members/{agentId}/handoff", heartbeatHandlers.GetLastHandoff).Methods("GET")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/handoff", heartbeatHandlers.ClearLastHandoff).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/handoff-history", heartbeatHandlers.GetHandoffHistory).Methods("GET")
-	v1.HandleFunc("/teams/{id}/handoff-history", heartbeatHandlers.ClearHandoffHistory).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.GetTaskBoard).Methods("GET")
-	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.AddTask).Methods("POST")
-	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.UpdateTaskHandler).Methods("PATCH", "PUT")
-	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.DeleteTaskHandler).Methods("DELETE")
-
-	// Knowledge log routes
-	// Typed Scenario QA bug intake. Drafts are kept private to the writer
-	// boundary; only validated published reports enter bug-inbox knowledge.
-	v1.HandleFunc("/teams/{id}/bugs/capture", heartbeatHandlers.CaptureBug).Methods("POST")
-	v1.HandleFunc("/teams/{id}/bugs/{draftId}/capture", heartbeatHandlers.RepairBugCapture).Methods("PATCH", "PUT")
-
-	// Retention / prune routes
-	v1.HandleFunc("/teams/{id}/retention", heartbeatHandlers.GetRetention).Methods("GET")
-	v1.HandleFunc("/teams/{id}/prune", heartbeatHandlers.PruneSharedState).Methods("POST")
-
-	// World scale routes
-	v1.HandleFunc("/world-scale", worldscale.HandleGet(roots.Config)).Methods("GET")
-	v1.HandleFunc("/world-scale", worldscale.HandlePut(roots.Config)).Methods("PUT")
-
-	// World seats routes
-	v1.HandleFunc("/world-seats", worldseats.HandleGet(roots.Config)).Methods("GET")
-	v1.HandleFunc("/world-seats", worldseats.HandlePut(roots.Config)).Methods("PUT")
-
-	// OG metadata routes (for link previews)
-	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")
-
 	log.Printf("Prompt Manager API v2.0 starting")
 	log.Printf("Config root: %s", roots.Config)
 	log.Printf("Runtime data root: %s", roots.RuntimeData)
@@ -996,7 +902,7 @@ func main() {
 		log.Printf("Ollama gateway: %s", ollamaGatewayBin)
 	}
 
-	handler := apihttp.TestModeMiddleware(corsHandler(router))
+	handler := securityHeaders(apihttp.TestModeMiddleware(corsHandler(router)))
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
@@ -1008,6 +914,26 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// resolveOllamaEnabled honors an explicit feature override and otherwise uses
+// the resource environment injected by the control plane. This keeps optional
+// Ollama dependencies disabled when absent without requiring scenarios to
+// duplicate resource state in a second environment flag.
+func resolveOllamaEnabled(getenv func(string) string) (bool, error) {
+	if raw := strings.TrimSpace(getenv("OLLAMA_ENABLED")); raw != "" {
+		enabled, err := strconv.ParseBool(raw)
+		if err != nil {
+			return false, fmt.Errorf("invalid OLLAMA_ENABLED=%q", raw)
+		}
+		return enabled, nil
+	}
+	for _, key := range []string{"OLLAMA_BASE_URL", "OLLAMA_URL", "OLLAMA_PORT"} {
+		if strings.TrimSpace(getenv(key)) != "" {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // buildTopicMatchFn creates a TopicMatchFunc that uses the AI search service
