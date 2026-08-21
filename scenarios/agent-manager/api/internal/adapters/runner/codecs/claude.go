@@ -71,7 +71,6 @@ func claudeBase() baseCodec {
 		installHint:    "Install: npm install -g @anthropic-ai/claude-code",
 		tagEnvKey:      claudeTagEnvKey,
 		continuePrefix: "claude",
-		goalStatus:     func(line string) (string, bool, bool) { return declaredGoalStatus(line, "goal_status", "goalStatus") },
 		labels: Labels{
 			StartMessage:         "Claude Code execution started",
 			EndMessage:           "Claude Code execution completed",
@@ -120,6 +119,7 @@ func (c *Claude) Capabilities() runner.Capabilities {
 		SupportsStreaming:        true,
 		SupportsCancellation:     true,
 		SupportsContinuation:     true, // Claude Code supports --resume
+		SupportsWarmIteration:    true,
 		SupportsImageAttachments: true,
 		SupportsToolRestriction:  true,
 		ToolRestrictionMappings:  canonicalToolMappings(claudeToolTranslations),

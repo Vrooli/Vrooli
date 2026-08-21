@@ -90,3 +90,19 @@ func TestStampPreviewSourceIgnoresNonTSXPaths(t *testing.T) {
 		t.Fatalf("non-tsx source must pass through unchanged, got: %s", got)
 	}
 }
+
+func TestStampPreviewSourceIgnoresTypeScriptComparisonsBeforeJSX(t *testing.T) {
+	source := `export function Button() {
+  const raw = 1;
+  const low = raw < 1 ? 0 : raw;
+  const disabled = low <= 0;
+  return <button disabled={disabled}>{low}</button>;
+}`
+	got := stampPreviewSource(source, "library/components/Button/versions/1.0.0/Button.tsx", "controls.button", "1.0.0")
+	if !strings.Contains(got, `const low = raw < 1 ? 0 : raw;`) || !strings.Contains(got, `const disabled = low <= 0;`) {
+		t.Fatalf("comparison expression was modified: %s", got)
+	}
+	if !strings.Contains(got, `data-rcl-asset="controls.button"`) || strings.Contains(got, `raw data-rcl-asset`) {
+		t.Fatalf("root marker was not placed safely: %s", got)
+	}
+}

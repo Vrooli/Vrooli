@@ -75,7 +75,6 @@ func opencodeBase() baseCodec {
 		installHint:    "Run: vrooli resource install opencode",
 		tagEnvKey:      opencodeTagEnvKey,
 		continuePrefix: "opencode",
-		goalStatus:     func(line string) (string, bool, bool) { return declaredGoalStatus(line, "goal_status", "goal") },
 		labels: Labels{
 			StartMessage:         "OpenCode execution started",
 			EndMessage:           "OpenCode execution completed",
@@ -131,7 +130,8 @@ func (c *OpenCode) Capabilities() runner.Capabilities {
 		SupportsCostTracking:     true, // step_finish tokens + cost parsed in handleStepFinish
 		SupportsStreaming:        true, // JSON event stream via `run --format json`
 		SupportsCancellation:     true,
-		SupportsContinuation:     true,  // `--session <id>`
+		SupportsContinuation:     true, // `--session <id>`
+		SupportsWarmIteration:    true,
 		SupportsImageAttachments: true,  // `opencode run -f/--file <FILE>`
 		SupportsToolRestriction:  false, // OpenCode has no per-launch allowlist for its native tools.
 		ToolRestrictionMappings:  canonicalToolMappings(openCodeToolTranslations),

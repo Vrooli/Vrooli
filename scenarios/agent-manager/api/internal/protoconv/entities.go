@@ -540,6 +540,7 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 		ManifestIndexSnapshot: c.ManifestIndexSnapshot,
 		TranscriptCodec:       c.TranscriptCodec,
 		TranscriptCodecScore:  c.TranscriptCodecScore,
+		Until:                 c.Until,
 	}
 }
 
@@ -570,6 +571,7 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 		ManifestIndexSnapshot: c.ManifestIndexSnapshot,
 		TranscriptCodec:       c.TranscriptCodec,
 		TranscriptCodecScore:  c.TranscriptCodecScore,
+		Until:                 c.Until,
 	}
 }
 

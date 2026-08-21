@@ -35,6 +35,7 @@ type (
 		Tag            string
 		Force          bool
 		Prompt         string
+		Until          string
 		ResultSpec     *domain.ResultSpec
 		SourceRunID    *uuid.UUID
 		MaxTurns       int
@@ -1077,6 +1078,9 @@ func (e *Engine) resolveAgentInput(ctx context.Context, node *domain.WorkflowNod
 		return snapshot, prompt, resolution, spec, strategy, source, diagnostics, err
 	}
 	prompt += structuredResultInstruction(spec)
+	if node.Run != nil && strings.TrimSpace(node.Run.Until) != "" {
+		prompt += "\n\nUNTIL (engine-owned completion test; evaluate against authoritative plan state):\n" + strings.TrimSpace(node.Run.Until) + "\n"
+	}
 	return snapshot, prompt, resolution, spec, strategy, source, diagnostics, nil
 }
 
@@ -1117,6 +1121,7 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		request.Force = node.Run.Force
 		request.MaxTurns = node.Run.MaxTurns
 		request.Timeout = time.Duration(node.Run.TimeoutSeconds) * time.Second
+		request.Until = node.Run.Until
 	} else {
 		request.MaxTurns = node.Continue.MaxTurns
 		request.Timeout = time.Duration(node.Continue.TimeoutSeconds) * time.Second

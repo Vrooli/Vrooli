@@ -540,3 +540,23 @@ func hasCode(diagnostics []domain.WorkflowDiagnostic, code string) bool {
 	}
 	return false
 }
+
+func TestValidateChargeBudgetRejectsHistoricalMicroUSDUnitError(t *testing.T) {
+	var diagnostics []domain.WorkflowDiagnostic
+	validateChargeBudget(domain.WorkflowBudgets{MaxTokens: 7_200_000, MaxChargeMicroUSD: 30}, func(code, path, message string) {
+		diagnostics = append(diagnostics, domain.WorkflowDiagnostic{Code: code, Path: path, Message: message})
+	})
+	if !hasCode(diagnostics, "charge_budget_unit") {
+		t.Fatalf("implausible charge budget accepted: %+v", diagnostics)
+	}
+}
+
+func TestValidateChargeBudgetAcceptsMeasurementScale(t *testing.T) {
+	var diagnostics []domain.WorkflowDiagnostic
+	validateChargeBudget(domain.WorkflowBudgets{MaxTokens: 18_000_000, MaxChargeMicroUSD: 18_000_000}, func(code, path, message string) {
+		diagnostics = append(diagnostics, domain.WorkflowDiagnostic{Code: code, Path: path, Message: message})
+	})
+	if len(diagnostics) != 0 {
+		t.Fatalf("measurement-scale charge budget rejected: %+v", diagnostics)
+	}
+}

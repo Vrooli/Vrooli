@@ -14,5 +14,16 @@
       "items": { "enum": ["read", "write", "edit", "glob", "grep", "shell", "web_search", "web_fetch"] }
     },
     "toolRestrictionPolicy": { "enum": ["enforced", "advisory"] }
+    ,"spawnPolicy": {
+      "type": "object",
+      "required": ["axisOrder", "executionMode", "sandboxMode"],
+      "properties": {
+        "axisOrder": {"type": "array", "items": {"enum": ["sandboxMode", "executionMode"]}, "minItems": 1, "maxItems": 2},
+        "executionMode": {"type": "object", "required": ["prefer"], "properties": {"prefer": {"type": "array", "items": {"enum": ["codec_pipe", "interactive"]}, "minItems": 1}}},
+        "sandboxMode": {"type": "object", "required": ["prefer"], "properties": {"prefer": {"type": "array", "items": {"enum": ["protected", "tracking", "off"]}, "minItems": 1}}},
+        "require": {"type": "array", "items": {"type": "object", "required": ["executionMode", "sandboxMode"], "properties": {"executionMode": {"type": "string"}, "sandboxMode": {"type": "string"}}}}
+      },
+      "additionalProperties": false
+    }
   }
 }

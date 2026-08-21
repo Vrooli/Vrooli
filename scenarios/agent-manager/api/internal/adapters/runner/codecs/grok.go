@@ -77,7 +77,6 @@ func grokBase() baseCodec {
 		installHint:    "Run: vrooli resource install grok",
 		tagEnvKey:      grokTagEnvKey,
 		continuePrefix: "grok",
-		goalStatus:     func(line string) (string, bool, bool) { return declaredGoalStatus(line, "goal_status", "goal") },
 		labels: Labels{
 			StartMessage:         "Grok execution started",
 			EndMessage:           "Grok execution completed",
@@ -124,6 +123,7 @@ func (c *Grok) Capabilities() runner.Capabilities {
 		SupportsStreaming:        true,  // streaming-json delta events
 		SupportsCancellation:     true,  // process-kill cancellation like peers
 		SupportsContinuation:     true,  // `grok --resume <session-id>` (trace-proven)
+		SupportsWarmIteration:    true,
 		SupportsImageAttachments: false, // no headless image-attachment flag
 		SupportsToolRestriction:  true,
 		ToolRestrictionMappings:  canonicalToolMappings(grokToolTranslations),

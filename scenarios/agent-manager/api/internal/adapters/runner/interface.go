@@ -90,7 +90,35 @@ type Runner interface {
 // establish imported goal metadata. The orchestration layer consumes this
 // optional seam without knowing a harness's wire format.
 type GoalMarkerProvider interface {
-	GoalStatusFromTranscriptLine(string) (condition string, met bool, ok bool)
+	GoalStatusFromTranscriptLine(string) (GoalMarker, bool)
+}
+
+// GoalStatus is the lossless status vocabulary emitted by Codex thread goals.
+// It is deliberately not a boolean: blocked and budget-limited runs require
+// different Swarm terminal handling.
+type GoalStatus string
+
+const (
+	GoalStatusActive        GoalStatus = "active"
+	GoalStatusPaused        GoalStatus = "paused"
+	GoalStatusBlocked       GoalStatus = "blocked"
+	GoalStatusUsageLimited  GoalStatus = "usage_limited"
+	GoalStatusBudgetLimited GoalStatus = "budget_limited"
+	GoalStatusComplete      GoalStatus = "complete"
+)
+
+func (s GoalStatus) Valid() bool {
+	switch s {
+	case GoalStatusActive, GoalStatusPaused, GoalStatusBlocked, GoalStatusUsageLimited, GoalStatusBudgetLimited, GoalStatusComplete:
+		return true
+	default:
+		return false
+	}
+}
+
+type GoalMarker struct {
+	Objective string     `json:"objective"`
+	Status    GoalStatus `json:"status"`
 }
 
 // CommandExtraction is the runner-owned interpretation of a tool-call input.
@@ -112,6 +140,10 @@ type CommandExtractor interface {
 
 // Capabilities describes what features a runner supports.
 type Capabilities struct {
+	// SpawnCapabilities are verified substrate/sandbox combinations. A
+	// combination absent here is infeasible; callers must not infer support
+	// from runner type or version.
+	SpawnCapabilities []SpawnCapability
 	// SupportsMessages indicates the runner can capture structured messages.
 	SupportsMessages bool
 
@@ -129,6 +161,9 @@ type Capabilities struct {
 
 	// SupportsContinuation indicates the runner can resume previous sessions.
 	SupportsContinuation bool
+	// SupportsWarmIteration indicates the runner can carry an engine-owned
+	// completion test across a continuation without losing session state.
+	SupportsWarmIteration bool
 
 	// SupportsImageAttachments indicates the runner can accept image file attachments.
 	SupportsImageAttachments bool
@@ -177,6 +212,12 @@ type Capabilities struct {
 	// AllowedExtraFlags is the allowlist of extra CLI flags this runner accepts.
 	// Flags not in this list are rejected during validation.
 	AllowedExtraFlags []string
+}
+
+type SpawnCapability struct {
+	ExecutionMode   string
+	SandboxModes    []string
+	NativeObjective bool
 }
 
 // ExecuteRequest contains everything needed to execute an agent.

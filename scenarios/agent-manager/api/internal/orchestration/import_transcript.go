@@ -701,26 +701,18 @@ func transcriptGoalMetadata(source *os.File, providers ...runner.GoalMarkerProvi
 	var preamble string
 	for scanner.Scan() {
 		if len(providers) > 0 && providers[0] != nil {
-			if condition, met, ok := providers[0].GoalStatusFromTranscriptLine(scanner.Text()); ok {
-				goalID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/goal/"+condition)).String()
-				status := "unmet"
-				if met {
-					status = "met"
-				}
-				return goalID, status
+			if marker, ok := providers[0].GoalStatusFromTranscriptLine(scanner.Text()); ok {
+				goalID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/goal/"+marker.Objective)).String()
+				return goalID, string(marker.Status)
 			}
 		}
 		var value any
 		if json.Unmarshal(scanner.Bytes(), &value) != nil {
 			continue
 		}
-		if condition, met, ok := findGoalStatus(value); ok {
-			goalID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/goal/"+condition)).String()
-			status := "unmet"
-			if met {
-				status = "met"
-			}
-			return goalID, status
+		if marker, ok := findGoalStatus(value); ok {
+			goalID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/goal/"+marker.Objective)).String()
+			return goalID, string(marker.Status)
 		}
 		if preamble == "" {
 			preamble = findGoalPreamble(value)
@@ -788,38 +780,58 @@ func normalizeGoalText(value any) string {
 	return strings.Join(strings.Fields(text), " ")
 }
 
-func findGoalStatus(value any) (string, bool, bool) {
+func findGoalStatus(value any) (runner.GoalMarker, bool) {
 	object, ok := value.(map[string]any)
 	if !ok {
 		if array, ok := value.([]any); ok {
 			for _, child := range array {
-				if condition, met, found := findGoalStatus(child); found {
-					return condition, met, true
+				if marker, found := findGoalStatus(child); found {
+					return marker, true
 				}
 			}
 		}
-		return "", false, false
+		return runner.GoalMarker{}, false
+	}
+	if object["type"] == "event_msg" {
+		if payload, ok := object["payload"].(map[string]any); ok && payload["type"] == "thread_goal_updated" {
+			if goal, ok := payload["goal"].(map[string]any); ok {
+				objective, _ := goal["objective"].(string)
+				status, _ := goal["status"].(string)
+				marker := runner.GoalMarker{Objective: strings.TrimSpace(objective), Status: runner.GoalStatus(status)}
+				if marker.Objective != "" && marker.Status.Valid() {
+					return marker, true
+				}
+			}
+		}
 	}
 	if object["type"] == "goal_status" {
 		condition, _ := object["condition"].(string)
 		met, _ := object["met"].(bool)
 		if strings.TrimSpace(condition) != "" {
-			return condition, met, true
+			status := runner.GoalStatusActive
+			if met {
+				status = runner.GoalStatusComplete
+			}
+			return runner.GoalMarker{Objective: condition, Status: status}, true
 		}
 	}
 	if attachment, ok := object["attachment"].(map[string]any); ok && attachment["type"] == "goal_status" {
 		condition, _ := attachment["condition"].(string)
 		met, _ := attachment["met"].(bool)
 		if strings.TrimSpace(condition) != "" {
-			return condition, met, true
+			status := runner.GoalStatusActive
+			if met {
+				status = runner.GoalStatusComplete
+			}
+			return runner.GoalMarker{Objective: condition, Status: status}, true
 		}
 	}
 	for _, child := range object {
-		if condition, met, ok := findGoalStatus(child); ok {
-			return condition, met, true
+		if marker, ok := findGoalStatus(child); ok {
+			return marker, true
 		}
 	}
-	return "", false, false
+	return runner.GoalMarker{}, false
 }
 
 func eventWindow(events []*domain.RunEvent) (time.Time, time.Time, bool) {

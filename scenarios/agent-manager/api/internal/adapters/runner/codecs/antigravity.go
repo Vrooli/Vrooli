@@ -81,6 +81,7 @@ func (c *Antigravity) Capabilities() runner.Capabilities {
 		SupportsStreaming:        true,
 		SupportsCancellation:     true,
 		SupportsContinuation:     true,
+		SupportsWarmIteration:    true,
 		SupportsImageAttachments: false,
 		SupportsToolRestriction:  false,
 		SupportsEffort:           false,

@@ -82,6 +82,7 @@ func (c *ipcClient) Provision(ctx context.Context, request ProvisionRequest) (Pr
 	}
 	return response, nil
 }
+
 func (c *ipcClient) Resolve(ctx context.Context, identity, field string) (string, error) {
 	var response struct {
 		Value string `json:"value"`
@@ -104,6 +105,7 @@ func (c *ipcClient) Status(ctx context.Context, identity, field string) (Credent
 	}
 	return view.status(), nil
 }
+
 func (c *ipcClient) List(ctx context.Context) ([]CredentialRef, error) {
 	var views []desktopCredentialView
 	if err := c.request(ctx, http.MethodGet, "/credentials/list", nil, &views); err != nil {
@@ -111,6 +113,7 @@ func (c *ipcClient) List(ctx context.Context) ([]CredentialRef, error) {
 	}
 	return credentialRefs(views), nil
 }
+
 func (c *ipcClient) Doctor(ctx context.Context) (DoctorResponse, error) {
 	var response struct {
 		Provider struct {
@@ -128,12 +131,15 @@ func (c *ipcClient) Doctor(ctx context.Context) (DoctorResponse, error) {
 		Recovery:    response.Recovery,
 	}, nil
 }
+
 func (c *ipcClient) KeyringInspect(context.Context, string) (KeyringReport, error) {
 	return KeyringReport{}, ipcUnavailable()
 }
+
 func (c *ipcClient) KeyringRepair(context.Context, string) (KeyringReport, error) {
 	return KeyringReport{}, ipcUnavailable()
 }
+
 func (c *ipcClient) RecoveryExport(ctx context.Context, request RecoveryExportRequest) (RecoveryExportResponse, error) {
 	var response struct {
 		Bundle     string `json:"bundle"`
@@ -154,9 +160,11 @@ func (c *ipcClient) RecoveryExport(ctx context.Context, request RecoveryExportRe
 	}
 	return RecoveryExportResponse{Path: request.OutputPath, EntryCount: response.EntryCount}, nil
 }
+
 func (c *ipcClient) RecoveryVerify(context.Context, RecoveryVerifyRequest) (RecoveryVerifyResponse, error) {
 	return RecoveryVerifyResponse{}, ipcUnavailable()
 }
+
 func (c *ipcClient) RecoveryRestore(ctx context.Context, request RecoveryRestoreRequest) error {
 	bundle, err := os.ReadFile(request.InputPath)
 	if err != nil {
@@ -167,6 +175,7 @@ func (c *ipcClient) RecoveryRestore(ctx context.Context, request RecoveryRestore
 		"passphrase": request.Passphrase,
 	}, nil)
 }
+
 func (c *ipcClient) StoreStatus(context.Context) (StoreStatus, error) {
 	return StoreStatus{}, ipcUnavailable()
 }
@@ -276,6 +285,7 @@ func (c *sshClient) Provision(ctx context.Context, request ProvisionRequest) (Pr
 	}
 	return ProvisionResponse{Identity: request.Identity, Field: request.Field, Provider: "ssh", Status: "provisioned"}, nil
 }
+
 func (c *sshClient) Resolve(ctx context.Context, identity, field string) (string, error) {
 	output, err := c.run(ctx, []string{"vrooli", "credentials", "resolve", "--identity", identity, "--field", field}, nil)
 	if err != nil {
@@ -283,10 +293,12 @@ func (c *sshClient) Resolve(ctx context.Context, identity, field string) (string
 	}
 	return strings.TrimSpace(string(output)), nil
 }
+
 func (c *sshClient) Delete(ctx context.Context, identity, field string) error {
 	_, err := c.run(ctx, []string{"secrets-manager", "credentials", "delete", "--identity", identity, "--field", field, "--yes"}, nil)
 	return err
 }
+
 func (c *sshClient) Status(ctx context.Context, identity, field string) (CredentialStatus, error) {
 	output, err := c.run(ctx, []string{"vrooli", "credentials", "status", "--identity", identity, "--field", field, "--format", "json"}, nil)
 	if err != nil {
@@ -295,6 +307,7 @@ func (c *sshClient) Status(ctx context.Context, identity, field string) (Credent
 	var response CredentialStatus
 	return response, decodeSSHJSON(output, &response)
 }
+
 func (c *sshClient) List(ctx context.Context) ([]CredentialRef, error) {
 	output, err := c.run(ctx, []string{"secrets-manager", "credentials", "list", "--format", "json"}, nil)
 	if err != nil {
@@ -303,6 +316,7 @@ func (c *sshClient) List(ctx context.Context) ([]CredentialRef, error) {
 	var response []CredentialRef
 	return response, decodeSSHJSON(output, &response)
 }
+
 func (c *sshClient) Doctor(ctx context.Context) (DoctorResponse, error) {
 	output, err := c.run(ctx, []string{"vrooli", "credentials", "doctor", "--format", "json"}, nil)
 	if err != nil {
@@ -311,12 +325,15 @@ func (c *sshClient) Doctor(ctx context.Context) (DoctorResponse, error) {
 	var response DoctorResponse
 	return response, decodeSSHJSON(output, &response)
 }
+
 func (c *sshClient) KeyringInspect(ctx context.Context, path string) (KeyringReport, error) {
 	return c.keyring(ctx, "inspect", path)
 }
+
 func (c *sshClient) KeyringRepair(ctx context.Context, path string) (KeyringReport, error) {
 	return c.keyring(ctx, "repair", path)
 }
+
 func (c *sshClient) RecoveryExport(ctx context.Context, request RecoveryExportRequest) (RecoveryExportResponse, error) {
 	args := []string{"vrooli", "credentials", "recovery", "export", "--output", request.OutputPath, "--format", "json"}
 	for _, entry := range request.Entries {
@@ -334,6 +351,7 @@ func (c *sshClient) RecoveryExport(ctx context.Context, request RecoveryExportRe
 	}
 	return RecoveryExportResponse{Path: request.OutputPath, EntryCount: response.Written}, nil
 }
+
 func (c *sshClient) RecoveryVerify(ctx context.Context, request RecoveryVerifyRequest) (RecoveryVerifyResponse, error) {
 	output, err := c.run(ctx, []string{"vrooli", "credentials", "recovery", "verify", "--input", request.InputPath, "--format", "json"}, strings.NewReader(request.Passphrase))
 	if err != nil {
@@ -342,10 +360,12 @@ func (c *sshClient) RecoveryVerify(ctx context.Context, request RecoveryVerifyRe
 	var response RecoveryVerifyResponse
 	return response, decodeSSHJSON(output, &response)
 }
+
 func (c *sshClient) RecoveryRestore(ctx context.Context, request RecoveryRestoreRequest) error {
 	_, err := c.run(ctx, []string{"vrooli", "credentials", "recovery", "restore", "--input", request.InputPath}, strings.NewReader(request.Passphrase))
 	return err
 }
+
 func (c *sshClient) StoreStatus(ctx context.Context) (StoreStatus, error) {
 	output, err := c.run(ctx, []string{"vrooli", "credentials", "store", "status", "--format", "json"}, nil)
 	if err != nil {

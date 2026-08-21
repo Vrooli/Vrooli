@@ -129,9 +129,9 @@ func TestWriteReleaseChecksumManifestAuthenticatesDirectoryServiceTree(t *testin
 		t.Fatal(err)
 	}
 	for path, contents := range map[string]string{
-		filepath.Join(service, "server", "sherpa-onnx-server"): "adapter",
+		filepath.Join(service, "server", "sherpa-onnx-server"):   "adapter",
 		filepath.Join(service, "lib", "libsherpa-onnx-c-api.so"): "sherpa",
-		filepath.Join(service, "lib", "libonnxruntime.so"):         "onnx",
+		filepath.Join(service, "lib", "libonnxruntime.so"):       "onnx",
 	} {
 		if err := os.WriteFile(path, []byte(contents), 0o755); err != nil {
 			t.Fatal(err)

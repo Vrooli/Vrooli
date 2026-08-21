@@ -58,6 +58,7 @@ type AgentProfile struct {
 
 	// Sandbox behavior settings
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
+	SpawnPolicy   *SpawnPolicy   `json:"spawnPolicy,omitempty" db:"-"`
 
 	// Path restrictions
 	AllowedPaths []string `json:"allowedPaths,omitempty" db:"allowed_paths"`
@@ -76,6 +77,23 @@ type AgentProfile struct {
 	LocalOverride   bool      `json:"localOverride,omitempty" db:"local_override"`
 	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt       time.Time `json:"updatedAt" db:"updated_at"`
+}
+
+// SpawnPolicy is declaration-only preference data. Runtime selection must
+// intersect it with runner-published capabilities before choosing a substrate.
+type SpawnPolicy struct {
+	AxisOrder     []string           `json:"axisOrder,omitempty"`
+	ExecutionMode PreferenceAxis     `json:"executionMode"`
+	SandboxMode   PreferenceAxis     `json:"sandboxMode"`
+	Require       []SpawnCombination `json:"require,omitempty"`
+}
+
+type PreferenceAxis struct {
+	Prefer []string `json:"prefer"`
+}
+type SpawnCombination struct {
+	ExecutionMode string `json:"executionMode"`
+	SandboxMode   string `json:"sandboxMode"`
 }
 
 // CanonicalTool is the runner-neutral vocabulary used by profile tool
@@ -1319,6 +1337,7 @@ type RunConfig struct {
 	ManifestIndexSnapshot string        `json:"manifestIndexSnapshot,omitempty"`
 	TranscriptCodec       string        `json:"transcriptCodec,omitempty"`
 	TranscriptCodecScore  float64       `json:"transcriptCodecScore,omitempty"`
+	Until                 string        `json:"until,omitempty"`
 	Model                 string        `json:"model,omitempty"`
 	RoleRef               string        `json:"roleRef,omitempty"`
 	MaxTurns              int           `json:"maxTurns,omitempty"`

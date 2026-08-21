@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/vrooli/cli-core/agentcatalog"
 )
@@ -31,6 +33,40 @@ func NewCLIModelResolver() ModelResolver {
 	}}
 }
 
+// A model's canonical name and provider do not change while a resource is
+// installed, so resolution is memoized. Failures are memoized too, for a
+// shorter window: an unresolvable model is retried by every pricing lookup,
+// and without a negative cache that becomes an unbounded exec loop.
+var (
+	modelResolutionMu sync.Mutex
+	modelResolutions  = map[string]modelResolution{}
+
+	modelResolutionTTL         = 10 * time.Minute
+	modelResolutionNegativeTTL = 1 * time.Minute
+
+	modelResolutionNow = time.Now
+)
+
+type modelResolution struct {
+	canonical string
+	provider  string
+	err       error
+	at        time.Time
+}
+
+// UnknownModel is the sentinel the runner codecs record when they cannot
+// detect the model for a run. It is never a real model name, so resolving it
+// can only fail; callers short-circuit instead of asking a resource.
+const UnknownModel = "unknown"
+
+// resetModelResolutionCache drops every memoized resolution. Tests use it so a
+// replaced command runner is actually consulted.
+func resetModelResolutionCache() {
+	modelResolutionMu.Lock()
+	defer modelResolutionMu.Unlock()
+	modelResolutions = map[string]modelResolution{}
+}
+
 func (r CLIModelResolver) Resolve(ctx context.Context, runner, model string) (string, string, error) {
 	runner = strings.TrimSpace(runner)
 	model = strings.TrimSpace(model)
@@ -40,6 +76,34 @@ func (r CLIModelResolver) Resolve(ctx context.Context, runner, model string) (st
 	if model == "" {
 		return "", "", fmt.Errorf("empty model name")
 	}
+	if model == UnknownModel {
+		return "", "", fmt.Errorf("model is unresolved (%q sentinel); no resource lookup attempted", UnknownModel)
+	}
+
+	key := runner + "\x00" + model
+	modelResolutionMu.Lock()
+	if cached, ok := modelResolutions[key]; ok {
+		ttl := modelResolutionTTL
+		if cached.err != nil {
+			ttl = modelResolutionNegativeTTL
+		}
+		if modelResolutionNow().Sub(cached.at) < ttl {
+			modelResolutionMu.Unlock()
+			return cached.canonical, cached.provider, cached.err
+		}
+	}
+	modelResolutionMu.Unlock()
+
+	canonical, provider, err := r.resolveUncached(ctx, runner, model)
+
+	modelResolutionMu.Lock()
+	modelResolutions[key] = modelResolution{canonical: canonical, provider: provider, err: err, at: modelResolutionNow()}
+	modelResolutionMu.Unlock()
+
+	return canonical, provider, err
+}
+
+func (r CLIModelResolver) resolveUncached(ctx context.Context, runner, model string) (string, string, error) {
 	commandRunner := r.run
 	if commandRunner == nil {
 		commandRunner = func(ctx context.Context, command string, args ...string) ([]byte, error) {

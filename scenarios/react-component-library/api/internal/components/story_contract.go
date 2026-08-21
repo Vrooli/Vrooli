@@ -111,6 +111,25 @@ type StoryDefinition struct {
 	Expect       []StoryExpectation `json:"expect,omitempty"`
 }
 
+// UnmarshalJSON makes the common zero-argument story ergonomic while keeping
+// the normalized contract explicit in the registry. Older authors often omit
+// args for a story with no knobs; that is equivalent to args: {} and should
+// not require a meaningless edit just to satisfy the validator.
+func (s *StoryDefinition) UnmarshalJSON(data []byte) error {
+	type storyDefinition StoryDefinition
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var decoded storyDefinition
+	if err := decoder.Decode(&decoded); err != nil {
+		return err
+	}
+	if len(decoded.Args) == 0 || bytes.Equal(bytes.TrimSpace(decoded.Args), []byte("null")) {
+		decoded.Args = json.RawMessage(`{}`)
+	}
+	*s = StoryDefinition(decoded)
+	return nil
+}
+
 type StoryMode string
 
 const (

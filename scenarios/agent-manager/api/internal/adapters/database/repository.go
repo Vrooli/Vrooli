@@ -109,6 +109,7 @@ type profileRow struct {
 	ExtraFlags            NullableRunnerExtraFlags `db:"extra_flags"`
 	NetworkAccess         string                   `db:"network_access"`
 	SandboxConfig         NullableSandboxConfig    `db:"sandbox_config"`
+	SpawnPolicy           string                   `db:"spawn_policy"`
 	AllowedPaths          StringSlice              `db:"allowed_paths"`
 	DeniedPaths           StringSlice              `db:"denied_paths"`
 	DeclaredScopes        StringSlice              `db:"declared_scopes"`
@@ -141,6 +142,7 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 		ExtraFlags:            r.ExtraFlags.V,
 		NetworkAccess:         domain.NetworkAccess(r.NetworkAccess),
 		SandboxConfig:         r.SandboxConfig.V,
+		SpawnPolicy:           decodeSpawnPolicy(r.SpawnPolicy),
 		AllowedPaths:          r.AllowedPaths,
 		DeniedPaths:           r.DeniedPaths,
 		DeclaredScopes:        r.DeclaredScopes,
@@ -157,6 +159,12 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 }
 
 func profileFromDomain(p *domain.AgentProfile) *profileRow {
+	spawnPolicy := "{}"
+	if p.SpawnPolicy != nil {
+		if data, err := json.Marshal(p.SpawnPolicy); err == nil {
+			spawnPolicy = string(data)
+		}
+	}
 	return &profileRow{
 		ID:                    p.ID,
 		Name:                  p.Name,
@@ -174,6 +182,7 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 		ExtraFlags:            NullableRunnerExtraFlags{V: p.ExtraFlags},
 		NetworkAccess:         string(p.NetworkAccess),
 		SandboxConfig:         NullableSandboxConfig{V: p.SandboxConfig},
+		SpawnPolicy:           spawnPolicy,
 		AllowedPaths:          p.AllowedPaths,
 		DeniedPaths:           p.DeniedPaths,
 		DeclaredScopes:        p.DeclaredScopes,
@@ -189,9 +198,20 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 	}
 }
 
+func decodeSpawnPolicy(raw string) *domain.SpawnPolicy {
+	if raw == "" || raw == "{}" {
+		return nil
+	}
+	var policy domain.SpawnPolicy
+	if json.Unmarshal([]byte(raw), &policy) != nil || len(policy.AxisOrder) == 0 {
+		return nil
+	}
+	return &policy
+}
+
 const profileColumns = `id, name, profile_key, description, role_ref, max_turns, timeout_ms,
 	effort, allowed_tools, denied_tools, tool_restriction_policy, skip_permission_prompt, features, extra_flags,
-	network_access, sandbox_config, allowed_paths, denied_paths, declared_scopes, created_by, owner_scenario, source_path,
+	network_access, sandbox_config, spawn_policy, allowed_paths, denied_paths, declared_scopes, created_by, owner_scenario, source_path,
 	source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at`
 
 func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentProfile) error {
@@ -205,11 +225,11 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 	row := profileFromDomain(profile)
 	query := `INSERT INTO agent_profiles (id, name, profile_key, description, role_ref, max_turns, timeout_ms,
 		effort, allowed_tools, denied_tools, tool_restriction_policy, skip_permission_prompt, features, extra_flags,
-		network_access, sandbox_config, allowed_paths, denied_paths, declared_scopes, created_by, owner_scenario, source_path,
+		network_access, sandbox_config, spawn_policy, allowed_paths, denied_paths, declared_scopes, created_by, owner_scenario, source_path,
 		source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at)
 		VALUES (:id, :name, :profile_key, :description, :role_ref, :max_turns, :timeout_ms,
 		:effort, :allowed_tools, :denied_tools, :tool_restriction_policy, :skip_permission_prompt, :features, :extra_flags,
-		:network_access, :sandbox_config, :allowed_paths, :denied_paths, :declared_scopes, :created_by, :owner_scenario, :source_path,
+		:network_access, :sandbox_config, :spawn_policy, :allowed_paths, :denied_paths, :declared_scopes, :created_by, :owner_scenario, :source_path,
 		:source_hash, :last_applied_hash, :source_updated_at, :local_override, :created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
@@ -282,7 +302,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 		allowed_tools = :allowed_tools, denied_tools = :denied_tools, tool_restriction_policy = :tool_restriction_policy,
 		skip_permission_prompt = :skip_permission_prompt, features = :features, extra_flags = :extra_flags,
 		network_access = :network_access,
-		sandbox_config = :sandbox_config, allowed_paths = :allowed_paths, denied_paths = :denied_paths,
+		sandbox_config = :sandbox_config, spawn_policy = :spawn_policy, allowed_paths = :allowed_paths, denied_paths = :denied_paths,
 		declared_scopes = :declared_scopes,
 		created_by = :created_by, owner_scenario = :owner_scenario, source_path = :source_path,
 		source_hash = :source_hash, last_applied_hash = :last_applied_hash, source_updated_at = :source_updated_at,

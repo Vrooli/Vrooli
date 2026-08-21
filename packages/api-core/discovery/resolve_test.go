@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"sync"
 	"testing"
 	"time"
 )
@@ -330,5 +331,140 @@ func TestStaticResolverUnknownSchemeNoPort(t *testing.T) {
 	var discoveryErr *Error
 	if !errors.As(err, &discoveryErr) || discoveryErr.Kind != ErrInvalidPort {
 		t.Fatalf("expected ErrInvalidPort for unknown scheme without port, got %v", err)
+	}
+}
+
+// TestPackageWrappersShareOneResolver is the test whose absence let the fork
+// storm ship. The Resolver always had a working cache, but the package-level
+// wrappers rebuilt the Resolver per call, so the cache could never hit. Asserting
+// cache behavior on a hand-built Resolver passes either way; the defect is only
+// visible through the public entry point.
+func TestPackageWrappersShareOneResolver(t *testing.T) {
+	if DefaultResolver() != DefaultResolver() {
+		t.Fatal("DefaultResolver returned distinct instances; the package cache cannot hit")
+	}
+}
+
+func TestPackageWrapperCacheActuallyHits(t *testing.T) {
+	resolver := DefaultResolver()
+	calls := 0
+	restore := resolver.runner
+	resolver.runner = func(context.Context, string, ...string) ([]byte, error) {
+		calls++
+		return []byte("4321\n"), nil
+	}
+	t.Cleanup(func() { resolver.runner = restore })
+
+	hitsBefore, _ := resolver.CacheStats()
+	for i := 0; i < 5; i++ {
+		if _, err := ResolveScenarioPortDefault(context.Background(), "wrapper-cache-scenario"); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	hitsAfter, _ := resolver.CacheStats()
+
+	if calls != 1 {
+		t.Fatalf("5 wrapper calls forked the CLI %d times, want 1", calls)
+	}
+	if hitsAfter <= hitsBefore {
+		t.Fatalf("cache hits did not increase (%d -> %d)", hitsBefore, hitsAfter)
+	}
+}
+
+// TestConcurrentLookupsCollapseToOneFork pins the per-key lock. A burst of
+// callers for one scenario must cost one process, not one process each.
+func TestConcurrentLookupsCollapseToOneFork(t *testing.T) {
+	var mu sync.Mutex
+	calls := 0
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL: time.Minute,
+		CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+			mu.Lock()
+			calls++
+			mu.Unlock()
+			time.Sleep(20 * time.Millisecond) // widen the window a stampede would exploit
+			return []byte("9876\n"), nil
+		},
+	})
+
+	const callers = 64
+	var wg sync.WaitGroup
+	wg.Add(callers)
+	for i := 0; i < callers; i++ {
+		go func() {
+			defer wg.Done()
+			if port, err := resolver.ResolveScenarioPortDefault(context.Background(), "burst"); err != nil || port != 9876 {
+				t.Errorf("port=%d err=%v, want 9876 and nil", port, err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	mu.Lock()
+	defer mu.Unlock()
+	if calls != 1 {
+		t.Fatalf("%d concurrent callers forked %d times, want 1", callers, calls)
+	}
+}
+
+// TestFailedLookupIsNegativeCached covers the other half of the storm: a stopped
+// scenario previously cost one fork per caller per attempt, forever.
+func TestFailedLookupIsNegativeCached(t *testing.T) {
+	now := time.Now()
+	calls := 0
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL:         time.Minute,
+		NegativeCacheTTL: 500 * time.Millisecond,
+		Now:              func() time.Time { return now },
+		CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+			calls++
+			return []byte("scenario is not running"), errors.New("exit status 1")
+		},
+	})
+
+	for i := 0; i < 4; i++ {
+		if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "stopped"); err == nil {
+			t.Fatal("expected a discovery error")
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("4 failing calls forked %d times, want 1 within the negative TTL", calls)
+	}
+
+	// Past the negative TTL the scenario gets another chance — a scenario that
+	// has since started must not stay pinned to its failure.
+	now = now.Add(time.Second)
+	if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "stopped"); err == nil {
+		t.Fatal("expected a discovery error")
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2 after the negative TTL expired", calls)
+	}
+}
+
+// TestTimeoutIsNotCached guards the one result that must never be shared: a
+// context deadline belongs to its caller, not to the target scenario.
+func TestTimeoutIsNotCached(t *testing.T) {
+	calls := 0
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL:         time.Minute,
+		NegativeCacheTTL: time.Minute,
+		CommandRunner: func(ctx context.Context, _ string, _ ...string) ([]byte, error) {
+			calls++
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	})
+
+	for i := 0; i < 2; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+		_, err := resolver.ResolveScenarioPortDefault(ctx, "slow")
+		cancel()
+		if err == nil {
+			t.Fatal("expected a timeout error")
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2: a cached timeout would deny an unrelated caller", calls)
 	}
 }

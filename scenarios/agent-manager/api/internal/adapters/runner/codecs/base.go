@@ -48,16 +48,16 @@ type baseCodec struct {
 	// [baseCodec.ParseTranscriptLine] can delegate without the base ever
 	// referencing the embedding type.
 	newParser  func() runner.TranscriptParser
-	goalStatus func(string) (string, bool, bool)
+	goalStatus func(string) (runner.GoalMarker, bool)
 }
 
 // Type satisfies [Codec].
 func (b *baseCodec) Type() domain.RunnerType { return b.runnerType }
 
 // GoalStatusFromTranscriptLine satisfies the optional runner marker seam.
-func (b *baseCodec) GoalStatusFromTranscriptLine(line string) (string, bool, bool) {
+func (b *baseCodec) GoalStatusFromTranscriptLine(line string) (runner.GoalMarker, bool) {
 	if b.goalStatus == nil {
-		return "", false, false
+		return runner.GoalMarker{}, false
 	}
 	return b.goalStatus(line)
 }

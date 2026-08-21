@@ -89,7 +89,7 @@ func codexBase() baseCodec {
 		installHint:    "Run: vrooli resource install codex",
 		tagEnvKey:      codexTagEnvKey,
 		continuePrefix: "codex",
-		goalStatus:     func(line string) (string, bool, bool) { return declaredGoalStatus(line, "goal_status") },
+		goalStatus:     codexGoalStatus,
 		labels: Labels{
 			StartMessage:         "Codex execution started",
 			EndMessage:           "Codex execution completed",
@@ -135,12 +135,17 @@ func NewCodexForTestWithBinary(path string) *Codex {
 // coding-agent model selection.
 func (c *Codex) Capabilities() runner.Capabilities {
 	return runner.Capabilities{
+		SpawnCapabilities: []runner.SpawnCapability{
+			{ExecutionMode: "codec_pipe", SandboxModes: []string{"protected", "tracking", "off"}},
+			{ExecutionMode: "interactive", SandboxModes: []string{"tracking", "off"}, NativeObjective: true},
+		},
 		SupportsMessages:         true,
 		SupportsToolEvents:       true,
 		SupportsCostTracking:     true,
 		SupportsStreaming:        true, // codec only supports JSON-stream path
 		SupportsCancellation:     true,
-		SupportsContinuation:     true,  // `codex exec resume <thread_id>`
+		SupportsContinuation:     true, // `codex exec resume <thread_id>`
+		SupportsWarmIteration:    true,
 		SupportsImageAttachments: true,  // `codex exec -i/--image <FILE>`
 		SupportsToolRestriction:  false, // Codex has no per-launch allowlist for its native tools.
 		ToolRestrictionMappings:  canonicalToolMappings(codexToolTranslations),

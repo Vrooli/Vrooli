@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -242,6 +243,22 @@ func (CLIUtilVerifier) Verify(token string) (*cliutil.VerifyResult, error) {
 	return (cliutil.IdentityEnv{Token: token}).VerifyIdentity()
 }
 
+// VerifyPath is the Agent Manager endpoint that answers token verification.
+//
+// A request to it must never be verified by this middleware. Verification is
+// itself an HTTP call to this path, and cli-core's forwarding transport
+// re-attaches the ambient identity token to that call, so gating the endpoint
+// behind verification makes every inbound verification issue another one.
+// That recursion has no base case and amplifies until it saturates the host.
+const VerifyPath = "/api/v1/identity/verify"
+
+// isVerificationEndpoint reports whether the request targets the verification
+// endpoint itself. Matching is on the cleaned path only; the token authority
+// serves this route on every scenario that embeds api-core.
+func isVerificationEndpoint(rawPath string) bool {
+	return path.Clean(rawPath) == VerifyPath
+}
+
 // Middleware is deliberately fail-open for request handling. It never upgrades
 // missing, invalid, or unavailable verification to an operator or verified
 // agent claim: callers receive an explicit verification state instead.
@@ -260,7 +277,9 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 				},
 			}
 			token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
-			if token == "" {
+			// The verification endpoint verifies its own caller in the handler.
+			// Verifying it here would re-enter this same endpoint without bound.
+			if token == "" || isVerificationEndpoint(r.URL.Path) {
 				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, requestIdentity{provenance: provenance})))
 				return
 			}

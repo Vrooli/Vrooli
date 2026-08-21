@@ -29,8 +29,24 @@ const (
 	// adds to a child process after a successful attach.
 	AgentManagerIdentityTokenEnv = EnvIdentityToken
 
-	defaultAgentManagerLauncherBase  = "http://127.0.0.1:18800"
-	defaultAgentManagerAttachTimeout = 300 * time.Millisecond
+	defaultAgentManagerLauncherBase = "http://127.0.0.1:18800"
+
+	// defaultAgentManagerAttachTimeout bounds the attribution call only.
+	//
+	// The budget can afford to be generous because of which failure it actually
+	// bounds. When agent-manager is not running, the connection is refused
+	// immediately and none of this timeout is spent; it is only consumed when
+	// agent-manager is up but slow, which is exactly the case worth waiting for.
+	// Against that, a coding agent takes seconds to reach its first prompt, so a
+	// ceiling in this range is imperceptible.
+	//
+	// It was 300ms, which was under the real cost: attaching to a local
+	// agent-manager measured 350-440ms across repeated samples on a developer
+	// host under load, so every attach timed out and every agent ran
+	// unattributed. Nothing failed loudly, because attribution is deliberately
+	// fail-open — the shims installed correctly and simply never carried an
+	// identity. Operators tune with AGENT_MANAGER_ATTACH_TIMEOUT.
+	defaultAgentManagerAttachTimeout = 2 * time.Second
 )
 
 // AgentLaunchRequest describes one native coding-agent invocation. Args are
@@ -106,16 +122,32 @@ func LaunchCodingAgent(ctx context.Context, request AgentLaunchRequest) error {
 		environment = os.Environ()
 	}
 
-	attach := attachCodingAgent(ctx, request, harnessKind)
-	if attach.runID != "" {
-		defer func() {
-			// Detach is cleanup only. In particular, it never signals or kills
-			// the child and its failure must not mask the child result.
-			_ = detachCodingAgent(context.Background(), request, attach.runID)
-		}()
-	}
+	// Deciding this before attaching matters: a launch that replaces its own
+	// process image has no "after" in which to detach, so it reports its pid at
+	// attach time instead. Because exec keeps the pid, the pid reported here is
+	// the agent's pid, and agent-manager's reconciler closes the run by
+	// process liveness (see attachedRunProcessAlive).
+	willExec := request.RunChild == nil && execReplaceSupported && stdioIsInherited(request)
+
+	attach := attachCodingAgent(ctx, request, harnessKind, willExec)
 	if attach.token != "" {
 		environment = withEnvironmentValue(environment, AgentManagerIdentityTokenEnv, attach.token)
+	}
+
+	if willExec {
+		// Returns only when the exec itself failed. That is a launcher problem,
+		// never the operator's, so fall through to spawn-and-wait rather than
+		// refusing to start the agent.
+		_ = execReplace(path, append([]string{binary}, request.Args...), environment)
+	}
+
+	if attach.runID != "" {
+		defer func() {
+			// Detach is cleanup only. It never signals or kills the child and
+			// its failure must not mask the child result. Only the
+			// spawn-and-wait path ever reaches this.
+			_ = detachCodingAgent(context.Background(), request, attach.runID)
+		}()
 	}
 
 	runChild := request.RunChild
@@ -123,6 +155,27 @@ func LaunchCodingAgent(ctx context.Context, request AgentLaunchRequest) error {
 		runChild = runNativeChild(request, binary)
 	}
 	return runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
+}
+
+// stdioIsInherited reports whether the request's streams are exactly this
+// process's own standard streams. Only then is replacing the process image
+// equivalent to spawning: exec inherits file descriptors and cannot copy
+// bytes through an arbitrary io.Reader or io.Writer, so a caller that supplied
+// a buffer or a pipe must keep the spawn-and-wait path.
+func stdioIsInherited(request AgentLaunchRequest) bool {
+	stdinOK := request.Stdin == nil
+	if file, ok := request.Stdin.(*os.File); ok && file == os.Stdin {
+		stdinOK = true
+	}
+	stdoutOK := request.Stdout == nil
+	if file, ok := request.Stdout.(*os.File); ok && file == os.Stdout {
+		stdoutOK = true
+	}
+	stderrOK := request.Stderr == nil
+	if file, ok := request.Stderr.(*os.File); ok && file == os.Stderr {
+		stderrOK = true
+	}
+	return stdinOK && stdoutOK && stderrOK
 }
 
 type codingAgentAttachment struct {
@@ -147,7 +200,25 @@ func codingAgentSpec(agent string) (harnessKind, binary string, err error) {
 	}
 }
 
-func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harnessKind string) codingAgentAttachment {
+// attachCodingAgent makes the bounded, best-effort attribution call. Every
+// failure path returns a zero attachment: attribution is observability and must
+// never decide whether an agent starts.
+//
+// reportPID says the caller is about to replace its process image, so this
+// process's pid will still be the agent's pid afterwards. Sending it turns
+// agent-manager's liveness check into a single stat of /proc/<pid> instead of a
+// scan of every process environment.
+func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harnessKind string, reportPID bool) codingAgentAttachment {
+	// An identity already in the environment means something else already owns a
+	// run for this work. agent-manager mints one per run and scrubs inherited
+	// ones precisely so ownership is unambiguous, so the right move here is to
+	// adopt what is already there rather than open a second run for the same
+	// process. Without this, launching an agent from inside an agent-manager run
+	// produces two run records for one agent.
+	if inherited := strings.TrimSpace(os.Getenv(AgentManagerIdentityTokenEnv)); inherited != "" {
+		return codingAgentAttachment{token: inherited}
+	}
+
 	base := agentManagerLauncherBase(request)
 	parsed, err := url.Parse(base)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
@@ -155,12 +226,15 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 	}
 
 	sessionID := harnessSessionID(harnessKind)
-	body := map[string]string{
+	body := map[string]any{
 		"harness_kind":       harnessKind,
 		"harness_session_id": sessionID,
 	}
 	if taskID := strings.TrimSpace(request.TaskID); taskID != "" {
 		body["task_id"] = taskID
+	}
+	if reportPID {
+		body["process_id"] = os.Getpid()
 	}
 	payload, err := json.Marshal(body)
 	if err != nil {

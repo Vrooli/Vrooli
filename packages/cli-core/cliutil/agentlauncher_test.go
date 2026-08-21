@@ -16,6 +16,9 @@ import (
 )
 
 func TestLaunchCodingAgentFallsBackWhenAgentManagerUnavailable(t *testing.T) {
+	// A token in the ambient environment would make the launcher adopt it and
+	// skip attaching, so pin it empty to keep this test about the attach path.
+	t.Setenv(AgentManagerIdentityTokenEnv, "")
 	var ran bool
 	err := LaunchCodingAgent(context.Background(), AgentLaunchRequest{
 		Agent:   "codex",
@@ -48,6 +51,9 @@ func TestLaunchCodingAgentFallsBackWhenAgentManagerUnavailable(t *testing.T) {
 }
 
 func TestLaunchCodingAgentTreatsHTTP500AndHangAsFallback(t *testing.T) {
+	// A token in the ambient environment would make the launcher adopt it and
+	// skip attaching, so pin it empty to keep this test about the attach path.
+	t.Setenv(AgentManagerIdentityTokenEnv, "")
 	for _, tc := range []struct {
 		name    string
 		handler http.Handler
@@ -97,6 +103,9 @@ func TestLaunchCodingAgentTreatsHTTP500AndHangAsFallback(t *testing.T) {
 }
 
 func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
+	// A token in the ambient environment would make the launcher adopt it and
+	// skip attaching, so pin it empty to keep this test about the attach path.
+	t.Setenv(AgentManagerIdentityTokenEnv, "")
 	var mu sync.Mutex
 	var attachBody map[string]string
 	var childPath string
@@ -168,6 +177,9 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 }
 
 func TestLaunchCodingAgentReportsAbsentBinaryWithoutHTTPCall(t *testing.T) {
+	// A token in the ambient environment would make the launcher adopt it and
+	// skip attaching, so pin it empty to keep this test about the attach path.
+	t.Setenv(AgentManagerIdentityTokenEnv, "")
 	called := false
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
 	defer server.Close()
@@ -191,6 +203,9 @@ func TestLaunchCodingAgentReportsAbsentBinaryWithoutHTTPCall(t *testing.T) {
 }
 
 func TestLaunchCodingAgentUsesAntigravityBinaryName(t *testing.T) {
+	// A token in the ambient environment would make the launcher adopt it and
+	// skip attaching, so pin it empty to keep this test about the attach path.
+	t.Setenv(AgentManagerIdentityTokenEnv, "")
 	ran := false
 	err := LaunchCodingAgent(context.Background(), AgentLaunchRequest{
 		Agent: "antigravity",

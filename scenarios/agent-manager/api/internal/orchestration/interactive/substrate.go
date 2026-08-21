@@ -190,9 +190,13 @@ type LaunchParams struct {
 	// delivered (the launch just creates the session and discovers the transcript
 	// — used by the fake-CLI integration harnesses that self-start a turn).
 	Prompt string
-	Model  string
-	Effort domain.Effort
-	Config *domain.RunConfig
+	// NativeObjective is an optional harness-native completion objective. It is
+	// delivered before the task prompt only when the resolved runner capability
+	// explicitly supports it.
+	NativeObjective string
+	Model           string
+	Effort          domain.Effort
+	Config          *domain.RunConfig
 }
 
 // LaunchResult is the durable outcome of a launch.
@@ -289,20 +293,28 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	// can leave current Codex releases idle without creating a thread or
 	// transcript (observed with codex-cli 0.144.6).
 	var resend func() error
-	if p.Prompt != "" {
+	if p.Prompt != "" || p.NativeObjective != "" {
 		if err := s.awaitBoot(ctx); err != nil {
 			return result, err
 		}
-		deliver := func() error {
-			return s.sessions.SendPrompt(ctx, sessionID, p.Prompt, interactivePromptSource(p.RunID))
+		if p.NativeObjective != "" {
+			if err := s.sessions.SendText(ctx, sessionID, "/goal "+p.NativeObjective+"\n", interactivePromptSource(p.RunID)); err != nil {
+				return result, fmt.Errorf("deliver native objective to %s: %w", p.RunnerType, err)
+			}
 		}
-		if err := deliver(); err != nil {
-			return result, fmt.Errorf("deliver initial prompt to %s: %w", p.RunnerType, err)
+		var deliver func() error
+		if p.Prompt != "" {
+			deliver = func() error {
+				return s.sessions.SendPrompt(ctx, sessionID, p.Prompt, interactivePromptSource(p.RunID))
+			}
+			if err := deliver(); err != nil {
+				return result, fmt.Errorf("deliver initial prompt to %s: %w", p.RunnerType, err)
+			}
+			// Transcript appearance acknowledges that the prompt reached a turn. If
+			// a cold TUI consumed an early paste during startup, retry on the bounded
+			// discovery cadence so the task eventually lands on its input surface.
+			resend = deliver
 		}
-		// Transcript appearance acknowledges that the prompt reached a turn. If
-		// a cold TUI consumed an early paste during startup, retry on the bounded
-		// discovery cadence so the task eventually lands on its input surface.
-		resend = deliver
 	}
 
 	transcriptPath, err := s.discoverTranscript(ctx, DiscoverParams{

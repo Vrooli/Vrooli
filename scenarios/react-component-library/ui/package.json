@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm strings:gen && pnpm build:preview-kits && tsc --noEmit && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
-    "build:profile": "pnpm strings:gen && tsc --noEmit && vite build --mode profile",
+    "build": "pnpm strings:gen && pnpm build:preview-kits && tsc --noEmit && vite build",
+    "build:profile": "pnpm strings:gen && pnpm build:preview-kits && tsc --noEmit && vite build --mode profile",
     "preview": "vite preview",
     "lint": "eslint .",
     "lint:catalog": "node scripts/catalog-conformance.mjs lint",

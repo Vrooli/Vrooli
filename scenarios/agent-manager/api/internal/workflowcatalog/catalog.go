@@ -32,16 +32,19 @@ const (
 	MaxBindingBytes    = 64 << 10
 	MaxBindingLimit    = 1000
 	MaxEdgeTraversals  = 10_000
-	MaxWallTimeSeconds = 86_400
+	MaxWallTimeSeconds = 97_200
 	MaxTurns           = 1_000
-	MaxTokens          = 10_000_000
+	MaxTokens          = 20_000_000
 	MaxChargeMicroUSD  = int64(10_000_000_000) // $10,000 in micro-USD
-	MaxNodeAttempts    = 10_000
-	MaxChildren        = 1_000
-	MaxConcurrency     = 64
-	MaxRecursion       = 16
-	MaxRetries         = 100
-	MaxWaitSeconds     = 86_400
+	// MinimumChargeMicroUSD prevents the historical maxCostUsd-to-micro-USD
+	// migration error from silently producing effectively zero charge budgets.
+	MinimumChargeMicroUSD = int64(1_000_000)
+	MaxNodeAttempts       = 10_000
+	MaxChildren           = 1_000
+	MaxConcurrency        = 64
+	MaxRecursion          = 16
+	MaxRetries            = 100
+	MaxWaitSeconds        = 97_200
 )
 
 var (
@@ -189,6 +192,7 @@ func validate(d *domain.WorkflowDefinition, lookup Lookup) []domain.WorkflowDiag
 	} else if !withinSafetyLimits(d.Budgets) {
 		add("budget_ceiling", "budgets", "workflow budgets exceed an Agent Manager operator safety ceiling")
 	}
+	validateChargeBudget(d.Budgets, add)
 	validateTriggerPolicy(d.Trigger, add)
 
 	nodes := make(map[string]*domain.WorkflowNode, len(d.Nodes))
@@ -446,6 +450,9 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn 
 			add("role_missing", path+".run.roleRef", "portable role does not exist")
 		}
 		validatePromptSource(n.Run.PromptTemplate, n.Run.PromptRef, n.Run.PromptProvenance, n.Run.Bindings, path+".run", add, warn)
+		if len(n.Run.Until) > 2048 {
+			add("until_length", path+".run.until", "until completion test must be at most 2048 characters")
+		}
 		validateScopePathTemplate(n.Run.ScopePathTemplate, n.Run.Bindings, path+".run.scopePathTemplate", add)
 		validateResultSpec(&n.Run.ResultSpec, path+".run.resultSpec", add)
 		validateAgentNodeLimits(n.Run.MaxTurns, n.Run.TimeoutSeconds, path+".run", add)
@@ -735,6 +742,24 @@ func positiveBudgets(b domain.WorkflowBudgets) bool {
 
 func withinSafetyLimits(b domain.WorkflowBudgets) bool {
 	return b.WallTimeSeconds <= MaxWallTimeSeconds && b.MaxTurns <= MaxTurns && b.MaxTokens <= MaxTokens && b.MaxChargeMicroUSD <= MaxChargeMicroUSD && b.MaxNodeAttempts <= MaxNodeAttempts && b.MaxChildren <= MaxChildren && b.MaxConcurrency <= MaxConcurrency && b.MaxRecursion <= MaxRecursion && b.MaxRetries <= MaxRetries && b.MaxWaitSeconds <= MaxWaitSeconds
+}
+
+func validateChargeBudget(b domain.WorkflowBudgets, add func(string, string, string)) {
+	if b.MaxChargeMicroUSD <= 0 || b.MaxTokens <= 0 {
+		return
+	}
+	// Tiny in-memory fixtures intentionally use tiny budgets; the guard is for
+	// production-sized declarations where a unit mistake is consequential.
+	if b.MaxTokens < 100_000 {
+		return
+	}
+	if b.MaxChargeMicroUSD < MinimumChargeMicroUSD {
+		add("charge_budget_unit", "budgets.maxChargeMicroUsd", fmt.Sprintf("must be at least %d micro-USD; values below this are implausible for a token budget", MinimumChargeMicroUSD))
+		return
+	}
+	if b.MaxChargeMicroUSD < int64(b.MaxTokens) {
+		add("charge_budget_ratio", "budgets.maxChargeMicroUsd", fmt.Sprintf("must be at least the token budget (%d) in micro-USD", b.MaxTokens))
+	}
 }
 
 func validateReachability(entry string, nodes map[string]*domain.WorkflowNode, adj map[string][]domain.WorkflowEdge, add func(string, string, string)) {

@@ -14,6 +14,9 @@ replaced with inert fixture values.
 | OpenCode | `opencode_trace.jsonl` | The same line-oriented format is replayable; continuation retains `sessionID` | `step_finish` reason/text and session id |
 | Grok | `grok_trace.jsonl` | `grok_resume_trace.jsonl` is an observed resumed turn | `end` with stop reason, session id, and request id after accumulated text deltas |
 
+`codex_goal_updated.jsonl` is a sanitized native Codex TUI goal-event capture;
+the source rollout and capture date are recorded in its consuming test.
+
 `final_output_cases.json` composes those observed field shapes into adversarial
 selection cases. Composed cases are marked `composition`; they do not claim the
 exact combined conversation was captured. This keeps provenance honest while

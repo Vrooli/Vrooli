@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | identities, platforms, warming, queue, signals | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | identities, platforms, warming, queue, signals | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
 | credential authority | native platform service | no at P0 | future executor (at execution time only) | Authority identity/field reference resolved through the control-plane credential contract | P0 manual work stores only a reference, so the console and test suite run without the authority. A future credential-consuming executor must fail terminally and never cache a value. |
 | content-desk | scenario | no (inbound) | queue, identities | Connect-RPC: release handoff and eligibility query | This scenario does not call it at P0; it answers. If nothing calls in, warming and manual actions continue unaffected. |

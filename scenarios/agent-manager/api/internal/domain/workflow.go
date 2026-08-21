@@ -158,6 +158,8 @@ type WorkflowRunNode struct {
 	Bindings          []WorkflowInputBinding `json:"bindings,omitempty"`
 	MaxTurns          int                    `json:"maxTurns,omitempty"`
 	TimeoutSeconds    int                    `json:"timeoutSeconds,omitempty"`
+	// Until is an engine-owned completion test, separate from standing skill instructions.
+	Until string `json:"until,omitempty"`
 }
 
 type WorkflowContinueNode struct {

@@ -258,6 +258,15 @@ func parseSourceProfile(data []byte) (*domain.AgentProfile, error) {
 		data = stripped
 	}
 	var roleReason string
+	var spawnPolicy *domain.SpawnPolicy
+	if rawPolicy, ok := raw["spawnPolicy"]; ok {
+		spawnPolicy = &domain.SpawnPolicy{}
+		if err := json.Unmarshal(rawPolicy, spawnPolicy); err != nil {
+			return nil, fmt.Errorf("parse profile spawnPolicy: %w", err)
+		}
+		delete(raw, "spawnPolicy")
+		data, _ = json.Marshal(raw)
+	}
 	if rawReason, ok := raw["roleReason"]; ok {
 		if err := json.Unmarshal(rawReason, &roleReason); err != nil {
 			return nil, fmt.Errorf("parse profile roleReason: %w", err)
@@ -275,6 +284,7 @@ func parseSourceProfile(data []byte) (*domain.AgentProfile, error) {
 	}
 	profile := protoconv.AgentProfileFromProto(&pb)
 	profile.RoleReason = strings.TrimSpace(roleReason)
+	profile.SpawnPolicy = spawnPolicy
 	if err := normalizeProfileInput(profile); err != nil {
 		return nil, err
 	}

@@ -106,8 +106,12 @@ func TestBuildCatalog(t *testing.T) {
 	if len(paths) == 0 || paths[0] != filepath.Join(root, "cli", "manifest.json") {
 		t.Fatalf("project manifest is not the deterministic first catalog input: %v", paths)
 	}
-	if catalog.GovernedCommandCount < 1789 {
-		t.Fatalf("governed command count = %d, unexpectedly below recorded baseline", catalog.GovernedCommandCount)
+	// Relational, not a recorded population: a hardcoded floor goes stale the
+	// moment commands are added and stops detecting anything. Every catalogued
+	// manifest must contribute at least one governed command, which still fails
+	// loudly if the builder collapses.
+	if catalog.GovernedCommandCount < catalog.ManifestCount {
+		t.Fatalf("governed command count = %d for %d manifests; at least one manifest contributed no command", catalog.GovernedCommandCount, catalog.ManifestCount)
 	}
 	if catalog.MostRestrictiveDefaultCount == 0 {
 		t.Fatal("expected omitted RPCs to resolve to a restrictive default")

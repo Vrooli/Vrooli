@@ -48,7 +48,11 @@ func (commandExecutor) Run(ctx context.Context, command string, args ...string) 
 	// relative to the repository root. Agent Manager is lifecycle-launched from
 	// its scenario API directory, so preserve the control-plane root explicitly
 	// when it is available instead of making every resource rediscover it.
-	if root := strings.TrimSpace(os.Getenv("PROJECT_ROOT")); root != "" {
+	root := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
+	if root == "" {
+		root = strings.TrimSpace(os.Getenv("VROOLI_SOURCE_ROOT"))
+	}
+	if root != "" {
 		cmd.Dir = root
 	}
 	return cmd.CombinedOutput()

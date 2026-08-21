@@ -55,7 +55,11 @@ func (h *handlers) progression(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) transition(ctx cliapp.RunContext, method string) error {
-	req := &versionsv1.VersionLifecycleRequest{ComponentId: ctx.Positional("component-id"), Version: ctx.Positional("version"), Confirm: ctx.Flag("confirm") != ""}
+	confirm := false
+	if method == "retire" {
+		confirm = ctx.Flag("confirm") != ""
+	}
+	req := &versionsv1.VersionLifecycleRequest{ComponentId: ctx.Positional("component-id"), Version: ctx.Positional("version"), Confirm: confirm}
 	var resp *connect.Response[versionsv1.VersionLifecycleResponse]
 	var err error
 	switch method {

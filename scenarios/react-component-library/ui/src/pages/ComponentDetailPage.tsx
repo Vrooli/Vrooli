@@ -31,6 +31,7 @@ import { ComponentTestPanel } from "../features/components/ComponentTestPanel";
 import { VersionsCard } from "../features/versions/VersionsCard";
 import { ProgressionPanel } from "../features/versions/ProgressionPanel";
 import { RelationshipsPanel } from "../features/catalog/RelationshipsPanel";
+import { versionsClient } from "../api/versions";
 import { useTranslation } from "../i18n";
 import {
   assetInfoTab,
@@ -370,6 +371,12 @@ export function ComponentDetailPage() {
     enabled: Boolean(data?.component) && infoTab === "overview",
     retry: false,
   });
+  const indexedVersionsQuery = useQuery({
+    queryKey: ["versions", "source-status", id],
+    queryFn: () => versionsClient.listVersions({ componentId: data?.component?.id ?? id ?? "", limit: 0 }),
+    enabled: Boolean(data?.component),
+    retry: false,
+  });
 
   const adoptionsQuery = useQuery({
     queryKey: ["adoptions", "component", id],
@@ -441,6 +448,14 @@ export function ComponentDetailPage() {
   const designStyles = (component.designStyles as typeof component.designStyles | undefined) ?? [];
   const dependencies =
     (component.dependencies as Array<{ libraryId: string; version: string }> | undefined) ?? [];
+  const indexedRelease = (indexedVersionsQuery.data?.versions ?? []).find(
+    (version) => version.version === (component.latestVersion || component.version),
+  );
+  const sourceDrifted = Boolean(
+    sourceContentQuery.data?.sha256 &&
+      indexedRelease?.contentSha256 &&
+      sourceContentQuery.data.sha256 !== indexedRelease.contentSha256,
+  );
   const adoptions = adoptionsQuery.data?.adoptions ?? [];
   const selectedAdoption =
     adoptions.find((adoption) => adoption.id === selectedAdoptionID) ?? adoptions[0];
@@ -487,6 +502,27 @@ export function ComponentDetailPage() {
         onCloseComparison={() => setComparison(null)}
         metadataSlot={
           <div className="space-y-space-sm">
+            <section
+              data-testid="component-source-status"
+              className="rounded-lg border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-foreground"
+            >
+              <h3 className="font-medium">Source and index</h3>
+              <dl className="mt-space-2xs grid grid-cols-[auto_1fr] gap-x-space-xs gap-y-space-3xs text-xs">
+                <dt className="text-app-muted-foreground">Indexed version</dt>
+                <dd className="font-mono">{component.latestVersion || component.version || "—"}</dd>
+                <dt className="text-app-muted-foreground">Source path</dt>
+                <dd className="break-all font-mono">{component.sourcePath || "—"}</dd>
+              </dl>
+              {sourceDrifted ? (
+                <StatusBadge tone="warning" className="mt-space-2xs">
+                  Source changed since indexing — run components refresh.
+                </StatusBadge>
+              ) : (
+                <StatusBadge tone="success" className="mt-space-2xs">
+                  Source matches indexed release.
+                </StatusBadge>
+              )}
+            </section>
             {infoTab === "overview" && (
               <>
                 <ComponentExperiencePanel

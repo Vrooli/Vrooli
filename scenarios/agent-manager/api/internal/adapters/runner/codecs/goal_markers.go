@@ -3,46 +3,25 @@ package codecs
 import (
 	"encoding/json"
 	"strings"
+
+	"agent-manager/internal/adapters/runner"
 )
 
-// declaredGoalStatus applies only the marker names declared by one codec.
-// Values remain bounded metadata; transcript bodies are never retained here.
-func declaredGoalStatus(line string, markerTypes ...string) (string, bool, bool) {
-	var value any
-	if json.Unmarshal([]byte(line), &value) != nil {
-		return "", false, false
+// codexGoalStatus parses the event_msg/payload shape emitted by Codex TUI.
+func codexGoalStatus(line string) (runner.GoalMarker, bool) {
+	var envelope struct {
+		Type    string `json:"type"`
+		Payload struct {
+			Type string `json:"type"`
+			Goal struct {
+				Objective string            `json:"objective"`
+				Status    runner.GoalStatus `json:"status"`
+			} `json:"goal"`
+		} `json:"payload"`
 	}
-	allowed := map[string]bool{}
-	for _, marker := range markerTypes {
-		allowed[marker] = true
+	if json.Unmarshal([]byte(line), &envelope) != nil || envelope.Type != "event_msg" || envelope.Payload.Type != "thread_goal_updated" {
+		return runner.GoalMarker{}, false
 	}
-	var visit func(any) (string, bool, bool)
-	visit = func(current any) (string, bool, bool) {
-		object, ok := current.(map[string]any)
-		if !ok {
-			if array, ok := current.([]any); ok {
-				for _, child := range array {
-					if condition, met, found := visit(child); found {
-						return condition, met, true
-					}
-				}
-			}
-			return "", false, false
-		}
-		marker, _ := object["type"].(string)
-		if allowed[marker] {
-			condition, _ := object["condition"].(string)
-			met, _ := object["met"].(bool)
-			if strings.TrimSpace(condition) != "" {
-				return condition, met, true
-			}
-		}
-		for _, child := range object {
-			if condition, met, found := visit(child); found {
-				return condition, met, true
-			}
-		}
-		return "", false, false
-	}
-	return visit(value)
+	marker := runner.GoalMarker{Objective: strings.TrimSpace(envelope.Payload.Goal.Objective), Status: envelope.Payload.Goal.Status}
+	return marker, marker.Objective != "" && marker.Status.Valid()
 }

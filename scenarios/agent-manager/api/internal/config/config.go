@@ -93,7 +93,7 @@ func Load() *Config {
 		Sandbox: SandboxConfig{
 			URL:            envString("WORKSPACE_SANDBOX_URL", ""),
 			DefaultTimeout: envDuration("SANDBOX_DEFAULT_TIMEOUT", 30*time.Minute),
-			ProjectRoot:    envString("PROJECT_ROOT", ""),
+			ProjectRoot:    envStringFallback("PROJECT_ROOT", "VROOLI_SOURCE_ROOT", ""),
 		},
 		Runners: RunnerConfig{
 			ClaudeCodePath: envString("CLAUDE_CODE_PATH", "claude"),
@@ -116,6 +116,16 @@ func Load() *Config {
 func envString(key, defaultVal string) string {
 	if val := strings.TrimSpace(os.Getenv(key)); val != "" {
 		return val
+	}
+	return defaultVal
+}
+
+func envStringFallback(primary, fallback, defaultVal string) string {
+	if value := strings.TrimSpace(os.Getenv(primary)); value != "" {
+		return value
+	}
+	if value := strings.TrimSpace(os.Getenv(fallback)); value != "" {
+		return value
 	}
 	return defaultVal
 }

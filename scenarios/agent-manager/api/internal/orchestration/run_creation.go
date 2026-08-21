@@ -136,6 +136,21 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, domain.NewInternalError("run configuration resolver returned nil configuration", nil)
 	}
+	if strings.TrimSpace(resolvedConfig.Until) != "" {
+		if o.runners == nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationError("until", "warm iteration capability unavailable: runner registry is not configured")
+		}
+		selectedRunner, runnerErr := o.runners.Get(resolvedConfig.RunnerType)
+		if runnerErr != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationError("until", "warm iteration capability unavailable: selected runner is unavailable: "+runnerErr.Error())
+		}
+		if !selectedRunner.Capabilities().SupportsWarmIteration {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationError("until", "warm iteration capability unavailable: runner does not support engine-owned completion tests across continuations")
+		}
+	}
 	applyCanary(resolvedConfig.PolicySnapshot, runID.String(), resolvedConfig.Model)
 
 	sandboxConfig, err := o.resolveSandboxConfig(req, profile)
@@ -188,10 +203,29 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		runMode = domain.RunModeInPlace
 	}
 
-	// Policy gate (locked decision 5): interactive execution mode is only
-	// available for non-protected (in-place) runs. Reject at creation time with
-	// an actionable error before the run is persisted or dispatched. The
-	// executeInteractiveRun path re-checks this as a backstop.
+	// Resolve declaration-only spawn preferences against the selected runner's
+	// published capabilities before the run becomes immutable.
+	var spawnSkips []SpawnPreferenceSkip
+	if profile != nil && profile.SpawnPolicy != nil {
+		selected, err := o.runners.Get(resolvedConfig.RunnerType)
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationError("spawnPolicy", "selected runner is unavailable: "+err.Error())
+		}
+		resolution, err := ResolveSpawnPolicy(profile.SpawnPolicy, selected.Capabilities())
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationError("spawnPolicy", err.Error())
+		}
+		req.ExecutionMode = domain.ExecutionMode(resolution.ExecutionMode)
+		sandboxConfig.Mode = domain.SandboxMode(resolution.SandboxMode)
+		runMode = domain.DeriveRunMode(sandboxConfig)
+		spawnSkips = resolution.Skipped
+	}
+
+	// Validate the resolved execution/sandbox pair at the creation boundary.
+	// Spawn-policy resolution is data-driven; this check only validates the
+	// resulting domain values and does not encode runner-specific combinations.
 	if err := domain.ValidateInteractiveRunMode(req.ExecutionMode, sandboxConfig.Mode); err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
@@ -396,6 +430,14 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		if err := o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "warn",
 			fmt.Sprintf("runner %q cannot enforce %s; advisory policy accepted the launch", resolvedConfig.RunnerType, declared))); err != nil {
 			obs.Component("orchestrator").Warn("failed to append advisory tool-restriction event", obs.KeyRunID, run.ID.String(), "eventType", "log", obs.KeyError, err.Error())
+		}
+	}
+	if o.events != nil {
+		for _, skipped := range spawnSkips {
+			message := fmt.Sprintf("spawn preference skipped: executionMode=%s sandboxMode=%s reason=%s", skipped.ExecutionMode, skipped.SandboxMode, skipped.Reason)
+			if err := o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "info", message)); err != nil {
+				obs.Component("orchestrator").Warn("failed to append spawn-preference event", obs.KeyRunID, run.ID.String(), "eventType", "log", obs.KeyError, err.Error())
+			}
 		}
 	}
 
@@ -643,6 +685,12 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	}
 	if req.Timeout != nil {
 		cfg.Timeout = *req.Timeout
+	}
+	if strings.TrimSpace(req.Until) != "" {
+		if len(req.Until) > 2048 {
+			return nil, nil, domain.NewValidationError("until", "completion test must be at most 2048 characters")
+		}
+		cfg.Until = strings.TrimSpace(req.Until)
 	}
 	if req.Effort != nil {
 		cfg.Effort = *req.Effort

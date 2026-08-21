@@ -1034,6 +1034,33 @@
           }
         },
         {
+          "name": "refresh",
+          "description": "Refresh one component from disk and report its focused preflight status",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Version to refresh; defaults to the active draft, then latest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentsService",
+            "method": "CheckComponentVersion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
           "name": "version-publish",
           "description": "Validate and atomically publish the active component draft",
           "positionals": [

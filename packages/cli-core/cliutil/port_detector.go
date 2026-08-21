@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -14,6 +15,68 @@ var (
 	lookPathFn           = exec.LookPath
 	execCommandContextFn = exec.CommandContext
 )
+
+// Port lookups shell out to the vrooli CLI, which is expensive: a cold Go
+// binary start plus a host-wide listener snapshot. Long-lived servers resolve
+// the same scenario port on every request, so an uncached detector turns
+// steady request traffic into a fork storm. The cache below collapses that to
+// one lookup per scenario per TTL, and the per-key mutex collapses a burst of
+// concurrent callers into a single lookup rather than one per caller.
+var (
+	portCacheMu sync.Mutex
+	portCache   = map[string]*portCacheEntry{}
+
+	// A resolved port is stable for the lifetime of a running scenario, so it
+	// may be held a while. An unresolved one is re-checked promptly because it
+	// usually means the scenario is still starting.
+	portCacheTTL         = 60 * time.Second
+	portCacheNegativeTTL = 3 * time.Second
+
+	portCacheNow = time.Now
+)
+
+type portCacheEntry struct {
+	mu       sync.Mutex
+	port     string
+	resolved time.Time
+}
+
+// resetPortDetectorCache drops every memoized lookup. Tests use it so a
+// replaced execCommandContextFn is actually consulted.
+func resetPortDetectorCache() {
+	portCacheMu.Lock()
+	defer portCacheMu.Unlock()
+	portCache = map[string]*portCacheEntry{}
+}
+
+// cachedPortLookup returns the memoized port for key, calling lookup at most
+// once per TTL and at most once across concurrent callers.
+func cachedPortLookup(key string, lookup func() string) string {
+	portCacheMu.Lock()
+	entry, ok := portCache[key]
+	if !ok {
+		entry = &portCacheEntry{}
+		portCache[key] = entry
+	}
+	portCacheMu.Unlock()
+
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+
+	if !entry.resolved.IsZero() {
+		ttl := portCacheTTL
+		if entry.port == "" {
+			ttl = portCacheNegativeTTL
+		}
+		if portCacheNow().Sub(entry.resolved) < ttl {
+			return entry.port
+		}
+	}
+
+	entry.port = lookup()
+	entry.resolved = portCacheNow()
+	return entry.port
+}
 
 // DetectPortFromVrooli returns a detector that asks vrooli for the port of a
 // scenario. The detector is instance-aware: it resolves the shadow-aware target
@@ -25,12 +88,14 @@ var (
 func DetectPortFromVrooli(scenarioName, portVar string) func() string {
 	return func() string {
 		target := ResolveShadowTarget(scenarioName)
-		port := detectPortForTarget(target, portVar)
-		if port == "" && IsNonLiveTarget(target) {
-			WarnShadowFallback(scenarioName)
-			port = detectPortForTarget(BareScenarioName(scenarioName), portVar)
-		}
-		return port
+		return cachedPortLookup(target+"\x00"+portVar, func() string {
+			port := detectPortForTarget(target, portVar)
+			if port == "" && IsNonLiveTarget(target) {
+				WarnShadowFallback(scenarioName)
+				port = detectPortForTarget(BareScenarioName(scenarioName), portVar)
+			}
+			return port
+		})
 	}
 }
 

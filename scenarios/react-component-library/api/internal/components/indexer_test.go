@@ -450,6 +450,7 @@ func TestIndexer_RunValidatesStoryHarnessArtifacts(t *testing.T) {
 		{name: "missing artifact", finding: components.IndexFindingStoryHarnessMissing},
 		{name: "missing export", storyTSX: `export const AnotherHarness = () => null;`, finding: components.IndexFindingStoryHarnessExport},
 		{name: "matching export is excluded from adoption files", storyTSX: `export const StatefulHarness = () => null;`, wantSource: true},
+		{name: "re-exported harness is accepted", storyTSX: `export { StatefulHarness } from "./shared-stories";`, wantSource: true},
 	}
 
 	for _, tt := range tests {

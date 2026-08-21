@@ -48,6 +48,14 @@ type ResolverConfig struct {
 	// port correctness; a failed lookup invalidates the entry immediately.
 	// Zero uses the default two-second TTL. Set it negative to disable caching.
 	CacheTTL time.Duration
+
+	// NegativeCacheTTL bounds how long a failed lookup is reused. Without it a
+	// stopped scenario costs one CLI fork per caller per attempt, which is the
+	// exact shape of a fork storm. Kept much shorter than CacheTTL so a
+	// scenario that has just started is not held down. Zero uses the default;
+	// set it negative to re-fork on every failure.
+	NegativeCacheTTL time.Duration
+
 	// Now supplies time for deterministic cache tests. Nil uses time.Now.
 	Now func() time.Time
 
@@ -73,16 +81,21 @@ type Resolver struct {
 	relay          RelayTransport
 	commandScope   CommandScopeResolver
 	cacheTTL       time.Duration
+	negativeTTL    time.Duration
 	now            func() time.Time
 	cacheMu        sync.Mutex
-	cache          map[string]cachedPort
+	cache          map[string]*cachedPort
 	cacheHits      int64
 	cacheMisses    int64
 }
 
+// cachedPort holds one key's resolution plus the lock that serializes lookups
+// for that key. err is non-nil for a cached negative result.
 type cachedPort struct {
-	port      int
-	expiresAt time.Time
+	mu         sync.Mutex
+	port       int
+	err        *Error
+	resolvedAt time.Time
 }
 
 const defaultPortKey = "API_PORT"
@@ -90,6 +103,11 @@ const defaultPortKey = "API_PORT"
 // defaultResolverCacheTTL amortizes fan-out resolution for one query while
 // bounding the stale-address window after a scenario restart.
 const defaultResolverCacheTTL = 2 * time.Second
+
+// defaultResolverNegativeCacheTTL suppresses a fork stampede against a stopped
+// scenario while keeping the recovery window short enough that a scenario which
+// just came up is picked up promptly.
+const defaultResolverNegativeCacheTTL = 500 * time.Millisecond
 
 // ErrorKind identifies the class of discovery failure.
 type ErrorKind string
@@ -169,6 +187,13 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 	if cacheTTL == 0 {
 		cacheTTL = defaultResolverCacheTTL
 	}
+	negativeTTL := cfg.NegativeCacheTTL
+	if negativeTTL == 0 {
+		negativeTTL = defaultResolverNegativeCacheTTL
+	}
+	if negativeTTL < 0 {
+		negativeTTL = 0
+	}
 	now := cfg.Now
 	if now == nil {
 		now = time.Now
@@ -180,8 +205,9 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		scheme:         scheme,
 		staticBaseURL:  strings.TrimRight(cfg.StaticBaseURL, "/"),
 		cacheTTL:       cacheTTL,
+		negativeTTL:    negativeTTL,
 		now:            now,
-		cache:          make(map[string]cachedPort),
+		cache:          make(map[string]*cachedPort),
 		targetResolver: cfg.TargetResolver,
 		relay:          cfg.Relay,
 		commandScope:   cfg.CommandScope,
@@ -205,8 +231,12 @@ func NewStaticResolver(baseURL string) *Resolver {
 
 // ResolveScenarioPort resolves a scenario's port by calling:
 // `vrooli scenario port <slug> <portKey>`.
-// Successful lookups are cached for ResolverConfig.CacheTTL. A failed lookup
-// removes the cache entry before returning the structured discovery error.
+//
+// Successful lookups are cached for ResolverConfig.CacheTTL and failures for the
+// shorter ResolverConfig.NegativeCacheTTL, so neither a running nor a stopped
+// scenario costs a process per caller. Concurrent callers for one key collapse
+// onto a single invocation. A context timeout is never cached, since it
+// describes the caller's deadline rather than the target's state.
 //
 // If the resolver was created with a static base URL, the port is extracted
 // from that URL instead of invoking the CLI.
@@ -228,46 +258,96 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 		portKey = defaultPortKey
 	}
 	cacheKey := scenarioSlug + "\x00" + portKey
-	if port, ok := r.cached(cacheKey); ok {
+	return r.resolvePortCached(ctx, scenarioSlug, portKey, cacheKey)
+}
+
+// resolvePortCached collapses concurrent lookups for one key onto a single CLI
+// invocation and reuses both successful and failed results for their respective
+// TTLs. Holding the per-key lock across the lookup is deliberate: a burst of N
+// callers for the same scenario must cost one fork, not N. Before this, every
+// caller forked `vrooli scenario port` because the only cache lived on a
+// Resolver that the package-level wrappers rebuilt per call.
+func (r *Resolver) resolvePortCached(ctx context.Context, scenarioSlug, portKey, cacheKey string) (int, error) {
+	if r.cacheTTL < 0 {
+		port, derr := r.lookupPortWithFallback(ctx, scenarioSlug, portKey)
+		if derr != nil {
+			return 0, derr
+		}
 		return port, nil
 	}
 
-	// Instance routing (Case B): when the target scenario is ambiently shadowed
-	// (VROOLI_SHADOW_SCENARIOS), address its "@shadow" record. If that non-live
-	// lookup reports the scenario isn't running — the engagement may have been
-	// torn down — warn once and fall back to the live instance. Never silent.
+	entry := r.entryFor(cacheKey)
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+
+	if !entry.resolvedAt.IsZero() {
+		ttl := r.cacheTTL
+		if entry.err != nil {
+			ttl = r.negativeTTL
+		}
+		if r.now().Sub(entry.resolvedAt) < ttl {
+			r.countHit()
+			if entry.err != nil {
+				return 0, entry.err
+			}
+			return entry.port, nil
+		}
+	}
+	r.countMiss()
+
+	port, derr := r.lookupPortWithFallback(ctx, scenarioSlug, portKey)
+
+	// A timeout reflects the caller's deadline, not the target's state. Caching
+	// it would let one caller's cancellation deny an unrelated caller, so this
+	// result is returned without being recorded.
+	if derr != nil && derr.Kind == ErrTimeout {
+		entry.resolvedAt = time.Time{}
+		return 0, derr
+	}
+
+	entry.port, entry.err, entry.resolvedAt = port, derr, r.now()
+	if derr != nil {
+		return 0, derr
+	}
+	return port, nil
+}
+
+// lookupPortWithFallback performs instance routing (Case B): when the target
+// scenario is ambiently shadowed (VROOLI_SHADOW_SCENARIOS), address its
+// "@shadow" record. If that non-live lookup reports the scenario isn't running
+// — the engagement may have been torn down — warn once and fall back to the
+// live instance. Never silent.
+func (r *Resolver) lookupPortWithFallback(ctx context.Context, scenarioSlug, portKey string) (int, *Error) {
 	target := cliutil.ResolveShadowTarget(scenarioSlug)
 	port, derr := r.lookupPort(ctx, scenarioSlug, target, portKey)
 	if derr != nil && cliutil.IsNonLiveTarget(target) && derr.Kind == ErrScenarioNotRunning {
 		cliutil.WarnShadowFallback(scenarioSlug)
 		port, derr = r.lookupPort(ctx, scenarioSlug, scenarioSlug, portKey)
 	}
-	if derr != nil {
-		r.invalidate(cacheKey)
-		return 0, derr
-	}
-	r.store(cacheKey, port)
-	return port, nil
+	return port, derr
 }
 
-func (r *Resolver) cached(key string) (int, bool) {
-	if r.cacheTTL < 0 {
-		return 0, false
-	}
+func (r *Resolver) entryFor(key string) *cachedPort {
 	r.cacheMu.Lock()
 	defer r.cacheMu.Unlock()
 	entry, ok := r.cache[key]
 	if !ok {
-		r.cacheMisses++
-		return 0, false
+		entry = &cachedPort{}
+		r.cache[key] = entry
 	}
-	if !r.now().Before(entry.expiresAt) {
-		delete(r.cache, key)
-		r.cacheMisses++
-		return 0, false
-	}
+	return entry
+}
+
+func (r *Resolver) countHit() {
+	r.cacheMu.Lock()
 	r.cacheHits++
-	return entry.port, true
+	r.cacheMu.Unlock()
+}
+
+func (r *Resolver) countMiss() {
+	r.cacheMu.Lock()
+	r.cacheMisses++
+	r.cacheMu.Unlock()
 }
 
 // CacheStats returns cumulative successful cache lookups and misses. The
@@ -277,21 +357,6 @@ func (r *Resolver) CacheStats() (hits, misses int64) {
 	r.cacheMu.Lock()
 	defer r.cacheMu.Unlock()
 	return r.cacheHits, r.cacheMisses
-}
-
-func (r *Resolver) store(key string, port int) {
-	if r.cacheTTL < 0 {
-		return
-	}
-	r.cacheMu.Lock()
-	r.cache[key] = cachedPort{port: port, expiresAt: r.now().Add(r.cacheTTL)}
-	r.cacheMu.Unlock()
-}
-
-func (r *Resolver) invalidate(key string) {
-	r.cacheMu.Lock()
-	delete(r.cache, key)
-	r.cacheMu.Unlock()
 }
 
 // lookupPort shells `vrooli scenario port <target> <portKey>` and classifies the
@@ -380,24 +445,45 @@ func (r *Resolver) ResolveScenarioURLDefault(ctx context.Context, scenarioSlug s
 	return r.ResolveScenarioURL(ctx, scenarioSlug, defaultPortKey)
 }
 
-// ResolveScenarioPort is a convenience wrapper using default config.
-func ResolveScenarioPort(ctx context.Context, scenarioSlug, portKey string) (int, error) {
-	return NewResolver(ResolverConfig{}).ResolveScenarioPort(ctx, scenarioSlug, portKey)
+// sharedResolver backs the package-level convenience wrappers. It must be a
+// process-wide singleton: the Resolver's cache is a field, so constructing a
+// Resolver per call — as these wrappers previously did — guaranteed a cache miss
+// and forked `vrooli scenario port` on every single call. With 130+ callsites,
+// several of them on request paths, that turned inbound HTTP volume directly
+// into process-creation volume.
+var (
+	sharedResolverOnce sync.Once
+	sharedResolver     *Resolver
+)
+
+// DefaultResolver returns the process-wide resolver used by the package-level
+// convenience wrappers. Callers needing isolation (tests, alternate hosts,
+// static base URLs) should construct their own via NewResolver.
+func DefaultResolver() *Resolver {
+	sharedResolverOnce.Do(func() {
+		sharedResolver = NewResolver(ResolverConfig{})
+	})
+	return sharedResolver
 }
 
-// ResolveScenarioURL is a convenience wrapper using default config.
+// ResolveScenarioPort is a convenience wrapper using the shared resolver.
+func ResolveScenarioPort(ctx context.Context, scenarioSlug, portKey string) (int, error) {
+	return DefaultResolver().ResolveScenarioPort(ctx, scenarioSlug, portKey)
+}
+
+// ResolveScenarioURL is a convenience wrapper using the shared resolver.
 func ResolveScenarioURL(ctx context.Context, scenarioSlug, portKey string) (string, error) {
-	return NewResolver(ResolverConfig{}).ResolveScenarioURL(ctx, scenarioSlug, portKey)
+	return DefaultResolver().ResolveScenarioURL(ctx, scenarioSlug, portKey)
 }
 
 // ResolveScenarioPortDefault is a convenience wrapper using the standard API port.
 func ResolveScenarioPortDefault(ctx context.Context, scenarioSlug string) (int, error) {
-	return NewResolver(ResolverConfig{}).ResolveScenarioPortDefault(ctx, scenarioSlug)
+	return DefaultResolver().ResolveScenarioPortDefault(ctx, scenarioSlug)
 }
 
 // ResolveScenarioURLDefault is a convenience wrapper using the standard API port.
 func ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string, error) {
-	return NewResolver(ResolverConfig{}).ResolveScenarioURLDefault(ctx, scenarioSlug)
+	return DefaultResolver().ResolveScenarioURLDefault(ctx, scenarioSlug)
 }
 
 func defaultRunner(ctx context.Context, name string, args ...string) ([]byte, error) {

@@ -18,6 +18,20 @@ func TestParseStoryContractSchemaVersionTwoParsesHarnessAndDescription(t *testin
 	}
 }
 
+func TestParseStoryContractDefaultsOmittedStoryArgs(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "stories": [{"id":"static","name":"Static"}]
+}`))
+	if len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diagnostics)
+	}
+	if got := string(contract.Stories[0].Args); got != `{}` {
+		t.Fatalf("normalized args = %s", got)
+	}
+}
+
 func TestParseStoryContractSchemaVersionThreeSupportsFileAndStoryFrames(t *testing.T) {
 	contract, diagnostics := ParseStoryContract([]byte(`{
   "schemaVersion": 3,

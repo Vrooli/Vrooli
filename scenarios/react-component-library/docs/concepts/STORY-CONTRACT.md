@@ -95,7 +95,9 @@ specimen title and in the story picker. Omit it rather than rendering an empty
 caption.
 
 `stories[].harness` optionally names a JavaScript named export from the one
-version-local `story.tsx` file. The export receives `{ args, log }`, where
+version-local `story.tsx` file. Direct exports and named re-exports are both
+accepted; the story indexer validates the exported name without requiring
+preview authors to duplicate a shared harness. The export receives `{ args, log }`, where
 `args` is the fully resolved story props (including workbench knob overrides)
 and `log(name, ...args)` records an event in the workbench. A harness changes
 presentation only: `story.json` remains the sole source of story ids, public
@@ -112,6 +114,11 @@ export function ControlledWithReadout({ args, log }: StoryHarnessProps) {
 
 Harness names must be valid non-reserved JavaScript identifiers. Unknown JSON
 fields still fail parsing, including misspelled `description` or `harness`.
+
+For stories without public arguments, omit `args` entirely or write `args: {}`;
+the indexer normalizes both forms to the same stored contract. `args: null` is
+also normalized to an empty object. This keeps the contract strict about value
+types while removing a meaningless schema tax from static stories.
 
 `kind` is either `component` or `hook`. `schemaVersion` is mandatory and is
 the compatibility boundary for the parser. Unknown top-level or field keys are

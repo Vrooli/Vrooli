@@ -136,7 +136,8 @@ func (r *Repository) RetireCandidates(ctx context.Context, componentID string) (
 	query := `SELECT c.id, c.library_id, v.version, v.status FROM components c JOIN component_versions v ON v.component_id = c.id WHERE v.version <> c.latest_version AND v.version <> c.draft_version AND lower(v.status) NOT LIKE 'draft%' AND NOT EXISTS (SELECT 1 FROM adoption_records a WHERE a.component_id = c.id AND a.adopted_version = v.version) AND NOT EXISTS (SELECT 1 FROM adoption_files f WHERE f.source_library_id = c.library_id AND f.source_version = v.version) AND NOT EXISTS (SELECT 1 FROM component_asset_dependencies d WHERE d.library_id = c.library_id AND d.version = v.version)`
 	args := []any{}
 	if componentID != "" {
-		query += " AND c.id = ?"
+		query += " AND (c.id = ? OR c.library_id = ?)"
+		args = append(args, componentID)
 		args = append(args, componentID)
 	}
 	query += " ORDER BY c.library_id, v.version"
@@ -159,7 +160,7 @@ func (r *Repository) RetireCandidates(ctx context.Context, componentID string) (
 func (r *Repository) Transition(ctx context.Context, componentID, version, state string, confirm bool) (Candidate, error) {
 	var c Candidate
 	var latest, draft, sourcePath, manifestPath string
-	if err := r.db.QueryRowContext(ctx, `SELECT c.id, c.library_id, v.version, v.status, v.source_path, c.latest_version, c.draft_version, c.manifest_path FROM components c JOIN component_versions v ON v.component_id=c.id WHERE c.id=? AND v.version=?`, componentID, version).Scan(&c.ComponentID, &c.LibraryID, &c.Version, &c.Status, &sourcePath, &latest, &draft, &manifestPath); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT c.id, c.library_id, v.version, v.status, v.source_path, c.latest_version, c.draft_version, c.manifest_path FROM components c JOIN component_versions v ON v.component_id=c.id WHERE (c.id=? OR c.library_id=?) AND v.version=?`, componentID, componentID, version).Scan(&c.ComponentID, &c.LibraryID, &c.Version, &c.Status, &sourcePath, &latest, &draft, &manifestPath); err != nil {
 		return c, err
 	}
 	if version == latest || version == draft {

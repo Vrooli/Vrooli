@@ -516,3 +516,11 @@ func TestInteractiveInitialPrompt(t *testing.T) {
 		})
 	}
 }
+
+func TestInitialPromptWithUntilDeliversEngineContract(t *testing.T) {
+	run := &domain.Run{ResolvedConfig: &domain.RunConfig{Until: "all phases complete"}}
+	got := initialPromptWithUntil(run, "implement the plan")
+	if !strings.Contains(got, "implement the plan") || !strings.Contains(got, "all phases complete") {
+		t.Fatalf("prompt=%q; expected task and until contract", got)
+	}
+}

@@ -775,7 +775,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	// to completion, instead of owning a codec stdout pipe. Selected by the run's
 	// ExecutionMode (design §1).
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
-		o.executeInteractiveRun(ctx, run, task, interactiveInitialPrompt(systemPrompt, prompt), started)
+		o.executeInteractiveRun(ctx, run, task, initialPromptWithUntil(run, interactiveInitialPrompt(systemPrompt, prompt)), started)
 		return
 	}
 
@@ -866,6 +866,36 @@ func interactiveInitialPrompt(systemPrompt, userMessage string) string {
 	}
 }
 
+// initialPromptWithUntil keeps the completion test in the agent's task channel
+// for both substrates. It is deliberately delivered as prompt text rather
+// than a runner-specific CLI flag: interactive TUIs have no stable flag seam,
+// and codec-pipe runners must receive the same contract as their TUI peers.
+func initialPromptWithUntil(run *domain.Run, prompt string) string {
+	if run == nil || run.ResolvedConfig == nil || strings.TrimSpace(run.ResolvedConfig.Until) == "" {
+		return prompt
+	}
+	until := strings.TrimSpace(run.ResolvedConfig.Until)
+	return strings.TrimSpace(prompt) + "\n\nCompletion contract (engine-owned): stop only when this test is satisfied:\n" + until
+}
+
+func nativeObjectiveFor(run *domain.Run, caps runner.Capabilities) string {
+	if run == nil || run.ResolvedConfig == nil || strings.TrimSpace(run.ResolvedConfig.Until) == "" {
+		return ""
+	}
+	sandbox := string(run.InteractiveSandboxMode())
+	for _, capability := range caps.SpawnCapabilities {
+		if capability.ExecutionMode != string(domain.ExecutionModeInteractive) || !capability.NativeObjective {
+			continue
+		}
+		for _, mode := range capability.SandboxModes {
+			if mode == sandbox {
+				return strings.TrimSpace(run.ResolvedConfig.Until)
+			}
+		}
+	}
+	return ""
+}
+
 // executeInteractiveRun drives an interactive run to completion via the
 // interactive.Coordinator: it launches the real interactive CLI in a web-console
 // session, tails the agent-owned transcript, and finalizes the run on the
@@ -894,9 +924,8 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		o.failInteractiveRun(ctx, run, fmt.Sprintf("runner %q is not supported in interactive mode", run.ResolvedConfig.RunnerType))
 		return
 	}
-	// Policy-gate backstop (locked decision 5): interactive mode is never allowed
-	// for protected (sandboxed) runs. CreateRun rejects this at validation time;
-	// this defends the execution path against any run that reached here mislabeled.
+	// Validate the persisted resolved pair as a backstop. The choice itself was
+	// made by the declaration/capability resolver at creation time.
 	if err := domain.ValidateInteractiveRunMode(run.ExecutionMode, run.InteractiveSandboxMode()); err != nil {
 		o.failInteractiveRun(ctx, run, err.Error())
 		return
@@ -951,17 +980,23 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 	runCtx, driver := o.interactiveDrivers.register(ctx, run.ID)
 	defer o.interactiveDrivers.finish(run.ID, driver)
 
+	selectedRunner, _ := o.runners.Get(run.ResolvedConfig.RunnerType)
+	var nativeObjective string
+	if selectedRunner != nil {
+		nativeObjective = nativeObjectiveFor(run, selectedRunner.Capabilities())
+	}
 	if err := coord.Execute(runCtx, run, interactive.LaunchParams{
-		RunID:        run.ID,
-		RunnerType:   run.ResolvedConfig.RunnerType,
-		Tag:          run.GetTag(),
-		WorkingDir:   workDir,
-		RunDir:       runDir,
-		DisplayLabel: run.GetTag(),
-		Prompt:       initialPrompt,
-		Model:        run.ResolvedConfig.Model,
-		Effort:       run.ResolvedConfig.Effort,
-		Config:       run.ResolvedConfig,
+		RunID:           run.ID,
+		RunnerType:      run.ResolvedConfig.RunnerType,
+		Tag:             run.GetTag(),
+		WorkingDir:      workDir,
+		RunDir:          runDir,
+		DisplayLabel:    run.GetTag(),
+		Prompt:          initialPrompt,
+		NativeObjective: nativeObjective,
+		Model:           run.ResolvedConfig.Model,
+		Effort:          run.ResolvedConfig.Effort,
+		Config:          run.ResolvedConfig,
 	}, release); err != nil {
 		obs.Component("interactive").Warn("interactive run finalize failed",
 			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())

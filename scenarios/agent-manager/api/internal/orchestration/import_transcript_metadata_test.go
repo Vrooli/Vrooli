@@ -18,8 +18,8 @@ func TestTranscriptGoalMetadataFindsNestedArrayAttachment(t *testing.T) {
 	}
 	defer file.Close()
 	goalID, status := transcriptGoalMetadata(file)
-	if goalID == "" || status != "met" {
-		t.Fatalf("goal metadata=(%q,%q), want stable id and met", goalID, status)
+	if goalID == "" || status != "complete" {
+		t.Fatalf("goal metadata=(%q,%q), want stable id and complete", goalID, status)
 	}
 }
 

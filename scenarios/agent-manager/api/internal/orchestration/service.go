@@ -144,6 +144,7 @@ type CreateRunRequest struct {
 	AllowedPaths         []string                `json:"allowedPaths,omitempty"`
 	DeniedPaths          []string                `json:"deniedPaths,omitempty"`
 	ResultSpec           *domain.ResultSpec      `json:"resultSpec,omitempty"`
+	Until                string                  `json:"until,omitempty"`
 
 	// Sandbox behavior overrides (optional)
 	SandboxConfig *domain.SandboxConfig `json:"sandboxConfig,omitempty"`
@@ -161,8 +162,7 @@ type CreateRunRequest struct {
 	// interactive web-console session). Empty defaults to codec-pipe. This is
 	// the internal domain-level seam; the public proto/API surface that lets a
 	// caller request interactive mode is added in Phase 6, which sets this field.
-	// Interactive mode is gated to non-protected (in-place) runs at creation —
-	// see domain.ValidateInteractiveRunMode.
+	// Interactive mode is selected by the declaration/capability resolver.
 	ExecutionMode domain.ExecutionMode `json:"executionMode,omitempty"`
 
 	// Force bypasses slot/capacity limits (use for manual user-initiated runs)

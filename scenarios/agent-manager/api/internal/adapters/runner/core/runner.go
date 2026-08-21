@@ -169,10 +169,10 @@ func (r *Runner) ParseTranscriptLine(runID uuid.UUID, line string) runner.Transc
 
 // GoalStatusFromTranscriptLine delegates imported goal markers to the codec
 // that owns the transcript wire format.
-func (r *Runner) GoalStatusFromTranscriptLine(line string) (string, bool, bool) {
+func (r *Runner) GoalStatusFromTranscriptLine(line string) (runner.GoalMarker, bool) {
 	provider, ok := r.codec.(runner.GoalMarkerProvider)
 	if !ok {
-		return "", false, false
+		return runner.GoalMarker{}, false
 	}
 	return provider.GoalStatusFromTranscriptLine(line)
 }

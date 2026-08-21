@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port ${UI_PORT:-4173}",
+    "preview": "vite preview",
     "start": "vrooli lifecycle protect -- node server.js",
     "test": "echo 'UI tests require vitest installation: npm install' && exit 0"
   },

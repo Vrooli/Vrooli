@@ -28,6 +28,7 @@ func TestSanitizePortOutput(t *testing.T) {
 
 func TestDetectPortFromVrooliUsesNoStaleCheck(t *testing.T) {
 	originalLookPath := lookPathFn
+	resetPortDetectorCache()
 	originalExec := execCommandContextFn
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
@@ -65,6 +66,7 @@ func TestDetectPortFromVrooliUsesNoStaleCheck(t *testing.T) {
 
 func TestDetectScenarioRuntimeStatusReadsStoppedLifecycleState(t *testing.T) {
 	originalLookPath := lookPathFn
+	resetPortDetectorCache()
 	originalExec := execCommandContextFn
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
@@ -98,6 +100,7 @@ func TestRuntimeStatusFromJSONFallsBackToRuntime(t *testing.T) {
 
 func TestDetectPortFromVrooliFallsBackToBareCommand(t *testing.T) {
 	originalLookPath := lookPathFn
+	resetPortDetectorCache()
 	originalExec := execCommandContextFn
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
@@ -126,6 +129,7 @@ func TestDetectPortFromVrooliRoutesToShadowWhenShadowed(t *testing.T) {
 	t.Setenv(EnvShadowScenarios, "agent-manager")
 
 	originalLookPath := lookPathFn
+	resetPortDetectorCache()
 	originalExec := execCommandContextFn
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
@@ -156,6 +160,7 @@ func TestDetectPortFromVrooliFallsBackToLiveWhenShadowMissing(t *testing.T) {
 	shadowFallbackWarned.Delete("swarm-manager")
 
 	originalLookPath := lookPathFn
+	resetPortDetectorCache()
 	originalExec := execCommandContextFn
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath

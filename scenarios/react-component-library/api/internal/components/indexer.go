@@ -639,13 +639,31 @@ func (idx *Indexer) storyFrameRegistry() CatalogFrameRegistry {
 	return registry
 }
 
-var storyHarnessExportRE = regexp.MustCompile(`(?m)^\s*export\s+(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z_$][A-Za-z0-9_$]*)`)
+var (
+	storyHarnessExportRE   = regexp.MustCompile(`(?m)^\s*export\s+(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z_$][A-Za-z0-9_$]*)`)
+	storyHarnessReexportRE = regexp.MustCompile(`(?m)export\s*\{([^}]*)\}\s*from\s*["'][^"']+["']`)
+)
 
 func harnessExports(source string) map[string]struct{} {
 	exports := make(map[string]struct{})
 	for _, match := range storyHarnessExportRE.FindAllStringSubmatch(source, -1) {
 		if len(match) > 1 {
 			exports[match[1]] = struct{}{}
+		}
+	}
+	for _, match := range storyHarnessReexportRE.FindAllStringSubmatch(source, -1) {
+		for _, item := range strings.Split(match[1], ",") {
+			parts := strings.Fields(strings.TrimSpace(item))
+			if len(parts) == 0 {
+				continue
+			}
+			name := parts[0]
+			if len(parts) >= 3 && parts[1] == "as" {
+				name = parts[2]
+			}
+			if validHarnessExport(name) {
+				exports[name] = struct{}{}
+			}
 		}
 	}
 	return exports

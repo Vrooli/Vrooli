@@ -1833,6 +1833,14 @@ The session-home regression proves turn two reads the rollout turn one wrote.
 Codex's private goal database is intentionally outside Agent Manager's
 analytical contract; canonical consumption comes from the run usage projection.
 
+Codex TUI goal markers, when present in an imported or interactive transcript,
+use an `event_msg` envelope with `payload.type=thread_goal_updated` and
+`payload.goal={objective,status}`. The typed status seam preserves `active`,
+`paused`, `blocked`, `usage_limited`, `budget_limited`, and `complete`; it does
+not collapse the values to a boolean. `codex exec` has no native goal surface,
+so codec-pipe delivery carries Swarm's bounded `until` completion test in the
+workflow prompt while interactive delivery may use the harness goal surface.
+
 ## Related Documentation
 
 ## Friction investigation seam

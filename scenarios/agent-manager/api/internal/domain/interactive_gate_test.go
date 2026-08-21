@@ -14,7 +14,7 @@ func TestValidateInteractiveRunMode(t *testing.T) {
 		sandboxMode SandboxMode
 		wantErr     bool
 	}{
-		{"interactive+protected rejected", ExecutionModeInteractive, SandboxModeProtected, true},
+		{"interactive+protected is policy-resolved", ExecutionModeInteractive, SandboxModeProtected, false},
 		{"interactive+tracking allowed", ExecutionModeInteractive, SandboxModeTracking, false},
 		{"interactive+off allowed", ExecutionModeInteractive, SandboxModeOff, false},
 		{"codec_pipe+protected allowed", ExecutionModeCodecPipe, SandboxModeProtected, false},
@@ -34,8 +34,7 @@ func TestValidateInteractiveRunMode(t *testing.T) {
 				if ve.Field != "executionMode" {
 					t.Errorf("field: got %q want executionMode", ve.Field)
 				}
-				// The error must be actionable: say WHY (protected/sandboxed) and
-				// WHAT to do (in-place / sandbox off).
+				// Any future domain validation error remains actionable.
 				hint := strings.ToLower(ve.Hint)
 				if !strings.Contains(hint, "tracking") {
 					t.Errorf("hint should point to tracking mode, got %q", ve.Hint)
@@ -60,8 +59,8 @@ func TestRunValidate_InteractiveGate(t *testing.T) {
 	protected := base()
 	protected.ExecutionMode = ExecutionModeInteractive
 	protected.SandboxConfig = &SandboxConfig{Mode: SandboxModeProtected}
-	if err := protected.Validate(); err == nil {
-		t.Fatal("expected Run.Validate to reject interactive + sandboxed")
+	if err := protected.Validate(); err != nil {
+		t.Fatalf("interactive + sandboxed should be policy-resolvable: %v", err)
 	}
 
 	tracking := base()

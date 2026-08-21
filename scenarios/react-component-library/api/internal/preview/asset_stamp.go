@@ -73,6 +73,13 @@ func previewOwnedOpening(source string, start int) (int, int) {
 			position = open + 1
 			continue
 		}
+		// A JSX tag name must begin with an identifier character. This rejects
+		// ordinary TypeScript comparisons such as `raw < 1` and `value <= 0`
+		// before the scanner can mistake the right-hand side for a tag name.
+		if !isJSXNameStart(source[open+1]) {
+			position = open + 1
+			continue
+		}
 		// A JSX opening cannot immediately continue an identifier, while a
 		// TypeScript type-argument list commonly does (`forwardRef<Props>`).
 		// Treating that generic as JSX injects marker attributes into the type
@@ -101,6 +108,10 @@ func previewOwnedOpening(source string, start int) (int, int) {
 
 func isIdentifierContinuation(value byte) bool {
 	return value == '_' || value == '$' || value == '.' || value >= 'A' && value <= 'Z' || value >= 'a' && value <= 'z' || value >= '0' && value <= '9'
+}
+
+func isJSXNameStart(value byte) bool {
+	return value == '_' || value == '$' || value >= 'A' && value <= 'Z' || value >= 'a' && value <= 'z'
 }
 
 func jsxOpeningEnd(source string, start int) int {

@@ -341,7 +341,7 @@ func (a *ScenarioApp) warnIfRunningScenarioLocalBinary() {
 	if err != nil {
 		return
 	}
-	relativeScenario, cliDir, ok := resolveScenarioLocalCLIContext(a.options.Name)
+	_, cliDir, ok := resolveScenarioLocalCLIContext(a.options.Name)
 	if !ok || !sameScenarioPath(filepath.Dir(executablePath), cliDir) {
 		return
 	}
@@ -349,7 +349,7 @@ func (a *ScenarioApp) warnIfRunningScenarioLocalBinary() {
 	a.warnedLocal = true
 	fmt.Fprintf(os.Stderr, "Warning: running %s from a scenario-local CLI binary (%s).\n", a.options.Name, executablePath)
 	fmt.Fprintf(os.Stderr, "Install and run the canonical binary instead:\n")
-	fmt.Fprintf(os.Stderr, "  cd %s/cli && ./install.sh\n", relativeScenario)
+	fmt.Fprintf(os.Stderr, "  vrooli scenario setup %s\n", a.options.Name)
 	fmt.Fprintf(os.Stderr, "  %s <command>\n", a.options.Name)
 }
 
