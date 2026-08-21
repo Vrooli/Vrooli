@@ -95,3 +95,83 @@ class VersionLifecycleResponse(_message.Message):
     version: RetireCandidate
     lifecycle_state: str
     def __init__(self, version: _Optional[_Union[RetireCandidate, _Mapping]] = ..., lifecycle_state: _Optional[str] = ...) -> None: ...
+
+class CleanupScope(_message.Message):
+    __slots__ = ("component_id", "library_id", "older_than_days")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    OLDER_THAN_DAYS_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    library_id: str
+    older_than_days: int
+    def __init__(self, component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., older_than_days: _Optional[int] = ...) -> None: ...
+
+class CleanupItem(_message.Message):
+    __slots__ = ("version", "eligible", "reason", "adoption_count", "dependency_count", "age_days")
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    ELIGIBLE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    ADOPTION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    DEPENDENCY_COUNT_FIELD_NUMBER: _ClassVar[int]
+    AGE_DAYS_FIELD_NUMBER: _ClassVar[int]
+    version: RetireCandidate
+    eligible: bool
+    reason: str
+    adoption_count: int
+    dependency_count: int
+    age_days: int
+    def __init__(self, version: _Optional[_Union[RetireCandidate, _Mapping]] = ..., eligible: _Optional[bool] = ..., reason: _Optional[str] = ..., adoption_count: _Optional[int] = ..., dependency_count: _Optional[int] = ..., age_days: _Optional[int] = ...) -> None: ...
+
+class PlanCleanupRequest(_message.Message):
+    __slots__ = ("scope",)
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    scope: CleanupScope
+    def __init__(self, scope: _Optional[_Union[CleanupScope, _Mapping]] = ...) -> None: ...
+
+class PlanCleanupResponse(_message.Message):
+    __slots__ = ("items", "plan_hash")
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    PLAN_HASH_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[CleanupItem]
+    plan_hash: str
+    def __init__(self, items: _Optional[_Iterable[_Union[CleanupItem, _Mapping]]] = ..., plan_hash: _Optional[str] = ...) -> None: ...
+
+class CleanupVersionsRequest(_message.Message):
+    __slots__ = ("scope", "plan_hash", "confirm")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    PLAN_HASH_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_FIELD_NUMBER: _ClassVar[int]
+    scope: CleanupScope
+    plan_hash: str
+    confirm: bool
+    def __init__(self, scope: _Optional[_Union[CleanupScope, _Mapping]] = ..., plan_hash: _Optional[str] = ..., confirm: _Optional[bool] = ...) -> None: ...
+
+class CleanupVersionsResponse(_message.Message):
+    __slots__ = ("items", "plan_hash", "retired_count", "applied")
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    PLAN_HASH_FIELD_NUMBER: _ClassVar[int]
+    RETIRED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[CleanupItem]
+    plan_hash: str
+    retired_count: int
+    applied: bool
+    def __init__(self, items: _Optional[_Iterable[_Union[CleanupItem, _Mapping]]] = ..., plan_hash: _Optional[str] = ..., retired_count: _Optional[int] = ..., applied: _Optional[bool] = ...) -> None: ...
+
+class CleanupDraftRequest(_message.Message):
+    __slots__ = ("component_id", "older_than_days", "confirm")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    OLDER_THAN_DAYS_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    older_than_days: int
+    confirm: bool
+    def __init__(self, component_id: _Optional[str] = ..., older_than_days: _Optional[int] = ..., confirm: _Optional[bool] = ...) -> None: ...
+
+class CleanupDraftResponse(_message.Message):
+    __slots__ = ("item", "applied")
+    ITEM_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    item: CleanupItem
+    applied: bool
+    def __init__(self, item: _Optional[_Union[CleanupItem, _Mapping]] = ..., applied: _Optional[bool] = ...) -> None: ...

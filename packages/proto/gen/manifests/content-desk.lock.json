@@ -15,7 +15,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -76,15 +76,6 @@
     "gen/typescript/content-desk/v1/review/review_pb.ts": "sha256:56f8bcaf70966921b7f04f4b3aaa98f37cd2d63d79341d8046c9a8b99d312ca9",
     "gen/typescript/content-desk/v1/search/search_pb.ts": "sha256:40cab52160b3ad746860b20ac0dda284959523d01684bb174768fa8d950dd25f",
     "gen/typescript/content-desk/v1/shared/errors_pb.ts": "sha256:ec4701876c0b79bb228c8ccc5a8aa13da85a33b5908882efe55a22ab4c05d02b",
-    "gen/typescript/content-desk/v1/shared/health_pb.ts": "sha256:8f90d544c58bbe26cc5d7686f495bb1fb0a8746e4fdd6d19a232ed18ccbbbf8a",
-    "gen/typescript/js/content-desk/v1/artifacts/artifacts_pb.js": "sha256:07e052e212359b2697f78956ffc1c0b56ea10104ea4696901e033bcc1f3980c5",
-    "gen/typescript/js/content-desk/v1/campaigns/campaigns_pb.js": "sha256:0e8c9b56a499db9e088abb3a853950fa8f2a98699ebd735e8fd4daff28b55fe1",
-    "gen/typescript/js/content-desk/v1/claims/claims_pb.js": "sha256:729d49f1ff31de13f14c01766e6a4399a1bfadda1e62f665b85851411a3a5c37",
-    "gen/typescript/js/content-desk/v1/ledger/ledger_pb.js": "sha256:0d25eda9dde8d168a861bad7b626f389aab61c09bbb3e1e0b476e733ade3ca1d",
-    "gen/typescript/js/content-desk/v1/posttypes/posttypes_pb.js": "sha256:6f06612c98b9640358fc56917636ce0e46e84bb1e02dbbd5f6f50190d41b6fbd",
-    "gen/typescript/js/content-desk/v1/review/review_pb.js": "sha256:b6dadacc262318ed37ad1d84a722eb0b1d46feeebba72cdcb7bff8f1826cb779",
-    "gen/typescript/js/content-desk/v1/search/search_pb.js": "sha256:101ee724cf65cc29fef63aa327cb189c47aae21459e22e4956f4bcf20d36cc16",
-    "gen/typescript/js/content-desk/v1/shared/errors_pb.js": "sha256:695f085dc4d33d0cbbd74ac623d021a69e813f1735a17bf5b43c34b8016f2255",
-    "gen/typescript/js/content-desk/v1/shared/health_pb.js": "sha256:021c86ee52f90d2ee5d8b6ea4a13d26ef37323bffec750eac381d8a8084648b8"
+    "gen/typescript/content-desk/v1/shared/health_pb.ts": "sha256:8f90d544c58bbe26cc5d7686f495bb1fb0a8746e4fdd6d19a232ed18ccbbbf8a"
   }
 }

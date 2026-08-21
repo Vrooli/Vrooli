@@ -15,7 +15,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -77,15 +77,6 @@
     "gen/typescript/development-toolchain-validator/v1/skill_catalog/skill_catalog_pb.ts": "sha256:3ead3ad24389d1613d2ef482bb34289ea3f1db19736b16a625744fea239046f4",
     "gen/typescript/development-toolchain-validator/v1/staleness/staleness_pb.ts": "sha256:8fd72386e597a5a3afe0196bacc185e4db278a2b9af7eb731c6bb988869d25c2",
     "gen/typescript/development-toolchain-validator/v1/validation_record/validation_record_pb.ts": "sha256:532a9d29ecd605f62e2a911b3261fce8a11aac076120e7b58e4381b65a08deb8",
-    "gen/typescript/development-toolchain-validator/v1/validation_run/validation_run_pb.ts": "sha256:692ac4a8a0b0baf5d2ca4c803c8393f16ee411b22899ca0538250e2e2eb96096",
-    "gen/typescript/js/development-toolchain-validator/v1/errors/errors_pb.js": "sha256:5554420f240f8710e4e72b73536c0df129a4ed3291c292addbc79a71c5c1fb42",
-    "gen/typescript/js/development-toolchain-validator/v1/golden/golden_pb.js": "sha256:a48ec81e281a953d8868b2bf11024286d8c2821adfcc8faf367a850d66624206",
-    "gen/typescript/js/development-toolchain-validator/v1/health/health_pb.js": "sha256:f4f794915c69bf277df77fcba36e32c997b78e0843ec1b5c7aa8a13ce9e9a118",
-    "gen/typescript/js/development-toolchain-validator/v1/manifest/manifest_pb.js": "sha256:be75acc20c1906aa5e2ed3123e4cd1bda5f9c4f32b6cb6d6f379b10f6f717dc6",
-    "gen/typescript/js/development-toolchain-validator/v1/report/report_pb.js": "sha256:872c4b2bd17acae7113976a918d102164bd136bbb469be4b218f0445a558e25d",
-    "gen/typescript/js/development-toolchain-validator/v1/skill_catalog/skill_catalog_pb.js": "sha256:a5bf36407bab8843383a0fa2e0ca9176554d351adbe21f60501c5e501dc52d09",
-    "gen/typescript/js/development-toolchain-validator/v1/staleness/staleness_pb.js": "sha256:e1bea209d0c5f103476405c50e7602b5347fc1dba7f975a999b6a4a960c15c1b",
-    "gen/typescript/js/development-toolchain-validator/v1/validation_record/validation_record_pb.js": "sha256:f4702a6e23a00ba74d2c4d50ea9e73178ee7623aef9015d87c4e01fa9de09069",
-    "gen/typescript/js/development-toolchain-validator/v1/validation_run/validation_run_pb.js": "sha256:20270cba12f7ed871efc0687ce97f09e39b085043bf358a382ca40a17dc3afb1"
+    "gen/typescript/development-toolchain-validator/v1/validation_run/validation_run_pb.ts": "sha256:692ac4a8a0b0baf5d2ca4c803c8393f16ee411b22899ca0538250e2e2eb96096"
   }
 }

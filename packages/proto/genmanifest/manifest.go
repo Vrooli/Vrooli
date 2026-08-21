@@ -325,7 +325,6 @@ func scenarioOutputDirs(scenario string) []string {
 	return []string{
 		filepath.ToSlash(filepath.Join("gen", "go", scenario)),
 		filepath.ToSlash(filepath.Join("gen", "typescript", scenario)),
-		filepath.ToSlash(filepath.Join("gen", "typescript", "js", scenario)),
 		filepath.ToSlash(filepath.Join("gen", "python", pythonScenario)),
 	}
 }

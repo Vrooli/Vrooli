@@ -14,7 +14,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -55,13 +55,6 @@
     "gen/python/meta_optimization_manager/v1/trials/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/meta_optimization_manager/v1/trials/trials_pb2.py": "sha256:148b006a4b1d985c0c9bea273ac799dfa254ba647c910b2074d66c068d447923",
     "gen/python/meta_optimization_manager/v1/trials/trials_pb2.pyi": "sha256:7de4589dc45cd528842de3768718f7e7a413576702dbac31d4d35870fabaf201",
-    "gen/typescript/js/meta-optimization-manager/v1/convergence/convergence_pb.js": "sha256:13bf57170d7396a799e262b21c43657102907db88ea8a48bb422434ba14b3563",
-    "gen/typescript/js/meta-optimization-manager/v1/coverage/coverage_pb.js": "sha256:d887eb288646c5fdda9fddaab1d023a80723d4d197e5b71cdc158266b68f60c1",
-    "gen/typescript/js/meta-optimization-manager/v1/focus/focus_pb.js": "sha256:f75c1ad1d88ac5edd370a2be9cccfa64db590735434f76c46d79cf7f23c09d0f",
-    "gen/typescript/js/meta-optimization-manager/v1/shared/errors_pb.js": "sha256:feff3869faf07c06ad53af65d39c8f3ded1bbfe098a28dac60fbbc0bc72429ca",
-    "gen/typescript/js/meta-optimization-manager/v1/shared/health_pb.js": "sha256:61cfbccda1a70529bd21974a18bd4f76fbae6976bd3d3193bafa6aa2b03d536c",
-    "gen/typescript/js/meta-optimization-manager/v1/shared/model_pb.js": "sha256:0639ff3927e2367e10c18d5a3cdf3053373762c806ec71f19d38a583adfaecf5",
-    "gen/typescript/js/meta-optimization-manager/v1/trials/trials_pb.js": "sha256:c0051c011c6464354059afdcac8977c524ae2466b64fb0367358a4b8fd96b85c",
     "gen/typescript/meta-optimization-manager/v1/convergence/convergence_pb.ts": "sha256:7993e3587976ff1691fc7b56fcefb90d6c5fde7f84c4b3c9d80b41affe181638",
     "gen/typescript/meta-optimization-manager/v1/coverage/coverage_pb.ts": "sha256:5a9e217cc13f377eb3a7dad2fc4e57c9ef61d7bd32d64a9b7c5f24a0f8303de7",
     "gen/typescript/meta-optimization-manager/v1/focus/focus_pb.ts": "sha256:8b2140ff01c3c35b4b67535e7b49c3d9c050d08fa468530e55a76dadca14d97b",

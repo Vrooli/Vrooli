@@ -8,7 +8,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -26,8 +26,6 @@
     "gen/python/scenario_to_android/v1/shared/health_pb2.py": "sha256:605ca010252050121f9d60a3192c1161a4da37aaead43f49df38debd3c9529da",
     "gen/python/scenario_to_android/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/scenario_to_android/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/scenario-to-android/v1/shared/errors_pb.js": "sha256:4cdf2d1b61fae48eee2301f3646692c479df8118c5eb7afce171dbab472dd7e6",
-    "gen/typescript/js/scenario-to-android/v1/shared/health_pb.js": "sha256:8f39926ac139fe5e1689659b7e5bff2e6061fe545b30921ea90fa02139646b94",
     "gen/typescript/scenario-to-android/v1/shared/errors_pb.ts": "sha256:6d1ed78e71fe19588ad405fcab4d7fb2dda208e9eb5b981dce0fc9b431f537e2",
     "gen/typescript/scenario-to-android/v1/shared/health_pb.ts": "sha256:afa69c1670ebb7eb9e941963003d980b97e2c797c0aad139174fd84010e035e0"
   }

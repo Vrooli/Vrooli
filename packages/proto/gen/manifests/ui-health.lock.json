@@ -14,7 +14,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -62,14 +62,6 @@
     "gen/python/ui_health/v1/visualhealth/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/ui_health/v1/visualhealth/visualhealth_pb2.py": "sha256:58b9b4a1710db42fd898b67bb584451a27c8279ca9cc24b21f7c023d1774b2b5",
     "gen/python/ui_health/v1/visualhealth/visualhealth_pb2.pyi": "sha256:bce6de2f746970540684f9e9c2e3f0737c7732967b94b4d647ee4ed93947137f",
-    "gen/typescript/js/ui-health/v1/contracts/provenance/provenance_pb.js": "sha256:1f3b0d0a6bc67de36a583238a3ff082daefa7e86f50e1f56c84b736c81f6c234",
-    "gen/typescript/js/ui-health/v1/contracts/widget/widget_pb.js": "sha256:00d59b6cdf08f216982082fa3ef46c6acc1ff700a9836a84abcbf62f0aea4521",
-    "gen/typescript/js/ui-health/v1/errors/errors_pb.js": "sha256:a055c360c22d05b7f0f9dddbf9ddc7514f1a4e37507694fe036454c9124fd608",
-    "gen/typescript/js/ui-health/v1/health/health_pb.js": "sha256:e41a30a6a8ca0766561d69cddf4d1e6cc693f5863e7c2c039e5fd940948e121d",
-    "gen/typescript/js/ui-health/v1/inventory/inventory_pb.js": "sha256:d4e9e170b189bc8bfc7ecde49e9de36c799e214c656f86632724e71de897bb8b",
-    "gen/typescript/js/ui-health/v1/reindex/reindex_pb.js": "sha256:ae15441968638c4bcfef863fa4855162eb69882199c81c987f70b9ef6b4ccddb",
-    "gen/typescript/js/ui-health/v1/search/search_pb.js": "sha256:1550cd6918861d5fec1a75b55171968a78eb906809521e4e516d04ef8b168733",
-    "gen/typescript/js/ui-health/v1/visualhealth/visualhealth_pb.js": "sha256:e983cbfd57433b8ef9fab1363607528cdcb394caa0c0db48e0e883fd9067cf83",
     "gen/typescript/ui-health/v1/contracts/provenance/provenance_pb.ts": "sha256:34e294d531deda9021ded2a13fda8e4573013bd98b444cbf1d7c8d3bd037fa34",
     "gen/typescript/ui-health/v1/contracts/widget/widget_pb.ts": "sha256:ce19b1ed7cecd3cf4f1a7b427ecc8cfe6397c3dede75b3cbaeadabdf6205723e",
     "gen/typescript/ui-health/v1/errors/errors_pb.ts": "sha256:74616457be5a98d56bd55e56ee2c157f487f3966a3c9fe49243f25217ac6b6a9",

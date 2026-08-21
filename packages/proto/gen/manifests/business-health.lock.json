@@ -14,7 +14,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -57,12 +57,6 @@
     "gen/typescript/business-health/v1/search/search_pb.ts": "sha256:913d49372ab924b39a33612c0b3ff3ed5a18bd12809c5378f07bf951779356dc",
     "gen/typescript/business-health/v1/shared/errors_pb.ts": "sha256:b3efb8a402f000d5d341b4d0f59f52dc55e08bd70d11b34828b282f25e978fe5",
     "gen/typescript/business-health/v1/shared/health_pb.ts": "sha256:6eaa7948a0dce461c2d84342c7a10835a664176f277deff499d619f250c58398",
-    "gen/typescript/business-health/v1/wizard/wizard_pb.ts": "sha256:be845062d5435a4db954579a0a09ce949ec24c567ad767e1949acd1ac3578ced",
-    "gen/typescript/js/business-health/v1/contract/contract_pb.js": "sha256:b4f2606667e861c6012dfc81568dcf177e4ac80a3198becdd3a00f3451000579",
-    "gen/typescript/js/business-health/v1/fleet/fleet_pb.js": "sha256:c57948e87538b253b3e5fa8bc5929d10d15a6bf41f66930d90112d29f830e273",
-    "gen/typescript/js/business-health/v1/search/search_pb.js": "sha256:86ad4a54c6f2332e9b4d34fa6537cee0949a50d3f8512b524a0a2541946ad732",
-    "gen/typescript/js/business-health/v1/shared/errors_pb.js": "sha256:c1db8315d7a3691d4fee3592a4d56077f23754691de5cacc3a29e56c73e109cf",
-    "gen/typescript/js/business-health/v1/shared/health_pb.js": "sha256:b8f94b1f1a08c3c36a1bd1a07ca0d543c07f811ebda77e56b980b35d9b5b569a",
-    "gen/typescript/js/business-health/v1/wizard/wizard_pb.js": "sha256:5be890c1d26ea8f6943bc8ff8cdf6b61ec80306e4a8ded503d2f7b9d353e9069"
+    "gen/typescript/business-health/v1/wizard/wizard_pb.ts": "sha256:be845062d5435a4db954579a0a09ce949ec24c567ad767e1949acd1ac3578ced"
   }
 }

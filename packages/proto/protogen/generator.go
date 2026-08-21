@@ -455,7 +455,7 @@ func (g *Generator) publish(stageGen string, scenarios []string, full bool) erro
 }
 
 func (g *Generator) publishSharedImports(stageGen, targetGen string, scenarios []string) error {
-	for _, root := range []string{"typescript", filepath.Join("typescript", "js")} {
+	for _, root := range []string{"typescript"} {
 		stageRoot := filepath.Join(stageGen, root)
 		targetRoot := filepath.Join(targetGen, root)
 		entries, err := os.ReadDir(stageRoot)

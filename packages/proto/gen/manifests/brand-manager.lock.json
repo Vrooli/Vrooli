@@ -18,7 +18,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -84,16 +84,6 @@
     "gen/typescript/brand-manager/v1/generation/generation_pb.ts": "sha256:ddd73e814c56dd3aa620343382e55c821b226856bf6813216a300ab3a96eac23",
     "gen/typescript/brand-manager/v1/shared/errors_pb.ts": "sha256:4ce3c15fc72b70125806918cc55cb186ed2c54895ce3767e5e797d90cea032cd",
     "gen/typescript/brand-manager/v1/shared/health_pb.ts": "sha256:6f27050bfff16b88c1c81aa7c6cee703d4e06ceb513bee3ff7bf0ec361646060",
-    "gen/typescript/brand-manager/v1/validation/validation_pb.ts": "sha256:fdd5cdb6884ee77f6d294b70e1c3fbe9b7045cd06bc1cf53e82d042a73eb87eb",
-    "gen/typescript/js/brand-manager/v1/apply/apply_pb.js": "sha256:ee5ce3f1fe82c22844afc3d7e0324987aeda4bba32193d5b5cc93774eb4fd6c1",
-    "gen/typescript/js/brand-manager/v1/assets/assets_pb.js": "sha256:5d989b128c480ce2ebdd92257ead85223ba26a545abc1d6aeb7d7765557d22f9",
-    "gen/typescript/js/brand-manager/v1/assignments/assignments_pb.js": "sha256:2e1551c76660d2dee5f6043e2a336124b4cd03165bb8d4f6cbf2a7e98d56ea09",
-    "gen/typescript/js/brand-manager/v1/brands/brands_pb.js": "sha256:29159f82c30870ec7780a72b42c49795c05c1bc441762b78378895bc2d21fcd5",
-    "gen/typescript/js/brand-manager/v1/design/design_pb.js": "sha256:272d9a30969adcc92c178abcb275fb9488268b3cd58431e749f5f49503c9851e",
-    "gen/typescript/js/brand-manager/v1/discovery/discovery_pb.js": "sha256:38baeef0dced5d367dd4842556dc7b616f08f5955c0dc3f4893c148ca304f6be",
-    "gen/typescript/js/brand-manager/v1/generation/generation_pb.js": "sha256:335a76e07e882667b17a4daf5f40c34f7c28fc7cd9f596fa9a81d3d97bd1dc98",
-    "gen/typescript/js/brand-manager/v1/shared/errors_pb.js": "sha256:0046c371e543ad64f54d18e90524abc8efda6b18ed64f45abca18b5fae6e8f6d",
-    "gen/typescript/js/brand-manager/v1/shared/health_pb.js": "sha256:bde13380cd1fa031327cf7e2c39ac2ae66fe0e408a7727a88371337c3c86bb9c",
-    "gen/typescript/js/brand-manager/v1/validation/validation_pb.js": "sha256:685abc45f271d781558a5cee276811d9006f234fb6d2a405ea06fbfbd085ab74"
+    "gen/typescript/brand-manager/v1/validation/validation_pb.ts": "sha256:fdd5cdb6884ee77f6d294b70e1c3fbe9b7045cd06bc1cf53e82d042a73eb87eb"
   }
 }

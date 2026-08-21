@@ -20,7 +20,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -72,15 +72,6 @@
     "gen/typescript/agent-manager/v1/domain/task_pb.ts": "sha256:f722278314a9ffd8fb344a8b2592aad2f40df85544cb9eefe5f4f629bf2b5730",
     "gen/typescript/agent-manager/v1/domain/types_pb.ts": "sha256:828db73a520ee6c1b1cb2ece775707f3becf6b16763ba0c147af82d9ec113134",
     "gen/typescript/agent-manager/v1/domain/workflow_pb.ts": "sha256:48de42eebf15ead3002efefeefd43c0fc23d7bda545ea60ef5a54043b206196b",
-    "gen/typescript/agent-manager/v1/measures/measures_pb.ts": "sha256:d146db57f4e1c5b9ef0ed1d4f726fb64001e27aa73365c19618be87a53c40d7c",
-    "gen/typescript/js/agent-manager/v1/api/service_pb.js": "sha256:2469bfa50af14baed710f39f23983c7eb7eda2eff7bc72e24a9f38d3a00f632c",
-    "gen/typescript/js/agent-manager/v1/domain/episode_pb.js": "sha256:17566c5366d770808f98b1c0b3b2ea1edaef80d81cf31e7078d6631e94fcd8b3",
-    "gen/typescript/js/agent-manager/v1/domain/events_pb.js": "sha256:c49c2bc2671cb39be036967b8e2e525f2b187d9caf531dfeea52529b534cb9b2",
-    "gen/typescript/js/agent-manager/v1/domain/profile_pb.js": "sha256:4f5e70f2441a085b547f7055051e82b2e5ab974b49c12cd22eff0aa124dfee5f",
-    "gen/typescript/js/agent-manager/v1/domain/run_pb.js": "sha256:71b8fcd93db96a628715bcb380c3c49e46f4cb7d3d414c91ca799978078a7b5b",
-    "gen/typescript/js/agent-manager/v1/domain/task_pb.js": "sha256:d0a50862922ea218023735afd549ebcc02d97ee0faabdaee0668e56abb1f61f6",
-    "gen/typescript/js/agent-manager/v1/domain/types_pb.js": "sha256:5f5f3e91cf0132834038c0f9065b2980edf8dae789c7467047dff5ae999b80cd",
-    "gen/typescript/js/agent-manager/v1/domain/workflow_pb.js": "sha256:588a86d4e10ca5c45c23b356bae0797ceeed43fdee0860dfe8791973070cdf69",
-    "gen/typescript/js/agent-manager/v1/measures/measures_pb.js": "sha256:77be97d526df7012fe3af8263d72673354812f2910105e492ba4cfcce8d0e9a4"
+    "gen/typescript/agent-manager/v1/measures/measures_pb.ts": "sha256:d146db57f4e1c5b9ef0ed1d4f726fb64001e27aa73365c19618be87a53c40d7c"
   }
 }

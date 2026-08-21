@@ -9,7 +9,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -34,9 +34,6 @@
     "gen/python/channel_manager/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/typescript/channel-manager/v1/channelmanager/channel_manager_pb.ts": "sha256:f5de342ae8e4781a8798cd650277afc8ce9ffe27400a8d12579f48f145e0a4d0",
     "gen/typescript/channel-manager/v1/shared/errors_pb.ts": "sha256:7f5445aedad9f186cfd346639d89188914b0b61f6c3a9fb7f65b825398670b8a",
-    "gen/typescript/channel-manager/v1/shared/health_pb.ts": "sha256:a49017a2c01da2622d9906d5470e4398fb2bdabb04b34518fbf998a0ebd48519",
-    "gen/typescript/js/channel-manager/v1/channelmanager/channel_manager_pb.js": "sha256:8da1b5cd1b4de087c8bc6378e1e756b7ec490a5814b79dbd937ee28cc30ccc80",
-    "gen/typescript/js/channel-manager/v1/shared/errors_pb.js": "sha256:eaed16ca995e2be5ea1a1177e1d6aef1f4e6312b9ec83e0f7f21203ce5c4baee",
-    "gen/typescript/js/channel-manager/v1/shared/health_pb.js": "sha256:76b309ddee65ae26c20c6304e42d322b357cb6bab678326571ba55e246c04cda"
+    "gen/typescript/channel-manager/v1/shared/health_pb.ts": "sha256:a49017a2c01da2622d9906d5470e4398fb2bdabb04b34518fbf998a0ebd48519"
   }
 }

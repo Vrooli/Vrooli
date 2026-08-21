@@ -14,7 +14,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -60,14 +60,6 @@
     "gen/python/plan_manager/v1/validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/plan_manager/v1/validation/validation_pb2.py": "sha256:391faea4beb11b4672392206c8f738c718014681c944fad1dadd38c293275710",
     "gen/python/plan_manager/v1/validation/validation_pb2.pyi": "sha256:c569bd8068750c44d87c069efc9148766cc673fbc9666fa99adcd97f9543a8bb",
-    "gen/typescript/js/plan-manager/v1/authoring/authoring_pb.js": "sha256:f4e9294c31f6a1c9800c332e87d3cddabcb7042c354ef144808224ceac7d4c0d",
-    "gen/typescript/js/plan-manager/v1/execution/execution_pb.js": "sha256:9d073f12da13e8cd92a77b2e91a101bff1a16decb91b83e8ebe5b7706ae19e21",
-    "gen/typescript/js/plan-manager/v1/log/log_pb.js": "sha256:f2f2f0c6507ca773e7baac0ef20e24164dec3eb4c27d82a24fc0db36f05dace5",
-    "gen/typescript/js/plan-manager/v1/plans/plans_pb.js": "sha256:18555233c61fb72d96079226d8c94ed9290607f4529d335c1edcb77d76858606",
-    "gen/typescript/js/plan-manager/v1/shared/errors_pb.js": "sha256:915eb8c49153b41ad94445034fde0575b1c4af3aae9c53ac761e73f4d1f9f861",
-    "gen/typescript/js/plan-manager/v1/shared/health_pb.js": "sha256:04a259c3b0158c10a49b5a1fcd2949b9f17fb82a9d1fd7465f5eddd17926ac74",
-    "gen/typescript/js/plan-manager/v1/shared/model_pb.js": "sha256:744a6dc1de6952c943bb6eef7fc3042b2d086f54a1dd42fd6ab9738bd102e8e4",
-    "gen/typescript/js/plan-manager/v1/validation/validation_pb.js": "sha256:1b4bbb169570dcd520e518827f4dd94510d4ce8d6a3148aed274b94d6ece4b4b",
     "gen/typescript/plan-manager/v1/authoring/authoring_pb.ts": "sha256:efd4639778117fd76a72be3d44fbf29c3f96b586c63bb37d0c7186ad80aade9b",
     "gen/typescript/plan-manager/v1/execution/execution_pb.ts": "sha256:173ee5d5180c2a37996341fbb7604456881c6a57c3546d3b82c04f24d2b9c7e4",
     "gen/typescript/plan-manager/v1/log/log_pb.ts": "sha256:281659a3248ef0ceb3a913f3c7824bf91d27143d0e7c750169d475e5c9437f1d",

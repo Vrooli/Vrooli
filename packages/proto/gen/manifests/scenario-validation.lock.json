@@ -10,7 +10,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -25,7 +25,6 @@
     "gen/python/scenario_validation/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_validation/v1/validation_pb2.py": "sha256:ea73610a2b27d97ecad0e86767d0d9d06f4279dfea5eab136ea1938ba5171d75",
     "gen/python/scenario_validation/v1/validation_pb2.pyi": "sha256:fae8f45626dcd892d50483a88319c604ccebad82f569bafa459a73df3476091d",
-    "gen/typescript/js/scenario-validation/v1/validation_pb.js": "sha256:ceb27b50d993333cd7e9b300a81daf88586944da084171ca62b47605fda62159",
     "gen/typescript/scenario-validation/v1/validation_pb.ts": "sha256:00e607af479a85789ff791bf3611a028967b2674b28177824b6fd18b351b9201"
   }
 }

@@ -11,7 +11,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -35,9 +35,6 @@
     "gen/python/quality_health/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/quality_health/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/quality_health/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/quality-health/v1/audit/audit_pb.js": "sha256:fb82dac618613f0e33d301350c952d3cb7d96dfdd538984b48d51fdcfe88105e",
-    "gen/typescript/js/quality-health/v1/errors/errors_pb.js": "sha256:c8e20ccf4af133ec4fac82e8a9ef7ee67b199943cbbd5fa687548ccb3c980da2",
-    "gen/typescript/js/quality-health/v1/health/health_pb.js": "sha256:399e3df9203d00d3e4e475907bb0bdeced0fc25f3985882b1e8faf1afa49e710",
     "gen/typescript/quality-health/v1/audit/audit_pb.ts": "sha256:ea873945ee9f04cf26b4050b2edd67c9e5d66dd3dc4edd850f3c4d588365f6e4",
     "gen/typescript/quality-health/v1/errors/errors_pb.ts": "sha256:20e154a7a101a35bd9454a521d88be17af670b6ed0ccac6344c32843720d69d5",
     "gen/typescript/quality-health/v1/health/health_pb.ts": "sha256:a4c96a3205d9943f369c7268ee4019b66dcd05e9637474d4916addd2382e3391"

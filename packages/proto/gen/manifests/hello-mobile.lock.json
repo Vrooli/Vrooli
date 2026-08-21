@@ -12,7 +12,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -41,10 +41,6 @@
     "gen/typescript/hello-mobile/v1/notes/attachments_pb.ts": "sha256:3f00b524744408b2b0bd9991afddd20f45e0a072f535bdd4bd5f14365396cd47",
     "gen/typescript/hello-mobile/v1/notes/notes_pb.ts": "sha256:a8e155ddbdc0c874d2d063ce4c27613703512b789a739d0fac8fecae2f197505",
     "gen/typescript/hello-mobile/v1/shared/errors_pb.ts": "sha256:bc7d45c3ed3b5eb3d8f5a7e33baf103d479926c0d2205f6a3c31768fa2bd776f",
-    "gen/typescript/hello-mobile/v1/shared/health_pb.ts": "sha256:b67e9caf672ce582216298dd11c22115f07161ef02b90059346021849a77831b",
-    "gen/typescript/js/hello-mobile/v1/notes/attachments_pb.js": "sha256:2196731029b82350c9ba9661d9db3ef95b7943874dc6dc159947292d4af06908",
-    "gen/typescript/js/hello-mobile/v1/notes/notes_pb.js": "sha256:63fd6563467a3488db455a80a847e31046d7d9ee343c5ac3059dc47da3ac1309",
-    "gen/typescript/js/hello-mobile/v1/shared/errors_pb.js": "sha256:dfb9bee7e9b614bddcc4ea33150c23a8e5c327611ceaf79b479dc60ce3bb4cbd",
-    "gen/typescript/js/hello-mobile/v1/shared/health_pb.js": "sha256:5a6a02eb9b3fb32d8688b2ae8b708b7033d03d089660246b2b3de4f2eeeaf793"
+    "gen/typescript/hello-mobile/v1/shared/health_pb.ts": "sha256:b67e9caf672ce582216298dd11c22115f07161ef02b90059346021849a77831b"
   }
 }

@@ -14,7 +14,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -69,14 +69,6 @@
     "gen/typescript/device-control/v1/sessions/sessions_pb.ts": "sha256:9b0b2df375d8a32cbe1adab1a306caa84411d30380398145544891f2a5be7b10",
     "gen/typescript/device-control/v1/shared/errors_pb.ts": "sha256:4dedf4b347926963b05d9d8040799997088ce901013c4059419a696b765547fa",
     "gen/typescript/device-control/v1/shared/health_pb.ts": "sha256:3ffa323c645c011d4fa0df7a44b3cb102d9e8f2c0f677b8e47dbc6a66eddab22",
-    "gen/typescript/device-control/v1/strategies/strategies_pb.ts": "sha256:088c621d4f83e1a82ce9678349c23ac4678db863f52ef81af50c87d19122594c",
-    "gen/typescript/js/device-control/v1/auth/auth_pb.js": "sha256:186e2c5ff95cda8c19a0ee1d04f811f17625be44c366f2d2621c29ff91bd6c7d",
-    "gen/typescript/js/device-control/v1/devices/devices_pb.js": "sha256:fc34715288d570a170b3b1f4ded1d83b93fa525773cc9729f15cc8950e973cb4",
-    "gen/typescript/js/device-control/v1/evidence/evidence_pb.js": "sha256:561959003bc824a4a927691ab6ff6aba8a92c607b4d5e808f72f825870ced085",
-    "gen/typescript/js/device-control/v1/flows/flows_pb.js": "sha256:2b774a58381b643ad3778cb6727f6abb87f592299918ec063fbcfc813dee5efa",
-    "gen/typescript/js/device-control/v1/sessions/sessions_pb.js": "sha256:16fa7af8dc220f4e487b972c622cb3a33c36e5fc35de6f5ab287b4e2cf08ede2",
-    "gen/typescript/js/device-control/v1/shared/errors_pb.js": "sha256:e3ff9adca4214fdc6937e16a82e9b9edd1209cdc3b21d18dfff088a28abd5a7f",
-    "gen/typescript/js/device-control/v1/shared/health_pb.js": "sha256:13adfe3651086d80b26f9352287f355eff7347bfa3ea795fad7e3afaef82f075",
-    "gen/typescript/js/device-control/v1/strategies/strategies_pb.js": "sha256:810298cc9a52510994b39e9d9d5f1bbf9fa278ac34206d12c33fb61f9b8fca65"
+    "gen/typescript/device-control/v1/strategies/strategies_pb.ts": "sha256:088c621d4f83e1a82ce9678349c23ac4678db863f52ef81af50c87d19122594c"
   }
 }

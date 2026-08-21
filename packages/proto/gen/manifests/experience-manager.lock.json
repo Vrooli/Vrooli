@@ -12,7 +12,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -43,10 +43,6 @@
     "gen/typescript/experience-manager/v1/capabilities/capabilities_pb.ts": "sha256:d3de779f864a635889b88ad134e309b04b3f2d8dd72d99d5d20043441dff5d01",
     "gen/typescript/experience-manager/v1/contract/contract_pb.ts": "sha256:26f1b6f353decb56c1fcf534eeeedea30c03dc14a892986b564ff7e7f729b91c",
     "gen/typescript/experience-manager/v1/shared/errors_pb.ts": "sha256:57a196c232a64bd1bfbbc605de111a7903648eaaac67077a83d4d2eb51b44539",
-    "gen/typescript/experience-manager/v1/shared/health_pb.ts": "sha256:92ce3c15f2faa183249dfcac67b91bcdf4c21531a998aaf674f578030abc90e8",
-    "gen/typescript/js/experience-manager/v1/capabilities/capabilities_pb.js": "sha256:a2f76b09be73b10e029174a8a4a60c8fae3d42e96e8a5e548bca9d6ea4f33d3c",
-    "gen/typescript/js/experience-manager/v1/contract/contract_pb.js": "sha256:e4a1e62b1b0fe5fc1c105f9bb51020c6c99872da73b4c982add464236f93d7c8",
-    "gen/typescript/js/experience-manager/v1/shared/errors_pb.js": "sha256:01428d8d16721b50b5a3afdc8ce20827c556be9c5d6ad7a84defda1bf4cf3c07",
-    "gen/typescript/js/experience-manager/v1/shared/health_pb.js": "sha256:cb790e67617422d0898f2bd12892d54d4bd806641dfd159bd607ae829238fcc0"
+    "gen/typescript/experience-manager/v1/shared/health_pb.ts": "sha256:92ce3c15f2faa183249dfcac67b91bcdf4c21531a998aaf674f578030abc90e8"
   }
 }

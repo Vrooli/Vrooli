@@ -13,7 +13,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -54,13 +54,6 @@
     "gen/python/portal/v1/shared/health_pb2.py": "sha256:0a33189109995884533a9122bb0ed395cd55e6b38c8cb4dba6deb2c12473660e",
     "gen/python/portal/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/portal/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/portal/v1/chat/chat_pb.js": "sha256:aa76127728e2b4ec341c472b1a6838523a13332439f415dce53370ed259371ca",
-    "gen/typescript/js/portal/v1/integrations/integrations_pb.js": "sha256:1a0d7ff555caefb9a351dbe4914d794d9ce9df31ca119b61632435c48421ad4a",
-    "gen/typescript/js/portal/v1/message/message_pb.js": "sha256:4984b32d01f844b0b5763d925ef0c4498688f84be375444834db66d9c5cef165",
-    "gen/typescript/js/portal/v1/search/search_pb.js": "sha256:0ed154f3dd237ba1fac95c9cc74d6169bd3db0e7db60deb6bc901ab0613a9f92",
-    "gen/typescript/js/portal/v1/shared/common_pb.js": "sha256:63a5c713936685ef85b1581604fe9ab9b0b69a9d773f056b48148c9ab964a3b1",
-    "gen/typescript/js/portal/v1/shared/errors_pb.js": "sha256:938fda0ce9bde143ad703cecf31ed3778cc2a7a814dd1a0538709aaa8129dea7",
-    "gen/typescript/js/portal/v1/shared/health_pb.js": "sha256:1f105306a57c978429100941a0d928e439dd26aa516643b94aac052fd554f686",
     "gen/typescript/portal/v1/chat/chat_pb.ts": "sha256:1c6893e5014161e0ded2675ac20750e8c2d96d80b03d72e4fe7e716017579f13",
     "gen/typescript/portal/v1/integrations/integrations_pb.ts": "sha256:49961f35eb47ff9db69e95c4c572c51ec3d307553d7cb77f3edc35f88d9648fa",
     "gen/typescript/portal/v1/message/message_pb.ts": "sha256:d99dbee7c1fb9798cdca3b58af13cdc3058e4cb04a50b4cab3d4070640455840",

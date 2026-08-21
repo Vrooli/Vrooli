@@ -11,7 +11,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -45,11 +45,6 @@
     "gen/python/tech_tree_designer/v1/planning/planning_pb2.pyi": "sha256:646ce1b69656fa9a418f63667701f87a519b9a70fc961f8463380e45557fca22",
     "gen/python/tech_tree_designer/v1/planning/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/tech_tree_designer/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/tech-tree-designer/v1/errors/errors_pb.js": "sha256:0c6af3884f2c514424b9071c4f56569757cdb4f2d9f6d4c77644976edb0a9ca3",
-    "gen/typescript/js/tech-tree-designer/v1/graph/graph_pb.js": "sha256:0b6dbd60c9f94f115a9623dee142be1996c9dee26b14a5d03d8fd323bee2d9bf",
-    "gen/typescript/js/tech-tree-designer/v1/health/health_pb.js": "sha256:b969715517f3562ea238315ca7af0e7f1ef5689999ad6a4feeeebcd1b4259cda",
-    "gen/typescript/js/tech-tree-designer/v1/ontology/ontology_pb.js": "sha256:4c52346ec1b474939b80cd6ada33644280faa9870741272808ea07e53534cdb2",
-    "gen/typescript/js/tech-tree-designer/v1/planning/planning_pb.js": "sha256:0937f7e423c0083dbbc7c4891eb141fac516a717723ca839529ee91e8fe9da77",
     "gen/typescript/tech-tree-designer/v1/errors/errors_pb.ts": "sha256:60e30bf7bd306e1051e31157ce7c731543ee6d24ca90d90aedf6a49a38113a6b",
     "gen/typescript/tech-tree-designer/v1/graph/graph_pb.ts": "sha256:eec828bc5943e4666ca1bc743944037db88b40c91b1d71c8abd77a592a7e5576",
     "gen/typescript/tech-tree-designer/v1/health/health_pb.ts": "sha256:8cab4123ed33d69aa937cbd15b0d1c7b17882d2848c598f44010081775cf4ddf",

@@ -15,7 +15,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -61,15 +61,6 @@
     "gen/typescript/common/v1/metrics_pb.ts": "sha256:6dffba705b50004cb99fff66251150b8c4a9c3921549256f2f02d312a89aa02a",
     "gen/typescript/common/v1/operations_pb.ts": "sha256:13bfc1bf16e5576279354d187137ba1bd5c1a90af4f3f529666b61d1c3570f13",
     "gen/typescript/common/v1/types_pb.ts": "sha256:7e9766edd4c465f9d1f1cf7f55e12b65edf28231b8ce115688f29f1d73efd819",
-    "gen/typescript/common/v1/validation_target_pb.ts": "sha256:05875924685131d607e217353f06ed2585f394dcbc27721172afaac36e7ca230",
-    "gen/typescript/js/common/v1/attestation_pb.js": "sha256:8431770899afc6ee8a8c487553f01e6fedc1e11cf93da1cfbf31574c724dfb0b",
-    "gen/typescript/js/common/v1/code_graph_pb.js": "sha256:a290b51d200e2a98906509c702c22697e89b54b1d8dc3c1bc37c439e5dce7e6b",
-    "gen/typescript/js/common/v1/confidence_pb.js": "sha256:d53b9846f62c7b660162666d42ab4e464424d988e67b303a251e9ffca0ef4ac2",
-    "gen/typescript/js/common/v1/evidence_pb.js": "sha256:279ba941a26194b3f699465a1ad4e18bc24814fddf86b16595e3450c92b51401",
-    "gen/typescript/js/common/v1/maturity_pb.js": "sha256:1388e2000ac349abe2470fce5fc6a5848df151b39321a77824055a3852b0e2cb",
-    "gen/typescript/js/common/v1/metrics_pb.js": "sha256:01511113cc71f47fdb5a7759a5438b4efc8113ef0e119786ecde67551a4c24c6",
-    "gen/typescript/js/common/v1/operations_pb.js": "sha256:667ec135529439b18fcac14338e4a12ae52750fde75411564fb2ebe0459b84a8",
-    "gen/typescript/js/common/v1/types_pb.js": "sha256:9bed7d2d70a3240064e80144dc7aee4905ed218b44a14c3cd57837381c25dd6b",
-    "gen/typescript/js/common/v1/validation_target_pb.js": "sha256:5b2a512755d73f2f48b4f8a723228916eca3bf8cbcd6c51528b57533e596eb71"
+    "gen/typescript/common/v1/validation_target_pb.ts": "sha256:05875924685131d607e217353f06ed2585f394dcbc27721172afaac36e7ca230"
   }
 }

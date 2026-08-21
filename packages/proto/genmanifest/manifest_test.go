@@ -20,7 +20,6 @@ message Shared {}
 `)
 	writeFile(t, filepath.Join(protoRoot, "gen", "go", "demo", "v1", "core", "core.pb.go"), "go")
 	writeFile(t, filepath.Join(protoRoot, "gen", "typescript", "demo", "v1", "core", "core_pb.ts"), "ts")
-	writeFile(t, filepath.Join(protoRoot, "gen", "typescript", "js", "demo", "v1", "core", "core_pb.js"), "js")
 	writeFile(t, filepath.Join(protoRoot, "gen", "python", "demo", "v1", "core", "core_pb2.py"), "py")
 	writeFile(t, filepath.Join(protoRoot, "gen", "python", "demo", "v1", "core", "py.typed"), "")
 

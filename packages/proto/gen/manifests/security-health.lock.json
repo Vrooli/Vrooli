@@ -10,7 +10,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -39,10 +39,6 @@
     "gen/python/security_health/v1/reindex/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/security_health/v1/reindex/reindex_pb2.py": "sha256:e6064f73c29e684f77805ec9fb94827b97d02b2affc54cfbfeca70ec942190b1",
     "gen/python/security_health/v1/reindex/reindex_pb2.pyi": "sha256:df3ebc24fa06764a9b137e31489b8dd3ba7807ea843c6ea4dab0015c8737ebb9",
-    "gen/typescript/js/security-health/v1/dependencies/dependencies_pb.js": "sha256:5a9ee7623c591895b6ca88c02d9d547e1c6c7bdd199e25ddc10d78846746a769",
-    "gen/typescript/js/security-health/v1/errors/errors_pb.js": "sha256:ceb2ff238548468447ed3efac468071b170947db3cb94cf34b2a1cd18f43df5b",
-    "gen/typescript/js/security-health/v1/health/health_pb.js": "sha256:ed7e68aaefd7ee304cb441c2e055649171ba5c49b66a933d945c34cae3396110",
-    "gen/typescript/js/security-health/v1/reindex/reindex_pb.js": "sha256:d58df2d4945bafd36b5a28f88ca3b8aae7132b0fcbb27336fd0d9c3ff9eb0874",
     "gen/typescript/security-health/v1/dependencies/dependencies_pb.ts": "sha256:9745320eb12e8b7bc49438f363b910b8d2449898ad68ca5cf55e2d4b209bfc90",
     "gen/typescript/security-health/v1/errors/errors_pb.ts": "sha256:690e95c2c270d96728632af96cc47a3dc8fdfecc94192b8e3733ceae9c68f4b3",
     "gen/typescript/security-health/v1/health/health_pb.ts": "sha256:9fcefb6f16e3d7c12329fd10c9cc328033a84ba774e227c71c42bf9bb449772b",

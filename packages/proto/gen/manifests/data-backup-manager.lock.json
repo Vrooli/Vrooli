@@ -20,7 +20,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -105,19 +105,6 @@
     "gen/typescript/data-backup-manager/v1/runs/runs_pb.ts": "sha256:a1c303901904d90345b858118505ce5956afe46ba67efc20946e411481d0dfd4",
     "gen/typescript/data-backup-manager/v1/safety/safety_pb.ts": "sha256:53b1558d5d82f481d09d7cc7b0835bcadfac504d40c3f516faea3262ada427cb",
     "gen/typescript/data-backup-manager/v1/sources/sources_pb.ts": "sha256:4e6a8caa110e37fb48feb3f45a470fd8baa43d81de3973b487ceb3cb035a92dd",
-    "gen/typescript/data-backup-manager/v1/targets/targets_pb.ts": "sha256:f8459a903e2948fb7f33b960d14880672b117935768c50e43b28184905760569",
-    "gen/typescript/js/data-backup-manager/v1/audits/audits_pb.js": "sha256:befcb75b4221d45bd7c6cc31ba07d98f122ad0281c82cbee9b7938b2ce363f37",
-    "gen/typescript/js/data-backup-manager/v1/coverage/coverage_pb.js": "sha256:75fe747beb8746e2563acdeca83c1cfc37579f900b2c20ad25b5d131e9c05881",
-    "gen/typescript/js/data-backup-manager/v1/destinations/destinations_pb.js": "sha256:efe3756a9e634ce61dee7d666c0c8b83a274c40a40a51c42304f26ad78b84dfa",
-    "gen/typescript/js/data-backup-manager/v1/discovery/discovery_pb.js": "sha256:b62049af1acd55b66086e825b672f6384a0791044ed1803180900e1229077164",
-    "gen/typescript/js/data-backup-manager/v1/drills/drills_pb.js": "sha256:21dac50c0005ca55ded5ae0603166b92e9a10901c68bfcf7a6afd7987bc7b8c1",
-    "gen/typescript/js/data-backup-manager/v1/errors/errors_pb.js": "sha256:bf3f639d2b0042fae228703c8412945bab155247ddb1b23a2710b9235ba2fdbd",
-    "gen/typescript/js/data-backup-manager/v1/health/health_pb.js": "sha256:ed61985f1c6fa30ad9921e99f9cff72552d962736af3fe39e61825e8719c474b",
-    "gen/typescript/js/data-backup-manager/v1/plans/plans_pb.js": "sha256:a00b177f647e74c56f55fe168f4d65a5730306e7f2ef2f92d0a40337ffa89dc4",
-    "gen/typescript/js/data-backup-manager/v1/restores/restores_pb.js": "sha256:02430612ac021bb3560042b8044b0babee5b00d055382c6b1dc176ffe3a41d82",
-    "gen/typescript/js/data-backup-manager/v1/runs/runs_pb.js": "sha256:5319c8a36aeec8f63330ce4174d2f34176c16e09deb301a529be67a7562f8703",
-    "gen/typescript/js/data-backup-manager/v1/safety/safety_pb.js": "sha256:97809c5655e33daf290b167806b6f75e42b7ee9bf20ae3729944b6da45522424",
-    "gen/typescript/js/data-backup-manager/v1/sources/sources_pb.js": "sha256:d516e28f4e6691ca844c8073f1c7e265482ad805128bffb0529162f233e4b6d3",
-    "gen/typescript/js/data-backup-manager/v1/targets/targets_pb.js": "sha256:470483fb7fd36fbbfdbd67a990bd4014f179a6761bbd5375973e1835d2636119"
+    "gen/typescript/data-backup-manager/v1/targets/targets_pb.ts": "sha256:f8459a903e2948fb7f33b960d14880672b117935768c50e43b28184905760569"
   }
 }

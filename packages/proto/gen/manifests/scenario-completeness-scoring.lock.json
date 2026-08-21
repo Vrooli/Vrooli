@@ -13,7 +13,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -46,11 +46,6 @@
     "gen/python/scenario_completeness_scoring/v1/scoring/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_completeness_scoring/v1/scoring/scoring_pb2.py": "sha256:8201a8337860cfc4909387e40bfb211adc6edb7ab5ae993e39c339566cedd4d2",
     "gen/python/scenario_completeness_scoring/v1/scoring/scoring_pb2.pyi": "sha256:dae04d98c7710146ced243f012e317ab09f7d5b8d902ad21e08ebc1926ed6f55",
-    "gen/typescript/js/scenario-completeness-scoring/v1/domain/scoring_pb.js": "sha256:5580aaccefe86aee67b88dcfaf007629d262c21e287a582aa6c208a538b885e7",
-    "gen/typescript/js/scenario-completeness-scoring/v1/errors/errors_pb.js": "sha256:bd7b3e73878506b75c9791c9766de12143314bd3362b8bad92bd649d66c36b8d",
-    "gen/typescript/js/scenario-completeness-scoring/v1/health/health_pb.js": "sha256:f6284367c1541e7064e82ecc14031eec4bfc3cd83b7870e98001e9c78b17b963",
-    "gen/typescript/js/scenario-completeness-scoring/v1/measures/measures_pb.js": "sha256:4c13589094b21914f6189e78a59156e426d6e7aff7fe37f4c6c154f6d1a78f5c",
-    "gen/typescript/js/scenario-completeness-scoring/v1/scoring/scoring_pb.js": "sha256:a7f793b4ccd88d924740f23fd168938d40d7d61f0be6c6a796120d42f8845a6b",
     "gen/typescript/scenario-completeness-scoring/v1/domain/scoring_pb.ts": "sha256:109a4c3088e7702e746bd3104063a341e3bc89abe6de98b8de38e54b4e06a385",
     "gen/typescript/scenario-completeness-scoring/v1/errors/errors_pb.ts": "sha256:144fdba4b8e80eb70b3a42c73fe0602129b92105c777466757b939a2be8cf101",
     "gen/typescript/scenario-completeness-scoring/v1/health/health_pb.ts": "sha256:c42304c39f7782f13c3608be031c1b092f68c2a82b4d444fc157824c3382b559",

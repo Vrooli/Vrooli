@@ -14,7 +14,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -62,14 +62,6 @@
     "gen/python/source_ledger/v1/shared/health_pb2.py": "sha256:103bcbe74291de8137f487253fc2b579e215caf5ee27c51d90b9dc7037b05f33",
     "gen/python/source_ledger/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/source_ledger/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/source-ledger/v1/facets/facets_pb.js": "sha256:201a6846bf6526ad31f4592dfbdb0412a8c6bf5b8676622e1168725fd906bbb2",
-    "gen/typescript/js/source-ledger/v1/forest/forest_pb.js": "sha256:2ae95769504f7382a63997cc47f1e0444a80a20bbe9974f82c4990a6a6af7232",
-    "gen/typescript/js/source-ledger/v1/journal/journal_pb.js": "sha256:b2fa04b9274d228934a93c0502bd8df6325691fca97d349ee3e05a26b7448b3e",
-    "gen/typescript/js/source-ledger/v1/recall/recall_pb.js": "sha256:790ba11a590e356d4af74d11f1004e539a62002d0248c2f33e763750c00bdec7",
-    "gen/typescript/js/source-ledger/v1/rules/rules_pb.js": "sha256:0efd8c716d725b4ba3302b686f95b5d84c7f6695f8bfe5eddf702262552fb00f",
-    "gen/typescript/js/source-ledger/v1/scopes/scopes_pb.js": "sha256:0dc0b145d1dc7e30dfd6655aaf08a0da6380e8e3e9d0ca06a13b754dc2ecfdf1",
-    "gen/typescript/js/source-ledger/v1/shared/errors_pb.js": "sha256:09d5d1f8691d8c27b348ccf3dc8cda1523dbef8f7c8ee5a2ed7aaefac74687f8",
-    "gen/typescript/js/source-ledger/v1/shared/health_pb.js": "sha256:5f206b4e1ac1a4c259977b1df34d334820037869ff948114273aa4cb9dad6a20",
     "gen/typescript/source-ledger/v1/facets/facets_pb.ts": "sha256:ee7e8227f05ac84099c8d7f44622eab5f73ca13d18131d31fda40f9a70787e37",
     "gen/typescript/source-ledger/v1/forest/forest_pb.ts": "sha256:9e35dfe669d1a8ce9f06f695eb09f1619679dbb7655b9a53a5e5c8ac883a2e72",
     "gen/typescript/source-ledger/v1/journal/journal_pb.ts": "sha256:fbd49183913f27d18fc6674af2d431cf1999e1e3ea3e7fc5bed610a7f5192868",

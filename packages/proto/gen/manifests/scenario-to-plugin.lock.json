@@ -12,7 +12,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -38,10 +38,6 @@
     "gen/python/scenario_to_plugin/v1/shared/health_pb2.py": "sha256:a1d5738b111d26364d7ae04bc8f4f5a18eb6d27ac7030767d4e00394e094e0ee",
     "gen/python/scenario_to_plugin/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/scenario_to_plugin/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/scenario-to-plugin/v1/notes/attachments_pb.js": "sha256:1a406b8c38096e06c1841fc92886d26193ec7b3176258b92758d9169a85fe8b3",
-    "gen/typescript/js/scenario-to-plugin/v1/notes/notes_pb.js": "sha256:222f6f0d5e3ce8104b0f964421f84f92ef0116d31b4ced361f2d28b8d8762de6",
-    "gen/typescript/js/scenario-to-plugin/v1/shared/errors_pb.js": "sha256:35e8f90f88884c3ea2dcb833c392446ccb34fe813c3a6581986a9a98a6f53ec5",
-    "gen/typescript/js/scenario-to-plugin/v1/shared/health_pb.js": "sha256:2326ef0b164a07928eaaf8db786b1a3ad1cc253d0103d8320b8246c432aa1d4b",
     "gen/typescript/scenario-to-plugin/v1/notes/attachments_pb.ts": "sha256:342104d03f944f91e60c9127c343ed93f5ab6e7b0f7542c149e2b5531fd647ee",
     "gen/typescript/scenario-to-plugin/v1/notes/notes_pb.ts": "sha256:5700938051a05030c103222b163ac39745a58ee2dacf9d1d0d24f57229273f47",
     "gen/typescript/scenario-to-plugin/v1/shared/errors_pb.ts": "sha256:6a18090ff21467e9f1571d0836fdf859102e5e059898aec2a3fd8153aaf230b9",

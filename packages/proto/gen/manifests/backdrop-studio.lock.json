@@ -17,7 +17,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -88,17 +88,6 @@
     "gen/typescript/backdrop-studio/v1/shared/errors_pb.ts": "sha256:4c10691fdd052b6d9bb5a014683664f7e19883e05f95e6808e35c9b92e8cfded",
     "gen/typescript/backdrop-studio/v1/shared/health_pb.ts": "sha256:d75e2997c69c7cb5686e2618b7ec301af529dd13e87b9c3fcbf430220e77ee9a",
     "gen/typescript/backdrop-studio/v1/shared/shared_pb.ts": "sha256:4c2e100579773d87594f440bf045a0503f30b116c7d623517f7d245ac8ad62ea",
-    "gen/typescript/backdrop-studio/v1/surfaces/surfaces_pb.ts": "sha256:a58b3577fcebfe52737be219ac1e7ac49946190156df5f9fd91f831948a67bfb",
-    "gen/typescript/js/backdrop-studio/v1/catalog/catalog_pb.js": "sha256:eb896bb5eccc6b0ecb3bc206057c3826785260fd8134c06a9499761a984937fe",
-    "gen/typescript/js/backdrop-studio/v1/compose/compose_pb.js": "sha256:3031e020686fb4e45e804d0c4092967f3060cb49e74293181d679324dd9343d2",
-    "gen/typescript/js/backdrop-studio/v1/generators/generators_pb.js": "sha256:9a03d87e949fa866eef0f1c99bf285ad0f060c0b3502e3ebda62c8101b0a6423",
-    "gen/typescript/js/backdrop-studio/v1/legibility/legibility_pb.js": "sha256:09106a7e6989e4535c6f8ef2fb89c739c61f188ebf8b8bced91cb47f9f2561ee",
-    "gen/typescript/js/backdrop-studio/v1/release/release_pb.js": "sha256:cbaf1c053d214fd864d5e34b408f00af825eed6b9f3eb83e4bbf8e6d4b98f4f2",
-    "gen/typescript/js/backdrop-studio/v1/render/render_pb.js": "sha256:2d7163907e7c339595882cedf608428178f1227eb45ddf3d2a9625ecbebb7512",
-    "gen/typescript/js/backdrop-studio/v1/scaffold/scaffold_pb.js": "sha256:f8760e5aa4c71db8cbe949f04a1185ef3d34e43fc488f2ee4d6d552c8b713817",
-    "gen/typescript/js/backdrop-studio/v1/shared/errors_pb.js": "sha256:c30567787c5c197d958fe046581cd3a59cbe3cdef2df4bbd4250b354414e68cf",
-    "gen/typescript/js/backdrop-studio/v1/shared/health_pb.js": "sha256:70a9e8a97b45caeb2cba2f74035e8cc7b8a9bee82504566f1b7227ffc9cff3cd",
-    "gen/typescript/js/backdrop-studio/v1/shared/shared_pb.js": "sha256:d224d1ad7d3c9aa1389872f0cbc4db1ea24574938e089d2c5fda07edcb1c0407",
-    "gen/typescript/js/backdrop-studio/v1/surfaces/surfaces_pb.js": "sha256:483ea0885f3b9cc15b067da5ef30500e9b5f2a4d63a3a02b75bce1a78bc7af01"
+    "gen/typescript/backdrop-studio/v1/surfaces/surfaces_pb.ts": "sha256:a58b3577fcebfe52737be219ac1e7ac49946190156df5f9fd91f831948a67bfb"
   }
 }

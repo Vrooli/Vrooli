@@ -61,28 +61,32 @@ class MetricValue(_message.Message):
     def __init__(self, measured: _Optional[float] = ..., unsupported_reason: _Optional[str] = ..., failed_error: _Optional[str] = ..., stale_reason: _Optional[str] = ..., not_yet_sampled_reason: _Optional[str] = ..., provenance: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cycle_id: _Optional[str] = ..., freshness_seconds: _Optional[float] = ..., units: _Optional[str] = ...) -> None: ...
 
 class MetricTimelineSample(_message.Message):
-    __slots__ = ("cycle_id", "timestamp", "cpu_usage", "memory_usage", "tcp_connections", "gpu_usage", "cpu", "memory", "connections", "gpu")
+    __slots__ = ("cycle_id", "timestamp", "cpu_usage", "memory_usage", "tcp_connections", "gpu_usage", "swap_usage", "cpu", "memory", "connections", "gpu", "swap")
     CYCLE_ID_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     CPU_USAGE_FIELD_NUMBER: _ClassVar[int]
     MEMORY_USAGE_FIELD_NUMBER: _ClassVar[int]
     TCP_CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
     GPU_USAGE_FIELD_NUMBER: _ClassVar[int]
+    SWAP_USAGE_FIELD_NUMBER: _ClassVar[int]
     CPU_FIELD_NUMBER: _ClassVar[int]
     MEMORY_FIELD_NUMBER: _ClassVar[int]
     CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
     GPU_FIELD_NUMBER: _ClassVar[int]
+    SWAP_FIELD_NUMBER: _ClassVar[int]
     cycle_id: str
     timestamp: _timestamp_pb2.Timestamp
     cpu_usage: float
     memory_usage: float
     tcp_connections: int
     gpu_usage: float
+    swap_usage: float
     cpu: MetricValue
     memory: MetricValue
     connections: MetricValue
     gpu: MetricValue
-    def __init__(self, cycle_id: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ..., cpu: _Optional[_Union[MetricValue, _Mapping]] = ..., memory: _Optional[_Union[MetricValue, _Mapping]] = ..., connections: _Optional[_Union[MetricValue, _Mapping]] = ..., gpu: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
+    swap: MetricValue
+    def __init__(self, cycle_id: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ..., swap_usage: _Optional[float] = ..., cpu: _Optional[_Union[MetricValue, _Mapping]] = ..., memory: _Optional[_Union[MetricValue, _Mapping]] = ..., connections: _Optional[_Union[MetricValue, _Mapping]] = ..., gpu: _Optional[_Union[MetricValue, _Mapping]] = ..., swap: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
 
 class MetricsTimelineResponse(_message.Message):
     __slots__ = ("window_seconds", "sample_interval_seconds", "samples")

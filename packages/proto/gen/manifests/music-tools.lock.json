@@ -12,7 +12,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -38,10 +38,6 @@
     "gen/python/music_tools/v1/shared/health_pb2.py": "sha256:1aa8bdd29b2601109f64a7f6090485a04f9d6270cf6aa3dc50106af79e595646",
     "gen/python/music_tools/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/music_tools/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/music-tools/v1/notes/attachments_pb.js": "sha256:9f78bdc17ec41e567d3c96370a46cda4c43172ab15ec9694d0150f52ec48f80d",
-    "gen/typescript/js/music-tools/v1/notes/notes_pb.js": "sha256:f9404929eb0b8d1eb5da7d751d2f7c860b0c11f161a3e65600ace7c1ccd53853",
-    "gen/typescript/js/music-tools/v1/shared/errors_pb.js": "sha256:54bacf8fb3d221a7461c87e38175f0572bf511746d1b688c10175114f87a332d",
-    "gen/typescript/js/music-tools/v1/shared/health_pb.js": "sha256:109715aedb21da1b99d1f2b462295c3e54a1035964fb68e52a355142af2a9394",
     "gen/typescript/music-tools/v1/notes/attachments_pb.ts": "sha256:f86b8ec98228b349444021187872f2696878dd1bfe1890dba2a541931195c74e",
     "gen/typescript/music-tools/v1/notes/notes_pb.ts": "sha256:3e0724fd6ec72676806e0ed7d10b7fd59e3baa653888debc459cdf4b2e17a628",
     "gen/typescript/music-tools/v1/shared/errors_pb.ts": "sha256:9b43a55914e1ac1a10da5fadf3fcd140a0879cba1b119c6d5710ae610861042c",

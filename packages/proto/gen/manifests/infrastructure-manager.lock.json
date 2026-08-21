@@ -14,7 +14,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -67,14 +67,6 @@
     "gen/typescript/infrastructure-manager/v1/portability/portability_pb.ts": "sha256:73f35ce7656eb7a684499e9826f99fe4926daf5ad1ffbfc08aa4060d1cc57281",
     "gen/typescript/infrastructure-manager/v1/shared/cell_pb.ts": "sha256:c2acc85c2d415d2ee7dda6da979cd4e0216472073a5bdb9b71099ea056fe7218",
     "gen/typescript/infrastructure-manager/v1/shared/errors_pb.ts": "sha256:b11b11641041c72bfe7d65e03b74e61aa99e7806c3ba3af602dc9d826c6756a1",
-    "gen/typescript/infrastructure-manager/v1/shared/health_pb.ts": "sha256:889f341b8214226a2eab9f9a6e2e6d86e1a7c0cd6c1fc636b845d10d89d89aa5",
-    "gen/typescript/js/infrastructure-manager/v1/condition/condition_pb.js": "sha256:9778f60deee440e0505d20bd9a82ff7d6618225e4d048380ca36d23f8b396313",
-    "gen/typescript/js/infrastructure-manager/v1/coverage/coverage_pb.js": "sha256:efc3df1f0ca03794bd98368c579d82616ef9ccc7162bf2014ebf81f7caefab1d",
-    "gen/typescript/js/infrastructure-manager/v1/focus/focus_pb.js": "sha256:e92c0038c877b8c8c90fb520b67a319702045c297677c1f465cab6416c6625cc",
-    "gen/typescript/js/infrastructure-manager/v1/ladder/ladder_pb.js": "sha256:fae23034cf565e7a5ae6bdfe82a091ad20b72f3f16eff03bb78ceaecff4c9a24",
-    "gen/typescript/js/infrastructure-manager/v1/portability/portability_pb.js": "sha256:291054153a1fec330290081773bea92c1ca930fd58c3d33436ce821aa548cc65",
-    "gen/typescript/js/infrastructure-manager/v1/shared/cell_pb.js": "sha256:9e7719a8a9001d0a31f449650d8c9a480dea5100a345e3979b44acd795fc1234",
-    "gen/typescript/js/infrastructure-manager/v1/shared/errors_pb.js": "sha256:0f7cc5eafe2ad0f1f9ef9755941931d2c7362bc499f5e0bf9dda48efb3ef5f82",
-    "gen/typescript/js/infrastructure-manager/v1/shared/health_pb.js": "sha256:a341e1e5a5593b8faac108ee6c8c08c2cbdff9005cde72270a501fa4c61b8df6"
+    "gen/typescript/infrastructure-manager/v1/shared/health_pb.ts": "sha256:889f341b8214226a2eab9f9a6e2e6d86e1a7c0cd6c1fc636b845d10d89d89aa5"
   }
 }

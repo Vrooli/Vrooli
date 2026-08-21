@@ -9,7 +9,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -32,9 +32,6 @@
     "gen/python/prose_studio/v1/shared/health_pb2.py": "sha256:3c933b386f75b58de603dd4910c65ea441910c5c618d2282e75717bd3dfd8a23",
     "gen/python/prose_studio/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/prose_studio/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/prose-studio/v1/prose/prose_pb.js": "sha256:6bebcf2aa77f5826c95602ceb0ba5f257b680c3f1a972f99101d06f53873bdaa",
-    "gen/typescript/js/prose-studio/v1/shared/errors_pb.js": "sha256:5de57781fffea401494ce5680e9c3a75278f8e8a63f32cd0fae6089cf18fa8c3",
-    "gen/typescript/js/prose-studio/v1/shared/health_pb.js": "sha256:e87d37e82063d6d8f2c6a5b387e71f4cd1a9a8e99b68cb2a43df1e12345cb124",
     "gen/typescript/prose-studio/v1/prose/prose_pb.ts": "sha256:9e2cd28060646214c4461e00862a7f8ab108a0271d776acaa32ea38cd8a62b3b",
     "gen/typescript/prose-studio/v1/shared/errors_pb.ts": "sha256:555d8e926e13da4b97f52186a9a0e5824a604ab5047128b0254c99119c6fa53e",
     "gen/typescript/prose-studio/v1/shared/health_pb.ts": "sha256:8e1934c212786c890e3277e84f8032b92dde2d35105d9ab0e3c406d226169884"

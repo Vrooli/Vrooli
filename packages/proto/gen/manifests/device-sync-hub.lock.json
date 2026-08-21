@@ -12,7 +12,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -55,12 +55,6 @@
     "gen/typescript/device-sync-hub/v1/health/health_pb.ts": "sha256:aac62c0f744ab0146ddd7ce3116442f8b1d6fc866a76a684514079385ec4235b",
     "gen/typescript/device-sync-hub/v1/identity/identity_pb.ts": "sha256:009545fc1b28821e820d28a96f08230e3fd8590c9f2f4b20537e505fe87619d8",
     "gen/typescript/device-sync-hub/v1/realtime/realtime_pb.ts": "sha256:eae9d05ba7e9b28ffaf8d40bcf7b99c46ee36fcdfbb3d13ebac63cda0b51f001",
-    "gen/typescript/device-sync-hub/v1/transfer/transfer_pb.ts": "sha256:4915cfbe7b24f8fafac563094f4e5ea5e3809e66ed07434ad72127797979d235",
-    "gen/typescript/js/device-sync-hub/v1/devices/devices_pb.js": "sha256:c219b24a99ffd8c0fe410445fa7c8b726fcec54101ccd98d0b5a61dda4f60685",
-    "gen/typescript/js/device-sync-hub/v1/errors/errors_pb.js": "sha256:94cc0890b4b3f6f82025242cb13dc125359bf4f74fa97577feee6f52c51df84d",
-    "gen/typescript/js/device-sync-hub/v1/health/health_pb.js": "sha256:0f9bd14373ac6fc8a7ebe09fde135611ed57a773094063edc17f99e51ff60ca1",
-    "gen/typescript/js/device-sync-hub/v1/identity/identity_pb.js": "sha256:0e1bb317dc3b5caee296f5dd9d2b66dfeb48f4d292aa7c1292ba4c3d776bc4f5",
-    "gen/typescript/js/device-sync-hub/v1/realtime/realtime_pb.js": "sha256:82fb0be0bc7a7e5f2ef9a866f2a1a2f471be3c40ae988ae27233f5a8d0407900",
-    "gen/typescript/js/device-sync-hub/v1/transfer/transfer_pb.js": "sha256:576afee2a2ab8a83dad4313fc39e1be3b43ed41d25ea6ff0670c38bef20afad5"
+    "gen/typescript/device-sync-hub/v1/transfer/transfer_pb.ts": "sha256:4915cfbe7b24f8fafac563094f4e5ea5e3809e66ed07434ad72127797979d235"
   }
 }

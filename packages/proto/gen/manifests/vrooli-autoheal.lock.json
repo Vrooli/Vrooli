@@ -11,7 +11,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -47,11 +47,6 @@
     "gen/python/vrooli_autoheal/v1/measures/measures_pb2.pyi": "sha256:a67ab58353ab4b51c0b8006c761114dd24d38659639bf5652800f9a6ecd57eaa",
     "gen/python/vrooli_autoheal/v1/measures/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/vrooli_autoheal/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/vrooli-autoheal/v1/actions/actions_pb.js": "sha256:a5d0de8ae07e182b79b5b9da159ef6425320954b0252aa380cdfb4bd3f44e20f",
-    "gen/typescript/js/vrooli-autoheal/v1/checks/checks_pb.js": "sha256:f7e2475419567f2b72381bb29aef7e1c130280b847e6a4cbd04f1b5918da901b",
-    "gen/typescript/js/vrooli-autoheal/v1/healing/healing_pb.js": "sha256:d14ab1e199f05d6f4b8e3778d4cc393c75e434b7b913393753601ac22b1574a8",
-    "gen/typescript/js/vrooli-autoheal/v1/incidents/incidents_pb.js": "sha256:59b41f5069cec113e466da995dd19c293149be06f993326ef7a97ac1d12ceaf2",
-    "gen/typescript/js/vrooli-autoheal/v1/measures/measures_pb.js": "sha256:16b1f9672fcf2a5d476cd73153834c4b8885e68825850a5923acf1501be6add4",
     "gen/typescript/vrooli-autoheal/v1/actions/actions_pb.ts": "sha256:1fd7ed54962ff81e2eaf42c74cd524a4d1ca7a1b2b3686e1007ccedd01142170",
     "gen/typescript/vrooli-autoheal/v1/checks/checks_pb.ts": "sha256:1510b820efbc71e46bb8c456947283b2efd11e45eecbfce4f17739b3693c1342",
     "gen/typescript/vrooli-autoheal/v1/healing/healing_pb.ts": "sha256:855cc8ac98ec12d2dde94dc8b20e67b0bfb9f7d1cddbf74963b4599a5c05e73a",

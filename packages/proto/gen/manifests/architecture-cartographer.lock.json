@@ -24,7 +24,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -103,18 +103,6 @@
     "gen/typescript/architecture-cartographer/v1/health/health_pb.ts": "sha256:88fd7367d1335f6d069033621be98c2b8001f59c680ebdabe0665aad0759bb3e",
     "gen/typescript/architecture-cartographer/v1/search/search_pb.ts": "sha256:e10f72fddd1e0968079f503b705d0bb84f29fdd5cc1c8d1bbc298078ce5947b8",
     "gen/typescript/architecture-cartographer/v1/shared/shared_pb.ts": "sha256:35a2fbeb2a170ee504ea4ba444e4ae96c4fcf88e8f49f14312c20838b7b0ac7f",
-    "gen/typescript/architecture-cartographer/v1/signals/signals_pb.ts": "sha256:b5aa932588048e639e9200f0ed83dd96e9e5349ec2b27bd2ce53b7df5e2debe8",
-    "gen/typescript/js/architecture-cartographer/v1/analytics/analytics_pb.js": "sha256:3af401b055f03da22c6ddf25aec2202587e37a94d625a485d2997a0dc299f290",
-    "gen/typescript/js/architecture-cartographer/v1/apply/apply_pb.js": "sha256:fe23c71ec6b93d9980dd21086e8b2595c0c7f20da5d870d156429b3c7d1fb59e",
-    "gen/typescript/js/architecture-cartographer/v1/audit/audit_pb.js": "sha256:493e830b381324eee7650bc1f03d579338b3a19b4c69ef59ccd98883172b3d46",
-    "gen/typescript/js/architecture-cartographer/v1/campaign/campaign_pb.js": "sha256:01e14005b8289295cca63a83329a3c3f1a0916f4c1a3d501748037e1fa785ca4",
-    "gen/typescript/js/architecture-cartographer/v1/conflicts/conflicts_pb.js": "sha256:fd9e7fbaaa717ecc3b8f0a5e66e82153f210f9483b024a37a0a2270e8cab15d9",
-    "gen/typescript/js/architecture-cartographer/v1/domains/domains_pb.js": "sha256:12e1488e74c2627785a88518854facbe78fdcf642d546001c0e81eef434f2326",
-    "gen/typescript/js/architecture-cartographer/v1/errors/errors_pb.js": "sha256:b8abb011851f7becc876d380112ce102de444323c2a9cda432e9de06abbeffda",
-    "gen/typescript/js/architecture-cartographer/v1/graph/graph_pb.js": "sha256:61676c3666e81790e62d268e9a540d20b3fd976e357bcfd80a269120ee1b3e4e",
-    "gen/typescript/js/architecture-cartographer/v1/health/health_pb.js": "sha256:0cd5ab04f10c943a2bea392ad367e97661274f5289028f4510e0534283ba844a",
-    "gen/typescript/js/architecture-cartographer/v1/search/search_pb.js": "sha256:e4c9de23c1a4a970e9f37599d270ddca95952876825555bc82bd703625df43cf",
-    "gen/typescript/js/architecture-cartographer/v1/shared/shared_pb.js": "sha256:7ff4be3e22f1c69f1992a6930c49c2303d1c9efd7e2ee3780733b1d82db60911",
-    "gen/typescript/js/architecture-cartographer/v1/signals/signals_pb.js": "sha256:dbdfb1b404a08fda661030ec7dae7a1d118c666b63a22073121bb1c5c096b854"
+    "gen/typescript/architecture-cartographer/v1/signals/signals_pb.ts": "sha256:b5aa932588048e639e9200f0ed83dd96e9e5349ec2b27bd2ce53b7df5e2debe8"
   }
 }

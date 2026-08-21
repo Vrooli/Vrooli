@@ -14,7 +14,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -60,14 +60,6 @@
     "gen/python/notification_hub/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/notification_hub/v1/shared/types_pb2.py": "sha256:e12e0a5fc0eae5a61c2269b95982b0bab202ca15af785c4683bd53af30b96935",
     "gen/python/notification_hub/v1/shared/types_pb2.pyi": "sha256:75da3c76c48a26c3cfa64cfbe8c9973bbeaee3b9cfebf54402fe9b6effc47af2",
-    "gen/typescript/js/notification-hub/v1/conversations/conversations_pb.js": "sha256:0f43fa527ef56327f41e606a7f9ddc257460ae0fc928d1109dce4493b570b9c6",
-    "gen/typescript/js/notification-hub/v1/delivery/delivery_pb.js": "sha256:5306fefa822ba8de1e4549da83c112334a3e8eb3b6c1c3760b971596e2ed0dee",
-    "gen/typescript/js/notification-hub/v1/notifications/notifications_pb.js": "sha256:11d126ecd4bf2aa6aa911985aab085127238b9af36101c5ea0353341d230822f",
-    "gen/typescript/js/notification-hub/v1/recipients/recipients_pb.js": "sha256:93bf5a8f75ef2108750aed5cecb217e48c67451b81f2ecb5e7903afa1f2cde71",
-    "gen/typescript/js/notification-hub/v1/routing/routing_pb.js": "sha256:d224784da8249b4953bc361619e5ba356ad43a9f050d194e476935280e96b1f0",
-    "gen/typescript/js/notification-hub/v1/shared/errors_pb.js": "sha256:63451cb657d38ac2f18e3c0260987882b809a77a7fee547d72f4b9b889fee893",
-    "gen/typescript/js/notification-hub/v1/shared/health_pb.js": "sha256:5f63d2a8ba2d343adc9418de988dbe2dc3d2a3aaf152626f8d8d595ff132ce68",
-    "gen/typescript/js/notification-hub/v1/shared/types_pb.js": "sha256:2dc3b6562a0b5f1d8b242d2dbf8dc88dd5f99c15099cd92b19edb6ce8344ffe8",
     "gen/typescript/notification-hub/v1/conversations/conversations_pb.ts": "sha256:44790b7c0bd7cfecbf79d3eea9e3e52db2e2e14402ecdb27940d8bc92c4abce1",
     "gen/typescript/notification-hub/v1/delivery/delivery_pb.ts": "sha256:d2f6157b800452a9730591b61e829037c18f845282c81269c62ac57af6a014e4",
     "gen/typescript/notification-hub/v1/notifications/notifications_pb.ts": "sha256:952b01dd9f7690c6711171c7406d7d32dab6ae060c0dadef32a7ad8c43fe2826",

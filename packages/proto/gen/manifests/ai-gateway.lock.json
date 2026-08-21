@@ -17,7 +17,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -76,15 +76,6 @@
     "gen/typescript/ai-gateway/v1/routing/routing_pb.ts": "sha256:e42927384d39580da49390e860f87a6cfdc238eab261527f960d924dbc1aeeb1",
     "gen/typescript/ai-gateway/v1/shared/errors_pb.ts": "sha256:c87a5a7e2149035d0c4cd9ddac7f3ca66cb5140ae871cf1cc4babb26a25ec3f1",
     "gen/typescript/ai-gateway/v1/shared/gateway_pb.ts": "sha256:9b0750e97318cb3d0420b1476faf021c463373d5bfb96b98d209d8c88dc56532",
-    "gen/typescript/ai-gateway/v1/shared/health_pb.ts": "sha256:274e0fd77fc45e9f0b471651fe7092101a491a0fa2f68ef90e594d2a9fa6fbc9",
-    "gen/typescript/js/ai-gateway/v1/conformance/conformance_pb.js": "sha256:5b2ea1d39af5372f47148471e3ff7975e2350d61e12cb47174276dacb6aa3ca0",
-    "gen/typescript/js/ai-gateway/v1/gateway/gateway_pb.js": "sha256:d865ec42f03c998e4eea144d5748c731995b868d1dbc0f9fc2d7fd0647e5ee25",
-    "gen/typescript/js/ai-gateway/v1/inference/inference_pb.js": "sha256:7cfc5acd9dfd76ca420513352e804ee185c92b9f76545cf75a0ccb7570a584b1",
-    "gen/typescript/js/ai-gateway/v1/inventory/inventory_pb.js": "sha256:b8554d803ba25b7bc8d2181451f6c29160e957255681615efc85156435c23efb",
-    "gen/typescript/js/ai-gateway/v1/measures/measures_pb.js": "sha256:e32307652d22e93168b90403eea1f0dfb5baf3e18ae9741334d48643b0e76b63",
-    "gen/typescript/js/ai-gateway/v1/routing/routing_pb.js": "sha256:a3d56d9236ae945aea4ad655a5750f28d6e02dbb22eeb5bd4e140aa7ba3b1d93",
-    "gen/typescript/js/ai-gateway/v1/shared/errors_pb.js": "sha256:f66a4560f9eb9ec6cd77fe08930bc008992be39ba9001543c3e75cffc571dcf3",
-    "gen/typescript/js/ai-gateway/v1/shared/gateway_pb.js": "sha256:ca6ba291a3885f822e867c136e172cf3c99c14bc62aa67bc827beebffcbdf2a7",
-    "gen/typescript/js/ai-gateway/v1/shared/health_pb.js": "sha256:c33032ddf0132ee6087a3767873836d9fa998f9cb71bccfd48403a27c07f6d81"
+    "gen/typescript/ai-gateway/v1/shared/health_pb.ts": "sha256:274e0fd77fc45e9f0b471651fe7092101a491a0fa2f68ef90e594d2a9fa6fbc9"
   }
 }

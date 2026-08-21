@@ -10,7 +10,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -42,10 +42,6 @@
     "gen/typescript/cli-health/v1/command/command_pb.ts": "sha256:62ef49fe2763da11cbdb5ef1f67ba7e27cb8378be6e036a50a249b5b4c7aa2fe",
     "gen/typescript/cli-health/v1/errors/errors_pb.ts": "sha256:7672b67cf6058d4c5ba1709e24305376d125bf2740c020c37e2671f249dc1376",
     "gen/typescript/cli-health/v1/health/health_pb.ts": "sha256:9bdb2533304d743ef1242e2aece6604246fb9817b0c51d6355c6d38b89d7525a",
-    "gen/typescript/cli-health/v1/search/search_pb.ts": "sha256:a0cafb30a63db9e42f7788c01fc0e7ea75deddd15e6e8c098a3490af501e9727",
-    "gen/typescript/js/cli-health/v1/command/command_pb.js": "sha256:15cbb2343989fe36e96197ba4ba4a817f832571780e6506b47afdc99d463f937",
-    "gen/typescript/js/cli-health/v1/errors/errors_pb.js": "sha256:1509c41a494e5b442d7ebd5dc629522aefdc44ad191dcc6dc5f28bbaa3d7953d",
-    "gen/typescript/js/cli-health/v1/health/health_pb.js": "sha256:9d79fc27620e5062f69737142cbb17a7099156ae9066eea71eda985ff2b3d44b",
-    "gen/typescript/js/cli-health/v1/search/search_pb.js": "sha256:902ee90271453fd0408d86c47364e54c88268f3c5db1f0774255c595f6b0d30b"
+    "gen/typescript/cli-health/v1/search/search_pb.ts": "sha256:a0cafb30a63db9e42f7788c01fc0e7ea75deddd15e6e8c098a3490af501e9727"
   }
 }

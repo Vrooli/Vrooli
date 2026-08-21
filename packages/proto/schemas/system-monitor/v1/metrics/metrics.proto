@@ -93,10 +93,16 @@ message MetricTimelineSample {
   // GPU usage percentage (if available).
   optional double gpu_usage = 5;
 
+  // Swap usage percentage. Swap is reported separately from memory because a
+  // host can sit at a healthy memory_usage while swap fills, which is exactly
+  // the condition a single memory series cannot show.
+  optional double swap_usage = 11;
+
   MetricValue cpu = 6;
   MetricValue memory = 7;
   MetricValue connections = 8;
   MetricValue gpu = 9;
+  MetricValue swap = 12;
 }
 
 // MetricsTimelineResponse contains a windowed series of metric samples.

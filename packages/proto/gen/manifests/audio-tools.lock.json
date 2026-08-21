@@ -26,7 +26,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -143,25 +143,6 @@
     "gen/typescript/audio-tools/v1/stt/stt_pb.ts": "sha256:57f044dfd273a6628f28bb42f5b8db9508ccf996cacdc1f2a7259da94dc495c8",
     "gen/typescript/audio-tools/v1/summarize/summarize_pb.ts": "sha256:df742d60748654685b82c0191d946362876a95a7483efa43a1c7e3bd2aac3f66",
     "gen/typescript/audio-tools/v1/tts/tts_pb.ts": "sha256:2f5974d1e8c768b2f839d14564b3b639dffd2fa348a5d4a5e0cd4e22cb9e7b04",
-    "gen/typescript/audio-tools/v1/usage/usage_pb.ts": "sha256:24df86aa99b89341d5a746ab288704cecb54d8ea57c8c3419702542bb2e987a3",
-    "gen/typescript/js/audio-tools/v1/audio/audio_pb.js": "sha256:6ca3e04599490ee0fc87f1e04aadeb57a3782c355945ca503f89af3141403656",
-    "gen/typescript/js/audio-tools/v1/auth/auth_pb.js": "sha256:4ee73ecc163e9e0ae2030c388b5710bfad320a53307e4aa7ab9f6b57b897c861",
-    "gen/typescript/js/audio-tools/v1/common/common_pb.js": "sha256:f4b43dd3121934f4e53c1f316100bd7597e61cc6063d9232ac53c8de6c87614c",
-    "gen/typescript/js/audio-tools/v1/corpus/corpus_pb.js": "sha256:a3a5b76e42858464e4a10003f1915bfcad632381ade682c95821663ce857295c",
-    "gen/typescript/js/audio-tools/v1/diagnostics/diagnostics_pb.js": "sha256:9c859ed228b17cc49243bc7435506d4bf1cd0ced85e62d778e4023488885b444",
-    "gen/typescript/js/audio-tools/v1/errors/errors_pb.js": "sha256:13402b97c1dac97134eaeef355d6cc5cd34aff4878127a459f6deb7c60977357",
-    "gen/typescript/js/audio-tools/v1/eval/eval_pb.js": "sha256:4b26b6314fde2abdbde8a369319549fe12391b4b7f51955379e22c2a4caa8f7a",
-    "gen/typescript/js/audio-tools/v1/experiment/experiment_pb.js": "sha256:e43ffd9cb73a5356396fab24e0a7bd29f610a8a09ac2cfa153e7130fe69ef734",
-    "gen/typescript/js/audio-tools/v1/health/health_pb.js": "sha256:c77039f6811fe64025198c6ad97933a9a43c17f536935a165d5df050cf6e14c4",
-    "gen/typescript/js/audio-tools/v1/health_status/health_status_pb.js": "sha256:3e542fc19e11ff274d474b43d437a1ee9358b8fc5bbe0ab01518862e3112c1a8",
-    "gen/typescript/js/audio-tools/v1/provider_lifecycle/provider_lifecycle_pb.js": "sha256:bb2f7331064665fd4e85b3361fd600c95d4115fd57a0d18e9301d15d57c5021a",
-    "gen/typescript/js/audio-tools/v1/session/session_pb.js": "sha256:d82384a87cf8cb9765d5ee3fe039b525e43e82e0a940b64ef55fea4106c2ac64",
-    "gen/typescript/js/audio-tools/v1/settings/settings_pb.js": "sha256:b8e6b931702fc768bd990bf9ccc70f80fd2151c0b27aadc7af22add5c4126ca8",
-    "gen/typescript/js/audio-tools/v1/shared/shared_pb.js": "sha256:b25775bc48b4caca6e2b5b1a8e94e366cf30337852b6f1c5b0d4c1db6cde522c",
-    "gen/typescript/js/audio-tools/v1/stt/stt_admin_pb.js": "sha256:a3e71de9ed01fa021d599e5ebf4b9416445717b49192a2f08b545050168fa614",
-    "gen/typescript/js/audio-tools/v1/stt/stt_pb.js": "sha256:d4ff108a6de58092f085033511c27a27ed93e52e6234846f4a8ec54ea7e94e3e",
-    "gen/typescript/js/audio-tools/v1/summarize/summarize_pb.js": "sha256:b5dd762a58a7e2b534fd1b2aabc515a9e6f5200f9d85fd3b168b60bcd6a648c8",
-    "gen/typescript/js/audio-tools/v1/tts/tts_pb.js": "sha256:51743a8169c594898c35203bc73c80a7cb770093f227ac140e385b15d4a09080",
-    "gen/typescript/js/audio-tools/v1/usage/usage_pb.js": "sha256:876a4562e84c599a2cf63c76e893036c2ac2bb415e2fb4a980dc3501811e6e02"
+    "gen/typescript/audio-tools/v1/usage/usage_pb.ts": "sha256:24df86aa99b89341d5a746ab288704cecb54d8ea57c8c3419702542bb2e987a3"
   }
 }

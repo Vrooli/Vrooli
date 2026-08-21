@@ -14,7 +14,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -70,14 +70,6 @@
     "gen/typescript/flow-verifier/v1/runs/runs_pb.ts": "sha256:0efe29323b21a9ebb54a6980f546413e4dbe95414ee6d301f79b140a501b4fd1",
     "gen/typescript/flow-verifier/v1/scenarios/scenarios_pb.ts": "sha256:5ee1693e154ffacd37d8b1c77ad4a1e174ea59fe90f32bb4b4f78bc0dbbc7ee8",
     "gen/typescript/flow-verifier/v1/settings/settings_pb.ts": "sha256:895a2af7b43c51f9e149afa0875f305c79211b2f8d5de4c829bfda08c85785b7",
-    "gen/typescript/flow-verifier/v1/verifications/verifications_pb.ts": "sha256:2dae4a237d6d3b7188cdabcc2bf1ba6d80582f1cca798d483084e10ce3a80f5e",
-    "gen/typescript/js/flow-verifier/v1/artifacts/artifacts_pb.js": "sha256:47ac366338b23079de6c96ea44aec52a062b5f8908cb167e9ad08561e858728f",
-    "gen/typescript/js/flow-verifier/v1/errors/errors_pb.js": "sha256:bc0e46e5b76ca2e9c96772e4a4876d5044ff4ba1ff13d36e1905df5700c1b6c9",
-    "gen/typescript/js/flow-verifier/v1/flows/flows_pb.js": "sha256:7b21f9a01ae72f4edf373f648dfb5cd296d2159ac95a3d01d326c1005403bcfd",
-    "gen/typescript/js/flow-verifier/v1/health/health_pb.js": "sha256:7158bf90979d2cdb4fc5eddb439060d3695f7fd3d6593c638c4f912de105ec2c",
-    "gen/typescript/js/flow-verifier/v1/runs/runs_pb.js": "sha256:45b422822862c7f6c7de3623d0c22362196a41dbe89d565c9168bcda2c7f3e47",
-    "gen/typescript/js/flow-verifier/v1/scenarios/scenarios_pb.js": "sha256:738d82b4d2b64c45d002980b8e1bb922af677c4e567e699fa9d8692b603eae97",
-    "gen/typescript/js/flow-verifier/v1/settings/settings_pb.js": "sha256:a2235ff1b4b3c671b23d9012a0ef20f3a643b706c6cb9f8be3631b966ce00620",
-    "gen/typescript/js/flow-verifier/v1/verifications/verifications_pb.js": "sha256:94906849a30bcb2d38852e5179f3ea710aeb75c79dd0d80e02802b8cf528d9ac"
+    "gen/typescript/flow-verifier/v1/verifications/verifications_pb.ts": "sha256:2dae4a237d6d3b7188cdabcc2bf1ba6d80582f1cca798d483084e10ce3a80f5e"
   }
 }

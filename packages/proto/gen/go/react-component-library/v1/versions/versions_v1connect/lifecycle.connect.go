@@ -39,6 +39,15 @@ const (
 	// VersionLifecycleServiceListRetireCandidatesProcedure is the fully-qualified name of the
 	// VersionLifecycleService's ListRetireCandidates RPC.
 	VersionLifecycleServiceListRetireCandidatesProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ListRetireCandidates"
+	// VersionLifecycleServicePlanCleanupProcedure is the fully-qualified name of the
+	// VersionLifecycleService's PlanCleanup RPC.
+	VersionLifecycleServicePlanCleanupProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/PlanCleanup"
+	// VersionLifecycleServiceCleanupVersionsProcedure is the fully-qualified name of the
+	// VersionLifecycleService's CleanupVersions RPC.
+	VersionLifecycleServiceCleanupVersionsProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/CleanupVersions"
+	// VersionLifecycleServiceCleanupDraftProcedure is the fully-qualified name of the
+	// VersionLifecycleService's CleanupDraft RPC.
+	VersionLifecycleServiceCleanupDraftProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/CleanupDraft"
 	// VersionLifecycleServiceDeprecateVersionProcedure is the fully-qualified name of the
 	// VersionLifecycleService's DeprecateVersion RPC.
 	VersionLifecycleServiceDeprecateVersionProcedure = "/vrooli.react_component_library.v1.versions.VersionLifecycleService/DeprecateVersion"
@@ -55,6 +64,9 @@ const (
 type VersionLifecycleServiceClient interface {
 	ListVersionLedger(context.Context, *connect.Request[versions.ListVersionLedgerRequest]) (*connect.Response[versions.ListVersionLedgerResponse], error)
 	ListRetireCandidates(context.Context, *connect.Request[versions.ListRetireCandidatesRequest]) (*connect.Response[versions.ListRetireCandidatesResponse], error)
+	PlanCleanup(context.Context, *connect.Request[versions.PlanCleanupRequest]) (*connect.Response[versions.PlanCleanupResponse], error)
+	CleanupVersions(context.Context, *connect.Request[versions.CleanupVersionsRequest]) (*connect.Response[versions.CleanupVersionsResponse], error)
+	CleanupDraft(context.Context, *connect.Request[versions.CleanupDraftRequest]) (*connect.Response[versions.CleanupDraftResponse], error)
 	DeprecateVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
 	ArchiveVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
 	RetireVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
@@ -84,6 +96,24 @@ func NewVersionLifecycleServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithSchema(versionLifecycleServiceMethods.ByName("ListRetireCandidates")),
 			connect.WithClientOptions(opts...),
 		),
+		planCleanup: connect.NewClient[versions.PlanCleanupRequest, versions.PlanCleanupResponse](
+			httpClient,
+			baseURL+VersionLifecycleServicePlanCleanupProcedure,
+			connect.WithSchema(versionLifecycleServiceMethods.ByName("PlanCleanup")),
+			connect.WithClientOptions(opts...),
+		),
+		cleanupVersions: connect.NewClient[versions.CleanupVersionsRequest, versions.CleanupVersionsResponse](
+			httpClient,
+			baseURL+VersionLifecycleServiceCleanupVersionsProcedure,
+			connect.WithSchema(versionLifecycleServiceMethods.ByName("CleanupVersions")),
+			connect.WithClientOptions(opts...),
+		),
+		cleanupDraft: connect.NewClient[versions.CleanupDraftRequest, versions.CleanupDraftResponse](
+			httpClient,
+			baseURL+VersionLifecycleServiceCleanupDraftProcedure,
+			connect.WithSchema(versionLifecycleServiceMethods.ByName("CleanupDraft")),
+			connect.WithClientOptions(opts...),
+		),
 		deprecateVersion: connect.NewClient[versions.VersionLifecycleRequest, versions.VersionLifecycleResponse](
 			httpClient,
 			baseURL+VersionLifecycleServiceDeprecateVersionProcedure,
@@ -109,6 +139,9 @@ func NewVersionLifecycleServiceClient(httpClient connect.HTTPClient, baseURL str
 type versionLifecycleServiceClient struct {
 	listVersionLedger    *connect.Client[versions.ListVersionLedgerRequest, versions.ListVersionLedgerResponse]
 	listRetireCandidates *connect.Client[versions.ListRetireCandidatesRequest, versions.ListRetireCandidatesResponse]
+	planCleanup          *connect.Client[versions.PlanCleanupRequest, versions.PlanCleanupResponse]
+	cleanupVersions      *connect.Client[versions.CleanupVersionsRequest, versions.CleanupVersionsResponse]
+	cleanupDraft         *connect.Client[versions.CleanupDraftRequest, versions.CleanupDraftResponse]
 	deprecateVersion     *connect.Client[versions.VersionLifecycleRequest, versions.VersionLifecycleResponse]
 	archiveVersion       *connect.Client[versions.VersionLifecycleRequest, versions.VersionLifecycleResponse]
 	retireVersion        *connect.Client[versions.VersionLifecycleRequest, versions.VersionLifecycleResponse]
@@ -124,6 +157,23 @@ func (c *versionLifecycleServiceClient) ListVersionLedger(ctx context.Context, r
 // vrooli.react_component_library.v1.versions.VersionLifecycleService.ListRetireCandidates.
 func (c *versionLifecycleServiceClient) ListRetireCandidates(ctx context.Context, req *connect.Request[versions.ListRetireCandidatesRequest]) (*connect.Response[versions.ListRetireCandidatesResponse], error) {
 	return c.listRetireCandidates.CallUnary(ctx, req)
+}
+
+// PlanCleanup calls vrooli.react_component_library.v1.versions.VersionLifecycleService.PlanCleanup.
+func (c *versionLifecycleServiceClient) PlanCleanup(ctx context.Context, req *connect.Request[versions.PlanCleanupRequest]) (*connect.Response[versions.PlanCleanupResponse], error) {
+	return c.planCleanup.CallUnary(ctx, req)
+}
+
+// CleanupVersions calls
+// vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupVersions.
+func (c *versionLifecycleServiceClient) CleanupVersions(ctx context.Context, req *connect.Request[versions.CleanupVersionsRequest]) (*connect.Response[versions.CleanupVersionsResponse], error) {
+	return c.cleanupVersions.CallUnary(ctx, req)
+}
+
+// CleanupDraft calls
+// vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupDraft.
+func (c *versionLifecycleServiceClient) CleanupDraft(ctx context.Context, req *connect.Request[versions.CleanupDraftRequest]) (*connect.Response[versions.CleanupDraftResponse], error) {
+	return c.cleanupDraft.CallUnary(ctx, req)
 }
 
 // DeprecateVersion calls
@@ -149,6 +199,9 @@ func (c *versionLifecycleServiceClient) RetireVersion(ctx context.Context, req *
 type VersionLifecycleServiceHandler interface {
 	ListVersionLedger(context.Context, *connect.Request[versions.ListVersionLedgerRequest]) (*connect.Response[versions.ListVersionLedgerResponse], error)
 	ListRetireCandidates(context.Context, *connect.Request[versions.ListRetireCandidatesRequest]) (*connect.Response[versions.ListRetireCandidatesResponse], error)
+	PlanCleanup(context.Context, *connect.Request[versions.PlanCleanupRequest]) (*connect.Response[versions.PlanCleanupResponse], error)
+	CleanupVersions(context.Context, *connect.Request[versions.CleanupVersionsRequest]) (*connect.Response[versions.CleanupVersionsResponse], error)
+	CleanupDraft(context.Context, *connect.Request[versions.CleanupDraftRequest]) (*connect.Response[versions.CleanupDraftResponse], error)
 	DeprecateVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
 	ArchiveVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
 	RetireVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error)
@@ -171,6 +224,24 @@ func NewVersionLifecycleServiceHandler(svc VersionLifecycleServiceHandler, opts 
 		VersionLifecycleServiceListRetireCandidatesProcedure,
 		svc.ListRetireCandidates,
 		connect.WithSchema(versionLifecycleServiceMethods.ByName("ListRetireCandidates")),
+		connect.WithHandlerOptions(opts...),
+	)
+	versionLifecycleServicePlanCleanupHandler := connect.NewUnaryHandler(
+		VersionLifecycleServicePlanCleanupProcedure,
+		svc.PlanCleanup,
+		connect.WithSchema(versionLifecycleServiceMethods.ByName("PlanCleanup")),
+		connect.WithHandlerOptions(opts...),
+	)
+	versionLifecycleServiceCleanupVersionsHandler := connect.NewUnaryHandler(
+		VersionLifecycleServiceCleanupVersionsProcedure,
+		svc.CleanupVersions,
+		connect.WithSchema(versionLifecycleServiceMethods.ByName("CleanupVersions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	versionLifecycleServiceCleanupDraftHandler := connect.NewUnaryHandler(
+		VersionLifecycleServiceCleanupDraftProcedure,
+		svc.CleanupDraft,
+		connect.WithSchema(versionLifecycleServiceMethods.ByName("CleanupDraft")),
 		connect.WithHandlerOptions(opts...),
 	)
 	versionLifecycleServiceDeprecateVersionHandler := connect.NewUnaryHandler(
@@ -197,6 +268,12 @@ func NewVersionLifecycleServiceHandler(svc VersionLifecycleServiceHandler, opts 
 			versionLifecycleServiceListVersionLedgerHandler.ServeHTTP(w, r)
 		case VersionLifecycleServiceListRetireCandidatesProcedure:
 			versionLifecycleServiceListRetireCandidatesHandler.ServeHTTP(w, r)
+		case VersionLifecycleServicePlanCleanupProcedure:
+			versionLifecycleServicePlanCleanupHandler.ServeHTTP(w, r)
+		case VersionLifecycleServiceCleanupVersionsProcedure:
+			versionLifecycleServiceCleanupVersionsHandler.ServeHTTP(w, r)
+		case VersionLifecycleServiceCleanupDraftProcedure:
+			versionLifecycleServiceCleanupDraftHandler.ServeHTTP(w, r)
 		case VersionLifecycleServiceDeprecateVersionProcedure:
 			versionLifecycleServiceDeprecateVersionHandler.ServeHTTP(w, r)
 		case VersionLifecycleServiceArchiveVersionProcedure:
@@ -218,6 +295,18 @@ func (UnimplementedVersionLifecycleServiceHandler) ListVersionLedger(context.Con
 
 func (UnimplementedVersionLifecycleServiceHandler) ListRetireCandidates(context.Context, *connect.Request[versions.ListRetireCandidatesRequest]) (*connect.Response[versions.ListRetireCandidatesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.ListRetireCandidates is not implemented"))
+}
+
+func (UnimplementedVersionLifecycleServiceHandler) PlanCleanup(context.Context, *connect.Request[versions.PlanCleanupRequest]) (*connect.Response[versions.PlanCleanupResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.PlanCleanup is not implemented"))
+}
+
+func (UnimplementedVersionLifecycleServiceHandler) CleanupVersions(context.Context, *connect.Request[versions.CleanupVersionsRequest]) (*connect.Response[versions.CleanupVersionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupVersions is not implemented"))
+}
+
+func (UnimplementedVersionLifecycleServiceHandler) CleanupDraft(context.Context, *connect.Request[versions.CleanupDraftRequest]) (*connect.Response[versions.CleanupDraftResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupDraft is not implemented"))
 }
 
 func (UnimplementedVersionLifecycleServiceHandler) DeprecateVersion(context.Context, *connect.Request[versions.VersionLifecycleRequest]) (*connect.Response[versions.VersionLifecycleResponse], error) {

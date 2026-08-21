@@ -28,7 +28,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -127,28 +127,6 @@
     "gen/typescript/cli/v1/scenario_status_pb.ts": "sha256:0ef5e069edb3980dc98817b115dad604ff474566e5dddb6d277d0d37f74f0843",
     "gen/typescript/cli/v1/shared_drift_pb.ts": "sha256:ee764b4291184a2f66956fb4d12b1f503d51f65a932e2522bfc22aaa81f68507",
     "gen/typescript/cli/v1/status_pb.ts": "sha256:0f6ed2f200d6d31e8b14a505562d637e366d66efb27d6e163161a89606aee45f",
-    "gen/typescript/cli/v1/volume_remediation_pb.ts": "sha256:cbf9135b3d52d03ca1f66104c7334d67827d7e48e834ba2053116f01b9b17d04",
-    "gen/typescript/js/cli/v1/auth_pb.js": "sha256:ee1503a64a7291e93f40271b1b5fc972707ff9561b0b7a5b4ed3e7ffecd7b431",
-    "gen/typescript/js/cli/v1/common_pb.js": "sha256:acdf18994272affc3bd6a29349df269030371dcf025b13c8d288a577f143c785",
-    "gen/typescript/js/cli/v1/contract_pb.js": "sha256:0d93ae1b54a2abd689556ba6631e1074cd8eb1ea169ae3323298d6c98549a2c2",
-    "gen/typescript/js/cli/v1/host_inventory_pb.js": "sha256:ec5b3817dbc60036158776cd05f19d713369fbf7cb73c29a5b9e96c62e324633",
-    "gen/typescript/js/cli/v1/hygiene_pb.js": "sha256:44455a5f2c12aa48953ba59332035b89028e131447e1ce10000f76199109fbcc",
-    "gen/typescript/js/cli/v1/package_pb.js": "sha256:935e2c6783388a5f5f192a9b6f716fcad61e641598ceb1c5d0e4b2db5fac2987",
-    "gen/typescript/js/cli/v1/plans_pb.js": "sha256:d78a4c2289fe1f14893d68ade0767c2d55677d8fda29f505b51a1aa1edd28a2d",
-    "gen/typescript/js/cli/v1/project_pb.js": "sha256:f8dfaf4e331fb88be5c0c50ab8d1fa984984073afb4139a5befb6ae6721d2a0c",
-    "gen/typescript/js/cli/v1/recovery_pb.js": "sha256:845022fd6dda3aa02957a74cc87b34c379d3fbe02db0ea722bcd41d71202b3f5",
-    "gen/typescript/js/cli/v1/resource_blueprint_pb.js": "sha256:05f912856bbf1d2856142d4057f39204429c19ab6784dae3401378255d388188",
-    "gen/typescript/js/cli/v1/resource_list_pb.js": "sha256:6bb481b0e25f214b18509a00601a785e5f76049a8aecedd9e4f7ffd78c04414b",
-    "gen/typescript/js/cli/v1/resource_reports_pb.js": "sha256:a404f1fb1647e3660f76e8262c7f776b5b12f52f8019f5f166012029dcb47b73",
-    "gen/typescript/js/cli/v1/resource_status_pb.js": "sha256:8980e8cb12fc3b9e82dd61b881817eb257df6ba8562457aadff3074928903ccd",
-    "gen/typescript/js/cli/v1/runtime_pb.js": "sha256:6640d02b8abf566b8a4a088984b8cd9a13a78ce9a20c826b4e3996fdefeb63e4",
-    "gen/typescript/js/cli/v1/scenario_contracts_pb.js": "sha256:b460ecc7f1be18106ecedad68f2afb99a3ffdef46268ad89578c726ccd86ce07",
-    "gen/typescript/js/cli/v1/scenario_control_pb.js": "sha256:a750e8eda323cb35f984638515e09aeedd07f285dd349cd6d48b095a31de85b9",
-    "gen/typescript/js/cli/v1/scenario_freshness_pb.js": "sha256:7dd9e9bad323bd10bb88fdf7999e0e9a470115d6e2a0da871d72b352985bd044",
-    "gen/typescript/js/cli/v1/scenario_list_pb.js": "sha256:6a9cff366953e686ff77b77b1529ffae2c03224e95121d83c4f6bfa9f8b2dfe5",
-    "gen/typescript/js/cli/v1/scenario_status_pb.js": "sha256:67d54e464dbfba9f24b98ab0e6e725f6c944a48e72acd20d12f4367dc81b4729",
-    "gen/typescript/js/cli/v1/shared_drift_pb.js": "sha256:47581a38dc3b0201478c9f101101067d967ac90e39aaf021fe8f1cbd5b548519",
-    "gen/typescript/js/cli/v1/status_pb.js": "sha256:b3436b0b3001bfb8b9c0b2b1a56ef165e151d3680263512661215f0d8b7e0bd9",
-    "gen/typescript/js/cli/v1/volume_remediation_pb.js": "sha256:8833eef1bbfdbf6e3e34f3de35f6efd7b7139956b3176be8e68d8bf8c4e4eb7f"
+    "gen/typescript/cli/v1/volume_remediation_pb.ts": "sha256:cbf9135b3d52d03ca1f66104c7334d67827d7e48e834ba2053116f01b9b17d04"
   }
 }

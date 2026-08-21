@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file react-component-library/v1/versions/lifecycle.proto.
  */
 export const file_react_component_library_v1_versions_lifecycle: GenFile = /*@__PURE__*/
-  fileDesc("CjNyZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS92ZXJzaW9ucy9saWZlY3ljbGUucHJvdG8SKnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucyI+ChhMaXN0VmVyc2lvbkxlZGdlclJlcXVlc3QSEgoKbGlicmFyeV9pZBgBIAEoCRIOCgZ3aW5kb3cYAiABKAki4AIKEFZlcnNpb25MZWRnZXJSb3cSEgoKbGlicmFyeV9pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEhIKCmNyZWF0ZWRfYXQYAyABKAkSEwoLcmVsZWFzZWRfYXQYBCABKAkSEgoKcmV0aXJlZF9hdBgFIAEoCRIXCg9saWZlY3ljbGVfc3RhdGUYBiABKAkSFwoPZ2F0ZV9wYXNzX2NvdW50GAcgASgFEhcKD2dhdGVfZmFpbF9jb3VudBgIIAEoBRIRCgl0ZXN0X3J1bnMYCSABKAUSFgoOdGVzdF9wYXNzX3JhdGUYCiABKAESGAoQYWRvcHRpb25fY3VycmVudBgLIAEoBRIVCg1hZG9wdGlvbl9wZWFrGAwgASgFEhIKCmZpbGVfY291bnQYDSABKAUSFQoNbGluZXNfb2ZfY29kZRgOIAEoBRIYChBkZXBlbmRlbmN5X2NvdW50GA8gASgFImcKGUxpc3RWZXJzaW9uTGVkZ2VyUmVzcG9uc2USSgoEcm93cxgBIAMoCzI8LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5WZXJzaW9uTGVkZ2VyUm93IjMKG0xpc3RSZXRpcmVDYW5kaWRhdGVzUmVxdWVzdBIUCgxjb21wb25lbnRfaWQYASABKAkiXAoPUmV0aXJlQ2FuZGlkYXRlEhQKDGNvbXBvbmVudF9pZBgBIAEoCRISCgpsaWJyYXJ5X2lkGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSDgoGc3RhdHVzGAQgASgJIm8KHExpc3RSZXRpcmVDYW5kaWRhdGVzUmVzcG9uc2USTwoKY2FuZGlkYXRlcxgBIAMoCzI7LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5SZXRpcmVDYW5kaWRhdGUiUQoXVmVyc2lvbkxpZmVjeWNsZVJlcXVlc3QSFAoMY29tcG9uZW50X2lkGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSDwoHY29uZmlybRgDIAEoCCKBAQoYVmVyc2lvbkxpZmVjeWNsZVJlc3BvbnNlEkwKB3ZlcnNpb24YASABKAsyOy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuUmV0aXJlQ2FuZGlkYXRlEhcKD2xpZmVjeWNsZV9zdGF0ZRgCIAEoCTLDBgoXVmVyc2lvbkxpZmVjeWNsZVNlcnZpY2USoAEKEUxpc3RWZXJzaW9uTGVkZ2VyEkQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnZlcnNpb25zLkxpc3RWZXJzaW9uTGVkZ2VyUmVxdWVzdBpFLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5MaXN0VmVyc2lvbkxlZGdlclJlc3BvbnNlEqkBChRMaXN0UmV0aXJlQ2FuZGlkYXRlcxJHLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5MaXN0UmV0aXJlQ2FuZGlkYXRlc1JlcXVlc3QaSC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuTGlzdFJldGlyZUNhbmRpZGF0ZXNSZXNwb25zZRKdAQoQRGVwcmVjYXRlVmVyc2lvbhJDLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5WZXJzaW9uTGlmZWN5Y2xlUmVxdWVzdBpELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5WZXJzaW9uTGlmZWN5Y2xlUmVzcG9uc2USmwEKDkFyY2hpdmVWZXJzaW9uEkMudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnZlcnNpb25zLlZlcnNpb25MaWZlY3ljbGVSZXF1ZXN0GkQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnZlcnNpb25zLlZlcnNpb25MaWZlY3ljbGVSZXNwb25zZRKaAQoNUmV0aXJlVmVyc2lvbhJDLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5WZXJzaW9uTGlmZWN5Y2xlUmVxdWVzdBpELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5WZXJzaW9uTGlmZWN5Y2xlUmVzcG9uc2VCYFpeZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9yZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS92ZXJzaW9uczt2ZXJzaW9uc192MWIGcHJvdG8z");
+  fileDesc("CjNyZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS92ZXJzaW9ucy9saWZlY3ljbGUucHJvdG8SKnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucyI+ChhMaXN0VmVyc2lvbkxlZGdlclJlcXVlc3QSEgoKbGlicmFyeV9pZBgBIAEoCRIOCgZ3aW5kb3cYAiABKAki4AIKEFZlcnNpb25MZWRnZXJSb3cSEgoKbGlicmFyeV9pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEhIKCmNyZWF0ZWRfYXQYAyABKAkSEwoLcmVsZWFzZWRfYXQYBCABKAkSEgoKcmV0aXJlZF9hdBgFIAEoCRIXCg9saWZlY3ljbGVfc3RhdGUYBiABKAkSFwoPZ2F0ZV9wYXNzX2NvdW50GAcgASgFEhcKD2dhdGVfZmFpbF9jb3VudBgIIAEoBRIRCgl0ZXN0X3J1bnMYCSABKAUSFgoOdGVzdF9wYXNzX3JhdGUYCiABKAESGAoQYWRvcHRpb25fY3VycmVudBgLIAEoBRIVCg1hZG9wdGlvbl9wZWFrGAwgASgFEhIKCmZpbGVfY291bnQYDSABKAUSFQoNbGluZXNfb2ZfY29kZRgOIAEoBRIYChBkZXBlbmRlbmN5X2NvdW50GA8gASgFImcKGUxpc3RWZXJzaW9uTGVkZ2VyUmVzcG9uc2USSgoEcm93cxgBIAMoCzI8LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5WZXJzaW9uTGVkZ2VyUm93IjMKG0xpc3RSZXRpcmVDYW5kaWRhdGVzUmVxdWVzdBIUCgxjb21wb25lbnRfaWQYASABKAkiXAoPUmV0aXJlQ2FuZGlkYXRlEhQKDGNvbXBvbmVudF9pZBgBIAEoCRISCgpsaWJyYXJ5X2lkGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSDgoGc3RhdHVzGAQgASgJIm8KHExpc3RSZXRpcmVDYW5kaWRhdGVzUmVzcG9uc2USTwoKY2FuZGlkYXRlcxgBIAMoCzI7LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5SZXRpcmVDYW5kaWRhdGUiUQoXVmVyc2lvbkxpZmVjeWNsZVJlcXVlc3QSFAoMY29tcG9uZW50X2lkGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSDwoHY29uZmlybRgDIAEoCCKBAQoYVmVyc2lvbkxpZmVjeWNsZVJlc3BvbnNlEkwKB3ZlcnNpb24YASABKAsyOy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuUmV0aXJlQ2FuZGlkYXRlEhcKD2xpZmVjeWNsZV9zdGF0ZRgCIAEoCSJRCgxDbGVhbnVwU2NvcGUSFAoMY29tcG9uZW50X2lkGAEgASgJEhIKCmxpYnJhcnlfaWQYAiABKAkSFwoPb2xkZXJfdGhhbl9kYXlzGAMgASgFIsEBCgtDbGVhbnVwSXRlbRJMCgd2ZXJzaW9uGAEgASgLMjsudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnZlcnNpb25zLlJldGlyZUNhbmRpZGF0ZRIQCghlbGlnaWJsZRgCIAEoCBIOCgZyZWFzb24YAyABKAkSFgoOYWRvcHRpb25fY291bnQYBCABKAUSGAoQZGVwZW5kZW5jeV9jb3VudBgFIAEoBRIQCghhZ2VfZGF5cxgGIAEoBSJdChJQbGFuQ2xlYW51cFJlcXVlc3QSRwoFc2NvcGUYASABKAsyOC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuQ2xlYW51cFNjb3BlInAKE1BsYW5DbGVhbnVwUmVzcG9uc2USRgoFaXRlbXMYASADKAsyNy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuQ2xlYW51cEl0ZW0SEQoJcGxhbl9oYXNoGAIgASgJIoUBChZDbGVhbnVwVmVyc2lvbnNSZXF1ZXN0EkcKBXNjb3BlGAEgASgLMjgudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnZlcnNpb25zLkNsZWFudXBTY29wZRIRCglwbGFuX2hhc2gYAiABKAkSDwoHY29uZmlybRgDIAEoCCKcAQoXQ2xlYW51cFZlcnNpb25zUmVzcG9uc2USRgoFaXRlbXMYASADKAsyNy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuQ2xlYW51cEl0ZW0SEQoJcGxhbl9oYXNoGAIgASgJEhUKDXJldGlyZWRfY291bnQYAyABKAUSDwoHYXBwbGllZBgEIAEoCCJVChNDbGVhbnVwRHJhZnRSZXF1ZXN0EhQKDGNvbXBvbmVudF9pZBgBIAEoCRIXCg9vbGRlcl90aGFuX2RheXMYAiABKAUSDwoHY29uZmlybRgDIAEoCCJuChRDbGVhbnVwRHJhZnRSZXNwb25zZRJFCgRpdGVtGAEgASgLMjcudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnZlcnNpb25zLkNsZWFudXBJdGVtEg8KB2FwcGxpZWQYAiABKAgyhQoKF1ZlcnNpb25MaWZlY3ljbGVTZXJ2aWNlEqABChFMaXN0VmVyc2lvbkxlZGdlchJELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5MaXN0VmVyc2lvbkxlZGdlclJlcXVlc3QaRS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuTGlzdFZlcnNpb25MZWRnZXJSZXNwb25zZRKpAQoUTGlzdFJldGlyZUNhbmRpZGF0ZXMSRy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuTGlzdFJldGlyZUNhbmRpZGF0ZXNSZXF1ZXN0GkgudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnZlcnNpb25zLkxpc3RSZXRpcmVDYW5kaWRhdGVzUmVzcG9uc2USjgEKC1BsYW5DbGVhbnVwEj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnZlcnNpb25zLlBsYW5DbGVhbnVwUmVxdWVzdBo/LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5QbGFuQ2xlYW51cFJlc3BvbnNlEpoBCg9DbGVhbnVwVmVyc2lvbnMSQi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuQ2xlYW51cFZlcnNpb25zUmVxdWVzdBpDLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5DbGVhbnVwVmVyc2lvbnNSZXNwb25zZRKRAQoMQ2xlYW51cERyYWZ0Ej8udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLnZlcnNpb25zLkNsZWFudXBEcmFmdFJlcXVlc3QaQC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuQ2xlYW51cERyYWZ0UmVzcG9uc2USnQEKEERlcHJlY2F0ZVZlcnNpb24SQy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuVmVyc2lvbkxpZmVjeWNsZVJlcXVlc3QaRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuVmVyc2lvbkxpZmVjeWNsZVJlc3BvbnNlEpsBCg5BcmNoaXZlVmVyc2lvbhJDLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5WZXJzaW9uTGlmZWN5Y2xlUmVxdWVzdBpELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS52ZXJzaW9ucy5WZXJzaW9uTGlmZWN5Y2xlUmVzcG9uc2USmgEKDVJldGlyZVZlcnNpb24SQy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuVmVyc2lvbkxpZmVjeWNsZVJlcXVlc3QaRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEudmVyc2lvbnMuVmVyc2lvbkxpZmVjeWNsZVJlc3BvbnNlQmBaXmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcmVhY3QtY29tcG9uZW50LWxpYnJhcnkvdjEvdmVyc2lvbnM7dmVyc2lvbnNfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.react_component_library.v1.versions.ListVersionLedgerRequest
@@ -254,6 +254,222 @@ export const VersionLifecycleResponseSchema: GenMessage<VersionLifecycleResponse
   messageDesc(file_react_component_library_v1_versions_lifecycle, 7);
 
 /**
+ * @generated from message vrooli.react_component_library.v1.versions.CleanupScope
+ */
+export type CleanupScope = Message<"vrooli.react_component_library.v1.versions.CleanupScope"> & {
+  /**
+   * @generated from field: string component_id = 1;
+   */
+  componentId: string;
+
+  /**
+   * @generated from field: string library_id = 2;
+   */
+  libraryId: string;
+
+  /**
+   * @generated from field: int32 older_than_days = 3;
+   */
+  olderThanDays: number;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.versions.CleanupScope.
+ * Use `create(CleanupScopeSchema)` to create a new message.
+ */
+export const CleanupScopeSchema: GenMessage<CleanupScope> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_versions_lifecycle, 8);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.versions.CleanupItem
+ */
+export type CleanupItem = Message<"vrooli.react_component_library.v1.versions.CleanupItem"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.versions.RetireCandidate version = 1;
+   */
+  version?: RetireCandidate | undefined;
+
+  /**
+   * @generated from field: bool eligible = 2;
+   */
+  eligible: boolean;
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: int32 adoption_count = 4;
+   */
+  adoptionCount: number;
+
+  /**
+   * @generated from field: int32 dependency_count = 5;
+   */
+  dependencyCount: number;
+
+  /**
+   * @generated from field: int32 age_days = 6;
+   */
+  ageDays: number;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.versions.CleanupItem.
+ * Use `create(CleanupItemSchema)` to create a new message.
+ */
+export const CleanupItemSchema: GenMessage<CleanupItem> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_versions_lifecycle, 9);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.versions.PlanCleanupRequest
+ */
+export type PlanCleanupRequest = Message<"vrooli.react_component_library.v1.versions.PlanCleanupRequest"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.versions.CleanupScope scope = 1;
+   */
+  scope?: CleanupScope | undefined;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.versions.PlanCleanupRequest.
+ * Use `create(PlanCleanupRequestSchema)` to create a new message.
+ */
+export const PlanCleanupRequestSchema: GenMessage<PlanCleanupRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_versions_lifecycle, 10);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.versions.PlanCleanupResponse
+ */
+export type PlanCleanupResponse = Message<"vrooli.react_component_library.v1.versions.PlanCleanupResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.versions.CleanupItem items = 1;
+   */
+  items: CleanupItem[];
+
+  /**
+   * @generated from field: string plan_hash = 2;
+   */
+  planHash: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.versions.PlanCleanupResponse.
+ * Use `create(PlanCleanupResponseSchema)` to create a new message.
+ */
+export const PlanCleanupResponseSchema: GenMessage<PlanCleanupResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_versions_lifecycle, 11);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.versions.CleanupVersionsRequest
+ */
+export type CleanupVersionsRequest = Message<"vrooli.react_component_library.v1.versions.CleanupVersionsRequest"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.versions.CleanupScope scope = 1;
+   */
+  scope?: CleanupScope | undefined;
+
+  /**
+   * @generated from field: string plan_hash = 2;
+   */
+  planHash: string;
+
+  /**
+   * @generated from field: bool confirm = 3;
+   */
+  confirm: boolean;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.versions.CleanupVersionsRequest.
+ * Use `create(CleanupVersionsRequestSchema)` to create a new message.
+ */
+export const CleanupVersionsRequestSchema: GenMessage<CleanupVersionsRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_versions_lifecycle, 12);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.versions.CleanupVersionsResponse
+ */
+export type CleanupVersionsResponse = Message<"vrooli.react_component_library.v1.versions.CleanupVersionsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.versions.CleanupItem items = 1;
+   */
+  items: CleanupItem[];
+
+  /**
+   * @generated from field: string plan_hash = 2;
+   */
+  planHash: string;
+
+  /**
+   * @generated from field: int32 retired_count = 3;
+   */
+  retiredCount: number;
+
+  /**
+   * @generated from field: bool applied = 4;
+   */
+  applied: boolean;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.versions.CleanupVersionsResponse.
+ * Use `create(CleanupVersionsResponseSchema)` to create a new message.
+ */
+export const CleanupVersionsResponseSchema: GenMessage<CleanupVersionsResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_versions_lifecycle, 13);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.versions.CleanupDraftRequest
+ */
+export type CleanupDraftRequest = Message<"vrooli.react_component_library.v1.versions.CleanupDraftRequest"> & {
+  /**
+   * @generated from field: string component_id = 1;
+   */
+  componentId: string;
+
+  /**
+   * @generated from field: int32 older_than_days = 2;
+   */
+  olderThanDays: number;
+
+  /**
+   * @generated from field: bool confirm = 3;
+   */
+  confirm: boolean;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.versions.CleanupDraftRequest.
+ * Use `create(CleanupDraftRequestSchema)` to create a new message.
+ */
+export const CleanupDraftRequestSchema: GenMessage<CleanupDraftRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_versions_lifecycle, 14);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.versions.CleanupDraftResponse
+ */
+export type CleanupDraftResponse = Message<"vrooli.react_component_library.v1.versions.CleanupDraftResponse"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.versions.CleanupItem item = 1;
+   */
+  item?: CleanupItem | undefined;
+
+  /**
+   * @generated from field: bool applied = 2;
+   */
+  applied: boolean;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.versions.CleanupDraftResponse.
+ * Use `create(CleanupDraftResponseSchema)` to create a new message.
+ */
+export const CleanupDraftResponseSchema: GenMessage<CleanupDraftResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_versions_lifecycle, 15);
+
+/**
  * @generated from service vrooli.react_component_library.v1.versions.VersionLifecycleService
  */
 export const VersionLifecycleService: GenService<{
@@ -272,6 +488,30 @@ export const VersionLifecycleService: GenService<{
     methodKind: "unary";
     input: typeof ListRetireCandidatesRequestSchema;
     output: typeof ListRetireCandidatesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.versions.VersionLifecycleService.PlanCleanup
+   */
+  planCleanup: {
+    methodKind: "unary";
+    input: typeof PlanCleanupRequestSchema;
+    output: typeof PlanCleanupResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupVersions
+   */
+  cleanupVersions: {
+    methodKind: "unary";
+    input: typeof CleanupVersionsRequestSchema;
+    output: typeof CleanupVersionsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.versions.VersionLifecycleService.CleanupDraft
+   */
+  cleanupDraft: {
+    methodKind: "unary";
+    input: typeof CleanupDraftRequestSchema;
+    output: typeof CleanupDraftResponseSchema;
   },
   /**
    * @generated from rpc vrooli.react_component_library.v1.versions.VersionLifecycleService.DeprecateVersion

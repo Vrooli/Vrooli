@@ -8,7 +8,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -22,7 +22,6 @@
     "gen/python/architecture/v1/findings_pb2.py": "sha256:186ae34c02af9ebe5167083a25924442c6303adebf3d7a135708963f461d2b51",
     "gen/python/architecture/v1/findings_pb2.pyi": "sha256:d95e80fb6f5fe2be07f45da4a2e9c5d99d94ba72fd11c5616b1585df42ba5b5d",
     "gen/python/architecture/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/architecture/v1/findings_pb.ts": "sha256:8d63f1e1776c5601582533c866e883e84f7baf11ce2fc2dc9f3b1cd6e3da6bdd",
-    "gen/typescript/js/architecture/v1/findings_pb.js": "sha256:4acfa804e24d3e66942dce78b09ee36906ea2e2ac3acd9b2e6316f016015723d"
+    "gen/typescript/architecture/v1/findings_pb.ts": "sha256:8d63f1e1776c5601582533c866e883e84f7baf11ce2fc2dc9f3b1cd6e3da6bdd"
   }
 }

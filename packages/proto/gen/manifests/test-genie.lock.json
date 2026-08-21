@@ -11,7 +11,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -32,8 +32,6 @@
     "gen/python/test_genie/v1/runs/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/test_genie/v1/runs/runs_pb2.py": "sha256:9f39d51ac806e3ed22857203c392a77331e0a7af6e21f5cfb1347dd667ecb342",
     "gen/python/test_genie/v1/runs/runs_pb2.pyi": "sha256:8539d9d00d68f8e9133520b33a630dfa93a5fc3e26b096e031158ddcc2189609",
-    "gen/typescript/js/test-genie/v1/eligibility/eligibility_pb.js": "sha256:c0d7096fd5440cb73557e233127de39b9c3b4941ffa1ba51ed8b4ed1176a616a",
-    "gen/typescript/js/test-genie/v1/runs/runs_pb.js": "sha256:8a42ac9ed9bd66b5e2352f5a37cc825de66fd5a116d0cefe83e54e3347b85918",
     "gen/typescript/test-genie/v1/eligibility/eligibility_pb.ts": "sha256:5b2aefa75504a035a11cca71dc467dab42f82105ff8c78abaeb4304d94d9891a",
     "gen/typescript/test-genie/v1/runs/runs_pb.ts": "sha256:699c965be1a59d0d5236a1af9b1085bf8a1e2f91160a2d335e4047006afa7061"
   }

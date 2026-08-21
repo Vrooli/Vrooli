@@ -10,7 +10,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -25,7 +25,6 @@
     "gen/python/knowledge_observatory/v1/api_pb2.py": "sha256:81528dab1a04a4794be86b955a00b210d7a75456ac74c917e71e3e52724bc3fc",
     "gen/python/knowledge_observatory/v1/api_pb2.pyi": "sha256:1e7693709227c615b7525b7b2ea771db1c8f4953ea7ee2d3197145cf03f94dfb",
     "gen/python/knowledge_observatory/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/knowledge-observatory/v1/api_pb.js": "sha256:e4b300d7b14fc7af23abdcc3b75cb2fe317bf110f3e794be96a03375e7264072",
     "gen/typescript/knowledge-observatory/v1/api_pb.ts": "sha256:eef8928b009b1d0a2a5438e8d44fba7729252de6c4f9536d5b7d3f252ed9311f"
   }
 }

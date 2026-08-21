@@ -16,7 +16,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -54,12 +54,6 @@
     "gen/python/measures_health/v1/validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/measures_health/v1/validation/validation_pb2.py": "sha256:0d3a3ff5dd4e408a42df60007ee130337ddeaf40b305694260c9accd8d2687bf",
     "gen/python/measures_health/v1/validation/validation_pb2.pyi": "sha256:ac97cbee36d8db807ef2bcd04fae09a4fc7c74ca10d3a81845a71618ab1d661b",
-    "gen/typescript/js/measures-health/v1/domain/validation_run_pb.js": "sha256:e78822985f1a852cfc08edf37de6374275e51c63763e199d211511d7f9df435a",
-    "gen/typescript/js/measures-health/v1/errors/errors_pb.js": "sha256:165ea2c25991c75b0e703e948a346fa016d150cf051568f851cfecd2b9889083",
-    "gen/typescript/js/measures-health/v1/health/health_pb.js": "sha256:b9cddf20cf68232ca76c6fa3645db170255122e1a79ed164e16fed802b033c84",
-    "gen/typescript/js/measures-health/v1/measures/measures_pb.js": "sha256:a571ba6fa8722dd390a50cdc17bf90af05cf35287c432eb4d116f65b32a1a47b",
-    "gen/typescript/js/measures-health/v1/search/search_pb.js": "sha256:ec1a0ab00e2f4eba70b42713998c5288b191ae8c9ffc17416a71fb5652de89cc",
-    "gen/typescript/js/measures-health/v1/validation/validation_pb.js": "sha256:ae9e4f24db4352c1f69cdfaf3c105b06068159dcc72a1973ca2f2c1a1625b3ff",
     "gen/typescript/measures-health/v1/domain/validation_run_pb.ts": "sha256:9103699950f8168dfccf65fc9d2066a5aaaab42d02e48c6523d40699d21e4dd9",
     "gen/typescript/measures-health/v1/errors/errors_pb.ts": "sha256:a841d7417cf34c70c2d48f60c626768ac5d3ae044e2d9424f8a5065ac7a12370",
     "gen/typescript/measures-health/v1/health/health_pb.ts": "sha256:79e4b09ce9c6b1d0f4822c0a26f8d882d541efef096809b0ee188d3ccaed0cf0",

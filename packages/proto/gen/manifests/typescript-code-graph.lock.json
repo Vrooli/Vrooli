@@ -11,7 +11,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -39,10 +39,6 @@
     "gen/python/typescript_code_graph/v1/rewrite/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/typescript_code_graph/v1/rewrite/rewrite_pb2.py": "sha256:34abd446abe43ed02af01a6c00d8b840c1f6f5a4894722ba4f33f95d9f9013b6",
     "gen/python/typescript_code_graph/v1/rewrite/rewrite_pb2.pyi": "sha256:0472d7a37158f74eb05429108798cce6cd1fd41747192a1f7ef08ae7c0e47c1e",
-    "gen/typescript/js/typescript-code-graph/v1/errors/errors_pb.js": "sha256:5ceb55b6e5fb5b988fbada74c541573567ec1202b9670fb141050a16c9328209",
-    "gen/typescript/js/typescript-code-graph/v1/graph/graph_pb.js": "sha256:69b4b07d452149aa63e183a1c5075c840ce130b46879d30b1ac6f706f363493d",
-    "gen/typescript/js/typescript-code-graph/v1/health/health_pb.js": "sha256:9b1564fc274970be41a4ee6574070526f9e7000001ae9f665916eee3173e493f",
-    "gen/typescript/js/typescript-code-graph/v1/rewrite/rewrite_pb.js": "sha256:d6058f794e939280c64b01c6e9f02d11cb49da30be613072f732f41661219a87",
     "gen/typescript/typescript-code-graph/v1/errors/errors_pb.ts": "sha256:7a55d3621177d3704bf2d10d30bdf2bcb02fbf67550d1c9db856862f9ed40509",
     "gen/typescript/typescript-code-graph/v1/graph/graph_pb.ts": "sha256:00fd0450980ee0af1be171188cfa37c2be0cf5a06fc1abc1959ace2b3b1512c5",
     "gen/typescript/typescript-code-graph/v1/health/health_pb.ts": "sha256:554eb0c48fe1c7181534865d33ed3f4ad2fbe6df902710c0ce121106704837b8",

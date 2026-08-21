@@ -13,7 +13,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -47,11 +47,6 @@
     "gen/python/web_search/v1/research/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/web_search/v1/research/research_pb2.py": "sha256:2547e18c2d272fb8409f40d3261864b5eddac318c0884589b6f7fb9329d253a5",
     "gen/python/web_search/v1/research/research_pb2.pyi": "sha256:65350c0e1e94a1539934d7fc98a97bf370ddf3e471c147685e085c31965b7351",
-    "gen/typescript/js/web-search/v1/errors/errors_pb.js": "sha256:e9baa05ab2107707ba61c2d8a2958d404ee19eb7066e74e4c30bedb353a95ff5",
-    "gen/typescript/js/web-search/v1/findings/findings_pb.js": "sha256:35a05ec9ff579cb664086328b83faf6edf161c53f7964462b56265227bf27d0d",
-    "gen/typescript/js/web-search/v1/health/health_pb.js": "sha256:034dc6ee9afe157313c8a2af7a2adc3b59b34eab687fc2d82eb98bc84ed49c36",
-    "gen/typescript/js/web-search/v1/livesearch/livesearch_pb.js": "sha256:790c8f52e91654098fbda98856b02a1b189d4dde17ffa034166f4834bd28aa65",
-    "gen/typescript/js/web-search/v1/research/research_pb.js": "sha256:bc1fdc7bf7f5002b7b28451602751e9dfb6f54bf3a9732e28cec9b26aba415a2",
     "gen/typescript/web-search/v1/errors/errors_pb.ts": "sha256:84b2811bdc62ec697b024d7c04706589231acd26dddf974e20780c4ae44c19e4",
     "gen/typescript/web-search/v1/findings/findings_pb.ts": "sha256:a25a73895fef934d6d324554562d03174f801be320e7de8bb2ceb12878b8ae0b",
     "gen/typescript/web-search/v1/health/health_pb.ts": "sha256:83c16e4d8a3bb92cba82ca0536a64b6b8ec07942ad90dbbed34f97abe171994d",

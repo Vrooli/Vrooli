@@ -8,7 +8,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -27,8 +27,6 @@
     "gen/python/api_health/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/api_health/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/typescript/api-health/v1/shared/errors_pb.ts": "sha256:344e93604f03e698b7dcfa59852597fa7bee2563523ab06b1ccad4368aec2577",
-    "gen/typescript/api-health/v1/shared/health_pb.ts": "sha256:87665b2e35e187fc8b10afd3adaf7482215ab4d5c014917e205a7bb4051c9eba",
-    "gen/typescript/js/api-health/v1/shared/errors_pb.js": "sha256:6e8e853fd13187d4837845d01049cd6e60c3204efc69a7018115ab5ba99eab92",
-    "gen/typescript/js/api-health/v1/shared/health_pb.js": "sha256:f72141b66cd7766953695b1482c9870399bf8cbf072af4e65f4d1de418dd054e"
+    "gen/typescript/api-health/v1/shared/health_pb.ts": "sha256:87665b2e35e187fc8b10afd3adaf7482215ab4d5c014917e205a7bb4051c9eba"
   }
 }

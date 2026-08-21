@@ -10,7 +10,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -41,10 +41,6 @@
     "gen/typescript/asset-studio/v1/search/search_pb.ts": "sha256:8fe1d03ccc158737439daab0266c74855b670a56912b84a509887f88ed086fa6",
     "gen/typescript/asset-studio/v1/shared/errors_pb.ts": "sha256:8234edc3df4314860b2fc178b80f2793dffe1f99499d03db5f805ed9f27f880d",
     "gen/typescript/asset-studio/v1/shared/health_pb.ts": "sha256:c153eaa443f56474f36bb73a1fd86969330f0df220b293dd5e48cb42dca19f17",
-    "gen/typescript/asset-studio/v1/studio/studio_pb.ts": "sha256:b13a6f9fe02fef2db7df688647b6c5beb75ee4088efcfa57ccc0cd1875e3d96b",
-    "gen/typescript/js/asset-studio/v1/search/search_pb.js": "sha256:fc7fe87d039e8b226ad9d684a9113e3a86c3e1db63cc6e61de2401754965ad2b",
-    "gen/typescript/js/asset-studio/v1/shared/errors_pb.js": "sha256:1a3c8a3252a264172779cccf6463450575cfcda624279b9654b3e5e906ae2dd6",
-    "gen/typescript/js/asset-studio/v1/shared/health_pb.js": "sha256:5a4cf07ec1c73a315074b4863342b1d736f08c30ad0777f593742099c1f8d074",
-    "gen/typescript/js/asset-studio/v1/studio/studio_pb.js": "sha256:c9d36b136b95835520b2316b7f3960bf46ebfa8e264da9b80977def92f1d518c"
+    "gen/typescript/asset-studio/v1/studio/studio_pb.ts": "sha256:b13a6f9fe02fef2db7df688647b6c5beb75ee4088efcfa57ccc0cd1875e3d96b"
   }
 }

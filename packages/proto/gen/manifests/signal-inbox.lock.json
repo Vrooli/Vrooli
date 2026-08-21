@@ -14,7 +14,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -60,14 +60,6 @@
     "gen/python/signal_inbox/v1/triage/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/signal_inbox/v1/triage/triage_pb2.py": "sha256:3077bc7eb09e71ee0b13823199ec163913d7f79b017bf0d46203256f7aab1ee2",
     "gen/python/signal_inbox/v1/triage/triage_pb2.pyi": "sha256:931eb29a174308fb0ec1d2e47cd3c9d502d16a301233bde0967e1f989dfd6e97",
-    "gen/typescript/js/signal-inbox/v1/categories/categories_pb.js": "sha256:38e651f2e901b4ef02bb56e822bc019792e6339763f6767efc0f5c67ca59dfb4",
-    "gen/typescript/js/signal-inbox/v1/retrieval/retrieval_pb.js": "sha256:ad922b530d14bad62ce814b5d1d09ff1986cbf9e2414068e30c3e87eac64d16f",
-    "gen/typescript/js/signal-inbox/v1/shared/errors_pb.js": "sha256:91d2ff49b4e077d389aa29eb0f4ed75f5d9b886f1081dfcdcbbbf2bf0ff2b965",
-    "gen/typescript/js/signal-inbox/v1/shared/health_pb.js": "sha256:f961831d2b2e2331aeac9d7c25ca7cd9cd0776350ff2990ec358dec253f90064",
-    "gen/typescript/js/signal-inbox/v1/shared/signals_pb.js": "sha256:4f1745278faa176a94fccffef844ff9cf2a99ea8fcb3d94bb30f6abcf8af49b8",
-    "gen/typescript/js/signal-inbox/v1/signals/signals_pb.js": "sha256:05e68f68e35b2c37ac64d53036c32fa102364f624b33e120ce5f767ecf003a42",
-    "gen/typescript/js/signal-inbox/v1/sources/sources_pb.js": "sha256:d3df18fe90bd8e1470f0f9fd7bb32f7d5fb9fbbba7ad5f6710f147929032fbb2",
-    "gen/typescript/js/signal-inbox/v1/triage/triage_pb.js": "sha256:6abd88f7143bad019cc3d6c04240823f63678f257f71527656a545de6dbbce49",
     "gen/typescript/signal-inbox/v1/categories/categories_pb.ts": "sha256:a5945635bfea405fb978d33cb38607fd0e1011ae9e3bda4bf521b6e413191605",
     "gen/typescript/signal-inbox/v1/retrieval/retrieval_pb.ts": "sha256:06c869a8e1acac6977cce7658031e427849de791fe8aff6133ff101d738366c9",
     "gen/typescript/signal-inbox/v1/shared/errors_pb.ts": "sha256:80661856915a0b3ef5bf23a77a82ac7d7644f211700556789d60835d99ef1da9",

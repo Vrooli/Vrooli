@@ -222,6 +222,16 @@ func TestResolveScopeIncludesDependents(t *testing.T) {
 	}
 }
 
+// TestCommonFanOutMatchesExpectedFleetClosure pins the fan-out RULE against the
+// live repository: selecting a schema must select exactly those scenarios whose
+// input closure contains it, no more and no less.
+//
+// It deliberately asserts a relational invariant rather than a scenario count.
+// A count pinned to the fleet's size at authoring time fails every time an
+// unrelated scenario starts or stops importing common, which teaches readers to
+// re-baseline the number instead of investigating — and it would still pass if
+// the fan-out selected the wrong scenarios, so long as it selected the right
+// number of them.
 func TestCommonFanOutMatchesExpectedFleetClosure(t *testing.T) {
 	root := filepath.Clean(filepath.Join("..", "..", ".."))
 	protoRoot := filepath.Join(root, "packages", "proto")
@@ -237,8 +247,48 @@ func TestCommonFanOutMatchesExpectedFleetClosure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(scope) != 27 {
-		t.Fatalf("common fan-out = %d scenarios (%v), want 27", len(scope), scope)
+
+	// Re-derive the expected set from each scenario's input closure. This shares
+	// InputClosure with resolveScope, so it does not police the closure itself —
+	// what it pins is the inversion on top: that scope is exactly the scenarios
+	// whose closure contains the selected schema.
+	commonPrefix := filepath.Join("schemas", "common") + string(filepath.Separator)
+	want := make(map[string]bool)
+	for _, scenario := range all {
+		files, _, closureErr := genmanifest.InputClosure(genmanifest.Options{RepoRoot: root, ProtoRoot: protoRoot}, scenario)
+		if closureErr != nil {
+			t.Fatalf("resolve imports for %s: %v", scenario, closureErr)
+		}
+		for _, file := range files {
+			if strings.HasPrefix(filepath.FromSlash(file), commonPrefix) {
+				want[scenario] = true
+				break
+			}
+		}
+	}
+	// The selected schema is always in its own scope, even if nothing imports it.
+	want["common"] = true
+
+	got := make(map[string]bool, len(scope))
+	for _, scenario := range scope {
+		got[scenario] = true
+	}
+
+	for scenario := range want {
+		if !got[scenario] {
+			t.Errorf("scenario %q imports a common schema but was not selected", scenario)
+		}
+	}
+	for scenario := range got {
+		if !want[scenario] {
+			t.Errorf("scenario %q was selected but imports no common schema", scenario)
+		}
+	}
+
+	// Guard the degenerate pass: an InputClosure that silently returned nothing
+	// would make both loops above vacuous and the fan-out meaningless.
+	if len(scope) < 2 {
+		t.Fatalf("common fan-out = %v; a shared schema must reach more than itself", scope)
 	}
 }
 
@@ -314,7 +364,6 @@ func TestConcurrentGeneratorsKeepPublishedArtifactsReadable(t *testing.T) {
 			for _, rel := range []string{
 				filepath.Join("gen", "go", "demo", "demo.go"),
 				filepath.Join("gen", "typescript", "demo", "demo.ts"),
-				filepath.Join("gen", "typescript", "js", "demo", "demo.js"),
 				filepath.Join("gen", "python", "demo", "demo.py"),
 			} {
 				path := filepath.Join(output, rel)

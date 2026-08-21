@@ -21,7 +21,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -102,18 +102,6 @@
     "gen/typescript/deployment-manager/v1/profiles/profiles_pb.ts": "sha256:110e038c436f928ae7caed235fd4462bcaf7e870ce4850c50d8a61aace636b8b",
     "gen/typescript/deployment-manager/v1/releases/releases_pb.ts": "sha256:424932f993b2be66dcffe212da63da1ee3a018669cc922475d8c023fa2faa223",
     "gen/typescript/deployment-manager/v1/swaps/swaps_pb.ts": "sha256:a50511f800faa61d2bd06473424cda966de27006627256e7a64ca3182f843e49",
-    "gen/typescript/deployment-manager/v1/telemetry/telemetry_pb.ts": "sha256:b1dc151c8684c02c869d4a4a8fe1ff180963bc9af81b25a0c7df2cac60f0ffe8",
-    "gen/typescript/js/deployment-manager/v1/approvals/approvals_pb.js": "sha256:ed681c4849fb9e9022d5805181b88a4b48457632c309480d23f7f090bb372b1f",
-    "gen/typescript/js/deployment-manager/v1/dependencies/dependencies_pb.js": "sha256:9f5f3cc1f270613bb598d05de487d8100e9dd3f05c8ad54043ba11fda721b668",
-    "gen/typescript/js/deployment-manager/v1/deployments/deployments_pb.js": "sha256:fcdbf0f2e3eabea9230b72b5c5c2eb705698651022d94ab2bcf33f64010549e2",
-    "gen/typescript/js/deployment-manager/v1/evidence/evidence_pb.js": "sha256:1e751a2a0350feb0bbf93c0cabbf4a0e74e05a96687480d344cafab6bf2a7bfd",
-    "gen/typescript/js/deployment-manager/v1/fitness/fitness_pb.js": "sha256:aee32120223c17d237c73531279aadac4b5f6486c726987b103ea6217fe5ce93",
-    "gen/typescript/js/deployment-manager/v1/health/health_pb.js": "sha256:d2445af2a36f0e0c3805684c1649179629ac90dd204c8214036f285df193eecf",
-    "gen/typescript/js/deployment-manager/v1/lpbs/lpbs_pb.js": "sha256:8b0e8c190ef8e6abd528503ebfbadfc036699dc8a5d234fd11059449d8113521",
-    "gen/typescript/js/deployment-manager/v1/migration/migration_pb.js": "sha256:970f32b9bc3cc2c3d63568717e82211212eaa06d19bcf1de3732f55926056904",
-    "gen/typescript/js/deployment-manager/v1/profiles/profiles_pb.js": "sha256:a55dd1c9e4240716d199a484a2540548d15c7e0b3b75f2b7e1df7f8c710356dc",
-    "gen/typescript/js/deployment-manager/v1/releases/releases_pb.js": "sha256:3d4fe996223f9ee80f6a5c85f40640f4b39ddbf89111394ff7a5aa5a2b52799e",
-    "gen/typescript/js/deployment-manager/v1/swaps/swaps_pb.js": "sha256:3db86f647dfab500e283d5e109dd1533e4bc76dd2550672b980067f93c3e88d8",
-    "gen/typescript/js/deployment-manager/v1/telemetry/telemetry_pb.js": "sha256:8ecb3fac24a31a09f35530f99d644531aed25ba6da3fefb60233707b47e1bef9"
+    "gen/typescript/deployment-manager/v1/telemetry/telemetry_pb.ts": "sha256:b1dc151c8684c02c869d4a4a8fe1ff180963bc9af81b25a0c7df2cac60f0ffe8"
   }
 }

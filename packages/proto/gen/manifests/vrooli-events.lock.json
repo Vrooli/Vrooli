@@ -10,7 +10,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -35,10 +35,6 @@
     "gen/python/vrooli_events/v1/domain/sse_pb2.py": "sha256:d197b7313922ac270441ae9f7aced916ffd616bad62cf579eedaa9f478fae9c1",
     "gen/python/vrooli_events/v1/domain/sse_pb2.pyi": "sha256:b7d67c5d84c3c4d97d1435c85a5f9b476feb3d8df67df1c3f3422790fd090ede",
     "gen/python/vrooli_events/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/vrooli-events/v1/domain/aggregate_pb.js": "sha256:0290d77482f256827d0f5482977d0fac887334f5388b4d483352d604aba16d32",
-    "gen/typescript/js/vrooli-events/v1/domain/envelope_pb.js": "sha256:f95a85985773cc5a8386f961d692ce226a91482101827a69a9ee3963b2a156bd",
-    "gen/typescript/js/vrooli-events/v1/domain/policy_pb.js": "sha256:3173d859c617bff76af8c45e9cb82694b36342d9dd9628c91b2a8fb8bfbbb96c",
-    "gen/typescript/js/vrooli-events/v1/domain/sse_pb.js": "sha256:165d2361de9c9fe8a8acd999fccec44b49256b11512b436fefb14f307e2b4fee",
     "gen/typescript/vrooli-events/v1/domain/aggregate_pb.ts": "sha256:499cde2b17d722d6f2f18e308d7d41b26bbe8cd2ab2810a249b303f976c9b8ff",
     "gen/typescript/vrooli-events/v1/domain/envelope_pb.ts": "sha256:9b5c6f1a3269b00f95c0a5327a14155b15a82216652f5862845f6fbfca0b119e",
     "gen/typescript/vrooli-events/v1/domain/policy_pb.ts": "sha256:ce7087a209e6080dcae3009d4f7a39fb6578c71e82b518d836820bffb7fa30d8",

@@ -16,12 +16,6 @@ plugins:
     opt:
       - target=ts
       - import_extension=none
-  - local: protoc-gen-es
-    out: gen/typescript/js
-    include_imports: true
-    opt:
-      - target=js
-      - import_extension=js
   - protoc_builtin: python
     out: gen/python
   - protoc_builtin: pyi

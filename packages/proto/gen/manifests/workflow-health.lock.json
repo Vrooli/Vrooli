@@ -9,7 +9,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -32,9 +32,6 @@
     "gen/python/workflow_health/v1/workflows/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/workflow_health/v1/workflows/workflows_pb2.py": "sha256:44c666471d1b2aea1dd90ddd49c3e3276c3b24360b7fca46f653a0e7b8fd1c3c",
     "gen/python/workflow_health/v1/workflows/workflows_pb2.pyi": "sha256:ee29864995a825fbc18677670d002e82a40bc1aa3c043474e64938d352eec194",
-    "gen/typescript/js/workflow-health/v1/shared/errors_pb.js": "sha256:f1e8f15b8e9a8caf6185659e8ec405b03b4795ecc5cbf246e40e9f63f583ce15",
-    "gen/typescript/js/workflow-health/v1/shared/health_pb.js": "sha256:f28e03168c969f8e04a56f0944f240fd49faf28e9dd119902f30c6d4c90eb7af",
-    "gen/typescript/js/workflow-health/v1/workflows/workflows_pb.js": "sha256:4508c423dca6290cdbf1e870a49e4ba446476d65fd7bc6eca6aef7955d6225f5",
     "gen/typescript/workflow-health/v1/shared/errors_pb.ts": "sha256:bf7dd16848c170c5aac622c35a8a82564ec174954c070414810aa540ac1a1471",
     "gen/typescript/workflow-health/v1/shared/health_pb.ts": "sha256:3754365011da6a643ce7873b3ad99ebb0ddb9dc37819e21f6fff7276e6755c6d",
     "gen/typescript/workflow-health/v1/workflows/workflows_pb.ts": "sha256:1e3f6f3494302f6afcc04f2cac60039143b42e689134a49d924713abb35e82d6"

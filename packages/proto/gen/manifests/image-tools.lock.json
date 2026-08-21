@@ -18,7 +18,7 @@
   ],
   "toolchain": {
     "buf": "1.37.0",
-    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -98,18 +98,6 @@
     "gen/typescript/image-tools/v1/ops/ops_pb.ts": "sha256:4485a216030db997b41b73cc6ac65159f88d432a64a2e6e49af30df0ddaba9de",
     "gen/typescript/image-tools/v1/safety/safety_pb.ts": "sha256:5093737d4715299c2047eaa1aab5bcd3f22ab354b460b145d03bb6de635c0f71",
     "gen/typescript/image-tools/v1/selection/selection_pb.ts": "sha256:d75a41c3b8ab6514db5f8282912af4debb9000ba29ab1f53af65a51b371e949c",
-    "gen/typescript/image-tools/v1/shared/errors_pb.ts": "sha256:b8a2e28e0034fc0a2015485ce8f47fb0e07df1d0dc59df64908d0a1f0ec8cf74",
-    "gen/typescript/js/image-tools/v1/adapters/adapters_pb.js": "sha256:0c2bb6c8ab0506203b068cd3bf8d4cb24b92e57df164b5216d24ef3f328dc8c2",
-    "gen/typescript/js/image-tools/v1/ai/ai_pb.js": "sha256:ec83b71920a03ee2ddf954dbb0d6f3fa87575cd9f200c64fbd1b7bcd91a74300",
-    "gen/typescript/js/image-tools/v1/analysis/analysis_pb.js": "sha256:879a2645209955b65c81e470906e0c98a49cfffd660d95840ac3db1dc3ddbd6a",
-    "gen/typescript/js/image-tools/v1/diff/diff_pb.js": "sha256:20093780390b58ff0940bbdf12bbead40cee3ae90f351ce630aa4d151990b55d",
-    "gen/typescript/js/image-tools/v1/health/health_pb.js": "sha256:95261d28a008bfa8b3535ae66c068a1ece04ed7414a3af20f83de9657d33b2aa",
-    "gen/typescript/js/image-tools/v1/jobs/jobs_pb.js": "sha256:4d2ab5ff71efd7ab17dd723b2b55f9c73f14d714cbc3e0b5a4c34b33ebf06173",
-    "gen/typescript/js/image-tools/v1/looks/looks_pb.js": "sha256:86a9f709b0973bef7fbcdf60f10ce43abaad435b4b891a4f4df16eb3c7736d0d",
-    "gen/typescript/js/image-tools/v1/models/models_pb.js": "sha256:37972e19f2514514c83762ce20dcd884da5e3d72b9a14c8b7574278d2f76b894",
-    "gen/typescript/js/image-tools/v1/ops/ops_pb.js": "sha256:248c580c91305154b081dcbaa6a4d96ce71e82c631098919f6240ebcd20577de",
-    "gen/typescript/js/image-tools/v1/safety/safety_pb.js": "sha256:b246cb3b94a3d0a01223552e759c09db0c863bdf4501383d0efde5c18197395d",
-    "gen/typescript/js/image-tools/v1/selection/selection_pb.js": "sha256:6f359c9bf0b640d5475a3e314155f3a10f1f10fcc6e2bbe3b8cc0347a3535978",
-    "gen/typescript/js/image-tools/v1/shared/errors_pb.js": "sha256:d77fe0b1453ebc1d60e32502eb5cae055b25109e540af6c7f0181c6cc2a88e33"
+    "gen/typescript/image-tools/v1/shared/errors_pb.ts": "sha256:b8a2e28e0034fc0a2015485ce8f47fb0e07df1d0dc59df64908d0a1f0ec8cf74"
   }
 }
