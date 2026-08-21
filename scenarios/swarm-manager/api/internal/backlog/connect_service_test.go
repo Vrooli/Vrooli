@@ -7,11 +7,12 @@ import (
 
 	"connectrpc.com/connect"
 
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 	"swarm-manager/internal/attempt"
 	"swarm-manager/internal/attemptstore"
 	"swarm-manager/internal/review"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 )
 
 type recordingReviewEvidenceVerifier struct {

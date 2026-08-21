@@ -64,7 +64,7 @@ Supported context ref types are closed at the API boundary:
 | Type | Purpose |
 |---|---|
 | `backlog_item` | Attach an existing backlog item summary and planning state. |
-| `milestone` | Attach milestone metadata and rollup context. |
+| `goal` | Attach goal metadata and rollup context. |
 | `capture` | Attach a captured note or classified input. |
 | `execution` | Attach an execution-control record. |
 | `agent_activity` | Attach tracked Agent Manager activity. |
@@ -72,8 +72,13 @@ Supported context ref types are closed at the API boundary:
 | `session` | Attach another Agent Session summary for continuity. |
 | `startup_brief` | Attach the kind-specific startup packet used to answer broad first prompts quickly. |
 | `operations_briefing` | Attach the current operations briefing directly for operations drill-downs. |
+| `plan_dependency_cycles` | Attach the current board projection of plan dependency cycles. |
+| `plan_eta` | Attach the current board projection of plan completion time. |
 
-The UI sends refs as `{type, id}` values. The API resolves those refs into
+Historical `operating_mode` context remains readable for old sessions but is
+not allowed by any creatable kind.
+
+The UI sends refs as `{type, ref}` values. The API resolves those refs into
 bounded `AgentSessionContextItem` snapshots before appending the operator
 message and before building the Agent Manager prompt. Agents receive the
 resolved context, not raw UI store records.
@@ -89,7 +94,19 @@ POST /api/v1/agent-sessions/{session_id}/startup-brief
 The resolved brief is attached as `startup_brief/<kind>` by default on start
 unless the request sets `"auto_context_policy": "none"` or supplies an
 equivalent explicit startup context. This is the fast path for broad prompts
-such as current status, existing context inspection, and mode classification.
+such as current status, existing context inspection, and session-kind framing.
+
+The startup brief may also carry a bounded **job slice** selected by the
+starter job ID. Job slices append to the kind brief; they never replace it.
+The registry currently resolves:
+
+- `operations-sweep-staleness`: the authoritative, sorted stale-work set and
+  its keep, refresh, or supersede disposition inputs.
+- `operations-run`: terminal execution fields from the attached execution
+  context.
+
+An unknown job is byte-identical to the kind-only brief. Resolver failure
+leaves the kind brief usable, adds a warning, and never invents job state.
 
 Image attachments are uploaded to the session before the message is sent:
 
@@ -119,6 +136,22 @@ The boundary test between the first and third: *if the change is about how the o
 
 Adding a kind should mean adding a skill mapping, a startup brief, allowed context types, a prompt subject band, allowed proposal kinds, tests, stats expectations, and docs. Do not add an untyped generic chat mode to bypass those contracts.
 
+### Draft re-kinding
+
+A session kind can change only while the session is `draft` and has no run:
+
+```text
+PATCH /api/v1/agent-sessions/{session_id}/kind
+```
+
+The server validates the new kind, re-resolves its skill ID, filters staged
+context with the same closed policy as the composer, and clears a starter job
+that the new kind does not offer. The response names every dropped context ref
+and whether the starter job was cleared so the UI can explain both in plain
+words. Once a session has started, the route returns a typed conflict naming
+the current status and leaves the stored session unchanged. The kind selector
+therefore exists only on draft sessions.
+
 ## Prompt Construction
 
 The initial prompt is assembled in `api/internal/agentsessions/service_prompts.go` from sections registered in `prompt_sections.go`. Reference material is wrapped in one `<context>` block; the operator message stays outside it, so the model can tell material to consult from the job to do.
@@ -130,7 +163,7 @@ Sections are emitted on a strict volatility gradient. Each registered section de
 | `universal` | nothing — byte-identical for every session | `session-doctrine` |
 | `kind` | session kind | `session-kind` |
 | `job` | starter card or proposal target | `starter-job`, `proposal-target` |
-| `volatile` | session and turn | `ledger-wake` or `continuity-fallback`, `session-identity`, `startup-brief`, `attached-context`, `attached-images` |
+| `volatile` | session and turn | `ledger-wake` or `continuity-fallback`, `session-identity`, `startup-brief`, `related-work`, `attached-context`, `attached-images` |
 | `task` | every message; emitted outside `<context>` | `operator-message` |
 
 **Why the order is load-bearing.** A provider caches a prompt prefix up to its first differing byte. If a volatile section moves above a stable one, the prefix collapses to nothing. The defect this replaced emitted `Session ID: sess_…` third, above every instruction, so no two sessions shared more than about forty bytes. Two sessions of one kind now share roughly 94% of the initial prompt. `prompt_structure_test.go` guards the ordering and the shared-prefix floor.
@@ -143,6 +176,25 @@ unavailable Prompt Manager does not block a session: the prompt retains the skil
 explicit read instruction, and the continuity fallback remains visible. This keeps the first turn
 substantive while preserving degraded startup. The cache is byte-stable per kind and is a
 best-effort optimization, not a second skill store; Prompt Manager remains authoritative.
+
+### Related work
+
+For the first message, the server uses the operator's own text as the query to
+the in-process AI search service. It emits a bounded `related-work` section
+below the startup brief and above other attached context. Hits retain service
+ranking, stable identity, title, and a bounded one-line summary.
+
+The two degraded states are deliberately different:
+
+- `status="empty"`: retrieval ran and found no entry above the relevance
+  threshold.
+- `status="unavailable"`: retrieval could not run; the prompt explicitly says
+  not to infer that no related work exists.
+
+Related-work retrieval is optional orientation. Its outage never blocks
+session start and never masquerades as a successful empty result. The inlined
+session skills consume this section instead of telling the agent to launch a
+second search process.
 
 ### Prompt Preview
 
@@ -178,7 +230,7 @@ Sessions run on `swarm-manager/session` (`.vrooli/agent-manager/session.json`), 
 Two deliberate differences from the shared `swarm-manager/default` execute profile:
 
 - **Web research is granted.** A conversation whose job is helping decide what to build must be able to look outside the repository.
-- **`write` and `edit` are withheld**, so propose-never-apply is narrowed by capability rather than resting on instruction alone. This is a narrowing, not a hard boundary: `shell` is required for the `swarm-manager`, `prompt-manager`, and `search-hub` CLIs, and a shell can write files. A true propose-only boundary needs shell command restriction, which is a separate design question.
+- **`write` and `edit` are withheld**, so propose-never-apply is narrowed by capability rather than resting on instruction alone. This is a narrowing, not a hard boundary: `shell` is required for the `swarm-manager`, `prompt-manager`, and `source-ledger` CLIs, and a shell can write files. A true propose-only boundary needs shell command restriction, which is a separate design question.
 
 The key is read from `SWARM_MANAGER_SESSION_PROFILE_KEY` rather than the shared `AGENT_MANAGER_PROFILE_KEY`, so overriding the execute profile cannot silently re-grant write access to every conversation.
 
@@ -247,6 +299,14 @@ Supported proposal kinds:
 
 Proposal apply never lets a session agent directly mutate project-management files from the chat flow. The session can propose; Swarm Manager applies. Proposal kinds and apply behavior are server-owned; response clients must render an unfamiliar future kind generically instead of rejecting the complete session response.
 
+Every terminal proposal decision also appends one `session-resolution` entry
+to Source Ledger in the scope owned by the session kind. Applied proposals,
+explicit rejections, and accepted `no_change_recommendation` outcomes record
+the session, proposal identity, proposal kind, decision, and rationale. A
+repeated apply conflicts before a second write. Source Ledger is optional: a
+write failure is logged for operators but does not turn an already completed
+domain decision into a failed apply.
+
 ## Artifacts
 
 Artifacts are first-class session handoff records. They connect a session to
@@ -278,7 +338,7 @@ The graph bottom action launcher owns session creation:
 - Quick Capture opens the existing one-shot capture panel.
 - Plan Work With Agent creates a `meta_orchestration` session.
 - Manage Swarm creates a `swarm_operations` session.
-- Author Workflow creates a `workflow_authoring` session.
+- Improve the System creates a `workflow_authoring` session.
 
 All agent-session launchers create a draft and route to the session detail surface immediately. They do not send canned bootstrap prompts. The composer placeholder is kind-specific, and the first submitted message starts the run.
 
@@ -315,9 +375,9 @@ Sessions are stored in the scenario data root, never below the scenario source r
 ```
 
 `session.json` is the indexable snapshot and `messages.jsonl` is the
-conversation transcript. Session artifact views are projected from the
-canonical evidence ledger. Historical `artifacts.jsonl` files are import-only
-migration input and are not part of the active storage contract.
+conversation transcript. `artifacts.jsonl` is the active store for non-receipt
+review artifacts and powers session and entity artifact views. Vrooli Events
+receipts remain the separate canonical operation-evidence stream.
 
 On first startup after this storage migration, the API copies any legacy
 `scenarios/swarm-manager/agent-sessions/` tree into the data root without

@@ -56,6 +56,13 @@ migration evidence is kept under
 
 ## Work ladder
 
+### 2026-08-19 session recall and resolution plan
+
+- Rung: W3 (implementation)
+- Evidence: Goal `swarm-manager-quality-gates` requires first-class meta-orchestration sessions, and `OT-P1-004` requires conversational agent sessions; the proposed query-conditioned recall, job-scoped briefs, durable terminal resolutions, draft re-kinding, doctrine calibration, and token-contract adoption support that contract without contradicting another named Swarm Manager goal or the session architecture decisions. `business-health validate scenario swarm-manager` and `vrooli scenario requirements validate swarm-manager` both pass.
+- Blocker: The implementation described by `swarm-manager-sessions-query-conditioned-recall-job-scoped` remains to be completed and validated.
+- Measured: 2026-08-19
+
 - Rung: W0 (goal/problem contract comparison)
 - Evidence: Search found multiple swarm-manager goals, but none directly represents the user-supplied audio-tools reliability plan. Swarm-manager is in scope only for the thin shared-package adapter and focused validation evidence.
 - Constraint: Broad pre-existing swarm-manager health findings remain separate from the audio capture contract.

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "performance-health",
-  "input_digest": "sha256:e04438869f09e4370f3bd1cd91d2d6214d50a5a7bfcd6842abb23e0907b798b4",
+  "input_digest": "sha256:0ed04e2a848349c7aa053cd367a6e401238e4ff8ab2f71867035f2dcd3ec05f7",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/metrics.proto",
@@ -31,7 +31,7 @@
     }
   },
   "outputs": {
-    "gen/go/performance-health/v1/analysis/analysis.pb.go": "sha256:91ef5204c276a5bab7b89da5016048d8bee814959bc72f0a849b972eb7402f24",
+    "gen/go/performance-health/v1/analysis/analysis.pb.go": "sha256:46214d6ba142b12a621ad4e23b42bffcbba48cd2999fd7f0b422bba301abb454",
     "gen/go/performance-health/v1/analysis/analysis_v1connect/analysis.connect.go": "sha256:c70d7cf17c81b87fff40fea3a8359ccb3f380860d997fa3bf2afe8481924762b",
     "gen/go/performance-health/v1/audit/audit.pb.go": "sha256:345ae6cb05dd5ff1da3e61b6563798eeb6a153f8d7c12e6ce09c54fb4a26dd8a",
     "gen/go/performance-health/v1/audit/audit_v1connect/audit.connect.go": "sha256:943af69828e68e23aa742dde33dc56cc78cb8ac98242bb69b430e9f9263dafad",
@@ -54,8 +54,8 @@
     "gen/go/performance-health/v1/trend/trend.pb.go": "sha256:7b4d880b78069dfb89b3c1f500c1046150bfa9ffd3806b42109d3bcf1298bd7d",
     "gen/go/performance-health/v1/trend/trend_v1connect/trend.connect.go": "sha256:a471b628de7310957769156ecfa32be2d2914da04ae421c383cc129c757de88b",
     "gen/python/performance_health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/performance_health/v1/analysis/analysis_pb2.py": "sha256:c5671b19dd062a97bbe504dc4763fc32562f96f0f9da66c7b65066d819e9db25",
-    "gen/python/performance_health/v1/analysis/analysis_pb2.pyi": "sha256:f5d1f32270cd5a464fb82585bb8dce296d84c5f4459b6e335c059941a025c1cb",
+    "gen/python/performance_health/v1/analysis/analysis_pb2.py": "sha256:0f671a6efee63c6b1e1ed3f079eac035867458ceba275dcb5a0d8a2b828ba4bc",
+    "gen/python/performance_health/v1/analysis/analysis_pb2.pyi": "sha256:63128a82642a5faccc2f56d3b1acb765da50bc8bcbb31abb0c66494b0c332875",
     "gen/python/performance_health/v1/analysis/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/performance_health/v1/audit/audit_pb2.py": "sha256:2d78af11e12baf6f40e580107bed084b3fa224e8c49437663d083ea0d33eafe4",
     "gen/python/performance_health/v1/audit/audit_pb2.pyi": "sha256:9902da44abb18089c22ed9001415931c6fe13b99a32cc77c9a14702219c184cc",
@@ -90,7 +90,7 @@
     "gen/python/performance_health/v1/trend/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/performance_health/v1/trend/trend_pb2.py": "sha256:2494b8ec10b0242dd7bab42dfbaf2b8b632561b880526d0889015f411baed572",
     "gen/python/performance_health/v1/trend/trend_pb2.pyi": "sha256:06fe578481f78a7bbdb738002364836a14200635a80a3c5f21afb65a56b9cad4",
-    "gen/typescript/js/performance-health/v1/analysis/analysis_pb.js": "sha256:b58630e119eea65dec44ea86c2c36e2238662d42cf31125fc966515afbfc23a0",
+    "gen/typescript/js/performance-health/v1/analysis/analysis_pb.js": "sha256:a8a3a63b207c2ca70ec9eb4da1a1dce8a26de20c60d813c6f1707d3aed276610",
     "gen/typescript/js/performance-health/v1/audit/audit_pb.js": "sha256:33f30bf92497d996cdfd902b2f512762ae5e971072fb0e1b68a88834790fd7a8",
     "gen/typescript/js/performance-health/v1/benchmark/benchmark_pb.js": "sha256:0d1a1d33b7e0bea858987ed01d36052a09ba2757c2dab7f42acc237570991790",
     "gen/typescript/js/performance-health/v1/budgets/budgets_pb.js": "sha256:19de42cb21ec4fbe8a068c93e3a9fb88cee64c3317c327e43523e26cafe9af72",
@@ -102,7 +102,7 @@
     "gen/typescript/js/performance-health/v1/startup/startup_pb.js": "sha256:6c90494ae046741562a8348cfd34974680eb671b48e954e9c75833848e658c9a",
     "gen/typescript/js/performance-health/v1/sweep/sweep_pb.js": "sha256:010d5402169181f99a4ee2a5edaf7fe51a32d3d7ba9186408d9cfe881659151d",
     "gen/typescript/js/performance-health/v1/trend/trend_pb.js": "sha256:bb90ab841550d281e2885e3e443c300b517101aa9e137b992fb6babd8b28b461",
-    "gen/typescript/performance-health/v1/analysis/analysis_pb.ts": "sha256:a097b47df1f5a48f7096dd22ca0b1213f0a7027e012ae6207b11202057fc3fde",
+    "gen/typescript/performance-health/v1/analysis/analysis_pb.ts": "sha256:5627a5619e752d2c32f8fb613db91b15a93c0073afca341684d8aad1fbfb1585",
     "gen/typescript/performance-health/v1/audit/audit_pb.ts": "sha256:09f19e1faef616410dc8d51cef06de3463d352007bde65bc1a464a55ef2cfefd",
     "gen/typescript/performance-health/v1/benchmark/benchmark_pb.ts": "sha256:6785d42a3c7e24d7d2b321d33656fb37d789d27855f50e601ebfcc7a1105f802",
     "gen/typescript/performance-health/v1/budgets/budgets_pb.ts": "sha256:0ecbd8a6629ed2a606a5edf4c4b11cb5ad5c39438760bd3ecd072df845614a81",

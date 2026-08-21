@@ -2,6 +2,8 @@ import { create } from "zustand";
 import {
   agentSessionService,
   type CreateAgentSessionArgs,
+	type ChangeAgentSessionKindArgs,
+	type ChangeAgentSessionKindResult,
   type ContinueAgentSessionArgs,
   type IAgentSessionService,
   type ListAgentSessionEventsArgs,
@@ -46,6 +48,7 @@ interface AgentSessionStoreState {
   loadSession: (sessionId: string) => Promise<AgentSession>;
   loadStartupBrief: (sessionId: string, refresh?: boolean) => Promise<AgentSessionContextItem>;
   createSession: (args: CreateAgentSessionArgs) => Promise<AgentSession>;
+	changeSessionKind: (args: ChangeAgentSessionKindArgs) => Promise<ChangeAgentSessionKindResult>;
   startSession: (args: ContinueAgentSessionArgs) => Promise<AgentSession>;
   continueSession: (args: ContinueAgentSessionArgs) => Promise<AgentSession>;
   uploadSessionAttachments: (sessionId: string, files: File[]) => Promise<AgentSessionAttachment[]>;
@@ -156,6 +159,18 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
       throw error;
     }
   },
+
+	changeSessionKind: async (args): Promise<ChangeAgentSessionKindResult> => {
+		set({ isMutating: true, error: null });
+		try {
+			const result = await service.changeKind(args);
+			set((state) => ({ sessions: upsertSession(state.sessions, result.session), isMutating: false }));
+			return result;
+		} catch (error) {
+			set({ error: error instanceof Error ? error : new Error("Unable to change session kind."), isMutating: false });
+			throw error;
+		}
+	},
 
   startSession: async (args): Promise<AgentSession> => {
     set({ isMutating: true, error: null });

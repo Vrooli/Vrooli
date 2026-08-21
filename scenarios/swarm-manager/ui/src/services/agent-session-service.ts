@@ -10,12 +10,14 @@ import type {
   AgentSessionContextItem,
   AgentSessionContextRef,
   AgentSessionKind,
+	CreatableAgentSessionKind,
   AgentSessionRunEvent,
   AgentSessionStatus,
 } from "../types";
 import {
   applyAgentSessionProposalResponseSchema,
   cancelAgentSessionResponseSchema,
+	changeAgentSessionKindResponseSchema,
   continueAgentSessionResponseSchema,
   createAgentSessionResponseSchema,
   deleteAgentSessionResponseSchema,
@@ -60,6 +62,18 @@ export interface ContinueAgentSessionArgs {
   starterJobId?: string;
 }
 
+export interface ChangeAgentSessionKindArgs {
+	sessionId: string;
+	kind: CreatableAgentSessionKind;
+	contextRefs: AgentSessionContextRef[];
+}
+
+export interface ChangeAgentSessionKindResult {
+	session: AgentSession;
+	droppedContextRefs: AgentSessionContextRef[];
+	starterJobCleared: boolean;
+}
+
 export interface ApplyAgentSessionProposalResult {
   session: AgentSession;
   artifacts: AgentSessionArtifact[];
@@ -99,6 +113,7 @@ export interface IAgentSessionService {
   getStartupBrief(sessionId: string, refresh?: boolean): Promise<AgentSessionContextItem>;
   previewPrompt(args: PreviewSessionPromptArgs): Promise<SessionPromptPreview>;
   create(args: CreateAgentSessionArgs): Promise<AgentSession>;
+	changeKind(args: ChangeAgentSessionKindArgs): Promise<ChangeAgentSessionKindResult>;
   start(args: ContinueAgentSessionArgs): Promise<AgentSession>;
   continue(args: ContinueAgentSessionArgs): Promise<AgentSession>;
   uploadAttachments(sessionId: string, files: File[]): Promise<AgentSessionAttachment[]>;
@@ -170,6 +185,20 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
       const parsed = parseProtoResponse(createAgentSessionResponseSchema, data, "agent session create");
       return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));
     },
+
+	async changeKind(args: ChangeAgentSessionKindArgs): Promise<ChangeAgentSessionKindResult> {
+		const data = await apiClient.patch<unknown>(API_ENDPOINTS.agentSessionKind(args.sessionId), {
+			session_id: args.sessionId,
+			kind: args.kind,
+			context_refs: args.contextRefs,
+		});
+		const parsed = parseProtoResponse(changeAgentSessionKindResponseSchema, data, "agent session kind change");
+		return {
+			session: mapProtoAgentSession(requireProtoField(parsed.session, "agent session")),
+			droppedContextRefs: parsed.droppedContextRefs.map((ref) => ({ type: ref.type as AgentSessionContextRef["type"], ref: ref.ref })),
+			starterJobCleared: parsed.starterJobCleared,
+		};
+	},
 
     async start(args: ContinueAgentSessionArgs): Promise<AgentSession> {
       const body: Record<string, unknown> = {

@@ -86,10 +86,13 @@ type AnalyzeTraceResponse struct {
 	FcpMs int64 `protobuf:"varint,5,opt,name=fcp_ms,json=fcpMs,proto3" json:"fcp_ms,omitempty"`
 	// Deterministic, located findings (component → file:line + quantified
 	// evidence).
-	Findings      []*PerfFinding  `protobuf:"bytes,6,rep,name=findings,proto3" json:"findings,omitempty"`
-	FrameSummary  *FrameSummary   `protobuf:"bytes,7,opt,name=frame_summary,json=frameSummary,proto3" json:"frame_summary,omitempty"`
-	BrowserWork   []*EventSummary `protobuf:"bytes,8,rep,name=browser_work,json=browserWork,proto3" json:"browser_work,omitempty"`
-	InputEvents   []*EventSummary `protobuf:"bytes,9,rep,name=input_events,json=inputEvents,proto3" json:"input_events,omitempty"`
+	Findings     []*PerfFinding  `protobuf:"bytes,6,rep,name=findings,proto3" json:"findings,omitempty"`
+	FrameSummary *FrameSummary   `protobuf:"bytes,7,opt,name=frame_summary,json=frameSummary,proto3" json:"frame_summary,omitempty"`
+	BrowserWork  []*EventSummary `protobuf:"bytes,8,rep,name=browser_work,json=browserWork,proto3" json:"browser_work,omitempty"`
+	InputEvents  []*EventSummary `protobuf:"bytes,9,rep,name=input_events,json=inputEvents,proto3" json:"input_events,omitempty"`
+	// Cumulative Layout Shift. Unitless (not milliseconds), so it is a double
+	// rather than one of the int64 timing fields above.
+	Cls           float64 `protobuf:"fixed64,10,opt,name=cls,proto3" json:"cls,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -185,6 +188,13 @@ func (x *AnalyzeTraceResponse) GetInputEvents() []*EventSummary {
 		return x.InputEvents
 	}
 	return nil
+}
+
+func (x *AnalyzeTraceResponse) GetCls() float64 {
+	if x != nil {
+		return x.Cls
+	}
+	return 0
 }
 
 // ComponentTiming is one React component's commit profile across the trace.
@@ -1018,7 +1028,7 @@ const file_performance_health_v1_analysis_analysis_proto_rawDesc = "" +
 	"-performance-health/v1/analysis/analysis.proto\x12%vrooli.performance_health.v1.analysis\"X\n" +
 	"\x13AnalyzeTraceRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
-	"\x0etrace_artifact\x18\x02 \x01(\tR\rtraceArtifact\"\xb4\x04\n" +
+	"\x0etrace_artifact\x18\x02 \x01(\tR\rtraceArtifact\"\xc6\x04\n" +
 	"\x14AnalyzeTraceResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12V\n" +
 	"\n" +
@@ -1031,7 +1041,9 @@ const file_performance_health_v1_analysis_analysis_proto_rawDesc = "" +
 	"\bfindings\x18\x06 \x03(\v22.vrooli.performance_health.v1.analysis.PerfFindingR\bfindings\x12X\n" +
 	"\rframe_summary\x18\a \x01(\v23.vrooli.performance_health.v1.analysis.FrameSummaryR\fframeSummary\x12V\n" +
 	"\fbrowser_work\x18\b \x03(\v23.vrooli.performance_health.v1.analysis.EventSummaryR\vbrowserWork\x12V\n" +
-	"\finput_events\x18\t \x03(\v23.vrooli.performance_health.v1.analysis.EventSummaryR\vinputEvents\"\xa0\x01\n" +
+	"\finput_events\x18\t \x03(\v23.vrooli.performance_health.v1.analysis.EventSummaryR\vinputEvents\x12\x10\n" +
+	"\x03cls\x18\n" +
+	" \x01(\x01R\x03cls\"\xa0\x01\n" +
 	"\x0fComponentTiming\x12\x1c\n" +
 	"\tcomponent\x18\x01 \x01(\tR\tcomponent\x12!\n" +
 	"\fcommit_count\x18\x02 \x01(\x05R\vcommitCount\x12\x15\n" +

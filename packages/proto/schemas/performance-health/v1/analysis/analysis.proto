@@ -50,6 +50,9 @@ message AnalyzeTraceResponse {
   FrameSummary frame_summary = 7;
   repeated EventSummary browser_work = 8;
   repeated EventSummary input_events = 9;
+  // Cumulative Layout Shift. Unitless (not milliseconds), so it is a double
+  // rather than one of the int64 timing fields above.
+  double cls = 10;
 }
 
 // ComponentTiming is one React component's commit profile across the trace.

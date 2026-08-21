@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"path/filepath"
 	"runtime"
 	"testing"
 
-	aisearch "github.com/vrooli/ai-go/search"
+	"swarm-manager/internal/aisearch"
+
+	aisearchfile "github.com/vrooli/ai-go/search"
 	searchregister "github.com/vrooli/searchregister-go"
 )
 
@@ -31,7 +35,7 @@ func searchJSONForTest(t *testing.T) string {
 // lesson (trigger→title, approach→snippet), not just an id — the whole point of
 // federating against /records/search instead of the thin /search/ai endpoint.
 func TestSearchJSONMapsToValidDescriptor(t *testing.T) {
-	file, err := aisearch.LoadSearchFile(searchJSONForTest(t))
+	file, err := aisearchfile.LoadSearchFile(searchJSONForTest(t))
 	if err != nil {
 		t.Fatalf("load .vrooli/search.json: %v", err)
 	}
@@ -47,7 +51,7 @@ func TestSearchJSONMapsToValidDescriptor(t *testing.T) {
 		t.Fatalf("want 2 descriptors, got %d", len(descriptors))
 	}
 
-	var d = descriptors[0]
+	d := descriptors[0]
 	for _, candidate := range descriptors {
 		if candidate.GetProviderId() == "swarm-manager.records" {
 			d = candidate
@@ -85,5 +89,74 @@ func TestSearchJSONMapsToValidDescriptor(t *testing.T) {
 	}
 	if got := m.GetScoreScale().String(); got != "SCORE_SCALE_COSINE_0_1" {
 		t.Errorf("score_scale = %q, want SCORE_SCALE_COSINE_0_1", got)
+	}
+}
+
+type fakeAgentSessionAISearch struct {
+	available bool
+	responses map[aisearch.EntityType]*aisearch.AISearchResponse
+	err       error
+	requests  []aisearch.AISearchRequest
+}
+
+func (f *fakeAgentSessionAISearch) Available(context.Context) bool { return f.available }
+
+func (f *fakeAgentSessionAISearch) Search(_ context.Context, req aisearch.AISearchRequest) (*aisearch.AISearchResponse, error) {
+	f.requests = append(f.requests, req)
+	if f.err != nil {
+		return nil, f.err
+	}
+	if response := f.responses[req.Entity]; response != nil {
+		return response, nil
+	}
+	return &aisearch.AISearchResponse{Results: []aisearch.AISearchResult{}, Entity: req.Entity}, nil
+}
+
+func TestAgentSessionRelatedWorkSearcherMergesRanksAndDeduplicates(t *testing.T) {
+	fake := &fakeAgentSessionAISearch{available: true, responses: map[aisearch.EntityType]*aisearch.AISearchResponse{
+		aisearch.EntityBoth: {
+			Fallback: aisearch.FallbackNone,
+			Results: []aisearch.AISearchResult{
+				{Entity: aisearch.EntityGoal, ID: "goal-a", Score: 0.72, Payload: map[string]interface{}{"name": "goal-a", "title": "Goal A", "status": "active", "priority": float64(4)}},
+				{Entity: aisearch.EntityRecord, ID: "point-1", Score: 0.81, Payload: map[string]interface{}{"record_id": "rec-1", "title": "Prior fix", "kind": "fix", "scenario": "audio-tools"}},
+			},
+		},
+		aisearch.EntityRecord: {
+			Fallback: aisearch.FallbackNone,
+			Results: []aisearch.AISearchResult{
+				{Entity: aisearch.EntityRecord, ID: "point-1", Score: 0.91, Payload: map[string]interface{}{"record_id": "rec-1", "title": "Prior fix", "kind": "fix", "scenario": "audio-tools"}},
+			},
+		},
+	}}
+
+	entries, err := (agentSessionRelatedWorkSearcher{search: fake}).SearchRelatedWork(context.Background(), "session recall", 8)
+	if err != nil {
+		t.Fatalf("SearchRelatedWork() error = %v", err)
+	}
+	if len(fake.requests) != 2 || fake.requests[0].Entity != aisearch.EntityBoth || fake.requests[1].Entity != aisearch.EntityRecord {
+		t.Fatalf("search requests = %+v, want both then record", fake.requests)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("entries = %+v, want two deduplicated entries", entries)
+	}
+	if entries[0].Ref != "record:rec-1" || entries[0].Score != 0.91 {
+		t.Fatalf("top entry = %+v, want highest-scoring record duplicate", entries[0])
+	}
+	if entries[1].Ref != "goal:goal-a" || entries[1].Summary != "goal · active · priority 4" {
+		t.Fatalf("goal entry = %+v", entries[1])
+	}
+}
+
+func TestAgentSessionRelatedWorkSearcherReportsUnavailable(t *testing.T) {
+	for _, fake := range []*fakeAgentSessionAISearch{
+		{available: false},
+		{available: true, err: errors.New("search failed")},
+		{available: true, responses: map[aisearch.EntityType]*aisearch.AISearchResponse{
+			aisearch.EntityBoth: {Fallback: aisearch.FallbackUnavailable},
+		}},
+	} {
+		if _, err := (agentSessionRelatedWorkSearcher{search: fake}).SearchRelatedWork(context.Background(), "session recall", 8); err == nil {
+			t.Fatal("SearchRelatedWork() error = nil, want unavailable error")
+		}
 	}
 }

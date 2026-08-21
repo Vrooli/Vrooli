@@ -80,6 +80,7 @@ export {
   getAgentSessionStartupBriefResponseSchema,
   previewAgentSessionPromptResponseSchema,
   createAgentSessionResponseSchema,
+	changeAgentSessionKindResponseSchema,
   startAgentSessionResponseSchema,
   continueAgentSessionResponseSchema,
   listAgentSessionEventsResponseSchema,

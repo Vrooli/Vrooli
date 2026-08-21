@@ -35,6 +35,23 @@ func IsKnownStarterJob(id string) bool {
 	return ok
 }
 
+func starterJobAllowedForKind(id string, kind Kind) bool {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return true
+	}
+	switch kind {
+	case KindSwarmOperations:
+		return strings.HasPrefix(id, "operations-") || strings.HasPrefix(id, "proposal-")
+	case KindWorkflowAuthoring:
+		return strings.HasPrefix(id, "workflow-")
+	case KindMetaOrchestration:
+		return strings.HasPrefix(id, "meta-")
+	default:
+		return false
+	}
+}
+
 func starterJobText(id string) (string, bool) {
 	text, ok := starterJobs[strings.TrimSpace(id)]
 	return text, ok

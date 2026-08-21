@@ -5,12 +5,13 @@ import (
 	"errors"
 	"strings"
 
+	"swarm-manager/internal/backlog"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
-	"swarm-manager/internal/backlog"
 )
 
 // ConnectService keeps transport conversion at the edge; engine types remain

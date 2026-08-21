@@ -5,9 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
+
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 )
 
 // fakeStore is an in-memory ItemStore.

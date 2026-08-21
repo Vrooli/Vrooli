@@ -34,6 +34,38 @@ type startupBriefMetadata struct {
 	RecommendedNextActions []briefAction           `json:"recommended_next_actions,omitempty"`
 	DrillDownCommands      []briefDrillDownCommand `json:"drill_down_commands,omitempty"`
 	Warnings               []string                `json:"warnings,omitempty"`
+	JobSlice               *startupBriefJobSlice   `json:"job_slice,omitempty"`
+}
+
+type startupBriefJobSlice struct {
+	JobID          string                      `json:"job_id"`
+	Summary        string                      `json:"summary"`
+	StaleItems     []startupBriefStaleItem     `json:"stale_items,omitempty"`
+	TerminalReason *startupBriefTerminalReason `json:"terminal_reason,omitempty"`
+}
+
+type startupBriefStaleItem struct {
+	Ref       string   `json:"ref"`
+	Title     string   `json:"title"`
+	UpdatedAt string   `json:"updated_at"`
+	Verdicts  []string `json:"verdicts"`
+}
+
+type startupBriefTerminalReason struct {
+	ExecutionRef string `json:"execution_ref"`
+	Status       string `json:"status,omitempty"`
+	Code         string `json:"code,omitempty"`
+	BudgetName   string `json:"budget_name,omitempty"`
+	Detail       string `json:"detail,omitempty"`
+}
+
+type startupBriefSliceBuilder func(context.Context, *Resolver, []agentsessions.ContextItem) (startupBriefJobSlice, error)
+
+func defaultStartupBriefSliceBuilders() map[string]startupBriefSliceBuilder {
+	return map[string]startupBriefSliceBuilder{
+		"operations-sweep-staleness": buildStalenessSweepSlice,
+		"operations-run":             buildOperationsRunSlice,
+	}
 }
 
 // rankedGoalBrief is the compact per-goal ranking row embedded in
@@ -64,10 +96,10 @@ type briefDrillDownCommand struct {
 	Command string `json:"command"`
 }
 
-func (r *Resolver) ResolveSessionStartupBrief(ctx context.Context, kind agentsessions.Kind, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+func (r *Resolver) ResolveSessionStartupBrief(ctx context.Context, kind agentsessions.Kind, jobID string, attached []agentsessions.ContextItem, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
 	switch kind {
 	case agentsessions.KindSwarmOperations:
-		return r.operationsStartupBrief(ctx, limits)
+		return r.operationsStartupBrief(ctx, jobID, attached, limits)
 	case agentsessions.KindMetaOrchestration:
 		return r.portfolioStartupBrief(limits)
 	case agentsessions.KindWorkflowAuthoring:
@@ -90,7 +122,7 @@ func kindForStartupBriefRef(ref string) (agentsessions.Kind, error) {
 	}
 }
 
-func (r *Resolver) operationsStartupBrief(ctx context.Context, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+func (r *Resolver) operationsStartupBrief(ctx context.Context, jobID string, attached []agentsessions.ContextItem, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
 	if r.briefings == nil {
 		return agentsessions.ContextItem{}, fmt.Errorf("%w: operations startup brief is unavailable", agentsessions.ErrValidation)
 	}
@@ -138,6 +170,15 @@ func (r *Resolver) operationsStartupBrief(ctx context.Context, limits agentsessi
 			summary = formatRankedGoals(snap, ranked) + summary
 		}
 	}
+	if builder, ok := r.jobSlices[strings.TrimSpace(jobID)]; ok {
+		slice, sliceErr := builder(ctx, r, attached)
+		if sliceErr != nil {
+			metadata.Warnings = append(metadata.Warnings, fmt.Sprintf("job slice %s unavailable: %v", jobID, sliceErr))
+		} else {
+			metadata.JobSlice = &slice
+			summary = appendStartupBriefSlice(summary, slice.Summary, limits.MaxSummaryRunes)
+		}
+	}
 
 	return startupContextItem(
 		agentsessions.KindSwarmOperations,
@@ -147,6 +188,111 @@ func (r *Resolver) operationsStartupBrief(ctx context.Context, limits agentsessi
 		metadata,
 		limits,
 	)
+}
+
+func appendStartupBriefSlice(base, jobSlice string, maxRunes int) string {
+	if maxRunes <= 0 {
+		return base + "\n" + jobSlice
+	}
+	sliceRunes := []rune(jobSlice)
+	if len(sliceRunes) >= maxRunes {
+		return string(sliceRunes[:maxRunes])
+	}
+	baseBudget := maxRunes - len(sliceRunes) - 1
+	baseRunes := []rune(base)
+	if len(baseRunes) > baseBudget {
+		baseRunes = baseRunes[:baseBudget]
+	}
+	return string(baseRunes) + "\n" + jobSlice
+}
+
+func buildStalenessSweepSlice(_ context.Context, r *Resolver, _ []agentsessions.ContextItem) (startupBriefJobSlice, error) {
+	items, err := backlog.NewFileStore(r.scenarioRoot).LoadAll(nil)
+	if err != nil {
+		return startupBriefJobSlice{}, err
+	}
+	now := time.Now().UTC()
+	if r.now != nil {
+		now = r.now().UTC()
+	}
+	repoRoot := filepath.Dir(r.scenariosDir)
+	stale := make([]backlog.BacklogItem, 0)
+	for _, item := range items {
+		if !backlog.IsArchived(item) && backlog.IsStale(item, repoRoot, now) {
+			stale = append(stale, item)
+		}
+	}
+	sort.Slice(stale, func(i, j int) bool {
+		if stale[i].Updated != stale[j].Updated {
+			return stale[i].Updated < stale[j].Updated
+		}
+		if stale[i].Kind != stale[j].Kind {
+			return stale[i].Kind < stale[j].Kind
+		}
+		return stale[i].Name < stale[j].Name
+	})
+
+	slice := startupBriefJobSlice{JobID: "operations-sweep-staleness"}
+	var b strings.Builder
+	b.WriteString("Job-scoped staleness verdict set. For each item, choose keep, refresh, or supersede and wait for the operator's decision before continuing.\n")
+	for _, item := range take(stale, startupBriefItemLimit) {
+		ref := string(item.Kind) + "/" + item.Name
+		slice.StaleItems = append(slice.StaleItems, startupBriefStaleItem{
+			Ref: ref, Title: stringsx.FirstNonEmpty(item.Title, item.Name), UpdatedAt: item.Updated,
+			Verdicts: []string{"keep", "refresh", "supersede"},
+		})
+		fmt.Fprintf(&b, "- %s (updated %s): %s\n", ref, item.Updated, stringsx.FirstNonEmpty(item.Title, item.Name))
+	}
+	if len(slice.StaleItems) == 0 {
+		b.WriteString("- No backlog item currently has Swarm Manager's stale verdict.\n")
+	}
+	slice.Summary = b.String()
+	return slice, nil
+}
+
+func buildOperationsRunSlice(_ context.Context, _ *Resolver, attached []agentsessions.ContextItem) (startupBriefJobSlice, error) {
+	var execution *agentsessions.ContextItem
+	for i := range attached {
+		if attached[i].Type == agentsessions.ContextExecution {
+			execution = &attached[i]
+			break
+		}
+	}
+	if execution == nil {
+		return startupBriefJobSlice{}, fmt.Errorf("attached execution context is required")
+	}
+	metadata := map[string]any{}
+	if err := json.Unmarshal([]byte(execution.MetadataJSON), &metadata); err != nil {
+		return startupBriefJobSlice{}, fmt.Errorf("decode execution metadata: %w", err)
+	}
+	reason := &startupBriefTerminalReason{
+		ExecutionRef: execution.Ref,
+		Status:       stringFromMetadata(metadata, "status"),
+		Code:         stringFromMetadata(metadata, "terminal_code"),
+		BudgetName:   stringFromMetadata(metadata, "budget_name"),
+		Detail:       stringFromMetadata(metadata, "failure_reason"),
+	}
+	if reason.Code == "" && reason.Detail == "" {
+		return startupBriefJobSlice{}, fmt.Errorf("execution %s has no typed terminal reason", execution.Ref)
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Job-scoped run resolution for execution %s. Observed status: %s. Typed terminal reason:", execution.Ref, stringsx.FirstNonEmpty(reason.Status, "unknown"))
+	if reason.Code != "" {
+		fmt.Fprintf(&b, " code=%s", reason.Code)
+	}
+	if reason.BudgetName != "" {
+		fmt.Fprintf(&b, " budget=%s", reason.BudgetName)
+	}
+	if reason.Detail != "" {
+		fmt.Fprintf(&b, " detail=%s", reason.Detail)
+	}
+	b.WriteString(". Separate this terminal classification from the attached run evidence before recommending recovery.\n")
+	return startupBriefJobSlice{JobID: "operations-run", Summary: b.String(), TerminalReason: reason}, nil
+}
+
+func stringFromMetadata(metadata map[string]any, key string) string {
+	value, _ := metadata[key].(string)
+	return strings.TrimSpace(value)
 }
 
 // rankedGoalBriefs stamps compact goal ranking rows with typed goal refs.
@@ -269,8 +415,8 @@ func (r *Resolver) portfolioStartupBrief(limits agentsessions.ContextLimits) (ag
 //
 // The brief this replaced carried no state at all — a hardcoded paragraph and
 // two shell commands — so every conversation of this kind began by asking the
-// agent to go read files. Precedent is the scarce resource here: Vrooli has
-// usually solved its own problem once already, somewhere else in the repo.
+// agent to go read files. Query-conditioned precedent now arrives in the
+// related-work prompt section; the startup brief only explains how to use it.
 func (r *Resolver) workflowAuthoringStartupBrief(limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
 	now := time.Now().UTC()
 	records, recordErr := r.designRecords()
@@ -280,8 +426,7 @@ func (r *Resolver) workflowAuthoringStartupBrief(limits agentsessions.ContextLim
 	var b strings.Builder
 	b.WriteString("This session changes the machine, not the product: skills, prompts, workflows, transitions, briefs, session surfaces, and agent profiles. Product features belong in a Plan Work session.\n\n")
 
-	b.WriteString("Search for precedent before designing. A solved instance elsewhere in the repo outranks a fresh design:\n")
-	b.WriteString("  search-hub query \"<the operator's problem>\" --type record,skill,doc\n\n")
+	b.WriteString("Read the attached related-work section before designing. A solved instance elsewhere in the repository outranks a fresh design. If retrieval is unavailable, do not infer that no precedent exists.\n\n")
 
 	if len(records) > 0 {
 		fmt.Fprintf(&b, "Design records (%d) — durable decisions from earlier sessions of this kind:\n", len(records))
@@ -317,12 +462,11 @@ func (r *Resolver) workflowAuthoringStartupBrief(limits agentsessions.ContextLim
 			"system_goals":   len(systemGoals),
 		},
 		RecommendedNextActions: []briefAction{
-			{ID: "search-precedent", Label: "Search for precedent first", Reason: "Vrooli has usually solved this problem once already in another scenario.", Command: "search-hub query \"<problem>\" --type record,skill,doc"},
+			{ID: "review-related-work", Label: "Review attached related work", Reason: "The server queried precedent with the operator's message and attached the bounded result to this turn."},
 			{ID: "read-design-record", Label: "Read the relevant design record", Reason: "Earlier sessions of this kind settled decisions the code does not state.", Command: "ls docs/internal/*DESIGN-RECORD.md"},
 			{ID: "inspect-transition-catalog", Label: "Inspect registered transitions", Reason: "Prefer improving an existing declared transition over inventing a parallel method.", Command: "cat .vrooli/swarm-transitions/registry.json"},
 		},
 		DrillDownCommands: []briefDrillDownCommand{
-			{Label: "Cross-repo precedent", Command: "search-hub query \"<problem>\" --type record,skill,doc"},
 			{Label: "Design records", Command: "ls docs/internal/*DESIGN-RECORD.md"},
 			{Label: "Session architecture design record", Command: "sed -n '1,120p' docs/internal/SESSION-ARCHITECTURE-DESIGN-RECORD.md"},
 			{Label: "Target operating model", Command: "sed -n '1,220p' docs/concepts/TARGET-OPERATING-MODEL.md"},

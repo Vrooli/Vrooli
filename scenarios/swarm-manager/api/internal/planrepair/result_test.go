@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	"swarm-manager/internal/planclient"
+
+	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 )
 
 type fakeCandidateClient struct {

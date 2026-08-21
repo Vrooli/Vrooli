@@ -65,6 +65,21 @@ type ContextResolver interface {
 
 type SourceLedger interface {
 	Wake(context.Context, string, int) (sourceledger.WakeResult, error)
+	WriteResolution(context.Context, sourceledger.Resolution) error
+}
+
+// RelatedWorkSearcher is owned by the session consumer so prompt construction
+// stays independent of the search implementation and remains deterministic in
+// tests.
+type RelatedWorkSearcher interface {
+	SearchRelatedWork(context.Context, string, int) ([]RelatedWorkEntry, error)
+}
+
+type RelatedWorkEntry struct {
+	Ref     string
+	Title   string
+	Summary string
+	Score   float64
 }
 
 // MutationProposalProcessor keeps graph-aware extraction and ApplyFlow on the
@@ -118,6 +133,7 @@ type Service struct {
 	transitionRegistry        transitions.Registry
 	transitionStarter         TransitionStarter
 	sourceLedger              SourceLedger
+	relatedWork               RelatedWorkSearcher
 	promptClient              promptmanager.Client
 	skillCacheMu              sync.Mutex
 	skillCache                map[string]cachedSkillText
@@ -196,6 +212,7 @@ type ServiceConfig struct {
 	TransitionRegistry        transitions.Registry
 	TransitionStarter         TransitionStarter
 	SourceLedger              SourceLedger
+	RelatedWork               RelatedWorkSearcher
 	PromptClient              promptmanager.Client
 }
 
@@ -213,6 +230,18 @@ type ContinueRequest struct {
 	ContextRefs       []ContextRef
 	AutoContextPolicy AutoContextPolicy
 	StarterJob        string
+}
+
+type ChangeKindRequest struct {
+	SessionID   string
+	Kind        Kind
+	ContextRefs []ContextRef
+}
+
+type ChangeKindResult struct {
+	Session           Session
+	DroppedContext    []ContextRef
+	StarterJobCleared bool
 }
 
 type ContextLimits struct {
@@ -257,6 +286,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		transitionRegistry:        cfg.TransitionRegistry,
 		transitionStarter:         cfg.TransitionStarter,
 		sourceLedger:              cfg.SourceLedger,
+		relatedWork:               cfg.RelatedWork,
 		promptClient:              cfg.PromptClient,
 		skillCache:                make(map[string]cachedSkillText),
 	}, nil
@@ -268,6 +298,10 @@ func (s *Service) SetBacklogBatchApplier(applier BacklogBatchApplier) {
 
 func (s *Service) SetContextResolver(resolver ContextResolver) {
 	s.contextResolver = resolver
+}
+
+func (s *Service) SetRelatedWorkSearcher(searcher RelatedWorkSearcher) {
+	s.relatedWork = searcher
 }
 
 func (s *Service) SetMutationProposalProcessor(processor MutationProposalProcessor) {

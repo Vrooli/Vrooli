@@ -105,6 +105,12 @@ All three propose onto one rail. What differs is what the agent reads before it
 thinks — the same resolution reached for the `research` backlog kind: same
 lifecycle, same code, different thinking.
 
+The operator may correct this subject choice while a session is still a draft.
+Re-kinding re-resolves the skill, drops staged context the new kind does not
+allow, and clears an incompatible starter job. It is unavailable after the
+first message starts a run, so a live conversation never changes its prompt,
+context, or Source Ledger scope underneath the agent.
+
 Two invariants govern every session. **Propose, never apply**: an agent may
 recommend any change, and Swarm validates and applies a typed proposal.
 **Resolve in-session**: the outcome must be reached while the operator is

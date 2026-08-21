@@ -23,6 +23,9 @@ type Resolver struct {
 	sessionStore agentsessions.Store
 	briefings    operationsBriefingBuilder
 	snapshots    operationsSnapshotProvider
+	jobSlices    map[string]startupBriefSliceBuilder
+	now          func() time.Time
+	executions   string
 }
 
 type operationsBriefingBuilder interface {
@@ -50,11 +53,15 @@ func NewResolver(scenarioRoot, scenariosDir string, sessionStore agentsessions.S
 	if len(briefings) > 0 {
 		briefingBuilder = briefings[0]
 	}
+	executions, _ := runtimepaths.StatePath("execution-runs.json")
 	return &Resolver{
 		scenarioRoot: scenarioRoot,
 		scenariosDir: scenariosDir,
 		sessionStore: sessionStore,
 		briefings:    briefingBuilder,
+		jobSlices:    defaultStartupBriefSliceBuilders(),
+		now:          time.Now,
+		executions:   executions,
 	}
 }
 
@@ -87,9 +94,9 @@ func (r *Resolver) resolve(ctx context.Context, ref agentsessions.ContextRef, li
 		if err != nil {
 			return agentsessions.ContextItem{}, err
 		}
-		return r.ResolveSessionStartupBrief(ctx, kind, limits)
+		return r.ResolveSessionStartupBrief(ctx, kind, "", nil, limits)
 	case agentsessions.ContextExecution:
-		return r.resolveJSONFile(ref, filepath.Join(r.scenarioRoot, "executions", ref.Ref, "execution.json"), "execution", "execution-record/"+ref.Ref, limits)
+		return r.resolveJSONListEntry(ref, r.executions, "execution_id", "execution", "execution-record/"+ref.Ref, limits)
 	case agentsessions.ContextAgentActivity:
 		return r.resolveJSONListEntry(ref, filepath.Join(r.scenarioRoot, "state", "agent-activities.json"), "activity_id", "agent activity", "agent-activity/"+ref.Ref, limits)
 	case agentsessions.ContextOperatingMode:
@@ -345,7 +352,10 @@ func itemFromMap(ref agentsessions.ContextRef, payload map[string]any, nodeID st
 		summary = compactJSON(payload)
 	}
 	metadata := map[string]any{}
-	for _, key := range []string{"status", "kind", "priority", "updated", "created"} {
+	for _, key := range []string{
+		"status", "kind", "priority", "updated", "created",
+		"run_id", "op_execution_id", "terminal_code", "budget_name", "failure_reason",
+	} {
 		if value, ok := payload[key]; ok {
 			metadata[key] = value
 		}

@@ -86,25 +86,37 @@ func (s *Service) DecideMutationListProposal(ctx context.Context, sessionID, pro
 	if proposal.Status != ProposalStatusReady || proposal.NeedsRevision {
 		return Session{}, apierr.Conflict("mutation proposal must pass validation before apply")
 	}
-	if s.mutationProposalProcessor == nil {
-		return Session{}, apierr.Unavailable("session mutation proposal apply is unavailable")
-	}
-	application, applyErr := s.mutationProposalProcessor.Apply(ctx, *proposal.Target, proposal.PayloadJSON, acceptedMutationIDs, MutationProposalSource{SessionID: session.ID, RunID: session.RunID, DecidedAt: nowRFC3339()})
-	if applyErr != nil {
-		proposal.Status = ProposalStatusNeedsRevision
-		proposal.NeedsRevision = true
-		proposal.ValidationErrors = []string{applyErr.Error()}
-		proposal.UpdatedAt = nowRFC3339()
-		if saveErr := s.saveProposal(ctx, session.ID, proposal); saveErr != nil {
-			return Session{}, saveErr
+	rejected := len(acceptedMutationIDs) == 0
+	application := MutationProposalApplication{}
+	if !rejected {
+		if s.mutationProposalProcessor == nil {
+			return Session{}, apierr.Unavailable("session mutation proposal apply is unavailable")
 		}
-		return s.loadSession(ctx, session.ID)
+		var applyErr error
+		application, applyErr = s.mutationProposalProcessor.Apply(ctx, *proposal.Target, proposal.PayloadJSON, acceptedMutationIDs, MutationProposalSource{SessionID: session.ID, RunID: session.RunID, DecidedAt: nowRFC3339()})
+		if applyErr != nil {
+			proposal.Status = ProposalStatusNeedsRevision
+			proposal.NeedsRevision = true
+			proposal.ValidationErrors = []string{applyErr.Error()}
+			proposal.UpdatedAt = nowRFC3339()
+			if saveErr := s.saveProposal(ctx, session.ID, proposal); saveErr != nil {
+				return Session{}, saveErr
+			}
+			return s.loadSession(ctx, session.ID)
+		}
 	}
 	proposal.Status = ProposalStatusApplied
+	decisionKind := "apply"
+	resolutionDecision := "applied"
+	if rejected {
+		proposal.Status = ProposalStatusRejected
+		decisionKind = "reject"
+		resolutionDecision = "rejected"
+	}
 	proposal.NeedsRevision = false
 	proposal.UpdatedAt = nowRFC3339()
 	proposal.Decisions = append(proposal.Decisions, ProposalDecision{
-		Kind:                "apply",
+		Kind:                decisionKind,
 		AcceptedMutationIDs: append([]string(nil), acceptedMutationIDs...),
 		RejectedMutationIDs: rejectedMutationIDs(proposal.PayloadJSON, acceptedMutationIDs),
 		Note:                strings.TrimSpace(note),
@@ -114,6 +126,7 @@ func (s *Service) DecideMutationListProposal(ctx context.Context, sessionID, pro
 	if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
 		return Session{}, err
 	}
+	s.recordResolution(ctx, session, proposal, resolutionDecision, proposalResolutionReason(proposal, note))
 	return s.loadSession(ctx, session.ID)
 }
 
@@ -141,6 +154,7 @@ func (s *Service) AcceptNoChangeRecommendation(ctx context.Context, sessionID, p
 	if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
 		return Session{}, err
 	}
+	s.recordResolution(ctx, session, proposal, "no_change_recommendation", proposalResolutionReason(proposal, note))
 	return s.loadSession(ctx, session.ID)
 }
 

@@ -21,9 +21,10 @@ import (
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/review"
 
+	"swarm-manager/internal/backlogrank"
+
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
-	"swarm-manager/internal/backlogrank"
 )
 
 // ConnectService implements the typed BacklogService Connect contract

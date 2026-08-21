@@ -41,7 +41,9 @@ func (s ProposalSource) Enumerate(_ context.Context) ([]Gate, error) {
 			}
 			if proposal.Target.Type == agentsessions.ContextCapture {
 				ref := strings.TrimSpace(proposal.Target.Ref)
-				if ref == "" { continue }
+				if ref == "" {
+					continue
+				}
 				key := "capture/" + ref
 				counts[key]++
 				titles[key] = proposal.Target.Name

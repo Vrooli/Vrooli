@@ -5,10 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"connectrpc.com/connect"
-	api "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitions"
+
+	"connectrpc.com/connect"
+	api "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 type fakeRunner struct {

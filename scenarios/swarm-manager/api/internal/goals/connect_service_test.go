@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"swarm-manager/internal/backlog"
+
 	"connectrpc.com/connect"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
-	"swarm-manager/internal/backlog"
 )
 
 func TestConnectService_GoalAndMilestoneLifecycle(t *testing.T) {

@@ -9,14 +9,15 @@ import (
 	"fmt"
 	"strings"
 
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitions"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
-	"swarm-manager/internal/transitionrun"
-	"swarm-manager/internal/transitions"
 )
 
 type Runner interface {

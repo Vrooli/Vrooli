@@ -137,8 +137,8 @@
       "redis": {
         "type": "redis",
         "enabled": true,
-        "required": true,
-        "purpose": "Real-time event streaming, caching, and app notifications"
+        "required": false,
+        "purpose": "Optional real-time event fan-out. The websocket handler guards every Redis call behind an explicit nil check and serves a working no-Redis branch, so the scenario runs without a Redis server."
       },
       "ollama": {
         "type": "ollama",
@@ -219,6 +219,37 @@
         "port": "ui",
         "env": {
           "NODE_ENV": "production"
+        }
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator. The scenario opens a client when Redis is reachable and serves a working no-Redis path when it is not."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
         }
       }
     }

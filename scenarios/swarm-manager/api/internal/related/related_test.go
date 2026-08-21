@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
-	api "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/goals"
 	"swarm-manager/internal/records"
+
+	"connectrpc.com/connect"
+	api "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 type testBacklog struct{ items []backlog.BacklogItem }

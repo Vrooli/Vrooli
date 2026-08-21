@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"html"
+	"log/slog"
 	"sort"
 	"strings"
 
@@ -22,32 +23,36 @@ Propose, never apply. You may recommend any change. Swarm Manager applies it aft
 
 Resolve in this session. Reach a concrete outcome before the conversation ends: a reviewed proposal, a started transition, a design record, or a recorded reason to do nothing. Do not route the outcome to an autonomous agent's inbox, a team heartbeat, or a queue that only a scheduled loop drains.
 
-Answer first, then ask. Give the best answer available from the context below, then state what you assumed and what would change the answer. Do not spend the operator's turn on clarifying questions alone.`
+Answer first, then ask. Give the best answer available from the context below, then state what you assumed and what would change the answer. You may append one question, and only the question whose answer would most change your recommendation. Do not spend the operator's turn on clarifying questions alone.
+
+Match the weight of the answer to the weight of the operator's input: stay concise for a narrow prompt and go deep when the material warrants it.
+
+You may disagree with the operator's framing. State the disagreement plainly, then answer within the framing that remains.`
 
 // subjectForKind is the kind band: byte-identical for every session of one
 // kind. It states the subject only. The methodology lives in the skill.
 func subjectForKind(kind Kind) string {
 	switch kind {
 	case KindMetaOrchestration:
-		return "Subject: the product. What should exist, and what work makes that true. Shape the operator's raw material into goals, milestones, and backlog items."
+		return "Subject: the product. What should exist, and what work makes that true. Shape the operator's raw material into goals, milestones, and backlog items. Resolution means an accepted goal, milestone, or backlog proposal; a rejected or deferred disposition; or a no-change recommendation."
 	case KindSwarmOperations:
-		return "Subject: work that already exists in the ledger. Its true state, what matters most next, and the registered transition that moves it."
+		return "Subject: work that already exists in the ledger. Its true state, what matters most next, and the registered transition that moves it. Resolution means an applied registered transition; a rejected proposal; an explicit keep or leave-alone decision; or a no-change recommendation."
 	case KindWorkflowAuthoring:
-		return "Subject: the machine, not the product. How the operator and agents work together — skills, prompts, workflows, transitions, briefs, session surfaces, and agent profiles."
+		return "Subject: the machine, not the product. How the operator and agents work together — skills, prompts, workflows, transitions, briefs, session surfaces, and agent profiles. Resolution means an accepted workflow mutation; a reviewed design record; a rejected or deferred proposal; or a no-change recommendation."
 	default:
 		return "Subject: this session's declared kind."
 	}
 }
 
 func buildInitialPrompt(session Session, message Message, attachments []Attachment) string {
-	return buildInitialPromptWithBand(session, message, attachments, kindBand(session), continuityFallbackSection())
+	return buildInitialPromptWithBand(session, message, attachments, kindBand(session), continuityFallbackSection(), relatedWorkUnavailableSection())
 }
 
 func (s *Service) buildInitialPrompt(ctx context.Context, session Session, message Message, attachments []Attachment) string {
-	return buildInitialPromptWithBand(session, message, attachments, s.kindBand(ctx, session), s.ledgerSection(ctx, session))
+	return buildInitialPromptWithBand(session, message, attachments, s.kindBand(ctx, session), s.ledgerSection(ctx, session), s.relatedWorkSection(ctx, message.Content))
 }
 
-func buildInitialPromptWithBand(session Session, message Message, attachments []Attachment, kindContent string, ledger promptSection) string {
+func buildInitialPromptWithBand(session Session, message Message, attachments []Attachment, kindContent string, ledger, relatedWork promptSection) string {
 	sections := []promptSection{
 		newPromptSection(promptSectionKindDoctrine, "", sessionDoctrine),
 		newPromptSection(promptSectionKindSubject, attr("name", string(session.Kind)), kindContent),
@@ -66,13 +71,61 @@ func buildInitialPromptWithBand(session Session, message Message, attachments []
 	// cacheable prefix for every session ever started.
 	sections = append(sections, newPromptSection(promptSectionKindIdentity, "", "Session ID: "+session.ID))
 
-	sections = append(sections, contextSections(message.Context)...)
+	resolvedContext := contextSections(message.Context)
+	if len(resolvedContext) > 0 && resolvedContext[0].Kind == promptSectionKindStartupBrief {
+		sections = append(sections, resolvedContext[0])
+		resolvedContext = resolvedContext[1:]
+	}
+	sections = append(sections, relatedWork)
+	sections = append(sections, resolvedContext...)
 	if section, ok := imagesSection(attachments); ok {
 		sections = append(sections, section)
 	}
 	sections = append(sections, newPromptSection(promptSectionKindOperatorMsg, "", operatorMessageBody(message.Content)))
 
 	return assemblePrompt(sections)
+}
+
+const relatedWorkLimit = 8
+
+func relatedWorkUnavailableSection() promptSection {
+	return newPromptSection(promptSectionKindRelatedWork, attr("status", "unavailable"), "Related-work retrieval is unavailable for this turn. Do not infer that no related work exists.")
+}
+
+func (s *Service) relatedWorkSection(ctx context.Context, query string) promptSection {
+	query = strings.TrimSpace(query)
+	if s == nil || s.relatedWork == nil || query == "" {
+		return relatedWorkUnavailableSection()
+	}
+	entries, err := s.relatedWork.SearchRelatedWork(ctx, query, relatedWorkLimit)
+	if err != nil {
+		slog.Warn("agentsessions: related-work retrieval unavailable", "err", err)
+		return relatedWorkUnavailableSection()
+	}
+	if len(entries) == 0 {
+		return newPromptSection(promptSectionKindRelatedWork, attr("status", "empty"), "Related-work retrieval ran for this operator message and found no entries above the relevance threshold.")
+	}
+
+	if len(entries) > relatedWorkLimit {
+		entries = entries[:relatedWorkLimit]
+	}
+	var b strings.Builder
+	b.WriteString("The server retrieved these entries using the operator message as the query. Treat them as orientation, then verify current state before deciding.")
+	for _, entry := range entries {
+		ref := oneLine(entry.Ref)
+		title := truncateRunes(oneLine(entry.Title), contextLimitsForKind(KindMetaOrchestration).MaxSummaryRunes)
+		summary := truncateRunes(oneLine(entry.Summary), contextLimitsForKind(KindMetaOrchestration).MaxSummaryRunes)
+		fmt.Fprintf(&b, "\n\n<entry%s%s>", attr("ref", ref), attr("title", title))
+		if summary != "" {
+			fmt.Fprintf(&b, "\n%s", html.EscapeString(summary))
+		}
+		b.WriteString("\n</entry>")
+	}
+	return newPromptSection(promptSectionKindRelatedWork, attr("status", "hits"), b.String())
+}
+
+func oneLine(value string) string {
+	return strings.Join(strings.Fields(value), " ")
 }
 
 func buildContinuationPrompt(message Message, attachments []Attachment) string {
@@ -126,9 +179,8 @@ func assemblePrompt(sections []promptSection) string {
 func kindBand(session Session) string {
 	var b strings.Builder
 	b.WriteString(subjectForKind(session.Kind))
-	b.WriteString("\n\nBefore answering, recall precedent with `search-hub query \"<the operator's intent>\" --type record,skill,doc`; a solved instance elsewhere in the repository outranks a fresh design. The work ledger search is for execution state only and does not replace precedent.")
 	scope := sessionLedgerScope(session.Kind)
-	fmt.Fprintf(&b, "\n\nDurable continuity is optional and agent-chosen. Recall knowledge with `source-ledger recall \"<query>\" --scope=%s`; record knowledge with `source-ledger journal note \"<prose>\" --scope=%s --kind=session-knowledge`. Nothing writes automatically. Record knowledge, evidence, and decisions — never a task for another agent to pick up.", scope, scope)
+	fmt.Fprintf(&b, "\n\nDurable continuity is optional and agent-chosen. Recall knowledge with `source-ledger recall \"<query>\" --scope=%s`; record knowledge with `source-ledger journal note \"<prose>\" --scope=%s --kind=session-knowledge`. Swarm Manager automatically records terminal proposal resolutions; all other knowledge is recorded only when you choose. Record knowledge, evidence, and decisions — never a task for another agent to pick up.", scope, scope)
 	if session.Kind == KindMetaOrchestration {
 		b.WriteString(" Record only rejected and deferred dispositions, never accepted work.")
 	}
@@ -300,15 +352,6 @@ func attr(name, value string) string {
 		return ""
 	}
 	return ` ` + name + `="` + html.EscapeString(trimmed) + `"`
-}
-
-func hasContextType(items []ContextItem, target ContextType) bool {
-	for _, item := range items {
-		if item.Type == target {
-			return true
-		}
-	}
-	return false
 }
 
 func truncateRunes(value string, max int) string {

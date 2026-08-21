@@ -7,10 +7,11 @@ import (
 
 	"swarm-manager/internal/transitionrun"
 
+	"swarm-manager/internal/agentmanager"
+
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
 	"google.golang.org/protobuf/types/known/structpb"
-	"swarm-manager/internal/agentmanager"
 )
 
 type resumeCapableRenderer struct {

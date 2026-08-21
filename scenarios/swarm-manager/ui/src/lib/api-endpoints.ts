@@ -83,6 +83,7 @@ export const API_ENDPOINTS = {
   agentActivityById: (activityId: string) => `/agent-activities/${activityId}`,
   agentSessions: "/agent-sessions",
   agentSessionById: (sessionId: string) => `/agent-sessions/${sessionId}`,
+	agentSessionKind: (sessionId: string) => `/agent-sessions/${sessionId}/kind`,
   agentSessionAttachments: (sessionId: string) => `/agent-sessions/${sessionId}/attachments`,
   agentSessionAttachment: (sessionId: string, attachmentId: string) =>
     `/agent-sessions/${sessionId}/attachments/${attachmentId}`,

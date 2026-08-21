@@ -16,6 +16,8 @@ const storeMock = vi.hoisted(() => {
     isMutating: false,
     isRefreshing: false,
     loadSession: vi.fn(),
+	loadStartupBrief: vi.fn().mockResolvedValue({ type: "startup_brief", ref: "startup_brief/meta_orchestration", title: "Startup brief", summary: "Use this first.", selectedAt: "2026-05-01T12:00:00Z" }),
+	changeSessionKind: vi.fn(),
     startSession: vi.fn(),
     continueSession: vi.fn(),
     uploadSessionAttachments: vi.fn().mockResolvedValue([]),
@@ -182,6 +184,32 @@ describe("SessionDetailsPage", () => {
     expect(screen.getByText("Apply this plan.")).toBeInTheDocument();
     expect(screen.getByText("Quality gates")).toBeInTheDocument();
   });
+
+	it("shows the kind selector only while the session is a draft", () => {
+		renderPage();
+		expect(screen.queryByLabelText("Session kind")).toBeNull();
+
+		storeMock.useAgentSessionStore.setState({ sessions: [DRAFT_SESSION] });
+		renderPage("/sessions/sess_draft");
+		expect(screen.getByLabelText("Session kind")).toHaveValue("meta_orchestration");
+	});
+
+	it("reports context and starter-job state dropped by a draft kind change", async () => {
+		const changeSessionKind = vi.fn().mockResolvedValue({
+			session: { ...DRAFT_SESSION, kind: "workflow_authoring", skillId: "swarm-manager-workflow-authoring", starterJobId: undefined },
+			droppedContextRefs: [{ type: "startup_brief", ref: "startup_brief/meta_orchestration" }],
+			starterJobCleared: true,
+		});
+		storeMock.useAgentSessionStore.setState({
+			sessions: [{ ...DRAFT_SESSION, starterJobId: "meta-plan" }],
+			changeSessionKind,
+		});
+		renderPage("/sessions/sess_draft");
+		await userEvent.selectOptions(screen.getByLabelText("Session kind"), "workflow_authoring");
+		await waitFor(() => expect(changeSessionKind).toHaveBeenCalled());
+		expect(screen.getByText(/Removed context this session kind does not allow/)).toBeInTheDocument();
+		expect(screen.getByText(/Cleared the starter job/)).toBeInTheDocument();
+	});
 
   it("deep-links session metadata to Agent Manager and Prompt Manager", async () => {
     renderPage();

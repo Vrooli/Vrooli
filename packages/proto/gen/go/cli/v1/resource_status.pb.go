@@ -46,7 +46,23 @@ type ResourceStatus struct {
 	ProbeError string `protobuf:"bytes,8,opt,name=probe_error,json=probeError,proto3" json:"probe_error,omitempty"`
 	// Raw driver status payload as returned by the driver; null/absent when none.
 	// Backs the internal json.RawMessage `raw` field.
-	Raw           *structpb.Value `protobuf:"bytes,9,opt,name=raw,proto3" json:"raw,omitempty"`
+	Raw *structpb.Value `protobuf:"bytes,9,opt,name=raw,proto3" json:"raw,omitempty"`
+	// Tri-state: true when the resource can answer requests, whether or not it is
+	// healthy. Read it alongside `healthy` to tell degraded from down — a
+	// resource running below its declared accelerator backend reports
+	// healthy=false with serving=true, and restarting it would loop against
+	// something that is working. Backs the internal *bool `serving`; nil->null.
+	Serving *structpb.Value `protobuf:"bytes,10,opt,name=serving,proto3" json:"serving,omitempty"`
+	// Accelerator backend the resource asked the platform for ("cuda", "metal",
+	// "rocm", "vulkan", "cpu"); empty when the resource declares no accelerator.
+	DeclaredMode string `protobuf:"bytes,11,opt,name=declared_mode,json=declaredMode,proto3" json:"declared_mode,omitempty"`
+	// Accelerator backend the host says the running resource is on; empty when
+	// placement could not be read, which is never reported as agreement.
+	ObservedMode string `protobuf:"bytes,12,opt,name=observed_mode,json=observedMode,proto3" json:"observed_mode,omitempty"`
+	// True when the resource is serving below its declared backend.
+	ModeDrift bool `protobuf:"varint,13,opt,name=mode_drift,json=modeDrift,proto3" json:"mode_drift,omitempty"`
+	// Evidence behind observed_mode, in the words of whatever produced it.
+	ModeReason    string `protobuf:"bytes,14,opt,name=mode_reason,json=modeReason,proto3" json:"mode_reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -144,6 +160,41 @@ func (x *ResourceStatus) GetRaw() *structpb.Value {
 	return nil
 }
 
+func (x *ResourceStatus) GetServing() *structpb.Value {
+	if x != nil {
+		return x.Serving
+	}
+	return nil
+}
+
+func (x *ResourceStatus) GetDeclaredMode() string {
+	if x != nil {
+		return x.DeclaredMode
+	}
+	return ""
+}
+
+func (x *ResourceStatus) GetObservedMode() string {
+	if x != nil {
+		return x.ObservedMode
+	}
+	return ""
+}
+
+func (x *ResourceStatus) GetModeDrift() bool {
+	if x != nil {
+		return x.ModeDrift
+	}
+	return false
+}
+
+func (x *ResourceStatus) GetModeReason() string {
+	if x != nil {
+		return x.ModeReason
+	}
+	return ""
+}
+
 // ResourceStatusesResponse is the fleet form of `resource status --json`
 // (envelope from WriteSuccessFields: success + resources + discovery_failures).
 type ResourceStatusesResponse struct {
@@ -228,7 +279,13 @@ type ResourceStatusResponse struct {
 	// Human-readable status message (mirror of resource.message); empty if unset.
 	Status string `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
 	// Full resource runtime status record.
-	Resource      *ResourceStatus `protobuf:"bytes,7,opt,name=resource,proto3" json:"resource,omitempty"`
+	Resource *ResourceStatus `protobuf:"bytes,7,opt,name=resource,proto3" json:"resource,omitempty"`
+	// Tri-state serving flag (mirror of resource.serving); bool when evaluated,
+	// null when not. Backs the internal *bool; nil->null.
+	Serving *structpb.Value `protobuf:"bytes,8,opt,name=serving,proto3" json:"serving,omitempty"`
+	// True when the resource is serving below its declared accelerator backend
+	// (mirror of resource.mode_drift).
+	ModeDrift     bool `protobuf:"varint,9,opt,name=mode_drift,json=modeDrift,proto3" json:"mode_drift,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -312,6 +369,20 @@ func (x *ResourceStatusResponse) GetResource() *ResourceStatus {
 	return nil
 }
 
+func (x *ResourceStatusResponse) GetServing() *structpb.Value {
+	if x != nil {
+		return x.Serving
+	}
+	return nil
+}
+
+func (x *ResourceStatusResponse) GetModeDrift() bool {
+	if x != nil {
+		return x.ModeDrift
+	}
+	return false
+}
+
 // ResourceInfoResponse is the shape of `vrooli resource info --json`
 // (WriteSuccessJSON with key "resource"): success + the full status record.
 type ResourceInfoResponse struct {
@@ -372,7 +443,7 @@ var File_cli_v1_resource_status_proto protoreflect.FileDescriptor
 
 const file_cli_v1_resource_status_proto_rawDesc = "" +
 	"\n" +
-	"\x1ccli/v1/resource_status.proto\x12\rvrooli.cli.v1\x1a\x13cli/v1/common.proto\x1a\x1acli/v1/resource_list.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xcd\x02\n" +
+	"\x1ccli/v1/resource_status.proto\x12\rvrooli.cli.v1\x1a\x13cli/v1/common.proto\x1a\x1acli/v1/resource_list.proto\x1a\x1cgoogle/protobuf/struct.proto\"\x89\x04\n" +
 	"\x0eResourceStatus\x123\n" +
 	"\bresource\x18\x01 \x01(\v2\x17.vrooli.cli.v1.ResourceR\bresource\x12\x1c\n" +
 	"\tinstalled\x18\x02 \x01(\bR\tinstalled\x12\x18\n" +
@@ -384,11 +455,19 @@ const file_cli_v1_resource_status_proto_rawDesc = "" +
 	"\amessage\x18\a \x01(\tR\amessage\x12\x1f\n" +
 	"\vprobe_error\x18\b \x01(\tR\n" +
 	"probeError\x12(\n" +
-	"\x03raw\x18\t \x01(\v2\x16.google.protobuf.ValueR\x03raw\"\xc1\x01\n" +
+	"\x03raw\x18\t \x01(\v2\x16.google.protobuf.ValueR\x03raw\x120\n" +
+	"\aserving\x18\n" +
+	" \x01(\v2\x16.google.protobuf.ValueR\aserving\x12#\n" +
+	"\rdeclared_mode\x18\v \x01(\tR\fdeclaredMode\x12#\n" +
+	"\robserved_mode\x18\f \x01(\tR\fobservedMode\x12\x1d\n" +
+	"\n" +
+	"mode_drift\x18\r \x01(\bR\tmodeDrift\x12\x1f\n" +
+	"\vmode_reason\x18\x0e \x01(\tR\n" +
+	"modeReason\"\xc1\x01\n" +
 	"\x18ResourceStatusesResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12;\n" +
 	"\tresources\x18\x02 \x03(\v2\x1d.vrooli.cli.v1.ResourceStatusR\tresources\x12N\n" +
-	"\x12discovery_failures\x18\x03 \x03(\v2\x1f.vrooli.cli.v1.DiscoveryFailureR\x11discoveryFailures\"\x83\x02\n" +
+	"\x12discovery_failures\x18\x03 \x03(\v2\x1f.vrooli.cli.v1.DiscoveryFailureR\x11discoveryFailures\"\xd4\x02\n" +
 	"\x16ResourceStatusResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1c\n" +
@@ -396,7 +475,10 @@ const file_cli_v1_resource_status_proto_rawDesc = "" +
 	"\arunning\x18\x04 \x01(\bR\arunning\x120\n" +
 	"\ahealthy\x18\x05 \x01(\v2\x16.google.protobuf.ValueR\ahealthy\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\x129\n" +
-	"\bresource\x18\a \x01(\v2\x1d.vrooli.cli.v1.ResourceStatusR\bresource\"k\n" +
+	"\bresource\x18\a \x01(\v2\x1d.vrooli.cli.v1.ResourceStatusR\bresource\x120\n" +
+	"\aserving\x18\b \x01(\v2\x16.google.protobuf.ValueR\aserving\x12\x1d\n" +
+	"\n" +
+	"mode_drift\x18\t \x01(\bR\tmodeDrift\"k\n" +
 	"\x14ResourceInfoResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x129\n" +
 	"\bresource\x18\x02 \x01(\v2\x1d.vrooli.cli.v1.ResourceStatusR\bresourceB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
@@ -424,19 +506,21 @@ var file_cli_v1_resource_status_proto_goTypes = []any{
 	(*DiscoveryFailure)(nil),         // 6: vrooli.cli.v1.DiscoveryFailure
 }
 var file_cli_v1_resource_status_proto_depIdxs = []int32{
-	4, // 0: vrooli.cli.v1.ResourceStatus.resource:type_name -> vrooli.cli.v1.Resource
-	5, // 1: vrooli.cli.v1.ResourceStatus.healthy:type_name -> google.protobuf.Value
-	5, // 2: vrooli.cli.v1.ResourceStatus.raw:type_name -> google.protobuf.Value
-	0, // 3: vrooli.cli.v1.ResourceStatusesResponse.resources:type_name -> vrooli.cli.v1.ResourceStatus
-	6, // 4: vrooli.cli.v1.ResourceStatusesResponse.discovery_failures:type_name -> vrooli.cli.v1.DiscoveryFailure
-	5, // 5: vrooli.cli.v1.ResourceStatusResponse.healthy:type_name -> google.protobuf.Value
-	0, // 6: vrooli.cli.v1.ResourceStatusResponse.resource:type_name -> vrooli.cli.v1.ResourceStatus
-	0, // 7: vrooli.cli.v1.ResourceInfoResponse.resource:type_name -> vrooli.cli.v1.ResourceStatus
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	4,  // 0: vrooli.cli.v1.ResourceStatus.resource:type_name -> vrooli.cli.v1.Resource
+	5,  // 1: vrooli.cli.v1.ResourceStatus.healthy:type_name -> google.protobuf.Value
+	5,  // 2: vrooli.cli.v1.ResourceStatus.raw:type_name -> google.protobuf.Value
+	5,  // 3: vrooli.cli.v1.ResourceStatus.serving:type_name -> google.protobuf.Value
+	0,  // 4: vrooli.cli.v1.ResourceStatusesResponse.resources:type_name -> vrooli.cli.v1.ResourceStatus
+	6,  // 5: vrooli.cli.v1.ResourceStatusesResponse.discovery_failures:type_name -> vrooli.cli.v1.DiscoveryFailure
+	5,  // 6: vrooli.cli.v1.ResourceStatusResponse.healthy:type_name -> google.protobuf.Value
+	0,  // 7: vrooli.cli.v1.ResourceStatusResponse.resource:type_name -> vrooli.cli.v1.ResourceStatus
+	5,  // 8: vrooli.cli.v1.ResourceStatusResponse.serving:type_name -> google.protobuf.Value
+	0,  // 9: vrooli.cli.v1.ResourceInfoResponse.resource:type_name -> vrooli.cli.v1.ResourceStatus
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_resource_status_proto_init() }

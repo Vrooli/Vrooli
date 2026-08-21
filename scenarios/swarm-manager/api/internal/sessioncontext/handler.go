@@ -47,7 +47,7 @@ func (h *Handler) writeStartupBrief(w http.ResponseWriter, r *http.Request, kind
 		apierr.MapError(w, label, apierr.Unavailable("startup brief resolver is unavailable"))
 		return
 	}
-	brief, err := h.resolver.ResolveSessionStartupBrief(r.Context(), kind, agentsessions.ContextLimits{
+	brief, err := h.resolver.ResolveSessionStartupBrief(r.Context(), kind, "", nil, agentsessions.ContextLimits{
 		Kind:            kind,
 		MaxSummaryRunes: 1200,
 	})

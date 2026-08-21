@@ -9,9 +9,10 @@ import (
 	"fmt"
 	"strings"
 
+	"swarm-manager/internal/planclient"
+
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
-	"swarm-manager/internal/planclient"
 
 	"google.golang.org/protobuf/encoding/protojson"
 )

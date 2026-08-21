@@ -5,6 +5,7 @@ package sourceledger
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -20,6 +21,17 @@ import (
 )
 
 const DefaultWakeBudget = 128
+
+const EntryKindSessionResolution = "session-resolution"
+
+type Resolution struct {
+	Scope        string `json:"-"`
+	Decision     string `json:"decision"`
+	Reason       string `json:"reason"`
+	SessionID    string `json:"session_id"`
+	ProposalID   string `json:"proposal_id"`
+	ProposalKind string `json:"proposal_kind"`
+}
 
 func SessionScopeFacets(scopeID string) []*scopesv1.FacetSpec {
 	clean := strings.NewReplacer(":", "-", "_", "-").Replace(strings.TrimSpace(scopeID))
@@ -103,6 +115,17 @@ func (c *Client) Append(ctx context.Context, scope, body, kind string) (Entry, e
 		return Entry{}, fmt.Errorf("append source-ledger entry: %w", err)
 	}
 	return fromProto(response.Msg.GetEntry()), nil
+}
+
+func (c *Client) WriteResolution(ctx context.Context, resolution Resolution) error {
+	payload, err := json.Marshal(resolution)
+	if err != nil {
+		return fmt.Errorf("encode session resolution: %w", err)
+	}
+	if _, err := c.Append(ctx, strings.TrimSpace(resolution.Scope), string(payload), EntryKindSessionResolution); err != nil {
+		return fmt.Errorf("write session resolution: %w", err)
+	}
+	return nil
 }
 
 func (c *Client) List(ctx context.Context, scope string, limit int) ([]Entry, error) {

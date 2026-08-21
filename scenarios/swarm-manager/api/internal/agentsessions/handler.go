@@ -26,6 +26,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions", h.List).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions", h.Create).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Get).Methods(http.MethodGet)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/kind", h.ChangeKind).Methods(http.MethodPatch)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Delete).Methods(http.MethodDelete)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/startup-brief", h.StartupBrief).Methods(http.MethodGet, http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/attachments", h.UploadAttachments).Methods(http.MethodPost)
@@ -217,6 +218,30 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) ChangeKind(w http.ResponseWriter, r *http.Request) {
+	var req apipb.ChangeAgentSessionKindRequest
+	if err := httputil.DecodeProtoJSONStrict(r, &req); err != nil {
+		apierr.MapError(w, "[agent-sessions] change kind", apierr.BadRequest("invalid request body: %s", err))
+		return
+	}
+	req.SessionId = mux.Vars(r)["session_id"]
+	if !httputil.ValidateProtoRequest(w, "[agent-sessions] change kind", "invalid agent session kind request", &req) {
+		return
+	}
+	result, err := h.service.ChangeKind(r.Context(), ChangeKindRequest{
+		SessionID: req.SessionId, Kind: Kind(req.Kind), ContextRefs: contextRefsFromProto(req.ContextRefs),
+	})
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] change kind", err)
+		return
+	}
+	if err := httputil.ProtoJSON(w, &apipb.ChangeAgentSessionKindResponse{
+		Session: SessionToProto(result.Session), DroppedContextRefs: contextRefsToProto(result.DroppedContext), StarterJobCleared: result.StarterJobCleared,
+	}); err != nil {
+		apierr.MapError(w, "[agent-sessions] change kind", apierr.Internal("failed to encode response"))
+	}
+}
+
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	var req apipb.StartAgentSessionRequest
 	if err := httputil.DecodeProtoJSONStrict(r, &req); err != nil {
@@ -370,6 +395,14 @@ func contextRefsFromProto(refs []*apipb.AgentSessionContextRef) []ContextRef {
 			Type: ContextType(ref.Type),
 			Ref:  ref.Ref,
 		})
+	}
+	return result
+}
+
+func contextRefsToProto(refs []ContextRef) []*apipb.AgentSessionContextRef {
+	result := make([]*apipb.AgentSessionContextRef, 0, len(refs))
+	for _, ref := range refs {
+		result = append(result, &apipb.AgentSessionContextRef{Type: string(ref.Type), Ref: ref.Ref})
 	}
 	return result
 }

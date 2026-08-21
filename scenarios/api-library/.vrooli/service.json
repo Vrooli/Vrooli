@@ -64,7 +64,8 @@
       },
       "redis": {
         "enabled": false,
-        "purpose": "API data caching"
+        "purpose": "Optional response cache, currently disabled. The Go code carries a client but the resource is not enabled, so no runtime path depends on Redis being present.",
+        "required": false
       },
       "ollama": {
         "enabled": false,
@@ -155,6 +156,37 @@
         ],
         "cwd": "ui",
         "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator, currently disabled. The scenario runs without Redis."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
       }
     }
   }

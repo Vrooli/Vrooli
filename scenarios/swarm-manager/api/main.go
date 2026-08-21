@@ -21,6 +21,8 @@ import (
 	"net/http/pprof"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -154,6 +156,132 @@ type Server struct {
 	ttsConfigAdmin       audioports.TTSConfigAdmin
 	summarizeConfigAdmin audioports.SummarizeConfigAdmin
 	playbackRecorder     audioports.PlaybackEventRecorder
+}
+
+type agentSessionAISearch interface {
+	Available(context.Context) bool
+	Search(context.Context, aisearch.AISearchRequest) (*aisearch.AISearchResponse, error)
+}
+
+type agentSessionRelatedWorkSearcher struct {
+	search agentSessionAISearch
+}
+
+func (a agentSessionRelatedWorkSearcher) SearchRelatedWork(ctx context.Context, query string, limit int) ([]agentsessions.RelatedWorkEntry, error) {
+	if a.search == nil || !a.search.Available(ctx) {
+		return nil, errors.New("AI search is unavailable")
+	}
+	if limit <= 0 {
+		limit = 8
+	}
+
+	combined := make([]aisearch.AISearchResult, 0, limit*2)
+	for _, entity := range []aisearch.EntityType{aisearch.EntityBoth, aisearch.EntityRecord} {
+		response, err := a.search.Search(ctx, aisearch.AISearchRequest{Query: query, Entity: entity, Limit: limit})
+		if err != nil {
+			return nil, fmt.Errorf("search related work (%s): %w", entity, err)
+		}
+		if response.Fallback == aisearch.FallbackUnavailable {
+			return nil, fmt.Errorf("search related work (%s): retrieval unavailable", entity)
+		}
+		combined = append(combined, response.Results...)
+	}
+
+	byRef := make(map[string]agentsessions.RelatedWorkEntry, len(combined))
+	for _, result := range combined {
+		entry := relatedWorkEntry(result)
+		if entry.Ref == "" {
+			continue
+		}
+		if previous, ok := byRef[entry.Ref]; !ok || entry.Score > previous.Score {
+			byRef[entry.Ref] = entry
+		}
+	}
+	entries := make([]agentsessions.RelatedWorkEntry, 0, len(byRef))
+	for _, entry := range byRef {
+		entries = append(entries, entry)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Score == entries[j].Score {
+			return entries[i].Ref < entries[j].Ref
+		}
+		return entries[i].Score > entries[j].Score
+	})
+	if len(entries) > limit {
+		entries = entries[:limit]
+	}
+	return entries, nil
+}
+
+func relatedWorkEntry(result aisearch.AISearchResult) agentsessions.RelatedWorkEntry {
+	payload := result.Payload
+	title := relatedPayloadString(payload, "title")
+	var ref, summary string
+	switch result.Entity {
+	case aisearch.EntityBacklog:
+		name := firstNonEmpty(relatedPayloadString(payload, "name"), result.ID)
+		kind := relatedPayloadString(payload, "kind")
+		ref = "backlog:" + name
+		if kind != "" {
+			ref = "backlog:" + kind + "/" + name
+		}
+		summary = relatedSummary("work item", kind, relatedPayloadString(payload, "status"), relatedPayloadNumber(payload, "priority"))
+	case aisearch.EntityGoal:
+		name := firstNonEmpty(relatedPayloadString(payload, "name"), result.ID)
+		ref = "goal:" + name
+		summary = relatedSummary("goal", "", relatedPayloadString(payload, "status"), relatedPayloadNumber(payload, "priority"))
+	case aisearch.EntityRecord:
+		id := firstNonEmpty(relatedPayloadString(payload, "record_id"), result.ID)
+		ref = "record:" + id
+		summary = relatedSummary("record", relatedPayloadString(payload, "kind"), relatedPayloadString(payload, "scenario"), "")
+	default:
+		return agentsessions.RelatedWorkEntry{}
+	}
+	if title == "" {
+		title = ref
+	}
+	return agentsessions.RelatedWorkEntry{Ref: ref, Title: title, Summary: summary, Score: result.Score}
+}
+
+func relatedPayloadString(payload map[string]interface{}, key string) string {
+	value, _ := payload[key].(string)
+	return strings.TrimSpace(value)
+}
+
+func relatedPayloadNumber(payload map[string]interface{}, key string) string {
+	switch value := payload[key].(type) {
+	case int:
+		return strconv.Itoa(value)
+	case int64:
+		return strconv.FormatInt(value, 10)
+	case float64:
+		return strconv.FormatFloat(value, 'f', -1, 64)
+	default:
+		return ""
+	}
+}
+
+func relatedSummary(class, subtype, state, priority string) string {
+	parts := []string{class}
+	if subtype != "" {
+		parts = append(parts, subtype)
+	}
+	if state != "" {
+		parts = append(parts, state)
+	}
+	if priority != "" {
+		parts = append(parts, "priority "+priority)
+	}
+	return strings.Join(parts, " · ")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 type executionSnapshotLister struct {
@@ -448,6 +576,9 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler) {
 	handler.RegisterRoutes(s.router)
 	s.aiSearchSvc = svc
 	s.aiSearchReconciler = reconciler
+	if s.agentSessionSvc != nil {
+		s.agentSessionSvc.SetRelatedWorkSearcher(agentSessionRelatedWorkSearcher{search: svc})
+	}
 	// Related work has deterministic providers even while semantic search is
 	// unavailable; the adapter reports that third group as degraded.
 	related.RegisterRoutes(s.router, related.NewEngine(backlogHandler.Store(), s.goalService, s.recordsStore, related.NewAISearchSimilarity(svc)))

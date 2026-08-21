@@ -102,6 +102,29 @@ describe("agent-session-service", () => {
     ]);
   });
 
+	it("changes a draft kind and maps dropped context", async () => {
+		vi.mocked(mockApiClient.patch).mockResolvedValue({
+			session: { ...SESSION_RESPONSE, status: "draft", kind: "workflow_authoring", skill_id: "swarm-manager-workflow-authoring" },
+			dropped_context_refs: [{ type: "execution", ref: "exec-1" }],
+			starter_job_cleared: true,
+		});
+		const result = await service.changeKind({
+			sessionId: "sess_1",
+			kind: "workflow_authoring",
+			contextRefs: [{ type: "execution", ref: "exec-1" }],
+		});
+		expect(mockApiClient.patch).toHaveBeenCalledWith("/agent-sessions/sess_1/kind", {
+			session_id: "sess_1",
+			kind: "workflow_authoring",
+			context_refs: [{ type: "execution", ref: "exec-1" }],
+		});
+		expect(result).toMatchObject({
+			session: { kind: "workflow_authoring" },
+			droppedContextRefs: [{ type: "execution", ref: "exec-1" }],
+			starterJobCleared: true,
+		});
+	});
+
   it("creates, starts, and continues sessions using backend field names", async () => {
     vi.mocked(mockApiClient.post).mockResolvedValue({ session: SESSION_RESPONSE });
 

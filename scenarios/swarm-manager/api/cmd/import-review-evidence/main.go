@@ -14,6 +14,7 @@ import (
 	"swarm-manager/internal/runtimepaths"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 )
 
@@ -59,13 +60,13 @@ func main() {
 
 func eventDBDSN() (string, error) {
 	if path := os.Getenv("SWARM_MANAGER_SQLITE_PATH"); path != "" {
-		return "file:" + path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)", nil
+		return storage.SQLiteDSNAt(path, storage.SQLiteTuning{})
 	}
 	path, err := runtimepaths.DataPath("events.db")
 	if err != nil {
 		return "", err
 	}
-	return "file:" + path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)", nil
+	return storage.SQLiteDSNAt(path, storage.SQLiteTuning{})
 }
 
 func fatal(err error) {

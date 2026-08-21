@@ -11,12 +11,17 @@ import (
 	"swarm-manager/internal/stats"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 )
 
 // resolveEventDBPath returns the SQLite DSN for the event log database.
+//
+// SWARM_MANAGER_SQLITE_PATH stays readable because it is scenario-scoped: its
+// name carries its owner, so it cannot capture a sibling's database the way the
+// generic variables did. The DSN itself now comes from the one owned seam.
 func resolveEventDBPath() (string, error) {
 	if p := os.Getenv("SWARM_MANAGER_SQLITE_PATH"); p != "" {
-		return "file:" + p + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)", nil
+		return storage.SQLiteDSNAt(p, storage.SQLiteTuning{})
 	}
 	dbPath, err := runtimepaths.DataPath("events.db")
 	if err != nil {
@@ -25,7 +30,7 @@ func resolveEventDBPath() (string, error) {
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o750); err != nil {
 		return "", err
 	}
-	return "file:" + dbPath + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)", nil
+	return storage.SQLiteDSNAt(dbPath, storage.SQLiteTuning{})
 }
 
 // initEventLog initializes the event log database, emitter, and incremental

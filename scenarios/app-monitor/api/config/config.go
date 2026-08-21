@@ -11,8 +11,8 @@ import (
 	"app-monitor-api/logger"
 
 	"github.com/docker/docker/client"
-	"github.com/go-redis/redis/v8"
 	_ "github.com/lib/pq" // register postgres driver with database/sql
+	"github.com/redis/go-redis/v9"
 	"github.com/vrooli/api-core/database"
 
 	monitorSchema "app-monitor-api/internal/monitor"

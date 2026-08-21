@@ -54,6 +54,27 @@ message ResourceStatus {
   // Raw driver status payload as returned by the driver; null/absent when none.
   // Backs the internal json.RawMessage `raw` field.
   google.protobuf.Value raw = 9;
+
+  // Tri-state: true when the resource can answer requests, whether or not it is
+  // healthy. Read it alongside `healthy` to tell degraded from down — a
+  // resource running below its declared accelerator backend reports
+  // healthy=false with serving=true, and restarting it would loop against
+  // something that is working. Backs the internal *bool `serving`; nil->null.
+  google.protobuf.Value serving = 10;
+
+  // Accelerator backend the resource asked the platform for ("cuda", "metal",
+  // "rocm", "vulkan", "cpu"); empty when the resource declares no accelerator.
+  string declared_mode = 11;
+
+  // Accelerator backend the host says the running resource is on; empty when
+  // placement could not be read, which is never reported as agreement.
+  string observed_mode = 12;
+
+  // True when the resource is serving below its declared backend.
+  bool mode_drift = 13;
+
+  // Evidence behind observed_mode, in the words of whatever produced it.
+  string mode_reason = 14;
 }
 
 // ResourceStatusesResponse is the fleet form of `resource status --json`
@@ -94,6 +115,14 @@ message ResourceStatusResponse {
 
   // Full resource runtime status record.
   ResourceStatus resource = 7;
+
+  // Tri-state serving flag (mirror of resource.serving); bool when evaluated,
+  // null when not. Backs the internal *bool; nil->null.
+  google.protobuf.Value serving = 8;
+
+  // True when the resource is serving below its declared accelerator backend
+  // (mirror of resource.mode_drift).
+  bool mode_drift = 9;
 }
 
 // ResourceInfoResponse is the shape of `vrooli resource info --json`

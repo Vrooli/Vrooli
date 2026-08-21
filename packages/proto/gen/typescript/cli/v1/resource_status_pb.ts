@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/resource_status.proto.
  */
 export const file_cli_v1_resource_status: GenFile = /*@__PURE__*/
-  fileDesc("ChxjbGkvdjEvcmVzb3VyY2Vfc3RhdHVzLnByb3RvEg12cm9vbGkuY2xpLnYxIvgBCg5SZXNvdXJjZVN0YXR1cxIpCghyZXNvdXJjZRgBIAEoCzIXLnZyb29saS5jbGkudjEuUmVzb3VyY2USEQoJaW5zdGFsbGVkGAIgASgIEg8KB3J1bm5pbmcYAyABKAgSJwoHaGVhbHRoeRgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIOCgZoZWFsdGgYBSABKAkSEwoLc3RhdHVzX2NvZGUYBiABKAkSDwoHbWVzc2FnZRgHIAEoCRITCgtwcm9iZV9lcnJvchgIIAEoCRIjCgNyYXcYCSABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUimgEKGFJlc291cmNlU3RhdHVzZXNSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEjAKCXJlc291cmNlcxgCIAMoCzIdLnZyb29saS5jbGkudjEuUmVzb3VyY2VTdGF0dXMSOwoSZGlzY292ZXJ5X2ZhaWx1cmVzGAMgAygLMh8udnJvb2xpLmNsaS52MS5EaXNjb3ZlcnlGYWlsdXJlIsUBChZSZXNvdXJjZVN0YXR1c1Jlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSDAoEbmFtZRgCIAEoCRIRCglpbnN0YWxsZWQYAyABKAgSDwoHcnVubmluZxgEIAEoCBInCgdoZWFsdGh5GAUgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEg4KBnN0YXR1cxgGIAEoCRIvCghyZXNvdXJjZRgHIAEoCzIdLnZyb29saS5jbGkudjEuUmVzb3VyY2VTdGF0dXMiWAoUUmVzb3VyY2VJbmZvUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIvCghyZXNvdXJjZRgCIAEoCzIdLnZyb29saS5jbGkudjEuUmVzb3VyY2VTdGF0dXNCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw", [file_cli_v1_common, file_cli_v1_resource_list, file_google_protobuf_struct]);
+  fileDesc("ChxjbGkvdjEvcmVzb3VyY2Vfc3RhdHVzLnByb3RvEg12cm9vbGkuY2xpLnYxIvgCCg5SZXNvdXJjZVN0YXR1cxIpCghyZXNvdXJjZRgBIAEoCzIXLnZyb29saS5jbGkudjEuUmVzb3VyY2USEQoJaW5zdGFsbGVkGAIgASgIEg8KB3J1bm5pbmcYAyABKAgSJwoHaGVhbHRoeRgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIOCgZoZWFsdGgYBSABKAkSEwoLc3RhdHVzX2NvZGUYBiABKAkSDwoHbWVzc2FnZRgHIAEoCRITCgtwcm9iZV9lcnJvchgIIAEoCRIjCgNyYXcYCSABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSJwoHc2VydmluZxgKIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIVCg1kZWNsYXJlZF9tb2RlGAsgASgJEhUKDW9ic2VydmVkX21vZGUYDCABKAkSEgoKbW9kZV9kcmlmdBgNIAEoCBITCgttb2RlX3JlYXNvbhgOIAEoCSKaAQoYUmVzb3VyY2VTdGF0dXNlc1Jlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSMAoJcmVzb3VyY2VzGAIgAygLMh0udnJvb2xpLmNsaS52MS5SZXNvdXJjZVN0YXR1cxI7ChJkaXNjb3ZlcnlfZmFpbHVyZXMYAyADKAsyHy52cm9vbGkuY2xpLnYxLkRpc2NvdmVyeUZhaWx1cmUiggIKFlJlc291cmNlU3RhdHVzUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIMCgRuYW1lGAIgASgJEhEKCWluc3RhbGxlZBgDIAEoCBIPCgdydW5uaW5nGAQgASgIEicKB2hlYWx0aHkYBSABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSDgoGc3RhdHVzGAYgASgJEi8KCHJlc291cmNlGAcgASgLMh0udnJvb2xpLmNsaS52MS5SZXNvdXJjZVN0YXR1cxInCgdzZXJ2aW5nGAggASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEhIKCm1vZGVfZHJpZnQYCSABKAgiWAoUUmVzb3VyY2VJbmZvUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIvCghyZXNvdXJjZRgCIAEoCzIdLnZyb29saS5jbGkudjEuUmVzb3VyY2VTdGF0dXNCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw", [file_cli_v1_common, file_cli_v1_resource_list, file_google_protobuf_struct]);
 
 /**
  * ResourceStatus is one resource's runtime status (control.Status). It embeds
@@ -90,6 +90,47 @@ export type ResourceStatus = Message<"vrooli.cli.v1.ResourceStatus"> & {
    * @generated from field: google.protobuf.Value raw = 9;
    */
   raw?: Value | undefined;
+
+  /**
+   * Tri-state: true when the resource can answer requests, whether or not it is
+   * healthy. Read it alongside `healthy` to tell degraded from down — a
+   * resource running below its declared accelerator backend reports
+   * healthy=false with serving=true, and restarting it would loop against
+   * something that is working. Backs the internal *bool `serving`; nil->null.
+   *
+   * @generated from field: google.protobuf.Value serving = 10;
+   */
+  serving?: Value | undefined;
+
+  /**
+   * Accelerator backend the resource asked the platform for ("cuda", "metal",
+   * "rocm", "vulkan", "cpu"); empty when the resource declares no accelerator.
+   *
+   * @generated from field: string declared_mode = 11;
+   */
+  declaredMode: string;
+
+  /**
+   * Accelerator backend the host says the running resource is on; empty when
+   * placement could not be read, which is never reported as agreement.
+   *
+   * @generated from field: string observed_mode = 12;
+   */
+  observedMode: string;
+
+  /**
+   * True when the resource is serving below its declared backend.
+   *
+   * @generated from field: bool mode_drift = 13;
+   */
+  modeDrift: boolean;
+
+  /**
+   * Evidence behind observed_mode, in the words of whatever produced it.
+   *
+   * @generated from field: string mode_reason = 14;
+   */
+  modeReason: string;
 };
 
 /**
@@ -192,6 +233,22 @@ export type ResourceStatusResponse = Message<"vrooli.cli.v1.ResourceStatusRespon
    * @generated from field: vrooli.cli.v1.ResourceStatus resource = 7;
    */
   resource?: ResourceStatus | undefined;
+
+  /**
+   * Tri-state serving flag (mirror of resource.serving); bool when evaluated,
+   * null when not. Backs the internal *bool; nil->null.
+   *
+   * @generated from field: google.protobuf.Value serving = 8;
+   */
+  serving?: Value | undefined;
+
+  /**
+   * True when the resource is serving below its declared accelerator backend
+   * (mirror of resource.mode_drift).
+   *
+   * @generated from field: bool mode_drift = 9;
+   */
+  modeDrift: boolean;
 };
 
 /**

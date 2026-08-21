@@ -6,8 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"google.golang.org/protobuf/types/known/structpb"
 	"swarm-manager/internal/agentmanager"
+
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // WorkflowRouter selects an Agent Manager transport by declared workflow key.

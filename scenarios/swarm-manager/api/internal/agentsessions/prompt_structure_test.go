@@ -59,6 +59,33 @@ func TestInitialPromptSharesStablePrefixAcrossSessionsOfOneKind(t *testing.T) {
 	}
 }
 
+func TestPromptStructureStableBandsDoNotTellTheAgentToRunSearch(t *testing.T) {
+	for _, kind := range []Kind{KindMetaOrchestration, KindSwarmOperations, KindWorkflowAuthoring} {
+		band := sessionDoctrine + "\n" + kindBand(Session{Kind: kind, SkillID: skillIDForKind(kind)})
+		for _, forbidden := range []string{"search-hub", "run a search", "Nothing writes automatically"} {
+			if strings.Contains(band, forbidden) {
+				t.Errorf("%s stable band contains retired instruction %q:\n%s", kind, forbidden, band)
+			}
+		}
+	}
+}
+
+func TestPromptStructureEveryKindBandNamesTerminalArtifacts(t *testing.T) {
+	tests := map[Kind][]string{
+		KindMetaOrchestration: {"accepted goal, milestone, or backlog proposal", "rejected or deferred disposition", "no-change recommendation"},
+		KindSwarmOperations:   {"applied registered transition", "explicit keep or leave-alone decision", "no-change recommendation"},
+		KindWorkflowAuthoring: {"accepted workflow mutation", "reviewed design record", "no-change recommendation"},
+	}
+	for kind, artifacts := range tests {
+		band := subjectForKind(kind)
+		for _, artifact := range artifacts {
+			if !strings.Contains(band, artifact) {
+				t.Errorf("%s kind band does not name terminal artifact %q:\n%s", kind, artifact, band)
+			}
+		}
+	}
+}
+
 func TestInitialPromptEmitsVolatileIdentityBelowStableBands(t *testing.T) {
 	prompt := promptForSession("sess_cafebabecafebabe", KindMetaOrchestration, "Plan this.")
 
@@ -104,6 +131,7 @@ func TestEverySessionPromptSectionIsRegistered(t *testing.T) {
 		promptSectionKindFallback,
 		promptSectionKindIdentity,
 		promptSectionKindStartupBrief,
+		promptSectionKindRelatedWork,
 		promptSectionKindContext,
 		promptSectionKindImages,
 		promptSectionKindOperatorMsg,
@@ -184,6 +212,10 @@ func (f fakePromptLedger) Wake(context.Context, string, int) (sourceledger.WakeR
 	return f.wake, f.err
 }
 
+func (f fakePromptLedger) WriteResolution(context.Context, sourceledger.Resolution) error {
+	return f.err
+}
+
 func TestContinuationPromptStaysPlainWhenNothingIsAttached(t *testing.T) {
 	// A follow-up with no context is the common case. Wrapping it in XML would
 	// add tokens and break the prefix the conversation already established.
@@ -199,6 +231,7 @@ func TestContinuationPromptStaysPlainWhenNothingIsAttached(t *testing.T) {
 func TestPreviewPromptMatchesWhatStartWouldSend(t *testing.T) {
 	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
 	svc := newTestService(t, spawner)
+	svc.SetRelatedWorkSearcher(fakeRelatedWorkSearcher{entries: []RelatedWorkEntry{{Ref: "goal:quality-gates", Title: "Quality gates", Summary: "Tighten planning validation."}}})
 	ctx := context.Background()
 
 	draft, err := svc.Create(ctx, CreateRequest{Kind: KindMetaOrchestration, Title: "Plan quality gates"})
@@ -220,6 +253,62 @@ func TestPreviewPromptMatchesWhatStartWouldSend(t *testing.T) {
 	}
 	if preview.Prompt != spawner.spawnReq.Prompt {
 		t.Fatalf("preview did not match the spawned prompt\n--- preview ---\n%s\n--- sent ---\n%s", preview.Prompt, spawner.spawnReq.Prompt)
+	}
+}
+
+type fakeRelatedWorkSearcher struct {
+	entries []RelatedWorkEntry
+	err     error
+}
+
+func (f fakeRelatedWorkSearcher) SearchRelatedWork(context.Context, string, int) ([]RelatedWorkEntry, error) {
+	return append([]RelatedWorkEntry(nil), f.entries...), f.err
+}
+
+func TestRelatedWorkSectionDistinguishesHitsEmptyAndUnavailable(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	session := Session{ID: "sess_related", Kind: KindMetaOrchestration, SkillID: SkillMetaOrchestrator}
+	message := Message{Content: "Improve session recall."}
+
+	svc.SetRelatedWorkSearcher(fakeRelatedWorkSearcher{entries: []RelatedWorkEntry{{
+		Ref: "record:rec-1", Title: "Prior recall work", Summary: "A solved instance from another scenario.",
+	}}})
+	hits := svc.buildInitialPrompt(context.Background(), session, message, nil)
+	if !strings.Contains(hits, `<related-work status="hits">`) || !strings.Contains(hits, `ref="record:rec-1"`) {
+		t.Fatalf("hits prompt = %s", hits)
+	}
+
+	svc.SetRelatedWorkSearcher(fakeRelatedWorkSearcher{})
+	empty := svc.buildInitialPrompt(context.Background(), session, message, nil)
+	if !strings.Contains(empty, `<related-work status="empty">`) || !strings.Contains(empty, "retrieval ran") {
+		t.Fatalf("empty prompt = %s", empty)
+	}
+
+	svc.SetRelatedWorkSearcher(fakeRelatedWorkSearcher{err: errors.New("search unavailable")})
+	unavailable := svc.buildInitialPrompt(context.Background(), session, message, nil)
+	if !strings.Contains(unavailable, `<related-work status="unavailable">`) || !strings.Contains(unavailable, "Do not infer that no related work exists") {
+		t.Fatalf("unavailable prompt = %s", unavailable)
+	}
+	if empty == unavailable {
+		t.Fatal("empty and unavailable related-work sections must differ")
+	}
+}
+
+func TestRelatedWorkSortsAfterStartupBriefBeforeAttachedContext(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.SetRelatedWorkSearcher(fakeRelatedWorkSearcher{})
+	prompt := svc.buildInitialPrompt(context.Background(), Session{ID: "sess_order", Kind: KindMetaOrchestration}, Message{
+		Content: "Place this idea.",
+		Context: []ContextItem{
+			{Type: ContextGoal, Ref: "goal-a", Title: "Goal A", Summary: "Attached goal."},
+			{Type: ContextStartupBrief, Ref: StartupBriefMetaOrchestrationRef, Title: "Brief", Summary: "Portfolio state."},
+		},
+	}, nil)
+	briefAt := strings.Index(prompt, "<startup-brief>")
+	relatedAt := strings.Index(prompt, "<related-work")
+	attachedAt := strings.Index(prompt, "<attached-context>")
+	if !(briefAt >= 0 && briefAt < relatedAt && relatedAt < attachedAt) {
+		t.Fatalf("related-work order is wrong (brief=%d related=%d attached=%d):\n%s", briefAt, relatedAt, attachedAt, prompt)
 	}
 }
 

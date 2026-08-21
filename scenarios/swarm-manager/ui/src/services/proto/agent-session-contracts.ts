@@ -12,6 +12,7 @@ import type {
 import {
   ApplyAgentSessionProposalResponseSchema,
   CancelAgentSessionResponseSchema,
+	ChangeAgentSessionKindResponseSchema,
   ContinueAgentSessionResponseSchema,
   CreateAgentSessionResponseSchema,
   DeleteAgentSessionResponseSchema,
@@ -115,6 +116,10 @@ export const previewAgentSessionPromptResponseSchema = createProtoSchema(
 export const createAgentSessionResponseSchema = createProtoSchema(
   CreateAgentSessionResponseSchema,
   "agent session create"
+);
+export const changeAgentSessionKindResponseSchema = createProtoSchema(
+	ChangeAgentSessionKindResponseSchema,
+	"agent session kind change",
 );
 export const continueAgentSessionResponseSchema = createProtoSchema(
   ContinueAgentSessionResponseSchema,

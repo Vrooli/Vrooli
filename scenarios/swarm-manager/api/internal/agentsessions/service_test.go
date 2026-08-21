@@ -1,8 +1,10 @@
 package agentsessions
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +14,7 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/identity"
+	"swarm-manager/internal/sourceledger"
 	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitionrunner"
 	"swarm-manager/internal/transitions"
@@ -56,6 +59,55 @@ func TestServiceCreateMakesDraftWithoutSpawning(t *testing.T) {
 	}
 	if spawner.spawnCalls != 0 {
 		t.Fatalf("spawn calls = %d, want 0", spawner.spawnCalls)
+	}
+}
+
+func TestServiceChangeKindUpdatesDraftSkillAndDropsIncompatibleContext(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+	svc := newTestService(t, &fakeSessionSpawner{})
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind: KindSwarmOperations, Title: "Correct this session", StarterJob: "operations-run",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := svc.ChangeKind(context.Background(), ChangeKindRequest{
+		SessionID: draft.ID,
+		Kind:      KindWorkflowAuthoring,
+		ContextRefs: []ContextRef{
+			{Type: ContextStartupBrief, Ref: StartupBriefSwarmOperationsRef},
+			{Type: ContextExecution, Ref: "exec-1"},
+			{Type: ContextGoal, Ref: "quality-gates"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("ChangeKind() error = %v", err)
+	}
+	if result.Session.Kind != KindWorkflowAuthoring || result.Session.SkillID != SkillWorkflowAuthoring {
+		t.Fatalf("updated session = %+v", result.Session)
+	}
+	if !result.StarterJobCleared || result.Session.StarterJob != "" {
+		t.Fatalf("starter job was not cleared: %+v", result)
+	}
+	if len(result.DroppedContext) != 2 || result.DroppedContext[0].Type != ContextStartupBrief || result.DroppedContext[1].Type != ContextExecution {
+		t.Fatalf("dropped context = %+v", result.DroppedContext)
+	}
+}
+
+func TestServiceChangeKindRefusesStartedSessionAndNamesStatus(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	session := createStartedSession(t, svc, KindSwarmOperations, "Started", "Begin.")
+	_, err := svc.ChangeKind(context.Background(), ChangeKindRequest{SessionID: session.ID, Kind: KindMetaOrchestration})
+	if err == nil || !strings.Contains(err.Error(), string(StatusRunning)) {
+		t.Fatalf("ChangeKind() error = %v, want current status", err)
+	}
+	stored, loadErr := svc.Get(context.Background(), session.ID)
+	if loadErr != nil {
+		t.Fatal(loadErr)
+	}
+	if stored.Kind != KindSwarmOperations || stored.SkillID != SkillSwarmOperations {
+		t.Fatalf("started session changed: %+v", stored)
 	}
 }
 
@@ -378,6 +430,120 @@ func TestMutationProposalDecisionAndRevisionUseSameSessionRun(t *testing.T) {
 	}
 }
 
+func TestAppliedMutationProposalWritesOneResolution(t *testing.T) {
+	processor := &fakeMutationProposalProcessor{}
+	ledger := &fakeResolutionLedger{}
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.SetMutationProposalProcessor(processor)
+	svc.SetSourceLedger(ledger)
+	session := createStartedSession(t, svc, KindSwarmOperations, "Proposal", "Review work.")
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
+		Kind: ProposalMutationList, Status: ProposalStatusReady, Summary: "Apply the safe change.",
+		PayloadJSON: `{"form":"mutation_list","rationale":"Current evidence supports the change.","mutations":[{"id":"m1","op":"reset_artifacts"}]}`,
+		Target:      &ProposalTarget{Type: ContextGoal, Ref: "quality-gates", Name: "Quality Gates"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.DecideMutationListProposal(context.Background(), session.ID, proposal.ID, []string{"m1"}, "apply after review"); err != nil {
+		t.Fatal(err)
+	}
+	if len(ledger.resolutions) != 1 {
+		t.Fatalf("resolution count = %d", len(ledger.resolutions))
+	}
+	got := ledger.resolutions[0]
+	if got.Scope != "session:swarm-operations" || got.Decision != "applied" || got.Reason != "apply after review" || got.SessionID != session.ID || got.ProposalKind != string(ProposalMutationList) {
+		t.Fatalf("resolution = %+v", got)
+	}
+	if _, err := svc.DecideMutationListProposal(context.Background(), session.ID, proposal.ID, []string{"m1"}, "repeat"); err == nil {
+		t.Fatal("repeated apply succeeded")
+	}
+	if len(ledger.resolutions) != 1 {
+		t.Fatalf("repeated apply wrote %d resolutions", len(ledger.resolutions))
+	}
+}
+
+func TestRejectedMutationProposalWritesReason(t *testing.T) {
+	ledger := &fakeResolutionLedger{}
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.SetSourceLedger(ledger)
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Proposal", "Review work.")
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
+		Kind: ProposalMutationList, Status: ProposalStatusReady, Summary: "Risky change.",
+		PayloadJSON: `{"form":"mutation_list","mutations":[{"id":"m1","op":"reset_artifacts"}]}`,
+		Target:      &ProposalTarget{Type: ContextGoal, Ref: "quality-gates", Name: "Quality Gates"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rejected, err := svc.DecideMutationListProposal(context.Background(), session.ID, proposal.ID, nil, "evidence is insufficient")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, ok := findProposal(rejected, proposal.ID)
+	if !ok || stored.Status != ProposalStatusRejected || stored.Decisions[0].Kind != "reject" {
+		t.Fatalf("rejected proposal = %+v", stored)
+	}
+	if len(ledger.resolutions) != 1 || ledger.resolutions[0].Scope != "session:meta-orchestration" || ledger.resolutions[0].Decision != "rejected" || ledger.resolutions[0].Reason != "evidence is insufficient" {
+		t.Fatalf("rejection resolution = %+v", ledger.resolutions)
+	}
+}
+
+func TestNoChangeRecommendationWritesResolution(t *testing.T) {
+	processor := &fakeMutationProposalProcessor{}
+	ledger := &fakeResolutionLedger{}
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.SetMutationProposalProcessor(processor)
+	svc.SetSourceLedger(ledger)
+	session := createStartedSession(t, svc, KindWorkflowAuthoring, "Proposal", "Review system design.")
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
+		Kind: ProposalNoChangeRecommendation, Status: ProposalStatusReady, Summary: "Keep the current boundary.",
+		PayloadJSON: `{"form":"mutation_list","rationale":"The existing boundary is correct.","mutations":[]}`,
+		Target:      &ProposalTarget{Type: ContextGoal, Ref: "quality-gates", Name: "Quality Gates"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AcceptNoChangeRecommendation(context.Background(), session.ID, proposal.ID, "confirmed by operator"); err != nil {
+		t.Fatal(err)
+	}
+	if len(ledger.resolutions) != 1 || ledger.resolutions[0].Scope != "team:meta-optimization" || ledger.resolutions[0].Decision != "no_change_recommendation" || ledger.resolutions[0].ProposalKind != string(ProposalNoChangeRecommendation) {
+		t.Fatalf("no-change resolution = %+v", ledger.resolutions)
+	}
+}
+
+func TestResolutionLedgerFailureDoesNotFailApplyAndIsLogged(t *testing.T) {
+	processor := &fakeMutationProposalProcessor{}
+	ledger := &fakeResolutionLedger{err: errors.New("ledger offline")}
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.SetMutationProposalProcessor(processor)
+	svc.SetSourceLedger(ledger)
+	session := createStartedSession(t, svc, KindSwarmOperations, "Proposal", "Review work.")
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
+		Kind: ProposalMutationList, Status: ProposalStatusReady, Summary: "Apply.",
+		PayloadJSON: `{"form":"mutation_list","mutations":[{"id":"m1","op":"reset_artifacts"}]}`,
+		Target:      &ProposalTarget{Type: ContextGoal, Ref: "quality-gates", Name: "Quality Gates"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	result, err := svc.DecideMutationListProposal(context.Background(), session.ID, proposal.ID, []string{"m1"}, "apply")
+	if err != nil {
+		t.Fatalf("ledger outage blocked apply: %v", err)
+	}
+	stored, _ := findProposal(result, proposal.ID)
+	if stored.Status != ProposalStatusApplied {
+		t.Fatalf("proposal status = %q", stored.Status)
+	}
+	if !strings.Contains(logs.String(), "write session resolution failed") || !strings.Contains(logs.String(), "ledger offline") {
+		t.Fatalf("ledger failure log missing: %s", logs.String())
+	}
+}
+
 // TestServiceStartInitialPromptDeliversFullSkill proves the spawned agent is
 // directed to read its whole operating guide (the full skill methodology), not
 // just the attached startup-brief snapshot — the Phase 7 guarantee that the
@@ -442,6 +608,38 @@ func TestServiceStartInjectsStartupBriefContextByDefault(t *testing.T) {
 				t.Fatalf("prompt missing startup brief instruction:\n%s", spawner.spawnReq.Prompt)
 			}
 		})
+	}
+}
+
+func TestServiceStartThreadsStarterJobAndAttachedContextIntoStartupBrief(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
+	svc := newTestService(t, spawner)
+	resolver := &recordingStartupContextResolver{}
+	svc.SetContextResolver(resolver)
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Review a run"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := svc.Start(context.Background(), ContinueRequest{
+		SessionID:   draft.ID,
+		Message:     "Review the selected run.",
+		StarterJob:  "operations-run",
+		ContextRefs: []ContextRef{{Type: ContextExecution, Ref: "exec-1"}},
+	})
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if resolver.jobID != "operations-run" {
+		t.Fatalf("startup brief job = %q", resolver.jobID)
+	}
+	if len(resolver.attached) != 1 || resolver.attached[0].Type != ContextExecution || resolver.attached[0].Ref != "exec-1" {
+		t.Fatalf("startup brief attached context = %+v", resolver.attached)
+	}
+	if len(session.Messages) != 1 || len(session.Messages[0].Context) != 2 || session.Messages[0].Context[0].Type != ContextStartupBrief || session.Messages[0].Context[1].Type != ContextExecution {
+		t.Fatalf("resolved context order = %+v", session.Messages)
 	}
 }
 
@@ -814,8 +1012,10 @@ func TestServiceApplyBacklogBatchImportProposalUsesSessionAttribution(t *testing
 	defer restoreClock()
 
 	applier := &fakeBacklogBatchApplier{}
+	ledger := &fakeResolutionLedger{}
 	svc := newTestService(t, &fakeSessionSpawner{})
 	svc.SetBacklogBatchApplier(applier)
+	svc.SetSourceLedger(ledger)
 	session := createStartedSession(t, svc, KindMetaOrchestration, "Plan", "Plan.")
 	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
 		ID:          "prop-1",
@@ -851,6 +1051,9 @@ func TestServiceApplyBacklogBatchImportProposalUsesSessionAttribution(t *testing
 	}
 	if len(artifacts) != 1 || artifacts[0].EntityRef != "idea/session-item" {
 		t.Fatalf("artifacts = %+v", artifacts)
+	}
+	if len(ledger.resolutions) != 1 || ledger.resolutions[0].Scope != "session:meta-orchestration" || ledger.resolutions[0].Decision != "applied" || ledger.resolutions[0].ProposalKind != string(ProposalBacklogBatchImport) {
+		t.Fatalf("apply resolution = %+v", ledger.resolutions)
 	}
 }
 
@@ -1102,6 +1305,20 @@ type fakeMutationProposalProcessor struct {
 	acceptedKeep bool
 }
 
+type fakeResolutionLedger struct {
+	resolutions []sourceledger.Resolution
+	err         error
+}
+
+func (f *fakeResolutionLedger) Wake(context.Context, string, int) (sourceledger.WakeResult, error) {
+	return sourceledger.WakeResult{}, f.err
+}
+
+func (f *fakeResolutionLedger) WriteResolution(_ context.Context, resolution sourceledger.Resolution) error {
+	f.resolutions = append(f.resolutions, resolution)
+	return f.err
+}
+
 func (f *fakeMutationProposalProcessor) Ingest(_ context.Context, _ ProposalTarget, _ string) (MutationProposalIngestion, error) {
 	f.ingestCalls++
 	return f.ingestion, nil
@@ -1136,13 +1353,32 @@ type fakeStartupContextResolver struct {
 	fakeContextResolver
 }
 
-func (fakeStartupContextResolver) ResolveSessionStartupBrief(_ context.Context, kind Kind, _ ContextLimits) (ContextItem, error) {
+func (fakeStartupContextResolver) ResolveSessionStartupBrief(_ context.Context, kind Kind, _ string, _ []ContextItem, _ ContextLimits) (ContextItem, error) {
 	return ContextItem{
 		Type:    ContextStartupBrief,
 		Ref:     StartupBriefRefForKind(kind),
 		Title:   "Startup Brief",
 		Summary: "Use this brief first.",
 	}, nil
+}
+
+type recordingStartupContextResolver struct {
+	jobID    string
+	attached []ContextItem
+}
+
+func (r *recordingStartupContextResolver) ResolveSessionMessageContext(_ context.Context, refs []ContextRef, _ ContextLimits) ([]ContextItem, error) {
+	items := make([]ContextItem, 0, len(refs))
+	for _, ref := range refs {
+		items = append(items, ContextItem{Type: ref.Type, Ref: ref.Ref, Title: "Selected execution", Summary: "Failed run"})
+	}
+	return items, nil
+}
+
+func (r *recordingStartupContextResolver) ResolveSessionStartupBrief(_ context.Context, kind Kind, jobID string, attached []ContextItem, _ ContextLimits) (ContextItem, error) {
+	r.jobID = jobID
+	r.attached = append([]ContextItem(nil), attached...)
+	return ContextItem{Type: ContextStartupBrief, Ref: StartupBriefRefForKind(kind), Title: "Startup Brief", Summary: "Use this brief first."}, nil
 }
 
 func (f *fakeBacklogBatchApplier) ApplyAgentSessionBacklogBatchImport(_ context.Context, payloadJSON string, prov identity.Provenance) ([]Artifact, error) {

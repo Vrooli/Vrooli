@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | identities, specs, renders, assets, conformance | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | identities, specs, renders, assets, conformance | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Filesystem BlobStore | embedded storage | yes | assets | BlobStore seam in the assets module | Render completes but the asset is not stored; the job fails rather than recording an artifact it cannot serve. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
 | ai-gateway | scenario | yes | renders (image and video generation) | scenario CLI/API | **Renders queue rather than fail.** A submitted job stays submittable and reports the gateway as unavailable; nothing already produced is affected, and no vendor fallback is attempted. |

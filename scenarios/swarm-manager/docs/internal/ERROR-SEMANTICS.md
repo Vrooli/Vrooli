@@ -136,6 +136,15 @@ Same pattern as Backlog Flow.
 | API unreachable | Returns raw Go error | NETWORK |
 | Invalid JSON | Prints raw bytes | PARSE |
 
+### 5. Agent Session Optional Dependencies
+
+| Dependency failure | Behavior | Integrity rule |
+|---|---|---|
+| Related-work search unavailable | Start continues with a `related-work status="unavailable"` section. | Never report the outage as an empty successful search or infer that no related work exists. |
+| Source Ledger wake unavailable | Prompt construction emits `continuity-fallback`. | Startup brief and attached context remain usable; do not infer prior decisions. |
+| Source Ledger resolution write fails | The already-applied or rejected proposal remains terminal and the server logs the write failure. | An optional continuity sink cannot roll back or misreport an authoritative domain decision. |
+| Job-slice resolver fails | The kind startup brief remains and carries a warning. | Never replace authoritative kind state with invented job state. |
+
 ---
 
 ## Failure Modes by Flow

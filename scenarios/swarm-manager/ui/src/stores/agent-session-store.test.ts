@@ -58,6 +58,7 @@ describe("agent-session-store", () => {
         selectedAt: "2026-05-01T12:00:00Z",
       }),
       create: vi.fn().mockResolvedValue(SESSION_A),
+		changeKind: vi.fn().mockResolvedValue({ session: { ...SESSION_A, kind: "swarm_operations" }, droppedContextRefs: [], starterJobCleared: false }),
       start: vi.fn().mockResolvedValue({ ...SESSION_A, messages: [{ id: "msg-0", role: "user", content: "Start", createdAt: "2026-05-01T12:00:00Z", attachmentIds: [] }] }),
       continue: vi.fn().mockResolvedValue({ ...SESSION_A, messages: [{ id: "msg-1", role: "user", content: "Hi", createdAt: "2026-05-01T12:00:00Z", attachmentIds: [] }] }),
       uploadAttachments: vi.fn().mockResolvedValue([]),
@@ -127,6 +128,10 @@ describe("agent-session-store", () => {
       kind: "swarm_operations",
       title: "Manage Swarm operations",
     });
+
+	const changed = await useAgentSessionStore.getState().changeSessionKind({ sessionId: "sess_a", kind: "swarm_operations", contextRefs: [] });
+	expect(changed.session.kind).toBe("swarm_operations");
+	expect(service.changeKind).toHaveBeenCalledWith({ sessionId: "sess_a", kind: "swarm_operations", contextRefs: [] });
 
     const started = await useAgentSessionStore.getState().startSession({
       sessionId: "sess_a",

@@ -46,6 +46,7 @@ const (
 	promptSectionKindFallback       = "continuity-fallback"
 	promptSectionKindIdentity       = "session-identity"
 	promptSectionKindStartupBrief   = "startup-brief"
+	promptSectionKindRelatedWork    = "related-work"
 	promptSectionKindContext        = "attached-context"
 	promptSectionKindImages         = "attached-images"
 	promptSectionKindOperatorMsg    = "operator-message"
@@ -68,6 +69,7 @@ var promptSectionSpecs = map[string]promptSectionSpec{
 	promptSectionKindFallback:       {Element: "continuity-fallback", Scope: promptScopeVolatile},
 	promptSectionKindIdentity:       {Element: "session-identity", Scope: promptScopeVolatile},
 	promptSectionKindStartupBrief:   {Element: "startup-brief", Scope: promptScopeVolatile},
+	promptSectionKindRelatedWork:    {Element: "related-work", Scope: promptScopeVolatile},
 	promptSectionKindContext:        {Element: "attached-context", Scope: promptScopeVolatile},
 	promptSectionKindImages:         {Element: "attached-images", Scope: promptScopeVolatile},
 	promptSectionKindOperatorMsg:    {Element: "operator-message", Scope: promptScopeTask},

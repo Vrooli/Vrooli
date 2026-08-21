@@ -35,17 +35,37 @@ export function allowedContextTypesForKind(kind: AgentSessionKind): AgentSession
     case "operating_mode_authoring":
       return [];
     case "swarm_operations":
-	  return ["startup_brief", "operations_briefing", "goal", "backlog_item", "execution", "agent_activity", "capture", "session", "plan_dependency_cycles", "plan_eta"];
-	case "workflow_authoring":
-		return ["startup_brief", "goal", "backlog_item", "scenario", "session"];
+      return [
+        "startup_brief",
+        "operations_briefing",
+        "goal",
+        "backlog_item",
+        "execution",
+        "agent_activity",
+        "capture",
+        "session",
+        "plan_dependency_cycles",
+        "plan_eta",
+      ];
+    case "workflow_authoring":
+      return ["startup_brief", "goal", "backlog_item", "scenario", "session"];
     case "meta_orchestration":
     default:
-	  return ["startup_brief", "goal", "backlog_item", "capture", "scenario", "session", "plan_dependency_cycles", "plan_eta"];
+      return [
+        "startup_brief",
+        "goal",
+        "backlog_item",
+        "capture",
+        "scenario",
+        "session",
+        "plan_dependency_cycles",
+        "plan_eta",
+      ];
   }
 }
 
 export function compatibleSessionKindsForContextType(type: AgentSessionContextType): CreatableAgentSessionKind[] {
-	const kinds: CreatableAgentSessionKind[] = ["meta_orchestration", "swarm_operations", "workflow_authoring"];
+  const kinds: CreatableAgentSessionKind[] = ["meta_orchestration", "swarm_operations", "workflow_authoring"];
   return kinds.filter((kind) => allowedContextTypesForKind(kind).includes(type));
 }
 

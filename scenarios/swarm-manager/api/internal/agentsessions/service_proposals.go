@@ -10,6 +10,7 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/idgen"
+	"swarm-manager/internal/sourceledger"
 	"swarm-manager/internal/transitionrunner"
 )
 
@@ -122,12 +123,52 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 	if err := store.SaveSession(session); err != nil {
 		return Session{}, nil, err
 	}
+	s.recordResolution(ctx, session, proposal, "applied", proposalResolutionReason(proposal, ""))
 	s.emitProposalApplied(session, proposal, len(artifacts))
 	applied, err := store.LoadSession(session.ID)
 	if err != nil {
 		return Session{}, nil, err
 	}
 	return applied, artifacts, nil
+}
+
+func (s *Service) recordResolution(ctx context.Context, session Session, proposal Proposal, decision, reason string) {
+	if s == nil || s.sourceLedger == nil {
+		return
+	}
+	resolution := sourceledger.Resolution{
+		Scope:        sessionLedgerScope(session.Kind),
+		Decision:     strings.TrimSpace(decision),
+		Reason:       strings.TrimSpace(reason),
+		SessionID:    session.ID,
+		ProposalID:   proposal.ID,
+		ProposalKind: string(proposal.Kind),
+	}
+	if err := s.sourceLedger.WriteResolution(ctx, resolution); err != nil {
+		slog.Warn("agentsessions: write session resolution failed", "session", session.ID, "proposal", proposal.ID, "decision", decision, "err", err)
+	}
+}
+
+func proposalResolutionReason(proposal Proposal, note string) string {
+	if reason := strings.TrimSpace(note); reason != "" {
+		return reason
+	}
+	var payload struct {
+		Rationale string `json:"rationale"`
+		Reason    string `json:"reason"`
+	}
+	if json.Unmarshal([]byte(proposal.PayloadJSON), &payload) == nil {
+		if reason := strings.TrimSpace(payload.Rationale); reason != "" {
+			return reason
+		}
+		if reason := strings.TrimSpace(payload.Reason); reason != "" {
+			return reason
+		}
+	}
+	if summary := strings.TrimSpace(proposal.Summary); summary != "" {
+		return summary
+	}
+	return "operator recorded a terminal proposal decision"
 }
 
 // checkProposalApplyCapability verifies that the service has the dependencies

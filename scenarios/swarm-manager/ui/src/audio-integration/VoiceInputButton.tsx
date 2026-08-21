@@ -1,10 +1,10 @@
 /**
  * @vrooliComponentSource react-component-library:VoiceInputButton
- * @vrooliComponentVersion 4.1.0
+ * @vrooliComponentVersion 4.2.0
  * @vrooliComponentAdoption b11fce87-57ac-4860-b70f-75c25987167f
- * @vrooliComponentAppliedAt 2026-08-12T02:09:05Z
- * @vrooliComponentSourceSha256 fe2c5be8d35f2877f8c7613534ad70bafe462945bbdc25023a362f8c5e5ba033
- * @vrooliComponentDriftHash 89f6f8b1b4482005a2a0a5f988011fb14435dd9144cab20576bbce02d010dcdf
+ * @vrooliComponentAppliedAt 2026-08-20T01:50:37Z
+ * @vrooliComponentSourceSha256 014efbbd48444f064802cf949f935d3e14679f55ceff0f0eb7b76c55bf3eccab
+ * @vrooliComponentDriftHash c110abbb6dde0cf9390c0a266b02640b17d1ec5ede30873620f148f07a1fbdcc
  * @vrooliComponentTokenTranslation bg-app-danger/20->bg-slate-600/20,bg-app-info/20->bg-slate-400/20,bg-app-primary/20->bg-slate-300/20,bg-app-primary/60->bg-slate-300/60,bg-app-surface->bg-slate-900,bg-app-warning/10->bg-slate-500/10,bg-app-warning/70->bg-slate-500/70,border-app-border->border-slate-700,border-app-danger->border-slate-600,border-app-info->border-slate-400,border-app-primary->border-slate-300,border-app-warning->border-slate-500,border-app-warning/50->border-slate-500/50,text-app-danger->text-slate-600,text-app-info->text-slate-400,text-app-muted-foreground->text-slate-200,text-app-primary->text-slate-300,text-app-warning->text-slate-500
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -54,13 +54,7 @@ export interface VoiceInputButtonProps
   readonly onStop?: () => void;
   readonly onPrepare?: () => void;
   readonly onExitPassive?: () => void;
-  /**
-   * Cancels an in-flight transcription. When supplied, the `transcribing`
-   * state stays interactive and swaps its spinner for a cancel glyph on
-   * hover/focus, so cancelling is a state of this control rather than a second
-   * control rendered beside it. The mic occupies a fixed slot in a composer
-   * row; anything that appears outside its bounds shifts the layout mid-use.
-   */
+  /** Cancel an in-flight transcription without adding a second control. */
   readonly onCancel?: () => void;
   readonly iconClassName?: string;
 }

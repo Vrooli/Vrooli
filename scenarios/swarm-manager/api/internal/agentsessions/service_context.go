@@ -8,7 +8,7 @@ import (
 )
 
 type StartupBriefResolver interface {
-	ResolveSessionStartupBrief(ctx context.Context, kind Kind, limits ContextLimits) (ContextItem, error)
+	ResolveSessionStartupBrief(ctx context.Context, kind Kind, jobID string, attached []ContextItem, limits ContextLimits) (ContextItem, error)
 }
 
 func (s *Service) StartupBrief(ctx context.Context, sessionID string) (ContextItem, error) {
@@ -24,7 +24,7 @@ func (s *Service) StartupBrief(ctx context.Context, sessionID string) (ContextIt
 	if !ok {
 		return ContextItem{}, apierr.Unavailable("agent session startup brief is unavailable")
 	}
-	item, err := resolver.ResolveSessionStartupBrief(ctx, session.Kind, contextLimitsForKind(session.Kind))
+	item, err := resolver.ResolveSessionStartupBrief(ctx, session.Kind, session.StarterJob, nil, contextLimitsForKind(session.Kind))
 	if err != nil {
 		return ContextItem{}, err
 	}
@@ -46,9 +46,34 @@ func (s *Service) resolveMessageContext(ctx context.Context, session Session, re
 	if s.contextResolver == nil {
 		return nil, apierr.Unavailable("agent session context resolution is unavailable")
 	}
-	items, err := s.contextResolver.ResolveSessionMessageContext(ctx, normalized, contextLimitsForKind(session.Kind))
+	limits := contextLimitsForKind(session.Kind)
+	regularRefs := make([]ContextRef, 0, len(normalized))
+	startupIndex := -1
+	for i, ref := range normalized {
+		if ref.Type == ContextStartupBrief {
+			startupIndex = i
+			continue
+		}
+		regularRefs = append(regularRefs, ref)
+	}
+	items, err := s.contextResolver.ResolveSessionMessageContext(ctx, regularRefs, limits)
 	if err != nil {
 		return nil, err
+	}
+	if startupIndex >= 0 {
+		resolver, ok := s.startupBriefResolver()
+		if !ok {
+			return nil, apierr.Unavailable("agent session startup brief is unavailable")
+		}
+		brief, briefErr := resolver.ResolveSessionStartupBrief(ctx, session.Kind, session.StarterJob, items, limits)
+		if briefErr != nil {
+			return nil, briefErr
+		}
+		withBrief := make([]ContextItem, 0, len(items)+1)
+		withBrief = append(withBrief, items[:startupIndex]...)
+		withBrief = append(withBrief, brief)
+		withBrief = append(withBrief, items[startupIndex:]...)
+		items = withBrief
 	}
 	now := nowRFC3339()
 	for i := range items {
@@ -97,10 +122,77 @@ func normalizeContextRefs(kind Kind, refs []ContextRef) ([]ContextRef, error) {
 	return normalized, nil
 }
 
+func (s *Service) ChangeKind(ctx context.Context, req ChangeKindRequest) (ChangeKindResult, error) {
+	if !IsKnownKind(req.Kind) {
+		return ChangeKindResult{}, apierr.BadRequest("kind must be meta_orchestration, swarm_operations, or workflow_authoring")
+	}
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return ChangeKindResult{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(req.SessionID))
+	if err != nil {
+		return ChangeKindResult{}, mapStoreError(err)
+	}
+	if session.Status != StatusDraft || strings.TrimSpace(session.RunID) != "" {
+		return ChangeKindResult{}, apierr.Conflict("agent session kind cannot change from status %q", session.Status)
+	}
+
+	_, dropped, err := filterContextRefsForKind(req.Kind, req.ContextRefs)
+	if err != nil {
+		return ChangeKindResult{}, err
+	}
+	cleared := !starterJobAllowedForKind(session.StarterJob, req.Kind)
+	session.Kind = req.Kind
+	session.SkillID = skillIDForKind(req.Kind)
+	if cleared {
+		session.StarterJob = ""
+	}
+	session.UpdatedAt = nowRFC3339()
+	if err := store.SaveSession(session); err != nil {
+		return ChangeKindResult{}, err
+	}
+	updated, err := store.LoadSession(session.ID)
+	if err != nil {
+		return ChangeKindResult{}, err
+	}
+	return ChangeKindResult{Session: updated, DroppedContext: dropped, StarterJobCleared: cleared}, nil
+}
+
+func filterContextRefsForKind(kind Kind, refs []ContextRef) ([]ContextRef, []ContextRef, error) {
+	if len(refs) > contextLimitsForKind(kind).MaxTotal {
+		return nil, nil, apierr.BadRequest("no more than %d context items are allowed for %s sessions", contextLimitsForKind(kind).MaxTotal, kind)
+	}
+	kept := make([]ContextRef, 0, len(refs))
+	dropped := make([]ContextRef, 0)
+	seen := map[string]struct{}{}
+	for _, raw := range refs {
+		ref := ContextRef{Type: ContextType(strings.TrimSpace(string(raw.Type))), Ref: strings.TrimSpace(raw.Ref)}
+		if !IsKnownContextType(ref.Type) || ref.Ref == "" {
+			return nil, nil, apierr.BadRequest("context type and ref must be valid")
+		}
+		key := string(ref.Type) + "\x00" + ref.Ref
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		allowed := contextLimitsForKind(kind).MaxPerType[ref.Type] > 0
+		if ref.Type == ContextStartupBrief && ref.Ref != StartupBriefRefForKind(kind) {
+			allowed = false
+		}
+		if allowed {
+			kept = append(kept, ref)
+		} else {
+			dropped = append(dropped, ref)
+		}
+	}
+	return kept, dropped, nil
+}
+
 func contextLimitsForKind(kind Kind) ContextLimits {
 	common := map[ContextType]int{
 		ContextBacklogItem:          8,
-		ContextGoal:                 4,
+		ContextGoal:                 1,
 		ContextCapture:              4,
 		ContextExecution:            6,
 		ContextAgentActivity:        6,
@@ -110,6 +202,25 @@ func contextLimitsForKind(kind Kind) ContextLimits {
 		ContextStartupBrief:         1,
 		ContextPlanDependencyCycles: 1,
 		ContextPlanEta:              1,
+	}
+	allowed := map[Kind]map[ContextType]bool{
+		KindSwarmOperations: {
+			ContextStartupBrief: true, ContextOperationsBriefing: true, ContextGoal: true, ContextBacklogItem: true,
+			ContextExecution: true, ContextAgentActivity: true, ContextCapture: true, ContextSession: true,
+			ContextPlanDependencyCycles: true, ContextPlanEta: true,
+		},
+		KindWorkflowAuthoring: {
+			ContextStartupBrief: true, ContextGoal: true, ContextBacklogItem: true, ContextScenario: true, ContextSession: true,
+		},
+		KindMetaOrchestration: {
+			ContextStartupBrief: true, ContextGoal: true, ContextBacklogItem: true, ContextCapture: true,
+			ContextScenario: true, ContextSession: true, ContextPlanDependencyCycles: true, ContextPlanEta: true,
+		},
+	}[kind]
+	for contextType := range common {
+		if !allowed[contextType] {
+			delete(common, contextType)
+		}
 	}
 	return ContextLimits{Kind: kind, MaxTotal: 12, MaxPerType: common, MaxSummaryRunes: 1200}
 }

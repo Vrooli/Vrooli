@@ -23,6 +23,7 @@ import { SessionMetadata } from "../components/session/SessionMetadata";
 import { SessionSectionTabs, type SessionSectionValue } from "../components/session/SessionSectionTabs";
 import { useComposerImageAttachments } from "../components/composer/useComposerImageAttachments";
 import { optionsToRefs } from "../components/session/context/session-context-options";
+import { sessionKindAllowsContextType } from "../components/session/context/session-context-config";
 import { sessionOption, startupBriefOption, type SessionContextOption } from "../components/session/context/session-context-refs";
 import { clearStagedContextForSession, mergeContextOptions, peekStagedContextForSession } from "../components/session/context/pending-session-context";
 import { readSessionDraft, writeSessionDraft } from "../components/session/session-draft-storage";
@@ -45,7 +46,7 @@ import { useAgentSessionPolling } from "../hooks/useAgentSessionPolling";
 import { useAppBack } from "../app/routes/useAppBack";
 import { backlogDetailPath, detailPathFromNodeId, goalDetailPath } from "../app/routes/route-paths";
 import { useIsMobile } from "../hooks/useMediaQuery";
-import type { AgentSession, AgentSessionArtifact, AgentSessionProposal } from "../types";
+import type { AgentSession, AgentSessionArtifact, AgentSessionProposal, CreatableAgentSessionKind } from "../types";
 
 /**
  * A message the operator has composed and the server has not yet confirmed.
@@ -69,12 +70,14 @@ export function SessionDetailsPage() {
   const closeDetail = useAppBack();
   const isMobile = useIsMobile();
   const desktopLayoutRef = useRef<HTMLDivElement>(null);
+	const pendingContextOwnerRef = useRef<string | undefined>(undefined);
 
   const storeSession = useAgentSessionStore((s) =>
     s.sessions.find((session) => session.id === sessionId),
   );
   const loadSession = useAgentSessionStore((s) => s.loadSession);
   const loadStartupBrief = useAgentSessionStore((s) => s.loadStartupBrief);
+	const changeSessionKind = useAgentSessionStore((s) => s.changeSessionKind);
   const startSession = useAgentSessionStore((s) => s.startSession);
   const continueSession = useAgentSessionStore((s) => s.continueSession);
   const uploadSessionAttachments = useAgentSessionStore((s) => s.uploadSessionAttachments ?? (() => Promise.resolve([])));
@@ -123,9 +126,19 @@ export function SessionDetailsPage() {
   useEffect(() => {
     setDraft(readSessionDraft(draftSessionId));
     setStarterJobId(session?.starterJobId);
-    setPendingContext(session?.status === "draft" ? [startupBriefOption(session.kind)] : []);
+    setPendingContext((current) => {
+      if (!session || session.status !== "draft") return [];
+      const sameSession = pendingContextOwnerRef.current === session.id;
+      pendingContextOwnerRef.current = session.id;
+      const retained = sameSession
+        ? current.filter(
+            (item) => item.type !== "startup_brief" && sessionKindAllowsContextType(session.kind, item.type),
+          )
+        : [];
+      return [startupBriefOption(session.kind), ...retained];
+    });
     setPendingSend(null);
-  }, [session?.id, session?.kind, session?.status, session?.starterJobId, draftSessionId]);
+  }, [session, draftSessionId]);
 
   useEffect(() => {
     if (!session) return;
@@ -271,6 +284,27 @@ export function SessionDetailsPage() {
       setLocalError(err instanceof Error ? err.message : "Unable to refresh startup brief.");
     }
   }, [loadStartupBrief, session, startupBriefQuery]);
+
+	const handleKindChange = useCallback(async (kind: CreatableAgentSessionKind) => {
+		if (!session || session.status !== "draft" || kind === session.kind) return;
+		setLocalError(null);
+		const staged = pendingContext;
+		try {
+			const result = await changeSessionKind({ sessionId: session.id, kind, contextRefs: optionsToRefs(staged) });
+			const dropped = new Set(result.droppedContextRefs.map((ref) => `${ref.type}\u0000${ref.ref}`));
+			const droppedTitles = staged
+				.filter((item) => dropped.has(`${item.type}\u0000${item.ref}`))
+				.map((item) => item.title);
+			setPendingContext((current) => current.filter((item) => !dropped.has(`${item.type}\u0000${item.ref}`)));
+			setStarterJobId(result.session.starterJobId);
+			const notices: string[] = [];
+			if (droppedTitles.length > 0) notices.push(`Removed context this session kind does not allow: ${droppedTitles.join(", ")}.`);
+			if (result.starterJobCleared) notices.push("Cleared the starter job because it is not offered for this session kind.");
+			if (notices.length > 0) setLocalError(notices.join(" "));
+		} catch (err) {
+			setLocalError(err instanceof Error ? err.message : "Unable to change session kind.");
+		}
+	}, [changeSessionKind, pendingContext, session]);
 
   const handleCancel = useCallback(async () => {
     if (!session) return;
@@ -479,7 +513,23 @@ export function SessionDetailsPage() {
     },
   ];
 
-  const primaryAction = (
+	const primaryAction = session.status === "draft" ? (
+		<label className="flex items-center gap-2 text-xs text-slate-400">
+			<span>Session kind</span>
+			<select
+				aria-label="Session kind"
+				data-testid="session-kind-selector"
+				value={session.kind}
+				disabled={isMutating}
+				onChange={(event) => void handleKindChange(event.target.value as CreatableAgentSessionKind)}
+				className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+			>
+				<option value="meta_orchestration">Plan Work</option>
+				<option value="swarm_operations">Swarm Operations</option>
+				<option value="workflow_authoring">Improve the System</option>
+			</select>
+		</label>
+	) : (
     <Button variant="ghost" size="sm" onClick={() => void handleCancel()} disabled={cancelDisabled} data-testid="session-cancel">
       <Square className="mr-1.5 h-3.5 w-3.5" />
       Cancel
