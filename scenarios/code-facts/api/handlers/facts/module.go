@@ -20,6 +20,8 @@ import (
 
 func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64, admission *Admission, indexControlToken string, dynamicTokens ...func(string) bool) module.Module {
 	resolver := discovery.NewResolver(discovery.ResolverConfig{})
+	var indexController IndexController
+	var jobs indexcontrol.JobStore
 	opts := []internalfacts.ServiceOption{
 		internalfacts.WithBroker(internalfacts.NewBroker(
 			internalfacts.NewGoGraphProvider(resolver, http.DefaultClient),
@@ -30,15 +32,24 @@ func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64, admission *Admi
 	}
 	if db != nil {
 		opts = append(opts, internalfacts.WithCacheRepository(internalfacts.NewSQLiteCacheRepository(db, cacheMaxBytes)))
+		productionIndex, err := NewProductionIndex(db, admission)
+		if err != nil {
+			if logger != nil {
+				logger.Printf("code-facts indexed runtime unavailable: %v", err)
+			}
+		} else {
+			opts = append(opts, internalfacts.WithSearchBackend(productionIndex))
+			jobs = productionIndex.jobs
+			indexController = NewRuntimeIndexController(indexcontrol.NewSQLiteStatusReader(db, jobs), productionIndex)
+			productionIndex.Bootstrap()
+		}
 	}
 	svc := internalfacts.NewService(opts...)
-	var indexController IndexController
-	var jobs indexcontrol.JobStore
 	var tokenMatcher func(string) bool
 	if len(dynamicTokens) > 0 {
 		tokenMatcher = dynamicTokens[0]
 	}
-	if db != nil {
+	if db != nil && indexController == nil {
 		jobs = indexcontrol.NewSQLiteJobStore(db)
 		indexController = NewRuntimeIndexController(indexcontrol.NewSQLiteStatusReader(db, jobs), nil)
 	}

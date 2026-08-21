@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-// insertMetricAt inserts a metric row with an explicit timestamp, bypassing
-// SaveMetrics (which always stamps time.Now) so retention windows are testable.
+// insertMetricAt inserts a metric row with an explicit observation time so
+// retention windows are testable.
 func insertMetricAt(t *testing.T, repo *Repository, collector string, ts time.Time, payload string) {
 	t.Helper()
 	if _, err := repo.db.ExecContext(
 		context.Background(),
-		"INSERT INTO metrics (collector_name, metric_data, timestamp) VALUES (?, ?, ?)",
-		collector, payload, ts.UTC(),
+		"INSERT INTO metrics (cycle_id, collector_name, metric_data, observed_at) VALUES (?, ?, ?, ?)",
+		collector+ts.UTC().Format(time.RFC3339Nano), collector, payload, ts.UTC(),
 	); err != nil {
 		t.Fatalf("insert metric: %v", err)
 	}

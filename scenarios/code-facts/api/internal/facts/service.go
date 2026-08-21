@@ -23,12 +23,20 @@ type Service struct {
 	broker       *Broker
 	cache        CacheRepository
 	fileDomains  FileDomainProvider
+	search       SearchBackend
 	projectIdx   *lexicalProjectIndex
 	admission    *WeightedAdmission
 	graphFlights *graphFlightGroup
 }
 
 type ServiceOption func(*Service)
+
+// SearchBackend is the production query boundary. Implementations must read
+// derived index state only; source discovery and analysis belong to index
+// construction or the explicit Describe APIs.
+type SearchBackend interface {
+	Search(context.Context, *factsv1.SearchRequest) (*factsv1.SearchResponse, error)
+}
 
 func NewService(opts ...ServiceOption) *Service {
 	s := &Service{broker: NewBroker(), cache: NewMemoryCacheRepository(), admission: NewWeightedAdmission(16, 64, 2*time.Second), graphFlights: newGraphFlightGroup()}
@@ -65,6 +73,10 @@ func WithAdmission(admission *WeightedAdmission) ServiceOption {
 			s.admission = admission
 		}
 	}
+}
+
+func WithSearchBackend(search SearchBackend) ServiceOption {
+	return func(s *Service) { s.search = search }
 }
 
 func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRequest) (*factsv1.CodeFactsReport, error) {
@@ -217,6 +229,9 @@ func pageOffset(token string) (int, error) {
 // identifiers and provenance, while DescribeCodeFacts remains the authoritative
 // detail endpoint. No graph edge family is embedded in this response.
 func (s *Service) Search(ctx context.Context, req *factsv1.SearchRequest) (*factsv1.SearchResponse, error) {
+	if s.search != nil {
+		return s.search.Search(ctx, req)
+	}
 	searchCtx, cancelSearch := boundedSearchContext(ctx, req.GetBudgetMs(), 1500*time.Millisecond)
 	defer cancelSearch()
 	query := strings.TrimSpace(req.GetQuery())

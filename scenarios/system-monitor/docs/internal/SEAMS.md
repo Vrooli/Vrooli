@@ -5,7 +5,7 @@
 
 ## Integration Seams
 
-- **Repository Interface** (`api/internal/repository/interfaces.go`): Defines `MetricRepository`, `InvestigationRepository`, `AlertRepository`, `ReportRepository`. Currently only `memory/repository.go` implements them. PostgreSQL implementation can be swapped in without changing service layer. Testability: high — mock any repository interface. [CODE: api/internal/repository/interfaces.go]
+- **Repository Interface** (`api/internal/repository/interfaces.go`): Defines the metric-cycle, investigation, alert, report, and maintenance contracts. Memory and SQLite implement the active contracts; services do not depend on the storage engine. Testability: high — mock any repository interface. [CODE: api/internal/repository/interfaces.go]
 
 - **Collector Interface** (`api/internal/collectors/interface.go`): All 6 collectors (CPU, memory, disk, network, process, GPU) implement a common interface. New collectors can be added without touching existing code. `MonitorService` accepts `WithCollectors(...)` option to inject test doubles, skipping real OS collectors. Testability: high — mock collectors for unit tests. Disk collectors are observational only: they may expose pressure and attribution signals, but broad cleanup/remediation belongs to storage-manager policy and audit, not system-monitor mutation paths. [CODE: api/internal/collectors/interface.go]
 
@@ -39,7 +39,7 @@
 
 - **Anomaly threshold evaluation**: In `api/internal/services/monitor.go`. Compares collected metrics against configurable thresholds. Triggers are managed via `/api/v1/investigations/triggers` endpoints. Test coverage: trigger CRUD tested in `investigation_test.go`.
 - **Investigation cooldown**: In `api/internal/services/investigation.go`. Prevents investigation flooding based on configurable period. Exposed via cooldown endpoints. Test coverage: `TestCooldownEnforced`, `TestCooldownReset`, `TestCooldownStatus` in `investigation_test.go`; `TestAlertCooldownPreventsSpam`, `TestAlertCooldownExpires`, `TestCleanupCooldowns` in `alert_test.go`.
-- **Storage backend selection**: In `api/internal/server/runtime.go`. Defaults to in-memory repository. PostgreSQL can be configured via DATABASE_URL. Test coverage: no unit tests exist.
+- **Storage backend selection**: In `api/internal/server/runtime.go`. SQLite is the durable default. Non-production tests may explicitly select memory with `SYSTEM_MONITOR_STORAGE_MODE=memory`; production rejects that mode. The greenfield schema is declarative and idempotent. Test coverage: repository cycle and fresh-schema tests.
 - **Script execution**: In `api/internal/services/script.go`. Executes bash scripts with timeout. Test coverage: `TestExecuteScript_Success`, `TestExecuteScript_Failure`, `TestExecuteScript_Timeout` in `script_test.go`.
 
 ## Change Axes
@@ -51,14 +51,14 @@
 
 - **Logging**: Structured logging via `api/internal/server/logging.go` middleware. Logs request/response.
 - **Health checks**: `/health` and `/api/v1/health` endpoints.
-- **Signal gaps**: No OpenTelemetry/distributed tracing. No structured error codes. No metrics about the monitor itself (meta-monitoring). No formal event bus for investigation lifecycle events.
+- **Signal gaps**: No OpenTelemetry/distributed tracing. No formal event bus for investigation lifecycle events. Monitor self-metrics now expose cycle duration, forks, skipped/failed/stale work, persistence latency, and headroom.
 
 ## Architecture Clarity Notes
 
 - Clean architecture with handler → service → repository layers.
 - All service-layer dependencies flow through interfaces (`MetricsSource`, `AgentExecutor`, `HTTPDoer`, `infrastructure.Provider`, `repository.*`, `Clock`, `ConfigStore`, `CommandRunner`), enabling isolated unit testing.
 - Handler layer uses narrow interfaces (`MonitorQuerier`, `InvestigationManager`, `ScriptRunner`, `ReportGenerator`, `SettingsProvider`) defined in `api/internal/handlers/interfaces.go`, decoupling handlers from concrete service types.
-- In-memory default keeps startup simple but means data is lost on restart.
+- SQLite is the durable default; explicit development memory mode is available for isolated tests.
 - Agent-manager integration is well-isolated in its own package.
 - UI uses HTTP polling (not WebSocket) — simpler but higher latency.
 
@@ -66,4 +66,4 @@
 
 - Refactored from monolithic main.go to modular internal/ packages.
 - Original plan was Go CLI; actual implementation is Bash CLI with curl.
-- Persistent time-series storage remains unimplemented; actual usage defaults to in-memory.
+- Persistent time-series storage is implemented through SQLite cycle-linked observations with bounded maintenance paths.

@@ -58,7 +58,7 @@ func (controller *RuntimeIndexController) Reconcile(ctx context.Context, generat
 		return nil, err
 	}
 	job, err := controller.Runtime.Reconcile(ctx, generation)
-	return controlResponse("reconciliation completed", job, controller, ctx, err)
+	return controlResponse("reconciliation started", job, controller, ctx, err)
 }
 
 func (controller *RuntimeIndexController) Reindex(ctx context.Context, generation string) (*factsv1.IndexControlResponse, error) {
@@ -66,7 +66,7 @@ func (controller *RuntimeIndexController) Reindex(ctx context.Context, generatio
 		return nil, err
 	}
 	job, err := controller.Runtime.StartShadow(ctx, generation)
-	return controlResponse("shadow reindex completed", job, controller, ctx, err)
+	return controlResponse("shadow reindex started", job, controller, ctx, err)
 }
 
 func (controller *RuntimeIndexController) Cancel(ctx context.Context, id string) (*factsv1.IndexControlResponse, error) {
@@ -111,7 +111,7 @@ func (controller *RuntimeIndexController) Cleanup(ctx context.Context, dryRun bo
 		if err := controller.Runtime.Cleanup(ctx); err != nil {
 			return nil, err
 		}
-		message = "cleanup completed"
+		message = "bounded cleanup batch completed"
 	}
 	status, _ := controller.Status(ctx)
 	return &factsv1.IndexControlResponse{Status: status, Message: message}, nil

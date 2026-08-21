@@ -104,7 +104,19 @@ func main() {
 	devrouting.Register(rootMux, db)
 
 	rootMux.Handle("/", srv.Handler())
-	go registration.Register(ctx, searchDescriptorPath(), logger, searchTokens)
+	go func() {
+		// The lifecycle registry publishes this scenario only after health turns
+		// green. Delay endpoint-probed self-registration until that publication
+		// window; registering immediately creates a deterministic startup race.
+		timer := time.NewTimer(20 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			registration.Register(ctx, searchDescriptorPath(), logger, searchTokens)
+		}
+	}()
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the

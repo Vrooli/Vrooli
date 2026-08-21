@@ -132,6 +132,60 @@ func TestSQLiteExactSearchPerformanceBudgets(t *testing.T) {
 	}
 }
 
+type scaleSemantic struct{}
+
+func (scaleSemantic) SearchSemantic(_ context.Context, query Query) ([]Candidate, error) {
+	for _, word := range strings.Fields(query.Text) {
+		if strings.HasPrefix(word, "Symbol") && len(word) == len("Symbol000000") {
+			return []Candidate{{ID: "symbol-" + strings.TrimPrefix(word, "Symbol"), Score: 0.95, Generation: query.Generation, Role: "implementation", Authority: "authoritative"}}, nil
+		}
+	}
+	return nil, nil
+}
+
+func TestHybridSearchPerformanceBudgets(t *testing.T) {
+	if os.Getenv("CODE_FACTS_PERF_ASSERT") != "1" {
+		t.Skip("set CODE_FACTS_PERF_ASSERT=1 for current and three-times hybrid latency proof")
+	}
+	for _, scale := range []struct {
+		name   string
+		count  int
+		budget time.Duration
+	}{
+		{name: "current", count: 32000, budget: 500 * time.Millisecond},
+		{name: "three-times", count: 96000, budget: 750 * time.Millisecond},
+	} {
+		t.Run(scale.name, func(t *testing.T) {
+			documents := make([]Document, 0, scale.count)
+			for id := 0; id < scale.count; id++ {
+				documents = append(documents, evalDocument(
+					fmt.Sprintf("symbol-%06d", id),
+					fmt.Sprintf("scenarios/fixture-%03d/api/internal/symbol_%06d.go", id%1000, id),
+					fmt.Sprintf("Symbol%06d", id),
+					fmt.Sprintf("Deterministic benchmark symbol %06d for natural retrieval.", id),
+				))
+			}
+			_, index := openRetrievalIndex(t, documents)
+			engine := HybridEngine{Planner: QueryPlanner{}, Lexical: index, Semantic: scaleSemantic{}, RRFK: 60}
+			durations := make([]time.Duration, 101)
+			for run := range durations {
+				started := time.Now()
+				results, err := engine.Search(context.Background(), Query{Text: fmt.Sprintf("find Symbol%06d implementation", (run*7919)%scale.count), Limit: 5})
+				durations[run] = time.Since(started)
+				if err != nil || len(results.Results) == 0 {
+					t.Fatalf("hybrid benchmark query %d: results=%d err=%v", run, len(results.Results), err)
+				}
+			}
+			sort.Slice(durations, func(i, j int) bool { return durations[i] < durations[j] })
+			p50, p95, p99 := durations[50], durations[95], durations[99]
+			t.Logf("documents=%d p50=%s p95=%s p99=%s", scale.count, p50, p95, p99)
+			if p95 > scale.budget {
+				t.Fatalf("hybrid p95 %s exceeds %s budget", p95, scale.budget)
+			}
+		})
+	}
+}
+
 func TestRetrievalProductionDoesNotOpenRepositorySourceFiles(t *testing.T) {
 	entries, err := filepath.Glob("*.go")
 	if err != nil {

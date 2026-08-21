@@ -95,9 +95,9 @@ type RollupResult struct {
 
 // MetricsRepository handles metrics data persistence
 type MetricsRepository interface {
-	// SaveMetrics stores metrics data
-	SaveMetrics(ctx context.Context, collectorName string, metrics map[string]interface{}) error
-
+	// SaveMetricCycle persists all collector observations from one logical
+	// collection cycle. CycleID and ObservedAt are caller-owned.
+	SaveMetricCycle(ctx context.Context, cycleID string, observedAt time.Time, observations []MetricObservation) error
 	// GetMetrics retrieves metrics with optional filtering
 	GetMetrics(ctx context.Context, filter MetricsFilter) ([]*models.MetricsResponse, error)
 
@@ -115,6 +115,13 @@ type MetricsRepository interface {
 
 	// GetEarliestMetricTime returns the timestamp of the earliest stored metric
 	GetEarliestMetricTime(ctx context.Context) (time.Time, error)
+}
+
+// MetricObservation is one collector's result inside a logical cycle.
+// Values must retain an explicit status for failed and unsupported readings.
+type MetricObservation struct {
+	CollectorName string
+	Values        map[string]interface{}
 }
 
 // InvestigationRepository handles investigation data persistence

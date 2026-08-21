@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
@@ -40,7 +41,10 @@ func (shellExec) CombinedOutput(ctx context.Context, name string, args ...string
 func Run(cfg *config.Config) error {
 	setupLogging(cfg)
 
-	closer, repo, routedDB := connectRepository(cfg)
+	closer, repo, routedDB, fileRoots, err := connectRepository(cfg)
+	if err != nil {
+		return fmt.Errorf("initialize metrics storage: %w", err)
+	}
 
 	alertSvc := services.NewAlertService(cfg, repo)
 	monitorSvc := services.NewMonitorService(cfg, repo, infrastructure.NewStaticProvider())
@@ -120,8 +124,8 @@ func Run(cfg *config.Config) error {
 
 	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, diskPressureHandler, deviceGraphHandler)
 	rootMux := http.NewServeMux()
-	if routedDB != nil {
-		devrouting.Register(rootMux, routedDB)
+	if routedDB != nil && fileRoots != nil {
+		devrouting.RegisterWithFileRoots(rootMux, routedDB, fileRoots)
 	}
 	rootMux.Handle("/", router)
 	handler := apihttp.TestModeMiddleware(buildMiddleware(cfg, rootMux))
@@ -151,14 +155,20 @@ func Run(cfg *config.Config) error {
 	return nil
 }
 
-func connectRepository(_ *config.Config) (io.Closer, repository.Repository, *database.RoutedDB) {
-	sqliteRepo, err := connectSQLite()
+func connectRepository(cfg *config.Config) (io.Closer, repository.Repository, *database.RoutedDB, *filerouting.RoutedRoots, error) {
+	if os.Getenv("SYSTEM_MONITOR_STORAGE_MODE") == "memory" {
+		if cfg == nil || cfg.Server.Environment != "production" {
+			slog.Warn("using explicit in-memory metrics storage; history is not durable")
+			return io.NopCloser(nil), memory.NewRepository(), nil, nil, nil
+		}
+		return nil, nil, nil, nil, fmt.Errorf("in-memory storage is not allowed in production")
+	}
+	sqliteRepo, fileRoots, err := connectSQLite()
 	if err != nil {
-		slog.Warn("Failed to initialize SQLite, using in-memory storage", "error", err)
-		return io.NopCloser(nil), memory.NewRepository(), nil
+		return nil, nil, nil, nil, err
 	}
 
-	return sqliteRepo, sqliteRepo, sqliteRepo.RoutedDB()
+	return sqliteRepo, sqliteRepo, sqliteRepo.RoutedDB(), fileRoots, nil
 }
 
 // Ensure *sqliterepo.Repository satisfies repository.Repository at compile time.

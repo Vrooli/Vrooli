@@ -23,6 +23,9 @@ type Builder struct {
 	Discoverer Discoverer
 	Clock      Clock
 	BatchSize  int
+	// SkipBegin supports durable runtimes that create the shadow generation
+	// before its job row, whose schema has a generation foreign key.
+	SkipBegin bool
 }
 
 func (b Builder) Build(ctx context.Context, generation Generation) (result BuildResult, err error) {
@@ -38,8 +41,10 @@ func (b Builder) Build(ctx context.Context, generation Generation) (result Build
 	if generation.CreatedAt.IsZero() {
 		generation.CreatedAt = b.Clock.Now()
 	}
-	if err := b.Repository.BeginGeneration(ctx, generation); err != nil {
-		return BuildResult{}, err
+	if !b.SkipBegin {
+		if err := b.Repository.BeginGeneration(ctx, generation); err != nil {
+			return BuildResult{}, err
+		}
 	}
 	completed := false
 	defer func() {

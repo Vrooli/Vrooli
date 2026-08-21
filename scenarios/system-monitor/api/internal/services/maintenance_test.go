@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,12 +13,9 @@ import (
 
 func seedMetrics(t *testing.T, repo *memory.MemoryRepository, ages ...time.Duration) {
 	t.Helper()
-	// SaveMetrics stamps time.Now(); for deterministic age control we prune by
-	// a cutoff relative to the stub clock used in the service, so here we only
-	// need rows to exist. Age-specific assertions use the sqlite tests.
 	for range ages {
-		if err := repo.SaveMetrics(context.Background(), "cpu", map[string]interface{}{"usage_percent": 1.0}); err != nil {
-			t.Fatalf("SaveMetrics: %v", err)
+		if err := repo.SaveMetricCycle(context.Background(), fmt.Sprintf("maintenance-%d", time.Now().UnixNano()), time.Now().UTC(), []repository.MetricObservation{{CollectorName: "cpu", Values: map[string]interface{}{"usage_percent": 1.0}}}); err != nil {
+			t.Fatalf("SaveMetricCycle: %v", err)
 		}
 	}
 }

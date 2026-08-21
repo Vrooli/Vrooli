@@ -20,17 +20,29 @@ var (
 	getBoolValue    = maputil.GetBool
 )
 
+func metricStateNotYetSampled(reason string, observedAt time.Time) models.MetricState {
+	return models.MetricState{Status: "not_yet_sampled", Reason: reason, ObservedAt: observedAt}
+}
+
+func notYetSampledState(reason, units string, observedAt time.Time) models.MetricState {
+	state := metricStateNotYetSampled(reason, observedAt)
+	state.Units = units
+	return state
+}
+
 func metricState(data *collectors.MetricData, key, unavailableReason string) models.MetricState {
 	now := time.Now()
 	if data != nil && !data.Timestamp.IsZero() {
 		now = data.Timestamp
 	}
-	state := models.MetricState{Status: "failed", Reason: unavailableReason, ObservedAt: now}
+	state := models.MetricState{Status: "not_yet_sampled", Reason: unavailableReason, ObservedAt: now}
+	state.Units = metricUnits(data, key)
 	if data == nil {
 		return state
 	}
 	if data.Tags != nil {
 		state.Provenance = data.Tags["source"]
+		state.CycleID = data.Tags["cycle_id"]
 	}
 	if state.Provenance == "" {
 		state.Provenance = "system-monitor/" + data.CollectorName
@@ -72,6 +84,16 @@ func metricState(data *collectors.MetricData, key, unavailableReason string) mod
 		state.Reason = fmt.Sprintf("collector did not return %s", key)
 	}
 	return state
+}
+
+func metricUnits(data *collectors.MetricData, key string) string {
+	if data != nil && data.Tags != nil && data.Tags["units"] != "" {
+		return data.Tags["units"]
+	}
+	if key == "tcp_connections" {
+		return "count"
+	}
+	return "percent"
 }
 
 func diskMetricState(data *collectors.MetricData) models.MetricState {

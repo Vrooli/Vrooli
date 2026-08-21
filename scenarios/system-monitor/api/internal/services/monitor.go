@@ -4,9 +4,11 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
@@ -16,6 +18,8 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
+
+var cycleSequence atomic.Uint64
 
 // MonitorService handles system monitoring operations
 type MonitorService struct {
@@ -52,7 +56,12 @@ type MonitorService struct {
 	lastSelfMetricsRecorded time.Time
 	lastCycleHeadroomOK     bool
 	lastCycleHeadroomReason string
+	lastCycleFailures       int
+	lastCycleSkipped        int
+	lastStaleMetricCount    int
+	lastPersistenceDuration time.Duration
 	collectionProfile       CollectionProfile
+	latestSnapshot          *models.MetricsResponse
 }
 
 // MonitorOption configures a MonitorService.
@@ -326,15 +335,18 @@ func (s *MonitorService) collectMetrics() {
 	defer cancel()
 
 	now := s.clock.Now()
+	cycleID := fmt.Sprintf("cycle-%d-%d", now.UnixNano(), cycleSequence.Add(1))
 	cycleStarted := time.Now()
 	cycleForksBefore := collectors.CommandForkCount()
 	var metricsData []*collectors.MetricData
 	var errors []error
+	skipped := 0
 
 	for _, collector := range s.collectors.GetEnabled() {
 		name := collector.GetName()
 		interval := collector.GetInterval()
 		if !s.shouldCollect(name, interval, now) {
+			skipped++
 			continue
 		}
 
@@ -345,6 +357,7 @@ func (s *MonitorService) collectMetrics() {
 		s.markCollected(name, now)
 		if err != nil {
 			errors = append(errors, err)
+			metricsData = append(metricsData, &collectors.MetricData{CollectorName: name, Timestamp: now, Values: map[string]interface{}{"status": "failed", "reason": err.Error()}})
 			continue
 		}
 		metricsData = append(metricsData, data)
@@ -356,10 +369,19 @@ func (s *MonitorService) collectMetrics() {
 	}
 
 	// Store metrics
+	observations := make([]repository.MetricObservation, 0, len(metricsData))
 	for _, data := range metricsData {
-		if err := s.repo.SaveMetrics(ctx, data.CollectorName, data.Values); err != nil {
-			log.Printf("Failed to store metrics from %s: %v", data.CollectorName, err)
+		observations = append(observations, repository.MetricObservation{CollectorName: data.CollectorName, Values: data.Values})
+	}
+	if len(observations) > 0 {
+		s.updateLatestSnapshot(cycleID, now, metricsData)
+		persistenceStarted := time.Now()
+		if err := s.repo.SaveMetricCycle(ctx, cycleID, now, observations); err != nil {
+			log.Printf("Failed to store metric cycle %s: %v", cycleID, err)
 		}
+		s.mu.Lock()
+		s.lastPersistenceDuration = time.Since(persistenceStarted)
+		s.mu.Unlock()
 	}
 
 	// Per-process attribution sampling runs on its own (typically slower)
@@ -368,6 +390,57 @@ func (s *MonitorService) collectMetrics() {
 		s.sampleProcesses(ctx, now, gpuVRAMByPID(metricsData))
 	}
 	s.recordCycleSelfMetrics(time.Since(cycleStarted), collectors.CommandForkCount()-cycleForksBefore, now)
+	s.mu.Lock()
+	s.lastCycleFailures = len(errors)
+	s.lastCycleSkipped = skipped
+	s.mu.Unlock()
+}
+
+// updateLatestSnapshot publishes the scheduler-owned view used by on-demand
+// reads. Stateful collectors are never invoked from a request path.
+func (s *MonitorService) updateLatestSnapshot(cycleID string, observedAt time.Time, data []*collectors.MetricData) {
+	response := &models.MetricsResponse{CycleID: cycleID, Timestamp: observedAt}
+	for _, metric := range data {
+		if metric == nil {
+			continue
+		}
+		switch metric.CollectorName {
+		case "cpu":
+			response.CPUState = metricState(metric, "usage_percent", "CPU has not been sampled yet")
+			if value, ok := metric.Values["usage_percent"].(float64); ok {
+				response.CPUUsage = value
+			}
+		case "memory":
+			response.MemoryState = metricState(metric, "usage_percent", "memory collector unavailable")
+			if value, ok := metric.Values["usage_percent"].(float64); ok {
+				response.MemoryUsage = value
+			}
+		case "network":
+			response.ConnectionsState = metricState(metric, "tcp_connections", "network collector unavailable")
+			if value, ok := metric.Values["tcp_connections"].(int); ok {
+				response.TCPConnections = value
+			}
+		case "gpu":
+			response.GPUState = metricState(metric, "total_usage_percent", "GPU collector unavailable")
+			if value, ok := metric.Values["total_usage_percent"].(float64); ok {
+				response.GPUUsage = &value
+			}
+		case "disk":
+			response.DiskState = diskMetricState(metric)
+			if response.DiskState.Status == "measured" {
+				response.DiskUsage = response.DiskState.Value
+			}
+		}
+	}
+	for _, state := range []*models.MetricState{&response.CPUState, &response.MemoryState, &response.ConnectionsState, &response.GPUState, &response.DiskState} {
+		if state.Status != "" {
+			state.CycleID = cycleID
+			state.ObservedAt = observedAt
+		}
+	}
+	s.mu.Lock()
+	s.latestSnapshot = response
+	s.mu.Unlock()
 }
 
 // shouldSampleProcesses gates the /proc sampler to its configured interval.
@@ -549,6 +622,10 @@ func (s *MonitorService) SelfMetrics() map[string]interface{} {
 		"last_proc_sample_duration_ms": float64(s.lastProcSampleDuration.Microseconds()) / 1000,
 		"headroom_ok":                  s.lastCycleHeadroomOK,
 		"headroom_reason":              s.lastCycleHeadroomReason,
+		"cycle_failures":               s.lastCycleFailures,
+		"cycle_skipped":                s.lastCycleSkipped,
+		"stale_metric_count":           s.lastStaleMetricCount,
+		"last_persistence_duration_ms": float64(s.lastPersistenceDuration.Microseconds()) / 1000,
 		"recorded_at":                  s.lastSelfMetricsRecorded.UTC().Format(time.RFC3339),
 	}
 }
@@ -593,59 +670,45 @@ func (s *MonitorService) GetCurrentMetrics(ctx context.Context) (*models.Metrics
 		// Fallback to real-time collection
 		return s.GetCurrentMetricsFresh(ctx)
 	}
-
+	s.markStale(metrics)
 	return metrics, nil
+}
+
+func (s *MonitorService) markStale(metrics *models.MetricsResponse) {
+	if metrics == nil {
+		return
+	}
+	cutoff := s.clock.Now().Add(-2 * s.EffectiveCollectionInterval())
+	stale := 0
+	for _, state := range []*models.MetricState{&metrics.CPUState, &metrics.MemoryState, &metrics.ConnectionsState, &metrics.GPUState, &metrics.DiskState} {
+		if state.Status == "measured" && !state.ObservedAt.IsZero() && state.ObservedAt.Before(cutoff) {
+			state.Status = "stale"
+			state.Reason = fmt.Sprintf("last observation is older than %s", 2*s.EffectiveCollectionInterval())
+			stale++
+		}
+	}
+	s.mu.Lock()
+	s.lastStaleMetricCount = stale
+	s.mu.Unlock()
 }
 
 // GetCurrentMetricsFresh performs on-demand metric collection using existing collectors.
 func (s *MonitorService) GetCurrentMetricsFresh(ctx context.Context) (*models.MetricsResponse, error) {
-	cpuData, _ := s.collectFromRegistry(ctx, "cpu")
-	memData, _ := s.collectFromRegistry(ctx, "memory")
-	netData, _ := s.collectFromRegistry(ctx, "network")
-	gpuData, _ := s.collectFromRegistry(ctx, "gpu")
-	diskData, _ := s.collectFromRegistry(ctx, "disk")
-
-	cpuUsage := 0.0
-	if cpuData != nil {
-		if val, ok := cpuData.Values["usage_percent"].(float64); ok {
-			cpuUsage = val
-		}
+	_ = ctx // retained for interface compatibility; sampling is scheduler-owned
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.latestSnapshot != nil {
+		copy := *s.latestSnapshot
+		return &copy, nil
 	}
-
-	memUsage := 0.0
-	if memData != nil {
-		if val, ok := memData.Values["usage_percent"].(float64); ok {
-			memUsage = val
-		}
-	}
-
-	tcpConnections := 0
-	if netData != nil {
-		if val, ok := netData.Values["tcp_connections"].(int); ok {
-			tcpConnections = val
-		}
-	}
-
-	var gpuUsagePtr *float64
-	if gpuData != nil {
-		if val, ok := gpuData.Values["total_usage_percent"].(float64); ok {
-			usage := val
-			gpuUsagePtr = &usage
-		}
-	}
-
+	now := s.clock.Now()
 	return &models.MetricsResponse{
-		CPUUsage:         cpuUsage,
-		MemoryUsage:      memUsage,
-		TCPConnections:   tcpConnections,
-		GPUUsage:         gpuUsagePtr,
-		DiskUsage:        diskMetricState(diskData).Value,
-		CPUState:         metricState(cpuData, "usage_percent", "CPU has not been sampled yet"),
-		MemoryState:      metricState(memData, "usage_percent", "memory collector unavailable"),
-		ConnectionsState: metricState(netData, "tcp_connections", "network collector unavailable"),
-		GPUState:         metricState(gpuData, "total_usage_percent", "GPU collector unavailable"),
-		DiskState:        diskMetricState(diskData),
-		Timestamp:        s.clock.Now(),
+		Timestamp:        now,
+		CPUState:         notYetSampledState("CPU has not been sampled yet", "percent", now),
+		MemoryState:      notYetSampledState("memory has not been sampled yet", "percent", now),
+		ConnectionsState: notYetSampledState("network has not been sampled yet", "count", now),
+		GPUState:         notYetSampledState("GPU has not been sampled yet", "percent", now),
+		DiskState:        notYetSampledState("disk has not been sampled yet", "percent", now),
 	}, nil
 }
 
@@ -773,6 +836,7 @@ func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, 
 	samples := make([]models.MetricTimelineSample, 0, len(results))
 	for _, m := range results {
 		samples = append(samples, models.MetricTimelineSample{
+			CycleID:          m.CycleID,
 			Timestamp:        m.Timestamp,
 			CPUUsage:         m.CPUUsage,
 			MemoryUsage:      m.MemoryUsage,

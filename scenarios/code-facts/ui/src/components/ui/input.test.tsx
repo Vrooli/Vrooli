@@ -27,7 +27,7 @@ describe("Input", () => {
   it("emits the base className chunk so the cn() merge contract holds", () => {
     render(<Input data-testid="i" />);
     const el = screen.getByTestId("i");
-    expect(el.className).toMatch(/rounded-md/);
+    expect(el.className).toMatch(/rounded-control/);
     expect(el.className).toMatch(/border/);
   });
 
@@ -35,7 +35,7 @@ describe("Input", () => {
     render(<Input data-testid="i" className="custom-extra" />);
     const el = screen.getByTestId("i");
     expect(el.className).toMatch(/custom-extra/);
-    expect(el.className).toMatch(/rounded-md/);
+    expect(el.className).toMatch(/rounded-control/);
   });
 
   it("forwards ref to the underlying HTMLInputElement", () => {

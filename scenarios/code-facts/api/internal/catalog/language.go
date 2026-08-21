@@ -82,6 +82,12 @@ func classifyRole(path string, prefix []byte, language string) Role {
 	if strings.Contains(lower, "/packages/proto/.verify-") || strings.Contains(lower, "/.vrooli/cache/") || strings.Contains(lower, "/.vrooli/.tmp-") {
 		return RoleTransient
 	}
+	// Provider-owned evaluation corpora repeat their golden queries and expected
+	// answers verbatim. Indexing them as implementation evidence leaks the test
+	// set into retrieval and produces meaningless perfect scores.
+	if strings.Contains(lower, "/.vrooli/search.json/") {
+		return RoleFixture
+	}
 	generatedHeader := strings.Contains(strings.ToLower(string(prefix)), "code generated") || strings.Contains(strings.ToLower(string(prefix)), "generated file")
 	if generatedHeader || strings.Contains(lower, "/packages/proto/gen/") {
 		return RoleGeneratedAlias

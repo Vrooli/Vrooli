@@ -6,12 +6,14 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 // NetworkCollector collects network metrics
 type NetworkCollector struct {
 	BaseCollector
+	mu            sync.Mutex
 	lastBytesRecv int64
 	lastBytesSent int64
 	lastCheck     time.Time
@@ -27,6 +29,8 @@ func NewNetworkCollector() *NetworkCollector {
 
 // Collect gathers network metrics
 func (c *NetworkCollector) Collect(ctx context.Context) (*MetricData, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if collectorOS != runtime.GOOS {
 		return unsupportedMetricData(c.GetName(), "network"), nil
 	}

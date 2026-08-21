@@ -34,11 +34,11 @@ func TestGenerateReport_WarningsOnPartialFailure(t *testing.T) {
 
 	// Seed at least one metric so the report has data to work with.
 	now := clk.Now()
-	err := repo.SaveMetrics(context.Background(), "test", map[string]interface{}{
+	err := repo.SaveMetricCycle(context.Background(), "report-seed", now, []repository.MetricObservation{{CollectorName: "test", Values: map[string]interface{}{
 		"cpu_usage":    50.0,
 		"memory_usage": 40.0,
 		"timestamp":    now.Format(time.RFC3339),
-	})
+	}}})
 	if err != nil {
 		t.Fatalf("seed metrics: %v", err)
 	}

@@ -129,6 +129,38 @@
           "maturity": "active",
           "requiredBy": ["generated", "deployable"],
           "completion": "required"
+        },
+        {
+          "path": "reference/platform-capabilities.md",
+          "docType": "platform-reference",
+          "title": "Platform Capabilities",
+          "aliases": ["platforms", "capability-matrix", "cross-platform"],
+          "description": "Native metric backends, units, first-sample behavior, and unsupported states",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["platform-capabilities", "cross-platform-contract"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "performance",
+      "title": "Performance",
+      "icon": "gauge",
+      "description": "Collection budgets and monitor self-observability",
+      "documents": [
+        {
+          "path": "perf/OBSERVABILITY_BUDGETS.md",
+          "docType": "performance",
+          "title": "Observability Budgets",
+          "aliases": ["performance-budgets", "collection-budgets"],
+          "description": "Duration, fork, process-walk, history, and retention budgets",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["performance-budget", "monitor-overhead"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required"
         }
       ]
     },
@@ -274,6 +306,42 @@
           "maturity": "active",
           "requiredBy": ["implemented"],
           "completion": "optional"
+        },
+        {
+          "path": "internal/METRIC_CONTRACT.md",
+          "docType": "data-contract",
+          "title": "Metric Contract",
+          "aliases": ["metric-contract", "observation-contract", "cycle-contract"],
+          "description": "Cycle, state, unit, provenance, and consumer semantics for metric observations",
+          "audience": ["developers", "operators", "agents"],
+          "canonicalFor": ["metric-semantics", "observation-contract"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/REQUIREMENTS_TRACEABILITY.md",
+          "docType": "traceability",
+          "title": "Observability Hardening Traceability",
+          "aliases": ["traceability", "evidence-matrix"],
+          "description": "Executable evidence map for the observability contract",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["requirements-traceability", "evidence-matrix"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/STORAGE_AUDIT.md",
+          "docType": "architecture",
+          "title": "Storage Architecture Audit",
+          "aliases": ["storage-audit", "storage-architecture"],
+          "description": "Greenfield storage strategy, repository ownership, and data-state boundaries",
+          "audience": ["developers", "operators", "agents"],
+          "canonicalFor": ["storage-architecture", "storage-strategy"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required"
         }
       ]
     }

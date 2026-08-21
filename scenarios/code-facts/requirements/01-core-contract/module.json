@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P0 requirements for Code Facts target resolution, fact selection, evidence status, proof synthesis, cache, and programmatic surfaces.",
-    "last_validated_at": "2026-08-20T21:01:31-04:00",
+    "last_validated_at": "2026-08-20T22:35:04-04:00",
     "module": "core-contract",
     "prd_ref": "PRD.md",
     "priority": "P0",

@@ -1,64 +1,59 @@
 {
-  "description": "The API defaults to its in-memory repository (api/internal/repository/memory/). A durable time-series backend has not been selected or implemented.",
-  "module_id": "MOD-P0-004",
-  "prd_ref": "OT-P0-004",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-20T23:41:13-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-001"
-      ],
-      "description": "System must persist metrics through a selected durable backend, ensuring no data loss",
       "id": "REQ-P0-004",
-      "prd_ref": "OT-P0-004",
-      "status": "in_progress",
       "title": "Time-Series Data Storage",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "core",
+      "description": "System must persist metrics through a selected durable backend, ensuring no data loss",
       "validation": [
         {
-          "notes": "Test storage interfaces",
+          "type": "test",
+          "ref": "api/internal/repository/cycle_test.go",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test storage interfaces"
         },
         {
-          "notes": "Verify fallback mechanism",
+          "type": "test",
+          "ref": "api/internal/server/runtime.go",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Verify fallback mechanism"
         },
         {
-          "notes": "Validate data persistence",
+          "type": "test",
+          "ref": "api/internal/repository/sqlite/repository_test.go",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Validate data persistence"
         },
         {
-          "notes": "Test failover",
+          "type": "test",
+          "ref": "api/internal/server/runtime.go",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Test failover"
         },
         {
-          "notes": "Handle 1000+ writes/second",
+          "type": "test",
+          "ref": "api/internal/repository/sqlite/repository_test.go",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Handle 1000+ writes/second"
         },
         {
-          "notes": "No data loss during 24h operation",
+          "type": "test",
+          "ref": "api/internal/services/maintenance_test.go",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "No data loss during 24h operation"
         }
       ]
     }
-  ],
-  "title": "Persistent time-series data storage (not yet implemented)"
+  ]
 }

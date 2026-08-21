@@ -6,13 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	_ "modernc.org/sqlite" // registers the pure-Go "sqlite" database/sql driver
 
-	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/database"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
@@ -22,12 +21,14 @@ import (
 const schema = `
 CREATE TABLE IF NOT EXISTS metrics (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	cycle_id TEXT NOT NULL,
 	collector_name TEXT NOT NULL,
 	metric_data TEXT NOT NULL,
-	timestamp DATETIME NOT NULL
+	observed_at DATETIME NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON metrics(timestamp);
+CREATE INDEX IF NOT EXISTS idx_metrics_observed_at ON metrics(observed_at);
 CREATE INDEX IF NOT EXISTS idx_metrics_collector ON metrics(collector_name);
+CREATE INDEX IF NOT EXISTS idx_metrics_cycle ON metrics(cycle_id, observed_at);
 
 CREATE TABLE IF NOT EXISTS investigations (
 	id TEXT PRIMARY KEY,
@@ -145,7 +146,7 @@ func Schema() string {
 
 // Repository implements repository.Repository backed by SQLite.
 type Repository struct {
-	db   *apidb.RoutedDB
+	db   *database.RoutedDB
 	mu   sync.RWMutex // Serialize SQLite writes
 	thMu sync.RWMutex
 	th   map[string]*models.Threshold
@@ -156,8 +157,8 @@ func NewRepository(dbPath string) (*Repository, error) {
 	// Open via api-core/database so the connection gets retry-with-backoff and
 	// jitter (avoids thundering-herd on contended SQLite) instead of a bare
 	// sql.Open. MaxOpenConns=1 preserves the single-writer SQLite discipline.
-	db, err := apidb.Open(context.Background(), apidb.Config{
-		Driver:       apidb.DriverSQLite,
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
 		DSN:          dbPath,
 		MaxOpenConns: 1,
 	})
@@ -179,23 +180,15 @@ func NewRepository(dbPath string) (*Repository, error) {
 		}
 	}
 
-	if err := apidb.EnsureSchemas(context.Background(), primary, apidb.SchemaProviderFunc(Schema)); err != nil {
+	if err := database.EnsureSchemas(context.Background(), primary, database.SchemaProviderFunc(Schema)); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("create schema: %w", err)
 	}
-	// Additive migration for pre-GPU-attribution databases. SQLite lacks an
-	// IF NOT EXISTS form for ADD COLUMN; duplicate-column means the schema was
-	// already upgraded and is safe to ignore.
-	if _, err := primary.Exec("ALTER TABLE process_samples ADD COLUMN gpu_vram_mb REAL NOT NULL DEFAULT 0"); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
-		db.Close()
-		return nil, fmt.Errorf("migrate process gpu attribution: %w", err)
-	}
-
 	return NewRepositoryFromDB(db), nil
 }
 
 // NewRepositoryFromDB wraps an already-open routed database.
-func NewRepositoryFromDB(db *apidb.RoutedDB) *Repository {
+func NewRepositoryFromDB(db *database.RoutedDB) *Repository {
 	return &Repository{
 		db: db,
 		th: make(map[string]*models.Threshold),
@@ -203,7 +196,7 @@ func NewRepositoryFromDB(db *apidb.RoutedDB) *Repository {
 }
 
 // RoutedDB returns the routed database used by this repository.
-func (r *Repository) RoutedDB() *apidb.RoutedDB {
+func (r *Repository) RoutedDB() *database.RoutedDB {
 	return r.db
 }
 
@@ -222,25 +215,43 @@ func (r *Repository) Close() error {
 // MetricsRepository
 // ---------------------------------------------------------------------------
 
-func (r *Repository) SaveMetrics(ctx context.Context, collectorName string, metrics map[string]interface{}) error {
-	data, err := json.Marshal(metrics)
-	if err != nil {
-		return fmt.Errorf("marshal metrics: %w", err)
+func (r *Repository) SaveMetricCycle(ctx context.Context, cycleID string, observedAt time.Time, observations []repository.MetricObservation) error {
+	if cycleID == "" || observedAt.IsZero() {
+		return fmt.Errorf("cycle id and observation time are required")
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	_, err = r.db.ExecContext(ctx,
-		"INSERT INTO metrics (collector_name, metric_data, timestamp) VALUES (?, ?, ?)",
-		collectorName, string(data), time.Now().UTC(),
-	)
-	return err
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	var exists int
+	if err := tx.QueryRowContext(ctx, "SELECT 1 FROM metrics WHERE cycle_id = ? LIMIT 1", cycleID).Scan(&exists); err == nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("metric cycle %q already exists", cycleID)
+	} else if err != sql.ErrNoRows {
+		_ = tx.Rollback()
+		return fmt.Errorf("check metric cycle: %w", err)
+	}
+	for _, observation := range observations {
+		data, err := json.Marshal(observation.Values)
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("marshal metrics: %w", err)
+		}
+		if _, err = tx.ExecContext(ctx, "INSERT INTO metrics (cycle_id, collector_name, metric_data, observed_at) VALUES (?, ?, ?, ?)", cycleID, observation.CollectorName, string(data), observedAt.UTC()); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFilter) ([]*models.MetricsResponse, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	query := "SELECT collector_name, metric_data, timestamp FROM metrics WHERE 1=1"
+	query := "SELECT cycle_id, collector_name, metric_data, observed_at FROM metrics WHERE 1=1"
 	args := []interface{}{}
 
 	if filter.CollectorName != "" {
@@ -248,14 +259,14 @@ func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFi
 		args = append(args, filter.CollectorName)
 	}
 	if !filter.TimeRange.StartTime.IsZero() {
-		query += " AND timestamp >= ?"
+		query += " AND observed_at >= ?"
 		args = append(args, filter.TimeRange.StartTime.UTC())
 	}
 	if !filter.TimeRange.EndTime.IsZero() {
-		query += " AND timestamp <= ?"
+		query += " AND observed_at <= ?"
 		args = append(args, filter.TimeRange.EndTime.UTC())
 	}
-	query += " ORDER BY timestamp ASC"
+	query += " ORDER BY observed_at ASC"
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -263,8 +274,9 @@ func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFi
 	}
 	defer rows.Close()
 
-	// Group by timestamp like the memory impl does.
+	// Group by explicit cycle identity, never by wall-clock coincidence.
 	type entry struct {
+		CycleID       string
 		CollectorName string
 		Values        map[string]interface{}
 		Timestamp     time.Time
@@ -273,7 +285,7 @@ func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFi
 	for rows.Next() {
 		var e entry
 		var data string
-		if err := rows.Scan(&e.CollectorName, &data, &e.Timestamp); err != nil {
+		if err := rows.Scan(&e.CycleID, &e.CollectorName, &data, &e.Timestamp); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(data), &e.Values); err != nil {
@@ -285,14 +297,18 @@ func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFi
 		return nil, err
 	}
 
-	metricsMap := make(map[time.Time]*models.MetricsResponse)
+	metricsMap := make(map[string]*models.MetricsResponse)
 	for _, e := range entries {
-		resp, exists := metricsMap[e.Timestamp]
-		if !exists {
-			resp = &models.MetricsResponse{Timestamp: e.Timestamp}
-			metricsMap[e.Timestamp] = resp
+		key := e.CycleID
+		if key == "" {
+			key = e.Timestamp.UTC().Format(time.RFC3339Nano)
 		}
-		hydrateMetricsResponse(resp, e.CollectorName, e.Values)
+		resp, exists := metricsMap[key]
+		if !exists {
+			resp = &models.MetricsResponse{CycleID: e.CycleID, Timestamp: e.Timestamp}
+			metricsMap[key] = resp
+		}
+		hydrateMetricsResponse(resp, e.CycleID, e.Timestamp, e.CollectorName, e.Values)
 	}
 
 	var results []*models.MetricsResponse
@@ -313,28 +329,37 @@ func (r *Repository) GetLatestMetrics(ctx context.Context) (*models.MetricsRespo
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	resp := &models.MetricsResponse{Timestamp: time.Now()}
+	resp := &models.MetricsResponse{}
+	seen := false
 
 	for _, collector := range []string{"cpu", "memory", "network", "gpu", "disk"} {
 		row := r.db.QueryRowContext(ctx,
-			"SELECT metric_data FROM metrics WHERE collector_name = ? ORDER BY timestamp DESC LIMIT 1",
+			"SELECT cycle_id, observed_at, metric_data FROM metrics WHERE collector_name = ? ORDER BY observed_at DESC, id DESC LIMIT 1",
 			collector,
 		)
 		var data string
-		if err := row.Scan(&data); err != nil {
+		var cycleID string
+		var observedAt time.Time
+		if err := row.Scan(&cycleID, &observedAt, &data); err != nil {
 			continue // No data for this collector.
 		}
 		var values map[string]interface{}
 		if err := json.Unmarshal([]byte(data), &values); err != nil {
 			continue
 		}
-		hydrateMetricsResponse(resp, collector, values)
+		if !seen || observedAt.After(resp.Timestamp) {
+			resp.CycleID, resp.Timestamp, seen = cycleID, observedAt, true
+		}
+		hydrateMetricsResponse(resp, cycleID, observedAt, collector, values)
 	}
 
 	// Check if we got any data at all.
 	var count int
 	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM metrics").Scan(&count); err != nil || count == 0 {
 		return nil, apierrors.NotFound("metrics", "latest")
+	}
+	if resp.Timestamp.IsZero() {
+		resp.Timestamp = time.Now().UTC()
 	}
 
 	return resp, nil
@@ -349,7 +374,7 @@ func (r *Repository) GetHistoricalMetrics(ctx context.Context, metricName string
 	defer r.mu.RUnlock()
 
 	rows, err := r.db.QueryContext(ctx,
-		"SELECT metric_data, timestamp FROM metrics WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC",
+		"SELECT metric_data, observed_at FROM metrics WHERE observed_at >= ? AND observed_at <= ? ORDER BY observed_at ASC",
 		timeRange.StartTime.UTC(), timeRange.EndTime.UTC(),
 	)
 	if err != nil {
@@ -398,7 +423,7 @@ func (r *Repository) GetEarliestMetricTime(ctx context.Context) (time.Time, erro
 	}
 
 	var raw sql.NullString
-	err := r.db.QueryRowContext(ctx, "SELECT MIN(timestamp) FROM metrics").Scan(&raw)
+	err := r.db.QueryRowContext(ctx, "SELECT MIN(observed_at) FROM metrics").Scan(&raw)
 	if err != nil || !raw.Valid || raw.String == "" {
 		return time.Time{}, apierrors.NotFound("metrics", "earliest")
 	}
@@ -944,8 +969,8 @@ func parseTime(s string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("unparseable time: %s", s)
 }
 
-func hydrateMetricsResponse(resp *models.MetricsResponse, collector string, values map[string]interface{}) {
-	state := storedMetricState(resp.Timestamp, collector, values)
+func hydrateMetricsResponse(resp *models.MetricsResponse, cycleID string, observedAt time.Time, collector string, values map[string]interface{}) {
+	state := storedMetricState(cycleID, observedAt, collector, values)
 	switch collector {
 	case "cpu":
 		resp.CPUState = state
@@ -978,11 +1003,13 @@ func hydrateMetricsResponse(resp *models.MetricsResponse, collector string, valu
 	}
 }
 
-func storedMetricState(observedAt time.Time, collector string, values map[string]interface{}) models.MetricState {
+func storedMetricState(cycleID string, observedAt time.Time, collector string, values map[string]interface{}) models.MetricState {
 	state := models.MetricState{
 		Status:     "failed",
 		Reason:     "collector did not return a measurement",
 		Provenance: "system-monitor/" + collector,
+		Units:      sqliteMetricUnits(collector),
+		CycleID:    cycleID,
 		ObservedAt: observedAt,
 	}
 	if status, _ := values["status"].(string); status != "" {
@@ -1018,8 +1045,31 @@ func storedMetricState(observedAt time.Time, collector string, values map[string
 	}
 	if state.Status == "measured" {
 		state.Reason = ""
+		switch collector {
+		case "cpu", "memory":
+			state.Value, _ = values["usage_percent"].(float64)
+		case "network":
+			if value, ok := values["tcp_connections"].(float64); ok {
+				state.Value = value
+			} else if value, ok := values["tcp_connections"].(int); ok {
+				state.Value = float64(value)
+			}
+		case "gpu":
+			state.Value, _ = values["total_usage_percent"].(float64)
+		case "disk":
+			if usage, ok := values["usage"].(map[string]interface{}); ok {
+				state.Value, _ = usage["percent"].(float64)
+			}
+		}
 	}
 	return state
+}
+
+func sqliteMetricUnits(collector string) string {
+	if collector == "network" {
+		return "count"
+	}
+	return "percent"
 }
 
 func nullTime(t *time.Time) interface{} {

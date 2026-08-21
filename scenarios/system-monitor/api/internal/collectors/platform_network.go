@@ -28,7 +28,7 @@ func emptyNetworkStats() map[string]interface{} {
 
 func bandwidthFromCounters(c *NetworkCollector, bytesRecv, bytesSent int64) map[string]float64 {
 	bandwidth := map[string]float64{"in_mbps": 0.0, "out_mbps": 0.0}
-	if c.lastBytesRecv > 0 && c.lastBytesSent > 0 {
+	if c.lastBytesRecv > 0 && c.lastBytesSent > 0 && bytesRecv >= c.lastBytesRecv && bytesSent >= c.lastBytesSent {
 		elapsed := time.Since(c.lastCheck).Seconds()
 		if elapsed > 0 {
 			bandwidth["in_mbps"] = float64(bytesRecv-c.lastBytesRecv) * 8 / elapsed / 1_000_000

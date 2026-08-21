@@ -121,6 +121,14 @@ func Register(ctx context.Context, path string, logger logging.Logger, tokens *T
 			descriptor.IndexTimestampField = "last_indexed_at"
 		}
 		provider := parsed.Providers[index]
+		switch strings.ToLower(strings.TrimSpace(provider.Lifecycle)) {
+		case "", "production":
+			descriptor.Lifecycle = registryv1.Lifecycle_LIFECYCLE_PRODUCTION
+		case "fixture":
+			descriptor.Lifecycle = registryv1.Lifecycle_LIFECYCLE_FIXTURE
+		case "experimental":
+			descriptor.Lifecycle = registryv1.Lifecycle_LIFECYCLE_EXPERIMENTAL
+		}
 		if raw := strings.TrimSpace(provider.FreshnessBudget); raw != "" {
 			budget, parseErr := time.ParseDuration(raw)
 			if parseErr != nil {

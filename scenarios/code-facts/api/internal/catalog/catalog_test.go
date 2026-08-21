@@ -35,6 +35,7 @@ func TestCorpusClassificationGolden(t *testing.T) {
 		{"scenarios/code-facts/api/main.go", "package main", "go", RoleImplementation, true},
 		{"packages/proto/schemas/code-facts/v1/facts.proto", "syntax = proto3;", "protobuf", RoleContract, true},
 		{"packages/proto/gen/go/code-facts/facts.pb.go", "// Code generated. DO NOT EDIT.", "go", RoleGeneratedAlias, false},
+		{"scenarios/code-facts/.vrooli/search.json", "{\"providers\":[]}", "json", RoleFixture, false},
 		{"scenarios/code-facts/api/main_test.go", "package main", "go", RoleTest, false},
 		{"scenarios/code-facts/api/testdata/report.json", "{}", "json", RoleFixture, false},
 		{"scenarios/code-facts/docs/README.md", "# Docs", "markdown", RoleDocumentation, false},

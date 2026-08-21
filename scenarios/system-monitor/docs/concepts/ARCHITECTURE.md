@@ -48,7 +48,7 @@ All dependencies flow through interfaces (`MetricsSource`, `AgentExecutor`, `HTT
 `[CODE: api/internal/services/]`
 
 ### Repository (Persistence)
-Storage abstraction via `MetricRepository`, `InvestigationRepository`, `AlertRepository`, `ReportRepository` interfaces. Currently implemented by an in-memory backend; PostgreSQL can be swapped in without changing the service layer.
+Storage abstraction via `MetricRepository`, `InvestigationRepository`, `AlertRepository`, `ReportRepository` interfaces. SQLite is the durable runtime backend. The in-memory backend is explicit test/development configuration only.
 
 `[CODE: api/internal/repository/]`
 

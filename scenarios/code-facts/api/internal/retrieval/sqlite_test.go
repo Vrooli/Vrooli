@@ -78,7 +78,7 @@ func TestSQLiteIndexExactBM25FiltersAndExplanations(t *testing.T) {
 	if len(exact) == 0 || exact[0].ID != "symbol:http-server" || exact[0].Regime != RegimeExact || exact[0].Generation != "g1" || exact[0].SourceHash == "" {
 		t.Fatalf("exact result lost identity or freshness metadata: %+v", exact)
 	}
-	if exact[0].Explanation == "" || exact[0].ScoreFactors["exact"] == 0 || exact[0].Evidence != "current_source_hash" || exact[0].Proof != "unverified" {
+	if exact[0].Explanation == "" || exact[0].ScoreFactors["exact"] == 0 || exact[0].Evidence != "current_source_hash" || exact[0].Proof != "source_hash_verified" {
 		t.Fatalf("ranking and proof semantics are not separated: %+v", exact[0])
 	}
 

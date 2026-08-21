@@ -1,10 +1,26 @@
 # Spec Sync Progress
 
+## 2026-08-21 — Observability contract hardening
+
+- Added explicit cycle identity, caller-owned observation time, and measured/
+  failed/unsupported/stale/not-yet-sampled state propagation across repositories,
+  protobuf projections, reports, and UI timelines.
+- SQLite is now the durable runtime default. Development memory mode requires
+  `SYSTEM_MONITOR_STORAGE_MODE=memory`; the greenfield SQLite schema is
+  declarative and idempotent, with no permanent migration runner.
+- The scheduler owns stateful CPU, network, and process sampling. On-demand
+  reads return the latest scheduler snapshot or an explicit not-yet-sampled
+  response. Self-metrics expose skipped, failed, stale, and persistence timing.
+- Focused repository, service, collector, and race tests pass. Full lifecycle
+  evidence remains pending because an unrelated shared proto generator input
+  (`template-validation-react-vite-deep`) is missing from the dirty worktree.
+
 ## 2026-08-20 — Production-readiness evidence pass
 
-- Implemented honest three-state metric propagation (`measured`, `unsupported`,
-  `failed`) through the protobuf/API/UI path; non-measured values are excluded
-  from threshold evaluation and are not rendered as numeric zeroes.
+- Implemented honest five-state metric propagation (`measured`, `unsupported`,
+  `failed`, `stale`, `not_yet_sampled`) through the protobuf/API/UI path;
+  non-measured values are excluded from threshold evaluation and are not
+  rendered as numeric zeroes.
 - Added native CPU, memory, network, process, disk, and typed investigation
   paths for the supported build targets. Shell investigations remain declared
   escape hatches where they provide materially richer Linux-only evidence.

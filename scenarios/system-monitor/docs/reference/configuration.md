@@ -81,11 +81,11 @@ agent-manager profiles reconcile-scenario --scenario system-monitor --dry-run
 
 ## Storage Backend
 
-The API defaults to **in-memory storage** for simplicity. Data is lost on restart.
-
-To use PostgreSQL, set `DATABASE_URL` to a valid connection string. The schema is defined in `api/internal/<domain>/schema.sql`.
-
-Persistent time-series storage is not configured yet; the API currently uses in-memory storage.
+The API uses durable SQLite storage by default. Set
+`SYSTEM_MONITOR_STORAGE_MODE=memory` only for tests or explicit local
+development. Memory mode loses history on restart and is rejected in
+production. If SQLite cannot start, the API fails startup instead of silently
+falling back to an unbounded in-memory history.
 
 ## Metrics Retention & Compaction
 

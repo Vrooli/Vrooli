@@ -23,8 +23,8 @@ func (r *Repository) EstimateMetricRetention(ctx context.Context, cutoff time.Ti
 		minTS, maxTS sql.NullString
 	)
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*), COALESCE(SUM(length(metric_data)), 0), MIN(timestamp), MAX(timestamp)
-		 FROM metrics WHERE timestamp < ?`,
+		`SELECT COUNT(*), COALESCE(SUM(length(metric_data)), 0), MIN(observed_at), MAX(observed_at)
+		 FROM metrics WHERE observed_at < ?`,
 		cutoff.UTC(),
 	).Scan(&rowCount, &payloadBytes, &minTS, &maxTS)
 	if err != nil {
@@ -57,7 +57,7 @@ func (r *Repository) PruneMetricsBefore(ctx context.Context, cutoff time.Time) (
 		return repository.RetentionResult{}, fmt.Errorf("begin prune tx: %w", err)
 	}
 
-	res, err := tx.ExecContext(ctx, "DELETE FROM metrics WHERE timestamp < ?", cutoff.UTC())
+	res, err := tx.ExecContext(ctx, "DELETE FROM metrics WHERE observed_at < ?", cutoff.UTC())
 	if err != nil {
 		_ = tx.Rollback()
 		return repository.RetentionResult{}, fmt.Errorf("prune metrics: %w", err)

@@ -51,8 +51,7 @@ func (g grader) evidenceFor(telemetry RungState) RungState {
 	}
 }
 
-// evidenceMechanism names where a retained device reading ends up. The monitor
-// service writes every collector payload through repository SaveMetrics.
+// evidenceMechanism names where a retained device reading ends up.
 const evidenceMechanism = "system-monitor metric repository"
 
 // Remediation strings name declared, commissioning-time host changes. Nothing

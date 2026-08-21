@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/infrastructure"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 )
 
@@ -59,6 +61,51 @@ func TestMonitorService_GetCurrentMetrics(t *testing.T) {
 	if metrics.MemoryUsage < 0 || metrics.MemoryUsage > 100 {
 		t.Errorf("Invalid memory usage: %f", metrics.MemoryUsage)
 	}
+}
+
+func TestOnDemandMetricsDoNotResampleStatefulCollectors(t *testing.T) {
+	cfg := &config.Config{Monitoring: config.MonitoringConfig{MetricsInterval: time.Second}}
+	repo := memory.NewRepository()
+	var calls atomic.Int32
+	collector := &countingMetricCollector{BaseCollector: collectors.NewBaseCollector("cpu", time.Second), calls: &calls}
+	svc := NewMonitorService(cfg, repo, infrastructure.NewStaticProvider(), WithCollectors(collector))
+
+	before, err := svc.GetCurrentMetricsFresh(context.Background())
+	if err != nil {
+		t.Fatalf("initial current metrics: %v", err)
+	}
+	if before.CPUState.Status != "not_yet_sampled" {
+		t.Fatalf("initial CPU state = %q, want not_yet_sampled", before.CPUState.Status)
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("on-demand read invoked collector %d times", calls.Load())
+	}
+
+	svc.collectMetrics()
+	after, err := svc.GetCurrentMetricsFresh(context.Background())
+	if err != nil {
+		t.Fatalf("current metrics after cycle: %v", err)
+	}
+	if after.CPUState.Status != "measured" || after.CPUUsage != 42 {
+		t.Fatalf("after cycle CPU = %#v, want measured 42", after.CPUState)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("scheduler invoked collector %d times, want 1", calls.Load())
+	}
+}
+
+type countingMetricCollector struct {
+	collectors.BaseCollector
+	calls *atomic.Int32
+}
+
+func (c *countingMetricCollector) Collect(context.Context) (*collectors.MetricData, error) {
+	c.calls.Add(1)
+	return &collectors.MetricData{
+		CollectorName: c.GetName(),
+		Timestamp:     time.Now(),
+		Values:        map[string]interface{}{"usage_percent": float64(42)},
+	}, nil
 }
 
 func TestMonitorService_CollectorRegistration(t *testing.T) {
@@ -159,9 +206,9 @@ func TestMonitorService_GetMetricsTimeline_WithData(t *testing.T) {
 	ctx := context.Background()
 
 	// Seed metrics
-	_ = repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 42.5})
-	_ = repo.SaveMetrics(ctx, "memory", map[string]interface{}{"usage_percent": 65.3})
-	_ = repo.SaveMetrics(ctx, "network", map[string]interface{}{"tcp_connections": 120})
+	_ = repo.SaveMetricCycle(ctx, "timeline-cpu", time.Now(), []repository.MetricObservation{{CollectorName: "cpu", Values: map[string]interface{}{"usage_percent": 42.5}}})
+	_ = repo.SaveMetricCycle(ctx, "timeline-memory", time.Now(), []repository.MetricObservation{{CollectorName: "memory", Values: map[string]interface{}{"usage_percent": 65.3}}})
+	_ = repo.SaveMetricCycle(ctx, "timeline-network", time.Now(), []repository.MetricObservation{{CollectorName: "network", Values: map[string]interface{}{"tcp_connections": 120}}})
 
 	timeline, err := svc.GetMetricsTimeline(ctx, 120, 5)
 	if err != nil {

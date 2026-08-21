@@ -13,7 +13,10 @@ func metricValue(s models.MetricState, fallback float64) *metricspb.MetricValue 
 		s.Value = fallback
 	}
 	value := &metricspb.MetricValue{
-		Provenance: s.Provenance,
+		Provenance:       s.Provenance,
+		Units:            s.Units,
+		CycleId:          s.CycleID,
+		FreshnessSeconds: s.FreshnessSeconds,
 	}
 	if !s.ObservedAt.IsZero() {
 		value.ObservedAt = timestamppb.New(s.ObservedAt)
@@ -26,6 +29,10 @@ func metricValue(s models.MetricState, fallback float64) *metricspb.MetricValue 
 			s.Reason = "metric is not supported on this host"
 		}
 		value.State = &metricspb.MetricValue_UnsupportedReason{UnsupportedReason: s.Reason}
+	case "stale":
+		value.State = &metricspb.MetricValue_StaleReason{StaleReason: s.Reason}
+	case "not_yet_sampled":
+		value.State = &metricspb.MetricValue_NotYetSampledReason{NotYetSampledReason: s.Reason}
 	default:
 		if s.Reason == "" {
 			s.Reason = "metric collection failed"
@@ -44,6 +51,7 @@ func MetricsResponseToProto(m *models.MetricsResponse) *metricspb.MetricsRespons
 		gpuState = models.MetricState{Status: "unsupported", Reason: "GPU collector unavailable"}
 	}
 	pb := &metricspb.MetricsResponse{
+		CycleId:        m.CycleID,
 		CpuUsage:       m.CPUUsage,
 		MemoryUsage:    m.MemoryUsage,
 		TcpConnections: int32(m.TCPConnections),
@@ -77,6 +85,7 @@ func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricsp
 	samples := make([]*metricspb.MetricTimelineSample, len(m.Samples))
 	for i, s := range m.Samples {
 		samples[i] = &metricspb.MetricTimelineSample{
+			CycleId:        s.CycleID,
 			Timestamp:      timestamppb.New(s.Timestamp),
 			CpuUsage:       s.CPUUsage,
 			MemoryUsage:    s.MemoryUsage,

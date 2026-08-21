@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -15,6 +16,7 @@ import (
 // CPUCollector collects CPU metrics
 type CPUCollector struct {
 	BaseCollector
+	mu             sync.Mutex
 	snapshots      SnapshotProvider
 	lastCPUStats   *cpuStats
 	lastSampleTime time.Time
@@ -50,6 +52,8 @@ func (c *CPUCollector) SetSnapshotProvider(p SnapshotProvider) {
 
 // Collect gathers CPU metrics
 func (c *CPUCollector) Collect(ctx context.Context) (*MetricData, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if collectorOS != runtime.GOOS {
 		return unsupportedMetricData(c.GetName(), "cpu"), nil
 	}
@@ -154,6 +158,11 @@ func (c *CPUCollector) getCPUUsage() float64 {
 	}
 
 	// Calculate delta
+	if current.user < c.lastCPUStats.user || current.nice < c.lastCPUStats.nice || current.system < c.lastCPUStats.system || current.idle < c.lastCPUStats.idle || current.iowait < c.lastCPUStats.iowait || current.irq < c.lastCPUStats.irq || current.softirq < c.lastCPUStats.softirq || current.steal < c.lastCPUStats.steal {
+		c.lastCPUStats = current
+		c.lastSampleTime = now
+		return 0.0
+	}
 	deltaUser := current.user - c.lastCPUStats.user
 	deltaNice := current.nice - c.lastCPUStats.nice
 	deltaSystem := current.system - c.lastCPUStats.system

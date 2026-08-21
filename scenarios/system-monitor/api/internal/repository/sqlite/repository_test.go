@@ -19,6 +19,13 @@ func newTestRepo(t *testing.T) *Repository {
 	return repo
 }
 
+func saveTestMetric(t *testing.T, repo *Repository, collector string, values map[string]interface{}) {
+	t.Helper()
+	if err := repo.SaveMetricCycle(context.Background(), collector+"-"+time.Now().Format("150405.000000000"), time.Now().UTC(), []repository.MetricObservation{{CollectorName: collector, Values: values}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Metrics
 // ---------------------------------------------------------------------------
@@ -27,12 +34,8 @@ func TestSaveAndGetMetrics(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 42.5}); err != nil {
-		t.Fatalf("SaveMetrics: %v", err)
-	}
-	if err := repo.SaveMetrics(ctx, "memory", map[string]interface{}{"usage_percent": 60.0}); err != nil {
-		t.Fatalf("SaveMetrics: %v", err)
-	}
+	saveTestMetric(t, repo, "cpu", map[string]interface{}{"usage_percent": 42.5})
+	saveTestMetric(t, repo, "memory", map[string]interface{}{"usage_percent": 60.0})
 
 	results, err := repo.GetMetrics(ctx, repository.MetricsFilter{})
 	if err != nil {
@@ -47,12 +50,8 @@ func TestGetMetricsWithFilter(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 10.0}); err != nil {
-		t.Fatalf("SaveMetrics(cpu): %v", err)
-	}
-	if err := repo.SaveMetrics(ctx, "memory", map[string]interface{}{"usage_percent": 20.0}); err != nil {
-		t.Fatalf("SaveMetrics(memory): %v", err)
-	}
+	saveTestMetric(t, repo, "cpu", map[string]interface{}{"usage_percent": 10.0})
+	saveTestMetric(t, repo, "memory", map[string]interface{}{"usage_percent": 20.0})
 
 	results, err := repo.GetMetrics(ctx, repository.MetricsFilter{CollectorName: "cpu"})
 	if err != nil {
@@ -70,9 +69,7 @@ func TestGetMetricsWithTimeRange(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 50.0}); err != nil {
-		t.Fatalf("SaveMetrics: %v", err)
-	}
+	saveTestMetric(t, repo, "cpu", map[string]interface{}{"usage_percent": 50.0})
 	time.Sleep(10 * time.Millisecond)
 
 	now := time.Now()
@@ -95,9 +92,7 @@ func TestGetMetricsWithLimit(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 5; i++ {
-		if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": float64(i * 10)}); err != nil {
-			t.Fatalf("SaveMetrics[%d]: %v", i, err)
-		}
+		saveTestMetric(t, repo, "cpu", map[string]interface{}{"usage_percent": float64(i * 10)})
 	}
 
 	results, err := repo.GetMetrics(ctx, repository.MetricsFilter{Limit: 2})
@@ -113,12 +108,8 @@ func TestGetLatestMetrics(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 75.0}); err != nil {
-		t.Fatalf("SaveMetrics(cpu): %v", err)
-	}
-	if err := repo.SaveMetrics(ctx, "memory", map[string]interface{}{"usage_percent": 80.0}); err != nil {
-		t.Fatalf("SaveMetrics(memory): %v", err)
-	}
+	saveTestMetric(t, repo, "cpu", map[string]interface{}{"usage_percent": 75.0})
+	saveTestMetric(t, repo, "memory", map[string]interface{}{"usage_percent": 80.0})
 
 	latest, err := repo.GetLatestMetrics(ctx)
 	if err != nil {
@@ -146,9 +137,7 @@ func TestGetHistoricalMetrics(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()
 
-	if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 50.0}); err != nil {
-		t.Fatalf("SaveMetrics: %v", err)
-	}
+	saveTestMetric(t, repo, "cpu", map[string]interface{}{"usage_percent": 50.0})
 
 	points, err := repo.GetHistoricalMetrics(ctx, "usage_percent", repository.TimeRange{
 		StartTime: time.Now().Add(-1 * time.Minute),
@@ -174,9 +163,7 @@ func TestGetEarliestMetricTime(t *testing.T) {
 		t.Fatal("expected error for empty metrics")
 	}
 
-	if err := repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 10.0}); err != nil {
-		t.Fatalf("SaveMetrics: %v", err)
-	}
+	saveTestMetric(t, repo, "cpu", map[string]interface{}{"usage_percent": 10.0})
 
 	ts, err := repo.GetEarliestMetricTime(ctx)
 	if err != nil {

@@ -69,23 +69,20 @@ export const useMetricHistory = (
           ...base,
           windowSeconds: data.windowSeconds,
           sampleIntervalSeconds: data.sampleIntervalSeconds,
-          cpu: data.samples.map(sample => ({
-            timestamp: toIso(sample.timestamp),
-            value: sample.cpuUsage
-          })),
-          memory: data.samples.map(sample => ({
-            timestamp: toIso(sample.timestamp),
-            value: sample.memoryUsage
-          })),
-          network: data.samples.map(sample => ({
-            timestamp: toIso(sample.timestamp),
-            value: sample.tcpConnections
-          })),
+          cpu: data.samples
+            .filter(sample => sample.cpu?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpu?.state.value) })),
+          memory: data.samples
+            .filter(sample => sample.memory?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.memory?.state.value) })),
+          network: data.samples
+            .filter(sample => sample.connections?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.connections?.state.value) })),
           gpu: data.samples
-            .filter(sample => typeof sample.gpuUsage === 'number' && Number.isFinite(sample.gpuUsage))
+            .filter(sample => sample.gpu?.state.case === 'measured')
             .map(sample => ({
               timestamp: toIso(sample.timestamp),
-              value: sample.gpuUsage as number
+              value: Number(sample.gpu?.state.value)
             }))
         };
       });

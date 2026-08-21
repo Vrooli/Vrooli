@@ -32,9 +32,11 @@ The `simulate` command calls `GET /api/test/anomaly/cpu`, which does not exist i
 
 ### Data lost on restart
 
-By default, the API uses in-memory storage. All metrics, investigations, and reports are lost when the API restarts.
-
-**Fix**: Set `DATABASE_URL` to a PostgreSQL connection string to enable persistent storage. See [Configuration](../reference/configuration.md).
+The API uses durable SQLite storage by default. Set
+`SYSTEM_MONITOR_STORAGE_MODE=memory` only for tests or explicit development;
+that mode loses history on restart and is rejected in production. If SQLite
+cannot start, inspect the startup error and the Vrooli-managed data path. See
+[Configuration](../reference/configuration.md).
 
 ### CLI `--quiet` flag has no effect
 

@@ -250,7 +250,7 @@ func (index *SQLiteIndex) fts(ctx context.Context, generation string, query Quer
 	families := strings.Join(query.Families, ",")
 	languages := strings.Join(query.Languages, ",")
 	rows, err := index.db.QueryContext(ctx, `
-SELECT d.id,d.path,d.title,d.body,d.source_hash,d.generation_id,d.role,d.language,d.scope,d.authority,d.kind,d.start_line,d.end_line,
+SELECT d.id,d.path,d.title,snippet(code_facts_search_fts,4,'','', ' … ', 64),d.source_hash,d.generation_id,d.role,d.language,d.scope,d.authority,d.kind,d.start_line,d.end_line,
  bm25(code_facts_search_fts,6.0,10.0,5.0,7.0,1.0,4.0,5.0)
 FROM code_facts_search_fts
 JOIN code_facts_search_documents d ON d.rowid=code_facts_search_fts.rowid
@@ -321,9 +321,12 @@ func applyRankingPolicy(candidates []Candidate, query Query) {
 			candidate.ScoreFactors["path_boost"] = 0.08
 			boost += 0.08
 		}
-		candidate.Score += boost
-		if candidate.Score > 1 {
-			candidate.Score = 1
+		// Apply policy inside the remaining score headroom. Additive boosts made
+		// every strong BM25 hit saturate at 1.0, erasing lexical ordering.
+		if boost >= 0 {
+			candidate.Score += boost * (1 - candidate.Score)
+		} else {
+			candidate.Score *= 1 + boost
 		}
 		if candidate.Score < 0 {
 			candidate.Score = 0
@@ -338,8 +341,14 @@ func applyRankingPolicy(candidates []Candidate, query Query) {
 	})
 }
 
+var lexicalStopWords = map[string]struct{}{
+	"a": {}, "an": {}, "and": {}, "are": {}, "as": {}, "at": {}, "be": {}, "by": {}, "code": {}, "does": {},
+	"file": {}, "files": {}, "for": {}, "from": {}, "handles": {}, "how": {}, "implementation": {}, "implemented": {}, "implements": {},
+	"in": {}, "into": {}, "is": {}, "it": {}, "location": {}, "method": {}, "module": {}, "of": {}, "on": {}, "or": {},
+	"owns": {}, "package": {}, "source": {}, "that": {}, "the": {}, "this": {}, "to": {}, "what": {}, "where": {}, "which": {}, "who": {},
+}
+
 func lexicalCoverage(candidate Candidate, query string) float64 {
-	stop := map[string]struct{}{"a": {}, "an": {}, "and": {}, "are": {}, "how": {}, "in": {}, "is": {}, "of": {}, "the": {}, "to": {}, "where": {}, "who": {}}
 	queryTokens := splitIdentifier(query)
 	evidenceTokens := splitIdentifier(strings.Join([]string{candidate.Title, candidate.Text, candidate.Path}, " "))
 	evidence := make(map[string]struct{}, len(evidenceTokens))
@@ -349,7 +358,7 @@ func lexicalCoverage(candidate Candidate, query string) float64 {
 	seen := map[string]struct{}{}
 	matched, total := 0, 0
 	for _, token := range queryTokens {
-		if _, ignored := stop[token]; ignored {
+		if _, ignored := lexicalStopWords[token]; ignored {
 			continue
 		}
 		if _, duplicate := seen[token]; duplicate {
@@ -379,7 +388,7 @@ func scanCandidates(rows *sql.Rows, regime Regime, explanation, factor string) (
 		candidate.Regime = regime
 		candidate.Explanation = explanation
 		candidate.Evidence = "current_source_hash"
-		candidate.Proof = "unverified"
+		candidate.Proof = "source_hash_verified"
 		candidate.ScoreFactors = map[string]float64{factor: candidate.Score}
 		candidate.RankEvidence = []RankEvidence{{Leg: "lexical", Rank: len(candidates) + 1, Score: candidate.Score}}
 		candidates = append(candidates, candidate)
@@ -393,6 +402,9 @@ func safeMatch(text string) string {
 	terms := make([]string, 0, len(parts))
 	for _, part := range parts {
 		if len(part) < 2 {
+			continue
+		}
+		if _, ignored := lexicalStopWords[part]; ignored {
 			continue
 		}
 		if _, exists := unique[part]; exists {

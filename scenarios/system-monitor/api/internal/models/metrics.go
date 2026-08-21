@@ -6,6 +6,7 @@ import (
 
 // MetricsResponse represents the current system metrics
 type MetricsResponse struct {
+	CycleID          string      `json:"cycle_id,omitempty"`
 	CPUUsage         float64     `json:"cpu_usage"`
 	MemoryUsage      float64     `json:"memory_usage"`
 	TCPConnections   int         `json:"tcp_connections"`
@@ -19,15 +20,17 @@ type MetricsResponse struct {
 	Timestamp        time.Time   `json:"timestamp"`
 }
 
-// MetricState is the internal representation of the API's three-state metric
-// contract. Status is measured, unsupported, or failed; Value is meaningful
-// only for measured states.
+// MetricState is the internal representation of the API's five-state metric
+// contract. Value is meaningful only for measured states.
 type MetricState struct {
-	Status     string    `json:"status"`
-	Value      float64   `json:"value,omitempty"`
-	Reason     string    `json:"reason,omitempty"`
-	Provenance string    `json:"provenance,omitempty"`
-	ObservedAt time.Time `json:"observed_at,omitempty"`
+	Status           string    `json:"status"`
+	Value            float64   `json:"value,omitempty"`
+	Reason           string    `json:"reason,omitempty"`
+	Provenance       string    `json:"provenance,omitempty"`
+	Units            string    `json:"units,omitempty"`
+	CycleID          string    `json:"cycle_id,omitempty"`
+	ObservedAt       time.Time `json:"observed_at,omitempty"`
+	FreshnessSeconds float64   `json:"freshness_seconds,omitempty"`
 }
 
 // PressureSnapshot is the typed, low-overhead memory-pressure view. Available
@@ -69,6 +72,7 @@ type PressureHistory struct {
 
 // MetricTimelineSample represents a single sample in a metrics timeline.
 type MetricTimelineSample struct {
+	CycleID          string      `json:"cycle_id,omitempty"`
 	Timestamp        time.Time   `json:"timestamp"`
 	CPUUsage         float64     `json:"cpu_usage"`
 	MemoryUsage      float64     `json:"memory_usage"`

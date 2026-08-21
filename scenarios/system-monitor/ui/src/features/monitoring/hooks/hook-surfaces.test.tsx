@@ -30,8 +30,20 @@ describe('monitoring hook surfaces', () => {
       windowSeconds: 120,
       sampleIntervalSeconds: 5,
       samples: [
-        { timestamp: pointTime, cpuUsage: 1, memoryUsage: 2, tcpConnections: 3, gpuUsage: 4 },
-        { timestamp: undefined, cpuUsage: 5, memoryUsage: 6, tcpConnections: 7, gpuUsage: Number.NaN },
+        {
+          timestamp: pointTime,
+          cpu: { state: { case: 'measured', value: 1 } },
+          memory: { state: { case: 'measured', value: 2 } },
+          connections: { state: { case: 'measured', value: 3 } },
+          gpu: { state: { case: 'measured', value: 4 } }
+        },
+        {
+          timestamp: undefined,
+          cpu: { state: { case: 'measured', value: 5 } },
+          memory: { state: { case: 'measured', value: 6 } },
+          connections: { state: { case: 'measured', value: 7 } },
+          gpu: { state: { case: 'unsupported', value: 'no GPU' } }
+        },
       ],
     });
     const setError = vi.fn();

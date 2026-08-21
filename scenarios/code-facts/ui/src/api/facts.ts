@@ -4,6 +4,8 @@ import {
   CodeTargetSchema,
   CodeFactsService,
   FactFamily,
+  type IndexStatus,
+  type SearchResponse,
   TargetKind,
   type CodeFactsReport,
   type CodeTarget,
@@ -63,5 +65,44 @@ export async function listScenarioSurfaces(scenario = "code-facts"): Promise<Lis
   return factsClient.listSurfaces({ target: scenarioTarget(scenario), useCache: true });
 }
 
+export interface SearchCodeFactsOptions {
+  query: string;
+  target: CodeTarget;
+  families?: FactFamily[];
+  roles?: string[];
+  languages?: string[];
+  scope?: string;
+  limit?: number;
+}
+
+export async function searchCodeFacts({
+  query,
+  target,
+  families = [],
+  roles = [],
+  languages = [],
+  scope = "",
+  limit = 20,
+}: SearchCodeFactsOptions): Promise<SearchResponse> {
+  return factsClient.search({
+    query,
+    target,
+    families,
+    roles,
+    languages,
+    scope,
+    limit,
+    expandEdges: true,
+    budgetMs: 1200,
+    lexicalBudgetMs: 450,
+    semanticBudgetMs: 450,
+    graphBudgetMs: 250,
+  });
+}
+
+export async function getIndexStatus(): Promise<IndexStatus> {
+  return factsClient.getIndexStatus({});
+}
+
 export { FactFamily, TargetKind };
-export type { CodeFactsReport, CodeTarget, ListSurfacesResponse };
+export type { CodeFactsReport, CodeTarget, IndexStatus, ListSurfacesResponse, SearchResponse };

@@ -22,7 +22,7 @@
 ## Open Issues
 
 - **Process kill endpoint not implemented**: the UI process monitor has a kill confirmation dialog, but `POST /api/v1/processes/{pid}/kill` is not registered in the router (`api/internal/server/router.go`). The kill action currently no-ops. Tracked as P0 operational target OT-P0-009 (process-monitoring) — see `requirements/09-process-monitoring-and-management/`. Severity: medium.
-- **In-memory storage by default**: the API uses the in-memory repository by default; the PostgreSQL/SQLite repository interface is defined and wired but not the runtime default. Data is lost on API restart unless a persistent repo is selected. Severity: medium.
+- **Explicit development memory mode**: SQLite is the runtime default. In-memory storage is available only when `SYSTEM_MONITOR_STORAGE_MODE=memory` is explicitly set in a non-production environment, and history is then intentionally lost on restart. Severity: low (development-only).
 - **No authentication**: all API endpoints are publicly accessible; no auth middleware is enabled. Acceptable for the current local-monitoring posture but must be addressed before any networked deployment. Severity: medium (deployment-gated).
 - **HTTP polling, no WebSocket**: the UI polls (5s metrics, 60s detailed, 4s agents) rather than streaming. Introduces latency vs real-time; acceptable for V1. Severity: low.
 

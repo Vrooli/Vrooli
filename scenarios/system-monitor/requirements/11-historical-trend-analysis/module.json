@@ -1,57 +1,52 @@
 {
-  "description": "Metric history is exposed through the timeline API and consumed by the dashboard's shared time-range and incident-timeline views. Dedicated long-horizon statistical trend analysis remains future work.",
-  "module_id": "MOD-P1-011",
-  "prd_ref": "OT-P1-011",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-08-20T23:41:13-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-004"
-      ],
-      "description": "The system should expose metric history through a dedicated timeline endpoint and render it against the shared observation window used by the dashboard.",
       "id": "REQ-P1-001",
-      "prd_ref": "OT-P1-011",
-      "status": "pending",
       "title": "Historical Trend Analysis System",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-011",
+      "category": "core",
+      "description": "The system should expose metric history through a dedicated timeline endpoint and render it against the shared observation window used by the dashboard.",
       "validation": [
         {
-          "notes": "Test trend calculation accuracy",
+          "type": "test",
+          "ref": "api/internal/services/report_test.go",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test trend calculation accuracy"
         },
         {
-          "notes": "Verify timeline data retrieval",
+          "type": "test",
+          "ref": "api/internal/services/monitor_test.go",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Verify timeline data retrieval"
         },
         {
-          "notes": "Validate trend analysis across multiple time periods",
+          "type": "test",
+          "ref": "ui/src/features/monitoring/hooks/hook-surfaces.test.tsx",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Validate trend analysis across multiple time periods"
         },
         {
-          "notes": "Analysis completion < 2s for 30 days of data",
+          "type": "test",
+          "ref": "api/internal/repository/sqlite/repository_test.go",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Analysis completion \u003c 2s for 30 days of data"
         },
         {
-          "notes": "Trends accurately identify system behavior patterns",
+          "type": "test",
+          "ref": "api/internal/services/monitor_cadence_test.go",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Trends accurately identify system behavior patterns"
         }
       ]
     }
-  ],
-  "title": "Historical metric timeline and trend context"
+  ]
 }
