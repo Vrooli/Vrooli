@@ -14,7 +14,7 @@ Infra Health protects Vrooli's local platform by turning runtime signals, intern
 
 **Objective served.** `I2` — coherence: the system stays reliable and stays reasonable-about as it grows (`path:docs/director-swarm/strategy/OBJECTIVES.md`). Instrumental, and therefore justified only by the terminal objectives it protects — reliability work that no terminal objective needs is polishing, which is a failure mode this team's contrarian already rules on.
 
-**Outcome contribution.** Primary: **Mission Control** (system overview) — reliability targets and instrumentation close the sensor holes that make aggregate platform health readable at all. This team is second-order: its output is the capacity of the other teams rather than a revenue, growth, or scenario outcome of its own, so its first-order targets live in [`../strategy/RELIABILITY_TARGETS.md`](../strategy/RELIABILITY_TARGETS.md) rather than in a Command Center category. The swarm-tier map of which team moves which outcome lives in `path:docs/director-swarm/evidence/OUTCOMES_CHARTER.md` §"Team contribution map"; this paragraph is this team's own statement of it.
+**Outcome contribution.** Primary: **Mission Control** (system overview) — reliability targets and instrumentation close the sensor holes that make aggregate platform health readable at all. This team is second-order: its output is the capacity of the other teams rather than a revenue, growth, or scenario outcome of its own, so its first-order targets live in the instrument's checked-in setpoint (`scenarios/infrastructure-manager/setpoint/reliability-setpoint.json`, read through `infrastructure-manager coverage status`) rather than in a Command Center category. The swarm-tier map of which team moves which outcome lives in `path:docs/director-swarm/evidence/OUTCOMES_CHARTER.md` §"Team contribution map"; this paragraph is this team's own statement of it.
 
 ## Scope
 
@@ -41,12 +41,13 @@ Infra-health supervises a layered stack. Each layer absorbs what it can at its o
 
 | Layer | Timescale | Owns | Key surfaces |
 |---|---|---|---|
+| Host substrate — kernel, devices, drivers, crash evidence | continuous | Kernel and device error signals, machine-check telemetry, crash/pstore evidence, accelerator device health, boot integrity, watchdog liveness. Read, never mutated, by any runtime loop. | `vrooli-autoheal` `host-*` / `system-*` checks; `infrastructure-manager coverage show substrate` |
 | Commissioning — `vrooli setup`, host tools, host safeguards | once per host change | Provisioning: tool installs, opt-in host-state changes (kernel params, DNS, firewall), log access, permissions. The only layer where sudo exists. | `path:docs/configuration/host/tools.md`, `path:docs/configuration/host/safeguards.md`, `.vrooli/operator-state.json` |
 | Capacity broker — `vrooli capacity` | ms–seconds (admission), minutes (sweep) | GPU/RAM/CPU claim arbitration: claims, priorities, degrade-before-preempt, idle unload, observed-usage tracking | `vrooli capacity list\|reconcile\|recommend\|policy`, system-monitor `/capacity` page |
 | Autoheal — `vrooli-autoheal` | seconds–minutes | Restart/heal, durable incidents, operator-routed remediation artifacts | `vrooli-autoheal check history`, `actions uptime\|trends\|transitions`, `incidents latest` |
 | System-monitor | minutes–hours | CPU/memory/GPU/disk metrics, threshold alerts, automated investigations, capacity UX | `system-monitor` CLI/API, investigations |
 | Capability owners — search-hub, test-genie, prompt-manager, meta-optimization-manager, … | per-query / per-run | Capability-level degradation handling over self-declared members: scan → validate → aggregate loops. Each owner owns its capability contract (schema, scanner, validation ladder, derived availability aggregate) — never a member roster. | member `.vrooli/` declarations (e.g. `test-genie.json`, `search.json`), test-genie phase validation, owner status/coverage surfaces |
-| Infra-health (this team) | heartbeats–days | Aggregate patterns, reliability targets, instrumentation gaps, cross-platform debt | this PoR |
+| Infra-health (this team) | heartbeats–days | Aggregate patterns, cross-platform debt, and the judgment its instrument cannot compute | this PoR plus `infrastructure-manager` |
 
 Routing rules:
 
@@ -54,9 +55,10 @@ Routing rules:
 2. **Sudo boundary.** Privileged host mutation exists only at commissioning time and in operator-run autoheal remediation artifacts. A finding whose fix needs sudo cannot be fixed by any runtime loop — route it as a proposed host tool, host safeguard, or setup change, or as an autoheal remediation artifact the operator runs.
 3. **Supervise, don't operate.** Infra-health checks that the inner loops' coverage and honesty hold (e.g. every GPU resident holds a claim; heal success stays in band). It never actuates them directly — no policy-lever changes, no degrade/preempt, no restarts.
 4. **Sampling rule.** The one-signal-per-heartbeat cadence must beat the recurrence rate of the pattern classes it is meant to catch. A pattern class that recurs faster than heartbeats can cover it is itself a finding (cadence or tooling gap), not a reason to skip signals.
-5. **Sensor-integrity rule.** A reading is evidence only if its check passes the sensor-integrity rules in `path:docs/infra-health/strategy/RELIABILITY_TARGETS.md` (ghost, saturated, shelved, unit rule — ISA-18.2/EEMUA 191 discipline). Discriminate sensor fault from plant fault before routing plant-side work; a degraded alarm channel is the alarm-flood target's finding, never a reason to silently distrust all sensors.
+5. **Sensor-integrity rule.** A reading is evidence only if its trust verdict is `VALID`. The instrument computes that verdict (`GHOST`, `SATURATED`, `SHELVED`, `UNIT_MISMATCH`, `UNAVAILABLE`, `UNTRUSTED` — ISA-18.2/EEMUA 191 discipline); read it with `infrastructure-manager condition trust` and `condition explain <cell>` rather than re-deriving it by hand. Discriminate sensor fault from plant fault before routing plant-side work: an untrusted reading routes to the instrument's owner, never to the plant. A degraded alarm channel is the alarm-flood target's finding, never a reason to silently distrust all sensors. Two distinctions are load-bearing and easy to get wrong: a check whose target still exists but sits outside the derived should-be-supervised set is **out of scope**, not a ghost, and its reading stays in every aggregate; and a check that could not be read is **untrusted**, not saturated.
 6. **Contract-not-roster rule.** A capability owner owns the contract, not the roster: membership is by declaration in the member's own `.vrooli/` config, discovery is by scan, conformance is graded through test-genie's phase rail, and capability health is the owner's derived aggregate over currently-declared members. Infra-health supervises the *machinery* — the owner's scanner works, its sensor is honest, its aggregate stays in band — and consumes only derived aggregates. Infra-health never names a member: every set in this PoR is defined by a derivation query (ask SDA for the core-set closure, ask the owner for its load-bearing members), never by enumeration. Capability-level degradation escalates to infra-health only per the escalation rule (rule 1). Per-member performance deadbands live in the member's own declaration (e.g. `search.json` `performance` block), not in reliability targets. Capability-architecture improvements (search performance, embedding centralization, provider-less availability) are the owner's or meta-optimization's roadmap work — infra-health supplies the measured out-of-band aggregate that justifies them, nothing more.
-7. **Substrate-degradation elevation.** Substrate degradation that impairs the improvement loop's own machinery — the agent runtime, prompt store, and sandboxes that meta-optimization's experiments run through — is priority-elevated over ordinary findings: a cascade failure here starves the loop that makes every future agent more capable. Meta-optimization is an authorized external raiser of `capability-work` for this substrate (alongside director-swarm), because it observes the impairment from the loop side that infra-health's sensors do not reach.
+7. **Cascade rule.** Findings are worked innermost-first: sensor-channel integrity, host/process substrate, capability availability, efficiency and performance, measurement improvement. Do not chase an outer-tier reading while an inner tier holds an unresolved excursion — a search-latency finding raised during an open kernel-panic or GPU incident is premature by construction. `infrastructure-manager focus next` ranks in this order and states which stage it applied.
+8. **Substrate-degradation elevation.** Substrate degradation that impairs the improvement loop's own machinery — the agent runtime, prompt store, and sandboxes that meta-optimization's experiments run through — is priority-elevated over ordinary findings: a cascade failure here starves the loop that makes every future agent more capable. Meta-optimization is an authorized external raiser of `capability-work` for this substrate (alongside director-swarm), because it observes the impairment from the loop side that infra-health's sensors do not reach.
 
 ## Operating Loops
 
@@ -64,6 +66,10 @@ Infra Health has three loops:
 
 1. **Runtime health loop** - `runtime-health-scanner` selects one signal per heartbeat, checks repeat failures, heal loops, slow restarts, and investigation clusters, then raises bounded runtime or reliability-target work items.
 2. **Platform code audit loop** - `platform-code-auditor` audits one internal platform slice against architecture, security, coverage, documentation, cross-platform readiness, feedback surfaces, and instrumentation gaps.
+
+> The runtime-health loop reads its signals from the instrument. It does not maintain a
+> parallel sensor map: `focus next` is the queue, `condition explain` is the evidence, and
+> `coverage open-loop` is the gap list.
 3. **Contrarian hygiene loop** - `infra-contrarian` challenges pending work items against the failure-mode rubric, runs stale work item review, and proposes framework-meta updates only when the team contract itself needs repair.
 
 ## Operating Graph
@@ -92,12 +98,6 @@ flowchart LR
   DOCSINFRAHEA[/docs/infra-health/README.md/]
   %% @node DOCSINFRAHEA10 por:docs/infra-health/strategy/README.md
   DOCSINFRAHEA10[/docs/infra-health/strategy/README.md/]
-  %% @node DOCSINFRAHEA11 por:docs/infra-health/strategy/RELIABILITY_TARGETS.md
-  DOCSINFRAHEA11[/docs/infra-health/strategy/RELIABILITY_TARGETS.md/]
-  %% @node DOCSINFRAHEA2 por:docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md
-  DOCSINFRAHEA2[/docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md/]
-  %% @node DOCSINFRAHEA3 por:docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md
-  DOCSINFRAHEA3[/docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md/]
   %% @node DOCSINFRAHEA4 por:docs/infra-health/evidence/README.md
   DOCSINFRAHEA4[/docs/infra-health/evidence/README.md/]
   %% @node DOCSINFRAHEA5 por:docs/infra-health/governance/adoption-validation.md
@@ -112,6 +112,8 @@ flowchart LR
   DOCSINFRAHEA9[/docs/infra-health/operating/README.md/]
   %% @node IC member:infra-contrarian
   IC[Infra Contrarian]
+  %% @node INSTR instrument:infrastructure-manager
+  INSTR[infrastructure-manager instrument]
   %% @node OP external:operator
   OP([Operator])
   %% @node PCA member:platform-code-auditor
@@ -168,7 +170,7 @@ flowchart LR
 | Platform-code findings | `platform-code-finding`, `platform-code-audit/*` | platform-code-auditor, infra-contrarian, Swarm Manager via work items | Route internal platform quality issues without direct code mutation. |
 | Instrumentation gaps | `external:swarm-manager-work` | operator, director-swarm, `external:swarm-manager-work` | Convert missing stats into implementation work. |
 | Capability gaps | `external:swarm-manager-work` | operator, director-swarm, `external:swarm-manager-work` | Convert missing tools or scenario capabilities into implementation work. |
-| Portability ledger updates | `cross-platform-debt`, `path:docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md` | platform-code-auditor, deployment planning | Keep future tier risk visible without prematurely blocking current work. |
+| Portability findings | `cross-platform-debt`, read against `vrooli capability ledger` | platform-code-auditor, deployment planning | Keep future tier risk visible without prematurely blocking current work. Per-capability, per-OS state is computed from the manifests; `path:docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md` is retired and takes no new entries. |
 
 ## Feedback / Capability Improvement Loop
 

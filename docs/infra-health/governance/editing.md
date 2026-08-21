@@ -6,7 +6,7 @@
 
 The team-owned runtime state lives under `scenarios/prompt-manager/store/teams/infra-health/`. Rolling snapshots and logs in that store are working state, not durable PoR canon.
 
-The team contract's `operatingContract.documents.planOfRecord.paths` lists the *consumed-canon subset* agents read each heartbeat (README, operating model, reliability targets, instrumentation roadmap, cross-platform ledger). The governance docs here — `editing.md`, `adoption-validation.md`, `changelog.md` — are required by [`manifest.json`](../manifest.json) for PoR structure but are intentionally omitted from `planOfRecord.paths`, matching the fleet convention (e.g. meta-optimization).
+The team contract's `operatingContract.documents.planOfRecord.paths` lists the *consumed-canon subset* agents read each heartbeat (README and the operating model). The reliability targets, instrumentation roadmap and cross-platform ledger that were once in that subset are retired: each is now a computed surface, and the paths that pointed at them were dropped rather than repointed. The governance docs here — `editing.md`, `adoption-validation.md`, `changelog.md` — are required by [`manifest.json`](../manifest.json) for PoR structure but are intentionally omitted from `planOfRecord.paths`, matching the fleet convention (e.g. meta-optimization).
 
 ## Change Flow
 
@@ -18,13 +18,17 @@ The team contract's `operatingContract.documents.planOfRecord.paths` lists the *
 
 Common edit contexts:
 
-| Context | Typical PoR target |
-|---|---|
-| `reliability-target-update` | `strategy/RELIABILITY_TARGETS.md` |
-| `instrumentation-gap` | `evidence/INSTRUMENTATION_ROADMAP.md` |
-| `cross-platform-debt` | `evidence/CROSS_PLATFORM_LEDGER.md` |
-| `capability-work` | `evidence/INSTRUMENTATION_ROADMAP.md` or downstream Swarm Manager work |
-| `framework-meta` | `operating/OPERATING_MODEL.md`, `governance/`, or future manifest updates |
+None of the four evidence decisions targets a file in this folder any more. Each writes
+to the surface that computes the thing it is about, which is why an approved decision can
+no longer create a hand-maintained list that disagrees with its own grid.
+
+| Context | Target | Not a PoR edit because |
+|---|---|---|
+| `reliability-target-update` | `scenarios/infrastructure-manager/setpoint/reliability-setpoint.json` | The bar is checked-in operator data graded live; a prose copy could disagree with it. |
+| `instrumentation-gap` | The owning layer's `docs/spaces/<projection>-space.md` — open a cell as `MISSING` with its `gap_opened_on` | The gap list is the computed open-loop set (`coverage open-loop`), not a second list. |
+| `cross-platform-debt` | The team's knowledge topics, read against `vrooli capability ledger`; the durable judgment half moves to the instrument's `portability` domain when it ships | Per-capability, per-OS state is computed from the manifests. |
+| `capability-work` | Downstream Swarm Manager work | Never was a PoR edit. |
+| `framework-meta` | `operating/OPERATING_MODEL.md`, `governance/`, or manifest updates | The only context that still edits this folder. |
 
 ## Direct Edits
 

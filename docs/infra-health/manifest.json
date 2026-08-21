@@ -66,11 +66,6 @@
               "Extension Rules"
             ]
           }
-        },
-        {
-          "path": "RELIABILITY_TARGETS.md",
-          "docType": "reliability-targets",
-          "required": true
         }
       ]
     },
@@ -81,16 +76,6 @@
         {
           "path": "README.md",
           "docType": "evidence-hub",
-          "required": true
-        },
-        {
-          "path": "INSTRUMENTATION_ROADMAP.md",
-          "docType": "instrumentation-roadmap",
-          "required": true
-        },
-        {
-          "path": "CROSS_PLATFORM_LEDGER.md",
-          "docType": "cross-platform-ledger",
           "required": true
         }
       ]
@@ -136,5 +121,15 @@
       ]
     }
   ],
-  "extensionRule": "Infra-health durable canon must live under operating/, strategy/, evidence/, governance/, or a declared extensions/<extension-id>/ package. Do not add top-level canon files without updating this manifest."
+  "extensionRule": "Infra-health durable canon must live under operating/, evidence/, governance/, or a declared extensions/<extension-id>/ package. Reliability targets, sensor maps, instrumentation gaps and cross-platform debt are owned by the instrument scenario and must not be re-added here. Do not add top-level canon files without updating this manifest.",
+  "instrument": {
+    "scenario": "infrastructure-manager",
+    "role": "The team's instrument. It owns the reliability setpoint, the projection cell grid, trust-qualified readings and the ranked error surface.",
+    "readSurfaces": [
+      "infrastructure-manager coverage status|cells|open-loop|validate|drift",
+      "infrastructure-manager condition status|trust|explain|history",
+      "infrastructure-manager focus next|finding|sources|efficacy"
+    ],
+    "rule": "Durable reliability targets, sensor definitions, instrumentation gaps and cross-platform debt belong to the instrument, not to this plan of record. This folder keeps the operating contract and the governance rules; it does not restate what the instrument or the control plane computes."
+  }
 }
