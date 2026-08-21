@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {"id": "metrics", "title": "Diagnostics", "routes": ["/metrics"], "purpose": "Diagnose route reachability from local listener through tunnel ingress to the external URL, with honest probe and metric boundaries.", "prd_refs": ["OT-P0-009", "OT-P0-010", "OT-P1-002", "OT-P1-004"]},
+  "priorities": [
+    {"statement": "Diagnostics follow the route journey from local to edge to public."},
+    {"statement": "A failed signal is classified rather than collapsed into a generic unhealthy state."},
+    {"statement": "Refresh, stale data, manual probe, and retry are visible affordances."}
+  ],
+  "states": [
+    {"id": "loading", "description": "Metrics and probe history are loading."},
+    {"id": "ready", "description": "Route health, tunnel metrics, and probe history are visible."},
+    {"id": "partial", "description": "Some diagnostic sources are unavailable while other signals remain attributed."},
+    {"id": "stale", "description": "Last known diagnostic data remains visible during refresh."},
+    {"id": "empty", "description": "No probe history exists yet; the page offers a first probe action."},
+    {"id": "request-error", "description": "A diagnostic request failed and names the failed source."}
+  ],
+  "claims": [{"id": "diagnostics-are-attributed", "type": "custom", "statement": "Each diagnostic result identifies the stage and source that produced it; unavailable signals are not presented as healthy or failed routes.", "tier": "aspirational"}],
+  "sketch": {"viewport": "desktop", "regions": [
+    {"id": "journey", "grid": {"x": 0, "y": 0, "w": 12, "h": 3}},
+    {"id": "metrics", "grid": {"x": 0, "y": 3, "w": 5, "h": 4}},
+    {"id": "history", "grid": {"x": 5, "y": 3, "w": 7, "h": 5}}
+  ]}
+}

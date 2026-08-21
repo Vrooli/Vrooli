@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {"id": "reexpose-expired-route", "title": "Re-expose an expired route", "purpose": "Restore temporary access without forcing the operator to reconstruct a route from memory.", "prd_refs": ["OT-P0-001", "OT-P0-004", "OT-P1-004"]},
+  "steps": [
+    {"page": "exposure", "state": "ready", "intent": "Find an expired or expiring route using status filters or search."},
+    {"page": "exposure", "state": "ready", "intent": "Review the retained scenario, hostname, prior access policy, and proposed new duration."},
+    {"page": "exposure", "state": "success", "intent": "Confirm the route is active again and see its new expiry and probe result."}
+  ]
+}

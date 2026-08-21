@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {"id": "exposure", "title": "Exposure", "routes": ["/exposure"], "purpose": "Manage which scenarios are reachable from outside Vrooli, with explicit duration, readiness, authentication scope, and post-action verification.", "prd_refs": ["OT-P0-001", "OT-P0-004", "OT-P0-005", "OT-P0-006", "OT-P0-007", "OT-P0-009", "OT-P0-010", "OT-P1-008"]},
+  "priorities": [
+    {"statement": "Expose is a guided decision, not a raw text submission."},
+    {"statement": "Lease duration and expiry are explicit before confirmation."},
+    {"statement": "The publicness boundary is explicit: the application stays protected unless the operator deliberately enables /public/* bypass."},
+    {"statement": "The result includes a public URL and end-to-end verification state."}
+  ],
+  "states": [
+    {"id": "loading", "description": "Routes, scenario candidates, and probe classifications are loading."},
+    {"id": "ready", "description": "Active routes, search, filters, and the primary expose action are available."},
+    {"id": "empty", "description": "No active exposures exist; the first-exposure action explains the value and safety model."},
+    {"id": "partial", "description": "Route inventory is usable but one supporting readiness or probe source is unavailable."},
+    {"id": "stale", "description": "The last route inventory remains visible while reconciliation or refresh is pending."},
+    {"id": "validation-error", "description": "The selected scenario cannot be exposed until a named port, lifecycle, or route issue is resolved."},
+    {"id": "submitting", "description": "The exposure is being provisioned and the current step is visible."},
+    {"id": "success", "description": "The public URL, expiry, policy scope, and verification result are shown."},
+    {"id": "request-error", "description": "Provisioning failed with a classified reason and retry or remediation path."}
+  ],
+  "claims": [
+    {"id": "route-search-filter", "type": "custom", "statement": "The exposure inventory supports search and filtering by tier, health, lease state, and access policy.", "tier": "aspirational"},
+    {"id": "duration-before-confirm", "type": "custom", "statement": "The operator chooses and reviews lease duration before exposure is submitted.", "tier": "aspirational"},
+    {"id": "public-scope-is-narrow", "type": "custom", "statement": "The confirmation states that anonymous access, when enabled, is limited to /public/* and does not weaken the primary application.", "tier": "aspirational"},
+    {"id": "result-is-verifiable", "type": "custom", "statement": "Successful exposure reports the resulting public URL, lease expiry, and local/tunnel/external verification states.", "tier": "aspirational"}
+  ],
+  "sketch": {"viewport": "desktop", "regions": [
+    {"id": "summary", "grid": {"x": 0, "y": 0, "w": 12, "h": 2}, "note": "Counts, readiness warning, and one dominant expose action."},
+    {"id": "inventory", "grid": {"x": 0, "y": 2, "w": 12, "h": 6}, "note": "Responsive collection: table on wide screens, action cards on narrow screens."},
+    {"id": "wizard", "grid": {"x": 2, "y": 1, "w": 8, "h": 6}, "note": "Drawer or dialog wizard layered over the inventory."}
+  ]}
+}

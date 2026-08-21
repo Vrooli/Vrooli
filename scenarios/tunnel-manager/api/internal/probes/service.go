@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"tunnel-manager/internal/httpc"
 	"tunnel-manager/internal/manifest"
@@ -38,6 +39,14 @@ type Service interface {
 	// Classify derives the per-route reachability diagnosis from the
 	// latest stored internal+external probes.
 	Classify(ctx context.Context) ([]RouteClassification, error)
+}
+
+// cycleRepository is the optional batching seam implemented by the production
+// SQLite repository. Keeping it optional preserves the small Repository
+// contract used by service tests and other implementations.
+type cycleRepository interface {
+	PersistWithoutPrune(context.Context, ProbeResult) (ProbeResult, error)
+	PruneBefore(context.Context, time.Time) error
 }
 
 type service struct {
@@ -85,10 +94,10 @@ func (s *service) RunProbes(ctx context.Context) ([]ProbeResult, error) {
 			// Persist best-effort: a write failure must not lose the other
 			// route's results, so swallow the error here and keep the
 			// persisted ID (or zero) on the returned result.
-			if stored, err := s.repo.Persist(ctx, internal); err == nil {
+			if stored, err := s.persistForCycle(ctx, internal); err == nil {
 				internal = stored
 			}
-			if stored, err := s.repo.Persist(ctx, external); err == nil {
+			if stored, err := s.persistForCycle(ctx, external); err == nil {
 				external = stored
 			}
 
@@ -99,7 +108,19 @@ func (s *service) RunProbes(ctx context.Context) ([]ProbeResult, error) {
 	}
 
 	wg.Wait()
+	if batched, ok := s.repo.(cycleRepository); ok {
+		if err := batched.PruneBefore(ctx, s.clock.Now().Add(-HistoryRetentionWindow)); err != nil {
+			return results, err
+		}
+	}
 	return results, nil
+}
+
+func (s *service) persistForCycle(ctx context.Context, result ProbeResult) (ProbeResult, error) {
+	if batched, ok := s.repo.(cycleRepository); ok {
+		return batched.PersistWithoutPrune(ctx, result)
+	}
+	return s.repo.Persist(ctx, result)
 }
 
 // probe issues a single GET and maps the outcome onto a ProbeResult.

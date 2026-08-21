@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {"id": "drift", "title": "Ingress Drift", "routes": ["/drift"], "purpose": "Compare live ingress with the exposure manifest and ownership ledger, then make adoption, ignore, or prune decisions with clear consequences.", "prd_refs": ["OT-P0-001", "OT-P1-001", "OT-P1-004"]},
+  "priorities": [
+    {"statement": "The source of every hostname is visible."},
+    {"statement": "Managed, external, ignored, and unmanaged states are distinct."},
+    {"statement": "Prune is visibly destructive and requires confirmation."}
+  ],
+  "states": [
+    {"id": "loading", "description": "Live ingress and ledger comparison is loading."},
+    {"id": "ready", "description": "Drift findings and ownership actions are visible."},
+    {"id": "empty", "description": "No drift is present; live ingress agrees with the manifest and ledger."},
+    {"id": "partial", "description": "Some live ingress data is unavailable while known entries remain visible."},
+    {"id": "stale", "description": "Last comparison remains visible during refresh."},
+    {"id": "request-error", "description": "Drift comparison failed and identifies the source."}
+  ],
+  "claims": [{"id": "prune-is-confirmed", "type": "custom", "statement": "Prune explains what will be removed and requires an explicit confirmation before mutation.", "tier": "aspirational"}],
+  "sketch": {"viewport": "desktop", "regions": [
+    {"id": "summary", "grid": {"x": 0, "y": 0, "w": 12, "h": 2}},
+    {"id": "table", "grid": {"x": 0, "y": 2, "w": 12, "h": 7}}
+  ]}
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {"id": "expose-scenario", "title": "Expose a scenario", "purpose": "Let an operator make a scenario reachable with a bounded lease and a clear understanding of target, URL, authentication, and verification.", "prd_refs": ["OT-P0-004", "OT-P0-005", "OT-P0-006", "OT-P0-007", "OT-P0-009", "OT-P0-010"]},
+  "steps": [
+    {"page": "overview", "state": "ready", "intent": "Recognize the current tunnel and route readiness and start exposure.", "via": "expose-scenario"},
+    {"page": "exposure", "state": "ready", "intent": "Choose a scenario from a discoverable inventory and inspect its readiness."},
+    {"page": "exposure", "state": "validation-error", "intent": "Understand and resolve a missing fixed port, stopped service, or unavailable credential before submission."},
+    {"page": "exposure", "state": "submitting", "intent": "See provisioning, ingress reconciliation, and probe progress."},
+    {"page": "exposure", "state": "success", "intent": "Copy or open the public URL and understand its expiry and authentication scope."}
+  ],
+  "claims": [{"id": "bounded-exposure", "type": "custom", "statement": "The journey does not submit an exposure until target, duration, hostname, and access scope have been reviewed.", "tier": "aspirational"}]
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {"id": "diagnose-route", "title": "Diagnose a route", "purpose": "Move from a visible route problem to a classified cause and a safe next action.", "prd_refs": ["OT-P0-009", "OT-P0-010", "OT-P1-003", "OT-P1-004"]},
+  "steps": [
+    {"page": "overview", "state": "ready", "intent": "Select a route or finding that needs attention."},
+    {"page": "metrics", "state": "ready", "intent": "Compare local listener, tunnel ingress, external probe, and access policy signals."},
+    {"page": "metrics", "state": "request-error", "intent": "See which diagnostic source failed and retry without losing the last known evidence."},
+    {"page": "recovery", "state": "ready", "intent": "Understand whether automatic recovery is active, backing off, or blocked."},
+    {"page": "audit", "state": "ready", "intent": "Open the specific port or governance remediation when the route contract is the cause."}
+  ]
+}

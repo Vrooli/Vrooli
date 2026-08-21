@@ -7,6 +7,7 @@
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Primary navigation (compact)",
     "mainLabel": "Main content",
+    "navGroup": { "operations": "Operations", "diagnostics": "Diagnostics", "governance": "Governance", "settings": "Settings" },
     "nav": {
       "overview": "Overview",
       "exposure": "Exposure",
@@ -189,6 +190,9 @@
     },
     "leaseActive": "Expires {{when}}",
     "leaseNone": "—",
+    "durationHour": "1 hour",
+    "durationDay": "24 hours",
+    "durationWeek": "7 days",
     "healthUnknown": "No classification yet",
     "exposeHeading": "Expose a scenario",
     "exposePlaceholder": "scenario-name",

@@ -19,6 +19,12 @@ export const strings = {
     sidebarLabel: "layout.sidebarLabel",
     bottomNavLabel: "layout.bottomNavLabel",
     mainLabel: "layout.mainLabel",
+    navGroup: {
+      operations: "layout.navGroup.operations",
+      diagnostics: "layout.navGroup.diagnostics",
+      governance: "layout.navGroup.governance",
+      settings: "layout.navGroup.settings",
+    },
     nav: {
       overview: "layout.nav.overview",
       exposure: "layout.nav.exposure",
@@ -201,6 +207,9 @@ export const strings = {
     },
     leaseActive: "exposure.leaseActive",
     leaseNone: "exposure.leaseNone",
+    durationHour: "exposure.durationHour",
+    durationDay: "exposure.durationDay",
+    durationWeek: "exposure.durationWeek",
     healthUnknown: "exposure.healthUnknown",
     exposeHeading: "exposure.exposeHeading",
     exposePlaceholder: "exposure.exposePlaceholder",

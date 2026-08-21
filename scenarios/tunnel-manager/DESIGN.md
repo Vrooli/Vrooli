@@ -160,6 +160,31 @@ constraints:
 
 # Vrooli Operational Console Design
 
+## Tunnel Manager Experience Direction
+
+Tunnel Manager adopts the **Exposure Command Center** direction documented in
+[`docs/concepts/UX-DIRECTION.md`](docs/concepts/UX-DIRECTION.md). The direction
+is intentionally recorded before implementation so future UI work has a stable
+visual and interaction target.
+
+The Overview hero is an **Exposure Constellation**: a central tunnel node with
+scenario nodes and route connections. It is an operational projection, not a
+decorative network illustration. Node rings represent the meaningful control
+ladder for each route: local service reachable, tunnel ingress configured,
+external URL probe passing, and Access policy reconciled. Connection treatment
+represents active, provisioning, degraded, stale, and expired route state.
+Lease expiry is shown as a time-bearing arc. Aggregate health is always
+decomposable into the underlying route and probe states.
+
+The experience must make the publicness boundary explicit. The primary
+application remains protected. When enabled, anonymous access is limited to
+`/public/*`; it never means anonymous access to the whole hostname.
+
+The design contract for the intended experience lives in `experience/`. All
+new pages and journeys begin as `draft` until the implementation and evidence
+reconcile with the contract. Draft claims are aspirational and must not be
+presented as current functionality.
+
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
 ## How To Read This Document

@@ -7,6 +7,7 @@
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "メインナビゲーション（コンパクト）",
     "mainLabel": "メインコンテンツ",
+    "navGroup": { "operations": "運用", "diagnostics": "診断", "governance": "ガバナンス", "settings": "設定" },
     "nav": {
       "overview": "概要",
       "exposure": "公開",
@@ -189,6 +190,9 @@
     },
     "leaseActive": "有効期限 {{when}}",
     "leaseNone": "—",
+    "durationHour": "1時間",
+    "durationDay": "24時間",
+    "durationWeek": "7日間",
     "healthUnknown": "分類はまだありません",
     "exposeHeading": "シナリオを公開",
     "exposePlaceholder": "scenario-name",

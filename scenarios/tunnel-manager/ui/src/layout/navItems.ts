@@ -22,14 +22,15 @@ export interface NavItem {
   end?: boolean;
   /** Translation key path. */
   labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
+  group: "operations" | "diagnostics" | "governance" | "settings";
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "overview", path: "/", end: true, labelKey: strings.layout.nav.overview },
-  { key: "exposure", path: "/exposure", labelKey: strings.layout.nav.exposure },
-  { key: "recovery", path: "/recovery", labelKey: strings.layout.nav.recovery },
-  { key: "metrics", path: "/metrics", labelKey: strings.layout.nav.metrics },
-  { key: "audit", path: "/audit", labelKey: strings.layout.nav.audit },
-  { key: "drift", path: "/drift", labelKey: strings.layout.nav.drift },
-  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
+  { key: "overview", path: "/", end: true, labelKey: strings.layout.nav.overview, group: "operations" },
+  { key: "exposure", path: "/exposure", labelKey: strings.layout.nav.exposure, group: "operations" },
+  { key: "recovery", path: "/recovery", labelKey: strings.layout.nav.recovery, group: "diagnostics" },
+  { key: "metrics", path: "/metrics", labelKey: strings.layout.nav.metrics, group: "diagnostics" },
+  { key: "audit", path: "/audit", labelKey: strings.layout.nav.audit, group: "governance" },
+  { key: "drift", path: "/drift", labelKey: strings.layout.nav.drift, group: "governance" },
+  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, group: "settings" },
 ];

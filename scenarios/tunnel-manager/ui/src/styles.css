@@ -10,10 +10,16 @@
 }
 
 body {
-  background: var(--color-background);
+  background: var(--color-shell);
   color: var(--color-foreground);
   font-family: var(--font-sans);
   margin: 0;
+  overflow-x: hidden;
+}
+
+html,
+#root {
+  background: var(--color-shell);
 }
 
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {

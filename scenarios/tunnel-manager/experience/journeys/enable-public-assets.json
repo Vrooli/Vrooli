@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {"id": "enable-public-assets", "title": "Enable anonymous public assets", "purpose": "Allow anonymous system fetchers to retrieve /public/* assets while preserving authentication for the primary application.", "prd_refs": ["OT-P1-008"]},
+  "steps": [
+    {"page": "exposure", "state": "ready", "intent": "Open the selected route's access boundary and understand the current policy."},
+    {"page": "settings", "state": "ready", "intent": "Review the global /public/* policy and capability readiness when configuration is shared."},
+    {"page": "settings", "state": "insufficient-scope", "intent": "Understand that the token exists but lacks Access Apps and Policies Edit permission."},
+    {"page": "settings", "state": "sync-preview", "intent": "Review the exact /public policy changes before applying them."},
+    {"page": "settings", "state": "success", "intent": "Confirm that only /public/* is anonymous and the main application remains protected."}
+  ],
+  "claims": [{"id": "no-whole-host-bypass", "type": "custom", "statement": "The journey makes it impossible to mistake /public/* asset bypass for anonymous access to the primary application.", "tier": "aspirational"}]
+}

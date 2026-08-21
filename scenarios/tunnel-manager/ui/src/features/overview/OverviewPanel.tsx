@@ -12,6 +12,8 @@ import { tunnelClient } from "../../api/tunnel";
 import { exposureClient } from "../../api/exposure";
 import { recoveryClient } from "../../api/recovery";
 import { recoveryStatusLabel, recoveryStatusTone } from "../recovery/labels";
+import { probesClient } from "../../api/probes";
+import { FailureClass } from "@vrooli/proto-types/tunnel-manager/v1/probes/probes_pb";
 
 type ModeCalloutKey =
   | typeof strings.overview.modeLocal
@@ -53,6 +55,13 @@ function readinessTone(remoteAvailable: boolean, syncReady: boolean): BadgeTone 
   return "warning";
 }
 
+function arcPath(cx: number, cy: number, radius: number, start: number, end: number): string {
+  const startPoint = { x: cx + Math.cos(start) * radius, y: cy + Math.sin(start) * radius };
+  const endPoint = { x: cx + Math.cos(end) * radius, y: cy + Math.sin(end) * radius };
+  const largeArcFlag = end - start <= Math.PI ? 0 : 1;
+  return ["M", startPoint.x, startPoint.y, "A", radius, radius, 0, largeArcFlag, 1, endPoint.x, endPoint.y].join(" ");
+}
+
 function Card({
   testId,
   heading,
@@ -70,6 +79,12 @@ function Card({
   );
 }
 
+function Finding({ testId, label, detail, href }: { testId: string; label: string; detail: string; href: string }) {
+  return <Link data-testid={testId} to={href} className="rounded-control border border-app-border bg-app-surface-muted p-3 transition-colors hover:border-app-primary hover:bg-app-surface">
+    <span className="block text-sm font-semibold">{label}</span><span className="mt-1 block text-xs text-app-muted-foreground">{detail}</span>
+  </Link>;
+}
+
 /**
  * OverviewPanel is the one-glance operations summary: tunnel health, the core
  * vs leased exposure split, and the live recovery state (with a circuit-breaker
@@ -84,6 +99,7 @@ export function OverviewPanel() {
   const exposuresQuery = useQuery({ queryKey: ["exposures"], queryFn: () => exposureClient.listExposures({}) });
   const recoveryQuery = useQuery({ queryKey: ["recovery-state"], queryFn: () => recoveryClient.getState({}) });
   const driftQuery = useQuery({ queryKey: ["drift"], queryFn: () => configClient.getDrift({}) });
+  const classificationQuery = useQuery({ queryKey: ["exposure-classify"], queryFn: () => probesClient.classify({}) });
 
   const config = configQuery.data?.config;
   const readiness = configQuery.data?.readiness;
@@ -93,11 +109,78 @@ export function OverviewPanel() {
   const recoveryState = recoveryQuery.data?.state;
   const driftCounts: DriftCounts | undefined = driftQuery.data?.counts;
   const externalTracked = (driftCounts?.externalOk ?? 0) + (driftCounts?.ignored ?? 0);
+  const classifications = classificationQuery.data?.classifications ?? [];
+  const unhealthyCount = classifications.filter((item) => item.classification !== FailureClass.HEALTHY).length;
+  const findingCount = (readiness?.missingFields.length ?? 0) + unhealthyCount + (recoveryState?.circuitOpen ? 1 : 0) + (driftCounts?.unmanaged ?? 0);
+  const constellationStatus = tunnelQuery.data?.status?.status ?? "unknown";
+  const constellationLoading = exposuresQuery.isLoading || tunnelQuery.isLoading;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="flex flex-col gap-5">
+      <section
+        data-testid={selectors.overview.constellation}
+        aria-label={t(strings.overview.exposureHeading)}
+        className="relative overflow-hidden rounded-[1.25rem] border border-app-border bg-[radial-gradient(circle_at_50%_38%,rgba(37,99,235,0.16),transparent_42%),var(--color-surface)] p-5 shadow-sm sm:p-7"
+      >
+        <div className="relative z-10 flex flex-col gap-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-app-primary">{t(strings.pages.overview.title)}</p>
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t(strings.overview.exposureHeading)}</h2>
+          <p className="max-w-xl text-sm text-app-muted-foreground">{t(strings.overview.readinessFallback)}</p>
+        </div>
+        <div className="relative mx-auto mt-3 aspect-[2.35/1] max-w-4xl min-h-[18rem]">
+          {constellationLoading ? <div className="absolute inset-8 flex flex-col items-center justify-center gap-4 rounded-full border border-app-border/70 bg-app-surface-muted/30" role="status" aria-label={t(strings.common.loading)}><span className="h-16 w-16 animate-pulse rounded-full border-4 border-app-primary/20 border-t-app-primary" /><span className="h-3 w-48 animate-pulse rounded-full bg-app-border" /><span className="h-3 w-32 animate-pulse rounded-full bg-app-border/70" /></div> : null}
+          <svg className={`absolute inset-0 h-full w-full transition-opacity ${constellationLoading ? "opacity-25" : "opacity-100"}`} viewBox="0 0 720 400" role="img" aria-label={`Tunnel ${constellationStatus} with ${exposures.length} exposed routes`}>
+            <defs>
+              <radialGradient id="constellationGlow"><stop stopColor="var(--color-primary)" stopOpacity=".45"/><stop offset="1" stopColor="var(--color-primary)" stopOpacity="0"/></radialGradient>
+            </defs>
+            <circle cx="360" cy="200" r="120" fill="url(#constellationGlow)" />
+            {[0, 1, 2, 3].map((ring) => <circle key={ring} cx="360" cy="200" r={78 + ring * 28} fill="none" stroke="var(--color-border)" strokeOpacity=".65" strokeDasharray={ring === 3 ? "3 10" : "1 0"} />)}
+            <path d={arcPath(360, 200, 106, -Math.PI * 0.82, Math.PI * 0.05)} fill="none" stroke="var(--color-primary)" strokeWidth="7" strokeLinecap="round" opacity=".9" />
+            <path d={arcPath(360, 200, 106, Math.PI * 0.12, Math.PI * 0.58)} fill="none" stroke="var(--color-success)" strokeWidth="7" strokeLinecap="round" opacity=".9" />
+            <path d={arcPath(360, 200, 106, Math.PI * 0.65, Math.PI * 0.96)} fill="none" stroke="var(--color-warning)" strokeWidth="7" strokeLinecap="round" opacity=".9" />
+            {exposures.slice(0, 6).map((exposure, index) => {
+              const angle = (-Math.PI / 2) + (index * Math.PI * 2) / Math.max(Math.min(exposures.length, 6), 1);
+              const x = 360 + Math.cos(angle) * 132;
+              const y = 200 + Math.sin(angle) * 132;
+              const healthy = classifications.find((item) => item.subdomain === exposure.subdomain)?.classification === FailureClass.HEALTHY;
+              const nodeColor = healthy ? "var(--color-success)" : "var(--color-warning)";
+              return <g key={exposure.scenario} tabIndex={0} role="img" aria-label={exposure.scenario + ", " + (healthy ? "healthy" : "needs attention")}><line x1="360" y1="200" x2={x} y2={y} stroke={nodeColor} strokeOpacity=".55" strokeWidth="2"/><circle cx={x} cy={y} r="21" fill="none" stroke={nodeColor} strokeOpacity=".22" strokeWidth="4" strokeDasharray={exposure.lease ? "18 7" : "0 0"} /><circle cx={x} cy={y} r="15" fill="var(--color-surface)" stroke={nodeColor} strokeWidth="3"/><circle cx={x} cy={y} r="4" fill={nodeColor} /><text x={x} y={y + 31} textAnchor="middle" fill="var(--color-muted-foreground)" fontSize="12">{exposure.scenario.slice(0, 16)}</text></g>;
+            })}
+            <circle cx="360" cy="200" r="42" fill="var(--color-surface-raised)" stroke="var(--color-primary)" strokeWidth="3" />
+            <circle cx="360" cy="200" r="8" fill={constellationStatus === "healthy" ? "var(--color-success)" : "var(--color-warning)"} />
+            <text x="360" y="245" textAnchor="middle" fill="var(--color-foreground)" fontSize="14" fontWeight="600">{t(strings.overview.tunnelHeading)}</text>
+          </svg>
+          <div className="absolute bottom-0 left-0 right-0 flex flex-wrap justify-center gap-2 text-xs text-app-muted-foreground">
+            <span className="rounded-full border border-app-border bg-app-surface/80 px-3 py-1">{exposures.length} {t(strings.exposure.colUrl)}</span>
+            <span className="rounded-full border border-app-border bg-app-surface/80 px-3 py-1">{coreCount} {t(strings.overview.coreLabel)}</span>
+            <span className="rounded-full border border-app-border bg-app-surface/80 px-3 py-1">{leasedCount} {t(strings.overview.leasedLabel)}</span>
+            <span className="rounded-full border border-app-border bg-app-surface/80 px-3 py-1">{constellationStatus}</span>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-app-muted-foreground" aria-label={t(strings.overview.exposureHeading)}>
+          <span className="inline-flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-app-primary" aria-hidden="true" />{t(strings.overview.tunnelHeading)}</span>
+          <span className="inline-flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-app-success" aria-hidden="true" />{t(strings.overview.readinessReady)}</span>
+          <span className="inline-flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-app-warning" aria-hidden="true" />{t(strings.overview.readinessSetupRequired)}</span>
+          <span className="inline-flex items-center gap-2"><i className="h-2 w-2 rounded-full border border-app-warning" aria-hidden="true" />{t(strings.overview.leasedLabel)}</span>
+        </div>
+      </section>
+
+      <section className="rounded-panel border border-app-border bg-app-surface p-4" aria-label={t(strings.overview.driftHeading)}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-app-muted-foreground">{t(strings.overview.driftHeading)}</p><h2 className="mt-1 text-lg font-semibold">{findingCount ? t(strings.overview.configure) : t(strings.overview.readinessReady)}</h2></div>
+          <StatusBadge tone={findingCount ? "warning" : "success"}>{findingCount ? t(strings.overview.readinessSetupRequired) : t(strings.overview.readinessReady)}</StatusBadge>
+        </div>
+        {findingCount > 0 && <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {readiness?.missingFields.length ? <Finding testId={selectors.overview.finding} label={t(strings.config.remoteAvailability)} detail={readiness.missingFields.join(", ")} href="/settings" /> : null}
+          {unhealthyCount ? <Finding testId={selectors.overview.finding} label={t(strings.metrics.heading)} detail={t(strings.metrics.error)} href="/metrics" /> : null}
+          {recoveryState?.circuitOpen ? <Finding testId={selectors.overview.finding} label={t(strings.recovery.circuitOpenLabel)} detail={t(strings.overview.circuitOpenWarning)} href="/recovery" /> : null}
+          {(driftCounts?.unmanaged ?? 0) > 0 ? <Finding testId={selectors.overview.finding} label={t(strings.overview.driftHeading)} detail={t(strings.overview.viewDrift)} href="/drift" /> : null}
+        </div>}
+      </section>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
       <Card testId={selectors.overview.readinessCard} heading={t(strings.overview.readinessHeading)}>
-        <QueryState isLoading={configQuery.isLoading} error={configQuery.error}>
+        <QueryState isLoading={configQuery.isLoading} error={configQuery.error} onRetry={() => void configQuery.refetch()}>
           {config && readiness && (
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -137,7 +220,7 @@ export function OverviewPanel() {
       </Card>
 
       <Card testId={selectors.overview.tunnelCard} heading={t(strings.overview.tunnelHeading)}>
-        <QueryState isLoading={tunnelQuery.isLoading} error={tunnelQuery.error}>
+        <QueryState isLoading={tunnelQuery.isLoading} error={tunnelQuery.error} onRetry={() => void tunnelQuery.refetch()}>
           {tunnelQuery.data?.status && (
             <div className="flex flex-col gap-2">
               <StatusBadge
@@ -158,7 +241,7 @@ export function OverviewPanel() {
       </Card>
 
       <Card testId={selectors.overview.exposureCard} heading={t(strings.overview.exposureHeading)}>
-        <QueryState isLoading={exposuresQuery.isLoading} error={exposuresQuery.error}>
+        <QueryState isLoading={exposuresQuery.isLoading} error={exposuresQuery.error} onRetry={() => void exposuresQuery.refetch()}>
           <dl className="flex flex-col gap-1 text-sm">
             <div className="flex justify-between">
               <dt className="text-app-muted-foreground">{t(strings.overview.coreLabel)}</dt>
@@ -180,7 +263,7 @@ export function OverviewPanel() {
       </Card>
 
       <Card testId={selectors.overview.recoveryCard} heading={t(strings.overview.recoveryHeading)}>
-        <QueryState isLoading={recoveryQuery.isLoading} error={recoveryQuery.error}>
+        <QueryState isLoading={recoveryQuery.isLoading} error={recoveryQuery.error} onRetry={() => void recoveryQuery.refetch()}>
           {recoveryState && (
             <div className="flex flex-col gap-2">
               <StatusBadge
@@ -203,7 +286,7 @@ export function OverviewPanel() {
       </Card>
 
       <Card testId={selectors.overview.driftCard} heading={t(strings.overview.driftHeading)}>
-        <QueryState isLoading={driftQuery.isLoading} error={driftQuery.error}>
+        <QueryState isLoading={driftQuery.isLoading} error={driftQuery.error} onRetry={() => void driftQuery.refetch()}>
           <dl className="flex flex-col gap-1 text-sm">
             <div className="flex justify-between">
               <dt className="text-app-muted-foreground">
@@ -233,6 +316,7 @@ export function OverviewPanel() {
           </Link>
         </QueryState>
       </Card>
+      </div>
     </div>
   );
 }

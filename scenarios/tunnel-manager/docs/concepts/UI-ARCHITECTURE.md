@@ -9,8 +9,13 @@ without asking the user for a path.
 
 ## Tunnel Manager UI
 
-> Status: production-readiness redesign in progress. The five routed operator
-> surfaces are implemented; current work is hardening them around real setup,
+> Status: experience contract authored; visual implementation still pending.
+> The existing routes are documented as draft experience pages under
+> `experience/`. The intended destination is the Exposure Command Center
+> described in [`UX-DIRECTION.md`](UX-DIRECTION.md), with an Exposure
+> Constellation hero, guided bounded exposure flow, explicit `/public/*`
+> security boundary, and route-level diagnostics. Current work is hardening
+> the existing implementation around real setup,
 > exposure, diagnostics, recovery, and audit workflows. The setup/readiness
 > slice is wired to the config API and surfaces Cloudflare credential
 > availability, local/remote mode, sync preview, and sync apply actions. The
@@ -24,18 +29,20 @@ without asking the user for a path.
 > state machine, breaker/backoff risk, next operator action, manual recovery
 > force semantics, and durable event details.
 
-The dashboard is intentionally minimal and glanceable: operators need quick
-status reads, not complex interactions. It is organized around the five PRD
-operator surfaces plus the Settings/Setup support surface, each routed under
-`<Outlet />`:
+The dashboard should be glanceable without being shallow: operators need a
+quick system picture plus direct paths to the next safe action. The current
+route set is organized around the following draft experience pages under
+`<Outlet />`; navigation may later group them into the five destination areas
+described by the UX direction:
 
 | Surface | Purpose | Backing domains |
 |---|---|---|
-| **Overview** | Tunnel health at a glance: cloudflared status, core/leased route grid, current recovery state, active alerts. | `tunnel`, `routes`, `exposure`, `recovery` |
-| **Exposure** | Unified route table with operator summary, search, CORE/LEASED filtering, classification badge, local port, public URL, lease TTL countdown, and reconcile feedback. Actions: request-expose, extend/revoke lease, refresh, reconcile. | `routes`, `exposure`, `probes` |
+| **Overview** | Exposure Constellation, readiness summary, actionable findings, and a direct expose action. | `tunnel`, `routes`, `exposure`, `recovery`, `config` |
+| **Exposure** | Searchable route collection plus guided choose/configure/confirm flow with duration, access boundary, and verification result. | `routes`, `exposure`, `probes`, `config` |
 | **Recovery & Events** | Recovery state machine, breaker/backoff summary, next operator action, guarded manual recover/force action, and recovery-attempt timeline. | `recovery` |
-| **Metrics** | cloudflared metric summary/time-series (HA connections, request errors, RTT, active streams), probe history, route classifications, and the current diagnostic-signal boundary. | `tunnel`, `probes` |
-| **Audit** | Port-compliance summary and filtered findings: scenarios whose `service.json` UI port is missing, ranged, or mismatched vs the manifest, with remediation hints. | `audit` |
+| **Metrics** | Route journey diagnostics from local listener through ingress to public probe, plus cloudflared metric summary and probe history. | `tunnel`, `probes` |
+| **Audit** | Governance surface for fixed-port compliance, ownership, and remediation guidance. | `audit`, `routes`, `config` |
+| **Drift** | Live ingress versus manifest comparison with explicit adoption, ignore, and destructive prune decisions. | `config`, `routes` |
 | **Settings / Setup** | Mode visibility, credential source, missing `CLOUDFLARE_*` fields, local config path, metrics endpoint, sync dry-run, sync apply, and local/remote mode switching. | `config` |
 
 ### Feature-folder mapping
@@ -55,6 +62,14 @@ matching the domain source paths in [`DOMAINS.md`](DOMAINS.md):
 Typed Connect-RPC clients live in `ui/src/api/<domain>.ts`. Real-time
 updates use redis pub/sub when available and fall back to HTTP polling
 otherwise (see [`INTEGRATIONS.md`](INTEGRATIONS.md)).
+
+### Experience contract and visual seams
+
+The draft page and journey contract is under `experience/`. Keep its route
+registry, page purposes, states, claims, sketches, and journey IDs aligned with
+the implementation as the redesign progresses. `UX-DIRECTION.md` is the
+human-readable companion for the Exposure Constellation, publicness boundary,
+guided expose flow, route detail, and visual evidence requirements.
 
 ### Durable seams kept from the template
 

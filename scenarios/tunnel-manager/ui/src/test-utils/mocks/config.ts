@@ -1,5 +1,6 @@
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { vi } from "vitest";
+import { resolveApiBase } from "@vrooli/api-base";
 import {
   ConfigReadinessSchema,
   CredentialStatusSchema,
@@ -91,7 +92,7 @@ export const makeIngressEntry = (
 ): IngressEntry =>
   create(IngressEntrySchema, {
     hostname: "agent-manager.itsagitime.com",
-    serviceTarget: "http://localhost:21001",
+    serviceTarget: resolveApiBase({ defaultPort: "21001" }),
     state: OwnershipState.MANAGED,
     source: IngressSource.SCENARIO,
     scenario: "agent-manager",

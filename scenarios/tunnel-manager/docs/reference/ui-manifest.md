@@ -14,21 +14,21 @@ both when adding or renaming a slot.
 
 ## Tunnel Manager UI surfaces
 
-> The 5 operator surfaces below are the production information architecture,
-> organized around the exposure lifecycle (the prior UI sprawled to 7
-> score-chasing pages contradicting the PRD's "minimal UI" — see
-> [`../internal/DECISIONS.md`](../internal/DECISIONS.md)). The current
-> production-readiness redesign has started with the first-run
-> Settings/Setup workflow, config-readiness summary on Overview, and
-> Exposure, Diagnostics, Recovery, and Audit operator workflow polish.
+> The experience contract is now authored under `experience/`, but all pages
+> are intentionally `draft` until the visual implementation reconciles. The
+> target is the Exposure Command Center: a meaningful Exposure Constellation
+> on Overview, a guided bounded exposure flow, explicit duration and
+> authentication scope, and a visible `/public/*` boundary. See
+> [`../concepts/UX-DIRECTION.md`](../concepts/UX-DIRECTION.md).
 
 | Surface | Feature folder | Shows |
 |---|---|---|
-| **Overview** | `ui/src/features/overview/` | Tunnel + exposure health at a glance: setup readiness, route counts, recovery state, and color-coded status. |
-| **Exposure** | `ui/src/features/exposure/` | Lease management and reconcile workflow — request / extend / revoke leased exposure; CORE vs LEASED filtering; search; route-classification badges from probes. |
+| **Overview** | `ui/src/features/overview/` | Exposure Constellation, setup readiness, route counts, actionable findings, and the dominant expose action. |
+| **Exposure** | `ui/src/features/exposure/` | Searchable route inventory and guided choose/configure/confirm lease workflow with duration, policy boundary, and verification. |
 | **Recovery & Events** | `ui/src/features/recovery/` | Auto-recovery state, breaker/backoff risk, next operator action, guarded manual recover/force action, and recovery event details. |
-| **Metrics** | `ui/src/features/metrics/` | cloudflared Prometheus summary + time-series (HA connections, RTT, errors, active streams), probe history, route classifications, current diagnostic-signal limits, and scrape/probe actions. Backed by the `tunnel` and `probes` domains. |
-| **Audit** | `ui/src/features/audit/` | Port-compliance summary, status filters, findings, and remediation hints for mismatched / missing / ranged UI ports. |
+| **Metrics** | `ui/src/features/metrics/` | Local→ingress→public route journey diagnostics, cloudflared metrics, probe history, classifications, and scrape/probe actions. |
+| **Audit** | `ui/src/features/audit/` | Governance: port compliance, status filters, ownership context, and remediation hints. |
+| **Drift** | `ui/src/features/drift/`, `ui/src/features/routes/` | Live ingress versus manifest comparison and explicit adoption, ignore, or prune actions. |
 | **Settings / Setup** | `ui/src/pages/SettingsPage.tsx`, `ui/src/api/config.ts` | Local/remote mode, Cloudflare credential readiness, final config policy guidance, write-only Cloudflare credential save/clear through the Vrooli credential authority, field source status, missing fields, local config path, sync dry-run, sync apply, theme, and locale. |
 
 The scaffold `health` feature lives at `ui/src/features/health/`.
@@ -48,6 +48,10 @@ survive any redesign:
 - **Feature-folder pattern** — one folder per domain under
   `ui/src/features/<domain>/`, following the proto → API → CLI → UI
   vertical slice.
+- **Experience contract** — `experience/index.json` is the route and journey
+  registry; page specs remain draft until the implementation and evidence are
+  ready. Do not add machine claims or fake bindings for the future visual
+  before it exists.
 
 ## Slots (v1)
 

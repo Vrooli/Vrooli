@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "tunnel-manager",
+  "description": "Draft experience contract for a polished exposure command center. The contract preserves the current route truth while defining the intended operator journeys, security disclosures, readiness states, and exposure topology visual language.",
+  "pages": [
+    {"id": "overview", "path": "pages/overview.json", "title": "Overview", "status": "draft"},
+    {"id": "exposure", "path": "pages/exposure.json", "title": "Exposure", "status": "draft"},
+    {"id": "recovery", "path": "pages/recovery.json", "title": "Recovery & Events", "status": "draft"},
+    {"id": "metrics", "path": "pages/metrics.json", "title": "Diagnostics", "status": "draft"},
+    {"id": "audit", "path": "pages/audit.json", "title": "Governance", "status": "draft"},
+    {"id": "drift", "path": "pages/drift.json", "title": "Ingress Drift", "status": "draft"},
+    {"id": "settings", "path": "pages/settings.json", "title": "Settings & Readiness", "status": "draft"}
+  ],
+  "journeys": [
+    {"id": "expose-scenario", "path": "journeys/expose-scenario.json", "title": "Expose a scenario", "status": "draft"},
+    {"id": "reexpose-expired-route", "path": "journeys/reexpose-expired-route.json", "title": "Re-expose an expired route", "status": "draft"},
+    {"id": "enable-public-assets", "path": "journeys/enable-public-assets.json", "title": "Enable anonymous public assets", "status": "draft"},
+    {"id": "diagnose-route", "path": "journeys/diagnose-route.json", "title": "Diagnose a route", "status": "draft"}
+  ]
+}

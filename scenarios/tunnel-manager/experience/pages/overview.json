@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "overview",
+    "title": "Overview",
+    "routes": ["/"],
+    "purpose": "Show how local scenarios become publicly reachable, which routes are trustworthy, and what the operator should do next.",
+    "prd_refs": ["OT-P0-001", "OT-P0-003", "OT-P0-004", "OT-P0-009", "OT-P0-010", "OT-P1-004", "OT-P1-008"]
+  },
+  "priorities": [
+    {"statement": "The exposure boundary is understandable at a glance.", "notes": "The hero visualization should show the tunnel, exposed scenarios, route health, lease state, and the protected-versus-public asset boundary."},
+    {"statement": "The next operator action is explicit.", "notes": "Missing credentials, port violations, failed probes, and expiring leases must become actionable findings, not passive badges."},
+    {"statement": "Every aggregate is decomposable.", "notes": "Counts and any health score must link to the routes and checks that produced them."}
+  ],
+  "states": [
+    {"id": "loading", "description": "Tunnel, exposure, readiness, and recovery data are loading."},
+    {"id": "ready", "description": "The exposure constellation and operator findings are visible."},
+    {"id": "partial", "description": "Some domain data is unavailable while the remaining route picture stays visible and names the missing source."},
+    {"id": "stale", "description": "The last complete picture remains visible while refresh is pending."},
+    {"id": "credentials-missing", "description": "Local operation is available, but remote Cloudflare reconciliation is blocked by missing credentials."},
+    {"id": "empty", "description": "No routes are exposed; the page explains that local scenarios remain private and offers the first exposure action."},
+    {"id": "request-error", "description": "The page names which operational read failed and provides retry."}
+  ],
+  "claims": [
+    {"id": "topology-is-decomposable", "type": "custom", "statement": "The exposure topology is a meaningful operational projection: every scenario node and connection corresponds to route, probe, lease, or policy state.", "tier": "aspirational"},
+    {"id": "finding-has-next-action", "type": "custom", "statement": "Every non-healthy finding names its cause, scope, and next operator action.", "tier": "aspirational"},
+    {"id": "missing-credentials-visible", "type": "custom", "statement": "When remote operation is unavailable, the missing credential and the blocked capability are visible without navigating away from the overview.", "tier": "aspirational"}
+  ],
+  "sketch": {"viewport": "wide", "regions": [
+    {"id": "shell", "grid": {"x": 0, "y": 0, "w": 12, "h": 1}, "note": "Product identity, tunnel state, refresh, and settings."},
+    {"id": "topology", "grid": {"x": 0, "y": 1, "w": 8, "h": 7}, "note": "Large visual hero: central tunnel with scenario nodes, health rings, and lease arcs."},
+    {"id": "findings", "grid": {"x": 8, "y": 1, "w": 4, "h": 7}, "note": "Action-oriented companion rail."}
+  ]}
+}

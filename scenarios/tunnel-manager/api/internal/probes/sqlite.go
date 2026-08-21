@@ -50,6 +50,24 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 )
 
 func (s *sqliteRepository) Persist(ctx context.Context, r ProbeResult) (ProbeResult, error) {
+	stored, err := s.persist(ctx, r)
+	if err != nil {
+		return ProbeResult{}, err
+	}
+	if err := s.PruneBefore(ctx, stored.CreatedAt.Add(-HistoryRetentionWindow)); err != nil {
+		return ProbeResult{}, err
+	}
+	return stored, nil
+}
+
+// PersistWithoutPrune is used by the scheduler's batched probe cycle. The
+// cycle calls PruneBefore once after all rows are written, preventing a
+// DELETE after every probe from monopolizing the single SQLite connection.
+func (s *sqliteRepository) PersistWithoutPrune(ctx context.Context, r ProbeResult) (ProbeResult, error) {
+	return s.persist(ctx, r)
+}
+
+func (s *sqliteRepository) persist(ctx context.Context, r ProbeResult) (ProbeResult, error) {
 	if r.ID == "" {
 		r.ID = uuid.NewString()
 	}
@@ -65,13 +83,10 @@ func (s *sqliteRepository) Persist(ctx context.Context, r ProbeResult) (ProbeRes
 	if err != nil {
 		return ProbeResult{}, fmt.Errorf("insert probe %q: %w", r.ID, err)
 	}
-	if err := s.pruneBefore(ctx, r.CreatedAt.Add(-HistoryRetentionWindow)); err != nil {
-		return ProbeResult{}, err
-	}
 	return r, nil
 }
 
-func (s *sqliteRepository) pruneBefore(ctx context.Context, cutoff time.Time) error {
+func (s *sqliteRepository) PruneBefore(ctx context.Context, cutoff time.Time) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM probes WHERE created_at < ?", cutoff.UTC().Format(probeTimeFormat))
 	if err != nil {
 		return fmt.Errorf("prune probes before %s: %w", cutoff.UTC().Format(probeTimeFormat), err)
@@ -113,16 +128,21 @@ func (s *sqliteRepository) List(ctx context.Context, subdomain string, limit int
 }
 
 // latestPerRouteKindSQL selects the single newest probe for each
-// (subdomain, kind) pair. The correlated subquery keys on created_at then
-// id (the tie-break that matches List's ordering) so the result is
-// deterministic even when two probes share a timestamp.
+// (subdomain, kind) pair. The window plan lets SQLite rank the indexed probe
+// history in one pass; the previous correlated NOT EXISTS plan repeatedly
+// rescanned the growing history and could hold the single production
+// connection long enough for Classify requests to hit their deadline.
 const latestPerRouteKindSQL = `
-SELECT ` + probeColumns + ` FROM probes p
-WHERE NOT EXISTS (
-  SELECT 1 FROM probes q
-  WHERE q.subdomain = p.subdomain AND q.kind = p.kind
-    AND (q.created_at > p.created_at OR (q.created_at = p.created_at AND q.id > p.id))
+SELECT id, subdomain, kind, status, latency_ms, status_code, error_msg, created_at
+FROM (
+  SELECT ` + probeColumns + `,
+         ROW_NUMBER() OVER (
+           PARTITION BY subdomain, kind
+           ORDER BY created_at DESC, id DESC
+         ) AS row_number
+  FROM probes
 )
+WHERE row_number = 1
 ORDER BY subdomain ASC, kind ASC
 `
 

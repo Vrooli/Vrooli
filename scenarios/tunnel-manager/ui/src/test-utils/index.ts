@@ -45,7 +45,31 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import { createElement, type ReactElement, type ReactNode } from "react";
+import {
+  renderWithProviders as renderWithBaseProviders,
+  type ProviderRenderOptions,
+  type ProviderRenderResult,
+} from "@vrooli/api-base/testing";
+import { ThemeProvider } from "../theme/ThemeProvider";
+import { i18n as scenarioI18n } from "../i18n";
+
+/**
+ * Scenario-owned provider seam. The shared API helper supplies QueryClient,
+ * router, and i18n; Tunnel Manager additionally requires its theme context so
+ * routed shell tests exercise the same provider graph as the production app.
+ */
+export function renderWithProviders(
+  ui: ReactElement,
+  options: ProviderRenderOptions = {},
+): ProviderRenderResult {
+  const configuredExtraProviders = options.extraProviders;
+  return renderWithBaseProviders(ui, {
+    ...options,
+    i18n: options.i18n ?? scenarioI18n,
+    extraProviders: configuredExtraProviders ?? ((children: ReactNode) => createElement(ThemeProvider, null, children)),
+  });
+}
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";

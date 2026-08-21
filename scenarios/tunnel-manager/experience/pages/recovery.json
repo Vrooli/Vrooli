@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {"id": "recovery", "title": "Recovery & Events", "routes": ["/recovery"], "purpose": "Explain whether automatic tunnel recovery is healthy, blocked, backing off, or awaiting a guarded operator action.", "prd_refs": ["OT-P0-011", "OT-P1-003", "OT-P1-004"]},
+  "priorities": [
+    {"statement": "The recovery state and next action are unambiguous."},
+    {"statement": "Breaker and backoff risk are visible before a manual force action."},
+    {"statement": "Events explain what changed and whether recovery improved reachability."}
+  ],
+  "states": [
+    {"id": "loading", "description": "Recovery state and events are loading."},
+    {"id": "ready", "description": "State machine, next action, and event timeline are visible."},
+    {"id": "empty", "description": "No recovery events have occurred; the tunnel is operating normally."},
+    {"id": "partial", "description": "State is available but event history is incomplete."},
+    {"id": "stale", "description": "Last known recovery state remains visible during refresh."},
+    {"id": "request-error", "description": "Recovery data failed to load and can be retried."}
+  ],
+  "claims": [{"id": "force-action-is-guarded", "type": "custom", "statement": "A force recovery action explains its consequences, current breaker risk, and confirmation requirement before mutation.", "tier": "aspirational"}],
+  "sketch": {"viewport": "desktop", "regions": [
+    {"id": "state", "grid": {"x": 0, "y": 0, "w": 5, "h": 4}},
+    {"id": "timeline", "grid": {"x": 5, "y": 0, "w": 7, "h": 7}},
+    {"id": "action", "grid": {"x": 0, "y": 4, "w": 5, "h": 2}}
+  ]}
+}

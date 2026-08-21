@@ -1,9 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import type { ThemeChoice } from "../theme/themeContext";
 import { THEME_CHOICE_LABEL } from "../theme/themeChoiceLabels";
 import { useTheme } from "../theme/useTheme";
+import { fetchHealth } from "../api/health";
+import { StatusBadge } from "../components/ui/StatusBadge";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
@@ -16,19 +19,38 @@ export function TopBar() {
   const { t } = useTranslation();
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
+  const healthQuery = useQuery({
+    queryKey: ["api-health"],
+    queryFn: fetchHealth,
+    staleTime: 15_000,
+    retry: 1,
+  });
+  const apiStatus = healthQuery.data?.status ?? (healthQuery.isError ? "unreachable" : "checking");
+  const apiTone = healthQuery.isError ? "danger" : apiStatus === "healthy" ? "success" : "warning";
 
   return (
     <header
       data-testid={selectors.layout.topBar}
-      className="flex shrink-0 items-center justify-between gap-4 border-b border-app-border bg-app-surface px-4 py-3"
+      className="flex shrink-0 flex-wrap items-center justify-between gap-3 overflow-x-hidden border-b border-app-border bg-app-surface px-4 py-3"
     >
       <h1
         data-testid={selectors.app.title}
-        className="text-lg font-semibold text-app-foreground"
+        className="min-w-0 text-lg font-semibold text-app-foreground"
       >
         {t(strings.app.title)}
       </h1>
-      <div className="flex items-center gap-3">
+      <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+        <button
+          type="button"
+          className="rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+          aria-label={`${t(strings.health.statusLabel)} ${apiStatus}`}
+          onClick={() => void healthQuery.refetch()}
+        >
+          <StatusBadge tone={apiTone}>
+            <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+            {apiStatus}
+          </StatusBadge>
+        </button>
         <div
           role="group"
           aria-label={t(strings.locale.switcherLabel)}
@@ -56,7 +78,6 @@ export function TopBar() {
           data-testid={selectors.theme.switcher}
           className="flex items-center gap-2 text-xs text-app-muted-foreground"
         >
-          <span className="sr-only">{t(strings.theme.switcherLabel)}</span>
           <select
             value={choice}
             onChange={(e) => setTheme(e.target.value as ThemeChoice)}

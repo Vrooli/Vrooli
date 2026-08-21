@@ -15,6 +15,15 @@ if (window.parent !== window) {
 // keyboard/gamepad control flows.
 initSpatialNav();
 
+// Keep the installable shell reload-safe without caching API responses. The
+// worker is deliberately relative so the same artifact works at localhost,
+// through the tunnel, and under the iframe proxy mount.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("./sw.js", { scope: "./" });
+  }, { once: true });
+}
+
 const rootEl = document.getElementById("root");
 if (!rootEl) {
   throw new Error("Missing #root element in index.html");

@@ -46,7 +46,7 @@ describe("ExposurePanel", () => {
 
   it("renders core and leased rows with tier badges and lease expiry", async () => {
     const { exposureClient } = await import("../../api/exposure");
-    vi.mocked(exposureClient.listExposures).mockResolvedValueOnce({
+    vi.mocked(exposureClient.listExposures).mockResolvedValue({
       exposures: [makeExposure(), makeLeasedExposure()],
     } as never);
 
@@ -108,11 +108,16 @@ describe("ExposurePanel", () => {
 
     await user.type(screen.getByTestId(selectors.exposure.exposeInput), "image-tools");
     await user.click(screen.getByTestId(selectors.exposure.exposeButton));
+    expect(screen.getByTestId(selectors.exposure.reviewDialog)).toBeInTheDocument();
+    await user.click(screen.getByTestId(selectors.exposure.confirmExposeButton));
 
     await waitFor(() => {
       expect(exposureClient.expose).toHaveBeenCalledTimes(1);
     });
-    expect(vi.mocked(exposureClient.expose).mock.calls[0]?.[0]).toMatchObject({ scenario: "image-tools" });
+    expect(vi.mocked(exposureClient.expose).mock.calls[0]?.[0]).toMatchObject({
+      scenario: "image-tools",
+      ttlSeconds: 604800n,
+    });
   });
 
   it("disables the expose button when the input is empty", () => {
@@ -136,6 +141,7 @@ describe("ExposurePanel", () => {
     await waitFor(() => expect(exposureClient.extendLease).toHaveBeenCalledWith({ leaseId: "lease-1" }));
 
     await user.click(screen.getByTestId(selectors.exposure.revokeButton));
+    await user.click(screen.getByTestId(selectors.exposure.revokeConfirmButton));
     await waitFor(() => expect(exposureClient.revokeLease).toHaveBeenCalledWith({ leaseId: "lease-1" }));
   });
 
