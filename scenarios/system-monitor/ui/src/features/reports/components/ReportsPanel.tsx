@@ -6,6 +6,7 @@ import { useToast } from '../../../shared/components/ToastProvider';
 import { extractErrorMessage, protoFetch } from '../../../shared/api/apiFetch';
 import { parseListReportsResponse, parseGenerateReportResponse } from '../../../shared/api/proto-contracts';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
+import { ReportInline } from '../../../shared/report/ReportBody';
 
 export const ReportsPanel = () => {
   const { showApiError } = useToast();
@@ -213,7 +214,7 @@ export const ReportsPanel = () => {
                   <ul className="text-sm" data-sm-style="sm-style-59a5e35c0f">
                     {report.recommendations.slice(0, 2).map((rec, index) => (
                       <li key={index} className="mb-sm">
-                        {rec}
+                        <ReportInline text={rec} />
                       </li>
                     ))}
                   </ul>

@@ -44,16 +44,25 @@ export const CapacityPage = () => {
       </p>
 
       {error && (
-        <div className="card" role="alert" data-sm-style="sm-style-0fdae7acd4">
-          {error}
+        <div className="card card--excursion" role="alert">
+          <p className="eyebrow card--excursion__label">Capacity request failed</p>
+          <p className="capacity-blind__body">{error}</p>
         </div>
       )}
 
-      {overview && overview.warnings.length > 0 && (
-        <div className="card" data-sm-style="sm-style-71cbba1723">
-          {overview.warnings.map((warning) => (
-            <div key={warning}>⚠ {warning}</div>
-          ))}
+      {/*
+        * Rendered only when sensing DID work. When it did not, the same
+        * warnings are the reason text inside the blind panel below, and
+        * showing them twice would read as two separate problems.
+        */}
+      {overview && sensingAvailable && overview.warnings.length > 0 && (
+        <div className="card card--caution" role="status">
+          <p className="eyebrow card--caution__label">Sensing warnings</p>
+          <ul className="capacity-blind__reasons">
+            {overview.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -65,9 +74,37 @@ export const CapacityPage = () => {
         <>
           {sectionHeading('GPU contention')}
           {overview.gpus.length === 0 ? (
-            <div className="card" data-sm-style="sm-style-2dce25a9dc">
-              No GPUs detected on this host.
-            </div>
+            /*
+             * An empty GPU list has two completely different causes and they
+             * must never share a message. If sensing was available and returned
+             * nothing, the host genuinely has no GPU. If sensing was NOT
+             * available, we did not look — and "No GPUs detected on this host"
+             * would be an assertion about the machine that this page has no
+             * evidence for. That is the exact failure this scenario exists to
+             * remove, so the unavailable branch reports the blindness and the
+             * reason for it, and never a count.
+             */
+            sensingAvailable ? (
+              <div className="card capacity-empty" data-sm-style="sm-style-2dce25a9dc">
+                No GPUs detected on this host.
+              </div>
+            ) : (
+              <div className="card capacity-blind" role="status">
+                <p className="eyebrow capacity-blind__label">GPU contention unreadable</p>
+                <p className="capacity-blind__body">
+                  No GPU probe answered on this host, so this page cannot say whether a
+                  GPU is present. This is a gap in what can be measured here — not a
+                  report that the machine has none.
+                </p>
+                {overview.warnings.length > 0 && (
+                  <ul className="capacity-blind__reasons">
+                    {overview.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )
           ) : (
             <div data-sm-style="sm-style-20558dad9f">
               {overview.gpus.map((gpu) => (

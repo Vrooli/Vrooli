@@ -7,6 +7,7 @@ import { useToast } from '../../../shared/components/ToastProvider';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { str, bool } from '../../../shared/utils/typeGuards';
 import { getRiskLevelColor } from '../../../shared/utils/colors';
+import { ReportBody } from '../../../shared/report/ReportBody';
 
 interface InvestigationsPanelProps {
   investigations: Investigation[];
@@ -97,7 +98,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         )}
 
         {investigation.findings && (
-          <div className="text-sm mb-sm">{investigation.findings}</div>
+          <ReportBody text={investigation.findings} className="report-body-inset mb-sm" />
         )}
 
         {userNote && (

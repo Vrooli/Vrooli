@@ -86,9 +86,46 @@ describe('CapacityPage', () => {
     // provider-free-exception: page uses local fetch adapters and no shared provider context.
     render(<CapacityPage />);
 
-    await waitFor(() => expect(screen.getByText(/Capacity sensing is unavailable/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/unclaimed consumers cannot be reconciled/i)).toBeInTheDocument(),
+    );
     expect(screen.getByText(/nvidia-smi binary not found/i)).toBeInTheDocument();
-    expect(screen.getByText(/No GPUs detected/i)).toBeInTheDocument();
+    // The page must NOT claim the host has no GPU when it could not look. An
+    // empty list under unavailable sensing is blindness, not a finding, and
+    // this assertion previously required the page to state the opposite.
+    expect(screen.queryByText(/No GPUs detected/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/GPU contention unreadable/i)).toBeInTheDocument();
+    expect(screen.getByText(/No GPU probe answered on this host/i)).toBeInTheDocument();
+  });
+
+  it('separates a failed request from a sensing warning', async () => {
+    // These were previously the same neutral card, so a request that failed
+    // outright and a reading that came back with caveats looked identical.
+    vi.mocked(fetchCapacityOverview).mockRejectedValue(new Error('capacity backend unreachable'));
+    render(<CapacityPage />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/Capacity request failed/i),
+    );
+    expect(screen.getByText(/capacity backend unreachable/i)).toBeInTheDocument();
+  });
+
+  it('shows sensing warnings as caution when sensing itself did work', async () => {
+    vi.mocked(fetchCapacityOverview).mockResolvedValue(create(GetCapacityOverviewResponseSchema, {
+      success: true,
+      sensingAvailable: true,
+      warnings: ['gpu 1 reported no serial'],
+      gpus: [],
+      claims: [],
+    }));
+    render(<CapacityPage />);
+
+    await waitFor(() => expect(screen.getByText(/Sensing warnings/i)).toBeInTheDocument());
+    expect(screen.getByText(/gpu 1 reported no serial/i)).toBeInTheDocument();
+    // Sensing worked and returned nothing, so an empty list IS a finding here
+    // and the honest message is the one that states it.
+    expect(screen.getByText(/No GPUs detected on this host/i)).toBeInTheDocument();
+    expect(screen.queryByText(/GPU contention unreadable/i)).not.toBeInTheDocument();
   });
 
   it('saves a policy lever change', async () => {

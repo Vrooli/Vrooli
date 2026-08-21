@@ -52,6 +52,22 @@ export const StatusIndicator = ({
       ? 'error'
       : '';
 
+  /*
+   * The dot carries system health in COLOUR ALONE and is `aria-hidden`, so the
+   * state reached neither assistive technology nor a reader who cannot
+   * separate the hues. The button's name was the static string "View status
+   * details", which says what the control does but never what it is
+   * reporting. Naming the current state here is the text alternative.
+   */
+  const statusWord = (() => {
+    if (healthError) return 'error';
+    if (isLoading && !healthStatus) return 'loading';
+    if (onlineStatus === 'offline') return 'offline';
+    return onlineStatus;
+  })();
+
+  const statusLabel = `System status: ${statusWord}. View status details`;
+
   const timestamp = healthStatus?.timestamp;
   const formattedTimestamp = typeof timestamp === 'number'
     ? new Date(timestamp * 1000).toLocaleString()
@@ -92,7 +108,8 @@ export const StatusIndicator = ({
         className={`header-button status-dot-button ${isLoading ? 'loading' : ''}`}
         onClick={handleTogglePopover}
         type="button"
-        title="View status details"
+        title={statusLabel}
+        aria-label={statusLabel}
         aria-haspopup="dialog"
         aria-expanded={isPopoverOpen}
         disabled={isLoading && !healthStatus}
@@ -155,10 +172,21 @@ export const StatusIndicator = ({
         </div>
       )}
 
+      {/*
+        * The visible label is the STATE ("Active"), while the control's effect
+        * is the opposite ("Pause monitoring"). Sighted users resolve that from
+        * the tooltip, but the accessible name was just "Active", which
+        * announces as "Active, button" and says nothing about what pressing it
+        * does. `aria-pressed` makes the toggle semantics explicit and the
+        * label names both the state and the action, so the visible text can
+        * stay the at-a-glance state without stranding non-visual users.
+        */}
       <button
         className={`header-button status-toggle ${isActive ? 'active' : 'inactive'}`}
         onClick={() => { void handleToggle(); }}
         type="button"
+        aria-pressed={isActive}
+        aria-label={isActive ? 'Monitoring active. Pause monitoring' : 'Monitoring inactive. Activate monitoring'}
         title={isActive ? 'Pause monitoring' : 'Activate monitoring'}
         disabled={isLoading || isToggling}
       >

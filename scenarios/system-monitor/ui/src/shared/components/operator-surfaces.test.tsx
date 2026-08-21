@@ -65,7 +65,10 @@ describe('operator feedback surfaces', () => {
       healthStatus={{ status: 'healthy', service: 'system-monitor', processor_active: true, maintenance_state: 'active', api_connectivity: { connected: true, latency_ms: 12 }, timestamp: 1770000000 }}
       healthError={null} onToggleMonitoring={toggle} onRefreshHealth={refresh} isLoading={false}
     />);
-    fireEvent.click(screen.getByTitle('View status details'));
+    // Queried by accessible name rather than by title: the button now states
+    // the health it is reporting, which is the text alternative for a dot that
+    // otherwise carries state in colour alone.
+    fireEvent.click(screen.getByRole('button', { name: /System status: .*View status details/i }));
     expect(screen.getByRole('dialog', { name: 'System status details' })).toBeInTheDocument();
     expect(screen.getByText('Connected · 12ms')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Refresh status' }));
@@ -76,11 +79,61 @@ describe('operator feedback surfaces', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     render(<StatusIndicator healthStatus={null} healthError="health unavailable" onToggleMonitoring={toggle} onRefreshHealth={refresh} isLoading={false} />);
-    const statusButtons = screen.getAllByTitle('View status details');
+    const statusButtons = screen.getAllByRole('button', { name: /System status: .*View status details/i });
     const unavailableStatusButton = statusButtons[1];
     if (!unavailableStatusButton) throw new Error('unavailable status button was not rendered');
     fireEvent.click(unavailableStatusButton);
     expect(screen.getByText('Unavailable')).toBeInTheDocument();
+  });
+
+  it('names the health it reports in every state, not just when healthy', () => {
+    // The dot carries health in colour alone and is aria-hidden, so this
+    // accessible name is the ONLY text alternative for the state. Each branch
+    // must produce a distinct one.
+    const noop = vi.fn().mockResolvedValue(undefined);
+
+    const loading = render(<StatusIndicator
+      healthStatus={null} healthError={null}
+      onToggleMonitoring={noop} onRefreshHealth={noop} isLoading
+    />);
+    expect(screen.getByRole('button', { name: /System status: loading/i })).toBeInTheDocument();
+    loading.unmount();
+
+    const offline = render(<StatusIndicator
+      healthStatus={{ status: 'unhealthy' }} healthError={null}
+      onToggleMonitoring={noop} onRefreshHealth={noop} isLoading={false}
+    />);
+    expect(screen.getByRole('button', { name: /System status: offline/i })).toBeInTheDocument();
+    offline.unmount();
+
+    const errored = render(<StatusIndicator
+      healthStatus={null} healthError="health unavailable"
+      onToggleMonitoring={noop} onRefreshHealth={noop} isLoading={false}
+    />);
+    expect(screen.getByRole('button', { name: /System status: error/i })).toBeInTheDocument();
+    errored.unmount();
+  });
+
+  it('states the monitoring toggle as a pressed state and an action, not a bare word', () => {
+    // The visible label is the STATE while the control does the OPPOSITE, so
+    // the accessible name has to carry both or the button is unusable
+    // non-visually.
+    const noop = vi.fn().mockResolvedValue(undefined);
+
+    const active = render(<StatusIndicator
+      healthStatus={{ status: 'healthy', processor_active: true }} healthError={null}
+      onToggleMonitoring={noop} onRefreshHealth={noop} isLoading={false}
+    />);
+    const pressed = screen.getByRole('button', { name: /Monitoring active\. Pause monitoring/i });
+    expect(pressed).toHaveAttribute('aria-pressed', 'true');
+    active.unmount();
+
+    render(<StatusIndicator
+      healthStatus={{ status: 'healthy', processor_active: false, maintenance_state: 'paused' }} healthError={null}
+      onToggleMonitoring={noop} onRefreshHealth={noop} isLoading={false}
+    />);
+    const unpressed = screen.getByRole('button', { name: /Monitoring inactive\. Activate monitoring/i });
+    expect(unpressed).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('renders stale connection age and calls manual refresh', () => {

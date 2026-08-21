@@ -21,6 +21,8 @@ import type { DashboardState, CardType, PanelType } from './types';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import './styles/tokens.css';
 import './styles/migrated-inline.css';
+import './styles/readout.css';
+import './styles/report.css';
 
 // ── Lazy-loaded, off-initial-paint subtrees ─────────────────────────────────
 //

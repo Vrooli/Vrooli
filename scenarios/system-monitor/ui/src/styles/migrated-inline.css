@@ -1286,7 +1286,7 @@
   font-weight: bold;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 [data-sm-style~="sm-style-c220bf04e8"] {
@@ -1682,9 +1682,20 @@
 .process-monitor-header.is-expanded { margin-bottom: var(--spacing-md); }
 .process-monitor-header.is-static { cursor: default; }
 .finding-item { display: flex; gap: 8px; align-items: baseline; padding-left: 8px; }
+/*
+ * The message is a flex item carrying operator-supplied identifiers — claim ids
+ * like `clm-a2af7b14d134abd848e75b57c23c4…` have no natural break point. A flex
+ * item will not shrink below its min-content width unless `min-width: 0` is
+ * set, so without these two rules the longest id in the list decided the width
+ * of the whole page and pushed the layout past the viewport.
+ */
+.finding-item > :last-child { min-width: 0; overflow-wrap: anywhere; }
 .finding-warning { border-left: 3px solid var(--color-warning); }
 .finding-neutral { border-left: 3px solid var(--color-border); }
-.finding-label { font-size: 0.7rem; text-transform: uppercase; min-width: 88px; }
+/* `flex: 0 0 auto` so the label keeps its own width instead of being squeezed
+   under the message text beside it; `min-width` alone let the two overlap once
+   the message got long. */
+.finding-label { font-size: 0.7rem; text-transform: uppercase; min-width: 88px; flex: 0 0 auto; }
 .alert-badge-error { background: var(--color-error); }
 .alert-badge-success { background: var(--color-success); }
 .status-color-critical, .status-color-high, .status-color-error, .status-color-unhealthy { color: var(--color-error); }
@@ -1698,9 +1709,14 @@
 .risk-level-low { color: var(--color-success); }
 .script-list-item { width: 100%; text-align: left; padding: var(--spacing-md); border: none; background: transparent; color: var(--color-text); display: flex; flex-direction: column; gap: var(--spacing-xs); cursor: pointer; }
 .script-list-item.is-selected { background: var(--color-primary-muted); }
-.script-enabled-label { letter-spacing: 0.08em; }
-.script-enabled-label.is-enabled { color: var(--color-success); }
-.script-enabled-label.is-disabled { color: var(--color-text-secondary); opacity: 1; }
+/* The emphasis here used to be inverted. `enabled` is the norm — every script
+   in the library reports it — so painting it in the accent spent the loudest
+   colour on the one value that carries no information, fourteen times down a
+   list, while `disabled`, the exception an operator actually needs to spot,
+   was the quiet one. Swapped: the norm recedes, the exception is marked. */
+.script-enabled-label { letter-spacing: var(--tracking-eyebrow); }
+.script-enabled-label.is-enabled { color: var(--color-text-muted); font-weight: 500; }
+.script-enabled-label.is-disabled { color: var(--color-warning-text); font-weight: 600; opacity: 1; }
 .agent-dropdown-chevron { transition: transform 0.2s ease; }
 .agent-dropdown-chevron.is-open { transform: rotate(180deg); }
 .agent-dropdown-idle { color: var(--color-text); border-color: var(--color-text-secondary); }

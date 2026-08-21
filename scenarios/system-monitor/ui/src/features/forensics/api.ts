@@ -8,17 +8,17 @@ import type {
 } from './types';
 
 export function fetchForensicsSummary(signal?: AbortSignal): Promise<ForensicsSummary> {
-  return apiFetch<ForensicsSummary>('/api/v1/forensics/summary', { signal });
+  return apiFetch<ForensicsSummary>('/forensics/summary', { signal });
 }
 
 export function fetchPstore(signal?: AbortSignal): Promise<ForensicsEnvelope<PstoreReport>> {
-  return apiFetch<ForensicsEnvelope<PstoreReport>>('/api/v1/forensics/pstore', { signal });
+  return apiFetch<ForensicsEnvelope<PstoreReport>>('/forensics/pstore', { signal });
 }
 
 export function fetchBootHistory(signal?: AbortSignal): Promise<ForensicsEnvelope<BootHistoryReport>> {
-  return apiFetch<ForensicsEnvelope<BootHistoryReport>>('/api/v1/forensics/boot-history', { signal });
+  return apiFetch<ForensicsEnvelope<BootHistoryReport>>('/forensics/boot-history', { signal });
 }
 
 export function fetchMCE(signal?: AbortSignal): Promise<ForensicsEnvelope<MCEReport>> {
-  return apiFetch<ForensicsEnvelope<MCEReport>>('/api/v1/forensics/mce', { signal });
+  return apiFetch<ForensicsEnvelope<MCEReport>>('/forensics/mce', { signal });
 }

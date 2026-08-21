@@ -54,13 +54,14 @@ export const PolicyPanel = ({ levers, isSaving, error, onSave }: PolicyPanelProp
           const inputId = `policy-${lever.key}`;
           return (
             <div key={lever.key} data-sm-style="sm-style-a4cd9cd628">
-              <label htmlFor={inputId} data-sm-style="sm-style-37fc90e1c1">
+              <label htmlFor={inputId} className="input-label policy-lever-key" data-sm-style="sm-style-37fc90e1c1">
                 {lever.key}
               </label>
-              <div data-sm-style="sm-style-070fbdbe2e">
+              <div className="policy-lever-row" data-sm-style="sm-style-070fbdbe2e">
                 {lever.key === 'enforce' ? (
                   <select
                     id={inputId}
+                    className="input-field"
                     value={draft}
                     onChange={(e) => { updateDraft(lever.key, e.target.value); }}
                     data-sm-style="sm-style-76aec44f93"
@@ -72,6 +73,7 @@ export const PolicyPanel = ({ levers, isSaving, error, onSave }: PolicyPanelProp
                 ) : (
                   <input
                     id={inputId}
+                    className="input-field policy-lever-value"
                     type="text"
                     value={draft}
                     onChange={(e) => { updateDraft(lever.key, e.target.value); }}

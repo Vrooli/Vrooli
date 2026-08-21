@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	devicegraphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/devicegraph/devicegraphconnect"
 	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
 	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics/metricsconnect"
 
@@ -29,6 +30,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "processes", Description: "Get process monitoring metrics", RunCtx: h.processes},
 			{Name: "process-timeline", Description: "Top process consumers over a window, grouped by source scenario", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "window", Description: "Window duration (e.g. 5m, 1h) or bare seconds", Default: "5m"}, {Name: "owner", Description: "Filter to a single owner/scenario"}, {Name: "top", Description: "Maximum ranked consumers to return", Default: "20"}}}, RunCtx: h.processTimeline},
 			{Name: "infrastructure", Description: "Get infrastructure pool and queue metrics", RunCtx: h.infrastructure},
+			{Name: "devices", Description: "Show the graded hardware device graph: every enumerated device with its per-rung observability state", RunCtx: h.devices},
 			{Name: "timeline", Description: "Get recent metrics history", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "window", Description: "Timeline window in seconds", Default: "120"}, {Name: "interval", Description: "Sample interval in seconds", Default: "5"}}}, RunCtx: h.timeline},
 		},
 	}
@@ -36,12 +38,16 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 
 type handlers struct {
 	client metricsconnect.MetricsServiceClient
+	// deviceGraph is a second client because the device graph is its own
+	// service: it is a topology read on a 30s cache, not a metrics sample.
+	deviceGraph devicegraphconnect.DeviceGraphServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
-		client: metricsconnect.NewMetricsServiceClient(httpClient, baseURL),
+		client:      metricsconnect.NewMetricsServiceClient(httpClient, baseURL),
+		deviceGraph: devicegraphconnect.NewDeviceGraphServiceClient(httpClient, baseURL),
 	}
 }
 

@@ -15,24 +15,29 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Share+Tech+Mono&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Share+Tech+Mono&display=swap"
       media="print"
       onload="this.media='all'"
     />
     <noscript>
       <link
         rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Share+Tech+Mono&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Share+Tech+Mono&display=swap"
       />
     </noscript>
     <style>
       /* Prevent flash of unstyled content */
+      /* This paints the FIRST FRAME, before tokens.css arrives, so its values
+         are duplicated from the dark theme's `--color-background` and
+         `--color-text` rather than chosen here. They must be kept in step with
+         tokens.css: a mismatch shows as a visible colour flip on every load.
+         The previous values (#000000 on #00ff00) matched no theme at all. */
       body {
         margin: 0;
         padding: 0;
-        background: #000000;
-        color: #00ff00;
-        font-family: 'Share Tech Mono', 'Courier New', monospace;
+        background: #0b0e0f;
+        color: #dce4e2;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       }
       #root {
         min-height: 100vh;

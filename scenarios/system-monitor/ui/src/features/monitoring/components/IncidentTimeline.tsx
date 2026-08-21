@@ -1,8 +1,22 @@
 import { useMemo, useState } from 'react';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
-import type { Investigation, MetricHistory } from '../../../types';
+import type { ChartDataPoint, Investigation, MetricHistory } from '../../../types';
 import { InvestigationStatus } from '../../../types';
+import { statusEnumToString } from '../../../shared/api/proto-converters';
 import { useTimeRange } from '../../../shared/time/TimeRangeContext';
+import { ReportBody } from '../../../shared/report/ReportBody';
+import { reportToPlainText } from '../../../shared/report/parseReport';
+
+const SEVERITY_LABEL: Record<TimelineEntry['severity'], string> = {
+  critical: 'Critical',
+  warning: 'Warning',
+  info: 'Info',
+};
+
+/** Turn the proto enum into prose: `in_progress` -> `in progress`. */
+function investigationStatusLabel(status: InvestigationStatus): string {
+  return statusEnumToString(status).replace(/_/g, ' ');
+}
 
 export interface TimelineEntry {
   id: string;
@@ -21,25 +35,52 @@ interface IncidentTimelineProps {
   onInvestigate: (entry: TimelineEntry) => void;
 }
 
+/**
+ * A series this timeline is willing to raise a threshold crossing for.
+ *
+ * The thresholds and the unit are declared PER SERIES rather than assumed.
+ * Previously every series was compared against 80/95 and formatted with a
+ * trailing `%`, which was correct for the three percentage series and wrong
+ * for network: its values are a CONNECTION COUNT, so a host with 558 open
+ * connections was reported as "558.0% measured" and — because any count above
+ * 95 cleared the critical bar — the timeline raised a permanent false CRITICAL
+ * that never cleared. Comparing a count against a percentage bar is a unit
+ * error, and the fix is to make the unit explicit rather than to pick a
+ * kinder number.
+ *
+ * Network has no entry here ON PURPOSE. There is no authored attention
+ * threshold for a connection count anywhere in this app — `MetricCard`'s
+ * `defaultThresholds` covers cpu, memory, disk and gpu and deliberately omits
+ * network. Inventing one here so the series "has" a bar would fabricate a
+ * judgement nobody made. A series with no authored threshold raises nothing,
+ * and that silence is honest: it means nobody has said what "too many" is.
+ */
+interface ThresholdSeries {
+  label: string;
+  points: ChartDataPoint[];
+  unit: string;
+  warn: number;
+  critical: number;
+}
+
 function metricEntries(history: MetricHistory | null): TimelineEntry[] {
   if (!history) return [];
   const entries: TimelineEntry[] = [];
-  const series: Array<[string, typeof history.cpu]> = [
-    ['CPU', history.cpu],
-    ['Memory', history.memory],
-    ['Network', history.network],
-    ['Disk', history.diskUsage ?? []],
+  const series: ThresholdSeries[] = [
+    { label: 'CPU', points: history.cpu, unit: '%', warn: 80, critical: 95 },
+    { label: 'Memory', points: history.memory, unit: '%', warn: 80, critical: 95 },
+    { label: 'Disk', points: history.diskUsage ?? [], unit: '%', warn: 80, critical: 95 },
   ];
-  for (const [label, points] of series) {
-    const point = [...points].reverse().find((candidate) => candidate.value >= 80);
+  for (const { label, points, unit, warn, critical } of series) {
+    const point = [...points].reverse().find((candidate) => candidate.value >= warn);
     if (!point) continue;
     entries.push({
       id: `metric-${label}-${point.timestamp}`,
       at: point.timestamp,
-      severity: point.value >= 95 ? 'critical' : 'warning',
+      severity: point.value >= critical ? 'critical' : 'warning',
       source: 'metrics',
       title: `${label} crossed the attention threshold`,
-      detail: `${point.value.toFixed(1)}% measured in the shared observation window`,
+      detail: `${point.value.toFixed(1)}${unit} measured in the shared observation window`,
       value: point.value,
     });
   }
@@ -56,7 +97,11 @@ export function IncidentTimeline({ history, investigations, onOpenSource, onInve
       at: investigation.startTime ? timestampDate(investigation.startTime).toISOString() : new Date().toISOString(),
       severity: investigation.status === InvestigationStatus.FAILED ? 'critical' as const : 'info' as const,
       source: 'investigation' as const,
-      title: `Investigation ${investigation.status}`,
+      // `investigation.status` is a numeric proto enum. Interpolating it
+      // directly rendered the ordinal — the timeline literally read
+      // "Investigation 3" — so it goes through the existing converter and is
+      // then written as words rather than as a token.
+      title: `Investigation ${investigationStatusLabel(investigation.status)}`,
       detail: investigation.findings || (investigation.details ? 'Investigation details attached' : 'Investigation activity recorded'),
     })),
   ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)), [history, investigations]);
@@ -68,7 +113,10 @@ export function IncidentTimeline({ history, investigations, onOpenSource, onInve
           <h2 id="incident-timeline-heading" data-sm-style="sm-style-d47aef18a0">Incident timeline</h2>
           <p className="text-sm text-muted" data-sm-style="sm-style-2a0ca8350a">Correlated signals across the last {range.label}.</p>
         </div>
-        <span className="badge badge-info">shared time axis</span>
+        {/* This states a property of the panel, not a state of the plant, so
+            it must not wear the badge treatment — a badge here reads as a
+            status the operator should react to. It is a caption. */}
+        <span className="eyebrow">shared time axis</span>
       </div>
 
       {entries.length === 0 ? (
@@ -80,10 +128,18 @@ export function IncidentTimeline({ history, investigations, onOpenSource, onInve
           {entries.map((entry) => (
             <li key={entry.id} className="incident-timeline-entry">
               <button type="button" className="incident-timeline-entry-button" onClick={() => { setSelected(entry); }}>
-                <span className={`status-dot status-${entry.severity}`} aria-hidden="true" />
-                <span>
-                  <strong>{entry.title}</strong>
-                  <span className="text-xs text-muted">{new Date(entry.at).toLocaleString()} · {entry.detail}</span>
+                {/* Severity reads as a written label as well as a coloured rule,
+                    so it survives without colour perception. */}
+                <span className={`incident-severity incident-severity-${entry.severity}`}>
+                  <span className="incident-severity-label">{SEVERITY_LABEL[entry.severity]}</span>
+                  <span className="incident-severity-rule" aria-hidden="true" />
+                </span>
+                <span className="incident-entry-body">
+                  <time className="incident-entry-time" dateTime={entry.at}>{new Date(entry.at).toLocaleString()}</time>
+                  <span className="incident-entry-title">{entry.title}</span>
+                  {/* The row gets a flattened one-liner; the structured render
+                      of the report lives in the correlated view below. */}
+                  <span className="incident-entry-summary">{reportToPlainText(entry.detail)}</span>
                 </span>
               </button>
             </li>
@@ -98,6 +154,7 @@ export function IncidentTimeline({ history, investigations, onOpenSource, onInve
             <button type="button" className="header-button" onClick={() => { setSelected(null); }}>Close</button>
           </div>
           <p className="text-sm">{selected.title} · all sources scoped to {range.label} around {new Date(selected.at).toLocaleString()}.</p>
+          <ReportBody text={selected.detail} className="report-body-scroll" />
           <div className="flex-row-center" data-sm-style="sm-style-2bec9ac048">
             <button type="button" className="header-button" onClick={() => { onOpenSource('logs'); }}>Open logs</button>
             <button type="button" className="header-button" onClick={() => { onOpenSource('forensics'); }}>Open forensics</button>

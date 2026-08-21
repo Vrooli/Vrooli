@@ -5,6 +5,24 @@ interface AutohealChecksPanelProps {
   envelope: AutohealEnvelope;
 }
 
+/**
+ * Severity rank for ordering. Lower sorts first.
+ *
+ * The panel previously rendered checks in whatever order the envelope
+ * supplied, which put a CRITICAL kernel-panic capture in the middle of a run
+ * of OK rows. On a crash-forensics surface the whole point is that the one
+ * check that failed is the first thing read, so ordering is load-bearing here
+ * rather than cosmetic. Anything unrecognised sorts between warning and ok:
+ * an unknown verdict is not reassuring, so it must not sort last.
+ */
+const severityRank = (status: string): number => {
+  const s = status.toLowerCase();
+  if (s === 'critical' || s === 'fail' || s === 'failed') return 0;
+  if (s === 'warning' || s === 'warn') return 1;
+  if (s === 'ok' || s === 'pass' || s === 'passed') return 3;
+  return 2;
+};
+
 const statusClass = (status: string): string => {
   const s = status.toLowerCase();
   if (s === 'ok' || s === 'pass' || s === 'passed') return 'text-success';
@@ -17,9 +35,13 @@ export const AutohealChecksPanel = ({ envelope }: AutohealChecksPanelProps) => {
   if (!envelope.available) {
     return <NotProvisionedCard title="Autoheal Checks" reason={envelope.reason || 'autoheal offline'} />;
   }
-  const checks = envelope.checks ?? [];
+  // Copied before sorting: `envelope.checks` belongs to the caller's data and
+  // sorting in place would mutate state React considers immutable.
+  const checks = [...(envelope.checks ?? [])].sort(
+    (a, b) => severityRank(a.status) - severityRank(b.status),
+  );
   return (
-    <div className="card" data-sm-style="sm-style-7b635e08e2">
+    <div className="card forensics-panel--wide" data-sm-style="sm-style-7b635e08e2">
       <div className="font-bold" data-sm-style="sm-style-b113dc3b73">
         Autoheal Checks (forensics)
       </div>

@@ -69,78 +69,97 @@ export const Header = ({
           </NavLink>
         </nav>
 
-        <div className="flex-row-center gap-sm">
-          <AgentDropdown
-            agents={agents}
-            stoppingAgentIds={stoppingAgentIds}
-            agentErrors={agentErrors}
-            onStopAgent={onStopAgent}
-            onRefreshAgents={onRefreshAgents}
-          />
+        <div className="flex-row-center">
+          {/* Instrument-scope: what this app is currently doing. */}
+          <div className="header-group">
+            <AgentDropdown
+              agents={agents}
+              stoppingAgentIds={stoppingAgentIds}
+              agentErrors={agentErrors}
+              onStopAgent={onStopAgent}
+              onRefreshAgents={onRefreshAgents}
+            />
 
-          <StatusIndicator
-            healthStatus={healthStatus}
-            healthError={healthError}
-            onToggleMonitoring={onToggleMonitoring}
-            onRefreshHealth={onRefreshHealth}
-            isLoading={isLoadingHealth}
-          />
+            <StatusIndicator
+              healthStatus={healthStatus}
+              healthError={healthError}
+              onToggleMonitoring={onToggleMonitoring}
+              onRefreshHealth={onRefreshHealth}
+              isLoading={isLoadingHealth}
+            />
+          </div>
 
-          <label className="history-window-control">
-            <span className="sr-only">Shared time range</span>
-            <select
-              aria-label="Shared time range"
-              value={range.key}
-              onChange={event => { setRange(event.target.value); }}
+          {/* View-scope: these change WHAT THE PAGE SHOWS. */}
+          <div className="header-group">
+            <label className="history-window-control">
+              <span className="sr-only">Shared time range</span>
+              <select
+                aria-label="Shared time range"
+                value={range.key}
+                onChange={event => { setRange(event.target.value); }}
+              >
+                {TIME_RANGE_OPTIONS.map(option => (
+                  <option key={option.key} value={option.key}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              className="header-button icon-button"
+              onClick={() => { setPaused(!paused); }}
+              type="button"
+              title={paused ? 'Resume live updates' : 'Pause live updates'}
+              aria-label={paused ? 'Resume live updates' : 'Pause live updates'}
             >
-              {TIME_RANGE_OPTIONS.map(option => (
-                <option key={option.key} value={option.key}>{option.label}</option>
-              ))}
-            </select>
-          </label>
+              {paused ? <Play size={16} /> : <Pause size={16} />}
+            </button>
+          </div>
 
-          <button
-            className="header-button icon-button"
-            onClick={() => { setPaused(!paused); }}
-            type="button"
-            title={paused ? 'Resume live updates' : 'Pause live updates'}
-            aria-label={paused ? 'Resume live updates' : 'Pause live updates'}
-          >
-            {paused ? <Play size={16} /> : <Pause size={16} />}
-          </button>
+          {/* App-scope: these change THE APP, not the reading. */}
+          <div className="header-group">
+            <button
+              className="theme-toggle"
+              onClick={toggleTheme}
+              type="button"
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
 
-          <button
-            className="theme-toggle"
-            onClick={toggleTheme}
-            type="button"
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          >
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
+            <button
+              className="header-button icon-button"
+              onClick={onOpenSettings}
+              type="button"
+              title="Open system settings"
+              aria-label="Open system settings"
+            >
+              <Settings size={16} />
+            </button>
 
-          <button
-            className="header-button icon-button"
-            onClick={onOpenSettings}
-            type="button"
-            title="Open system settings"
-          >
-            <Settings size={16} />
-          </button>
-
-          <button
-            className="header-button icon-button"
-            onClick={onToggleTerminal}
-            type="button"
-            title="Toggle system output"
-            data-sm-style="sm-style-821233d621"
-          >
-            <Terminal size={16} />
-            {unreadErrorCount > 0 && (
-              <span className="icon-button-badge">
-                {unreadErrorCount}
-              </span>
-            )}
-          </button>
+            {/* The unread count is rendered as a bare digit in the badge, which
+                assistive tech announces as a stray number. It belongs in the
+                accessible name, where it says what it actually counts. */}
+            <button
+              className="header-button icon-button"
+              onClick={onToggleTerminal}
+              type="button"
+              title="Toggle system output"
+              aria-label={
+                unreadErrorCount > 0
+                  ? `Toggle system output, ${unreadErrorCount} unread ${unreadErrorCount === 1 ? 'error' : 'errors'}`
+                  : 'Toggle system output'
+              }
+              data-sm-style="sm-style-821233d621"
+            >
+              <Terminal size={16} />
+              {unreadErrorCount > 0 && (
+                <span className="icon-button-badge" aria-hidden="true">
+                  {unreadErrorCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </header>

@@ -30,4 +30,35 @@ describe('AutohealChecksPanel', () => {
     expect(screen.getByText('warning')).toHaveClass('text-warning');
     expect(screen.getByText('pending')).toHaveClass('text-muted');
   });
+
+  it('puts failing checks first regardless of the order the envelope supplied', () => {
+    // On a crash-forensics surface a CRITICAL check buried among twenty OK
+    // rows is a check nobody reads. The envelope does not guarantee an order,
+    // so the panel imposes one.
+    render(<AutohealChecksPanel envelope={{
+      available: true,
+      checks: [
+        { checkId: 'a-ok', status: 'ok' },
+        { checkId: 'b-pending', status: 'pending' },
+        { checkId: 'c-warning', status: 'warning' },
+        { checkId: 'd-critical', status: 'critical' },
+      ],
+    }} />);
+
+    const rendered = screen.getAllByRole('listitem').map(item => item.textContent ?? '');
+    expect(rendered[0]).toContain('d-critical');
+    expect(rendered[1]).toContain('c-warning');
+    // An unrecognised verdict is not reassuring, so it must not sort below ok.
+    expect(rendered[2]).toContain('b-pending');
+    expect(rendered[3]).toContain('a-ok');
+  });
+
+  it('does not mutate the caller\'s checks array while sorting', () => {
+    const checks = [
+      { checkId: 'a-ok', status: 'ok' },
+      { checkId: 'd-critical', status: 'critical' },
+    ];
+    render(<AutohealChecksPanel envelope={{ available: true, checks }} />);
+    expect(checks.map(c => c.checkId)).toEqual(['a-ok', 'd-critical']);
+  });
 });

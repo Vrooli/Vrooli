@@ -25,6 +25,45 @@ describe('IncidentTimeline', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('names the investigation status in words, never as the raw enum ordinal', () => {
+    // `status` is a numeric proto enum. Interpolating it produced literal
+    // titles like "Investigation 3" in the shipped UI.
+    const investigation = { id: 'inv-1', status: 3, startTime: timestampFromDate(new Date('2026-01-01T00:01:00Z')), findings: 'done' } as unknown as Investigation;
+    const history = { cpu: [], memory: [], network: [], diskUsage: [] } as unknown as MetricHistory;
+    render(<IncidentTimeline history={history} investigations={[investigation]} onOpenSource={vi.fn()} onInvestigate={vi.fn()} />);
+
+    expect(screen.getByText(/Investigation completed/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Investigation 3\b/)).not.toBeInTheDocument();
+  });
+
+  it('never grades a connection count against a percentage threshold', () => {
+    // Network values are a COUNT. Comparing them against the 80/95 percentage
+    // bars made any host with more than 95 open connections report a permanent
+    // CRITICAL reading "558.0%" — a unit error, not a plant condition.
+    const history = {
+      cpu: [],
+      memory: [],
+      network: [{ timestamp: '2026-01-01T00:00:00Z', value: 558 }],
+      diskUsage: [],
+    } as unknown as MetricHistory;
+    render(<IncidentTimeline history={history} investigations={[]} onOpenSource={vi.fn()} onInvestigate={vi.fn()} />);
+
+    expect(screen.queryByText(/Network crossed the attention threshold/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/558\.0%/)).not.toBeInTheDocument();
+    // With nothing else in the window, the panel must say so rather than
+    // inventing a crossing to fill itself.
+    expect(screen.getByText(/No threshold crossings or investigations/i)).toBeInTheDocument();
+  });
+
+  it('still reports the percentage series with their unit', () => {
+    const history = {
+      cpu: [{ timestamp: '2026-01-01T00:00:00Z', value: 96 }],
+      memory: [], network: [], diskUsage: [],
+    } as unknown as MetricHistory;
+    render(<IncidentTimeline history={history} investigations={[]} onOpenSource={vi.fn()} onInvestigate={vi.fn()} />);
+    expect(screen.getByText(/96\.0% measured in the shared observation window/)).toBeInTheDocument();
+  });
+
   it('shows a truthful empty state', () => {
     render(<IncidentTimeline history={null} investigations={[]} onOpenSource={vi.fn()} onInvestigate={vi.fn()} />);
     expect(screen.getByText(/No threshold crossings or investigations/)).toBeInTheDocument();

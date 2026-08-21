@@ -103,5 +103,27 @@ describe('additional operator surfaces', () => {
     expect(callbacks.settings).toHaveBeenCalledOnce();
     expect(callbacks.terminal).toHaveBeenCalledOnce();
     expect(screen.getByText('2')).toBeInTheDocument();
+    // The badge digit is aria-hidden; the count belongs in the button's name,
+    // with its unit, so it does not announce as a stray number.
+    expect(screen.getByRole('button', { name: /2 unread errors/i })).toBeInTheDocument();
+    expect(screen.getByText('2')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('says "error" not "errors" for a single unread item, and omits the count at zero', () => {
+    const callbacks = { stop: vi.fn().mockResolvedValue(undefined), terminal: vi.fn(), settings: vi.fn(), toggle: vi.fn().mockResolvedValue(undefined), refresh: vi.fn().mockResolvedValue(undefined) };
+    const single = render(<Header
+      unreadErrorCount={1} agents={[]} stoppingAgentIds={new Set()} agentErrors={{}}
+      onStopAgent={callbacks.stop} onToggleTerminal={callbacks.terminal} onOpenSettings={callbacks.settings}
+      healthStatus={null} healthError="offline" onToggleMonitoring={callbacks.toggle} onRefreshHealth={callbacks.refresh} isLoadingHealth={false}
+    />);
+    expect(screen.getByRole('button', { name: /1 unread error(?!s)/i })).toBeInTheDocument();
+    single.unmount();
+
+    render(<Header
+      unreadErrorCount={0} agents={[]} stoppingAgentIds={new Set()} agentErrors={{}}
+      onStopAgent={callbacks.stop} onToggleTerminal={callbacks.terminal} onOpenSettings={callbacks.settings}
+      healthStatus={null} healthError="offline" onToggleMonitoring={callbacks.toggle} onRefreshHealth={callbacks.refresh} isLoadingHealth={false}
+    />);
+    expect(screen.getByRole('button', { name: /^Toggle system output$/i })).toBeInTheDocument();
   });
 });

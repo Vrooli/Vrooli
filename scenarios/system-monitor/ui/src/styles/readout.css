@@ -1,0 +1,375 @@
+/* Metric readout — cards and traces
+ * ==================================
+ * The Dashboard's primary instrument face. Every colour here resolves through
+ * a token defined in tokens.css so both themes are covered; nothing in this
+ * file defines a colour of its own.
+ *
+ * Two rules govern the whole file:
+ *   1. A reading that was never taken must never be drawn as a value. No
+ *      zero-length bars, no traces under an unavailable collector.
+ *   2. Severity is carried on at least two channels — colour AND an edge
+ *      treatment — so the state survives greyscale and colour-blindness.
+ */
+
+/* ═══════════════════════════════════════════════════════════
+   CARD SHELL
+   ═══════════════════════════════════════════════════════════ */
+
+.readout-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* The severity stripe. Colour carries the state for readers who can see it;
+   the stripe's *pattern* carries the same state for readers who cannot, which
+   is why each level gets a distinct fill rhythm rather than a distinct hue. */
+.readout-card__stripe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  background: var(--color-border);
+}
+
+.readout-card[data-severity='critical'] .readout-card__stripe {
+  /* Solid, full height: the loudest possible rhythm. */
+  background: var(--color-error);
+}
+
+.readout-card[data-severity='elevated'] .readout-card__stripe {
+  /* Long dashes — visibly interrupted, but still mostly filled. */
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--color-warning) 0 14px,
+    transparent 14px 22px
+  );
+}
+
+.readout-card[data-severity='nominal'] .readout-card__stripe {
+  /* A quiet hairline: present, unalarming. */
+  background: var(--color-primary-muted);
+}
+
+/* Read, but no bar grades it. Distinct from BOTH `nominal` (judged, and
+   within limits) and `unread` (never measured): the reading is real, so the
+   stripe is continuous rather than dotted, but it stays neutral because no
+   verdict exists to colour it. */
+.readout-card[data-severity='ungraded'] .readout-card__stripe {
+  background: var(--color-border-strong);
+}
+
+.readout-card[data-severity='unread'] .readout-card__stripe {
+  /* Fine dots — reads as "no signal" rather than "signal at zero". */
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--color-text-muted) 0 2px,
+    transparent 2px 6px
+  );
+  opacity: 0.7;
+}
+
+.readout-card[data-severity='critical'] {
+  border-color: var(--color-error);
+}
+
+.readout-card[data-severity='elevated'] {
+  border-color: var(--color-warning);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════════════════════════ */
+
+/* The card is a flex column with its own gap; the header's legacy bottom
+   margin would double it. */
+.readout-card .metric-header {
+  margin-bottom: 0;
+  gap: var(--spacing-sm);
+}
+
+.readout-card__label {
+  /* `text-wrap` needs a block box to act on. */
+  display: inline-block;
+  text-wrap: balance;
+}
+
+/* The expand affordance is a real button so the card is reachable and
+   operable from the keyboard; the card's own click handler stays as a
+   pointer convenience. */
+.readout-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.readout-toggle:hover {
+  color: var(--color-primary-hover);
+}
+
+.readout-toggle:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--focus-ring);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THE FIGURE LOCKUP
+   ═══════════════════════════════════════════════════════════
+   Number and unit are ONE object on ONE baseline, not two elements that
+   happen to be near each other. */
+
+.readout-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 0.18em;
+  margin-bottom: 0;
+  line-height: 1;
+}
+
+.readout-figure__value {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  font-variant-numeric: var(--numeric-tabular);
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.readout-figure__unit {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  line-height: 1;
+}
+
+@media (min-width: 900px) {
+  .readout-figure__value {
+    font-size: var(--text-5xl);
+  }
+
+  .readout-figure__unit {
+    font-size: var(--text-xl);
+  }
+}
+
+/* Provenance, not content. */
+.readout-caption {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: var(--numeric-tabular);
+  color: var(--color-text-muted);
+  letter-spacing: 0.01em;
+}
+
+.readout-reason {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--line-height-tight);
+  color: var(--color-warning-text);
+  text-wrap: balance;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THE UNREAD BAR
+   ═══════════════════════════════════════════════════════════
+   What a metric with no reading gets INSTEAD of a bar. A hatched, empty
+   track states "nothing was measured"; a 0%-wide fill would have stated
+   "we measured zero", which is a different and false claim. */
+
+.readout-bar--unread {
+  width: 100%;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--color-border-strong) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THE TRACE
+   ═══════════════════════════════════════════════════════════ */
+
+.readout-trace {
+  display: flex;
+  align-items: stretch;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+.readout-trace__plot {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  /* The newest-sample dot sits exactly on the right edge; let its halo out. */
+  overflow: visible;
+}
+
+/* The value rail. Deliberately OUTSIDE the plot so it never overlaps the
+   trace it annotates. */
+.readout-trace__rail {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: var(--numeric-tabular);
+  line-height: 1;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.readout-trace__window {
+  margin-top: var(--spacing-xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Endpoint and hover dots are HTML, not SVG: the chart's viewBox is stretched
+   horizontally to the card width, so an SVG <circle> would render as a
+   flattened ellipse. Vertical scale is 1:1, so a px `top` is exact. */
+.readout-trace__dot,
+.readout-trace__halo {
+  position: absolute;
+  border-radius: var(--radius-full);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.readout-trace__dot {
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 0 1.5px var(--chart-dot-stroke);
+}
+
+.readout-trace__halo {
+  width: 16px;
+  height: 16px;
+  background: var(--chart-endpoint-halo);
+  animation: readout-halo-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes readout-halo-breathe {
+  0%, 100% { opacity: 0.85; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.78); }
+}
+
+.readout-trace__tooltip {
+  position: absolute;
+  top: -4px;
+  transform: translate(-50%, -100%);
+  padding: 3px 7px;
+  border: 1px solid var(--chart-tooltip-border);
+  border-radius: var(--radius-sm);
+  background: var(--chart-tooltip-bg);
+  box-shadow: var(--chart-tooltip-shadow);
+  color: var(--color-text-heading);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: var(--numeric-tabular);
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ── Empty state ──
+   Honest and composed: a labelled, explicitly empty channel. It is NOT a
+   chart of zeroes, and it is NOT the "unavailable" treatment — this metric
+   is working, it simply has not accumulated a window yet. */
+.readout-trace--empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+.readout-trace__empty-rule {
+  height: 0;
+  border-top: 1px dashed var(--chart-grid-strong);
+}
+
+.readout-trace__empty-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DETAIL AFFORDANCE
+   ═══════════════════════════════════════════════════════════
+   A quiet ghost, not a floating CTA. The eyebrow treatment lives here so the
+   markup can carry a normally-cased, screen-reader-friendly label. */
+
+.readout-detail {
+  margin-top: var(--spacing-sm);
+  display: flex;
+}
+
+.readout-detail__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-height: 44px;
+  padding: 0 var(--spacing-xs);
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.readout-detail__btn:hover {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.readout-detail__btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOTION
+   ═══════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .readout-trace__halo {
+    animation: none;
+  }
+
+  .readout-toggle,
+  .readout-detail__btn {
+    transition: none;
+  }
+}

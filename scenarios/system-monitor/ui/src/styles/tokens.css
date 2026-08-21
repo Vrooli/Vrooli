@@ -15,158 +15,191 @@
    ═══════════════════════════════════════════════════════════ */
 :root,
 [data-theme="dark"] {
-  /* ── Brand / Accent ── */
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-muted: rgba(37, 99, 235, 0.14);
-  --color-secondary: #0891b2;
-  --color-primary-text: #ffffff;
+  /* ── Brand / Accent ──
+     ONE accent, and it is the trace colour. `phosphor` is a bench-instrument
+     green-teal rather than a stock blue: this scenario reads a live machine's
+     vital signs, and a CRT trace is the vernacular that world actually uses.
+     Text ON the accent is near-black ink, never white — white on a light
+     phosphor fails contrast, and dark ink on a lit surface is also what real
+     instrument legends do. */
+  --color-primary: #5fd3a6;
+  --color-primary-hover: #7ce0ba;
+  --color-primary-muted: rgba(95, 211, 166, 0.13);
+  --color-secondary: #54b6d6;
+  --color-primary-text: #06120e;
 
-  /* ── Backgrounds ── */
-  --color-background: #080c18;
-  --color-background-alt: #0d1225;
-  --color-surface: #121a30;
-  --color-surface-raised: #182240;
-  --color-surface-overlay: rgba(18, 26, 48, 0.96);
-  --color-surface-hover: #1d2a4a;
+  /* ── Backgrounds ──
+     Graphite, biased a few degrees toward green rather than the blue-navy it
+     replaces. The bias matters: a neutral grey reads as unconsidered and a
+     navy ground reads as the default dashboard, while a ground that shares a
+     hue root with the trace makes the lit trace look emitted rather than
+     pasted on. */
+  --color-background: #0b0e0f;
+  --color-background-alt: #101415;
+  --color-surface: #151a1b;
+  --color-surface-raised: #1c2325;
+  --color-surface-overlay: rgba(21, 26, 27, 0.96);
+  --color-surface-hover: #232b2c;
 
   /* ── Borders ── */
-  --color-border: rgba(100, 140, 200, 0.16);
-  --color-border-strong: rgba(100, 140, 200, 0.3);
+  --color-border: rgba(150, 180, 172, 0.14);
+  --color-border-strong: rgba(150, 180, 172, 0.28);
   --color-border-focus: var(--color-primary);
 
   /* ── Text ── */
-  --color-text: #c8d6e8;
-  --color-text-secondary: #7e92ad;
-  --color-text-muted: #506580;
-  --color-text-heading: #e4ecf7;
-  --color-text-inverse: #080c18;
+  --color-text: #dce4e2;
+  --color-text-secondary: #93a29e;
+  --color-text-muted: #65726f;
+  --color-text-heading: #f0f5f3;
+  --color-text-inverse: #0b0e0f;
 
-  /* ── Semantic status ── */
-  --color-success: #34d399;
-  --color-success-muted: rgba(52, 211, 153, 0.14);
-  --color-success-text: #5eead4;
-  --color-warning: #fbbf24;
-  --color-warning-muted: rgba(251, 191, 36, 0.13);
-  --color-warning-text: #fcd34d;
-  --color-error: #f87171;
-  --color-error-muted: rgba(248, 113, 113, 0.12);
-  --color-error-text: #fca5a5;
-  --color-info: #60a5fa;
-  --color-info-muted: rgba(96, 165, 250, 0.14);
-  --color-info-text: #93c5fd;
+  /* ── Semantic status ──
+     Warm against the cool ground so severity reads before the label does, and
+     deliberately NOT the stock ramp: these are lamp colours, sampled to sit at
+     equal apparent brightness on graphite so no state shouts louder than its
+     severity warrants. */
+  --color-success: #5fd3a6;
+  --color-success-muted: rgba(95, 211, 166, 0.13);
+  --color-success-text: #8ae3c1;
+  --color-warning: #e0a542;
+  --color-warning-muted: rgba(224, 165, 66, 0.13);
+  --color-warning-text: #efc379;
+  --color-error: #e0644a;
+  --color-error-muted: rgba(224, 100, 74, 0.13);
+  --color-error-text: #f0907b;
+  --color-info: #54b6d6;
+  --color-info-muted: rgba(84, 182, 214, 0.13);
+  --color-info-text: #8ad0e6;
 
   /* ── Focus ── */
-  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.35);
+  --focus-ring: 0 0 0 3px rgba(95, 211, 166, 0.34);
 
   /* ── Overlays ── */
-  --overlay-backdrop: rgba(4, 6, 16, 0.7);
-  --overlay-light: rgba(8, 16, 36, 0.4);
-  --overlay-medium: rgba(4, 8, 24, 0.5);
+  --overlay-backdrop: rgba(5, 8, 8, 0.72);
+  --overlay-light: rgba(10, 14, 14, 0.4);
+  --overlay-medium: rgba(6, 10, 10, 0.55);
 
   /* ── Shadows ── */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 14px rgba(0, 4, 20, 0.45);
-  --shadow-lg: 0 8px 28px rgba(0, 4, 20, 0.5);
-  --shadow-header: 0 1px 4px rgba(0, 2, 12, 0.5);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.55);
+  --shadow-header: 0 1px 4px rgba(0, 0, 0, 0.55);
 
   /* ── Scrollbar ── */
-  --scrollbar-track: #121a30;
-  --scrollbar-thumb: #2a3a5c;
-  --scrollbar-thumb-hover: #3d5278;
+  --scrollbar-track: #151a1b;
+  --scrollbar-thumb: #2c3536;
+  --scrollbar-thumb-hover: #3d4849;
 
-  /* ── Chart / data viz ── */
-  --chart-grid: rgba(100, 140, 200, 0.07);
+  /* ── Chart / data viz ──
+     `--chart-gradient-start-opacity` is deliberately low. A trace whose fill
+     approaches opacity 1 stops reading as a measurement and starts reading as
+     a bar: the fill exists to give the line a body, and the LINE is the datum.
+     The graticule is what makes it legible as an instrument rather than a
+     blob, so it is a real token, not a hairline afterthought. */
+  --chart-grid: rgba(150, 180, 172, 0.09);
+  --chart-grid-strong: rgba(150, 180, 172, 0.16);
   --chart-line-1: var(--color-primary);
   --chart-line-2: var(--color-info);
-  --chart-line-3: var(--color-success);
-  --chart-fill-opacity: 0.15;
+  --chart-line-3: var(--color-warning);
+  --chart-fill-opacity: 0.14;
   --chart-tooltip-bg: var(--color-surface-raised);
   --chart-tooltip-border: var(--color-border-strong);
-  --chart-tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --chart-cursor-color: rgba(200, 214, 232, 0.3);
-  --chart-gradient-start-opacity: 0.25;
+  --chart-tooltip-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --chart-cursor-color: rgba(220, 228, 226, 0.32);
+  --chart-gradient-start-opacity: 0.2;
   --chart-gradient-end-opacity: 0;
   --chart-dot-stroke: var(--color-surface);
+  /* Halo behind the live endpoint. The newest sample is the one a reader
+     actually looks for, so it gets the only glow on the surface. */
+  --chart-endpoint-halo: rgba(95, 211, 166, 0.28);
 }
 
 /* ═══════════════════════════════════════════════════════════
    LIGHT THEME
    ═══════════════════════════════════════════════════════════ */
+/* The light theme is the same instrument under bench lighting, not an
+   inversion. Two things are deliberately NOT mirrored. The ground is a warm
+   off-white with a green cast rather than the cool slate it replaces, so the
+   neutral still shares a hue root with the trace. And every signal hue is
+   re-picked at paper contrast rather than reused: `#5fd3a6` is legible as a
+   lit trace on graphite and illegible as ink on paper, so the light theme
+   takes the same hue at a depth that actually holds against white. */
 [data-theme="light"] {
   /* ── Brand / Accent ── */
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-muted: rgba(37, 99, 235, 0.1);
-  --color-secondary: #0891b2;
+  --color-primary: #0f8a63;
+  --color-primary-hover: #0b6f50;
+  --color-primary-muted: rgba(15, 138, 99, 0.1);
+  --color-secondary: #1e7a99;
   --color-primary-text: #ffffff;
 
   /* ── Backgrounds ── */
-  --color-background: #f8fafc;
-  --color-background-alt: #f1f5f9;
+  --color-background: #f5f7f5;
+  --color-background-alt: #eef1ef;
   --color-surface: #ffffff;
   --color-surface-raised: #ffffff;
   --color-surface-overlay: rgba(255, 255, 255, 0.97);
-  --color-surface-hover: #f1f5f9;
+  --color-surface-hover: #eef1ef;
 
   /* ── Borders ── */
-  --color-border: rgba(15, 23, 42, 0.1);
-  --color-border-strong: rgba(15, 23, 42, 0.2);
+  --color-border: rgba(26, 35, 33, 0.12);
+  --color-border-strong: rgba(26, 35, 33, 0.24);
   --color-border-focus: var(--color-primary);
 
   /* ── Text ── */
-  --color-text: #334155;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
-  --color-text-heading: #0f172a;
-  --color-text-inverse: #f8fafc;
+  --color-text: #35403d;
+  --color-text-secondary: #63706d;
+  --color-text-muted: #8d9995;
+  --color-text-heading: #141c1a;
+  --color-text-inverse: #f5f7f5;
 
   /* ── Semantic status ── */
-  --color-success: #16a34a;
-  --color-success-muted: rgba(22, 163, 74, 0.1);
-  --color-success-text: #15803d;
-  --color-warning: #d97706;
-  --color-warning-muted: rgba(217, 119, 6, 0.1);
-  --color-warning-text: #b45309;
-  --color-error: #dc2626;
-  --color-error-muted: rgba(220, 38, 38, 0.08);
-  --color-error-text: #b91c1c;
-  --color-info: #2563eb;
-  --color-info-muted: rgba(37, 99, 235, 0.08);
-  --color-info-text: #1d4ed8;
+  --color-success: #0f8a63;
+  --color-success-muted: rgba(15, 138, 99, 0.1);
+  --color-success-text: #0b6f50;
+  --color-warning: #a8700f;
+  --color-warning-muted: rgba(168, 112, 15, 0.1);
+  --color-warning-text: #855709;
+  --color-error: #bf4227;
+  --color-error-muted: rgba(191, 66, 39, 0.09);
+  --color-error-text: #9c331c;
+  --color-info: #1e7a99;
+  --color-info-muted: rgba(30, 122, 153, 0.09);
+  --color-info-text: #175f78;
 
   /* ── Focus ── */
-  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.3);
+  --focus-ring: 0 0 0 3px rgba(15, 138, 99, 0.28);
 
   /* ── Overlays ── */
-  --overlay-backdrop: rgba(15, 23, 42, 0.4);
-  --overlay-light: rgba(15, 23, 42, 0.04);
-  --overlay-medium: rgba(15, 23, 42, 0.06);
+  --overlay-backdrop: rgba(20, 28, 26, 0.4);
+  --overlay-light: rgba(20, 28, 26, 0.04);
+  --overlay-medium: rgba(20, 28, 26, 0.06);
 
   /* ── Shadows ── */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-sm: 0 1px 2px rgba(20, 28, 26, 0.06);
+  --shadow-md: 0 4px 12px rgba(20, 28, 26, 0.09);
+  --shadow-lg: 0 8px 24px rgba(20, 28, 26, 0.13);
+  --shadow-header: 0 1px 3px rgba(20, 28, 26, 0.09);
 
   /* ── Scrollbar ── */
-  --scrollbar-track: #f1f5f9;
-  --scrollbar-thumb: #cbd5e1;
-  --scrollbar-thumb-hover: #94a3b8;
+  --scrollbar-track: #eef1ef;
+  --scrollbar-thumb: #c8d0cd;
+  --scrollbar-thumb-hover: #97a29f;
 
   /* ── Chart / data viz ── */
-  --chart-grid: rgba(15, 23, 42, 0.06);
+  --chart-grid: rgba(20, 28, 26, 0.07);
+  --chart-grid-strong: rgba(20, 28, 26, 0.14);
   --chart-line-1: var(--color-primary);
   --chart-line-2: var(--color-info);
-  --chart-line-3: var(--color-success);
-  --chart-fill-opacity: 0.08;
+  --chart-line-3: var(--color-warning);
+  --chart-fill-opacity: 0.09;
   --chart-tooltip-bg: var(--color-surface-raised);
   --chart-tooltip-border: var(--color-border-strong);
-  --chart-tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --chart-cursor-color: rgba(15, 23, 42, 0.15);
-  --chart-gradient-start-opacity: 0.15;
+  --chart-tooltip-shadow: 0 6px 18px rgba(20, 28, 26, 0.14);
+  --chart-cursor-color: rgba(20, 28, 26, 0.2);
+  --chart-gradient-start-opacity: 0.16;
   --chart-gradient-end-opacity: 0;
   --chart-dot-stroke: #ffffff;
+  --chart-endpoint-halo: rgba(15, 138, 99, 0.22);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -190,6 +223,13 @@
   /* ── Typography ── */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  /* Third type role: the READOUT face, for metric figures and section
+     eyebrows. Condensed, so a four-digit reading keeps the same optical weight
+     as a two-digit one and a column of cards does not visibly ragged. The
+     fallbacks are ordered narrow-first so a host without the web font degrades
+     to another condensed face rather than jumping to a full-width default. */
+  --font-display: 'Barlow Semi Condensed', 'Bahnschrift', 'Liberation Sans Narrow',
+    'DejaVu Sans Condensed', 'Segoe UI', sans-serif;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
@@ -197,6 +237,18 @@
   --text-xl: 1.25rem;
   --text-2xl: 1.5rem;
   --text-3xl: 1.875rem;
+  /* Readout sizes. These exist only for metric figures — the primary number on
+     a card is the thing a reader crosses the room to see, and at --text-3xl it
+     was competing with its own label rather than dominating it. */
+  --text-4xl: 2.5rem;
+  --text-5xl: 3.25rem;
+
+  /* Digits that sit in a column, or that tick every second, must not reflow as
+     they change. Every figure in this app is one or both. */
+  --numeric-tabular: tabular-nums lining-nums;
+
+  /* Uppercase micro-labels need tracking or they set as a solid bar. */
+  --tracking-eyebrow: 0.09em;
   --line-height: 1.6;
   --line-height-tight: 1.3;
 
@@ -248,15 +300,23 @@ a:focus-visible {
 /* ═══════════════════════════════════════════════════════════
    TYPOGRAPHY
    ═══════════════════════════════════════════════════════════ */
+/* Headings take the condensed readout face, which is what ties the chrome to
+   the metric figures: the same voice states a section name and states a
+   reading. `text-wrap: balance` stops a two-line heading leaving one orphaned
+   word, which is the single most common thing that makes a dashboard look
+   unedited. */
 h1, h2, h3, h4, h5, h6 {
   margin: 0 0 var(--spacing-md) 0;
   color: var(--color-text-heading);
+  font-family: var(--font-display);
   font-weight: 600;
   line-height: var(--line-height-tight);
+  letter-spacing: 0.005em;
+  text-wrap: balance;
 }
 
-h1 { font-size: var(--text-2xl); }
-h2 { font-size: var(--text-xl); }
+h1 { font-size: var(--text-3xl); }
+h2 { font-size: var(--text-2xl); }
 h3 { font-size: var(--text-lg); }
 h4 { font-size: var(--text-base); }
 
@@ -264,6 +324,33 @@ p {
   margin: 0 0 var(--spacing-md) 0;
   line-height: var(--line-height);
   color: var(--color-text-secondary);
+}
+
+/* Running prose gets a measure. Body text set to the full width of a wide
+   dashboard is unreadable no matter how good the type is; ~70 characters is
+   the point where the eye reliably finds the next line. Applied opt-in via
+   the class so it never fights a deliberately full-width data table. */
+.prose-measure {
+  max-width: 70ch;
+}
+
+/* Uppercase micro-labels are a real type role here — they name every card,
+   column, and rung. Set as-is they compress into an unreadable bar, so the
+   tracking is part of the definition rather than something each caller
+   remembers to add. */
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+/* Any figure that sits in a column or ticks on a poll. Without this, digits
+   are proportional and the number visibly jitters as it updates. */
+.tabular {
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 /* All native controls meet the 44px touch target floor, including controls
@@ -298,7 +385,7 @@ input {
   font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
   text-decoration: none;
   user-select: none;
 }
@@ -415,7 +502,7 @@ input {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  transition: all var(--transition-normal);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal), color var(--transition-normal), box-shadow var(--transition-normal), opacity var(--transition-normal), transform var(--transition-normal);
 }
 
 .card:hover {
@@ -438,7 +525,7 @@ input {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  transition: all var(--transition-normal);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal), color var(--transition-normal), box-shadow var(--transition-normal), opacity var(--transition-normal), transform var(--transition-normal);
   cursor: pointer;
 }
 
@@ -563,7 +650,7 @@ input {
   font-size: var(--text-xs);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .header-button:hover:not(:disabled) {
@@ -608,7 +695,7 @@ input {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .status-dot-button:hover {
@@ -704,7 +791,7 @@ input {
   font-size: var(--text-xs);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .status-popover-refresh:hover:not(:disabled) {
@@ -781,7 +868,7 @@ input {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .terminal-close:hover {
@@ -885,7 +972,7 @@ input {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .modal-close:hover {
@@ -1003,13 +1090,31 @@ input {
 /* ═══════════════════════════════════════════════════════════
    STATUS BADGES
    ═══════════════════════════════════════════════════════════ */
+/* ── The fill rule ──
+   `--color-success` and `--color-primary` are deliberately the SAME phosphor:
+   in a monitoring instrument, "nominal" and "the instrument's own voice" are
+   genuinely one idea, and the sibling `vrooli-annunciator` panel already
+   establishes lit-green = nominal across Vrooli.
+   That only stays unambiguous because SATURATION encodes the distinction, and
+   this is the rule the whole palette rests on:
+     • a SATURATED fill of the accent means AN ACTION  (`.btn-primary`)
+     • a MUTED tint of the accent means A STATE        (`.badge-success`)
+   So a badge must never take a saturated background, and a button must never
+   be styled as a tinted chip. Break this and a status readout starts looking
+   like something the reader is supposed to click. */
 .badge {
+  display: inline-flex;
+  align-items: center;
   padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-sm);
+  font-family: var(--font-display);
   font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-eyebrow);
+  /* Badges routinely carry counts and durations. */
+  font-variant-numeric: var(--numeric-tabular);
+  white-space: nowrap;
 }
 
 .badge-success {
@@ -1093,10 +1198,24 @@ input {
   animation: spin 1s linear infinite;
 }
 
+/* This previously named only two spinner classes, which left every transition,
+   every keyframe animation, and every smooth scroll in the app running for a
+   reader who asked for none. A monitoring surface is the worst place to get
+   this wrong: it repaints on a poll interval, so residual motion is constant
+   rather than incidental.
+   Animations are reduced to a single near-instant pass rather than `none`,
+   because `animation: none` cancels an animation's final state — an element
+   that fades in via keyframes would stay at its 0% opacity and vanish
+   entirely. A 1ms run lands on the end state immediately, which is what
+   "reduced" means here. */
 @media (prefers-reduced-motion: reduce) {
-  .spinning-loader,
-  .animate-spin {
-    animation: none !important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -1146,7 +1265,7 @@ input[type="range"]::-webkit-slider-thumb {
   height: 16px;
   width: 16px;
   margin-top: -6px;
-  transition: all 0.2s;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
@@ -1168,7 +1287,7 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
   height: 16px;
   width: 16px;
-  transition: all 0.2s;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 input[type="range"]::-moz-range-thumb:hover {
@@ -1465,7 +1584,7 @@ input[type="range"]::-moz-range-thumb:hover {
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-retry:hover {
@@ -1485,7 +1604,7 @@ input[type="range"]::-moz-range-thumb:hover {
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-copy-error:hover {
@@ -1505,7 +1624,7 @@ input[type="range"]::-moz-range-thumb:hover {
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-reload:hover {
@@ -1546,7 +1665,7 @@ input[type="range"]::-moz-range-thumb:hover {
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 600;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-terminate:hover {
@@ -1615,13 +1734,53 @@ input[type="range"]::-moz-range-thumb:hover {
    DOMAIN: AGENTS & INVESTIGATIONS
    ═══════════════════════════════════════════════════════════ */
 
+/* The wordmark is an `h1`, so it must declare its own size: the global `h1`
+   rule is sized for page headings (--text-3xl) and would render the chrome
+   title larger than any content on the page beneath it. */
 .system-monitor-title {
   gap: 0.5rem;
+  margin: 0;
+  font-size: var(--text-lg);
 }
 
 .system-monitor-title-text {
   white-space: nowrap;
+  font-family: var(--font-display);
   font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text-heading);
+}
+
+/* ── Header control grouping ──
+   The right side of the chrome held six unrelated controls in one flat row:
+   an agent dropdown, a health indicator, a time-range select, and three icon
+   buttons. Flat adjacency implies they are peers, and they are not — the
+   time range and pause govern WHAT THE PAGE SHOWS, while theme, settings and
+   terminal govern THE APP. Splitting them with a hairline states that
+   relationship without adding a single word of chrome. */
+.header-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.header-group + .header-group {
+  margin-left: var(--spacing-sm);
+  padding-left: var(--spacing-sm);
+  border-left: 1px solid var(--color-border);
+}
+
+/* Icon buttons in a group read as one control cluster rather than three
+   floating chips: the group carries the frame, the buttons stay quiet until
+   hovered. */
+.header-group .header-button.icon-button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.header-group .header-button.icon-button:hover:not(:disabled) {
+  background: var(--color-surface-hover);
   color: var(--color-text-heading);
 }
 
@@ -1718,7 +1877,7 @@ input[type="range"]::-moz-range-thumb:hover {
   font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .agent-dropdown-btn:hover {
@@ -1764,7 +1923,7 @@ input[type="range"]::-moz-range-thumb:hover {
   background: var(--color-surface);
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .agent-dropdown-refresh:hover {
@@ -2138,7 +2297,7 @@ input[type="range"]::-moz-range-thumb:hover {
   background: var(--overlay-medium);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  transition: all 0.2s;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .trigger-card-enabled {
@@ -2380,6 +2539,11 @@ input[type="range"]::-moz-range-thumb:hover {
     overflow-x: auto;
     white-space: nowrap;
     padding-bottom: 2px;
+    /* A flex item will not shrink below its min-content width unless this is
+       set, so `overflow-x: auto` above had no effect: instead of scrolling
+       inside itself, the nav forced the header — and with it the page — wider
+       than the viewport, clipping the last link. */
+    min-width: 0;
   }
 }
 
@@ -2403,7 +2567,7 @@ input[type="range"]::-moz-range-thumb:hover {
   background: var(--color-surface);
   color: var(--color-text);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .theme-toggle:hover {
@@ -2414,4 +2578,253 @@ input[type="range"]::-moz-range-thumb:hover {
 .theme-toggle:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STATE CARDS — blindness, caution, excursion
+   ═══════════════════════════════════════════════════════════
+   These three exist because an unread value, a warning, and a failure used to
+   render as the same neutral `.card`, which left severity carried by the
+   sentence alone. Each gets a left edge as well as a tint, so the state
+   survives greyscale printing and colour-blindness — the tint alone is not a
+   channel. */
+.card--caution,
+.card--excursion,
+.capacity-blind {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+
+.card--caution {
+  background: var(--color-warning-muted);
+  border-color: var(--color-border);
+  border-left-color: var(--color-warning);
+}
+
+.card--caution__label {
+  color: var(--color-warning-text);
+}
+
+.card--excursion {
+  background: var(--color-error-muted);
+  border-color: var(--color-border);
+  border-left-color: var(--color-error);
+}
+
+.card--excursion__label {
+  color: var(--color-error-text);
+}
+
+/* Blindness is NOT an error and must not be dressed as one. It takes the muted
+   surface and a dashed edge: dashed reads as "nothing is being drawn here",
+   which is exactly the fact being reported, and it is visually distinct from
+   both the solid caution edge and the solid excursion edge. */
+.capacity-blind {
+  background: var(--color-background-alt);
+  border-color: var(--color-border);
+  border-left-style: dashed;
+  border-left-color: var(--color-text-muted);
+}
+
+.capacity-blind__label {
+  color: var(--color-text-secondary);
+}
+
+.capacity-blind__body {
+  margin: 0;
+  max-width: 70ch;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* The reasons are machine-generated diagnostic strings, so they take the mono
+   face: it signals "this is verbatim output" and stops a path or a binary name
+   being mistaken for prose. */
+.capacity-blind__reasons {
+  margin: 0;
+  padding-left: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.capacity-empty {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMARY NAVIGATION
+   ═══════════════════════════════════════════════════════════
+   These links previously had NO rule of their own. They fell through to the
+   global `a` colour, so all five rendered in the accent at equal weight and
+   the current page was completely unmarked — the nav told you where you could
+   go but never where you were. `NavLink` already emits `.active`; nothing was
+   listening for it.
+
+   The resting state is deliberately quiet. Navigation is not a reading on this
+   page, and five lit accent items compete with the traces, which ARE readings.
+   The accent is spent on the current page only. */
+.app-nav-link {
+  position: relative;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.app-nav-link:hover {
+  color: var(--color-text-heading);
+  background: var(--color-surface-hover);
+}
+
+.app-nav-link.active {
+  color: var(--color-text-heading);
+}
+
+/* The current page carries a lit underline as well as a colour shift, so the
+   state survives greyscale and does not depend on the reader distinguishing
+   two similar text colours. `::after` rather than a border keeps the link from
+   shifting by a pixel as it becomes active. */
+.app-nav-link.active::after {
+  content: '';
+  position: absolute;
+  left: var(--spacing-sm);
+  right: var(--spacing-sm);
+  bottom: 2px;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+}
+
+.app-nav-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FORM CONTROL BASELINE
+   ═══════════════════════════════════════════════════════════
+   About twenty text inputs and selects across this app render as bare
+   elements with no shared class, so they fell through to the user agent's
+   default — a white field with black text — on a committed dark page. The
+   Capacity policy levers were the most visible case: two blinding white bars
+   across an otherwise dark surface.
+
+   Fixing this at the ELEMENT level rather than by adding a class to twenty
+   call sites is deliberate. It repairs every existing control at once and,
+   more importantly, every control added later: a contributor who writes a
+   plain `<input>` now gets the themed field automatically instead of
+   reintroducing this bug. `.input-field` still exists and still wins, because
+   a class outranks an element selector — this is a floor, not a replacement.
+
+   Checkboxes and radios are excluded on purpose. They are drawn by the
+   platform, and giving them a surface background and a 1px border is what
+   makes a themed checkbox look broken. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+select,
+textarea {
+  background: var(--color-background);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--focus-ring);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Checkboxes and radios still need to adopt the accent, which is the one part
+   of their appearance the platform will take from us without redrawing them. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-primary);
+}
+
+/* A lever value is an identifier or a raw quantity, not prose. The mono face
+   keeps `1m0s` and `268435456` legible and stops them wrapping mid-token. */
+.policy-lever-key,
+.policy-lever-value {
+  font-family: var(--font-mono);
+}
+
+.policy-lever-value {
+  font-variant-numeric: var(--numeric-tabular);
+}
+
+/* A lever value is a duration, a byte count, or a short enum — never prose.
+   Stretching the field to the full page width gave a three-character value a
+   1600px box and pushed its Save button so far from it that they no longer
+   read as one control. Capping the measure keeps the pair together. */
+.policy-lever-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.policy-lever-row > input,
+.policy-lever-row > select {
+  flex: 0 1 22ch;
+  min-width: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CRASH FORENSICS LAYOUT
+   ═══════════════════════════════════════════════════════════
+   `.forensics-grid` had no rule of its own; the layout came entirely from a
+   migrated inline style of `repeat(auto-fit, minmax(320px, 1fr))`. At desktop
+   width that resolves to four columns, which suits the four short evidence
+   cards but strands the autoheal check list — twenty-odd rows of check name,
+   verdict and reason — in a single 320px column with three-quarters of the
+   row empty beside it. */
+.forensics-panel--wide {
+  grid-column: 1 / -1;
+}
+
+/* Given the full width, the check list becomes a readable multi-column set
+   rather than one very long scroll. `columns` (not grid) is deliberate: the
+   list is sorted by severity in the component, and column flow fills each
+   column top-to-bottom in document order, so the failing checks stay together
+   at the head of the first column. */
+.forensics-panel--wide ul {
+  columns: 20rem auto;
+  column-gap: var(--spacing-xl);
+}
+
+/* Without this a check row can be split across a column break, putting its
+   verdict in one column and its reason in the next. */
+.forensics-panel--wide li {
+  break-inside: avoid;
 }
