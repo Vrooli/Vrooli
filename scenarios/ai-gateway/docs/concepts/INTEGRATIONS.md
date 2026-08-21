@@ -8,7 +8,7 @@ should degrade.
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | health, routing evidence, operator settings | `SQLITE_PATH` lifecycle env var | Health reports unhealthy if unreachable; gateway can still preview from live resource state only if evidence persistence is disabled explicitly. |
+| SQLite | embedded storage | yes | health, routing evidence, operator settings | resolved by `api-core/storage` from the scenario id | Health reports unhealthy if unreachable; gateway can still preview from live resource state only if evidence persistence is disabled explicitly. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be managed through lifecycle commands. |
 | `resource-ollama` | Vrooli resource | conditional | providers, inventory, routing, smoke tests | role/policy/gateway CLI commands | Local routes become unavailable; profiles that require local inference fail with actionable diagnostics. |
 | `resource-openrouter` | Vrooli resource | conditional | providers, inventory, routing, smoke tests | role/policy/gateway CLI commands | Remote routes become unavailable; remote-only/hosted fallback profiles fail with actionable diagnostics. |

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"agent-manager/internal/runreport"
+
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
 )

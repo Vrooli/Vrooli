@@ -17,7 +17,7 @@ Use this document to answer:
 ## Storage Overview
 
 API Health starts with embedded SQLite through the generated template. The
-lifecycle sets `SQLITE_PATH` through `.vrooli/service.json`, and the API applies
+path is resolved by `api-core/storage` from the scenario id, and the API applies
 system schemas on startup.
 
 Initial provider validation is compute-on-read over target scenario files and

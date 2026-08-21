@@ -13,7 +13,12 @@
   "validation": {
     "contract": "scenario-validation/v1"
   },
-  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "targets": {
+    "kinds": [
+      "scenario"
+    ],
+    "selection": "enumerate"
+  },
   "applicability": {
     "default": "not_applicable",
     "any": [
@@ -50,7 +55,7 @@
   },
   "determinism": {
     "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "reason": "Gateway conformance probes live model providers for reachability and declared capability. Provider availability and model catalogs change continuously and independently of the scenario's files."
   },
   "maturity": {
     "version": "2.0.0",

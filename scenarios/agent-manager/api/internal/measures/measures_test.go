@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"agent-manager/internal/invocationreadmodel"
+
 	"connectrpc.com/connect"
 	measurelib "github.com/vrooli/measures-go"
 	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"

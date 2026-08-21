@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"agent-manager/internal/runreport"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/eventbus"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"

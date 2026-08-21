@@ -4,9 +4,9 @@
   "description": "Algorithm Library Web Interface",
   "private": true,
   "scripts": {
-    "dev": "vrooli lifecycle protect -- vite --port ${UI_PORT:-3252} --host",
+    "dev": "vrooli lifecycle protect -- vite",
     "build": "vite build",
-    "preview": "vite preview --port ${UI_PORT:-3252} --host"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.2.0",

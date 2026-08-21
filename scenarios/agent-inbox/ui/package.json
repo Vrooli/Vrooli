@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "tsc --noEmit && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build": "tsc --noEmit && vite build",
     "build:profile": "tsc --noEmit && vite build --mode profile",
     "preview": "vite preview",
     "lint": "eslint .",

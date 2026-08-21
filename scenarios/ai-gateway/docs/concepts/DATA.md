@@ -5,7 +5,8 @@ state, not provider secrets or sensitive prompt/response content.
 
 ## Storage Overview
 
-The generated scenario starts with embedded SQLite via `SQLITE_PATH`.
+The generated scenario starts with embedded SQLite, resolved from its own
+scenario id by `api-core/storage`.
 That is sufficient for local route evidence, profile settings, smoke
 test history, and conformance scan reports. A future Postgres migration
 is reasonable if gateway evidence becomes fleet-scale or shared across

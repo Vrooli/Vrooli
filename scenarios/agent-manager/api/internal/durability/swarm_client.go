@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+
 	"github.com/vrooli/api-core/discovery"
 )
 

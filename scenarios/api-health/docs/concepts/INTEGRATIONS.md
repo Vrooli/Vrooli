@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | provider runtime, future probe/fix sessions | `SQLITE_PATH` lifecycle env var | API Health reports its own health as unhealthy if DB bootstrap fails. |
+| SQLite | embedded storage | yes | provider runtime, future probe/fix sessions | resolved by `api-core/storage` from the scenario id | API Health reports its own health as unhealthy if DB bootstrap fails. |
 | Vrooli lifecycle | local platform | yes | probe, validation, CLI | `.vrooli/service.json`, lifecycle API/ports | Live probes degrade or fail with an explicit lifecycle discovery finding; static validation still runs. |
 | test-genie | scenario | no at runtime | validation/cutover | shared `ScenarioValidationService` provider contract | Provider can validate locally; provider-contract checks and delegated phase cutover wait for Test Genie. |
 | scenario-auditor | source migration reference | no | migration | source files under `scenarios/scenario-auditor/api/rules/api/` | No runtime effect; migration ledger work pauses if source is removed before accounting completes. |

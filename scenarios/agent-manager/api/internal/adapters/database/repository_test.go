@@ -204,13 +204,13 @@ func TestSQLiteDSNUsesCanonicalPathWithoutLegacyMigration(t *testing.T) {
 	t.Setenv("VROOLI_SCENARIO", "")
 	t.Setenv("VROOLI_VARIANT", "")
 
-	dsn, err := sqliteDSN(nil)
+	dsn, err := SQLiteDSN(nil)
 	if err != nil {
-		t.Fatalf("sqliteDSN() error = %v", err)
+		t.Fatalf("SQLiteDSN() error = %v", err)
 	}
 	wantPath := filepath.Join(home, ".vrooli", "data", "vrooli", "agent-manager", "agent-manager.db")
 	if !strings.Contains(dsn, wantPath) {
-		t.Fatalf("sqliteDSN() = %q, want path containing %q", dsn, wantPath)
+		t.Fatalf("SQLiteDSN() = %q, want path containing %q", dsn, wantPath)
 	}
 	if _, err := os.Stat(filepath.Dir(wantPath)); err != nil {
 		t.Fatalf("expected canonical sqlite dir at %s: %v", filepath.Dir(wantPath), err)

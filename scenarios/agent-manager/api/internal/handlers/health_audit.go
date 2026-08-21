@@ -19,6 +19,7 @@ import (
 
 	"agent-manager/internal/health"
 	"agent-manager/internal/modelpolicydrift"
+
 	"github.com/vrooli/cli-core/agentcatalog"
 
 	"github.com/gorilla/mux"

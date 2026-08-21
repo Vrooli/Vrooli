@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -74,48 +73,37 @@ func NewRoutedDB(routed *coredb.RoutedDB, log *logrus.Logger) *DB {
 	return &DB{Routed: routed, log: log, mapper: reflectx.NewMapper("db")}
 }
 
-// DataDir returns the directory where the SQLite database file is stored.
-// This follows the same resolution priority as SQLiteDSN.
+// DataDir returns the directory holding this scenario's SQLite database.
+// It resolves through the same seam as SQLiteDSN, so the two can never
+// disagree about where the database lives.
 func DataDir() string {
-	root, _ := os.LookupEnv("AM_SQLITE_PATH")
-	root = strings.TrimSpace(root)
-	if root != "" {
-		return filepath.Dir(root)
+	path, err := storage.SQLitePath(storage.SQLiteConfig{Scenario: "agent-manager"})
+	if err != nil {
+		return "."
 	}
-	if path, err := scenarioDBPath(); err == nil {
-		return filepath.Dir(path)
-	}
-	return "."
+	return filepath.Dir(path)
 }
 
 // SQLiteDSN resolves Agent Manager's canonical SQLite DSN for the API-core
 // connection seam. It is intentionally exported to keep main's composition
 // root explicit without exposing path-resolution internals.
+//
+// It reads no database-path variable. It previously accepted AM_SQLITE_PATH and
+// a "file:" DATABASE_URL ahead of the scenario's own identity, so any process
+// that exported either and then started this scenario redirected its database.
 func SQLiteDSN(log *logrus.Logger) (string, error) {
-	root, _ := os.LookupEnv("AM_SQLITE_PATH")
-	root = strings.TrimSpace(root)
-	if root == "" {
-		custom, _ := os.LookupEnv("DATABASE_URL")
-		if custom = strings.TrimSpace(custom); strings.HasPrefix(custom, "file:") {
-			return custom, nil
-		}
-		path, err := scenarioDBPath()
-		if err != nil {
-			return "", domain.NewConfigInvalidError("AM_SQLITE_PATH", "resolve canonical sqlite path", err)
-		}
-		root = path
-	}
-
-	if err := os.MkdirAll(filepath.Dir(root), 0o755); err != nil {
-		return "", domain.NewConfigInvalidError("AM_SQLITE_PATH", "prepare sqlite directory", err)
+	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{
+		Scenario: "agent-manager",
+		// A read-heavy store: agent runs are written once and queried often.
+		Tuning: storage.SQLiteTuning{PageSizeBytes: 4096},
+	})
+	if err != nil {
+		return "", domain.NewConfigInvalidError("storage", "resolve canonical sqlite path", err)
 	}
 	if log != nil {
-		log.WithField("path", root).Info("Using SQLite database")
+		log.WithField("dsn", dsn).Info("Using SQLite database")
 	}
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
-		root,
-	), nil
+	return dsn, nil
 }
 
 // Close closes the database connection.
