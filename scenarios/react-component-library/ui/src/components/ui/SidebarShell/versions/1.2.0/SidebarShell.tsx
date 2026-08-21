@@ -14,6 +14,7 @@ import { type CSSProperties, type HTMLAttributes, type ReactNode, forwardRef } f
 import { X } from "lucide-react";
 import { useEscapeKey } from "../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
 import { sidebarShellStyles } from "./styles";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 
 export interface SidebarShellProps {
   children: ReactNode;
@@ -59,12 +60,10 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(functi
   useEscapeKey(isDialogOpen, onMobileClose);
 
   const style: CSSProperties = width ? { width } : {};
+  useComponentStyles("rcl-sidebar-shell", sidebarShellStyles);
+
   return (
     <>
-      <style
-        data-rcl-sidebar-shell-styles
-        dangerouslySetInnerHTML={{ __html: sidebarShellStyles }}
-      />
       {isDialogOpen ? (
         <button
           type="button"

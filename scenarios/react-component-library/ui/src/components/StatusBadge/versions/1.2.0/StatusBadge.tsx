@@ -12,6 +12,7 @@
  */
 import type { HTMLAttributes, ReactNode } from "react";
 import { statusBadgeStyles } from "./styles";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 
 export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
 
@@ -21,9 +22,10 @@ export interface StatusBadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 export function StatusBadge({ children, className, tone = "neutral", ...props }: StatusBadgeProps) {
+  useComponentStyles("rcl-status-badge", statusBadgeStyles);
+
   return (
     <>
-      <style data-rcl-status-badge-styles dangerouslySetInnerHTML={{ __html: statusBadgeStyles }} />
       <span {...props} className={className} data-rcl-status-badge data-tone={tone}>
         <span data-rcl-status-badge-indicator aria-hidden="true" />
         <span data-rcl-status-badge-label>{children}</span>

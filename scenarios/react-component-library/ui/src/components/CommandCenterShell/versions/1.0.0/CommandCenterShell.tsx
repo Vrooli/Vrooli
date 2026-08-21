@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import { AsyncPanel } from "../../../AsyncPanel/versions/1.0.0/AsyncPanel";
 import type { ExperienceSurfaceState } from "../../../ExperienceSurface/versions/1.0.0/ExperienceSurface";
 import { commandCenterShellStyles } from "./styles";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 
 export interface CommandCenterMetric {
   label: string;
@@ -55,15 +56,13 @@ export function CommandCenterShell({
   onRetry,
   className,
 }: CommandCenterShellProps) {
+  useComponentStyles("rcl-command-center", commandCenterShellStyles);
+
   return (
     <main
       data-rcl-command-center
       className={["rcl-command-center", className].filter(Boolean).join(" ")}
     >
-      <style
-        data-rcl-command-center-styles
-        dangerouslySetInnerHTML={{ __html: commandCenterShellStyles }}
-      />
       <nav aria-label={`${title} navigation`} className="rcl-command-center__navigation">
         {navigation}
       </nav>

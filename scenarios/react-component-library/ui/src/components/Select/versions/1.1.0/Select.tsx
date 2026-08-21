@@ -11,6 +11,7 @@
  * run "react-component-library adoptions refresh" to inspect drift.
  */
 import { forwardRef, type SelectHTMLAttributes } from "react";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 
 export interface SelectOption {
   value: string;
@@ -36,9 +37,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   { className, options, placeholder, ...props },
   ref,
 ) {
+  useComponentStyles("rcl-select", styleSheet);
+
   return (
     <>
-      <style data-rcl-select-styles dangerouslySetInnerHTML={{ __html: styleSheet }} />
       <select ref={ref} data-rcl-select="true" className={className} {...props}>
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((option) => (

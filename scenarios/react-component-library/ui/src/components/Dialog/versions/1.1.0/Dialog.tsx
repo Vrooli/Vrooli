@@ -13,6 +13,7 @@
 import { X } from "lucide-react";
 import { type ReactNode, useEffect, useId } from "react";
 import { dialogStyles } from "./styles";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 export const DIALOG_MODES = ["controlled", "uncontrolled"] as const;
 export const DIALOG_PARTS = [
   "trigger",
@@ -49,6 +50,9 @@ export function Dialog({
   closeLabel,
   className,
 }: DialogProps) {
+  // Unconditional: this component early-returns when `open` is false, so the
+  // stylesheet request has to sit above that branch to keep hook order stable.
+  useComponentStyles("rcl-dialog", dialogStyles);
   const id = useId();
   const titleID = `${id}-title`;
   const descriptionID = `${id}-description`;
@@ -69,7 +73,6 @@ export function Dialog({
 
   return (
     <div data-rcl-dialog className="rcl-dialog">
-      <style data-rcl-dialog-styles dangerouslySetInnerHTML={{ __html: dialogStyles }} />
       <button
         type="button"
         aria-label={closeLabel}

@@ -18,6 +18,7 @@ import {
   type ControlSize,
   type ControlVariant,
 } from "./ControlBase";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 
 const pressableStyles = `
 [data-rcl-pressable-content] { position: relative; display: inline-flex; align-items: center; min-inline-size: 0; }
@@ -59,9 +60,10 @@ export const Pressable = forwardRef<HTMLButtonElement, PressableProps>(function 
   ref,
 ) {
   const variant: ControlVariant = tone;
+  useComponentStyles("rcl-pressable", pressableStyles);
+
   return (
     <>
-      <style data-rcl-pressable-styles dangerouslySetInnerHTML={{ __html: pressableStyles }} />
       <ControlBase
         {...props}
         disabled={disabled || pending}

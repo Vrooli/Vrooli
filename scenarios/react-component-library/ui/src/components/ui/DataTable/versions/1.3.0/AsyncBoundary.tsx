@@ -13,6 +13,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useAnnounce } from "./hooks/useAnnounce";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 
 export type AsyncBoundaryStatus =
   | "idle"
@@ -302,9 +303,10 @@ export function AsyncBoundary({
     }
   };
 
+  useComponentStyles("rcl-async-boundary", styles);
+
   return (
     <>
-      <style data-rcl-async-boundary-styles dangerouslySetInnerHTML={{ __html: styles }} />
       <section
         id={id}
         className={className}

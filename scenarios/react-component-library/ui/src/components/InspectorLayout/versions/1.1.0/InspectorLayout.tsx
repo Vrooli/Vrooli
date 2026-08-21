@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import { AsyncPanel } from "./AsyncPanel";
 import type { ExperienceSurfaceState } from "../../../ExperienceSurface/versions/1.0.0/ExperienceSurface";
 import { inspectorLayoutStyles } from "./styles";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 
 export interface InspectorLayoutProps {
   title: string;
@@ -44,12 +45,10 @@ export function InspectorLayout({
   onRetry,
   className,
 }: InspectorLayoutProps) {
+  useComponentStyles("rcl-inspector-layout", inspectorLayoutStyles);
+
   return (
     <>
-      <style
-        data-rcl-inspector-layout-styles
-        dangerouslySetInnerHTML={{ __html: inspectorLayoutStyles }}
-      />
       <main data-rcl-inspector-layout className={className}>
         <section aria-label={`${title} canvas`} data-rcl-inspector-canvas>
           {toolbar ? (

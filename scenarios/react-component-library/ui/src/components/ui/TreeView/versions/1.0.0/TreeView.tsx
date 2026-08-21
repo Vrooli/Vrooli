@@ -21,6 +21,7 @@ import {
   useState,
 } from "react";
 import { ChevronDown, ChevronRight, File, FolderOpen } from "lucide-react";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 
 export interface TreeNode {
   id: string;
@@ -287,9 +288,10 @@ export function TreeView({
     );
   };
 
+  useComponentStyles("rcl-ui-tree-view@1.0.0", treeStyles);
+
   return (
     <div data-rcl-tree role="tree" aria-label={label}>
-      <style data-rcl-tree-styles dangerouslySetInnerHTML={{ __html: treeStyles }} />
       {resolvedNodes.length ? (
         resolvedNodes.map((node) => renderNode({ node, level: 1 }))
       ) : (

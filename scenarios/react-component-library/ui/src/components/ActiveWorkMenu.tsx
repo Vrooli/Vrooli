@@ -1,18 +1,22 @@
 /** @vrooliComponentSource overlays.popover */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, RotateCcw, Square } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import { workflowsClient } from "../api/workflows";
 import { selectors } from "../consts/selectors";
 import { useTranslation } from "../i18n";
 import { assetInfoTab, assetPath } from "../routes";
+import { Button } from "./Button";
+import { Pressable } from "./Pressable";
 
 export function ActiveWorkMenu() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const location = useLocation();
   const currentTab = location.pathname.startsWith("/assets/")
     ? assetInfoTab(new URLSearchParams(location.search))
@@ -36,20 +40,50 @@ export function ActiveWorkMenu() {
   });
   const workflows = query.data?.workflows ?? [];
   const activeCount = workflows.filter((workflow) => workflow.canStop).length;
+  const closeAndRestoreFocus = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+  // A popover that traps no focus still owes the keyboard and the pointer a way
+  // out: Escape returns focus to the trigger, and a press outside dismisses it.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        closeAndRestoreFocus();
+      }
+    };
+    const onPointerDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [closeAndRestoreFocus, open]);
   return (
-    <div className="relative">
-      <button
-        type="button"
+    <div ref={containerRef} className="relative">
+      {/* Pressable, not a raw <button>: the trigger needs the shared control
+          treatment (tap target, hover/active/:focus-visible, disabled opacity,
+          token-backed motion) but keeps its own content layout, which is why it
+          composes Pressable rather than Button. */}
+      <Pressable
+        ref={triggerRef}
+        tone="ghost"
+        size="sm"
+        density="compact"
         data-testid={selectors.workflows.activeMenu}
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="touch-target inline-flex items-center gap-space-3xs rounded-control px-space-2xs text-xs text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
       >
         <Activity aria-hidden className="h-icon-sm w-icon-sm" />
         {activeCount > 0 && <span>{activeCount}</span>}
         <span className="sr-only">{t("workflows.active", { defaultValue: "Active work" })}</span>
-      </button>
+      </Pressable>
       {open && (
         <section
           role="dialog"
@@ -91,25 +125,36 @@ export function ActiveWorkMenu() {
                       workflow.sourcePath}
                   </p>
                   <div className="mt-space-2xs flex gap-space-3xs">
+                    {/* Button carries the in-flight state these controls previously
+                        dropped on the floor: a mutation could be fired twice with no
+                        visible acknowledgement. */}
                     {workflow.canStop && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        density="compact"
+                        data-testid={`workflow-stop-${workflow.id}`}
+                        icon={<Square aria-hidden className="h-icon-xs w-icon-xs" />}
+                        pending={stop.isPending && stop.variables === workflow.id}
+                        pendingLabel={t("workflows.stopping", { defaultValue: "Stopping…" })}
                         onClick={() => stop.mutate(workflow.id)}
-                        className="inline-flex items-center gap-space-3xs rounded-control px-space-2xs py-space-3xs hover:bg-app-background"
                       >
-                        <Square aria-hidden className="h-icon-xs w-icon-xs" />
                         {t("workflows.stop", { defaultValue: "Stop" })}
-                      </button>
+                      </Button>
                     )}
                     {workflow.canRetry && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        density="compact"
+                        data-testid={`workflow-retry-${workflow.id}`}
+                        icon={<RotateCcw aria-hidden className="h-icon-xs w-icon-xs" />}
+                        pending={retry.isPending && retry.variables === workflow.id}
+                        pendingLabel={t("workflows.retrying", { defaultValue: "Retrying…" })}
                         onClick={() => retry.mutate(workflow.id)}
-                        className="inline-flex items-center gap-space-3xs rounded-control px-space-2xs py-space-3xs hover:bg-app-background"
                       >
-                        <RotateCcw aria-hidden className="h-icon-xs w-icon-xs" />
                         {t("workflows.retry", { defaultValue: "Retry" })}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </li>

@@ -23,6 +23,7 @@ import {
 import { AsyncBoundary, type AsyncBoundaryStatus } from "./AsyncBoundary";
 import { Table } from "./Table";
 import { useSelectionStore } from "../../../../services/SelectionStore/versions/1.0.0/SelectionStore";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 
 export interface DataTableColumn<Row> {
   id: string;
@@ -679,6 +680,8 @@ export function DataTable<Row>({
     </div>
   );
 
+  useComponentStyles("rcl-data-table", styles);
+
   return (
     <div
       data-rcl-data-table
@@ -687,7 +690,6 @@ export function DataTable<Row>({
       style={style}
       ref={tableRef}
     >
-      <style data-rcl-data-table-styles dangerouslySetInnerHTML={{ __html: styles }} />
       {controls}
       <AsyncBoundary
         status={asyncStatus(status)}

@@ -164,7 +164,10 @@ describe("SidebarShell", () => {
       </SidebarShell>,
     );
 
-    const styles = document.querySelector("[data-rcl-sidebar-shell-styles]");
+    // The stylesheet is injected once into <head> by useComponentStyles rather
+    // than rendered inline per instance; the rules it must declare are unchanged.
+    const styles = document.head.querySelector('style[data-rcl-style-id="rcl-sidebar-shell"]');
+    expect(styles).not.toBeNull();
     expect(styles?.textContent).toContain(
       '[data-rcl-sidebar-shell][data-mode="responsive"][data-open="false"]',
     );

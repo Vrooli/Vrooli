@@ -61,6 +61,9 @@ type StageProps = {
   resolvedPreviewTheme: string;
   previewCanvasRef: Ref<HTMLDivElement>;
   tools: ReactNode;
+  /** The layout has room to dock the tools beside the preview at all. */
+  toolsDocked: boolean;
+  /** The docked tools are currently expanded rather than collapsed away. */
   toolsOpen: boolean;
   onClearComparison: () => void;
   onToggleComparison: (identity: SpecimenIdentity) => void;
@@ -95,6 +98,7 @@ export function ComponentEditorStage({
   resolvedPreviewTheme,
   previewCanvasRef,
   tools,
+  toolsDocked,
   toolsOpen,
   onClearComparison,
   onToggleComparison,
@@ -453,16 +457,24 @@ export function ComponentEditorStage({
                             )}
                           </div>
                         </header>
-                        {example?.description ? (
-                          <p
-                            data-testid={selectors.components.editor.storyDescription}
-                            className="border-b border-app-border bg-app-muted/30 px-space-xs py-space-2xs text-xs leading-relaxed text-app-muted-foreground"
-                          >
-                            {example.description}
-                          </p>
-                        ) : null}
                       </>
                     )}
+                    {/*
+                     * The state's own description belongs to the specimen, not
+                     * to the canvas chrome: focus mode drops the card header
+                     * but still shows a single named state, and dropping the
+                     * one sentence that says what that state *is* was the
+                     * difference between a labelled preview and an unlabelled
+                     * frame.
+                     */}
+                    {example?.description ? (
+                      <p
+                        data-testid={selectors.components.editor.storyDescription}
+                        className="border-b border-app-border bg-app-muted/30 px-space-xs py-space-2xs text-xs leading-relaxed text-app-muted-foreground"
+                      >
+                        {example.description}
+                      </p>
+                    ) : null}
                     {error ? (
                       <div
                         data-testid={selectors.components.editor.specimenError}
@@ -524,12 +536,21 @@ export function ComponentEditorStage({
           </div>
         </EmulatorViewport>
       </div>
-      {activeSpecimen && toolsOpen && (
+      {/*
+       * Where the layout can dock them, the tools stay mounted and the toggle
+       * only collapses them out of view. Unmounting on collapse threw away the
+       * whole panel's state — a half-typed props override, the scroll position
+       * in the event log, the inspector selection — every time the toggle was
+       * used, and left the preview unable to report events until someone
+       * expanded it. Narrow layouts still get no docked panel at all; they use
+       * the mobile tools sheet instead.
+       */}
+      {activeSpecimen && toolsDocked && (
         <aside
           id="component-preview-tools"
           data-testid={selectors.components.editor.previewToolsPanel}
           aria-label={t("components.editor.showTools", { defaultValue: "Preview controls" })}
-          className="absolute bottom-space-xs right-space-xs top-48 z-30 flex w-stage-panel min-w-0 flex-col overflow-hidden rounded-panel border border-app-border bg-app-surface/98 shadow-2xl backdrop-blur"
+          className={`absolute bottom-space-xs right-space-xs top-48 z-30 w-stage-panel min-w-0 flex-col overflow-hidden rounded-panel border border-app-border bg-app-surface/98 shadow-2xl backdrop-blur ${toolsOpen ? "flex" : "hidden"}`}
         >
           <div className="flex shrink-0 items-center justify-between gap-space-xs border-b border-app-border px-space-xs py-space-2xs">
             <div>

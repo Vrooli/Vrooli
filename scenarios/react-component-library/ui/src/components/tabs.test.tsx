@@ -58,6 +58,38 @@ describe("Tabs", () => {
     expect(onChange).toHaveBeenCalledWith("three");
   });
 
+  it("keeps a disabled tab announced but never lands selection or focus on it", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithProviders(
+      <Tabs
+        items={[
+          { id: "one", label: "One" },
+          { id: "two", label: "Two", disabled: true },
+          { id: "three", label: "Three" },
+        ]}
+        defaultActive="one"
+        onChange={onChange}
+        itemTestId={(id) => `tab-${id}`}
+      />,
+    );
+
+    const disabled = screen.getByTestId("tab-two");
+    expect(disabled).toHaveAttribute("aria-disabled", "true");
+
+    await user.click(disabled);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByTestId("tab-one")).toHaveAttribute("aria-selected", "true");
+
+    screen.getByTestId("tab-one").focus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByTestId("tab-three")).toHaveFocus();
+    expect(onChange).toHaveBeenCalledWith("three");
+
+    await user.keyboard("{End}");
+    expect(screen.getByTestId("tab-three")).toHaveFocus();
+  });
+
   it("keeps controlled selection controlled while reporting keyboard changes", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

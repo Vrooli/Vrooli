@@ -21,6 +21,7 @@ import { IconButton } from "./IconButton";
 import type { ControlDensity, ControlSize } from "./ControlBase";
 import { VoiceInputButtonGlyph as Glyph, type VoiceInputGlyphKind } from "./VoiceInputButtonGlyph";
 import { voiceInputButtonStyles } from "./styles";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 
 export type VoiceInputButtonState =
   | "idle"
@@ -153,12 +154,10 @@ export function VoiceInputButton({
               ? "border-app-warning bg-app-warning/10 text-app-warning"
               : "border-app-border bg-app-surface text-app-muted-foreground";
 
+  useComponentStyles("rcl-voice-input", voiceInputButtonStyles);
+
   return (
     <>
-      <style
-        data-rcl-voice-input-styles
-        dangerouslySetInnerHTML={{ __html: voiceInputButtonStyles }}
-      />
       <IconButton
         {...props}
         data-rcl-voice-input

@@ -13,6 +13,7 @@
 import type { ReactNode } from "react";
 import { FolderTree } from "lucide-react";
 import { NavLink } from "../../../NavLink/versions/1.0.0/NavLink";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 
 const navigationTreeStyles = `
 [data-rcl-navigation-tree] { display: grid; min-inline-size: 0; max-block-size: max(12rem, min(32rem, calc(100dvh - 23rem))); overflow: auto; gap: var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); color: var(--color-foreground); padding: var(--space-sm); box-shadow: var(--elev-raised); }
@@ -39,12 +40,10 @@ export function NavigationTree({
   title?: string;
   children?: ReactNode;
 }) {
+  useComponentStyles("rcl-navigation-tree", navigationTreeStyles);
+
   return (
     <>
-      <style
-        data-rcl-navigation-tree-styles
-        dangerouslySetInnerHTML={{ __html: navigationTreeStyles }}
-      />
       <nav aria-label="Primary navigation" data-rcl-navigation-tree>
         <div data-rcl-navigation-tree-heading>
           <span data-rcl-navigation-tree-eyebrow>Library</span>

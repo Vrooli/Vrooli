@@ -12,6 +12,7 @@
  */
 import { forwardRef, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
 import { motionTransition } from "./foundations/VisualRecipes";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 
 export type ControlVariant =
   | "primary"
@@ -188,10 +189,6 @@ const styleSheet = `
 }
 `;
 
-function ControlStyles() {
-  return <style data-rcl-control-styles dangerouslySetInnerHTML={{ __html: styleSheet }} />;
-}
-
 export const ControlBase = forwardRef<HTMLButtonElement, ControlBaseProps>(function ControlBase(
   {
     children,
@@ -208,9 +205,9 @@ export const ControlBase = forwardRef<HTMLButtonElement, ControlBaseProps>(funct
   ref,
 ) {
   const testId = (props as ControlBaseProps & { "data-testid"?: string })["data-testid"];
+  useComponentStyles("rcl-control", styleSheet);
   return (
     <>
-      <ControlStyles />
       <button
         {...props}
         ref={ref}

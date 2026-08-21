@@ -12,6 +12,7 @@
  */
 import {
   Children,
+  Fragment,
   isValidElement,
   type KeyboardEvent,
   type ReactNode,
@@ -21,6 +22,9 @@ import {
   useState,
 } from "react";
 import { ChevronDown, ChevronRight, File, FolderOpen } from "lucide-react";
+import { motionTransition } from "../foundations/VisualRecipes";
+import { IconButton } from "./IconButton";
+import { useComponentStyles } from "../hooks/useComponentStyles";
 
 export interface TreeNode {
   id: string;
@@ -54,14 +58,14 @@ const EMPTY_DEFAULT_EXPANDED_IDS: string[] = [];
 
 const treeStyles = `
 [data-rcl-tree] { min-inline-size: 0; color: var(--color-foreground); }
-[data-rcl-tree] .rcl-tree-item { display: flex; min-block-size: var(--tap-target-min); min-inline-size: 0; align-items: center; gap: var(--space-2xs); border: var(--border-hairline) solid transparent; border-radius: var(--radius-control); color: var(--color-foreground); padding: var(--space-3xs) var(--space-xs); cursor: pointer; outline: none; transition: background-color var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard); }
+[data-rcl-tree] .rcl-tree-item { display: flex; min-block-size: var(--tap-target-min); min-inline-size: 0; align-items: center; gap: var(--space-2xs); border: var(--border-hairline) solid transparent; border-radius: var(--radius-control); color: var(--color-foreground); padding: var(--space-3xs) var(--space-xs); cursor: pointer; outline: none; transition: ${motionTransition(["background-color", "border-color", "color"], "interaction")}; }
 [data-rcl-tree] .rcl-tree-item:hover:not([aria-disabled="true"]) { background: var(--color-surface-muted); }
 [data-rcl-tree] .rcl-tree-item:focus-visible { border-color: var(--color-focus); outline: var(--border-strong) solid color-mix(in srgb, var(--color-focus) 30%, transparent); outline-offset: 1px; }
 [data-rcl-tree] .rcl-tree-item[aria-selected="true"] { border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border)); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); color: var(--color-foreground); }
 [data-rcl-tree] .rcl-tree-item[aria-disabled="true"] { cursor: not-allowed; opacity: var(--opacity-disabled); }
 [data-rcl-tree] .rcl-tree-children { margin-inline-start: var(--space-sm); border-inline-start: var(--border-hairline) solid var(--color-border-subtle); padding-inline-start: var(--space-2xs); }
-[data-rcl-tree] .rcl-tree-disclosure { display: inline-grid; min-block-size: var(--touch-target); min-inline-size: var(--touch-target); flex: 0 0 auto; place-items: center; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-muted-foreground); cursor: pointer; }
-[data-rcl-tree] .rcl-tree-disclosure:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
+[data-rcl-tree] .rcl-tree-disclosure { flex: 0 0 auto; }
+[data-rcl-tree] .rcl-tree-spacer { display: inline-grid; min-block-size: var(--touch-target); min-inline-size: var(--touch-target); flex: 0 0 auto; }
 [data-rcl-tree] .rcl-tree-icon { display: inline-grid; min-inline-size: var(--space-sm); flex: 0 0 auto; place-items: center; color: var(--color-primary); }
 [data-rcl-tree] .rcl-tree-label { display: flex; min-inline-size: 0; overflow: hidden; flex: 1; align-items: center; gap: var(--space-2xs); text-overflow: ellipsis; white-space: nowrap; }
 [data-rcl-tree] .rcl-tree-label-main { min-inline-size: 0; overflow: hidden; flex: 1; text-overflow: ellipsis; white-space: nowrap; }
@@ -219,7 +223,10 @@ export function TreeView({
     const isExpanded = expanded.has(node.id);
     const accessibleLabel = node.ariaLabel || labelText(node.label);
     return (
-      <div key={node.id}>
+      // Fragment, not a wrapper <div>: role="treeitem" has to be a direct child of
+      // the role="tree" / role="group" that owns it. An untyped div between them
+      // breaks the owned-element relationship assistive technology walks.
+      <Fragment key={node.id}>
         <div
           ref={(element) => {
             if (element) refs.current.set(node.id, element);
@@ -243,9 +250,16 @@ export function TreeView({
           onKeyDown={(event) => handleKeyDown(event, visible)}
         >
           {hasChildren ? (
-            <button
-              type="button"
+            /* IconButton, not a hand-rolled <button>: the disclosure toggle had no
+               :focus-visible ring and no disabled treatment of its own. Composing
+               the shared control gives it those plus the token-backed transition.
+               tabIndex={-1} keeps the treeitem the single tab stop, as the tree
+               pattern requires. */
+            <IconButton
               tabIndex={-1}
+              density="compact"
+              disableTooltip
+              data-testid={"tree-disclosure-" + node.id}
               aria-label={isExpanded ? "Collapse " + accessibleLabel : "Expand " + accessibleLabel}
               className="rcl-tree-disclosure"
               onClick={(event) => {
@@ -263,9 +277,9 @@ export function TreeView({
               ) : (
                 <ChevronRight aria-hidden size={16} />
               )}
-            </button>
+            </IconButton>
           ) : (
-            <span aria-hidden className="rcl-tree-disclosure" />
+            <span aria-hidden className="rcl-tree-spacer" />
           )}
           <span aria-hidden className="rcl-tree-icon">
             {node.icon ?? (hasChildren ? <FolderOpen size={17} /> : <File size={17} />)}
@@ -283,13 +297,14 @@ export function TreeView({
             )}
           </div>
         ) : null}
-      </div>
+      </Fragment>
     );
   };
 
+  useComponentStyles("rcl-tree", treeStyles);
+
   return (
     <div data-rcl-tree role="tree" aria-label={label}>
-      <style data-rcl-tree-styles dangerouslySetInnerHTML={{ __html: treeStyles }} />
       {resolvedNodes.length ? (
         resolvedNodes.map((node) => renderNode({ node, level: 1 }))
       ) : (

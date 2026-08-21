@@ -15,6 +15,7 @@ import { ShellNavigationContext } from "../ShellNavigationContext";
 import { CatalogBrowser } from "../../features/catalog/CatalogBrowser";
 import { CreateComponentDialog } from "../../features/components/CreateComponentDialog";
 import { Button } from "../Button";
+import { IconButton } from "../IconButton";
 import { Input } from "../Input";
 import { ActionLauncher, type LauncherAction } from "../ActionLauncher";
 
@@ -144,15 +145,16 @@ export function ApplicationShell({ children }: Props) {
       description={pageDescription}
       leading={
         sidebarCollapsed ? (
-          <button
-            type="button"
+          /* The third copy of this control (see MobileHeader and Sidebar) now
+             composes IconButton, so the sidebar re-open affordance inherits the
+             shared control treatment instead of a local class list. */
+          <IconButton
             onClick={openSidebar}
             aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })}
             data-testid="workspace-header-open-sidebar"
-            className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
           >
             <Menu aria-hidden className="h-icon-md w-icon-md" />
-          </button>
+          </IconButton>
         ) : undefined
       }
       actions={

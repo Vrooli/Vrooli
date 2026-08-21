@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import { AsyncPanel } from "./AsyncPanel";
 import type { ExperienceSurfaceState } from "../../../ExperienceSurface/versions/1.0.0/ExperienceSurface";
 import { assetDetailShellStyles } from "./styles";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 
 export interface AssetDetailShellProps {
   title: string;
@@ -46,12 +47,10 @@ export function AssetDetailShell({
   actions,
   className,
 }: AssetDetailShellProps) {
+  useComponentStyles("rcl-asset-detail-shell", assetDetailShellStyles);
+
   return (
     <>
-      <style
-        data-rcl-asset-detail-shell-styles
-        dangerouslySetInnerHTML={{ __html: assetDetailShellStyles }}
-      />
       <main data-rcl-asset-detail className={className}>
         <section data-rcl-asset-detail-primary>
           <header data-rcl-asset-detail-header>

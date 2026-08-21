@@ -1,0 +1,33 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:MorphingIcon@2.0.4"
+  },
+  "component": {
+    "id": "motion.morphing-icon",
+    "title": "MorphingIcon",
+    "purpose": "MorphingIcon uses geometry-aware correspondence and spring motion to transition icon meaning in place."
+  },
+  "states": [
+    {
+      "id": "interactive",
+      "example": "toggle",
+      "description": "A real control demonstrates an icon state change."
+    },
+    {
+      "id": "copy-success",
+      "example": "copy-button",
+      "description": "Copy transitions into a success check inside an icon button."
+    }
+  ],
+  "claims": [
+    {
+      "id": "accessible-label",
+      "type": "manual-review",
+      "statement": "Meaningful icon states expose an accessible image name.",
+      "tier": "manual",
+      "states": ["interactive", "copy-success"]
+    }
+  ]
+}

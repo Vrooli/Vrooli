@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 export const ASSET_ATTRIBUTE = "data-rcl-asset";
@@ -19,8 +20,12 @@ const MARKER_ATTRIBUTES = new Set([
 // a growing suppression list look like a stable one.
 const EXEMPTION_KINDS = new Set(["permanent", "backlog"]);
 
-const defaultExemptionsURL = new URL("./asset-stamp-exemptions.json", import.meta.url);
-const defaultMapURL = new URL("./asset-stamp-map.json", import.meta.url);
+// Plain absolute paths, not `new URL("…", import.meta.url)`: Vite statically
+// rewrites that expression into an "/@fs/…" asset URL, so the same module read
+// its own sidecar JSON fine under Node and failed under any Vite-hosted runner.
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const defaultExemptionsPath = resolve(scriptDir, "asset-stamp-exemptions.json");
+const defaultMapPath = resolve(scriptDir, "asset-stamp-map.json");
 
 const SOURCE_MARKER = /@vrooliComponentSource\s+([^\s*]+)/;
 // Only a re-export makes a file a shim for another module. A plain `import`
@@ -29,7 +34,7 @@ const SOURCE_MARKER = /@vrooliComponentSource\s+([^\s*]+)/;
 // would be stamped as though it were the adopted library asset.
 const REEXPORT_TARGET_ALL = /export\s+(?:\*|\{[^}]*\})\s*(?:as\s+\w+\s*)?from\s+["']([^"']+)["']/g;
 
-function readExemptions(filePath = defaultExemptionsURL) {
+function readExemptions(filePath = defaultExemptionsPath) {
   const path = filePath instanceof URL ? filePath : resolve(filePath);
   const raw = JSON.parse(readFileSync(path, "utf8"));
   if (!Array.isArray(raw)) {
@@ -56,7 +61,7 @@ function readExemptions(filePath = defaultExemptionsURL) {
   return result;
 }
 
-function readStampMap(filePath = defaultMapURL) {
+function readStampMap(filePath = defaultMapPath) {
   const path = filePath instanceof URL ? filePath : resolve(filePath);
   if (!existsSync(path)) return new Map();
   const raw = JSON.parse(readFileSync(path, "utf8"));
@@ -609,8 +614,8 @@ export function buildStampReport({ declared, stamped, generatedAt }) {
 
 export default function assetStampPlugin(options = {}) {
   let scenarioRoot = options.scenarioRoot;
-  const exemptions = readExemptions(options.exemptionFile || defaultExemptionsURL);
-  const stampMap = readStampMap(options.mapFile || defaultMapURL);
+  const exemptions = readExemptions(options.exemptionFile || defaultExemptionsPath);
+  const stampMap = readStampMap(options.mapFile || defaultMapPath);
   let adoptedIndex = new Map();
   let declared = new Map();
   const stamped = new Map();

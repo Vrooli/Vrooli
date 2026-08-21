@@ -19,6 +19,7 @@ import {
   type ReactNode,
 } from "react";
 import { motionTransition } from "../foundations/VisualRecipes";
+import { useComponentStyles } from "../hooks/useComponentStyles";
 
 export type TabsMode = "controlled" | "uncontrolled";
 
@@ -26,6 +27,8 @@ export interface TabsItem {
   id: string;
   label: ReactNode;
   badge?: ReactNode;
+  /** A disabled tab stays visible and announced, but is skipped by pointer and keyboard. */
+  disabled?: boolean;
 }
 
 export interface TabsProps {
@@ -47,7 +50,10 @@ const styleSheet = `
 [data-rcl-tab]:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
 [data-rcl-tab]:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: calc(var(--space-3xs) * -1); }
 [data-rcl-tab][aria-selected="true"] { color: var(--color-primary); }
+[data-rcl-tab][aria-disabled="true"] { cursor: not-allowed; opacity: var(--opacity-disabled); }
+[data-rcl-tab][aria-disabled="true"]:hover { background: transparent; color: var(--color-muted-foreground); }
 [data-rcl-tab-badge] { display: inline-flex; min-inline-size: 1rem; align-items: center; justify-content: center; border-radius: var(--radius-pill); padding-inline: var(--space-3xs); padding-block: var(--space-3xs); background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); font-size: 0.6875rem; line-height: 1; }
+[data-rcl-tab-panel] { padding-block: var(--space-md); }
 [data-rcl-tab-indicator] { position: absolute; inset-block-end: 0; inline-size: 1px; block-size: var(--border-strong); border-radius: var(--radius-pill); background: var(--color-primary); pointer-events: none; transform-origin: left center; transition: ${motionTransition(["transform", "opacity"], "spring")}; will-change: transform, opacity; }
 @media (prefers-reduced-motion: reduce) { [data-rcl-tab], [data-rcl-tab-indicator] { transition: none; } }
 @media (max-width: 480px) { [data-rcl-tab] { padding-inline: var(--space-xs); } }
@@ -96,40 +102,61 @@ export function Tabs({
     return () => observer?.disconnect();
   }, [selectedIndex, normalizedItems.length]);
 
-  const moveSelection = (index: number) => {
-    const nextIndex = (index + normalizedItems.length) % normalizedItems.length;
-    const next = normalizedItems[nextIndex]?.id;
-    if (!next) return;
-    if (resolvedMode === "uncontrolled") setUncontrolledActive(next);
-    onChange?.(next);
-    tabRefs.current[nextIndex]?.focus();
+  const selectTab = (id: string) => {
+    if (resolvedMode === "uncontrolled") setUncontrolledActive(id);
+    onChange?.(id);
+  };
+
+  /**
+   * Walk `step` tabs from `index`, wrapping, and stop on the first enabled one.
+   * Disabled tabs stay in the tab list for context but are never landed on, so
+   * arrow keys and Home/End cannot strand focus on an inert control.
+   */
+  const moveSelection = (index: number, step: number) => {
+    const count = normalizedItems.length;
+    if (!count) return;
+    for (let hop = 0; hop < count; hop += 1) {
+      const nextIndex = (((index + step * hop) % count) + count) % count;
+      const candidate = normalizedItems[nextIndex];
+      if (!candidate || candidate.disabled) continue;
+      selectTab(candidate.id);
+      tabRefs.current[nextIndex]?.focus();
+      return;
+    }
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const index = Number(event.currentTarget.dataset.index ?? selectedIndex);
     if (event.key === "ArrowRight" || event.key === "ArrowDown") {
       event.preventDefault();
-      moveSelection(index + 1);
+      moveSelection(index + 1, 1);
     } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
       event.preventDefault();
-      moveSelection(index - 1);
+      moveSelection(index - 1, -1);
     } else if (event.key === "Home") {
       event.preventDefault();
-      moveSelection(0);
+      moveSelection(0, 1);
     } else if (event.key === "End") {
       event.preventDefault();
-      moveSelection(items.length - 1);
+      moveSelection(normalizedItems.length - 1, -1);
     }
   };
 
+  useComponentStyles("rcl-tabs", styleSheet);
+
   return (
     <>
-      <style data-rcl-tabs-styles dangerouslySetInnerHTML={{ __html: styleSheet }} />
       <div data-rcl-tabs role="tablist" aria-label={ariaLabel}>
         <div ref={tablistRef} data-rcl-tab-list data-rcl-tablist>
           {normalizedItems.map((item, index) => {
             const selected = item.id === resolvedItem;
             return (
+              // Justified raw element: Tabs is itself a foundation. A tab is not a
+              // Pressable/ControlBase — it carries role="tab", aria-selected and a
+              // roving tabIndex, and it must sit flush in the strip without the
+              // control lift, border and 44px min-width ControlBase enforces. The
+              // shared layers are still adopted: tokens for every value and
+              // motionTransition for the transitions in the sheet above.
               <button
                 key={item.id}
                 ref={(node) => {
@@ -139,6 +166,7 @@ export function Tabs({
                 type="button"
                 role="tab"
                 aria-selected={selected}
+                aria-disabled={item.disabled || undefined}
                 aria-controls={panels ? `rcl-tab-panel-${index}` : undefined}
                 tabIndex={selected ? 0 : -1}
                 data-index={index}
@@ -146,8 +174,8 @@ export function Tabs({
                 data-rcl-tab-trigger
                 data-rcl-tab
                 onClick={() => {
-                  if (resolvedMode === "uncontrolled") setUncontrolledActive(item.id);
-                  onChange?.(item.id);
+                  if (item.disabled) return;
+                  selectTab(item.id);
                 }}
                 onKeyDown={handleKeyDown}
               >
@@ -160,6 +188,9 @@ export function Tabs({
               </button>
             );
           })}
+          {/* Justified inline style: the indicator's transform is a measured
+              pixel offset that only exists at runtime. Everything static about
+              it lives in the sheet above. */}
           <span aria-hidden="true" data-rcl-tab-indicator style={indicator} />
         </div>
         {panels && resolvedItem in panels && (
@@ -168,7 +199,6 @@ export function Tabs({
             role="tabpanel"
             aria-labelledby={`rcl-tab-${selectedIndex}`}
             data-rcl-tab-panel
-            style={{ paddingBlock: "var(--space-md)" }}
           >
             {panels[resolvedItem]}
           </div>

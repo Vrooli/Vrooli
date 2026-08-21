@@ -62,6 +62,36 @@ function catalogGroups(assets: CatalogAsset[], other: string) {
     );
 }
 
+/**
+ * Adoption metrics in their prose form ("3 adoptions", "1 effective").
+ *
+ * Shared by the flat rows and the tree rows so the workspace catalog reports
+ * the same counts in the same words no matter which presentation is active —
+ * previously the tree branch rendered bare numerals only, so direct/effective
+ * adoption counts were unreadable (and untestable) in the default view.
+ */
+function AssetMetricBadges({ asset }: { asset: CatalogAsset }) {
+  const { t } = useTranslation();
+  const counts = adoptionCounts(asset);
+  const isHook =
+    (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
+  return (
+    <span className="flex shrink-0 flex-wrap justify-end gap-space-3xs text-[11px] text-app-muted-foreground">
+      <span className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs">
+        {t("catalog.adoptions", { defaultValue: "{{count}} adoptions", count: counts.direct })}
+      </span>
+      {isHook && (
+        <span className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs">
+          {t("catalog.effectiveAdoptions", {
+            defaultValue: "{{count}} effective",
+            count: counts.effective,
+          })}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function AssetRow({
   asset,
   presentation,
@@ -75,10 +105,6 @@ function AssetRow({
   onNavigate?: () => void;
   currentTab?: ReturnType<typeof assetInfoTab>;
 }) {
-  const { t } = useTranslation();
-  const isHook =
-    (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
-  const counts = adoptionCounts(asset);
   const isTree = presentation === "tree";
   const content = (
     <>
@@ -98,19 +124,7 @@ function AssetRow({
           )}
         </span>
       </span>
-      <span className="flex shrink-0 flex-wrap justify-end gap-space-3xs text-[11px] text-app-muted-foreground">
-        <span className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs">
-          {t("catalog.adoptions", { defaultValue: "{{count}} adoptions", count: counts.direct })}
-        </span>
-        {isHook && (
-          <span className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs">
-            {t("catalog.effectiveAdoptions", {
-              defaultValue: "{{count}} effective",
-              count: counts.effective,
-            })}
-          </span>
-        )}
-      </span>
+      <AssetMetricBadges asset={asset} />
     </>
   );
   return (
@@ -293,33 +307,44 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
                   (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
                 return {
                   id: asset.id,
-                  testId: selectors.catalog.asset,
                   // A 2:1 grid rather than flex-1 + shrink-0. With shrink-0 the
                   // metadata kept its full width and the name — the only part
                   // that identifies the row — was starved to zero at this tree
                   // depth.
                   //
-                  // The metrics render as bare numerals because the prose form
-                  // ("0 adoptions · 23 down") cannot fit a third of a sidebar
-                  // row three levels deep, and truncating it yields "0 ad…",
-                  // which is strictly worse than a number: it costs the same
-                  // space and carries no value. The full phrasing stays
-                  // available through the row title and the aria-label, so the
-                  // meaning is reachable without being resident.
+                  // In the narrow sidebar the metrics stay bare numerals: the
+                  // prose form ("0 adoptions · 23 down") cannot fit a third of
+                  // a sidebar row three levels deep, and truncating it yields
+                  // "0 ad…", which costs the same space and carries no value.
+                  // The full phrasing stays reachable through the row title and
+                  // the aria-label. The full-width workspace catalog has the
+                  // room, so it shows the same adoption badges the flat
+                  // presentations do — direct for every asset, effective only
+                  // for hooks.
+                  //
+                  // The test id rides the label because TreeView owns the row
+                  // element itself; the label is the row's identity surface.
                   label: (
-                    <span className="grid min-w-0 grid-cols-3 items-center gap-space-2xs">
+                    <span
+                      data-testid={selectors.catalog.asset}
+                      className="grid min-w-0 grid-cols-3 items-center gap-space-2xs"
+                    >
                       <span className="rcl-tree-label-main col-span-2 min-w-0 truncate">
                         {asset.displayName || asset.libraryId}
                       </span>
-                      <span
-                        className="rcl-tree-label-meta min-w-0 truncate text-end tabular-nums"
-                        title={`${counts.direct} direct adoptions${isHook ? `, ${counts.effective} effective` : ""}${asset.transitiveDependentCount ? `, ${asset.transitiveDependentCount} downstream dependents` : ""}`}
-                      >
-                        {counts.direct}
-                        {asset.transitiveDependentCount
-                          ? ` · ${asset.transitiveDependentCount}↓`
-                          : ""}
-                      </span>
+                      {compact ? (
+                        <span
+                          className="rcl-tree-label-meta min-w-0 truncate text-end tabular-nums"
+                          title={`${counts.direct} direct adoptions${isHook ? `, ${counts.effective} effective` : ""}${asset.transitiveDependentCount ? `, ${asset.transitiveDependentCount} downstream dependents` : ""}`}
+                        >
+                          {counts.direct}
+                          {asset.transitiveDependentCount
+                            ? ` · ${asset.transitiveDependentCount}↓`
+                            : ""}
+                        </span>
+                      ) : (
+                        <AssetMetricBadges asset={asset} />
+                      )}
                     </span>
                   ),
                   ariaLabel: `${asset.displayName || asset.libraryId}, ${asset.libraryId}, ${counts.direct} direct adoptions${asset.transitiveDependentCount ? `, ${asset.transitiveDependentCount} downstream dependents` : ""}`,
@@ -329,7 +354,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
           })),
         };
       }),
-    [groups, t],
+    [compact, groups, t],
   );
   const assetsByID = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
   const currentTab = selectedID ? assetInfoTab(new URLSearchParams(location.search)) : undefined;

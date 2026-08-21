@@ -11,6 +11,7 @@
  * run "react-component-library adoptions refresh" to inspect drift.
  */
 import * as React from "react";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 
 export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
 
@@ -28,9 +29,10 @@ const joinClasses = (...inputs: Array<string | undefined>) => inputs.filter(Bool
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, ...props }, ref) => {
+    useComponentStyles("rcl-textarea", styleSheet);
+
     return (
       <>
-        <style data-rcl-textarea-styles dangerouslySetInnerHTML={{ __html: styleSheet }} />
         <textarea
           data-rcl-textarea="true"
           className={joinClasses("rounded-control border border-app-border", className)}

@@ -1167,6 +1167,7 @@ export function ComponentEditorImpl({
                             selectedVersion={selectedVersion}
                             resolvedPreviewTheme={resolvedPreviewTheme}
                             previewCanvasRef={previewCanvasRef}
+                            toolsDocked={desktopLayout}
                             toolsOpen={desktopLayout && !previewToolsCollapsed}
                             onClearComparison={() => setComparedSpecimens(new Set())}
                             onToggleComparison={toggleComparison}

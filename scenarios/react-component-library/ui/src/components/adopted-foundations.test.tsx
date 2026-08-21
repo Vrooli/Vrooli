@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
@@ -80,5 +83,120 @@ describe("adopted foundation entry points", () => {
     expect(screen.getByText("Styled metadata")).toHaveAttribute("data-text-truncate", "true");
     expect(screen.getByText("String style")).toHaveAttribute("data-text-style", "body");
     expect(screen.getByRole("button", { name: "Create" })).toBeInTheDocument();
+  });
+});
+
+/**
+ * Adoption guard.
+ *
+ * The rule is deliberately not "never render a DOM element": a primitive has to
+ * bottom out in a real element somewhere, or the library would be turtles all the
+ * way down. What the guard enforces is that a *composition* — a component in this
+ * folder that is not itself the versioned primitive layer — may not hand-roll an
+ * interactive element when `Button` / `IconButton` / `Pressable` / `ControlBase` /
+ * `Input` / `Select` / `Textarea` already own that control's tap target, hover,
+ * :focus-visible, disabled treatment and token-backed motion.
+ *
+ * A new component that renders a raw interactive element fails this test until
+ * someone either composes the primitive or writes down, here, why it cannot.
+ * Prefer the former.
+ */
+const RAW_INTERACTIVE_ELEMENTS = ["button", "select", "textarea", "input"] as const;
+
+/**
+ * Files under `versions/` directories ARE the primitive layer: extracted, version-pinned
+ * assets whose whole job is to turn a token contract into a DOM element. They are
+ * exempt by category, not by oversight.
+ */
+const PRIMITIVE_LAYER = /[\\/]versions[\\/]/;
+
+/**
+ * Compositions that legitimately render a raw interactive element. Every entry
+ * needs a reason a reviewer can disagree with. Adding an entry is the fallback;
+ * composing the primitive is the fix.
+ */
+const JUSTIFIED_RAW_ELEMENTS: Record<string, string> = {
+  "Tabs.tsx":
+    "Tabs is itself a foundation. A tab is not a Pressable: it carries role=tab, " +
+    "aria-selected and a roving tabIndex, and it has to sit flush in the strip " +
+    "without the lift, border and 44px min-width ControlBase enforces. Tokens and " +
+    "motionTransition are still adopted for everything else.",
+  "markdown-harvest/CodeBlock.tsx":
+    "Self-contained harvest asset: its @deps header declares react + shiki only, so " +
+    "importing a sibling library primitive would break standalone extraction. The " +
+    "control treatment is expressed in shared tokens instead.",
+  "markdown-harvest/InlineCode.tsx":
+    "Same harvest boundary as CodeBlock, plus the affordances sit inside a line of " +
+    "prose, where ControlBase's 44px tap-target box would break text flow.",
+  "markdown-harvest/MermaidDiagram.tsx":
+    "Same harvest boundary as CodeBlock: its @deps header declares react + mermaid " +
+    "only, so the toolbar controls carry the token-backed treatment inline rather " +
+    "than importing the library Button.",
+  "color-picker-harvest/ColorPicker.tsx":
+    "Self-contained harvest asset, and the swatch IS the colour: its background is a " +
+    "runtime value and it must not inherit a control variant's own background.",
+};
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(full);
+    if (!entry.name.endsWith(".tsx")) return [];
+    if (entry.name.endsWith(".test.tsx")) return [];
+    return [full];
+  });
+}
+
+/** Comments describe the rule; they must not trip it. */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
+function rawElementsIn(source: string): string[] {
+  const body = stripComments(source);
+  return RAW_INTERACTIVE_ELEMENTS.filter((tag) => new RegExp(`<${tag}(\\s|>|$)`, "m").test(body));
+}
+
+describe("raw interactive element adoption", () => {
+  const root = dirname(fileURLToPath(import.meta.url));
+  const compositions = sourceFiles(root)
+    .filter((file) => !PRIMITIVE_LAYER.test(file))
+    .map((file) => ({ key: relative(root, file).split(sep).join("/"), file }));
+
+  it("finds the composition layer it is supposed to police", () => {
+    expect(compositions.length).toBeGreaterThan(20);
+  });
+
+  it("lets no composition hand-roll an interactive element without a written reason", () => {
+    const unexplained = compositions
+      .map(({ key, file }) => ({ key, tags: rawElementsIn(readFileSync(file, "utf8")) }))
+      .filter(({ key, tags }) => tags.length > 0 && !JUSTIFIED_RAW_ELEMENTS[key])
+      .map(({ key, tags }) => `${key} renders <${tags.join(">, <")}>`);
+
+    expect(
+      unexplained,
+      "Compose Button/IconButton/Pressable/ControlBase/Input/Select/Textarea instead, " +
+        "or add a justification to JUSTIFIED_RAW_ELEMENTS in this file.",
+    ).toEqual([]);
+  });
+
+  it("keeps every justification live, so the exemption list cannot rot", () => {
+    const stale = Object.keys(JUSTIFIED_RAW_ELEMENTS).filter((key) => {
+      const match = compositions.find((entry) => entry.key === key);
+      return !match || rawElementsIn(readFileSync(match.file, "utf8")).length === 0;
+    });
+
+    expect(
+      stale,
+      "These files no longer render a raw interactive element — drop the entry.",
+    ).toEqual([]);
+  });
+
+  it("holds every justification to a real explanation", () => {
+    for (const [key, reason] of Object.entries(JUSTIFIED_RAW_ELEMENTS)) {
+      expect(reason.length, `${key} needs a reason a reviewer can disagree with`).toBeGreaterThan(
+        60,
+      );
+    }
   });
 });

@@ -11,6 +11,7 @@ import { useTranslation } from "../i18n";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { Input } from "./Input";
+import { Select } from "./Select";
 
 export type LauncherAction = "menu" | "extract" | "adopt" | "create" | null;
 
@@ -47,10 +48,16 @@ function SearchablePicker({
         onChange={(event) => setQuery(event.target.value)}
         placeholder={`Search ${label}`}
       />
-      <select
+      {/* Select, not a raw <select> with a local border/background class list:
+          the shared control owns hover, :focus-visible, aria-invalid, the
+          disabled treatment and the reduced-motion opt-out. The multi-select
+          height comes from the native `size` attribute rather than a min-height
+          utility, so the listbox shows whole rows at any font size. */}
+      <Select
         aria-label={label}
         required
         multiple={multiple}
+        size={multiple ? 6 : undefined}
         value={value}
         onChange={(event) =>
           onChange(
@@ -59,19 +66,9 @@ function SearchablePicker({
               : event.target.value,
           )
         }
-        className={
-          multiple
-            ? "min-h-surface-short rounded-control border border-app-border bg-app-background px-space-xs"
-            : "min-h-touch rounded-control border border-app-border bg-app-background px-space-xs"
-        }
-      >
-        {!multiple && <option value="">Select an option</option>}
-        {visible.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        placeholder={multiple ? undefined : "Select an option"}
+        options={visible}
+      />
     </div>
   );
 }
@@ -182,6 +179,9 @@ export function ActionLauncher({
           size="icon"
           shape="pill"
           className="fixed bottom-6 end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"
+          // Justified inline style: the floating trigger has to clear the device
+          // safe area, and env() inside calc() is a runtime value no utility class
+          // or design token can carry. Both operands are still token-backed.
           style={{
             insetBlockEnd: "calc(var(--space-md) + env(safe-area-inset-bottom, 0px))",
           }}

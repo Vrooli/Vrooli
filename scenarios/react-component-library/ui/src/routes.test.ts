@@ -16,6 +16,10 @@ describe("workspace route contract", () => {
       assetCatalog: "/catalog",
       asset: "/assets/:id",
       coverage: "/coverage",
+      // The preview popout is a real route: `routes.ts` declares it and
+      // `App.tsx` renders `PreviewPopoutPage` at `appRoutes.preview`. This
+      // contract test simply had not been updated when it was added.
+      preview: "/assets/:id/preview",
       capabilities: "/capabilities",
       settings: "/settings",
     });

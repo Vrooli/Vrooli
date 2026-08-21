@@ -12,6 +12,7 @@
  */
 import type { HTMLAttributes, ReactNode } from "react";
 import { cardStyles } from "./styles";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 export const CARD_PARTS = ["header", "media", "body", "footer"] as const;
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
@@ -37,9 +38,10 @@ export interface CardContentProps extends HTMLAttributes<HTMLDivElement> {
 const cn = (...inputs: Array<string | undefined>) => inputs.filter(Boolean).join(" ");
 
 export function Card({ children, className, ...props }: CardProps) {
+  useComponentStyles("rcl-card", cardStyles);
+
   return (
     <div className={cn("rcl-card rounded-panel", className)} data-rcl-card {...props}>
-      <style data-rcl-card-styles dangerouslySetInnerHTML={{ __html: cardStyles }} />
       {children}
     </div>
   );

@@ -12,6 +12,7 @@
  */
 import type { MouseEvent, ReactNode } from "react";
 import { bottomNavStyles } from "./styles";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 
 export interface BottomNavItem {
   id: string;
@@ -63,9 +64,10 @@ export function BottomNav({
     </>
   );
 
+  useComponentStyles("rcl-bottom-nav", bottomNavStyles);
+
   return (
     <>
-      <style data-rcl-bottom-nav-styles dangerouslySetInnerHTML={{ __html: bottomNavStyles }} />
       <nav
         data-testid={testId}
         data-rcl-bottom-nav

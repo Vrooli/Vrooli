@@ -12,6 +12,7 @@
  */
 import type { ReactNode } from "react";
 import { Home, LayoutGrid, Settings } from "lucide-react";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 
 /**
  * 1.1.0 — icons sized in CSS instead of through the icon library's `size` prop.
@@ -98,12 +99,10 @@ export function AppNavigation({
   children?: ReactNode;
   brand?: string;
 }) {
+  useComponentStyles("rcl-app-navigation", appNavigationStyles);
+
   return (
     <>
-      <style
-        data-rcl-app-navigation-styles
-        dangerouslySetInnerHTML={{ __html: appNavigationStyles }}
-      />
       <div
         data-responsive-transformation="sidebar-to-drawer modal-to-bottom-sheet header-to-bottom-navigation"
         data-viewport-mode={mode}

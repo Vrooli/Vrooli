@@ -100,7 +100,7 @@ export function CodeBlock({
         <button
           type="button"
           onClick={() => void copy(code)}
-          className="rounded px-space-3xs text-[var(--markdown-link)] hover:opacity-80"
+          className="touch-target rounded px-space-3xs text-[var(--markdown-link)] transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus motion-reduce:transition-none"
         >
           {copied ? copiedLabel : copyLabel}
         </button>

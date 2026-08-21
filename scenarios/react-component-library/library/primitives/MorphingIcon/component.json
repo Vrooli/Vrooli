@@ -5,7 +5,7 @@
   "description": "An icon transition that chooses true path morphing when geometry is compatible and a polished fallback when it is not.",
   "assetKind": "primitive",
   "tags": ["primitive", "motion", "icon", "accessibility", "token-bound"],
-  "latest": "1.0.0",
+  "latest": "2.0.7",
   "designStyles": [
     { "styleId": "vrooli-default", "affinity": "native" },
     { "styleId": "vrooli-command-display", "affinity": "compatible" },

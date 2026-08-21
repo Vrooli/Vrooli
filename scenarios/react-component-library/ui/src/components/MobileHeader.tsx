@@ -4,6 +4,7 @@ import { Menu, Settings as SettingsIcon } from "lucide-react";
 
 import { useTranslation } from "../i18n";
 import { BrandMark } from "./BrandMark";
+import { IconButton } from "./IconButton";
 
 interface Props {
   onOpenDrawer: () => void;
@@ -16,15 +17,17 @@ export function MobileHeader({ onOpenDrawer }: Props) {
       data-testid="mobile-header"
       className="pt-safe sticky top-0 z-30 flex h-control-2xl items-center gap-space-2xs border-b border-app-border bg-app-surface px-space-xs md:hidden"
     >
-      <button
-        type="button"
+      {/* IconButton (not a hand-rolled <button>) so the drawer toggle inherits the
+          shared control treatment: tap-target sizing, hover/active/:focus-visible,
+          disabled opacity, and the token-backed motion curve with its
+          prefers-reduced-motion opt-out. */}
+      <IconButton
         onClick={onOpenDrawer}
         aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })}
         data-testid="mobile-header-drawer"
-        className="touch-target inline-flex items-center justify-center rounded-control text-app-foreground hover:bg-app-surface-muted"
       >
         <Menu aria-hidden className="h-icon-md w-icon-md" />
-      </button>
+      </IconButton>
       <Link
         to="/"
         data-testid="mobile-header-brand"

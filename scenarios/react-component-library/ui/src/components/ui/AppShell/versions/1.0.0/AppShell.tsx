@@ -11,6 +11,7 @@
  * run "react-component-library adoptions refresh" to inspect drift.
  */
 import type { ReactNode } from "react";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 
 export interface AppShellProps {
   navigation?: ReactNode;
@@ -81,6 +82,8 @@ export function AppShell({
   headerClassName,
   mainClassName,
 }: AppShellProps) {
+  useComponentStyles("rcl-app-shell", appShellStyles);
+
   return (
     <div
       data-rcl-app-shell
@@ -90,11 +93,6 @@ export function AppShell({
       data-testid="app-shell"
       className={className}
     >
-      {/* prettier-ignore */}
-      <style
-        data-rcl-app-shell-styles
-        dangerouslySetInnerHTML={{ __html: appShellStyles }}
-      />
       <a className="rcl-app-shell-skip" data-testid="app-shell-skip" href="#app-shell-main">
         Skip to content
       </a>

@@ -5,6 +5,7 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useTranslation } from "../i18n";
 import { BarChart3, FolderTree, PanelLeftClose, Sparkles } from "lucide-react";
 import { BrandMark } from "./BrandMark";
+import { IconButton } from "./IconButton";
 import { AppNavigation } from "./ui/AppNavigation/versions/1.0.0/AppNavigation";
 import { NavigationTree } from "./ui/NavigationTree/versions/1.0.0/NavigationTree";
 
@@ -52,15 +53,19 @@ export function SidebarContent({
         <div className="ms-auto flex items-center gap-space-3xs">
           {headerSlot}
           {onCollapse ? (
-            <button
-              type="button"
+            /* IconButton rather than a hand-rolled <button>: the collapse control
+               gets the shared tap-target sizing, hover/active/:focus-visible and
+               disabled treatment, plus the token-backed transition and its
+               prefers-reduced-motion opt-out, instead of a local class list that
+               only covered hover. */
+            <IconButton
               onClick={onCollapse}
               aria-label={t("nav.closeDrawer", { defaultValue: "Close navigation" })}
               data-testid="sidebar-collapse"
-              className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
+              density="compact"
             >
               <PanelLeftClose aria-hidden className="h-icon-sm w-icon-sm" />
-            </button>
+            </IconButton>
           ) : null}
         </div>
       </div>

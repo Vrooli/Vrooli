@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Copy } from "lucide-react";
+import { IconButton } from "../../../../components/IconButton/versions/2.0.0/IconButton";
 import { MorphingIcon, type MorphingIconProps } from "./MorphingIcon";
 
 const panelStyle = {
@@ -181,6 +183,50 @@ export function ToggleMorphingIcon() {
       >
         {sent ? "Reset state" : "Send message"}
       </button>
+    </div>
+  );
+}
+
+export function CopyMorphingIcon() {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return undefined;
+    const timeout = window.setTimeout(() => setCopied(false), 1200);
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        justifyItems: "center",
+        gap: "var(--space-sm, 12px)",
+        padding: "var(--space-xl, 32px)",
+        color: "var(--color-muted-foreground, #667085)",
+        fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)",
+      }}
+    >
+      <IconButton
+        aria-label={copied ? "Copied" : "Copy value"}
+        variant="ghost"
+        onClick={() => setCopied(true)}
+      >
+        {copied ? (
+          <MorphingIcon
+            icon="check"
+            from="send"
+            label="Copied"
+            size="md"
+            strategy="morph"
+            duration="deliberate"
+            style={{ color: "var(--color-success, #15803d)" }}
+          />
+        ) : (
+          <Copy aria-hidden size={20} />
+        )}
+      </IconButton>
+      <span>{copied ? "Copied" : "Copy value"}</span>
     </div>
   );
 }

@@ -49,6 +49,27 @@ const deviceGroupLabel = (
 };
 
 /**
+ * Locate the pane that *contains* the emulator viewport frame.
+ *
+ * `fitToPane` measures `[data-emulator-viewport-frame]` found **inside** the
+ * element it is handed, so the toolbar must pass the frame's parent. The Fit
+ * button never sits inside the frame itself — in the editor the toolbar lives
+ * in the controller header while the frame lives in the stage — so walking up
+ * from the button with `closest("[data-emulator-viewport-frame]")` always
+ * yields `null` and Fit silently degrades to `scale(1)`. Search the document
+ * for the frame instead, preferring one under a shared ancestor of the button
+ * so multiple emulators on a page still fit the right one.
+ */
+const resolveViewportPane = (origin: HTMLElement): HTMLElement | null => {
+  const FRAME = "[data-emulator-viewport-frame]";
+  for (let node: HTMLElement | null = origin; node; node = node.parentElement) {
+    const frame = node.querySelector<HTMLElement>(FRAME);
+    if (frame?.parentElement) return frame.parentElement;
+  }
+  return origin.ownerDocument.querySelector<HTMLElement>(FRAME)?.parentElement ?? null;
+};
+
+/**
  * The viewport control is one progressive-disclosure menu instead of a row of
  * permanently visible/disabled inputs. Device and zoom state remain owned by
  * useDeviceEmulation so persisted behavior is unchanged.
@@ -213,12 +234,7 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
             <Button
               type="button"
               data-testid="components-emulator-fit"
-              onClick={(event) =>
-                emulator.fitToPane(
-                  event.currentTarget.closest<HTMLElement>("[data-emulator-viewport-frame]")
-                    ?.parentElement,
-                )
-              }
+              onClick={(event) => emulator.fitToPane(resolveViewportPane(event.currentTarget))}
               variant="secondary"
               className="h-control-sm flex-1 px-space-2xs text-xs"
             >

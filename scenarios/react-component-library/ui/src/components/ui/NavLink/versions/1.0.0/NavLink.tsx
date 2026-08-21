@@ -11,6 +11,7 @@
  * run "react-component-library adoptions refresh" to inspect drift.
  */
 import type { ReactNode } from "react";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 
 const navLinkStyles = `
 [data-rcl-nav-link] { display: flex; min-block-size: var(--tap-target-min); min-inline-size: 0; align-items: center; gap: var(--space-xs); border: var(--border-hairline) solid transparent; border-radius: var(--radius-control); color: var(--color-muted-foreground); padding: var(--space-2xs) var(--space-xs); font: var(--text-body-sm); text-decoration: none; transition: background-color var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard), transform var(--dur-quick) var(--ease-standard); }
@@ -40,9 +41,10 @@ export function NavLink({
   icon,
   description,
 }: NavLinkProps) {
+  useComponentStyles("rcl-nav-link", navLinkStyles);
+
   return (
     <>
-      <style data-rcl-nav-link-styles dangerouslySetInnerHTML={{ __html: navLinkStyles }} />
       <a
         href={href}
         aria-current={current ? "page" : undefined}

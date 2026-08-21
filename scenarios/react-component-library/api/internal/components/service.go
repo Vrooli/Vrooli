@@ -9,12 +9,33 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // defaultListLimit caps List rows when callers pass 0. Business
 // policy, not transport policy — lives next to the only code that
 // applies it.
 const defaultListLimit = 200
+
+// maxSlugResolutionScan bounds the catalog scan used to resolve an unqualified
+// component name. It sits above the live catalog size so resolution stays
+// complete, and exists only so a pathological catalog cannot turn a lookup into
+// an unbounded read.
+const maxSlugResolutionScan = 2000
+
+// toKebabSlug lowercases and hyphenates a catalog slug so PascalCase library
+// names and the kebab-case ids an experience spec is required to use resolve to
+// the same component.
+func toKebabSlug(name string) string {
+	var b strings.Builder
+	for i, r := range strings.TrimSpace(name) {
+		if i > 0 && unicode.IsUpper(r) {
+			b.WriteByte('-')
+		}
+		b.WriteRune(unicode.ToLower(r))
+	}
+	return strings.Trim(b.String(), "-")
+}
 
 // Service is the application-layer surface handlers and the indexer
 // depend on. Owns validation, default substitution, and any cross-
@@ -135,7 +156,44 @@ func (s *service) Get(ctx context.Context, id string) (Component, error) {
 	// accepting the internal UUID as well, but make both identifiers equivalent
 	// at the service boundary so sibling domains do not need to guess which one
 	// the repository stores.
-	return s.repo.GetByLibraryID(ctx, id)
+	c, err = s.repo.GetByLibraryID(ctx, id)
+	if err == nil || !errors.As(err, &ErrComponentNotFound{}) {
+		return c, err
+	}
+	// Callers legitimately hold the unqualified slug rather than the
+	// library-qualified id: the CLI takes a component name, and an experience
+	// spec pins the same component in kebab-case because its schema requires
+	// kebab-case ids. Resolve those to the same component instead of reporting
+	// it missing, which reads as "this component does not exist".
+	return s.getBySlug(ctx, id)
+}
+
+// getBySlug resolves an unqualified component name. It matches the catalog slug
+// case-insensitively and in kebab-case, and refuses an ambiguous match rather
+// than picking one, so the caller is told to qualify the id.
+func (s *service) getBySlug(ctx context.Context, name string) (Component, error) {
+	wanted := strings.TrimSpace(name)
+	if wanted == "" || strings.Contains(wanted, ":") {
+		return Component{}, ErrComponentNotFound{IDOrLibraryID: name}
+	}
+	all, listErr := s.repo.List(ctx, SearchQuery{Limit: maxSlugResolutionScan})
+	if listErr != nil {
+		return Component{}, ErrComponentNotFound{IDOrLibraryID: name}
+	}
+	var matches []Component
+	for _, candidate := range all {
+		slug := strings.TrimSpace(candidate.Slug)
+		if slug == "" {
+			continue
+		}
+		if strings.EqualFold(slug, wanted) || strings.EqualFold(toKebabSlug(slug), toKebabSlug(wanted)) {
+			matches = append(matches, candidate)
+		}
+	}
+	if len(matches) != 1 {
+		return Component{}, ErrComponentNotFound{IDOrLibraryID: name}
+	}
+	return matches[0], nil
 }
 
 func (s *service) GetByLibraryID(ctx context.Context, libraryID string) (Component, error) {

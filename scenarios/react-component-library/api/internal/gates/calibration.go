@@ -451,7 +451,9 @@ func createCalibrationDatabase(sourcePath, targetPath string) error {
 	if err != nil {
 		return err
 	}
-	_ = os.Remove(targetPath)
+	if err := removeGateDB(targetPath); err != nil {
+		return err
+	}
 	target, err := openGateDB(context.Background(), targetPath)
 	if err != nil {
 		return err
@@ -465,7 +467,7 @@ func createCalibrationDatabase(sourcePath, targetPath string) error {
 }
 
 func createConsoleWarningDatabase(targetPath, assetID string) error {
-	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+	if err := removeGateDB(targetPath); err != nil {
 		return err
 	}
 	db, err := openGateDB(context.Background(), targetPath)
@@ -498,7 +500,7 @@ func createConsoleWarningDatabase(targetPath, assetID string) error {
 }
 
 func createPerformanceBudgetDatabase(targetPath, assetID string) error {
-	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+	if err := removeGateDB(targetPath); err != nil {
 		return err
 	}
 	db, err := openGateDB(context.Background(), targetPath)
@@ -534,7 +536,7 @@ func createDifferentialCalibrationDatabase(targetPath, gate, assetID string) err
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 		return err
 	}
-	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+	if err := removeGateDB(targetPath); err != nil {
 		return err
 	}
 	db, err := openGateDB(context.Background(), targetPath)
@@ -576,7 +578,7 @@ func createCompositionCalibrationDatabase(targetPath, assetID string) error {
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 		return err
 	}
-	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+	if err := removeGateDB(targetPath); err != nil {
 		return err
 	}
 	db, err := openGateDB(context.Background(), targetPath)

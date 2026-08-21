@@ -7,7 +7,7 @@
   "description": "Runs version-pinned React component and hook contracts through the React Component Library provider.",
   "source": "validation-provider",
   "orderHint": 21,
-  "timeout": "600s",
+  "timeout": "1200s",
   "findingSource": "coverage",
   "phaseClass": "capability",
   "runtimeClass": "execution",
@@ -16,7 +16,7 @@
   },
   "determinism": {
     "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "reason": "Component gates compare rendered story evidence against the version-pinned catalog held in the provider's own database. Catalog releases and recorded evidence change outside the target scenario's files, so the verdict is not determined by the target's file digest."
   },
   "dimensions": [
     "tests"
@@ -25,7 +25,12 @@
     "contract": "scenario-validation/v1",
     "execution": true
   },
-  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "targets": {
+    "kinds": [
+      "scenario"
+    ],
+    "selection": "enumerate"
+  },
   "applicability": {
     "default": "not_applicable",
     "any": [

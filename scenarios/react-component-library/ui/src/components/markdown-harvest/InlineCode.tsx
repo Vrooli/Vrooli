@@ -54,7 +54,7 @@ export function InlineCode({
       <button
         type="button"
         onClick={() => onFileReferenceClick?.(text)}
-        className={`${tokenClass} text-[var(--markdown-link)] hover:opacity-80`}
+        className={`${tokenClass} rounded text-[var(--markdown-link)] hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus`}
       >
         {text}
       </button>
@@ -66,7 +66,10 @@ export function InlineCode({
         type="button"
         aria-label={copyLabel}
         onClick={() => void copy(text)}
-        className="ml-space-3xs hidden rounded px-space-3xs text-[10px] text-[var(--markdown-muted)] group-hover:inline hover:opacity-80"
+        // The copy affordance used to be `hidden` until group-hover, which made it
+        // unreachable by keyboard: display:none is not focusable. Fading it keeps
+        // the same quiet visual while leaving it in the tab order.
+        className="ml-space-3xs rounded px-space-3xs text-[10px] text-[var(--markdown-muted)] opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:opacity-80 motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
       >
         {copied ? "Copied" : "Copy"}
       </button>

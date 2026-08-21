@@ -2,6 +2,7 @@ package gates
 
 import (
 	"context"
+	"os"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"
@@ -29,4 +30,20 @@ func openGateDB(ctx context.Context, path string) (*database.RoutedDB, error) {
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})
+}
+
+// removeGateDB deletes a throwaway gate database AND its write-ahead sidecars.
+//
+// Unlinking only the ".db" file is not enough once a database has been opened
+// in WAL mode: SQLite leaves "-wal" and "-shm" beside it, and reopening the
+// path then finds a write-ahead log with no database to belong to and fails
+// with SQLITE_CANTOPEN. The gates create and discard these fixtures
+// repeatedly, so the sidecars have to go with them.
+func removeGateDB(path string) error {
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		if err := os.Remove(path + suffix); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
 }

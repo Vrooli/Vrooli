@@ -12,6 +12,7 @@
  */
 import { useId, type ReactNode } from "react";
 import { emptyStateStyles } from "./styles";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 
 export interface EmptyStateProps {
   title: string;
@@ -23,9 +24,10 @@ export interface EmptyStateProps {
 
 export function EmptyState({ title, description, icon, action, className }: EmptyStateProps) {
   const titleId = `rcl-empty-state-${useId().replace(/:/g, "")}-title`;
+  useComponentStyles("rcl-empty-state", emptyStateStyles);
+
   return (
     <>
-      <style data-rcl-empty-state-styles dangerouslySetInnerHTML={{ __html: emptyStateStyles }} />
       <section data-rcl-empty-state className={className} aria-labelledby={titleId}>
         {icon ? (
           <div data-rcl-empty-state-icon aria-hidden="true">

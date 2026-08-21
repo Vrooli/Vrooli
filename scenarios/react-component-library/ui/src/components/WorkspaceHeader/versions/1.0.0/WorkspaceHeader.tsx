@@ -12,6 +12,7 @@
  */
 import type { ReactNode } from "react";
 import { workspaceHeaderStyles } from "./styles";
+import { useComponentStyles } from "../../../../hooks/useComponentStyles";
 
 export interface WorkspaceHeaderProps {
   title: ReactNode;
@@ -35,16 +36,14 @@ export function WorkspaceHeader({
   className,
   as: Element = "header",
 }: WorkspaceHeaderProps) {
+  useComponentStyles("rcl-workspace-header", workspaceHeaderStyles);
+
   return (
     <Element
       data-testid="workspace-header"
       data-rcl-workspace-header
       className={["rcl-workspace-header", className].filter(Boolean).join(" ")}
     >
-      <style
-        data-rcl-workspace-header-styles
-        dangerouslySetInnerHTML={{ __html: workspaceHeaderStyles }}
-      />
       <div className="rcl-workspace-header__row">
         {leading ? <div className="rcl-workspace-header__leading">{leading}</div> : null}
         <div className="rcl-workspace-header__copy">

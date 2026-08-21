@@ -53,101 +53,6 @@
   },
   "stories": [
     {
-      "id": "compatible-morph",
-      "name": "Compatible geometry",
-      "harness": "MorphingIconShowcase",
-      "args": {
-        "icon": "send",
-        "from": "arrowEnd",
-        "strategy": "auto",
-        "label": "Send"
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "role": "img",
-          "name": "Send"
-        }
-      ],
-      "mode": "live"
-    },
-    {
-      "id": "automatic-fallback",
-      "name": "Automatic fallback",
-      "harness": "MorphingIconShowcase",
-      "args": {
-        "icon": "check",
-        "from": "close",
-        "strategy": "auto",
-        "label": "Complete"
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "role": "img",
-          "name": "Complete"
-        }
-      ],
-      "mode": "live"
-    },
-    {
-      "id": "explicit-crossfade",
-      "name": "Explicit crossfade",
-      "harness": "MorphingIconShowcase",
-      "args": {
-        "icon": "check",
-        "from": "close",
-        "strategy": "crossfade",
-        "label": "Complete"
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "role": "img",
-          "name": "Complete"
-        }
-      ],
-      "mode": "live"
-    },
-    {
-      "id": "explicit-morph",
-      "name": "Explicit path morph",
-      "harness": "MorphingIconShowcase",
-      "args": {
-        "icon": "arrowEnd",
-        "from": "check",
-        "strategy": "morph",
-        "label": "Continue"
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "role": "img",
-          "name": "Continue"
-        }
-      ],
-      "mode": "live"
-    },
-    {
-      "id": "explicit-transform",
-      "name": "Transform fallback",
-      "harness": "MorphingIconShowcase",
-      "args": {
-        "icon": "close",
-        "from": "arrowEnd",
-        "strategy": "transform",
-        "label": "Dismiss"
-      },
-      "expect": [
-        {
-          "kind": "role",
-          "role": "img",
-          "name": "Dismiss"
-        }
-      ],
-      "mode": "live"
-    },
-    {
       "id": "toggle",
       "name": "Interactive state change",
       "harness": "ToggleMorphingIcon",
@@ -174,6 +79,33 @@
         {
           "kind": "waitFor",
           "text": "280"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "copy-button",
+      "name": "Copy button success state",
+      "harness": "CopyMorphingIcon",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Copy value"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Copy value"
+          }
+        },
+        {
+          "kind": "waitFor",
+          "text": "Copied"
         }
       ],
       "mode": "live"

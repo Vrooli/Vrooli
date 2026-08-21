@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { dirname, resolve } from "node:path";
+import { describe, it } from "vitest";
+import { fileURLToPath } from "node:url";
 import {
   adoptedAssetIndex,
   assetStampMetadata,
@@ -8,7 +10,12 @@ import {
   stampSource,
 } from "./vite-plugin-asset-stamp.mjs";
 
-const scenarioRoot = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
+// Resolved through `fileURLToPath`, never `new URL("…", import.meta.url)`:
+// Vite statically rewrites that expression into an asset URL, so under Vitest
+// the "path" came back as "/@fs/…" and the fixture read failed with ENOENT.
+// This form resolves to a real absolute path under any runner.
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const scenarioRoot = resolve(scriptDir, "../..");
 const fixtures = JSON.parse(
   readFileSync(`${scenarioRoot}/contracts/asset-stamp.fixtures.json`, "utf8"),
 );
@@ -114,7 +121,7 @@ describe("resolver chain", () => {
 
 describe("exemption policy", () => {
   const exemptions = JSON.parse(
-    readFileSync(new URL("./asset-stamp-exemptions.json", import.meta.url), "utf8"),
+    readFileSync(resolve(scriptDir, "asset-stamp-exemptions.json"), "utf8"),
   );
 
   it("classifies every exemption as permanent or backlog", () => {

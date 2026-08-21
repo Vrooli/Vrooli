@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "MorphingIcon",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "toggle",
+      "name": "Interactive state change",
+      "harness": "ToggleMorphingIcon",
+      "args": {},
+      "expect": [{ "kind": "role", "role": "img", "name": "Send" }],
+      "interactions": [
+        { "kind": "click", "target": { "role": "button", "name": "Send message" } },
+        { "kind": "waitFor", "text": "Sent" }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "copy-button",
+      "name": "Copy to success",
+      "harness": "CopyMorphingIcon",
+      "args": {},
+      "expect": [{ "kind": "role", "role": "button", "name": "Copy value" }],
+      "interactions": [
+        { "kind": "click", "target": { "role": "button", "name": "Copy value" } },
+        { "kind": "waitFor", "text": "Copied" }
+      ],
+      "mode": "live"
+    }
+  ]
+}

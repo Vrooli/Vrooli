@@ -42,8 +42,18 @@ func live(t *testing.T) ([]Asset, []Implementation) {
 
 func TestLoadCatalogReadsEveryAsset(t *testing.T) {
 	assets, _ := live(t)
-	if len(assets) < 400 {
-		t.Fatalf("expected the full catalog, got %d assets", len(assets))
+	// Relational, not a recorded population: compare against what is actually on
+	// disk so the test keeps meaning as the catalog grows or shrinks.
+	root := repoRoot(t)
+	onDisk, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
+	if err != nil {
+		t.Fatalf("glob catalog assets: %v", err)
+	}
+	if len(onDisk) == 0 {
+		t.Fatal("no catalog asset files found on disk; the scan found nothing to load")
+	}
+	if len(assets) != len(onDisk) {
+		t.Fatalf("loaded %d assets from %d catalog files; every asset file must be read", len(assets), len(onDisk))
 	}
 	for _, a := range assets {
 		if a.ID == "" || a.Domain == "" || a.Priority == "" || a.Delivery == "" {

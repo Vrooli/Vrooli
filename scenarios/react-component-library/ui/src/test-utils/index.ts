@@ -45,8 +45,9 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { expectNoA11yViolations, renderWithProviders } from "@vrooli/api-base/testing";
+export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
+export { renderWithProviders } from "./renderWithProviders";
 export { interp } from "./interp";
 // Note: HealthResponse is the *generated proto type* re-exported by
 // factories.ts. Tests should always import it from here so a future

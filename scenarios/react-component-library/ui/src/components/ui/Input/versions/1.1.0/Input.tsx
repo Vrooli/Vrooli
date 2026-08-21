@@ -11,6 +11,7 @@
  * run "react-component-library adoptions refresh" to inspect drift.
  */
 import { forwardRef, type InputHTMLAttributes } from "react";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 export const INPUT_MODES = ["controlled", "uncontrolled"] as const;
 export const INPUT_SIZES = ["sm", "md", "lg"] as const;
 export const INPUT_TONES = ["default", "invalid"] as const;
@@ -46,9 +47,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   { className, type, "data-testid": testID, ...props },
   ref,
 ) {
+  useComponentStyles("rcl-input", styleSheet);
+
   return (
     <>
-      <style data-rcl-input-styles dangerouslySetInnerHTML={{ __html: styleSheet }} />
       <input
         ref={ref}
         type={type}

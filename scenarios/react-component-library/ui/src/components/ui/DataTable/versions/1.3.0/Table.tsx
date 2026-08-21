@@ -11,6 +11,7 @@
  * run "react-component-library adoptions refresh" to inspect drift.
  */
 import type { CSSProperties, ReactNode } from "react";
+import { useComponentStyles } from "../../../../../hooks/useComponentStyles";
 
 export interface TableProps {
   rows?: Array<Record<string, string>>;
@@ -36,9 +37,10 @@ const styles = `
 
 export function Table({ rows = [], children, caption, className, style }: TableProps) {
   const columns = Object.keys(rows[0] || {});
+  useComponentStyles("rcl-table", styles);
+
   return (
     <div data-rcl-table className={className} style={style}>
-      <style data-rcl-table-styles dangerouslySetInnerHTML={{ __html: styles }} />
       <div data-rcl-table-scroll>
         {children ?? (
           <table>
