@@ -91,6 +91,7 @@ func TestSQLiteExactSearchPerformanceBudgets(t *testing.T) {
 	if os.Getenv("CODE_FACTS_PERF_ASSERT") != "1" {
 		t.Skip("set CODE_FACTS_PERF_ASSERT=1 for current and three-times corpus latency proof")
 	}
+	var currentStorage int64
 	for _, scale := range []struct {
 		name   string
 		count  int
@@ -109,7 +110,20 @@ func TestSQLiteExactSearchPerformanceBudgets(t *testing.T) {
 					fmt.Sprintf("Deterministic benchmark symbol %06d for exact retrieval.", id),
 				))
 			}
-			_, index := openRetrievalIndex(t, documents)
+			db, index := openRetrievalIndex(t, documents)
+			var pages, pageSize int64
+			if err := db.QueryRow(`PRAGMA page_count`).Scan(&pages); err != nil {
+				t.Fatal(err)
+			}
+			if err := db.QueryRow(`PRAGMA page_size`).Scan(&pageSize); err != nil {
+				t.Fatal(err)
+			}
+			storageBytes := pages * pageSize
+			if scale.name == "current" {
+				currentStorage = storageBytes
+			} else if ratio := float64(storageBytes) / float64(currentStorage); ratio < 2.5 || ratio > 3.5 {
+				t.Fatalf("three-times storage growth %.2fx is not approximately linear", ratio)
+			}
 			durations := make([]time.Duration, 101)
 			for run := range durations {
 				started := time.Now()
@@ -124,7 +138,7 @@ func TestSQLiteExactSearchPerformanceBudgets(t *testing.T) {
 			allocs := testing.AllocsPerRun(10, func() {
 				_, _ = index.SearchLexical(context.Background(), Query{Text: "Symbol000001", Limit: 5})
 			})
-			t.Logf("documents=%d p50=%s p95=%s p99=%s allocations/query=%.0f", scale.count, p50, p95, p99, allocs)
+			t.Logf("documents=%d storage_bytes=%d p50=%s p95=%s p99=%s allocations/query=%.0f", scale.count, storageBytes, p50, p95, p99, allocs)
 			if p95 > scale.budget {
 				t.Fatalf("exact p95 %s exceeds %s budget", p95, scale.budget)
 			}

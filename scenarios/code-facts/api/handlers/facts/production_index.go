@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -44,11 +45,14 @@ type ProductionIndex struct {
 	db        *sql.DB
 	repoRoot  string
 	catalog   *catalog.SQLiteRepository
+	inspector catalog.FileInspector
 	lexical   *retrieval.SQLiteIndex
 	engine    retrieval.HybridEngine
 	jobs      indexcontrol.JobStore
 	clock     wallClock
 	mu        sync.Mutex
+	refreshMu sync.Mutex
+	servingMu sync.RWMutex
 	cancels   map[string]context.CancelFunc
 	bootstrap sync.Once
 }
@@ -72,7 +76,7 @@ func newProductionIndex(db *sql.DB, repoRoot string, admission *internalfacts.We
 	lexical := retrieval.NewSQLiteIndex(db)
 	index := &ProductionIndex{
 		db: db, repoRoot: filepath.Clean(repoRoot), catalog: catalog.NewSQLiteRepository(db, clock),
-		lexical: lexical, jobs: indexcontrol.NewSQLiteJobStore(db), clock: clock,
+		inspector: catalog.OSFileInspector{}, lexical: lexical, jobs: indexcontrol.NewSQLiteJobStore(db), clock: clock,
 		cancels: map[string]context.CancelFunc{},
 	}
 	index.engine = retrieval.HybridEngine{
@@ -100,6 +104,7 @@ func (index *ProductionIndex) Bootstrap() {
 			_ = index.jobs.Update(ctx, job)
 			_ = index.catalog.FailGeneration(ctx, job.Generation, job.Error)
 		}
+		go index.watch(ctx)
 		if _, err := index.catalog.Active(ctx); err == nil {
 			return
 		} else if !errors.Is(err, catalog.ErrNoActiveGeneration) {
@@ -111,6 +116,8 @@ func (index *ProductionIndex) Bootstrap() {
 }
 
 func (index *ProductionIndex) Search(ctx context.Context, req *factsv1.SearchRequest) (*factsv1.SearchResponse, error) {
+	index.servingMu.RLock()
+	defer index.servingMu.RUnlock()
 	if req == nil || strings.TrimSpace(req.GetQuery()) == "" {
 		return nil, fmt.Errorf("query is required")
 	}
@@ -269,6 +276,23 @@ func (index *ProductionIndex) runBuild(ctx context.Context, job indexcontrol.Job
 	_ = index.jobs.Update(context.Background(), job)
 	err := index.buildGeneration(ctx, &job)
 	if err == nil && promote {
+		// Replay working-tree events that may have landed after discovery began.
+		// The refresh is generation-scoped and atomic per file.
+		for pass := 0; pass < 2 && err == nil; pass++ {
+			paths, listErr := index.dirtyPaths(ctx)
+			if listErr != nil {
+				err = listErr
+				break
+			}
+			for _, path := range paths {
+				err = index.refreshPath(ctx, job.Generation, path)
+				if err != nil {
+					break
+				}
+			}
+		}
+	}
+	if err == nil && promote {
 		job.State, job.UpdatedAt = "succeeded", index.clock.Now()
 		_ = index.jobs.Update(context.Background(), job)
 		err = index.Promote(ctx, job.Generation)
@@ -287,14 +311,484 @@ func (index *ProductionIndex) runBuild(ctx context.Context, job indexcontrol.Job
 	_ = index.jobs.Update(context.Background(), job)
 }
 
+func (index *ProductionIndex) watch(ctx context.Context) {
+	changes := time.NewTicker(5 * time.Second)
+	audit := time.NewTicker(5 * time.Minute)
+	defer changes.Stop()
+	defer audit.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-changes.C:
+			paths, err := index.dirtyPaths(ctx)
+			if err == nil && len(paths) > 0 {
+				if paths, err = index.filterDrift(ctx, paths); err == nil && len(paths) > 0 {
+					if len(paths) > 256 {
+						paths = paths[:256]
+					}
+					_ = index.refreshDirtyBatch(ctx, paths)
+				}
+			}
+		case <-audit.C:
+			_ = index.auditManifest(ctx)
+		}
+	}
+}
+
+func (index *ProductionIndex) filterDrift(ctx context.Context, paths []string) ([]string, error) {
+	generation, err := index.catalog.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return index.filterGenerationDrift(ctx, generation.ID, paths)
+}
+
+func (index *ProductionIndex) filterGenerationDrift(ctx context.Context, generation string, paths []string) ([]string, error) {
+	result := make([]string, 0, len(paths))
+	for _, path := range paths {
+		path = filepath.ToSlash(filepath.Clean(path))
+		id := catalog.StableFileID(path)
+		var indexedHash string
+		var indexedSize, indexedModTime int64
+		dbErr := index.db.QueryRowContext(ctx, `SELECT content_hash,size_bytes,mod_time_unix_nano FROM code_facts_source_files WHERE generation_id=? AND id=?`, generation, id).Scan(&indexedHash, &indexedSize, &indexedModTime)
+		if dbErr != nil && !errors.Is(dbErr, sql.ErrNoRows) {
+			return nil, dbErr
+		}
+		absolutePath := filepath.Join(index.repoRoot, filepath.FromSlash(path))
+		info, statErr := os.Stat(absolutePath)
+		if dbErr == nil && statErr == nil && info.Mode().IsRegular() && info.Size() == indexedSize && info.ModTime().UnixNano() == indexedModTime {
+			continue
+		}
+		snapshot, inspectErr := index.inspector.Inspect(ctx, absolutePath)
+		if errors.Is(inspectErr, os.ErrNotExist) || errors.Is(inspectErr, catalog.ErrNotRegularFile) {
+			if dbErr == nil {
+				result = append(result, path)
+			}
+			continue
+		}
+		if inspectErr != nil {
+			return nil, inspectErr
+		}
+		classification := catalog.Classify(path, snapshot.Prefix)
+		if classification.Role == catalog.RoleTransient {
+			if dbErr == nil {
+				result = append(result, path)
+			}
+			continue
+		}
+		if dbErr != nil || indexedHash != snapshot.Hash {
+			result = append(result, path)
+		}
+	}
+	return result, nil
+}
+
+func (index *ProductionIndex) refreshBatch(ctx context.Context, paths []string) error {
+	index.refreshMu.Lock()
+	defer index.refreshMu.Unlock()
+	generation, err := index.catalog.Active(ctx)
+	if err != nil {
+		return err
+	}
+	return index.refreshBatchLocked(ctx, generation.ID, paths)
+}
+
+func (index *ProductionIndex) refreshDirtyBatch(ctx context.Context, paths []string) error {
+	index.refreshMu.Lock()
+	defer index.refreshMu.Unlock()
+	generation, err := index.catalog.Active(ctx)
+	if err != nil {
+		return err
+	}
+	if err := index.catalog.RecordGenerationDirtyPaths(ctx, generation.ID, paths); err != nil {
+		return err
+	}
+	return index.refreshBatchLocked(ctx, generation.ID, paths)
+}
+
+func (index *ProductionIndex) refreshBatchLocked(ctx context.Context, generation string, paths []string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+	now := index.clock.Now()
+	job := indexcontrol.Job{ID: fmt.Sprintf("reconcile-%d", now.UnixNano()), Kind: "reconcile", State: "running", Generation: generation, Total: int64(len(paths)), CreatedAt: now, UpdatedAt: now}
+	if err := index.jobs.Create(ctx, job); err != nil {
+		return err
+	}
+	for _, path := range paths {
+		if err := index.refreshPath(ctx, generation, path); err != nil {
+			job.State, job.Error, job.UpdatedAt = "failed", err.Error(), index.clock.Now()
+			_ = index.jobs.Update(context.WithoutCancel(ctx), job)
+			return err
+		}
+		job.Progress++
+		job.UpdatedAt = index.clock.Now()
+		_ = index.jobs.Update(ctx, job)
+	}
+	job.State, job.UpdatedAt = "succeeded", index.clock.Now()
+	return index.jobs.Update(ctx, job)
+}
+
+func (index *ProductionIndex) refreshPath(ctx context.Context, generation, path string) error {
+	index.servingMu.Lock()
+	defer index.servingMu.Unlock()
+	return index.refreshPathLocked(ctx, generation, path)
+}
+
+func (index *ProductionIndex) refreshPathLocked(ctx context.Context, generation, path string) error {
+	path = filepath.ToSlash(filepath.Clean(strings.TrimSpace(path)))
+	if path == "." || path == "" || filepath.IsAbs(path) || strings.HasPrefix(path, "../") || !governedIndexPath(path) {
+		return nil
+	}
+	id := catalog.StableFileID(path)
+	snapshot, err := index.inspector.Inspect(ctx, filepath.Join(index.repoRoot, filepath.FromSlash(path)))
+	if errors.Is(err, os.ErrNotExist) || errors.Is(err, catalog.ErrNotRegularFile) {
+		err = index.lexical.ApplySourceChange(ctx, generation, id, nil, nil)
+		if err == nil {
+			index.engine.Cache.Reset()
+		}
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	classification := catalog.Classify(path, snapshot.Prefix)
+	if classification.Role == catalog.RoleTransient {
+		err = index.lexical.ApplySourceChange(ctx, generation, id, nil, nil)
+		if err == nil {
+			index.engine.Cache.Reset()
+		}
+		return err
+	}
+	var currentHash string
+	err = index.db.QueryRowContext(ctx, `SELECT content_hash FROM code_facts_source_files WHERE generation_id=? AND id=?`, generation, id).Scan(&currentHash)
+	if err == nil && currentHash == snapshot.Hash {
+		return nil
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	source := catalog.SourceFile{Generation: generation, ID: id, Path: path, Language: classification.Language.Name, Role: classification.Role, Scope: classification.Scope, Authority: classification.Authority, Owner: classification.Owner, Hash: snapshot.Hash, Size: snapshot.Size, ModTime: snapshot.ModTime, Searchable: classification.Searchable}
+	var documents []retrieval.Document
+	if source.Searchable {
+		documents, err = index.documents(ctx, source)
+		if err != nil {
+			return err
+		}
+	}
+	record := &retrieval.SourceRecord{ID: source.ID, Path: source.Path, Language: source.Language, Role: string(source.Role), Scope: source.Scope, Authority: source.Authority, Owner: source.Owner, Hash: source.Hash, Size: source.Size, ModTimeUnixNano: source.ModTime.UnixNano(), Searchable: source.Searchable}
+	err = index.lexical.ApplySourceChange(ctx, generation, id, record, documents)
+	if err == nil {
+		index.engine.Cache.Reset()
+	}
+	return err
+}
+
+func governedIndexPath(path string) bool {
+	for _, root := range []string{"scenarios/", "packages/", "cmd/vrooli/", "internal/", "resources/"} {
+		if strings.HasPrefix(path, root) {
+			return true
+		}
+	}
+	return false
+}
+
+func (index *ProductionIndex) dirtyPaths(ctx context.Context) ([]string, error) {
+	command := exec.CommandContext(ctx, "git", "status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "scenarios", "packages", "cmd/vrooli", "internal", "resources")
+	command.Dir = index.repoRoot
+	payload, err := command.Output()
+	if err != nil {
+		return nil, fmt.Errorf("discover changed source paths: %w", err)
+	}
+	seen := map[string]struct{}{}
+	records := bytes.Split(payload, []byte{0})
+	for i := 0; i < len(records); i++ {
+		record := string(records[i])
+		if len(record) < 4 {
+			continue
+		}
+		status, path := record[:2], record[3:]
+		seen[filepath.ToSlash(path)] = struct{}{}
+		if (strings.Contains(status, "R") || strings.Contains(status, "C")) && i+1 < len(records) {
+			i++
+			seen[filepath.ToSlash(string(records[i]))] = struct{}{}
+		}
+	}
+	paths := make([]string, 0, len(seen))
+	for path := range seen {
+		if governedIndexPath(path) {
+			paths = append(paths, path)
+		}
+	}
+	sort.Strings(paths)
+	return paths, nil
+}
+
+type manifestAuditPlan struct {
+	generation string
+	revision   string
+	paths      []string
+}
+
+func (index *ProductionIndex) manifestDrift(ctx context.Context) ([]string, error) {
+	plan, err := index.planManifestAudit(ctx)
+	return plan.paths, err
+}
+
+func (index *ProductionIndex) auditManifest(ctx context.Context) error {
+	index.refreshMu.Lock()
+	defer index.refreshMu.Unlock()
+	plan, err := index.planManifestAudit(ctx)
+	if err != nil {
+		return err
+	}
+	paths, err := index.filterGenerationDrift(ctx, plan.generation, plan.paths)
+	if err != nil {
+		return err
+	}
+	if err := index.refreshBatchLocked(ctx, plan.generation, paths); err != nil {
+		return err
+	}
+	if plan.revision == "" {
+		return nil
+	}
+	currentRevision, err := index.gitRevision(ctx)
+	if err != nil {
+		return err
+	}
+	if currentRevision != plan.revision {
+		return nil
+	}
+	dirty, err := index.dirtyPaths(ctx)
+	if err != nil {
+		return err
+	}
+	return index.catalog.CompleteGenerationAudit(ctx, plan.generation, plan.revision, dirty)
+}
+
+func (index *ProductionIndex) planManifestAudit(ctx context.Context) (manifestAuditPlan, error) {
+	generation, err := index.catalog.Active(ctx)
+	if err != nil {
+		return manifestAuditPlan{}, err
+	}
+	return index.planGenerationAudit(ctx, generation.ID)
+}
+
+func (index *ProductionIndex) planGenerationAudit(ctx context.Context, generation string) (manifestAuditPlan, error) {
+	plan := manifestAuditPlan{generation: generation}
+	var err error
+	plan.revision, err = index.gitRevision(ctx)
+	if err != nil {
+		return manifestAuditPlan{}, err
+	}
+	storedRevision, revisionErr := index.catalog.GenerationRevision(ctx, generation)
+	if revisionErr != nil && !errors.Is(revisionErr, catalog.ErrRevisionNotFound) {
+		return manifestAuditPlan{}, revisionErr
+	}
+	if errors.Is(revisionErr, catalog.ErrRevisionNotFound) || plan.revision == "" || !validGitRevision(storedRevision) {
+		plan.paths, err = index.fullManifestDrift(ctx, generation)
+		return plan, err
+	}
+	var candidates []string
+	if storedRevision != plan.revision {
+		candidates, err = index.gitChangedPaths(ctx, storedRevision, plan.revision)
+		if err != nil {
+			plan.paths, err = index.fullManifestDrift(ctx, generation)
+			return plan, err
+		}
+	}
+	dirty, err := index.dirtyPaths(ctx)
+	if err != nil {
+		return manifestAuditPlan{}, err
+	}
+	retained, err := index.catalog.GenerationDirtyPaths(ctx, generation)
+	if err != nil {
+		return manifestAuditPlan{}, err
+	}
+	inventory, err := index.inventoryDrift(ctx, generation)
+	if err != nil {
+		return manifestAuditPlan{}, err
+	}
+	plan.paths = uniqueSortedPaths(candidates, dirty, retained, inventory)
+	return plan, nil
+}
+
+func (index *ProductionIndex) fullManifestDrift(ctx context.Context, generation string) ([]string, error) {
+	iterator, err := (catalog.GitDiscoverer{RepoRoot: index.repoRoot, Starter: catalog.ExecCommandStarter{}, Inspector: index.inspector}).Open(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer iterator.Close()
+	current := map[string]string{}
+	for {
+		source, ok, nextErr := iterator.Next(ctx)
+		if nextErr != nil {
+			return nil, nextErr
+		}
+		if !ok {
+			break
+		}
+		current[source.Path] = source.Hash
+	}
+	indexed := map[string]string{}
+	rows, err := index.db.QueryContext(ctx, `SELECT path,content_hash FROM code_facts_source_files WHERE generation_id=?`, generation)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var path, hash string
+		if err := rows.Scan(&path, &hash); err != nil {
+			return nil, err
+		}
+		indexed[path] = hash
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	seen := map[string]struct{}{}
+	for path, hash := range current {
+		if indexed[path] != hash {
+			seen[path] = struct{}{}
+		}
+	}
+	for path := range indexed {
+		if _, exists := current[path]; !exists {
+			seen[path] = struct{}{}
+		}
+	}
+	return sortedPathSet(seen), nil
+}
+
+func (index *ProductionIndex) inventoryDrift(ctx context.Context, generation string) ([]string, error) {
+	current, err := index.gitPaths(ctx)
+	if err != nil {
+		return nil, err
+	}
+	indexed := map[string]struct{}{}
+	rows, err := index.db.QueryContext(ctx, `SELECT path FROM code_facts_source_files WHERE generation_id=?`, generation)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, err
+		}
+		indexed[path] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	seen := make(map[string]struct{}, len(current)+len(indexed))
+	for _, path := range current {
+		if _, exists := indexed[path]; !exists {
+			seen[path] = struct{}{}
+		}
+		delete(indexed, path)
+	}
+	for path := range indexed {
+		seen[path] = struct{}{}
+	}
+	return sortedPathSet(seen), nil
+}
+
+func (index *ProductionIndex) gitRevision(ctx context.Context) (string, error) {
+	command := exec.CommandContext(ctx, "git", "rev-parse", "--verify", "HEAD")
+	command.Dir = index.repoRoot
+	payload, err := command.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 128 {
+			return "", nil
+		}
+		return "", fmt.Errorf("read repository revision: %w", err)
+	}
+	revision := strings.TrimSpace(string(payload))
+	if !validGitRevision(revision) {
+		return "", fmt.Errorf("git returned invalid repository revision %q", revision)
+	}
+	return revision, nil
+}
+
+func validGitRevision(revision string) bool {
+	if len(revision) != 40 && len(revision) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(revision)
+	return err == nil
+}
+
+func (index *ProductionIndex) gitChangedPaths(ctx context.Context, fromRevision, toRevision string) ([]string, error) {
+	if !validGitRevision(fromRevision) || !validGitRevision(toRevision) {
+		return nil, fmt.Errorf("repository revision delta requires valid object ids")
+	}
+	command := exec.CommandContext(ctx, "git", "diff", "--name-only", "-z", "--no-renames", fromRevision, toRevision, "--", "scenarios", "packages", "cmd/vrooli", "internal", "resources")
+	command.Dir = index.repoRoot
+	payload, err := command.Output()
+	if err != nil {
+		return nil, fmt.Errorf("discover repository revision delta: %w", err)
+	}
+	return governedNULPaths(payload), nil
+}
+
+func (index *ProductionIndex) gitPaths(ctx context.Context) ([]string, error) {
+	command := exec.CommandContext(ctx, "git", "ls-files", "-co", "--exclude-standard", "-z", "--", "scenarios", "packages", "cmd/vrooli", "internal", "resources")
+	command.Dir = index.repoRoot
+	payload, err := command.Output()
+	if err != nil {
+		return nil, fmt.Errorf("discover repository path inventory: %w", err)
+	}
+	return governedNULPaths(payload), nil
+}
+
+func governedNULPaths(payload []byte) []string {
+	seen := map[string]struct{}{}
+	for _, raw := range bytes.Split(payload, []byte{0}) {
+		path := filepath.ToSlash(string(raw))
+		if governedIndexPath(path) && catalog.Classify(path, nil).Role != catalog.RoleTransient {
+			seen[path] = struct{}{}
+		}
+	}
+	return sortedPathSet(seen)
+}
+
+func uniqueSortedPaths(groups ...[]string) []string {
+	seen := map[string]struct{}{}
+	for _, paths := range groups {
+		for _, path := range paths {
+			path = filepath.ToSlash(filepath.Clean(path))
+			if governedIndexPath(path) {
+				seen[path] = struct{}{}
+			}
+		}
+	}
+	return sortedPathSet(seen)
+}
+
+func sortedPathSet(seen map[string]struct{}) []string {
+	paths := make([]string, 0, len(seen))
+	for path := range seen {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths
+}
+
 func (index *ProductionIndex) buildGeneration(ctx context.Context, job *indexcontrol.Job) error {
+	buildRevision, err := index.gitRevision(ctx)
+	if err != nil {
+		return err
+	}
 	descriptorDigest, err := fileDigest(filepath.Join(index.repoRoot, "packages", "proto", "gen", "descriptor", "image.binpb"))
 	if err != nil {
 		return fmt.Errorf("read descriptor image: %w", err)
 	}
 	builder := catalog.Builder{
 		Repository: index.catalog,
-		Discoverer: catalog.GitDiscoverer{RepoRoot: index.repoRoot, Starter: catalog.ExecCommandStarter{}, Inspector: catalog.OSFileInspector{}},
+		Discoverer: catalog.GitDiscoverer{RepoRoot: index.repoRoot, Starter: catalog.ExecCommandStarter{}, Inspector: index.inspector},
 		Clock:      index.clock, BatchSize: 256, SkipBegin: true,
 	}
 	build, err := builder.Build(ctx, catalog.Generation{ID: job.Generation, Policy: indexPolicy, DescriptorDigest: descriptorDigest})
@@ -340,7 +834,17 @@ func (index *ProductionIndex) buildGeneration(ctx context.Context, job *indexcon
 		}
 		token = page.NextToken
 	}
-	return index.validateContent(ctx, job.Generation)
+	if err := index.validateContent(ctx, job.Generation); err != nil {
+		return err
+	}
+	currentRevision, revisionErr := index.gitRevision(ctx)
+	dirty, dirtyErr := index.dirtyPaths(ctx)
+	if revisionErr == nil && dirtyErr == nil && buildRevision != "" && currentRevision == buildRevision && len(dirty) == 0 {
+		if err := index.catalog.SetGenerationRevision(ctx, job.Generation, currentRevision); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (index *ProductionIndex) documents(ctx context.Context, source catalog.SourceFile) ([]retrieval.Document, error) {
@@ -552,10 +1056,50 @@ func (index *ProductionIndex) Cancel(ctx context.Context, id string) error {
 }
 
 func (index *ProductionIndex) Promote(ctx context.Context, generation string) error {
+	index.refreshMu.Lock()
+	defer index.refreshMu.Unlock()
+	if err := index.reconcileGenerationManifestLocked(ctx, generation); err != nil {
+		return err
+	}
 	if err := index.validate(ctx, generation); err != nil {
 		return err
 	}
 	return index.catalog.Activate(ctx, generation)
+}
+
+func (index *ProductionIndex) reconcileGenerationManifestLocked(ctx context.Context, generation string) error {
+	for attempt := 0; attempt < 2; attempt++ {
+		plan, err := index.planGenerationAudit(ctx, generation)
+		if err != nil {
+			return err
+		}
+		paths, err := index.filterGenerationDrift(ctx, generation, plan.paths)
+		if err != nil {
+			return err
+		}
+		if err := index.refreshBatchLocked(ctx, generation, paths); err != nil {
+			return err
+		}
+		if plan.revision == "" {
+			return nil
+		}
+		currentRevision, err := index.gitRevision(ctx)
+		if err != nil {
+			return err
+		}
+		if currentRevision != plan.revision {
+			continue
+		}
+		dirty, err := index.dirtyPaths(ctx)
+		if err != nil {
+			return err
+		}
+		if err := index.catalog.CompleteGenerationAudit(ctx, generation, plan.revision, dirty); err != nil {
+			return err
+		}
+		return nil
+	}
+	return fmt.Errorf("repository revision changed repeatedly while reconciling generation %q", generation)
 }
 
 func (index *ProductionIndex) Rollback(ctx context.Context, generation string) error {
@@ -568,8 +1112,9 @@ func (index *ProductionIndex) Cleanup(ctx context.Context) error {
 WHERE g.state='failed' OR (g.state='shadow' AND NOT EXISTS (
  SELECT 1 FROM code_facts_index_jobs j WHERE j.generation_id=g.id
  AND j.state IN ('queued','running','cancellation_requested','interrupted')
-)) OR (g.state='retired' AND g.id NOT IN (
- SELECT id FROM code_facts_generations WHERE state='retired' ORDER BY updated_at_unix DESC LIMIT 1
+)) OR (g.state='retired' AND (
+ g.id NOT IN (SELECT id FROM code_facts_generations WHERE state='retired' ORDER BY updated_at_unix DESC LIMIT 1)
+ OR EXISTS (SELECT 1 FROM code_facts_generations shadow WHERE shadow.state='shadow')
 )) ORDER BY CASE g.state WHEN 'failed' THEN 0 WHEN 'shadow' THEN 1 ELSE 2 END,g.updated_at_unix LIMIT 1`).Scan(&victim)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil

@@ -81,7 +81,7 @@ only the resulting proof statuses and evidence.
 | `api/internal/proof/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/indexcontrol/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/cache/` | Domain core and persistence contract | standard library and `database/sql` only in adapter files | transport, sibling-domain, and ambient-dependency gate |
-| `api/internal/facts/` | Transitional orchestration | legacy providers and cache implementation | retirement is gated by vertical replacement tests in Phases 4-9 |
+| `api/internal/facts/` | Evidence orchestration | analyzer providers, report cache, and typed Describe APIs | public Search delegates to the generation-fenced retrieval boundary |
 | `api/internal/database/` | Cross-cutting substrate | database drivers and standard library | package tests |
 | `api/internal/logging/` | Cross-cutting substrate | standard library only | compile-time interface use |
 | `api/internal/httpc/` | Cross-cutting substrate | `net/http` | package tests |
@@ -98,20 +98,19 @@ only the resulting proof statuses and evidence.
 | `ui/src/api/` | UI transport edge | generated web clients | UI unit tests |
 | `ui/src/features/` | UI capability domains | UI types and shared components | UI unit and selector tests |
 
-`api/internal/facts/` is not a destination domain. It is the legacy
-orchestration package whose vertical slices are removed as `targets`, `catalog`,
-`analysis`, `retrieval`, `proof`, `indexcontrol`, and `cache` gain production
-implementations. New storage, retrieval, or control behavior must land in the
-owning domain.
+`api/internal/facts/` retains analyzer-provider and Describe orchestration. It
+does not own a query corpus: Search fails closed unless composition injects the
+generation-fenced `ProductionIndex`. Storage, retrieval, proof, index-control,
+and cache policy live in their owning domains.
 
 ## Boundary Maturity
 
 | Zone | Level | Evidence | Remaining drift |
 |---|---:|---|---|
-| New API domains | 5 | `TestDomainPackagesAreTransportFreeAndIndependent` and seam reconciliation | Production adapters arrive with their owning phases |
-| API transport/substrate | 4 | Existing handler, module, server, and no-production-test-import tests | `facts` still hosts legacy orchestration and provider transports |
-| CLI | 3 | Manifest-driven generated Connect client | Index-control commands are not implemented yet |
-| UI | 3 | Feature folders and shared API client | Evidence workspace domains and journeys are not implemented yet |
+| New API domains | 5 | `TestDomainPackagesAreTransportFreeAndIndependent`, source-free production-search proof, and seam reconciliation | no cutover drift remains |
+| API transport/substrate | 5 | Handler, module, server, production-index, and no-production-test-import tests | analyzer-provider orchestration intentionally remains in `facts` |
+| CLI | 5 | Manifest-driven generated Connect client plus authenticated build, promote, rollback, cancel, reconcile, and cleanup controls | destructive controls remain server-authorized and generation-fenced |
+| UI | 5 | Responsive evidence workspace, provenance and relationship inspection, freshness/degradation status, generation controls, and evaluation comparison | desktop, tablet, and mobile journeys are covered by stable test IDs |
 
 ## Extension Rules
 
@@ -130,14 +129,14 @@ owning domain.
 
 | Surface | Level | Evidence | Remaining Drift |
 |---|---:|---|---|
-| Docs | 2 | Domain map and seams documented in Phase 5 | Later phases need resolver/analyzer details |
-| API | 3 | `CodeFactsService` exposes describe, proof, cache, target resolution, surface inventory, parse-unit discovery, analyzer brokering, cache reuse, proto adoption proof, and REST endpoint proof | CLI/UI proof and widget proof families remain later work |
-| CLI | 3 | `facts` and `cache` command groups call generated Connect clients, including cache status/inspect/clear | More human summaries land with proof data |
-| UI | 2 | `/facts` workbench reads the describe report and displays cache state/hash metadata | Phase 11 deepens inspection/filtering |
+| Docs | 5 | Domain, data, flow, integration, performance, testing, operations, and UX contracts describe the indexed platform | no phase-11 documentation drift remains |
+| API | 5 | Describe/proof/cache APIs plus source-free persistent Search and durable generation controls | optional semantic/graph resources may truthfully degrade |
+| CLI | 5 | Generated Connect clients expose facts, cache, status, build, promote, rollback, cancel, reconcile, and cleanup | none for the cutover |
+| UI | 5 | Evidence workspace exposes ranked trust/provenance, relationships, filters, generations, controls, degradation, and evaluation comparison | none for the phase-11 journeys |
 
 ## Intentional Deviations
 
-Analyzer-backed generic language evidence is active as of Phase 8 for imports, symbols, references, calls, and provider warnings. Cache reuse is active as of Phase 9 for graph and report payloads with source/config hash evidence. Phase 10 interprets those generic facts into proto adoption and REST endpoint proof evidence while leaving CLI proof and UI widget proof for later phases. Architecture Cartographer's Phase 6 `file_domain` family is query-backed through cartographer: Code Facts delegates verdict production to cartographer, normalizes the returned verdicts into `GenericFact`s, and emits typed unsupported evidence when no cartographer provider is configured.
+Analyzer-backed generic language evidence remains the authority for deep Describe relationships. Public Search uses the promoted SQLite catalog/FTS generation and returns stable identity, source hash, active generation, retrieval regime, ranking explanation, and proof status. Optional semantic/graph stages name their degradation without disabling lexical service. Architecture Cartographer's `file_domain` family remains query-backed through cartographer: Code Facts delegates verdict production, normalizes returned verdicts into `GenericFact`s, and emits typed unsupported evidence when no cartographer provider is configured.
 
 ## Documentation Architecture
 

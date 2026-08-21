@@ -53,12 +53,13 @@ Owns deterministic key construction, hit/miss/stale diagnostics, storage seam, a
 - Fact family: requested subset of facts/proofs.
 - Evidence: status plus source/provenance.
 
-## Transitional Package
+## Evidence Orchestration Package
 
-`api/internal/facts` contains the pre-platform implementation. It may orchestrate
-legacy behavior during comparison, but no new storage, retrieval, proof, or
-control policy belongs there. Each owning phase moves one vertical slice and
-deletes its superseded symbols after targeted parity tests pass.
+`api/internal/facts` owns analyzer-provider orchestration and the typed Describe
+surface. Public Search is only a boundary here: production composition injects
+the active-generation backend from `handlers/facts/production_index.go`. The
+former streaming repository scan, resident project index, and comparison
+benchmark have been removed.
 
 ## Non-Domains
 

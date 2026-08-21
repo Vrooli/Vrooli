@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -117,6 +118,35 @@ func TestSQLiteIndexFreshnessFenceAndDeleteTrigger(t *testing.T) {
 	results, err = index.SearchLexical(context.Background(), Query{Text: "unique searchable", Limit: 5})
 	if err != nil || len(results) != 0 {
 		t.Fatalf("deleted FTS record remained searchable: %+v err=%v", results, err)
+	}
+}
+
+func TestApplySourceChangeCommitsCatalogFTSAndDigestTogether(t *testing.T) {
+	document := Document{ID: "symbol:old", SourceFileID: "file:refresh", SourceHash: "sha256:old", Path: "packages/demo/refresh.go", Language: "go", Role: "implementation", Scope: "package:demo", Authority: "authoritative", Kind: "source", Title: "OldSymbol", ExactText: "OldSymbol", Body: "old searchable evidence", StartLine: 1, EndLine: 1}
+	db, index := openRetrievalIndex(t, []Document{document})
+	updated := SourceRecord{ID: "file:refresh", Path: document.Path, Language: "go", Role: "implementation", Scope: "package:demo", Authority: "authoritative", Owner: "demo", Hash: "sha256:new", Size: 42, ModTimeUnixNano: time.Now().UnixNano(), Searchable: true}
+	newDocument := document
+	newDocument.ID, newDocument.SourceHash, newDocument.Title, newDocument.ExactText, newDocument.Body = "symbol:new", updated.Hash, "NewSymbol", "NewSymbol", "new searchable evidence"
+	if err := index.ApplySourceChange(context.Background(), "g1", updated.ID, &updated, []Document{newDocument}); err != nil {
+		t.Fatal(err)
+	}
+	old, err := index.SearchLexical(context.Background(), Query{Text: "OldSymbol", Limit: 5})
+	if err != nil || slices.ContainsFunc(old, func(candidate Candidate) bool { return candidate.ID == "symbol:old" }) {
+		t.Fatalf("old projection remained after atomic refresh: %+v err=%v", old, err)
+	}
+	newResults, err := index.SearchLexical(context.Background(), Query{Text: "NewSymbol", Limit: 5})
+	if err != nil || len(newResults) != 1 || newResults[0].SourceHash != updated.Hash {
+		t.Fatalf("new projection missing after atomic refresh: %+v err=%v", newResults, err)
+	}
+	var catalogHash, generationDigest string
+	if err := db.QueryRow(`SELECT content_hash FROM code_facts_source_files WHERE generation_id='g1' AND id='file:refresh'`).Scan(&catalogHash); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT source_digest FROM code_facts_generations WHERE id='g1'`).Scan(&generationDigest); err != nil {
+		t.Fatal(err)
+	}
+	if catalogHash != updated.Hash || generationDigest == "" || generationDigest == "source-digest" {
+		t.Fatalf("atomic metadata mismatch: hash=%q digest=%q", catalogHash, generationDigest)
 	}
 }
 

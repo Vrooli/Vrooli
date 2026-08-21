@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P0 requirements for Code Facts target resolution, fact selection, evidence status, proof synthesis, cache, and programmatic surfaces.",
-    "last_validated_at": "2026-08-20T22:35:04-04:00",
+    "last_validated_at": "2026-08-21T00:11:27-04:00",
     "module": "core-contract",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -327,12 +327,12 @@
     },
     {
       "id": "CF-P0-014",
-      "title": "When indexed inputs change, the reconciler shall promote only a complete fresh generation.",
-      "status": "planned",
+      "title": "When indexed inputs change, reconciliation shall expose only complete fresh evidence.",
+      "status": "complete",
       "prd_ref": "OT-P0-014",
       "category": "index.generation",
       "criticality": "P0",
-      "description": "Changed files must become searchable within 15 seconds p95, missed events must repair within five minutes, and stale or deleted candidates must never cross the active-generation fence.",
+      "description": "Ordinary files update catalog and FTS rows atomically within 15 seconds p95; missed events repair through the five-minute manifest audit. Schema, extraction-policy, descriptor, and model changes continue through complete shadow-generation promotion. Stale or deleted candidates must never cross source-hash and generation fences.",
       "tags": [
         "generation",
         "freshness",
@@ -342,15 +342,16 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Generation transition, watcher loss, stale-candidate, delete, rename, restart, cancellation, promotion-failure, and rollback tests will cover this requirement."
+          "status": "implemented",
+          "ref": "api/handlers/facts/production_index_test.go::TestProductionIndexOrdinaryFileRefreshIsAtomicAndWithinFreshnessBudget",
+          "notes": "Production-index coverage proves an ordinary file update commits catalog hash, FTS rows, digest, and cache invalidation under 15 seconds; stale and deleted rows disappear, and a clean committed change missed by the watcher is recovered by manifest reconciliation."
         },
         {
           "type": "test",
           "ref": "api/internal/catalog/sqlite_test.go::TestSQLiteRepositoryPromotesOnlyCompleteShadowGeneration",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Catalog generation tests prove transactional activation, retained serving generation on failed promotion, immutable retired generations, restart-safe migration, rollback, changed/renamed/deleted convergence, and bounded paging. Watcher freshness remains planned."
+          "notes": "Catalog generation tests prove transactional activation, retained serving generation on failed promotion, immutable retired generations, restart-safe migration, rollback, changed/renamed/deleted convergence, and bounded paging."
         },
         {
           "type": "test",
@@ -493,7 +494,7 @@
     {
       "id": "CF-P0-020",
       "title": "While a complete generation is active, Search Hub shall receive truthful scoped local-index capabilities and status.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-020",
       "category": "integration.search-hub",
       "criticality": "P0",
@@ -506,16 +507,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/handlers/facts/production_index_test.go::TestProductionIndexSearchReadsActiveSQLiteGenerationAfterSourceRemoval",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Direct-provider and federated suites will verify scope bodies, status parsing, cancellation, coalescing, healthy timeout behavior, and unrelated-provider compatibility."
+          "status": "implemented",
+          "notes": "The production seam proves active-generation SQLite service without repository reads; registration tests preserve scoped direct cases, and Search Hub run 817f611a-5935-4061-89c6-540680030557 passed all 15 reviewed code cases."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/registration/registration_test.go::TestEvalSuitePreservesScopedDirectCases",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Live federation status on 2026-08-21 reported both leaves reachable, current, ready, and generation-fenced with 231719 documents; the contracts run 542dd219-abe1-4fcf-9932-097d1018f634 passed 15/15."
         }
       ]
     },
     {
       "id": "CF-P0-021",
       "title": "When an operator searches or manages the corpus, the evidence workspace shall make trust and index state understandable on every supported viewport.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-021",
       "category": "ui",
       "criticality": "P0",
@@ -529,9 +538,10 @@
       "validation": [
         {
           "type": "automation",
+          "ref": "ui/src/features/facts/FactsWorkbench.test.tsx",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Desktop, tablet, and mobile BAS journeys plus accessibility checks and approved screenshots will cover every primary workspace journey and non-happy state.",
+          "status": "implemented",
+          "notes": "Unit and axe coverage verifies ranked evidence, trust/provenance, relationships, search controls, index state, fallback and failure states. Browser Automation Studio readiness captured the same journey at desktop, tablet, and mobile viewports in phase 10.",
           "scenario": "browser-automation-studio"
         }
       ]

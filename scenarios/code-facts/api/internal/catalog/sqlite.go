@@ -14,6 +14,7 @@ import (
 var (
 	ErrGenerationNotFound = errors.New("catalog generation not found")
 	ErrNoActiveGeneration = errors.New("catalog has no active generation")
+	ErrRevisionNotFound   = errors.New("catalog generation revision not found")
 )
 
 type Migration struct {
@@ -27,6 +28,7 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		{Version: 2, SQL: SearchSchema()},
 		{Version: 3, SQL: IndexControlSchema()},
 		{Version: 4, SQL: MetricsSchema()},
+		{Version: 5, SQL: RevisionSchema()},
 	})
 }
 
@@ -76,6 +78,131 @@ type SQLiteRepository struct {
 
 func NewSQLiteRepository(db *sql.DB, clock Clock) *SQLiteRepository {
 	return &SQLiteRepository{db: db, clock: clock}
+}
+
+func (r *SQLiteRepository) GenerationRevision(ctx context.Context, generationID string) (string, error) {
+	if err := r.ready(); err != nil {
+		return "", err
+	}
+	generationID = strings.TrimSpace(generationID)
+	if generationID == "" {
+		return "", fmt.Errorf("catalog generation revision requires generation id")
+	}
+	var revision string
+	err := r.db.QueryRowContext(ctx, `SELECT git_revision FROM code_facts_generation_revisions WHERE generation_id=?`, generationID).Scan(&revision)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrRevisionNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("read catalog generation revision %q: %w", generationID, err)
+	}
+	return revision, nil
+}
+
+func (r *SQLiteRepository) SetGenerationRevision(ctx context.Context, generationID, revision string) error {
+	if err := r.ready(); err != nil {
+		return err
+	}
+	generationID, revision = strings.TrimSpace(generationID), strings.TrimSpace(revision)
+	if generationID == "" || revision == "" {
+		return fmt.Errorf("catalog generation revision requires generation id and git revision")
+	}
+	_, err := r.db.ExecContext(ctx, `
+INSERT INTO code_facts_generation_revisions(generation_id,git_revision,updated_at_unix)
+VALUES(?,?,?)
+ON CONFLICT(generation_id) DO UPDATE SET
+  git_revision=excluded.git_revision,
+  updated_at_unix=excluded.updated_at_unix`, generationID, revision, r.clock.Now().UTC().Unix())
+	if err != nil {
+		return fmt.Errorf("set catalog generation revision %q: %w", generationID, err)
+	}
+	return nil
+}
+
+func (r *SQLiteRepository) GenerationDirtyPaths(ctx context.Context, generationID string) ([]string, error) {
+	if err := r.ready(); err != nil {
+		return nil, err
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT path FROM code_facts_generation_dirty_paths WHERE generation_id=? ORDER BY path`, strings.TrimSpace(generationID))
+	if err != nil {
+		return nil, fmt.Errorf("read catalog generation dirty paths %q: %w", generationID, err)
+	}
+	defer rows.Close()
+	var paths []string
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, fmt.Errorf("scan catalog generation dirty path: %w", err)
+		}
+		paths = append(paths, path)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate catalog generation dirty paths: %w", err)
+	}
+	return paths, nil
+}
+
+func (r *SQLiteRepository) RecordGenerationDirtyPaths(ctx context.Context, generationID string, paths []string) error {
+	if err := r.ready(); err != nil {
+		return err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin catalog dirty-path record: %w", err)
+	}
+	defer tx.Rollback()
+	for _, path := range paths {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO code_facts_generation_dirty_paths(generation_id,path) VALUES(?,?)`, generationID, path); err != nil {
+			return fmt.Errorf("record catalog dirty path %q: %w", path, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit catalog dirty paths: %w", err)
+	}
+	return nil
+}
+
+// CompleteGenerationAudit atomically advances the reconciled Git revision and
+// retains only paths whose working-tree state still differs from that commit.
+func (r *SQLiteRepository) CompleteGenerationAudit(ctx context.Context, generationID, revision string, dirtyPaths []string) error {
+	if err := r.ready(); err != nil {
+		return err
+	}
+	generationID, revision = strings.TrimSpace(generationID), strings.TrimSpace(revision)
+	if generationID == "" || revision == "" {
+		return fmt.Errorf("complete catalog generation audit requires generation id and git revision")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin catalog generation audit: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO code_facts_generation_revisions(generation_id,git_revision,updated_at_unix)
+VALUES(?,?,?)
+ON CONFLICT(generation_id) DO UPDATE SET git_revision=excluded.git_revision,updated_at_unix=excluded.updated_at_unix`, generationID, revision, r.clock.Now().UTC().Unix()); err != nil {
+		return fmt.Errorf("advance catalog generation audit: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM code_facts_generation_dirty_paths WHERE generation_id=?`, generationID); err != nil {
+		return fmt.Errorf("clear catalog generation dirty paths: %w", err)
+	}
+	for _, path := range dirtyPaths {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO code_facts_generation_dirty_paths(generation_id,path) VALUES(?,?)`, generationID, path); err != nil {
+			return fmt.Errorf("retain catalog generation dirty path %q: %w", path, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit catalog generation audit: %w", err)
+	}
+	return nil
 }
 
 func (r *SQLiteRepository) BeginGeneration(ctx context.Context, generation Generation) error {

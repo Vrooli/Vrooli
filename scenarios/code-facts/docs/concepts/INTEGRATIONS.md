@@ -12,7 +12,8 @@ Track provider, resource, and consumer relationships for Code Facts.
 | typescript-code-graph | scenario provider | Phase 8 | TypeScript project graph and usage facts. |
 | proto-health | consumer | Phase 12 | Consumes proto adoption and endpoint proof facts. |
 | descriptorimage | shared package | active | Loads the committed protobuf descriptor image and preserves last known-good snapshots. |
-| ai-go/search | shared package | active | Provides bounded streaming reconciliation, weighted admission, Qdrant storage profiles, and concurrent reciprocal-rank fusion. |
+| ai-go/search | shared package | active | Provides weighted admission, optional semantic storage profiles, reciprocal-rank fusion, and shared Search Hub contracts. |
+| search-hub | scenario consumer | active | Registers and evaluates scoped `code` and `contracts` local-index leaves and reads generation/freshness status. |
 
 ## Vrooli Resources
 

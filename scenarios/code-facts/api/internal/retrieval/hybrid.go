@@ -211,6 +211,19 @@ func (c *ResultCache) Put(key string, response HybridResponse) {
 	}
 }
 
+// Reset invalidates every generation-keyed query result after an atomic
+// ordinary-file refresh. Reads never mutate the cache; refresh owns the reset.
+func (c *ResultCache) Reset() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries = map[string]*list.Element{}
+	c.order.Init()
+	c.bytes = 0
+}
+
 type queryFlightCall struct {
 	done     chan struct{}
 	response HybridResponse

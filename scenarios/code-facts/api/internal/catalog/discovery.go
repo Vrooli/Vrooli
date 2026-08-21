@@ -21,6 +21,11 @@ const maxClassificationPrefix = 4096
 
 var ErrNotRegularFile = errors.New("catalog discovery: not a regular file")
 
+var inspectionBufferPool = sync.Pool{New: func() any {
+	buffer := make([]byte, 64*1024)
+	return &buffer
+}}
+
 type FileSnapshot struct {
 	Size    int64
 	ModTime time.Time
@@ -185,7 +190,9 @@ func (OSFileInspector) Inspect(ctx context.Context, path string) (FileSnapshot, 
 	}
 	hash := sha256.New()
 	prefix := &boundedPrefix{remaining: maxClassificationPrefix}
-	if _, err := io.Copy(io.MultiWriter(hash, prefix), &contextReader{ctx: ctx, reader: file}); err != nil {
+	buffer := inspectionBufferPool.Get().(*[]byte)
+	defer inspectionBufferPool.Put(buffer)
+	if _, err := io.CopyBuffer(io.MultiWriter(hash, prefix), &contextReader{ctx: ctx, reader: file}, *buffer); err != nil {
 		return FileSnapshot{}, err
 	}
 	return FileSnapshot{

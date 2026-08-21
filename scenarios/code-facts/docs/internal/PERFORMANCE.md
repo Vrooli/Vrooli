@@ -24,6 +24,8 @@ Use this document to answer:
 | Graph invalidation | One touched parse-unit root changes only that unit's graph key | `TestUnitFingerprintInvalidatesOnlyTouchedParseUnit` | active |
 | Persistent exact search, current fixture | p95 at most 100 ms over 32,000 documents | `TestSQLiteExactSearchPerformanceBudgets/current` | active |
 | Persistent exact search, three-times fixture | p95 at most 200 ms over 96,000 documents | `TestSQLiteExactSearchPerformanceBudgets/three-times` | active |
+| Hybrid search, current fixture | p95 at most 500 ms over 32,000 documents | `TestSQLiteHybridSearchPerformanceBudgets/current` | active |
+| Hybrid search, three-times fixture | p95 at most 750 ms over 96,000 documents | `TestSQLiteHybridSearchPerformanceBudgets/three-times` | active |
 | Idle process RSS | at most 150 MiB | `/health` `rss_mb` plus lifecycle process status | active |
 | Query RSS delta | at most 50 MiB | before/after `/health` `rss_mb` around a fixed query workload | active |
 | Index RSS high-water | at most 500 MiB | `/health` `rss_high_water_mb` during a lifecycle-managed rebuild | active |
@@ -79,6 +81,31 @@ budget so a future benchmark cannot silently accept a regression.
 | Persistent exact search, 32,000 documents | 7.24 ms p50; 11.96 ms p95; 14.18 ms p99; 91 allocations/query | deterministic in-memory SQLite scale proof | 2026-08-20 |
 | Persistent exact search, 96,000 documents | 43.04 ms p50; 72.51 ms p95; 106.44 ms p99; 91 allocations/query | deterministic in-memory SQLite three-times scale proof | 2026-08-20 |
 | Embedding profile smoke bake-off | 384-dim and 768-dim `nomic-embed-text` both achieved recall@5 1.00 and MRR@3 1.00 on five installed-host cases | `internal/retrieval/testdata/model-bakeoff-v1.json` | 2026-08-20 |
+| Persistent exact search, 32,000 documents | 18.18 ms p50; 47.31 ms p95; 91.60 ms p99; 94 allocations/query; 38,674,432 bytes | `CODE_FACTS_PERF_ASSERT=1 TestSQLiteExactSearchPerformanceBudgets` | 2026-08-21 |
+| Persistent exact search, 96,000 documents | 42.59 ms p50; 49.56 ms p95; 59.09 ms p99; 94 allocations/query; 116,981,760 bytes (3.025x for 3x documents) | `CODE_FACTS_PERF_ASSERT=1 TestSQLiteExactSearchPerformanceBudgets` | 2026-08-21 |
+| Hybrid search, 32,000 documents | 59.73 ms p50; 69.23 ms p95; 84.74 ms p99 | `CODE_FACTS_PERF_ASSERT=1 TestHybridSearchPerformanceBudgets` | 2026-08-21 |
+| Hybrid search, 96,000 documents | 191.62 ms p50; 270.02 ms p95; 302.70 ms p99 | `CODE_FACTS_PERF_ASSERT=1 TestHybridSearchPerformanceBudgets` | 2026-08-21 |
+| Compact v5 production generation | 53,409 source files; 231,719 documents; 1,588,555,776 bytes SQLite; 99.97 MiB build RSS high-water | lifecycle-managed shadow build, reviewed-corpus gate, and index status | 2026-08-21 |
+| Restarted production API | about 35 MiB idle RSS; active generation `phase11-compact-v5`; direct warm exact/natural p95 below 1 ms | lifecycle-managed process, `/health`, and 40-request workloads | 2026-08-21 |
+| Ordinary-file freshness | 5.67 s end-to-end watcher test; atomic catalog/FTS update, cache invalidation, new-result visibility, stale suppression, delete convergence, and missed-event manifest repair | `TestProductionIndexOrdinaryFileRefreshIsAtomicAndWithinFreshnessBudget` | 2026-08-21 |
+| Mixed completion-audit workload | 893.6 MiB observed RSS and 994 MiB RSS high-water; later controlled repetitions tied 837.8-886.5 MiB high-water to cold `DescribeFleetImports` calls lasting 20.2-37.9 s | lifecycle-managed API PID, `/health`, `/proc`, and API access logs | 2026-08-21 |
+| Isolated revision audit | 35.4 MiB RSS and 85.9 MiB process high-water immediately after the first five-minute tick; 36.0 MiB after convergence; checkpoint advanced with no active job | lifecycle-managed restart, `/health`, catalog revision/job rows, and access-log correlation | 2026-08-21 |
+
+## Root Cause Analysis: Periodic Manifest Audit RSS
+
+**Bug:** The completion audit observed near-1 GiB process residency and initially could not distinguish periodic index maintenance from concurrent API workloads.
+
+**Symptom:** RSS rose to 893.6 MiB and later returned to about 100 MiB. The process high-water remained near 1 GiB, and accumulated CPU was about 54% of process uptime.
+
+**Hypotheses:** The first hypothesis was allocation churn from the five-minute manifest audit because the old implementation opened every governed file. It predicted one file inspection per catalog source even when Git and the catalog were unchanged. A SQLite page-cache hypothesis predicted residency without a matching Go heap increase. An overlapping-workload hypothesis predicted that API access logs would align the high-water jumps with cold requests rather than the audit checkpoint.
+
+**Root cause:** Two effects were conflated. The old audit did run `git ls-files` and SHA-256 hash the full governed repository every five minutes, while `io.Copy` allocated a default buffer for each of more than 53,000 files. The five-second dirty watcher also re-hashed unchanged dirty files. Those are deterministic scale defects captured by the zero-inspection regression. However, controlled lifecycle repetitions showed that each 837.8-886.5 MiB high-water jump aligned with a cold `DescribeFleetImports` request, not the audit. After external validation traffic ended, an isolated first audit peaked at 85.9 MiB. The cold fleet issue is tracked separately as Scenario QA bug `knw-1787292496553931688`.
+
+**Fix:** Catalog migration 5 records the reconciled Git revision and dirty paths for each generation. Steady-state audits now combine the commit delta, a path-only inventory, current dirty paths, and retained dirty paths. They inspect only candidate paths, then atomically advance the audit checkpoint. Shadow promotion performs the same reconciliation. The dirty watcher uses catalog size and modification time to avoid repeated hashing, and the file inspector reuses a pooled 64 KiB copy buffer. A missing or unreachable checkpoint still falls back to one full correctness audit.
+
+**Prevention:** `TestProductionIndexManifestAuditSkipsFileReadsAtReconciledRevision` requires zero file inspections for an unchanged revision, zero inspections while planning a committed delta, exactly one inspection to refresh a one-file delta, and zero inspections after checkpoint advancement. Catalog tests cover restart-safe revision and dirty-path persistence.
+
+**Related areas:** Other repository-wide polling loops should prefer durable deltas and path inventories over content scans. SQLite search serving does not perform repository discovery. Cold fleet analysis has a separate memory/latency investigation and is not part of the hybrid-search audit fix.
 
 ## Known Constraints
 
@@ -86,11 +113,12 @@ budget so a future benchmark cannot silently accept a regression.
   several minutes.
 - Cache fingerprinting walks bounded parse-unit roots and prunes dependency/build directories.
 - Go provider extraction is capability-aware: imports, symbols, and proto adoption request `structural`; references, calls, and endpoint proofs request `semantic`. The profile is part of the graph cache identity so a structural result cannot satisfy a semantic request.
-- The serving persistent retrieval package reads normalized catalog, external-content FTS5, and freshness rows only. The legacy project/repository path still streams source roots until the cutover phase wires the new package into public handlers and removes the old implementation.
+- The public production Search handler is wired to `ProductionIndex`, which reads the active SQLite catalog/FTS generation only. Source discovery is restricted to isolated generation construction; the source-free regression deletes the indexed source tree before querying and still requires generation, hash, and proof provenance.
 - Cache status and inspection select metadata only; compressed graph/report bodies are loaded exclusively by exact cache reads.
 - Cache hits never update SQLite. Trigger-maintained per-scope counters make health and budget checks constant-time. The global byte ceiling is `CODE_FACTS_CACHE_MAX_BYTES` (2 GiB default); graph data may use 75% and report data 50%, allowing unused capacity to be borrowed while preventing either kind from monopolizing storage.
 - Startup cleanup deletes at most 100 stale rows and 100 entries older than seven days, then uses passive WAL checkpointing and bounded incremental vacuum. Repeated startup sweeps converge without an unbounded request-path `VACUUM`.
 - `/health` reports current OS RSS, RSS high-water, process CPU seconds, Go heap, catalog-derived generation counts, storage bytes, active jobs, degraded reasons, queue depth/high-water, rejection/cancellation totals, and admission wait p50/p95/p99. Cache rows are not treated as indexed corpus counts.
+- The five-minute manifest audit uses a durable Git-revision checkpoint, path-only inventory, and retained dirty-path ledger. It performs a full content audit only when no valid checkpoint exists or a saved Git object is no longer reachable.
 - Performance budgets for proof synthesis should be revisited after Phase 11 exposes larger operator UI workflows and Phase 12 adds the first external consumer.
 
 ## Regression Procedure
@@ -98,20 +126,16 @@ budget so a future benchmark cannot silently accept a regression.
 1. During implementation, run focused package tests and the relevant single
    benchmark. Reserve `make test` and Test Genie suites for authored phase or
    final gates.
-2. Run the legacy current-corpus comparison exactly once with
-   `go test ./internal/facts -run '^$' -bench '^BenchmarkLegacyProjectSearchCurrentCorpus$' -benchtime=1x -count=1`.
-3. Set `CODE_FACTS_BENCH_3X_ROOT` to the prepared deterministic scale fixture
-   and run `BenchmarkLegacyProjectSearchThreeTimesCorpus` with the same
-   `-benchtime=1x` constraint.
-4. Run the persistent exact-search gate with `CODE_FACTS_PERF_ASSERT=1 go test ./internal/retrieval -run '^TestSQLiteExactSearchPerformanceBudgets$' -count=1 -v`. The test creates 32,000- and 96,000-document fixtures, records p50/p95/p99 and allocations, and enforces the 100 ms and 200 ms p95 budgets.
-5. Capture relevant API/UI command timing. Record wall time, CPU, allocations,
+2. Run the persistent exact-search gate with `CODE_FACTS_PERF_ASSERT=1 go test ./internal/retrieval -run '^TestSQLiteExactSearchPerformanceBudgets$' -count=1 -v`. The test creates 32,000- and 96,000-document fixtures, records p50/p95/p99 and allocations, and enforces the 100 ms and 200 ms p95 budgets.
+3. Run the hybrid gate with `CODE_FACTS_PERF_ASSERT=1 go test ./internal/retrieval -run '^TestSQLiteHybridSearchPerformanceBudgets$' -count=1 -v`; it enforces 500 ms current-corpus and 750 ms three-times p95 budgets.
+4. Capture relevant API/UI command timing. Record wall time, CPU, allocations,
    live heap, RSS high-water mark, source files and bytes opened, candidate
    counts, database bytes, and stage timings. Metrics unavailable from the Go
    benchmark must come from the lifecycle-managed API process and operating
    system counters.
-6. For UI interaction regressions, use performance-health with a registered
+5. For UI interaction regressions, use performance-health with a registered
    performance workflow.
-7. Record persistent findings in this document or
+6. Record persistent findings in this document or
    [`PROBLEMS.md`](PROBLEMS.md) depending on whether they are accepted
    constraints or unresolved debt.
 

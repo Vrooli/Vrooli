@@ -16,6 +16,11 @@ func IndexControlSchema() string { return indexControlSchemaSQL }
 
 func MetricsSchema() string { return metricsSchemaSQL }
 
+// RevisionSchema records the repository commit through which a generation has
+// been reconciled. Periodic audits can then inspect the Git delta instead of
+// re-reading every governed file.
+func RevisionSchema() string { return revisionSchemaSQL }
+
 const searchSchemaSQL = `
 CREATE TABLE IF NOT EXISTS code_facts_search_documents (
   rowid INTEGER PRIMARY KEY,
@@ -130,4 +135,17 @@ END;
 CREATE TRIGGER IF NOT EXISTS code_facts_generation_stats_graph_ad AFTER DELETE ON code_facts_graph_facts BEGIN
   UPDATE code_facts_generation_stats SET graph_facts=graph_facts-1 WHERE generation_id=old.generation_id;
 END;
+`
+
+const revisionSchemaSQL = `
+CREATE TABLE IF NOT EXISTS code_facts_generation_revisions (
+  generation_id TEXT PRIMARY KEY REFERENCES code_facts_generations(id) ON DELETE CASCADE,
+  git_revision TEXT NOT NULL,
+  updated_at_unix INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS code_facts_generation_dirty_paths (
+  generation_id TEXT NOT NULL REFERENCES code_facts_generations(id) ON DELETE CASCADE,
+  path TEXT NOT NULL,
+  PRIMARY KEY (generation_id, path)
+);
 `

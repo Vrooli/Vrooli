@@ -14,7 +14,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"code-facts/internal/database"
@@ -115,15 +114,9 @@ func runtimeMetrics(startedAt, now time.Time) map[string]any {
 			}
 		}
 	}
-	var usage syscall.Rusage
-	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &usage); err == nil {
-		metrics["cpu_seconds"] = timevalSeconds(usage.Utime) + timevalSeconds(usage.Stime)
-		// Linux reports ru_maxrss in KiB.
-		metrics["rss_high_water_mb"] = float64(usage.Maxrss) / 1024
+	if cpuSeconds, peakResidentMB, ok := processAccounting(); ok {
+		metrics["cpu_seconds"] = cpuSeconds
+		metrics["rss_high_water_mb"] = peakResidentMB
 	}
 	return metrics
-}
-
-func timevalSeconds(value syscall.Timeval) float64 {
-	return float64(value.Sec) + float64(value.Usec)/1_000_000
 }

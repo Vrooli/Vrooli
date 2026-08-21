@@ -2,7 +2,9 @@ package retrieval
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -27,6 +29,16 @@ type Document struct {
 	Aliases      []string
 	StartLine    int
 	EndLine      int
+}
+
+// SourceRecord is the catalog half of one atomic ordinary-file refresh.
+// Policy/model changes still use isolated shadow generations; this seam keeps
+// a file's catalog hash and FTS rows transactionally aligned in the active
+// generation.
+type SourceRecord struct {
+	ID, Path, Language, Role, Scope, Authority, Owner, Hash string
+	Size, ModTimeUnixNano                                   int64
+	Searchable                                              bool
 }
 
 type SQLiteIndex struct {
@@ -113,6 +125,90 @@ func (index *SQLiteIndex) Delete(ctx context.Context, generation string, ids []s
 		}
 	}
 	return tx.Commit()
+}
+
+// ApplySourceChange atomically replaces or deletes one source and all of its
+// lexical rows. A nil source represents deletion. The generation digest and
+// freshness timestamp move in the same commit, so readers observe either the
+// old complete file or the new complete file, never a mixed projection.
+func (index *SQLiteIndex) ApplySourceChange(ctx context.Context, generation, sourceID string, source *SourceRecord, documents []Document) error {
+	if index == nil || index.db == nil || strings.TrimSpace(generation) == "" || strings.TrimSpace(sourceID) == "" {
+		return fmt.Errorf("atomic source refresh requires index, generation, and source id")
+	}
+	tx, err := index.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin atomic source refresh: %w", err)
+	}
+	defer tx.Rollback()
+	var state string
+	if err := tx.QueryRowContext(ctx, `SELECT state FROM code_facts_generations WHERE id=?`, generation).Scan(&state); err != nil {
+		return fmt.Errorf("read refresh generation: %w", err)
+	}
+	if state != "active" && state != "shadow" {
+		return fmt.Errorf("source refresh generation %q is %s", generation, state)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM code_facts_search_documents WHERE generation_id=? AND source_file_id=?`, generation, sourceID); err != nil {
+		return fmt.Errorf("delete stale search documents: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM code_facts_source_files WHERE generation_id=? AND id=?`, generation, sourceID); err != nil {
+		return fmt.Errorf("delete stale catalog source: %w", err)
+	}
+	if source != nil {
+		searchable := 0
+		if source.Searchable {
+			searchable = 1
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO code_facts_source_files(
+generation_id,id,path,language,role,scope,authority,owner,content_hash,size_bytes,mod_time_unix_nano,searchable
+) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, generation, source.ID, source.Path, source.Language, source.Role, source.Scope, source.Authority, source.Owner, source.Hash, source.Size, source.ModTimeUnixNano, searchable); err != nil {
+			return fmt.Errorf("insert refreshed catalog source: %w", err)
+		}
+		for _, document := range documents {
+			if err := validateDocument(document); err != nil {
+				return err
+			}
+			exactText := document.ExactText
+			if exactText == "" {
+				exactText = document.Title
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO code_facts_search_documents(
+generation_id,id,source_file_id,source_hash,path,language,role,scope,authority,kind,title,exact_text,split_text,path_text,body,contract_text,aliases,start_line,end_line
+) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, generation, document.ID, document.SourceFileID, document.SourceHash, document.Path, document.Language, document.Role, document.Scope, document.Authority, document.Kind, document.Title, normalizeExact(exactText), normalizeDocumentText(strings.Join([]string{document.Title, exactText, strings.Join(document.Aliases, " ")}, " ")), normalizeDocumentText(document.Path), document.Body, document.ContractText, strings.Join(document.Aliases, " "), document.StartLine, document.EndLine); err != nil {
+				return fmt.Errorf("insert refreshed search document %q: %w", document.ID, err)
+			}
+		}
+	}
+	digest := sha256.New()
+	rows, err := tx.QueryContext(ctx, `SELECT path,content_hash FROM code_facts_source_files WHERE generation_id=? ORDER BY path`, generation)
+	if err != nil {
+		return fmt.Errorf("read refreshed source digest: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var path, hash string
+		if err := rows.Scan(&path, &hash); err != nil {
+			rows.Close()
+			return err
+		}
+		_, _ = digest.Write([]byte(path))
+		_, _ = digest.Write([]byte{0})
+		_, _ = digest.Write([]byte(hash))
+		_, _ = digest.Write([]byte{0})
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("iterate refreshed source digest: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE code_facts_generations SET source_digest=?,updated_at_unix=unixepoch() WHERE id=?`, "sha256:"+hex.EncodeToString(digest.Sum(nil)), generation); err != nil {
+		return fmt.Errorf("update refreshed generation digest: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit atomic source refresh: %w", err)
+	}
+	return nil
 }
 
 func (index *SQLiteIndex) SearchLexical(ctx context.Context, query Query) ([]Candidate, error) {

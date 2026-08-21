@@ -53,10 +53,12 @@ func main() {
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 
 	db, err := database.Open(context.Background(), database.Config{
-		Driver:       database.DriverSQLite,
-		Scenario:     "code-facts",
-		MaxOpenConns: 1,
-		MaxIdleConns: 1,
+		Driver:   database.DriverSQLite,
+		Scenario: "code-facts",
+		// WAL-backed indexed reads must not queue behind one long FTS request or
+		// maintenance batch; writes remain transactionally serialized by SQLite.
+		MaxOpenConns: 8,
+		MaxIdleConns: 4,
 	})
 	if err != nil {
 		logger.Fatalf("Database connection failed: %v", err)

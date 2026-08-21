@@ -79,7 +79,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        factsconnect.CodeFactsServiceSearchProcedure,
 		Method:      "POST",
 		Summary:     "Search code evidence",
-		Description: "Runs a bounded lexical search over symbols, file domains, and contract facts while preserving analyzer and source-range provenance.",
+		Description: "Queries the active persistent catalog generation with exact and hybrid lexical retrieval while preserving source hash, generation, ranking explanation, and proof provenance.",
 		Category:    "facts",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
 			"query": "string (required)", "limit": "int32 (default 10)", "target": "CodeTarget (optional; defaults to project)",

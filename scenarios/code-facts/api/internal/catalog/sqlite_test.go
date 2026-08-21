@@ -57,6 +57,45 @@ func TestMigrateIsRestartSafeAndFailedMigrationRollsBack(t *testing.T) {
 	}
 }
 
+func TestSQLiteRepositoryPersistsGenerationRevision(t *testing.T) {
+	ctx := context.Background()
+	db := openCatalogDB(t)
+	if err := Migrate(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	repository := NewSQLiteRepository(db, fixedClock{value: time.Unix(100, 0)})
+	if _, err := repository.GenerationRevision(ctx, "g1"); !errors.Is(err, ErrRevisionNotFound) {
+		t.Fatalf("missing revision error = %v, want %v", err, ErrRevisionNotFound)
+	}
+	if err := repository.BeginGeneration(ctx, Generation{ID: "g1", Policy: "v1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.SetGenerationRevision(ctx, "g1", "abc123"); err != nil {
+		t.Fatal(err)
+	}
+	if revision, err := repository.GenerationRevision(ctx, "g1"); err != nil || revision != "abc123" {
+		t.Fatalf("revision = %q, err=%v", revision, err)
+	}
+	if err := repository.SetGenerationRevision(ctx, "g1", "def456"); err != nil {
+		t.Fatal(err)
+	}
+	if revision, err := repository.GenerationRevision(ctx, "g1"); err != nil || revision != "def456" {
+		t.Fatalf("updated revision = %q, err=%v", revision, err)
+	}
+	if err := repository.RecordGenerationDirtyPaths(ctx, "g1", []string{"packages/b.go", "packages/a.go"}); err != nil {
+		t.Fatal(err)
+	}
+	if paths, err := repository.GenerationDirtyPaths(ctx, "g1"); err != nil || fmt.Sprint(paths) != "[packages/a.go packages/b.go]" {
+		t.Fatalf("dirty paths = %v, err=%v", paths, err)
+	}
+	if err := repository.CompleteGenerationAudit(ctx, "g1", "fed987", []string{"packages/b.go"}); err != nil {
+		t.Fatal(err)
+	}
+	if paths, err := repository.GenerationDirtyPaths(ctx, "g1"); err != nil || fmt.Sprint(paths) != "[packages/b.go]" {
+		t.Fatalf("retained dirty paths = %v, err=%v", paths, err)
+	}
+}
+
 func TestSQLiteRepositoryPromotesOnlyCompleteShadowGeneration(t *testing.T) {
 	ctx := context.Background()
 	db := openCatalogDB(t)
