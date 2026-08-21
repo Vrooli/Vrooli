@@ -338,14 +338,18 @@ Durability grading begins at `2026-08-07T00:00:00Z`, the date the verified attri
 
 ### Cryptographic verification via VROOLI_AGENT_IDENTITY_TOKEN
 
-A separate (and complementary) strengthening: the same token's `Meta` map can carry `team_id` and `member_id` when the spawner names them. Prompt-manager's API would then *cross-verify* `X-Vrooli-Attribution` against the token's signed claims:
+A separate (and complementary) strengthening: the same token's `Meta` map can carry `team_id`, `member_id`, and `persona_id` when the spawner names them. `persona_id` is the signed identity join used by the persona scenario; its authorization scope is `persona.act-as:<id>`. Persona's act-as path verifies the token live through agent-manager, requires the matching concrete scope, and refuses on invalid or unreachable authority. It does not treat a freeform attribution header as authorization.
+
+For knowledge attribution, prompt-manager's API can *cross-verify* `X-Vrooli-Attribution` against the token's signed claims:
 
 - `attribution.team_id` MUST equal `claims.Meta["team_id"]` when both are set.
 - `attribution.member_id` MUST equal `claims.Meta["member_id"]` when both are set.
 
+The `persona_id` key is supported in the same `Meta` map without changing the claims shape or any on-disk attribution record. A parent run holding `persona.act-as:<id>` may delegate that concrete scope only; `Attenuate` rejects a child request for another persona or a broader wildcard.
+
 This converts the threat model from "honest agents, accidental drift" to "honest agents, accidental drift, **with cryptographic detection of intentional drift**." A malicious local actor can still spoof the header on a direct API call, but cannot spoof a token-bearing request without compromising agent-manager's signing key.
 
-This requires changes in three places (agent-manager Meta plumbing, prompt-manager handler verification, CLI token-forwarding pattern), so it lands as a separate workshop. The current contract is forward-compatible: when this workshop ships, no on-disk data shape changes.
+The knowledge-attribution cross-check still requires changes in three places (agent-manager Meta plumbing, prompt-manager handler verification, CLI token-forwarding pattern), so it lands as a separate workshop. The persona authorization join is additive and does not make this document's freeform attribution path adversarially secure. The current contract is forward-compatible: no on-disk data shape changes are needed.
 
 ### Per-skill attribution-derivation registry
 

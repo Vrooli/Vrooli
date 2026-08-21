@@ -13,7 +13,6 @@ package edacmodules
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -109,31 +108,29 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	if !MCSlotsExistFn() {
-		// Driver matches the CPU but no memory controllers register — typical
-		// of consumer Ryzen 7000 boards where ECC isn't exposed even with
-		// ECC-capable DIMMs. Treat as NotApplicable so `vrooli setup` doesn't
-		// flag it as a missing-required-safeguard failure.
-		if !modules.IsLoaded(mod) {
-			status.SupportClass = hostreqkit.SupportNotApplicable
-			status.ExecutionState = hostreqkit.ExecutionNotApplicable
-			status.Notes = append(status.Notes, fmt.Sprintf(
-				"%s available for %s but no memory controllers register under %s; ECC not exposed by firmware",
-				mod, reason, EDACMemoryControllerDir))
-			return status
-		}
-		// Module loaded but no MCs — same situation, but record it as applied
-		// so we don't keep retrying.
-		status.Applied = true
-		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
+	driverLoaded := modules.IsLoaded(mod)
+	eccObservable := MCSlotsExistFn()
+	status.Notes = append(status.Notes, driverLoadedNote(mod, driverLoaded))
+	status.Notes = append(status.Notes, eccObservableNote(eccObservable))
+
+	if !eccObservable {
+		// The driver may be loaded and the counters still not exist: on
+		// consumer boards firmware does not expose ECC even with ECC-capable
+		// DIMMs. Loading a module is not evidence that memory errors are
+		// observable, so this never reports as applied — a caller that reads
+		// "already present" would conclude ECC is being watched when it is not.
+		status.SupportClass = hostreqkit.SupportNotApplicable
+		status.ExecutionState = hostreqkit.ExecutionNotApplicable
+		status.Applied = false
 		status.Notes = append(status.Notes, fmt.Sprintf(
-			"%s loaded for %s but no memory controllers register; ECC not exposed by firmware",
-			mod, reason))
+			"%s selected for %s but no memory controllers register under %s; ECC not exposed by firmware, so memory-error counters do not exist on this host",
+			mod, reason, EDACMemoryControllerDir))
 		return status
 	}
 
-	// MCs exist — driver should be loaded.
-	if modules.IsLoaded(mod) && hostreqkit.FileContentMatches(modules.LoadFilePath(mod), expectedLoadContent(mod)) {
+	// Memory controllers register, so ECC is genuinely observable once the
+	// driver is loaded and persisted across boots.
+	if driverLoaded && hostreqkit.FileContentMatches(modules.LoadFilePath(mod), expectedLoadContent(mod)) {
 		status.Applied = true
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 		status.Notes = append(status.Notes, fmt.Sprintf("%s loaded (%s); memory controllers present", mod, reason))
@@ -141,7 +138,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	}
 
 	missing := []string{}
-	if !modules.IsLoaded(mod) {
+	if !driverLoaded {
 		missing = append(missing, "/sys/module/"+mod)
 	}
 	if !hostreqkit.FileContentMatches(modules.LoadFilePath(mod), expectedLoadContent(mod)) {
@@ -263,8 +260,24 @@ func expectedLoadContent(mod string) string {
 	return modules.ManagedHeader + "\n" + mod + "\n"
 }
 
-// MCSlotsExistFnPath is exported so callers/tests can derive the same path
-// the safeguard inspects without copy-pasting.
-func MCSlotsExistFnPath() string {
-	return filepath.Join(EDACMemoryControllerDir)
+// Note prefixes for the two facts this safeguard reports separately. They are
+// stable so a consumer can read the facts without parsing prose: a loaded
+// driver and an observable ECC counter are different things, and conflating
+// them is how "the module is loaded" came to be read as "memory errors are
+// being watched".
+const (
+	DriverLoadedNotePrefix  = "edac-driver-loaded="
+	ECCObservableNotePrefix = "ecc-observable="
+)
+
+func driverLoadedNote(module string, loaded bool) string {
+	return fmt.Sprintf("%s%t (%s)", DriverLoadedNotePrefix, loaded, module)
+}
+
+func eccObservableNote(observable bool) string {
+	if observable {
+		return fmt.Sprintf("%strue (memory controllers register under %s)", ECCObservableNotePrefix, EDACMemoryControllerDir)
+	}
+	return fmt.Sprintf("%sfalse (no memory controller registers under %s, so no ECC counter exists to read)",
+		ECCObservableNotePrefix, EDACMemoryControllerDir)
 }

@@ -36,6 +36,61 @@ func (h *connectHandler) ListRetireCandidates(ctx context.Context, req *connect.
 	return connect.NewResponse(out), nil
 }
 
+func cleanupScopeFromProto(scope *versionsv1.CleanupScope) versionledger.CleanupScope {
+	if scope == nil {
+		return versionledger.CleanupScope{}
+	}
+	return versionledger.CleanupScope{ComponentID: scope.GetComponentId(), LibraryID: scope.GetLibraryId(), OlderThanDays: int(scope.GetOlderThanDays())}
+}
+
+func cleanupItemToProto(item versionledger.CleanupItem) *versionsv1.CleanupItem {
+	return &versionsv1.CleanupItem{
+		Version:  &versionsv1.RetireCandidate{ComponentId: item.Candidate.ComponentID, LibraryId: item.Candidate.LibraryID, Version: item.Candidate.Version, Status: item.Candidate.Status},
+		Eligible: item.Eligible, Reason: item.Reason, AdoptionCount: int32(item.AdoptionCount), DependencyCount: int32(item.DependencyCount), AgeDays: int32(item.AgeDays),
+	}
+}
+
+func (h *connectHandler) PlanCleanup(ctx context.Context, req *connect.Request[versionsv1.PlanCleanupRequest]) (*connect.Response[versionsv1.PlanCleanupResponse], error) {
+	if h.deps.Ledger == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("version lifecycle is not configured"))
+	}
+	items, hash, err := h.deps.Ledger.PlanCleanup(ctx, cleanupScopeFromProto(req.Msg.GetScope()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &versionsv1.PlanCleanupResponse{PlanHash: hash}
+	for _, item := range items {
+		out.Items = append(out.Items, cleanupItemToProto(item))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) CleanupVersions(ctx context.Context, req *connect.Request[versionsv1.CleanupVersionsRequest]) (*connect.Response[versionsv1.CleanupVersionsResponse], error) {
+	if h.deps.Ledger == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("version lifecycle is not configured"))
+	}
+	items, hash, retired, err := h.deps.Ledger.CleanupVersions(ctx, cleanupScopeFromProto(req.Msg.GetScope()), req.Msg.GetPlanHash(), req.Msg.GetConfirm())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	out := &versionsv1.CleanupVersionsResponse{PlanHash: hash, RetiredCount: int32(retired), Applied: req.Msg.GetConfirm()}
+	for _, item := range items {
+		out.Items = append(out.Items, cleanupItemToProto(item))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) CleanupDraft(ctx context.Context, req *connect.Request[versionsv1.CleanupDraftRequest]) (*connect.Response[versionsv1.CleanupDraftResponse], error) {
+	if h.deps.Ledger == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("version lifecycle is not configured"))
+	}
+	item, err := h.deps.Ledger.CleanupDraft(ctx, req.Msg.GetComponentId(), int(req.Msg.GetOlderThanDays()), req.Msg.GetConfirm())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&versionsv1.CleanupDraftResponse{Item: cleanupItemToProto(item), Applied: req.Msg.GetConfirm() && item.Eligible}), nil
+}
+
 func (h *connectHandler) ListVersionLedger(ctx context.Context, req *connect.Request[versionsv1.ListVersionLedgerRequest]) (*connect.Response[versionsv1.ListVersionLedgerResponse], error) {
 	if h.deps.Ledger == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("version ledger is not configured"))

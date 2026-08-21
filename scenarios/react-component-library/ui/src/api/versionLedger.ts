@@ -1,4 +1,13 @@
 import { API_BASE, decodeApiError } from "./client";
+import { createClient } from "@connectrpc/connect";
+import {
+  VersionLifecycleService,
+  type CleanupItem,
+} from "@vrooli/proto-types/react-component-library/v1/versions/lifecycle_pb";
+import { transport } from "./client";
+
+export const versionLifecycleClient = createClient(VersionLifecycleService, transport);
+export type { CleanupItem };
 
 const endpoint = `${API_BASE}/vrooli.react_component_library.v1.versions.VersionLifecycleService/ListVersionLedger`;
 export interface VersionLedgerRow {

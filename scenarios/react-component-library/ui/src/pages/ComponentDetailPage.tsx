@@ -30,6 +30,7 @@ import { ComponentExperiencePanel } from "../features/components/ComponentExperi
 import { ComponentTestPanel } from "../features/components/ComponentTestPanel";
 import { VersionsCard } from "../features/versions/VersionsCard";
 import { ProgressionPanel } from "../features/versions/ProgressionPanel";
+import { VersionCleanupPanel } from "../features/versions/VersionCleanupPanel";
 import { RelationshipsPanel } from "../features/catalog/RelationshipsPanel";
 import { versionsClient } from "../api/versions";
 import { useTranslation } from "../i18n";
@@ -225,11 +226,14 @@ function HookWorkspace({
               />
             )}
             {tab === "versions" && (
-              <VersionsCard
-                componentId={asset.id}
-                onSelectVersion={() => undefined}
-                onCompare={() => undefined}
-              />
+              <div className="space-y-space-md">
+                <VersionCleanupPanel componentId={asset.id} compact />
+                <VersionsCard
+                  componentId={asset.id}
+                  onSelectVersion={() => undefined}
+                  onCompare={() => undefined}
+                />
+              </div>
             )}
             {tab === "progression" && <ProgressionPanel libraryId={asset.libraryId || asset.id} />}
             {tab === "adoptions" && (
@@ -373,7 +377,8 @@ export function ComponentDetailPage() {
   });
   const indexedVersionsQuery = useQuery({
     queryKey: ["versions", "source-status", id],
-    queryFn: () => versionsClient.listVersions({ componentId: data?.component?.id ?? id ?? "", limit: 0 }),
+    queryFn: () =>
+      versionsClient.listVersions({ componentId: data?.component?.id ?? id ?? "", limit: 0 }),
     enabled: Boolean(data?.component),
     retry: false,
   });
@@ -622,12 +627,15 @@ export function ComponentDetailPage() {
               </>
             )}
             {infoTab === "versions" && (
-              <VersionsCard
-                componentId={component.id}
-                selectedVersion={selectedVersion}
-                onSelectVersion={setSelectedVersion}
-                onCompare={setComparison}
-              />
+              <div className="space-y-space-md">
+                <VersionCleanupPanel componentId={component.id} compact />
+                <VersionsCard
+                  componentId={component.id}
+                  selectedVersion={selectedVersion}
+                  onSelectVersion={setSelectedVersion}
+                  onCompare={setComparison}
+                />
+              </div>
             )}
             {infoTab === "progression" && (
               <ProgressionPanel libraryId={component.libraryId || component.id} />

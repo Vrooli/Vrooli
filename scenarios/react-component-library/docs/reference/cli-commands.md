@@ -90,6 +90,26 @@ source file. It returns origin provenance and de-scenario-ification findings;
 fix those findings and run catalog conformance plus preview rendering before
 promoting the draft.
 
+## Scenario commands — `versions`
+
+Version cleanup is deliberately plan-first. Released versions are eligible
+only when they are not latest or draft, have no adoption or dependency
+references, and satisfy the optional age filter. The ledger row and audit
+history remain after retirement; only the version source folder is reclaimed.
+
+```bash
+react-component-library versions plan-cleanup --component-id "react-component-library:Button" --older-than-days 30
+react-component-library versions cleanup --component-id "react-component-library:Button" --older-than-days 30 --plan-hash "<hash>" --confirm
+react-component-library versions plan-cleanup --older-than-days 90
+react-component-library versions cleanup-draft "react-component-library:Button" --older-than-days 14
+react-component-library versions cleanup-draft "react-component-library:Button" --older-than-days 14 --confirm
+```
+
+`plan-cleanup` is read-only and returns blocked items plus an exact plan hash.
+`cleanup` is also a dry run unless `--confirm` and the matching plan hash are
+provided. Draft cleanup is separate because drafts are mutable work-in-progress
+and are removed from the manifest rather than retained as released history.
+
 ## Scenario commands — `adoptions`
 
 ```bash

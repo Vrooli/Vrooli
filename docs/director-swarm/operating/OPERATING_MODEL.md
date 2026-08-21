@@ -138,8 +138,6 @@ flowchart LR
   VWP --> VI
   VWP --> VISIONWALKRE
   APPROVAL --> SMWORK
-  SMWORK --> PM
-  SMWORK --> OS
   APPROVAL --> CANON
   PORT --> PM
   OI --> MON

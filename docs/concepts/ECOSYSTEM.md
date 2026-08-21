@@ -40,7 +40,7 @@ What a scenario *does for the ecosystem*, ordered by **multiplicative effect** (
 |---|---|---|---|
 | **Meta / self-improvement** | Highest | Improves Vrooli's own ability to engineer, test, deploy, monetize, and maintain itself | `swarm-manager`, `test-genie`, `prompt-manager`, the `*-health` scenarios |
 | **Interface enabler** | High | Makes one of the interfaces below possible or better | `audio-tools`, `agent-inbox`, `tunnel-manager`, `app-monitor`, `cli-health`, `ui-health` |
-| **External integration / connector** | Medium | Bridges Vrooli to outside services and hardware — extends *reach* | `browser-automation-studio`, home-automation, IoT, Slack/GitHub connectors |
+| **External integration / connector** | Medium | Bridges Vrooli to outside services and hardware — extends *reach* | `browser-automation-studio`, device-control, IoT, Slack/GitHub connectors |
 | **Product / personal / monetization** | Low (meta) | Delivers standalone value or revenue — the economic point of the whole thing | finance, health, nutrition, lifestyle apps |
 
 **Low meta-multiplier is not low value.** Products are why the system earns its keep. The lens just asks product authors to *also* spend the cheap design effort that lets a product become a building block later (Axis 3).
@@ -95,7 +95,7 @@ When you plan, build, refactor, or fix a scenario, run these five question clust
 
 Every scenario "is meant to be set up so it can potentially be monetized" (CLAUDE.md) — so monetization is part of ecosystem citizenship, not an afterthought. But the lens only asks you to **route to the canon and pick the integration pattern**; it does not decide strategy.
 
-- **Whether to monetize, pricing, and which bundle** are operator-curated **monetization canon** — agents never edit it directly. Read, don't write: [`docs/monetization/README.md`](../monetization/README.md) (plan of record), [`strategy/STRATEGY.md`](../monetization/strategy/STRATEGY.md) (posture), [`catalogs/CATALOG.md`](../monetization/catalogs/CATALOG.md) + [`scenario-sku-map.json`](../monetization/catalogs/scenario-sku-map.json) (bundle membership). At the portfolio level, `morning-vision-walk` assesses bundle fit.
+- **Whether to monetize, pricing, and which bundle** are operator-curated **monetization canon** — agents never edit it directly. Read, don't write: [`docs/monetization/README.md`](../monetization/README.md) (plan of record), [`strategy/STRATEGY.md`](../monetization/strategy/STRATEGY.md) (posture), [`catalogs/CATALOG.md`](../monetization/catalogs/CATALOG.md) + `offer-desk offers catalog-edges` (bundle membership). At the portfolio level, `morning-vision-walk` assesses bundle fit.
 - **How to wire a paid feature** (the free / metered / gated decision and the LPBS credit + entitlement contracts) is the engineering sibling of this doc: [`PAID_FEATURES.md`](./PAID_FEATURES.md). Use `bundle-integration-steer` for the wiring.
 
 Key principle (from `STRATEGY.md`): the subscription buys **convenience and integrated access, not access to the code**. Never gate a capability a self-hoster could already run with their own keys — keep BYOK valid.

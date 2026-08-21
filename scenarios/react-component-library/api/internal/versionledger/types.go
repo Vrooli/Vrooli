@@ -19,3 +19,18 @@ type VersionLedger struct {
 	LinesOfCode     int
 	DependencyCount int
 }
+
+type CleanupScope struct {
+	ComponentID   string
+	LibraryID     string
+	OlderThanDays int
+}
+
+type CleanupItem struct {
+	Candidate       Candidate
+	Eligible        bool
+	Reason          string
+	AdoptionCount   int
+	DependencyCount int
+	AgeDays         int
+}

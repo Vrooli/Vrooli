@@ -256,7 +256,7 @@ packages/proto/schemas/react-component-library/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/react-component-library/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/react-component-library/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/react-component-library/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/react-component-library/v1/...   (ui)
        └──▶ packages/proto/gen/python/react_component_library/v1/...    (future tools)
 ```
 

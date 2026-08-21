@@ -14,7 +14,6 @@ import (
 	"sort"
 	"strings"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/tetratelabs/wazero"
@@ -100,10 +99,7 @@ func runNative(binary, hostPath, requestPath string) (result, error) {
 		return result{}, err
 	}
 	out = bytes.ReplaceAll(out, []byte(hostPath), []byte(requestPath))
-	rssKB := int64(0)
-	if usage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage); ok {
-		rssKB = usage.Maxrss
-	}
+	rssKB := processRSSKB(cmd.ProcessState)
 	return makeResult("native", requestPath, out, time.Since(start), rssKB), nil
 }
 

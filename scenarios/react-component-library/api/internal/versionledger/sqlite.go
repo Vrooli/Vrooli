@@ -2,6 +2,7 @@ package versionledger
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -132,8 +133,180 @@ func (r *Repository) Rebuild(ctx context.Context) error {
 
 type Candidate struct{ ComponentID, LibraryID, Version, Status string }
 
+func (r *Repository) PlanCleanup(ctx context.Context, scope CleanupScope) ([]CleanupItem, string, error) {
+	if scope.ComponentID != "" && scope.LibraryID != "" {
+		return nil, "", fmt.Errorf("cleanup scope cannot contain both component_id and library_id")
+	}
+	query := `SELECT c.id, c.library_id, v.version, v.status, c.latest_version, c.draft_version, v.created_at, v.released_at
+		FROM components c JOIN component_versions v ON v.component_id = c.id`
+	args := []any{}
+	filters := []string{"lower(v.status) <> 'retired'"}
+	if scope.ComponentID != "" {
+		filters = append(filters, "(c.id = ? OR c.library_id = ?)")
+		args = append(args, scope.ComponentID, scope.ComponentID)
+	}
+	if scope.LibraryID != "" {
+		filters = append(filters, "c.library_id = ?")
+		args = append(args, scope.LibraryID)
+	}
+	if len(filters) > 0 {
+		query += " WHERE " + strings.Join(filters, " AND ")
+	}
+	query += " ORDER BY c.library_id, v.version"
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, "", err
+	}
+	type cleanupRaw struct {
+		candidate                        Candidate
+		latest, draft, created, released string
+	}
+	var rawRows []cleanupRaw
+	for rows.Next() {
+		var raw cleanupRaw
+		if err := rows.Scan(&raw.candidate.ComponentID, &raw.candidate.LibraryID, &raw.candidate.Version, &raw.candidate.Status, &raw.latest, &raw.draft, &raw.created, &raw.released); err != nil {
+			rows.Close()
+			return nil, "", err
+		}
+		rawRows = append(rawRows, raw)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, "", err
+	}
+	rows.Close()
+	var items []CleanupItem
+	for _, raw := range rawRows {
+		var item CleanupItem
+		item.Candidate = raw.candidate
+		item.AgeDays = versionAgeDays(raw.created, raw.released)
+		if item.Candidate.Version == raw.latest {
+			item.Reason = "latest version"
+		} else if item.Candidate.Version == raw.draft || strings.Contains(strings.ToLower(item.Candidate.Status), "draft") {
+			item.Reason = "active draft"
+		} else if strings.EqualFold(item.Candidate.Status, "retired") {
+			item.Reason = "already retired"
+		} else {
+			var directAdoptions int
+			_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM adoption_records WHERE (component_id = ? OR library_id = ?) AND adopted_version = ?`, item.Candidate.ComponentID, item.Candidate.LibraryID, item.Candidate.Version).Scan(&directAdoptions)
+			var fileAdoptions int
+			_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM adoption_files WHERE source_library_id = ? AND source_version = ?`, item.Candidate.LibraryID, item.Candidate.Version).Scan(&fileAdoptions)
+			item.AdoptionCount = directAdoptions
+			if fileAdoptions > item.AdoptionCount {
+				item.AdoptionCount = fileAdoptions
+			}
+			_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM component_asset_dependencies WHERE library_id = ? AND version = ?`, item.Candidate.LibraryID, item.Candidate.Version).Scan(&item.DependencyCount)
+			switch {
+			case item.AdoptionCount > 0:
+				item.Reason = "referenced by adoption"
+			case item.DependencyCount > 0:
+				item.Reason = "pinned dependency"
+			case scope.OlderThanDays > 0 && item.AgeDays < scope.OlderThanDays:
+				item.Reason = fmt.Sprintf("younger than %d days", scope.OlderThanDays)
+			default:
+				item.Eligible = true
+				item.Reason = "safe to retire"
+			}
+		}
+		items = append(items, item)
+	}
+	return items, cleanupPlanHash(items, scope), nil
+}
+
+func versionAgeDays(created, released string) int {
+	stamp := parseTime(released)
+	if stamp.IsZero() {
+		stamp = parseTime(created)
+	}
+	if stamp.IsZero() {
+		return 0
+	}
+	age := int(time.Since(stamp).Hours() / 24)
+	if age < 0 {
+		return 0
+	}
+	return age
+}
+
+func cleanupPlanHash(items []CleanupItem, scope CleanupScope) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s|%s|%d|", scope.ComponentID, scope.LibraryID, scope.OlderThanDays)
+	for _, item := range items {
+		fmt.Fprintf(&b, "%s:%s:%s:%t:%s|", item.Candidate.LibraryID, item.Candidate.Version, item.Candidate.Status, item.Eligible, item.Reason)
+	}
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(b.String())))
+}
+
+func (r *Repository) CleanupVersions(ctx context.Context, scope CleanupScope, planHash string, confirm bool) ([]CleanupItem, string, int, error) {
+	items, currentHash, err := r.PlanCleanup(ctx, scope)
+	if err != nil {
+		return nil, "", 0, err
+	}
+	if !confirm {
+		return items, currentHash, 0, nil
+	}
+	if planHash == "" || planHash != currentHash {
+		return items, currentHash, 0, fmt.Errorf("cleanup plan changed or --plan-hash is missing; review the current dry-run plan")
+	}
+	retired := 0
+	for _, item := range items {
+		if !item.Eligible {
+			continue
+		}
+		if _, err := r.Transition(ctx, item.Candidate.ComponentID, item.Candidate.Version, "retired", true); err != nil {
+			return items, currentHash, retired, err
+		}
+		retired++
+	}
+	return items, currentHash, retired, nil
+}
+
+func (r *Repository) CleanupDraft(ctx context.Context, componentID string, olderThanDays int, confirm bool) (CleanupItem, error) {
+	var item CleanupItem
+	var sourcePath, created string
+	if err := r.db.QueryRowContext(ctx, `SELECT c.id, c.library_id, v.version, v.status, v.source_path, v.created_at FROM components c JOIN component_versions v ON v.component_id = c.id WHERE (c.id = ? OR c.library_id = ?) AND v.version = c.draft_version`, componentID, componentID).Scan(&item.Candidate.ComponentID, &item.Candidate.LibraryID, &item.Candidate.Version, &item.Candidate.Status, &sourcePath, &created); err != nil {
+		if err == sql.ErrNoRows {
+			return item, fmt.Errorf("no active draft found for %s", componentID)
+		}
+		return item, err
+	}
+	item.AgeDays = versionAgeDays(created, "")
+	if !strings.Contains(strings.ToLower(item.Candidate.Status), "draft") {
+		item.Reason = "version is not a draft"
+	} else if olderThanDays > 0 && item.AgeDays < olderThanDays {
+		item.Reason = fmt.Sprintf("younger than %d days", olderThanDays)
+	} else {
+		item.Eligible = true
+		item.Reason = "safe to discard draft"
+	}
+	if !item.Eligible || !confirm {
+		return item, nil
+	}
+	path := filepath.Clean(filepath.Join(r.sourceRoot, sourcePath))
+	root := filepath.Clean(r.sourceRoot) + string(os.PathSeparator)
+	if !strings.HasPrefix(path, root) {
+		return item, fmt.Errorf("refusing to discard path outside library root")
+	}
+	if err := os.RemoveAll(filepath.Dir(path)); err != nil {
+		return item, err
+	}
+	manifestPath := ""
+	if err := r.db.QueryRowContext(ctx, `SELECT manifest_path FROM components WHERE id = ?`, item.Candidate.ComponentID).Scan(&manifestPath); err != nil {
+		return item, err
+	}
+	if err := r.clearDraftManifest(manifestPath); err != nil {
+		return item, err
+	}
+	_, err := r.db.ExecContext(ctx, `UPDATE components SET draft_version = '' WHERE id = ?`, item.Candidate.ComponentID)
+	if err != nil {
+		return item, err
+	}
+	_, err = r.db.ExecContext(ctx, `DELETE FROM component_versions WHERE component_id = ? AND version = ?`, item.Candidate.ComponentID, item.Candidate.Version)
+	return item, err
+}
+
 func (r *Repository) RetireCandidates(ctx context.Context, componentID string) ([]Candidate, error) {
-	query := `SELECT c.id, c.library_id, v.version, v.status FROM components c JOIN component_versions v ON v.component_id = c.id WHERE v.version <> c.latest_version AND v.version <> c.draft_version AND lower(v.status) NOT LIKE 'draft%' AND NOT EXISTS (SELECT 1 FROM adoption_records a WHERE a.component_id = c.id AND a.adopted_version = v.version) AND NOT EXISTS (SELECT 1 FROM adoption_files f WHERE f.source_library_id = c.library_id AND f.source_version = v.version) AND NOT EXISTS (SELECT 1 FROM component_asset_dependencies d WHERE d.library_id = c.library_id AND d.version = v.version)`
+	query := `SELECT c.id, c.library_id, v.version, v.status FROM components c JOIN component_versions v ON v.component_id = c.id WHERE v.version <> c.latest_version AND v.version <> c.draft_version AND lower(v.status) NOT LIKE 'draft%' AND lower(v.status) <> 'retired' AND NOT EXISTS (SELECT 1 FROM adoption_records a WHERE a.component_id = c.id AND a.adopted_version = v.version) AND NOT EXISTS (SELECT 1 FROM adoption_files f WHERE f.source_library_id = c.library_id AND f.source_version = v.version) AND NOT EXISTS (SELECT 1 FROM component_asset_dependencies d WHERE d.library_id = c.library_id AND d.version = v.version)`
 	args := []any{}
 	if componentID != "" {
 		query += " AND (c.id = ? OR c.library_id = ?)"
@@ -196,6 +369,9 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 		if _, err := r.db.ExecContext(ctx, `UPDATE version_ledger SET retired_at=?, lifecycle_state='retired' WHERE library_id=? AND version=?`, now, c.LibraryID, version); err != nil {
 			return c, err
 		}
+		if _, err := r.db.ExecContext(ctx, `UPDATE component_versions SET status='retired' WHERE component_id=? AND version=?`, c.ComponentID, version); err != nil {
+			return c, err
+		}
 		return c, nil
 	}
 	if state == "deprecated" || state == "archived" {
@@ -238,6 +414,25 @@ func (r *Repository) updateManifest(manifestPath, version string) error {
 	}
 	values = append(values, version)
 	doc["deprecatedVersions"] = values
+	out, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return err
+	}
+	out = append(out, '\n')
+	return os.WriteFile(path, out, 0o644)
+}
+
+func (r *Repository) clearDraftManifest(manifestPath string) error {
+	path := filepath.Join(r.sourceRoot, manifestPath)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return err
+	}
+	doc["draft"] = ""
 	out, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		return err

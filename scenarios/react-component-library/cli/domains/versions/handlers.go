@@ -42,6 +42,100 @@ func (h *handlers) retireCandidates(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d retire candidate(s).", len(results))}, ResultsHeading: "Retire candidates", Results: results})
 }
 
+func cleanupScope(ctx cliapp.RunContext) (*versionsv1.CleanupScope, error) {
+	scope := &versionsv1.CleanupScope{ComponentId: ctx.Flag("component-id"), LibraryId: ctx.Flag("library-id")}
+	if raw := ctx.Flag("older-than-days"); raw != "" {
+		days, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil || days < 0 {
+			return nil, fmt.Errorf("--older-than-days must be a non-negative integer (got %q)", raw)
+		}
+		scope.OlderThanDays = int32(days)
+	}
+	if scope.ComponentId != "" && scope.LibraryId != "" {
+		return nil, fmt.Errorf("use only one of --component-id or --library-id")
+	}
+	return scope, nil
+}
+
+func renderCleanupItems(items []*versionsv1.CleanupItem) []string {
+	results := make([]string, 0, len(items))
+	for _, item := range items {
+		if item == nil || item.Version == nil {
+			continue
+		}
+		state := "blocked"
+		if item.Eligible {
+			state = "eligible"
+		}
+		results = append(results, fmt.Sprintf("%s@%s %s age=%dd adopters=%d dependencies=%d (%s)", item.Version.LibraryId, item.Version.Version, state, item.AgeDays, item.AdoptionCount, item.DependencyCount, item.Reason))
+	}
+	return results
+}
+
+func (h *handlers) planCleanup(ctx cliapp.RunContext) error {
+	scope, err := cleanupScope(ctx)
+	if err != nil {
+		return err
+	}
+	resp, err := h.lifecycleClient.PlanCleanup(context.Background(), connect.NewRequest(&versionsv1.PlanCleanupRequest{Scope: scope}))
+	if err != nil {
+		return cliapp.WrapAPIError("plan version cleanup", err, nil)
+	}
+	results := renderCleanupItems(resp.Msg.Items)
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Cleanup plan: %d eligible item(s); plan-hash=%s.", countEligible(resp.Msg.Items), resp.Msg.PlanHash)}, ResultsHeading: "Version cleanup plan", Results: results, RetrievalHints: []string{"`versions cleanup --plan-hash <hash> --confirm` — apply this exact plan"}})
+}
+
+func countEligible(items []*versionsv1.CleanupItem) int {
+	count := 0
+	for _, item := range items {
+		if item != nil && item.Eligible {
+			count++
+		}
+	}
+	return count
+}
+
+func (h *handlers) cleanupVersions(ctx cliapp.RunContext) error {
+	scope, err := cleanupScope(ctx)
+	if err != nil {
+		return err
+	}
+	confirm := ctx.Flag("confirm") != ""
+	resp, err := h.lifecycleClient.CleanupVersions(context.Background(), connect.NewRequest(&versionsv1.CleanupVersionsRequest{Scope: scope, PlanHash: ctx.Flag("plan-hash"), Confirm: confirm}))
+	if err != nil {
+		return cliapp.WrapAPIError("cleanup versions", err, nil)
+	}
+	mode := "dry-run"
+	if resp.Msg.Applied {
+		mode = "applied"
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Version cleanup %s: retired %d; plan-hash=%s.", mode, resp.Msg.RetiredCount, resp.Msg.PlanHash)}, ResultsHeading: "Version cleanup", Results: renderCleanupItems(resp.Msg.Items)})
+}
+
+func (h *handlers) cleanupDraft(ctx cliapp.RunContext) error {
+	days := int64(0)
+	if raw := ctx.Flag("older-than-days"); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil || parsed < 0 {
+			return fmt.Errorf("--older-than-days must be a non-negative integer (got %q)", raw)
+		}
+		days = parsed
+	}
+	resp, err := h.lifecycleClient.CleanupDraft(context.Background(), connect.NewRequest(&versionsv1.CleanupDraftRequest{ComponentId: ctx.Positional("component-id"), OlderThanDays: int32(days), Confirm: ctx.Flag("confirm") != ""}))
+	if err != nil {
+		return cliapp.WrapAPIError("cleanup draft", err, nil)
+	}
+	item := resp.Msg.Item
+	if item == nil {
+		return fmt.Errorf("server returned no draft cleanup result")
+	}
+	mode := "dry-run"
+	if resp.Msg.Applied {
+		mode = "applied"
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Draft cleanup %s: %s@%s (%s).", mode, item.Version.LibraryId, item.Version.Version, item.Reason)}, ResultsHeading: "Draft cleanup", Results: []string{fmt.Sprintf("eligible=%t age=%dd", item.Eligible, item.AgeDays)}})
+}
+
 func (h *handlers) progression(ctx cliapp.RunContext) error {
 	resp, err := h.lifecycleClient.ListVersionLedger(context.Background(), connect.NewRequest(&versionsv1.ListVersionLedgerRequest{LibraryId: ctx.Flag("library-id"), Window: ctx.Flag("window")}))
 	if err != nil {

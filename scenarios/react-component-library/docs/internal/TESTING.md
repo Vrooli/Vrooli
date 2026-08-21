@@ -906,7 +906,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/react-component-library/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/react-component-library/v1/<domain>/`, and
+   `packages/proto/gen/typescript/react-component-library/v1/<domain>/`, and
    `packages/proto/gen/python/react_component_library/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.

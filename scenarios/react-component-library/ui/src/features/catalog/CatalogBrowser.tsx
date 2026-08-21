@@ -20,6 +20,7 @@ import { CreateComponentDialog } from "../components/CreateComponentDialog";
 import { AdoptedAssetShowcase } from "./AdoptedAssetShowcase";
 import { workflowsClient } from "../../api/workflows";
 import { assetInfoTab, assetPath } from "../../routes";
+import { VersionCleanupPanel } from "../versions/VersionCleanupPanel";
 
 type Presentation = "tree" | "list" | "cards";
 type KindTab = "components" | "hooks";
@@ -239,6 +240,7 @@ function CatalogActions() {
           </div>
         </form>
       )}
+      <VersionCleanupPanel compact />
     </div>
   );
 }

@@ -13,7 +13,7 @@ There are three categories of configuration data, and every file in the system f
 | Category | Lives in | Edited by | Examples |
 |---|---|---|---|
 | **Declarative manifest** — what each thing *is* | `resources/<name>/resource.json`, `scenarios/<name>/.vrooli/service.json`, `internal/tools/<name>/tool.json`, `internal/safeguards/<name>/safeguard.json` | Humans, source-controlled | "This resource needs a Postgres dependency", "this safeguard writes to /etc/sysctl.d", "this scenario is system-required" |
-| **Computed analysis** — what an analyzer figured out | `service.deployment.aggregate_requirements`, `service.deployment.tiers`, `.vrooli/schemas/resource-definitions.json` | Tools, regenerable | "This scenario needs 2 GB RAM", "tier-3-mobile fitness score 0.4" |
+| **Computed analysis** — what an analyzer figured out | scenario-dependency-analyzer reports, `.vrooli/schemas/resource-definitions.json` | Tools, regenerable | "This scenario needs 2 GB RAM", "tier-3-mobile fitness score 0.4" |
 | **Operator state** — what this install *chose* | `.vrooli/operator-state.json` | The wizard, or hand | "swarm-manager is enabled", "kernel_config safeguard is opted in", "ollama resource is disabled" |
 
 Generated lifecycle/runtime state is not configuration. Setup markers, resource-populated markers, runtime databases (including the SQLite port-claim registry), logs, and process records belong under `~/.vrooli/`; per-project setup/resource markers use `~/.vrooli/state/projects/<project-key>/` so multiple local checkouts stay disambiguated.

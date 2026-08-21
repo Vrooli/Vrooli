@@ -1007,33 +1007,6 @@
           }
         },
         {
-          "name": "check",
-          "description": "Run source, dependency, story, and preview preflight for one component version",
-          "positionals": [
-            {
-              "name": "component",
-              "required": true,
-              "description": "Stable libraryId or catalog UUID"
-            }
-          ],
-          "flags": [
-            {
-              "name": "version",
-              "description": "Version to check; defaults to the active draft, then latest"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ComponentsService",
-            "method": "CheckComponentVersion"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
-          }
-        },
-        {
           "name": "refresh",
           "description": "Refresh one component from disk and report its focused preflight status",
           "positionals": [
@@ -1512,6 +1485,41 @@
           "flags": [{"name": "component-id", "description": "Restrict candidates to one component"}],
           "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "ListRetireCandidates"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "plan-cleanup",
+          "description": "Preview removable released versions and return an exact confirmation hash",
+          "flags": [
+            {"name": "component-id", "description": "Restrict to one component or library id"},
+            {"name": "library-id", "description": "Restrict to one library asset"},
+            {"name": "older-than-days", "description": "Only retire versions at least this many days old"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "PlanCleanup"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "cleanup",
+          "description": "Retire all eligible released versions from an exact reviewed cleanup plan",
+          "flags": [
+            {"name": "component-id", "description": "Restrict to one component or library id"},
+            {"name": "library-id", "description": "Restrict to one library asset"},
+            {"name": "older-than-days", "description": "Only retire versions at least this many days old"},
+            {"name": "plan-hash", "description": "Hash returned by plan-cleanup"},
+            {"name": "confirm", "description": "Confirm destructive retirement", "bind": {"field": "confirm"}}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "CleanupVersions"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"]}
+        },
+        {
+          "name": "cleanup-draft",
+          "description": "Preview or discard one abandoned mutable draft",
+          "positionals": [{"name": "component-id", "required": true, "description": "Component or library id"}],
+          "flags": [
+            {"name": "older-than-days", "description": "Only discard drafts at least this many days old"},
+            {"name": "confirm", "description": "Confirm destructive draft removal", "bind": {"field": "confirm"}}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "VersionLifecycleService", "method": "CleanupDraft"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"]}
         },
         {
           "name": "progression",

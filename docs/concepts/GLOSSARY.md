@@ -8,6 +8,44 @@ The root project-level system responsible for setup, lifecycle, diagnostics, and
 
 A local or connected service that provides raw capability such as storage, inference, automation, search, or secret management.
 
+## Accelerator
+
+A compute device other than the general-purpose CPU that a resource runs work
+on. NVIDIA CUDA, Apple Metal, and AMD ROCm devices are accelerators.
+
+## Backend
+
+The named software path a resource uses to reach an accelerator. The set is
+closed: `cuda`, `metal`, `rocm`, `vulkan`, `cpu`. A closed set is what makes
+placement verification decidable and lets the manifest schema reject a typo;
+adding a sixth is a deliberate contract change, not a manifest edit. A resource
+declares its backends once, in the `acceleration` block of its `resource.json`.
+
+## Declared mode
+
+The backend a resource manifest asks the platform for — the first entry in its
+`acceleration.backends` list. Surfaced as `declared_mode` on
+`vrooli resource status`.
+
+## Observed mode
+
+The backend the control plane verifies a running resource is actually using,
+read from the host and never inferred from configuration. Surfaced as
+`observed_mode`. Empty means the placement could not be read, which is reported
+as unknown rather than treated as agreement.
+
+## Mode drift
+
+Declared mode and observed mode disagree for a running resource: it is serving,
+on a backend below the one it asked for. Surfaced as `mode_drift: true` with
+`running: true`, `serving: true`, `healthy: false` and `status_code:
+mode_drift`.
+
+Read `serving` alongside `healthy`: a drifted resource answers requests, and a
+consumer that restarts on `healthy: false` alone would loop against something
+that is working — a restart cannot move a resource onto a device the host does
+not have. Degraded is a state, never a secret.
+
 ## Scenario
 
 A complete application or focused service that orchestrates resources and sometimes other scenarios to deliver business or platform value.
@@ -55,6 +93,22 @@ The principle that code, data, models, and automation should run on infrastructu
 ## Documentation Debt
 
 Any documentation that is stale, duplicated, misleading, unowned, or disconnected from the code and workflows it claims to describe.
+
+## Service Instance
+
+One DNS-SD browse result: an instance name, service type, host, address list,
+port, and TXT key map.
+
+## Identity Claim
+
+A hardware-grade key that permits observations to merge, such as an ADB serial,
+an Android TV Remote Bluetooth key, or a Google Cast id. Addresses and names
+are not identity claims.
+
+## Observation Mode
+
+How a transport learns that device state changed. `push` means the device sends
+unsolicited status; `poll` means Device Control samples at a declared interval.
 
 ## Team Scope
 

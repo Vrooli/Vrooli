@@ -356,3 +356,69 @@ func TestNameAndKind(t *testing.T) {
 		t.Errorf("Kind = %q", h.Kind())
 	}
 }
+
+// A loaded driver and an observable ECC counter are two different facts. When
+// the module is loaded but no memory controller registers, nothing is being
+// watched — reporting that as applied would tell an operator that memory
+// errors are covered when no counter exists to read.
+func TestInspectDriverLoadedWithoutMemoryControllersIsNotApplied(t *testing.T) {
+	_, files, cpu, mc, restore := stubAll(t)
+	defer restore()
+	*cpu = ryzen7000CPUInfo
+	*mc = false
+	files[modules.LoadFilePath("amd64_edac")] = expectedLoadContent("amd64_edac")
+	modules.StatFn = func(path string) (os.FileInfo, error) {
+		if path == "/sys/module/amd64_edac" {
+			return nil, nil
+		}
+		return nil, fs.ErrNotExist
+	}
+
+	st := newHandler().Inspect(linuxHost(), req(false))
+	if st.Applied {
+		t.Error("a loaded driver with no registered memory controller must not report as applied")
+	}
+	if st.ExecutionState != hostreqkit.ExecutionNotApplicable {
+		t.Errorf("ExecutionState = %q, want not_applicable", st.ExecutionState)
+	}
+	if st.SupportClass != hostreqkit.SupportNotApplicable {
+		t.Errorf("SupportClass = %q, want not_applicable", st.SupportClass)
+	}
+	assertNoteFact(t, st.Notes, DriverLoadedNotePrefix+"true")
+	assertNoteFact(t, st.Notes, ECCObservableNotePrefix+"false")
+}
+
+// The two facts are reported separately on every Linux outcome, so a consumer
+// never has to infer one from the other.
+func TestInspectReportsDriverAndECCFactsSeparately(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		memControllers bool
+		wantDriver     string
+		wantECC        string
+	}{
+		{"no controllers registered", false, DriverLoadedNotePrefix + "false", ECCObservableNotePrefix + "false"},
+		{"controllers registered", true, DriverLoadedNotePrefix + "false", ECCObservableNotePrefix + "true"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, cpu, mc, restore := stubAll(t)
+			defer restore()
+			*cpu = ryzen7000CPUInfo
+			*mc = tc.memControllers
+
+			st := newHandler().Inspect(linuxHost(), req(false))
+			assertNoteFact(t, st.Notes, tc.wantDriver)
+			assertNoteFact(t, st.Notes, tc.wantECC)
+		})
+	}
+}
+
+func assertNoteFact(t *testing.T, notes []string, want string) {
+	t.Helper()
+	for _, note := range notes {
+		if strings.HasPrefix(note, want) {
+			return
+		}
+	}
+	t.Errorf("notes %v do not report %q", notes, want)
+}

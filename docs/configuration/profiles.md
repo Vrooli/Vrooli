@@ -8,9 +8,9 @@ A profile is a named bundle of scenario + resource selections + sensible default
 
 - **`engineering`** — `swarm-manager`, `agent-manager`, `workspace-sandbox`, `web-console` enabled; coding-agent integrations expected; `ollama` and `qdrant` resources enabled for local LLM/embedding.
 - **`marketing`** — `landing-page-business-suite`, `browser-automation-studio`, future `rich-media-studio` enabled; AI-UGC / video-provider integrations expected; `comfyui` for local image gen.
-- **`homelab`** — minimal personal install with monitoring scenarios enabled, `home-assistant` resource.
+- **`homelab`** — minimal personal install with monitoring scenarios enabled and attach-only device integrations configured by the operator.
 
-A profile is *not* a deployment target (those live in `deployment.schema.json`); it's an *operator preference bundle* that pre-fills the wizard.
+A profile is *not* a deployment target. Targets are executable bundle contracts such as `bundle.json`; authored tier-fit evidence lives in a scenario manifest's `tier_feasibility` block. A profile is an *operator preference bundle* that pre-fills the wizard.
 
 ## Why this is deferred
 
