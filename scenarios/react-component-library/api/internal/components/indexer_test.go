@@ -449,7 +449,7 @@ func TestIndexer_RunValidatesStoryHarnessArtifacts(t *testing.T) {
 	}{
 		{name: "missing artifact", finding: components.IndexFindingStoryHarnessMissing},
 		{name: "missing export", storyTSX: `export const AnotherHarness = () => null;`, finding: components.IndexFindingStoryHarnessExport},
-		{name: "matching export is excluded from adoption files", storyTSX: `export const StatefulHarness = () => null;`, wantSource: true},
+		{name: "matching export is projected into read-only files", storyTSX: `export const StatefulHarness = () => null;`, wantSource: true},
 		{name: "re-exported harness is accepted", storyTSX: `export { StatefulHarness } from "./shared-stories";`, wantSource: true},
 	}
 
@@ -476,8 +476,10 @@ func TestIndexer_RunValidatesStoryHarnessArtifacts(t *testing.T) {
 			require.NoError(t, err)
 			version, err := repo.GetVersion(context.Background(), component.ID, "1.0.0")
 			require.NoError(t, err)
-			require.Len(t, version.Files, 1)
+			require.Len(t, version.Files, 3)
 			require.Equal(t, "Button.tsx", version.Files[0].Path)
+			require.Equal(t, "story.json", version.Files[1].Path)
+			require.Equal(t, "story.tsx", version.Files[2].Path)
 		})
 	}
 }

@@ -105,7 +105,12 @@ func TestAuthoringWorkflowBeginsChecksAndPublishesByLibraryID(t *testing.T) {
 	for name, body := range companions {
 		copied, readErr := os.ReadFile(filepath.Join(root, "components", "Button", "versions", draft.Version.Version, name))
 		require.NoError(t, readErr)
-		require.Equal(t, body, copied, "begin must preserve %s byte-for-byte", name)
+		if name == "experience-contract.json" {
+			require.JSONEq(t, string(body), string(copied), "begin must preserve %s semantics", name)
+			require.Equal(t, "\n", string(copied[len(copied)-1:]), "formatted contracts end with a newline")
+		} else {
+			require.Equal(t, body, copied, "begin must preserve %s byte-for-byte", name)
+		}
 	}
 
 	authoredStory := []byte(`{
@@ -133,7 +138,11 @@ func TestAuthoringWorkflowBeginsChecksAndPublishesByLibraryID(t *testing.T) {
 	for name, body := range companions {
 		copied, readErr := os.ReadFile(filepath.Join(root, "components", "Button", "versions", "1.1.0", name))
 		require.NoError(t, readErr)
-		require.Equal(t, body, copied, "publish must preserve %s byte-for-byte", name)
+		if name == "experience-contract.json" {
+			require.JSONEq(t, string(body), string(copied), "publish must preserve %s semantics", name)
+		} else {
+			require.Equal(t, body, copied, "publish must preserve %s byte-for-byte", name)
+		}
 	}
 }
 
@@ -444,7 +453,8 @@ func TestService_IngestTransfersExplicitExperienceContractIntoReleasedVersion(t 
 	require.FileExists(t, draftPath)
 	draftContract, err := os.ReadFile(draftPath)
 	require.NoError(t, err)
-	require.Equal(t, contract, string(draftContract))
+	require.JSONEq(t, contract, string(draftContract))
+	require.Equal(t, "\n", string(draftContract[len(draftContract)-1:]))
 
 	component, err := svc.GetByLibraryID(context.Background(), ingested.Component.LibraryID)
 	require.NoError(t, err)
@@ -453,7 +463,8 @@ func TestService_IngestTransfersExplicitExperienceContractIntoReleasedVersion(t 
 	releasePath := filepath.Join(root, "components", "panel", "versions", "1.0.0", "experience-contract.json")
 	releaseContract, err := os.ReadFile(releasePath)
 	require.NoError(t, err)
-	require.Equal(t, contract, string(releaseContract))
+	require.JSONEq(t, contract, string(releaseContract))
+	require.Equal(t, "\n", string(releaseContract[len(releaseContract)-1:]))
 }
 
 func TestService_IngestComponentCopiesRelativeImportClosureAsOneVersionUnit(t *testing.T) {

@@ -12,12 +12,21 @@ import { AdoptionFileTree } from "./AdoptionFileTree";
 import { ADOPTION_TEMPLATES } from "./adoptionTemplates";
 import { VersionDiffViewer } from "../versions/VersionDiffViewer";
 import type { DiffRow } from "../../api/versions";
-import type { ReactNode } from "react";
-import { FileCode2, Minus, Plus, RotateCcw, Save, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Braces, FileCode2, Minus, Plus, RotateCcw, Save, X } from "lucide-react";
 
 export type SourceFilesView = "tree" | "source" | "diff";
 type SourceFile = { path: string; isEntry: boolean };
 type Comparison = { fromLabel: string; toLabel: string; rows: DiffRow[] };
+
+function formatJSON(value: string, pretty: boolean): string {
+  if (!pretty) return value;
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return value;
+  }
+}
 
 interface ComponentEditorSourceProps {
   id: string;
@@ -84,6 +93,9 @@ export function ComponentEditorSource({
   onCloseComparison,
 }: ComponentEditorSourceProps) {
   const { t } = useTranslation();
+  const [prettyJSON, setPrettyJSON] = useState(true);
+  const isJSON = selectedFile.endsWith(".json");
+  const displayedBuffer = isJSON ? formatJSON(buffer, prettyJSON) : buffer;
   return (
     <div
       data-testid={
@@ -174,6 +186,17 @@ export function ComponentEditorSource({
         <>
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-space-2xs border-b border-app-border bg-app-surface px-space-2xs py-space-2xs">
             <div className="flex items-center gap-space-3xs">
+              {isJSON && (
+                <IconButton
+                  data-testid="components-editor-pretty-json"
+                  aria-label={prettyJSON ? "Show compact JSON" : "Pretty-print JSON"}
+                  aria-pressed={prettyJSON}
+                  onClick={() => setPrettyJSON((current) => !current)}
+                  className={`h-control-compact min-h-control-compact min-w-control-compact ${prettyJSON ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}
+                >
+                  <Braces aria-hidden className="h-icon-compact w-icon-compact" />
+                </IconButton>
+              )}
               <IconButton
                 data-testid={selectors.components.editor.saveButton}
                 aria-label={
@@ -241,9 +264,9 @@ export function ComponentEditorSource({
           >
             <Editor
               height="100%"
-              language="typescript"
+              language={isJSON ? "json" : "typescript"}
               path={selectedFile || `${libraryId || id}.tsx`}
-              value={buffer}
+              value={displayedBuffer}
               onChange={(value) => onBufferChange(value ?? "")}
               beforeMount={handleBeforeMount}
               onMount={handleMount}

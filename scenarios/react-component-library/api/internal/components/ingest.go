@@ -148,10 +148,18 @@ func readIngestExperienceContract(ctx context.Context, reader ScenarioSourceRead
 	if err := json.Unmarshal(raw, &document); err != nil {
 		return "", fmt.Errorf("decode experience contract %q: %w", path, err)
 	}
-	if strings.TrimSpace(fmt.Sprint(document["kind"])) != "experience-component" {
-		return "", fmt.Errorf("experience contract %q must be an experience-component document", path)
+	kind := strings.TrimSpace(fmt.Sprint(document["kind"]))
+	if nested, ok := document["contract"].(map[string]any); ok {
+		kind = strings.TrimSpace(fmt.Sprint(nested["kind"]))
 	}
-	return string(raw), nil
+	if kind != "experience-component" && kind != "rcl-component-experience-contract" && document["schemaVersion"] == nil {
+		return "", fmt.Errorf("experience contract %q has an unsupported kind", path)
+	}
+	formatted, err := canonicalJSON(raw)
+	if err != nil {
+		return "", fmt.Errorf("format experience contract %q: %w", path, err)
+	}
+	return string(formatted), nil
 }
 
 func ingestFilePaths(files []ComponentVersionFile) []string {

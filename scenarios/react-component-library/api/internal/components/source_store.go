@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -210,11 +211,19 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 			// story binding local to the copy being created instead of carrying
 			// the source release's path into a draft or replacement release.
 			body = normalizeExperienceContractStoryRef(body, version)
+			if formatted, formatErr := canonicalJSON([]byte(body)); formatErr != nil {
+				return "", fmt.Errorf("format experience contract: %w", formatErr)
+			} else {
+				body = string(formatted)
+			}
 		}
 		path := filepath.Join(filepath.Dir(sourceAbs), file.Path)
 		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 			return "", fmt.Errorf("write component source %q: %w", filepath.ToSlash(filepath.Join(filepath.Dir(sourcePath), file.Path)), err)
 		}
+	}
+	if err := s.formatSourceArtifacts(versionDir); err != nil {
+		return "", err
 	}
 	if in.ParityReport != nil {
 		if err := writeParityReport(filepath.Join(filepath.Dir(sourceAbs), "parity.json"), *in.ParityReport); err != nil {
@@ -222,7 +231,12 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 		}
 	}
 	if strings.TrimSpace(in.ExperienceContract) != "" {
-		if err := os.WriteFile(filepath.Join(filepath.Dir(sourceAbs), "experience-contract.json"), []byte(in.ExperienceContract), 0o600); err != nil {
+		contract := []byte(in.ExperienceContract)
+		formatted, formatErr := canonicalJSON(contract)
+		if formatErr != nil {
+			return "", fmt.Errorf("format experience contract: %w", formatErr)
+		}
+		if err := os.WriteFile(filepath.Join(filepath.Dir(sourceAbs), "experience-contract.json"), formatted, 0o600); err != nil {
 			return "", fmt.Errorf("write version experience contract: %w", err)
 		}
 	}
@@ -253,6 +267,37 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	}
 	committed = true
 	return sourcePath, nil
+}
+
+// formatSourceArtifacts delegates source formatting to the canonical Prettier
+// configuration already owned by the scenario UI. Test stores and
+// packaged installations may not carry node_modules; in those environments
+// JSON contracts still receive the API-owned canonical formatter and source
+// formatting remains a no-op rather than making storage unusable.
+func (s *FSContentStore) formatSourceArtifacts(versionDir string) error {
+	prettier := filepath.Join(filepath.Dir(s.root), "ui", "node_modules", ".bin", "prettier")
+	if _, err := os.Stat(prettier); err != nil {
+		return nil
+	}
+	var files []string
+	entries, err := os.ReadDir(versionDir)
+	if err != nil {
+		return fmt.Errorf("list version artifacts for formatting: %w", err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || ((filepath.Ext(entry.Name()) != ".ts" && filepath.Ext(entry.Name()) != ".tsx") && entry.Name() != "experience-contract.json") {
+			continue
+		}
+		files = append(files, filepath.Join(versionDir, entry.Name()))
+	}
+	if len(files) == 0 {
+		return nil
+	}
+	args := append([]string{"--write", "--config", filepath.Join(filepath.Dir(s.root), "ui", ".prettierrc.json")}, files...)
+	if output, err := exec.Command(prettier, args...).CombinedOutput(); err != nil {
+		return fmt.Errorf("format TypeScript artifacts: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	return nil
 }
 
 // RollbackVersion restores the prior manifest pointers and removes only the

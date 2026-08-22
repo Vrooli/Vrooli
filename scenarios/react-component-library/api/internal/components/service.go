@@ -512,6 +512,20 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 	} else {
 		add("story", "passed", "story contract parsed and declared enum coverage is complete", "")
 	}
+	contractPath := filepath.Join(s.source.Root(), componentAssetRoot(c), c.Slug, "versions", version, "experience-contract.json")
+	contractBytes, contractErr := os.ReadFile(contractPath)
+	if os.IsNotExist(contractErr) {
+		// Contracts were introduced after the earliest library releases. Keep
+		// those immutable historical versions checkable while requiring and
+		// formatting contracts whenever a version actually carries one.
+		add("experience-contract", "passed", "no experience contract is attached to this legacy version", "")
+	} else if contractErr != nil {
+		add("experience-contract", "failed", "experience-contract.json is unreadable: "+contractErr.Error(), "restore the version experience contract")
+	} else if diagnostics := validateExperienceContract(contractBytes, *contract); len(diagnostics) > 0 {
+		add("experience-contract", "failed", strings.Join(diagnostics, "; "), "repair experience-contract.json and align its states with story.json")
+	} else {
+		add("experience-contract", "passed", "experience contract is readable and its state references match story.json", "")
+	}
 	return result, nil
 }
 

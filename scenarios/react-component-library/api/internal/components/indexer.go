@@ -412,6 +412,24 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		} else if !errors.Is(contractErr, fs.ErrNotExist) {
 			return IndexManifestInput{}, nil, fmt.Errorf("read experience contract %s: %w", contractPath, contractErr)
 		}
+		// story.json is the declarative preview/story contract. Keep it in the
+		// version file projection so the Files tab can inspect the same artifact
+		// that powers the Preview tab. story.tsx remains preview-harness-only.
+		storyPath := filepath.ToSlash(filepath.Join(versionPath, "story.json"))
+		if rawStory, storyErr := fs.ReadFile(idx.fs, storyPath); storyErr == nil {
+			versionFiles = append(versionFiles, ComponentVersionFile{Path: "story.json", Content: string(rawStory), ContentSHA256: digestBytes(rawStory)})
+		} else if !errors.Is(storyErr, fs.ErrNotExist) {
+			return IndexManifestInput{}, nil, fmt.Errorf("read story contract %s: %w", storyPath, storyErr)
+		}
+		// story.tsx is the executable Preview harness source. Keep it in the
+		// version file projection as a read-only artifact so the Files tab can
+		// explain how each declarative story is rendered.
+		harnessPath := filepath.ToSlash(filepath.Join(versionPath, "story.tsx"))
+		if rawHarness, harnessErr := fs.ReadFile(idx.fs, harnessPath); harnessErr == nil {
+			versionFiles = append(versionFiles, ComponentVersionFile{Path: "story.tsx", Content: string(rawHarness), ContentSHA256: digestBytes(rawHarness)})
+		} else if !errors.Is(harnessErr, fs.ErrNotExist) {
+			return IndexManifestInput{}, nil, fmt.Errorf("read story harness %s: %w", harnessPath, harnessErr)
+		}
 		sourcePath := filepath.ToSlash(filepath.Join(versionPath, entryName))
 		src, err := fs.ReadFile(idx.fs, sourcePath)
 		if err != nil {

@@ -11,8 +11,15 @@ adopters.
    while iterating. This performs a scoped preflight from disk without requiring
    a repository-wide reindex. The detail page shows the indexed version, source
    path, and whether the source hash has drifted from the indexed release.
-3. Publish the draft only after validation with
+3. Formatting is owned by version creation: ingests and draft-to-release copies
+   canonicalize `experience-contract.json`, and use the scenario UI's Prettier
+   configuration for `.ts`/`.tsx` artifacts when the formatter is installed.
+   The Files editor's JSON pretty toggle is presentation-only; saving/promotion
+   remains the consistency boundary.
+4. Publish the draft only after validation with
    `react-component-library components version-publish <component-id> --version <draft>`.
+   `CheckComponentVersion` validates the source, dependencies, story coverage,
+   and any attached experience contract (including state-to-story references).
    Then run `react-component-library components index --json`. The indexer derives
    `requiredTokens[]` and dynamic token families from the version source. A
    hash change to an existing released version is an integrity failure.

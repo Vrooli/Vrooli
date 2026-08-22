@@ -66,6 +66,31 @@ type PreviewSpecimen = {
 type PreviewEvent = { story: string; name: string; args: unknown[]; ts: number };
 const MAX_PREVIEW_EVENTS = 200;
 
+function SourceLoadingSkeleton() {
+  return (
+    <div
+      data-testid={selectors.components.editor.loading}
+      role="status"
+      aria-label="Loading source"
+      className="flex h-full min-h-0 flex-col bg-app-background"
+    >
+      <div className="flex h-control-md shrink-0 items-center border-b border-app-border bg-app-surface px-space-2xs">
+        <span className="h-3 w-16 animate-pulse rounded bg-app-surface-muted" />
+      </div>
+      <div className="flex shrink-0 gap-space-3xs border-b border-app-border bg-app-surface px-space-2xs py-space-2xs">
+        <span className="h-control-compact w-8 animate-pulse rounded bg-app-surface-muted" />
+        <span className="h-control-compact w-36 animate-pulse rounded bg-app-surface-muted" />
+        <span className="h-control-compact w-28 animate-pulse rounded bg-app-surface-muted" />
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-space-2xs p-space-sm" aria-hidden="true">
+        {["w-11/12", "w-8/12", "w-10/12", "w-6/12", "w-9/12", "w-7/12"].map((width) => (
+          <span key={width} className={`h-3 animate-pulse rounded bg-app-surface-muted ${width}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function specimenIdentity(example?: Pick<PreviewSpecimen, "version" | "name">): SpecimenIdentity {
   return `${example?.version || "__current__"}:${example?.name || "__default__"}`;
 }
@@ -209,6 +234,21 @@ export function ComponentEditorImpl({
   const contentQuery = useQuery({
     queryKey: ["components", "content", id, selectedVersion ?? "current", selectedFile],
     queryFn: async (): Promise<{ content: string; sha256: string }> => {
+      // Non-entry files are version-local artifacts. Resolve them through the
+      // version projection that populated the Files tab so read-only metadata
+      // and Preview harness source cannot accidentally come from a shared
+      // current-source alias.
+      if ((selectedFile.endsWith(".json") || selectedFile === "story.tsx") && activeVersion) {
+        const artifact = await componentsClient.getComponentVersionContent({
+          componentId: id,
+          version: activeVersion,
+          path: selectedFile,
+        });
+        return {
+          content: artifact.content,
+          sha256: artifact.version?.contentSha256 ?? "",
+        };
+      }
       if (!selectedVersion) {
         const current = await componentsClient.getComponentContent({
           id,
@@ -657,7 +697,7 @@ export function ComponentEditorImpl({
     },
   });
 
-  const readOnly = Boolean(selectedVersion);
+  const readOnly = Boolean(selectedVersion) || selectedFile.endsWith(".json");
   const dirty = !readOnly && !!contentQuery.data && buffer !== contentQuery.data.content;
 
   const handleBeforeMount = (monaco: Monaco) => {
@@ -934,14 +974,7 @@ export function ComponentEditorImpl({
         </div>
       )}
 
-      {contentQuery.isLoading && (
-        <p
-          data-testid={selectors.components.editor.loading}
-          className="p-space-sm text-app-foreground"
-        >
-          {t(strings.components.editor.loading)}
-        </p>
-      )}
+      {contentQuery.isLoading && <SourceLoadingSkeleton />}
 
       {contentQuery.error && (
         <p data-testid={selectors.components.editor.error} className="p-space-sm text-app-danger">

@@ -475,6 +475,25 @@ describe("ComponentEditor", () => {
           sha256: "sha-companion",
         }),
       );
+    vi.mocked(componentsClient.getComponentVersionContent)
+      .mockResolvedValueOnce(
+        makeGetComponentVersionContentResponse({
+          content: '{"stories":[{"id":"default","name":"Default","args":{}}]}',
+          version: { contentSha256: "sha-story" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        makeGetComponentVersionContentResponse({
+          content: "export function InlineCodeHarness() { return <InlineCode />; }\n",
+          version: { contentSha256: "sha-harness" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        makeGetComponentVersionContentResponse({
+          content: '{"contract":{"kind":"rcl-component-experience-contract"}}',
+          version: { contentSha256: "sha-contract" },
+        }),
+      );
     vi.mocked(componentsClient.listComponentVersions).mockResolvedValueOnce(
       create(ListComponentVersionsResponseSchema, {
         versions: [
@@ -483,6 +502,9 @@ describe("ComponentEditor", () => {
             files: [
               { path: "FilterBar.tsx", isEntry: true },
               { path: "InlineCode.tsx", isEntry: false },
+              { path: "experience-contract.json", isEntry: false },
+              { path: "story.json", isEntry: false },
+              { path: "story.tsx", isEntry: false },
             ],
           }),
         ],
@@ -511,6 +533,77 @@ describe("ComponentEditor", () => {
       });
       expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toContain("InlineCode");
     });
+
+    await user.click(screen.getByRole("tab", { name: "story.json" }));
+
+    await waitFor(() => {
+      expect(componentsClient.getComponentVersionContent).toHaveBeenLastCalledWith({
+        componentId: "cmp-files",
+        version: "1.0.0",
+        path: "story.json",
+      });
+      expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toContain("default");
+      expect(screen.getByTestId(selectors.components.editor.saveButton)).toBeDisabled();
+    });
+
+    await user.click(screen.getByRole("tab", { name: "story.tsx" }));
+
+    await waitFor(() => {
+      expect(componentsClient.getComponentVersionContent).toHaveBeenLastCalledWith({
+        componentId: "cmp-files",
+        version: "1.0.0",
+        path: "story.tsx",
+      });
+      expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toContain("InlineCode");
+      expect(screen.getByTestId(selectors.components.editor.saveButton)).toBeDisabled();
+    });
+
+    await user.click(screen.getByRole("tab", { name: "experience-contract.json" }));
+
+    await waitFor(() => {
+      expect(componentsClient.getComponentVersionContent).toHaveBeenLastCalledWith({
+        componentId: "cmp-files",
+        version: "1.0.0",
+        path: "experience-contract.json",
+      });
+      expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toContain(
+        "rcl-component-experience-contract",
+      );
+      expect(screen.getByTestId(selectors.components.editor.saveButton)).toBeDisabled();
+      expect(screen.getByTestId("components-editor-pretty-json")).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toContain("\n");
+    });
+
+    await user.click(screen.getByTestId("components-editor-pretty-json"));
+    expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toBe(
+      '{"contract":{"kind":"rcl-component-experience-contract"}}',
+    );
+  });
+
+  it("shows a structural source skeleton while the file request is pending", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockReturnValueOnce(new Promise(() => {}));
+
+    renderWithProviders(
+      <ComponentEditor
+        id="cmp-loading"
+        libraryId="react-component-library:Button"
+        onClose={() => {}}
+      />,
+    );
+
+    expect(await screen.findByTestId(selectors.components.editor.loading)).toHaveAttribute(
+      "role",
+      "status",
+    );
+    expect(
+      screen.getByTestId(selectors.components.editor.loading).querySelectorAll(".animate-pulse")
+        .length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText("Loading source...")).not.toBeInTheDocument();
   });
 
   it("shows preview events newest-first and clears the active story log", async () => {

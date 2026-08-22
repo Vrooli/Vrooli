@@ -90,7 +90,7 @@ func (s *FSContentStore) Read(_ context.Context, c Component) (Content, error) {
 
 func (s *FSContentStore) ReadPath(_ context.Context, c Component, path string) (Content, error) {
 	if path != "" {
-		if filepath.Base(path) != path || !strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".tsx") {
+		if filepath.Base(path) != path || !isReadableCompanion(path) {
 			return Content{}, ErrPathEscape{SourcePath: path, Root: s.root}
 		}
 		c.SourcePath = filepath.ToSlash(filepath.Join(filepath.Dir(c.SourcePath), path))
@@ -119,7 +119,7 @@ func (s *FSContentStore) Write(_ context.Context, c Component, in WriteContentIn
 
 func (s *FSContentStore) WritePath(_ context.Context, c Component, path string, in WriteContentInput) (Content, error) {
 	if path != "" {
-		if filepath.Base(path) != path || (!strings.HasSuffix(path, ".ts") && !strings.HasSuffix(path, ".tsx")) {
+		if filepath.Base(path) != path || !isWritableCompanion(path) {
 			return Content{}, ErrPathEscape{SourcePath: path, Root: s.root}
 		}
 		c.SourcePath = filepath.ToSlash(filepath.Join(filepath.Dir(c.SourcePath), path))
@@ -146,6 +146,17 @@ func (s *FSContentStore) WritePath(_ context.Context, c Component, path string, 
 		SourcePath: c.SourcePath,
 		SHA256:     digest([]byte(in.Body)),
 	}, nil
+}
+
+// Component versions may carry authored, non-code artifacts alongside their
+// entry and companion modules. The experience contract is one such artifact;
+// it is readable in the Files tab but remains intentionally read-only here.
+func isReadableCompanion(path string) bool {
+	return strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx") || strings.HasSuffix(path, ".json")
+}
+
+func isWritableCompanion(path string) bool {
+	return strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx")
 }
 
 // resolve cleans the relative SourcePath against root and rejects

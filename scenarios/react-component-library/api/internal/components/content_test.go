@@ -76,6 +76,34 @@ func TestFSContentStore_PathEscape(t *testing.T) {
 	}
 }
 
+func TestFSContentStore_ReadPath_AllowsExperienceContract(t *testing.T) {
+	root := t.TempDir()
+	versionDir := filepath.Join(root, "library", "primitives", "MorphingIcon", "versions", "2.0.7")
+	if err := os.MkdirAll(versionDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "MorphingIcon.tsx"), []byte("export const MorphingIcon = () => null;\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	contract := `{"contract":{"kind":"rcl-component-experience-contract"}}`
+	if err := os.WriteFile(filepath.Join(versionDir, "experience-contract.json"), []byte(contract), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := NewFSContentStore(root).ReadPath(context.Background(), Component{
+		SourcePath: "library/primitives/MorphingIcon/versions/2.0.7/MorphingIcon.tsx",
+	}, "experience-contract.json")
+	if err != nil {
+		t.Fatalf("ReadPath experience contract: %v", err)
+	}
+	if got.Body != contract {
+		t.Fatalf("experience contract body: got %q", got.Body)
+	}
+	if got.SourcePath != "library/primitives/MorphingIcon/versions/2.0.7/experience-contract.json" {
+		t.Fatalf("experience contract path: got %q", got.SourcePath)
+	}
+}
+
 // TestFSContentStore_OptimisticConcurrency — when the caller pins an
 // expected sha that doesn't match disk, Write must reject without
 // modifying the file.
