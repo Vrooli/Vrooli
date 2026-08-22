@@ -125,7 +125,7 @@ packages/proto/schemas/architecture-cartographer/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/architecture-cartographer/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/architecture-cartographer/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/architecture-cartographer/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/architecture-cartographer/v1/...   (ui)
        └──▶ packages/proto/gen/python/architecture_cartographer/v1/...    (future tools)
 ```
 

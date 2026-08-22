@@ -28,6 +28,10 @@ adopters.
 7. Reapply clean adopters with the exact version and required confirmations.
    Reapply preserves opted-in suggested dependencies and removes orphaned
    files that left the new closure, unless another live adoption owns them.
+   Cleanup also follows relative imports across released asset versions and
+   adopted files, including stories. A protected cleanup item reports the
+   importing asset/version, file, import specifier, scenario, and adoption id
+   where applicable.
 8. For related assets, use the batch apply surface so shared dependencies and
    target collisions are evaluated once.
 9. Record the evidence in the plan/work record: index result, gate results,

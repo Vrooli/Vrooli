@@ -14,6 +14,15 @@ interface Props {
   compact?: boolean;
 }
 
+interface CleanupReference {
+  ownerLibraryId: string;
+  ownerVersion: string;
+  ownerPath: string;
+  importSpecifier: string;
+}
+
+type CleanupItemWithReferences = CleanupItem & { references?: CleanupReference[] };
+
 function eligibleItems(items: CleanupItem[]) {
   return items.filter((item) => item.eligible);
 }
@@ -86,8 +95,8 @@ export function VersionCleanupPanel({ componentId, compact = false }: Props) {
             {title}
           </h3>
           <p className="mt-space-3xs max-w-2xl text-xs text-app-muted-foreground">
-            Review versions with no adopters or dependency pins. Latest and draft versions are
-            always protected.
+            Review versions with no adopters, dependency pins, or surviving source imports. Latest
+            and draft versions are always protected.
           </p>
         </div>
         <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
@@ -100,7 +109,7 @@ export function VersionCleanupPanel({ componentId, compact = false }: Props) {
         onClose={() => setOpen(false)}
         title={title}
         closeLabel="Close cleanup dialog"
-        description="Review a read-only cleanup plan before retiring any released version folders. Latest and active draft versions are always protected."
+        description="Review a read-only cleanup plan before retiring any released version folders. Latest, active drafts, adopters, dependency pins, and source imports are protected."
         footer={
           <div className="flex w-full flex-wrap justify-end gap-space-2xs">
             <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
@@ -163,7 +172,10 @@ export function VersionCleanupPanel({ componentId, compact = false }: Props) {
                 </code>
               </div>
               <ul className="max-h-48 space-y-space-3xs overflow-y-auto text-xs">
-                {plan.items.map((item) => (
+                {plan.items.map((rawItem) => {
+                  const item = rawItem as CleanupItemWithReferences;
+                  const references = item.references ?? [];
+                  return (
                   <li
                     key={`${item.version?.libraryId}:${item.version?.version}`}
                     className="flex flex-wrap items-center justify-between gap-space-xs"
@@ -177,8 +189,18 @@ export function VersionCleanupPanel({ componentId, compact = false }: Props) {
                         {item.ageDays}d old · {item.reason}
                       </span>
                     </span>
+                    {references.length > 0 && (
+                      <div className="basis-full pl-space-xs text-[0.7rem] text-app-muted-foreground">
+                        {references.map((reference) => (
+                          <div key={`${reference.ownerLibraryId}:${reference.ownerVersion}:${reference.ownerPath}:${reference.importSpecifier}`}>
+                            ← {reference.ownerLibraryId}@{reference.ownerVersion} · {reference.ownerPath} imports {reference.importSpecifier}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
               {eligible.length > 0 && (
                 <>

@@ -880,7 +880,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/architecture-cartographer/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/architecture-cartographer/v1/<domain>/`, and
+   `packages/proto/gen/typescript/architecture-cartographer/v1/<domain>/`, and
    `packages/proto/gen/python/architecture_cartographer/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.

@@ -67,7 +67,14 @@ func renderCleanupItems(items []*versionsv1.CleanupItem) []string {
 		if item.Eligible {
 			state = "eligible"
 		}
-		results = append(results, fmt.Sprintf("%s@%s %s age=%dd adopters=%d dependencies=%d (%s)", item.Version.LibraryId, item.Version.Version, state, item.AgeDays, item.AdoptionCount, item.DependencyCount, item.Reason))
+		results = append(results, fmt.Sprintf("%s@%s %s age=%dd adopters=%d dependencies=%d references=%d (%s)", item.Version.LibraryId, item.Version.Version, state, item.AgeDays, item.AdoptionCount, item.DependencyCount, len(item.References), item.Reason))
+		for _, ref := range item.References {
+			owner := fmt.Sprintf("%s@%s %s", ref.OwnerLibraryId, ref.OwnerVersion, ref.OwnerPath)
+			if ref.OwnerScenario != "" {
+				owner = fmt.Sprintf("%s [%s adoption=%s]", owner, ref.OwnerScenario, ref.AdoptionId)
+			}
+			results = append(results, fmt.Sprintf("  <- %s:%s imports %q (%s)", owner, ref.Kind, ref.ImportSpecifier, ref.Evidence))
+		}
 	}
 	return results
 }

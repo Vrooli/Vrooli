@@ -96,6 +96,38 @@ INSERT INTO version_ledger(library_id, version, lifecycle_state) VALUES ('librar
 	}
 }
 
+func TestPlanCleanupProtectsVersionsReferencedBySurvivingSource(t *testing.T) {
+	database := databasetest.NewSQLite(t)
+	root := t.TempDir()
+	oldDir := filepath.Join(root, "primitives/MorphingIcon/versions/2.0.0")
+	newDir := filepath.Join(root, "primitives/MorphingIcon/versions/2.0.7")
+	require.NoError(t, os.MkdirAll(oldDir, 0o755))
+	require.NoError(t, os.MkdirAll(newDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(oldDir, "geometry.ts"), []byte("export const oldGeometry = true;"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(newDir, "geometry.ts"), []byte(`import { oldGeometry } from "../2.0.0/geometry"; export { oldGeometry };`), 0o644))
+	_, err := database.ExecContext(context.Background(), `
+CREATE TABLE components (id TEXT PRIMARY KEY, library_id TEXT NOT NULL, latest_version TEXT NOT NULL, draft_version TEXT NOT NULL, manifest_path TEXT NOT NULL);
+CREATE TABLE component_versions (component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, created_at TEXT NOT NULL, released_at TEXT NOT NULL);
+CREATE TABLE adoption_records (component_id TEXT, library_id TEXT, adopted_version TEXT);
+CREATE TABLE adoption_files (source_library_id TEXT, source_version TEXT);
+CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
+INSERT INTO components VALUES ('morphing-icon', 'react-component-library:MorphingIcon', '2.0.7', '', 'primitives/MorphingIcon/component.json');
+INSERT INTO component_versions VALUES ('morphing-icon', 'react-component-library:MorphingIcon', '2.0.0', 'released', 'primitives/MorphingIcon/versions/2.0.0/MorphingIcon.tsx', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z');
+INSERT INTO component_versions VALUES ('morphing-icon', 'react-component-library:MorphingIcon', '2.0.7', 'released', 'primitives/MorphingIcon/versions/2.0.7/MorphingIcon.tsx', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z');
+`)
+	require.NoError(t, err)
+
+	items, _, err := NewRepository(database, root).PlanCleanup(context.Background(), CleanupScope{LibraryID: "react-component-library:MorphingIcon"})
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.False(t, items[0].Eligible)
+	require.Equal(t, "referenced by source import", items[0].Reason)
+	require.Len(t, items[0].References, 1)
+	require.Equal(t, "2.0.7", items[0].References[0].OwnerVersion)
+	require.Equal(t, "../2.0.0/geometry", items[0].References[0].ImportSpecifier)
+	require.Contains(t, items[0].References[0].Evidence, "surviving version")
+}
+
 func TestCleanupDraftRequiresAgeAndClearsManifest(t *testing.T) {
 	database := databasetest.NewSQLite(t)
 	root := t.TempDir()

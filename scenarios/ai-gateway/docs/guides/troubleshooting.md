@@ -229,7 +229,7 @@ make generate
 The generator runs entirely on local plugins (no BSR network calls) and
 writes to language-specific output paths: Go under
 `packages/proto/gen/go/ai-gateway/v1/`, TypeScript under
-`packages/proto/gen/typescript/js/ai-gateway/v1/`, and Python under
+`packages/proto/gen/typescript/ai-gateway/v1/`, and Python under
 `packages/proto/gen/python/ai_gateway/v1/`.
 
 ### Codegen ran but Go imports still fail

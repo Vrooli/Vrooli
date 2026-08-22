@@ -175,6 +175,10 @@ func (r *Repository) PlanCleanup(ctx context.Context, scope CleanupScope) ([]Cle
 		return nil, "", err
 	}
 	rows.Close()
+	sourceRefs, err := r.sourceReferences(ctx)
+	if err != nil {
+		return nil, "", fmt.Errorf("build source reference graph: %w", err)
+	}
 	var items []CleanupItem
 	for _, raw := range rawRows {
 		var item CleanupItem
@@ -196,11 +200,14 @@ func (r *Repository) PlanCleanup(ctx context.Context, scope CleanupScope) ([]Cle
 				item.AdoptionCount = fileAdoptions
 			}
 			_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM component_asset_dependencies WHERE library_id = ? AND version = ?`, item.Candidate.LibraryID, item.Candidate.Version).Scan(&item.DependencyCount)
+			item.References = sourceRefs[sourceReferenceKey(item.Candidate.LibraryID, item.Candidate.Version)]
 			switch {
 			case item.AdoptionCount > 0:
 				item.Reason = "referenced by adoption"
 			case item.DependencyCount > 0:
 				item.Reason = "pinned dependency"
+			case len(item.References) > 0:
+				item.Reason = "referenced by source import"
 			case scope.OlderThanDays > 0 && item.AgeDays < scope.OlderThanDays:
 				item.Reason = fmt.Sprintf("younger than %d days", scope.OlderThanDays)
 			default:
@@ -306,6 +313,10 @@ func (r *Repository) CleanupDraft(ctx context.Context, componentID string, older
 }
 
 func (r *Repository) RetireCandidates(ctx context.Context, componentID string) ([]Candidate, error) {
+	refs, err := r.sourceReferences(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("build source reference graph: %w", err)
+	}
 	query := `SELECT c.id, c.library_id, v.version, v.status FROM components c JOIN component_versions v ON v.component_id = c.id WHERE v.version <> c.latest_version AND v.version <> c.draft_version AND lower(v.status) NOT LIKE 'draft%' AND lower(v.status) <> 'retired' AND NOT EXISTS (SELECT 1 FROM adoption_records a WHERE a.component_id = c.id AND a.adopted_version = v.version) AND NOT EXISTS (SELECT 1 FROM adoption_files f WHERE f.source_library_id = c.library_id AND f.source_version = v.version) AND NOT EXISTS (SELECT 1 FROM component_asset_dependencies d WHERE d.library_id = c.library_id AND d.version = v.version)`
 	args := []any{}
 	if componentID != "" {
@@ -324,6 +335,9 @@ func (r *Repository) RetireCandidates(ctx context.Context, componentID string) (
 		var c Candidate
 		if err := rows.Scan(&c.ComponentID, &c.LibraryID, &c.Version, &c.Status); err != nil {
 			return nil, err
+		}
+		if len(refs[sourceReferenceKey(c.LibraryID, c.Version)]) > 0 {
+			continue
 		}
 		out = append(out, c)
 	}

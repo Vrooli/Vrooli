@@ -44,9 +44,18 @@ func cleanupScopeFromProto(scope *versionsv1.CleanupScope) versionledger.Cleanup
 }
 
 func cleanupItemToProto(item versionledger.CleanupItem) *versionsv1.CleanupItem {
+	references := make([]*versionsv1.VersionReference, 0, len(item.References))
+	for _, ref := range item.References {
+		references = append(references, &versionsv1.VersionReference{
+			Kind: ref.Kind, OwnerLibraryId: ref.OwnerLibraryID, OwnerVersion: ref.OwnerVersion,
+			OwnerPath: ref.OwnerPath, ImportSpecifier: ref.ImportSpecifier, Evidence: ref.Evidence,
+			OwnerScenario: ref.OwnerScenario, AdoptionId: ref.AdoptionID,
+		})
+	}
 	return &versionsv1.CleanupItem{
 		Version:  &versionsv1.RetireCandidate{ComponentId: item.Candidate.ComponentID, LibraryId: item.Candidate.LibraryID, Version: item.Candidate.Version, Status: item.Candidate.Status},
 		Eligible: item.Eligible, Reason: item.Reason, AdoptionCount: int32(item.AdoptionCount), DependencyCount: int32(item.DependencyCount), AgeDays: int32(item.AgeDays),
+		References: references,
 	}
 }
 

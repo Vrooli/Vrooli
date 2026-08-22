@@ -73,6 +73,10 @@ export default defineConfig(({ mode }): UserConfig => {
       globals: true,
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],
+      // Coverage-isolation is a declared runner profile, not a package-script
+      // flag; keep the constrained pool portable across local and CI runs.
+      pool: 'forks',
+      poolOptions: { forks: { minForks: 1, maxForks: 1 } },
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json-summary', 'json'],

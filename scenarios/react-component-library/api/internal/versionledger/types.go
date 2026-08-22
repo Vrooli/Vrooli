@@ -33,4 +33,19 @@ type CleanupItem struct {
 	AdoptionCount   int
 	DependencyCount int
 	AgeDays         int
+	References      []VersionReference
+}
+
+// VersionReference explains why a released version cannot be retired. It is
+// deliberately evidence-shaped: cleanup must show the exact owner and source
+// expression, not merely report an opaque dependency count.
+type VersionReference struct {
+	Kind            string
+	OwnerLibraryID  string
+	OwnerVersion    string
+	OwnerPath       string
+	ImportSpecifier string
+	Evidence        string
+	OwnerScenario   string
+	AdoptionID      string
 }
