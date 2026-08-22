@@ -557,15 +557,27 @@ func relUnder(base, target string) string {
 }
 
 // uiBuildKeyInputs builds the non-file keyed inputs for a UI bundle: NODE_ENV
-// (Vite emits different output for dev vs prod) plus the host Node major version
-// when resolvable (esbuild/Vite output can differ across Node majors). The
-// node_major key is omitted when node is absent (omit-on-unknown).
+// (Vite emits different output for dev vs prod), the host Node major version
+// when resolvable (esbuild/Vite output can differ across Node majors), and the
+// perf-build channel. The node_major key is omitted when node is absent
+// (omit-on-unknown).
+//
+// build_mode is keyed because the profile channel emits a materially different
+// bundle from byte-identical sources — react-dom aliased to the profiling
+// build, identifier names kept through minification. Without it, a scenario
+// already built in the default channel reads as fresh when the profile channel
+// is requested, the rebuild is skipped, and the served bundle carries no
+// instrumentation. performance-health then correctly reports the capture as
+// unavailable, which looks like a broken browser rather than a skipped build.
 func uiBuildKeyInputs(deps hostProbeDeps) map[string]string {
 	keyInputs := map[string]string{"node_env": nodeEnvOrDefault(deps)}
 	if deps.nodeVersion != nil {
 		if major := strings.TrimSpace(deps.nodeVersion()); major != "" {
 			keyInputs["node_major"] = major
 		}
+	}
+	if mode := NormalizeBuildMode(deps.getenv(BuildModeEnvVar)); mode != "" {
+		keyInputs["build_mode"] = mode
 	}
 	return keyInputs
 }

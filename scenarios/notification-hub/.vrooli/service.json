@@ -224,9 +224,7 @@
       }
     ]
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/notification-hub.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

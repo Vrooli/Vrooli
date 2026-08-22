@@ -54,7 +54,7 @@ func TestCaptureSnapshotRequiresIPv4Table(t *testing.T) {
 		t.Skip("0o000 files are readable by root")
 	}
 	stubProcNetTCP(t, "DENIED", fakeProcNetTCPv6)
-	snapshot := captureTCPListenerSnapshot()
+	snapshot := captureTCPListenerSnapshot(CaptureOptions{AttributeProcesses: true})
 	if snapshot.Known {
 		t.Fatalf("snapshot must not be Known when the IPv4 table is unreadable; got Known with reason=%q", snapshot.Reason)
 	}
@@ -68,7 +68,7 @@ func TestCaptureSnapshotUnreadableIPv6TableDegradesToUnknown(t *testing.T) {
 		t.Skip("0o000 files are readable by root")
 	}
 	stubProcNetTCP(t, fakeProcNetTCPv4, "DENIED")
-	snapshot := captureTCPListenerSnapshot()
+	snapshot := captureTCPListenerSnapshot(CaptureOptions{AttributeProcesses: true})
 	if snapshot.Known {
 		t.Fatalf("snapshot must not be Known when a present IPv6 table is unreadable; got Known with reason=%q", snapshot.Reason)
 	}
@@ -79,7 +79,7 @@ func TestCaptureSnapshotUnreadableIPv6TableDegradesToUnknown(t *testing.T) {
 // snapshot stays Known.
 func TestCaptureSnapshotMissingIPv6TableIsComplete(t *testing.T) {
 	stubProcNetTCP(t, fakeProcNetTCPv4, "")
-	snapshot := captureTCPListenerSnapshot()
+	snapshot := captureTCPListenerSnapshot(CaptureOptions{AttributeProcesses: true})
 	if !snapshot.Known {
 		t.Fatalf("snapshot must be Known when tcp6 is absent (IPv6 disabled); reason=%q", snapshot.Reason)
 	}
@@ -95,7 +95,7 @@ func TestCaptureSnapshotMissingIPv6TableIsComplete(t *testing.T) {
 // either table is listening.
 func TestCaptureSnapshotMergesBothFamilies(t *testing.T) {
 	stubProcNetTCP(t, fakeProcNetTCPv4, fakeProcNetTCPv6)
-	snapshot := captureTCPListenerSnapshot()
+	snapshot := captureTCPListenerSnapshot(CaptureOptions{AttributeProcesses: true})
 	if !snapshot.Known {
 		t.Fatalf("snapshot must be Known; reason=%q", snapshot.Reason)
 	}
@@ -110,8 +110,33 @@ func TestCaptureSnapshotMergesBothFamilies(t *testing.T) {
 // (e.g. a procfs mount oddity): no Known snapshot.
 func TestCaptureSnapshotMissingIPv4TableDegradesToUnknown(t *testing.T) {
 	stubProcNetTCP(t, "", fakeProcNetTCPv6)
-	snapshot := captureTCPListenerSnapshot()
+	snapshot := captureTCPListenerSnapshot(CaptureOptions{AttributeProcesses: true})
 	if snapshot.Known {
 		t.Fatal("snapshot must not be Known when /proc/net/tcp is absent")
+	}
+}
+
+// TestCapturePortsOnlySkipsAttributionSubprocess pins the fork-free path:
+// reconciliation reads only Known/Listening, so a capture that does not ask
+// for attribution must answer the port set without shelling out to ss. The
+// port set itself still comes from procfs and must be unchanged.
+func TestCapturePortsOnlySkipsAttributionSubprocess(t *testing.T) {
+	stubProcNetTCP(t, fakeProcNetTCPv4, fakeProcNetTCPv6)
+
+	snapshot := captureTCPListenerSnapshot(CaptureOptions{})
+	if !snapshot.Known {
+		t.Fatalf("snapshot must be Known; reason=%q", snapshot.Reason)
+	}
+	if snapshot.Tool != "procfs" {
+		t.Fatalf("attribution must be skipped, so tool must stay %q; got %q", "procfs", snapshot.Tool)
+	}
+	for _, port := range []int{4110, 8080} {
+		state := snapshot.Listening(port)
+		if !state.Known || !state.Listening {
+			t.Fatalf("port %d must still be reported listening without attribution", port)
+		}
+		if len(state.Listeners) != 0 {
+			t.Fatalf("port %d must carry no attribution; got %d listeners", port, len(state.Listeners))
+		}
 	}
 }

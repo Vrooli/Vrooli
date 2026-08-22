@@ -24,8 +24,8 @@ func (r *Repository) SaveProcessSamples(ctx context.Context, samples []repositor
 		return fmt.Errorf("begin process-sample tx: %w", err)
 	}
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO process_samples (ts, pid, ppid, comm, cmdline, cwd, owner, cpu_pct, rss_kb, threads, gpu_vram_mb)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		`INSERT INTO process_samples (ts, pid, ppid, comm, cmdline, cwd, owner, cpu_pct, rss_kb, threads, gpu_vram_mb, swap_kb, major_faults_per_second, metrics_status, metrics_reason)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		_ = tx.Rollback()
 		return fmt.Errorf("prepare process-sample insert: %w", err)
@@ -34,7 +34,7 @@ func (r *Repository) SaveProcessSamples(ctx context.Context, samples []repositor
 
 	for _, s := range samples {
 		if _, err := stmt.ExecContext(ctx,
-			s.Timestamp.UTC(), s.PID, s.PPID, s.Comm, s.Cmdline, s.Cwd, s.Owner, s.CPUPct, s.RSSKB, s.Threads, s.GPUVRAMMB,
+			s.Timestamp.UTC(), s.PID, s.PPID, s.Comm, s.Cmdline, s.Cwd, s.Owner, s.CPUPct, s.RSSKB, s.Threads, s.GPUVRAMMB, s.SwapKB, s.MajorFaultsPerSecond, s.MetricsStatus, s.MetricsReason,
 		); err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("insert process sample: %w", err)
@@ -160,20 +160,22 @@ func (r *Repository) RollupProcessSamples(ctx context.Context, from, to time.Tim
 	result := repository.RollupResult{From: from, To: to}
 
 	type bucket struct {
-		minute time.Time
-		owner  string
-		comm   string
-		cpuSum float64
-		cpuMax float64
-		rssSum int64
-		rssMax int64
-		count  int64
+		minute   time.Time
+		owner    string
+		comm     string
+		cpuSum   float64
+		cpuMax   float64
+		rssSum   int64
+		rssMax   int64
+		faultSum float64
+		faultMax float64
+		count    int64
 	}
 	buckets := map[string]*bucket{}
 
 	// Read raw rows fully into memory first (drain the cursor before any write).
 	rows, err := r.db.QueryContext(ctx,
-		"SELECT ts, owner, comm, cpu_pct, rss_kb FROM process_samples WHERE ts >= ? AND ts < ?",
+		"SELECT ts, owner, comm, cpu_pct, rss_kb, major_faults_per_second FROM process_samples WHERE ts >= ? AND ts < ?",
 		from.UTC(), to.UTC())
 	if err != nil {
 		return result, fmt.Errorf("read raw for rollup: %w", err)
@@ -184,8 +186,9 @@ func (r *Repository) RollupProcessSamples(ctx context.Context, from, to time.Tim
 			owner, comm string
 			cpu         float64
 			rss         int64
+			faults      float64
 		)
-		if err := rows.Scan(&ts, &owner, &comm, &cpu, &rss); err != nil {
+		if err := rows.Scan(&ts, &owner, &comm, &cpu, &rss, &faults); err != nil {
 			rows.Close()
 			return result, err
 		}
@@ -203,6 +206,10 @@ func (r *Repository) RollupProcessSamples(ctx context.Context, from, to time.Tim
 		b.rssSum += rss
 		if rss > b.rssMax {
 			b.rssMax = rss
+		}
+		b.faultSum += faults
+		if faults > b.faultMax {
+			b.faultMax = faults
 		}
 		b.count++
 		result.RawRowsConsumed++
@@ -223,19 +230,22 @@ func (r *Repository) RollupProcessSamples(ctx context.Context, from, to time.Tim
 	}
 	// Upsert each bucket, merging into any existing rollup for that minute so a
 	// re-run (overlapping windows) stays correct rather than double-counting.
-	upsert := `INSERT INTO process_sample_rollups (minute, owner, comm, avg_cpu_pct, max_cpu_pct, avg_rss_kb, max_rss_kb, sample_count)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	upsert := `INSERT INTO process_sample_rollups (minute, owner, comm, avg_cpu_pct, max_cpu_pct, avg_rss_kb, max_rss_kb, avg_major_faults_per_second, max_major_faults_per_second, sample_count)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(minute, owner, comm) DO UPDATE SET
 			avg_cpu_pct = (avg_cpu_pct * sample_count + excluded.avg_cpu_pct * excluded.sample_count) / (sample_count + excluded.sample_count),
 			max_cpu_pct = MAX(max_cpu_pct, excluded.max_cpu_pct),
 			avg_rss_kb = (avg_rss_kb * sample_count + excluded.avg_rss_kb * excluded.sample_count) / (sample_count + excluded.sample_count),
 			max_rss_kb = MAX(max_rss_kb, excluded.max_rss_kb),
+			avg_major_faults_per_second = (avg_major_faults_per_second * sample_count + excluded.avg_major_faults_per_second * excluded.sample_count) / (sample_count + excluded.sample_count),
+			max_major_faults_per_second = MAX(max_major_faults_per_second, excluded.max_major_faults_per_second),
 			sample_count = sample_count + excluded.sample_count`
 	for _, b := range buckets {
 		avgCPU := b.cpuSum / float64(b.count)
 		avgRSS := b.rssSum / b.count
+		avgFaults := b.faultSum / float64(b.count)
 		if _, err := tx.ExecContext(ctx, upsert,
-			b.minute, b.owner, b.comm, avgCPU, b.cpuMax, avgRSS, b.rssMax, b.count,
+			b.minute, b.owner, b.comm, avgCPU, b.cpuMax, avgRSS, b.rssMax, avgFaults, b.faultMax, b.count,
 		); err != nil {
 			_ = tx.Rollback()
 			return result, fmt.Errorf("upsert rollup: %w", err)

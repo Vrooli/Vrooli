@@ -225,6 +225,42 @@ func TestUIBuildKeyInputs(t *testing.T) {
 	}
 }
 
+// TestUIBuildKeyInputsKeysBuildMode: the perf-build channel is a keyed build
+// input. Without it a scenario already built in the default channel reads as
+// fresh when the profile channel is requested, the rebuild is skipped, and the
+// served bundle carries no React profiling instrumentation — which surfaces as
+// an unavailable capture rather than as a skipped build.
+func TestUIBuildKeyInputsKeysBuildMode(t *testing.T) {
+	deps := buildInputDeps(map[string]string{}, "20")
+	if _, ok := uiBuildKeyInputs(deps)["build_mode"]; ok {
+		t.Fatalf("build_mode must be omitted for the default channel")
+	}
+
+	profile := buildInputDeps(map[string]string{}, "20")
+	base := profile.getenv
+	profile.getenv = func(key string) string {
+		if key == BuildModeEnvVar {
+			return "profile"
+		}
+		return base(key)
+	}
+	if got := uiBuildKeyInputs(profile)["build_mode"]; got != "profile" {
+		t.Fatalf("build_mode = %q, want profile", got)
+	}
+
+	// An unrecognised value is the default channel, not a third digest.
+	bogus := buildInputDeps(map[string]string{}, "20")
+	bogus.getenv = func(key string) string {
+		if key == BuildModeEnvVar {
+			return "nonsense"
+		}
+		return base(key)
+	}
+	if _, ok := uiBuildKeyInputs(bogus)["build_mode"]; ok {
+		t.Fatalf("an unrecognised build mode must not be keyed")
+	}
+}
+
 // TestNodeMajor covers version-string parsing.
 func TestNodeMajor(t *testing.T) {
 	cases := map[string]string{

@@ -86,7 +86,6 @@ func RelocationArtifactPaths(relocationTargets []string) []string {
 		for _, path := range []string{
 			filepath.Join(genRoot, "go", scenarioID),
 			filepath.Join(genRoot, "typescript", scenarioID),
-			filepath.Join(genRoot, "typescript", "js", scenarioID),
 			filepath.Join(genRoot, "python", scenarioID),
 			filepath.Join(genRoot, "python", scenarioPythonID),
 			// The per-surface lock manifest is the sixth codegen output and the

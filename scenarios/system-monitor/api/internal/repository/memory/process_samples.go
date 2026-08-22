@@ -93,14 +93,16 @@ func (r *MemoryRepository) RollupProcessSamples(_ context.Context, from, to time
 	result := repository.RollupResult{From: from, To: to}
 
 	type bucket struct {
-		minute time.Time
-		owner  string
-		comm   string
-		cpuSum float64
-		cpuMax float64
-		rssSum int64
-		rssMax int64
-		count  int64
+		minute   time.Time
+		owner    string
+		comm     string
+		cpuSum   float64
+		cpuMax   float64
+		rssSum   int64
+		rssMax   int64
+		faultSum float64
+		faultMax float64
+		count    int64
 	}
 	buckets := map[string]*bucket{}
 	kept := r.processSamples[:0]
@@ -124,6 +126,10 @@ func (r *MemoryRepository) RollupProcessSamples(_ context.Context, from, to time
 		if s.RSSKB > b.rssMax {
 			b.rssMax = s.RSSKB
 		}
+		b.faultSum += s.MajorFaultsPerSecond
+		if s.MajorFaultsPerSecond > b.faultMax {
+			b.faultMax = s.MajorFaultsPerSecond
+		}
 		b.count++
 		result.RawRowsConsumed++
 	}
@@ -134,14 +140,16 @@ func (r *MemoryRepository) RollupProcessSamples(_ context.Context, from, to time
 
 	for _, b := range buckets {
 		r.mergeRollup(processRollup{
-			Minute:      b.minute,
-			Owner:       b.owner,
-			Comm:        b.comm,
-			AvgCPUPct:   b.cpuSum / float64(b.count),
-			MaxCPUPct:   b.cpuMax,
-			AvgRSSKB:    b.rssSum / b.count,
-			MaxRSSKB:    b.rssMax,
-			SampleCount: b.count,
+			Minute:                  b.minute,
+			Owner:                   b.owner,
+			Comm:                    b.comm,
+			AvgCPUPct:               b.cpuSum / float64(b.count),
+			MaxCPUPct:               b.cpuMax,
+			AvgRSSKB:                b.rssSum / b.count,
+			MaxRSSKB:                b.rssMax,
+			AvgMajorFaultsPerSecond: b.faultSum / float64(b.count),
+			MaxMajorFaultsPerSecond: b.faultMax,
+			SampleCount:             b.count,
 		})
 		result.RollupRows++
 	}

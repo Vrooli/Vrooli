@@ -25,7 +25,6 @@ func TestRelocationArtifactPathsCoversEveryCodegenOutput(t *testing.T) {
 		target,
 		filepath.Join(gen, "go", "throwaway-probe"),
 		filepath.Join(gen, "typescript", "throwaway-probe"),
-		filepath.Join(gen, "typescript", "js", "throwaway-probe"),
 		filepath.Join(gen, "python", "throwaway-probe"),
 		// protoc-gen-python rewrites hyphens: module names disallow "-".
 		filepath.Join(gen, "python", "throwaway_probe"),

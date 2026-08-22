@@ -236,6 +236,29 @@ describe("portability matrix", () => {
     expect(unknown.className).toMatch(/excursion/);
   });
 
+  it("renders incomplete controls as a distinct state with absent names", () => {
+    render(
+      <PortabilityMatrix
+        rows={[{
+          capability: "credential-storage",
+          platforms: { windows: {
+            status: "controls_incomplete",
+            qualification: "qualified",
+            implementer: "credential-provider",
+            mechanism: null,
+            reason: "provider resolves but a control is absent",
+            absent: ["login_keyring_unlock"],
+          } },
+        }]}
+        operatingSystems={["windows"]}
+        rowHeader="Capability"
+        caption="fixture"
+      />,
+    );
+    expect(screen.getByRole("img", { name: /Controls incomplete/ })).toHaveClass("lamp--excursion");
+    expect(screen.getByTestId("absent-declarers")).toHaveTextContent("login_keyring_unlock");
+  });
+
   it("states the denominator in its caption", () => {
     const { container } = render(
       <PortabilityMatrix

@@ -89,10 +89,71 @@ func TestFleetContractRejectsBundlingModeContradiction(t *testing.T) {
 	}
 }
 
-func TestFleetContractRejectsManagedServiceGPUBlock(t *testing.T) {
-	fixture := fleetContractFixture()
-	fixture.GPU = &manifestpkg.ResourceGPU{Probe: "nvidia"}
-	if err := checkManagedArtifact("fixture", fixture); err == nil || !strings.Contains(err.Error(), "obsolete gpu block") {
-		t.Fatalf("checkManagedArtifact error = %v, want managed-service GPU failure", err)
+// Scenario: every surface the acceleration block replaced is rejected, on every
+// driver.
+//
+// The rejection used to fire only for `gpu` on a managed-service resource,
+// while internal/capacity used that same block as its only test for "this
+// resource uses the GPU". The two disagreed in opposite directions. It now
+// reads the manifest's raw JSON, because the parsed struct no longer has fields
+// for those surfaces: a manifest still declaring one would load cleanly and be
+// silently ignored, which is worse than failing.
+func TestFleetContractRejectsEveryLegacyAcceleratorSurface(t *testing.T) {
+	cases := []struct {
+		scenario string
+		manifest string
+		wantErr  string
+	}{
+		{
+			scenario: "Given the deprecated gpu block, Then it is rejected and names its replacement",
+			manifest: `{"name":"fixture","gpu":{"probe":"nvidia"}}`,
+			wantErr:  "deprecated gpu block",
+		},
+		{
+			scenario: "Given the deprecated top-level capacity block, Then it is rejected",
+			manifest: `{"name":"fixture","capacity":{"resource_kind":"vram","preferred_bytes":1}}`,
+			wantErr:  "deprecated top-level capacity block",
+		},
+		{
+			scenario: "Given the deprecated requirements.gpu block, Then it is rejected",
+			manifest: `{"name":"fixture","requirements":{"gpu":{}}}`,
+			wantErr:  "deprecated requirements.gpu block",
+		},
+		{
+			scenario: "Given a null legacy key, Then it is not a declaration",
+			manifest: `{"name":"fixture","gpu":null,"capacity":null}`,
+		},
+		{
+			scenario: "Given only an acceleration block, Then it passes",
+			manifest: `{"name":"fixture","acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{}}}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.scenario, func(t *testing.T) {
+			// Given a manifest carrying that surface
+			path := filepath.Join(t.TempDir(), "resource.json")
+			if err := os.WriteFile(path, []byte(tc.manifest), 0o600); err != nil {
+				t.Fatalf("write fixture manifest: %v", err)
+			}
+
+			// When the fleet contract checks it
+			err := checkLegacyAcceleratorSurfaces("fixture", path)
+
+			// Then it is rejected only when a legacy surface is actually declared
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("checkLegacyAcceleratorSurfaces() = %v, want nil", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("checkLegacyAcceleratorSurfaces() = %v, want an error containing %q", err, tc.wantErr)
+			}
+			// And the message names where the value goes instead
+			if !strings.Contains(err.Error(), "acceleration") {
+				t.Fatalf("checkLegacyAcceleratorSurfaces() = %v, want the message to name the acceleration block", err)
+			}
+		})
 	}
 }

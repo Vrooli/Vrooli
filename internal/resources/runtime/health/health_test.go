@@ -29,15 +29,34 @@ func TestRunChecksHTTPHealthy(t *testing.T) {
 	}
 }
 
-func TestRunChecksSkipsLivenessTelemetry(t *testing.T) {
+// Scenario: a failing liveness check degrades the resource without downing it.
+//
+// The control plane executes liveness checks. A failing one means the resource
+// answers requests but is not meeting its contract — running below its declared
+// accelerator backend is the canonical case — so serving stays true while
+// healthy becomes false.
+func TestRunChecksDegradeOnFailingLiveness(t *testing.T) {
+	// Given a resource whose readiness passes and whose liveness fails
 	result, err := RunChecks(context.Background(), []manifestpkg.ResourceHealthCheck{
+		{Kind: "readiness", Type: "command", Command: []string{"true"}},
 		{Kind: "liveness", Type: "command", Command: []string{"not-a-real-command"}},
 	}, Config{})
+	// When the combined verdict is read
 	if err != nil {
 		t.Fatalf("RunChecks: %v", err)
 	}
-	if !result.Healthy {
-		t.Fatalf("liveness telemetry must not make readiness unhealthy: %+v", result)
+
+	// Then it is not healthy, because the contract is not met
+	if result.Healthy {
+		t.Fatalf("a failing liveness check must make the result unhealthy: %+v", result)
+	}
+	// And it is still serving, because the resource answers requests
+	if !result.Serving {
+		t.Fatalf("a failing liveness check must not make a serving resource look stopped: %+v", result)
+	}
+	// And the message names the check that failed
+	if result.LivenessFailed == "" {
+		t.Fatalf("LivenessFailed is empty; the operator must be told which contract was not met: %+v", result)
 	}
 }
 

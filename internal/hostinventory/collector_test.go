@@ -368,8 +368,8 @@ func TestParseNvidiaComputeCapabilityCSV(t *testing.T) {
 	}
 }
 
-func TestAcquisitionFactsOmitAbsentComputeCapability(t *testing.T) {
-	withoutGPU := (Snapshot{OS: "linux", Arch: "arm64"}).AcquisitionFacts()
+func TestAcceleratorFactsOmitAbsentComputeCapability(t *testing.T) {
+	withoutGPU := (Snapshot{OS: "linux", Arch: "arm64"}).AcceleratorFacts()
 	if _, ok := withoutGPU["gpu.cuda_compute"]; ok {
 		t.Fatalf("absent GPU emitted compute fact: %#v", withoutGPU)
 	}
@@ -377,7 +377,7 @@ func TestAcquisitionFactsOmitAbsentComputeCapability(t *testing.T) {
 		{Source: "nvidia-smi", CUDAComputeCapability: "8.0"},
 		{Source: "nvidia-smi", CUDAComputeCapability: "8.9"},
 		{Source: "system_profiler", CUDAComputeCapability: "9.0"},
-	}}).AcquisitionFacts()
+	}}).AcceleratorFacts()
 	if got := withGPUs["gpu.cuda_compute"]; got != "8.9" {
 		t.Fatalf("gpu.cuda_compute = %q, want highest NVIDIA capability", got)
 	}

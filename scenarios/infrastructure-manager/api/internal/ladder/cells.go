@@ -193,6 +193,7 @@ type Cell struct {
 	// Observation is the rung grade after the dependency ordering is applied.
 	Observation Observation
 	Reason      string
+	ReasonCode  string
 	Mechanism   string
 	Remediation string
 	BlockedBy   Rung

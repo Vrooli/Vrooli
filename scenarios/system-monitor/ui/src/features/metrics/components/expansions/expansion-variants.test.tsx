@@ -5,7 +5,7 @@ import { DiskExpansion } from './DiskExpansion';
 import { MemoryExpansion } from './MemoryExpansion';
 import { NetworkExpansion } from './NetworkExpansion';
 import { GpuExpansion } from './GpuExpansion';
-import { buildDiskUsageCard, renderGrowthPatterns, renderProcessTable } from '../MetricRenderHelpers';
+import { buildDiskUsageCard, renderProcessTable } from '../MetricRenderHelpers';
 import { FindingsPanel } from '../../../capacity/components/FindingsPanel';
 import { ClaimsTable } from '../../../capacity/components/ClaimsTable';
 
@@ -19,9 +19,8 @@ describe('metric expansion variants', () => {
     rerender(<DiskExpansion details={{ diskUsage: {} } as never} />);
     expect(screen.getAllByText(/—/).length).toBeGreaterThan(0);
 
-    rerender(<MemoryExpansion details={{ topProcesses: [{ pid: 1, name: 'one', memoryMb: 3 }], swapUsage: { percent: 4 }, diskUsage: { percent: 5 }, growthPatterns: [{ process: 'one', riskLevel: 'high', growthMbPerHour: 6 }] } as never} />);
+    rerender(<MemoryExpansion details={{ topProcesses: [{ pid: 1, name: 'one', memoryMb: 3 }], swapUsage: { percent: 4 }, diskUsage: { percent: 5 } } as never} />);
     expect(screen.getByText('one (1)')).toBeInTheDocument();
-    expect(screen.getByText(/Memory Growth Patterns/)).toBeInTheDocument();
     rerender(<MemoryExpansion details={{} as never} />);
     expect(screen.getAllByText(/—/).length).toBeGreaterThan(0);
 
@@ -66,7 +65,5 @@ describe('metric expansion variants', () => {
     expect(screen.getByText('custom subtitle')).toBeInTheDocument();
     rerender(renderProcessTable([{ name: 'p', pid: 1 }], 'CPU', process => process.cpuPercent));
     expect(screen.getByText('—')).toBeInTheDocument();
-    rerender(renderGrowthPatterns([{ process: 'p', growthMbPerHour: 1, riskLevel: 'high' }]));
-    expect(screen.getByText(/1.0 MB\/hr/)).toBeInTheDocument();
   });
 });

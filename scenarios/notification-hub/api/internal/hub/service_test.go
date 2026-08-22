@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
+	hub "notification-hub/internal/hub"
+	"notification-hub/internal/modules"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
-	hub "notification-hub/internal/hub"
-	"notification-hub/internal/modules"
 )
 
 type recordingSender struct {

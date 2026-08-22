@@ -51,17 +51,20 @@ func MetricsResponseToProto(m *models.MetricsResponse) *metricspb.MetricsRespons
 		gpuState = models.MetricState{Status: "unsupported", Reason: "GPU collector unavailable"}
 	}
 	pb := &metricspb.MetricsResponse{
-		CycleId:        m.CycleID,
-		CpuUsage:       m.CPUUsage,
-		MemoryUsage:    m.MemoryUsage,
-		TcpConnections: int32(m.TCPConnections),
-		GpuUsage:       m.GPUUsage,
-		Timestamp:      timestamppb.New(m.Timestamp),
-		Cpu:            metricValue(m.CPUState, m.CPUUsage),
-		Memory:         metricValue(m.MemoryState, m.MemoryUsage),
-		Connections:    metricValue(m.ConnectionsState, float64(m.TCPConnections)),
-		Gpu:            metricValue(gpuState, dereferenceFloat(m.GPUUsage)),
-		Disk:           metricValue(m.DiskState, m.DiskUsage),
+		CycleId:            m.CycleID,
+		CpuUsage:           m.CPUUsage,
+		MemoryUsage:        m.MemoryUsage,
+		TcpConnections:     int32(m.TCPConnections),
+		GpuUsage:           m.GPUUsage,
+		Timestamp:          timestamppb.New(m.Timestamp),
+		Cpu:                metricValue(m.CPUState, m.CPUUsage),
+		Memory:             metricValue(m.MemoryState, m.MemoryUsage),
+		Connections:        metricValue(m.ConnectionsState, float64(m.TCPConnections)),
+		Gpu:                metricValue(gpuState, dereferenceFloat(m.GPUUsage)),
+		Disk:               metricValue(m.DiskState, m.DiskUsage),
+		SwapTraffic:        metricValue(m.SwapTrafficState, 0),
+		MajorFaults:        metricValue(m.MajorFaultsState, 0),
+		FragmentationIndex: metricValue(m.FragmentationIndexState, 0),
 	}
 	pb.Cpu = metricValue(m.CPUState, m.CPUUsage)
 	pb.Memory = metricValue(m.MemoryState, m.MemoryUsage)
@@ -85,18 +88,21 @@ func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricsp
 	samples := make([]*metricspb.MetricTimelineSample, len(m.Samples))
 	for i, s := range m.Samples {
 		samples[i] = &metricspb.MetricTimelineSample{
-			CycleId:        s.CycleID,
-			Timestamp:      timestamppb.New(s.Timestamp),
-			CpuUsage:       s.CPUUsage,
-			MemoryUsage:    s.MemoryUsage,
-			TcpConnections: int32(s.TCPConnections),
-			GpuUsage:       s.GPUUsage,
-			SwapUsage:      s.SwapUsage,
-			Cpu:            metricValue(s.CPUState, s.CPUUsage),
-			Memory:         metricValue(s.MemoryState, s.MemoryUsage),
-			Connections:    metricValue(s.ConnectionsState, float64(s.TCPConnections)),
-			Gpu:            metricValue(s.GPUState, dereferenceFloat(s.GPUUsage)),
-			Swap:           metricValue(s.SwapState, dereferenceFloat(s.SwapUsage)),
+			CycleId:            s.CycleID,
+			Timestamp:          timestamppb.New(s.Timestamp),
+			CpuUsage:           s.CPUUsage,
+			MemoryUsage:        s.MemoryUsage,
+			TcpConnections:     int32(s.TCPConnections),
+			GpuUsage:           s.GPUUsage,
+			SwapUsage:          s.SwapUsage,
+			Cpu:                metricValue(s.CPUState, s.CPUUsage),
+			Memory:             metricValue(s.MemoryState, s.MemoryUsage),
+			Connections:        metricValue(s.ConnectionsState, float64(s.TCPConnections)),
+			Gpu:                metricValue(s.GPUState, dereferenceFloat(s.GPUUsage)),
+			Swap:               metricValue(s.SwapState, dereferenceFloat(s.SwapUsage)),
+			SwapTraffic:        metricValue(s.SwapTrafficState, 0),
+			MajorFaults:        metricValue(s.MajorFaultsState, 0),
+			FragmentationIndex: metricValue(s.FragmentationIndexState, 0),
 		}
 	}
 	return &metricspb.MetricsTimelineResponse{
@@ -203,13 +209,39 @@ func cpuMetricsToProto(m models.CPUMetrics) *metricspb.CPUMetrics {
 
 func memoryMetricsToProto(m models.MemoryMetrics) *metricspb.MemoryMetrics {
 	pb := &metricspb.MemoryMetrics{
-		Usage:          m.Usage,
-		TopProcesses:   processInfoSliceToProto(m.TopProcesses),
-		GrowthPatterns: memoryGrowthSliceToProto(m.GrowthPatterns),
-		SwapUsage:      swapInfoToProto(m.SwapUsage),
-		DiskUsage:      diskInfoToProto(m.DiskUsage),
+		Usage:              m.Usage,
+		TopProcesses:       processInfoSliceToProto(m.TopProcesses),
+		TopPagingProcesses: processInfoSliceToProto(m.TopPagingProcesses),
+		SwapUsage:          swapInfoToProto(m.SwapUsage),
+		DiskUsage:          diskInfoToProto(m.DiskUsage),
+		Paging:             pagingMetricsToProto(m.Paging),
+		Fragmentation:      fragmentationMetricsToProto(m.Fragmentation),
 	}
 	return pb
+}
+
+func pagingMetricsToProto(m models.PagingMetrics) *metricspb.PagingMetrics {
+	return &metricspb.PagingMetrics{
+		SwapInPerSecond:           metricValue(m.SwapInPerSecond, 0),
+		SwapOutPerSecond:          metricValue(m.SwapOutPerSecond, 0),
+		SwapTrafficPagesPerSecond: metricValue(m.SwapTrafficPagesPerSecond, 0),
+		MajorFaultsPerSecond:      metricValue(m.MajorFaultsPerSecond, 0),
+		PageFaultsPerSecond:       metricValue(m.PageFaultsPerSecond, 0),
+	}
+}
+
+func fragmentationMetricsToProto(m models.FragmentationMetrics) *metricspb.FragmentationMetrics {
+	rates := make(map[string]*metricspb.MetricValue, len(m.CompactionRates))
+	for name, value := range m.CompactionRates {
+		rates[name] = metricValue(value, 0)
+	}
+	return &metricspb.FragmentationMetrics{
+		MaxFreeOrder:           metricValue(m.MaxFreeOrder, 0),
+		LowOrderShare:          metricValue(m.LowOrderShare, 0),
+		CompactionFailureRatio: metricValue(m.CompactionFailureRatio, 0),
+		CompactionRates:        rates,
+		Buddyinfo:              m.Buddyinfo,
+	}
 }
 
 func networkMetricsToProto(m models.NetworkMetrics) *metricspb.NetworkMetrics {
@@ -345,15 +377,17 @@ func processInfoSliceToProto(ms []models.ProcessInfo) []*metricspb.ProcessInfo {
 	result := make([]*metricspb.ProcessInfo, len(ms))
 	for i, m := range ms {
 		result[i] = &metricspb.ProcessInfo{
-			Pid:             int32(m.PID),
-			Name:            m.Name,
-			CpuPercent:      m.CPUPercent,
-			MemoryMb:        m.MemoryMB,
-			Connections:     int32(m.Connections),
-			Threads:         int32(m.Threads),
-			FileDescriptors: int32(m.FDs),
-			Status:          m.Status,
-			Goroutines:      int32(m.Goroutines),
+			Pid:                  int32(m.PID),
+			Name:                 m.Name,
+			CpuPercent:           m.CPUPercent,
+			MemoryMb:             m.MemoryMB,
+			Connections:          int32(m.Connections),
+			Threads:              int32(m.Threads),
+			FileDescriptors:      int32(m.FDs),
+			Status:               m.Status,
+			Goroutines:           int32(m.Goroutines),
+			SwapKb:               m.SwapKB,
+			MajorFaultsPerSecond: m.MajorFaultsPerSecond,
 		}
 	}
 	return result
@@ -455,18 +489,6 @@ func inotifyWatcherInfoToProto(m *models.InotifyWatcherInfo) *metricspb.InotifyW
 		InstancesMax:     int32(m.InstancesMax),
 		InstancesPercent: m.InstancesPercent,
 	}
-}
-
-func memoryGrowthSliceToProto(ms []models.MemoryGrowth) []*metricspb.MemoryGrowth {
-	result := make([]*metricspb.MemoryGrowth, len(ms))
-	for i, m := range ms {
-		result[i] = &metricspb.MemoryGrowth{
-			Process:         m.Process,
-			GrowthMbPerHour: m.GrowthMBPerHour,
-			RiskLevel:       m.RiskLevel,
-		}
-	}
-	return result
 }
 
 func swapInfoToProto(m models.SwapInfo) *metricspb.SwapInfo {

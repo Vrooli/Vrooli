@@ -64,7 +64,18 @@ func protoPlatform(platform internalportability.PlatformEntry) *portabilityv1.Pl
 		Reason:              platform.Reason,
 		QualificationReason: platform.QualificationReason,
 		HasImplementation:   platform.HasImplementation,
+		Controls:            platform.Controls,
+		Absent:              platform.Absent,
+		Declarers:           protoDeclarers(platform.Declarers),
 	}
+}
+
+func protoDeclarers(declarers []deployability.CapabilityDeclarer) []*portabilityv1.CapabilityDeclarer {
+	result := make([]*portabilityv1.CapabilityDeclarer, 0, len(declarers))
+	for _, declarer := range declarers {
+		result = append(result, &portabilityv1.CapabilityDeclarer{Name: declarer.Name, Role: declarer.Role, DeclaredStatus: declarer.DeclaredStatus, Resolved: declarer.Resolved, Reason: declarer.Reason})
+	}
+	return result
 }
 
 func protoEntry(entry internalportability.Entry) *portabilityv1.CapabilityEntry {
@@ -143,6 +154,8 @@ func protoFleet(readout internalportability.FleetReadout) *portabilityv1.FleetRe
 		},
 		ManifestRoot: readout.ManifestRoot,
 		ComputedAt:   timestamppb.New(readout.ComputedAt),
+		Available:    readout.Available,
+		Reason:       readout.Reason,
 	}
 	for _, item := range readout.Peerless {
 		out.Peerless = append(out.Peerless, &portabilityv1.ScenarioPeerless{

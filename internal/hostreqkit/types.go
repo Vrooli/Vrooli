@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -148,6 +149,25 @@ type ItemStatus struct {
 	Reasons              []string                   `json:"reasons,omitempty"`
 	Notes                []string                   `json:"notes,omitempty"`
 	Provenance           []hostreqspec.Provenance   `json:"provenance,omitempty"`
+}
+
+// ObservedSafeguard is the read-only boundary consumed by platform coverage.
+// It records what an inspection observed without implying that the safeguard
+// was applied. An empty/unknown observation is represented explicitly rather
+// than as a synthetic success.
+type ObservedSafeguard struct {
+	Name           string         `json:"name"`
+	SupportClass   SupportClass   `json:"support_class"`
+	ExecutionState ExecutionState `json:"execution_state"`
+	Notes          []string       `json:"notes,omitempty"`
+	ObservedAt     time.Time      `json:"observed_at"`
+}
+
+func ObservedSafeguardFromStatus(status ItemStatus, observedAt time.Time) ObservedSafeguard {
+	if observedAt.IsZero() {
+		observedAt = time.Now().UTC()
+	}
+	return ObservedSafeguard{Name: status.Name, SupportClass: status.SupportClass, ExecutionState: status.ExecutionState, Notes: append([]string(nil), status.Notes...), ObservedAt: observedAt.UTC()}
 }
 
 func (h Host) ValidateSetup() error {

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/vrooli/binaryfetch"
 	_ "github.com/vrooli/vrooli/internal/acquisition" // register the caller-owned tar.zst archive decoder
@@ -62,18 +63,31 @@ func (c *Controller) PruneManagedServiceArtifacts(name string) (int, error) {
 // contract used by explain. There is no resource-specific source switch here:
 // the manifest is the sole source of the selected target.
 func managedServiceAcquisitionTarget(ctx context.Context, manifest ResourceManifest) (binaryfetch.AcquisitionTarget, error) {
+	target, _, err := managedServiceAcquisitionTargetWithFacts(ctx, manifest)
+	return target, err
+}
+
+// managedServiceAcquisitionTargetWithFacts resolves the target and returns the
+// facts it was resolved from. The facts travel with the target because both the
+// install record and the drift message need them, and re-collecting would risk
+// comparing a target against a different observation than the one that produced
+// it.
+func managedServiceAcquisitionTargetWithFacts(ctx context.Context, manifest ResourceManifest) (binaryfetch.AcquisitionTarget, binaryfetch.Facts, error) {
 	if manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
-		return binaryfetch.AcquisitionTarget{}, nil
+		return binaryfetch.AcquisitionTarget{}, nil, nil
 	}
-	snapshot, err := hostinventory.Collect(ctx)
+	// The accelerator-only collection path: a resource start must not wait on
+	// desktop or credential-store probes to learn which artifact it needs.
+	snapshot, err := hostinventory.CollectGPUFacts(ctx)
 	if err != nil {
-		return binaryfetch.AcquisitionTarget{}, fmt.Errorf("collect host facts for %s acquisition: %w", manifest.Name, err)
+		return binaryfetch.AcquisitionTarget{}, nil, fmt.Errorf("collect host facts for %s acquisition: %w", manifest.Name, err)
 	}
-	target, err := manifest.ManagedService.Acquisition.Resolve(snapshot.AcquisitionFacts())
+	facts := snapshot.AcceleratorFacts()
+	target, err := manifest.ManagedService.Acquisition.Resolve(facts)
 	if err != nil {
-		return target, fmt.Errorf("resolve acquisition target for %s: %w", manifest.Name, err)
+		return target, facts, fmt.Errorf("resolve acquisition target for %s: %w", manifest.Name, err)
 	}
-	return target, nil
+	return target, facts, nil
 }
 
 // ensureManagedServiceArtifact converges a declared managed service into the
@@ -123,6 +137,7 @@ func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, m
 		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
 	}
 	if err := verifyManagedServiceTargetArtifact(path, artifact, target); err == nil {
+		recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
 		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
 	}
 	if err := verifyManagedServiceProvenance(ctx, manifest.ManagedService.Acquisition.Provenance); err != nil {
@@ -140,7 +155,10 @@ func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, m
 	if mode == "" {
 		mode = "0755"
 	}
-	if strings.EqualFold(strings.TrimSpace(manifest.ManagedService.Acquisition.Kind), "oci-image") {
+	// The kind is resolved per target, so one resource can stage an OCI
+	// filesystem tree on one platform and a published archive on another.
+	targetKind := manifest.ManagedService.Acquisition.EffectiveKind(target)
+	if targetKind == "oci-image" {
 		if layout == "dir" {
 			if err := os.RemoveAll(path); err != nil {
 				return fmt.Errorf("clean %s artifact tree: %w", manifest.Name, err)
@@ -153,7 +171,7 @@ func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, m
 				return fmt.Errorf("acquire %s OCI executable: %w", manifest.Name, err)
 			}
 		}
-	} else if strings.EqualFold(strings.TrimSpace(manifest.ManagedService.Acquisition.Kind), "composed") {
+	} else if targetKind == "composed" {
 		if err := composeManagedServiceArtifact(ctx, target, filepath.Join(controller.Root, "resources", manifest.Name), path); err != nil {
 			return fmt.Errorf("compose %s artifact: %w", manifest.Name, err)
 		}
@@ -176,7 +194,29 @@ func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, m
 	if err := verifyManagedServiceTargetArtifact(path, artifact, target); err != nil {
 		return fmt.Errorf("verify acquired %s artifact: %w", manifest.Name, err)
 	}
+	// The digest says these are the right bytes. The closure check says the
+	// host can start them. An artifact that passes the first and fails the
+	// second is worse than a missing one: it installs clean and then refuses to
+	// run, with no signal until someone reads the service log.
+	if verdict := verifyManagedServiceRuntimeClosure(manifest, path); verdict.State == ClosureUnresolved {
+		if removeErr := os.RemoveAll(path); removeErr != nil {
+			return fmt.Errorf("discard unusable %s artifact: %w", manifest.Name, removeErr)
+		}
+		return &RuntimeClosureError{Resource: manifest.Name, Artifact: path, Verdict: verdict}
+	}
+	recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
 	return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+}
+
+// recordManagedServiceInstallFacts writes the sidecar that makes a later
+// mismatch explainable. It is best-effort: the artifact is already staged and
+// verified, and a missing record only costs the better diagnosis later.
+func recordManagedServiceInstallFacts(ctx context.Context, manifest ResourceManifest, path string, target binaryfetch.AcquisitionTarget, artifact resourcedeployment.ServiceArtifact) {
+	snapshot, err := hostinventory.CollectGPUFacts(ctx)
+	if err != nil {
+		return
+	}
+	_ = writeInstallFacts(path, manifest.Name, snapshot.AcceleratorFacts(), target, artifact, time.Now())
 }
 
 func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.AcquisitionTarget, resourceRoot, artifactRoot string) error {
@@ -334,7 +374,7 @@ func ensureManagedServiceDataArtifacts(ctx context.Context, controller *Controll
 		return fmt.Errorf("collect host facts for %s data artifacts: %w", manifest.Name, err)
 	}
 	for _, declaration := range manifest.ManagedService.DataArtifacts {
-		target, err := declaration.Acquisition.Resolve(snapshot.AcquisitionFacts())
+		target, err := declaration.Acquisition.Resolve(snapshot.AcceleratorFacts())
 		if err != nil {
 			return fmt.Errorf("resolve %s data artifact target: %w", declaration.Name, err)
 		}
@@ -470,17 +510,28 @@ func managedServiceArtifactForTarget(manifest ResourceManifest, target binaryfet
 // managedServiceArtifactForLaunch returns the checksum/layout selected by the
 // same host-fact predicate that acquisition uses. A manifest-level artifact
 // checksum is only the platform default; a GPU or other fact-specific target
-// may deliberately identify a different verified artifact.
-func managedServiceArtifactForLaunch(ctx context.Context, manifest ResourceManifest) (resourcedeployment.ServiceArtifact, error) {
+// may deliberately identify a different verified artifact. It also returns the artifact the resolver selects for
+// this host right now. artifactPath is the staged artifact it will be compared
+// against; an empty path skips the fact-drift check, which is correct for a
+// caller that has no staged artifact to compare.
+func managedServiceArtifactForLaunch(ctx context.Context, manifest ResourceManifest, artifactPath string) (resourcedeployment.ServiceArtifact, error) {
 	if manifest.ManagedService.Acquisition == nil {
 		return managedServiceArtifactForTarget(manifest, binaryfetch.AcquisitionTarget{})
 	}
-	target, err := managedServiceAcquisitionTarget(ctx, manifest)
+	target, facts, err := managedServiceAcquisitionTargetWithFacts(ctx, manifest)
 	if err != nil {
 		return resourcedeployment.ServiceArtifact{}, err
 	}
 	if target.Unsupported != "" {
 		return resourcedeployment.ServiceArtifact{}, fmt.Errorf("resource %s is unsupported: %s", manifest.Name, target.Unsupported)
+	}
+	// Ask whether the host moved before letting a digest comparison speak for
+	// it. "The bytes are corrupt" and "the host changed" have different cures,
+	// and only one of them is a re-download of the same artifact.
+	if strings.TrimSpace(artifactPath) != "" {
+		if driftErr := checkFactDrift(artifactPath, manifest.Name, facts, target); driftErr != nil {
+			return resourcedeployment.ServiceArtifact{}, driftErr
+		}
 	}
 	return managedServiceArtifactForTarget(manifest, target)
 }
@@ -561,4 +612,20 @@ func acquisitionTargetRuntimeEnv(ctx context.Context, manifest ResourceManifest,
 		values[key] = value
 	}
 	return values, nil
+}
+
+// verifyManagedServiceRuntimeClosure checks the staged executable against the
+// library paths its selected backend declares. A resource that declares no
+// accelerator still gets the check: an unsatisfiable closure is a broken
+// artifact whatever the reason for its selection.
+func verifyManagedServiceRuntimeClosure(manifest ResourceManifest, path string) ClosureVerdict {
+	var libraryPaths []string
+	if declaration := manifest.EffectiveAcceleration(); declaration != nil {
+		for _, backend := range declaration.Backends {
+			if config, ok := declaration.Config(backend); ok {
+				libraryPaths = append(libraryPaths, config.LibraryPaths...)
+			}
+		}
+	}
+	return VerifyRuntimeClosure(path, libraryPaths)
 }

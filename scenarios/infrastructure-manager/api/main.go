@@ -131,7 +131,7 @@ func main() {
 		coverageH.Module(repoRoot),
 		focusH.ModuleWithDeps(repoRoot, db, conditionService),
 		ladderH.Module(ladderService),
-		portabilityH.Module(repoRoot),
+		portabilityH.Module(repoRoot, sources.PlatformVerdictReader{}),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

@@ -37,13 +37,19 @@ func (s *darwinSampler) Sample(ctx context.Context) ([]ProcessSample, error) {
 		}
 		comm := strings.TrimRight(string(proc.Proc.P_comm[:]), "\x00")
 		samples = append(samples, ProcessSample{
-			PID:     int(proc.Proc.P_pid),
-			PPID:    int(proc.Eproc.Ppid),
-			Comm:    comm,
-			State:   string([]byte{byte(proc.Proc.P_stat)}),
-			Threads: 1,
-			RSSKB:   int64(proc.Eproc.Xrssize) * int64(unix.Getpagesize()/1024),
+			PID:           int(proc.Proc.P_pid),
+			PPID:          int(proc.Eproc.Ppid),
+			Comm:          comm,
+			State:         string([]byte{byte(proc.Proc.P_stat)}),
+			MetricsStatus: "unsupported",
+			MetricsReason: "darwin process CPU/thread native metrics are unavailable in this build",
+			RSSKB:         int64(proc.Eproc.Xrssize) * int64(unix.Getpagesize()/1024),
+			utime:         proc.Proc.P_uticks,
+			stime:         proc.Proc.P_sticks,
 		})
+		if proc.Proc.P_ru != nil {
+			samples[len(samples)-1].MajorFaults = uint64(proc.Proc.P_ru.Majflt)
+		}
 	}
 	s.sortAndDelta(samples)
 	return samples, nil

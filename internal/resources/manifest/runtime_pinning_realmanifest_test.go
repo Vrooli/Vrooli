@@ -117,8 +117,15 @@ func composeFilesFor(repoRoot string, m realManifest) []string {
 	if m.manifest.ComposeFile != "" {
 		files = append(files, filepath.Join(m.dir, m.manifest.ComposeFile))
 	}
-	if m.manifest.GPU != nil && m.manifest.GPU.ComposeOverlay != "" {
-		files = append(files, filepath.Join(m.dir, m.manifest.GPU.ComposeOverlay))
+	// Every backend a resource declares may layer its own compose overlay, and
+	// each one pins images that must be checked.
+	if declaration := m.manifest.EffectiveAcceleration(); declaration != nil {
+		for _, backend := range declaration.Backends {
+			config, ok := declaration.Config(backend)
+			if ok && config.ComposeOverlay != "" {
+				files = append(files, filepath.Join(m.dir, config.ComposeOverlay))
+			}
+		}
 	}
 	return files
 }

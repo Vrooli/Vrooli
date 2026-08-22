@@ -27,16 +27,21 @@ var ErrUnsupported = errors.New("procsampler: unsupported on this platform")
 // is the share of one CPU consumed since the previous sample (so it can exceed
 // 100% for multi-threaded processes), derived from the utime/stime delta.
 type ProcessSample struct {
-	PID     int
-	PPID    int
-	Comm    string  // short name from /proc/<pid>/comm
-	State   string  // native process state when the platform exposes it
-	Cmdline string  // full command line (nul-joined args rendered with spaces)
-	Cwd     string  // resolved /proc/<pid>/cwd target ("" when unreadable)
-	Owner   string  // attributed scenario name or "unknown" (filled by the attributor)
-	CPUPct  float64 // CPU% over the inter-sample interval
-	RSSKB   int64   // resident set size in kibibytes
-	Threads int
+	PID                  int
+	PPID                 int
+	Comm                 string  // short name from /proc/<pid>/comm
+	State                string  // native process state when the platform exposes it
+	Cmdline              string  // full command line (nul-joined args rendered with spaces)
+	Cwd                  string  // resolved /proc/<pid>/cwd target ("" when unreadable)
+	Owner                string  // attributed scenario name or "unknown" (filled by the attributor)
+	CPUPct               float64 // CPU% over the inter-sample interval
+	RSSKB                int64   // resident set size in kibibytes
+	SwapKB               int64   // swap-resident size in kibibytes
+	Threads              int
+	MajorFaults          uint64
+	MajorFaultsPerSecond float64
+	MetricsStatus        string
+	MetricsReason        string
 	// UTime/STime are the raw cumulative CPU ticks read this cycle; retained so
 	// the sampler can compute the next cycle's delta. Not persisted.
 	utime uint64
@@ -123,8 +128,9 @@ type cpuDeltaTracker struct {
 }
 
 type cpuTicks struct {
-	utime uint64
-	stime uint64
+	utime       uint64
+	stime       uint64
+	majorFaults uint64
 }
 
 func newCPUDeltaTracker() *cpuDeltaTracker {
@@ -139,7 +145,7 @@ func (t *cpuDeltaTracker) apply(samples []ProcessSample, now time.Time) {
 	next := make(map[int]cpuTicks, len(samples))
 	for i := range samples {
 		s := &samples[i]
-		cur := cpuTicks{utime: s.utime, stime: s.stime}
+		cur := cpuTicks{utime: s.utime, stime: s.stime, majorFaults: s.MajorFaults}
 		next[s.PID] = cur
 		if elapsed <= 0 {
 			continue
@@ -156,6 +162,9 @@ func (t *cpuDeltaTracker) apply(samples []ProcessSample, now time.Time) {
 		}
 		deltaTicks := float64((cur.utime - prior.utime) + (cur.stime - prior.stime))
 		s.CPUPct = (deltaTicks / clockTicksPerSec) / elapsed * 100.0
+		if cur.majorFaults >= prior.majorFaults {
+			s.MajorFaultsPerSecond = float64(cur.majorFaults-prior.majorFaults) / elapsed
+		}
 	}
 	t.prev = next
 	t.prevTime = now

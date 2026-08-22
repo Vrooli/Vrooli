@@ -6,7 +6,7 @@ package network
 // should capture one snapshot themselves and query it per port instead.
 
 func listenerInspectionStatus() ListenerInspection {
-	snapshot := captureTCPListenerSnapshot()
+	snapshot := captureTCPListenerSnapshot(CaptureOptions{AttributeProcesses: true})
 	return ListenerInspection{
 		Available: snapshot.Known,
 		Tool:      snapshot.Tool,
@@ -15,7 +15,7 @@ func listenerInspectionStatus() ListenerInspection {
 }
 
 func inspectPortListeners(port int) PortInspection {
-	return PortInspectionFromSnapshot(captureTCPListenerSnapshot(), port)
+	return PortInspectionFromSnapshot(captureTCPListenerSnapshot(CaptureOptions{AttributeProcesses: true}), port)
 }
 
 // PortInspectionFromSnapshot renders the legacy per-port inspection shape

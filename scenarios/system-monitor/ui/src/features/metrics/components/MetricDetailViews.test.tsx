@@ -11,9 +11,9 @@ vi.mock('recharts', () => {
     ComposedChart: Box,
     CartesianGrid: () => <div data-testid="grid" />,
     XAxis: () => <div data-testid="x-axis" />,
-    YAxis: () => <div data-testid="y-axis" />,
     Area: ({ dataKey, hide }: { dataKey: string; hide?: boolean }) => <div data-testid={`area-${dataKey}`} data-hidden={String(hide)} />,
-    Line: ({ dataKey, hide }: { dataKey: string; hide?: boolean }) => <div data-testid={`line-${dataKey}`} data-hidden={String(hide)} />,
+    Line: ({ dataKey, hide, yAxisId }: { dataKey: string; hide?: boolean; yAxisId?: string }) => <div data-testid={`line-${dataKey}`} data-hidden={String(hide)} data-y-axis={yAxisId} />,
+    YAxis: ({ yAxisId, scale, domain }: { yAxisId?: string; scale?: string; domain?: unknown }) => <div data-testid={`y-axis-${yAxisId ?? 'left'}`} data-scale={scale} data-domain={JSON.stringify(domain)} />,
     Tooltip: ({ content, cursor }: { content: React.ReactNode; cursor: React.ReactNode }) => <div data-testid="tooltip">
       {cloneElement(content as ReactElement, { active: true, payload: [{ value: 42, name: 'CPU', color: 'red', dataKey: 'cpu' }, { value: Number.NaN, name: 'Memory', color: 'blue', dataKey: 'memory' }], label: 'not-a-date' })}
       {cloneElement(cursor as ReactElement, { points: [{ x: 10 }], height: 20 })}
@@ -89,5 +89,33 @@ describe('MetricDetailViews', () => {
     expect(screen.getByTestId('line-cpu')).toHaveAttribute('data-hidden', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'CPU' }));
     expect(screen.getByTestId('line-cpu')).toHaveAttribute('data-hidden', 'false');
+  });
+
+  it('binds a secondary series to the right axis when configured', () => {
+    render(<MetricLineChart
+      data={[{ timestamp: '2026-01-01T00:00:00Z', level: 45, traffic: 128 }]}
+      lines={[
+        { dataKey: 'level', name: 'Swap level', color: 'blue' },
+        { dataKey: 'traffic', name: 'Swap traffic', color: 'orange', yAxisId: 'right' }
+      ]}
+      unit="%"
+      rightYAxisUnit="/sec"
+    />);
+    expect(screen.getByTestId('line-level')).toHaveAttribute('data-y-axis', 'left');
+    expect(screen.getByTestId('line-traffic')).toHaveAttribute('data-y-axis', 'right');
+    expect(screen.getByTestId('y-axis-left')).toBeInTheDocument();
+    expect(screen.getByTestId('y-axis-right')).toBeInTheDocument();
+  });
+
+  it('supports a logarithmic primary axis for bursty rate series', () => {
+    render(<MetricLineChart
+      data={[{ timestamp: '2026-01-01T00:00:00Z', value: 2 }]}
+      lines={[{ dataKey: 'value', name: 'Major faults', color: 'red' }]}
+      unit="/sec"
+      yDomain={[1, 'auto']}
+      yAxisScale="log"
+    />);
+    expect(screen.getByTestId('y-axis-left')).toHaveAttribute('data-scale', 'log');
+    expect(screen.getByTestId('y-axis-left')).toHaveAttribute('data-domain', '[1,"auto"]');
   });
 });

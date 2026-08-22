@@ -13,7 +13,8 @@ import (
 // ApplyExecutor is the injectable seam over running an adopter's degrade verb
 // (§8.8). Production shells the owner's resource CLI; unit tests provide a fake
 // so the actuator never execs/dockers in a test run. owner is the claim owner id
-// (e.g. "whisper"); verb+argv come from the claim's DegradeProfile.Apply with
+// (e.g. "whisper"); the verb and argv come from the claim's DegradeProfile.Apply, which
+// every resource declares identically as `capacity degrade --to {label}`, with
 // the "{label}" placeholder substituted for the chosen step.
 type ApplyExecutor interface {
 	Apply(ctx context.Context, owner, verb string, argv []string) error
@@ -254,7 +255,7 @@ func actuateUpshift(ctx context.Context, store ClaimRepository, exec ApplyExecut
 		return false, nil
 	}
 	// The adopter's resize verb sets a target size; "--upshift" tells it to recreate
-	// LARGER and clear any degrade pin (whisper capacity-degrade --to <label>
+	// LARGER and clear any degrade pin (`<resource-cli> capacity upshift --to <label>`
 	// --upshift). The step label still flows through the declared argv placeholder.
 	argv := append(substituteLabel(claim.DegradeProfile.Apply.Argv, action.ToStep), "--upshift")
 	if exec == nil {

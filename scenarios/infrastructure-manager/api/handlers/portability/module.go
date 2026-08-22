@@ -19,8 +19,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func Module(root string) module.Module {
-	service := internalportability.NewService(root, nil)
+func Module(root string, fleetSources ...internalportability.PlatformVerdictSource) module.Module {
+	service := internalportability.NewService(root, nil, fleetSources...)
 	path, handler := portabilityv1connect.NewPortabilityServiceHandler(&connectHandler{service: service})
 	return module.Module{
 		Name:      "portability",

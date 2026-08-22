@@ -6,7 +6,7 @@
   "scripts": {
     "start": "vrooli lifecycle protect -- node server.js",
     "dev": "vrooli lifecycle protect -- node server.js",
-    "build": "bash -c 'set -e; rm -rf dist && mkdir -p dist && for file in index.html styles.css script.js bridge-init.js; do if [ -f \"$file\" ]; then cp -a \"$file\" dist/; fi; done'"
+    "build": "node scripts/build.mjs"
   },
   "dependencies": {
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",

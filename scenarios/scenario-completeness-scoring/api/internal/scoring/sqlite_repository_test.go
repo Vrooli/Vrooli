@@ -10,8 +10,9 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
-	testdb "github.com/vrooli/api-core/databasetest"
 	localdb "scenario-completeness-scoring/internal/database"
+
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 func TestSQLiteSnapshotRepositoryUpsertAndLatest(t *testing.T) {

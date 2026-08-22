@@ -15,6 +15,8 @@ import (
 	actionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/actions/actions_v1connect"
 	checksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/checks"
 	checksconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/checks/checks_v1connect"
+	healingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/healing"
+	healingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/healing/healing_v1connect"
 )
 
 // AutohealReader reads only persisted, typed autoheal observations. It does
@@ -116,7 +118,7 @@ func (r AutohealReader) clients(ctx context.Context) (actionsconnect.ActionsServ
 	}
 	httpClient := r.HTTP
 	if httpClient == nil {
-		httpClient = &http.Client{}
+		httpClient = &http.Client{Timeout: 10 * time.Second}
 	}
 	base, err := resolver.ResolveScenarioURLDefault(ctx, "vrooli-autoheal")
 	if err != nil {
@@ -124,6 +126,34 @@ func (r AutohealReader) clients(ctx context.Context) (actionsconnect.ActionsServ
 	}
 	return actionsconnect.NewActionsServiceClient(httpClient, base),
 		checksconnect.NewChecksServiceClient(httpClient, base), nil
+}
+
+func (r AutohealReader) readiness(ctx context.Context) (*healingv1.GetReadinessResponse, error) {
+	resolver := r.Resolver
+	if resolver == nil {
+		resolver = discovery.NewResolver(discovery.ResolverConfig{})
+	}
+	httpClient := r.HTTP
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 10 * time.Second}
+	}
+	base, err := resolver.ResolveScenarioURLDefault(ctx, "vrooli-autoheal")
+	if err != nil {
+		return nil, err
+	}
+	client := healingconnect.NewHealingServiceClient(httpClient, base)
+	response, err := client.GetReadiness(ctx, connect.NewRequest(&healingv1.GetReadinessRequest{Limit: 200}))
+	if err != nil {
+		return nil, err
+	}
+	if response == nil || response.Msg == nil || !response.Msg.GetAvailable() {
+		reason := "readiness source unavailable"
+		if response != nil && response.Msg != nil && response.Msg.GetUnavailableReason() != "" {
+			reason = response.Msg.GetUnavailableReason()
+		}
+		return nil, fmt.Errorf("%s", reason)
+	}
+	return response.Msg, nil
 }
 
 func (r AutohealReader) window() int32 {
@@ -275,6 +305,8 @@ func (r AutohealReader) Read(ctx context.Context) ([]Observation, error) {
 	switch r.Projection {
 	case "availability":
 		return r.readAvailability(ctx)
+	case "recovery":
+		return r.readRecovery(ctx)
 	case "substrate":
 		return r.readSubstrate(ctx)
 	default:
@@ -304,6 +336,22 @@ func (r AutohealReader) readAvailability(ctx context.Context) ([]Observation, er
 			Source: "vrooli-autoheal/actions.GetPerCheckTrends", ObservedAt: observedAt,
 			TrustHints: qualifiers.hintsFor(trend.GetCheckId()),
 		})
+	}
+	readiness, err := r.readiness(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, element := range readiness.GetElements() {
+		observedAt := checkedAt
+		if element.GetReadyAt() != nil {
+			observedAt = element.GetReadyAt().AsTime()
+		}
+		hints := qualifiers.hintsFor(element.GetCheckId())
+		if element.GetLatencyMs() < 0 {
+			hints.Untrusted = true
+			hints.UntrustedReason = element.GetEvidence()
+		}
+		out = append(out, Observation{ID: element.GetCheckId(), CellRef: "availability/A3", Value: float64(element.GetLatencyMs()), Unit: "ms", Source: "vrooli-autoheal/healing.GetReadiness", ObservedAt: observedAt, TrustHints: hints})
 	}
 	return out, nil
 }
@@ -384,6 +432,22 @@ func (r AutohealReader) readSubstrate(ctx context.Context) ([]Observation, error
 			ID: worstCheck, CellRef: cellRef, Value: worst, Unit: "severity",
 			Source: "vrooli-autoheal/actions.GetPerCheckTrends", ObservedAt: observedAt, TrustHints: hints,
 		})
+	}
+	return out, nil
+}
+
+func (r AutohealReader) readRecovery(ctx context.Context) ([]Observation, error) {
+	readiness, err := r.readiness(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Observation, 0, len(readiness.GetEpisodes()))
+	for _, episode := range readiness.GetEpisodes() {
+		started, completed := episode.GetStartedAt(), episode.GetCompletedAt()
+		if started == nil || completed == nil {
+			continue
+		}
+		out = append(out, Observation{ID: episode.GetId(), CellRef: "recovery/R3", Value: float64(completed.AsTime().Sub(started.AsTime()).Milliseconds()), Unit: "ms", Source: "vrooli-autoheal/healing.GetReadiness", ObservedAt: completed.AsTime(), TrustHints: TrustHints{UnitMatches: true}})
 	}
 	return out, nil
 }

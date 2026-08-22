@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { combineMemorySeries } from './chartData';
+import { combineFlowSeries, combineMemorySeries } from './chartData';
 
 describe('combineMemorySeries', () => {
   it('merges memory and swap readings that share a timestamp into one point', () => {
@@ -64,5 +64,21 @@ describe('combineMemorySeries', () => {
 
   it('returns an empty array when neither series has data', () => {
     expect(combineMemorySeries(undefined, undefined)).toEqual([]);
+  });
+});
+
+describe('combineFlowSeries', () => {
+  it('preserves missing samples instead of inventing zero flow', () => {
+    expect(combineFlowSeries([
+      { key: 'swapTraffic', points: [{ timestamp: '2026-01-01T00:00:00Z', value: 12 }] },
+      { key: 'majorFaults', points: [] }
+    ])).toEqual([{ timestamp: '2026-01-01T00:00:00Z', swapTraffic: 12 }]);
+  });
+
+  it('merges the swap level and traffic series for the dual-axis chart', () => {
+    expect(combineFlowSeries([
+      { key: 'swapLevel', points: [{ timestamp: '2026-01-01T00:00:00Z', value: 45 }] },
+      { key: 'swapTraffic', points: [{ timestamp: '2026-01-01T00:00:00Z', value: 128 }] }
+    ])).toEqual([{ timestamp: '2026-01-01T00:00:00Z', swapLevel: 45, swapTraffic: 128 }]);
   });
 });

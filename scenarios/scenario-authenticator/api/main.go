@@ -83,16 +83,17 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+	schemas := append(modules.AllSchemas(), database.SchemaProviderFunc(redisstate.Schema))
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), schemas...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
 	// --- Authentication stack ------------------------------------------------
 	// The signing keypair persists under the storage seam (absolute path, fatal
 	// on write failure — never silently regenerate, which would rotate the key
-	// and break every relying party). Redis is REQUIRED hot state (sessions,
-	// refresh-family revocation, blacklist are security controls); a failed
-	// connection is boot-fatal, never a silent degrade.
+	// and break every relying party). Hot state (sessions, refresh-family
+	// revocation, blacklist, rate-limit counters) is a set of security controls
+	// rather than a cache, so its store is selected explicitly below.
 	clk := schedule.System()
 	keyDir, err := authcrypto.ResolveKeyDir()
 	if err != nil {
@@ -123,17 +124,40 @@ func main() {
 		Expiry: authcrypto.ResolveExpiry(defaults.AccessTokenTTL),
 	})
 
-	redisStore, err := redisstate.NewRedisStore(context.Background())
-	if err != nil {
-		log.Fatalf("redis (required resource) unavailable: %v", err)
+	// Selection is explicit, never a fallback on connection failure. Redis
+	// configured but unreachable stays boot-fatal: degrading to a store that
+	// shares nothing across replicas would let one replica keep honouring a
+	// token another replica revoked. With no Redis configured, this is a
+	// single-node deployment and the durable local store is the right answer —
+	// it keeps the blacklist across restart, which the in-memory fake cannot.
+	var hotState redisstate.Store
+	closeHotState := func() error { return nil }
+	if redisstate.RedisConfigured() {
+		redisStore, redisErr := redisstate.NewRedisStore(context.Background())
+		if redisErr != nil {
+			log.Fatalf("redis is configured but unavailable: %v", redisErr)
+		}
+		hotState = redisStore
+		closeHotState = redisStore.Close
+	} else {
+		durable, durableErr := redisstate.NewSQLiteStore(db)
+		if durableErr != nil {
+			log.Fatalf("durable hot-state store unavailable: %v", durableErr)
+		}
+		sweepCtx, cancelSweep := context.WithCancel(context.Background())
+		go durable.RunSweeper(sweepCtx, time.Hour, func(err error) {
+			log.Printf("hot-state sweep failed: %v", err)
+		})
+		hotState = durable
+		closeHotState = func() error { cancelSweep(); return nil }
 	}
 	storageNamespace, err := storage.ResolveNamespace(storage.NamespaceConfig{FallbackScenario: "scenario-authenticator"})
 	if err != nil {
-		log.Fatalf("resolve Redis storage namespace: %v", err)
+		log.Fatalf("resolve hot-state storage namespace: %v", err)
 	}
-	authRedisStore, err := redisstate.NewNamespacedStore(redisStore, storageNamespace, "auth")
+	authRedisStore, err := redisstate.NewNamespacedStore(hotState, storageNamespace, "auth")
 	if err != nil {
-		log.Fatalf("scope Redis storage namespace: %v", err)
+		log.Fatalf("scope hot-state storage namespace: %v", err)
 	}
 	sessionMgr := sessions.NewManager(authRedisStore, nil)
 	repo := accounts.NewSQLiteRepository(db, clk)
@@ -226,7 +250,7 @@ func main() {
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
 			localStop()
-			_ = redisStore.Close()
+			_ = closeHotState()
 			return db.Close()
 		},
 	}); err != nil {

@@ -155,5 +155,44 @@ func (c *Controller) sweepCapacityClaims(ctx context.Context) ([]control.ResultI
 			items = append(items, control.Stopped("capacity", fmt.Sprintf("Pruned %d terminal capacity claim(s) past retention", gc.Count)))
 		}
 	}
+	// A ledger that stays large after a prune is not a retention problem, it is
+	// a churn problem: the surviving rows are younger than the retention window
+	// because something is creating one per state change. Retention alone will
+	// never catch up with that, so say so rather than pruning quietly forever.
+	if warning := ledgerSizeWarning(ctx, store); warning != "" {
+		items = append(items, control.Stopped("capacity", warning))
+	}
 	return items, nil
+}
+
+// LedgerSizeWarnThreshold is the claim count above which a post-prune ledger is
+// reported as churn rather than accepted as history. It is a round number
+// chosen to sit far above a healthy fleet's steady state (a few dozen claims)
+// and far below the six thousand rows one resource's release-and-reclaim loop
+// produced in a day.
+const LedgerSizeWarnThreshold = 500
+
+// ledgerSizeWarning reports a ledger that is still large after a prune.
+func ledgerSizeWarning(ctx context.Context, store capacitySweepStore) string {
+	claims, err := store.ListClaims(ctx, capacity.ClaimFilter{})
+	if err != nil || len(claims) <= LedgerSizeWarnThreshold {
+		return ""
+	}
+	terminal := 0
+	byOwner := map[string]int{}
+	for _, claim := range claims {
+		if !capacity.IsActiveClaimStatus(claim.Status) {
+			terminal++
+		}
+		byOwner[claim.OwnerID]++
+	}
+	worstOwner, worstCount := "", 0
+	for owner, count := range byOwner {
+		if count > worstCount || (count == worstCount && owner < worstOwner) {
+			worstOwner, worstCount = owner, count
+		}
+	}
+	return fmt.Sprintf(
+		"Capacity ledger holds %d claim(s) after pruning, %d of them terminal and %d owned by %q; a ledger this size after a prune means an owner is releasing and re-claiming instead of resizing",
+		len(claims), terminal, worstCount, worstOwner)
 }

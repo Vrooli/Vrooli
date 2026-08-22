@@ -31,16 +31,47 @@ const (
 )
 
 type Status struct {
-	Resource   catalog.Resource `json:"resource"`
-	Installed  bool             `json:"installed"`
-	Running    bool             `json:"running"`
-	Healthy    *bool            `json:"healthy,omitempty"`
-	Health     string           `json:"health,omitempty"`
-	StatusCode string           `json:"status_code,omitempty"`
-	Message    string           `json:"message,omitempty"`
-	ProbeError string           `json:"probe_error,omitempty"`
-	Raw        json.RawMessage  `json:"raw,omitempty"`
+	Resource  catalog.Resource `json:"resource"`
+	Installed bool             `json:"installed"`
+	Running   bool             `json:"running"`
+	// Healthy is false whenever the resource is not fully meeting its contract,
+	// which includes running below its declared accelerator backend. Read
+	// Serving alongside it: a degraded resource answers requests, and treating
+	// it as down starts a restart loop against something that is working.
+	Healthy *bool `json:"healthy,omitempty"`
+	// Serving is true whenever the resource can answer requests, whether or not
+	// it is healthy. It is the field a consumer uses to tell degraded from down.
+	Serving    *bool           `json:"serving,omitempty"`
+	Health     string          `json:"health,omitempty"`
+	StatusCode string          `json:"status_code,omitempty"`
+	Message    string          `json:"message,omitempty"`
+	ProbeError string          `json:"probe_error,omitempty"`
+	Raw        json.RawMessage `json:"raw,omitempty"`
+	// DeclaredMode is the accelerator backend the resource asked the platform
+	// for. Empty when the resource declares no accelerator.
+	DeclaredMode string `json:"declared_mode,omitempty"`
+	// ObservedMode is the backend the host says the running resource is on.
+	// Empty means the placement could not be read, which is never reported as
+	// agreement.
+	ObservedMode string `json:"observed_mode,omitempty"`
+	// ModeDrift is true when the resource is serving below its declared
+	// backend. It is the machine-readable form of "Degraded is a state, never
+	// a secret".
+	ModeDrift bool `json:"mode_drift,omitempty"`
+	// ModeReason is the evidence behind ObservedMode, in the words of whatever
+	// produced it.
+	ModeReason string `json:"mode_reason,omitempty"`
 }
+
+// StatusCodeModeDrift marks a resource that is serving on a backend below the
+// one it declared. running is true, serving is true, healthy is false.
+const StatusCodeModeDrift = "mode_drift"
+
+// StatusCodeNeedsReacquire marks an artifact that was staged under host facts
+// the host no longer reports, so the resolver now selects a different artifact.
+// It is distinct from an unavailable artifact on purpose: the bytes are intact,
+// the host changed, and one named command repairs it.
+const StatusCodeNeedsReacquire = "needs_reacquire"
 
 type CommandResult struct {
 	Output []byte

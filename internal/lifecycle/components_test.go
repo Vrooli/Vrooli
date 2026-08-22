@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -195,5 +196,74 @@ func TestCreateComponentRuntimeDirectories(t *testing.T) {
 		if info, err := os.Stat(filepath.Join(root, relative)); err != nil || !info.IsDir() {
 			t.Fatalf("runtime directory %s: info=%v err=%v", relative, info, err)
 		}
+	}
+}
+
+// TestBuildArgvSelectsProfileChannel: VROOLI_BUILD_MODE=profile selects the
+// declared profile channel argv for the pnpm builders, and every argv stays
+// shell-free so the channel is reachable where package scripts run through
+// cmd.exe rather than a POSIX shell.
+func TestBuildArgvSelectsProfileChannel(t *testing.T) {
+	registry := BuilderRegistry()
+	for _, kind := range []string{"pnpm_vite", "node_bundle"} {
+		spec := registry[kind]
+		if got, want := spec.BuildArgv(""), []string{"pnpm", "run", "build"}; !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s default channel = %v, want %v", kind, got, want)
+		}
+		if got, want := spec.BuildArgv("profile"), []string{"pnpm", "run", "build:profile"}; !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s profile channel = %v, want %v", kind, got, want)
+		}
+	}
+	// A builder with no declared profile channel keeps its default argv.
+	goSpec := registry["go_module"]
+	if got, want := goSpec.BuildArgv("profile"), goSpec.Build; !reflect.DeepEqual(got, want) {
+		t.Fatalf("go_module profile channel = %v, want the default %v", got, want)
+	}
+}
+
+// TestBuildArgvIsShellFree: no builder channel may carry a shell metacharacter.
+// A conditional inside a package script is exactly what made the perf-build
+// channel unreachable on Windows; the selection belongs in Go.
+func TestBuildArgvIsShellFree(t *testing.T) {
+	shellTokens := []string{"$(", "`", "&&", "||", ";", "|", ">", "<", "[ "}
+	for kind, spec := range BuilderRegistry() {
+		for _, mode := range []string{"", "profile"} {
+			for _, arg := range append(spec.BuildArgv(mode), spec.Install...) {
+				for _, token := range shellTokens {
+					if strings.Contains(arg, token) {
+						t.Errorf("%s (mode %q) argv %q contains shell token %q", kind, mode, arg, token)
+					}
+				}
+			}
+		}
+	}
+}
+
+// TestNormalizeBuildMode: only "profile" is a channel; anything else is the
+// default build, so an operator typo never selects a package script that no
+// scenario is required to declare.
+func TestNormalizeBuildMode(t *testing.T) {
+	for raw, want := range map[string]string{
+		"profile": "profile", " profile ": "profile", "PROFILE": "profile",
+		"": "", "prof": "", "production": "", "true": "",
+	} {
+		if got := NormalizeBuildMode(raw); got != want {
+			t.Errorf("NormalizeBuildMode(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+// TestBuildModeForEnvPrefersOverride: a lifecycle override pins the channel;
+// otherwise the process environment decides.
+func TestBuildModeForEnvPrefersOverride(t *testing.T) {
+	getenv := func(string) string { return "profile" }
+	if got := BuildModeForEnv(map[string]string{BuildModeEnvVar: ""}, getenv); got != "" {
+		t.Fatalf("explicit empty override = %q, want the default channel", got)
+	}
+	if got := BuildModeForEnv(nil, getenv); got != "profile" {
+		t.Fatalf("process env = %q, want profile", got)
+	}
+	if got := BuildModeForEnv(nil, nil); got != "" {
+		t.Fatalf("no env source = %q, want the default channel", got)
 	}
 }

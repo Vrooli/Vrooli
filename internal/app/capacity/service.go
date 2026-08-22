@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -356,6 +357,24 @@ func (s Service) Degrade(ctx context.Context, ref Ref) (ClaimView, error) {
 	})
 }
 
+// Resize changes an existing claim's amount in place. It is the operation an
+// adopter uses when its real footprint moves, so the ledger keeps one row and
+// one observed-usage history per resource lifetime instead of one row per
+// change.
+func (s Service) Resize(ctx context.Context, ref Ref) (ClaimView, error) {
+	return s.mutate(ctx, func(store Store) (engine.CapacityClaim, error) {
+		generation := ref.Generation
+		if generation == 0 {
+			current, err := store.GetClaim(ctx, ref.ClaimID)
+			if err != nil {
+				return engine.CapacityClaim{}, err
+			}
+			generation = current.Generation
+		}
+		return store.ResizeClaim(ctx, ref.ClaimID, generation, ref.AmountByte)
+	})
+}
+
 // Release terminates a claim cleanly.
 func (s Service) Release(ctx context.Context, ref Ref) (ClaimView, error) {
 	return s.mutate(ctx, func(store Store) (engine.CapacityClaim, error) {
@@ -467,7 +486,7 @@ func (s Service) Reconcile(ctx context.Context) (ReconcileOutput, error) {
 		return ReconcileOutput{}, err
 	}
 	findings := engine.Reconcile(ctx, snapshot, ledger, s.attributor(), policy)
-	declared, err := engine.DeclaredGPUWithoutClaimFindings(s.sourceRoot(), ledger)
+	declared, err := engine.DeclaredGPUWithoutClaimFindings(s.sourceRoot(), ledger, s.resourceInstalled)
 	if err != nil {
 		return ReconcileOutput{}, err
 	}
@@ -682,4 +701,31 @@ func policyOutput(policy engine.Policy, key string) (PolicyOutput, error) {
 
 func envEnforce() string {
 	return strings.TrimSpace(os.Getenv(engine.EnvEnforce))
+}
+
+// resourceInstalled reports whether a resource has anything on this host to
+// hold a claim with. It is deliberately evidence-based rather than a
+// configuration read: a resource listed as enabled but never installed still
+// cannot reserve VRAM.
+func (s Service) resourceInstalled(resource string) bool {
+	root := strings.TrimSpace(s.sourceRoot())
+	if root == "" || strings.TrimSpace(resource) == "" {
+		return false
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return true
+	}
+	// A managed-service resource stages its artifact in the per-user store; a
+	// compose or docker resource keeps its declared data directory. Either is
+	// evidence the resource exists here.
+	for _, candidate := range []string{
+		filepath.Join(home, ".vrooli", "artifacts", resource),
+		filepath.Join(root, "resources", resource, "data"),
+	} {
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return true
+		}
+	}
+	return false
 }

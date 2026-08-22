@@ -415,6 +415,7 @@ func sortComponentNames(names []string, components map[string]scenario.Component
 func (r *Runner) buildDeclaredComponents(item scenario.Scenario, env map[string]string, writer io.Writer) (int, error) {
 	executed := 0
 	registry := BuilderRegistry()
+	buildMode := BuildModeForEnv(env, os.Getenv)
 	for _, name := range orderedComponentNames(item.Manifest.Components) {
 		component := item.Manifest.Components[name]
 		if component.Build.Reuse != "" {
@@ -431,8 +432,9 @@ func (r *Runner) buildDeclaredComponents(item scenario.Scenario, env map[string]
 		if !exists || spec.Reserved {
 			return executed, fmt.Errorf("component %s has no executable builder %q", name, component.Build.Kind)
 		}
+		buildArgv := spec.BuildArgv(buildMode)
 		output := ""
-		if slicesContainTemplate(spec.Build, "{output}") {
+		if slicesContainTemplate(buildArgv, "{output}") {
 			output, err = componentArtifact(name, item.Path, item.Slug, item.Manifest.Components, runtimeGOOS(), map[string]bool{})
 			if err != nil {
 				return executed, err
@@ -449,7 +451,7 @@ func (r *Runner) buildDeclaredComponents(item scenario.Scenario, env map[string]
 			"{entry}", entry,
 			"{output}", output,
 		)
-		commands := [][]string{spec.Install, spec.Build}
+		commands := [][]string{spec.Install, buildArgv}
 		for commandIndex, template := range commands {
 			if len(template) == 0 {
 				continue

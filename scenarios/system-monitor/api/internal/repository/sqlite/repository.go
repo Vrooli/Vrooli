@@ -116,7 +116,11 @@ CREATE TABLE IF NOT EXISTS process_samples (
 	cpu_pct REAL NOT NULL,
 	rss_kb INTEGER NOT NULL,
 	threads INTEGER NOT NULL,
-	gpu_vram_mb REAL NOT NULL DEFAULT 0
+	gpu_vram_mb REAL NOT NULL DEFAULT 0,
+	swap_kb INTEGER NOT NULL DEFAULT 0,
+	major_faults_per_second REAL NOT NULL DEFAULT 0,
+	metrics_status TEXT NOT NULL DEFAULT '',
+	metrics_reason TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_process_samples_ts ON process_samples(ts);
 CREATE INDEX IF NOT EXISTS idx_process_samples_owner_ts ON process_samples(owner, ts);
@@ -132,6 +136,8 @@ CREATE TABLE IF NOT EXISTS process_sample_rollups (
 	max_cpu_pct REAL NOT NULL,
 	avg_rss_kb INTEGER NOT NULL,
 	max_rss_kb INTEGER NOT NULL,
+	avg_major_faults_per_second REAL NOT NULL DEFAULT 0,
+	max_major_faults_per_second REAL NOT NULL DEFAULT 0,
 	sample_count INTEGER NOT NULL,
 	UNIQUE(minute, owner, comm)
 );
@@ -1017,7 +1023,32 @@ func hydrateMetricsResponse(resp *models.MetricsResponse, cycleID string, observ
 				resp.DiskUsage = percent
 			}
 		}
+	case "pressure":
+		resp.SwapTrafficState = pressureMetricState(cycleID, observedAt, collector, values, "swap_traffic_pages_per_second", "swap_traffic_rate_status", "swap_traffic_rate_reason")
+		resp.MajorFaultsState = pressureMetricState(cycleID, observedAt, collector, values, "pgmajfault_per_second", "pgmajfault_rate_status", "pgmajfault_rate_reason")
+		resp.FragmentationIndexState = pressureMetricState(cycleID, observedAt, collector, values, "fragmentation_max_free_order", "fragmentation_status", "fragmentation_reason")
 	}
+}
+
+func pressureMetricState(cycleID string, observedAt time.Time, collector string, values map[string]interface{}, valueKey, statusKey, reasonKey string) models.MetricState {
+	state := models.MetricState{Status: "not_yet_sampled", CycleID: cycleID, ObservedAt: observedAt, Provenance: "system-monitor/" + collector}
+	if status, ok := values[statusKey].(string); ok && status != "" {
+		state.Status = status
+	}
+	if reason, ok := values[reasonKey].(string); ok {
+		state.Reason = reason
+	}
+	if value, ok := values[valueKey].(float64); ok {
+		state.Status, state.Value = "measured", value
+		state.Reason = ""
+	}
+	if state.Status == "unsupported" && state.Reason == "" {
+		state.Reason = "metric unsupported on this platform"
+	}
+	if state.Status == "not_yet_sampled" && state.Reason == "" {
+		state.Reason = "rate has not been sampled"
+	}
+	return state
 }
 
 func storedMetricState(cycleID string, observedAt time.Time, collector string, values map[string]interface{}) models.MetricState {

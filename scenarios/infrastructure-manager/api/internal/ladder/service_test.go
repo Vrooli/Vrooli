@@ -164,6 +164,22 @@ func TestEveryLadderCellResolvesToABarOrIsUngradedWithAReason(t *testing.T) {
 	}
 }
 
+func TestNonLocalHostCellsNameTheUnsampledHostReason(t *testing.T) {
+	service := newService(t,
+		stubGraph{graph: sources.DeviceGraph{Devices: []sources.GraphDevice{healthyThermalSensor("thermal:0", 41, 95)}}},
+		stubGrid{grid: liveGrid(t)},
+		stubChecks{checks: []sources.CheckPlatforms{{CheckID: "system-gpu", Platforms: []string{"linux"}}}})
+	snapshot := service.Snapshot(context.Background())
+	for _, cell := range snapshot.Cells {
+		if cell.Key.HostOS == service.hostOS() {
+			continue
+		}
+		if cell.ReasonCode != "host_not_sampled" {
+			t.Fatalf("non-local cell %s has reason code %q, want host_not_sampled", cell.Key, cell.ReasonCode)
+		}
+	}
+}
+
 // TestUnreachableSourceProducesASensorChannelFindingAndNoPlantFinding is the
 // rule the whole trust axis exists for. Reporting instrument fault as plant
 // fault routes real engineering effort at an imaginary problem.

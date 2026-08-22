@@ -19,6 +19,7 @@ const (
 	CommandActivity  CommandID = "activity"
 	CommandRelease   CommandID = "release"
 	CommandDegrade   CommandID = "degrade"
+	CommandResize    CommandID = "resize"
 	CommandList      CommandID = "list"
 	CommandReconcile CommandID = "reconcile"
 	CommandSweep     CommandID = "sweep"
@@ -95,6 +96,15 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 				Options: []commandtree.OptionArg{claimIDOption(), generationOption(), {Name: "--to", ValueName: "label", Description: "Target profile step label"}, {Name: "--amount", ValueName: "bytes", Description: "Explicit amount (overrides profile lookup)"}, commandtree.JSONOption()},
 			},
 			Handler: CommandDegrade,
+		},
+		{
+			Name:    string(CommandResize),
+			Summary: "Resize a claim in place when the owner's real footprint changes",
+			Group:   groupClaims,
+			Args: commandtree.ArgSchema{
+				Options: []commandtree.OptionArg{claimIDOption(), generationOption(), {Name: "--amount", ValueName: "bytes", Description: "New granted and preferred amount in bytes"}, commandtree.JSONOption()},
+			},
+			Handler: CommandResize,
 		},
 		{
 			Name:    string(CommandRelease),

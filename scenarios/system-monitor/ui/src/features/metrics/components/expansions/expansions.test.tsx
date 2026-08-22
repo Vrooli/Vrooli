@@ -15,10 +15,9 @@ describe('metric expansion views', () => {
     expect(screen.getByText('1.00, 2.00, 3.00')).toBeInTheDocument();
     expect(screen.getByText('1,234')).toBeInTheDocument();
 
-    render(<MemoryExpansion details={{ topProcesses: [{ name: 'api', pid: 10, memoryMb: 44 }], swapUsage: { percent: 2 }, diskUsage: { percent: 70 }, growthPatterns: [{ process: 'api', riskLevel: 'high', growthMbPerHour: 3 }] } as unknown as MemoryMetrics} />);
+    render(<MemoryExpansion details={{ topProcesses: [{ name: 'api', pid: 10, memoryMb: 44 }], swapUsage: { percent: 2 }, diskUsage: { percent: 70 } } as unknown as MemoryMetrics} />);
     expect(screen.getByText('Top Processes by Memory:')).toBeInTheDocument();
     expect(screen.getByText('44.0 MB')).toBeInTheDocument();
-    expect(screen.getByText(/3.0 MB\/hr/)).toBeInTheDocument();
     render(<CpuExpansion details={{} as CPUMetrics} />);
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });

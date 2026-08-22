@@ -38,6 +38,9 @@ const ensureHistoryBase = (history: MetricHistory | null): MetricHistory => ({
   cpu: history?.cpu ? [...history.cpu] : [],
   memory: history?.memory ? [...history.memory] : [],
   swap: history?.swap ? [...history.swap] : [],
+  swapTraffic: history?.swapTraffic ? [...history.swapTraffic] : [],
+  majorFaults: history?.majorFaults ? [...history.majorFaults] : [],
+  fragmentation: history?.fragmentation ? [...history.fragmentation] : [],
   network: history?.network ? [...history.network] : [],
   gpu: history?.gpu ? [...history.gpu] : [],
   diskUsage: cloneSeries(history?.diskUsage),
@@ -79,6 +82,15 @@ export const useMetricHistory = (
           swap: data.samples
             .filter(sample => sample.swap?.state.case === 'measured')
             .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.swap?.state.value) })),
+          swapTraffic: data.samples
+            .filter(sample => sample.swapTraffic?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.swapTraffic?.state.value) })),
+          majorFaults: data.samples
+            .filter(sample => sample.majorFaults?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.majorFaults?.state.value) })),
+          fragmentation: data.samples
+            .filter(sample => sample.fragmentationIndex?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.fragmentationIndex?.state.value) })),
           network: data.samples
             .filter(sample => sample.connections?.state.case === 'measured')
             .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.connections?.state.value) })),

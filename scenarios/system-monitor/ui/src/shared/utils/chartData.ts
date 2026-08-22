@@ -61,3 +61,16 @@ export const combineMemorySeries = (
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
 };
+
+export const combineFlowSeries = (series: Array<{ key: string; points?: ChartDataPoint[] }>) => {
+  type FlowPoint = { timestamp: string } & Record<string, string | number>;
+  const combined = new Map<string, FlowPoint>();
+  for (const { key, points } of series) for (const point of points ?? []) {
+    const value = Number(point.value);
+    if (!Number.isFinite(value)) continue;
+    const existing: FlowPoint = combined.get(point.timestamp) ?? { timestamp: point.timestamp };
+    existing[key] = value;
+    combined.set(point.timestamp, existing);
+  }
+  return Array.from(combined.values()).sort((a, b) => new Date(String(a.timestamp)).getTime() - new Date(String(b.timestamp)).getTime());
+};

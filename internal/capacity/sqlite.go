@@ -321,6 +321,42 @@ WHERE claim_id = ? AND generation = ? AND status IN (?, ?, ?)`,
 	return out, nil
 }
 
+// ResizeClaim changes an existing claim's amount in place, keeping its identity
+// and its observed-usage history.
+//
+// A resize is not a degrade and not an upshift: those two move a claim between
+// declared profile rungs and mean "the broker asked for less" or "the broker
+// gave back more". A resize means "what this owner actually needs has changed",
+// which is an owner-side fact. Modelling it as release-and-reclaim, as the
+// ollama companion did, creates a new ledger row per model load and throws away
+// the observed peak that right-sizing depends on.
+func (s *SQLiteStore) ResizeClaim(ctx context.Context, claimID string, generation int64, amountBytes int64) (CapacityClaim, error) {
+	if strings.TrimSpace(claimID) == "" {
+		return CapacityClaim{}, fmt.Errorf("%w: claim_id is required", ErrInvalidClaim)
+	}
+	if amountBytes <= 0 {
+		return CapacityClaim{}, fmt.Errorf("%w: resize amount must be positive; release the claim to give the capacity back", ErrInvalidClaim)
+	}
+	now := s.now()
+	var out CapacityClaim
+	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		result, execErr := tx.ExecContext(ctx, `
+UPDATE capacity_claims
+SET status = ?, amount_bytes = ?, preferred_bytes = ?, generation = generation + 1, updated_at = ?
+WHERE claim_id = ? AND generation = ? AND status IN (?, ?, ?)`,
+			StatusGranted, amountBytes, amountBytes, formatTime(now),
+			claimID, generation, StatusReserved, StatusGranted, StatusDegraded)
+		if execErr != nil {
+			return fmt.Errorf("resize capacity claim: %w", execErr)
+		}
+		return finishMutation(ctx, tx, result, claimID, &out)
+	})
+	if err != nil {
+		return CapacityClaim{}, err
+	}
+	return out, nil
+}
+
 // UpshiftClaim steps a claim UP to a larger profile rung (the symmetric
 // counterpart of DegradeClaim): it raises amount_bytes and restores status to
 // granted (the claim is no longer running below its preferred size), bumping the

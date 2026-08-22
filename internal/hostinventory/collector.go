@@ -131,6 +131,13 @@ func (c Collector) CollectGPUFacts(ctx context.Context) (Snapshot, error) {
 	c.collectNvidiaGPUs(ctx, &snap, now)
 	c.linkNvidiaDevices(ctx, &snap, now)
 	c.collectDockerGPU(ctx, &snap, now)
+	c.collectDarwinGPUs(ctx, &snap, now)
+	c.collectWindowsGPUs(ctx, &snap, now)
+	c.collectNvidiaNodeAccess(&snap, now)
+	c.collectROCm(ctx, &snap, now)
+	c.collectVulkanICDs(&snap, now)
+	c.collectMemory(&snap, now)
+	c.collectAppleSiliconGPU(&snap, now)
 	return snap, nil
 }
 
@@ -163,6 +170,9 @@ func (c Collector) Collect(ctx context.Context) (Snapshot, error) {
 	c.collectDarwinGPUs(ctx, &snap, now)
 	c.collectWindowsGPUs(ctx, &snap, now)
 	c.collectDockerGPU(ctx, &snap, now)
+	c.collectNvidiaNodeAccess(&snap, now)
+	c.collectROCm(ctx, &snap, now)
+	c.collectVulkanICDs(&snap, now)
 	c.collectAppleSiliconGPU(&snap, now)
 	c.collectAppleToolchain(ctx, &snap, now)
 	c.collectAndroidToolchain(ctx, &snap, now)

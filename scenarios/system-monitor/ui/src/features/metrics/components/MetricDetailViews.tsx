@@ -32,6 +32,7 @@ interface MetricLineChartLineConfig {
   color: string;
   strokeWidth?: number;
   type?: 'linear' | 'monotone' | 'natural' | 'stepAfter' | 'stepBefore';
+  yAxisId?: 'left' | 'right';
 }
 
 /**
@@ -50,7 +51,10 @@ export interface MetricLineChartProps {
   lines: MetricLineChartLineConfig[];
   unit?: string;
   height?: number;
-  yDomain?: [number, number] | ['auto', 'auto'];
+  yDomain?: [number | 'auto', number | 'auto'];
+  rightYAxisUnit?: string;
+  rightYAxisDomain?: [number | 'auto', number | 'auto'];
+  yAxisScale?: 'linear' | 'log';
   valueFormatter?: (value: number) => string;
   className?: string;
   style?: CSSProperties;
@@ -237,6 +241,9 @@ export const MetricLineChart = ({
   unit,
   height = 320,
   yDomain = ['auto', 'auto'],
+  rightYAxisUnit,
+  rightYAxisDomain = ['auto', 'auto'],
+  yAxisScale = 'linear',
   valueFormatter,
   className,
   style,
@@ -290,11 +297,23 @@ export const MetricLineChart = ({
               fontSize={11}
             />
             <YAxis
+              yAxisId="left"
               stroke="var(--color-text-secondary)"
               domain={yDomain}
+              scale={yAxisScale}
               tickFormatter={fmtr}
               fontSize={11}
             />
+            {lines.some(line => line.yAxisId === 'right') && (
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="var(--color-text-secondary)"
+                domain={rightYAxisDomain}
+                tickFormatter={rightYAxisUnit ? defaultValueFormatter(rightYAxisUnit) : fmtr}
+                fontSize={11}
+              />
+            )}
             <Tooltip
               content={<ChartTooltip formatter={fmtr} hiddenSeries={hiddenSeries} />}
               cursor={<ChartCursor />}
@@ -339,6 +358,7 @@ export const MetricLineChart = ({
                   key={`area-${line.dataKey}`}
                   type={line.type ?? 'monotone'}
                   dataKey={line.dataKey}
+                  yAxisId={line.yAxisId ?? 'left'}
                   fill={`url(#${gradientIds[line.dataKey]})`}
                   stroke="none"
                   isAnimationActive={false}
@@ -357,6 +377,7 @@ export const MetricLineChart = ({
                   key={line.dataKey}
                   type={line.type ?? 'monotone'}
                   dataKey={line.dataKey}
+                  yAxisId={line.yAxisId ?? 'left'}
                   name={line.name}
                   stroke={line.color}
                   strokeWidth={line.strokeWidth ?? 2}

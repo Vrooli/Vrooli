@@ -64,6 +64,10 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			func(s capacityapp.Service, ref capacityapp.Ref) (capacityapp.ClaimView, error) {
 				return s.Degrade(context.Background(), ref)
 			}),
+		capacitycli.CommandResize: refHandler(deps, capacitycli.CommandResize, "vrooli capacity resize",
+			func(s capacityapp.Service, ref capacityapp.Ref) (capacityapp.ClaimView, error) {
+				return s.Resize(context.Background(), ref)
+			}),
 		capacitycli.CommandRelease: refHandler(deps, capacitycli.CommandRelease, "vrooli capacity release",
 			func(s capacityapp.Service, ref capacityapp.Ref) (capacityapp.ClaimView, error) {
 				return s.Release(context.Background(), ref)

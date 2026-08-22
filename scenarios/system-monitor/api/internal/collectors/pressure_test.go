@@ -1,6 +1,9 @@
 package collectors
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestParsePSI(t *testing.T) {
 	got := parsePSI("some avg10=1.25 avg60=0.50 avg300=0.10 total=12\nfull avg10=0.25 total=4\n")
@@ -9,8 +12,15 @@ func TestParsePSI(t *testing.T) {
 	}
 }
 
-func TestVMStatValue(t *testing.T) {
-	if got := vmStatValue("oom_kill 9\noom 11\n", "oom_kill"); got != 9 {
-		t.Fatalf("oom_kill = %d, want 9", got)
+func TestParseVMStatFixture(t *testing.T) {
+	raw, err := os.ReadFile("testdata/vmstat_linux.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := parseVMStat(string(raw))
+	for key, want := range map[string]uint64{"pswpin": 100, "pgmajfault": 300, "allocstall_normal": 800, "oom_kill": 9} {
+		if values[key] != want {
+			t.Fatalf("%s = %d, want %d", key, values[key], want)
+		}
 	}
 }

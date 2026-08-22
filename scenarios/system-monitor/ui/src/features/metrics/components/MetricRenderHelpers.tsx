@@ -91,31 +91,3 @@ export const renderProcessTable = (
     </div>
   );
 };
-
-export const renderGrowthPatterns = (
-  patterns: Array<{ process: string; growthMbPerHour: number; riskLevel: string }> | undefined
-) => {
-  if (!patterns || patterns.length === 0) {
-    return (
-      <div className="text-muted">
-        No anomalous growth patterns detected.
-      </div>
-    );
-  }
-
-  return (
-    <div data-sm-style="sm-style-f42c3fdadb">
-      {patterns.slice(0, 8).map(pattern => (
-        <div
-          key={`${pattern.process}-${pattern.growthMbPerHour}`}
-          data-sm-style="sm-style-c900eb7d7c"
-        >
-          <span data-sm-style="sm-style-bb03b2fa99">{pattern.process}</span>
-          <span className={`risk-level-${pattern.riskLevel.toLowerCase()}`}>
-            {pattern.growthMbPerHour.toFixed(1)} MB/hr ({pattern.riskLevel})
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-};

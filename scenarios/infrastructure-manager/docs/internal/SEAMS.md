@@ -377,6 +377,16 @@ The CI drift check (`make endpoints && git diff --exit-code
 .vrooli/endpoints.json`) fails the build if step 4 was skipped, with
 an actionable diff showing exactly which entries diverged.
 
+### SDA fleet verdict and autoheal readiness sources
+
+| | |
+|---|---|
+| **Seam** | Infrastructure-manager read domains ↔ owning scenario typed sources |
+| **Module** | `api/internal/sources/platformverdict.go` and `api/internal/sources/autoheal.go` |
+| **Production wiring** | Discovery resolves scenario URLs and generated Connect clients read SDA platform verdicts and autoheal readiness; portability and condition never rebuild those closures locally. |
+| **Test fake** | `PlatformVerdictSource` and injected discovery/HTTP clients make source outage, verdict, and readiness joins substitutable. |
+| **Why it exists** | The instrument is a read-only projection. Ownership stays with SDA/autoheal so a stopped source becomes an explicit availability condition rather than a fabricated empty or locally recomputed answer. |
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).

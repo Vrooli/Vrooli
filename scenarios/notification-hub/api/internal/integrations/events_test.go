@@ -11,11 +11,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"notification-hub/internal/hub"
+	"notification-hub/internal/modules"
+
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
-	"notification-hub/internal/hub"
-	"notification-hub/internal/modules"
 )
 
 // [REQ:NOTIFICA-P1-003]

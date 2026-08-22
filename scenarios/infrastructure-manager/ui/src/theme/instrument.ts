@@ -165,6 +165,7 @@ export const SIGNAL_STATES = {
   BLIND: { label: "Blind", mark: "\u25cb", tone: "blind", short: "OFF" },
   UNAUTHORED: { label: "No cell authored", mark: "\u00b7", tone: "unauthored", short: "\u2014" },
   SOURCE_DOWN: { label: "Source unreachable", mark: "?", tone: "source-down", short: "SRC?" },
+  HOST_NOT_SAMPLED: { label: "Host not sampled", mark: "∴", tone: "host-not-sampled", short: "HOST?" },
 } as const;
 
 export type SignalState = keyof typeof SIGNAL_STATES;

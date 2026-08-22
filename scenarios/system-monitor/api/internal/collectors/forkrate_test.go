@@ -80,3 +80,42 @@ func TestForkRateValuesReportsUnsupported(t *testing.T) {
 		t.Fatal("unsupported reading emitted a rate value; absence must not read as zero")
 	}
 }
+
+func TestCounterRateTrackerTracksNamedCountersAndResetsHonestly(t *testing.T) {
+	tracker := newCounterRateTracker()
+	t0 := time.Unix(100, 0)
+	if _, ok := tracker.observe("pswpin", 10, t0); ok {
+		t.Fatal("first sample must be pending")
+	}
+	if _, ok := tracker.observe("pswpout", 20, t0); ok {
+		t.Fatal("each counter must have its own first sample")
+	}
+	rate, ok := tracker.observe("pswpin", 16, t0.Add(2*time.Second))
+	if !ok || rate != 3 {
+		t.Fatalf("rate = %v, ok = %v, want 3 true", rate, ok)
+	}
+	if _, ok := tracker.observe("pswpin", 1, t0.Add(3*time.Second)); ok {
+		t.Fatal("decreasing counter must be pending")
+	}
+	if _, ok := tracker.observe("pswpout", 21, t0); ok {
+		t.Fatal("zero interval must be pending")
+	}
+}
+
+func TestCounterRateValuesOmitsUnmeasuredRate(t *testing.T) {
+	tracker := newCounterRateTracker()
+	values := counterRateValues(tracker, "pgmajfault", 4, time.Unix(1, 0))
+	if _, ok := values["pgmajfault_per_second"]; ok {
+		t.Fatal("first sample must not emit a numeric rate")
+	}
+	if values["pgmajfault_rate_status"] != "not_yet_sampled" {
+		t.Fatalf("status = %#v, want not_yet_sampled", values["pgmajfault_rate_status"])
+	}
+	if values["pgmajfault_rate_pending"] != true {
+		t.Fatalf("pending = %#v, want true", values["pgmajfault_rate_pending"])
+	}
+	second := counterRateValues(tracker, "pgmajfault", 8, time.Unix(3, 0))
+	if second["pgmajfault_rate_status"] != "measured" {
+		t.Fatalf("second status = %#v, want measured", second["pgmajfault_rate_status"])
+	}
+}

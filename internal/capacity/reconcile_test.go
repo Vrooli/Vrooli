@@ -138,12 +138,12 @@ func TestDeclaredGPUWithoutClaimFindingsCatchesIdleDeclaration(t *testing.T) {
 	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	manifest := []byte(`{"name":"ollama","gpu":{"probe":"nvidia"}}`)
+	manifest := []byte(`{"name":"ollama","acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{}}}`)
 	if err := os.WriteFile(filepath.Join(resourceDir, "resource.json"), manifest, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	findings, err := DeclaredGPUWithoutClaimFindings(root, nil)
+	findings, err := DeclaredGPUWithoutClaimFindings(root, nil, nil)
 	if err != nil {
 		t.Fatalf("DeclaredGPUWithoutClaimFindings() error = %v", err)
 	}
@@ -154,12 +154,77 @@ func TestDeclaredGPUWithoutClaimFindingsCatchesIdleDeclaration(t *testing.T) {
 		t.Fatalf("finding = %+v, want declared_unclaimed ollama warn", got)
 	}
 
+	// And a resource that declares only the cpu backend is not reported: it
+	// asked for no device, so holding no claim is correct rather than a
+	// mismatch. This is the inversion the single declaration removes — the
+	// previous shape reported a resource for merely having a gpu block, while
+	// missing every managed-service resource entirely.
+	cpuOnly := filepath.Join(root, "resources", "sherpa-onnx")
+	if err := os.MkdirAll(cpuOnly, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cpuOnly, "resource.json"), []byte(`{"name":"sherpa-onnx","acceleration":{"backends":["cpu"],"cpu":{}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings, err = DeclaredGPUWithoutClaimFindings(root, nil, nil)
+	if err != nil {
+		t.Fatalf("DeclaredGPUWithoutClaimFindings() error = %v", err)
+	}
+	for _, finding := range findings {
+		if finding.OwnerID == "sherpa-onnx" {
+			t.Fatalf("a cpu-only resource was reported as declaring an accelerator: %+v", finding)
+		}
+	}
+
 	claim := CapacityClaim{OwnerKind: OwnerKindResource, OwnerID: "ollama", Status: StatusGranted}
-	findings, err = DeclaredGPUWithoutClaimFindings(root, []CapacityClaim{claim})
+	findings, err = DeclaredGPUWithoutClaimFindings(root, []CapacityClaim{claim}, nil)
 	if err != nil {
 		t.Fatalf("claimed check error = %v", err)
 	}
 	if len(findings) != 0 {
 		t.Fatalf("findings with active claim = %+v, want none", findings)
+	}
+}
+
+// Scenario: a resource that is not installed here holds no claim, and that is
+// not a mismatch.
+//
+// Without this filter every accelerator-declaring resource an operator has
+// never installed raises a permanent warning, which is what made this finding
+// class ignorable.
+func TestDeclaredUnclaimedSkipsResourcesThatAreNotInstalled(t *testing.T) {
+	// Given two accelerator-declaring resources, only one of them installed
+	root := t.TempDir()
+	for _, name := range []string{"ollama", "kokoro"} {
+		dir := filepath.Join(root, "resources", name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		manifest := []byte(`{"name":"` + name + `","acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{}}}`)
+		if err := os.WriteFile(filepath.Join(dir, "resource.json"), manifest, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	installed := func(resource string) bool { return resource == "ollama" }
+
+	// When findings are computed with the installed predicate
+	findings, err := DeclaredGPUWithoutClaimFindings(root, nil, installed)
+	if err != nil {
+		t.Fatalf("DeclaredGPUWithoutClaimFindings() error = %v", err)
+	}
+
+	// Then only the installed one is reported
+	if len(findings) != 1 || findings[0].OwnerID != "ollama" {
+		t.Fatalf("findings = %+v, want only the installed ollama", findings)
+	}
+
+	// And with no predicate every declaration is reported, because the caller
+	// has no way to tell
+	all, err := DeclaredGPUWithoutClaimFindings(root, nil, nil)
+	if err != nil {
+		t.Fatalf("DeclaredGPUWithoutClaimFindings() error = %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("findings without a predicate = %+v, want both declarations", all)
 	}
 }

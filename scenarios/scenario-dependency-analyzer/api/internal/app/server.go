@@ -28,6 +28,7 @@ import (
 	deploymentapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/deployment"
 	graphapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graph"
 	optimizationapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/optimization"
+	platformverdictapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/platformverdict"
 	proposalapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/proposal"
 	resourceusageapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/resourceusage"
 	searchcontrolapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/searchcontrol"
@@ -111,6 +112,7 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		environment = nil
 	}
 	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir, dependencyhealthapi.Options{MaturitySpec: spec, Environment: environment})
+	platformverdictapi.RegisterConnectRoutes(router, h.scenariosDir)
 
 	// The dependency-governance corpus is injected as the SearchApprovedDependencies
 	// ranker (searchService is the same multi-corpus service built above).

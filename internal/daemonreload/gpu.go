@@ -17,14 +17,39 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
+// gpuManifest is the smallest shape that answers "does this resource run a
+// container on an accelerator device". It reads the acceleration block, which
+// is the fleet's only accelerator declaration.
 type gpuManifest struct {
-	Name string `json:"name"`
-	GPU  *struct {
-		Probe string `json:"probe"`
-	} `json:"gpu"`
+	Name         string `json:"name"`
+	Acceleration *struct {
+		Backends []string `json:"backends"`
+	} `json:"acceleration"`
 	Runtime struct {
 		ContainerName string `json:"container_name"`
 	} `json:"runtime"`
+}
+
+// containerDeviceProbe returns the device probe name for the resource's
+// highest-preference non-CPU backend, or "" when it declares none.
+//
+// The probe vocabulary belongs to internal/gpuaccess, which opens the device
+// node inside the container; this maps a declared backend onto it.
+func (m gpuManifest) containerDeviceProbe() string {
+	if m.Acceleration == nil {
+		return ""
+	}
+	for _, backend := range m.Acceleration.Backends {
+		switch strings.TrimSpace(strings.ToLower(backend)) {
+		case "cuda":
+			return "nvidia"
+		case "cpu":
+			// The CPU floor is reached before any device backend, so this
+			// resource declares no container device to repair.
+			return ""
+		}
+	}
+	return ""
 }
 
 type Repair struct {
@@ -114,7 +139,7 @@ func gpuContainers(ctx context.Context, root string) ([]target, error) {
 			continue
 		}
 		var manifest gpuManifest
-		if json.Unmarshal(data, &manifest) != nil || manifest.GPU == nil || strings.TrimSpace(manifest.GPU.Probe) == "" {
+		if json.Unmarshal(data, &manifest) != nil || manifest.containerDeviceProbe() == "" {
 			continue
 		}
 		manifests = append(manifests, manifest)
@@ -132,7 +157,7 @@ func gpuContainers(ctx context.Context, root string) ([]target, error) {
 		preferred := strings.TrimSpace(manifest.Runtime.ContainerName)
 		for _, name := range names {
 			if (preferred != "" && name == preferred) || (preferred == "" && strings.Contains(name, manifest.Name)) || (preferred == "" && name == "vrooli-"+manifest.Name) {
-				out = append(out, target{resource: manifest.Name, container: name, probe: manifest.GPU.Probe})
+				out = append(out, target{resource: manifest.Name, container: name, probe: manifest.containerDeviceProbe()})
 			}
 		}
 	}

@@ -16,6 +16,14 @@ type CapabilityImplementation struct {
 	Platforms  map[HostOS]PlatformDeclaration
 }
 
+type CapabilityDeclarer struct {
+	Name           string `json:"name"`
+	Role           string `json:"role"`
+	DeclaredStatus string `json:"declared_status"`
+	Resolved       bool   `json:"resolved"`
+	Reason         string `json:"reason"`
+}
+
 type CapabilityResolutionStatus string
 
 const (
@@ -36,7 +44,8 @@ const (
 	CapabilityPeerless CapabilityResolutionStatus = "peerless"
 	// CapabilityStatusInvalid is a terminal verdict, not a resolution: a
 	// declaration authored a platform status outside the vocabulary.
-	CapabilityStatusInvalid CapabilityResolutionStatus = "status_invalid"
+	CapabilityStatusInvalid      CapabilityResolutionStatus = "status_invalid"
+	CapabilityControlsIncomplete CapabilityResolutionStatus = "controls_incomplete"
 )
 
 // HasImplementation reports whether the resolution found code that runs on
@@ -52,10 +61,13 @@ type CapabilityResolution struct {
 	Status     CapabilityResolutionStatus `json:"status"`
 	// Qualification is the honesty rung of the winning declaration: how much
 	// real-world proof it carries, independent of whether it resolved.
-	Qualification Qualification `json:"qualification"`
-	Implementer   string        `json:"implementer,omitempty"`
-	Mechanism     string        `json:"mechanism,omitempty"`
-	Reason        string        `json:"reason"`
+	Qualification Qualification        `json:"qualification"`
+	Implementer   string               `json:"implementer,omitempty"`
+	Mechanism     string               `json:"mechanism,omitempty"`
+	Reason        string               `json:"reason"`
+	Controls      []string             `json:"controls,omitempty"`
+	Absent        []string             `json:"absent,omitempty"`
+	Declarers     []CapabilityDeclarer `json:"declarers,omitempty"`
 }
 
 type capabilityCandidate struct {
@@ -84,9 +96,16 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 	var unwired []string
 	var ineligible bool
 	var candidates []capabilityCandidate
+	var controls []capabilityCandidate
+	var declarers []string
+	var resolved = make(map[string]bool)
 	for _, implementation := range implementations {
 		if strings.TrimSpace(implementation.Capability) != capability {
 			continue
+		}
+		name := strings.TrimSpace(implementation.Name)
+		if name != "" {
+			declarers = append(declarers, name)
 		}
 		platform, declared := implementation.Platforms[os]
 		if !declared {
@@ -98,13 +117,22 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 			result.Implementer = strings.TrimSpace(implementation.Name)
 			result.Mechanism = strings.TrimSpace(platform.Mechanism)
 			result.Reason = err.Error()
+			result.Declarers = declarerDetails(implementations, capability, os, resolved)
 			return result
+		}
+		if implementation.Role == "control" && name != "" && status != StatusUnsupported {
+			controls = append(controls, capabilityCandidate{implementation: implementation, qualification: status.Qualification()})
+			resolved[name] = true
+		}
+		if implementation.Role == "control" {
+			continue
 		}
 		named := strings.TrimSpace(implementation.Name) != ""
 		switch status {
 		case StatusSupported, StatusBuildVerified, StatusExperimental, StatusUnqualified, StatusPartial:
 			if named {
 				candidates = append(candidates, capabilityCandidate{implementation: implementation, qualification: status.Qualification()})
+				resolved[name] = true
 				continue
 			}
 			// A declaration that claims an implementation without naming one is
@@ -139,6 +167,13 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 		result.Implementer = winner.implementation.Name
 		result.Mechanism = strings.TrimSpace(winner.implementation.Platforms[os].Mechanism)
 		result.Reason = winner.qualification.Reason()
+		result.Controls = sortedNames(controls)
+		result.Absent = absentNames(declarers, resolved)
+		result.Declarers = declarerDetails(implementations, capability, os, resolved)
+		if len(controls) < countControls(implementations, capability) {
+			result.Status = CapabilityControlsIncomplete
+			result.Reason = fmt.Sprintf("provider %q resolves, but required controls are absent: %s", result.Implementer, strings.Join(result.Absent, ", "))
+		}
 		return result
 	}
 	if len(unwired) > 0 {
@@ -147,15 +182,83 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 		result.Mechanism = unwired[0]
 		result.Qualification = QualificationUndeclared
 		result.Reason = "a mechanism is named but no implementation is declared for this host OS"
+		result.Controls = sortedNames(controls)
+		result.Absent = absentNames(declarers, resolved)
+		result.Declarers = declarerDetails(implementations, capability, os, resolved)
 		return result
 	}
 	if ineligible {
 		result.Status = CapabilityIneligible
 		result.Qualification = QualificationIneligible
 		result.Reason = QualificationIneligible.Reason()
+		result.Absent = absentNames(declarers, resolved)
+		result.Declarers = declarerDetails(implementations, capability, os, resolved)
 		return result
 	}
 	result.Status = CapabilityPeerless
 	result.Reason = "no implementation or mechanism is declared for this capability on this host OS"
+	result.Controls = sortedNames(controls)
+	result.Absent = absentNames(declarers, resolved)
+	result.Declarers = declarerDetails(implementations, capability, os, resolved)
 	return result
+}
+
+func declarerDetails(implementations []CapabilityImplementation, capability string, os HostOS, resolved map[string]bool) []CapabilityDeclarer {
+	details := make([]CapabilityDeclarer, 0)
+	for _, implementation := range implementations {
+		if strings.TrimSpace(implementation.Capability) != capability || strings.TrimSpace(implementation.Name) == "" {
+			continue
+		}
+		name := strings.TrimSpace(implementation.Name)
+		platform, declared := implementation.Platforms[os]
+		detail := CapabilityDeclarer{Name: name, Role: implementation.Role, Resolved: resolved[name]}
+		if !declared {
+			detail.DeclaredStatus = string(StatusUnsupported)
+			detail.Reason = "no declaration for this host OS"
+		} else {
+			detail.DeclaredStatus = strings.TrimSpace(platform.Status)
+			if !detail.Resolved {
+				detail.Reason = "declaration does not resolve on this host OS"
+			}
+		}
+		details = append(details, detail)
+	}
+	sort.Slice(details, func(i, j int) bool { return details[i].Name < details[j].Name })
+	return details
+}
+
+func countControls(implementations []CapabilityImplementation, capability string) int {
+	count := 0
+	for _, implementation := range implementations {
+		if strings.TrimSpace(implementation.Capability) == capability && implementation.Role == "control" && strings.TrimSpace(implementation.Name) != "" {
+			count++
+		}
+	}
+	return count
+}
+
+func sortedNames(candidates []capabilityCandidate) []string {
+	names := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		names = append(names, strings.TrimSpace(candidate.implementation.Name))
+	}
+	sort.Strings(names)
+	return names
+}
+
+func absentNames(declarers []string, resolved map[string]bool) []string {
+	seen := make(map[string]struct{}, len(declarers))
+	absent := make([]string, 0, len(declarers))
+	for _, name := range declarers {
+		if resolved[name] {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		absent = append(absent, name)
+	}
+	sort.Strings(absent)
+	return absent
 }

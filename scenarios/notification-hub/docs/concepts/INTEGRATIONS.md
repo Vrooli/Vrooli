@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, every persisting domain | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, every persisting domain | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | `scenario-authenticator` | scenario | yes | Every authenticated surface | JWKS verified locally via `api-core/owneridentity` | Authenticated surfaces fail closed; accepted notifications keep draining. |
 | `vrooli-bridge` | scenario | no | Cross-node delivery | Durable dispatch of this scenario's cataloged `notifications relay` CLI verb to a remote machine | Host-bound channels are marked unroutable with a reason. |

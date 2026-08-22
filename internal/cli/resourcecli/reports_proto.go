@@ -83,6 +83,12 @@ func resourceStatusMessage(item resources.Status) *cliv1.ResourceStatus {
 		Message:    item.Message,
 		ProbeError: item.ProbeError,
 		Raw:        rawValue(item.Raw),
+
+		Serving:      boolValue(item.Serving),
+		DeclaredMode: item.DeclaredMode,
+		ObservedMode: item.ObservedMode,
+		ModeDrift:    item.ModeDrift,
+		ModeReason:   item.ModeReason,
 	}
 }
 
@@ -188,6 +194,8 @@ func ResourceStatusResponse(item resources.Status) *cliv1.ResourceStatusResponse
 		Healthy:   boolValue(item.Healthy),
 		Status:    item.Message,
 		Resource:  resourceStatusMessage(item),
+		Serving:   boolValue(item.Serving),
+		ModeDrift: item.ModeDrift,
 	}
 }
 

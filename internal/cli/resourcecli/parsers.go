@@ -49,9 +49,15 @@ func ParseStatusRequest(args []string) (StatusRequest, error) {
 	if err != nil {
 		return StatusRequest{}, err
 	}
+	// Asking about one resource is a question about that resource, so it runs
+	// its health checks and reads its accelerator placement. Asking about the
+	// whole fleet is a sweep, so it stays fast: placement reads the host once
+	// per resource, which is fine for one and wasteful for twenty-nine.
+	// Either default is overridable.
 	req := StatusRequest{Fast: true}
 	if len(parsed.Positionals) == 1 {
 		req.Name = parsed.Positionals[0]
+		req.Fast = false
 	}
 	if parsed.HasFlag("--no-fast") {
 		req.Fast = false

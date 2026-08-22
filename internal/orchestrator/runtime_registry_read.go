@@ -228,8 +228,10 @@ func (s *Service) captureRegistryEvidence(ctx context.Context) (registryEvidence
 		return registryEvidence{}, err
 	}
 	return registryEvidence{
-		bootID:   host.BootID,
-		snapshot: network.CaptureTCPListenerSnapshot(),
+		bootID: host.BootID,
+		// Reconciliation below reads only Known/Listening, so this
+		// deliberately skips process attribution and its subprocess.
+		snapshot: network.CaptureTCPListenerPorts(),
 	}, nil
 }
 

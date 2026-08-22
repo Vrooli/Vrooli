@@ -123,10 +123,18 @@ func (s *linuxSampler) readProcess(pid int) (ProcessSample, bool) {
 		return ProcessSample{}, false
 	}
 	sample.PID = pid
+	sample.MetricsStatus = "measured"
+	sample.MetricsReason = "Linux /proc stat and status"
 
 	// cmdline: nul-separated args; the comm in stat is already the short name.
 	if cmdRaw, err := s.fs.ReadFile(pid, "cmdline"); err == nil {
 		sample.Cmdline = renderCmdline(cmdRaw)
+	}
+	if statusRaw, err := s.fs.ReadFile(pid, "status"); err == nil {
+		sample.SwapKB = parseStatusKB(string(statusRaw), "VmSwap")
+	} else {
+		sample.MetricsStatus = "unsupported"
+		sample.MetricsReason = "Linux /proc status unavailable: " + err.Error()
 	}
 	// cwd: best-effort symlink resolution (requires permission; root sees all).
 	if cwd, err := s.fs.Readlink(pid, "cwd"); err == nil {
@@ -163,12 +171,26 @@ func parseStat(line string) (ProcessSample, bool) {
 	sample.PPID = atoiSafe(rest[1])
 	sample.utime = atouSafe(rest[11])
 	sample.stime = atouSafe(rest[12])
+	sample.MajorFaults = atouSafe(rest[9])
 	sample.Threads = atoiSafe(rest[17])
 
 	// rss is in pages; convert to KiB using the page size.
 	rssPages := atoiSafe(rest[21])
 	sample.RSSKB = int64(rssPages) * int64(pageSizeKB())
 	return sample, true
+}
+
+func parseStatusKB(raw, key string) int64 {
+	for _, line := range strings.Split(raw, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && strings.TrimSuffix(fields[0], ":") == key {
+			value, err := strconv.ParseInt(fields[1], 10, 64)
+			if err == nil && value >= 0 {
+				return value
+			}
+		}
+	}
+	return 0
 }
 
 // renderCmdline turns the nul-separated /proc cmdline into a space-joined

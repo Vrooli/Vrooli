@@ -1,4 +1,4 @@
-import type { MemoryMetrics, ProcessInfo, MemoryGrowth } from '../../../../types';
+import type { MemoryMetrics, ProcessInfo } from '../../../../types';
 import { formatOptionalNumber } from '../../../../shared/utils/formatters';
 
 interface MemoryExpansionProps {
@@ -44,22 +44,5 @@ export const MemoryExpansion = ({ details }: MemoryExpansionProps) => (
       </div>
     </div>
 
-    {(details.growthPatterns?.length ?? 0) > 0 && (
-      <div className="detail-section">
-        <h4 data-sm-style="sm-style-c8a6493830">
-          Memory Growth Patterns:
-        </h4>
-        <div className="growth-patterns">
-          {(details.growthPatterns ?? []).slice(0, 3).map((pattern: MemoryGrowth, index: number) => (
-            <div key={index} data-sm-style="sm-style-7951b0764f">
-              <span>{pattern.process}: </span>
-              <span className={`risk-level-${pattern.riskLevel.toLowerCase()}`}>
-                {formatOptionalNumber(pattern.growthMbPerHour)} MB/hr ({pattern.riskLevel})
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
   </div>
 );

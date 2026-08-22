@@ -4,13 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	hostruntime "github.com/vrooli/vrooli/internal/runtime"
+	"github.com/vrooli/vrooli/internal/safeguards"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
@@ -52,11 +55,11 @@ func hostSafeguardSpec() commandtree.Spec[string] {
 		Summary: "Inspect or apply one declared host safeguard",
 		Help: commandtree.Help{
 			Description: "Applies one typed host safeguard through Vrooli's requirement runtime. Use this for focused, auditable repairs such as a kernel driver; high-risk safeguards can report a typed reboot-required result instead of pretending the host is ready.",
-			Usage:       "vrooli host safeguard <name> [--dry-run] [--maintenance-window] [--sudo-mode ask|skip|error]",
+			Usage:       "vrooli host safeguard <name|list> [--json] [--dry-run] [--maintenance-window] [--sudo-mode ask|skip|error]",
 			Options:     []commandtree.OptionArg{{Name: "--dry-run", Description: "Report the managed change without applying it"}, {Name: "--maintenance-window", Description: "Acknowledge graphical/remote-session interruption risk"}, {Name: "--sudo-mode", ValueName: "mode", Description: "Privilege policy: ask, skip, or error (default: skip)"}},
-			Examples:    []string{"vrooli host safeguard nvidia_driver --dry-run", "vrooli host safeguard nvidia_driver --maintenance-window --sudo-mode ask"},
+			Examples:    []string{"vrooli host safeguard list --json", "vrooli host safeguard nvidia_driver --dry-run", "vrooli host safeguard nvidia-driver --maintenance-window --sudo-mode ask"},
 		},
-		Args:    commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true, Description: "Safeguard name (see internal/safeguards/<name>)"}}, Options: []commandtree.OptionArg{{Name: "--dry-run", Description: "Report the managed change without applying it"}, {Name: "--maintenance-window", Description: "Acknowledge graphical/remote-session interruption risk"}, {Name: "--sudo-mode", ValueName: "mode", Description: "Privilege policy: ask, skip, or error"}}},
+		Args:    commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true, Description: "Safeguard name in hyphenated or underscored form, or list"}}, Options: []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--dry-run", Description: "Report the managed change without applying it"}, {Name: "--maintenance-window", Description: "Acknowledge graphical/remote-session interruption risk"}, {Name: "--sudo-mode", ValueName: "mode", Description: "Privilege policy: ask, skip, or error"}}},
 		Handler: "safeguard",
 	}
 }
@@ -71,6 +74,11 @@ func (app *App) runHostSafeguardCommand(ctx *CommandContext, args []string) erro
 		return rootcli.UsageErrorf("host safeguard", "%s", err.Error())
 	}
 	name := strings.TrimSpace(parsed.Positionals[0])
+	jsonOut := ctx.Globals.JSON || parsed.HasFlag("--json")
+	if strings.EqualFold(name, "list") {
+		return renderSafeguardList(ctx.Stdout, jsonOut)
+	}
+	name = strings.ReplaceAll(strings.ToLower(name), "-", "_")
 	sudoMode := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--sudo-mode")))
 	if sudoMode != "" && sudoMode != "ask" && sudoMode != "skip" && sudoMode != "error" {
 		return rootcli.UsageErrorf("host safeguard", "invalid --sudo-mode %q (want ask, skip, or error)", sudoMode)
@@ -79,11 +87,74 @@ func (app *App) runHostSafeguardCommand(ctx *CommandContext, args []string) erro
 	if err != nil {
 		return fmt.Errorf("host safeguard %q: %w", name, err)
 	}
-	renderHostInstallText(ctx.Stdout, status)
+	if jsonOut {
+		if err := json.NewEncoder(ctx.Stdout).Encode(status); err != nil {
+			return err
+		}
+	} else {
+		renderHostInstallText(ctx.Stdout, status)
+	}
 	if !hostSafeguardOK(status) {
 		return rootcli.ExitCodeError{Code: 1, Silent_: true}
 	}
 	return nil
+}
+
+type safeguardListEntry struct {
+	Name           string   `json:"name"`
+	Capability     string   `json:"capability"`
+	CapabilityRole string   `json:"capability_role"`
+	Platforms      []string `json:"platforms"`
+	ObservedState  string   `json:"observed_state"`
+	SupportClass   string   `json:"support_class"`
+	ObservedAt     string   `json:"observed_at"`
+	ObservedNotes  []string `json:"observed_notes,omitempty"`
+}
+
+func renderSafeguardList(output io.Writer, jsonOut bool) error {
+	entries, err := listSafeguards()
+	if err != nil {
+		return err
+	}
+	if jsonOut {
+		return json.NewEncoder(output).Encode(entries)
+	}
+	for _, entry := range entries {
+		fmt.Fprintf(output, "%s\t%s\t%s\t%s\t%s\n", entry.Name, entry.Capability, entry.CapabilityRole, strings.Join(entry.Platforms, ","), entry.ObservedState)
+	}
+	return nil
+}
+
+func listSafeguards() ([]safeguardListEntry, error) {
+	dirs, err := fs.ReadDir(safeguards.Manifests, ".")
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]safeguardListEntry, 0, len(dirs))
+	for _, dir := range dirs {
+		if !dir.IsDir() {
+			continue
+		}
+		data, err := fs.ReadFile(safeguards.Manifests, dir.Name()+"/safeguard.json")
+		if err != nil {
+			return nil, err
+		}
+		var manifest hostreqkit.SafeguardManifest
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			return nil, fmt.Errorf("parse safeguard %s: %w", dir.Name(), err)
+		}
+		entry := safeguardListEntry{Name: manifest.Name, Capability: manifest.Capability, CapabilityRole: manifest.CapabilityRole, Platforms: append([]string(nil), manifest.Platforms...), ObservedState: "host_not_sampled", ObservedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+		if status, inspectErr := hostruntime.InspectSafeguard(manifest.Name); inspectErr == nil {
+			entry.ObservedState = string(status.ExecutionState)
+			entry.SupportClass = string(status.SupportClass)
+			entry.ObservedNotes = append([]string(nil), status.Notes...)
+		} else {
+			entry.SupportClass = "unavailable"
+			entry.ObservedNotes = []string{inspectErr.Error()}
+		}
+		entries = append(entries, entry)
+	}
+	return entries, nil
 }
 
 // hostSafeguardOK reports whether a safeguard run should exit zero. It is the

@@ -229,7 +229,7 @@ make generate
 The generator runs entirely on local plugins (no BSR network calls) and
 writes to language-specific output paths: Go under
 `packages/proto/gen/go/signal-inbox/v1/`, TypeScript under
-`packages/proto/gen/typescript/js/signal-inbox/v1/`, and Python under
+`packages/proto/gen/typescript/signal-inbox/v1/`, and Python under
 `packages/proto/gen/python/signal_inbox/v1/`.
 
 ### Codegen ran but Go imports still fail

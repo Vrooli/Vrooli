@@ -107,7 +107,7 @@ packages/proto/schemas/signal-inbox/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/signal-inbox/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/signal-inbox/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/signal-inbox/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/signal-inbox/v1/...   (ui)
        └──▶ packages/proto/gen/python/signal_inbox/v1/...    (future tools)
 ```
 

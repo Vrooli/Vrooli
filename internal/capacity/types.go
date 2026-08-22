@@ -349,6 +349,12 @@ type ClaimRepository interface {
 	ReportActivity(ctx context.Context, claimID string, generation int64, state string) (CapacityClaim, error)
 	DegradeClaim(ctx context.Context, claimID string, generation int64, step string, amountBytes int64) (CapacityClaim, error)
 	UpshiftClaim(ctx context.Context, claimID string, generation int64, step string, amountBytes int64) (CapacityClaim, error)
+	// ResizeClaim changes an existing claim's granted and preferred amount in
+	// place. It exists so an adopter whose real footprint moves does not have
+	// to release and re-claim: that pattern is what produced 3,059 ledger rows
+	// for one resource, and it loses the observed-usage history the
+	// right-sizing advisory reads.
+	ResizeClaim(ctx context.Context, claimID string, generation int64, amountBytes int64) (CapacityClaim, error)
 	ReleaseClaim(ctx context.Context, claimID string) (CapacityClaim, error)
 	PreemptClaim(ctx context.Context, claimID string, reason string) (CapacityClaim, error)
 	ExpireStaleClaims(ctx context.Context, at time.Time) ([]CapacityClaim, error)

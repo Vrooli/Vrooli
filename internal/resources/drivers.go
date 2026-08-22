@@ -18,6 +18,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/accel"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -157,11 +158,8 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 			status.ProbeError = err.Error()
 			return status, nil
 		}
+		status = applyHealthToStatus(status, health)
 		healthy = health.Healthy
-		status.Healthy = &healthy
-		if strings.TrimSpace(health.Message) != "" {
-			status.Message = health.Message
-		}
 	}
 	if companions, err := companionStatuses(manifest.Name, manifest.Companions); err != nil {
 		status.StatusCode = StatusCodeCommandError
@@ -227,37 +225,20 @@ func statusRawWithMode(raw json.RawMessage, mode string, stateAndReason ...strin
 	return out
 }
 
-// observedGPUStatus keeps the declared host mode and the container-scoped
-// device result separate. A revoked device is visibly degraded; an unknown
-// result never gets promoted to healthy GPU access.
-func observedGPUStatus(ctx context.Context, controller *Controller, manifest ResourceManifest, services []composeServiceState) (string, string, string) {
-	if manifest.GPU == nil {
+// observedGPUStatus reports the backend a running resource is on, for the
+// status paths that do not run health checks (an externally managed service, or
+// a resource with no declared health check). It is a thin adapter over the one
+// placement verifier: there is no second opinion about placement anywhere.
+func observedGPUStatus(ctx context.Context, controller *Controller, manifest ResourceManifest, _ []composeServiceState) (string, string, string) {
+	placement, err := observePlacement(ctx, controller, manifest)
+	if err != nil || placement == nil {
 		return "", "", ""
 	}
-	mode := "cpu"
-	if shouldUseGPU(ctx, manifest.GPU.Probe) {
-		mode = "gpu"
+	observed := string(placement.Observed)
+	if observed == "" {
+		observed = "unknown"
 	}
-	container := dockerContainerName(manifest)
-	if len(services) > 0 {
-		for _, service := range services {
-			if strings.EqualFold(strings.TrimSpace(service.State), "running") {
-				if strings.TrimSpace(service.Name) != "" {
-					container = strings.TrimSpace(service.Name)
-				}
-				break
-			}
-		}
-	}
-	state, reason := VerifyContainerGPU(ctx, container, manifest.GPU.Probe)
-	switch state {
-	case GPUAccessOK:
-		return "gpu", reason, string(state)
-	case GPUAccessRevoked:
-		return "gpu-degraded", reason, string(state)
-	default:
-		return mode, reason, string(state)
-	}
+	return observed, placement.Reason, string(placement.State)
 }
 
 func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string, stdout, stderr io.Writer) error {
@@ -297,6 +278,9 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 		}
 		return composeCommand(ctx, controller, manifest, io.Discard, stderr, "build")
 	case "start":
+		if err := gateAcceleratorReadiness(ctx, manifest, stderr); err != nil {
+			return err
+		}
 		before, err := inspectComposeServices(ctx, controller, manifest)
 		if err != nil {
 			return err
@@ -308,7 +292,7 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 		if running, err := composeFallbackContainerHealthy(ctx, controller, manifest); err != nil {
 			return err
 		} else if running {
-			return verifyComposeStartedGPU(ctx, controller, manifest, stderr)
+			return verifyStartedPlacement(ctx, controller, manifest, stderr)
 		}
 		if err := composeCommand(ctx, controller, manifest, io.Discard, stderr, "up", "-d"); err != nil {
 			return err
@@ -319,8 +303,11 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 				return err
 			}
 		}
-		return verifyComposeStartedGPU(ctx, controller, manifest, stderr)
+		return verifyStartedPlacement(ctx, controller, manifest, stderr)
 	case "restart":
+		if err := gateAcceleratorReadiness(ctx, manifest, stderr); err != nil {
+			return err
+		}
 		before, err := inspectComposeServices(ctx, controller, manifest)
 		if err != nil {
 			return err
@@ -338,7 +325,7 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 				return err
 			}
 		}
-		return verifyComposeStartedGPU(ctx, controller, manifest, stderr)
+		return verifyStartedPlacement(ctx, controller, manifest, stderr)
 	case "stop":
 		stopCompanions(manifest.Name, manifest.Companions, stderr)
 		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "stop")
@@ -393,7 +380,7 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 			status.Healthy = &healthy
 			status.Health = "healthy"
 			status.Message = "healthy (external)"
-			if manifest.GPU != nil {
+			if _, accelerated := accelSpecFor(manifest); accelerated {
 				mode, reason, state := observedGPUStatus(ctx, controller, manifest, nil)
 				status.Raw = statusRawWithMode(status.Raw, mode, state, reason)
 				status.Message += fmt.Sprintf(" (mode: %s)", mode)
@@ -416,19 +403,19 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 				status.ProbeError = err.Error()
 				return status, nil
 			}
+			status = applyHealthToStatus(status, health)
 			healthy = health.Healthy
-			if health.Message != "" {
-				status.Message = health.Message
-			}
 		} else {
 			status.Message = "running"
+			status.Healthy = &healthy
+			serving := healthy
+			status.Serving = &serving
 		}
-		status.Healthy = &healthy
-		if manifest.GPU != nil {
+		if _, accelerated := accelSpecFor(manifest); accelerated {
 			mode, reason, state := observedGPUStatus(ctx, controller, manifest, nil)
 			status.Raw = statusRawWithMode(status.Raw, mode, state, reason)
 			status.Message += fmt.Sprintf(" (mode: %s)", mode)
-			if state != string(GPUAccessOK) {
+			if state != string(accel.StateOK) {
 				healthy = false
 				status.Healthy = &healthy
 				status.Health = "unhealthy"
@@ -452,11 +439,11 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 		status.Healthy = &healthy
 		status.Health = "healthy"
 		status.Message = "healthy (external)"
-		if manifest.GPU != nil {
+		if _, accelerated := accelSpecFor(manifest); accelerated {
 			mode, reason, state := observedGPUStatus(ctx, controller, manifest, nil)
 			status.Raw = statusRawWithMode(status.Raw, mode, state, reason)
 			status.Message += fmt.Sprintf(" (mode: %s)", mode)
-			if state != string(GPUAccessOK) {
+			if state != string(accel.StateOK) {
 				healthy = false
 				status.Healthy = &healthy
 				status.Health = "unhealthy"
@@ -790,6 +777,9 @@ func recordDockerImageArtifact(controller *Controller, manifest ResourceManifest
 }
 
 func startDockerService(ctx context.Context, controller *Controller, manifest ResourceManifest, restart bool, warning io.Writer) error {
+	if err := gateAcceleratorReadiness(ctx, manifest, warning); err != nil {
+		return err
+	}
 	state, exists, err := inspectDockerContainer(ctx, controller, manifest)
 	if err != nil {
 		return err
@@ -837,10 +827,10 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 			if err := dockerCommand(ctx, controller, io.Discard, io.Discard, "restart", name); err != nil {
 				return err
 			}
-			return verifyStartedGPU(ctx, controller, manifest, warning)
+			return verifyStartedPlacement(ctx, controller, manifest, warning)
 		}
 		if state.Running {
-			return verifyStartedGPU(ctx, controller, manifest, warning)
+			return verifyStartedPlacement(ctx, controller, manifest, warning)
 		}
 		// About to `docker start` a stopped container and re-bind its host ports.
 		// The external probe above found no healthy service, so a still-occupied
@@ -851,7 +841,7 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 		if err := dockerCommand(ctx, controller, io.Discard, io.Discard, "start", name); err != nil {
 			return err
 		}
-		return verifyStartedGPU(ctx, controller, manifest, warning)
+		return verifyStartedPlacement(ctx, controller, manifest, warning)
 	}
 
 	// Preflight: we are about to create a brand-new container and bind its host
@@ -874,7 +864,7 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 	if err := recordDockerArtifacts(controller, manifest, imageBefore, volumeBefore); err != nil {
 		return err
 	}
-	return verifyStartedGPU(ctx, controller, manifest, warning)
+	return verifyStartedPlacement(ctx, controller, manifest, warning)
 }
 
 func recordDockerArtifacts(controller *Controller, manifest ResourceManifest, imageBefore cliinstall.ObservedBefore, volumeBefore map[string]cliinstall.ObservedBefore) error {
@@ -958,87 +948,6 @@ var gpuVerificationSleep = func(ctx context.Context, delay time.Duration) error 
 	case <-timer.C:
 		return nil
 	}
-}
-
-func verifyStartedGPU(ctx context.Context, controller *Controller, manifest ResourceManifest, warning io.Writer) error {
-	if manifest.GPU == nil || !shouldUseGPU(ctx, manifest.GPU.Probe) {
-		return nil
-	}
-	var lastState GPUAccessState
-	var lastReason string
-	for attempt := 0; attempt < 3; attempt++ {
-		state, exists, err := inspectDockerContainer(ctx, controller, manifest)
-		if err != nil {
-			return fmt.Errorf("verify GPU access for %s: inspect container: %w", manifest.Name, err)
-		}
-		if !exists || !state.Running {
-			lastState, lastReason = GPUAccessUnknown, "container is not running"
-		} else {
-			lastState, lastReason = VerifyContainerGPU(ctx, dockerContainerName(manifest), manifest.GPU.Probe)
-			if lastState == GPUAccessOK {
-				return nil
-			}
-		}
-		if attempt < 2 {
-			if err := gpuVerificationSleep(ctx, 250*time.Millisecond); err != nil {
-				return err
-			}
-		}
-	}
-	if lastState == GPUAccessRevoked {
-		return &Error{
-			Code:      "gpu_access_revoked",
-			Resource:  manifest.Name,
-			Operation: "start",
-			Category:  "GPU",
-			Err:       fmt.Errorf("container %q cannot open /dev/nvidiactl (%s); repair with `vrooli resource restart %s`", dockerContainerName(manifest), lastReason, manifest.Name),
-		}
-	}
-	if warning != nil {
-		_, _ = fmt.Fprintf(warning, "warning: GPU access for resource %q is unknown: %s; resource started, but it is not verified\n", manifest.Name, lastReason)
-	}
-	return nil
-}
-
-func verifyComposeStartedGPU(ctx context.Context, controller *Controller, manifest ResourceManifest, warning io.Writer) error {
-	if manifest.GPU == nil || !shouldUseGPU(ctx, manifest.GPU.Probe) {
-		return nil
-	}
-	var lastState GPUAccessState
-	var lastReason, container string
-	for attempt := 0; attempt < 3; attempt++ {
-		services, err := inspectComposeServices(ctx, controller, manifest)
-		if err != nil {
-			return fmt.Errorf("verify GPU access for %s: inspect compose services: %w", manifest.Name, err)
-		}
-		container = dockerContainerName(manifest)
-		for _, service := range services {
-			if strings.EqualFold(strings.TrimSpace(service.State), "running") && strings.TrimSpace(service.Name) != "" {
-				container = strings.TrimSpace(service.Name)
-				break
-			}
-		}
-		if container == dockerContainerName(manifest) && len(services) == 0 {
-			lastState, lastReason = GPUAccessUnknown, "compose service is not running"
-		} else {
-			lastState, lastReason = VerifyContainerGPU(ctx, container, manifest.GPU.Probe)
-			if lastState == GPUAccessOK {
-				return nil
-			}
-		}
-		if attempt < 2 {
-			if err := gpuVerificationSleep(ctx, 250*time.Millisecond); err != nil {
-				return err
-			}
-		}
-	}
-	if lastState == GPUAccessRevoked {
-		return &Error{Code: "gpu_access_revoked", Resource: manifest.Name, Operation: "start", Category: "GPU", Err: fmt.Errorf("container %q cannot open /dev/nvidiactl (%s); repair with `vrooli resource restart %s`", container, lastReason, manifest.Name)}
-	}
-	if warning != nil {
-		_, _ = fmt.Fprintf(warning, "warning: GPU access for resource %q is unknown: %s; resource started, but it is not verified\n", manifest.Name, lastReason)
-	}
-	return nil
 }
 
 // preflightPortConflict reports an actionable error when any of the manifest's
@@ -1129,7 +1038,7 @@ func buildDockerRunArgs(ctx context.Context, controller *Controller, manifest Re
 		args = append(args, "-e", key+"="+expandResourceRuntimeValue(controller, manifest, value))
 	}
 	if useGPU {
-		for key, value := range manifest.GPU.EnvOverrides {
+		for key, value := range acceleratedBackendEnv(ctx, manifest) {
 			args = append(args, "-e", key+"="+expandResourceRuntimeValue(controller, manifest, value))
 		}
 	}
@@ -1169,7 +1078,8 @@ func buildDockerRunArgs(ctx context.Context, controller *Controller, manifest Re
 }
 
 func dockerUsesGPU(ctx context.Context, manifest ResourceManifest) bool {
-	return manifest.GPU != nil && shouldUseGPU(ctx, manifest.GPU.Probe)
+	backend, _, ok := selectedAcceleratedBackend(ctx, manifest)
+	return ok && backend != accel.BackendCPU
 }
 
 func dockerRuntimeForManifest(ctx context.Context, manifest ResourceManifest) string {
@@ -1337,12 +1247,15 @@ func composeInvocationArgs(ctx context.Context, controller *Controller, manifest
 	cmdArgs := []string{"compose", "-f", composeFilePath(controller, manifest), "--project-name", composeProjectName(manifest)}
 	env := resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
 
-	if manifest.GPU != nil && shouldUseGPU(ctx, manifest.GPU.Probe) {
-		if overlay := strings.TrimSpace(manifest.GPU.ComposeOverlay); overlay != "" {
+	// The compose overlay and the env come from whichever backend the host can
+	// actually give this resource, so a CPU-only host silently gets the base
+	// compose file rather than an overlay demanding a device.
+	if backend, config, ok := selectedAcceleratedBackend(ctx, manifest); ok {
+		if overlay := strings.TrimSpace(config.ComposeOverlay); overlay != "" && backend != accel.BackendCPU {
 			cmdArgs = append(cmdArgs, "-f", composeOverlayPath(controller, manifest, overlay))
 		}
-		for k, v := range manifest.GPU.EnvOverrides {
-			env = append(env, k+"="+v)
+		for key, value := range config.Env {
+			env = append(env, key+"="+value)
 		}
 	}
 	if extra := harvestRuntimeEnvCommand(ctx, manifest); len(extra) > 0 {
@@ -1553,20 +1466,13 @@ func (d externalCLIDriver) Status(ctx context.Context, controller *Controller, i
 			status.ProbeError = err.Error()
 			return status, nil
 		}
-		healthy = health.Healthy
-		status.Healthy = &healthy
-		if healthy {
-			status.Health = "healthy"
-			if strings.TrimSpace(health.Message) != "" {
-				status.Message = health.Message
+		status = applyHealthToStatus(status, health)
+		if strings.TrimSpace(status.Message) == "" {
+			if health.Healthy {
+				status.Message = "healthy"
+			} else {
+				status.Message = "unhealthy"
 			}
-			return status, nil
-		}
-		status.Health = "unhealthy"
-		if strings.TrimSpace(health.Message) != "" {
-			status.Message = health.Message
-		} else {
-			status.Message = "unhealthy"
 		}
 	}
 
@@ -1682,6 +1588,15 @@ func (d nativeCLIDriver) Run(ctx context.Context, controller *Controller, item R
 			}
 			return &Error{Code: ErrorCodeCommandUnavailable, Resource: item.Name, Operation: action, Category: "Readiness", Err: fmt.Errorf("%s: %s", item.Name, message)}
 		}
+		if err := gateAcceleratorReadiness(ctx, manifest, stderr); err != nil {
+			return err
+		}
+		if err := (externalCLIDriver{}).Run(ctx, controller, item, manifest, action, args, stdout, stderr); err != nil {
+			return err
+		}
+		// A native-cli resource runs as a host process, so it is one of the two
+		// driver kinds where a silent CPU fallback is invisible without this.
+		return verifyStartedPlacement(ctx, controller, manifest, stderr)
 	}
 	return externalCLIDriver{}.Run(ctx, controller, item, manifest, action, args, stdout, stderr)
 }
@@ -1795,20 +1710,13 @@ func (d cloudAPIDriver) Status(ctx context.Context, controller *Controller, item
 			status.ProbeError = err.Error()
 			return status, nil
 		}
-		healthy = health.Healthy
-		status.Healthy = &healthy
-		if healthy {
-			status.Health = "healthy"
-			if strings.TrimSpace(health.Message) != "" {
-				status.Message = health.Message
+		status = applyHealthToStatus(status, health)
+		if strings.TrimSpace(status.Message) == "" {
+			if health.Healthy {
+				status.Message = "healthy"
+			} else {
+				status.Message = "unhealthy"
 			}
-			return status, nil
-		}
-		status.Health = "unhealthy"
-		if strings.TrimSpace(health.Message) != "" {
-			status.Message = health.Message
-		} else {
-			status.Message = "unhealthy"
 		}
 	}
 

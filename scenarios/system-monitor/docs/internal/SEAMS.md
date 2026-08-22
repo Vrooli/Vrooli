@@ -5,6 +5,15 @@
 
 ## Integration Seams
 
+- **Platform paging seam** (`api/internal/collectors/platform_paging_*.go`):
+  exposes native cumulative paging counters to the pressure collector. The
+  collector owns counter-to-rate conversion and emits explicit degraded state
+  when a backend cannot measure a counter.
+
+- **Platform fragmentation seam** (`api/internal/collectors/platform_fragmentation_*.go`):
+  exposes Linux buddyinfo and compaction evidence while non-Linux builds
+  return unsupported with a reason. No consumer treats absence as zero.
+
 - **Repository Interface** (`api/internal/repository/interfaces.go`): Defines the metric-cycle, investigation, alert, report, and maintenance contracts. Memory and SQLite implement the active contracts; services do not depend on the storage engine. Testability: high — mock any repository interface. [CODE: api/internal/repository/interfaces.go]
 
 - **Collector Interface** (`api/internal/collectors/interface.go`): All 6 collectors (CPU, memory, disk, network, process, GPU) implement a common interface. New collectors can be added without touching existing code. `MonitorService` accepts `WithCollectors(...)` option to inject test doubles, skipping real OS collectors. Testability: high — mock collectors for unit tests. Disk collectors are observational only: they may expose pressure and attribution signals, but broad cleanup/remediation belongs to storage-manager policy and audit, not system-monitor mutation paths. [CODE: api/internal/collectors/interface.go]

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -70,6 +71,7 @@ func TestLinuxSampler_ParsesFieldsAndCmdlineCwd(t *testing.T) {
 		pids: []int{10},
 		files: map[string][]byte{
 			"10/stat":    []byte(statLine("system-monitor-api", 1, 100, 50, 7, 512)),
+			"10/status":  []byte("Name:\tsystem-monitor-api\nVmSwap:\t4096 kB\n"),
 			"10/cmdline": []byte("system-monitor-api\x00--port\x008080\x00"),
 		},
 		links: map[string]string{
@@ -103,6 +105,36 @@ func TestLinuxSampler_ParsesFieldsAndCmdlineCwd(t *testing.T) {
 	wantRSS := int64(512 * pageSizeKB())
 	if got.RSSKB != wantRSS {
 		t.Errorf("rss = %d KB, want %d", got.RSSKB, wantRSS)
+	}
+	if got.SwapKB != 4096 || got.MetricsStatus != "measured" {
+		t.Errorf("swap/status = %d/%s", got.SwapKB, got.MetricsStatus)
+	}
+}
+
+func TestLinuxSampler_MajorFaultRateAndStatusFixture(t *testing.T) {
+	stat := statLine("faulting", 1, 0, 0, 1, 8)
+	closeParen := strings.LastIndexByte(stat, ')')
+	rest := strings.Fields(stat[closeParen+1:])
+	rest[9] = "42"
+	stat = stat[:closeParen+1] + " " + strings.Join(rest, " ")
+	fs := &fakeProcFS{pids: []int{12}, files: map[string][]byte{
+		"12/stat": []byte(stat), "12/status": []byte("VmSwap:\t8192 kB\n"),
+	}}
+	now := time.Unix(100, 0)
+	s := newSamplerWithFS(fs, func() time.Time { return now })
+	first, err := s.Sample(context.Background())
+	if err != nil || len(first) != 1 {
+		t.Fatalf("first sample: %v %+v", err, first)
+	}
+	if first[0].MajorFaults != 42 || first[0].MajorFaultsPerSecond != 0 {
+		t.Fatalf("first faults = %+v", first[0])
+	}
+	now = now.Add(time.Second)
+	rest[9] = "52"
+	fs.files["12/stat"] = []byte(stat[:closeParen+1] + " " + strings.Join(rest, " "))
+	second, _ := s.Sample(context.Background())
+	if second[0].MajorFaultsPerSecond != 10 {
+		t.Fatalf("major fault rate = %f, want 10", second[0].MajorFaultsPerSecond)
 	}
 }
 

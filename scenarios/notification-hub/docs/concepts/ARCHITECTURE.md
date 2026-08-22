@@ -107,7 +107,7 @@ packages/proto/schemas/notification-hub/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/notification-hub/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/notification-hub/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/notification-hub/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/notification-hub/v1/...   (ui)
        └──▶ packages/proto/gen/python/notification_hub/v1/...    (future tools)
 ```
 

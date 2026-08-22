@@ -27,6 +27,16 @@ func TestValidateManifestDeclarationsAcceptsTheAuthoredVocabulary(t *testing.T) 
 	}
 }
 
+func TestValidateManifestDeclarationsAcceptsControlRole(t *testing.T) {
+	err := ValidateManifestDeclarations([]ManifestDeclaration{{
+		Path: "internal/safeguards/example/safeguard.json", Name: "example",
+		Capability: "host-metrics", Role: "control",
+	}}, []string{"host-metrics"})
+	if err != nil {
+		t.Fatalf("control role should be part of the manifest contract: %v", err)
+	}
+}
+
 func TestValidateManifestDeclarationsRejectsAStatusOutsideTheVocabulary(t *testing.T) {
 	path := "internal/tools/git/tool.json"
 	err := ValidateManifestDeclarations([]ManifestDeclaration{{

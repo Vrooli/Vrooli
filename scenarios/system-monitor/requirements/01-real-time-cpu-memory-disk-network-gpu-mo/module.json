@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-21T17:09:28-04:00"
+    "last_validated_at": "2026-08-22T12:01:57-04:00"
   },
   "requirements": [
     {
@@ -46,6 +46,13 @@
           "phase": "business",
           "status": "implemented",
           "notes": "Metrics visible in dashboard within 5s"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/collectors/forkrate_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Paging and fragmentation flow counters use explicit measured/pending/unsupported states"
         }
       ]
     }

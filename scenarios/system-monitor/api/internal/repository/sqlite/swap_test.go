@@ -107,3 +107,38 @@ func TestMemoryCycleWithoutSwapLeavesSwapUnset(t *testing.T) {
 		t.Errorf("SwapUsage = %v, want nil when the collector reported no swap block", *results[0].SwapUsage)
 	}
 }
+
+func TestPressureCycleProjectsFlowSeriesAndOmitsUnsupportedFragmentationValue(t *testing.T) {
+	repo, err := NewRepository(filepath.Join(t.TempDir(), "system-monitor.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repo.Close()
+	when := time.Date(2026, 8, 21, 21, 0, 0, 0, time.UTC)
+	if err := repo.SaveMetricCycle(context.Background(), "cycle-pressure", when, []repository.MetricObservation{{CollectorName: "pressure", Values: map[string]interface{}{
+		"swap_traffic_pages_per_second": 12.5,
+		"swap_traffic_rate_status":      "measured",
+		"pgmajfault_per_second":         3.25,
+		"pgmajfault_rate_status":        "measured",
+		"fragmentation_status":          "unsupported",
+		"fragmentation_reason":          "buddy allocator is Linux-only",
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := repo.GetMetrics(context.Background(), repository.MetricsFilter{TimeRange: repository.TimeRange{StartTime: when.Add(-time.Minute), EndTime: when.Add(time.Minute)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("rows = %d, want 1", len(rows))
+	}
+	if rows[0].SwapTrafficState.Status != "measured" || rows[0].SwapTrafficState.Value != 12.5 {
+		t.Fatalf("swap flow state = %+v", rows[0].SwapTrafficState)
+	}
+	if rows[0].MajorFaultsState.Status != "measured" || rows[0].MajorFaultsState.Value != 3.25 {
+		t.Fatalf("fault state = %+v", rows[0].MajorFaultsState)
+	}
+	if rows[0].FragmentationIndexState.Status != "unsupported" || rows[0].FragmentationIndexState.Value != 0 {
+		t.Fatalf("fragmentation state = %+v", rows[0].FragmentationIndexState)
+	}
+}

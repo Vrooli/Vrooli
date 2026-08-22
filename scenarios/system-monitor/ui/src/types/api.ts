@@ -16,7 +16,6 @@ export type {
   NetworkStatistics,
   ServiceHealth,
   CertificateInfo,
-  MemoryGrowth,
   SwapInfo,
   DiskInfo,
   DiskPartitionInfo,

@@ -45,7 +45,7 @@ func ValidateManifestDeclarations(declarations []ManifestDeclaration, vocabulary
 			return fmt.Errorf("%s: capability manifest %q declares unknown capability %q", location, item.Name, capability)
 		}
 		switch strings.TrimSpace(item.Role) {
-		case "primary", "peer":
+		case "primary", "peer", "control":
 		default:
 			return fmt.Errorf("%s: capability manifest %q has invalid capability_role %q", location, item.Name, item.Role)
 		}

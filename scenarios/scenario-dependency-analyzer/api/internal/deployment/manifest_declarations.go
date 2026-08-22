@@ -79,6 +79,7 @@ func loadResourceDeclaration(repoRoot, name string, required bool) (deployabilit
 		Kind:             "resource",
 		Name:             manifest.Name,
 		Required:         required,
+		Present:          true,
 		Bundling:         manifest.Bundling,
 		PlatformSupport:  platforms,
 		HostRequirements: desktopHostRequirements(manifest.Deployment.Profiles),

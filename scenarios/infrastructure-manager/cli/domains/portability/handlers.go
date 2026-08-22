@@ -113,6 +113,13 @@ func (h *handlers) fleetCall(_ cliapp.OperationContext) (*portabilityv1.GetFleet
 
 func (h *handlers) fleetReport(ctx cliapp.OperationContext, msg *portabilityv1.GetFleetResponse) cliapp.ListReport {
 	fleet := msg.GetFleet()
+	if !fleet.GetAvailable() {
+		return cliapp.ListReport{
+			Summary:        []string{"Fleet verdict unavailable: " + fleet.GetReason()},
+			ResultsHeading: "Fleet",
+			Results:        []string{"SDA is unavailable; no local dependency resolver was used."},
+		}
+	}
 	view := strings.ToLower(strings.TrimSpace(ctx.Flag("view")))
 	results := make([]string, 0)
 	switch view {

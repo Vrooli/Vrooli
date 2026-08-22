@@ -342,6 +342,13 @@ func topProcessSamples(limit int, less func(a, b procsampler.ProcessSample) bool
 		}
 		return nil, err
 	}
+	filtered := samples[:0]
+	for _, sample := range samples {
+		if sample.MetricsStatus != "unsupported" {
+			filtered = append(filtered, sample)
+		}
+	}
+	samples = filtered
 	sort.SliceStable(samples, func(i, j int) bool {
 		return less(samples[i], samples[j])
 	})

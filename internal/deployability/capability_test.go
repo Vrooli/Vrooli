@@ -151,3 +151,30 @@ func TestResolveCapabilityPrefersTheBestProvenImplementer(t *testing.T) {
 		t.Fatalf("expected the qualified peer to win over an experimental primary, got %+v", resolution)
 	}
 }
+
+func TestResolveCapabilityRequiresEveryControlAndReportsAbsentDeclarers(t *testing.T) {
+	resolution := ResolveCapability([]CapabilityImplementation{
+		{Name: "provider", Capability: "host-metrics", Role: "primary", Platforms: map[HostOS]PlatformDeclaration{HostOSWindows: {Status: string(StatusSupported)}}},
+		{Name: "applied-control", Capability: "host-metrics", Role: "control", Platforms: map[HostOS]PlatformDeclaration{HostOSWindows: {Status: string(StatusSupported)}}},
+		{Name: "missing-control", Capability: "host-metrics", Role: "control", Platforms: map[HostOS]PlatformDeclaration{HostOSLinux: {Status: string(StatusSupported)}}},
+	}, "host-metrics", HostOSWindows)
+	if resolution.Status != CapabilityControlsIncomplete {
+		t.Fatalf("expected incomplete controls, got %+v", resolution)
+	}
+	if len(resolution.Controls) != 1 || resolution.Controls[0] != "applied-control" {
+		t.Fatalf("unexpected resolved controls: %+v", resolution.Controls)
+	}
+	if len(resolution.Absent) != 1 || resolution.Absent[0] != "missing-control" {
+		t.Fatalf("unexpected absent declarers: %+v", resolution.Absent)
+	}
+}
+
+func TestResolveCapabilityReportsProviderAlternativesAbsentInWinnerBranch(t *testing.T) {
+	resolution := ResolveCapability([]CapabilityImplementation{
+		{Name: "windows-provider", Capability: "host-metrics", Role: "primary", Platforms: map[HostOS]PlatformDeclaration{HostOSWindows: {Status: string(StatusSupported)}}},
+		{Name: "linux-provider", Capability: "host-metrics", Role: "peer", Platforms: map[HostOS]PlatformDeclaration{HostOSLinux: {Status: string(StatusSupported)}}},
+	}, "host-metrics", HostOSWindows)
+	if resolution.Status != CapabilityImplemented || len(resolution.Absent) != 1 || resolution.Absent[0] != "linux-provider" {
+		t.Fatalf("expected winner plus absent provider alternative, got %+v", resolution)
+	}
+}

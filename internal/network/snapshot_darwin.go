@@ -13,7 +13,7 @@ import (
 // lsof cannot see other users' processes, so an lsof-only port set would
 // misreport another user's bound port as not-listening and downstream
 // cleanup would expire a live claim.
-func captureTCPListenerSnapshot() TCPListenerSnapshot {
+func captureTCPListenerSnapshot(opts CaptureOptions) TCPListenerSnapshot {
 	netstatPath, err := exec.LookPath("netstat")
 	if err != nil {
 		return TCPListenerSnapshot{Reason: "netstat is not installed", Tool: "netstat"}
@@ -31,7 +31,7 @@ func captureTCPListenerSnapshot() TCPListenerSnapshot {
 		}
 	}
 	tool := "netstat"
-	if enrichListenerPIDsWithLsof(ports) {
+	if opts.AttributeProcesses && enrichListenerPIDsWithLsof(ports) {
 		tool = "netstat+lsof"
 	}
 	return TCPListenerSnapshot{Known: true, Tool: tool, Ports: ports}

@@ -87,6 +87,21 @@ func WriteStatus(w io.Writer, format cliout.Format, item resources.Status) error
 	if item.Healthy != nil {
 		rows = append(rows, []string{"Healthy", cliout.BoolLabel(*item.Healthy)})
 	}
+	if item.Serving != nil {
+		rows = append(rows, []string{"Serving", cliout.BoolLabel(*item.Serving)})
+	}
+	if item.DeclaredMode != "" {
+		rows = append(rows, []string{"Declared mode", item.DeclaredMode})
+		observed := item.ObservedMode
+		if observed == "" {
+			observed = "unknown"
+		}
+		rows = append(rows, []string{"Observed mode", observed})
+		rows = append(rows, []string{"Mode drift", cliout.BoolLabel(item.ModeDrift)})
+		if item.ModeReason != "" {
+			rows = append(rows, []string{"Mode reason", item.ModeReason})
+		}
+	}
 	if item.StatusCode != "" {
 		rows = append(rows, []string{"Status Code", item.StatusCode})
 	}

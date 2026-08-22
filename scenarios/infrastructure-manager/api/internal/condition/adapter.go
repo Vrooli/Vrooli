@@ -17,7 +17,7 @@ import (
 // readerProjections are the projections this scenario has a live typed reader
 // for. Everything else reports an explicitly unconfigured source rather than
 // an empty-but-healthy result.
-var readerProjections = []string{"availability", "substrate"}
+var readerProjections = []string{"availability", "recovery", "substrate"}
 
 // NewConfiguredService wires the condition domain's read-only source adapters.
 // Handler packages only translate transport messages; source setup and band

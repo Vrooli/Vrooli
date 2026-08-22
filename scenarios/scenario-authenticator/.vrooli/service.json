@@ -21,7 +21,7 @@
     "parent": "vrooli",
     "name": "scenario-authenticator",
     "displayName": "Scenario Authenticator",
-    "description": "Multi-tenant identity provider (IdP) for the Vrooli fleet: realm-scoped accounts, RS256/JWKS token issuance with stateless local verification, sessions, MFA, federation, and API keys — consumed API-to-API by other scenarios and deployable as the auth backend for hosted products.",
+    "description": "Multi-tenant identity provider (IdP) for the Vrooli fleet: realm-scoped accounts, RS256/JWKS token issuance with stateless local verification, sessions, MFA, federation, and API keys \u2014 consumed API-to-API by other scenarios and deployable as the auth backend for hosted products.",
     "version": "0.0.1",
     "type": "business-application",
     "category": "general",
@@ -120,8 +120,8 @@
       "redis": {
         "type": "redis",
         "enabled": true,
-        "required": true,
-        "purpose": "Hot state: server-tracked sessions, token-family revocation, OAuth CSRF state, and distributed rate limiting across replicas. Persistence is SQLite via the api-core/storage seam (no shared Postgres)."
+        "required": false,
+        "purpose": "Hot state: server-tracked sessions, token-family revocation, OAuth CSRF state, and distributed rate limiting. Optional at tier-1-local, where the durable local store behind the same Store seam keeps this state across restart. Required above one replica, because a revocation blacklist that is not shared does not revoke; that per-tier answer is recorded in tier_feasibility. Account persistence is SQLite via the api-core/storage seam (no shared Postgres)."
       }
     }
   },
@@ -154,6 +154,41 @@
         ],
         "cwd": "ui",
         "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "The durable local store is the single-node default; Redis is an opt-in accelerator. The in-memory fake is a test double only, because dropping the revocation blacklist on restart re-admits a revoked token."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "Redis upstream publishes no native macOS or Windows build, Valkey ships source only, and Garnet's archives are framework-dependent rather than self-contained."
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "notes": "Redis is required above one replica. The revocation blacklist and the rate-limit counters must be shared across replicas: a blacklist that is not shared does not revoke."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
       }
     }
   }

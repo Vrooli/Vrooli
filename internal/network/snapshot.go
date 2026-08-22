@@ -54,10 +54,31 @@ func (s TCPListenerSnapshot) Listening(port int) ListenerState {
 	return ListenerState{Known: true, Listening: listening, Listeners: listeners}
 }
 
-// CaptureTCPListenerSnapshot collects the host-global listening-port set once
-// (one pass, at most one subprocess for attribution enrichment). Callers that
-// need answers for many ports must capture once and query the snapshot
-// instead of inspecting per port.
+// CaptureOptions tunes how much evidence one capture collects.
+type CaptureOptions struct {
+	// AttributeProcesses collects best-effort PID and label attribution for
+	// each listening port. Attribution is the expensive half of a capture: it
+	// costs one extra subprocess on Linux (ss) and macOS (lsof), and nothing
+	// on Windows, where the iphlpapi table already carries owner PIDs.
+	//
+	// Leave it false when the caller only needs to know whether a port is
+	// bound. Reconciliation does exactly that — it reduces every capture to
+	// Known/Listening — so paying for attribution there forks a subprocess per
+	// lookup and discards the result.
+	AttributeProcesses bool
+}
+
+// CaptureTCPListenerSnapshot collects the host-global listening-port set once,
+// with process attribution. Callers that need answers for many ports must
+// capture once and query the snapshot instead of inspecting per port.
 func CaptureTCPListenerSnapshot() TCPListenerSnapshot {
-	return captureTCPListenerSnapshot()
+	return captureTCPListenerSnapshot(CaptureOptions{AttributeProcesses: true})
+}
+
+// CaptureTCPListenerPorts collects the same host-global listening-port set
+// without process attribution. The Ports map is populated with empty listener
+// lists, so Listening() still answers Known and Listening correctly; only the
+// per-port Listeners slice is left empty.
+func CaptureTCPListenerPorts() TCPListenerSnapshot {
+	return captureTCPListenerSnapshot(CaptureOptions{})
 }

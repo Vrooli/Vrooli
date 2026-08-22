@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/vrooli/api-core/apihttptest"
-	httpx "github.com/vrooli/api-core/servertest"
 	"scenario-completeness-scoring/handlers/health"
 	"scenario-completeness-scoring/internal/module"
 	"scenario-completeness-scoring/internal/server"
 	"scenario-completeness-scoring/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/apihttptest"
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

@@ -45,6 +45,17 @@
             "required_roots": [
               "cli/internal/testutil"
             ]
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "go",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
           }
         },
         "go_service": {
@@ -65,6 +76,17 @@
             "required_roots": [
               "api/internal/testutil"
             ]
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "go",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
           }
         },
         "react_vite_ui": {
@@ -91,7 +113,7 @@
               "test",
               "test:coverage"
             ],
-            "vitest": {
+            "settings": {
               "coverage_provider": "v8",
               "environment": "jsdom",
               "setup_files": [
@@ -105,6 +127,17 @@
             "required_roots": [
               "ui/src/test-utils"
             ]
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "react-vitest",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
           }
         }
       },
@@ -145,7 +178,19 @@
         "id": "react-vite",
         "scenario_class": "react-vite"
       },
-      "version": "1.0.0"
+      "version": "2.0.0",
+      "runner_profiles": {
+        "default": {
+          "cpu_weight": 1,
+          "memory_bytes": 536870912,
+          "max_workers": 1,
+          "timeout_seconds": 600,
+          "no_output_timeout_seconds": 60,
+          "sharding": "none",
+          "network": "allow",
+          "filesystem": "workspace"
+        }
+      }
     }
   },
   "version": "1.0.0"

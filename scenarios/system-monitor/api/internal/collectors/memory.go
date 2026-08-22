@@ -140,33 +140,44 @@ func GetTopProcessesByMemory(limit int) ([]map[string]interface{}, error) {
 	processes := make([]map[string]interface{}, 0, len(samples))
 	for _, sample := range samples {
 		processes = append(processes, map[string]interface{}{
-			"pid":         sample.PID,
-			"name":        sample.Comm,
-			"cpu_percent": sample.CPUPct,
-			"mem_percent": memoryPercent(sample.RSSKB, totalKB),
-			"memory_mb":   float64(sample.RSSKB) / 1024,
+			"pid":                     sample.PID,
+			"name":                    sample.Comm,
+			"cpu_percent":             sample.CPUPct,
+			"mem_percent":             memoryPercent(sample.RSSKB, totalKB),
+			"memory_mb":               float64(sample.RSSKB) / 1024,
+			"swap_kb":                 sample.SwapKB,
+			"major_faults_per_second": sample.MajorFaultsPerSecond,
+			"metrics_status":          sample.MetricsStatus,
+			"metrics_reason":          sample.MetricsReason,
 		})
 	}
 
 	return processes, nil
 }
 
-// GetMemoryGrowthPatterns analyzes memory growth patterns
-func GetMemoryGrowthPatterns() []map[string]interface{} {
-	// This would require historical data tracking
-	// For now, return mock data
-	return []map[string]interface{}{
-		{
-			"process":            "scenario-api-1",
-			"growth_mb_per_hour": 15.0,
-			"risk_level":         "medium",
-		},
-		{
-			"process":            "postgres",
-			"growth_mb_per_hour": 2.0,
-			"risk_level":         "low",
-		},
+// GetTopProcessesByPaging ranks processes by observed paging cost rather than
+// by resident size, exposing swapped-out and faulting processes hidden by RSS.
+func GetTopProcessesByPaging(limit int) ([]map[string]interface{}, error) {
+	samples, err := topProcessSamples(limit, func(a, b procsampler.ProcessSample) bool {
+		if a.MajorFaultsPerSecond != b.MajorFaultsPerSecond {
+			return a.MajorFaultsPerSecond > b.MajorFaultsPerSecond
+		}
+		return a.SwapKB > b.SwapKB
+	})
+	if err != nil {
+		return nil, err
 	}
+	result := make([]map[string]interface{}, 0, len(samples))
+	for _, sample := range samples {
+		result = append(result, map[string]interface{}{
+			"pid": sample.PID, "name": sample.Comm,
+			"swap_kb":                 sample.SwapKB,
+			"major_faults_per_second": sample.MajorFaultsPerSecond,
+			"metrics_status":          sample.MetricsStatus,
+			"metrics_reason":          sample.MetricsReason,
+		})
+	}
+	return result, nil
 }
 
 func bytesToInt64(value uint64) int64 {

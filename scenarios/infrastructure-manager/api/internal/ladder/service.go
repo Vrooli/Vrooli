@@ -239,6 +239,7 @@ func (s *Service) buildCells(
 					StatusSource: "space document",
 					Observation:  ObservationUnread,
 					Reason:       "no live join produced a grade for this cell",
+					ReasonCode:   "host_not_sampled",
 					Trust:        internalcondition.TrustUntrusted,
 					GapOpenedOn:  authoredCell.GapOpenedOn,
 					GapOpenDays:  gapDays,

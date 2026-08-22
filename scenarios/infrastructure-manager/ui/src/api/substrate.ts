@@ -86,6 +86,8 @@ const TRUST_NAMES: Record<number, string> = {
  *     of band is an EXCURSION rather than coverage.
  */
 function cellState(cell: LadderCell): SignalState {
+  const extended = cell as LadderCell & { reasonCode?: string };
+  if (extended.reasonCode === "host_not_sampled") return "HOST_NOT_SAMPLED";
   if (cell.observation === Observation.UNREAD) return "SOURCE_DOWN";
   if (cell.observation === Observation.NOT_APPLICABLE) return "NOT_APPLICABLE";
   if (cell.trust === WireTrust.UNAVAILABLE) return "SOURCE_DOWN";
@@ -109,11 +111,13 @@ function cellState(cell: LadderCell): SignalState {
 const text = (value: string): string | null => (value.trim() === "" ? null : value);
 
 function toRungDetail(cell: LadderCell): RungDetail {
-  return {
+	const extended = cell as LadderCell & { reasonCode?: string };
+	return {
     state: cellState(cell),
     cellRef: text(cell.cellRef),
     question: text(cell.question),
-    reason: text(cell.reason) ?? text(cell.unavailableReason),
+		reason: text(cell.reason) ?? text(cell.unavailableReason),
+		reasonCode: text(extended.reasonCode ?? ""),
     mechanism: text(cell.mechanism),
     remediation: text(cell.remediation),
     blockedBy: RUNG_NAMES[cell.blockedBy] ?? null,
@@ -139,7 +143,8 @@ function unauthoredRung(): RungDetail {
     state: "UNAUTHORED",
     cellRef: null,
     question: null,
-    reason: "the substrate space authors no cell for this rung on this class",
+		reason: "the substrate space authors no cell for this rung on this class",
+	reasonCode: "unauthored",
     mechanism: null,
     remediation: null,
     blockedBy: null,
@@ -428,12 +433,25 @@ async function readPortability(sources: SourceStatus[]): Promise<readonly Portab
 }
 
 function toCell(platform: PlatformEntry) {
-  return {
+	const extended = platform as PlatformEntry & {
+		controls?: string[];
+		absent?: string[];
+		declarers?: Array<{ name: string; role: string; resolved: boolean; reason: string }>;
+	};
+	return {
     status: STATUS_NAMES[platform.status] ?? "unspecified",
     qualification: QUALIFICATION_NAMES[platform.qualification] ?? "unspecified",
     implementer: text(platform.implementer),
     mechanism: text(platform.mechanism),
     reason: [platform.reason, platform.qualificationReason].filter(Boolean).join(" — "),
+		controls: extended.controls ?? [],
+		absent: extended.absent ?? [],
+		declarers: (extended.declarers ?? []).map((declarer) => ({
+      name: declarer.name,
+      role: declarer.role,
+      resolved: declarer.resolved,
+      reason: declarer.reason,
+    })),
   };
 }
 

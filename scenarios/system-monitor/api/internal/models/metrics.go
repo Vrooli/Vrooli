@@ -18,6 +18,9 @@ type MetricsResponse struct {
 	ConnectionsState MetricState `json:"connections_state"`
 	GPUState         MetricState `json:"gpu_state"`
 	SwapState        MetricState `json:"swap_state"`
+	SwapTrafficState MetricState `json:"swap_traffic_state"`
+	MajorFaultsState MetricState `json:"major_faults_state"`
+	FragmentationIndexState MetricState `json:"fragmentation_index_state"`
 	DiskState        MetricState `json:"disk_state"`
 	Timestamp        time.Time   `json:"timestamp"`
 }
@@ -86,6 +89,9 @@ type MetricTimelineSample struct {
 	ConnectionsState MetricState `json:"connections_state"`
 	GPUState         MetricState `json:"gpu_state"`
 	SwapState        MetricState `json:"swap_state"`
+	SwapTrafficState MetricState `json:"swap_traffic_state"`
+	MajorFaultsState MetricState `json:"major_faults_state"`
+	FragmentationIndexState MetricState `json:"fragmentation_index_state"`
 }
 
 // MetricsTimelineResponse contains a windowed series of metric samples.
@@ -162,11 +168,29 @@ type CPUMetrics struct {
 
 // MemoryMetrics contains memory-related metrics
 type MemoryMetrics struct {
-	Usage          float64        `json:"usage"`
-	TopProcesses   []ProcessInfo  `json:"top_processes"`
-	GrowthPatterns []MemoryGrowth `json:"growth_patterns"`
-	SwapUsage      SwapInfo       `json:"swap_usage"`
-	DiskUsage      DiskInfo       `json:"disk_usage"`
+	Usage              float64              `json:"usage"`
+	TopProcesses       []ProcessInfo        `json:"top_processes"`
+	TopPagingProcesses []ProcessInfo        `json:"top_paging_processes"`
+	SwapUsage          SwapInfo             `json:"swap_usage"`
+	DiskUsage          DiskInfo             `json:"disk_usage"`
+	Paging             PagingMetrics        `json:"paging"`
+	Fragmentation      FragmentationMetrics `json:"fragmentation"`
+}
+
+type PagingMetrics struct {
+	SwapInPerSecond           MetricState `json:"swap_in_per_second"`
+	SwapOutPerSecond          MetricState `json:"swap_out_per_second"`
+	SwapTrafficPagesPerSecond MetricState `json:"swap_traffic_pages_per_second"`
+	MajorFaultsPerSecond      MetricState `json:"major_faults_per_second"`
+	PageFaultsPerSecond       MetricState `json:"page_faults_per_second"`
+}
+
+type FragmentationMetrics struct {
+	MaxFreeOrder           MetricState            `json:"max_free_order"`
+	LowOrderShare          MetricState            `json:"low_order_share"`
+	CompactionFailureRatio MetricState            `json:"compaction_failure_ratio"`
+	CompactionRates        map[string]MetricState `json:"compaction_rates,omitempty"`
+	Buddyinfo              map[string]string      `json:"buddyinfo,omitempty"`
 }
 
 // NetworkMetrics contains network-related metrics
@@ -253,15 +277,17 @@ type DiskDetailResponse struct {
 
 // ProcessInfo represents information about a system process
 type ProcessInfo struct {
-	PID         int     `json:"pid"`
-	Name        string  `json:"name"`
-	CPUPercent  float64 `json:"cpu_percent"`
-	MemoryMB    float64 `json:"memory_mb"`
-	Connections int     `json:"connections"`
-	Threads     int     `json:"threads"`
-	FDs         int     `json:"file_descriptors"`
-	Status      string  `json:"status"`
-	Goroutines  int     `json:"goroutines,omitempty"`
+	PID                  int     `json:"pid"`
+	Name                 string  `json:"name"`
+	CPUPercent           float64 `json:"cpu_percent"`
+	MemoryMB             float64 `json:"memory_mb"`
+	Connections          int     `json:"connections"`
+	Threads              int     `json:"threads"`
+	FDs                  int     `json:"file_descriptors"`
+	Status               string  `json:"status"`
+	Goroutines           int     `json:"goroutines,omitempty"`
+	SwapKB               int64   `json:"swap_kb,omitempty"`
+	MajorFaultsPerSecond float64 `json:"major_faults_per_second,omitempty"`
 }
 
 // TCPConnectionStates tracks TCP connection states
@@ -313,13 +339,6 @@ type CertificateInfo struct {
 	Domain       string `json:"domain"`
 	DaysToExpiry int    `json:"days_to_expiry"`
 	Status       string `json:"status"`
-}
-
-// MemoryGrowth tracks memory growth patterns
-type MemoryGrowth struct {
-	Process         string  `json:"process"`
-	GrowthMBPerHour float64 `json:"growth_mb_per_hour"`
-	RiskLevel       string  `json:"risk_level"`
 }
 
 // SwapInfo contains swap memory information

@@ -8,6 +8,8 @@ import (
 type ToolManifest struct {
 	Schema            string                             `json:"$schema,omitempty"`
 	Name              string                             `json:"name"`
+	Capability        string                             `json:"capability,omitempty"`
+	CapabilityRole    string                             `json:"capability_role,omitempty"`
 	Description       string                             `json:"description"`
 	Commands          []string                           `json:"commands"`
 	VersionArgs       []string                           `json:"versionArgs"`
@@ -91,6 +93,8 @@ func targetMatches(target ToolSourceTarget, osName, arch string) (bool, error) {
 type SafeguardManifest struct {
 	Schema            string                `json:"$schema,omitempty"`
 	Name              string                `json:"name"`
+	Capability        string                `json:"capability,omitempty"`
+	CapabilityRole    string                `json:"capability_role,omitempty"`
 	Description       string                `json:"description"`
 	Platforms         []string              `json:"platforms,omitempty"`
 	Handler           string                `json:"handler"`

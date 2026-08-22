@@ -40,12 +40,27 @@ const (
 	CommandBlueprint             CommandID = "blueprint"
 	CommandSchema                CommandID = "schema"
 	CommandAcquisition           CommandID = "acquisition"
+	CommandAcceleration          CommandID = "acceleration"
 )
 
 const (
 	AcquisitionCommandExplain AcquisitionCommandID = "explain"
 	AcquisitionCommandPrune   AcquisitionCommandID = "prune"
 )
+
+// AccelerationCommandID names a subcommand of `vrooli resource acceleration`.
+type AccelerationCommandID string
+
+const (
+	AccelerationCommandExplain AccelerationCommandID = "explain"
+)
+
+// AccelerationCommandSpecs declares the accelerator inspection surface.
+func AccelerationCommandSpecs() []commandtree.Spec[AccelerationCommandID] {
+	return []commandtree.Spec[AccelerationCommandID]{
+		{Name: string(AccelerationCommandExplain), Summary: "Explain a resource's declared backends, host readiness and observed placement", Args: nameArgSchema("name"), Handler: AccelerationCommandExplain},
+	}
+}
 
 const (
 	BlueprintCommandList     BlueprintCommandID = "list"
@@ -88,7 +103,13 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			},
 			Handler: CommandValidate,
 		},
-		{Name: string(CommandInstall), Summary: "Install a resource", Args: nameArgSchema("name"), Handler: CommandInstall},
+		{Name: string(CommandInstall), Summary: "Install a resource", Args: commandtree.ArgSchema{
+			Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}},
+			Options: []commandtree.OptionArg{{
+				Name:        "--reacquire",
+				Description: "Discard the staged artifact and re-resolve, re-download and re-verify it under the host's current facts. Use this when status reports needs_reacquire.",
+			}},
+		}, Handler: CommandInstall},
 		{Name: string(CommandUninstall), Summary: "Uninstall a resource", Args: nameArgSchema("name"), Handler: CommandUninstall},
 		{Name: string(CommandStart), Summary: "Start a resource", Args: nameArgSchema("name"), Handler: CommandStart},
 		{Name: string(CommandRestart), Summary: "Restart a resource", Args: nameArgSchema("name"), Handler: CommandRestart},
@@ -121,6 +142,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandBlueprint), Summary: "Inspect resource blueprints", Handler: CommandBlueprint},
 		{Name: string(CommandSchema), Summary: "Manage resource-derived schema artifacts", Handler: CommandSchema},
 		{Name: string(CommandAcquisition), Summary: "Inspect declared resource acquisition", Handler: CommandAcquisition},
+		{Name: string(CommandAcceleration), Summary: "Inspect accelerator declaration, readiness and placement", Handler: CommandAcceleration},
 	}
 }
 

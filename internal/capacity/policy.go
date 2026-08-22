@@ -2,6 +2,7 @@ package capacity
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -86,7 +87,27 @@ type Policy struct {
 	// RAM request is denied rather than granted. Swap usage is a lagging signal
 	// of memory exhaustion that AvailableBytes misses. 0 disables the check.
 	SwapPressureThresholdPct int `json:"swap_pressure_threshold"`
+	// AccelReprobe decides what happens when host accelerator readiness
+	// transitions from not-ready to ready. Resources that started before the
+	// device appeared are, by then, running on the CPU with every status
+	// surface green; without this they stay there until someone notices.
+	//   off     — do nothing.
+	//   report  — log the drifted resources and emit an event. The default:
+	//             restarting is a lifecycle action, and turning one on by
+	//             default would surprise an operator mid-request.
+	//   restart — restart each drifted resource that is not actively working.
+	AccelReprobe string `json:"accel_reprobe"`
 }
+
+// Accelerator re-probe modes.
+const (
+	AccelReprobeOff     = "off"
+	AccelReprobeReport  = "report"
+	AccelReprobeRestart = "restart"
+)
+
+// AccelReprobeModes is the closed set of accel_reprobe values.
+var AccelReprobeModes = []string{AccelReprobeOff, AccelReprobeReport, AccelReprobeRestart}
 
 // DefaultPolicy returns the conservative V1 defaults: advisory enforcement,
 // preempt disabled, auto-stop off.
@@ -108,6 +129,7 @@ func DefaultPolicy() Policy {
 		RecommendHeadroomPct:   DefaultRecommendHeadroomPct,
 
 		SwapPressureThresholdPct: DefaultSwapPressureThreshold,
+		AccelReprobe:             AccelReprobeReport,
 	}
 }
 
@@ -129,6 +151,7 @@ var PolicyKeys = []string{
 	"default_idle_unload_ttl",
 	"recommend_headroom",
 	"swap_pressure_threshold",
+	"accel_reprobe",
 }
 
 // Get returns the string value of a policy key (for `policy get`).
@@ -166,6 +189,8 @@ func (p Policy) Get(key string) (string, error) {
 		return strconv.Itoa(p.RecommendHeadroomPct), nil
 	case "swap_pressure_threshold":
 		return strconv.Itoa(p.SwapPressureThresholdPct), nil
+	case "accel_reprobe":
+		return p.EffectiveAccelReprobe(), nil
 	default:
 		return "", fmt.Errorf("%w: unknown policy key %q", ErrInvalidClaim, key)
 	}
@@ -264,6 +289,12 @@ func (p Policy) withKey(key, value string) (Policy, error) {
 			return p, fmt.Errorf("%w: swap_pressure_threshold must be an integer percent between 0 and 100", ErrInvalidClaim)
 		}
 		out.SwapPressureThresholdPct = n
+	case "accel_reprobe":
+		mode := strings.ToLower(strings.TrimSpace(value))
+		if !slices.Contains(AccelReprobeModes, mode) {
+			return p, fmt.Errorf("%w: accel_reprobe must be one of %v", ErrInvalidClaim, AccelReprobeModes)
+		}
+		out.AccelReprobe = mode
 	case "recommend_headroom":
 		n, err := strconv.Atoi(strings.TrimSpace(value))
 		if err != nil || n < 0 {
@@ -312,4 +343,15 @@ func splitCSV(value string) []string {
 		return nil
 	}
 	return out
+}
+
+// EffectiveAccelReprobe resolves an unset accel_reprobe to the report default,
+// so a policy row written before this key existed reads as report rather than
+// as off.
+func (p Policy) EffectiveAccelReprobe() string {
+	mode := strings.ToLower(strings.TrimSpace(p.AccelReprobe))
+	if !slices.Contains(AccelReprobeModes, mode) {
+		return AccelReprobeReport
+	}
+	return mode
 }

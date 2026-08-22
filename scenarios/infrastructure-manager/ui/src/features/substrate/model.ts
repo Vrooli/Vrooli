@@ -31,7 +31,9 @@ export interface RungDetail {
   /** The question the cell asks, from the owner's space document. */
   question: string | null;
   /** Why the state is what it is. Required for every non-covered state. */
-  reason: string | null;
+	reason: string | null;
+	/** Stable machine-readable explanation, e.g. host_not_sampled. */
+	reasonCode?: string | null;
   /** The interface the reading was, or would be, taken from. */
   mechanism: string | null;
   /** The declared host change that would close the gap. */
@@ -74,6 +76,9 @@ export interface PortabilityCell {
   implementer: string | null;
   mechanism: string | null;
   reason: string;
+  controls?: readonly string[];
+  absent?: readonly string[];
+  declarers?: readonly { name: string; role: string; resolved: boolean; reason: string }[];
 }
 
 /**
@@ -155,7 +160,7 @@ export function ladderCoverage(
   for (const node of classes) {
     for (const rung of RUNG_ORDER) {
       const state = node.rungs[rung].state;
-      if (state === "NOT_APPLICABLE" || state === "UNAUTHORED" || state === "SOURCE_DOWN") continue;
+      if (state === "NOT_APPLICABLE" || state === "UNAUTHORED" || state === "SOURCE_DOWN" || state === "HOST_NOT_SAMPLED") continue;
       total += 1;
       if (state === "COVERED") covered += 1;
     }

@@ -83,6 +83,13 @@ describe("ladder coverage", () => {
     expect(result).toEqual({ covered: 2, total: 2, ratio: 1 });
   });
 
+  it("keeps an unsampled host distinct from an unreachable source", () => {
+    const unsampled = detail("HOST_NOT_SAMPLED", { reasonCode: "host_not_sampled" });
+    const unreachable = detail("SOURCE_DOWN", { reasonCode: "source_unavailable" });
+    expect(unsampled.state).not.toBe(unreachable.state);
+    expect(ladderCoverage([node("storage", [unsampled.state, unreachable.state, ...COVERED.slice(2)])])).toEqual({ covered: 3, total: 3, ratio: 1 });
+  });
+
   it("excludes a rung that cannot apply to the class", () => {
     const result = ladderCoverage([
       node("bus", ["COVERED", "NOT_APPLICABLE", "NOT_APPLICABLE", "COVERED", "BLIND"]),

@@ -48,17 +48,21 @@ type ProcessSampleRepository interface {
 // to persist. CPUPct is share-of-one-CPU since the prior sample (may exceed
 // 100 for multi-threaded processes).
 type ProcessSample struct {
-	Timestamp time.Time
-	PID       int
-	PPID      int
-	Comm      string
-	Cmdline   string
-	Cwd       string
-	Owner     string
-	CPUPct    float64
-	RSSKB     int64
-	Threads   int
-	GPUVRAMMB float64
+	Timestamp            time.Time
+	PID                  int
+	PPID                 int
+	Comm                 string
+	Cmdline              string
+	Cwd                  string
+	Owner                string
+	CPUPct               float64
+	RSSKB                int64
+	SwapKB               int64
+	MajorFaultsPerSecond float64
+	MetricsStatus        string
+	MetricsReason        string
+	Threads              int
+	GPUVRAMMB            float64
 }
 
 // ProcessTimelineQuery parameterizes a timeline read.

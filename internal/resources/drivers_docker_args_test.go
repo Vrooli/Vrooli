@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
@@ -108,13 +109,17 @@ func TestBuildDockerRunArgsUsesGPUOnlyWhenDeclaredAndAvailable(t *testing.T) {
 	manifest := ResourceManifest{
 		Name:   "ollama",
 		Driver: "docker-service",
-		GPU: &manifestpkg.ResourceGPU{
-			Probe:        "nvidia",
-			EnvOverrides: map[string]string{"NVIDIA_VISIBLE_DEVICES": "all"},
+		Acceleration: &manifestpkg.AccelerationSpec{
+			Backends: []string{manifestpkg.BackendCUDA, manifestpkg.BackendCPU},
+			Require:  manifestpkg.RequirePreferred,
+			Backend: map[string]manifestpkg.BackendConfig{
+				manifestpkg.BackendCUDA: {Env: map[string]string{"NVIDIA_VISIBLE_DEVICES": "all"}},
+				manifestpkg.BackendCPU:  {},
+			},
 		},
 		Runtime: ResourceRuntime{Image: "example/inference-service:0.30.10"},
 	}
-	withStubGPUProbe(t, true)
+	withStubAcceleratorFacts(t, acceleratedHostSnapshot())
 
 	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "inference-service")
 	if err != nil {
@@ -134,11 +139,22 @@ func TestBuildDockerRunArgsUsesGPUOnlyWhenDeclaredAndAvailable(t *testing.T) {
 func TestDockerRuntimeForManifestUsesRuncWhenGPUIsUnavailable(t *testing.T) {
 	manifest := ResourceManifest{
 		Name: "ollama",
-		GPU:  &manifestpkg.ResourceGPU{Probe: "nvidia", EnvOverrides: map[string]string{"NVIDIA_VISIBLE_DEVICES": "all"}},
+		Acceleration: &manifestpkg.AccelerationSpec{
+			Backends: []string{manifestpkg.BackendCUDA, manifestpkg.BackendCPU},
+			Require:  manifestpkg.RequirePreferred,
+			Backend: map[string]manifestpkg.BackendConfig{
+				manifestpkg.BackendCUDA: {Env: map[string]string{"NVIDIA_VISIBLE_DEVICES": "all"}},
+				manifestpkg.BackendCPU:  {},
+			},
+		},
 	}
-	withStubGPUProbe(t, false)
+	// Given a host with no accelerator at all
+	withStubAcceleratorFacts(t, hostinventory.Snapshot{OS: "linux", Arch: "amd64", RuntimeTools: map[string]hostinventory.Tool{}, ProbeStatuses: map[string]string{"nvidia_gpu": "not_present"}})
+
+	// Then the container is pinned to the CPU runtime rather than asking for a
+	// device the host cannot provide
 	if got := dockerRuntimeForManifest(context.Background(), manifest); got != "runc" {
-		t.Fatalf("runtime = %q, want runc when the GPU probe fails", got)
+		t.Fatalf("runtime = %q, want runc when the host reports no accelerator", got)
 	}
 }
 

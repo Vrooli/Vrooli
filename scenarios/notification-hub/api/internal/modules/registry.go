@@ -29,11 +29,6 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
-	deliveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/delivery"
-	notificationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
-	recipientsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/recipients"
-	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/routing"
 	healthH "notification-hub/handlers/health"
 	conversationSchema "notification-hub/internal/conversations"
 	localdb "notification-hub/internal/database"
@@ -41,6 +36,12 @@ import (
 	notificationSchema "notification-hub/internal/notifications"
 	recipientSchema "notification-hub/internal/recipients"
 	routingSchema "notification-hub/internal/routing"
+
+	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
+	deliveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/delivery"
+	notificationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
+	recipientsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/recipients"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/routing"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a

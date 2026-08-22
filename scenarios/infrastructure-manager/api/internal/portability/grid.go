@@ -43,6 +43,9 @@ type PlatformEntry struct {
 	Reason              string                                   `json:"reason"`
 	QualificationReason string                                   `json:"qualification_reason"`
 	HasImplementation   bool                                     `json:"has_implementation"`
+	Controls            []string                                 `json:"controls,omitempty"`
+	Absent              []string                                 `json:"absent,omitempty"`
+	Declarers           []deployability.CapabilityDeclarer       `json:"declarers,omitempty"`
 }
 
 // Entry is one capability row across every host OS.
@@ -124,6 +127,9 @@ func (r *Reader) Grid(now time.Time) (Grid, error) {
 				Reason:              resolution.Reason,
 				QualificationReason: resolution.Qualification.Reason(),
 				HasImplementation:   resolution.Status.HasImplementation(),
+				Controls:            resolution.Controls,
+				Absent:              resolution.Absent,
+				Declarers:           resolution.Declarers,
 			})
 		}
 		entry.Situation, entry.SituationReason = classifySituation(capability, statuses, vocabulary.PlatformPolicies)

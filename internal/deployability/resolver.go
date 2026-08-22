@@ -59,6 +59,14 @@ type ResourceRequirements struct {
 	Confidence     string
 }
 
+// GPURequirement is the accelerator minimum a resource declares. It comes from
+// acceleration.cuda.min_compute; the deprecated requirements.gpu block that
+// used to carry it no longer exists in any manifest.
+//
+// An empty MinCUDACompute is deliberately eligible: declaring an accelerator
+// says the resource wants one, not that a host without one is disqualified.
+// That distinction is what keeps a CPU-capable host able to run a
+// GPU-preferring resource.
 type GPURequirement struct{ MinCUDACompute string }
 
 // PlatformDeclaration is the authored, not-yet-validated platform claim for a
@@ -325,17 +333,23 @@ func evaluateGPURequirement(requirement *GPURequirement, facts map[string]string
 	if requirement == nil || strings.TrimSpace(requirement.MinCUDACompute) == "" {
 		return VerdictEligible, ""
 	}
+	// accel.cuda_compute and gpu.cuda_compute carry the same value; read the
+	// accelerator-vocabulary fact first so a host publishing only the new name
+	// still resolves.
 	minimum, err := strconv.ParseFloat(strings.TrimSpace(requirement.MinCUDACompute), 64)
 	if err != nil || minimum < 0 {
 		return VerdictUnknown, fmt.Sprintf("minimum CUDA compute capability %q is invalid", requirement.MinCUDACompute)
 	}
-	actualText, ok := facts["gpu.cuda_compute"]
+	actualText, ok := facts["accel.cuda_compute"]
 	if !ok || strings.TrimSpace(actualText) == "" {
-		return VerdictUnknown, "gpu.cuda_compute is not present in the host facts"
+		actualText, ok = facts["gpu.cuda_compute"]
+	}
+	if !ok || strings.TrimSpace(actualText) == "" {
+		return VerdictUnknown, "accel.cuda_compute is not present in the host facts"
 	}
 	actual, err := strconv.ParseFloat(strings.TrimSpace(actualText), 64)
 	if err != nil {
-		return VerdictUnknown, fmt.Sprintf("gpu.cuda_compute fact %q is not numeric", actualText)
+		return VerdictUnknown, fmt.Sprintf("accel.cuda_compute fact %q is not numeric", actualText)
 	}
 	if actual < minimum {
 		return VerdictIneligible, fmt.Sprintf("GPU compute capability %.1f is below required %.1f", actual, minimum)

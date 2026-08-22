@@ -70,6 +70,9 @@ func (h *handlers) current(ctx cliapp.RunContext) error {
 			fmt.Sprintf("Memory usage: %s", support.FormatPercent(response.GetMemoryUsage())),
 			fmt.Sprintf("TCP connections: %d", response.GetTcpConnections()),
 			fmt.Sprintf("GPU usage: %s", support.FormatMaybePercent(response.GpuUsage)),
+			fmt.Sprintf("Swap traffic: %s", metricStateSummary(response.GetSwapTraffic())),
+			fmt.Sprintf("Major faults: %s", metricStateSummary(response.GetMajorFaults())),
+			fmt.Sprintf("Fragmentation index: %s", metricStateSummary(response.GetFragmentationIndex())),
 		},
 		ResultsHeading: "Key Signals",
 		Results: []string{
@@ -99,6 +102,10 @@ func (h *handlers) detailed(ctx cliapp.RunContext) error {
 		fmt.Sprintf("Load average: %s", floatList(response.GetCpuDetails().GetLoadAverage())),
 		fmt.Sprintf("Top CPU processes: %s", processNames(response.GetCpuDetails().GetTopProcesses())),
 		fmt.Sprintf("Top memory processes: %s", processNames(response.GetMemoryDetails().GetTopProcesses())),
+		fmt.Sprintf("Top paging processes: %s", processNames(response.GetMemoryDetails().GetTopPagingProcesses())),
+		fmt.Sprintf("Swap traffic: %s", metricStateSummary(response.GetMemoryDetails().GetPaging().GetSwapTrafficPagesPerSecond())),
+		fmt.Sprintf("Major faults: %s", metricStateSummary(response.GetMemoryDetails().GetPaging().GetMajorFaultsPerSecond())),
+		fmt.Sprintf("Fragmentation max free order: %s", metricStateSummary(response.GetMemoryDetails().GetFragmentation().GetMaxFreeOrder())),
 		fmt.Sprintf("Network bandwidth: in %.2f Mbps / out %.2f Mbps", response.GetNetworkDetails().GetNetworkStats().GetBandwidthInMbps(), response.GetNetworkDetails().GetNetworkStats().GetBandwidthOutMbps()),
 		fmt.Sprintf("File descriptors: %d / %d (%.1f%%)", response.GetSystemDetails().GetFileDescriptors().GetUsed(), response.GetSystemDetails().GetFileDescriptors().GetMax(), response.GetSystemDetails().GetFileDescriptors().GetPercent()),
 	}
@@ -384,7 +391,27 @@ func timelineRows(samples []*metricspb.MetricTimelineSample) []string {
 	start := len(samples) - limit
 	rows := make([]string, 0, limit)
 	for _, sample := range samples[start:] {
-		rows = append(rows, fmt.Sprintf("%s cpu=%s memory=%s tcp=%d gpu=%s", support.FormatTimestamp(sample.GetTimestamp()), support.FormatPercent(sample.GetCpuUsage()), support.FormatPercent(sample.GetMemoryUsage()), sample.GetTcpConnections(), support.FormatMaybePercent(sample.GpuUsage)))
+		rows = append(rows, fmt.Sprintf("%s cpu=%s memory=%s tcp=%d gpu=%s swapTraffic=%s majorFaults=%s fragmentation=%s", support.FormatTimestamp(sample.GetTimestamp()), support.FormatPercent(sample.GetCpuUsage()), support.FormatPercent(sample.GetMemoryUsage()), sample.GetTcpConnections(), support.FormatMaybePercent(sample.GpuUsage), metricStateSummary(sample.GetSwapTraffic()), metricStateSummary(sample.GetMajorFaults()), metricStateSummary(sample.GetFragmentationIndex())))
 	}
 	return rows
+}
+
+func metricStateSummary(value *metricspb.MetricValue) string {
+	if value == nil {
+		return "unavailable"
+	}
+	switch state := value.GetState().(type) {
+	case *metricspb.MetricValue_Measured:
+		return fmt.Sprintf("measured %.2f", state.Measured)
+	case *metricspb.MetricValue_UnsupportedReason:
+		return "unsupported: " + state.UnsupportedReason
+	case *metricspb.MetricValue_NotYetSampledReason:
+		return "not_yet_sampled: " + state.NotYetSampledReason
+	case *metricspb.MetricValue_StaleReason:
+		return "stale: " + state.StaleReason
+	case *metricspb.MetricValue_FailedError:
+		return "failed: " + state.FailedError
+	default:
+		return "unavailable"
+	}
 }

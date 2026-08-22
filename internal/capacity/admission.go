@@ -40,9 +40,13 @@ type ResourceClaimSpec struct {
 }
 
 // resourceManifestEnvelope is the minimal shape we decode from resource.json —
-// we only care about the optional capacity block and never fail on the rest.
+// we only care about the declared claim and never fail on the rest. The claim
+// lives inside the acceleration block, so a resource cannot reserve VRAM
+// without declaring the backend it needs it on.
 type resourceManifestEnvelope struct {
-	Capacity *ResourceClaimSpec `json:"capacity"`
+	Acceleration *struct {
+		Claim *ResourceClaimSpec `json:"claim"`
+	} `json:"acceleration"`
 }
 
 // LoadResourceClaimSpec reads the optional capacity block from a resource's
@@ -58,12 +62,12 @@ func LoadResourceClaimSpec(root, resourceName string) (ResourceClaimSpec, bool, 
 	}
 	var env resourceManifestEnvelope
 	if err := json.Unmarshal(data, &env); err != nil {
-		return ResourceClaimSpec{}, false, fmt.Errorf("parse %s capacity block: %w", path, err)
+		return ResourceClaimSpec{}, false, fmt.Errorf("parse %s acceleration.claim: %w", path, err)
 	}
-	if env.Capacity == nil {
+	if env.Acceleration == nil || env.Acceleration.Claim == nil {
 		return ResourceClaimSpec{}, false, nil
 	}
-	return *env.Capacity, true, nil
+	return *env.Acceleration.Claim, true, nil
 }
 
 // AdmitStore is the ledger surface admission needs.

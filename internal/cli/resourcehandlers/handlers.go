@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -88,6 +89,10 @@ func buildResourceAcquisitionCommandHandlers[C any](deps HandlerDeps[C]) map[str
 	return commandtree.BuildHandlerMap(buildResourceAcquisitionCommandTable(deps))
 }
 
+func buildResourceAccelerationCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+	return commandtree.BuildHandlerMap(buildResourceAccelerationCommandTable(deps))
+}
+
 func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	handlerMap := map[resourcecli.CommandID]rootcli.ResourceHandler[C]{
 		resourcecli.CommandList: bindResourceCommand(deps,
@@ -148,7 +153,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			renderResourceValidateResponse,
 		),
-		resourcecli.CommandInstall:   singleResourceControlHandler(deps, "install"),
+		resourcecli.CommandInstall:   installResourceHandler(deps),
 		resourcecli.CommandUninstall: singleResourceControlHandler(deps, "uninstall"),
 		resourcecli.CommandStart:     singleResourceControlHandler(deps, "start"),
 		resourcecli.CommandRestart:   singleResourceControlHandler(deps, "restart"),
@@ -336,6 +341,9 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 		resourcecli.CommandAcquisition: func(ctx C, controller *resources.Controller, args []string) error {
 			return runResourceSubcommandSet(ctx, controller, args, showResourceAcquisitionHelp, "resource acquisition", buildResourceAcquisitionCommandHandlers(deps), deps.Stdout)
 		},
+		resourcecli.CommandAcceleration: func(ctx C, controller *resources.Controller, args []string) error {
+			return runResourceSubcommandSet(ctx, controller, args, showResourceAccelerationHelp, "resource acceleration", buildResourceAccelerationCommandHandlers(deps), deps.Stdout)
+		},
 	}
 	return commandtree.BindSpecs(resourcecli.CommandSpecs(), handlerMap)
 }
@@ -502,6 +510,96 @@ func buildResourceSchemaCommandTable[C any](deps HandlerDeps[C]) []commandtree.S
 	return commandtree.BindSpecs(resourcecli.SchemaCommandSpecs(), handlerMap)
 }
 
+func buildResourceAccelerationCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
+	return []commandtree.Spec[rootcli.ResourceHandler[C]]{
+		{
+			Name:    string(resourcecli.AccelerationCommandExplain),
+			Summary: "Explain a resource's declared backends, host readiness and observed placement",
+			Args:    commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}}},
+			Handler: func(ctx C, controller *resources.Controller, args []string) error {
+				if len(args) != 1 || strings.TrimSpace(args[0]) == "" {
+					return rootcli.UsageErrorf("resource acceleration explain", "resource acceleration explain requires exactly one resource name")
+				}
+				name := strings.TrimSpace(args[0])
+				manifest, err := controller.LoadManifest(filepath.Join(controller.Root, "resources", name, "resource.json"))
+				if err != nil {
+					return err
+				}
+				explanation, err := controller.ExplainAcceleration(context.Background(), manifest)
+				if err != nil {
+					return err
+				}
+				format, err := deps.OutputFormat(ctx)
+				if err != nil {
+					return err
+				}
+				return writeAccelerationExplanation(deps.Stdout(ctx), format, explanation)
+			},
+		},
+	}
+}
+
+// writeAccelerationExplanation renders one table an operator can read top to
+// bottom: what was declared, what the host reaches, what was selected and why,
+// where the process landed, and the command that repairs a failing row.
+func writeAccelerationExplanation(w io.Writer, format cliout.Format, result resources.AccelerationExplanation) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(w, result)
+	}
+	_, _ = fmt.Fprintf(w, "Resource: %s\n", result.Resource)
+	if len(result.Declared) == 0 {
+		_, _ = fmt.Fprintln(w, "Declared backends: none (this resource does no accelerated work)")
+	} else {
+		_, _ = fmt.Fprintf(w, "Declared backends: %s (require: %s)\n", strings.Join(result.Declared, ", "), result.Require)
+	}
+	_, _ = fmt.Fprintf(w, "Host backends:     %s\n", strings.Join(result.HostBackends, ", "))
+	_, _ = fmt.Fprintln(w, "Host facts:")
+	for _, key := range sortedKeys(result.Facts) {
+		_, _ = fmt.Fprintf(w, "- %s=%s\n", key, result.Facts[key])
+	}
+	if len(result.Considered) > 0 {
+		_, _ = fmt.Fprintln(w, "Backend verdicts:")
+		for _, verdict := range result.Considered {
+			mark := "unreachable"
+			if verdict.Ready {
+				mark = "ready"
+			}
+			_, _ = fmt.Fprintf(w, "- %-7s %-11s %s\n", verdict.Backend, mark, verdict.Reason)
+		}
+		_, _ = fmt.Fprintf(w, "Selected: %s\n", result.Selected)
+	}
+	if result.Placement != nil {
+		_, _ = fmt.Fprintf(w, "Placement: declared=%s observed=%s state=%s\n", result.Placement.Declared, orUnknown(string(result.Placement.Observed)), result.Placement.State)
+		_, _ = fmt.Fprintf(w, "  target: %s\n", result.Placement.Target)
+		_, _ = fmt.Fprintf(w, "  reason: %s\n", result.Placement.Reason)
+	} else if len(result.Declared) > 0 {
+		_, _ = fmt.Fprintln(w, "Placement: not running, so there is nothing to verify")
+	}
+	if result.Claim != nil {
+		_, _ = fmt.Fprintf(w, "Claim: %s preferred=%d floor=%d priority=%s\n", result.Claim.ResourceKind, result.Claim.PreferredBytes, result.Claim.FloorBytes, result.Claim.Priority)
+	}
+	if result.Remediation != "" {
+		_, _ = fmt.Fprintf(w, "Remediation: %s\n", result.Remediation)
+	}
+	return nil
+}
+
+func orUnknown(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "unknown"
+	}
+	return value
+}
+
+func sortedKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func buildResourceAcquisitionCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	return []commandtree.Spec[rootcli.ResourceHandler[C]]{
 		{
@@ -521,7 +619,7 @@ func buildResourceAcquisitionCommandTable[C any](deps HandlerDeps[C]) []commandt
 				if err != nil {
 					return fmt.Errorf("collect host facts: %w", err)
 				}
-				facts := snapshot.AcquisitionFacts()
+				facts := snapshot.AcceleratorFacts()
 				result := resourceAcquisitionExplanation{
 					Resource:       name,
 					Facts:          facts,
@@ -530,6 +628,9 @@ func buildResourceAcquisitionCommandTable[C any](deps HandlerDeps[C]) []commandt
 				if manifest.ManagedService != nil && manifest.ManagedService.Acquisition != nil {
 					result.Acquisition = manifest.ManagedService.Acquisition
 					result.Resolution = manifest.ManagedService.Acquisition.Explain(facts)
+					if verdict, ok := controller.StagedArtifactClosure(manifest); ok {
+						result.Closure = &verdict
+					}
 				}
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
@@ -596,6 +697,10 @@ func showResourceAcquisitionHelp(w io.Writer) {
 	resourcecli.RenderCommandHelp(w, "", "vrooli resource acquisition <subcommand> [options]", "Resource Acquisition", resourcecli.AcquisitionCommandSpecs())
 }
 
+func showResourceAccelerationHelp(w io.Writer) {
+	resourcecli.RenderCommandHelp(w, "", "vrooli resource acceleration <subcommand> [options]", "Resource Acceleration", resourcecli.AccelerationCommandSpecs())
+}
+
 type resourceStatusResponse struct {
 	Item     *resources.Status
 	Items    []resources.Status
@@ -618,8 +723,16 @@ type resourceAcquisitionExplanation struct {
 	FactProvenance map[string]hostinventory.Provenance `json:"fact_provenance,omitempty"`
 	Acquisition    *binaryfetch.Acquisition            `json:"acquisition,omitempty"`
 	Resolution     binaryfetch.ResolutionExplanation   `json:"resolution,omitempty"`
+	// Closure is the runtime-closure verdict for the artifact staged on this
+	// host, when one is staged. A digest-correct artifact whose libraries do
+	// not resolve is the failure this field exists to make visible.
+	Closure *resources.ClosureVerdict `json:"runtime_closure,omitempty"`
 }
 
+// acquisitionFactProvenance answers "where did each fact that selected this
+// artifact come from". Every emitted accelerator fact must appear, otherwise an
+// operator reading `vrooli resource acquisition explain` sees a selection with
+// no way to check the input that drove it.
 func acquisitionFactProvenance(snapshot hostinventory.Snapshot) map[string]hostinventory.Provenance {
 	result := map[string]hostinventory.Provenance{}
 	for _, key := range []string{"os", "arch"} {
@@ -627,8 +740,8 @@ func acquisitionFactProvenance(snapshot hostinventory.Snapshot) map[string]hosti
 			result[key] = provenance
 		}
 	}
-	if provenance, ok := snapshot.FieldProvenance["gpus.cuda_compute_capability"]; ok {
-		result["gpu.cuda_compute"] = provenance
+	for key, provenance := range snapshot.AcceleratorFactProvenance() {
+		result[key] = provenance
 	}
 	return result
 }
@@ -653,6 +766,15 @@ func writeResourceAcquisitionExplanation(w io.Writer, format cliout.Format, resu
 			selection = " [selected]"
 		}
 		_, _ = fmt.Fprintf(w, "- #%d when=%v: %s%s\n", candidate.Index, candidate.When, candidate.Reason, selection)
+	}
+	if result.Closure != nil {
+		_, _ = fmt.Fprintf(w, "Runtime closure: %s\n", result.Closure.State)
+		if len(result.Closure.Unresolved) > 0 {
+			_, _ = fmt.Fprintf(w, "  unresolved: %s\n", strings.Join(result.Closure.Unresolved, ", "))
+		}
+		if result.Closure.Reason != "" {
+			_, _ = fmt.Fprintf(w, "  reason: %s\n", result.Closure.Reason)
+		}
 	}
 	if result.Resolution.Selected >= 0 {
 		_, _ = fmt.Fprintf(w, "Selected candidate: #%d\n", result.Resolution.Selected)
@@ -705,6 +827,35 @@ func runResourceSubcommandSet[C any](
 		return rootcli.UsageErrorf(command, "unknown %s command: %s", command, args[0])
 	}
 	return handler(ctx, controller, args[1:])
+}
+
+// installResourceHandler is install plus the one flag that distinguishes
+// "stage this if it is missing" from "the host changed, replace what is
+// staged". Without the second, a needs_reacquire resource has a diagnosis and
+// no cure.
+func installResourceHandler[C any](deps HandlerDeps[C]) rootcli.ResourceHandler[C] {
+	base := singleResourceControlHandler(deps, "install")
+	return func(ctx C, controller *resources.Controller, args []string) error {
+		names := make([]string, 0, len(args))
+		reacquire := false
+		for _, arg := range args {
+			if strings.TrimSpace(arg) == "--reacquire" {
+				reacquire = true
+				continue
+			}
+			names = append(names, arg)
+		}
+		if !reacquire {
+			return base(ctx, controller, names)
+		}
+		if len(names) != 1 {
+			return rootcli.UsageErrorf("resource install", "resource install --reacquire requires exactly one resource name")
+		}
+		if err := controller.DiscardStagedArtifact(names[0], deps.Stderr(ctx)); err != nil {
+			return err
+		}
+		return base(ctx, controller, names)
+	}
 }
 
 func singleResourceControlHandler[C any](deps HandlerDeps[C], action string) rootcli.ResourceHandler[C] {

@@ -16,22 +16,19 @@ func collectPlatformMemory(context.Context, *MemoryCollector, hostinventory.Snap
 	if err != nil {
 		return platformMemoryReading{status: "failed", reason: fmt.Sprintf("hw.memsize: %v", err), provenance: "darwin sysctl hw.memsize"}
 	}
-	pageSize, err := unix.SysctlUint64("hw.pagesize")
-	if err != nil || pageSize == 0 {
-		pageSize = 4096
+	rawSwap, swapErr := unix.SysctlRaw("vm.swapusage")
+	if swapErr != nil {
+		return platformMemoryReading{status: "unsupported", reason: "vm.swapusage: " + swapErr.Error(), provenance: "darwin host_statistics64"}
 	}
-	freePages, freeErr := darwinVMStatPages("vm.stats.vm.pages.free")
-	inactivePages, inactiveErr := darwinVMStatPages("vm.stats.vm.pages.inactive")
-	speculativePages, speculativeErr := darwinVMStatPages("vm.stats.vm.pages.speculative")
-	if freeErr != nil || inactiveErr != nil || speculativeErr != nil {
-		return platformMemoryReading{status: "failed", reason: "darwin host memory statistics unavailable", provenance: "darwin sysctl vm.stats.vm"}
+	swapTotal, swapFree, parseErr := darwinSwapUsage(rawSwap)
+	if parseErr != nil {
+		return platformMemoryReading{status: "failed", reason: parseErr.Error(), provenance: "darwin vm.swapusage"}
 	}
-	available := (freePages + inactivePages + speculativePages) * pageSize
-	return memoryReadingFromBytes(total, available, 0, inactivePages*pageSize, 0, 0, "darwin sysctl host memory statistics")
-}
-
-func darwinVMStatPages(name string) (uint64, error) {
-	return unix.SysctlUint64(name)
+	// The legacy BSD page MIB is not a macOS API. Until the host_statistics64
+	// binding is available in the native package, explicitly
+	// degrade instead of returning fabricated available-memory values.
+	_ = total
+	return platformMemoryReading{status: "unsupported", reason: "host_statistics64 memory pressure binding unavailable", provenance: "darwin host_statistics64", swap: map[string]interface{}{"total": swapTotal, "free": swapFree}}
 }
 
 func darwinSwapUsage(raw []byte) (total, free uint64, err error) {

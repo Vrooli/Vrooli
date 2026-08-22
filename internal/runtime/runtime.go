@@ -71,6 +71,7 @@ func EnsureTool(name string, opts EnsureOptions) (ItemStatus, error) {
 // state (kernel drivers, firewall rules, and similar) when an operator needs
 // to repair one capability rather than re-run every setup requirement.
 func EnsureSafeguard(name string, opts EnsureOptions) (ItemStatus, error) {
+	name = strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), "-", "_")
 	opts.Environment = hostreq.NormalizeEnvironment(opts.Environment)
 	host := Current()
 	root, err := os.Getwd()
@@ -90,6 +91,26 @@ func EnsureSafeguard(name string, opts EnsureOptions) (ItemStatus, error) {
 		return status, err
 	}
 	return annotateBlockingReason(updated), nil
+}
+
+// InspectSafeguard performs the unprivileged read half of focused safeguard
+// handling. It never calls Apply and is the control-plane boundary for
+// observed host state consumers.
+func InspectSafeguard(name string) (ItemStatus, error) {
+	name = strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), "-", "_")
+	if name == "" {
+		return ItemStatus{}, fmt.Errorf("safeguard name is required")
+	}
+	host := Current()
+	root, err := os.Getwd()
+	if err != nil {
+		return ItemStatus{}, fmt.Errorf("resolve project root for safeguard %q: %w", name, err)
+	}
+	requirement, err := hostreq.ResolveSafeguard(root, name, host.OS)
+	if err != nil {
+		return ItemStatus{}, err
+	}
+	return inspectRequirement(host, requirement), nil
 }
 
 func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report, error) {

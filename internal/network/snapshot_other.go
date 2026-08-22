@@ -2,6 +2,6 @@
 
 package network
 
-func captureTCPListenerSnapshot() TCPListenerSnapshot {
+func captureTCPListenerSnapshot(_ CaptureOptions) TCPListenerSnapshot {
 	return TCPListenerSnapshot{Reason: "listener snapshot is not implemented on this platform"}
 }

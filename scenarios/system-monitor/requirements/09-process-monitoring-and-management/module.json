@@ -49,6 +49,13 @@
           "ref": "",
           "status": "pending",
           "type": "test"
+        },
+        {
+          "notes": "Paging-ranked process evidence covers swap residency and major-fault rate",
+          "phase": "unit",
+          "ref": "api/internal/collectors/memory_paging_test.go",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     }

@@ -15,7 +15,9 @@ import (
 // GetExtendedTcpTable (iphlpapi, TCP_TABLE_OWNER_PID_LISTENER) for both
 // address families — zero forks, all users, owner PIDs included. x/sys does
 // not wrap this API, so it is loaded via a lazy system DLL.
-func captureTCPListenerSnapshot() TCPListenerSnapshot {
+// Attribution is free here: GetExtendedTcpTable already returns owner PIDs,
+// so opts is accepted for signature parity and never changes the work done.
+func captureTCPListenerSnapshot(_ CaptureOptions) TCPListenerSnapshot {
 	ports := make(map[int][]SnapshotListener)
 	for _, family := range []uint32{windows.AF_INET, windows.AF_INET6} {
 		entries, err := listListenerTable(family)

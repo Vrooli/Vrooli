@@ -29,14 +29,16 @@ type MemoryRepository struct {
 // processRollup is the in-memory analog of the SQLite process_sample_rollups
 // row (one per owner+comm+minute).
 type processRollup struct {
-	Minute      time.Time
-	Owner       string
-	Comm        string
-	AvgCPUPct   float64
-	MaxCPUPct   float64
-	AvgRSSKB    int64
-	MaxRSSKB    int64
-	SampleCount int64
+	Minute                  time.Time
+	Owner                   string
+	Comm                    string
+	AvgCPUPct               float64
+	MaxCPUPct               float64
+	AvgRSSKB                int64
+	MaxRSSKB                int64
+	AvgMajorFaultsPerSecond float64
+	MaxMajorFaultsPerSecond float64
+	SampleCount             int64
 }
 
 type metricEntry struct {
@@ -169,6 +171,11 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 			}
 			response.GPUState = memoryMetricState(entry.CycleID, entry.Timestamp, entry.CollectorName, entry.Values, "total_usage_percent")
 		}
+		if entry.CollectorName == "pressure" {
+			response.SwapTrafficState = pressureMetricStateMemory(entry, "swap_traffic_pages_per_second", "swap_traffic_rate_status", "swap_traffic_rate_reason")
+			response.MajorFaultsState = pressureMetricStateMemory(entry, "pgmajfault_per_second", "pgmajfault_rate_status", "pgmajfault_rate_reason")
+			response.FragmentationIndexState = pressureMetricStateMemory(entry, "fragmentation_max_free_order", "fragmentation_status", "fragmentation_reason")
+		}
 	}
 
 	// Convert map to slice
@@ -188,6 +195,20 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 	}
 
 	return results, nil
+}
+
+func pressureMetricStateMemory(entry metricEntry, valueKey, statusKey, reasonKey string) models.MetricState {
+	state := models.MetricState{Status: "not_yet_sampled", Reason: "rate has not been sampled", Provenance: "system-monitor/pressure", CycleID: entry.CycleID, ObservedAt: entry.Timestamp}
+	if status, ok := entry.Values[statusKey].(string); ok && status != "" {
+		state.Status = status
+	}
+	if reason, ok := entry.Values[reasonKey].(string); ok && reason != "" {
+		state.Reason = reason
+	}
+	if value, ok := entry.Values[valueKey].(float64); ok {
+		state.Status, state.Value, state.Reason = "measured", value, ""
+	}
+	return state
 }
 
 func memoryMetricMeasured(values map[string]interface{}) bool {

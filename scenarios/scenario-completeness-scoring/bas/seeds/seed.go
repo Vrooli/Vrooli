@@ -117,8 +117,13 @@ ON CONFLICT(scenario, digest) DO NOTHING
 	fmt.Printf("seed: inserted score snapshot scenario=%s digest=%s; seed-state written to %s\n", fixtureScenario, fixtureDigest, outPath)
 }
 
+// resolveDSN returns the isolated database the playbooks isolation manager
+// leased for this run. Only the playbooks-scoped variables are read: the
+// generic SQLITE_PATH / SQLITE_DB pair used to be accepted here, which made a
+// seed script write into whatever database happened to be named in the
+// environment.
 func resolveDSN() string {
-	for _, key := range []string{"SQLITE_PATH", "SQLITE_DB"} {
+	for _, key := range []string{"PLAYBOOKS_SQLITE_DSN", "PLAYBOOKS_SQLITE_PATH"} {
 		if v := strings.TrimSpace(os.Getenv(key)); v != "" {
 			return v
 		}

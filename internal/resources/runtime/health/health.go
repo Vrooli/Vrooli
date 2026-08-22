@@ -16,8 +16,18 @@ import (
 )
 
 type Result struct {
+	// Healthy is true only when every readiness check passed and no liveness
+	// check failed.
 	Healthy bool
 	Message string
+	// Serving is true when every readiness check passed, whether or not a
+	// liveness check failed. A resource whose liveness check fails still
+	// answers requests, so a consumer must be able to tell it from a resource
+	// that is down.
+	Serving bool
+	// LivenessFailed names the first liveness check that failed. Empty means
+	// none did.
+	LivenessFailed string
 }
 
 type Config struct {
@@ -27,15 +37,22 @@ type Config struct {
 	HTTPClient *http.Client
 }
 
+// RunChecks runs both declared check kinds and combines them.
+//
+// A failing readiness check means the resource cannot answer: healthy and
+// serving are both false. A failing liveness check means the resource answers
+// but is not meeting its contract — running below its declared accelerator
+// backend is the canonical case — so healthy is false while serving stays true.
+// Collapsing the two would either hide a degradation or turn a working resource
+// into an outage.
 func RunChecks(ctx context.Context, checks []manifestpkg.ResourceHealthCheck, cfg Config) (Result, error) {
 	if len(checks) == 0 {
 		return Result{}, nil
 	}
+	var liveness []manifestpkg.ResourceHealthCheck
 	for _, check := range checks {
-		// Liveness checks are supplementary telemetry. They must not turn a
-		// reachable, CPU-degraded resource into an unready resource; callers
-		// that need the liveness verdict can invoke that command directly.
-		if strings.EqualFold(strings.TrimSpace(check.Kind), "liveness") {
+		if isLivenessCheck(check) {
+			liveness = append(liveness, check)
 			continue
 		}
 		result, err := RunCheck(ctx, check, cfg)
@@ -46,7 +63,44 @@ func RunChecks(ctx context.Context, checks []manifestpkg.ResourceHealthCheck, cf
 			return result, nil
 		}
 	}
-	return Result{Healthy: true, Message: "healthy"}, nil
+
+	combined := Result{Healthy: true, Serving: true, Message: "healthy"}
+	for _, check := range liveness {
+		result, err := RunCheck(ctx, check, cfg)
+		if err != nil {
+			// A liveness check that could not run is not a failing liveness
+			// check. Report the resource as serving and say what could not be
+			// determined rather than inventing a verdict.
+			combined.Message = fmt.Sprintf("liveness check %q could not run: %v", checkName(check), err)
+			return combined, nil
+		}
+		if result.Healthy {
+			continue
+		}
+		combined.Healthy = false
+		combined.LivenessFailed = checkName(check)
+		combined.Message = fmt.Sprintf("degraded: liveness check %q failed", combined.LivenessFailed)
+		if strings.TrimSpace(result.Message) != "" {
+			combined.Message += ": " + result.Message
+		}
+		return combined, nil
+	}
+	return combined, nil
+}
+
+func isLivenessCheck(check manifestpkg.ResourceHealthCheck) bool {
+	return strings.EqualFold(strings.TrimSpace(check.Kind), "liveness")
+}
+
+// checkName gives a liveness check a stable name for the operator message.
+func checkName(check manifestpkg.ResourceHealthCheck) string {
+	if len(check.Command) > 0 {
+		return strings.Join(check.Command, " ")
+	}
+	if target := strings.TrimSpace(check.Target); target != "" {
+		return target
+	}
+	return check.Type
 }
 
 func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Config) (Result, error) {

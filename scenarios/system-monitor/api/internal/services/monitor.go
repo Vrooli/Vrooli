@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -535,17 +536,21 @@ func (s *MonitorService) sampleProcesses(ctx context.Context, now time.Time, gpu
 	rows := make([]repository.ProcessSample, 0, len(samples))
 	for _, ps := range samples {
 		rows = append(rows, repository.ProcessSample{
-			Timestamp: now.UTC(),
-			PID:       ps.PID,
-			PPID:      ps.PPID,
-			Comm:      ps.Comm,
-			Cmdline:   ps.Cmdline,
-			Cwd:       ps.Cwd,
-			Owner:     ps.Owner,
-			CPUPct:    ps.CPUPct,
-			RSSKB:     ps.RSSKB,
-			Threads:   ps.Threads,
-			GPUVRAMMB: gpuVRAM[ps.PID],
+			Timestamp:            now.UTC(),
+			PID:                  ps.PID,
+			PPID:                 ps.PPID,
+			Comm:                 ps.Comm,
+			Cmdline:              ps.Cmdline,
+			Cwd:                  ps.Cwd,
+			Owner:                ps.Owner,
+			CPUPct:               ps.CPUPct,
+			RSSKB:                ps.RSSKB,
+			SwapKB:               ps.SwapKB,
+			MajorFaultsPerSecond: ps.MajorFaultsPerSecond,
+			MetricsStatus:        ps.MetricsStatus,
+			MetricsReason:        ps.MetricsReason,
+			Threads:              ps.Threads,
+			GPUVRAMMB:            gpuVRAM[ps.PID],
 		})
 	}
 	if err := s.procRepo.SaveProcessSamples(ctx, rows); err != nil {
@@ -563,12 +568,24 @@ func selectRankSamples(samples []procsampler.ProcessSample, top int, gpuVRAM map
 	}
 	cpu := append([]procsampler.ProcessSample(nil), samples...)
 	rss := append([]procsampler.ProcessSample(nil), samples...)
+	paging := append([]procsampler.ProcessSample(nil), samples...)
 	sort.SliceStable(cpu, func(i, j int) bool { return cpu[i].CPUPct > cpu[j].CPUPct })
 	sort.SliceStable(rss, func(i, j int) bool { return rss[i].RSSKB > rss[j].RSSKB })
+	sort.SliceStable(paging, func(i, j int) bool {
+		if paging[i].MajorFaultsPerSecond != paging[j].MajorFaultsPerSecond {
+			return paging[i].MajorFaultsPerSecond > paging[j].MajorFaultsPerSecond
+		}
+		return paging[i].SwapKB > paging[j].SwapKB
+	})
 	keep := make(map[int]struct{}, top*2)
 	for _, ranked := range [][]procsampler.ProcessSample{cpu, rss} {
 		for i := 0; i < top && i < len(ranked); i++ {
 			keep[ranked[i].PID] = struct{}{}
+		}
+	}
+	for i := 0; i < top && i < len(paging); i++ {
+		if paging[i].MajorFaultsPerSecond > 0 || paging[i].SwapKB > 0 {
+			keep[paging[i].PID] = struct{}{}
 		}
 	}
 	if len(gpuVRAM) > 0 {
@@ -873,18 +890,21 @@ func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, 
 	samples := make([]models.MetricTimelineSample, 0, len(results))
 	for _, m := range results {
 		samples = append(samples, models.MetricTimelineSample{
-			CycleID:          m.CycleID,
-			Timestamp:        m.Timestamp,
-			CPUUsage:         m.CPUUsage,
-			MemoryUsage:      m.MemoryUsage,
-			TCPConnections:   m.TCPConnections,
-			GPUUsage:         m.GPUUsage,
-			SwapUsage:        m.SwapUsage,
-			CPUState:         m.CPUState,
-			MemoryState:      m.MemoryState,
-			ConnectionsState: m.ConnectionsState,
-			GPUState:         m.GPUState,
-			SwapState:        m.SwapState,
+			CycleID:                 m.CycleID,
+			Timestamp:               m.Timestamp,
+			CPUUsage:                m.CPUUsage,
+			MemoryUsage:             m.MemoryUsage,
+			TCPConnections:          m.TCPConnections,
+			GPUUsage:                m.GPUUsage,
+			SwapUsage:               m.SwapUsage,
+			CPUState:                m.CPUState,
+			MemoryState:             m.MemoryState,
+			ConnectionsState:        m.ConnectionsState,
+			GPUState:                m.GPUState,
+			SwapState:               m.SwapState,
+			SwapTrafficState:        m.SwapTrafficState,
+			MajorFaultsState:        m.MajorFaultsState,
+			FragmentationIndexState: m.FragmentationIndexState,
 		})
 	}
 
@@ -906,10 +926,12 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 	netData := latest["network"]
 	diskData := latest["disk"]
 	gpuData := latest["gpu"]
+	pressureData := latest["pressure"]
 
 	// Get top processes
 	topCPUProcs, _ := collectors.GetTopProcessesByCPU(5)
 	topMemProcs, _ := collectors.GetTopProcessesByMemory(5)
+	topPagingProcs, _ := collectors.GetTopProcessesByPaging(5)
 
 	// Build detailed metrics response
 	detailed := &models.DetailedMetrics{
@@ -917,7 +939,7 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 	}
 
 	populateCPUDetails(detailed, cpuData, topCPUProcs)
-	populateMemoryDetails(detailed, memData, diskData, topMemProcs)
+	populateMemoryDetails(detailed, memData, diskData, pressureData, topMemProcs, topPagingProcs)
 	populateNetworkDetails(detailed, netData)
 	populateSystemDetails(detailed, diskData)
 	populateGPUDetails(detailed, gpuData)
@@ -1037,7 +1059,7 @@ func populateCPUDetails(detailed *models.DetailedMetrics, cpuData *collectors.Me
 
 // populateMemoryDetails fills the memory section of detailed (including disk
 // usage, which is stored under MemoryMetrics in proto).
-func populateMemoryDetails(detailed *models.DetailedMetrics, memData, diskData *collectors.MetricData, topMemProcs []map[string]interface{}) {
+func populateMemoryDetails(detailed *models.DetailedMetrics, memData, diskData, pressureData *collectors.MetricData, topMemProcs, topPagingProcs []map[string]interface{}) {
 	if memData == nil {
 		return
 	}
@@ -1057,8 +1079,10 @@ func populateMemoryDetails(detailed *models.DetailedMetrics, memData, diskData *
 	for _, proc := range topMemProcs {
 		detailed.MemoryDetails.TopProcesses = append(detailed.MemoryDetails.TopProcesses, convertToProcessInfo(proc))
 	}
-
-	detailed.MemoryDetails.GrowthPatterns = nil
+	for _, proc := range topPagingProcs {
+		detailed.MemoryDetails.TopPagingProcesses = append(detailed.MemoryDetails.TopPagingProcesses, convertToProcessInfo(proc))
+	}
+	populatePressureDetails(&detailed.MemoryDetails, pressureData)
 
 	if diskData == nil {
 		return
@@ -1070,6 +1094,48 @@ func populateMemoryDetails(detailed *models.DetailedMetrics, memData, diskData *
 			Percent: getFloat64Value(diskUsage, "percent"),
 		}
 	}
+}
+
+func populatePressureDetails(memory *models.MemoryMetrics, data *collectors.MetricData) {
+	if data == nil {
+		return
+	}
+	memory.Paging = models.PagingMetrics{
+		SwapInPerSecond:           pressureState(data, "pswpin_per_second", "pswpin_rate_status", "pswpin_rate_reason"),
+		SwapOutPerSecond:          pressureState(data, "pswpout_per_second", "pswpout_rate_status", "pswpout_rate_reason"),
+		SwapTrafficPagesPerSecond: pressureState(data, "swap_traffic_pages_per_second", "swap_traffic_rate_status", "swap_traffic_rate_reason"),
+		MajorFaultsPerSecond:      pressureState(data, "pgmajfault_per_second", "pgmajfault_rate_status", "pgmajfault_rate_reason"),
+		PageFaultsPerSecond:       pressureState(data, "pgfault_per_second", "pgfault_rate_status", "pgfault_rate_reason"),
+	}
+	fragmentation := models.FragmentationMetrics{
+		MaxFreeOrder:           pressureState(data, "fragmentation_max_free_order", "fragmentation_status", "fragmentation_reason"),
+		LowOrderShare:          pressureState(data, "fragmentation_low_order_share", "fragmentation_status", "fragmentation_reason"),
+		CompactionFailureRatio: pressureState(data, "compaction_failure_ratio", "compaction_failure_ratio_status", "compaction_failure_ratio_reason"),
+		CompactionRates:        make(map[string]models.MetricState),
+	}
+	if histogram, ok := data.Values["buddyinfo"].(map[string]string); ok {
+		fragmentation.Buddyinfo = histogram
+	}
+	for key := range data.Values {
+		if strings.HasSuffix(key, "_per_second") && strings.HasPrefix(key, "compact_") {
+			fragmentation.CompactionRates[strings.TrimSuffix(key, "_per_second")] = pressureState(data, key, strings.TrimSuffix(key, "_per_second")+"_rate_status", strings.TrimSuffix(key, "_per_second")+"_rate_reason")
+		}
+	}
+	memory.Fragmentation = fragmentation
+}
+
+func pressureState(data *collectors.MetricData, valueKey, statusKey, reasonKey string) models.MetricState {
+	state := models.MetricState{Status: "not_yet_sampled", Reason: "rate has not been sampled", Provenance: "system-monitor/pressure", ObservedAt: data.Timestamp}
+	if status, ok := data.Values[statusKey].(string); ok && status != "" {
+		state.Status = status
+	}
+	if reason, ok := data.Values[reasonKey].(string); ok && reason != "" {
+		state.Reason = reason
+	}
+	if value, ok := data.Values[valueKey].(float64); ok {
+		state.Status, state.Value, state.Reason = "measured", value, ""
+	}
+	return state
 }
 
 // populateNetworkDetails fills the network section of detailed from the network collector data.
@@ -1228,13 +1294,15 @@ func (s *MonitorService) GetInfrastructureMonitorData(ctx context.Context) (*mod
 
 func convertToProcessInfo(proc map[string]interface{}) models.ProcessInfo {
 	return models.ProcessInfo{
-		PID:        getIntValue(proc, "pid"),
-		Name:       getStringValue(proc, "name"),
-		CPUPercent: getFloat64Value(proc, "cpu_percent"),
-		MemoryMB:   getFloat64Value(proc, "memory_mb"),
-		Threads:    getIntValue(proc, "threads"),
-		FDs:        getIntValue(proc, "fd_count"),
-		Status:     getStringValue(proc, "status"),
+		PID:                  getIntValue(proc, "pid"),
+		Name:                 getStringValue(proc, "name"),
+		CPUPercent:           getFloat64Value(proc, "cpu_percent"),
+		MemoryMB:             getFloat64Value(proc, "memory_mb"),
+		Threads:              getIntValue(proc, "threads"),
+		FDs:                  getIntValue(proc, "fd_count"),
+		Status:               getStringValue(proc, "status"),
+		SwapKB:               getInt64Value(proc, "swap_kb"),
+		MajorFaultsPerSecond: getFloat64Value(proc, "major_faults_per_second"),
 	}
 }
 

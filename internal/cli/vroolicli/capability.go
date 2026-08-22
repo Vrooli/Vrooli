@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/capabilitycatalog"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/deployability"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	portabilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/portability"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -18,8 +19,11 @@ import (
 
 func (app *App) runCapabilityCommand(ctx *CommandContext, args []string) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
-		fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability ledger|fleet [query] [--json]\n  vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON")
+		fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability ledger|fleet [query] [--json]\n  vrooli capability conformance [--json]\n  vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON")
 		return nil
+	}
+	if args[0] == "conformance" {
+		return app.runCapabilityConformanceCommand(ctx, args[1:])
 	}
 	if args[0] == "catalog" || args[0] == "status" || args[0] == "preview" || args[0] == "apply" {
 		return app.runCapabilityWorkflow(ctx, args)
@@ -65,6 +69,39 @@ func (app *App) runCapabilityCommand(ctx *CommandContext, args []string) error {
 	return renderCapabilityGrid(ctx, jsonOutput, grid)
 }
 
+func (app *App) runCapabilityConformanceCommand(ctx *CommandContext, args []string) error {
+	jsonOutput := ctx.Globals.JSON
+	for _, arg := range args {
+		switch strings.TrimSpace(arg) {
+		case "--json":
+			jsonOutput = true
+		case "--help", "-h":
+			fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability conformance [--json]")
+			return nil
+		default:
+			return fmt.Errorf("unknown capability conformance option %q", arg)
+		}
+	}
+	report, err := deployability.CheckRepository(context.Background(), ctx.Root)
+	if err != nil {
+		return fmt.Errorf("capability conformance: %w", err)
+	}
+	if jsonOutput {
+		if err := json.NewEncoder(ctx.Stdout).Encode(report); err != nil {
+			return err
+		}
+	} else {
+		fmt.Fprintf(ctx.Stdout, "checked_targets=%d findings=%d\n", len(report.Targets), len(report.Findings))
+		for _, finding := range report.Findings {
+			fmt.Fprintf(ctx.Stdout, "%s [%s] %s\n", finding.ManifestPath, finding.OS, finding.Message)
+		}
+	}
+	if len(report.Findings) > 0 {
+		return fmt.Errorf("capability conformance failed with %d finding(s)", len(report.Findings))
+	}
+	return nil
+}
+
 // reportCapabilityDegraded renders the degraded state and still fails. A
 // machine consumer gets an envelope whose `state` is `degraded`, so it can
 // never mistake the response for a grid; a human gets the error naming the
@@ -95,6 +132,17 @@ func renderCapabilityGrid(ctx *CommandContext, jsonOutput bool, grid *portabilit
 				enumToken(platform.GetStatus().String(), "RESOLUTION_STATUS_"),
 				enumToken(platform.GetQualification().String(), "QUALIFICATION_"),
 				firstNonEmpty(platform.GetImplementer(), platform.GetMechanism(), platform.GetReason()))
+			if len(platform.GetControls()) > 0 {
+				fmt.Fprintf(ctx.Stdout, "    controls: %s\n", strings.Join(platform.GetControls(), ", "))
+			}
+			if len(platform.GetAbsent()) > 0 {
+				fmt.Fprintf(ctx.Stdout, "    absent: %s\n", strings.Join(platform.GetAbsent(), ", "))
+			}
+			for _, declarer := range platform.GetDeclarers() {
+				if !declarer.GetResolved() {
+					fmt.Fprintf(ctx.Stdout, "    missing %s (%s): %s\n", declarer.GetName(), declarer.GetRole(), declarer.GetReason())
+				}
+			}
 		}
 	}
 	return nil

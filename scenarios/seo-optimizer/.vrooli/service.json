@@ -152,12 +152,6 @@
         "required": true,
         "purpose": "Store SEO audits, keyword data, rankings, and competitor analysis"
       },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache SEO analysis results and API responses"
-      },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,

@@ -47,3 +47,31 @@ field name or collector metadata. Each state carries `provenance` and
   alert.
 - The UI displays the state reason, provenance, and stale age when a value is
   unavailable.
+
+## Stocks and flows
+
+A stock is a level at an instant, such as bytes used or swap percent. A flow
+is a rate over an interval, such as pages swapped or major faults per second.
+Cache-like and reclaim-like resources must expose a flow beside their stock;
+the stock alone cannot distinguish cold pages parked harmlessly from active
+thrashing.
+
+## Cumulative counters
+
+Kernel counters are monotonic totals, not gauges. Collectors convert every
+cumulative counter to a per-second rate using the true monotonic interval at
+collection time. The first sample after startup, a counter reset, or an invalid
+interval is `not_yet_sampled`; it is never stored as a climbing level or a
+numeric zero.
+
+## Platform tiers
+
+| Tier | Signal | Linux | macOS | Windows |
+|---|---|---|---|---|
+| 1 | paging and major-fault rates | `/proc/vmstat` | explicit unsupported in this build (native binding unavailable) | PDH or explicit unsupported |
+| 1 | per-process swap and major faults | `/proc/<pid>` | explicit unsupported in this build (native binding unavailable) | native process API or explicit unsupported |
+| 2 | memory pressure | PSI | memorystatus | explicit unsupported |
+| 3 | fragmentation and compaction | `/proc/buddyinfo` and vmstat | unsupported | unsupported |
+
+Unsupported capabilities carry a reason and no numeric key. A zero is valid
+only when the platform actually measured zero.

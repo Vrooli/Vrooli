@@ -7,61 +7,57 @@ import (
 	manifest "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
-// Ensures the remaining compose-backed Kokoro manifest still carries its
-// explicit GPU overlay. Whisper is now a native managed-service resource;
-// its platform-specific acquisition targets own delivery instead.
-func TestRealManifestsWithGPUBlockLoad(t *testing.T) {
-	repoRoot := findRepoRoot(t)
+// Feature: a compose resource's accelerator overlay survives the migration
+//
+//	As kokoro
+//	I want my GPU compose overlay and pinned image to reach the driver
+//	So that declaring an accelerator still changes how I am started.
+
+// Scenario: kokoro's overlay and image pin live on its cuda backend config.
+func TestComposeResourceCarriesItsOverlayOnTheCUDABackend(t *testing.T) {
 	cases := []struct {
-		name        string
+		resource    string
 		overlay     string
 		imageEnvKey string
 	}{
-		{"kokoro", "docker/docker-compose.gpu.yml", "KOKORO_IMAGE"},
+		{resource: "kokoro", overlay: "docker/docker-compose.gpu.yml", imageEnvKey: "KOKORO_IMAGE"},
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			path := filepath.Join(repoRoot, "resources", tc.name, "resource.json")
+		t.Run(tc.resource, func(t *testing.T) {
+			// Given the resource's manifest as it stands in the repository
+			path := filepath.Join(findRepoRoot(t), "resources", tc.resource, "resource.json")
 			m, err := manifest.Load(path)
 			if err != nil {
 				t.Fatalf("load %s: %v", path, err)
 			}
-			if m.GPU == nil {
-				t.Fatal("expected gpu block to be populated")
+
+			// When its accelerator declaration is read
+			declaration := m.EffectiveAcceleration()
+			if declaration == nil {
+				t.Fatal("the resource declares no acceleration block")
 			}
-			if m.GPU.Probe != "nvidia" {
-				t.Fatalf("expected nvidia probe, got %q", m.GPU.Probe)
+			cuda, ok := declaration.Config(manifest.BackendCUDA)
+			if !ok {
+				t.Fatal("the resource declares no cuda backend config")
 			}
-			if m.GPU.ComposeOverlay != tc.overlay {
-				t.Fatalf("expected overlay %q, got %q", tc.overlay, m.GPU.ComposeOverlay)
+
+			// Then the overlay the compose driver layers on is there
+			if cuda.ComposeOverlay != tc.overlay {
+				t.Fatalf("cuda.compose_overlay = %q, want %q", cuda.ComposeOverlay, tc.overlay)
 			}
-			if _, ok := m.GPU.EnvOverrides[tc.imageEnvKey]; !ok {
-				t.Fatalf("expected %s in env_overrides, got %v", tc.imageEnvKey, m.GPU.EnvOverrides)
+			// And the pinned image env survives, so the accelerated variant is
+			// still selected by digest rather than by tag
+			if _, present := cuda.Env[tc.imageEnvKey]; !present {
+				t.Fatalf("cuda.env = %v, want it to carry %s", cuda.Env, tc.imageEnvKey)
+			}
+			// And the resource still falls back to the CPU rather than failing
+			if declaration.EffectiveRequire() != manifest.RequirePreferred {
+				t.Fatalf("require = %q, want %q", declaration.EffectiveRequire(), manifest.RequirePreferred)
+			}
+			if _, ok := declaration.Config(manifest.BackendCPU); !ok {
+				t.Fatal("the resource declares no cpu floor")
 			}
 		})
 	}
-}
-
-func findRepoRoot(t *testing.T) string {
-	t.Helper()
-	dir, err := filepath.Abs(".")
-	if err != nil {
-		t.Fatalf("abs: %v", err)
-	}
-	for i := 0; i < 8; i++ {
-		if _, err := filepath.Glob(filepath.Join(dir, "go.mod")); err == nil {
-			matches, _ := filepath.Glob(filepath.Join(dir, "go.mod"))
-			if len(matches) > 0 {
-				return dir
-			}
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	t.Fatal("could not locate repo root (go.mod)")
-	return ""
 }

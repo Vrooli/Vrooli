@@ -21,6 +21,8 @@ type (
 	ResourceStorage              = manifestpkg.ResourceStorage
 	ResourceStorageEntry         = manifestpkg.ResourceStorageEntry
 	ResourceStorageRelocation    = manifestpkg.ResourceStorageRelocation
+	AccelerationSpec             = manifestpkg.AccelerationSpec
+	BackendConfig                = manifestpkg.BackendConfig
 )
 
 func (c *Controller) loadResourceManifest(path string) (ResourceManifest, error) {

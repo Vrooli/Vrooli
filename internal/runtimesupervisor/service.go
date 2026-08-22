@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/accel"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
@@ -115,6 +116,10 @@ type Config struct {
 	Stdout               io.Writer
 	Stderr               io.Writer
 	Executable           string
+	// AcceleratorProbe drives the accelerator re-probe pass. nil disables it,
+	// which is the correct behaviour anywhere the control plane's resource
+	// layer is not reachable.
+	AcceleratorProbe AcceleratorProbe
 }
 
 type Service struct {
@@ -124,6 +129,10 @@ type Service struct {
 	host       hostsession.Snapshot
 	ownsStore  bool
 	lastReport TickReport
+	// acceleratorWatcher holds the previous readiness observation so a device
+	// that appears after boot is seen as a transition rather than as a steady
+	// state.
+	acceleratorWatcher accel.ReadinessWatcher
 }
 
 type TickReport struct {
@@ -138,6 +147,9 @@ type TickReport struct {
 	Unverified       int            `json:"unverified"`
 	HealthProbeCount int            `json:"health_probe_count"`
 	Recovery         RecoveryReport `json:"recovery"`
+	// Accelerator records what this tick decided about host accelerator
+	// readiness. Zero-valued when no accelerator probe is configured.
+	Accelerator AcceleratorReprobeReport `json:"accelerator"`
 }
 
 type RecoveryReport struct {
@@ -397,6 +409,7 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 		s.logf("recovery reconciliation degraded this tick: %v", err)
 	}
 	report.Recovery = recovery
+	report.Accelerator = s.reprobeAccelerators(ctx)
 	s.lastReport = report
 	return report, nil
 }

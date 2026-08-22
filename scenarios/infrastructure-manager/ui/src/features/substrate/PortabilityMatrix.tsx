@@ -69,7 +69,15 @@ const UNKNOWN_PRESENTATION = {
   className: "lamp lamp--excursion",
 } as const;
 
+const CONTROLS_INCOMPLETE_PRESENTATION = {
+  label: "Controls incomplete",
+  short: "CTRL",
+  mark: "⚠",
+  className: "lamp lamp--excursion",
+} as const;
+
 function presentationFor(cell: PortabilityCell) {
+	if (cell.status === "controls_incomplete") return CONTROLS_INCOMPLETE_PRESENTATION;
   return QUALIFICATION_PRESENTATION[cell.qualification] ?? UNKNOWN_PRESENTATION;
 }
 
@@ -139,6 +147,7 @@ export function PortabilityMatrix({
                   presentation.label,
                   cell.implementer ? `implemented by ${cell.implementer}` : null,
                   cell.mechanism ? `via ${cell.mechanism}` : null,
+                  cell.absent?.length ? `absent: ${cell.absent.join(", ")}` : null,
                   cell.reason,
                 ]
                   .filter(Boolean)
@@ -155,6 +164,11 @@ export function PortabilityMatrix({
                       <span aria-hidden="true">{presentation.mark}</span>
                       <span aria-hidden="true">{presentation.short}</span>
                     </span>
+					{cell.absent?.length ? (
+						<span className="block max-w-32 text-[10px] leading-tight text-left" data-testid="absent-declarers">
+							absent: {cell.absent.join(", ")}
+						</span>
+					) : null}
                   </td>
                 );
               })}

@@ -29,10 +29,59 @@ func forkRateUnsupported(reason string) forkRateReading {
 // 2026-08-21 incident the host sustained ~2,481 forks/sec while every collected
 // metric showed only the symptoms (load, CPU, stalls) and none the cause.
 type forkRateTracker struct {
-	mu       sync.Mutex
-	lastVal  uint64
-	lastTime time.Time
-	primed   bool
+	tracker counterRateTracker
+}
+
+// counterRateTracker converts any named monotonic counter into a rate. Keeping
+// the previous sample per name is important because vmstat exposes many
+// counters in one read and they must not share an interval or baseline.
+type counterRateTracker struct {
+	mu   sync.Mutex
+	last map[string]counterRateSample
+}
+
+type counterRateSample struct {
+	total uint64
+	at    time.Time
+}
+
+func newCounterRateTracker() *counterRateTracker {
+	return &counterRateTracker{last: make(map[string]counterRateSample)}
+}
+
+func (t *counterRateTracker) observe(name string, total uint64, now time.Time) (rate float64, ok bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.last == nil {
+		t.last = make(map[string]counterRateSample)
+	}
+
+	previous, primed := t.last[name]
+	t.last[name] = counterRateSample{total: total, at: now}
+	if !primed || total < previous.total {
+		return 0, false
+	}
+	elapsed := now.Sub(previous.at).Seconds()
+	if elapsed <= 0 {
+		return 0, false
+	}
+	return float64(total-previous.total) / elapsed, true
+}
+
+func counterRateValues(tracker *counterRateTracker, name string, total uint64, now time.Time) map[string]interface{} {
+	values := map[string]interface{}{
+		name + "_total":        total,
+		name + "_rate_status":  "not_yet_sampled",
+		name + "_rate_primed":  false,
+		name + "_rate_pending": true,
+	}
+	if rate, ok := tracker.observe(name, total, now); ok {
+		values[name+"_per_second"] = rate
+		values[name+"_rate_status"] = "measured"
+		values[name+"_rate_primed"] = true
+		values[name+"_rate_pending"] = false
+	}
+	return values
 }
 
 // observe records a cumulative sample and returns the rate per second since the
@@ -40,23 +89,7 @@ type forkRateTracker struct {
 // the counter goes backwards, which means the host rebooted — reporting a huge
 // negative-turned-positive delta there would be worse than reporting nothing.
 func (t *forkRateTracker) observe(total uint64, now time.Time) (rate float64, ok bool) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	prevVal, prevTime, primed := t.lastVal, t.lastTime, t.primed
-	t.lastVal, t.lastTime, t.primed = total, now, true
-
-	if !primed {
-		return 0, false
-	}
-	if total < prevVal {
-		return 0, false
-	}
-	elapsed := now.Sub(prevTime).Seconds()
-	if elapsed <= 0 {
-		return 0, false
-	}
-	return float64(total-prevVal) / elapsed, true
+	return t.tracker.observe("forks", total, now)
 }
 
 // forkRateValues renders the tracker's view for a metric payload. Callers merge

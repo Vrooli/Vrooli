@@ -78,6 +78,9 @@ export interface MetricHistory {
   memory: ChartDataPoint[];
   /** Swap utilisation %, projected separately from memory. */
   swap: ChartDataPoint[];
+  swapTraffic?: ChartDataPoint[];
+  majorFaults?: ChartDataPoint[];
+  fragmentation?: ChartDataPoint[];
   network: ChartDataPoint[];
   gpu?: ChartDataPoint[];
   diskUsage?: ChartDataPoint[];
@@ -103,4 +106,3 @@ export interface InvestigationAgentState {
   completedAt?: string;
   error?: string;
 }
-

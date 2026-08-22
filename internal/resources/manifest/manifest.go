@@ -37,7 +37,6 @@ var AllowedDrivers = []string{
 
 var (
 	AllowedPlatformSupportStates = []string{"supported", "partial", "unsupported"}
-	AllowedGPUProbes             = []string{"nvidia"}
 	AllowedHealthCheckKinds      = []string{"readiness", "liveness"}
 )
 
@@ -76,9 +75,13 @@ type ResourceManifest struct {
 	TemplateVersion       string                                 `json:"template_version,omitempty"`
 	HostTools             []hostreqspec.Declaration              `json:"hostTools,omitempty"`
 	HostSafeguards        []hostreqspec.Declaration              `json:"hostSafeguards,omitempty"`
-	GPU                   *ResourceGPU                           `json:"gpu,omitempty"`
-	Deployment            ResourceDeployment                     `json:"deployment,omitempty"`
-	ManagedService        *ResourceManagedService                `json:"managed_service,omitempty"`
+	// Acceleration is the resource's single accelerator declaration: which
+	// backends it can run on, how strictly it needs one, and what it reserves.
+	// It is the only accelerator surface; nothing else in the manifest says
+	// anything about a device.
+	Acceleration   *AccelerationSpec       `json:"acceleration,omitempty"`
+	Deployment     ResourceDeployment      `json:"deployment,omitempty"`
+	ManagedService *ResourceManagedService `json:"managed_service,omitempty"`
 	// ProviderPolicy declares verified reuse policy for non-service resources
 	// such as host tools. It has no lifecycle authority and is intentionally
 	// separate from managed_service.provider_policy.
@@ -101,25 +104,17 @@ type ResourceManifest struct {
 // ResourceRequirements is the authored resource footprint consumed by
 // deployability resolution. It intentionally contains no readiness verdict.
 type ResourceRequirements struct {
-	Class            string                  `json:"class"`
-	Weight           float64                 `json:"weight"`
-	RAMMB            float64                 `json:"ram_mb,omitempty"`
-	DiskMB           float64                 `json:"disk_mb,omitempty"`
-	CPUCores         float64                 `json:"cpu_cores,omitempty"`
-	GPU              *ResourceGPURequirement `json:"gpu,omitempty"`
-	Network          string                  `json:"network,omitempty"`
-	StorageMBPerUser float64                 `json:"storage_mb_per_user,omitempty"`
-	StartupTimeMS    float64                 `json:"startup_time_ms,omitempty"`
-	Bucket           string                  `json:"bucket,omitempty"`
-	Source           string                  `json:"source"`
-	Confidence       string                  `json:"confidence"`
-}
-
-// ResourceGPURequirement declares a GPU requirement for deployability. An
-// empty object means any GPU is required; MinCUDACompute narrows it to a
-// minimum NVIDIA CUDA compute capability.
-type ResourceGPURequirement struct {
-	MinCUDACompute string `json:"min_cuda_compute,omitempty"`
+	Class            string  `json:"class"`
+	Weight           float64 `json:"weight"`
+	RAMMB            float64 `json:"ram_mb,omitempty"`
+	DiskMB           float64 `json:"disk_mb,omitempty"`
+	CPUCores         float64 `json:"cpu_cores,omitempty"`
+	Network          string  `json:"network,omitempty"`
+	StorageMBPerUser float64 `json:"storage_mb_per_user,omitempty"`
+	StartupTimeMS    float64 `json:"startup_time_ms,omitempty"`
+	Bucket           string  `json:"bucket,omitempty"`
+	Source           string  `json:"source"`
+	Confidence       string  `json:"confidence"`
 }
 
 // ResourceDeployment is the resource-owned, target-specific delivery claim.
@@ -159,12 +154,6 @@ type ResourceCompanion struct {
 	// Port is the host port the companion owns (informational; surfaced in the
 	// process record so operators can see what binds it).
 	Port int `json:"port,omitempty"`
-}
-
-type ResourceGPU struct {
-	Probe          string            `json:"probe"`
-	ComposeOverlay string            `json:"compose_overlay,omitempty"`
-	EnvOverrides   map[string]string `json:"env_overrides,omitempty"`
 }
 
 // ResourceStorage is the lifecycle-facing projection of the shared storage
@@ -253,11 +242,16 @@ type ResourceHealthCheck struct {
 	Type    string   `json:"type"`
 	Target  string   `json:"target,omitempty"`
 	Command []string `json:"command,omitempty"`
-	// Kind declares the check's semantics: "readiness" means the check must
-	// fail until the resource can actually serve its primary capability
-	// (including model/data load), "liveness" means process-alive only.
-	// Manifest-level health checks are treated as readiness probes by the
-	// control plane; declare "liveness" only for supplementary checks.
+	// Kind declares the check's semantics, and the control plane executes both.
+	//
+	// "readiness" must fail until the resource can actually serve its primary
+	// capability, including model and data load. A failing readiness check
+	// means the resource is not serving: healthy and serving are both false.
+	//
+	// "liveness" asks whether a serving resource is meeting its contract — the
+	// canonical case is "is this resource on the accelerator backend it
+	// declared". A failing liveness check leaves serving true and makes healthy
+	// false, which is the mode_drift status. Absent means readiness.
 	Kind            string `json:"kind,omitempty"`
 	ExpectedStatus  []int  `json:"expected_status,omitempty"`
 	IntervalSeconds int    `json:"interval_seconds,omitempty"`
@@ -422,7 +416,7 @@ func Validate(manifest ResourceManifest) error {
 	if err := hostreqspec.ValidateDeclarations(hostreqspec.KindSafeguard, manifest.HostSafeguards); err != nil {
 		return err
 	}
-	if err := validateGPU(manifest.GPU); err != nil {
+	if err := validateAcceleration(manifest); err != nil {
 		return err
 	}
 	if err := validateRuntimeMemoryLimit(manifest.Runtime.MemoryLimit); err != nil {
@@ -951,21 +945,12 @@ func validatePlatforms(platforms ResourcePlatforms) error {
 	return nil
 }
 
-func validateGPU(gpu *ResourceGPU) error {
-	if gpu == nil {
+// validateAcceleration validates a resource's accelerator declaration.
+func validateAcceleration(manifest ResourceManifest) error {
+	if manifest.Acceleration == nil {
 		return nil
 	}
-	probe := strings.TrimSpace(gpu.Probe)
-	if probe == "" {
-		return fmt.Errorf("gpu.probe is required when gpu block is present")
-	}
-	if !slices.Contains(AllowedGPUProbes, probe) {
-		return fmt.Errorf("gpu.probe %q is invalid (allowed: %v)", probe, AllowedGPUProbes)
-	}
-	if strings.TrimSpace(gpu.ComposeOverlay) == "" && len(gpu.EnvOverrides) == 0 {
-		return fmt.Errorf("gpu block must set compose_overlay or env_overrides")
-	}
-	return nil
+	return manifest.Acceleration.Validate()
 }
 
 var (

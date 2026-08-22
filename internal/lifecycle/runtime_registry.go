@@ -634,7 +634,9 @@ func (r *Runner) lookupRegistryRuntime(ctx context.Context, item scenario.Scenar
 	if err != nil {
 		return registryRuntimeView{}, fmt.Errorf("resolve host session: %w", err)
 	}
-	snapshot := network.CaptureTCPListenerSnapshot()
+	// Only Known/Listening is read below, so skip attribution and the
+	// subprocess it costs.
+	snapshot := network.CaptureTCPListenerPorts()
 	reconciled := scenarioruntime.ReconcileRuntime(scenarioruntime.ReconcileInput{
 		Now:           time.Now().UTC(),
 		CurrentBootID: host.BootID,

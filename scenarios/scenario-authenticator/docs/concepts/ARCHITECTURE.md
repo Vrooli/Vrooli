@@ -180,7 +180,7 @@ packages/proto/schemas/scenario-authenticator/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/scenario-authenticator/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/scenario-authenticator/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/scenario-authenticator/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/scenario-authenticator/v1/...   (ui)
        └──▶ packages/proto/gen/python/scenario_authenticator/v1/...    (future tools)
 ```
 

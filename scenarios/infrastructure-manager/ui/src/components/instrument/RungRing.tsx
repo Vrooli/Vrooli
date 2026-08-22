@@ -22,6 +22,7 @@ const SEGMENT_STROKE: Record<SignalState, string> = {
   UNAUTHORED: "var(--signal-blind)",
   BLIND: "var(--signal-blind)",
   SOURCE_DOWN: "var(--color-border)",
+  HOST_NOT_SAMPLED: "var(--signal-blind-edge)",
 };
 
 /** States whose segments participate in the power-on lamp test. */

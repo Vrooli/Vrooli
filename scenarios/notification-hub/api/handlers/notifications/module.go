@@ -8,14 +8,15 @@ import (
 	"net/http"
 	"time"
 
+	"notification-hub/internal/hub"
+	identity "notification-hub/internal/identity"
+	"notification-hub/internal/module"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications/notifications_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/shared"
-	"notification-hub/internal/hub"
-	identity "notification-hub/internal/identity"
-	"notification-hub/internal/module"
 )
 
 type handler struct {

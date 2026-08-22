@@ -21,15 +21,29 @@ type Provenance struct {
 }
 
 type Snapshot struct {
-	OS                      string                  `json:"os"`
-	Arch                    string                  `json:"arch"`
-	CPU                     CPU                     `json:"cpu"`
-	Load                    Load                    `json:"load,omitempty"`
-	Memory                  Memory                  `json:"memory"`
-	Swap                    Swap                    `json:"swap"`
-	GPUs                    []GPU                   `json:"gpus"`
-	Devices                 []Device                `json:"devices,omitempty"`
-	NvidiaDeviceNodes       []string                `json:"nvidia_device_nodes,omitempty"`
+	OS                string   `json:"os"`
+	Arch              string   `json:"arch"`
+	CPU               CPU      `json:"cpu"`
+	Load              Load     `json:"load,omitempty"`
+	Memory            Memory   `json:"memory"`
+	Swap              Swap     `json:"swap"`
+	GPUs              []GPU    `json:"gpus"`
+	Devices           []Device `json:"devices,omitempty"`
+	NvidiaDeviceNodes []string `json:"nvidia_device_nodes,omitempty"`
+	// ROCmDeviceNodes are the AMD kernel compute interfaces present on the
+	// host. Empty on a host with AMD graphics but no loaded compute driver,
+	// which is a real and reportable state.
+	ROCmDeviceNodes []string `json:"rocm_device_nodes,omitempty"`
+	// OpenableDeviceNodes are the accelerator device nodes the invoking user
+	// can actually open. Presence is not access: a node the user cannot open
+	// exists, is a character device, and still cannot serve compute, which is
+	// exactly the state where a resource falls back to the CPU while every
+	// presence check reports green.
+	OpenableDeviceNodes []string `json:"openable_device_nodes,omitempty"`
+	// VulkanICDs are the installable client driver manifests a Vulkan loader
+	// would read. Their presence is the loader's own evidence that some driver
+	// can serve Vulkan on this host.
+	VulkanICDs              []string                `json:"vulkan_icds,omitempty"`
 	GPUProcesses            []GPUProcess            `json:"gpu_processes,omitempty"`
 	RuntimeTools            map[string]Tool         `json:"runtime_tools,omitempty"`
 	DockerGPU               DockerGPU               `json:"docker_gpu"`

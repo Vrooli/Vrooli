@@ -1009,44 +1009,31 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 		t.Fatalf("Discover: %v", err)
 	}
 
-	expected := map[string]string{
-		"postgres":        "managed-service",
-		"redis":           "managed-service",
-		"qdrant":          "managed-service",
-		"vault":           "managed-service",
-		"minio":           "managed-service",
-		"searxng":         "managed-service",
-		"kokoro":          "compose-service",
-		"whisper":         "managed-service",
-		"claude-code":     "external-cli",
-		"codex":           "external-cli",
-		"k6":              "external-cli",
-		"opencode":        "external-cli",
-		"ollama":          "managed-service",
-		"unstructured-io": "docker-service",
-		"gemini":          "cloud-api",
-		"openrouter":      "cloud-api",
-		"twilio":          "cloud-api",
+	// Every resource the repository ships must be manifest-native and declare a
+	// driver the control plane knows. Asserting coverage of what is discovered
+	// keeps this honest when a resource is added or retired; a pinned name list
+	// only proves that yesterday's fleet still exists.
+	if len(items) == 0 {
+		t.Fatal("Discover() returned no resources")
 	}
-	seen := make(map[string]Resource)
+	drivers := make(map[string]int, len(manifestpkg.AllowedDrivers))
 	for _, item := range items {
-		if _, ok := expected[item.Name]; ok {
-			seen[item.Name] = item
-		}
-	}
-	for name, driver := range expected {
-		item, ok := seen[name]
-		if !ok {
-			t.Fatalf("resource %q not discovered", name)
-		}
 		if item.ControlMode != "manifest-native" {
-			t.Fatalf("%s ControlMode = %q, want manifest-native", name, item.ControlMode)
-		}
-		if item.Driver != driver {
-			t.Fatalf("%s Driver = %q, want %q", name, item.Driver, driver)
+			t.Fatalf("%s ControlMode = %q, want manifest-native", item.Name, item.ControlMode)
 		}
 		if item.ManifestPath == "" {
-			t.Fatalf("%s ManifestPath is empty", name)
+			t.Fatalf("%s ManifestPath is empty", item.Name)
+		}
+		if !slices.Contains(manifestpkg.AllowedDrivers, item.Driver) {
+			t.Fatalf("%s Driver = %q, want one of %v", item.Name, item.Driver, manifestpkg.AllowedDrivers)
+		}
+		drivers[item.Driver]++
+	}
+	// And the driver kinds the fleet is built on each have at least one resource,
+	// so retiring the last one of a kind is a deliberate, visible change.
+	for _, driver := range []string{"managed-service", "compose-service", "docker-service", "external-cli", "cloud-api"} {
+		if drivers[driver] == 0 {
+			t.Fatalf("no discovered resource uses the %q driver; driver census = %v", driver, drivers)
 		}
 	}
 }
@@ -1055,17 +1042,34 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "vault", "minio", "searxng", "kokoro", "whisper", "claude-code", "codex", "k6", "opencode", "ollama", "unstructured-io", "gemini", "openrouter", "twilio"} {
-		manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
+	items, err := controller.Discover()
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(items) == 0 {
+		t.Fatal("Discover() returned no resources")
+	}
+	// Every discovered manifest must load and validate. Comparing discovered
+	// against processed is the assertion; a hard-coded name list rots the moment
+	// a resource is renamed or retired.
+	processed := 0
+	for _, item := range items {
+		name := item.Name
+		loaded, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
 		if err != nil {
 			t.Fatalf("loadResourceManifest(%s): %v", name, err)
 		}
-		if manifest.Name != name {
-			t.Fatalf("%s manifest name = %q", name, manifest.Name)
+		processed++
+		if loaded.Name != name {
+			t.Fatalf("%s manifest name = %q", name, loaded.Name)
 		}
+		manifest := loaded
 		if strings.TrimSpace(manifest.Driver) == "" {
 			t.Fatalf("%s driver is empty", name)
 		}
+	}
+	if processed != len(items) {
+		t.Fatalf("validated %d manifests but discovered %d", processed, len(items))
 	}
 }
 

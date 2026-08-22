@@ -2,10 +2,12 @@ package resources
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
@@ -24,6 +26,7 @@ func CheckFleetContract(root string) error {
 	if err != nil {
 		return fmt.Errorf("read resources: %w", err)
 	}
+	names := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -38,14 +41,22 @@ func CheckFleetContract(root string) error {
 		} else if statErr != nil {
 			return fmt.Errorf("inspect resource %s manifest: %w", name, statErr)
 		}
+		names = append(names, name)
+	}
+	// The shell policy runs across the whole fleet before any per-resource
+	// check so one run reports every violating file. Reporting only the first
+	// hides the rest behind it, which is how the second violation in this
+	// repository stayed invisible.
+	if err := checkResourceShellPolicy(resourceRoot, names); err != nil {
+		return err
+	}
+	for _, name := range names {
+		manifestPath := filepath.Join(resourceRoot, name, "resource.json")
 		manifest, err := manifestpkg.Load(manifestPath)
 		if err != nil {
 			return fmt.Errorf("load resource %s: %w", name, err)
 		}
 		if err := checkHealthKinds(name, manifest.HealthChecks); err != nil {
-			return err
-		}
-		if err := checkResourceShellPolicy(resourceRoot, name); err != nil {
 			return err
 		}
 		if err := checkManifestImage(manifestPath, manifest.Runtime.Image); err != nil {
@@ -57,14 +68,102 @@ func CheckFleetContract(root string) error {
 		if err := checkManagedArtifact(name, manifest); err != nil {
 			return err
 		}
+		if err := checkLegacyAcceleratorSurfaces(name, manifestPath); err != nil {
+			return err
+		}
 		if err := checkCapabilityContract(root, name); err != nil {
 			return err
 		}
+	}
+	if err := checkPlatformClaims(resourceRoot, names); err != nil {
+		return err
 	}
 	if err := checkResourceImages(resourceRoot); err != nil {
 		return err
 	}
 	return nil
+}
+
+// checkPlatformClaims holds every resource's platforms map against its declared
+// acquisition, in both directions: a resource may not claim a platform it has
+// no route to, and may not deny a platform it demonstrably serves.
+//
+// This is the rule that keeps the fix done. Postgres and Redis drifted into
+// claiming one thing in the manifest and another in the platform documentation
+// precisely because nothing compared a claim against its evidence. Like the
+// shell policy, it collects every violation so one run shows the whole picture.
+func checkPlatformClaims(resourceRoot string, names []string) error {
+	violations := make([]string, 0)
+	for _, name := range names {
+		manifest, err := manifestpkg.Load(filepath.Join(resourceRoot, name, "resource.json"))
+		if err != nil {
+			return fmt.Errorf("load resource %s: %w", name, err)
+		}
+		service := manifest.ManagedService
+		if service == nil || service.Acquisition == nil {
+			// Without a declared acquisition there is no evidence to compare a
+			// claim against; other checks own that case.
+			continue
+		}
+		for _, osName := range []string{"linux", "macos", "windows"} {
+			claim := strings.ToLower(strings.TrimSpace(platformClaim(manifest.Platforms, osName)))
+			if claim == "" {
+				continue
+			}
+			reachable := acquisitionReaches(service.Acquisition, osName)
+			switch {
+			case claim != "unsupported" && !reachable:
+				violations = append(violations, fmt.Sprintf(
+					"%s declares %s %q but no acquisition target serves that platform", name, osName, claim))
+			case claim == "unsupported" && reachable:
+				violations = append(violations, fmt.Sprintf(
+					"%s declares %s unsupported but an acquisition target serves that platform", name, osName))
+			}
+		}
+	}
+	if len(violations) == 0 {
+		return nil
+	}
+	sort.Strings(violations)
+	return fmt.Errorf("resource platform claims are unsupported by acquisition: %s", strings.Join(violations, "; "))
+}
+
+// acquisitionReaches reports whether the acquisition declares any usable target
+// for the operating system.
+//
+// This reads the declaration rather than resolving against this host's facts,
+// because the question is whether a route exists at all, not whether the
+// machine running the check happens to satisfy it. Reranker is the case that
+// makes the difference: its usable Linux target is gated on
+// gpu.cuda_compute >= 8.9, so a bare os/arch resolution finds only the
+// explicitly unsupported CPU fallback and would report a real route as missing.
+func acquisitionReaches(acquisition *binaryfetch.Acquisition, osName string) bool {
+	factsOS := osName
+	if factsOS == "macos" {
+		factsOS = "darwin"
+	}
+	for _, target := range acquisition.Targets {
+		if strings.TrimSpace(target.Unsupported) != "" {
+			continue
+		}
+		declared := strings.ToLower(strings.TrimSpace(target.When["os"]))
+		if declared == "" || declared == factsOS || declared == osName {
+			return true
+		}
+	}
+	return false
+}
+
+func platformClaim(platforms manifestpkg.ResourcePlatforms, osName string) string {
+	switch osName {
+	case "linux":
+		return platforms.Linux
+	case "macos":
+		return platforms.MacOS
+	case "windows":
+		return platforms.Windows
+	}
+	return ""
 }
 
 func checkHealthKinds(name string, checks []manifestpkg.ResourceHealthCheck) error {
@@ -142,10 +241,72 @@ func checkManagedArtifact(name string, manifest manifestpkg.ResourceManifest) er
 			}
 		}
 	}
-	if manifest.GPU != nil {
-		return fmt.Errorf("resource %s managed-service retains obsolete gpu block", name)
+	return nil
+}
+
+// legacyAcceleratorSurfaces are the three declarations the acceleration block
+// replaced, with where each one's value now lives.
+var legacyAcceleratorSurfaces = []struct {
+	description string
+	present     func(map[string]json.RawMessage) bool
+	moveTo      string
+}{
+	{
+		description: "gpu block",
+		present:     func(raw map[string]json.RawMessage) bool { return hasJSONValue(raw["gpu"]) },
+		moveTo:      "acceleration.<backend>",
+	},
+	{
+		description: "top-level capacity block",
+		present:     func(raw map[string]json.RawMessage) bool { return hasJSONValue(raw["capacity"]) },
+		moveTo:      "acceleration.claim",
+	},
+	{
+		description: "requirements.gpu block",
+		present: func(raw map[string]json.RawMessage) bool {
+			var requirements map[string]json.RawMessage
+			if json.Unmarshal(raw["requirements"], &requirements) != nil {
+				return false
+			}
+			return hasJSONValue(requirements["gpu"])
+		},
+		moveTo: "acceleration.cuda.min_compute",
+	},
+}
+
+// checkLegacyAcceleratorSurfaces rejects a manifest still carrying any of the
+// three surfaces the acceleration block replaced.
+//
+// It reads the manifest's raw JSON rather than the parsed struct, because the
+// parsed struct no longer has fields for them: a manifest that still declares
+// one would load cleanly and be silently ignored, which is worse than failing.
+//
+// The rejection used to fire only for `gpu` on a managed-service resource,
+// while internal/capacity used that same block as its only test for "this
+// resource uses the GPU". The two disagreed, so the resources that could not
+// declare it were invisible to reconciliation and the ones that could raised
+// findings forever. One declaration, one rejection, every driver.
+func checkLegacyAcceleratorSurfaces(name, manifestPath string) error {
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return fmt.Errorf("read resource %s manifest: %w", name, err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("parse resource %s manifest: %w", name, err)
+	}
+	for _, surface := range legacyAcceleratorSurfaces {
+		if surface.present(raw) {
+			return fmt.Errorf("resource %s declares the deprecated %s; move it to %s", name, surface.description, surface.moveTo)
+		}
 	}
 	return nil
+}
+
+// hasJSONValue reports whether a raw JSON field is present and not null.
+func hasJSONValue(raw json.RawMessage) bool {
+	trimmed := strings.TrimSpace(string(raw))
+	return trimmed != "" && trimmed != "null"
 }
 
 func checkManifestCommands(name string, command []string, platformCommands map[string][]string) error {
@@ -169,26 +330,41 @@ func checkManifestCommands(name string, command []string, platformCommands map[s
 	return nil
 }
 
-func checkResourceShellPolicy(resourceRoot, name string) error {
-	base := filepath.Join(resourceRoot, name)
-	return filepath.WalkDir(base, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() {
+// checkResourceShellPolicy reports every forbidden shell file across the named
+// resources. It collects rather than short-circuits: a resource fleet that is
+// meant to run on hosts without bash needs the full list in one run, not the
+// alphabetically first offender.
+func checkResourceShellPolicy(resourceRoot string, names []string) error {
+	violations := make([]string, 0)
+	for _, name := range names {
+		base := filepath.Join(resourceRoot, name)
+		walkErr := filepath.WalkDir(base, func(path string, entry os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				return nil
+			}
+			extension := strings.ToLower(filepath.Ext(path))
+			if extension != ".sh" && extension != ".bash" {
+				return nil
+			}
+			rel, relErr := filepath.Rel(filepath.Dir(resourceRoot), path)
+			if relErr != nil {
+				return relErr
+			}
+			violations = append(violations, filepath.ToSlash(rel))
 			return nil
+		})
+		if walkErr != nil {
+			return fmt.Errorf("scan resource %s for shell files: %w", name, walkErr)
 		}
-		extension := strings.ToLower(filepath.Ext(path))
-		if extension != ".sh" && extension != ".bash" {
-			return nil
-		}
-		rel, err := filepath.Rel(filepath.Dir(resourceRoot), path)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
-		return fmt.Errorf("resource shell file is forbidden: %s", rel)
-	})
+	}
+	if len(violations) == 0 {
+		return nil
+	}
+	sort.Strings(violations)
+	return fmt.Errorf("resource shell files are forbidden: %s", strings.Join(violations, ", "))
 }
 
 func checkManifestImage(path, image string) error {

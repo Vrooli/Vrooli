@@ -107,7 +107,7 @@ packages/proto/schemas/scenario-completeness-scoring/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/scenario-completeness-scoring/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/scenario-completeness-scoring/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/scenario-completeness-scoring/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/scenario-completeness-scoring/v1/...   (ui)
        └──▶ packages/proto/gen/python/scenario_completeness_scoring/v1/...    (future tools)
 ```
 

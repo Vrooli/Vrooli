@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -108,8 +110,19 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 	if err != nil {
 		return status, err
 	}
-	artifact, err := managedServiceArtifactForLaunch(ctx, manifest)
+	artifact, err := managedServiceArtifactForLaunch(ctx, manifest, artifactPath)
 	if err != nil {
+		var drift *FactDriftError
+		if errors.As(err, &drift) {
+			// The bytes are intact and the host moved. Saying "unavailable"
+			// here is what left reranker with no cure: it named neither the
+			// cause nor the command that fixes it.
+			status.Installed = true
+			status.StatusCode = StatusCodeNeedsReacquire
+			status.Message = "host facts changed since install; re-acquire with `" + drift.Remediation() + "`"
+			status.ProbeError = drift.Error()
+			return status, nil
+		}
 		status.StatusCode = StatusCodeUnavailable
 		status.Message = "verified managed-service artifact is unavailable for this host"
 		status.ProbeError = err.Error()
@@ -157,15 +170,11 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 		status.ProbeError = err.Error()
 		return status, nil
 	}
-	healthy = health.Healthy
-	status.Healthy = &healthy
-	if healthy {
-		status.Health = "healthy"
-		status.Message = "healthy"
-	} else {
-		status.Health = "unhealthy"
-		status.Message = health.Message
-		if status.Message == "" {
+	status = applyHealthToStatus(status, health)
+	if status.Message == "" {
+		if health.Healthy {
+			status.Message = "healthy"
+		} else {
 			status.Message = "unhealthy"
 		}
 	}
@@ -290,6 +299,9 @@ func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Con
 	// before its secure bootstrapper can initialize it.
 	switch action {
 	case "start":
+		if err := gateAcceleratorReadiness(ctx, manifest, os.Stderr); err != nil {
+			return err
+		}
 		if err := d.startPrivate(ctx, controller, manifest, supervisor); err != nil {
 			return err
 		}
@@ -426,8 +438,11 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := verifyManagedServiceRunning(supervisor); err != nil {
 			return err
 		}
-		return nil
+		return verifyStartedPlacement(ctx, controller, manifest, os.Stderr)
 	case "restart":
+		if err := gateAcceleratorReadiness(ctx, manifest, os.Stderr); err != nil {
+			return err
+		}
 		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
 		err := stopManagedService(stopCtx, manifest, supervisor)
@@ -448,7 +463,7 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := verifyManagedServiceRunning(supervisor); err != nil {
 			return err
 		}
-		return nil
+		return verifyStartedPlacement(ctx, controller, manifest, os.Stderr)
 	case "stop", "uninstall":
 		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
@@ -506,7 +521,7 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 	if err := d.verifyArtifactAt(ctx, manifest, path); err != nil {
 		return err
 	}
-	artifact, err := managedServiceArtifactForLaunch(ctx, manifest)
+	artifact, err := managedServiceArtifactForLaunch(ctx, manifest, path)
 	if err != nil {
 		return err
 	}
@@ -562,7 +577,7 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 		cleanupCredentials()
 		return err
 	}
-	arguments := renderManagedServiceValues(manifest.ManagedService.Arguments, env)
+	arguments := renderManagedServiceValues(manifest.ManagedService.ArgumentsFor(runtime.GOOS, runtime.GOARCH), env)
 	_, err = supervisor.Start(path, artifact, arguments, env, filepath.Dir(path), manifest.ManagedService.ProcessLimits)
 	if err != nil {
 		cleanupCredentials()
@@ -715,7 +730,7 @@ func validManagedServiceEnvironmentKey(key string) bool {
 }
 
 func (d managedServiceDriver) verifyArtifactAt(ctx context.Context, manifest ResourceManifest, path string) error {
-	artifact, err := managedServiceArtifactForLaunch(ctx, manifest)
+	artifact, err := managedServiceArtifactForLaunch(ctx, manifest, path)
 	if err != nil {
 		return err
 	}
@@ -920,7 +935,7 @@ func runManagedServiceBootstrap(ctx context.Context, manifest ResourceManifest, 
 	if manifest.ManagedService == nil || manifest.ManagedService.Bootstrap == nil {
 		return nil
 	}
-	artifact, err := managedServiceArtifactForLaunch(ctx, manifest)
+	artifact, err := managedServiceArtifactForLaunch(ctx, manifest, artifactPath)
 	if err != nil {
 		return err
 	}
@@ -928,6 +943,10 @@ func runManagedServiceBootstrap(ctx context.Context, manifest ResourceManifest, 
 	if err := bootstrap.Validate(); err != nil {
 		return err
 	}
+	// The staged tree differs per target, so the bootstrap tool and its
+	// arguments are resolved from the manifest rather than branched on here.
+	resolved := bootstrap.ForPlatform(runtime.GOOS, runtime.GOARCH)
+	bootstrap = &resolved
 	values := managedServiceEnvValues(env)
 	dataRoot := strings.TrimSpace(values["RESOURCE_DATA_DIR"])
 	configRoot := strings.TrimSpace(values["RESOURCE_CONFIG_DIR"])

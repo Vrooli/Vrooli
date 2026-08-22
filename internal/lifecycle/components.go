@@ -15,17 +15,33 @@ import (
 // setup derivation, and later Tier 2 projection. Command slices are argv
 // templates; the registry never invokes them by itself.
 type BuilderSpec struct {
-	Kind                     string
-	Inputs                   []string
-	DigestKeys               []string
-	DefaultOutput            string
-	Environment              map[string]string
-	Install                  []string
-	Build                    []string
+	Kind          string
+	Inputs        []string
+	DigestKeys    []string
+	DefaultOutput string
+	Environment   map[string]string
+	Install       []string
+	Build         []string
+	// ProfileBuild is the perf-build channel argv, selected when
+	// VROOLI_BUILD_MODE=profile. Empty means the builder has no separate
+	// channel and Build is used for every mode. Keeping the channel as its
+	// own argv is what lets the selection stay a Go decision instead of a
+	// shell conditional inside a package script — see BuildArgv.
+	ProfileBuild             []string
 	FollowsWorkspaceFileDeps bool
 	Reserved                 bool
 	freshness                func(string, string, scenario.Component, hostProbeDeps) ([]artifactFreshness, error)
 }
+
+// BuildModeEnvVar names the perf-build channel selector. performance-health's
+// capture path sets it on `vrooli scenario restart` so a profile bundle is
+// produced through the standard lifecycle.
+const BuildModeEnvVar = "VROOLI_BUILD_MODE"
+
+// buildModeProfile is the only recognised non-default channel. An unrecognised
+// value falls back to the default build rather than selecting a package script
+// that is not guaranteed to exist.
+const buildModeProfile = "profile"
 
 const goModuleDefaultOutput = "{dir}/{scenario}-api{{ext}}"
 
@@ -43,19 +59,21 @@ var builderRegistry = map[string]BuilderSpec{
 	"pnpm_vite": {
 		Kind:                     "pnpm_vite",
 		Inputs:                   []string{"{src}/**", "package.json", "vite.config.*", "tsconfig.json", "index.html"},
-		DigestKeys:               []string{"NODE_ENV", "node_major", "pnpm_version"},
+		DigestKeys:               []string{"NODE_ENV", "node_major", "pnpm_version", "build_mode"},
 		DefaultOutput:            "{dir}/dist/index.html",
 		Install:                  []string{"pnpm", "install", "--ignore-workspace"},
 		Build:                    []string{"pnpm", "run", "build"},
+		ProfileBuild:             []string{"pnpm", "run", "build:profile"},
 		FollowsWorkspaceFileDeps: true,
 		freshness:                pnpmViteComponentFreshness,
 	},
 	"node_bundle": {
 		Kind:                     "node_bundle",
 		Inputs:                   []string{"{src}/**", "package.json", "tsconfig.json"},
-		DigestKeys:               []string{"NODE_ENV", "node_major", "pnpm_version"},
+		DigestKeys:               []string{"NODE_ENV", "node_major", "pnpm_version", "build_mode"},
 		Install:                  []string{"pnpm", "install", "--ignore-workspace"},
 		Build:                    []string{"pnpm", "run", "build"},
+		ProfileBuild:             []string{"pnpm", "run", "build:profile"},
 		FollowsWorkspaceFileDeps: true,
 		freshness:                pnpmViteComponentFreshness,
 	},
@@ -76,6 +94,46 @@ func goModuleBuildArgv() []string {
 	return []string{"go", "build", "-o", "{output}", "{entry}"}
 }
 
+// NormalizeBuildMode folds a raw VROOLI_BUILD_MODE value to the recognised
+// channel name, or "" for the default channel. Unrecognised values normalize to
+// "" rather than erroring: the variable is operator-set, and a typo should
+// produce the ordinary build, never a lookup for a package script that no
+// scenario is required to declare.
+func NormalizeBuildMode(raw string) string {
+	if strings.EqualFold(strings.TrimSpace(raw), buildModeProfile) {
+		return buildModeProfile
+	}
+	return ""
+}
+
+// BuildArgv returns the build argv for the requested channel. The selection is
+// a Go decision on a declared argv, never a shell conditional inside the
+// package script — that is what keeps the perf-build channel reachable on
+// Windows, where package scripts run through cmd.exe.
+//
+// A builder with no ProfileBuild, or a mode with no matching channel, falls
+// back to Build.
+func (s BuilderSpec) BuildArgv(mode string) []string {
+	if NormalizeBuildMode(mode) == buildModeProfile && len(s.ProfileBuild) > 0 {
+		return append([]string(nil), s.ProfileBuild...)
+	}
+	return append([]string(nil), s.Build...)
+}
+
+// BuildModeForEnv resolves the requested build channel. A lifecycle override
+// wins over the process environment so a caller can pin the channel explicitly;
+// otherwise the value inherited from the operator's shell (or from
+// performance-health's `vrooli scenario restart`) applies.
+func BuildModeForEnv(env map[string]string, getenv func(string) string) string {
+	if raw, ok := env[BuildModeEnvVar]; ok {
+		return NormalizeBuildMode(raw)
+	}
+	if getenv == nil {
+		return ""
+	}
+	return NormalizeBuildMode(getenv(BuildModeEnvVar))
+}
+
 // BuilderRegistry returns a defensive copy so callers cannot mutate the
 // process-wide contract.
 func BuilderRegistry() map[string]BuilderSpec {
@@ -85,6 +143,7 @@ func BuilderRegistry() map[string]BuilderSpec {
 		spec.DigestKeys = append([]string(nil), spec.DigestKeys...)
 		spec.Install = append([]string(nil), spec.Install...)
 		spec.Build = append([]string(nil), spec.Build...)
+		spec.ProfileBuild = append([]string(nil), spec.ProfileBuild...)
 		spec.Environment = cloneStringMap(spec.Environment)
 		out[key] = spec
 	}

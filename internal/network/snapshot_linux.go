@@ -28,7 +28,7 @@ var (
 // claims on known-absent listeners. The only tolerated gap is a missing
 // /proc/net/tcp6 (ENOENT — IPv6 disabled), because then no IPv6 listener can
 // exist for the snapshot to miss.
-func captureTCPListenerSnapshot() TCPListenerSnapshot {
+func captureTCPListenerSnapshot(opts CaptureOptions) TCPListenerSnapshot {
 	ports := make(map[int][]SnapshotListener)
 	dataV4, err := os.ReadFile(procNetTCPv4Path)
 	if err != nil {
@@ -54,7 +54,7 @@ func captureTCPListenerSnapshot() TCPListenerSnapshot {
 		}
 	}
 	tool := "procfs"
-	if enrichListenerPIDsWithSS(ports) {
+	if opts.AttributeProcesses && enrichListenerPIDsWithSS(ports) {
 		tool = "procfs+ss"
 	}
 	return TCPListenerSnapshot{Known: true, Tool: tool, Ports: ports}

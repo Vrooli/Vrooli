@@ -242,6 +242,9 @@ func formatCell(cell *ladderv1.LadderCell) string {
 		age = fmt.Sprintf("%dd", cell.GetGapOpenDays())
 	}
 	detail := cell.GetReason()
+	if cell.GetReasonCode() != "" {
+		detail = cell.GetReasonCode() + ": " + detail
+	}
 	if !cell.GetGraded() && cell.GetUngradedReason() != "" {
 		detail = cell.GetUngradedReason()
 	}

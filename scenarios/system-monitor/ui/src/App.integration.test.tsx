@@ -76,7 +76,6 @@ const detailedMetrics = {
     usage: 44,
     diskUsage: { used: BigInt(7), total: BigInt(10), percent: 70 },
     swapUsage: { used: BigInt(1), total: BigInt(4), percent: 25 },
-    growthPatterns: [{ process: 'api', growthMbPerHour: 2, riskLevel: 'low' }],
     topProcesses: [{ name: 'api', pid: 10, cpuPercent: 3, memoryMb: 40 }],
   },
   networkDetails: {

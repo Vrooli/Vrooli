@@ -2,6 +2,8 @@ package lifecycle
 
 import (
 	"crypto/sha256"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -11,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"github.com/vrooli/vrooli/internal/packagegov"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -273,7 +277,7 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 				Reason:      "declares no build outputs",
 			}
 		}
-		fresh, err := sharedPackageOutputsFresh(dependency.Root, command.Outputs)
+		fresh, err := sharedPackageOutputsFresh(options.Home, dependency.Root, command.Name, command.Outputs)
 		if err != nil {
 			return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: commandText, Reason: "could not inspect declared outputs", Err: err}
 		}
@@ -299,6 +303,14 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 		if len(files) == 0 {
 			return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: commandText, Reason: "completed without producing a declared output"}
 		}
+		// Record the sources behind these outputs so an unchanged package is
+		// not regenerated on the next start. Failing to record is not fatal —
+		// the cost is only regenerating again — but it must never be silent,
+		// because a stamp that is never written looks exactly like a cache
+		// that never helps.
+		if err := recordSharedPackageStamp(options.Home, dependency, command); err != nil {
+			_, _ = fmt.Fprintf(logWriter, "shared package %s: could not record %s freshness stamp: %v\n", dependency.Name, command.Name, err)
+		}
 	}
 	return nil
 }
@@ -323,26 +335,82 @@ func firstProvisioningCommand(dependency sharedPackageDependency) string {
 	return strings.Join(commands[0].Run, " ")
 }
 
-func sharedPackageOutputsFresh(root string, patterns []string) (bool, error) {
+// sharedPackageOutputsFresh reports whether a package's declared outputs
+// already reflect its current sources, so the generating command can be
+// skipped.
+//
+// Freshness is decided by hashing sources, not by comparing mtimes. A
+// generator's publish step is typically content-addressed — it does not
+// rewrite a file whose bytes are unchanged — so an output's mtime can stay
+// frozen for weeks while the package is regenerated on every start. An mtime
+// comparison then reports "stale" forever, and does so most stubbornly for
+// the packages whose publish works best. Hashing also survives a fresh clone,
+// where checkout order rather than authorship decides mtimes, and filesystems
+// whose mtime granularity is coarser than a build.
+//
+// Scope: the digest covers files inside the package root only. A generator
+// whose toolchain is pinned outside the package (a globally installed plugin
+// binary, say) is not covered; upgrading such a tool needs an explicit
+// regeneration. Output integrity is likewise out of scope — that is what a
+// generator's own verify command and its lock manifests are for.
+func sharedPackageOutputsFresh(home, root, commandName string, patterns []string) (bool, error) {
 	outputs, err := declaredOutputFiles(root, patterns)
 	if err != nil {
 		return false, err
 	}
+	// No outputs on disk means nothing has been generated yet, whatever a
+	// stamp claims.
 	if len(outputs) == 0 {
 		return false, nil
 	}
-	var newestSource, oldestOutput int64
-	for _, output := range outputs {
-		info, err := os.Stat(output)
-		if err != nil {
-			return false, err
-		}
-		mtime := info.ModTime().UnixNano()
-		if oldestOutput == 0 || mtime < oldestOutput {
-			oldestOutput = mtime
-		}
+	stampPath, err := sharedPackageStampPath(home, root, commandName)
+	if err != nil {
+		return false, err
 	}
-	if err := filepath.WalkDir(root, func(filePath string, entry fs.DirEntry, err error) error {
+	// Without a runtime home there is nowhere to record what produced the
+	// outputs, so the only safe answer is to regenerate.
+	if stampPath == "" {
+		return false, nil
+	}
+	stamp, found, err := readSharedPackageStamp(stampPath)
+	if err != nil || !found {
+		return false, err
+	}
+	if stamp.Version != sharedPackageStampVersion {
+		return false, nil
+	}
+	if sharedPackageOutputsListDigest(root, outputs) != stamp.OutputsDigest {
+		return false, nil
+	}
+	digest, err := sharedPackageSourceDigest(root, patterns)
+	if err != nil {
+		return false, err
+	}
+	return digest == stamp.SourceDigest, nil
+}
+
+// sharedPackageOutputsListDigest hashes the sorted relative paths of the
+// declared outputs. declaredOutputFiles already returns them sorted, so this
+// is stable, and it reads no file contents.
+func sharedPackageOutputsListDigest(root string, outputs []string) string {
+	hash := sha256.New()
+	for _, filePath := range outputs {
+		rel, err := filepath.Rel(root, filePath)
+		if err != nil {
+			rel = filePath
+		}
+		_, _ = fmt.Fprintf(hash, "%s\n", filepath.ToSlash(rel))
+	}
+	return fmt.Sprintf("sha256:%x", hash.Sum(nil))
+}
+
+// sharedPackageSourceDigest hashes every regular file under root that is not a
+// declared output. Path and content both feed the hash so a rename is a
+// change, and WalkDir's lexical order makes the result stable across runs and
+// machines.
+func sharedPackageSourceDigest(root string, outputPatterns []string) (string, error) {
+	hash := sha256.New()
+	err := filepath.WalkDir(root, func(filePath string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -352,21 +420,131 @@ func sharedPackageOutputsFresh(root string, patterns []string) (bool, error) {
 			}
 			return nil
 		}
-		if !entry.Type().IsRegular() || sharedPackageOutputMatch(root, filePath, patterns) {
+		if !entry.Type().IsRegular() || sharedPackageOutputMatch(root, filePath, outputPatterns) {
 			return nil
 		}
-		info, err := entry.Info()
+		rel, err := filepath.Rel(root, filePath)
 		if err != nil {
 			return err
 		}
-		if mtime := info.ModTime().UnixNano(); mtime > newestSource {
-			newestSource = mtime
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return err
 		}
+		_, _ = fmt.Fprintf(hash, "%s\x00%d\x00", filepath.ToSlash(rel), len(data))
+		_, _ = hash.Write(data)
 		return nil
-	}); err != nil {
-		return false, err
+	})
+	if err != nil {
+		return "", err
 	}
-	return oldestOutput >= newestSource, nil
+	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
+}
+
+// sharedPackageStampVersion invalidates every recorded stamp when the meaning
+// of the digest changes. Bump it alongside any change to what is hashed.
+const sharedPackageStampVersion = 2
+
+// sharedPackageStamp records which sources produced a package's outputs.
+type sharedPackageStamp struct {
+	Version int    `json:"version"`
+	Package string `json:"package"`
+	Command string `json:"command"`
+	// SourceDigest identifies the inputs that produced the outputs.
+	SourceDigest string `json:"source_digest"`
+	// OutputsDigest identifies the *set* of files produced — paths only, not
+	// content. Generators publish by mirroring a staging tree, which deletes
+	// target files the staging tree lacks, so a partial or interrupted publish
+	// can silently drop outputs. Without this, unchanged sources would report
+	// fresh forever and the gap would never heal. Hashing paths rather than
+	// bytes keeps the check cheap on a large generated tree.
+	OutputsDigest string `json:"outputs_digest"`
+	RecordedAt    string `json:"recorded_at"`
+}
+
+// sharedPackageStampPath locates the stamp for one package command. The file
+// name is a digest rather than the package name because package names carry
+// characters ("@", "/") that are not portable in a path. Returns "" when no
+// runtime home is available.
+func sharedPackageStampPath(home, root, commandName string) (string, error) {
+	if strings.TrimSpace(home) == "" {
+		return "", nil
+	}
+	// home is the user's home directory; the runtime home lives beneath it and
+	// its layout is owned by the repo contract, not by this file.
+	cacheDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyCache)
+	if err != nil {
+		return "", err
+	}
+	canonical, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	key := sha256.Sum256([]byte(filepath.ToSlash(canonical) + "\x00" + commandName))
+	return filepath.Join(cacheDir, "shared-packages", fmt.Sprintf("%x.json", key[:16])), nil
+}
+
+// readSharedPackageStamp reads a stamp. A missing or unreadable stamp is not
+// an error: it simply means the package must be regenerated.
+func readSharedPackageStamp(stampPath string) (sharedPackageStamp, bool, error) {
+	data, err := os.ReadFile(stampPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return sharedPackageStamp{}, false, nil
+	}
+	if err != nil {
+		return sharedPackageStamp{}, false, err
+	}
+	var stamp sharedPackageStamp
+	if err := json.Unmarshal(data, &stamp); err != nil {
+		// A corrupt stamp must never be load-bearing; regenerate instead.
+		return sharedPackageStamp{}, false, nil
+	}
+	return stamp, true, nil
+}
+
+// recordSharedPackageStamp captures the current source digest for a command
+// that has just produced its declared outputs.
+func recordSharedPackageStamp(home string, dependency sharedPackageDependency, command packagegov.CommandSpec) error {
+	stampPath, err := sharedPackageStampPath(home, dependency.Root, command.Name)
+	if err != nil {
+		return err
+	}
+	if stampPath == "" {
+		return fmt.Errorf("no runtime home is configured, so freshness cannot be cached")
+	}
+	digest, err := sharedPackageSourceDigest(dependency.Root, command.Outputs)
+	if err != nil {
+		return fmt.Errorf("hash sources: %w", err)
+	}
+	outputs, err := declaredOutputFiles(dependency.Root, command.Outputs)
+	if err != nil {
+		return fmt.Errorf("list outputs: %w", err)
+	}
+	return writeSharedPackageStamp(stampPath, dependency.Name, command.Name, digest, sharedPackageOutputsListDigest(dependency.Root, outputs))
+}
+
+// writeSharedPackageStamp records the sources that produced the current
+// outputs. It is written only after a command succeeds and its outputs are
+// confirmed present.
+func writeSharedPackageStamp(stampPath, packageName, commandName, digest, outputsDigest string) error {
+	if stampPath == "" {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(stampPath), 0o755); err != nil {
+		return err
+	}
+	data, err := json.Marshal(sharedPackageStamp{
+		Version:       sharedPackageStampVersion,
+		Package:       packageName,
+		Command:       commandName,
+		SourceDigest:  digest,
+		OutputsDigest: outputsDigest,
+		RecordedAt:    time.Now().UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(stampPath, data, 0o644)
 }
 
 func declaredOutputFiles(root string, patterns []string) ([]string, error) {

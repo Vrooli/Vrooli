@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -39,6 +40,20 @@ func NewRedisStore(ctx context.Context) (*RedisStore, error) {
 
 // Close releases the underlying connection pool.
 func (r *RedisStore) Close() error { return r.client.Close() }
+
+// RedisConfigured reports whether the lifecycle injected Redis connection
+// details. It is the selection input for hot state, and it deliberately does
+// not probe the server: "configured but unreachable" must stay a boot-fatal
+// error rather than a quiet fallback to a store that shares nothing across
+// replicas.
+func RedisConfigured() bool {
+	for _, name := range []string{"REDIS_URL", "REDIS_HOST"} {
+		if strings.TrimSpace(os.Getenv(name)) != "" {
+			return true
+		}
+	}
+	return false
+}
 
 func optionsFromEnv() (*redis.Options, error) {
 	if url := os.Getenv("REDIS_URL"); url != "" {

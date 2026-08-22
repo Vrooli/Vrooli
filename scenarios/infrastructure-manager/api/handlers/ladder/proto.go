@@ -77,6 +77,7 @@ func protoCell(cell internalladder.Cell) *ladderv1.LadderCell {
 		StatusSource:      cell.StatusSource,
 		Observation:       protoObservation(cell.Observation),
 		Reason:            cell.Reason,
+		ReasonCode:        cell.ReasonCode,
 		Mechanism:         cell.Mechanism,
 		Remediation:       cell.Remediation,
 		BlockedBy:         protoRung(cell.BlockedBy),

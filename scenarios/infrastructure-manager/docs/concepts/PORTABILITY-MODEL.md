@@ -138,13 +138,13 @@ Recorded as data. The distance between this model and the code is the point of m
 
 | Model element | State | Evidence |
 |---|---|---|
-| Capability vocabulary as single source | **Not held.** The vocabulary carries 41 names; `safeguard.schema.json` and `tool.schema.json` each carry a hand-maintained 27-name enum. They have already drifted, and nothing validates that they agree. | Three files, no drift gate |
-| `control` role | **Not implemented.** `capability_role` accepts only `primary` and `peer`; both mean "provider". There is no way to declare an independently required control. | `.vrooli/schemas/safeguard.schema.json` |
-| `AND` resolution for controls | **Not implemented.** `ResolveCapability` sorts candidates and returns the best one. Nine capability×OS cells resolve `implemented` while a safeguard declaring that capability is unsupported on that OS. | `internal/deployability/capability.go` |
-| Absent declarers reported | **Not implemented.** `unwired` and `ineligible` are computed and then discarded whenever a winner exists — the function returns from the winner branch before reading them. | `internal/deployability/capability.go` |
+| Capability vocabulary as single source | **Held by a live drift gate.** Both consumer schema enums are checked against the 41-name vocabulary in the control-plane test surface. | `internal/deployability/capabilityvocabulary_test.go` |
+| `control` role | **Implemented.** Safeguards declare `control`; providers remain `primary` or `peer`. | `.vrooli/schemas/safeguard.schema.json`, `internal/safeguards/*/safeguard.json` |
+| `AND` resolution for controls | **Implemented.** A provider only resolves fully when every control resolves; incomplete cells retain the provider and name absent controls. | `internal/deployability/capability.go` |
+| Absent declarers reported | **Implemented.** Every resolution branch reports unresolved declarers, including the winner branch. | `internal/deployability/capability.go` |
 | Scenario participation | **2 of 120.** Only `system-monitor` and `vrooli-autoheal` declare `service.platform_capabilities`, contributing 14 of the 41 capabilities between them. | `scenarios/*/.vrooli/service.json` |
-| Safeguard enumeration | **No list verb.** `vrooli host safeguard` takes exactly one name and its error message names the hyphenated directory form while the command accepts only the underscored manifest name. | `internal/cli/vroolicli/hostinstall.go` |
-| Conformance gate | **Does not exist.** Nothing compares a declared platform claim against what the code can build for. No repo-contract rule mentions platform or portability. | `.vrooli/repo-contract.json` |
+| Safeguard enumeration | **Available.** `vrooli host safeguard list` reports every manifest with capability, role, declared platforms, and an explicit observed-state value; focused lookup accepts hyphenated and underscored names. | `internal/cli/vroolicli/hostinstall.go` |
+| Conformance gate | **Available.** `vrooli capability conformance` discovers claims, cross-compiles their Go modules, and fails with manifest-level compiler evidence; the repo contract names the gate. | `internal/deployability/conformance.go`, `.vrooli/repo-contract.json` |
 | `unread` vs `untrusted` on non-local OSes | **Not distinguished.** Non-local ladder rows carry the generic untrusted reason rather than a structural "no such host was sampled" code. | `api/internal/ladder/` |
 
 ## Governing Principles
