@@ -3,10 +3,9 @@
 ## Open Issues
 
 ### P0 Blockers
-- Host-level recovery grant application still requires an operator-authenticated `sudo vrooli setup`; the existing `/etc/sudoers.d/vrooli-autoheal` is stale, mode `0644`, and does not match the managed wildcard-free grant.
+- Host-level recovery grant application still requires an operator-authenticated `sudo vrooli setup`; the existing autoheal sudoers entry is stale, mode `0644`, and does not match the managed wildcard-free grant.
 
 ### P1 Issues
-- The UI dependency/test-utils gate is not green in the current checkout; Go and platform seam suites are green.
 - The full 24-hour data-retention soak remains outstanding.
 - Test Genie storage/workflow evidence is unavailable while `storage-manager` fails its own API build at `internal/validation/hygiene_common.go:19`.
 

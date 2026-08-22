@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reconcile"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/remediation"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/watchdog"
@@ -91,6 +92,11 @@ type Handlers struct {
 	lastRetentionAt       time.Time
 	lastRetentionResult   persistence.RetentionResult
 	lastRetentionErr      string
+	reconcileProvider     reconcile.Provider
+	installedProvider     reconcile.InstalledProvider
+	// skipLog keeps the action history to one row per auto-heal skip state
+	// change rather than one per tick.
+	skipLog *skipLogGate
 
 	// tickLock prevents concurrent tick executions
 	tickLock    sync.Mutex
@@ -141,6 +147,9 @@ func New(registry *checks.Registry, store *persistence.Store, plat *platform.Cap
 		hostCollector:      hostCollector,
 		incidentService:    incidentService,
 		remediationService: remediationService,
+		reconcileProvider:  reconcile.NewCoreSetProvider(),
+		installedProvider:  reconcile.NewFilesystemInstalledProvider(),
+		skipLog:            newSkipLogGate(),
 	}
 }
 
@@ -158,6 +167,23 @@ func NewWithInterface(registry *checks.Registry, store StoreInterface, plat *pla
 		hostCollector:      hostCollector,
 		incidentService:    incidentService,
 		remediationService: remediationService,
+		reconcileProvider:  reconcile.NewCoreSetProvider(),
+		installedProvider:  reconcile.NewFilesystemInstalledProvider(),
+		skipLog:            newSkipLogGate(),
+	}
+}
+
+func (h *Handlers) SetReconcileProvider(provider reconcile.Provider) {
+	if provider != nil {
+		h.reconcileProvider = provider
+	}
+}
+
+// SetInstalledProvider overrides the installed-target set used to tell a ghost
+// check from a check that is merely out of supervision scope.
+func (h *Handlers) SetInstalledProvider(provider reconcile.InstalledProvider) {
+	if provider != nil {
+		h.installedProvider = provider
 	}
 }
 
@@ -348,6 +374,21 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 			"journalctlExecsAvoided": h.systemEventService.ExecsAvoided(),
 		}
 	}
+	// A skipped heal is an operational outcome, not an absence of data. Keep
+	// the reason in the same durable action history as executed heals and expose
+	// the recent entries on status so operators can distinguish policy,
+	// cooldown, and unavailable-action decisions.
+	if logs, err := h.store.GetActionLogs(r.Context(), 100); err == nil {
+		skips := make([]persistence.ActionLog, 0)
+		for _, log := range logs.Logs {
+			if log.ActionID == "autoheal-skip" {
+				skips = append(skips, log)
+			}
+		}
+		response["autoHealSkips"] = skips
+	} else {
+		response["autoHealSkips"] = []persistence.ActionLog{}
+	}
 	if reporter, ok := h.store.(operationalRetentionReporter); ok {
 		ctx, cancel := context.WithTimeout(r.Context(), healthDependencyTimeout)
 		retention, err := reporter.OperationalRetentionStatus(ctx)
@@ -455,6 +496,28 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 			); err != nil {
 				apierrors.LogError("tick", "save_autoheal_log:"+ahr.CheckID, err)
 			}
+		} else if h.skipLog.ShouldLog(ahr.CheckID, ahr.Reason) {
+			// One row per state change, not one per tick. The first skip and
+			// every skip that says something new are recorded; the repeats that
+			// say nothing new are not.
+			if err := h.store.SaveActionLog(
+				ctx,
+				ahr.CheckID,
+				"autoheal-skip",
+				false,
+				false,
+				"[auto-heal skipped] "+ahr.Reason,
+				"",
+				ahr.Reason,
+				0,
+			); err != nil {
+				apierrors.LogError("tick", "save_autoheal_skip:"+ahr.CheckID, err)
+			}
+		}
+		if ahr.Attempted {
+			// An attempt ends the skip state, so the next skip is a fresh
+			// state change worth recording.
+			h.skipLog.Clear(ahr.CheckID)
 		}
 	}
 

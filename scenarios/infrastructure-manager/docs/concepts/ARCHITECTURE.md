@@ -132,7 +132,7 @@ packages/proto/schemas/infrastructure-manager/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/infrastructure-manager/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/infrastructure-manager/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/infrastructure-manager/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/infrastructure-manager/v1/...   (ui)
        └──▶ packages/proto/gen/python/infrastructure_manager/v1/...    (future tools)
 ```
 

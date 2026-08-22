@@ -36,57 +36,69 @@
       "autoheal-health-monitoring": {
         "linux": {
           "status": "supported",
-          "mechanism": "native-go-checks-and-vrooli-cli"
+          "mechanism": "native-go-checks-and-vrooli-cli",
+          "evidence": "autoheal API and scenario-check contract tests"
         },
         "macos": {
-          "status": "partial",
-          "mechanism": "typed-vrooli-status-and-platform-go-log-backend"
+          "status": "experimental",
+          "mechanism": "typed-vrooli-status-and-platform-go-log-backend",
+          "evidence": "darwin cross-build and platform contract tests; no real-host qualification"
         },
         "windows": {
-          "status": "partial",
-          "mechanism": "typed-vrooli-status-and-platform-go-log-backend"
+          "status": "experimental",
+          "mechanism": "typed-vrooli-status-and-platform-go-log-backend",
+          "evidence": "windows cross-build and platform contract tests; no real-host qualification"
         }
       },
       "autoheal-host-integrity": {
         "linux": {
           "status": "supported",
-          "mechanism": "control-plane-hostinventory"
+          "mechanism": "control-plane-hostinventory",
+          "evidence": "hostinventory contract tests"
         },
         "macos": {
-          "status": "unsupported",
-          "mechanism": "hostinventory-probe-boundary-reports-not-applicable"
+          "status": "unqualified",
+          "mechanism": "hostinventory-probe-boundary-reports-not-applicable",
+          "evidence": "typed unsupported result contract; no native host qualification"
         },
         "windows": {
-          "status": "unsupported",
-          "mechanism": "hostinventory-probe-boundary-reports-not-applicable"
+          "status": "unqualified",
+          "mechanism": "hostinventory-probe-boundary-reports-not-applicable",
+          "evidence": "typed unsupported result contract; no native host qualification"
         }
       },
       "autoheal-service-recovery": {
         "linux": {
           "status": "supported",
-          "mechanism": "platform-go-native-service-backend-and-setup-grant"
+          "mechanism": "platform-go-native-service-backend-and-setup-grant",
+          "evidence": "service recovery unit tests"
         },
         "macos": {
-          "status": "partial",
-          "mechanism": "platform-go-launchd-backend"
+          "status": "experimental",
+          "mechanism": "platform-go-launchd-backend",
+          "evidence": "darwin cross-build and backend contract tests; no real-host qualification"
         },
         "windows": {
-          "status": "partial",
-          "mechanism": "platform-go-scheduled-task-backend"
+          "status": "experimental",
+          "mechanism": "platform-go-scheduled-task-backend",
+          "evidence": "windows cross-build and backend contract tests; no real-host qualification"
         }
       },
       "autoheal-watchdog": {
         "linux": {
           "status": "supported",
-          "mechanism": "platform-go-systemd-backend"
+          "mechanism": "platform-go-systemd-backend",
+          "evidence": "Linux watchdog backend tests"
         },
         "macos": {
-          "status": "partial",
-          "mechanism": "platform-go-launchd-backend"
+          "status": "experimental",
+          "mechanism": "platform-go-launchd-backend",
+          "evidence": "darwin cross-build and backend contract tests; no real-host qualification"
         },
         "windows": {
-          "status": "partial",
-          "mechanism": "platform-go-scheduled-task-backend"
+          "status": "experimental",
+          "mechanism": "platform-go-scheduled-task-backend",
+          "evidence": "windows cross-build and backend contract tests; no real-host qualification"
         }
       }
     },
@@ -163,12 +175,6 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI"
-    },
-    "develop": {
-      "description": "Launch API and UI server"
     }
   },
   "hostTools": [
@@ -382,14 +388,7 @@
     }
   ],
   "dependencies": {
-    "resources": {
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": false,
-        "description": "Real-time status pub/sub (optional, fallback to polling)"
-      }
-    },
+    "resources": {},
     "scenarios": {}
   },
   "cli": {
@@ -415,7 +414,6 @@
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/autoheal.sqlite",
     "AUTOHEAL_NETWORK_TARGET": "dns.google:53",
     "AUTOHEAL_DNS_DOMAIN": "example.com",
     "AUTOHEAL_EXTERNAL_DNS_SERVER": "dns.google"

@@ -8,6 +8,15 @@
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
+ *
+ * LOCAL EDIT (2026-08-20): the adopted source pinned the bar with `bottom-safe`,
+ * a utility no consumer defined, so the bar was not pinned at all and rendered
+ * at its static position — over the top chrome on a short page. It also set
+ * `pb-safe pb-4`, two utilities writing the same property, so the safe-area
+ * inset was silently overridden by a fixed 16px and tap targets reached the
+ * viewport edge. Both are fixed here: pinned at `bottom-0`, with a single
+ * `bottom-nav-safe` gutter of `max(inset, 1.5rem)` that keeps targets clear of
+ * the device bottom interaction zone. Worth pushing back upstream.
  */
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -65,7 +74,7 @@ export function BottomNav({
       data-testid={testId}
       aria-label={label}
       className={cn(
-        "fixed inset-x-0 bottom-safe z-30 flex border-t border-app-border bg-app-surface pl-safe pr-safe pb-safe pb-4 md:hidden",
+        "bottom-nav-safe fixed inset-x-0 bottom-0 z-30 flex border-t border-app-border bg-app-surface pl-safe pr-safe md:hidden",
         className,
       )}
     >

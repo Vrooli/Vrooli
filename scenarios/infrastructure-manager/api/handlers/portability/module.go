@@ -7,6 +7,7 @@ package portability
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -88,12 +89,54 @@ func (h *connectHandler) ListSituations(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(response), nil
 }
 
-func (h *connectHandler) GetFleet(ctx context.Context, _ *connect.Request[portabilityv1.GetFleetRequest]) (*connect.Response[portabilityv1.GetFleetResponse], error) {
+func (h *connectHandler) GetFleet(ctx context.Context, request *connect.Request[portabilityv1.GetFleetRequest]) (*connect.Response[portabilityv1.GetFleetResponse], error) {
 	readout, err := h.service.Fleet(ctx)
 	if err != nil {
 		return nil, gridError(err)
 	}
-	return connect.NewResponse(&portabilityv1.GetFleetResponse{Fleet: protoFleet(readout)}), nil
+	fleet := protoFleet(readout)
+	if view := strings.ToLower(strings.TrimSpace(request.Msg.GetView())); view != "" {
+		fleet, err = narrowFleet(fleet, view)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+	}
+	return connect.NewResponse(&portabilityv1.GetFleetResponse{Fleet: fleet}), nil
+}
+
+// fleetViews is the closed set of sections a caller may ask for. It is closed
+// deliberately: an unrecognised view returns an error naming the valid set,
+// rather than silently returning the whole readout, because a caller that asked
+// for one section and received all of them would read the extra rows as
+// findings about the section it asked about.
+var fleetViews = []string{"blocked", "docker", "peerless", "upgrades", "desktop"}
+
+// narrowFleet returns a readout carrying only the requested section. Every
+// other section is emptied rather than left populated, so the response says
+// exactly what was asked for and nothing more.
+func narrowFleet(fleet *portabilityv1.FleetReadout, view string) (*portabilityv1.FleetReadout, error) {
+	if fleet == nil {
+		return nil, nil
+	}
+	narrowed := &portabilityv1.FleetReadout{
+		ManifestRoot: fleet.GetManifestRoot(),
+		ComputedAt:   fleet.GetComputedAt(),
+	}
+	switch view {
+	case "blocked":
+		narrowed.BlockedByOs = fleet.GetBlockedByOs()
+	case "docker":
+		narrowed.DockerBlocked = fleet.GetDockerBlocked()
+	case "peerless":
+		narrowed.Peerless = fleet.GetPeerless()
+	case "upgrades":
+		narrowed.TierUpgrades = fleet.GetTierUpgrades()
+	case "desktop":
+		narrowed.DesktopBundling = fleet.GetDesktopBundling()
+	default:
+		return nil, fmt.Errorf("view %q is not one of %s", view, strings.Join(fleetViews, ", "))
+	}
+	return narrowed, nil
 }
 
 // filterCapabilities narrows the grid to the requested names. A requested name

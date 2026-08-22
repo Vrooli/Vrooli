@@ -29,7 +29,25 @@ if (!rootEl) {
 }
 const appRoot = rootEl;
 
-const queryClient = new QueryClient();
+/**
+ * Reads do not retry.
+ *
+ * This scenario's whole doctrine is that a source which did not answer IS the
+ * reading: every surface renders an unreachable source as instrument state,
+ * with its reason, rather than as a plant fault. Retrying three times with
+ * backoff replaces that fact with a spinner for several seconds, which is both
+ * a worse answer for the operator and long enough to leave a required
+ * experience surface unsettled.
+ *
+ * `refetchOnWindowFocus` is off for the same reason: a board that silently
+ * re-reads when the window regains focus can change its figures without the
+ * reader noticing that anything was re-measured.
+ */
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false, refetchOnWindowFocus: false },
+  },
+});
 
 async function bootstrap() {
   const [{ default: App }, { ErrorBoundary }, { onProfilerRender }] = await Promise.all([

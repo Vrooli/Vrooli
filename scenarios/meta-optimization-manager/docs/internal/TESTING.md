@@ -827,7 +827,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/meta-optimization-manager/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/meta-optimization-manager/v1/<domain>/`, and
+   `packages/proto/gen/typescript/meta-optimization-manager/v1/<domain>/`, and
    `packages/proto/gen/python/meta_optimization_manager/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.

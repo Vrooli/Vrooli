@@ -86,19 +86,53 @@ function BoardSummary() {
   const conditionRead = !condition.isLoading && !condition.error;
   const focusRead = !focus.isLoading && !focus.error;
 
-  const state: ExperienceSurfaceState =
+  /**
+   * State is derived PER SURFACE, from the queries that surface actually reads.
+   *
+   * A single page-level state marked every region degraded the moment any one
+   * declared source was unavailable — so the headline figures reported as
+   * degraded because a focus source had not answered, and the ranked-findings
+   * region reported as degraded because a condition source had not. Each region
+   * now answers only for its own reads, and `source-availability` is the one
+   * region whose job is to carry the bad news.
+   */
+  const headlineState: ExperienceSurfaceState =
     coverage.isLoading || condition.isLoading || focus.isLoading
       ? "loading"
-      : coverage.error || condition.error || focus.error
-        ? "partial"
-        : conditionSources.some((source) => !source.available) ||
-            focusSources.some((source) => !source.available)
+      : coverage.error && condition.error && focus.error
+        ? "error"
+        : coverage.error || condition.error || focus.error
           ? "partial"
           : "ready";
+  const findingsState: ExperienceSurfaceState = focus.isLoading
+    ? "loading"
+    : focus.error
+      ? "error"
+      : allSourcesUnavailable
+        ? "partial"
+        : findings.length === 0
+          ? "empty"
+          : "ready";
+  const sourcesState: ExperienceSurfaceState =
+    condition.isLoading || focus.isLoading
+      ? "loading"
+      : condition.error || focus.error
+        ? "error"
+        : conditionSources.length === 0 && focusSources.length === 0
+          ? "empty"
+          : conditionSources.some((source) => !source.available) ||
+              focusSources.some((source) => !source.available)
+            ? "partial"
+            : "ready";
+
+  // Retained for the body's branch logic, which asks "are the figures ready?".
+  const state: ExperienceSurfaceState = headlineState;
+
+  /** The announcement follows the worst state anywhere on the page. */
   const statusMessage =
-    state === "loading"
+    headlineState === "loading" || findingsState === "loading" || sourcesState === "loading"
       ? t(strings.pages.dashboard.reading)
-      : state === "partial"
+      : sourcesState === "partial" || headlineState !== "ready" || findingsState === "partial"
         ? t(strings.pages.dashboard.sourceUnavailable)
         : undefined;
 
@@ -112,7 +146,7 @@ function BoardSummary() {
         </p>
         <ExperienceSurface
           surfaceId="confidence-header"
-          state={state}
+          state={headlineState}
           data-testid="board-confidence-header"
           statusMessage={statusMessage}
         >
@@ -155,7 +189,7 @@ function BoardSummary() {
         </p>
         <ExperienceSurface
           surfaceId="ranked-findings"
-          state={state === "ready" && findings.length === 0 ? "empty" : state}
+          state={findingsState}
           data-testid="board-ranked-findings"
           statusMessage={statusMessage}
         >
@@ -201,9 +235,7 @@ function BoardSummary() {
         </p>
         <ExperienceSurface
           surfaceId="source-availability"
-          state={
-            state === "ready" && conditionSources.length === 0 && focusSources.length === 0 ? "empty" : state
-          }
+          state={sourcesState}
           data-testid="board-source-availability"
           statusMessage={statusMessage}
         >

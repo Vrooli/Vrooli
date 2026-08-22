@@ -17,7 +17,7 @@ export function TopBar() {
   return (
     <header
       data-testid={selectors.layout.topBar}
-      className="flex shrink-0 items-center justify-between gap-4 border-b border-app-border bg-app-shell px-space-sm py-space-2xs"
+      className="top-chrome flex shrink-0 items-center justify-between gap-4 border-b border-app-border bg-app-shell px-space-sm pb-space-2xs"
     >
       <h1
         data-testid={selectors.app.title}

@@ -205,6 +205,102 @@ reads. Until then, the subprocess carries the same 10s deadline and
 
 **Refs:** `internal/capacity/`, `packages/api-core/discovery/resolve.go`
 
+### P-010 — Capability resolution is `OR` for a population that is partly `AND`
+
+**Status:** open · **owner:** the control plane (`internal/deployability`)
+
+**Symptom:** Nine capability×OS cells in `portability grid` report
+`IMPLEMENTED` while a safeguard declaring that same capability is unsupported
+on that OS. `credential-storage` reads green on Windows and macOS while both
+credential safeguards are Linux-only; `remote-desktop` reads green on all three
+while `remote_session_protection` — the hardening half — is Linux-only;
+`developer-utility` reads green on Windows while `vrooli_launcher`,
+`onboarding_apply_privileges` and `path_hygiene` are not.
+
+**Root cause:** `ResolveCapability` collects every declarer that supports the
+target OS, sorts by qualification rank, and returns `candidates[0]`. The
+declarers that do *not* support that OS are collected into `unwired` and
+`ineligible` and then discarded, because the function returns from the winner
+branch before reading them. This is correct for **tools**, which are
+substitutable — `winget` genuinely does stand in for `apt-get`. It is wrong for
+**safeguards**, which are independently required controls: five declare
+`crash-forensics` and they are five jobs, not five ways of doing one job.
+
+**Workaround:** read `vrooli host safeguard <name>` per safeguard, or read the
+`platforms` array in each `safeguard.json` directly. Do not treat a green
+capability row as evidence that every control in that category is present.
+
+**Real fix:** add `control` to the `capability_role` vocabulary, resolve
+`control` declarers conjunctively, and add an absent-declarer set to
+`CapabilityResolution` that is populated in **every** branch including the
+winner branch. Reporting the absent set is worth doing for providers too:
+*"resolves via winget; apt-get, dnf, pacman, rpm are Linux-only"* is strictly
+better than a bare green lamp. Model documented in
+[`../concepts/PORTABILITY-MODEL.md`](../concepts/PORTABILITY-MODEL.md)
+§ Provider Roles And Control Roles.
+
+**Refs:** `internal/deployability/capability.go`,
+`.vrooli/schemas/safeguard.schema.json`, `api/internal/portability/grid.go`
+
+### P-011 — The capability vocabulary is maintained in three files and has drifted
+
+**Status:** open · **owner:** the control plane
+
+**Symptom:** `.vrooli/capability-vocabulary.json` carries 41 capability names.
+The `capability` enum in `.vrooli/schemas/safeguard.schema.json` carries 27, and
+`.vrooli/schemas/tool.schema.json` carries another 27. The 14
+scenario-contributed names (`system-monitor-*`, `autoheal-*`) exist in the
+vocabulary and in neither schema.
+
+**Root cause:** three hand-maintained copies with no drift gate.
+`.vrooli/repo-contract.json` allowlists the vocabulary file's existence but
+never compares its contents to the schemas.
+
+**Workaround:** treat `.vrooli/capability-vocabulary.json` as authoritative — it
+is what `portability` and `vrooli capability ledger` actually read. The schema
+enums only constrain what a tool or safeguard may author.
+
+**Real fix:** generate both schema enums from the vocabulary and add a
+repo-contract drift check. If tools and safeguards are deliberately barred from
+claiming scenario-contributed capabilities, that rule should be *expressed*
+rather than left as an accident of two lists nobody synchronises.
+
+**Refs:** `.vrooli/capability-vocabulary.json`, `.vrooli/schemas/{tool,safeguard}.schema.json`,
+`.vrooli/repo-contract.json`
+
+### P-012 — Nothing verifies that a platform declaration is true
+
+**Status:** open · **owner:** the control plane · scope note below
+
+**Symptom:** A manifest can declare `platforms: ["linux","macos","windows"]`
+with a handler that only compiles on Linux, and every surface in this
+scenario — grid, ladder, fleet — will report it as covered. The declaration is
+the only evidence anything reads.
+
+**Root cause:** no validator anywhere compares a declared platform claim against
+what the code can build for. No `.vrooli/repo-contract.json` rule mentions
+platform or portability; nothing inspects build tags or `GOOS` against a
+manifest. A 2026-08-21 sweep cross-compiled all 313 Go modules for
+`windows/amd64` and `darwin/arm64` by hand to establish this, and no gate
+preserves that result.
+
+**Scope note — this is not a cell and must not become one.** Portability is
+measurement and has a denominator; conformance is pass/fail and does not.
+Forcing "is this declaration true" into a coverage ratio is the mistake the
+production-ledger archetype exists to prevent, and it is why
+`platform-code-audit` stays deferred in
+[`../concepts/DOMAINS.md`](../concepts/DOMAINS.md#deferred-domains).
+
+**Workaround:** none. Treat `qualified` on a non-local OS as an unverified
+claim until the gate exists.
+
+**Real fix:** a declared-versus-actual gate in the control plane beside the
+resolver, failing loudly in CI, feeding the `platform-code-auditor` lane as
+evidence rather than becoming a ratio here.
+
+**Refs:** `internal/deployability/`, `.vrooli/repo-contract.json`,
+`docs/infra-health/operating/OPERATING_MODEL.md` loop 2
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

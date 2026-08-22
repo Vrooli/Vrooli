@@ -14,6 +14,7 @@ import (
 
 	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
 	sharedresources "github.com/vrooli/vrooli/internal/resources"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reporoot"
@@ -221,7 +222,15 @@ func defaultTargets(ctx context.Context) ([]Target, error) {
 			manifestPath = filepath.Join(root, "resources", item.Name, "resource.json")
 		}
 		manifest, err := controller.LoadManifest(manifestPath)
-		if err != nil || manifest.GPU == nil {
+		if err != nil {
+			continue
+		}
+		// A container device probe only applies to a resource that declares a
+		// backend with a device node to open. The accelerator declaration is
+		// the fleet's single source for that; the deprecated gpu block it
+		// replaced no longer exists.
+		probe := containerDeviceProbe(manifest.EffectiveAcceleration())
+		if probe == "" {
 			continue
 		}
 		status, err := controller.Status(item.Name, true)
@@ -232,7 +241,7 @@ func defaultTargets(ctx context.Context) ([]Target, error) {
 		if container == "" {
 			container = "vrooli-" + manifest.Name
 		}
-		out = append(out, Target{Name: manifest.Name, Container: container, Probe: manifest.GPU.Probe, Running: status.Running})
+		out = append(out, Target{Name: manifest.Name, Container: container, Probe: probe, Running: status.Running})
 	}
 	return out, nil
 }
@@ -244,4 +253,24 @@ func defaultRestart(ctx context.Context, name string) error {
 		return err
 	}
 	return sharedresources.NewController(root, home).Run(name, []string{"restart"}, io.Discard, io.Discard)
+}
+
+// containerDeviceProbe maps a resource's highest-preference non-CPU backend
+// onto the device-probe name internal/gpuaccess understands, or "" when the
+// resource declares no device backend at all.
+func containerDeviceProbe(declaration *manifestpkg.AccelerationSpec) string {
+	if declaration == nil {
+		return ""
+	}
+	for _, backend := range declaration.Backends {
+		switch backend {
+		case manifestpkg.BackendCUDA:
+			return "nvidia"
+		case manifestpkg.BackendCPU:
+			// The cpu floor is reached before any device backend, so this
+			// resource declares no container device to probe.
+			return ""
+		}
+	}
+	return ""
 }

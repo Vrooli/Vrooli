@@ -239,6 +239,19 @@ export default function App() {
           </Notice>
         ) : null}
 
+		{data?.autoHealSkips?.length ? (
+			<Notice tone="warning" className="mb-3 sm:mb-4" role="status">
+				<div className="text-sm">
+					<NoticeTitle tone="warning">
+						Auto-heal decisions recorded without execution ({data.autoHealSkips.length})
+					</NoticeTitle>
+					<p className="text-text-muted">
+						{data.autoHealSkips[0]?.message || "Review the action history for the recorded policy or cooldown reason."}
+					</p>
+				</div>
+			</Notice>
+		) : null}
+
         {activeTab === "dashboard" ? (
           <ReactErrorBoundary sectionName="Dashboard">
             <DashboardSurface

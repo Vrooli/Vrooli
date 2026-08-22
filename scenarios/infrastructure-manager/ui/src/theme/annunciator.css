@@ -54,6 +54,44 @@
   position: relative;
 }
 
+/* --------------------------------------------------------------- chrome -- */
+
+/*
+ * The top chrome band.
+ *
+ * `apple-mobile-web-app-status-bar-style: black-translucent` means the OS status
+ * bar OVERLAYS the top of the page rather than reserving space above it, so the
+ * page must paint that band itself — and it must paint it in the chrome colour,
+ * not the page ground, or the status bar sits on a different colour from the
+ * header beneath it.
+ *
+ * The gutter is therefore `max(safe-area-inset, 24px)`: the real inset on a
+ * device that has one, and a floor everywhere else so no header content falls
+ * inside the band. Without the floor the band contains glyphs, which is both a
+ * visual seam at the top edge and, on a narrow viewport, a measurably different
+ * colour from the one the page declares.
+ */
+.top-chrome {
+  padding-top: max(var(--safe-area-inset-top, 0px), 1.5rem);
+}
+
+/*
+ * The bottom-nav safe gutter.
+ *
+ * A fixed bottom bar must keep its tap targets OUT of the device's bottom
+ * interaction zone — the home-indicator strip on a modern phone, where a tap
+ * is claimed by the OS rather than the page. `env(safe-area-inset-bottom)` is
+ * the real measurement on a device that reports one, and `1.5rem` is the floor
+ * everywhere else, because a browser that reports no inset is not the same as
+ * a device that has none.
+ *
+ * This replaces the adopted component's `pb-safe pb-4` pair, which set the same
+ * property twice and resolved to whichever utility the layer emitted last.
+ */
+.bottom-nav-safe {
+  padding-bottom: max(var(--safe-area-inset-bottom, 0px), 1.5rem);
+}
+
 /* ---------------------------------------------------------------- plate -- */
 
 /*

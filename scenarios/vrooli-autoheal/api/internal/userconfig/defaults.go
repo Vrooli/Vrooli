@@ -329,6 +329,12 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	},
 }
 
+// scenarioAutoHealOptOut is deliberately explicit and empty by default. A
+// scenario that must never be restarted can be added here with an operator
+// decision; ordinary scenario checks must not require a hand-maintained allow
+// list to recover from an outage.
+var scenarioAutoHealOptOut = map[string]struct{}{}
+
 // Helper functions for creating pointers
 func ptr(v float64) *float64 {
 	return &v
@@ -345,11 +351,20 @@ func boolPtr(v bool) *bool {
 // GetCheckDefaults returns the default configuration for a check
 // If the check isn't in KnownCheckDefaults, returns generic defaults
 func GetCheckDefaults(checkID string) CheckDefaults {
-	if isMandatoryCoreScenarioCheck(checkID) {
+	if isScenarioCheck(checkID) && !isScenarioAutoHealOptedOut(checkID) {
 		return CheckDefaults{Enabled: true, AutoHeal: true, AutoHealOn: "critical", IntervalSeconds: 60}
 	}
 	if defaults, ok := KnownCheckDefaults[checkID]; ok {
 		return defaults
+	}
+	// A resource check gets resource defaults from its prefix, exactly as a
+	// scenario check does. Before this, a resource added to the monitored list
+	// without a matching KnownCheckDefaults entry fell through to the generic
+	// default with AutoHeal false and was monitored but never healed — which is
+	// what left resource-reranker logging "auto-heal not enabled for this
+	// check" on every cycle for weeks.
+	if isResourceCheck(checkID) {
+		return CheckDefaults{Enabled: true, AutoHeal: true, AutoHealOn: "critical", IntervalSeconds: 60}
 	}
 	// Generic defaults for unknown checks
 	return CheckDefaults{
@@ -366,4 +381,25 @@ func isMandatoryCoreScenarioCheck(checkID string) bool {
 		return false
 	}
 	return coreset.IsCoreSeed(checkID[len(prefix):])
+}
+
+// isResourceCheck reports whether a check id names a resource check. The
+// mode-drift family shares the prefix, so it inherits the same defaults.
+func isResourceCheck(checkID string) bool {
+	const prefix = "resource-"
+	return len(checkID) > len(prefix) && checkID[:len(prefix)] == prefix
+}
+
+func isScenarioCheck(checkID string) bool {
+	const prefix = "scenario-"
+	return len(checkID) > len(prefix) && checkID[:len(prefix)] == prefix
+}
+
+func isScenarioAutoHealOptedOut(checkID string) bool {
+	const prefix = "scenario-"
+	if !isScenarioCheck(checkID) {
+		return false
+	}
+	_, optedOut := scenarioAutoHealOptOut[checkID[len(prefix):]]
+	return optedOut
 }

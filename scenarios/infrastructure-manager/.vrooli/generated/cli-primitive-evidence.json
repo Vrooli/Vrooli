@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "infrastructure-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "a458839225b27070a2e72d6e4bbb49c3e4142e0082dc7e6670515f4358dca37b",
+  "manifest_hash": "073c388843e1ed9984161e46108c5874fbec8361c88014afa7bb7d5c4437de5b",
   "commands": [
     {
       "path": "condition explain",

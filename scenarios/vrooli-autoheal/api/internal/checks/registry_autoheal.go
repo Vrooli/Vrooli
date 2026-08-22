@@ -120,7 +120,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			})
 			continue
 		}
-		if _, restartAction := restartActionIDs[selectedAction.ID]; restartAction {
+		if _, gatedAction := gatedActionIDs[selectedAction.ID]; gatedAction {
 			if gate := r.recoveryOwnershipGate(); gate != nil {
 				if allowed, reason := gate.AllowsAutoHealRestart(ctx, result.CheckID, selectedAction.ID); !allowed {
 					autoHealResults = append(autoHealResults, AutoHealResult{
@@ -307,7 +307,7 @@ func (r *Registry) actionTimeoutFor(actionID string) time.Duration {
 		fast = policy.FastActionTimeout
 		restart = policy.RestartActionTimeout
 	}
-	if _, isRestart := restartActionIDs[actionID]; isRestart {
+	if _, isLongRunning := longRunningActionIDs[actionID]; isLongRunning {
 		return restart
 	}
 	return fast

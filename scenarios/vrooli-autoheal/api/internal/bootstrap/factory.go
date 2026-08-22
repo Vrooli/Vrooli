@@ -4,6 +4,7 @@ package bootstrap
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -211,9 +212,26 @@ func (f *DefaultCheckFactory) CreateVrooliChecks(caps *platform.Capabilities) []
 		vrooli.NewOrphanCheck(),    // Orphan process detection
 	}
 
-	// Resource checks
-	for _, name := range f.resources {
+	// Resource checks. Names that are not resources in this repository are
+	// dropped: a check for a resource that does not exist fails forever and
+	// heals nothing, which is how browserless stayed in the monitored list long
+	// after it was removed from the fleet.
+	monitored, dropped := PruneMissingResources(f.resources)
+	for _, name := range dropped {
+		log.Printf("vrooli-autoheal: %q is in the monitored resource list but is not a resource in this repository; skipping its checks", name)
+	}
+	for _, name := range monitored {
 		vrooliChecks = append(vrooliChecks, vrooli.NewResourceCheck(name))
+	}
+
+	// Accelerator placement checks, for the resources that declare a non-CPU
+	// backend. This is the check that answers "is it on the device it asked
+	// for", which no other check in the fleet asks.
+	// The system-gpu check resolves the same set itself, so it stays
+	// self-contained rather than depending on the order this factory builds
+	// things in.
+	for _, name := range acceleratedResources(monitored) {
+		vrooliChecks = append(vrooliChecks, vrooli.NewModeDriftCheck(name))
 	}
 
 	// Critical scenario checks

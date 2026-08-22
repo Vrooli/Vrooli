@@ -21,11 +21,13 @@ func (s *Store) getUptimeStatsSQLite(ctx context.Context, windowHours int) (*Upt
 			COALESCE(SUM(CASE WHEN status = 'critical' THEN 1 ELSE 0 END), 0) as critical_count
 		FROM health_results
 		WHERE created_at >= ? AND status <> 'not-applicable'
+		  AND NOT EXISTS (SELECT 1 FROM check_shelves s WHERE s.check_id = health_results.check_id AND s.expires_at > ?)
 	`
 	cutoff := rfc3339NanoCutoff(time.Now(), windowHours)
+	shelfCutoff := time.Now().UTC().Format(time.RFC3339Nano)
 
 	var stats UptimeStats
-	err := s.db.QueryRowContext(ctx, query, cutoff).Scan(
+	err := s.db.QueryRowContext(ctx, query, cutoff, shelfCutoff).Scan(
 		&stats.TotalEvents,
 		&stats.OkEvents,
 		&stats.WarningEvents,
@@ -77,12 +79,14 @@ func (s *Store) getUptimeHistorySQLite(ctx context.Context, windowHours, bucketC
 			COUNT(*) AS n
 		FROM health_results
 		WHERE created_at >= ? AND created_at <= ? AND status <> 'not-applicable'
+		  AND NOT EXISTS (SELECT 1 FROM check_shelves s WHERE s.check_id = health_results.check_id AND s.expires_at > ?)
 		GROUP BY bucket, status
 	`
 	startStr := start.Format(time.RFC3339Nano)
 	endStr := now.Format(time.RFC3339Nano)
 
-	rows, err := s.db.QueryContext(ctx, query, startUnix, bucketSeconds, startStr, endStr)
+	shelfCutoff := now.Format(time.RFC3339Nano)
+	rows, err := s.db.QueryContext(ctx, query, startUnix, bucketSeconds, startStr, endStr, shelfCutoff)
 	if err != nil {
 		return nil, fmt.Errorf("query bucket aggregation failed: %w", err)
 	}
@@ -164,13 +168,14 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 			MAX(created_at) as last_checked
 		FROM health_results
 		WHERE created_at >= ? AND status <> 'not-applicable'
+		  AND NOT EXISTS (SELECT 1 FROM check_shelves s WHERE s.check_id = health_results.check_id AND s.expires_at > ?)
 		GROUP BY check_id
 		ORDER BY
 			CASE WHEN COUNT(*) = 0 THEN 100 ELSE COUNT(CASE WHEN status = 'ok' THEN 1 END) * 100.0 / COUNT(*) END ASC,
 			check_id ASC
 	`
 	cutoff := rfc3339NanoCutoff(time.Now(), windowHours)
-	rows, err := s.db.QueryContext(ctx, query, cutoff)
+	rows, err := s.db.QueryContext(ctx, query, cutoff, time.Now().UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
@@ -212,6 +217,7 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 		SELECT status
 		FROM health_results
 		WHERE check_id = ? AND created_at >= ?
+		  AND NOT EXISTS (SELECT 1 FROM check_shelves s WHERE s.check_id = health_results.check_id AND s.expires_at > ?)
 		ORDER BY created_at DESC
 		LIMIT 1
 	`)
@@ -224,6 +230,7 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 		SELECT status
 		FROM health_results
 		WHERE check_id = ? AND created_at >= ?
+		  AND NOT EXISTS (SELECT 1 FROM check_shelves s WHERE s.check_id = health_results.check_id AND s.expires_at > ?)
 		ORDER BY created_at DESC
 		LIMIT 12
 	`)
@@ -233,7 +240,8 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 	defer recentStmt.Close()
 
 	for i := range trends {
-		if err := currentStmt.QueryRowContext(ctx, trends[i].CheckID, cutoff).Scan(&trends[i].CurrentStatus); err != nil {
+		shelfCutoff := time.Now().UTC().Format(time.RFC3339Nano)
+		if err := currentStmt.QueryRowContext(ctx, trends[i].CheckID, cutoff, shelfCutoff).Scan(&trends[i].CurrentStatus); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				trends[i].CurrentStatus = "ok"
 			} else {
@@ -241,7 +249,7 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 			}
 		}
 
-		recentRows, err := recentStmt.QueryContext(ctx, trends[i].CheckID, cutoff)
+		recentRows, err := recentStmt.QueryContext(ctx, trends[i].CheckID, cutoff, shelfCutoff)
 		if err != nil {
 			return nil, fmt.Errorf("recent statuses query failed: %w", err)
 		}
@@ -288,6 +296,7 @@ func (s *Store) getTransitionsSQLite(ctx context.Context, windowHours, limit int
 				LAG(status) OVER (PARTITION BY check_id ORDER BY created_at) as prev_status
 			FROM health_results
 			WHERE created_at >= ?
+			  AND NOT EXISTS (SELECT 1 FROM check_shelves s WHERE s.check_id = health_results.check_id AND s.expires_at > ?)
 		)
 		SELECT check_id, created_at, prev_status, status, message
 		FROM ordered_results
@@ -296,7 +305,7 @@ func (s *Store) getTransitionsSQLite(ctx context.Context, windowHours, limit int
 		LIMIT ?
 	`
 	cutoff := rfc3339NanoCutoff(time.Now(), windowHours)
-	rows, err := s.db.QueryContext(ctx, query, cutoff, limit)
+	rows, err := s.db.QueryContext(ctx, query, cutoff, time.Now().UTC().Format(time.RFC3339Nano), limit)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}

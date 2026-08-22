@@ -42,19 +42,55 @@ export function ConditionPage() {
   const sources = condition.data?.sources ?? [];
   const trustedCount = readings.filter((reading) => trustName(reading.trustVerdict) === "VALID").length;
 
-  const state: ExperienceSurfaceState = condition.isLoading || trust.isLoading
+  /**
+   * State is derived PER SURFACE, from the data that surface actually depends
+   * on — not once for the page.
+   *
+   * A single page-level state marks every region degraded the moment any one
+   * source is unavailable, which is both inaccurate and self-defeating: this
+   * host returns 78 trusted readings while six declared sources have no typed
+   * reader, and a shared state reported the readings table as degraded anyway.
+   * The region that REPORTS the degradation is `source-availability`; the
+   * regions that read fine say so.
+   */
+  const readingsState: ExperienceSurfaceState = condition.isLoading
     ? "loading"
-    : condition.error || trust.error
+    : condition.error
       ? "error"
-      : sources.some((source) => !source.available)
-        ? "partial"
+      : readings.length === 0
+        ? "empty"
         : "ready";
+  const trustState: ExperienceSurfaceState = trust.isLoading
+    ? "loading"
+    : trust.error
+      ? "error"
+      : "ready";
+  // The chrome is the one region whose job is to carry the bad news, so it is
+  // the only one that goes partial when a declared source did not answer.
+  const sourcesState: ExperienceSurfaceState = condition.isLoading
+    ? "loading"
+    : condition.error
+      ? "error"
+      : sources.length === 0
+        ? "empty"
+        : sources.some((source) => !source.available)
+          ? "partial"
+          : "ready";
+  // `state` remains the page-level reading for the body's branch logic, which
+  // asks "is there data to show?" — that is the readings question.
+  const state: ExperienceSurfaceState = readingsState;
+
+  /**
+   * The live-region announcement follows the WORST state across the page, so a
+   * screen-reader user hears about a degraded source even though the region
+   * that degraded is not the one they are reading.
+   */
   const statusMessage =
-    state === "loading"
+    readingsState === "loading" || trustState === "loading" || sourcesState === "loading"
       ? t(strings.pages.condition.reading)
-      : state === "error"
+      : readingsState === "error" || trustState === "error" || sourcesState === "error"
         ? t(strings.pages.condition.unavailableBody)
-        : state === "partial"
+        : sourcesState === "partial"
           ? t(strings.pages.condition.sourceUnavailable)
           : undefined;
 
@@ -82,7 +118,7 @@ export function ConditionPage() {
         </p>
         <ExperienceSurface
           surfaceId="source-availability"
-          state={state === "ready" && sources.length === 0 ? "empty" : state}
+          state={sourcesState}
           data-testid="condition-availability"
           statusMessage={statusMessage}
         >
@@ -123,7 +159,7 @@ export function ConditionPage() {
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">{t(strings.pages.condition.trustNote)}</p>
         <ExperienceSurface
           surfaceId="trust-distribution"
-          state={state}
+          state={trustState}
           data-testid="condition-trust"
           statusMessage={statusMessage}
         >
@@ -155,7 +191,7 @@ export function ConditionPage() {
             finding. It is rendered as one, in the body. */}
         <ExperienceSurface
           surfaceId="readings"
-          state={state}
+          state={readingsState}
           data-testid="condition-readings"
           statusMessage={statusMessage}
         >

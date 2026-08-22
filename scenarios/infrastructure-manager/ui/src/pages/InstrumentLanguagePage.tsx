@@ -5,6 +5,7 @@ import { Lamp, LampLegend } from "../components/instrument/Lamp";
 import { RungRing, describeRungStates } from "../components/instrument/RungRing";
 import { StatPlate, StatStrip } from "../components/instrument/StatPlate";
 import { AnnunciatorGrid, type AnnunciatorRow } from "../components/instrument/AnnunciatorGrid";
+import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { RUNG_ORDER, rungToken, signalToken, type Rung, type SignalState } from "../theme/instrument";
 
 /**
@@ -125,7 +126,7 @@ export function InstrumentLanguagePage() {
       </header>
 
       {/* ---------------------------------------------------------- plates -- */}
-      <section aria-labelledby="fixture-plates" className="flex flex-col gap-space-sm">
+      <ExperienceSurface surfaceId="language-plates" data-testid="language-plates" state="static" aria-labelledby="fixture-plates" className="flex flex-col gap-space-sm">
         <LegendPlate id="fixture-plates" tag="P1" legend={t(strings.pages.designLanguage.plateHeading)} aside="3 variants" />
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">{t(strings.pages.designLanguage.plateNote)}</p>
         <div className="flex flex-col gap-space-md">
@@ -133,10 +134,10 @@ export function InstrumentLanguagePage() {
           <LegendPlate as="h3" legend="No reference to carry" />
           <LegendPlate as="h3" tag="R5" legend="Anticipation" aside="0 of 8 devices" />
         </div>
-      </section>
+      </ExperienceSurface>
 
       {/* ----------------------------------------------------------- lamps -- */}
-      <section aria-labelledby="fixture-lamps" className="flex flex-col gap-space-sm">
+      <ExperienceSurface surfaceId="language-lamps" data-testid="language-lamps" state="static" aria-labelledby="fixture-lamps" className="flex flex-col gap-space-sm">
         <LegendPlate id="fixture-lamps" tag="P2" legend={t(strings.pages.designLanguage.lampHeading)}
           aside={`${ALL_STATES.length} states`} />
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">{t(strings.pages.designLanguage.lampNote)}</p>
@@ -164,10 +165,10 @@ export function InstrumentLanguagePage() {
           })}
         </ul>
         <LampLegend states={ALL_STATES} />
-      </section>
+      </ExperienceSurface>
 
       {/* ----------------------------------------------------------- rings -- */}
-      <section aria-labelledby="fixture-rings" className="flex flex-col gap-space-sm">
+      <ExperienceSurface surfaceId="language-rings" data-testid="language-rings" state="static" aria-labelledby="fixture-rings" className="flex flex-col gap-space-sm">
         <LegendPlate id="fixture-rings" tag="P3" legend={t(strings.pages.designLanguage.ringHeading)} aside={`${RUNG_ORDER.length} rungs`} />
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">{t(strings.pages.designLanguage.ringNote)}</p>
         <div className="panel p-space-md">
@@ -190,10 +191,10 @@ export function InstrumentLanguagePage() {
             ))}
           </ol>
         </div>
-      </section>
+      </ExperienceSurface>
 
       {/* ----------------------------------------------------------- stats -- */}
-      <section aria-labelledby="fixture-stats" className="flex flex-col gap-space-sm">
+      <ExperienceSurface surfaceId="language-stats" data-testid="language-stats" state="static" aria-labelledby="fixture-stats" className="flex flex-col gap-space-sm">
         <LegendPlate id="fixture-stats" tag="P4" legend={t(strings.pages.designLanguage.statHeading)} aside="3 tones" />
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">{t(strings.pages.designLanguage.statNote)}</p>
         <StatStrip label={t(strings.pages.designLanguage.statHeading)}>
@@ -202,17 +203,17 @@ export function InstrumentLanguagePage() {
           <StatPlate value="8" label={t(strings.pages.designLanguage.statDevices)} />
           <StatPlate value={null} label={t(strings.pages.designLanguage.statNotComputable)} />
         </StatStrip>
-      </section>
+      </ExperienceSurface>
 
       {/* ------------------------------------------------------------ grid -- */}
-      <section aria-labelledby="fixture-grid" className="flex flex-col gap-space-sm">
+      <ExperienceSurface surfaceId="language-grid" data-testid="language-grid" state="static" aria-labelledby="fixture-grid" className="flex flex-col gap-space-sm">
         <LegendPlate id="fixture-grid" tag="P5" legend={t(strings.pages.designLanguage.gridHeading)} aside={`${GRID_FIXTURES.length} rows`} />
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">{t(strings.pages.designLanguage.gridNote)}</p>
         <AnnunciatorGrid rows={GRID_FIXTURES} rowHeader="Device" caption={t(strings.pages.designLanguage.fixtureCaption)} />
-      </section>
+      </ExperienceSurface>
 
       {/* -------------------------------------------------------- blindness -- */}
-      <section aria-labelledby="fixture-blind" className="flex flex-col gap-space-sm">
+      <ExperienceSurface surfaceId="language-blindness" data-testid="language-blindness" state="static" aria-labelledby="fixture-blind" className="flex flex-col gap-space-sm">
         <LegendPlate id="fixture-blind" tag="P6" legend={t(strings.pages.designLanguage.blindHeading)} />
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">{t(strings.pages.designLanguage.blindNote)}</p>
         <div className="panel p-space-md flex flex-col gap-space-2xs">
@@ -226,7 +227,7 @@ export function InstrumentLanguagePage() {
             </p>
           ))}
         </div>
-      </section>
+      </ExperienceSurface>
     </section>
   );
 }

@@ -70,8 +70,9 @@ export interface StatusResponse {
   status: HealthStatus;
   platform: PlatformCapabilities;
   summary: HealthSummary;
-  checks: HealthResult[];
-  tickRunning?: boolean;
+	checks: HealthResult[];
+	autoHealSkips?: ActionLog[];
+	tickRunning?: boolean;
   tickStartedAt?: string | null;
   timestamp: string;
 }

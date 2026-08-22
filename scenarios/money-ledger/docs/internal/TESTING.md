@@ -827,7 +827,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/money-ledger/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/money-ledger/v1/<domain>/`, and
+   `packages/proto/gen/typescript/money-ledger/v1/<domain>/`, and
    `packages/proto/gen/python/money_ledger/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.

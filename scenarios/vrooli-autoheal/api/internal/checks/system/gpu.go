@@ -40,6 +40,10 @@ type GPUCheck struct {
 	tempCritical   int // Temperature (C) to go critical
 	hostCollector  hostSnapshotCollector
 	executor       checks.CommandExecutor
+	// placement answers whether the resources that asked for this card are
+	// actually on it. nil leaves the check thresholds-only, which is what it
+	// was before: a healthy card and an unused card looked identical.
+	placement PlacementReporter
 }
 
 // GPUCheckOption configures a GPUCheck.
@@ -63,14 +67,22 @@ func WithGPUExecutor(executor checks.CommandExecutor) GPUCheckOption {
 	}
 }
 
+// WithGPUPlacementReporter supplies the accelerator placement source.
+func WithGPUPlacementReporter(reporter PlacementReporter) GPUCheckOption {
+	return func(c *GPUCheck) {
+		c.placement = reporter
+	}
+}
+
 func WithGPUHostCollector(collector hostSnapshotCollector) GPUCheckOption {
 	return func(c *GPUCheck) {
 		c.hostCollector = collector
 	}
 }
 
-// NewGPUCheck creates a GPU health check.
-// Default thresholds: memory warning 80%, critical 95%, temp warning 75C, critical 85C
+// NewGPUCheck creates a GPU health check. Supply WithGPUPlacementReporter to
+// make it answer the question a device-threshold check cannot: are the
+// resources that asked for this card actually on it?
 func NewGPUCheck(opts ...GPUCheckOption) *GPUCheck {
 	c := &GPUCheck{
 		memoryWarning:  80,
@@ -79,6 +91,7 @@ func NewGPUCheck(opts ...GPUCheckOption) *GPUCheck {
 		tempCritical:   85,
 		hostCollector:  defaultHostSnapshotCollector{},
 		executor:       checks.DefaultExecutor,
+		placement:      CLIPlacementReporter{Executor: checks.DefaultExecutor},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -89,11 +102,11 @@ func NewGPUCheck(opts ...GPUCheckOption) *GPUCheck {
 func (c *GPUCheck) ID() string    { return "system-gpu" }
 func (c *GPUCheck) Title() string { return "GPU Health" }
 func (c *GPUCheck) Description() string {
-	return "Monitors NVIDIA GPU memory, temperature, and utilization for AI/ML workloads"
+	return "Monitors NVIDIA GPU memory, temperature and utilization, and reports every resource that declared an accelerator and is not on it"
 }
 
 func (c *GPUCheck) Importance() string {
-	return "GPU health affects AI model performance - overheating or memory exhaustion degrades ML inference"
+	return "GPU health affects AI model performance, and an idle healthy card says nothing about whether the resources that asked for it are using it: a fleet on the CPU passes every threshold this check applies to the device itself"
 }
 func (c *GPUCheck) Category() checks.Category  { return checks.CategorySystem }
 func (c *GPUCheck) IntervalSeconds() int       { return 30 } // Check every 30 seconds for GPU
@@ -230,7 +243,7 @@ func (c *GPUCheck) Run(ctx context.Context) checks.Result {
 		result.Message = worstMessage
 	}
 
-	return result
+	return applyPlacement(ctx, c.placement, result)
 }
 
 // RecoveryActions returns available recovery actions for GPU issues.

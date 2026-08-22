@@ -5,6 +5,7 @@ package bootstrap
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
@@ -178,23 +179,48 @@ func TestDefaultCheckFactory_CreateVrooliChecks(t *testing.T) {
 		t.Fatal("expected Vrooli checks to be created")
 	}
 
-	// Count by type
-	resourceCount := 0
+	// Count by type. A monitored resource produces one base check, plus one
+	// accelerator-placement check when it declares a non-CPU backend, so the
+	// assertion is coverage — every monitored resource is represented, and
+	// every extra check is a mode-drift check for one of them — rather than a
+	// pinned total that breaks whenever a resource declares an accelerator.
+	baseChecks := map[string]bool{}
+	driftChecks := map[string]bool{}
 	scenarioCount := 0
 
 	for _, check := range vrooliChecks {
 		id := check.ID()
 		switch {
-		case len(id) > 9 && id[:9] == "resource-":
-			resourceCount++
-		case len(id) > 9 && id[:9] == "scenario-":
+		case strings.HasSuffix(id, "-mode-drift"):
+			driftChecks[strings.TrimSuffix(strings.TrimPrefix(id, "resource-"), "-mode-drift")] = true
+		case strings.HasPrefix(id, "resource-"):
+			baseChecks[strings.TrimPrefix(id, "resource-")] = true
+		case strings.HasPrefix(id, "scenario-"):
 			scenarioCount++
 		}
 	}
 
-	if resourceCount != len(factory.resources) {
-		t.Errorf("resource check count = %d, want %d", resourceCount, len(factory.resources))
+	monitored, _ := PruneMissingResources(factory.resources)
+	for _, name := range monitored {
+		if !baseChecks[name] {
+			t.Errorf("monitored resource %q has no resource check", name)
+		}
 	}
+	if len(baseChecks) != len(monitored) {
+		t.Errorf("resource check count = %d, want %d (monitored: %v)", len(baseChecks), len(monitored), monitored)
+	}
+	for name := range driftChecks {
+		if !baseChecks[name] {
+			t.Errorf("mode-drift check for %q has no matching resource check", name)
+		}
+	}
+	// And every accelerator-declaring monitored resource has one.
+	for _, name := range acceleratedResources(monitored) {
+		if !driftChecks[name] {
+			t.Errorf("accelerated resource %q has no mode-drift check", name)
+		}
+	}
+
 	expectedScenarios := len(factory.criticalScenarios) + len(factory.nonCriticalScenarios)
 	if scenarioCount != expectedScenarios {
 		t.Errorf("scenario check count = %d, want %d", scenarioCount, expectedScenarios)

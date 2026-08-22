@@ -1,4 +1,4 @@
-import { Activity, Crosshair, Gauge, Home, Settings } from "lucide-react";
+import { Activity, CircuitBoard, Crosshair, Gauge, Home, Palette, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { BottomNav as CanonicalBottomNav, type BottomNavItem } from "../components/ui/bottom-nav";
@@ -52,5 +52,9 @@ function iconForItem(item: NavItem) {
       return <Settings aria-hidden className={iconClass} />;
     case "dashboard":
       return <Home aria-hidden className={iconClass} />;
+    case "substrate":
+      return <CircuitBoard aria-hidden className={iconClass} />;
+    case "designLanguage":
+      return <Palette aria-hidden className={iconClass} />;
   }
 }

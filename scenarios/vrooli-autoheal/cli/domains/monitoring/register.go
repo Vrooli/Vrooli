@@ -18,6 +18,10 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
 			{Name: "show", Description: "Show monitoring configuration", Run: func(args []string) error { return get(core, args) }},
+			// `list` is what operators reach for and what the docs referenced;
+			// only `show` existed, so the documented command failed with
+			// "Unknown subcommand". Both names read the same configuration.
+			{Name: "list", Description: "List monitored scenarios and resources (alias of show)", Run: func(args []string) error { return get(core, args) }},
 			{Name: "add-scenario", Description: "Add a monitored scenario", Run: func(args []string) error { return addScenario(core, args) }},
 			{Name: "remove-scenario", Description: "Remove a monitored scenario", Run: func(args []string) error { return removeScenario(core, args) }},
 			{Name: "set-scenario-critical", Description: "Set whether a monitored scenario is critical", Run: func(args []string) error { return setScenarioCritical(core, args) }},

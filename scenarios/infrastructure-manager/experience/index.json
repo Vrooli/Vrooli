@@ -16,6 +16,12 @@
       "status": "active"
     },
     {
+      "id": "substrate",
+      "path": "pages/substrate.json",
+      "title": "Substrate",
+      "status": "active"
+    },
+    {
       "id": "coverage",
       "path": "pages/coverage.json",
       "title": "Coverage",
@@ -37,6 +43,12 @@
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",
+      "status": "active"
+    },
+    {
+      "id": "design-language",
+      "path": "pages/design-language.json",
+      "title": "Instrument language",
       "status": "active"
     }
   ],

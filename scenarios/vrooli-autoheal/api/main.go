@@ -151,6 +151,7 @@ func run() error {
 	h.SetHistoryRetentionHoursProvider(func() int { return configMgr.GetGlobal().HistoryRetentionHours })
 	configHandlers := apiHandlers.NewConfigHandlers(configMgr, registry)
 	apiRouter := setupRouter(h, configHandlers)
+	apiHandlers.RegisterTypedServices(apiRouter, h)
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 	rootMux.Handle("/", apiRouter)
@@ -272,8 +273,11 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.R
 	router.HandleFunc("/api/v1/checks", h.ListChecks).Methods("GET")
 	// Note: /checks/trends must be before /checks/{checkId} to match correctly
 	router.HandleFunc("/api/v1/checks/trends", h.CheckTrends).Methods("GET")
+	router.HandleFunc("/api/v1/checks/shelves", h.ListCheckShelves).Methods("GET")
 	router.HandleFunc("/api/v1/checks/{checkId}", h.CheckResult).Methods("GET")
 	router.HandleFunc("/api/v1/checks/{checkId}/history", h.CheckHistory).Methods("GET")
+	router.HandleFunc("/api/v1/checks/{checkId}/shelve", h.ShelveCheck).Methods("POST")
+	router.HandleFunc("/api/v1/checks/{checkId}/shelve", h.UnshelveCheck).Methods("DELETE")
 
 	// History and timeline endpoints [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 	router.HandleFunc("/api/v1/timeline", h.Timeline).Methods("GET")
@@ -513,6 +517,10 @@ func scenarioStorageRoots() (storage.Paths, error) {
 	return storage.EnsureAllDirs(resolver, storage.Options{ScenarioID: scenarioID}, 0)
 }
 
+// autohealDatabaseFile is this scenario's database file name. It predates the
+// "<scenario>.db" convention and is kept so the existing database is found.
+const autohealDatabaseFile = "autoheal.sqlite"
+
 func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
 	root, err := roots.Pick(ctx, class)
 	if err != nil {
@@ -521,30 +529,20 @@ func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class sto
 	return filepath.Join(root, rel), nil
 }
 
+// resolveSQLiteDSN resolves vrooli-autoheal's own database path.
+//
+// The routed roots are consulted first so Test Genie can lease this scenario an
+// isolated data root for the duration of a run. Outside a run they resolve to
+// the same place storage.SQLitePath would.
+//
+// This scenario used to read SQLITE_PATH and SQLITE_DB. That is why the defect
+// existed at all: vrooli-autoheal declared SQLITE_PATH in its own manifest,
+// then restarted sick scenarios by exec'ing the CLI, and every child inherited
+// the value and opened THIS database instead of its own.
 func resolveSQLiteDSN(ctx context.Context, fileRoots *filerouting.RoutedRoots) (string, error) {
-	if dsn := os.Getenv("SQLITE_PATH"); dsn != "" {
-		return ensureSQLiteParent(dsn)
-	}
-	if dsn := os.Getenv("SQLITE_DB"); dsn != "" {
-		return ensureSQLiteParent(dsn)
-	}
-
-	path, err := fileRootPath(ctx, fileRoots, storage.ClassData, "autoheal.sqlite")
+	path, err := fileRootPath(ctx, fileRoots, storage.ClassData, autohealDatabaseFile)
 	if err != nil {
 		return "", fmt.Errorf("resolve sqlite data path: %w", err)
-	}
-	return path, nil
-}
-
-// ensureSQLiteParent makes an explicit lifecycle-provided SQLite path usable
-// on a fresh scenario checkout. The lifecycle injects SQLITE_PATH under
-// SCENARIO_DATA_DIR, but that directory is not necessarily materialized until
-// the API starts. Only the resolved parent is created; the database file
-// itself remains owned by the SQLite driver.
-func ensureSQLiteParent(dsn string) (string, error) {
-	path := filepath.Clean(strings.TrimSpace(dsn))
-	if path == "." || path == "" {
-		return "", fmt.Errorf("sqlite path is empty")
 	}
 	parent := filepath.Dir(path)
 	if err := os.MkdirAll(parent, 0o750); err != nil {

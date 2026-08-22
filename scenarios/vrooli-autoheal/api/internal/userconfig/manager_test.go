@@ -52,7 +52,8 @@ func TestGetCheckDefaults(t *testing.T) {
 		{"infra-display", true, true, "critical"},
 		{"os-watchdog", true, true, "critical"},
 		{"scenario-vrooli-events", true, true, "critical"},
-		{"unknown-check", true, false, "critical"}, // Generic defaults
+		{"scenario-new-capability", true, true, "critical"}, // Generic scenario checks are healable by default.
+		{"unknown-check", true, false, "critical"},          // Generic defaults
 	}
 
 	for _, tc := range tests {

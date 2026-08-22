@@ -237,6 +237,17 @@ CREATE TABLE IF NOT EXISTS heal_trackers (
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+CREATE TABLE IF NOT EXISTS check_shelves (
+    check_id TEXT PRIMARY KEY,
+    reason TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    set_by TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_check_shelves_expires_at
+    ON check_shelves (expires_at);
+
 CREATE VIEW IF NOT EXISTS latest_health_results AS
 SELECT hr.*
 FROM health_results hr

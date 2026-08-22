@@ -15,7 +15,11 @@
 }
 
 body {
-  background: var(--color-background);
+  /* The shell colour, not the page ground: body padding fills the safe-area
+     band that sits ABOVE the top chrome, and it must continue the chrome
+     rather than introduce a second colour under the status bar. The content
+     area paints `--color-background` on the app-shell element itself. */
+  background: var(--color-shell);
   color: var(--color-foreground);
   font-family: var(--font-sans);
   margin: 0;
@@ -102,6 +106,17 @@ body {
 
   .pb-safe {
     padding-bottom: var(--safe-area-inset-bottom);
+  }
+
+  /*
+   * The bottom nav is `fixed ... bottom-safe`, and this utility is what makes
+   * `bottom-safe` mean something. Without it the class resolves to nothing, the
+   * fixed element inherits `bottom: auto`, and it renders at its static
+   * position — which on a short page puts the mobile nav over the top chrome
+   * instead of pinning it to the viewport bottom.
+   */
+  .bottom-safe {
+    bottom: var(--safe-area-inset-bottom, 0px);
   }
 
   .pl-safe {

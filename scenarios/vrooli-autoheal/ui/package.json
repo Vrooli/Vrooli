@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm run type-check && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build": "pnpm run type-check && vite build",
     "build:profile": "pnpm run type-check && vite build --mode profile",
     "start": "vrooli lifecycle protect -- node server.js",
     "preview": "vite preview",

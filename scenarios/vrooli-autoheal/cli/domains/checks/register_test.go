@@ -21,7 +21,7 @@ func TestLegacyRegisterProvidesRecoveryCommands(t *testing.T) {
 
 func TestRegisterProvidesCheckSubcommands(t *testing.T) {
 	group := Register(nil)
-	want := []string{"list", "get", "history", "actions", "run-action"}
+	want := []string{"list", "get", "history", "actions", "run-action", "reconcile", "shelve", "unshelve", "shelved", "saturation"}
 	if group.Name != "check" {
 		t.Fatalf("Register().Name = %q, want check", group.Name)
 	}

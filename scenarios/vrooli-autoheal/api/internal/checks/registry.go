@@ -40,15 +40,29 @@ const (
 	DefaultTimeoutRetryCooldown = 30 * time.Second
 )
 
-// restartActionIDs enumerates action IDs that may run as long as a full
-// scenario restart. Unknown actions default to the fast timeout.
-var restartActionIDs = map[string]struct{}{
+// longRunningActionIDs enumerates action IDs that receive the long lifecycle
+// timeout. Timeout budgeting and recovery ownership are separate concerns:
+// starting a stopped scenario is long-running but does not need the restart
+// coordination gate.
+var longRunningActionIDs = map[string]struct{}{
 	"restart":       {},
 	"restart-clean": {},
 	"setup-restart": {},
 	"recover-go":    {},
 	"recover-pnpm":  {},
 	"start":         {},
+	"stop":          {},
+}
+
+// gatedActionIDs enumerates actions that require runtime recovery ownership.
+// A start action is intentionally absent: starting a scenario already known
+// to be stopped cannot race a running-process recovery controller.
+var gatedActionIDs = map[string]struct{}{
+	"restart":       {},
+	"restart-clean": {},
+	"setup-restart": {},
+	"recover-go":    {},
+	"recover-pnpm":  {},
 	"stop":          {},
 }
 

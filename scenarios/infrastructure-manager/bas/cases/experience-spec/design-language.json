@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page design-language.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "design-language",
+      "surface": "experience-design-language"
+    },
+    "name": "experience-design-language-spec-smoke",
+    "requirement": "OT-P0-003",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "id": "navigate-design-language",
+      "action": {
+        "metadata": { "label": "Open Instrument language" },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "infrastructure-manager",
+          "scenario_path": "/design-language",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      }
+    },
+    {
+      "id": "wait-language-plates",
+      "action": {
+        "metadata": { "label": "Legend plates" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"language-plates\"][data-experience-state=\"static\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-language-lamps",
+      "action": {
+        "metadata": { "label": "Annunciator lamps" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"language-lamps\"][data-experience-state=\"static\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-language-rings",
+      "action": {
+        "metadata": { "label": "Segmented rung rings" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"language-rings\"][data-experience-state=\"static\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-language-stats",
+      "action": {
+        "metadata": { "label": "Stat plates" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"language-stats\"][data-experience-state=\"static\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-language-grid",
+      "action": {
+        "metadata": { "label": "Annunciator grid" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"language-grid\"][data-experience-state=\"static\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-language-blindness",
+      "action": {
+        "metadata": { "label": "Declared blindness" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"language-blindness\"][data-experience-state=\"static\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1280
+  }
+}

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P0 operational targets: the coverage grid, the setpoint, trust, the ranked surface, and the open-loop self-report.",
-    "last_validated_at": "2026-08-20T05:03:25-04:00",
+    "last_validated_at": "2026-08-20T16:06:43-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"

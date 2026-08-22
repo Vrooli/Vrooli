@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P1 operational targets: supervision reconcile, reading history, actuation efficacy, coverage drift, and the operator board.",
-    "last_validated_at": "2026-08-20T05:03:25-04:00",
+    "last_validated_at": "2026-08-20T16:06:43-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"

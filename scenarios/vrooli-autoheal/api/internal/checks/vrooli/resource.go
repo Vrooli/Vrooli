@@ -5,6 +5,7 @@ package vrooli
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
@@ -137,6 +138,11 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 	if status.Healthy != nil {
 		result.Details["healthy"] = *status.Healthy
 	}
+	if status.Serving != nil {
+		result.Details["serving"] = *status.Serving
+	}
+	result.Details["modeDrift"] = status.ModeDrift
+	result.Details["needsReacquire"] = status.NeedsReacquire
 
 	switch {
 	case !status.Success:
@@ -148,6 +154,24 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 	case !status.Running:
 		result.Status = checks.StatusCritical
 		result.Message = c.resourceName + " resource is stopped"
+	case status.NeedsReacquire:
+		// The staged artifact is intact and the host moved. Restarting cannot
+		// fix it; re-acquiring can, and the reacquire-artifact action does
+		// exactly that. The producer's diagnosis is carried through verbatim so
+		// an incident body names which facts changed.
+		result.Status = checks.StatusCritical
+		result.Message = c.resourceName + " resource needs its artifact re-acquired: the host facts changed since install"
+		if reason := strings.TrimSpace(status.ProbeError); reason != "" {
+			result.Message += " — " + reason
+			result.Details["reacquireReason"] = reason
+		}
+	case status.IsDegraded():
+		// The resource answers requests; it is just not meeting its contract.
+		// Calling this critical would restart something that is working, and a
+		// restart does not put a resource back on a backend the host cannot
+		// reach, so the loop would never end.
+		result.Status = checks.StatusWarning
+		result.Message = c.resourceName + " resource is degraded but still serving"
 	case status.Healthy != nil && !*status.Healthy:
 		result.Status = checks.StatusCritical
 		result.Message = c.resourceName + " resource is unhealthy"
@@ -228,6 +252,15 @@ func (c *ResourceCheck) RecoveryActions(lastResult *checks.Result) []checks.Reco
 			Available:   true, // Always available
 		},
 	}
+	if needsReacquire(lastResult) {
+		actions = append([]checks.RecoveryAction{{
+			ID:          "reacquire-artifact",
+			Name:        "Re-acquire Artifact",
+			Description: "Discard the staged artifact for " + c.resourceName + " and re-resolve, re-download and re-verify it under the host's current facts",
+			Dangerous:   false,
+			Available:   true,
+		}}, actions...)
+	}
 	if companionDown(lastResult) {
 		actions = append([]checks.RecoveryAction{{
 			ID:          "respawn-companion",
@@ -260,6 +293,8 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	case "respawn-companion":
 		args = []string{"resource", "start", c.resourceName}
 		needsVerification = true
+	case "reacquire-artifact":
+		args = []string{"resource", "install", c.resourceName, "--reacquire"}
 	case "stop":
 		args = []string{"resource", "stop", c.resourceName}
 	case "restart":
@@ -297,6 +332,8 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	result.Duration = time.Since(start)
 	result.Success = true
 	switch actionID {
+	case "reacquire-artifact":
+		result.Message = c.resourceName + " artifact re-acquired under the host's current facts"
 	case "stop":
 		result.Message = c.resourceName + " resource stopped successfully"
 	case "status":
@@ -306,6 +343,16 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	}
 
 	return result
+}
+
+// needsReacquire reads the typed artifact-drift signal the control plane
+// publishes, rather than matching on status text.
+func needsReacquire(lastResult *checks.Result) bool {
+	if lastResult == nil {
+		return false
+	}
+	drift, _ := lastResult.Details["needsReacquire"].(bool)
+	return drift
 }
 
 func companionDown(lastResult *checks.Result) bool {

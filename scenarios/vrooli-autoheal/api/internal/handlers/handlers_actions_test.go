@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/apihttptest"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/testutil"
 
 	"github.com/gorilla/mux"
 )
@@ -203,7 +203,7 @@ func TestIncidentRemediationsListsCandidates(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("IncidentRemediations() status = %d, want %d: %s", w.Code, http.StatusOK, w.Body.String())
 	}
-	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
 	if total, ok := resp["total"].(float64); !ok || total != 1 {
 		t.Fatalf("total = %v, want 1", resp["total"])
 	}
@@ -403,7 +403,7 @@ func TestHealth_SlowDatabaseIsBusyNotUnhealthy(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Health(w, req)
 
-	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
 
 	if resp["status"] != "healthy" {
 		t.Errorf("status = %v, want healthy: a slow database is a live one", resp["status"])
@@ -441,7 +441,7 @@ func TestHealth_UnreachableDatabaseStillReportsUnhealthy(t *testing.T) {
 	h.Health(w, req)
 	elapsed := time.Since(start)
 
-	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
 	if resp["status"] != "unhealthy" {
 		t.Errorf("status = %v, want unhealthy", resp["status"])
 	}

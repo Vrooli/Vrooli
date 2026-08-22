@@ -1,6 +1,7 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { renderWithProviders as render } from "../../test-utils";
 import { strings } from "../../consts/strings.generated";
 import { AnnunciatorGrid, type AnnunciatorRow } from "./AnnunciatorGrid";
 import { Lamp } from "./Lamp";

@@ -8,8 +8,8 @@ import (
 
 func TestCommandGroupsExposeLegacyEntrypoints(t *testing.T) {
 	groups := CommandGroups(nil, support.Dependencies{})
-	if len(groups) != 3 {
-		t.Fatalf("CommandGroups() count = %d, want 3", len(groups))
+	if len(groups) != 4 {
+		t.Fatalf("CommandGroups() count = %d, want 4", len(groups))
 	}
 	if groups[0].Title != "Operations" {
 		t.Fatalf("first command group title = %q, want Operations", groups[0].Title)
@@ -24,7 +24,7 @@ func TestCommandGroupsExposeLegacyEntrypoints(t *testing.T) {
 
 func TestSubcommandGroupsExposeScenarioDomains(t *testing.T) {
 	groups := SubcommandGroups(nil, support.Dependencies{})
-	want := []string{"check", "config", "host", "incidents", "monitoring", "retention", "actions"}
+	want := []string{"check", "config", "host", "incidents", "monitoring", "measure", "retention", "actions"}
 	if len(groups) != len(want) {
 		t.Fatalf("SubcommandGroups() count = %d, want %d", len(groups), len(want))
 	}

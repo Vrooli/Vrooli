@@ -112,6 +112,9 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 	} else if resp.LastCompletedTickAt != nil {
 		status = append(status, fmt.Sprintf("Freshness: current (%ds since last completed tick)", resp.StatusAgeSeconds))
 	}
+	if len(resp.AutoHealSkips) > 0 {
+		status = append(status, fmt.Sprintf("Auto-heal skipped: %d recent decision(s) with recorded reasons.", len(resp.AutoHealSkips)))
+	}
 
 	triage := []cliapp.TriageGroup{
 		{

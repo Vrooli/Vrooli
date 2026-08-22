@@ -7,11 +7,20 @@
     <link rel="manifest" href="site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Reliability instrument for the infra-health team: joins the sensor-map setpoint against live plant readings and emits one ranked, trust-qualified error surface" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#020617" />
+    <!-- vrooli-annunciator commits to one dark visual world (see DESIGN.md), so
+         this is a single UNSCOPED declaration rather than a light/dark pair:
+         there is no second palette for a media query to select. The value is
+         `--color-shell`, which is what the top chrome strip actually paints —
+         not `--color-background`, which is the page ground beneath it. -->
+    <meta name="theme-color" content="#0b0f10" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Infrastructure Manager" />
+    <!-- `black-translucent`, NOT `black`. The translucent style lets the page's
+         own top chrome show through the status bar, which is what makes the
+         strip match `--color-shell`. Plain `black` declares a literal #000000
+         status bar, and this panel's chrome is #0b0f10 — near-black, but not
+         black, so the two would visibly differ at the top edge. -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Infrastructure Manager</title>
   </head>

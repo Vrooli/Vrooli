@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/apihttptest"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/testutil"
 
 	"github.com/gorilla/mux"
 )
@@ -27,8 +27,10 @@ func TestHealth_Healthy(t *testing.T) {
 
 	h.Health(w, req)
 
-	testutil.AssertStatus(t, w, http.StatusOK)
-	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
 
 	if resp["status"] != "healthy" {
 		t.Errorf("status = %v, want healthy", resp["status"])
@@ -63,7 +65,7 @@ func TestHealth_Unhealthy(t *testing.T) {
 
 	h.Health(w, req)
 
-	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
 
 	if resp["status"] != "unhealthy" {
 		t.Errorf("status = %v, want unhealthy", resp["status"])
@@ -94,8 +96,10 @@ func TestPlatform(t *testing.T) {
 
 	h.Platform(w, req)
 
-	testutil.AssertStatus(t, w, http.StatusOK)
-	resp := testutil.MustDecodeJSON[platform.Capabilities](t, w)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+	resp := apihttptest.MustDecodeJSON[platform.Capabilities](t, w.Body.Bytes())
 
 	if resp.Platform != platform.Linux {
 		t.Errorf("Platform = %v, want linux", resp.Platform)
@@ -164,7 +168,7 @@ func TestStatus_IncludesActiveTickState(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Status(w, req)
 
-	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
 	if tickRunning, ok := resp["tickRunning"].(bool); !ok || !tickRunning {
 		t.Fatalf("tickRunning = %v, want true", resp["tickRunning"])
 	}
@@ -187,7 +191,7 @@ func TestStatus_ReportsFreshCompletedTick(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Status(w, req)
 
-	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
 	if statusFresh, ok := resp["statusFresh"].(bool); !ok || !statusFresh {
 		t.Fatalf("statusFresh = %v, want true", resp["statusFresh"])
 	}
@@ -212,7 +216,7 @@ func TestStatus_ReportsStaleCompletedTick(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Status(w, req)
 
-	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
 	if statusFresh, ok := resp["statusFresh"].(bool); !ok || statusFresh {
 		t.Fatalf("statusFresh = %v, want false", resp["statusFresh"])
 	}

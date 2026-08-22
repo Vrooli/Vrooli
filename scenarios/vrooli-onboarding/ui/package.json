@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "lint:fix": "eslint src --ext ts,tsx --fix",
-    "strings:check": "node -e \"const fs=require('fs'); const path='src'; if (!fs.existsSync(path)) process.exit(1);\"",
+    "strings:check": "node scripts/strings-check.mjs",
     "type-check": "pnpm selector:manifest && tsc --noEmit",
     "test": "pnpm selector:manifest && vitest run --coverage",
     "test:coverage": "pnpm selector:manifest && vitest run --coverage",

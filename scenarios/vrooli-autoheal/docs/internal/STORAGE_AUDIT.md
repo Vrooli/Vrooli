@@ -12,7 +12,7 @@
 - Connection uses `modernc.org/sqlite` via `api-core/database`
 
 ## SQLite Path Resolution
-- If `SQLITE_PATH` or `SQLITE_DB` is set, that path is used directly.
+- No database-path environment variable is read. The path is resolved by `api-core/storage` from the scenario id.
 - Otherwise path is resolved with `api-core/storage`:
   - profile: `auto`
   - app: `vrooli`

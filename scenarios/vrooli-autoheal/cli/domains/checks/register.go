@@ -1,17 +1,24 @@
 package checks
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
 	"sort"
 	"strings"
 
+	"connectrpc.com/connect"
+
 	"vrooli-autoheal/cli/domains/watchdog"
 	"vrooli-autoheal/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	checksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/checks"
+	checksconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/checks/checks_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func LegacyRegister(core *cliapp.ScenarioApp, deps support.Dependencies) cliapp.CommandGroup {
@@ -81,8 +88,172 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "history", Description: "Show recent history for one check", Run: func(args []string) error { return runHistory(core, args) }},
 			{Name: "actions", Description: "List recovery actions for one check", Run: func(args []string) error { return runActions(core, args) }},
 			{Name: "run-action", Description: "Execute a recovery action for one check", Run: func(args []string) error { return runAction(core, args) }},
+			{Name: "reconcile", Description: "Compare registered scenario checks with the derived core set", Run: func(args []string) error { return runReconcile(core, args) }},
+			{Name: "shelve", Description: "Shelve a check until a mandatory expiry", Run: func(args []string) error { return runShelve(core, args) }},
+			{Name: "unshelve", Description: "Remove a check shelf", Run: func(args []string) error { return runUnshelve(core, args) }},
+			{Name: "shelved", Description: "List active check shelves", Run: func(args []string) error { return runShelved(core, args) }},
+			{Name: "saturation", Description: "Tally transitions for every registered check in one read", Run: func(args []string) error { return runSaturation(core, args) }},
 		},
 	}
+}
+
+func runReconcile(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("check reconcile")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	client := checksconnect.NewChecksServiceClient(httpClient, baseURL)
+	response, err := client.GetReconcile(context.Background(), connect.NewRequest(&checksv1.GetReconcileRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("reconcile checks", err, nil)
+	}
+	if *jsonOutput {
+		encoded, marshalErr := protojson.MarshalOptions{Indent: "  "}.Marshal(response.Msg)
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(os.Stdout, string(encoded))
+		return nil
+	}
+	if !response.Msg.Reconcile.Available {
+		return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{Status: []string{"Reconcile unavailable: " + response.Msg.Reconcile.UnavailableReason}})
+	}
+	status := []string{
+		fmt.Sprintf("Ghost checks: %d", len(response.Msg.Reconcile.GhostCheckIds)),
+		fmt.Sprintf("Out-of-scope checks: %d", len(response.Msg.Reconcile.OutOfScopeCheckIds)),
+		fmt.Sprintf("Unsupervised plant: %d", len(response.Msg.Reconcile.UnsupervisedPlant)),
+	}
+	if !response.Msg.Reconcile.GhostDetectionAvailable {
+		status = append(status, "Ghost detection unavailable: "+response.Msg.Reconcile.GhostUnavailableReason)
+	}
+	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
+		Status: status,
+		Triage: []cliapp.TriageGroup{
+			{Heading: "Ghost checks (target no longer exists)", Items: response.Msg.Reconcile.GhostCheckIds},
+			{Heading: "Out-of-scope checks (target exists, outside the core set)", Items: response.Msg.Reconcile.OutOfScopeCheckIds},
+			{Heading: "Unsupervised plant", Items: response.Msg.Reconcile.UnsupervisedPlant},
+		},
+	})
+}
+
+func runSaturation(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("check saturation")
+	windowHours := fs.Int("window-hours", 24, "Transition window in hours")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	client := checksconnect.NewChecksServiceClient(httpClient, baseURL)
+	response, err := client.ListSaturation(context.Background(), connect.NewRequest(&checksv1.ListSaturationRequest{WindowHours: int32(*windowHours)}))
+	if err != nil {
+		return cliapp.WrapAPIError("list check saturation", err, nil)
+	}
+	if *jsonOutput {
+		encoded, marshalErr := protojson.MarshalOptions{Indent: "  "}.Marshal(response.Msg)
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(os.Stdout, string(encoded))
+		return nil
+	}
+	saturated := make([]string, 0)
+	quiet := 0
+	for _, item := range response.Msg.GetSaturations() {
+		if item.GetSaturated() {
+			saturated = append(saturated, item.GetCheckId())
+			continue
+		}
+		if !item.GetTransitioned() {
+			quiet++
+		}
+	}
+	status := []string{
+		fmt.Sprintf("Checks tallied: %d over %dh", len(response.Msg.GetSaturations()), response.Msg.GetWindowHours()),
+		fmt.Sprintf("Saturated (pinned in a non-normal state): %d", len(saturated)),
+		fmt.Sprintf("Quiet but healthy (no transition, currently OK): %d", quiet),
+	}
+	if response.Msg.GetTruncated() {
+		status = append(status, "Transition window was truncated; saturation cannot be derived from this tally.")
+	}
+	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
+		Status: status,
+		Triage: []cliapp.TriageGroup{{Heading: "Saturated checks", Items: saturated}},
+	})
+}
+
+func runShelve(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("check shelve")
+	reason := fs.String("reason", "", "Why this check is temporarily shelved")
+	expiry := fs.String("expiry", "", "Mandatory duration or future RFC3339 expiry")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 || strings.TrimSpace(*reason) == "" || strings.TrimSpace(*expiry) == "" {
+		return fmt.Errorf("usage: vrooli-autoheal check shelve <check-id> --reason <text> --expiry <duration|timestamp>")
+	}
+	body, err := core.Request("POST", "/checks/"+url.PathEscape(fs.Arg(0))+"/shelve", nil, map[string]string{"reason": *reason, "expiry": *expiry})
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		fmt.Fprintln(os.Stdout, support.PrettyJSON(body))
+		return nil
+	}
+	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{Status: []string{fmt.Sprintf("Shelved %s until the requested expiry.", fs.Arg(0))}})
+}
+
+func runUnshelve(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("check unshelve")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("usage: vrooli-autoheal check unshelve <check-id>")
+	}
+	body, err := core.Request("DELETE", "/checks/"+url.PathEscape(fs.Arg(0))+"/shelve", nil, nil)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		fmt.Fprintln(os.Stdout, support.PrettyJSON(body))
+		return nil
+	}
+	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{Status: []string{fmt.Sprintf("Unshelved %s.", fs.Arg(0))}})
+}
+
+func runShelved(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("check shelved")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	body, err := core.Get("/checks/shelves", nil)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		fmt.Fprintln(os.Stdout, support.PrettyJSON(body))
+		return nil
+	}
+	var response struct {
+		Shelves []struct {
+			CheckID string `json:"checkId"`
+			Reason  string `json:"reason"`
+		} `json:"shelves"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return err
+	}
+	items := make([]string, 0, len(response.Shelves))
+	for _, shelf := range response.Shelves {
+		items = append(items, fmt.Sprintf("%s: %s", shelf.CheckID, shelf.Reason))
+	}
+	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{Summary: []string{fmt.Sprintf("Active shelves: %d", len(items))}, ResultsHeading: "Shelves", Results: items})
 }
 
 func runList(core *cliapp.ScenarioApp, args []string) error {

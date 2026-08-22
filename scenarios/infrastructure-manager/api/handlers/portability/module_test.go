@@ -116,3 +116,69 @@ func TestTierProjectionStripsTheOrdinalPrefix(t *testing.T) {
 		}
 	}
 }
+
+// The fleet --view flag must bind to something real. It previously declared an
+// argument the request type had no field for, which the CLI contract gate
+// caught: a flag that cannot reach the server is a promise the surface cannot
+// keep.
+func TestNarrowFleetReturnsOnlyTheRequestedSection(t *testing.T) {
+	full := &portabilityv1.FleetReadout{
+		BlockedByOs:     []*portabilityv1.ScenarioBlock{{Scenario: "a"}},
+		DockerBlocked:   []*portabilityv1.ScenarioBlock{{Scenario: "b"}},
+		Peerless:        []*portabilityv1.ScenarioPeerless{{Scenario: "c"}},
+		TierUpgrades:    []*portabilityv1.TierUpgrade{{Scenario: "d"}},
+		DesktopBundling: &portabilityv1.DesktopBundlingVerdict{},
+		ManifestRoot:    "/repo",
+	}
+
+	for _, testCase := range []struct {
+		view    string
+		present func(*portabilityv1.FleetReadout) bool
+	}{
+		{"blocked", func(f *portabilityv1.FleetReadout) bool { return len(f.GetBlockedByOs()) == 1 }},
+		{"docker", func(f *portabilityv1.FleetReadout) bool { return len(f.GetDockerBlocked()) == 1 }},
+		{"peerless", func(f *portabilityv1.FleetReadout) bool { return len(f.GetPeerless()) == 1 }},
+		{"upgrades", func(f *portabilityv1.FleetReadout) bool { return len(f.GetTierUpgrades()) == 1 }},
+		{"desktop", func(f *portabilityv1.FleetReadout) bool { return f.GetDesktopBundling() != nil }},
+	} {
+		narrowed, err := narrowFleet(full, testCase.view)
+		if err != nil {
+			t.Fatalf("view %q: %v", testCase.view, err)
+		}
+		if !testCase.present(narrowed) {
+			t.Errorf("view %q did not carry its own section", testCase.view)
+		}
+		// Every other section must be EMPTIED. A caller that asked for one
+		// section and received all of them would read the extra rows as
+		// findings about the section it asked about.
+		sections := 0
+		if len(narrowed.GetBlockedByOs()) > 0 {
+			sections++
+		}
+		if len(narrowed.GetDockerBlocked()) > 0 {
+			sections++
+		}
+		if len(narrowed.GetPeerless()) > 0 {
+			sections++
+		}
+		if len(narrowed.GetTierUpgrades()) > 0 {
+			sections++
+		}
+		if narrowed.GetDesktopBundling() != nil {
+			sections++
+		}
+		if sections != 1 {
+			t.Errorf("view %q returned %d sections, want exactly 1", testCase.view, sections)
+		}
+		if narrowed.GetManifestRoot() != "/repo" {
+			t.Errorf("view %q dropped the manifest root, which every response must carry", testCase.view)
+		}
+	}
+}
+
+func TestNarrowFleetRejectsAnUnknownView(t *testing.T) {
+	// Never silently return the whole readout for a view nobody handled.
+	if _, err := narrowFleet(&portabilityv1.FleetReadout{}, "everything"); err == nil {
+		t.Fatal("expected an unknown view to be rejected")
+	}
+}

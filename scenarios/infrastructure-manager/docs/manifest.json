@@ -166,11 +166,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "\ud83c\udfaf Overview",
-              "\ud83c\udfaf Operational Targets",
-              "\ud83e\uddf1 Tech Direction Snapshot",
-              "\ud83e\udd1d Dependencies & Launch Plan",
-              "\ud83c\udfa8 UX & Branding"
+              "🎯 Overview",
+              "🎯 Operational Targets",
+              "🧱 Tech Direction Snapshot",
+              "🤝 Dependencies & Launch Plan",
+              "🎨 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +245,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 \u2014 Setup",
-              "2 \u2014 Start",
-              "3 \u2014 Open",
-              "5 \u2014 Run the tests"
+              "1 — Setup",
+              "2 — Start",
+              "3 — Open",
+              "5 — Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -322,7 +322,7 @@
         },
         {
           "path": "concepts/COVERAGE-MODEL.md",
-      "docType": "concept-coverage",
+          "docType": "concept-coverage",
           "title": "Coverage Model",
           "aliases": [
             "coverage",
@@ -370,7 +370,7 @@
         },
         {
           "path": "concepts/CONDITION-MODEL.md",
-      "docType": "concept-condition",
+          "docType": "concept-condition",
           "title": "Condition Model",
           "aliases": [
             "condition",
@@ -419,7 +419,7 @@
         },
         {
           "path": "concepts/SETPOINT-MODEL.md",
-      "docType": "concept-setpoint",
+          "docType": "concept-setpoint",
           "title": "Setpoint Model",
           "aliases": [
             "setpoint",
@@ -466,7 +466,7 @@
         },
         {
           "path": "concepts/TRUST-MODEL.md",
-      "docType": "concept-trust",
+          "docType": "concept-trust",
           "title": "Trust Model",
           "aliases": [
             "trust",
@@ -497,6 +497,53 @@
               "The Honesty Invariant",
               "Where Trust Verdicts Come From",
               "How Trust Interacts With Banding",
+              "Load-Bearing Constants",
+              "Current State",
+              "Governing Principles",
+              "Cross-References"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]",
+              "[Summarize]"
+            ]
+          }
+        },
+        {
+          "path": "concepts/PORTABILITY-MODEL.md",
+          "docType": "concept-portability",
+          "title": "Portability Model",
+          "aliases": [
+            "portability",
+            "platform-support",
+            "capability-grid",
+            "device-ladder"
+          ],
+          "description": "The Portability axis: which capabilities resolve on which host OS, whether an absence is a gap or a decision, and how far each device class has climbed the rungs",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "portability-axis",
+            "platform-support",
+            "capability-vocabulary",
+            "device-ladder"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Why Portability Is A Separate Denominator",
+              "The Capability Vocabulary",
+              "Provider Roles And Control Roles",
+              "Resolution, Situation And Qualification",
+              "The Device Ladder",
+              "Where Declarations Live",
               "Load-Bearing Constants",
               "Current State",
               "Governing Principles",
@@ -1153,7 +1200,7 @@
           "validation": {
             "requiredHeadings": [
               "System",
-              "Example domain \u2014 `notes` (removed by `template-manager detemplate`)",
+              "Example domain — `notes` (removed by `template-manager detemplate`)",
               "Adding a new endpoint",
               "Cross-references"
             ],
@@ -1193,7 +1240,7 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Example domain \u2014 `notes` (removed by `template-manager detemplate`)",
+              "Example domain — `notes` (removed by `template-manager detemplate`)",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1301,7 +1348,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry \u2014 every interface and its production / test fake",
+          "description": "Boundary registry — every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1411,7 +1458,7 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR \u2014 the canonical examples",
+              "TL;DR — the canonical examples",
               "API testing",
               "UI testing",
               "CLI testing",
@@ -1620,7 +1667,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log \u2014 append a row whenever work lands",
+          "description": "Lifecycle log — append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

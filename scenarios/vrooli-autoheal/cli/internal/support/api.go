@@ -43,6 +43,7 @@ type StatusResponse struct {
 	StatusStaleReason               string        `json:"statusStaleReason"`
 	Summary                         Summary       `json:"summary"`
 	Checks                          []CheckResult `json:"checks"`
+	AutoHealSkips                   []ActionLog   `json:"autoHealSkips,omitempty"`
 	Timestamp                       time.Time     `json:"timestamp"`
 }
 

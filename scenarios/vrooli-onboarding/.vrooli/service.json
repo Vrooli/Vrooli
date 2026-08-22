@@ -88,12 +88,6 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI"
-    },
-    "develop": {
-      "description": "Launch API and production UI bundle server"
     }
   },
   "cli": {

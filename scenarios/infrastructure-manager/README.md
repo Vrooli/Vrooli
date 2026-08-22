@@ -23,6 +23,15 @@ bus and a slow scenario restart are different failures and must not share a unit
 | **Condition** | For what we can see, is it *in band*? | [`docs/concepts/CONDITION-MODEL.md`](docs/concepts/CONDITION-MODEL.md) |
 | **Trust** | Can the reading be *believed*? | [`docs/concepts/TRUST-MODEL.md`](docs/concepts/TRUST-MODEL.md) |
 | **Efficacy** | Did the fix actually *move the sensor*? | [`docs/concepts/CONDITION-MODEL.md`](docs/concepts/CONDITION-MODEL.md) |
+| **Portability** | Would it run on a *different machine*? | [`docs/concepts/PORTABILITY-MODEL.md`](docs/concepts/PORTABILITY-MODEL.md) |
+
+> **Coverage is not platform support.** The four axes above the line all ask
+> about *this* running host. **Portability** is a separate denominator asking
+> where things would run at all — capability × host OS, plus the device ladder.
+> Read it with `portability grid` and `ladder status`; the flat control-plane
+> answer, which needs nothing running, is `vrooli capability ledger`. Reaching
+> for `coverage` when the question is about Windows is the single most common
+> wrong turn into this scenario.
 
 Three rules explain most of the design:
 

@@ -1,0 +1,578 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "vrooli-autoheal",
+  "description": "Read-only typed autoheal reliability commands.",
+  "exceptions": [
+    {
+      "command": "check list",
+      "class": "passthrough",
+      "reason": "Existing local check inspection command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "check get",
+      "class": "passthrough",
+      "reason": "Existing local check inspection command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "check history",
+      "class": "passthrough",
+      "reason": "Existing local check inspection command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "check actions",
+      "class": "passthrough",
+      "reason": "Existing local check inspection command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "check run-action",
+      "class": "passthrough",
+      "reason": "Existing local recovery command retained outside the read-only typed reliability-measure Connect surface."
+    },
+    {
+      "command": "check reconcile",
+      "class": "passthrough",
+      "reason": "Existing local check reconciliation command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "check shelve",
+      "class": "passthrough",
+      "reason": "Existing local check lifecycle command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "check unshelve",
+      "class": "passthrough",
+      "reason": "Existing local check lifecycle command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "check shelved",
+      "class": "passthrough",
+      "reason": "Existing local check inspection command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "config show",
+      "class": "passthrough",
+      "reason": "Existing local configuration command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "config defaults",
+      "class": "passthrough",
+      "reason": "Existing local configuration command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "config global",
+      "class": "passthrough",
+      "reason": "Existing local configuration command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "config ui",
+      "class": "passthrough",
+      "reason": "Existing local configuration command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "config validate",
+      "class": "passthrough",
+      "reason": "Existing local configuration command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "config import",
+      "class": "passthrough",
+      "reason": "Existing local configuration command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "config export",
+      "class": "passthrough",
+      "reason": "Existing local configuration command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "config check-enabled",
+      "class": "passthrough",
+      "reason": "Existing local configuration command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "config check-autoheal",
+      "class": "passthrough",
+      "reason": "Existing local configuration command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "config bulk",
+      "class": "passthrough",
+      "reason": "Existing local configuration command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "host inventory",
+      "class": "passthrough",
+      "reason": "Existing local host observation command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "host collect",
+      "class": "passthrough",
+      "reason": "Existing local host observation command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "host changes",
+      "class": "passthrough",
+      "reason": "Existing local host observation command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "incidents list",
+      "class": "passthrough",
+      "reason": "Existing local incident command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "incidents latest",
+      "class": "passthrough",
+      "reason": "Existing local incident command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "incidents show",
+      "class": "passthrough",
+      "reason": "Existing local incident command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "incidents remediations",
+      "class": "passthrough",
+      "reason": "Existing local incident command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "incidents remediation",
+      "class": "passthrough",
+      "reason": "Existing local incident command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "incidents acknowledge",
+      "class": "passthrough",
+      "reason": "Existing local incident command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "incidents resolve",
+      "class": "passthrough",
+      "reason": "Existing local incident command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "incidents ignore",
+      "class": "passthrough",
+      "reason": "Existing local incident command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "monitoring show",
+      "class": "passthrough",
+      "reason": "Existing local monitoring command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "monitoring list",
+      "class": "passthrough",
+      "reason": "Existing local monitoring command retained outside the typed reliability-measure Connect surface. `list` is the name operators and the docs use; it reads the same configuration as `show`."
+    },
+    {
+      "command": "monitoring add-scenario",
+      "class": "passthrough",
+      "reason": "Existing local monitoring command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "monitoring remove-scenario",
+      "class": "passthrough",
+      "reason": "Existing local monitoring command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "monitoring set-scenario-critical",
+      "class": "passthrough",
+      "reason": "Existing local monitoring command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "monitoring add-resource",
+      "class": "passthrough",
+      "reason": "Existing local monitoring command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "monitoring remove-resource",
+      "class": "passthrough",
+      "reason": "Existing local monitoring command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "retention status",
+      "class": "passthrough",
+      "reason": "Existing local retention command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "retention enforce",
+      "class": "passthrough",
+      "reason": "Existing local retention command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "actions history",
+      "class": "passthrough",
+      "reason": "Existing local timeline command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "actions timeline",
+      "class": "passthrough",
+      "reason": "Existing local timeline command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "actions transitions",
+      "class": "passthrough",
+      "reason": "Existing local timeline command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "actions uptime",
+      "class": "passthrough",
+      "reason": "Existing local timeline command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "actions trends",
+      "class": "passthrough",
+      "reason": "Existing local timeline command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "checks",
+      "class": "passthrough",
+      "reason": "Existing top-level recovery command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "check saturation",
+      "class": "passthrough",
+      "reason": "Existing local check inspection command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "diagnose-port",
+      "class": "passthrough",
+      "reason": "Existing top-level diagnostics command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "install",
+      "class": "passthrough",
+      "reason": "Existing top-level watchdog installation command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "locks",
+      "class": "passthrough",
+      "reason": "Existing top-level recovery command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "loop",
+      "class": "passthrough",
+      "reason": "Existing top-level supervisor command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "orphans",
+      "class": "passthrough",
+      "reason": "Existing top-level recovery command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "platform",
+      "class": "passthrough",
+      "reason": "Existing top-level platform inspection command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "space",
+      "class": "passthrough",
+      "reason": "Existing coverage-space denominator command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "tick",
+      "class": "passthrough",
+      "reason": "Existing top-level health-cycle command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "timeline",
+      "class": "passthrough",
+      "reason": "Existing top-level forensics command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "uninstall",
+      "class": "passthrough",
+      "reason": "Existing top-level watchdog removal command retained outside the typed reliability-measure Connect surface."
+    },
+    {
+      "command": "watchdog",
+      "class": "passthrough",
+      "reason": "Existing top-level watchdog inspection command retained outside the typed reliability-measure Connect surface."
+    }
+  ],
+  "omitted": [
+    {
+      "service": "ActionsService",
+      "method": "GetEventWeightedUptime",
+      "reason": "Existing actions proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ActionsService",
+      "method": "GetHistory",
+      "reason": "Existing actions proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ActionsService",
+      "method": "GetPerCheckTrends",
+      "reason": "Existing actions proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ActionsService",
+      "method": "GetTransitions",
+      "reason": "Existing actions proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ChecksService",
+      "method": "GetCheck",
+      "reason": "Existing checks proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ChecksService",
+      "method": "GetHistory",
+      "reason": "Existing checks proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ChecksService",
+      "method": "GetReconcile",
+      "reason": "Existing checks proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ChecksService",
+      "method": "GetSaturation",
+      "reason": "Existing checks proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ChecksService",
+      "method": "GetStatus",
+      "reason": "Existing checks proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ChecksService",
+      "method": "GetTransitions",
+      "reason": "Existing checks proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ChecksService",
+      "method": "ListChecks",
+      "reason": "Existing checks proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ChecksService",
+      "method": "ListShelves",
+      "reason": "Existing checks proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "HealingService",
+      "method": "GetEpisodes",
+      "reason": "Existing healing proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "HealingService",
+      "method": "GetHistory",
+      "reason": "Existing healing proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "HealingService",
+      "method": "ListOutcomes",
+      "reason": "Existing healing proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "IncidentsService",
+      "method": "GetIncident",
+      "reason": "Existing incidents proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "IncidentsService",
+      "method": "ListIncidents",
+      "reason": "Existing incidents proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "IncidentsService",
+      "method": "ListObservations",
+      "reason": "Existing incidents proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    },
+    {
+      "service": "ChecksService",
+      "method": "ListSaturation",
+      "reason": "Existing checks proto method is exposed through the local compatibility CLI, not the typed reliability-measure surface."
+    }
+  ],
+  "groups": [
+    {
+      "name": "measure",
+      "description": "Read typed reliability measures",
+      "commands": [
+        {
+          "name": "uptime",
+          "description": "Read uptime by check",
+          "flags": [
+            {
+              "name": "check-id",
+              "required": true
+            },
+            {
+              "name": "window-hours",
+              "default": "24"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "GetUptimeByCheck"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "reliability",
+            "intent": "Measure per-check uptime over a bounded observation window.",
+            "questions": [
+              "what is the uptime for this check",
+              "show check uptime this week"
+            ],
+            "params": {
+              "check_id": {},
+              "window_hours": {
+                "default": "24"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "uptime.uptime_percent",
+              "unit": "percent",
+              "summary_template": "{check_id} uptime ({window_hours}h)"
+            }
+          }
+        },
+        {
+          "name": "restarts",
+          "description": "Count recorded restarts",
+          "flags": [
+            {
+              "name": "window-hours",
+              "default": "24"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "GetRestartCount"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "reliability",
+            "intent": "Count recorded restart recovery actions in a bounded window.",
+            "questions": [
+              "how many restarts occurred",
+              "show restart count this week"
+            ],
+            "params": {
+              "window_hours": {
+                "default": "24"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "restarts.count",
+              "unit": "restarts",
+              "summary_template": "restarts ({window_hours}h)"
+            }
+          }
+        },
+        {
+          "name": "heal-outcomes",
+          "description": "Count recovery outcomes",
+          "flags": [
+            {
+              "name": "window-hours",
+              "default": "24"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "GetHealOutcomes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "reliability",
+            "intent": "Count successful, failed, and timed-out recovery outcomes.",
+            "questions": [
+              "what were the healing outcomes",
+              "show recovery outcomes this week"
+            ],
+            "params": {
+              "window_hours": {
+                "default": "24"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "outcomes",
+              "unit": "outcomes",
+              "summary_template": "healing outcomes ({window_hours}h)"
+            }
+          }
+        },
+        {
+          "name": "critical",
+          "description": "Count critical observations",
+          "flags": [
+            {
+              "name": "window-hours",
+              "default": "24"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "GetCriticalCount"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "reliability",
+            "intent": "Count critical health observations in a bounded window.",
+            "questions": [
+              "how many critical observations occurred",
+              "show critical count this week"
+            ],
+            "params": {
+              "window_hours": {
+                "default": "24"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "critical.count",
+              "unit": "observations",
+              "summary_template": "critical observations ({window_hours}h)"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

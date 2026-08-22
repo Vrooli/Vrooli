@@ -634,6 +634,24 @@
           }
         }
       ]
+    },
+    {
+      "name": "space",
+      "flat": true,
+      "description": "Emit this scenario's coverage-space denominator.",
+      "commands": [
+        {
+          "name": "space",
+          "description": "Emit this scenario's coverage-space denominator as JSON (the cross-scenario read contract)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
+        }
+      ]
     }
   ],
   "measures": {

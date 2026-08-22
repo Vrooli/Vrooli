@@ -32,15 +32,36 @@ export function FocusPage() {
   const sources = data?.sources ?? [];
   const readSources = sources.filter((source) => source.available);
 
-  const state: ExperienceSurfaceState = focus.isLoading
+  /**
+   * State is derived PER SURFACE, from what that surface actually reports.
+   *
+   * A single page-level state marked the SOURCE region degraded because the
+   * ranked list was empty, and the ranked list degraded because a source was
+   * unavailable — each region answering for the other's problem. The sources
+   * region is the one whose job is to report an unread source; the ranked
+   * region reports whether anything is ranked.
+   */
+  const rankedState: ExperienceSurfaceState = focus.isLoading
     ? "loading"
     : focus.error
       ? "error"
       : data?.allSourcesUnavailable
         ? "partial"
-        : data?.noFindings
+        : data?.noFindings || (data?.findings.length ?? 0) === 0
           ? "empty"
           : "ready";
+  const sourcesState: ExperienceSurfaceState = focus.isLoading
+    ? "loading"
+    : focus.error
+      ? "error"
+      : sources.length === 0
+        ? "empty"
+        : sources.some((source) => !source.available)
+          ? "partial"
+          : "ready";
+
+  // Retained for the body's branch logic, which asks "is anything ranked?".
+  const state: ExperienceSurfaceState = rankedState;
   const statusMessage =
     state === "loading"
       ? t(strings.pages.focus.reading)
@@ -82,7 +103,7 @@ export function FocusPage() {
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">{t(strings.pages.focus.sourcesNote)}</p>
         <ExperienceSurface
           surfaceId="source-health"
-          state={state === "ready" && sources.length === 0 ? "empty" : state}
+          state={sourcesState}
           data-testid="focus-sources"
           statusMessage={statusMessage}
         >
@@ -133,7 +154,7 @@ export function FocusPage() {
         <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">{t(strings.pages.focus.rankedNote)}</p>
         <ExperienceSurface
           surfaceId="ranked-surface"
-          state={state}
+          state={rankedState}
           data-testid="focus-surface"
           statusMessage={statusMessage}
         >

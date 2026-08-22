@@ -57,7 +57,7 @@
   },
   "private": true,
   "scripts": {
-    "build": "tsc --noEmit && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build": "tsc --noEmit && vite build",
     "build:profile": "tsc --noEmit && vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint src --ext ts,tsx",

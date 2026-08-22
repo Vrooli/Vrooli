@@ -5,6 +5,8 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -321,4 +323,72 @@ func (s *Store) GetAllHealTrackers(ctx context.Context) (map[string]*checks.Heal
 // DeleteHealTracker removes a heal tracker from the database.
 func (s *Store) DeleteHealTracker(ctx context.Context, checkID string) error {
 	return s.deleteHealTrackerSQLite(ctx, checkID)
+}
+
+type CheckShelf struct {
+	CheckID   string    `json:"checkId"`
+	Reason    string    `json:"reason"`
+	ExpiresAt time.Time `json:"expiresAt"`
+	SetBy     string    `json:"setBy"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func (s *Store) CreateCheckShelf(ctx context.Context, shelf CheckShelf) error {
+	if shelf.CheckID == "" || shelf.Reason == "" || shelf.SetBy == "" || shelf.ExpiresAt.IsZero() || !shelf.ExpiresAt.After(time.Now().UTC()) {
+		return fmt.Errorf("check shelf requires check_id, reason, set_by, and a future expiry")
+	}
+	if shelf.CreatedAt.IsZero() {
+		shelf.CreatedAt = time.Now().UTC()
+	}
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO check_shelves (check_id, reason, expires_at, set_by, created_at)
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT(check_id) DO UPDATE SET reason=excluded.reason, expires_at=excluded.expires_at, set_by=excluded.set_by, created_at=excluded.created_at
+	`, shelf.CheckID, shelf.Reason, shelf.ExpiresAt.UTC().Format(time.RFC3339Nano), shelf.SetBy, shelf.CreatedAt.UTC().Format(time.RFC3339Nano))
+	return err
+}
+
+func (s *Store) ListCheckShelves(ctx context.Context, includeExpired bool) ([]CheckShelf, error) {
+	query := `SELECT check_id, reason, expires_at, set_by, created_at FROM check_shelves`
+	args := []any{}
+	if !includeExpired {
+		query += ` WHERE expires_at > ?`
+		args = append(args, time.Now().UTC().Format(time.RFC3339Nano))
+	}
+	query += ` ORDER BY check_id`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var shelves []CheckShelf
+	for rows.Next() {
+		var shelf CheckShelf
+		var expiresAt, createdAt string
+		if err := rows.Scan(&shelf.CheckID, &shelf.Reason, &expiresAt, &shelf.SetBy, &createdAt); err != nil {
+			return nil, err
+		}
+		if shelf.ExpiresAt, err = time.Parse(time.RFC3339Nano, expiresAt); err != nil {
+			return nil, err
+		}
+		if shelf.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt); err != nil {
+			return nil, err
+		}
+		shelves = append(shelves, shelf)
+	}
+	return shelves, rows.Err()
+}
+
+func (s *Store) IsCheckShelved(ctx context.Context, checkID string) (bool, error) {
+	var exists int
+	err := s.db.QueryRowContext(ctx, `SELECT 1 FROM check_shelves WHERE check_id = ? AND expires_at > ?`, checkID, time.Now().UTC().Format(time.RFC3339Nano)).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil && exists == 1, err
+}
+
+func (s *Store) DeleteCheckShelf(ctx context.Context, checkID string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM check_shelves WHERE check_id = ?`, checkID)
+	return err
 }
