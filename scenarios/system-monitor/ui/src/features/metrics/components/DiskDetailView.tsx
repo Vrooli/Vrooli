@@ -180,6 +180,8 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
       onBack={onBack}
     >
       <MetricLineChart
+        status={metricHistory === null ? 'loading' : 'ready'}
+        seriesLabel="disk"
         className="card"
         data={diskIoHistory.map(point => ({ timestamp: point.timestamp, read: point.read, write: point.write }))}
         lines={[
@@ -509,6 +511,8 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           </div>
         </div>
         <MetricLineChart
+        status={metricHistory === null ? 'loading' : 'ready'}
+        seriesLabel="disk"
           data={diskUsageHistory.map(point => ({ timestamp: point.timestamp, value: point.value }))}
           lines={[{ dataKey: 'value', name: 'Disk Usage', color: 'var(--color-info)' }]}
           unit="%"

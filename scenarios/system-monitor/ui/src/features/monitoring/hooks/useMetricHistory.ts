@@ -37,6 +37,7 @@ const ensureHistoryBase = (history: MetricHistory | null): MetricHistory => ({
   sampleIntervalSeconds: history?.sampleIntervalSeconds ?? 0,
   cpu: history?.cpu ? [...history.cpu] : [],
   memory: history?.memory ? [...history.memory] : [],
+  swap: history?.swap ? [...history.swap] : [],
   network: history?.network ? [...history.network] : [],
   gpu: history?.gpu ? [...history.gpu] : [],
   diskUsage: cloneSeries(history?.diskUsage),
@@ -75,6 +76,9 @@ export const useMetricHistory = (
           memory: data.samples
             .filter(sample => sample.memory?.state.case === 'measured')
             .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.memory?.state.value) })),
+          swap: data.samples
+            .filter(sample => sample.swap?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.swap?.state.value) })),
           network: data.samples
             .filter(sample => sample.connections?.state.case === 'measured')
             .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.connections?.state.value) })),

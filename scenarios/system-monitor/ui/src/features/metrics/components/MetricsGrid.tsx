@@ -11,6 +11,7 @@ import type {
   ChartDataPoint
 } from '../../../types';
 import { MetricCard } from './MetricCard';
+import { metricConnectionAlertCount } from '../connectionAlerts';
 
 interface MetricsGridProps {
   metrics: MetricsResponse | null;
@@ -157,7 +158,7 @@ export const MetricsGrid = ({
         isExpanded={expandedCards.has('network')}
         onToggle={() => { onToggleCard('network'); }}
         details={detailedMetrics?.networkDetails}
-        alertCount={0} // TODO: Calculate based on thresholds
+        alertCount={metricConnectionAlertCount(metrics?.connections, metricHistory?.network)}
         history={metricHistory?.network}
         historyWindowSeconds={metricHistory?.windowSeconds}
         onOpenDetails={() => { onOpenDetail('network'); }}

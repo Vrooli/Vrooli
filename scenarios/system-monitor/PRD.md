@@ -15,22 +15,22 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Real-time CPU, memory, disk, network, GPU monitoring | Live system metric collection across core resource dimensions
-- [ ] OT-P0-002 | Threshold-based anomaly detection with configurable triggers | Detect anomalies against configurable warning/critical thresholds
-- [ ] OT-P0-003 | Automated investigation of system anomalies via agent-manager | Spawn AI investigations on anomalies through agent-manager integration
-- [ ] OT-P0-004 | Persistent time-series storage | Persist metrics history through a scenario-owned backend; the API currently defaults to in-memory storage.
-- [ ] OT-P0-005 | Configurable warning/critical thresholds | Manage per-metric thresholds via API settings endpoints
-- [ ] OT-P0-006 | Report generation (daily/weekly) | Generate daily and weekly system reports via API endpoint
-- [ ] OT-P0-007 | Governed responsive monitoring dashboard | The React UI shall use the vrooli-default / Vrooli Operational Console design system, remain operable at mobile width, and expose live metric states to assistive technology
+- [x] OT-P0-001 | Real-time CPU, memory, disk, network, GPU monitoring | Live system metric collection across core resource dimensions
+- [x] OT-P0-002 | Threshold-based anomaly detection with configurable triggers | Detect anomalies against configurable warning/critical thresholds
+- [x] OT-P0-003 | Automated investigation of system anomalies via agent-manager | Spawn AI investigations on anomalies through agent-manager integration
+- [x] OT-P0-004 | Persistent time-series storage | Persist metrics history through a scenario-owned backend; the API currently defaults to in-memory storage.
+- [x] OT-P0-005 | Configurable warning/critical thresholds | Manage per-metric thresholds via API settings endpoints
+- [x] OT-P0-006 | Report generation (daily/weekly) | Generate daily and weekly system reports via API endpoint
+- [x] OT-P0-007 | Governed responsive monitoring dashboard | The React UI shall use the vrooli-default / Vrooli Operational Console design system, remain operable at mobile width, and expose live metric states to assistive technology
 - [ ] OT-P0-008 | Investigation script execution | The API shall expose the investigation catalog with typed native execution where collected facts are sufficient and explicitly declared shell-gated execution otherwise
 - [ ] OT-P0-009 | Process monitoring and management | Zombie detection and process insight (UI has kill dialog; API kill endpoint not yet implemented)
-- [ ] OT-P0-010 | Infrastructure monitoring | Monitor database pools, HTTP pools, message queues, and storage I/O
+- [x] OT-P0-010 | Infrastructure monitoring | Monitor database pools, HTTP pools, message queues, and storage I/O
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-011 | Historical trend analysis | The scenario should expose metric history on a shared time axis so dashboard views can correlate trends with logs, forensic events, and investigations
-- [ ] OT-P1-012 | Alert webhook support | Cooldown-based alert webhook delivery on threshold violations
-- [ ] OT-P1-013 | Investigation cooldown management | Configurable cooldown period with reset capability
-- [ ] OT-P1-014 | Portable agent profile adoption | Reconcile a scenario-owned role-only profile; Agent Manager owns runner and model resolution
+- [x] OT-P1-011 | Historical trend analysis | The scenario should expose metric history on a shared time axis so dashboard views can correlate trends with logs, forensic events, and investigations
+- [x] OT-P1-012 | Alert webhook support | Cooldown-based alert webhook delivery on threshold violations
+- [x] OT-P1-013 | Investigation cooldown management | Configurable cooldown period with reset capability
+- [x] OT-P1-014 | Portable agent profile adoption | Reconcile a scenario-owned role-only profile; Agent Manager owns runner and model resolution
 - [ ] OT-P1-015 | Custom metric collection via API | Ingest custom metrics via API (currently only built-in collectors)
 - [ ] OT-P1-016 | Alert routing to multiple channels | Route alerts to multiple channels (webhook configured; email not implemented)
 - [ ] OT-P1-017 | Resource prediction models | Predictive resource modeling (not implemented)

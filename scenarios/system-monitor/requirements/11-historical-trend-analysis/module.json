@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-20T23:41:13-04:00"
+    "last_validated_at": "2026-08-21T17:09:28-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-001",
       "title": "Historical Trend Analysis System",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-011",
       "category": "core",
       "description": "The system should expose metric history through a dedicated timeline endpoint and render it against the shared observation window used by the dashboard.",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/services/report_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test trend calculation accuracy"
         },
         {
           "type": "test",
           "ref": "api/internal/services/monitor_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Verify timeline data retrieval"
         },
         {

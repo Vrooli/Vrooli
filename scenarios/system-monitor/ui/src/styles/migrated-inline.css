@@ -1652,6 +1652,61 @@
   border-radius: 2px;
 }
 
+/* Loading states are part of the page layout, not a generic spinner. Keep the
+   placeholder geometry close to the content it represents so route changes do
+   not make the page jump while data arrives. */
+.loading-skeleton {
+  display: grid;
+  gap: var(--spacing-md);
+  width: 100%;
+  color: var(--color-text-muted);
+}
+
+.loading-skeleton__block,
+.loading-skeleton__pulse {
+  display: block;
+  background: linear-gradient(
+    105deg,
+    var(--color-surface-elevated, var(--overlay-medium)) 20%,
+    var(--color-primary-muted) 45%,
+    var(--color-surface-elevated, var(--overlay-medium)) 70%
+  );
+  background-size: 240% 100%;
+  animation: skeleton-loading 1.6s ease-in-out infinite;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.loading-skeleton__block--label { width: 38%; height: 0.8rem; }
+.loading-skeleton__block--value { width: 24%; height: 1.5rem; }
+.loading-skeleton__block--action { width: 2.75rem; height: 2rem; }
+.loading-skeleton__block--meta { width: 46%; height: 0.7rem; }
+.loading-skeleton__block--meta-short { width: 30%; height: 0.7rem; }
+.loading-skeleton__block--line { width: 100%; height: 0.75rem; }
+.loading-skeleton__block--line-short { width: 72%; height: 0.75rem; }
+.loading-skeleton__block--metric-label { width: 55%; height: 0.7rem; }
+.loading-skeleton__block--metric-value { width: 72%; height: 1.35rem; }
+.loading-skeleton__block--section { width: 28%; height: 0.85rem; }
+.loading-skeleton__block--recommendation { width: 100%; height: 2.4rem; }
+.loading-skeleton__block--recommendation-short { width: 68%; height: 0.75rem; }
+
+.loading-skeleton__pulse {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-skeleton__block,
+  .loading-skeleton__pulse {
+    animation: none;
+  }
+}
+
 [data-sm-style~="sm-style-fef0e1ff97"] {
   margin: 0 0 var(--spacing-sm) 0;
 }
@@ -1727,3 +1782,189 @@
 .agent-stop-btn.is-stopping { cursor: wait; opacity: 0.7; }
 .agent-stop-btn:not(.is-stopping) { cursor: pointer; }
 .gpu-contention-claimed { position: absolute; inset: 0; background: var(--color-accent); }
+
+/* Shared connection feedback. The banner is intentionally calm: it explains
+   the state, preserves the last known reading, and offers one explicit action
+   without turning a transient network issue into an alarm wall. */
+.connection-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  width: min(100% - (var(--spacing-xl) * 2), 1400px);
+  margin: var(--spacing-md) auto 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-muted);
+  color: var(--color-warning-text);
+}
+
+.connection-status-banner__message {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.connection-status-banner__message span {
+  overflow-wrap: anywhere;
+}
+
+.connection-status-banner__action {
+  flex: 0 0 auto;
+  border-color: var(--color-warning);
+  color: var(--color-warning-text);
+}
+
+@media (max-width: 480px) {
+  .connection-status-banner {
+    width: min(100% - (var(--spacing-md) * 2), 1400px);
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .connection-status-banner__action {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ── Chart placeholder states ────────────────────────────────────────────────
+   A chart has three empty-ish states and they must not look alike. Collapsing
+   them into one "Waiting for timeseries data..." line is what let 16 hours of
+   hard persistence failure read as a slow load. */
+
+.chart-placeholder {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: var(--spacing-sm);
+}
+
+/* Loading: a chart-shaped shimmer, so the layout does not jump when data lands. */
+.chart-skeleton__frame {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  grid-template-rows: 1fr 1.25rem;
+  gap: var(--spacing-xs);
+  width: 100%;
+  flex: 1 1 auto;
+}
+
+.chart-skeleton__axis-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: var(--spacing-xs) 0;
+}
+
+.chart-skeleton__axis-x {
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chart-skeleton__tick {
+  width: 1.75rem;
+  height: 0.55rem;
+}
+
+.chart-skeleton__plot {
+  position: relative;
+  border-left: 1px solid var(--chart-grid);
+  border-bottom: 1px solid var(--chart-grid);
+  overflow: hidden;
+}
+
+/* Reuses the shared skeleton-loading keyframes so every shimmer in the app
+   moves at one cadence. */
+.chart-skeleton__wave {
+  position: absolute;
+  inset: 12% 0 0 0;
+  clip-path: polygon(
+    0% 72%, 8% 58%, 17% 66%, 25% 41%, 34% 52%, 42% 33%,
+    51% 45%, 59% 26%, 68% 38%, 76% 22%, 85% 34%, 93% 18%, 100% 29%,
+    100% 100%, 0% 100%
+  );
+  background: linear-gradient(
+    105deg,
+    var(--color-surface-elevated, var(--overlay-medium)) 20%,
+    var(--color-primary-muted) 45%,
+    var(--color-surface-elevated, var(--overlay-medium)) 70%
+  );
+  background-size: 240% 100%;
+  animation: skeleton-loading 1.6s ease-in-out infinite;
+}
+
+.chart-placeholder__caption {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+/* Empty: loaded successfully, genuinely nothing in the window. */
+.chart-placeholder--empty,
+.chart-placeholder--error {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--spacing-xl);
+  gap: var(--spacing-xs);
+}
+
+.chart-placeholder__title {
+  color: var(--color-text-heading);
+  font-weight: 600;
+}
+
+/* Error: the series could not be loaded. Must never be mistaken for "loading". */
+.chart-placeholder--error .chart-placeholder__title {
+  color: var(--color-error-text, var(--color-error));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-skeleton__wave {
+    animation: none;
+  }
+}
+
+/* Chart legend rendered from the series list rather than inferred from chart
+   children, so a series with both a Line and a decorative Area appears once. */
+.metric-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--spacing-md);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.metric-chart-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-text);
+  font: inherit;
+}
+
+.metric-chart-legend__item:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.metric-chart-legend__swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}

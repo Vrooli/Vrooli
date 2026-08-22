@@ -76,6 +76,8 @@ export interface MetricHistory {
   sampleIntervalSeconds: number;
   cpu: ChartDataPoint[];
   memory: ChartDataPoint[];
+  /** Swap utilisation %, projected separately from memory. */
+  swap: ChartDataPoint[];
   network: ChartDataPoint[];
   gpu?: ChartDataPoint[];
   diskUsage?: ChartDataPoint[];

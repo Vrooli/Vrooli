@@ -19,6 +19,7 @@ Set these in `.env` or export them before starting the scenario.
 | `SYSTEM_MONITOR_PROC_SAMPLE_TOP_N` | `50` | Top-N processes retained independently by CPU, RSS, and GPU VRAM per sampling cycle; the bounded union is at most 3N rows. Dropped processes are logged, never silently capped. |
 | `SYSTEM_MONITOR_RAW_RETENTION` | `6h` | How long raw per-process rows are kept before they are downsampled into per-minute rollups. Go duration string. |
 | `SYSTEM_MONITOR_ROLLUP_RETENTION` | `720h` | How long per-owner/per-minute rollups are kept (default 30 days). Go duration string. |
+| `SYSTEM_MONITOR_SOCKET_ATTRIBUTION_THRESHOLD` | `5000` | Established-TCP-connection count at or above which the network collector walks `/proc/<pid>/fd` to name the processes holding those sockets. Below it, only the aggregate count is collected. Set to `0` to disable attribution entirely. |
 
 `[CODE: api/internal/config/config.go]`
 

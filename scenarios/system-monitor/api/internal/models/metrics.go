@@ -11,11 +11,13 @@ type MetricsResponse struct {
 	MemoryUsage      float64     `json:"memory_usage"`
 	TCPConnections   int         `json:"tcp_connections"`
 	GPUUsage         *float64    `json:"gpu_usage,omitempty"`
+	SwapUsage        *float64    `json:"swap_usage,omitempty"`
 	DiskUsage        float64     `json:"disk_usage"`
 	CPUState         MetricState `json:"cpu_state"`
 	MemoryState      MetricState `json:"memory_state"`
 	ConnectionsState MetricState `json:"connections_state"`
 	GPUState         MetricState `json:"gpu_state"`
+	SwapState        MetricState `json:"swap_state"`
 	DiskState        MetricState `json:"disk_state"`
 	Timestamp        time.Time   `json:"timestamp"`
 }
@@ -78,10 +80,12 @@ type MetricTimelineSample struct {
 	MemoryUsage      float64     `json:"memory_usage"`
 	TCPConnections   int         `json:"tcp_connections"`
 	GPUUsage         *float64    `json:"gpu_usage,omitempty"`
+	SwapUsage        *float64    `json:"swap_usage,omitempty"`
 	CPUState         MetricState `json:"cpu_state"`
 	MemoryState      MetricState `json:"memory_state"`
 	ConnectionsState MetricState `json:"connections_state"`
 	GPUState         MetricState `json:"gpu_state"`
+	SwapState        MetricState `json:"swap_state"`
 }
 
 // MetricsTimelineResponse contains a windowed series of metric samples.
@@ -171,6 +175,29 @@ type NetworkMetrics struct {
 	PortUsage       PortUsageInfo       `json:"port_usage"`
 	NetworkStats    NetworkStatistics   `json:"network_stats"`
 	ConnectionPools []ConnectionPool    `json:"connection_pools"`
+	SocketOwners    *SocketOwnership    `json:"socket_owners,omitempty"`
+}
+
+// SocketOwnership names the processes holding the host's established TCP
+// sockets. It is populated only once the connection count is already alarming,
+// because the /proc walk it requires is proportional to host-wide file
+// descriptors. Absent means "not worth attributing", not "nobody owns them".
+type SocketOwnership struct {
+	Owners []SocketOwnerInfo `json:"owners"`
+	// Attributed is how many sockets were successfully traced to a process, and
+	// is normally below Total: /proc/<pid>/fd is unreadable for other users'
+	// processes. Reporting both keeps a partial answer from reading as complete.
+	Attributed int    `json:"attributed"`
+	Total      int    `json:"total"`
+	Supported  bool   `json:"supported"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+// SocketOwnerInfo is one process's share of the host's established sockets.
+type SocketOwnerInfo struct {
+	PID         int    `json:"pid"`
+	Name        string `json:"name"`
+	Connections int    `json:"connections"`
 }
 
 // SystemHealth contains overall system health information
@@ -335,6 +362,21 @@ type ProcessHealthInfo struct {
 	ZombieProcesses []ProcessInfo `json:"zombie_processes"`
 	HighThreadCount []ProcessInfo `json:"high_thread_count"`
 	LeakCandidates  []ProcessInfo `json:"leak_candidates"`
+	ForkRate        *ForkRateInfo `json:"fork_rate,omitempty"`
+}
+
+// ForkRateInfo reports host process-creation rate. A fork storm is invisible in
+// TotalProcesses because the processes are short-lived: the population stays
+// flat while the host burns its CPU in the kernel creating and reaping them.
+type ForkRateInfo struct {
+	ForksPerSecond float64 `json:"forks_per_second"`
+	ForksTotal     uint64  `json:"forks_total"`
+	// Pending is true on the first cycle after start, when a cumulative counter
+	// has been read but no interval exists yet. Distinct from a measured zero.
+	Pending   bool   `json:"pending"`
+	Supported bool   `json:"supported"`
+	Source    string `json:"source,omitempty"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 // InfrastructureMonitorData contains infrastructure metrics

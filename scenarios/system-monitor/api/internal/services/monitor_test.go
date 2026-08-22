@@ -92,6 +92,53 @@ func TestOnDemandMetricsDoNotResampleStatefulCollectors(t *testing.T) {
 	if calls.Load() != 1 {
 		t.Fatalf("scheduler invoked collector %d times, want 1", calls.Load())
 	}
+	if _, err := svc.GetDetailedMetrics(context.Background()); err != nil {
+		t.Fatalf("detailed metrics: %v", err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("detailed read resampled collector %d times, want scheduler-only sampling", calls.Load())
+	}
+}
+
+func TestUpdateLatestSnapshotPreservesCollectorsSkippedByCadence(t *testing.T) {
+	cfg := &config.Config{Monitoring: config.MonitoringConfig{MetricsInterval: time.Second}}
+	svc := NewMonitorService(cfg, memory.NewRepository(), infrastructure.NewStaticProvider())
+	firstObserved := time.Date(2026, time.August, 21, 12, 0, 0, 0, time.UTC)
+	secondObserved := firstObserved.Add(10 * time.Second)
+
+	disk := &collectors.MetricData{
+		CollectorName: "disk",
+		Timestamp:     firstObserved,
+		Values: map[string]interface{}{"usage": map[string]interface{}{
+			"used": int64(70), "total": int64(100), "free": int64(30), "percent": float64(70),
+		}},
+		Tags: map[string]string{"source": "test disk"},
+	}
+	svc.updateLatestSnapshot("cycle-disk", firstObserved, []*collectors.MetricData{disk})
+
+	// The next scheduler tick only collects CPU. Disk must remain the last
+	// measured value instead of falling back to the response type's zero value.
+	cpu := &collectors.MetricData{
+		CollectorName: "cpu",
+		Timestamp:     secondObserved,
+		Values:        map[string]interface{}{"status": "measured", "usage_percent": float64(23)},
+		Tags:          map[string]string{"source": "test cpu"},
+	}
+	svc.updateLatestSnapshot("cycle-cpu", secondObserved, []*collectors.MetricData{cpu})
+
+	got, err := svc.GetCurrentMetricsFresh(context.Background())
+	if err != nil {
+		t.Fatalf("read merged snapshot: %v", err)
+	}
+	if got.CPUState.Status != "measured" || got.CPUUsage != 23 {
+		t.Fatalf("CPU snapshot = %#v, want measured 23", got.CPUState)
+	}
+	if got.DiskState.Status != "measured" || got.DiskUsage != 70 {
+		t.Fatalf("disk snapshot = %#v, want preserved measured 70", got.DiskState)
+	}
+	if got.DiskState.CycleID != "cycle-disk" || !got.DiskState.ObservedAt.Equal(firstObserved) {
+		t.Fatalf("disk provenance = %#v, want original observation", got.DiskState)
+	}
 }
 
 type countingMetricCollector struct {

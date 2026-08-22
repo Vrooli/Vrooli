@@ -982,6 +982,23 @@ func hydrateMetricsResponse(resp *models.MetricsResponse, cycleID string, observ
 		if mem, ok := values["usage_percent"].(float64); ok {
 			resp.MemoryUsage = mem
 		}
+		// Swap rides along in the memory collector's payload. It is projected
+		// as its own series because memory utilisation can read healthy while
+		// swap fills, and a single memory line cannot show that divergence.
+		if swap, ok := values["swap"].(map[string]interface{}); ok {
+			if percent, ok := swap["percent"].(float64); ok {
+				v := percent
+				resp.SwapUsage = &v
+				swapState := state
+				// The copied state carries the memory reading; swap must
+				// overwrite it or every consumer that reads MetricState.Value
+				// (the typed MetricValue the UI plots) shows memory twice.
+				swapState.Value = percent
+				swapState.Provenance = "system-monitor/memory.swap"
+				swapState.Units = "percent"
+				resp.SwapState = swapState
+			}
+		}
 	case "network":
 		resp.ConnectionsState = state
 		if tcp, ok := values["tcp_connections"].(float64); ok {

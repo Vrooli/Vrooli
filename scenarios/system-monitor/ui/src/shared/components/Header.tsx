@@ -1,11 +1,19 @@
 import { Moon, Pause, Play, Settings, Sun, Terminal } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { StatusIndicator } from './StatusIndicator';
 import { AgentDropdown } from './AgentDropdown';
 import { useTheme } from '../theme/ThemeProvider';
 import type { InvestigationAgentState } from '../../types';
 import type { SystemHealthStatus } from '../../features/monitoring/hooks/useSystemMonitor';
 import { TIME_RANGE_OPTIONS, useTimeRange } from '../time/TimeRangeContext';
+
+const NAV_ITEMS = [
+  { path: '/', label: 'Dashboard' },
+  { path: '/forensics', label: 'Forensics' },
+  { path: '/logs', label: 'Logs' },
+  { path: '/capacity', label: 'Capacity' },
+  { path: '/scripts', label: 'Scripts' },
+] as const;
 
 interface HeaderProps {
   unreadErrorCount: number;
@@ -40,6 +48,9 @@ export const Header = ({
 }: HeaderProps) => {
   const { theme, toggleTheme } = useTheme();
   const { range, setRange, paused, setPaused } = useTimeRange();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const currentPath = location.pathname === '/' ? '/' : `/${location.pathname.split('/')[1]}`;
 
   return (
     <header className="app-header">
@@ -51,23 +62,20 @@ export const Header = ({
           <span className="system-monitor-title-text">System Monitor</span>
         </h1>
 
-        <nav className="app-nav flex-row-center gap-sm" data-sm-style="sm-style-c938f99d82">
-          <NavLink to="/" end className="app-nav-link">
-            Dashboard
-          </NavLink>
-          <NavLink to="/forensics" className="app-nav-link">
-            Forensics
-          </NavLink>
-          <NavLink to="/logs" className="app-nav-link">
-            Logs
-          </NavLink>
-          <NavLink to="/capacity" className="app-nav-link">
-            Capacity
-          </NavLink>
-          <NavLink to="/scripts" className="app-nav-link">
-            Scripts
-          </NavLink>
+        <nav className="app-nav flex-row-center gap-sm" aria-label="Primary navigation" data-sm-style="sm-style-c938f99d82">
+          {NAV_ITEMS.map(item => (
+            <NavLink key={item.path} to={item.path} end={item.path === '/'} className="app-nav-link">
+              {item.label}
+            </NavLink>
+          ))}
         </nav>
+
+        <label className="app-mobile-nav">
+          <span className="sr-only">Navigate to</span>
+          <select aria-label="Navigate to" value={currentPath} onChange={event => { void navigate(event.target.value); }}>
+            {NAV_ITEMS.map(item => <option key={item.path} value={item.path}>{item.label}</option>)}
+          </select>
+        </label>
 
         <div className="flex-row-center">
           {/* Instrument-scope: what this app is currently doing. */}

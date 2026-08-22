@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-20T23:41:13-04:00"
+    "last_validated_at": "2026-08-21T17:09:28-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-004",
       "title": "Portable Agent Profile Adoption",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-014",
       "category": "api",
       "description": "System Monitor declares a scenario-owned, role-only Agent Manager profile and never exposes runner, model, or policy selection locally.",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Verify System Monitor reconciles its declared profile source"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Verify legacy runner/model inputs are absent from the consumer surface"
         },
         {

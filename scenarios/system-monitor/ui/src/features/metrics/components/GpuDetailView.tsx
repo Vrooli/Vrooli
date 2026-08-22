@@ -43,6 +43,8 @@ export const GpuDetailView = ({ detailedMetrics, metricHistory, onBack }: GpuDet
     >
       <div className="flex-col-gap-lg">
         <MetricLineChart
+        status={metricHistory === null ? 'loading' : 'ready'}
+        seriesLabel="GPU"
           data={gpuHistory}
           lines={[{ dataKey: 'value', name: 'Utilization', color: 'var(--color-info)', strokeWidth: 2 }]}
           unit="%"

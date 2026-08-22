@@ -62,6 +62,7 @@ type MonitorService struct {
 	lastPersistenceDuration time.Duration
 	collectionProfile       CollectionProfile
 	latestSnapshot          *models.MetricsResponse
+	latestCollectorData     map[string]*collectors.MetricData
 }
 
 // MonitorOption configures a MonitorService.
@@ -121,6 +122,7 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, in
 		lastCollectorForks:     make(map[string]uint64),
 		lastCycleHeadroomOK:    true,
 		collectionProfile:      CollectionProfileStandard,
+		latestCollectorData:    make(map[string]*collectors.MetricData),
 		ctx:                    ctx,
 		cancel:                 cancel,
 		snapshots:              collectors.NewCachedSnapshotProvider(0),
@@ -374,6 +376,24 @@ func (s *MonitorService) collectMetrics() {
 		observations = append(observations, repository.MetricObservation{CollectorName: data.CollectorName, Values: data.Values})
 	}
 	if len(observations) > 0 {
+		s.mu.Lock()
+		for _, data := range metricsData {
+			if data == nil {
+				continue
+			}
+			values := make(map[string]interface{}, len(data.Values))
+			for key, value := range data.Values {
+				values[key] = value
+			}
+			s.latestCollectorData[data.CollectorName] = &collectors.MetricData{
+				CollectorName: data.CollectorName,
+				Timestamp:     data.Timestamp,
+				Type:          data.Type,
+				Values:        values,
+				Tags:          data.Tags,
+			}
+		}
+		s.mu.Unlock()
 		s.updateLatestSnapshot(cycleID, now, metricsData)
 		persistenceStarted := time.Now()
 		if err := s.repo.SaveMetricCycle(ctx, cycleID, now, observations); err != nil {
@@ -399,7 +419,25 @@ func (s *MonitorService) collectMetrics() {
 // updateLatestSnapshot publishes the scheduler-owned view used by on-demand
 // reads. Stateful collectors are never invoked from a request path.
 func (s *MonitorService) updateLatestSnapshot(cycleID string, observedAt time.Time, data []*collectors.MetricData) {
+	// Collectors have independent cadences (for example, CPU is frequent while
+	// disk and GPU probes are deliberately slower). A cycle therefore contains
+	// only the collectors whose cadence is due. Start from the last published
+	// snapshot so a skipped collector keeps its last measured state instead of
+	// being silently replaced by a zero-valued response field.
+	s.mu.RLock()
+	previous := s.latestSnapshot
 	response := &models.MetricsResponse{CycleID: cycleID, Timestamp: observedAt}
+	if previous != nil {
+		copy := *previous
+		response = &copy
+		response.CycleID = cycleID
+		response.Timestamp = observedAt
+	}
+	s.mu.RUnlock()
+	markObserved := func(state *models.MetricState) {
+		state.CycleID = cycleID
+		state.ObservedAt = observedAt
+	}
 	for _, metric := range data {
 		if metric == nil {
 			continue
@@ -407,35 +445,34 @@ func (s *MonitorService) updateLatestSnapshot(cycleID string, observedAt time.Ti
 		switch metric.CollectorName {
 		case "cpu":
 			response.CPUState = metricState(metric, "usage_percent", "CPU has not been sampled yet")
+			markObserved(&response.CPUState)
 			if value, ok := metric.Values["usage_percent"].(float64); ok {
 				response.CPUUsage = value
 			}
 		case "memory":
 			response.MemoryState = metricState(metric, "usage_percent", "memory collector unavailable")
+			markObserved(&response.MemoryState)
 			if value, ok := metric.Values["usage_percent"].(float64); ok {
 				response.MemoryUsage = value
 			}
 		case "network":
 			response.ConnectionsState = metricState(metric, "tcp_connections", "network collector unavailable")
+			markObserved(&response.ConnectionsState)
 			if value, ok := metric.Values["tcp_connections"].(int); ok {
 				response.TCPConnections = value
 			}
 		case "gpu":
 			response.GPUState = metricState(metric, "total_usage_percent", "GPU collector unavailable")
+			markObserved(&response.GPUState)
 			if value, ok := metric.Values["total_usage_percent"].(float64); ok {
 				response.GPUUsage = &value
 			}
 		case "disk":
 			response.DiskState = diskMetricState(metric)
+			markObserved(&response.DiskState)
 			if response.DiskState.Status == "measured" {
 				response.DiskUsage = response.DiskState.Value
 			}
-		}
-	}
-	for _, state := range []*models.MetricState{&response.CPUState, &response.MemoryState, &response.ConnectionsState, &response.GPUState, &response.DiskState} {
-		if state.Status != "" {
-			state.CycleID = cycleID
-			state.ObservedAt = observedAt
 		}
 	}
 	s.mu.Lock()
@@ -842,10 +879,12 @@ func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, 
 			MemoryUsage:      m.MemoryUsage,
 			TCPConnections:   m.TCPConnections,
 			GPUUsage:         m.GPUUsage,
+			SwapUsage:        m.SwapUsage,
 			CPUState:         m.CPUState,
 			MemoryState:      m.MemoryState,
 			ConnectionsState: m.ConnectionsState,
 			GPUState:         m.GPUState,
+			SwapState:        m.SwapState,
 		})
 	}
 
@@ -858,12 +897,15 @@ func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, 
 
 // GetDetailedMetrics retrieves comprehensive system metrics
 func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.DetailedMetrics, error) {
-	// Collect detailed metrics from registered collectors
-	cpuData, _ := s.collectFromRegistry(ctx, "cpu")
-	memData, _ := s.collectFromRegistry(ctx, "memory")
-	netData, _ := s.collectFromRegistry(ctx, "network")
-	diskData, _ := s.collectFromRegistry(ctx, "disk")
-	gpuData, _ := s.collectFromRegistry(ctx, "gpu")
+	// Detailed reads are projections of scheduler-owned samples. Calling the
+	// stateful CPU/GPU collectors here would advance their delta state between
+	// scheduled cycles and produce false zero or unavailable readings.
+	latest := s.latestCollectorSnapshot()
+	cpuData := latest["cpu"]
+	memData := latest["memory"]
+	netData := latest["network"]
+	diskData := latest["disk"]
+	gpuData := latest["gpu"]
 
 	// Get top processes
 	topCPUProcs, _ := collectors.GetTopProcessesByCPU(5)
@@ -883,6 +925,29 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 	detailed.SystemDetails.ServiceDependencies = s.infra.CheckServiceDependencies()
 
 	return detailed, nil
+}
+
+func (s *MonitorService) latestCollectorSnapshot() map[string]*collectors.MetricData {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	result := make(map[string]*collectors.MetricData, len(s.latestCollectorData))
+	for name, data := range s.latestCollectorData {
+		if data == nil {
+			continue
+		}
+		values := make(map[string]interface{}, len(data.Values))
+		for key, value := range data.Values {
+			values[key] = value
+		}
+		result[name] = &collectors.MetricData{
+			CollectorName: data.CollectorName,
+			Timestamp:     data.Timestamp,
+			Type:          data.Type,
+			Values:        values,
+			Tags:          data.Tags,
+		}
+	}
+	return result
 }
 
 // GetDiskDetail returns read-only disk usage detail plus storage-manager
@@ -1036,6 +1101,22 @@ func populateNetworkDetails(detailed *models.DetailedMetrics, netData *collector
 			BandwidthOutMbps: getFloat64Value(bw, "out_mbps"),
 		}
 	}
+
+	// Attribution is present only when the collector judged the connection count
+	// alarming enough to walk /proc, so its absence is expected and not an error.
+	if attribution, ok := netData.Values["socket_owners"].(collectors.SocketAttribution); ok {
+		owners := make([]models.SocketOwnerInfo, 0, len(attribution.Owners))
+		for _, owner := range attribution.Owners {
+			owners = append(owners, models.SocketOwnerInfo{PID: owner.PID, Name: owner.Comm, Connections: owner.Count})
+		}
+		detailed.NetworkDetails.SocketOwners = &models.SocketOwnership{
+			Owners:     owners,
+			Attributed: attribution.Attributed,
+			Total:      attribution.Total,
+			Supported:  attribution.Supported,
+			Reason:     attribution.Reason,
+		}
+	}
 }
 
 // populateSystemDetails fills the system section of detailed (file descriptors
@@ -1128,6 +1209,8 @@ func (s *MonitorService) GetProcessMonitorData(ctx context.Context) (*models.Pro
 		}
 	}
 
+	result.ProcessHealth.ForkRate = forkRateFromValues(data.Values)
+
 	// Add top processes as resource matrix
 	if topProcs, ok := data.Values["top_by_cpu"].([]map[string]interface{}); ok {
 		for _, proc := range topProcs {
@@ -1153,4 +1236,33 @@ func convertToProcessInfo(proc map[string]interface{}) models.ProcessInfo {
 		FDs:        getIntValue(proc, "fd_count"),
 		Status:     getStringValue(proc, "status"),
 	}
+}
+
+// forkRateFromValues lifts the process collector's fork-rate keys into the typed
+// model. It returns nil only when the collector emitted no fork-rate keys at
+// all; an unsupported platform still yields a populated, explicitly unsupported
+// value so the absence is visible rather than silently green.
+func forkRateFromValues(values map[string]interface{}) *models.ForkRateInfo {
+	status, ok := values["fork_rate_status"].(string)
+	if !ok {
+		return nil
+	}
+	if status != "measured" {
+		reason, _ := values["fork_rate_reason"].(string)
+		return &models.ForkRateInfo{Supported: false, Reason: reason}
+	}
+	info := &models.ForkRateInfo{Supported: true}
+	if total, ok := values["forks_total"].(uint64); ok {
+		info.ForksTotal = total
+	}
+	if rate, ok := values["forks_per_second"].(float64); ok {
+		info.ForksPerSecond = rate
+	}
+	if pending, ok := values["fork_rate_pending"].(bool); ok {
+		info.Pending = pending
+	}
+	if source, ok := values["fork_rate_source"].(string); ok {
+		info.Source = source
+	}
+	return info
 }

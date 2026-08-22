@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-20T23:41:13-04:00"
+    "last_validated_at": "2026-08-21T17:09:28-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-004",
       "title": "Time-Series Data Storage",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "core",
       "description": "System must persist metrics through a selected durable backend, ensuring no data loss",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/repository/cycle_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test storage interfaces"
         },
         {
           "type": "test",
           "ref": "api/internal/server/runtime.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Verify fallback mechanism"
         },
         {

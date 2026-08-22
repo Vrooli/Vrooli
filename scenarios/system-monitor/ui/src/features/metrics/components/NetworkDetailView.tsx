@@ -40,6 +40,8 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
       onBack={onBack}
     >
       <MetricLineChart
+        status={metricHistory === null ? 'loading' : 'ready'}
+        seriesLabel="connection"
         className="card"
         data={networkData.map(point => ({ timestamp: point.timestamp, value: point.value }))}
         lines={[{ dataKey: 'value', name: 'TCP Connections', color: 'var(--color-primary)' }]}

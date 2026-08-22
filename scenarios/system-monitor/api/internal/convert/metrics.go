@@ -91,10 +91,12 @@ func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricsp
 			MemoryUsage:    s.MemoryUsage,
 			TcpConnections: int32(s.TCPConnections),
 			GpuUsage:       s.GPUUsage,
+			SwapUsage:      s.SwapUsage,
 			Cpu:            metricValue(s.CPUState, s.CPUUsage),
 			Memory:         metricValue(s.MemoryState, s.MemoryUsage),
 			Connections:    metricValue(s.ConnectionsState, float64(s.TCPConnections)),
 			Gpu:            metricValue(s.GPUState, dereferenceFloat(s.GPUUsage)),
+			Swap:           metricValue(s.SwapState, dereferenceFloat(s.SwapUsage)),
 		}
 	}
 	return &metricspb.MetricsTimelineResponse{

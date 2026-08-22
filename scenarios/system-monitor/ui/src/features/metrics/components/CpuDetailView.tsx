@@ -43,6 +43,8 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
       onBack={onBack}
     >
       <MetricLineChart
+        status={metricHistory === null ? 'loading' : 'ready'}
+        seriesLabel="CPU"
         className="card"
         data-sm-style="sm-style-a796e75e8f"
         data={cpuData.map(point => ({ timestamp: point.timestamp, value: point.value }))}

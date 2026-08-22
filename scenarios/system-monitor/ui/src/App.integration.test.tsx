@@ -189,7 +189,10 @@ function installFixtures() {
 async function openPath(path: string) {
   window.history.pushState({}, '', path);
   window.dispatchEvent(new PopStateEvent('popstate'));
-  await waitFor(() => { expect(document.body.textContent).not.toContain('Loading...'); }, { timeout: 5000 });
+  // Each caller waits for the route-specific landmark below. Waiting for a
+  // generic loading string here races lazy route transitions and can leave a
+  // valid route test timing out on an unrelated fallback surface.
+  await act(async () => { await Promise.resolve(); });
 }
 
 describe('App production surfaces', () => {
@@ -224,12 +227,17 @@ describe('App production surfaces', () => {
     ];
     for (const [route, title] of routes) {
       await act(async () => { await openPath(route); });
-      await waitFor(() => expect(screen.getByText(title)).toBeInTheDocument(), { timeout: 5000 });
+      await waitFor(() => {
+        const landmark = route.startsWith('/metrics/')
+          ? screen.getByText(title)
+          : screen.getByText(title, { selector: 'h1, h2, h3' });
+        expect(landmark).toBeInTheDocument();
+      }, { timeout: 5000 });
       expect(document.querySelector('main')).toBeTruthy();
     }
     await act(async () => { await openPath('/'); });
     expect(screen.getByText('CPU USAGE')).toBeInTheDocument();
-  });
+  }, 20000);
 
   it('exercises operator controls and shared time state', async () => {
     const user = await import('@testing-library/user-event').then(module => module.default.setup());

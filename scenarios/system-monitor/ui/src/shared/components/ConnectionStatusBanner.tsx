@@ -1,3 +1,4 @@
+import { RefreshCw, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface ConnectionStatusBannerProps {
@@ -31,12 +32,17 @@ export function ConnectionStatusBanner({ isStale, lastSuccessfulFetch, onRefresh
   const timeAgo = lastSuccessfulFetch ? formatTimeAgo(lastSuccessfulFetch) : 'never';
 
   return (
-    <div data-sm-style="sm-style-53f1cf7a58">
-      <span>Data may be outdated. Last successful update: {timeAgo}. Retrying...</span>
+    <div className="connection-status-banner" role="status" aria-live="polite">
+      <div className="connection-status-banner__message">
+        <WifiOff size={16} aria-hidden="true" />
+        <span><strong>Data may be outdated.</strong> Last successful update: {timeAgo}. Retrying automatically.</span>
+      </div>
       <button
+        type="button"
+        className="btn btn-sm connection-status-banner__action"
         onClick={onRefresh}
-        data-sm-style="sm-style-db72597db4"
       >
+        <RefreshCw size={14} aria-hidden="true" />
         Refresh Now
       </button>
     </div>

@@ -50,6 +50,12 @@ const initBridge = async () => {
 // navigation. This guard reloads once (rate-limited) instead.
 installChunkReloadGuard();
 
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('./sw.js', { scope: './' });
+  }, { once: true });
+}
+
 const mountApp = () => {
   const rootEl = document.getElementById('root');
   if (!rootEl) throw new Error('Root element not found');

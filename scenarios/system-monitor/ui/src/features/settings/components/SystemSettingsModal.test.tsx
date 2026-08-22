@@ -31,7 +31,7 @@ describe('SystemSettingsModal', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<SystemSettingsModal isOpen onClose={onClose} />);
     expect(await screen.findByText('System Monitor Settings')).toBeInTheDocument();
-    const numbers = screen.getAllByRole('spinbutton');
+    const numbers = await screen.findAllByRole('spinbutton');
     const interval = numbers[0];
     if (!interval) throw new Error('metric interval input was not rendered');
     expect(interval).toHaveValue(15);

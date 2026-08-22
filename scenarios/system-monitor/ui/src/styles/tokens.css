@@ -264,6 +264,39 @@
   --z-toast: 1500;
 }
 
+/* App shell. Keep the page itself as the only vertical scroll container so
+   the dashboard behaves predictably inside a Vrooli iframe and on mobile. */
+.app {
+  min-height: 100dvh;
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.main-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.main-content > .container {
+  width: min(100% - (var(--spacing-xl) * 2), 1400px);
+  margin: 0 auto;
+  padding: var(--spacing-xl) 0 var(--spacing-xxl);
+}
+
+/* Native controls that do not opt into a component class still receive a
+   visible keyboard affordance. This is intentionally global: feature pages
+   are allowed to use plain controls without reimplementing accessibility. */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
+}
+
 /* ═══════════════════════════════════════════════════════════
    GLOBAL RESET & BASE STYLES
    ═══════════════════════════════════════════════════════════ */
@@ -359,6 +392,15 @@ button,
 select,
 input {
   min-height: 44px;
+}
+
+/* A checkbox or radio has no intrinsic width to stretch, so min-height alone
+   leaves it about 13px wide and below the tap-target floor the rule above
+   states. Every other input type grows to fill its container and needs no
+   width floor. */
+input[type="checkbox"],
+input[type="radio"] {
+  min-width: 44px;
 }
 
 .app-nav a {
@@ -2465,6 +2507,8 @@ input[type="range"]::-moz-range-thumb:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
   padding: 4px;
   background: transparent;
   border: none;
@@ -2545,10 +2589,45 @@ input[type="range"]::-moz-range-thumb:hover {
        than the viewport, clipping the last link. */
     min-width: 0;
   }
+
+  .main-content > .container {
+    width: min(100% - (var(--spacing-md) * 2), 1400px);
+    padding-top: var(--spacing-md);
+  }
+
+  .app-header-inner > .flex-row-center:last-child {
+    justify-content: space-between;
+  }
+
+  .header-group {
+    gap: var(--spacing-xs);
+  }
+
+  .history-window-control select {
+    max-width: 9.5rem;
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
   .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 768px) {
+  .app-header-inner > .app-nav {
+    display: none;
+  }
+
+  .app-mobile-nav {
+    display: block;
+    flex: 1 1 10rem;
+    min-width: 9rem;
+  }
+
+  .app-mobile-nav select {
+    width: 100%;
+    min-height: 44px;
+    font-weight: 600;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -2712,6 +2791,10 @@ input[type="range"]::-moz-range-thumb:hover {
 .app-nav-link:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+.app-mobile-nav {
+  display: none;
 }
 
 /* ═══════════════════════════════════════════════════════════

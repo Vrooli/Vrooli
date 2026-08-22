@@ -12,16 +12,16 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
       <div data-sm-style="sm-style-dabe935aa7">
         <div data-sm-style="sm-style-67bc078b69">
           <div 
-            className="skeleton-item"
+            className="loading-skeleton__block loading-skeleton__block--label"
             data-sm-style="sm-style-3dcc0f079d"
           />
           <div 
-            className="skeleton-item"
+            className="loading-skeleton__block loading-skeleton__block--value"
             data-sm-style="sm-style-467d79f189"
           />
         </div>
         <div 
-          className="skeleton-item"
+          className="loading-skeleton__block loading-skeleton__block--action"
           data-sm-style="sm-style-c733575e50"
         />
       </div>
@@ -29,11 +29,11 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
       {/* Metadata skeleton */}
       <div data-sm-style="sm-style-48be228cf7">
         <div 
-          className="skeleton-item"
+          className="loading-skeleton__block loading-skeleton__block--meta"
           data-sm-style="sm-style-fed0da754e"
         />
         <div 
-          className="skeleton-item"
+          className="loading-skeleton__block loading-skeleton__block--meta-short"
           data-sm-style="sm-style-16bd637909"
         />
       </div>
@@ -41,11 +41,11 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
       {/* Description skeleton */}
       <div data-sm-style="sm-style-f42c3fdadb">
         <div 
-          className="skeleton-item"
+          className="loading-skeleton__block loading-skeleton__block--line"
           data-sm-style="sm-style-647322c717"
         />
         <div 
-          className="skeleton-item"
+          className="loading-skeleton__block loading-skeleton__block--line-short"
           data-sm-style="sm-style-d13567a769"
         />
       </div>
@@ -60,16 +60,16 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
       <div data-sm-style="sm-style-ed56df885d">
         <div>
           <div 
-            className="skeleton-item"
+            className="loading-skeleton__block loading-skeleton__block--metric-label"
             data-sm-style="sm-style-50b259a35d"
           />
           <div 
-            className="skeleton-item"
+            className="loading-skeleton__block loading-skeleton__block--metric-value"
             data-sm-style="sm-style-65cc2b8cef"
           />
         </div>
         <div 
-          className="skeleton-item"
+          className="loading-skeleton__block loading-skeleton__block--section"
           data-sm-style="sm-style-d93100fc92"
         />
       </div>
@@ -93,12 +93,12 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
       {/* Recommendations skeleton */}
       <div>
         <div 
-          className="skeleton-item"
+          className="loading-skeleton__block loading-skeleton__block--recommendation"
           data-sm-style="sm-style-7f25ef5fd3"
         />
         <div data-sm-style="sm-style-f42c3fdadb">
           <div 
-            className="skeleton-item"
+            className="loading-skeleton__block loading-skeleton__block--recommendation-short"
             data-sm-style="sm-style-e0db026113"
           />
           <div 
@@ -113,7 +113,7 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
   const renderSimpleSkeleton = () => (
     <div data-sm-style="sm-style-3ef47af557">
       <div 
-        className="skeleton-pulse"
+        className="loading-skeleton__pulse"
         data-sm-style="sm-style-04bed5fb37"
       />
       <div data-sm-style="sm-style-6ce841334e">
@@ -123,30 +123,7 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
   );
 
   return (
-    <div className="loading-skeleton">
-      <style>{`
-        @keyframes skeleton-loading {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-        
-        @keyframes skeleton-pulse {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.7; }
-        }
-        
-        .skeleton-item {
-          background: linear-gradient(90deg, var(--color-primary-muted) 25%, var(--color-primary-muted) 50%, var(--color-primary-muted) 75%);
-          background-size: 200% 100%;
-          animation: skeleton-loading 1.5s infinite;
-          border-radius: 2px;
-        }
-        
-        .skeleton-pulse {
-          animation: skeleton-pulse 1.5s infinite;
-        }
-      `}</style>
-      
+    <div className="loading-skeleton" role="status" aria-busy="true" aria-label="Loading">
       {variant === 'simple' ? (
         renderSimpleSkeleton()
       ) : (

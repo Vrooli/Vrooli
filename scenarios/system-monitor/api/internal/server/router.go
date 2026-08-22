@@ -30,6 +30,10 @@ func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 	r.HandleFunc("/health", health.Handle)
 	r.HandleFunc("GET /api/v1/health", health.Handle)
 	r.HandleFunc("GET /api/v1/metrics/pressure", metrics.HandleGetPressureSnapshot)
+	// Documented in docs/reference/api-endpoints.md and implemented by
+	// HandleGetMetricsTimeline, but never mounted — the endpoint 404'd while
+	// the handler sat unreachable. The typed Connect route stays canonical.
+	r.HandleFunc("GET /api/v1/metrics/timeline", metrics.HandleGetMetricsTimeline)
 	r.HandleFunc("GET /api/v1/forensics/processes", metrics.HandleGetProcessTimeline)
 	r.HandleFunc("GET /api/v1/forensics/gpu", metrics.HandleGetGPUHistory)
 	r.HandleFunc("GET /api/v1/forensics/pressure", metrics.HandleGetPressureHistory)

@@ -17,6 +17,7 @@ import (
 // ProcessCollector collects process metrics
 type ProcessCollector struct {
 	BaseCollector
+	forkRate forkRateTracker
 }
 
 type processStat struct {
@@ -76,17 +77,26 @@ func (c *ProcessCollector) Collect(ctx context.Context) (*MetricData, error) {
 	highThreadProcesses := highThreadProcessesFromSamples(samples)
 	topProcesses, _ := GetTopProcessesByCPU(10)
 
+	now := time.Now()
+	values := map[string]interface{}{
+		"total_count":       totalProcesses,
+		"zombie_processes":  zombieProcesses,
+		"high_thread_count": highThreadProcesses,
+		"top_by_cpu":        topProcesses,
+		"process_health":    c.processHealth(ctx, zombieProcesses, highThreadProcesses),
+	}
+	// Process-creation rate. A fork storm is invisible in total_count because
+	// the processes are short-lived: the population stays flat while the host
+	// burns its CPU in the kernel creating and reaping them.
+	for key, value := range forkRateValues(&c.forkRate, readForkRate(), now) {
+		values[key] = value
+	}
+
 	return &MetricData{
 		CollectorName: c.GetName(),
-		Timestamp:     time.Now(),
+		Timestamp:     now,
 		Type:          "process",
-		Values: map[string]interface{}{
-			"total_count":       totalProcesses,
-			"zombie_processes":  zombieProcesses,
-			"high_thread_count": highThreadProcesses,
-			"top_by_cpu":        topProcesses,
-			"process_health":    c.processHealth(ctx, zombieProcesses, highThreadProcesses),
-		},
+		Values:        values,
 	}, nil
 }
 

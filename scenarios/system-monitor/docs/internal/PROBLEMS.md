@@ -2,13 +2,13 @@
 
 ## Work ladder
 
-- Rung: W3 implementation — governed re-measurement in progress
-- Evidence: the registered goal `system-monitor-production-readiness` and the PRD agree on the readiness capability; the plan's Matrix UI and placeholder investigation-API positions were superseded by the governed Vrooli Operational Console, typed native/shell-gated investigations, and current timeline surface. `vrooli scenario requirements validate system-monitor` passes structurally, with only orphaned future P2 targets reported. The latest governed run passed 22/22 phases.
-- Blocker: the latest governed run is green at 22/22 phases. Linux arm64 hardware evidence is unavailable, so its support tier remains build-verified until a real Raspberry Pi 4 run is recorded.
-- Measured: 2026-08-20
+- Rung: W3 implementation — UI hardening and governed re-measurement in progress
+- Evidence: UI unit coverage is green at 55 files / 293 tests; type-check and production build pass. The shell now has an installable manifest, branded icons, service-worker registration, shared focus styling, explicit stale-data recovery, responsive navigation, and 44px icon targets. Static `ui-health` confirms the manifest and PWA/native contracts are clean; runtime validation remains unavailable in static-only mode.
+- Blocker: the last governed run is not green (19/22 phases); unit coverage and the logs tap-target experience check still need a fresh full run. Linux arm64 hardware evidence is unavailable, so its support tier remains build-verified until a real Raspberry Pi 4 run is recorded.
+- Measured: 2026-08-21
 
 ## Last Updated
-2026-08-20 (production-readiness evidence pass)
+2026-08-21 (UI hardening pass)
 
 ## Resolved Since 2026-02-16
 

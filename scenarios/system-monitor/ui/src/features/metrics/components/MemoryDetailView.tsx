@@ -9,7 +9,7 @@ import type {
   MetricHistory
 } from '../../../types';
 import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
-import { buildSingleSeriesData } from '../../../shared/utils/chartData';
+import { combineMemorySeries } from '../../../shared/utils/chartData';
 import { renderProcessTable, renderGrowthPatterns } from './MetricRenderHelpers';
 
 export interface MemoryDetailViewProps {
@@ -21,7 +21,10 @@ export interface MemoryDetailViewProps {
 
 export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBack }: MemoryDetailViewProps) => {
   const memoryUsage = detailedMetrics?.memoryDetails?.usage ?? (metrics?.memory?.state?.case === 'measured' ? metrics.memory.state.value : undefined);
-  const memoryData = useMemo(() => buildSingleSeriesData(metricHistory?.memory), [metricHistory?.memory]);
+  const memoryData = useMemo(
+    () => combineMemorySeries(metricHistory?.memory, metricHistory?.swap),
+    [metricHistory?.memory, metricHistory?.swap]
+  );
   const memoryDetails = detailedMetrics?.memoryDetails;
 
   const swapUsage = memoryDetails?.swapUsage;
@@ -41,9 +44,14 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
       onBack={onBack}
     >
       <MetricLineChart
+        status={metricHistory === null ? 'loading' : 'ready'}
+        seriesLabel="memory"
         className="card"
-        data={memoryData.map(point => ({ timestamp: point.timestamp, value: point.value }))}
-        lines={[{ dataKey: 'value', name: 'Memory Usage', color: 'var(--color-warning)' }]}
+        data={memoryData}
+        lines={[
+          { dataKey: 'memory', name: 'Memory Usage', color: 'var(--color-warning)' },
+          { dataKey: 'swap', name: 'Swap Usage', color: 'var(--color-info)' }
+        ]}
         unit="%"
         yDomain={[0, 100]}
         valueFormatter={value => `${value.toFixed(1)}%`}
