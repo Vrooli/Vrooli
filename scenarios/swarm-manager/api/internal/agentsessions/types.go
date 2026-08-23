@@ -8,17 +8,19 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"swarm-manager/internal/transitions"
 )
 
 type Kind string
 
 const (
-	KindMetaOrchestration Kind = "meta_orchestration"
-	KindSwarmOperations   Kind = "swarm_operations"
+	KindMetaOrchestration Kind = Kind(transitions.SessionMetaOrchestrationKind)
+	KindSwarmOperations   Kind = Kind(transitions.SessionSwarmOperationsKind)
 	// KindWorkflowAuthoring is a human-led conversation for proposing changes
 	// to Swarm's declared transition and workflow catalog. It does not execute
 	// those methods; declared Agent Manager workflows do that after review.
-	KindWorkflowAuthoring Kind = "workflow_authoring"
+	KindWorkflowAuthoring Kind = Kind(transitions.SessionWorkflowAuthoringKind)
 )
 
 type Status string
@@ -139,9 +141,9 @@ const (
 const OperationsBriefingLatestRef = "operations_briefing/latest"
 
 const (
-	StartupBriefMetaOrchestrationRef = "startup_brief/meta_orchestration"
-	StartupBriefSwarmOperationsRef   = "startup_brief/swarm_operations"
-	StartupBriefWorkflowAuthoringRef = "startup_brief/workflow_authoring"
+	StartupBriefMetaOrchestrationRef = "startup_brief/" + string(KindMetaOrchestration)
+	StartupBriefSwarmOperationsRef   = "startup_brief/" + string(KindSwarmOperations)
+	StartupBriefWorkflowAuthoringRef = "startup_brief/" + string(KindWorkflowAuthoring)
 )
 
 type AutoContextPolicy string
@@ -290,14 +292,29 @@ type Session struct {
 }
 
 func (s Session) Validate() error {
+	return s.validate(IsKnownKind)
+}
+
+// ValidateWith validates a session against a registry-provided kind
+// predicate. Validate remains the compatibility path for stores constructed
+// without the transition registry; production composition installs this
+// predicate so new registry-declared session kinds do not require a Go edit.
+func (s Session) ValidateWith(kindValidator func(Kind) bool) error {
+	if kindValidator == nil {
+		return s.Validate()
+	}
+	return s.validate(kindValidator)
+}
+
+func (s Session) validate(kindValidator func(Kind) bool) error {
 	if strings.TrimSpace(s.ID) == "" {
 		return validationError("id is required")
 	}
 	if strings.TrimSpace(s.Title) == "" {
 		return validationError("title is required")
 	}
-	if !IsKnownKind(s.Kind) {
-		return validationError("kind must be meta_orchestration, swarm_operations, or workflow_authoring")
+	if !kindValidator(s.Kind) {
+		return validationError("kind is not declared")
 	}
 	if !IsKnownStatus(s.Status) {
 		return validationError("status is invalid")

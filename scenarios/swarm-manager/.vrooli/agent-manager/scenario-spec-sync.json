@@ -76,7 +76,6 @@
     ],
     "additionalProperties": false
   },
-  "entryNode": "sync",
   "nodes": [
     {
       "id": "sync",
@@ -136,37 +135,13 @@
           "skillId": "swarm-manager-workflow-scenario-spec-sync"
         }
       }
-    },
-    {
-      "id": "done",
-      "kind": "end",
-      "end": {
-        "status": "succeeded",
-        "bindings": [
-          {
-            "name": "result",
-            "source": "structured_result",
-            "selector": "node=sync;$.value",
-            "limit": 1,
-            "maxBytes": 65536,
-            "renderAs": "json",
-            "missingPolicy": "error"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": [
-    {
-      "from": "sync",
-      "to": "done"
     }
   ],
   "budgets": {
     "wallTimeSeconds": 3600,
     "maxTurns": 18,
     "maxTokens": 900000,
-    "maxChargeMicroUsd": 6,
+    "maxChargeMicroUsd": 6000000,
     "maxNodeAttempts": 3,
     "maxChildren": 1,
     "maxConcurrency": 1,

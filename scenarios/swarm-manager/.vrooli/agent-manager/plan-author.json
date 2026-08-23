@@ -57,7 +57,6 @@
     ],
     "additionalProperties": false
   },
-  "entryNode": "author",
   "nodes": [
     {
       "id": "author",
@@ -153,37 +152,13 @@
           "skillId": "swarm-manager-workflow-plan-author"
         }
       }
-    },
-    {
-      "id": "done",
-      "kind": "end",
-      "end": {
-        "status": "succeeded",
-        "bindings": [
-          {
-            "name": "result",
-            "source": "structured_result",
-            "selector": "node=author;$.value",
-            "limit": 1,
-            "maxBytes": 65536,
-            "renderAs": "json",
-            "missingPolicy": "error"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": [
-    {
-      "from": "author",
-      "to": "done"
     }
   ],
   "budgets": {
     "wallTimeSeconds": 1200,
     "maxTurns": 12,
     "maxTokens": 600000,
-    "maxChargeMicroUsd": 5,
+    "maxChargeMicroUsd": 5000000,
     "maxNodeAttempts": 2,
     "maxChildren": 1,
     "maxConcurrency": 1,

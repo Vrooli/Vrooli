@@ -1,11 +1,135 @@
 package execution
 
 import (
+	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+type workflowStateReaderStub struct {
+	states map[string]agentmanager.WorkflowExecutionState
+	calls  []string
+}
+
+func (s *workflowStateReaderStub) GetWorkflowExecutionState(_ context.Context, workflowID string) (agentmanager.WorkflowExecutionState, error) {
+	s.calls = append(s.calls, workflowID)
+	state, ok := s.states[workflowID]
+	if !ok {
+		return agentmanager.WorkflowExecutionState{}, fmt.Errorf("unknown workflow %q", workflowID)
+	}
+	return state, nil
+}
+
+func TestReconcileWorkflowExecutionsRepairsTerminalCallbacksIdempotently(t *testing.T) {
+	root := t.TempDir()
+	service := NewService(ServiceConfig{
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
+		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+	})
+	reader := &workflowStateReaderStub{states: map[string]agentmanager.WorkflowExecutionState{
+		"wf-succeeded": {Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, UpdatedAt: "2026-08-22T12:00:00Z", TerminalEvidence: true},
+		"wf-failed":    {Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED, UpdatedAt: "2026-08-22T12:01:00Z", TerminalCode: "agent_error"},
+		"wf-cancelled": {Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED, UpdatedAt: "2026-08-22T12:02:00Z"},
+		"wf-no-output": {Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, UpdatedAt: "2026-08-22T12:03:00Z"},
+		"wf-running":   {Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING},
+	}}
+	service.SetWorkflowStateReader(reader)
+	seed := []Record{
+		{ExecutionID: "exec-succeeded", Status: StatusRunning, RunID: "run-succeeded", OpWorkflowID: "wf-succeeded", Mode: ModeManual},
+		{ExecutionID: "exec-failed", Status: StatusStarting, OpWorkflowID: "wf-failed", Mode: ModeManual},
+		{ExecutionID: "exec-cancelled", Status: StatusNeedsReview, OpWorkflowID: "wf-cancelled", Mode: ModeManual},
+		{ExecutionID: "exec-no-output", Status: StatusRunning, RunID: "run-no-output", OpWorkflowID: "wf-no-output", Mode: ModeManual},
+		{ExecutionID: "exec-running", Status: StatusRunning, RunID: "run-running", OpWorkflowID: "wf-running", Mode: ModeManual},
+	}
+	if err := service.store.Save(seed); err != nil {
+		t.Fatalf("save seed: %v", err)
+	}
+
+	report, err := service.ReconcileWorkflowExecutions(context.Background())
+	if err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if report.Observed != 4 || len(report.Reconciled) != 4 {
+		t.Fatalf("report=%+v, want four terminal observations and repairs", report)
+	}
+	after, err := service.store.Load()
+	if err != nil {
+		t.Fatalf("load after reconcile: %v", err)
+	}
+	byID := map[string]Record{}
+	for _, record := range after {
+		byID[record.ExecutionID] = record
+	}
+	if byID["exec-succeeded"].Status != StatusCompleted {
+		t.Fatalf("successful workflow status=%q, want completed", byID["exec-succeeded"].Status)
+	}
+	if byID["exec-failed"].Status != StatusFailed || byID["exec-failed"].FailureReason == "" {
+		t.Fatalf("failed workflow record=%+v", byID["exec-failed"])
+	}
+	if byID["exec-cancelled"].Status != StatusCanceled {
+		t.Fatalf("cancelled workflow status=%q, want canceled", byID["exec-cancelled"].Status)
+	}
+	if byID["exec-no-output"].Status != StatusNeedsReview || byID["exec-no-output"].FailureReason == "" {
+		t.Fatalf("success without evidence record=%+v", byID["exec-no-output"])
+	}
+	if byID["exec-running"].Status != StatusRunning {
+		t.Fatalf("running workflow status=%q, want unchanged", byID["exec-running"].Status)
+	}
+
+	callsAfterFirstSweep := len(reader.calls)
+	report, err = service.ReconcileWorkflowExecutions(context.Background())
+	if err != nil {
+		t.Fatalf("second reconcile: %v", err)
+	}
+	if len(report.Reconciled) != 0 || len(reader.calls) != callsAfterFirstSweep+2 {
+		t.Fatalf("second sweep report=%+v calls=%v, want terminal observation to be idempotent and running workflow inspected", report, reader.calls)
+	}
+}
+
+func TestReconcileWorkflowExecutionsRunsCompletionProjection(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "chore", "recovered-completion", map[string]any{
+		"name": "recovered-completion", "title": "Recovered completion", "status": "queued", "priority": 3, "tags": []string{},
+	})
+	service := NewService(ServiceConfig{
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
+		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+	})
+	service.SetWorkflowStateReader(&workflowStateReaderStub{states: map[string]agentmanager.WorkflowExecutionState{
+		"wf-completion-projection": {
+			Status:           domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
+			UpdatedAt:        "2026-08-22T12:00:00Z",
+			TerminalEvidence: true,
+		},
+	}})
+	if err := service.store.Save([]Record{{
+		ExecutionID: "exec-completion-projection", RunID: "run-completion-projection", OpWorkflowID: "wf-completion-projection",
+		BacklogKind: "chore", BacklogName: "recovered-completion", Status: StatusRunning, Mode: ModeManual,
+	}}); err != nil {
+		t.Fatalf("save seed: %v", err)
+	}
+
+	if _, err := service.ReconcileWorkflowExecutions(context.Background()); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	records, err := service.store.Load()
+	if err != nil {
+		t.Fatalf("load record: %v", err)
+	}
+	if len(records) != 1 || records[0].Status != StatusValidating || records[0].Finalization == nil {
+		t.Fatalf("recovered record=%+v, want validating with finalization projection", records)
+	}
+}
 
 // TestReconcileStrandedRecords sweeps run-id-less inspectable records to failed
 // while leaving healthy records (with a run id, or already terminal) untouched.

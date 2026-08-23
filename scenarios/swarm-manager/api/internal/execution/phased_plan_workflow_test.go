@@ -218,6 +218,31 @@ func TestParsePhasedPlanOutcomeUsesTypedWorkflowTerminalStatus(t *testing.T) {
 	}
 }
 
+func TestApplyPhasedPlanWorkflow_BudgetExhaustedIsResumable(t *testing.T) {
+	service, workflow, started, root := setupPhasedPlanExecution(t, "budget-plan")
+	correlation := workflowCorrelationFor(t, service, started)
+	workflow.completion = agentmanager.InvocationCompletion{
+		ExecutionID: correlation.ExecutionID, DefinitionDigest: correlation.DefinitionDigest,
+		Status:       domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
+		TerminalCode: "budget_exhausted", BudgetName: "tokens", Input: workflow.invocation.Input,
+		Output: mustWorkflowOutput(t, map[string]any{"outcome": "budget_exhausted", "reason": "token ceiling reached"}),
+	}
+	result, err := service.ApplyPhasedPlanWorkflow(context.Background(), started.ExecutionID)
+	if err != nil {
+		t.Fatalf("apply budget exhaustion: %v", err)
+	}
+	if result.Record.Status != StatusNeedsReview {
+		t.Fatalf("status=%s, want resumable needs_review", result.Record.Status)
+	}
+	if result.Record.FailureReason != "budget_exhausted" {
+		t.Fatalf("failure reason=%q, want terminal code", result.Record.FailureReason)
+	}
+	item := mustLoadBacklogItem(t, filepath.Join(root, "execute", "budget-plan", "spec.json"))
+	if item["status"] != backlogStatusInReview {
+		t.Fatalf("backlog status=%v, want in_review", item["status"])
+	}
+}
+
 func TestApprovePhasedPlanWorkflow_PersistsDecisionBeforeIdempotentSignal(t *testing.T) {
 	service, workflow, started, _ := setupPhasedPlanExecution(t, "approval-plan")
 	_, err := service.ApprovePhasedPlanWorkflow(context.Background(), started.ExecutionID, "alice")

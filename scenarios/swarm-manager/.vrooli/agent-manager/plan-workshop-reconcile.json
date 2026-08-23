@@ -48,7 +48,6 @@
     ],
     "additionalProperties": false
   },
-  "entryNode": "reconcile",
   "nodes": [
     {
       "id": "reconcile",
@@ -161,37 +160,13 @@
           "skillId": "swarm-manager-plan-workshop-reconcile"
         }
       }
-    },
-    {
-      "id": "done",
-      "kind": "end",
-      "end": {
-        "status": "succeeded",
-        "bindings": [
-          {
-            "name": "result",
-            "source": "structured_result",
-            "selector": "node=reconcile;$.value",
-            "limit": 1,
-            "maxBytes": 65536,
-            "renderAs": "json",
-            "missingPolicy": "error"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": [
-    {
-      "from": "reconcile",
-      "to": "done"
     }
   ],
   "budgets": {
     "wallTimeSeconds": 1200,
     "maxTurns": 12,
     "maxTokens": 600000,
-    "maxChargeMicroUsd": 5,
+    "maxChargeMicroUsd": 5000000,
     "maxNodeAttempts": 2,
     "maxChildren": 1,
     "maxConcurrency": 1,

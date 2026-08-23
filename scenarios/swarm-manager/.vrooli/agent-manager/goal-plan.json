@@ -81,7 +81,6 @@
     ],
     "additionalProperties": false
   },
-  "entryNode": "plan",
   "nodes": [
     {
       "id": "plan",
@@ -155,37 +154,13 @@
           "skillId": "swarm-manager-workflow-goal-plan"
         }
       }
-    },
-    {
-      "id": "done",
-      "kind": "end",
-      "end": {
-        "status": "succeeded",
-        "bindings": [
-          {
-            "name": "result",
-            "source": "structured_result",
-            "selector": "node=plan;$.value",
-            "limit": 1,
-            "maxBytes": 65536,
-            "renderAs": "json",
-            "missingPolicy": "error"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": [
-    {
-      "from": "plan",
-      "to": "done"
     }
   ],
   "budgets": {
     "wallTimeSeconds": 2400,
     "maxTurns": 16,
     "maxTokens": 800000,
-    "maxChargeMicroUsd": 6,
+    "maxChargeMicroUsd": 6000000,
     "maxNodeAttempts": 2,
     "maxChildren": 1,
     "maxConcurrency": 1,

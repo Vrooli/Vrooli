@@ -4,8 +4,16 @@ import (
 	"context"
 
 	"swarm-manager/internal/agentactivity"
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/review"
 )
+
+// WorkflowStateReader is the read-only reconciliation seam. Agent Manager
+// remains authoritative for workflow state; Swarm uses this projection only
+// to repair a lost completion callback.
+type WorkflowStateReader interface {
+	GetWorkflowExecutionState(context.Context, string) (agentmanager.WorkflowExecutionState, error)
+}
 
 // AgentManagerAvailability probes whether agent-manager is reachable. Used as
 // a preflight for user-initiated retry / follow-up; actual spawning happens

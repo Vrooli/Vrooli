@@ -132,6 +132,7 @@
               ".vrooli/agent-manager/plan-author.json",
               ".vrooli/agent-manager/phased-plan-slice-review.json",
               ".vrooli/agent-manager/phased-plan-drain.json",
+              ".vrooli/agent-manager/until-drain.json",
               ".vrooli/agent-manager/plan-repair.json",
               ".vrooli/agent-manager/capture-classify.json",
               ".vrooli/agent-manager/independent-review.json",

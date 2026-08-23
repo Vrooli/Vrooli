@@ -71,18 +71,67 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "id": {"type": "string", "minLength": 1},
-                    "criterion_id": {"type": "string", "minLength": 1},
-                    "type": {"type": "string", "minLength": 1},
-                    "title": {"type": "string", "minLength": 1},
-                    "description": {"type": "string", "minLength": 1},
-                    "producer": {"type": "string", "minLength": 1},
-                    "trust": {"type": "string", "enum": ["authoritative", "observed", "reported", "operator_verified"]},
-                    "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
-                    "unavailable_reason": {"type": "string", "maxLength": 4096},
-                    "attempted_producer": {"type": "string", "minLength": 1, "maxLength": 256}
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "criterion_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "type": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "producer": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "trust": {
+                      "type": "string",
+                      "enum": [
+                        "authoritative",
+                        "observed",
+                        "reported",
+                        "operator_verified"
+                      ]
+                    },
+                    "settlement": {
+                      "type": "string",
+                      "enum": [
+                        "settled",
+                        "refuted",
+                        "unavailable"
+                      ]
+                    },
+                    "unavailable_reason": {
+                      "type": "string",
+                      "maxLength": 4096
+                    },
+                    "attempted_producer": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    }
                   },
-                  "required": ["id", "criterion_id", "type", "title", "description", "producer", "trust", "settlement"],
+                  "required": [
+                    "id",
+                    "criterion_id",
+                    "type",
+                    "title",
+                    "description",
+                    "producer",
+                    "trust",
+                    "settlement"
+                  ],
                   "additionalProperties": true
                 }
               },
@@ -92,11 +141,31 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "criterion_id": {"type": "string", "minLength": 1},
-                    "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
-                    "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}}
+                    "criterion_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "settlement": {
+                      "type": "string",
+                      "enum": [
+                        "settled",
+                        "refuted",
+                        "unavailable"
+                      ]
+                    },
+                    "evidence_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
                   },
-                  "required": ["criterion_id", "settlement", "evidence_ids"],
+                  "required": [
+                    "criterion_id",
+                    "settlement",
+                    "evidence_ids"
+                  ],
                   "additionalProperties": false
                 }
               },
@@ -127,22 +196,101 @@
               "disposition": {
                 "type": "object",
                 "properties": {
-                  "kind": {"type": "string", "enum": ["plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention"]},
-                  "rationale": {"type": "string", "minLength": 1, "maxLength": 8192},
-                  "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
-                  "scope": {"type": "string", "maxLength": 4096},
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "plan_revision",
+                      "plan_authoring",
+                      "follow_up",
+                      "archive",
+                      "supersede",
+                      "attention"
+                    ]
+                  },
+                  "rationale": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8192
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "high",
+                      "medium",
+                      "low"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "maxLength": 4096
+                  },
                   "follow_up": {
                     "type": "object",
                     "properties": {
-                      "steering": {"type": "string", "minLength": 1, "maxLength": 8192},
-                      "disposition": {"type": "string", "enum": ["follow_up_run", "replan", "new_items"]},
-                      "items": {"type": "array", "maxItems": 25, "items": {"type": "object", "properties": {"kind": {"type": "string"}, "name": {"type": "string"}, "title": {"type": "string"}, "description": {"type": "string"}, "priority": {"type": "integer", "minimum": 1, "maximum": 10}, "depends_on": {"type": "array", "items": {"type": "string"}}}, "required": ["kind", "name", "title"], "additionalProperties": false}}
+                      "steering": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8192
+                      },
+                      "disposition": {
+                        "type": "string",
+                        "enum": [
+                          "follow_up_run",
+                          "replan",
+                          "new_items"
+                        ]
+                      },
+                      "items": {
+                        "type": "array",
+                        "maxItems": 25,
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "priority": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 10
+                            },
+                            "depends_on": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "name",
+                            "title"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
                     },
-                    "required": ["steering", "disposition"],
+                    "required": [
+                      "steering",
+                      "disposition"
+                    ],
                     "additionalProperties": false
                   }
                 },
-                "required": ["kind", "rationale", "confidence"],
+                "required": [
+                  "kind",
+                  "rationale",
+                  "confidence"
+                ],
                 "additionalProperties": false
               }
             },
@@ -171,7 +319,6 @@
     ],
     "additionalProperties": false
   },
-  "entryNode": "review",
   "nodes": [
     {
       "id": "review",
@@ -208,18 +355,67 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "id": {"type": "string", "minLength": 1},
-                        "criterion_id": {"type": "string", "minLength": 1},
-                        "type": {"type": "string", "minLength": 1},
-                        "title": {"type": "string", "minLength": 1},
-                        "description": {"type": "string", "minLength": 1},
-                        "producer": {"type": "string", "minLength": 1},
-                        "trust": {"type": "string", "enum": ["authoritative", "observed", "reported", "operator_verified"]},
-                        "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
-                        "unavailable_reason": {"type": "string", "maxLength": 4096},
-                        "attempted_producer": {"type": "string", "minLength": 1, "maxLength": 256}
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "criterion_id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "type": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "producer": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "trust": {
+                          "type": "string",
+                          "enum": [
+                            "authoritative",
+                            "observed",
+                            "reported",
+                            "operator_verified"
+                          ]
+                        },
+                        "settlement": {
+                          "type": "string",
+                          "enum": [
+                            "settled",
+                            "refuted",
+                            "unavailable"
+                          ]
+                        },
+                        "unavailable_reason": {
+                          "type": "string",
+                          "maxLength": 4096
+                        },
+                        "attempted_producer": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256
+                        }
                       },
-                      "required": ["id", "criterion_id", "type", "title", "description", "producer", "trust", "settlement"],
+                      "required": [
+                        "id",
+                        "criterion_id",
+                        "type",
+                        "title",
+                        "description",
+                        "producer",
+                        "trust",
+                        "settlement"
+                      ],
                       "additionalProperties": true
                     }
                   },
@@ -229,11 +425,31 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "criterion_id": {"type": "string", "minLength": 1},
-                        "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
-                        "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}}
+                        "criterion_id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "settlement": {
+                          "type": "string",
+                          "enum": [
+                            "settled",
+                            "refuted",
+                            "unavailable"
+                          ]
+                        },
+                        "evidence_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
                       },
-                      "required": ["criterion_id", "settlement", "evidence_ids"],
+                      "required": [
+                        "criterion_id",
+                        "settlement",
+                        "evidence_ids"
+                      ],
                       "additionalProperties": false
                     }
                   },
@@ -264,22 +480,101 @@
                   "disposition": {
                     "type": "object",
                     "properties": {
-                      "kind": {"type": "string", "enum": ["plan_revision", "plan_authoring", "follow_up", "archive", "supersede", "attention"]},
-                      "rationale": {"type": "string", "minLength": 1, "maxLength": 8192},
-                      "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
-                      "scope": {"type": "string", "maxLength": 4096},
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "plan_revision",
+                          "plan_authoring",
+                          "follow_up",
+                          "archive",
+                          "supersede",
+                          "attention"
+                        ]
+                      },
+                      "rationale": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8192
+                      },
+                      "confidence": {
+                        "type": "string",
+                        "enum": [
+                          "high",
+                          "medium",
+                          "low"
+                        ]
+                      },
+                      "scope": {
+                        "type": "string",
+                        "maxLength": 4096
+                      },
                       "follow_up": {
                         "type": "object",
                         "properties": {
-                          "steering": {"type": "string", "minLength": 1, "maxLength": 8192},
-                          "disposition": {"type": "string", "enum": ["follow_up_run", "replan", "new_items"]},
-                          "items": {"type": "array", "maxItems": 25, "items": {"type": "object", "properties": {"kind": {"type": "string"}, "name": {"type": "string"}, "title": {"type": "string"}, "description": {"type": "string"}, "priority": {"type": "integer", "minimum": 1, "maximum": 10}, "depends_on": {"type": "array", "items": {"type": "string"}}}, "required": ["kind", "name", "title"], "additionalProperties": false}}
+                          "steering": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 8192
+                          },
+                          "disposition": {
+                            "type": "string",
+                            "enum": [
+                              "follow_up_run",
+                              "replan",
+                              "new_items"
+                            ]
+                          },
+                          "items": {
+                            "type": "array",
+                            "maxItems": 25,
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "priority": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 10
+                                },
+                                "depends_on": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "name",
+                                "title"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
                         },
-                        "required": ["steering", "disposition"],
+                        "required": [
+                          "steering",
+                          "disposition"
+                        ],
                         "additionalProperties": false
                       }
                     },
-                    "required": ["kind", "rationale", "confidence"],
+                    "required": [
+                      "kind",
+                      "rationale",
+                      "confidence"
+                    ],
                     "additionalProperties": false
                   }
                 },
@@ -329,39 +624,13 @@
           "skillId": "swarm-manager-workflow-independent-review"
         }
       }
-    },
-    {
-      "id": "complete",
-      "kind": "end",
-      "end": {
-        "status": "succeeded",
-        "bindings": [
-          {
-            "name": "result",
-            "source": "structured_result",
-            "selector": "$.value",
-            "order": "desc",
-            "limit": 1,
-            "maxBytes": 65536,
-            "renderAs": "json",
-            "missingPolicy": "error"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": [
-    {
-      "from": "review",
-      "to": "complete",
-      "maxTraversals": 1
     }
   ],
   "budgets": {
     "wallTimeSeconds": 3600,
     "maxTurns": 18,
     "maxTokens": 900000,
-    "maxChargeMicroUsd": 5,
+    "maxChargeMicroUsd": 5000000,
     "maxNodeAttempts": 3,
     "maxChildren": 1,
     "maxConcurrency": 1,

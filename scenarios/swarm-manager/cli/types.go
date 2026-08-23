@@ -80,6 +80,14 @@ type CreateBacklogRequest struct {
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 	Creates         []string `json:"creates,omitempty"`
 	SpawnedFrom     string   `json:"spawned_from,omitempty"`
+	PlanRef         *PlanRef `json:"plan_ref,omitempty"`
+}
+
+type PlanRef struct {
+	Provider string `json:"provider"`
+	PlanID   string `json:"plan_id"`
+	Slug     string `json:"slug"`
+	Role     string `json:"role"`
 }
 
 type UpdateBacklogRequest struct {
@@ -94,6 +102,7 @@ type UpdateBacklogRequest struct {
 	AcceptanceAllow *[]string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  *[]string `json:"acceptance_deny,omitempty"`
 	Creates         *[]string `json:"creates,omitempty"`
+	PlanRef         *PlanRef  `json:"plan_ref,omitempty"`
 }
 
 func (r UpdateBacklogRequest) Empty() bool {
@@ -107,7 +116,8 @@ func (r UpdateBacklogRequest) Empty() bool {
 		r.Effort == nil &&
 		r.AcceptanceAllow == nil &&
 		r.AcceptanceDeny == nil &&
-		r.Creates == nil
+		r.Creates == nil &&
+		r.PlanRef == nil
 }
 
 type BacklogFile struct {

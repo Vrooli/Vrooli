@@ -58,11 +58,12 @@ type Outcome struct {
 // their registered InputBuilder through Start; prepared starts preserve the
 // same lifecycle, journal, guards, and idempotency semantics.
 type PreparedInput struct {
-	Input          *structpb.Value
-	EntityVersion  string
-	FrontierDigest string
-	FirstRunNodeID string
-	Activity       *Activity
+	Input               *structpb.Value
+	EntityVersion       string
+	FrontierDigest      string
+	FirstRunNodeID      string
+	Activity            *Activity
+	WorkflowKeyOverride string
 }
 
 // Activity is domain-neutral launch attribution. The runner converts it at
@@ -257,7 +258,15 @@ func (r *Runner) startPrepared(ctx context.Context, definition transitions.Defin
 	if prepared.Activity != nil {
 		activity = &agentmanager.WorkflowActivity{OwnerType: prepared.Activity.OwnerType, OwnerKind: prepared.Activity.OwnerKind, OwnerName: prepared.Activity.OwnerName, OwnerTitle: prepared.Activity.OwnerTitle, Purpose: prepared.Activity.Purpose}
 	}
-	started, err := r.workflows.StartWorkflow(ctx, agentmanager.Invocation{Owner: definition.Workflow.Owner, WorkflowKey: definition.Workflow.Key, Input: prepared.Input, IdempotencyKey: definition.Key + "/" + subjectRef + "/" + prepared.EntityVersion, FirstRunNodeID: prepared.FirstRunNodeID, Activity: activity})
+	workflow := *definition.Workflow
+	if strings.TrimSpace(prepared.WorkflowKeyOverride) != "" {
+		workflow.Key = strings.TrimSpace(prepared.WorkflowKeyOverride)
+	}
+	idempotencyKey := definition.Key + "/" + subjectRef + "/" + prepared.EntityVersion
+	if strings.TrimSpace(prepared.WorkflowKeyOverride) != "" {
+		idempotencyKey += "/" + workflow.Key
+	}
+	started, err := r.workflows.StartWorkflow(ctx, agentmanager.Invocation{Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: prepared.Input, IdempotencyKey: idempotencyKey, FirstRunNodeID: prepared.FirstRunNodeID, Activity: activity})
 	if err != nil {
 		return transitionrun.Correlation{}, err
 	}
@@ -273,7 +282,7 @@ func (r *Runner) startPrepared(ctx context.Context, definition transitions.Defin
 	} else if !errors.Is(getErr, os.ErrNotExist) {
 		return transitionrun.Correlation{}, fmt.Errorf("read existing transition correlation: %w", getErr)
 	}
-	correlation := transitionrun.Correlation{TransitionKey: definition.Key, SubjectKind: definition.Subject, SubjectRef: subjectRef, ExecutionID: started.ExecutionID, WorkflowKey: definition.Workflow.Key, DefinitionDigest: started.DefinitionDigest, EntityVersion: prepared.EntityVersion, FrontierDigest: prepared.FrontierDigest, ApplyState: transitionrun.ApplyStateClaimed, DeclaredOutcomes: append([]string(nil), definition.TerminalOutcomes...)}
+	correlation := transitionrun.Correlation{TransitionKey: definition.Key, SubjectKind: definition.Subject, SubjectRef: subjectRef, ExecutionID: started.ExecutionID, WorkflowKey: workflow.Key, DefinitionDigest: started.DefinitionDigest, EntityVersion: prepared.EntityVersion, FrontierDigest: prepared.FrontierDigest, ApplyState: transitionrun.ApplyStateClaimed, DeclaredOutcomes: append([]string(nil), definition.TerminalOutcomes...)}
 	if strings.TrimSpace(started.RunID) != "" {
 		correlation.Attempts = []transitionrun.Attempt{{RunID: started.RunID}}
 	}

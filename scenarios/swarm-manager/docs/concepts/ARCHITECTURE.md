@@ -6,8 +6,11 @@ The backlog workshop-round pilot uses Agent Manager as a consumer-neutral workfl
 
 Swarm Manager remains the domain owner. It validates the typed result and applies it exactly once through its backlog API, including stale-snapshot and replay protection. This boundary is intentionally narrow: it introduces no classifier, target registry, domain-action framework, compatibility wrapper, or duplicated result schema.
 
-The plan-execution pilot hard-cuts only `execution.Service.startPlanOperationLocked`
-to `swarm-manager/phased-plan-drain`. The workflow owns slice composition:
+Plan execution offers two declared strategies. `phased-plan-drain` owns
+phase-by-phase review and approval; `swarm-manager/until-drain` owns one warm,
+resumable engagement whose bounded `until` completion test is rendered into
+the Agent Manager run and whose authoritative completion check remains the
+Plan Manager frontier. The workflow owns slice/iteration composition:
 each visit to `slice` creates an independent Run using
 `swarm-manager/deep-work`; ordered compact handoffs come from the append-only
 journal; `correction` explicitly continues the named slice; and the reusable

@@ -55,7 +55,6 @@
     ],
     "additionalProperties": false
   },
-  "entryNode": "gather",
   "nodes": [
     {
       "id": "gather",
@@ -101,37 +100,13 @@
           "skillId": "swarm-manager-workflow-evidence-request"
         }
       }
-    },
-    {
-      "id": "done",
-      "kind": "end",
-      "end": {
-        "status": "succeeded",
-        "bindings": [
-          {
-            "name": "result",
-            "source": "structured_result",
-            "selector": "node=gather;$.value",
-            "limit": 1,
-            "maxBytes": 65536,
-            "renderAs": "json",
-            "missingPolicy": "error"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": [
-    {
-      "from": "gather",
-      "to": "done"
     }
   ],
   "budgets": {
     "wallTimeSeconds": 1800,
     "maxTurns": 12,
     "maxTokens": 600000,
-    "maxChargeMicroUsd": 3,
+    "maxChargeMicroUsd": 3000000,
     "maxNodeAttempts": 2,
     "maxChildren": 1,
     "maxConcurrency": 1,

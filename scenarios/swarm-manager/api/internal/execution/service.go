@@ -123,6 +123,7 @@ type ServiceConfig struct {
 	PhasedPlanWorkflow       agentmanager.WorkflowInvoker
 	WorkWorkflow             agentmanager.WorkflowInvoker
 	SpecSyncWorkflow         agentmanager.WorkflowInvoker
+	WorkflowStateReader      WorkflowStateReader
 	TransitionRegistry       transitions.Registry
 	Finalization             FinalizationConfig
 }
@@ -149,6 +150,7 @@ type Service struct {
 	phasedPlanWorkflow       agentmanager.WorkflowInvoker
 	workWorkflow             agentmanager.WorkflowInvoker
 	specSyncWorkflow         agentmanager.WorkflowInvoker
+	workflowStateReader      WorkflowStateReader
 	transitionRegistry       transitions.Registry
 	transitionRunner         *transitionrunner.Runner
 	engagementStore          *EngagementStore
@@ -245,6 +247,7 @@ func NewService(cfg ServiceConfig) *Service {
 		phasedPlanWorkflow:       cfg.PhasedPlanWorkflow,
 		workWorkflow:             cfg.WorkWorkflow,
 		specSyncWorkflow:         cfg.SpecSyncWorkflow,
+		workflowStateReader:      cfg.WorkflowStateReader,
 		transitionRegistry:       cfg.TransitionRegistry,
 		engagementStore:          NewEngagementStore(engagementStorePath(cfg.StorePath)),
 		scenarioLifecycle:        cfg.ScenarioLifecycle,
@@ -598,7 +601,7 @@ func wrapAgentError(err error) error {
 		return apierr.Conflict("an agent is already active for this backlog item")
 	}
 	if errors.Is(err, agentmanager.ErrRequestFailed) {
-		return apierr.BadGateway("agent-manager request failed; check agent-manager health/logs and retry")
+		return apierr.BadGateway("agent-manager request failed; check agent-manager health/logs and retry: %s", err.Error())
 	}
 	if spe := agentmanager.AsStalePlanError(err); spe != nil {
 		return apierr.PlanStale(

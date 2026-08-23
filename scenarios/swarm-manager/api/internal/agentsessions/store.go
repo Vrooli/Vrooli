@@ -124,7 +124,8 @@ type ListFilters struct {
 }
 
 type FileStore struct {
-	root string
+	root          string
+	kindValidator func(Kind) bool
 	// mu is shared by pointer with every ForContext view of this store, so
 	// concurrent requests against the same routed root still serialize.
 	mu       *sync.Mutex
@@ -169,12 +170,20 @@ func (s *FileStore) ForContext(ctx context.Context) (Store, error) {
 		return nil, fmt.Errorf("resolve routed agent-session data root: %w", err)
 	}
 	scoped := &FileStore{
-		root:     filepath.Join(root, "agent-sessions"),
-		mu:       s.mu,
-		roots:    s.roots,
-		writeCtx: ctx,
+		root:          filepath.Join(root, "agent-sessions"),
+		kindValidator: s.kindValidator,
+		mu:            s.mu,
+		roots:         s.roots,
+		writeCtx:      ctx,
 	}
 	return scoped, nil
+}
+
+// SetSessionKindValidator installs the registry-owned session-kind predicate.
+// It is intentionally optional on Store so small test stores and compatibility
+// callers can retain the legacy validation behavior.
+func (s *FileStore) SetSessionKindValidator(validator func(Kind) bool) {
+	s.kindValidator = validator
 }
 
 func (s *FileStore) recordWrite() {
@@ -191,7 +200,7 @@ func (s *FileStore) CreateSession(session Session) error {
 	defer s.mu.Unlock()
 
 	session = snapshotOnly(session)
-	if err := session.Validate(); err != nil {
+	if err := session.ValidateWith(s.kindValidator); err != nil {
 		return err
 	}
 	dir := s.sessionDir(session.ID)
@@ -484,7 +493,7 @@ func (s *FileStore) AttachmentPath(sessionID string, attachmentID string) (strin
 
 func (s *FileStore) saveSessionLocked(session Session) error {
 	session = snapshotOnly(session)
-	if err := session.Validate(); err != nil {
+	if err := session.ValidateWith(s.kindValidator); err != nil {
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(s.sessionDir(session.ID), sessionFileName)); err != nil {
@@ -525,7 +534,7 @@ func (s *FileStore) loadSessionLocked(sessionID string) (Session, error) {
 	session.Messages = messages
 	session.Proposals = proposals
 	session.Artifacts = artifacts
-	if err := session.Validate(); err != nil {
+	if err := session.ValidateWith(s.kindValidator); err != nil {
 		return Session{}, err
 	}
 	return session, nil

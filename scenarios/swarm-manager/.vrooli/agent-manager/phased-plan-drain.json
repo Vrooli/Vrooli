@@ -7,7 +7,12 @@
   "inputSchema": {
     "type": "object",
     "properties": {
-    "plan": {
+      "projectRoot": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "plan": {
         "type": "object",
         "properties": {
           "reference": {
@@ -89,7 +94,8 @@
       }
     },
     "required": [
-    "plan",
+      "projectRoot",
+      "plan",
     "planExecutionId",
     "consumer",
       "constraints"
@@ -538,7 +544,7 @@
     "wallTimeSeconds": 21600,
     "maxTurns": 144,
     "maxTokens": 7200000,
-    "maxChargeMicroUsd": 30,
+    "maxChargeMicroUsd": 30000000,
     "maxNodeAttempts": 48,
     "maxChildren": 12,
     "maxConcurrency": 2,
@@ -549,7 +555,6 @@
   "metadata": {
     "pilot": "phased-plan-drain",
     "consumerMutationOwner": "swarm-manager",
-    "freshRunPerSlice": "true",
-    "transitions": "plan.execute"
+    "freshRunPerSlice": "true"
   }
 }

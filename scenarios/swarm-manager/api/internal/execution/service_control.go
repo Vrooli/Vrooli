@@ -111,12 +111,13 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 			record.PlanManagerExecutionID = resumed.GetExecution().GetId()
 		}
 	}
-	workflow, err := s.resolveWorkflow("plan.execute")
+	_, err = s.resolveWorkflow("plan.execute")
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
-	if !s.strategyMatchesWorkflow(record.ExecutionStrategy, workflow.Key) {
-		return Record{}, apierr.BadRequest("execution strategy %q does not match declared plan workflow", record.ExecutionStrategy)
+	strategyWorkflow, ok := s.workflowForStrategy(record.ExecutionStrategy)
+	if !ok {
+		return Record{}, apierr.BadRequest("execution strategy %q is not declared", record.ExecutionStrategy)
 	}
 	// Persist the resolved Plan Manager execution before starting: the runner's
 	// input builder reprojects the frontier from the durable record, so
@@ -125,7 +126,13 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if err := s.store.Save(records); err != nil {
 		return Record{}, apierr.Internal("persist plan-execution record before start: %s", err.Error())
 	}
-	started, err := s.transitionRunner.StartWith(ctx, "plan.execute", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: "slice", Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"}})
+	firstNode := "slice"
+	workflowOverride := ""
+	if record.ExecutionStrategy == "until-drain" {
+		firstNode = "iterate"
+		workflowOverride = strategyWorkflow
+	}
+	started, err := s.transitionRunner.StartWith(ctx, "plan.execute", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: firstNode, WorkflowKeyOverride: workflowOverride, Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"}})
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
@@ -152,17 +159,16 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	return record, nil
 }
 
-func (s *Service) strategyMatchesWorkflow(strategyID, workflowKey string) bool {
-	strategyID = strings.TrimSpace(strategyID)
-	if strategyID == "" {
+func (s *Service) workflowForStrategy(strategyID string) (string, bool) {
+	if strings.TrimSpace(strategyID) == "" {
 		strategyID = defaultExecutionStrategy
 	}
 	for _, strategy := range s.declaredExecutionStrategies() {
-		if strategy.ID == strategyID {
-			return strategy.WorkflowKey == workflowKey
+		if strategy.ID == strings.TrimSpace(strategyID) {
+			return strategy.WorkflowKey, strings.TrimSpace(strategy.WorkflowKey) != ""
 		}
 	}
-	return false
+	return "", false
 }
 
 // reapOperationForRecord marks a canceled run's operation execution canceled in

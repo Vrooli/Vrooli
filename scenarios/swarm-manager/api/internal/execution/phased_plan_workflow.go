@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"swarm-manager/internal/agentmanager"
@@ -31,6 +32,7 @@ type phasedPlanSnapshot struct {
 	PlanReference   string
 	FrontierDigest  string
 	ExecutionID     string
+	ProjectRoot     string
 	PlanExecutionID string
 	EntityKind      string
 	EntityName      string
@@ -118,7 +120,7 @@ func (s *Service) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
 	}
 }
 
-func buildPhasedPlanSnapshot(item backlogItem, record Record, planHandle string, rendered renderedPlanContent) (phasedPlanSnapshot, error) {
+func buildPhasedPlanSnapshot(item backlogItem, record Record, planHandle, projectRoot string, rendered renderedPlanContent) (phasedPlanSnapshot, error) {
 	itemBytes, err := json.Marshal(item)
 	if err != nil {
 		return phasedPlanSnapshot{}, fmt.Errorf("encode backlog snapshot: %w", err)
@@ -126,7 +128,8 @@ func buildPhasedPlanSnapshot(item backlogItem, record Record, planHandle string,
 	frontier := digestStrings(planHandle, rendered.Markdown)
 	return phasedPlanSnapshot{
 		PlanReference: planHandle, FrontierDigest: frontier, ExecutionID: record.ExecutionID,
-		EntityKind: item.Kind, EntityName: item.Name, EntityVersion: digestStrings(string(itemBytes)),
+		ProjectRoot: filepath.Clean(projectRoot),
+		EntityKind:  item.Kind, EntityName: item.Name, EntityVersion: digestStrings(string(itemBytes)),
 		MaxSlices: firstPositive(record.MaxSlices, 6), WriteScope: append([]string(nil), item.AcceptanceAllow...), PlanExecutionID: record.PlanManagerExecutionID,
 	}, nil
 }
@@ -144,6 +147,7 @@ func (snapshot phasedPlanSnapshot) input() (*structpb.Value, error) {
 		writeScope[i] = path
 	}
 	return structpb.NewValue(map[string]any{
+		"projectRoot":     snapshot.ProjectRoot,
 		"plan":            map[string]any{"reference": snapshot.PlanReference, "frontierDigest": snapshot.FrontierDigest},
 		"planExecutionId": snapshot.PlanExecutionID,
 		"consumer": map[string]any{
@@ -360,6 +364,15 @@ func (s *Service) finishPhasedPlanClaim(record *Record, outcome transitionrunner
 	case "blocked", "needs_review", "needs_attention", "abstained":
 		record.Status = StatusNeedsReview
 		record.FailureReason = stringsx.FirstNonEmpty(result.Blocker.Summary, result.Reason, result.Summary, "workflow "+result.Outcome)
+		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
+			return err
+		}
+	case "budget_exhausted":
+		// A bounded drain is an expected, resumable terminal. Preserve the
+		// reason and keep it in review so the operator can continue it; it is
+		// not evidence that the agent or transition failed.
+		record.Status = StatusNeedsReview
+		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, result.Reason, result.Summary, "workflow budget exhausted")
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
 		}

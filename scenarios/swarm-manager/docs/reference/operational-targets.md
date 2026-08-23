@@ -39,13 +39,14 @@ References:
 - [CODE: api/internal/execution/preflight.go]
 
 ### OT-P0-005 - Strategy-selectable execution
-Status: Partial — registry seam, validation, and picker endpoint exist; only
-the phased-plan-drain strategy is declared, and the run sheet auto-submits
-rather than presenting a picker.
+Status: In progress — `phased-plan-drain` and `until-drain` are declared and
+exposed with operator-facing descriptions and cost bands. End-to-end live
+execution and substrate-resolution evidence remain outstanding.
 References:
 - [CODE: api/internal/execution/service_queue.go]
 - [CODE: api/internal/execution/strategies.go]
 - [CODE: .vrooli/swarm-transitions/registry.json]
+- [CODE: api/internal/execution/strategies.go]
 
 ### OT-P0-006 - Phased slice execution
 Status: Implemented.

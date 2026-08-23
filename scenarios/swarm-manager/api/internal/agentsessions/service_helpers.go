@@ -11,7 +11,40 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/identity"
+	"swarm-manager/internal/transitions"
 )
+
+func (s *Service) sessionConfig(kind Kind) (transitions.SessionConfig, bool) {
+	if s != nil {
+		definition, ok := s.transitionRegistry.Get("session." + string(kind))
+		if ok && definition.Session != nil {
+			return *definition.Session, true
+		}
+	}
+	return transitions.SessionConfig{}, false
+}
+
+func (s *Service) sessionKindAvailable(kind Kind) bool {
+	if s != nil && len(s.transitionRegistry.Definitions()) > 0 {
+		_, ok := s.sessionConfig(kind)
+		return ok
+	}
+	return IsKnownKind(kind)
+}
+
+func (s *Service) skillIDForKind(kind Kind) string {
+	if config, ok := s.sessionConfig(kind); ok {
+		return config.SkillID
+	}
+	return skillIDForKind(kind)
+}
+
+func (s *Service) startupBriefRefForKind(kind Kind) string {
+	if config, ok := s.sessionConfig(kind); ok {
+		return config.BriefRef
+	}
+	return StartupBriefRefForKind(kind)
+}
 
 func skillIDForKind(kind Kind) string {
 	switch kind {

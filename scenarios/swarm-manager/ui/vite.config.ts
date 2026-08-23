@@ -66,6 +66,11 @@ export default defineConfig(({ mode }): UserConfig => {
       globals: true,
       environment: "jsdom",
       setupFiles: ["./src/setupTests.ts"],
+      // The serial-isolation runner profile is expressed here rather than in
+      // package scripts, so every invocation has the same bounded worker
+      // contract on every host.
+      pool: "forks",
+      poolOptions: { forks: { minForks: 1, maxForks: 1 } },
       // The shared audio package is a workspace file: link, so Vitest treats it
       // as an external dependency and lets Node resolve it — which lands on its
       // published dist/, whose emitted ESM uses extensionless relative imports

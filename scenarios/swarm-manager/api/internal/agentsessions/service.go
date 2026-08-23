@@ -273,6 +273,13 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 			cfg.EventReader = reader
 		}
 	}
+	if len(cfg.TransitionRegistry.Definitions()) > 0 {
+		if configurable, ok := cfg.Store.(interface{ SetSessionKindValidator(func(Kind) bool) }); ok {
+			configurable.SetSessionKindValidator(func(kind Kind) bool {
+				return cfg.TransitionRegistry.IsSessionKind(string(kind))
+			})
+		}
+	}
 	return &Service{
 		store:                     cfg.Store,
 		spawner:                   cfg.Spawner,
@@ -354,7 +361,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error
 		return Session{}, err
 	}
 	req.Title = strings.TrimSpace(req.Title)
-	if !IsKnownKind(req.Kind) {
+	if !s.sessionKindAvailable(req.Kind) {
 		return Session{}, apierr.BadRequest("session kind is invalid")
 	}
 	if req.Title == "" {
@@ -375,7 +382,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error
 		Title:          req.Title,
 		Kind:           req.Kind,
 		Status:         StatusDraft,
-		SkillID:        skillIDForKind(req.Kind),
+		SkillID:        s.skillIDForKind(req.Kind),
 		ProfileKey:     s.profileKey,
 		CreatedAt:      now,
 		UpdatedAt:      now,

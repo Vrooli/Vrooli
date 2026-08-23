@@ -85,7 +85,7 @@ func reviewRoundSnapshot(kind, name string, raw json.RawMessage) (transitionrunn
 	if err != nil {
 		return transitionrunner.Snapshot{}, fmt.Errorf("build independent review input: %w", err)
 	}
-	return transitionrunner.Snapshot{Input: input, EntityVersion: version}, nil
+	return transitionrunner.SnapshotFromSubject(input, snapshot, map[string]any{"kind": kind, "name": name})
 }
 
 // buildEvidenceRequestInput reprojects one evidence request. Every field it
@@ -126,7 +126,7 @@ func evidenceRequestSnapshot(kind, name, executionID string, roundNum int, threa
 	if err != nil {
 		return transitionrunner.Snapshot{}, fmt.Errorf("build evidence request input: %w", err)
 	}
-	return transitionrunner.Snapshot{Input: input, EntityVersion: version}, nil
+	return transitionrunner.SnapshotFromSubject(input, snapshot, map[string]any{"kind": kind, "name": name, "thread": threadID})
 }
 
 func (s *Service) startReviewTransition(ctx context.Context, params startReviewParams) error {

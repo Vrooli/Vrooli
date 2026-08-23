@@ -14,6 +14,7 @@
       "abstained"
     ],
     "applyAction": "apply_session_proposal"
+    ,"session": {"briefRef": "startup_brief/meta_orchestration", "skillId": "swarm-manager-meta-orchestrator", "profileKey": "swarm-manager/session", "proposalTargets": ["backlog", "goal", "milestone"]}
   },
   {
     "schemaVersion": "swarm-transition/v1",
@@ -30,6 +31,7 @@
       "abstained"
     ],
     "applyAction": "apply_session_proposal"
+    ,"session": {"briefRef": "startup_brief/swarm_operations", "skillId": "swarm-manager-operations-session", "profileKey": "swarm-manager/session", "proposalTargets": ["backlog", "goal", "milestone"]}
   },
   {
     "schemaVersion": "swarm-transition/v1",
@@ -46,6 +48,7 @@
       "abstained"
     ],
     "applyAction": "apply_session_proposal"
+    ,"session": {"briefRef": "startup_brief/workflow_authoring", "skillId": "swarm-manager-workflow-authoring", "profileKey": "swarm-manager/session", "proposalTargets": ["transition", "workflow"]}
   },
   {
     "schemaVersion": "swarm-transition/v1",
@@ -180,11 +183,18 @@
     "strategies": [
       {
         "id": "phased-plan-drain",
-        "workflowKey": "swarm-manager/phased-plan-drain",
         "displayName": "Phased plan drain",
         "description": "Executes the accepted plan one verified phase at a time, with review and operator approval where needed.",
         "whenToUse": "Use for accepted plans that need durable phase-by-phase progress and resumability.",
         "costBand": "Governed by the configured per-turn estimate and workflow budget."
+      },
+      {
+        "id": "until-drain",
+        "workflowKey": "swarm-manager/until-drain",
+        "displayName": "Until drain",
+        "description": "Runs one warm, resumable engagement until the accepted plan is complete or a typed terminal is reached.",
+        "whenToUse": "Use when the operator would otherwise hand the whole accepted plan to one coding-agent engagement.",
+        "costBand": "Measurement-derived envelope: up to 18M tokens and 27 hours."
       }
     ],
     "applyAction": "apply_plan_execution"

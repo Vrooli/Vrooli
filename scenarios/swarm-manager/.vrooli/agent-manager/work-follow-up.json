@@ -55,7 +55,6 @@
     ],
     "additionalProperties": false
   },
-  "entryNode": "follow_up",
   "nodes": [
     {
       "id": "follow_up",
@@ -117,37 +116,13 @@
           "skillId": "swarm-manager-workflow-work-follow-up"
         }
       }
-    },
-    {
-      "id": "done",
-      "kind": "end",
-      "end": {
-        "status": "succeeded",
-        "bindings": [
-          {
-            "name": "result",
-            "source": "structured_result",
-            "selector": "node=follow_up;$.value",
-            "limit": 1,
-            "maxBytes": 65536,
-            "renderAs": "json",
-            "missingPolicy": "error"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": [
-    {
-      "from": "follow_up",
-      "to": "done"
     }
   ],
   "budgets": {
     "wallTimeSeconds": 3600,
     "maxTurns": 18,
     "maxTokens": 900000,
-    "maxChargeMicroUsd": 6,
+    "maxChargeMicroUsd": 6000000,
     "maxNodeAttempts": 3,
     "maxChildren": 1,
     "maxConcurrency": 1,

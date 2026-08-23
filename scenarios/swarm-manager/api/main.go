@@ -986,11 +986,24 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 	registry := s.transitionRegistry
 	s.integrationStatus.SetTransitionRegistry(registry)
 	backlogHandler.SetTransitionRegistry(registry)
-	guard := func(ctx context.Context, workflowKey string) error {
+	definitionForWorkflow := func(workflowKey string) (transitions.Definition, bool) {
 		for _, definition := range registry.Definitions() {
-			if definition.Kind != transitions.KindWorkflow || definition.Workflow == nil || definition.Workflow.Key != workflowKey {
+			if definition.Kind != transitions.KindWorkflow {
 				continue
 			}
+			if definition.Workflow != nil && definition.Workflow.Key == workflowKey {
+				return definition, true
+			}
+			for _, strategy := range definition.Strategies {
+				if strategy.WorkflowKey == workflowKey {
+					return definition, true
+				}
+			}
+		}
+		return transitions.Definition{}, false
+	}
+	guard := func(ctx context.Context, workflowKey string) error {
+		if definition, ok := definitionForWorkflow(workflowKey); ok {
 			return s.integrationStatus.Preflight(ctx, definition)
 		}
 		return fmt.Errorf("workflow start %q is not registered by swarm-transition/v1", workflowKey)
@@ -1012,10 +1025,21 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 // the filesystem journal remains independent of disposable subject caches.
 func (s *Server) configureTransitionRunner() {
 	workflow := agentmanager.NewWorkflowService()
+	if s.executionSvc != nil {
+		s.executionSvc.SetWorkflowStateReader(workflow)
+	}
 	workflow.SetStartGuard(func(ctx context.Context, workflowKey string) error {
 		for _, definition := range s.transitionRegistry.Definitions() {
-			if definition.Kind == transitions.KindWorkflow && definition.Workflow != nil && definition.Workflow.Key == workflowKey {
+			if definition.Kind != transitions.KindWorkflow {
+				continue
+			}
+			if definition.Workflow != nil && definition.Workflow.Key == workflowKey {
 				return s.integrationStatus.Preflight(ctx, definition)
+			}
+			for _, strategy := range definition.Strategies {
+				if strategy.WorkflowKey == workflowKey {
+					return s.integrationStatus.Preflight(ctx, definition)
+				}
 			}
 		}
 		return fmt.Errorf("workflow start %q is not registered by swarm-transition/v1", workflowKey)

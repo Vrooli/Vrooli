@@ -136,7 +136,7 @@ func (h *Handler) buildPlanRepairInput(ctx context.Context, subjectRef string) (
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
-	return transitionrunner.Snapshot{Input: prepared.Input, EntityVersion: prepared.EntityVersion, FrontierDigest: prepared.FrontierDigest}, nil
+	return transitionrunner.SnapshotFromSubject(prepared.Input, item, map[string]any{"plan": item.PlanRef.PlanID, "frontier": prepared.FrontierDigest})
 }
 
 func (h *Handler) planRepairInput(item BacklogItem, baseHash, content, frontier string, findings []any, checkedAt string, maxAttempts int) (transitionrunner.PreparedInput, error) {

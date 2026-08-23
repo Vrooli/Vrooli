@@ -47,6 +47,21 @@ func TestDeclaredRegistryCoversEveryTargetTransition(t *testing.T) {
 	}
 }
 
+func TestIsSessionKindUsesRegistryDeclarations(t *testing.T) {
+	registry, err := LoadFS(fstest.MapFS{"registry/session.json": {Data: []byte(`[
+{"schemaVersion":"swarm-transition/v1","key":"session.review","subject":"review","kind":"session","session":{"briefRef":"brief/review","skillId":"review-skill","profileKey":"swarm-manager/review"},"inputContract":"session/v1","terminalOutcomes":["complete"],"applyAction":"review_session"}
+]`)}}, "registry")
+	if err != nil {
+		t.Fatalf("LoadFS: %v", err)
+	}
+	if !registry.IsSessionKind("review") {
+		t.Fatal("registry-declared session kind was not recognized")
+	}
+	if registry.IsSessionKind("missing") {
+		t.Fatal("undeclared session kind was recognized")
+	}
+}
+
 func TestTransitionCatalogDocumentMatchesRegistryProjection(t *testing.T) {
 	registry, err := LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
 	if err != nil {

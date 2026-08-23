@@ -35,7 +35,6 @@
     ],
     "additionalProperties": false
   },
-  "entryNode": "review",
   "nodes": [
     {
       "id": "review",
@@ -223,37 +222,13 @@
           "skillId": "swarm-manager-plan-workshop-review"
         }
       }
-    },
-    {
-      "id": "done",
-      "kind": "end",
-      "end": {
-        "status": "succeeded",
-        "bindings": [
-          {
-            "name": "result",
-            "source": "structured_result",
-            "selector": "node=review;$.value",
-            "limit": 1,
-            "maxBytes": 65536,
-            "renderAs": "json",
-            "missingPolicy": "error"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": [
-    {
-      "from": "review",
-      "to": "done"
     }
   ],
   "budgets": {
     "wallTimeSeconds": 1200,
     "maxTurns": 12,
     "maxTokens": 600000,
-    "maxChargeMicroUsd": 5,
+    "maxChargeMicroUsd": 5000000,
     "maxNodeAttempts": 2,
     "maxChildren": 1,
     "maxConcurrency": 1,

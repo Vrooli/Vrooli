@@ -84,7 +84,6 @@ func (h *Handler) buildPlanAuthorInput(_ context.Context, subjectRef string) (tr
 	if item.PlanRef != nil {
 		return transitionrunner.Snapshot{}, errors.New("backlog item already has a plan_ref")
 	}
-	version := immutableBacklogSnapshotVersion(item)
 	// StructPB accepts JSON-shaped values only. Round-trip the domain structs so
 	// the typed immutable snapshot stays bounded and transport-neutral.
 	snapshotRaw, err := json.Marshal(map[string]any{"item": item})
@@ -95,11 +94,11 @@ func (h *Handler) buildPlanAuthorInput(_ context.Context, subjectRef string) (tr
 	if err := json.Unmarshal(snapshotRaw, &snapshot); err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
-	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": string(item.Kind), "name": item.Name, "version": version}, "snapshot": snapshot})
+	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": string(item.Kind), "name": item.Name, "version": immutableBacklogSnapshotVersion(item)}, "snapshot": snapshot})
 	if err != nil {
 		return transitionrunner.Snapshot{}, fmt.Errorf("plan author input: %w", err)
 	}
-	return transitionrunner.Snapshot{Input: input, EntityVersion: version}, nil
+	return transitionrunner.SnapshotFromSubject(input, item, nil)
 }
 
 // ApplyPlanAuthor is the single domain mutation boundary for plan.author.

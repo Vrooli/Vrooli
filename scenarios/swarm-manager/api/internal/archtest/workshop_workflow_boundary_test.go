@@ -62,8 +62,8 @@ func TestPlanWorkshopReviewDefinitionStaysStructurallySmall(t *testing.T) {
 		t.Fatal(err)
 	}
 	nodes, _ := definition["nodes"].([]any)
-	if len(nodes) != 2 {
-		t.Fatalf("node count = %d, want one fresh run plus end", len(nodes))
+	if len(nodes) != 1 {
+		t.Fatalf("node count = %d, want one fresh run in sugar form", len(nodes))
 	}
 	encoded := string(data)
 	for _, forbidden := range []string{"targetKind", "domainAction", "callback", "classifier", "continue", "shell", "command"} {

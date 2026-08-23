@@ -14,6 +14,7 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	kindFlag := fs.String("kind", "", "Backlog item kind")
 	nameFlag := fs.String("name", "", "Backlog item name")
 	executeFlag := fs.Bool("execute", false, "Execute queue mutation (default is preview-only)")
+	strategyFlag := fs.String("strategy", "", "Plan execution strategy: phased-plan-drain|until-drain")
 	forceFlag := fs.Bool("force", false, "Override unanswered feedback gates (questions/suggestions)")
 	mode, delaySeconds, operation, startedBy := addExecutionOptionsFlags(fs)
 	jsonOut := cliutil.JSONFlag(fs)
@@ -21,7 +22,11 @@ func (a *App) cmdBacklogQueue(args []string) error {
 		return err
 	}
 	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
-		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
+		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--strategy phased-plan-drain|until-drain] [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
+	}
+	strategy := strings.TrimSpace(*strategyFlag)
+	if strategy != "" && strategy != "phased-plan-drain" && strategy != "until-drain" {
+		return fmt.Errorf("invalid strategy %q (expected phased-plan-drain or until-drain)", strategy)
 	}
 
 	opts, err := parseExecutionOptions(mode, delaySeconds, operation, startedBy, false)
@@ -40,6 +45,9 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	}
 	if opts.mode != "" {
 		payloadMap["mode"] = opts.mode
+	}
+	if strategy != "" {
+		payloadMap["strategy"] = strategy
 	}
 	payload, err := json.Marshal(payloadMap)
 	if err != nil {

@@ -123,8 +123,8 @@ func normalizeContextRefs(kind Kind, refs []ContextRef) ([]ContextRef, error) {
 }
 
 func (s *Service) ChangeKind(ctx context.Context, req ChangeKindRequest) (ChangeKindResult, error) {
-	if !IsKnownKind(req.Kind) {
-		return ChangeKindResult{}, apierr.BadRequest("kind must be meta_orchestration, swarm_operations, or workflow_authoring")
+	if !s.sessionKindAvailable(req.Kind) {
+		return ChangeKindResult{}, apierr.BadRequest("kind is not declared in the transition registry")
 	}
 	store, err := s.storeFor(ctx)
 	if err != nil {
@@ -144,7 +144,7 @@ func (s *Service) ChangeKind(ctx context.Context, req ChangeKindRequest) (Change
 	}
 	cleared := !starterJobAllowedForKind(session.StarterJob, req.Kind)
 	session.Kind = req.Kind
-	session.SkillID = skillIDForKind(req.Kind)
+	session.SkillID = s.skillIDForKind(req.Kind)
 	if cleared {
 		session.StarterJob = ""
 	}

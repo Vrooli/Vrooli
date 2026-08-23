@@ -36,8 +36,10 @@ type WorkflowProgress struct {
 // activity ledger. It deliberately omits workflow input, output, and journal
 // data; callers that need live progress use WorkflowProgress instead.
 type WorkflowExecutionState struct {
-	Status    domainpb.WorkflowExecutionStatus
-	UpdatedAt string
+	Status           domainpb.WorkflowExecutionStatus
+	UpdatedAt        string
+	TerminalCode     string
+	TerminalEvidence bool
 }
 
 // WorkflowActivity identifies the durable owner of a declared workflow. It is
@@ -103,7 +105,13 @@ func (s *WorkflowService) GetWorkflowExecutionState(ctx context.Context, executi
 	if trace.Execution == nil {
 		return WorkflowExecutionState{}, fmt.Errorf("%w: workflow trace omitted execution", ErrRequestFailed)
 	}
-	state := WorkflowExecutionState{Status: trace.Execution.GetStatus()}
+	state := WorkflowExecutionState{
+		Status:           trace.Execution.GetStatus(),
+		TerminalEvidence: trace.Execution.GetOutput() != nil,
+	}
+	if reason := trace.Execution.GetTerminalReason(); reason != nil {
+		state.TerminalCode = reason.GetCode()
+	}
 	if updated := trace.Execution.GetUpdatedAt(); updated != nil {
 		state.UpdatedAt = updated.AsTime().UTC().Format(time.RFC3339Nano)
 	}
@@ -123,7 +131,13 @@ func (s *AgentService) GetWorkflowExecutionState(ctx context.Context, executionI
 	if trace.Execution == nil {
 		return WorkflowExecutionState{}, fmt.Errorf("%w: workflow trace omitted execution", ErrRequestFailed)
 	}
-	state := WorkflowExecutionState{Status: trace.Execution.GetStatus()}
+	state := WorkflowExecutionState{
+		Status:           trace.Execution.GetStatus(),
+		TerminalEvidence: trace.Execution.GetOutput() != nil,
+	}
+	if reason := trace.Execution.GetTerminalReason(); reason != nil {
+		state.TerminalCode = reason.GetCode()
+	}
 	if updated := trace.Execution.GetUpdatedAt(); updated != nil {
 		state.UpdatedAt = updated.AsTime().UTC().Format(time.RFC3339Nano)
 	}

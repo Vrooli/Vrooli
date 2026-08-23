@@ -86,7 +86,6 @@ func (h *Handler) buildClassificationInput(ctx context.Context, id string) (tran
 		// relative path that does not exist there.
 		attachments[i] = filepath.Join(h.captureDir(cap.ID), filepath.FromSlash(attachment))
 	}
-	version := captureVersion(cap)
 	grounding := map[string]any{"status": "degraded", "reason": "grounding provider is not configured"}
 	if h.groundingProvider != nil {
 		if candidate, groundingErr := h.groundingProvider.BuildCaptureGrounding(ctx, cap.Text); groundingErr != nil {
@@ -100,13 +99,13 @@ func (h *Handler) buildClassificationInput(ctx context.Context, id string) (tran
 		return transitionrunner.Snapshot{}, fmt.Errorf("classification grounding: %w", err)
 	}
 	input, err := structpb.NewValue(map[string]any{
-		"capture":   map[string]any{"id": cap.ID, "text": cap.Text, "attachments": attachments, "note": cap.Note, "version": version},
+		"capture":   map[string]any{"id": cap.ID, "text": cap.Text, "attachments": attachments, "note": cap.Note, "version": captureVersion(cap)},
 		"grounding": groundingValue,
 	})
 	if err != nil {
 		return transitionrunner.Snapshot{}, fmt.Errorf("classification input: %w", err)
 	}
-	return transitionrunner.Snapshot{Input: input, EntityVersion: version}, nil
+	return transitionrunner.SnapshotFromSubject(input, cap, grounding)
 }
 
 // normalizeStructValue converts Go's typed slices and structs into the JSON
@@ -215,7 +214,7 @@ func (h *Handler) ApplyClassification(w http.ResponseWriter, r *http.Request) {
 	defer h.classificationMu.Unlock()
 
 	id, executionID := mux.Vars(r)["id"], mux.Vars(r)["executionID"]
-	cap, err := h.loadCapture(id)
+	_, err := h.loadCapture(id)
 	if err != nil && !os.IsNotExist(err) {
 		apierr.MapError(w, "[captures] apply classification", apierr.Internal("failed to load capture"))
 		return
@@ -245,7 +244,7 @@ func (h *Handler) ApplyClassification(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[captures] apply classification", apierr.Conflict("classification workflow does not match capture"))
 		return
 	}
-	cap, err = h.loadCapture(id)
+	cap, err := h.loadCapture(id)
 	if err != nil {
 		if os.IsNotExist(err) {
 			_ = httputil.JSON(w, map[string]any{"capture_id": id, "capture_deleted": true, "outcome": correlation.Outcome})

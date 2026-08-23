@@ -4,6 +4,10 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"time"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"swarm-manager/internal/agentmanager"
 )
 
 // ReconcileReport summarizes a stranded-record reconciliation sweep: the
@@ -15,6 +19,194 @@ type ReconcileReport struct {
 	Scanned          int      `json:"scanned"`
 	Stranded         []string `json:"stranded"`
 	OpReapsAttempted []string `json:"op_reaps_attempted,omitempty"`
+}
+
+// WorkflowReconcileReport records a callback-loss repair sweep.
+type WorkflowReconcileReport struct {
+	Scanned    int      `json:"scanned"`
+	Observed   int      `json:"terminal_workflows_observed"`
+	Reconciled []string `json:"reconciled,omitempty"`
+	Skipped    []string `json:"skipped,omitempty"`
+	Errors     []string `json:"errors,omitempty"`
+}
+
+// ReconcileWorkflowExecutions projects Agent Manager's authoritative terminal
+// workflow state into Swarm execution records when the normal completion
+// callback was lost. It is safe at startup and on every background cycle.
+func (s *Service) ReconcileWorkflowExecutions(ctx context.Context) (WorkflowReconcileReport, error) {
+	s.mu.Lock()
+	reader := s.workflowStateReader
+	records, err := s.store.Load()
+	s.mu.Unlock()
+	if err != nil {
+		return WorkflowReconcileReport{}, err
+	}
+	report := WorkflowReconcileReport{Scanned: len(records)}
+	if reader == nil {
+		return report, nil
+	}
+	for _, candidate := range records {
+		if !isInspectableStatus(candidate.Status) {
+			continue
+		}
+		workflowID := strings.TrimSpace(candidate.OpWorkflowID)
+		if workflowID == "" {
+			if correlation, correlationErr := s.transitionCorrelation(candidate); correlationErr == nil {
+				workflowID = strings.TrimSpace(correlation.ExecutionID)
+			}
+		}
+		if workflowID == "" {
+			report.Skipped = append(report.Skipped, candidate.ExecutionID)
+			continue
+		}
+		stateCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		state, stateErr := reader.GetWorkflowExecutionState(stateCtx, workflowID)
+		cancel()
+		if stateErr != nil {
+			report.Errors = append(report.Errors, candidate.ExecutionID+": "+stateErr.Error())
+			continue
+		}
+		if !terminalWorkflowStatus(state.Status) {
+			continue
+		}
+		report.Observed++
+		changed, err := s.applyReconciledWorkflowState(candidate.ExecutionID, workflowID, state)
+		if err != nil {
+			report.Errors = append(report.Errors, candidate.ExecutionID+": "+err.Error())
+			continue
+		}
+		if changed {
+			report.Reconciled = append(report.Reconciled, candidate.ExecutionID)
+		}
+	}
+	return report, nil
+}
+
+func terminalWorkflowStatus(status domainpb.WorkflowExecutionStatus) bool {
+	switch status {
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_ABSTAINED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED:
+		return true
+	default:
+		return false
+	}
+}
+
+func reconciledStatus(state agentmanager.WorkflowExecutionState) (Status, string) {
+	switch state.Status {
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED:
+		if !state.TerminalEvidence {
+			return StatusNeedsReview, "workflow succeeded without terminal result evidence; inspect and apply explicitly"
+		}
+		return StatusCompleted, "workflow terminal state reconciled: succeeded"
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED:
+		return StatusCanceled, "workflow terminal state reconciled: cancelled"
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_ABSTAINED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED:
+		return StatusNeedsReview, "workflow terminal state reconciled: " + strings.ToLower(state.Status.String())
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED:
+		return StatusFailed, "workflow terminal state reconciled: failed"
+	default:
+		return StatusFailed, "workflow terminal state reconciled: unsupported terminal outcome"
+	}
+}
+
+func (s *Service) applyReconciledWorkflowState(executionID, workflowID string, state agentmanager.WorkflowExecutionState) (bool, error) {
+	s.mu.Lock()
+	records, err := s.store.Load()
+	if err != nil {
+		s.mu.Unlock()
+		return false, err
+	}
+	for i := range records {
+		current := &records[i]
+		if current.ExecutionID != executionID || !isInspectableStatus(current.Status) {
+			continue
+		}
+		currentWorkflowID := strings.TrimSpace(current.OpWorkflowID)
+		if currentWorkflowID == "" {
+			if correlation, correlationErr := s.transitionCorrelation(*current); correlationErr == nil {
+				currentWorkflowID = strings.TrimSpace(correlation.ExecutionID)
+			}
+		}
+		if currentWorkflowID != workflowID {
+			s.mu.Unlock()
+			return false, nil
+		}
+		previous := current.Status
+		targetStatus, targetReason := reconciledStatus(state)
+		if current.Status == targetStatus && strings.HasPrefix(current.FailureReason, targetReason) {
+			s.mu.Unlock()
+			return false, nil
+		}
+		current.Status, current.FailureReason = targetStatus, targetReason
+		current.FinishedAt = firstNonEmpty(state.UpdatedAt, nowRFC3339())
+		current.UpdatedAt = nowRFC3339()
+		if state.TerminalCode != "" {
+			current.FailureReason += " (" + state.TerminalCode + ")"
+		}
+		if err := s.store.Save(records); err != nil {
+			s.mu.Unlock()
+			return false, err
+		}
+		changed := *current
+		s.mu.Unlock()
+		candidates := []string{}
+		if item, itemErr := s.loadBacklogItemByRecord(&changed); itemErr == nil {
+			switch changed.Status {
+			case StatusCompleted:
+				// Reuse the canonical completion projection so a recovered
+				// callback enters validation/finalization exactly like the
+				// normal completion bridge.
+				s.applyCompletedTransition(&changed, item, &candidates)
+			case StatusNeedsReview, StatusFailed:
+				_ = s.updateBacklogStatus(item, backlogStatusInReview)
+			case StatusCanceled:
+				_ = s.updateBacklogStatus(item, restoreBacklogStatus(changed))
+			}
+		}
+		if changed.Status != StatusCompleted || len(candidates) > 0 || changed.Finalization != nil {
+			if saveErr := s.saveReconciledProjection(changed); saveErr != nil {
+				return false, saveErr
+			}
+		}
+		s.dispatchStatusAndLog(changed, previous)
+		return true, nil
+	}
+	s.mu.Unlock()
+	return false, nil
+}
+
+func (s *Service) saveReconciledProjection(record Record) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	records, err := s.store.Load()
+	if err != nil {
+		return err
+	}
+	for i := range records {
+		if records[i].ExecutionID != record.ExecutionID {
+			continue
+		}
+		record.UpdatedAt = nowRFC3339()
+		records[i] = record
+		return s.store.Save(records)
+	}
+	return nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // ReconcileStrandedRecords sweeps execution records that can never reach a

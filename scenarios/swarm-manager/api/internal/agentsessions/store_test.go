@@ -7,12 +7,33 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
+	"swarm-manager/internal/transitions"
 )
+
+func TestFileStoreAcceptsRegistryDeclaredSessionKind(t *testing.T) {
+	registry, err := transitions.LoadFS(fstest.MapFS{
+		"registry/session.json": {Data: []byte(`[{"schemaVersion":"swarm-transition/v1","key":"session.review","subject":"review","kind":"session","session":{"briefRef":"brief/review","skillId":"review-skill","profileKey":"swarm-manager/review"},"inputContract":"session/v1","terminalOutcomes":["complete"],"applyAction":"review_session"}]`)},
+	}, "registry")
+	if err != nil {
+		t.Fatalf("LoadFS: %v", err)
+	}
+	store := NewFileStore(t.TempDir())
+	store.SetSessionKindValidator(func(kind Kind) bool { return registry.IsSessionKind(string(kind)) })
+	session := validStoredSession("sess_registry_kind")
+	session.Kind = Kind("review")
+	if err := store.CreateSession(session); err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	if _, err := store.LoadSession(session.ID); err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+}
 
 func TestRoutedFileStoreUsesLeasedDataRoot(t *testing.T) {
 	primary := t.TempDir()

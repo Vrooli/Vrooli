@@ -37,7 +37,6 @@
     ],
     "additionalProperties": false
   },
-  "entryNode": "review",
   "nodes": [
     {
       "id": "review",
@@ -92,38 +91,13 @@
           "skillId": "swarm-manager-workflow-phased-plan-slice-review"
         }
       }
-    },
-    {
-      "id": "done",
-      "kind": "end",
-      "end": {
-        "status": "succeeded",
-        "bindings": [
-          {
-            "name": "review",
-            "source": "structured_result",
-            "selector": "node=review;$.value",
-            "order": "desc",
-            "limit": 1,
-            "maxBytes": 8192,
-            "renderAs": "json",
-            "missingPolicy": "error"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": [
-    {
-      "from": "review",
-      "to": "done"
     }
   ],
   "budgets": {
     "wallTimeSeconds": 420,
     "maxTurns": 4,
     "maxTokens": 200000,
-    "maxChargeMicroUsd": 1,
+    "maxChargeMicroUsd": 1000000,
     "maxNodeAttempts": 2,
     "maxChildren": 1,
     "maxConcurrency": 1,

@@ -38,7 +38,10 @@ func (h *Handler) buildGoalInput(_ context.Context, subjectRef string) (transiti
 		return transitionrunner.Snapshot{}, err
 	}
 	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "goal", "name": goal.Goal.Name, "version": goal.Goal.Updated}, "snapshot": snapshot, "supported_ops": h.supportedOps()})
-	return transitionrunner.Snapshot{Input: input, EntityVersion: goal.Goal.Updated}, err
+	if err != nil {
+		return transitionrunner.Snapshot{}, err
+	}
+	return transitionrunner.SnapshotFromSubject(input, goal.Goal, nil)
 }
 
 func (h *Handler) buildMilestoneInput(ctx context.Context, subjectRef string) (transitionrunner.Snapshot, error) {
@@ -65,7 +68,10 @@ func (h *Handler) buildMilestoneInput(ctx context.Context, subjectRef string) (t
 		return transitionrunner.Snapshot{}, err
 	}
 	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "milestone", "name": parts[1], "goalName": goal.Goal.Name, "version": goal.Goal.Updated}, "snapshot": snapshot, "supported_ops": h.supportedOps()})
-	return transitionrunner.Snapshot{Input: input, EntityVersion: goal.Goal.Updated}, err
+	if err != nil {
+		return transitionrunner.Snapshot{}, err
+	}
+	return transitionrunner.SnapshotFromSubject(input, milestoneSnapshotSubject{Goal: goal.Goal, Milestone: parts[1]}, nil)
 }
 
 func (h *Handler) applyGoalProposal(ctx context.Context, subjectRef string, outcome transitionrunner.Outcome) error {
@@ -88,7 +94,11 @@ func (h *Handler) applyGoalOutcome(ctx context.Context, goalName, milestone stri
 	if err != nil {
 		return err
 	}
-	if goal.Goal.Updated != outcome.EntityVersion {
+	currentVersion, err := goalEntityVersion(goal.Goal, milestone)
+	if err != nil {
+		return err
+	}
+	if currentVersion != outcome.EntityVersion {
 		return fmt.Errorf("goal changed after workflow start; re-run against the current snapshot")
 	}
 	value := &structpb.Value{}

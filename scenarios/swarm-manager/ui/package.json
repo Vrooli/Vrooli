@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit",
-    "test": "vitest run --minWorkers=1 --maxWorkers=1"
+    "test": "vitest run"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.11.0",

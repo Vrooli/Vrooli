@@ -19,6 +19,12 @@ const SchemaVersion = "swarm-transition/v1"
 type Kind string
 
 const (
+	SessionMetaOrchestrationKind = "meta_orchestration"
+	SessionSwarmOperationsKind   = "swarm_operations"
+	SessionWorkflowAuthoringKind = "workflow_authoring"
+)
+
+const (
 	KindSession       Kind = "session"
 	KindWorkflow      Kind = "workflow"
 	KindDeterministic Kind = "deterministic"
@@ -37,6 +43,7 @@ type Definition struct {
 	TerminalOutcomes []string            `json:"terminalOutcomes"`
 	ApplyAction      string              `json:"applyAction"`
 	Strategies       []ExecutionStrategy `json:"strategies,omitempty"`
+	Session          *SessionConfig      `json:"session,omitempty"`
 }
 
 // ExecutionStrategy is operator-facing metadata for an execution-capable
@@ -49,6 +56,13 @@ type ExecutionStrategy struct {
 	Description string `json:"description"`
 	WhenToUse   string `json:"whenToUse"`
 	CostBand    string `json:"costBand"`
+}
+
+type SessionConfig struct {
+	BriefRef        string   `json:"briefRef"`
+	SkillID         string   `json:"skillId"`
+	ProfileKey      string   `json:"profileKey"`
+	ProposalTargets []string `json:"proposalTargets,omitempty"`
 }
 
 type Locator struct {
@@ -86,6 +100,14 @@ func (r Registry) Definitions() []Definition {
 	}
 	sort.Slice(definitions, func(i, j int) bool { return definitions[i].Key < definitions[j].Key })
 	return definitions
+}
+
+// IsSessionKind reports whether the registry declares a complete session
+// definition for kind. Session consumers use this instead of maintaining a
+// second list of extensible session kinds in Go code.
+func (r Registry) IsSessionKind(kind string) bool {
+	definition, ok := r.Get("session." + strings.TrimSpace(kind))
+	return ok && definition.Kind == KindSession && definition.Session != nil
 }
 
 // VerifyApplyActions ensures every selected transition kind has a concrete
@@ -207,6 +229,13 @@ func Validate(definition Definition) error {
 	default:
 		return fmt.Errorf("kind must be session, workflow, or deterministic")
 	}
+	if definition.Kind == KindSession {
+		if definition.Session == nil || strings.TrimSpace(definition.Session.BriefRef) == "" || strings.TrimSpace(definition.Session.SkillID) == "" || strings.TrimSpace(definition.Session.ProfileKey) == "" {
+			return fmt.Errorf("session definitions require a complete session block")
+		}
+	} else if definition.Session != nil {
+		return fmt.Errorf("session block is only valid for session definitions")
+	}
 	seenRequirement := make(map[string]struct{}, len(definition.Requires))
 	for _, requirement := range definition.Requires {
 		requirement = strings.TrimSpace(requirement)
@@ -221,7 +250,11 @@ func Validate(definition Definition) error {
 	seenStrategy := make(map[string]struct{}, len(definition.Strategies))
 	for _, strategy := range definition.Strategies {
 		strategy.ID = strings.TrimSpace(strategy.ID)
-		if strategy.ID == "" || strings.TrimSpace(strategy.WorkflowKey) == "" || strings.TrimSpace(strategy.DisplayName) == "" || strings.TrimSpace(strategy.Description) == "" || strings.TrimSpace(strategy.WhenToUse) == "" || strings.TrimSpace(strategy.CostBand) == "" {
+		workflowKey := strings.TrimSpace(strategy.WorkflowKey)
+		if workflowKey == "" && definition.Workflow != nil {
+			workflowKey = strings.TrimSpace(definition.Workflow.Key)
+		}
+		if strategy.ID == "" || workflowKey == "" || strings.TrimSpace(strategy.DisplayName) == "" || strings.TrimSpace(strategy.Description) == "" || strings.TrimSpace(strategy.WhenToUse) == "" || strings.TrimSpace(strategy.CostBand) == "" {
 			return fmt.Errorf("strategies require id, workflowKey, displayName, description, whenToUse, and costBand")
 		}
 		if _, duplicate := seenStrategy[strategy.ID]; duplicate {
@@ -284,6 +317,11 @@ func addDefinitions(target map[string]Definition, definitions []Definition) erro
 		return fmt.Errorf("file contains no transition definitions")
 	}
 	for _, definition := range definitions {
+		for i := range definition.Strategies {
+			if strings.TrimSpace(definition.Strategies[i].WorkflowKey) == "" && definition.Workflow != nil {
+				definition.Strategies[i].WorkflowKey = definition.Workflow.Key
+			}
+		}
 		if err := Validate(definition); err != nil {
 			return err
 		}

@@ -46,6 +46,18 @@ type PendingWorkflow struct {
 	LastError     string `json:"last_error,omitempty"`
 }
 
+type milestoneSnapshotSubject struct {
+	Goal      Goal   `json:"goal"`
+	Milestone string `json:"milestone"`
+}
+
+func goalEntityVersion(goal Goal, milestone string) (string, error) {
+	if milestone == "" {
+		return transitionrunner.DigestJSON("entity", goal)
+	}
+	return transitionrunner.DigestJSON("entity", milestoneSnapshotSubject{Goal: goal, Milestone: milestone})
+}
+
 // goalTransitionReceipt is provenance for the external proposal-recording
 // side effect. Workflow lifecycle ownership remains solely in transitionrun.
 type goalTransitionReceipt struct {
@@ -83,7 +95,11 @@ func (h *Handler) ListPendingWorkflows() ([]PendingWorkflow, error) {
 	}
 	versions := make(map[string]string, len(goalsList))
 	for _, goal := range goalsList {
-		versions[goal.Name] = goal.Updated
+		version, versionErr := goalEntityVersion(goal, "")
+		if versionErr != nil {
+			return nil, versionErr
+		}
+		versions[goal.Name] = version
 	}
 	correlations, err := h.transitionRunner.ListUnapplied()
 	if err != nil {
@@ -96,6 +112,18 @@ func (h *Handler) ListPendingWorkflows() ([]PendingWorkflow, error) {
 			continue
 		}
 		version, exists := versions[goalName]
+		if milestone != "" {
+			for _, goal := range goalsList {
+				if goal.Name != goalName {
+					continue
+				}
+				version, err = goalEntityVersion(goal, milestone)
+				if err != nil {
+					return nil, err
+				}
+				break
+			}
+		}
 		out = append(out, PendingWorkflow{
 			GoalName: goalName, ExecutionID: correlation.ExecutionID, Transition: correlation.TransitionKey,
 			Milestone: milestone, GoalVersion: correlation.EntityVersion, Stale: !exists || version != correlation.EntityVersion,

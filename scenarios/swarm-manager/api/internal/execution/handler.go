@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -51,6 +52,11 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 // StartBackgroundWorker launches the background worker for active execution
 // progression.
 func (h *Handler) StartBackgroundWorker(stop <-chan struct{}) {
+	if report, err := h.service.ReconcileWorkflowExecutions(context.Background()); err != nil {
+		slog.Error("execution workflow reconciliation failed at startup", "err", err)
+	} else if len(report.Reconciled) > 0 {
+		slog.Info("execution workflow reconciliation repaired terminal records", "count", len(report.Reconciled))
+	}
 	_ = h.service.ProcessActiveExecutions(context.Background())
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
@@ -59,6 +65,11 @@ func (h *Handler) StartBackgroundWorker(stop <-chan struct{}) {
 		case <-stop:
 			return
 		case <-ticker.C:
+			if report, err := h.service.ReconcileWorkflowExecutions(context.Background()); err != nil {
+				slog.Error("execution workflow reconciliation failed", "err", err)
+			} else if len(report.Reconciled) > 0 {
+				slog.Info("execution workflow reconciliation repaired terminal records", "count", len(report.Reconciled))
+			}
 			_ = h.service.ProcessActiveExecutions(context.Background())
 		}
 	}

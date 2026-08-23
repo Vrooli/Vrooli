@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"swarm-manager/internal/agentmanager"
@@ -171,6 +172,14 @@ func (s *Service) CorrelationForExecution(ctx context.Context, executionID strin
 // SetTransitionRunner installs the shared workflow lifecycle owner.
 func (s *Service) SetTransitionRunner(runner *transitionrunner.Runner) { s.transitionRunner = runner }
 
+// SetWorkflowStateReader installs the Agent Manager read-only lifecycle seam
+// used by startup/periodic terminal reconciliation.
+func (s *Service) SetWorkflowStateReader(reader WorkflowStateReader) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.workflowStateReader = reader
+}
+
 // RegisterTransitionAdapter exposes correction and follow-up through the
 // runner. Execution retains only its domain-state projection.
 //
@@ -206,7 +215,7 @@ func (s *Service) buildPlanExecuteTransitionInput(ctx context.Context, execution
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
-	snapshot, err := buildPhasedPlanSnapshot(item, record, planHandle, rendered)
+	snapshot, err := buildPhasedPlanSnapshot(item, record, planHandle, filepath.Dir(s.repoRoot), rendered)
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
@@ -214,7 +223,7 @@ func (s *Service) buildPlanExecuteTransitionInput(ctx context.Context, execution
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
-	return transitionrunner.Snapshot{Input: input, EntityVersion: snapshot.EntityVersion, FrontierDigest: snapshot.FrontierDigest}, nil
+	return transitionrunner.SnapshotFrom(input, snapshot.EntityVersion, snapshot.FrontierDigest), nil
 }
 
 func (s *Service) buildSpecSyncTransitionInput(_ context.Context, executionID string) (transitionrunner.Snapshot, error) {
@@ -226,7 +235,7 @@ func (s *Service) buildSpecSyncTransitionInput(_ context.Context, executionID st
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
-	return transitionrunner.Snapshot{Input: snapshot.Input, EntityVersion: snapshot.EntityVersion}, nil
+	return transitionrunner.SnapshotFrom(snapshot.Input, snapshot.EntityVersion, ""), nil
 }
 
 // buildWorkTransitionInput reprojects one correction or follow-up. Everything
@@ -259,7 +268,7 @@ func (s *Service) buildWorkTransitionInput(_ context.Context, executionID string
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
-	return transitionrunner.Snapshot{Input: snapshot.Input, EntityVersion: snapshot.EntityVersion, FrontierDigest: snapshot.FrontierDigest}, nil
+	return transitionrunner.SnapshotFrom(snapshot.Input, snapshot.EntityVersion, snapshot.FrontierDigest), nil
 }
 
 // loadRecordAndItem resolves a record and its backlog item together.

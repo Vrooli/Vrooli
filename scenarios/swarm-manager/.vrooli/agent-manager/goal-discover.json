@@ -81,7 +81,6 @@
     ],
     "additionalProperties": false
   },
-  "entryNode": "discover",
   "nodes": [
     {
       "id": "discover",
@@ -155,37 +154,13 @@
           "skillId": "swarm-manager-workflow-goal-discover"
         }
       }
-    },
-    {
-      "id": "done",
-      "kind": "end",
-      "end": {
-        "status": "succeeded",
-        "bindings": [
-          {
-            "name": "result",
-            "source": "structured_result",
-            "selector": "node=discover;$.value",
-            "limit": 1,
-            "maxBytes": 65536,
-            "renderAs": "json",
-            "missingPolicy": "error"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": [
-    {
-      "from": "discover",
-      "to": "done"
     }
   ],
   "budgets": {
     "wallTimeSeconds": 1800,
     "maxTurns": 14,
     "maxTokens": 700000,
-    "maxChargeMicroUsd": 5,
+    "maxChargeMicroUsd": 5000000,
     "maxNodeAttempts": 2,
     "maxChildren": 1,
     "maxConcurrency": 1,
