@@ -342,7 +342,7 @@
         },
         {
           "name": "prepare-plan",
-          "description": "Create a non-mutating destination-preparation plan with a confirmation phrase",
+          "description": "Create a non-mutating destination-preparation or volume-remediation plan with a confirmation phrase",
           "flags": [
             {
               "name": "location",
@@ -352,7 +352,7 @@
             {
               "name": "action",
               "required": true,
-              "description": "Preparation action: create-subdir|relabel|clear-directory|format"
+              "description": "Preparation action: create-subdir|relabel|clear-directory|format|unmount|check-filesystem|repair-filesystem|mount-read-write"
             },
             {
               "name": "subdir",
@@ -368,6 +368,10 @@
             {
               "name": "filesystem",
               "description": "Desired filesystem for format, e.g. ext4 or exfat"
+            },
+            {
+              "name": "device",
+              "description": "Device path (e.g. /dev/sda1) to address the destination volume directly; required once a remediation sequence has unmounted it"
             }
           ],
           "binding": {

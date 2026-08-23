@@ -25,7 +25,7 @@ Use this document to answer:
 
 - API port: assigned by lifecycle as `API_PORT`.
 - UI port: assigned by lifecycle as `UI_PORT`.
-- Storage: `SQLITE_PATH` local file for the manager's own catalog and run
+- Storage: an embedded SQLite file for the manager's own catalog and run
   history. Backup artifacts do **not** live here — they live in kopia
   repositories (destinations).
 - Resources (required): `kopia` (backup engine — all repository,

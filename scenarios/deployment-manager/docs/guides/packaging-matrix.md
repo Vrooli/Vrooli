@@ -9,7 +9,7 @@ and evidence for that scenario.
 | `scenario-to-desktop` | Deployment Tier 2 desktop | Implemented; claims are evidence-gated | Electron generation, packaging, desktop runtime, native journeys, publication handoff |
 | `scenario-to-mobile` | Deployment Tier 3 mobile | Not implemented | Reserved target |
 | `scenario-to-cloud` | Deployment Tier 4 hosted cloud | Planning/reference | Reserved target |
-| `scenario-to-plugin` | Agent runtimes (Agent Plugins, skill registries) | Documented; not implemented | Plugin composition, skill/MCP conformance, supply-chain attestation, clean-room install rehearsal, channel distribution and revocation |
+| `scenario-to-plugin` | Agent runtimes (Agent Plugins, skill registries) | Implemented; external publication remains governance- and credential-gated | Plugin composition, skill/MCP conformance, supply-chain attestation, clean-room install rehearsal, channel distribution and revocation |
 | Enterprise/appliance ramp | Deployment Tier 5 enterprise | Strategic framing | No current packager |
 
 `scenario-to-plugin` is the one ramp whose target is not a deployment tier: it

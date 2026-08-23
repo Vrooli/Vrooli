@@ -11,6 +11,7 @@ import (
 
 	localdb "data-backup-manager/internal/database"
 	"data-backup-manager/internal/destinations"
+
 	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"

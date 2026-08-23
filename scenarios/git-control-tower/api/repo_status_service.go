@@ -12,12 +12,38 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var defaultRepoStatusCache *RepoStatusCache
+
+// SetDefaultRepoStatusCache wires the process-wide cache used by internal
+// status call sites that do not carry an HTTP server dependency. Tests can
+// leave it unset or inject a per-call cache explicitly.
+func SetDefaultRepoStatusCache(cache *RepoStatusCache) {
+	defaultRepoStatusCache = cache
+}
+
 // GetRepoStatus gathers the full repository status by running git operations
 // concurrently where possible. The initial `git status --porcelain=v2` must
 // complete first because subsequent steps depend on the parsed file lists.
 // After that, author resolution, diff stats, and optional hotspots all run
 // in parallel via an errgroup.
 func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error) {
+	if deps.StatusCache == nil {
+		deps.StatusCache = defaultRepoStatusCache
+	}
+	if deps.StatusCache != nil {
+		key := deps.RepoDir
+		if deps.IncludeHotspots {
+			key += "\x00hotspots"
+		}
+		return deps.StatusCache.Get(ctx, key, func(ctx context.Context) (*RepoStatus, error) {
+			deps.StatusCache = nil
+			return getRepoStatus(ctx, deps)
+		})
+	}
+	return getRepoStatus(ctx, deps)
+}
+
+func getRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error) {
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
 	}
@@ -57,6 +83,12 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	// binaries before invoking the expensive diff and report them directly.
 	stagedText, stagedPreBinaries := partitionBinaryPaths(repoDir, parsed.Files.Staged)
 	unstagedText, unstagedPreBinaries := partitionBinaryPaths(repoDir, parsed.Files.Unstaged)
+
+	// Rename origins are absent from the status file lists, so the pathspec
+	// built from those lists would hide one half of every rename pair from
+	// git's rename detection — turning a moved file into a whole-file add.
+	stagedText = withRenameOrigins(stagedText, parsed.Files.Renames)
+	unstagedText = withRenameOrigins(unstagedText, parsed.Files.Renames)
 
 	// Phase 2: run independent git operations concurrently.
 	var (
@@ -202,6 +234,43 @@ func partitionBinaryPaths(repoDir string, paths []string) (text, binary []string
 		}
 	}
 	return text, binary
+}
+
+// withRenameOrigins appends the origin path of every rename in paths, so a
+// pathspec built from paths shows git both halves of the pair. Without both
+// halves git cannot recognize the rename and scores the destination as a
+// whole-file add with no matching deletion, inflating the reported additions
+// by the full length of every moved file.
+//
+// Origins are not run through the binary partition: a rename's origin shares
+// its destination's content, which has already been classified, and the origin
+// no longer exists on disk to be sampled.
+func withRenameOrigins(paths []string, renames map[string]string) []string {
+	if len(renames) == 0 {
+		return paths
+	}
+	known := make(map[string]struct{}, len(paths))
+	for _, p := range paths {
+		known[p] = struct{}{}
+	}
+	var origins []string
+	for _, p := range paths {
+		orig, ok := renames[p]
+		if !ok {
+			continue
+		}
+		if _, seen := known[orig]; seen {
+			continue
+		}
+		known[orig] = struct{}{}
+		origins = append(origins, orig)
+	}
+	if len(origins) == 0 {
+		return paths
+	}
+	result := make([]string, 0, len(paths)+len(origins))
+	result = append(result, paths...)
+	return append(result, origins...)
 }
 
 // isBinaryFile returns true if the file appears to contain binary content.

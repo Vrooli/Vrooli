@@ -25,10 +25,15 @@ import (
 // internally so per-domain dependencies never appear on server.Deps.
 func Module(db *database.RoutedDB, clk schedule.Clock, eng engine.KopiaEngine, protectedRoot string, logger *log.Logger) module.Module {
 	repo := internaldestinations.NewSQLiteRepository(db, clk)
-	svc := internaldestinations.NewService(repo, eng, &internaldestinations.FSBundleWriter{}, protectedRoot)
 	readinessSvc := destinationreadiness.NewService(
 		destinationreadiness.NewReadOnlyInspector(sysmounts.New()),
 		destinationreadiness.NewLocalPreparer(),
+	).WithRemediator(destinationreadiness.NewControlPlaneRemediator())
+	// The same readiness service both reports to the operator and gates
+	// creation, so the advice shown and the rule enforced can never disagree.
+	svc := internaldestinations.NewService(
+		repo, eng, &internaldestinations.FSBundleWriter{}, protectedRoot,
+		internaldestinations.WithReadinessGate(readinessSvc),
 	)
 	connectPath, connectHandler := destinationsconnect.NewDestinationsServiceHandler(NewConnectHandler(Deps{
 		Service:   svc,

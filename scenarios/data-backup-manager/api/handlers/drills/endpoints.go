@@ -2,6 +2,7 @@ package drills
 
 import (
 	"data-backup-manager/internal/module"
+
 	drillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/drills/drills_v1connect"
 )
 

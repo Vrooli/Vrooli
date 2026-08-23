@@ -17,6 +17,7 @@ import (
 	"data-backup-manager/internal/sources"
 	sourcesmocks "data-backup-manager/internal/sources/mocks"
 	"data-backup-manager/internal/testutil/mocks"
+
 	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
@@ -449,6 +450,104 @@ func TestRun_CapBlock(t *testing.T) {
 	for _, c := range eng.Calls {
 		if len(c) >= 14 && c[:14] == "SnapshotCreate" {
 			t.Fatalf("SnapshotCreate must not be called when cap-blocked: %v", eng.Calls)
+		}
+	}
+}
+
+// TestPreflightBlocksOnlyTheAffectedTargets proves a stale target registration
+// does not stop the rest of the plan.
+//
+// Preflight groups incidents per shared prerequisite, but a *target*-scope
+// incident belongs to that target alone. Treating it as a plan-wide abort means
+// one deregistered path silently stops every other backup in the plan — the
+// failure mode that left 14 healthy targets unprotected while two stale ones
+// were blocked.
+func TestPreflightBlocksOnlyTheAffectedTargets(t *testing.T) {
+	ctx := context.Background()
+	plan := runs.PlanForRun{ID: "plan-1", TargetIDs: []string{"t1", "t2", "stale"}, DestinationIDs: []string{"dst-1"}}
+	targets := map[string]runs.TargetForRun{
+		"t1": {ID: "t1", Owner: "acme", Name: "one", Kind: sources.KindFilesystem, Locator: "a"},
+		"t2": {ID: "t2", Owner: "acme", Name: "two", Kind: sources.KindFilesystem, Locator: "b"},
+		// "stale" is deliberately absent: its registration outlived its source.
+	}
+	svc, eng, _, _ := buildService(t, plan, targets, nil)
+
+	run, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+	if err != nil {
+		t.Fatalf("TriggerRun: %v", err)
+	}
+	got, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+
+	if len(got.Outcomes) != 3 {
+		t.Fatalf("outcomes = %d, want one per planned unit", len(got.Outcomes))
+	}
+	byTarget := map[string]runs.TargetOutcome{}
+	for _, o := range got.Outcomes {
+		byTarget[o.TargetID] = o
+	}
+	if blocked := byTarget["stale"]; blocked.Status != runs.OutcomeBlocked {
+		t.Fatalf("stale target outcome = %+v, want blocked", blocked)
+	}
+	for _, id := range []string{"t1", "t2"} {
+		if o := byTarget[id]; o.Status != runs.OutcomeSucceeded {
+			t.Fatalf("target %s outcome = %+v, want succeeded", id, o)
+		}
+	}
+	if got.Status != runs.RunPartialFailed {
+		t.Fatalf("run status = %s, want partial_failed", got.Status)
+	}
+	// The grouped incident must still be persisted as the root cause.
+	if len(got.Preflight) != 1 {
+		t.Fatalf("preflight incidents = %+v, want the grouped target incident", got.Preflight)
+	}
+	// The healthy targets must actually have been backed up, not merely marked.
+	snapshots := 0
+	for _, call := range eng.Calls {
+		if strings.HasPrefix(call, "SnapshotCreate") {
+			snapshots++
+		}
+	}
+	if snapshots != 2 {
+		t.Fatalf("snapshots created = %d, want 2 (one per unblocked target); calls=%v", snapshots, eng.Calls)
+	}
+}
+
+// A blocked shared destination still stops everything that uses it: there is no
+// unit left that could succeed.
+func TestPreflightStillBlocksEveryUnitWhenTheDestinationIsUnusable(t *testing.T) {
+	ctx := context.Background()
+	plan := runs.PlanForRun{ID: "plan-1", TargetIDs: []string{"t1", "t2", "stale"}, DestinationIDs: []string{"dst-1"}}
+	targets := map[string]runs.TargetForRun{
+		"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "a"},
+		"t2": {ID: "t2", Kind: sources.KindFilesystem, Locator: "b"},
+	}
+	svc, eng, _, _ := buildService(t, plan, targets, nil)
+	eng.RepoStatusFn = func(context.Context, string) (engine.RepoStatus, error) {
+		return engine.RepoStatus{}, errors.New("read repository passphrase: credential is not configured")
+	}
+
+	run, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+	if err != nil {
+		t.Fatalf("TriggerRun: %v", err)
+	}
+	got, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+	if got.Status != runs.RunFailed {
+		t.Fatalf("run status = %s, want failed", got.Status)
+	}
+	for _, o := range got.Outcomes {
+		if o.Status != runs.OutcomeBlocked {
+			t.Fatalf("outcome = %+v, want blocked", o)
+		}
+	}
+	for _, call := range eng.Calls {
+		if strings.HasPrefix(call, "SnapshotCreate") {
+			t.Fatalf("snapshot attempted with an unusable destination: %v", eng.Calls)
 		}
 	}
 }

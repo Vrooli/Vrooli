@@ -164,6 +164,49 @@ if [[ -z "${SNAPSHOT_ID}" || "${SNAPSHOT_ID}" == "null" ]]; then
   exit 1
 fi
 
+# A recovery drill is deliberately launched only after this disposable plan
+# has produced a successful snapshot.  The manager owns the scratch restore;
+# this harness only waits for its durable evidence and then checks the linked
+# restore checksum.
+DRILL_JSON="$(data-backup-manager drills run \
+  --plan "${PLAN_ID}" \
+  --idempotency-key "e2e-drill-${SUFFIX}" \
+  --json)"
+DRILL_ID="$(jq -r '.drill.id // .id // empty' <<<"${DRILL_JSON}")"
+if [[ -z "${DRILL_ID}" || "${DRILL_ID}" == "null" ]]; then
+  echo "drills run did not return a drill id" >&2
+  echo "${DRILL_JSON}" >&2
+  exit 1
+fi
+DRILL_GET_JSON=""
+DRILL_STATUS=""
+for _ in $(seq 1 120); do
+  DRILL_GET_JSON="$(data-backup-manager drills get "${DRILL_ID}" --json)"
+  DRILL_STATUS="$(jq -r '.drill.status // .status // empty' <<<"${DRILL_GET_JSON}")"
+  case "${DRILL_STATUS}" in
+    DRILL_STATUS_VERIFIED|DRILL_STATUS_FAILED|verified|failed) break ;;
+  esac
+  sleep 2
+done
+DRILL_RESTORE_ID="$(jq -r '.drill.restoreId // .drill.restore_id // .restoreId // .restore_id // empty' <<<"${DRILL_GET_JSON}")"
+if [[ "${DRILL_STATUS}" != "DRILL_STATUS_VERIFIED" && "${DRILL_STATUS}" != "verified" ]]; then
+  echo "drill status was ${DRILL_STATUS}; expected verified" >&2
+  echo "${DRILL_GET_JSON}" >&2
+  exit 1
+fi
+if [[ -z "${DRILL_RESTORE_ID}" || "${DRILL_RESTORE_ID}" == "null" ]]; then
+  echo "verified drill did not link a restore record" >&2
+  echo "${DRILL_GET_JSON}" >&2
+  exit 1
+fi
+DRILL_RESTORE_JSON="$(data-backup-manager restores get "${DRILL_RESTORE_ID}" --json)"
+DRILL_CHECKSUM="$(jq -r '.restore.checksum // .checksum // empty' <<<"${DRILL_RESTORE_JSON}")"
+if [[ -z "${DRILL_CHECKSUM}" || "${DRILL_CHECKSUM}" == "null" ]]; then
+  echo "verified drill restore did not produce a checksum" >&2
+  echo "${DRILL_RESTORE_JSON}" >&2
+  exit 1
+fi
+
 # Browsing the snapshot should surface the disposable source files.
 BROWSE_JSON="$(data-backup-manager runs browse \
   --destination "${DESTINATION_ID}" \
@@ -220,6 +263,10 @@ jq -n \
   --arg verifyStatus "${VERIFY_STATUS}" \
   --arg restoreStatus "${RESTORE_STATUS}" \
   --arg checksum "${VERIFY_CHECKSUM}" \
+  --arg drillId "${DRILL_ID}" \
+  --arg drillStatus "${DRILL_STATUS}" \
+  --arg drillRestoreId "${DRILL_RESTORE_ID}" \
+  --arg drillChecksum "${DRILL_CHECKSUM}" \
   '{
     canary_root: $canaryRoot,
     bundle_root: $bundleRoot,
@@ -234,6 +281,10 @@ jq -n \
     verify_status: $verifyStatus,
     restore_status: $restoreStatus,
     checksum: $checksum,
+    drill_id: $drillId,
+    drill_status: $drillStatus,
+    drill_restore_id: $drillRestoreId,
+    drill_checksum: $drillChecksum,
     bundle_files: ["README.txt","RECOVERY.txt","vrooli-backup-destination.json"],
     diff: "clean"
   }'

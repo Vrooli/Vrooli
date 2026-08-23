@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -735,60 +736,102 @@ index abc1234..0000000
 	}
 }
 
-func TestParseNumstatOutput_EnhancedFields(t *testing.T) {
+// numstatZ frames records the way `git diff --numstat -z` does: every record
+// is NUL-terminated, and a rename leaves the path field empty and follows the
+// record with its old and new paths as records of their own.
+func numstatZ(records ...string) []byte {
+	out := ""
+	for _, record := range records {
+		out += record + "\x00"
+	}
+	return []byte(out)
+}
+
+func TestParseNumstatOutput(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      string
-		wantNet    int
-		wantBinary bool
-		wantBinLen int
+		name         string
+		input        []byte
+		wantStats    map[string]DiffStats
+		wantBinaries []string
 	}{
 		{
-			name:       "normal file",
-			input:      "10\t3\tfile.go\n",
-			wantNet:    7,
-			wantBinary: false,
-			wantBinLen: 0,
+			name:      "empty output",
+			input:     nil,
+			wantStats: map[string]DiffStats{},
 		},
 		{
-			name:       "binary file",
-			input:      "-\t-\timage.png\n",
-			wantNet:    0,
-			wantBinary: true,
-			wantBinLen: 1,
+			name:  "text file",
+			input: numstatZ("10\t3\tfile.go"),
+			wantStats: map[string]DiffStats{
+				"file.go": {Additions: 10, Deletions: 3, Files: 1, NetLines: 7},
+			},
 		},
 		{
-			name:       "mixed",
-			input:      "5\t2\tcode.go\n-\t-\tphoto.jpg\n",
-			wantNet:    3,
-			wantBinary: true,
-			wantBinLen: 1,
+			name:         "binary file",
+			input:        numstatZ("-\t-\timage.png"),
+			wantStats:    map[string]DiffStats{"image.png": {Files: 1, IsBinary: true}},
+			wantBinaries: []string{"image.png"},
+		},
+		{
+			// A pure rename moves no lines. Reporting it as a whole-file add is
+			// the defect this framing exists to prevent.
+			name:  "pure rename",
+			input: numstatZ("0\t0\t", "old/name.go", "new/name.go"),
+			wantStats: map[string]DiffStats{
+				"new/name.go": {Files: 1, IsRename: true, OldPath: "old/name.go"},
+			},
+		},
+		{
+			name:  "rename with edits keys stats on the new path",
+			input: numstatZ("4\t2\t", "old/name.go", "new/name.go"),
+			wantStats: map[string]DiffStats{
+				"new/name.go": {Additions: 4, Deletions: 2, Files: 1, NetLines: 2, IsRename: true, OldPath: "old/name.go"},
+			},
+		},
+		{
+			name:         "renamed binary",
+			input:        numstatZ("-\t-\t", "old/logo.png", "new/logo.png"),
+			wantStats:    map[string]DiffStats{"new/logo.png": {Files: 1, IsBinary: true, IsRename: true, OldPath: "old/logo.png"}},
+			wantBinaries: []string{"new/logo.png"},
+		},
+		{
+			name:  "renames interleaved with plain records",
+			input: numstatZ("5\t2\tcode.go", "0\t0\t", "a.txt", "b.txt", "-\t-\tphoto.jpg", "1\t1\tlast.go"),
+			wantStats: map[string]DiffStats{
+				"code.go":   {Additions: 5, Deletions: 2, Files: 1, NetLines: 3},
+				"b.txt":     {Files: 1, IsRename: true, OldPath: "a.txt"},
+				"photo.jpg": {Files: 1, IsBinary: true},
+				"last.go":   {Additions: 1, Deletions: 1, Files: 1},
+			},
+			wantBinaries: []string{"photo.jpg"},
+		},
+		{
+			name:  "paths containing spaces survive intact",
+			input: numstatZ("1\t0\tdir with spaces/file name.go"),
+			wantStats: map[string]DiffStats{
+				"dir with spaces/file name.go": {Additions: 1, Files: 1, NetLines: 1},
+			},
+		},
+		{
+			name:      "truncated rename record is skipped",
+			input:     numstatZ("0\t0\t", "only-one-path.go"),
+			wantStats: map[string]DiffStats{},
+		},
+		{
+			name:      "malformed record is skipped",
+			input:     numstatZ("garbage"),
+			wantStats: map[string]DiffStats{},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stats, binaries := parseNumstatOutput([]byte(tt.input))
-			if tt.wantBinLen != len(binaries) {
-				t.Errorf("binaries len = %d, want %d", len(binaries), tt.wantBinLen)
+			stats, binaries := parseNumstatOutput(tt.input)
+			if !reflect.DeepEqual(stats, tt.wantStats) {
+				t.Errorf("stats = %#v, want %#v", stats, tt.wantStats)
 			}
-			if tt.wantBinary {
-				foundBin := false
-				for _, s := range stats {
-					if s.IsBinary {
-						foundBin = true
-						break
-					}
-				}
-				if !foundBin {
-					t.Error("expected at least one IsBinary=true entry")
-				}
-			}
-			if !tt.wantBinary {
-				for path, s := range stats {
-					if s.NetLines != tt.wantNet {
-						t.Errorf("stats[%s].NetLines = %d, want %d", path, s.NetLines, tt.wantNet)
-					}
-				}
+			if !reflect.DeepEqual(binaries, tt.wantBinaries) && !(len(binaries) == 0 && len(tt.wantBinaries) == 0) {
+				t.Errorf("binaries = %#v, want %#v", binaries, tt.wantBinaries)
 			}
 		})
 	}

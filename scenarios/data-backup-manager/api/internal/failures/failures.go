@@ -107,13 +107,13 @@ func Classify(err error) Cause {
 		c.Message, c.NextAction = "repository credential could not be read", "restore credential-authority access and retry readiness"
 	case strings.Contains(text, "read-only"), strings.Contains(text, "read only"):
 		c.Code, c.Category, c.Scope = DestinationReadOnly, CategoryDestination, ScopeDestination
-		c.Message, c.NextAction = "destination is mounted read-only", "inspect the filesystem and remount it read/write outside data-backup-manager"
+		c.Message, c.NextAction = "destination is mounted read-only", "run destination readiness to attribute the cause, then remediate it under explicit confirmation"
 	case strings.Contains(text, "not mounted"), strings.Contains(text, "unmounted"), strings.Contains(text, "no such file or directory"):
 		c.Code, c.Category, c.Scope = DestinationUnmounted, CategoryDestination, ScopeDestination
-		c.Message, c.NextAction = "destination is not mounted or its path is absent", "inspect and repair the destination with the native operating-system tools, then recheck identity"
+		c.Message, c.NextAction = "destination is not mounted or its path is absent", "mount the intended volume, then recheck device identity and readiness"
 	case strings.Contains(text, "dirty"), strings.Contains(text, "needs-check"), strings.Contains(text, "needs check"):
 		c.Code, c.Category, c.Scope = DestinationDirty, CategoryDestination, ScopeDestination
-		c.Message, c.NextAction = "destination filesystem reports a dirty or needs-check state", "run the native filesystem check outside data-backup-manager, then recheck readiness"
+		c.Message, c.NextAction = "destination filesystem reports a dirty or needs-check state", "check and repair the destination filesystem under explicit confirmation, then recheck readiness"
 	case strings.Contains(text, "capacity"), strings.Contains(text, "storage cap"):
 		c.Code, c.Category, c.Scope = DestinationCapacity, CategoryCapacity, ScopeDestination
 		c.Message, c.NextAction = "destination capacity policy blocks this backup", "free capacity or change the destination policy deliberately"

@@ -8,7 +8,8 @@
  *
  * The callback only fires when React's profiling instrumentation is present —
  * i.e. when the perf-build channel (`pnpm run build:profile` or
- * `VROOLI_BUILD_MODE=profile pnpm run build`) is active. In a regular prod
+ * `VROOLI_BUILD_MODE=profile vrooli scenario restart git-control-tower`)
+ * is active. In a regular prod
  * build the wrapper is inert; safe to leave permanently at subtree boundaries.
  */
 

@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -71,10 +72,39 @@ func checkDirParity(report *Report, spec *ScenarioSpec, dir string, refs []Docum
 	matches, _ := filepath.Glob(filepath.Join(spec.ExperienceDir, dir, "*.json"))
 	for _, match := range matches {
 		relPath := filepath.ToSlash(strings.TrimPrefix(match, spec.ExperienceDir+string(filepath.Separator)))
-		if !listed[relPath] {
-			report.add(CodeIndexParity, SeverityError, fmt.Sprintf("%s document %q is not listed in index", dir, relPath), rel(spec.ExperienceDir, match), "Add the document to experience/index.json or remove it.")
+		if listed[relPath] {
+			continue
 		}
+		// A component contract copied in by an adoption carries its library
+		// provenance and is validated by the library that owns and harnesses
+		// it. Requiring an index entry here puts the consumer in a bind: leave
+		// it unlisted and index parity fails, list it and the contract's own
+		// specimen reference and per-state bindings fail, because a consuming
+		// scenario has no component harness to capture them against.
+		if dir == "components" && adoptedComponentProvenance(match) != "" {
+			continue
+		}
+		report.add(CodeIndexParity, SeverityError, fmt.Sprintf("%s document %q is not listed in index", dir, relPath), rel(spec.ExperienceDir, match), "Add the document to experience/index.json or remove it.")
 	}
+}
+
+// adoptedComponentProvenance reports the library provenance recorded on a
+// component document, or "" when the document is authored locally. Adoptions
+// stamp this when they copy a library contract into a consuming scenario.
+func adoptedComponentProvenance(path string) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var doc struct {
+		Contract struct {
+			Provenance string `json:"provenance"`
+		} `json:"contract"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(doc.Contract.Provenance)
 }
 
 func checkPages(report *Report, spec *ScenarioSpec, prdRefs map[string]bool) {

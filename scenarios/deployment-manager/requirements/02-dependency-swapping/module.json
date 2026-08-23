@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-17T02:54:55-04:00"
+    "last_validated_at": "2026-08-22T18:58:37-04:00"
   },
   "requirements": [
     {
       "id": "DM-P0-007",
       "title": "Swap Suggestions",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "dependency-swapping",
       "description": "Suggest at least one swap for each blocker/low-fitness dependency (\u003c50) or show \"No known alternatives\"",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "cli/swaps/commands_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go CLI tests validate swap command behavior"
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "DM-P0-008",
       "title": "Swap Impact Analysis",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "dependency-swapping",
       "description": "Show fitness delta, trade-offs (pros/cons), and migration effort estimate for each swap",
@@ -40,7 +40,7 @@
           "type": "test",
           "ref": "cli/swaps/commands_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go CLI tests validate swap command behavior"
         }
       ]
@@ -48,7 +48,7 @@
     {
       "id": "DM-P0-009",
       "title": "Non-Destructive Swaps",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "category": "dependency-swapping",
       "description": "Applying swaps updates deployment profile only, never modifies source code",
@@ -61,7 +61,7 @@
           "type": "test",
           "ref": "cli/swaps/commands_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go CLI tests validate swap command behavior"
         }
       ]
@@ -69,7 +69,7 @@
     {
       "id": "DM-P0-010",
       "title": "Real-Time Recalculation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "category": "dependency-swapping",
       "description": "Recalculate fitness and requirements within 1 second after swap application",
@@ -82,7 +82,7 @@
           "type": "test",
           "ref": "cli/swaps/commands_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go CLI tests validate swap command behavior"
         }
       ]
@@ -90,7 +90,7 @@
     {
       "id": "DM-P0-011",
       "title": "Cascading Swap Detection",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "category": "dependency-swapping",
       "description": "Detect and warn about cascading impacts (e.g., swapping postgres removes dependent scenario X)",
@@ -103,7 +103,7 @@
           "type": "test",
           "ref": "cli/swaps/commands_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go CLI tests validate swap command behavior"
         }
       ]

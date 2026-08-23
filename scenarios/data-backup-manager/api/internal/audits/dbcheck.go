@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 )
 
 // SQLiteChecker inspects a SQLite database file with generic, read-only checks:
@@ -52,7 +53,11 @@ func (pragmaChecker) Check(ctx context.Context, abs, rel string) SqliteInventory
 	// sanctioned connection path, matching the sqlite source capturer) rather
 	// than sql.Open directly, so this external read gets the same retry/backoff
 	// behavior as scenario DB opens.
-	dsn := fmt.Sprintf("file:%s?mode=ro&immutable=1&_pragma=query_only(1)", abs)
+	dsn, dsnErr := storage.SQLiteReadOnlyDSNAt(abs)
+	if dsnErr != nil {
+		inv.IntegrityStatus = "error"
+		return inv
+	}
 	checkCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	db, err := database.Connect(checkCtx, database.Config{

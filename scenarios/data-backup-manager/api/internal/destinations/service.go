@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 )
 
@@ -69,28 +70,100 @@ type UsageReport struct {
 	CapPolicy  CapPolicy
 }
 
+// ReadinessGate is the narrow readiness surface CreateDestination consults
+// before provisioning a filesystem repository. It is an interface so the
+// destinations domain does not depend on the readiness implementation, matching
+// how preflight declares its own view of the same service.
+type ReadinessGate interface {
+	Analyze(ctx context.Context, in destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error)
+}
+
 type service struct {
 	repo          Repository
 	eng           engine.KopiaEngine
 	bundle        BundleWriter
 	protectedRoot string
+	readiness     ReadinessGate
+}
+
+// Option customises the Service beyond its required collaborators.
+type Option func(*service)
+
+// WithReadinessGate makes CreateDestination refuse filesystem destinations that
+// fail readiness. Without it the service keeps its previous behaviour, so an
+// S3-only deployment and existing tests need no readiness implementation.
+func WithReadinessGate(gate ReadinessGate) Option {
+	return func(s *service) { s.readiness = gate }
 }
 
 // NewService constructs the production Service. bundle materializes the
 // self-describing filesystem destination bundle (README/RECOVERY/manifest +
 // repositories/<slug>.kopia); pass nil for an S3-only deployment or a fake in
 // tests.
-func NewService(repo Repository, eng engine.KopiaEngine, bundle BundleWriter, protectedRoot string) Service {
-	return &service{
+func NewService(repo Repository, eng engine.KopiaEngine, bundle BundleWriter, protectedRoot string, opts ...Option) Service {
+	s := &service{
 		repo:          repo,
 		eng:           eng,
 		bundle:        bundle,
 		protectedRoot: filepath.Clean(protectedRoot),
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Compile-time guarantee.
 var _ Service = (*service)(nil)
+
+// gateOnReadiness refuses a filesystem destination whose readiness report
+// fails. It draws one line the operator cannot cross: a driver that faults in
+// kernel context is refused even with acknowledgement, because that risk is to
+// the host rather than to the backup, and the remedy — remounting through a
+// userspace driver — is cheap. Every other failure is an operator judgement
+// call and can be acknowledged.
+//
+// A service with no readiness gate configured keeps the previous behaviour.
+func (s *service) gateOnReadiness(ctx context.Context, location string, acknowledged bool) error {
+	if s.readiness == nil {
+		return nil
+	}
+	report, err := s.readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{Location: location})
+	if err != nil {
+		// Readiness that cannot run is not readiness that passed. Refusing here
+		// keeps an unprovable destination out of the catalog rather than
+		// admitting it on the strength of a broken probe.
+		return ErrInvalidDestination{Field: "location", Reason: "destination readiness could not be evaluated: " + err.Error()}
+	}
+
+	for _, check := range report.Checks {
+		if check.Code != "filesystem_suitability" || check.Severity != destinationreadiness.SeverityFail {
+			continue
+		}
+		return ErrInvalidDestination{Field: "location", Reason: check.Message + "; " + check.NextAction}
+	}
+
+	if report.OverallSeverity != destinationreadiness.SeverityFail || acknowledged {
+		return nil
+	}
+	return ErrInvalidDestination{Field: "location", Reason: readinessRefusalReason(report)}
+}
+
+// readinessRefusalReason names the first failing check so the operator is told
+// which condition to fix, not merely that something failed.
+func readinessRefusalReason(report destinationreadiness.Report) string {
+	for _, check := range report.Checks {
+		if check.Severity != destinationreadiness.SeverityFail {
+			continue
+		}
+		reason := "destination is not ready: " + check.Message
+		if strings.TrimSpace(check.NextAction) != "" {
+			reason += "; " + check.NextAction
+		}
+		return reason
+	}
+	return "destination is not ready; inspect destination readiness before creating it"
+}
 
 func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destination, error) {
 	name := strings.TrimSpace(in.Name)
@@ -138,6 +211,12 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 				Field:  "location",
 				Reason: "filesystem destination must not point inside the protected root",
 			}
+		}
+		// Readiness runs before anything is written to the drive: a refusal must
+		// not leave a half-provisioned bundle behind on a destination we just
+		// declared unfit.
+		if err := s.gateOnReadiness(ctx, location, in.AcknowledgeReadinessFailure); err != nil {
+			return Destination{}, err
 		}
 		repositoryLocation = RepositoryPathFor(location, name)
 		// Materialize the bundle root + repository directory before creating the

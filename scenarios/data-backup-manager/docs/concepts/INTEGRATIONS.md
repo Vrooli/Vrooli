@@ -24,7 +24,7 @@ explicit anti-pattern and is not echoed here.
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API (all domains) | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API (all domains) | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | `kopia` resource | Vrooli resource (backup engine) | yes | destinations, runs, restores | `resource-kopia` CLI (repo/snapshot/restore/verify/stats/policy) | A run/restore against an unreachable engine fails closed and is recorded as a failed run; health flags it. |
 | credential authority | Vrooli shared package/store | yes | destinations, kopia boundary | Per-repository identity/field for repository passphrases | Fail closed — never fall back to a default/empty passphrase or run unencrypted. |
 | `postgres` resource | Vrooli resource (source kind) | on demand | sources (postgres kind) | `pg_dump` via the postgres resource CLI | Capture of a Postgres target fails for that target; other targets in the run continue. |

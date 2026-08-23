@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -205,10 +206,10 @@ func (h *handlers) readiness(ctx cliapp.RunContext) error {
 	if err != nil {
 		return fmt.Errorf("--retention-copies: %w", err)
 	}
-	crossPlatform, err := parseOptionalBool(ctx.Flag("cross-platform"))
-	if err != nil {
-		return fmt.Errorf("--cross-platform: %w", err)
-	}
+	// Declared "bool": true in the manifest, so it arrives as a boolean flag.
+	// Reading it with Flag() returns "" for a set flag, which silently made
+	// --cross-platform a no-op.
+	crossPlatform := ctx.BoolFlag("cross-platform")
 	resp, err := h.client.AnalyzeDestination(context.Background(), connect.NewRequest(&destinationsv1.AnalyzeDestinationRequest{
 		Location:              ctx.Flag("location"),
 		ProposedSubdir:        ctx.Flag("proposed-subdir"),
@@ -242,13 +243,20 @@ func (h *handlers) preparePlan(ctx cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
-	resp, err := h.client.PlanDestinationPreparation(context.Background(), connect.NewRequest(&destinationsv1.PlanDestinationPreparationRequest{
+	planReq := &destinationsv1.PlanDestinationPreparationRequest{
 		Location:          ctx.Flag("location"),
 		Action:            action,
 		DesiredSubdir:     ctx.Flag("subdir"),
 		DesiredLabel:      ctx.Flag("label"),
 		DesiredFilesystem: ctx.Flag("filesystem"),
-	}))
+	}
+	// Once a remediation sequence unmounts the destination, its path is an
+	// ordinary directory on the host filesystem and no longer identifies the
+	// disk. --device keeps the remaining steps addressed to the right volume.
+	if device := strings.TrimSpace(ctx.Flag("device")); device != "" {
+		planReq.ExpectedIdentity = &destinationsv1.DestinationDeviceIdentity{DevicePath: device}
+	}
+	resp, err := h.client.PlanDestinationPreparation(context.Background(), connect.NewRequest(planReq))
 	if err != nil {
 		return cliapp.WrapAPIError("plan destination preparation", err, nil)
 	}
@@ -282,10 +290,10 @@ func (h *handlers) prepareExecute(ctx cliapp.RunContext) error {
 			return fmt.Errorf("--dry-run: %w", err)
 		}
 	}
-	ack, err := parseOptionalBool(ctx.Flag("acknowledge-data-loss"))
-	if err != nil {
-		return fmt.Errorf("--acknowledge-data-loss: %w", err)
-	}
+	// Boolean flag: see the note on --cross-platform above. Read through
+	// Flag() this gate could never be satisfied, so no destructive action was
+	// reachable even with an operator explicitly acknowledging the risk.
+	ack := ctx.BoolFlag("acknowledge-data-loss")
 	resp, err := h.client.ExecuteDestinationPreparation(context.Background(), connect.NewRequest(&destinationsv1.ExecuteDestinationPreparationRequest{
 		Plan:                plan,
 		Confirmation:        ctx.Flag("confirm"),
@@ -299,8 +307,39 @@ func (h *handlers) prepareExecute(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no execution response")
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Preparation %s for %s (dry-run=%t).", preparationActionLabel(resp.Msg.Action), resp.Msg.Location, resp.Msg.DryRun)},
+		Result: formatPreparationExecution(resp.Msg),
 	})
+}
+
+// formatPreparationExecution renders an execution result. A remediation carries
+// the control plane's typed outcome — which backend ran, the exact command, and
+// the operator command when this host has no automated path — and all of it is
+// shown, because a bare "done" gives an operator nothing to verify or resume
+// from.
+func formatPreparationExecution(msg *destinationsv1.ExecuteDestinationPreparationResponse) []string {
+	lines := []string{fmt.Sprintf("Preparation %s for %s (dry-run=%t).", preparationActionLabel(msg.GetAction()), msg.GetLocation(), msg.GetDryRun())}
+	if status := msg.GetStatus(); status != "" {
+		lines = append(lines, fmt.Sprintf("status=%s changed=%t", status, msg.GetChanged()))
+	}
+	if backend := msg.GetBackend(); backend != "" {
+		lines = append(lines, "backend="+backend)
+	}
+	if command := msg.GetCommand(); len(command) > 0 {
+		lines = append(lines, "command="+strings.Join(command, " "))
+	}
+	if consistent := msg.GetConsistent(); consistent != "" {
+		lines = append(lines, "filesystem-consistent="+consistent)
+	}
+	if detail := msg.GetDetail(); detail != "" {
+		lines = append(lines, "detail="+detail)
+	}
+	if reason := msg.GetRefusalReason(); reason != "" {
+		lines = append(lines, "reason="+reason)
+	}
+	if operator := msg.GetOperatorCommand(); operator != "" {
+		lines = append(lines, "run instead: "+operator)
+	}
+	return lines
 }
 
 // parseBackendKind maps the --backend flag string to the proto BackendKind enum.
@@ -348,13 +387,6 @@ func parseOptionalInt32(s string) (int32, error) {
 	return int32(n), err
 }
 
-func parseOptionalBool(s string) (bool, error) {
-	if s == "" {
-		return false, nil
-	}
-	return strconv.ParseBool(s)
-}
-
 func parsePreparationAction(s string) (destinationsv1.PreparationAction, error) {
 	switch s {
 	case "create-subdir":
@@ -365,9 +397,17 @@ func parsePreparationAction(s string) (destinationsv1.PreparationAction, error) 
 		return destinationsv1.PreparationAction_PREPARATION_ACTION_CLEAR_DIRECTORY, nil
 	case "format":
 		return destinationsv1.PreparationAction_PREPARATION_ACTION_FORMAT, nil
+	case "unmount":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_UNMOUNT, nil
+	case "check-filesystem":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_CHECK_FILESYSTEM, nil
+	case "repair-filesystem":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_REPAIR_FILESYSTEM, nil
+	case "mount-read-write":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_MOUNT_READ_WRITE, nil
 	default:
 		return destinationsv1.PreparationAction_PREPARATION_ACTION_UNSPECIFIED,
-			fmt.Errorf("invalid --action %q: must be one of create-subdir, relabel, clear-directory, format", s)
+			fmt.Errorf("invalid --action %q: must be one of create-subdir, relabel, clear-directory, format, unmount, check-filesystem, repair-filesystem, mount-read-write", s)
 	}
 }
 
@@ -431,6 +471,14 @@ func preparationActionLabel(a destinationsv1.PreparationAction) string {
 		return "clear-directory"
 	case destinationsv1.PreparationAction_PREPARATION_ACTION_FORMAT:
 		return "format"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_UNMOUNT:
+		return "unmount"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_CHECK_FILESYSTEM:
+		return "check-filesystem"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_REPAIR_FILESYSTEM:
+		return "repair-filesystem"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_MOUNT_READ_WRITE:
+		return "mount-read-write"
 	default:
 		return "unspecified"
 	}

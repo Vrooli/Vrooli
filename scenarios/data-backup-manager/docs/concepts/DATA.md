@@ -20,7 +20,7 @@ There are two distinct stores, and the distinction is load-bearing.
 
 1. **The manager's own catalog** — embedded SQLite through
    `modernc.org/sqlite`, per-domain schema (greenfield, no migrations
-   folder). The lifecycle sets `SQLITE_PATH` through
+   folder). The path is resolved by `api-core/storage` from the scenario id
    `.vrooli/service.json`, and the API applies each domain's schema on
    startup through `api-core/database`. This catalog holds targets,
    destinations, plans, run history, and restore records.

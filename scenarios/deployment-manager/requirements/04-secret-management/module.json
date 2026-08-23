@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-17T02:54:55-04:00"
+    "last_validated_at": "2026-08-22T18:58:37-04:00"
   },
   "requirements": [
     {
       "id": "DM-P0-018",
       "title": "Secret Identification",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-018",
       "category": "secret-management",
       "description": "Identify all required secrets within 3 seconds when profile created or swaps applied",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "api/secrets/secrets_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go CLI tests validate secret management commands"
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "DM-P0-019",
       "title": "Secret Categorization",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-019",
       "category": "secret-management",
       "description": "Categorize secrets as required, optional, dev-only, user-supplied, vault-managed",
@@ -40,7 +40,7 @@
           "type": "test",
           "ref": "api/secrets/secrets_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go CLI tests validate secret management commands"
         }
       ]
@@ -48,7 +48,7 @@
     {
       "id": "DM-P0-020",
       "title": "Desktop/Mobile Secret Templates",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-020",
       "category": "secret-management",
       "description": "Generate .env.template with human-friendly descriptions for desktop/mobile tiers",
@@ -61,7 +61,7 @@
           "type": "test",
           "ref": "api/secrets/secrets_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go CLI tests validate secret management commands"
         }
       ]
@@ -69,7 +69,7 @@
     {
       "id": "DM-P0-021",
       "title": "SaaS/Enterprise Secret References",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-021",
       "category": "secret-management",
       "description": "Generate Vault/AWS Secrets Manager references in correct format for cloud tiers",
@@ -82,7 +82,7 @@
           "type": "test",
           "ref": "api/secrets/secrets_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go CLI tests validate secret management commands"
         }
       ]
@@ -90,7 +90,7 @@
     {
       "id": "DM-P0-022",
       "title": "Secret Validation Testing",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-022",
       "category": "secret-management",
       "description": "Provide \"Test API key\" buttons that call endpoints to validate secrets before deployment",
@@ -103,7 +103,7 @@
           "type": "test",
           "ref": "api/secrets/secrets_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go CLI tests validate secret management commands"
         }
       ]

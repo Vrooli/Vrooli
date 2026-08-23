@@ -13,6 +13,7 @@ import (
 
 	"data-backup-manager/handlers/health"
 	"data-backup-manager/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 )
 

@@ -53,7 +53,7 @@
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
-    "build": "pnpm run type-check && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build": "pnpm run type-check && vite build",
     "build:profile": "pnpm run type-check && vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint src --ext ts,tsx",

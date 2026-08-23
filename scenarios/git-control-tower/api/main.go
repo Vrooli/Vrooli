@@ -59,6 +59,7 @@ type Server struct {
 	envelopeCache        *EnvelopeCache
 	reviewJobStore       *ReviewJobStore
 	configCache          *GitConfigCache
+	statusCache          *RepoStatusCache
 	baselineService      *baseline.Service
 }
 
@@ -97,6 +98,9 @@ func NewServer() (*Server, error) {
 	srv.precommit = NewPrecommitService(db)
 	srv.commitChecks = NewCommitCheckStore(db)
 	srv.configCache = NewGitConfigCache(60 * time.Second)
+	srv.statusCache = NewRepoStatusCache(5 * time.Second)
+	srv.repos.SetStatusCache(srv.statusCache)
+	SetDefaultRepoStatusCache(srv.statusCache)
 
 	if err := srv.initClients(); err != nil {
 		return nil, err

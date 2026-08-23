@@ -31,7 +31,33 @@ const (
 	ActionRelabel        PreparationAction = "relabel"
 	ActionClearDirectory PreparationAction = "clear_directory"
 	ActionFormat         PreparationAction = "format"
+
+	// Remediation actions return a destination the kernel refuses to mount
+	// read/write to a usable state. They are executed by the control plane,
+	// which owns host state; this scenario plans, confirms, and reports them.
+	//
+	// They are separate actions rather than one "fix it" call so each step is
+	// individually confirmed, individually auditable, and individually
+	// refusable — and so a partially-completed sequence can be resumed instead
+	// of restarted.
+	ActionUnmount          PreparationAction = "unmount"
+	ActionCheckFilesystem  PreparationAction = "check_filesystem"
+	ActionRepairFilesystem PreparationAction = "repair_filesystem"
+	ActionMountReadWrite   PreparationAction = "mount_read_write"
 )
+
+// IsRemediation reports whether an action targets host volume state rather than
+// the destination directory. Remediation actions intentionally change mount
+// state, so they are inspected and identity-checked by device rather than by
+// path.
+func (a PreparationAction) IsRemediation() bool {
+	switch a {
+	case ActionUnmount, ActionCheckFilesystem, ActionRepairFilesystem, ActionMountReadWrite:
+		return true
+	default:
+		return false
+	}
+}
 
 // DeviceIdentity binds a preparation plan to the observed device state. It is
 // deliberately redundant so unplug/replug, relabeling, or device-path drift can
@@ -82,6 +108,42 @@ func (i DeviceIdentity) Matches(other DeviceIdentity) bool {
 	return true
 }
 
+// StrongIdentity reports whether this identity carries at least one field that
+// survives a replug: a filesystem UUID or a device serial. Device paths and
+// mountpoints are assignment-order artifacts, so a plan that mutates a volume
+// must not rely on them alone.
+func (i DeviceIdentity) StrongIdentity() bool {
+	return strings.TrimSpace(i.UUID) != "" || strings.TrimSpace(i.Serial) != ""
+}
+
+// MatchesDevice reports whether the same physical volume is still present,
+// deliberately ignoring the mountpoint. Remediation actions unmount the volume
+// on purpose, so Matches — which guards the mountpoint — would reject a plan
+// mid-flight for doing exactly what it was authorized to do.
+//
+// It is stricter than Matches where it matters: when both sides carry a strong
+// identifier it must match, and when neither does the device path must match
+// exactly rather than being waved through as "optional".
+func (i DeviceIdentity) MatchesDevice(other DeviceIdentity) bool {
+	if !equalOptional(i.Filesystem, other.Filesystem, true) {
+		return false
+	}
+	if i.TotalBytes != 0 && other.TotalBytes != 0 && i.TotalBytes != other.TotalBytes {
+		return false
+	}
+	if i.StrongIdentity() && other.StrongIdentity() {
+		// Compare only the identifiers both sides actually published; a host
+		// that exposes a UUID but no serial must still be able to match.
+		return equalOptional(i.UUID, other.UUID, true) && equalOptional(i.Serial, other.Serial, false)
+	}
+	// Guard the raw values: normalizePath collapses an empty path to ".", so
+	// comparing normalized forms would make two identity-free volumes match.
+	if strings.TrimSpace(i.DevicePath) == "" || strings.TrimSpace(other.DevicePath) == "" {
+		return false
+	}
+	return normalizePath(i.DevicePath) == normalizePath(other.DevicePath)
+}
+
 func normalizePath(p string) string {
 	p = filepath.Clean(strings.TrimSpace(strings.ReplaceAll(p, "\\", string(filepath.Separator))))
 	if runtime.GOOS == "windows" {
@@ -114,12 +176,29 @@ type Inspection struct {
 	Removable           bool
 	DriveClass          string
 	MountOptions        []string
-	FilesystemState     sysmounts.FilesystemState
-	TopLevelEntries     []string
-	NonEmptyRoot        bool
-	InstallerMedia      bool
-	Platform            string
-	ReadDirError        string
+	// MountDriver is the kernel-side driver serving the mount, empty when the
+	// volume is not mounted. Suitability is a property of the driver, not only
+	// the on-disk format: the same NTFS volume is a kernel-panic risk under
+	// `ntfs3` and an ordinary I/O risk under `ntfs-3g`.
+	MountDriver     string
+	FilesystemState sysmounts.FilesystemState
+	// ReadOnlyCause attributes a read-only mount so a report can name the one
+	// remediation that applies instead of listing every possibility.
+	ReadOnlyCause sysmounts.ReadOnlyCause
+	// DeviceWriteProtected marks block-layer write protection, which no
+	// filesystem repair can clear.
+	DeviceWriteProtected bool
+	// StateEvidence names the source behind the state verdict.
+	StateEvidence string
+	// Mounted reports whether the volume is mounted at all. A device-scoped
+	// inspection of an intentionally unmounted volume is a valid observation,
+	// not an error, because remediation passes through that state.
+	Mounted         bool
+	TopLevelEntries []string
+	NonEmptyRoot    bool
+	InstallerMedia  bool
+	Platform        string
+	ReadDirError    string
 }
 
 // CheckResult is one structured readiness rule result.
@@ -143,6 +222,13 @@ type Report struct {
 	EvidenceSource                 string
 	ObservedAt                     time.Time
 	RepairSteps                    []string
+	// ReadOnlyCause, FilesystemState, DeviceWriteProtected and Mounted are the
+	// machine-readable state facts behind the checks. Consumers map a
+	// remediation from these instead of pattern-matching on check prose.
+	ReadOnlyCause        sysmounts.ReadOnlyCause
+	FilesystemState      sysmounts.FilesystemState
+	DeviceWriteProtected bool
+	Mounted              bool
 }
 
 // AnalyzeInput controls a read-only readiness analysis.
@@ -192,11 +278,50 @@ type ExecuteInput struct {
 }
 
 // ExecuteResult reports whether an execution was dry-run and what action would
-// or did run.
+// or did run. The remediation fields carry the control plane's typed outcome so
+// a refusal or an unsupported platform reaches the operator with its reason and
+// its next command intact, rather than collapsing into a bare failure.
 type ExecuteResult struct {
 	DryRun   bool
 	Action   PreparationAction
 	Location string
+
+	Status          string
+	Changed         bool
+	Backend         string
+	Command         []string
+	Detail          string
+	OperatorCommand string
+	RefusalReason   string
+	// Consistent is a check-filesystem verdict: "unknown" | "yes" | "no".
+	Consistent string
+}
+
+// RemediationOutcome is the control plane's typed answer for one remediation
+// action.
+type RemediationOutcome struct {
+	Status          string
+	Changed         bool
+	Backend         string
+	Command         []string
+	Detail          string
+	OperatorCommand string
+	RefusalReason   string
+	// Consistent is a check-filesystem verdict: "unknown" | "yes" | "no". It is
+	// separate from Status because a check that ran and found an inconsistent
+	// filesystem is a successful action with a bad answer.
+	Consistent string
+}
+
+// Satisfied reports whether the requested end state holds, whether or not this
+// call produced it.
+func (o RemediationOutcome) Satisfied() bool {
+	switch o.Status {
+	case "verified", "changed", "already_satisfied":
+		return true
+	default:
+		return false
+	}
 }
 
 // ErrInvalidReadiness is a typed validation error.

@@ -12,6 +12,7 @@ import (
 	"data-backup-manager/internal/module"
 	"data-backup-manager/internal/server"
 	"data-backup-manager/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
 

@@ -166,16 +166,32 @@ func (h *connectHandler) ExecuteDestinationPreparation(ctx context.Context, req 
 		return nil, h.translateReadiness("ExecuteDestinationPreparation", err)
 	}
 	resp := &destinationsv1.ExecuteDestinationPreparationResponse{
-		DryRun:   result.DryRun,
-		Action:   preparationActionToProto(result.Action),
-		Location: result.Location,
+		DryRun:          result.DryRun,
+		Action:          preparationActionToProto(result.Action),
+		Location:        result.Location,
+		Status:          result.Status,
+		Changed:         result.Changed,
+		Backend:         result.Backend,
+		Command:         append([]string(nil), result.Command...),
+		Detail:          result.Detail,
+		OperatorCommand: result.OperatorCommand,
+		RefusalReason:   result.RefusalReason,
+		Consistent:      result.Consistent,
 	}
 	if !result.DryRun {
+		// A remediation that left the volume unmounted has no path to analyze.
+		// Reporting the readiness of an absent path as a failure would bury the
+		// step's own successful result, so the post-action report is attached
+		// only when there is something to report on.
 		report, rerr := h.deps.Readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{Location: plan.Location})
-		if rerr != nil {
+		switch {
+		case rerr == nil:
+			resp.PostActionReport = readinessReportToProto(report)
+		case plan.Action.IsRemediation():
+			// Intentionally not fatal: see above.
+		default:
 			return nil, h.translateReadiness("ExecuteDestinationPreparationPostCheck", rerr)
 		}
-		resp.PostActionReport = readinessReportToProto(report)
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -403,6 +419,14 @@ func preparationActionToProto(a destinationreadiness.PreparationAction) destinat
 		return destinationsv1.PreparationAction_PREPARATION_ACTION_CLEAR_DIRECTORY
 	case destinationreadiness.ActionFormat:
 		return destinationsv1.PreparationAction_PREPARATION_ACTION_FORMAT
+	case destinationreadiness.ActionUnmount:
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_UNMOUNT
+	case destinationreadiness.ActionCheckFilesystem:
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_CHECK_FILESYSTEM
+	case destinationreadiness.ActionRepairFilesystem:
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_REPAIR_FILESYSTEM
+	case destinationreadiness.ActionMountReadWrite:
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_MOUNT_READ_WRITE
 	default:
 		return destinationsv1.PreparationAction_PREPARATION_ACTION_UNSPECIFIED
 	}
@@ -416,6 +440,14 @@ func protoToPreparationAction(a destinationsv1.PreparationAction) destinationrea
 		return destinationreadiness.ActionRelabel
 	case destinationsv1.PreparationAction_PREPARATION_ACTION_CLEAR_DIRECTORY:
 		return destinationreadiness.ActionClearDirectory
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_UNMOUNT:
+		return destinationreadiness.ActionUnmount
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_CHECK_FILESYSTEM:
+		return destinationreadiness.ActionCheckFilesystem
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_REPAIR_FILESYSTEM:
+		return destinationreadiness.ActionRepairFilesystem
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_MOUNT_READ_WRITE:
+		return destinationreadiness.ActionMountReadWrite
 	case destinationsv1.PreparationAction_PREPARATION_ACTION_FORMAT:
 		return destinationreadiness.ActionFormat
 	default:

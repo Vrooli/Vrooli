@@ -174,6 +174,30 @@ the drive to confirm it explains itself; the `repository_location` reported by
 3. Only then create the real external-drive destination and run a plan. Verify
    (`restores verify`) before trusting it; verify is non-destructive.
 
+### Escrow handoff and combined evidence
+
+Credential escrow remains owned by the control plane and its credential
+authority. data-backup-manager owns durable target registration, encrypted
+Kopia destinations, backup runs, restores, and recovery drills. Onboarding
+connects the two through provider-neutral status and evidence; it never imports
+this scenario's packages or runs its backup engine.
+
+Treat the combined readiness view as complete only when both evidence chains
+are current:
+
+1. Credential escrow has a verified encrypted root-copy receipt and a verified
+   recovery-bundle receipt whose source generation covers every configured
+   credential.
+2. This manager has a writable, encrypted, separate destination; an enabled
+   plan; a successful snapshot; and a scratch-only verified recovery drill with
+   checksum evidence.
+
+The recovery bundle is not an ordinary backup target. Target registration
+rejects the exact bundle locator recorded in the recovery receipt; import it
+through the credential recovery owner instead. A destination that is read-only,
+unmounted, inside a protected root, or physically unresolved remains pending or
+degraded with remediation and must not be described as durable protection.
+
 ### Back up (scheduled + on-demand)
 
 Plans run on cadence via the in-process scheduler. Operators (and

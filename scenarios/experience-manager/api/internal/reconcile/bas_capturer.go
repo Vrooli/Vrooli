@@ -72,14 +72,21 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 		InlineComputedStyle: true,
 		Label:               "experience-manager structure reconciliation",
 	}
-	if target.ColorScheme != "" || target.Locale != "" || target.MotionPreference != "" || target.InteractionState != "" {
-		payload.BrowserProfile = &browserProfilePayload{
-			Fingerprint:      &fingerprintPayload{Locale: target.Locale, ColorScheme: target.ColorScheme},
-			MotionPreference: target.MotionPreference,
-			InteractionState: target.InteractionState,
-		}
-		payload.InteractionState = target.InteractionState
+	// Geometry floors compare node bounds against the viewport, so a running
+	// CSS transition makes them nondeterministic: an element captured mid-slide
+	// reports an off-viewport x and fails a page that is fine once settled.
+	// Reconciliation therefore measures with motion reduced unless the target
+	// deliberately declares a preference, which still wins.
+	motionPreference := target.MotionPreference
+	if motionPreference == "" {
+		motionPreference = "reduce"
 	}
+	payload.BrowserProfile = &browserProfilePayload{
+		Fingerprint:      &fingerprintPayload{Locale: target.Locale, ColorScheme: target.ColorScheme},
+		MotionPreference: motionPreference,
+		InteractionState: target.InteractionState,
+	}
+	payload.InteractionState = target.InteractionState
 	if target.ViewportWidth > 0 && target.ViewportHeight > 0 {
 		payload.Dimensions = dimensionsPayload{Width: target.ViewportWidth, Height: target.ViewportHeight}
 	}

@@ -6,8 +6,10 @@ install rehearsal, and the publication handoff to agent runtimes and skill
 registries. deployment-manager owns the profile, target decision, release gate,
 and release record.
 
-Status: documented, not implemented. The contract below is the intended shape
-and is not a support claim.
+Status: implementation present. Local composition, conformance, attestation
+validation, clean-room rehearsal, governance handoff, OCI distribution, and
+revocation are wired; external publication still requires managed signing
+evidence, deployment approval, and registry credentials.
 
 ## Current route
 

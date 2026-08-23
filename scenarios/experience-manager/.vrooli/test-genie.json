@@ -10,11 +10,18 @@
   "orderHint": 14,
   "timeout": "10m",
   "findingSource": "ui",
-  "dimensions": ["ui"],
+  "dimensions": [
+    "ui"
+  ],
   "validation": {
     "contract": "scenario-validation/v1"
   },
-  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "targets": {
+    "kinds": [
+      "scenario"
+    ],
+    "selection": "enumerate"
+  },
   "applicability": {
     "default": "not_applicable",
     "any": [
@@ -40,7 +47,7 @@
   },
   "determinism": {
     "default": "observational",
-    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+    "reason": "Experience claims are reconciled against accessibility and geometry captures taken from a live UI session. The captures reflect what the browser actually rendered at a given viewport, not what the source declares."
   },
   "maturity": {
     "version": "1.0.0",
@@ -182,7 +189,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "The capability registry is invalid or references undeclared vocabulary."
       },
@@ -193,7 +202,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Schema repair needs source-level contract edits."
       },
@@ -204,7 +215,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Index parity repair needs source-level contract edits."
       },
@@ -215,7 +228,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Choosing the correct referenced page, state, or element requires author intent."
       },
@@ -226,7 +241,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Choosing the correct operational target is an intent decision."
       },
@@ -237,7 +254,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Binding repair depends on the intended UI element contract."
       },
@@ -248,7 +267,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Tier changes alter enforcement intent and need author judgment."
       },
@@ -259,7 +280,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "A portable contract needs at least one claim backed by an implemented evaluator to earn a validated rung."
       },
@@ -270,7 +293,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Route coverage decisions require product intent."
       },
@@ -281,7 +306,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "State coverage decisions require design intent."
       },
@@ -292,7 +319,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Resolving live binding drift depends on the intended selector or markup."
       },
@@ -303,7 +332,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "A failed experience claim may require product, design, or implementation changes."
       },
@@ -314,7 +345,10 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
         "fix_class": "manual",
         "reason": "Missing affordances require adding accessible controls or revising the page intent."
       },
@@ -325,7 +359,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Checker coverage gaps require choosing a supported claim type or adding validator capability."
       },
@@ -336,7 +372,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_INFO",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Capture availability is an operational condition, not an in-place source fix."
       },
@@ -347,7 +385,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "A completed capture with zero joined bindings indicates broken document bindings."
       },
@@ -358,7 +398,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Refreshing manual evidence requires a human attestation."
       },
@@ -369,7 +411,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Evidence must be captured or the claim should be retiered deliberately."
       },
@@ -380,7 +424,10 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
         "fix_class": "manual",
         "reason": "Horizontal overflow remediation depends on the page's intended layout and content containment."
       },
@@ -391,7 +438,10 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
         "fix_class": "manual",
         "reason": "Viewport-fill remediation requires shell/layout changes."
       },
@@ -402,7 +452,10 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
         "fix_class": "manual",
         "reason": "Chrome pinning remediation requires layout and navigation decisions."
       },
@@ -413,7 +466,10 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
         "fix_class": "manual",
         "reason": "Safe-area remediation requires mobile shell/layout changes."
       },
@@ -424,7 +480,10 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
         "fix_class": "manual",
         "reason": "Single-line chrome remediation requires navigation content or responsive layout changes."
       },
@@ -435,7 +494,10 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
-        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
         "fix_class": "manual",
         "reason": "Tap-target remediation requires component sizing or hit-area changes."
       },
@@ -446,7 +508,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Perception calibration is deferred to the P2 tier."
       },
@@ -457,7 +521,9 @@
         "dimension": "ui",
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
-        "recommended_skill_ids": ["experience-spec-authoring"],
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
         "fix_class": "manual",
         "reason": "Judge-based perception is deferred and non-gating."
       }

@@ -74,6 +74,8 @@ export interface RepoFilesStatus {
   binary?: string[];
   ignored?: string[];
   statuses?: Record<string, string>;
+  /** Renamed or copied file's current path mapped to the path it came from. */
+  renames?: Record<string, string>;
 }
 
 export interface RepoFileStats {

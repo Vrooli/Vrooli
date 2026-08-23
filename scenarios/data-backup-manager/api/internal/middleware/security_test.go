@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"data-backup-manager/internal/middleware"
+
 	"github.com/stretchr/testify/require"
 )
 

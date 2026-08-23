@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-17T02:54:55-04:00"
+    "last_validated_at": "2026-08-22T18:58:37-04:00"
   },
   "requirements": [
     {
@@ -337,7 +337,7 @@
     {
       "id": "DM-P2-027",
       "title": "Screen-Recorded Smoke Tests",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-027",
       "description": "Record desktop smoke tests for human release review",
       "tags": [
@@ -349,7 +349,7 @@
           "type": "test",
           "ref": "api/internal/evidence/schema_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence persistence and schema conformance tests."
         }
       ]
@@ -357,7 +357,7 @@
     {
       "id": "DM-P2-028",
       "title": "Video Review UI",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-028",
       "description": "Review captured visual evidence with an approve or reject workflow",
       "tags": [
@@ -369,7 +369,7 @@
           "type": "test",
           "ref": "api/internal/evidence/schema_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence persistence and schema conformance tests."
         }
       ]
@@ -377,7 +377,7 @@
     {
       "id": "DM-P2-029",
       "title": "Validation CLI",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-029",
       "description": "Run and manage visual validation evidence through the CLI",
       "tags": [
@@ -389,7 +389,7 @@
           "type": "test",
           "ref": "api/internal/evidence/schema_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence persistence and schema conformance tests."
         }
       ]

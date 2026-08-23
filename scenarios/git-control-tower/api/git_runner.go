@@ -88,12 +88,15 @@ type GitRunner interface {
 	// When grep is non-empty, only commits whose message contains the string are returned.
 	LogDetails(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error)
 
-	// DiffNumstat returns numstat output for changes.
+	// DiffNumstat returns NUL-delimited numstat output (--numstat -z) for
+	// changes; see parseNumstatOutput for the record format.
 	// If staged is true, returns staged stats (--cached).
 	// If paths is non-empty, limits the diff to those specific paths via
 	// pathspec (appended after "--"). This is used to skip large binary files
 	// whose content comparison dominates diff time in repos with tracked
-	// compiled artifacts (see GetRepoStatus binary pre-detection).
+	// compiled artifacts (see GetRepoStatus binary pre-detection). Callers
+	// limiting the pathspec must include both sides of any rename, otherwise
+	// git cannot pair the halves and reports the rename as a whole-file add.
 	DiffNumstat(ctx context.Context, repoDir string, staged bool, paths ...string) ([]byte, error)
 
 	// RemoveFromIndex removes paths from the git index without deleting working files.

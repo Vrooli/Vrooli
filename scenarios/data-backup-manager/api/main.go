@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -60,30 +59,12 @@ func lookupEnvTrimmed(name string) (string, bool) {
 	return value, ok && value != ""
 }
 
+// sqlitePath resolves this scenario's own database path. The path is needed
+// separately from the DSN because databasePreflight inspects the file before
+// anything opens it — an empty or vanished database is a possible data loss and
+// must stop startup rather than be silently recreated.
 func sqlitePath() (string, error) {
-	if path, ok := lookupEnvTrimmed("SQLITE_PATH"); ok {
-		return path, nil
-	}
-	if path, ok := lookupEnvTrimmed("SQLITE_DB"); ok {
-		return path, nil
-	}
-
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		return "", fmt.Errorf("create storage resolver: %w", err)
-	}
-	path, err := resolver.Path(
-		storage.Options{ScenarioID: "data-backup-manager"},
-		storage.ClassData,
-		"data-backup-manager.db",
-	)
-	if err != nil {
-		return "", fmt.Errorf("resolve data-backup-manager db path: %w", err)
-	}
-	return path, nil
+	return storage.SQLitePath(storage.SQLiteConfig{Scenario: "data-backup-manager"})
 }
 
 // databasePreflight prevents a previously initialized catalog from silently
@@ -123,19 +104,6 @@ func markDatabaseInitialized(path string) error {
 	return os.WriteFile(marker, []byte("data-backup-manager database initialized\n"), 0o600)
 }
 
-func sqliteFileDSN(path string) (string, error) {
-	if strings.HasPrefix(path, "file:") {
-		return path, nil
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
-		path,
-	), nil
-}
-
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -159,7 +127,7 @@ func run(ctx context.Context) error {
 	if err := databasePreflight(databasePath); err != nil {
 		return fmt.Errorf("database preflight failed: %w", err)
 	}
-	dsn, err := sqliteFileDSN(databasePath)
+	dsn, err := storage.SQLiteDSNAt(databasePath, storage.SQLiteTuning{})
 	if err != nil {
 		return fmt.Errorf("sqlite configuration failed: %w", err)
 	}

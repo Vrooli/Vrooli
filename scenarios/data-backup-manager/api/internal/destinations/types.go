@@ -113,6 +113,12 @@ type CreateInput struct {
 	Location  string
 	CapBytes  int64
 	CapPolicy CapPolicy
+	// AcknowledgeReadinessFailure lets an operator create a filesystem
+	// destination whose readiness report fails, for the cases where the failing
+	// condition is a judgement call rather than a defect. It deliberately does
+	// not override a refusal raised against the mount driver: that failure
+	// protects the host, not the backup, and has a cheap remedy.
+	AcknowledgeReadinessFailure bool
 }
 
 // UpdateInput carries the mutable fields Service.UpdateDestination accepts.

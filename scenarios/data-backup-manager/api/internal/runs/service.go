@@ -200,6 +200,32 @@ func (s *service) Preflight(ctx context.Context, planID string) (preflight.Resul
 	return s.runPreflight(ctx, plan), nil
 }
 
+// preflightAllowsProgress reports whether any planned target×destination unit
+// survived preflight. It is the guard that keeps a per-target failure from
+// becoming a plan-wide outage.
+//
+// A plan-scope incident (no targets, no destinations) is never survivable: it
+// describes the plan itself rather than any unit, so there is nothing to
+// attempt.
+func preflightAllowsProgress(plan PlanForRun, result preflight.Result) bool {
+	for _, incident := range result.Incidents {
+		if incident.Scope == failures.ScopePlan {
+			return false
+		}
+	}
+	for _, targetID := range plan.TargetIDs {
+		if _, blocked := result.BlockedTargets[targetID]; blocked {
+			continue
+		}
+		for _, destinationID := range plan.DestinationIDs {
+			if _, blocked := result.BlockedDestinations[destinationID]; !blocked {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // executeRun is the background worker body: it drives one created run through
 // its persisted lifecycle (capturing → snapshotting → terminal), writing each
 // target outcome as it lands so progress is durable before the run closes. It
@@ -227,38 +253,50 @@ func (s *service) executeRun(ctx context.Context, job RunJob) {
 				evidenceErrs = append(evidenceErrs, fmt.Sprintf("preflight incidents: %v", err))
 			}
 		}
-		// A shared prerequisite blocks the plan before staging, repository-size
-		// probes, or target fan-out. Keep one outcome per planned unit for
-		// precise impact while retaining the grouped incident as the root cause.
-		blocked := 0
-		for _, targetID := range plan.TargetIDs {
-			for _, destinationID := range plan.DestinationIDs {
-				cause, targetBlocked := preflightResult.BlockedTargets[targetID]
-				if !targetBlocked {
-					cause = preflightResult.BlockedDestinations[destinationID]
+		// Abort the whole run only when nothing could succeed anyway — a
+		// plan-scope incident, or every planned unit blocked by its target or
+		// its destination. A target-scope incident belongs to that target
+		// alone: aborting the plan for it would let one stale registration
+		// silently stop every other backup, which is a far worse outcome than
+		// the single failure that triggered it. When work remains, fall through
+		// to the normal fan-out, where runOne blocks exactly the affected units
+		// and the rest are backed up as usual.
+		if !preflightAllowsProgress(plan, preflightResult) {
+			blocked := 0
+			for _, targetID := range plan.TargetIDs {
+				for _, destinationID := range plan.DestinationIDs {
+					cause, targetBlocked := preflightResult.BlockedTargets[targetID]
+					if !targetBlocked {
+						cause = preflightResult.BlockedDestinations[destinationID]
+					}
+					if cause.Code == "" {
+						// Backstop for a plan-scope incident, which has no
+						// per-unit attribution to report.
+						cause = first
+					}
+					o := TargetOutcome{
+						TargetID: targetID, DestinationID: destinationID, Status: OutcomeBlocked,
+						Error:       cause.Message + "; " + cause.NextAction,
+						FailureCode: cause.Code, FailureCategory: cause.Category,
+						StartedAt: preflightResult.CheckedAt, FinishedAt: s.deps.Clock.Now().UTC(),
+					}
+					if err := s.deps.Repo.SaveOutcome(ctx, job.RunID, o); err != nil {
+						s.logf("run %s save preflight outcome %s/%s: %v", job.RunID, targetID, destinationID, err)
+						evidenceErrs = append(evidenceErrs, fmt.Sprintf("outcome %s/%s: %v", targetID, destinationID, err))
+					}
+					blocked++
 				}
-				if cause.Code == "" {
-					cause = first
-				}
-				o := TargetOutcome{
-					TargetID: targetID, DestinationID: destinationID, Status: OutcomeBlocked,
-					Error:       cause.Message + "; " + cause.NextAction,
-					FailureCode: cause.Code, FailureCategory: cause.Category,
-					StartedAt: preflightResult.CheckedAt, FinishedAt: s.deps.Clock.Now().UTC(),
-				}
-				if err := s.deps.Repo.SaveOutcome(ctx, job.RunID, o); err != nil {
-					s.logf("run %s save preflight outcome %s/%s: %v", job.RunID, targetID, destinationID, err)
-					evidenceErrs = append(evidenceErrs, fmt.Sprintf("outcome %s/%s: %v", targetID, destinationID, err))
-				}
-				blocked++
 			}
+			errMsg := preflightResult.Summary()
+			if len(evidenceErrs) > 0 {
+				errMsg += "; evidence_persistence_failed: " + strings.Join(evidenceErrs, " | ")
+			}
+			s.finishRun(ctx, job, RunFailed, errMsg, first.Code, first.Category, first.NextAction, 0, 0, blocked, 0)
+			return
 		}
-		errMsg := preflightResult.Summary()
 		if len(evidenceErrs) > 0 {
-			errMsg += "; evidence_persistence_failed: " + strings.Join(evidenceErrs, " | ")
+			s.logf("run %s preflight evidence persistence failed: %s", job.RunID, strings.Join(evidenceErrs, " | "))
 		}
-		s.finishRun(ctx, job, RunFailed, errMsg, first.Code, first.Category, first.NextAction, 0, 0, blocked, 0)
-		return
 	}
 
 	if err := s.deps.Repo.UpdateRunStatus(ctx, job.RunID, RunCapturing); err != nil {

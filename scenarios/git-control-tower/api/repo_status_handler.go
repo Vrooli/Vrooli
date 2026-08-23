@@ -21,6 +21,7 @@ func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
 		Git:             hctx.Git,
 		RepoDir:         hctx.RepoDir,
 		ConfigCache:     s.configCache,
+		StatusCache:     s.statusCache,
 		IncludeHotspots: includeHotspots,
 	})
 	if err != nil {

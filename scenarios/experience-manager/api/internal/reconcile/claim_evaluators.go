@@ -651,7 +651,15 @@ func evaluateTapTargetSizeClaim(_ spec.PageDocument, claim spec.Claim, target Ca
 		elementID = claim.Elements[0]
 	}
 	m := measurement("tap-target-size", "px", "gte", &observed, &minimum, measuredNodeSubject(elementID, node))
-	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Measurement: m, Failure: measurementFailure(m)}
+	// Name the offending control. A bare "observed 34px below required 44px"
+	// tells an author a control is too small but not which one, and every other
+	// floor evaluator here already reports its node.
+	return claimEvaluation{
+		Pass:        false,
+		AXNodeJSON:  encodeAXNode(node),
+		Measurement: m,
+		Failure:     describeBoundsFailure(measurementFailure(m), node, target),
+	}
 }
 
 func evaluateStateCoveredClaim(_ spec.PageDocument, claim spec.Claim, target CaptureTarget, _ []*AXNode) claimEvaluation {
@@ -682,14 +690,19 @@ func evaluateStateDistinctClaim(_ spec.PageDocument, claim spec.Claim, target Ca
 
 func evaluateElementPresenceClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
 	if len(claim.Elements) == 0 {
-		return claimEvaluation{}
+		// An empty subject list is an authoring mistake, not a measurement. Say
+		// so, rather than reporting the generic "measured subjects did not
+		// satisfy the declared requirement" that an unsatisfied claim produces.
+		return claimEvaluation{Unverifiable: fmt.Sprintf("%s requires at least one declared element; add claim.elements referencing an id in elements[] with a bindings.elements entry", claim.Type)}
 	}
 	pass := true
+	var missing []string
 	var axNodeJSON string
 	for _, elementID := range claim.Elements {
 		node := findBoundNode(nodes, page.Bindings.Elements[elementID], elementRole(page, elementID))
 		if node == nil {
 			pass = false
+			missing = append(missing, elementID)
 			continue
 		}
 		axNodeJSON = encodeAXNode(node)
@@ -697,7 +710,13 @@ func evaluateElementPresenceClaim(page spec.PageDocument, claim spec.Claim, _ Ca
 			pass = false
 		}
 	}
-	return claimEvaluation{Pass: pass, AXNodeJSON: axNodeJSON}
+	evaluation := claimEvaluation{Pass: pass, AXNodeJSON: axNodeJSON}
+	if len(missing) > 0 {
+		// Naming the unresolved ids separates "the surface is genuinely absent"
+		// from "the binding never matched a node", which are different fixes.
+		evaluation.Failure = fmt.Sprintf("no accessibility node matched declared element(s) %s; check bindings.elements testid and the elements[] role", strings.Join(missing, ", "))
+	}
+	return evaluation
 }
 
 // evaluateAccessibleNameClaim proves only explicitly declared name intent. It

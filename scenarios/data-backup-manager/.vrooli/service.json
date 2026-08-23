@@ -22,7 +22,7 @@
     "parent": "vrooli",
     "name": "data-backup-manager",
     "displayName": "Data Backup Manager",
-    "description": "Dependable, engine-backed backup and verified restore for Vrooli runtime state. Scenarios self-register the state they own (databases, filesystem trees, vector and cache stores); the manager snapshots it on a schedule to one or more encrypted kopia destinations and proves it can restore — making runtime state safe to keep out of git.",
+    "description": "Dependable, engine-backed backup and verified restore for Vrooli runtime state. Scenarios self-register the state they own (databases, filesystem trees, vector and cache stores); the manager snapshots it on a schedule to one or more encrypted kopia destinations and proves it can restore \u2014 making runtime state safe to keep out of git.",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
@@ -127,12 +127,6 @@
         "required": false,
         "type": "postgres"
       },
-      "redis": {
-        "description": "Conditional source kind: best-effort prefix SCAN+DUMP of a Redis target via the redis resource CLI. Enable when a Redis target is registered.",
-        "enabled": false,
-        "required": false,
-        "type": "redis"
-      },
       "qdrant": {
         "description": "Conditional source kind: collection snapshot of a Qdrant target via the qdrant resource CLI. Enable when a Qdrant target is registered.",
         "enabled": false,
@@ -147,9 +141,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/data-backup-manager.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

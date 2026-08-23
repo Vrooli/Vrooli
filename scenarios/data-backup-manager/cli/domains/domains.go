@@ -12,6 +12,8 @@ import (
 	"data-backup-manager/cli/domains/safety"
 	"data-backup-manager/cli/domains/targets"
 
+	"github.com/vrooli/api-core/spacecli"
+	"github.com/vrooli/api-core/spacedoc"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -23,7 +25,7 @@ import (
 // default architecture; do not treat flat command files as the long-term plan.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	_ = core
-	return nil
+	return []cliapp.CommandGroup{spacecli.CommandGroup(spacecli.Config{Owner: "data-backup-manager", Projection: spacedoc.ProjectionDurability})}
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.

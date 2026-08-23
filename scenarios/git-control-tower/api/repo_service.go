@@ -14,8 +14,9 @@ const repoIDHeader = "X-Repo-Id"
 
 // RepoService coordinates repository registry and resolution logic.
 type RepoService struct {
-	store RepoStore
-	git   GitRunner
+	store       RepoStore
+	git         GitRunner
+	statusCache *RepoStatusCache
 }
 
 // ResolvedRepo describes a repository resolved for a request.
@@ -28,6 +29,18 @@ type ResolvedRepo struct {
 // NewRepoService creates a new repository service.
 func NewRepoService(store RepoStore, git GitRunner) *RepoService {
 	return &RepoService{store: store, git: git}
+}
+
+func (s *RepoService) SetStatusCache(cache *RepoStatusCache) {
+	if s != nil {
+		s.statusCache = cache
+	}
+}
+
+func (s *RepoService) InvalidateStatus(repoDir string) {
+	if s != nil && s.statusCache != nil {
+		s.statusCache.Invalidate(repoDir)
+	}
 }
 
 func (s *RepoService) List(ctx context.Context) ([]RepoRecord, int64, error) {

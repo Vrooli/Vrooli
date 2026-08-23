@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -172,5 +173,139 @@ func TestDetectScopesCorruptContractMatchesAbsentContract(t *testing.T) {
 	corrupt := detectScopes(corruptDir, files)
 	if !reflect.DeepEqual(corrupt, absent) {
 		t.Fatalf("corrupt-contract scopes = %#v, want absent-contract scopes %#v", corrupt, absent)
+	}
+}
+
+// TestGetRepoStatus_StagedRenameDoesNotInflateAdditions guards the reporting
+// defect where a staged rename was counted as a whole-file addition with no
+// matching deletion. `git status --porcelain=v2` reports a rename as a single
+// record naming only the destination, so a diff pathspec built from the status
+// file lists hid the origin from git and left it unable to pair the halves.
+// Across a large rename-heavy change set that inflated reported additions by
+// the total length of every moved file.
+func TestGetRepoStatus_StagedRenameDoesNotInflateAdditions(t *testing.T) {
+	repoDir := t.TempDir()
+	RunGitCommand(t, repoDir, "init")
+	RunGitCommand(t, repoDir, "checkout", "-b", "main")
+
+	body := strings.Repeat("a line of content\n", 500)
+	WriteTestFile(t, filepath.Join(repoDir, "before.txt"), body)
+	RunGitCommand(t, repoDir, "add", "-A")
+	RunGitCommand(t, repoDir, "-c", "user.email=test@example.com", "-c", "user.name=test", "commit", "-m", "seed")
+
+	RunGitCommand(t, repoDir, "mv", "before.txt", "after.txt")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	status, err := GetRepoStatus(ctx, RepoStatusDeps{
+		Git:     &ExecGitRunner{GitPath: "git"},
+		RepoDir: repoDir,
+	})
+	if err != nil {
+		t.Fatalf("GetRepoStatus failed: %v", err)
+	}
+
+	if got := status.Files.Renames["after.txt"]; got != "before.txt" {
+		t.Fatalf("expected rename origin before.txt, got %q (renames=%v)", got, status.Files.Renames)
+	}
+
+	stats, ok := status.FileStats.Staged["after.txt"]
+	if !ok {
+		t.Fatalf("expected staged stats for after.txt, got %v", status.FileStats.Staged)
+	}
+	if stats.Additions != 0 || stats.Deletions != 0 {
+		t.Errorf("moving a file changes no lines: got +%d/-%d, want +0/-0", stats.Additions, stats.Deletions)
+	}
+	if !stats.IsRename || stats.OldPath != "before.txt" {
+		t.Errorf("expected rename metadata pointing at before.txt, got is_rename=%v old_path=%q", stats.IsRename, stats.OldPath)
+	}
+	if _, ok := status.FileStats.Staged["before.txt"]; ok {
+		t.Errorf("origin path must not appear as its own entry: %v", status.FileStats.Staged)
+	}
+}
+
+// TestGetRepoStatus_StagedRenameWithEditsCountsOnlyTheEdit checks the other
+// half of the contract: a rename that also changes content reports the edit,
+// not the whole file.
+func TestGetRepoStatus_StagedRenameWithEditsCountsOnlyTheEdit(t *testing.T) {
+	repoDir := t.TempDir()
+	RunGitCommand(t, repoDir, "init")
+	RunGitCommand(t, repoDir, "checkout", "-b", "main")
+
+	body := strings.Repeat("a line of content\n", 500)
+	WriteTestFile(t, filepath.Join(repoDir, "before.txt"), body)
+	RunGitCommand(t, repoDir, "add", "-A")
+	RunGitCommand(t, repoDir, "-c", "user.email=test@example.com", "-c", "user.name=test", "commit", "-m", "seed")
+
+	RunGitCommand(t, repoDir, "mv", "before.txt", "after.txt")
+	WriteTestFile(t, filepath.Join(repoDir, "after.txt"), body+"one appended line\n")
+	RunGitCommand(t, repoDir, "add", "-A")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	status, err := GetRepoStatus(ctx, RepoStatusDeps{
+		Git:     &ExecGitRunner{GitPath: "git"},
+		RepoDir: repoDir,
+	})
+	if err != nil {
+		t.Fatalf("GetRepoStatus failed: %v", err)
+	}
+
+	stats := status.FileStats.Staged["after.txt"]
+	if stats.Additions != 1 || stats.Deletions != 0 {
+		t.Errorf("expected the single appended line only: got +%d/-%d, want +1/-0", stats.Additions, stats.Deletions)
+	}
+	if !stats.IsRename || stats.OldPath != "before.txt" {
+		t.Errorf("expected rename metadata pointing at before.txt, got is_rename=%v old_path=%q", stats.IsRename, stats.OldPath)
+	}
+}
+
+func TestWithRenameOrigins(t *testing.T) {
+	tests := []struct {
+		name    string
+		paths   []string
+		renames map[string]string
+		want    []string
+	}{
+		{
+			name:  "no renames leaves paths untouched",
+			paths: []string{"a.go", "b.go"},
+			want:  []string{"a.go", "b.go"},
+		},
+		{
+			name:    "origin is appended for each rename",
+			paths:   []string{"new.go", "plain.go"},
+			renames: map[string]string{"new.go": "old.go"},
+			want:    []string{"new.go", "plain.go", "old.go"},
+		},
+		{
+			name:    "renames outside paths are ignored",
+			paths:   []string{"plain.go"},
+			renames: map[string]string{"new.go": "old.go"},
+			want:    []string{"plain.go"},
+		},
+		{
+			name:    "an origin already present is not duplicated",
+			paths:   []string{"new.go", "old.go"},
+			renames: map[string]string{"new.go": "old.go"},
+			want:    []string{"new.go", "old.go"},
+		},
+		{
+			name:    "two renames sharing one origin append it once",
+			paths:   []string{"copy-a.go", "copy-b.go"},
+			renames: map[string]string{"copy-a.go": "source.go", "copy-b.go": "source.go"},
+			want:    []string{"copy-a.go", "copy-b.go", "source.go"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := withRenameOrigins(tt.paths, tt.renames)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("withRenameOrigins() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

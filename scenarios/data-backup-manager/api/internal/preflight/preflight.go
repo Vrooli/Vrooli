@@ -16,6 +16,7 @@ import (
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/failures"
 	"data-backup-manager/internal/sources"
+	"data-backup-manager/internal/sysmounts"
 
 	"github.com/vrooli/api-core/schedule"
 )
@@ -202,13 +203,17 @@ func readinessFailure(report destinationreadiness.Report) failures.Cause {
 		}
 		switch check.Code {
 		case "mounted_read_write":
+			// The blocking condition is read-only; the attributed cause decides
+			// the remediation. Keeping the code stable while sharpening the
+			// action means existing consumers keep working and the operator
+			// stops being handed a menu of unrelated fixes.
 			cause.Code = failures.DestinationReadOnly
-			cause.Message = "destination is mounted read-only"
-			cause.NextAction = "inspect the filesystem and remount it read/write outside data-backup-manager"
+			cause.Message = readOnlyMessage(report.ReadOnlyCause)
+			cause.NextAction = readOnlyNextAction(report.ReadOnlyCause)
 		case "destination_dirty":
 			cause.Code = failures.DestinationDirty
 			cause.Message = "destination filesystem reports a dirty or needs-check state"
-			cause.NextAction = "run the native filesystem check outside data-backup-manager, then recheck readiness"
+			cause.NextAction = "check and repair the destination filesystem under explicit confirmation, then recheck readiness"
 		case "destination_missing":
 			cause.Code = failures.DestinationUnmounted
 			cause.Message = "destination is not mounted or its path is absent"
@@ -225,6 +230,34 @@ func readinessFailure(report destinationreadiness.Report) failures.Cause {
 		Scope:      failures.ScopeDestination,
 		Message:    "destination readiness check failed",
 		NextAction: "inspect destination readiness and remediate the native filesystem state before retrying",
+	}
+}
+
+// readOnlyMessage states the blocking condition together with its cause, so a
+// persisted run outcome carries enough to act on without re-running readiness.
+func readOnlyMessage(cause sysmounts.ReadOnlyCause) string {
+	switch cause {
+	case sysmounts.CauseDeviceWriteProtected:
+		return "destination is mounted read-only because its block device is write-protected"
+	case sysmounts.CauseFilesystemDirty:
+		return "destination is mounted read-only because its filesystem carries a dirty or needs-check flag"
+	case sysmounts.CauseMountOption:
+		return "destination is mounted read-only because read-only was explicitly requested for this mount"
+	default:
+		return "destination is mounted read-only for an unattributed cause"
+	}
+}
+
+func readOnlyNextAction(cause sysmounts.ReadOnlyCause) string {
+	switch cause {
+	case sysmounts.CauseDeviceWriteProtected:
+		return "clear the block-device write protection; filesystem repair cannot restore writes"
+	case sysmounts.CauseFilesystemDirty:
+		return "check and repair the destination filesystem under explicit confirmation, then remount read/write and recheck readiness"
+	case sysmounts.CauseMountOption:
+		return "change the declared mount options if this destination is meant to be writable"
+	default:
+		return "attribute the read-only cause before acting; an unexplained read-only mount must not be repaired blindly"
 	}
 }
 
