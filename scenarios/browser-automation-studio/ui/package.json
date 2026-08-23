@@ -13,22 +13,21 @@
   ],
   "scripts": {
     "dev": "vrooli lifecycle protect -- npx vite",
-    "build": "pnpm run type-check && npx vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile) && node ./scripts/gzip-dist.mjs",
-    "build:profile": "pnpm run typecheck && npx vite build --mode profile && node ./scripts/gzip-dist.mjs",
+    "build": "pnpm run type-check && npx vite build && node ./scripts/gzip-dist.mjs",
+    "build:profile": "pnpm run type-check && npx vite build --mode profile && node ./scripts/gzip-dist.mjs",
     "preview": "npx vite preview",
-    "test": "bash ./scripts/run-vitest.sh",
-    "test:full": "BAS_VITEST_SUITE=full bash ./scripts/run-vitest.sh",
+    "test": "node scripts/run-vitest.mjs",
+    "test:full": "node scripts/run-vitest.mjs --suite full",
     "test:stores": "vitest run --project stores",
     "test:components": "vitest run --project components",
     "test:execution-viewer": "vitest run --project execution-viewer",
     "test:workflow-builder": "vitest run --project workflow-builder",
     "test:watch": "vitest",
-    "test:coverage": "BAS_VITEST_SUITE=full bash ./scripts/run-vitest.sh --coverage",
+    "test:coverage": "node scripts/run-vitest.mjs --suite full --coverage",
     "test:ui": "vitest --ui",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "type-check": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",

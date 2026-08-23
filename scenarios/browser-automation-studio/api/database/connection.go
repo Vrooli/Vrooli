@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -152,50 +151,54 @@ func connectSQLite(log *logrus.Logger) (*sqlx.DB, error) {
 	return sqlx.NewDb(routed.Primary(), "sqlite"), nil
 }
 
-func sqliteDSN(log *logrus.Logger) (string, error) {
-	root := strings.TrimSpace(os.Getenv("BAS_SQLITE_PATH"))
-	if root == "" {
-		if custom := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(custom, "file:") {
-			return custom, nil
-		}
-		path, err := scenarioDBPath()
-		if err != nil {
-			return "", fmt.Errorf("resolve canonical sqlite path: %w", err)
-		}
-		root = path
-	}
-
-	if err := os.MkdirAll(filepath.Dir(root), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-
-	if log != nil {
-		log.WithField("path", root).Info("Using SQLite database")
-	}
-
-	// _time_format=sqlite makes the modernc.org/sqlite driver bind
-	// time.Time values as "2006-01-02 15:04:05.999999999-07:00" (one of
-	// its built-in parseable layouts). Without it the driver falls
-	// back to time.Time.String() ("2026-05-20 14:42:49.49 +0000 UTC"),
-	// which the same driver cannot read back into *time.Time — every
-	// SELECT into a timestamp field 500s with "unsupported Scan". See
-	// modernc.org/sqlite@v1.40.1/sqlite.go formatTime() for the
-	// upstream default.
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)&_time_format=sqlite",
-		root,
-	), nil
+// sqliteTuning is the driver configuration this scenario needs on top of the
+// shared defaults api-core/storage already applies (foreign_keys, WAL,
+// busy_timeout, cache_size, synchronous, temp_store).
+//
+// _time_format=sqlite makes the modernc.org/sqlite driver bind time.Time values
+// as "2006-01-02 15:04:05.999999999-07:00" (one of its built-in parseable
+// layouts). Without it the driver falls back to time.Time.String()
+// ("2026-05-20 14:42:49.49 +0000 UTC"), which the same driver cannot read back
+// into *time.Time — every SELECT into a timestamp field 500s with "unsupported
+// Scan". See modernc.org/sqlite@v1.40.1/sqlite.go formatTime() for the upstream
+// default.
+var sqliteTuning = storage.SQLiteTuning{
+	PageSizeBytes: 4096,
+	MMapSizeBytes: 268435456,
+	TimeFormat:    "sqlite",
 }
 
-func scenarioDBPath() (string, error) {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		return "", err
+// sqliteDSN resolves this scenario's database through api-core/storage.
+//
+// The path comes from the scenario naming ITSELF, never from a generic
+// environment variable. A variable that does not identify a scenario cannot be
+// scoped to one: any process exporting it redirects the database of every
+// scenario it goes on to start. BAS_SQLITE_PATH remains because it names this
+// scenario and the desktop bundle sets it deliberately (bundle/bundle.json);
+// it is passed as an argument rather than read as ambient configuration.
+func sqliteDSN(log *logrus.Logger) (string, error) {
+	var (
+		dsn string
+		err error
+	)
+	if root := strings.TrimSpace(os.Getenv("BAS_SQLITE_PATH")); root != "" {
+		if log != nil {
+			log.WithField("path", root).Info("Using SQLite database")
+		}
+		dsn, err = storage.SQLiteDSNAt(root, sqliteTuning)
+	} else {
+		dsn, err = storage.SQLiteDSN(storage.SQLiteConfig{
+			Scenario: "browser-automation-studio",
+			Tuning:   sqliteTuning,
+		})
+		if err == nil && log != nil {
+			log.WithField("dsn", dsn).Info("Using SQLite database")
+		}
 	}
-	return resolver.Path(storage.Options{ScenarioID: "browser-automation-studio"}, storage.ClassData, "browser-automation-studio.db")
+	if err != nil {
+		return "", fmt.Errorf("resolve sqlite dsn: %w", err)
+	}
+	return dsn, nil
 }
 
 // RawDB returns the underlying *sql.DB for direct database access

@@ -33,7 +33,7 @@ Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The schem
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BAS_SQLITE_PATH` | Absolute SQLite file path | resolved via `api-core/storage` |
-| `DATABASE_URL` | Override path with `file:/abs/path.db` form | — |
+| ~~`DATABASE_URL`~~ | Not honored. A generic variable cannot be scoped to one scenario; use `BAS_SQLITE_PATH`, or `VROOLI_STORAGE_ROOT` to redirect the whole class tree. | — |
 | `BAS_DB_CONN_MAX_LIFETIME_MS` | Connection lifetime | `300000` |
 | `BAS_DB_MAX_RETRIES` / `BAS_DB_BASE_RETRY_DELAY_MS` / `BAS_DB_MAX_RETRY_DELAY_MS` / `BAS_DB_RETRY_JITTER_FACTOR` | Retry tuning | `10` / `1000` / `30000` / `0.25` |
 

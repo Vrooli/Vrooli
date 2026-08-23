@@ -87,7 +87,8 @@
       "requires_confirmation": "true",
       "reset": "full",
       "routed_isolation": "true",
-      "seed": "bas/seeds/seed.go"
+      "seed": "bas/seeds/seed.go",
+      "spec_entry_id": "project-detail"
     },
     "name": "Project Preset Creation",
     "version": "1"
@@ -101,7 +102,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "browser-automation-studio",
-          "scenario_path": "/",
+          "scenario_path": "/?tab=projects",
           "timeout_ms": 45000,
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
         },
@@ -255,7 +256,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const folderNames = Array.from(folders).map(f =\u003e f.textContent || ''); const hasActions = folderNames.some(n =\u003e n.includes('actions')); const hasFlows = folderNames.some(n =\u003e n.includes('flows')); const hasCases = folderNames.some(n =\u003e n.includes('cases')); return { hasActions, hasFlows, hasCases, folderCount: folders.length, folderNames }; })()",
+          "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const folderNames = Array.from(folders).map(f => f.textContent || ''); const hasActions = folderNames.some(n => n.includes('actions')); const hasFlows = folderNames.some(n => n.includes('flows')); const hasCases = folderNames.some(n => n.includes('cases')); return { hasActions, hasFlows, hasCases, folderCount: folders.length, folderNames }; })()",
           "store_result": "presetFolderCheck"
         },
         "metadata": {

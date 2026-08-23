@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/services/readiness"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -156,6 +157,32 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 	if err := validateSeedRequirements(workflowSummary.FlowDefinition, initialStore, initialParams, env); err != nil {
 		return nil, err
+	}
+
+	// Settle the opening navigation on the target scenario's declared surfaces
+	// before any authored step runs. Without this a run proceeds as soon as the
+	// document has loaded, so the first click can land on a page whose content
+	// has not arrived — which surfaces later as a selector timeout somewhere
+	// unrelated. Falls back to generic navigation, and says why.
+	settle := readiness.Settle(ctx, s.readinessResolver, workflowSummary.FlowDefinition)
+	if s.log != nil {
+		entry := s.log.WithFields(logrus.Fields{
+			"workflow_id":        workflowID,
+			"readiness_strategy": settle.Strategy,
+		})
+		if settle.Strategy == readiness.StrategyDeclaredSurface {
+			entry.WithFields(logrus.Fields{
+				"profile_version":   settle.ProfileVersion,
+				"route":             settle.Route,
+				"required_surfaces": settle.RequiredSurfaceIDs,
+			}).Info("Execution settles on declared readiness surfaces")
+		} else if settle.FallbackReason != "" {
+			// Info, not Debug: a silent fallback is indistinguishable from a
+			// fast pass, which is the failure mode this whole contract exists
+			// to remove. Say which rung was used and why.
+			entry.WithField("fallback_reason", settle.FallbackReason).
+				Info("Execution uses generic navigation readiness")
+		}
 	}
 
 	// Resolve session profile if provided for authenticated execution

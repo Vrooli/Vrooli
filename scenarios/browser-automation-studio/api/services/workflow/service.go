@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/readiness"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
@@ -70,6 +71,18 @@ type WorkflowService struct {
 	filePathCache         sync.Map
 	executionCancels      sync.Map
 	projectSyncTimes      sync.Map
+
+	// readinessResolver settles a run's opening navigation on the target
+	// scenario's declared surfaces instead of on navigation timing alone. It is
+	// optional: nil keeps every run on generic navigation.
+	readinessResolver readiness.Resolver
+}
+
+// SetReadinessResolver installs the declared-readiness resolver. Wiring is
+// separate from construction so a run works with or without Experience Manager,
+// which is the same posture the capture handler takes.
+func (s *WorkflowService) SetReadinessResolver(resolver readiness.Resolver) {
+	s.readinessResolver = resolver
 }
 
 // AIWorkflowError represents a structured error returned by the AI generator when

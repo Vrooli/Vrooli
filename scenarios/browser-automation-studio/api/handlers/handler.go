@@ -30,6 +30,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
+	"github.com/vrooli/browser-automation-studio/services/readiness"
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
@@ -249,6 +250,12 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		AIClient:              aiClient,
 		SessionProfileService: sessionProfileSvc,
 	})
+	// Declared-readiness settling for the opening navigation. Optional by
+	// design: if Experience Manager is unavailable every run falls back to
+	// generic navigation with a stated reason.
+	if workflowSvc != nil {
+		workflowSvc.SetReadinessResolver(readiness.NewProfileResolver())
+	}
 
 	// Ensure the demo project exists so file-first operations have a stable project root.
 	if workflowSvc != nil {

@@ -16,8 +16,7 @@
 |---|---|---|---|---|
 | `VROOLI_ROOT` | `api/database/connection.go:224`, `api/main.go:740` | Yes — falls back to `repocontract.FindRepoRootFromEnvOrCWD()` | ⚠️ Partial — both fallbacks expect the monorepo layout. Desktop bundles need to inject this or replace `resolveScenarioRoot` with a bundle-aware helper. | The schema file is loaded relative to scenario root, so a bundle must either ship the `api/internal/<domain>/` tree at the expected relative path or override the loader. |
 | `VROOLI_DATA` | Referenced only in `database/sqlite_smoke_test.go:56` (test isolation, asserts it is *ignored*) | n/a | n/a | Not a runtime input. Resolver uses `ProfileAuto` instead. |
-| `BAS_SQLITE_PATH` | `api/database/connection.go:113` | Yes — falls back to `DATABASE_URL=file:…` then `storage.NewResolver` | ✅ | Desktop bundles can inject an Electron-managed path. |
-| `DATABASE_URL` | `api/database/connection.go:115` (file: prefix only) | Yes | ✅ | |
+| `BAS_SQLITE_PATH` | `api/database/connection.go` | Yes — falls back to `storage.SQLiteDSN` on the scenario identity | ✅ | Desktop bundles can inject an Electron-managed path. |
 | `API_PORT` / `UI_PORT` | `internal/scenarioport/scenarioport.go:189`, `automation/session/manager.go:343`, `handlers/record_mode.go`, `sidecar/supervisor/process.go:104`, etc. | Mixed — some sites have defaults, some warn-and-default | ⚠️ Partial | Electron wrapper must inject both listener ports. `sidecar/supervisor/process.go:107` is the only site that logs a warning instead of crashing on missing `API_PORT`. |
 | `PLAYWRIGHT_DRIVER_URL`, `MINIO_*` | Various | Hard requirement | ❌ for desktop | Neither the driver process nor MinIO is bundleable as-is — see Resource Dependencies table. |
 

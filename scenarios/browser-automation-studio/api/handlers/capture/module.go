@@ -13,11 +13,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
-	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 
 	"github.com/vrooli/browser-automation-studio/internal/paths"
+	"github.com/vrooli/browser-automation-studio/services/readiness"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
@@ -66,19 +66,15 @@ type uiURLResolver interface {
 // ReadinessProfileResolver obtains the Experience Manager-owned compiled
 // profile for a known local scenario. It is optional: unavailable profiles
 // preserve generic capture behavior.
-type ReadinessProfileResolver interface {
-	ResolveReadinessWaits(ctx context.Context, scenario, route string) (ReadinessResolution, error)
-}
+//
+// Aliased to the shared services/readiness definitions because the workflow
+// executor resolves the same contract; keeping one type keeps the two callers
+// from drifting.
+type ReadinessProfileResolver = readiness.Resolver
 
 // ReadinessResolution preserves the contract provenance alongside the graph
 // waits so Capture reports why a declared strategy was selected.
-type ReadinessResolution struct {
-	Waits              []*actionsv1.WaitParams
-	ProfileVersion     string
-	Route              string
-	RequiredSurfaceIDs []string
-	RouteMatched       bool
-}
+type ReadinessResolution = readiness.Resolution
 
 // Deps wires the capture handler. Executor and Logger are required;
 // Storage is required to produce real screenshot files; Resolver and Now

@@ -62,7 +62,8 @@
       "requires_confirmation": "true",
       "reset": "full",
       "routed_isolation": "true",
-      "seed": "bas/seeds/seed.go"
+      "seed": "bas/seeds/seed.go",
+      "spec_entry_id": "dashboard"
     },
     "name": "Project Edit",
     "version": "1"

@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 import { selectors } from '@constants/selectors';
 import { TabEmptyState, ProjectsEmptyPreview } from '@/views/DashboardView/previews';
 import { ProjectImportModal } from '@/domains/import';
+import { ExperienceSurface, type ExperienceSurfaceState } from '@/components/ExperienceSurface';
 
 interface ProjectsTabProps {
   onProjectSelect: (project: Project) => void;
@@ -39,6 +40,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
   const {
     projects,
     isLoading,
+    error,
     bulkExecutionInProgress,
     deleteProject,
     executeAllWorkflows,
@@ -60,6 +62,18 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
       project.description?.toLowerCase().includes(searchLower)
     );
   });
+
+  // Declared lifecycle for the projects-grid region (experience/pages/dashboard.json).
+  // This tracks the data lifecycle, not the filter: a search that matches nothing is
+  // still "ready", because the list loaded. Reporting "empty" there would tell a
+  // waiting caller the project list came back empty when it did not.
+  const projectsGridState: ExperienceSurfaceState = error
+    ? 'error'
+    : isLoading
+      ? 'loading'
+      : projects.length === 0
+        ? 'empty'
+        : 'ready';
 
   const handleDeleteProject = useCallback(async (e: React.MouseEvent, projectId: string, projectName: string) => {
     e.stopPropagation();
@@ -116,14 +130,14 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
         <button
           onClick={onCreateProject}
           data-testid={selectors.dashboard.newProjectButton}
-          className="hero-button-primary w-full sm:w-auto justify-center"
+          className="hero-button-primary w-full sm:w-auto justify-center min-h-[44px]"
         >
           New project
           <div className="hero-button-glow" />
         </button>
         <button
           onClick={() => setShowImportModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 rounded-lg transition-colors w-full sm:w-auto justify-center"
+          className="flex items-center gap-2 px-4 py-2 min-h-[44px] bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 rounded-lg transition-colors w-full sm:w-auto justify-center"
         >
           <Upload size={16} />
           Import
@@ -143,7 +157,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 min-h-[44px] bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 rounded-lg transition-colors"
           >
             <Upload size={16} />
             Import
@@ -151,7 +165,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
           <button
             onClick={onCreateProject}
             data-testid={selectors.dashboard.newProjectButton}
-            className="flex items-center gap-2 px-4 py-2 bg-flow-accent hover:bg-blue-600 text-white rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 min-h-[44px] bg-flow-accent hover:bg-blue-600 text-white rounded-lg transition-colors"
           >
             <Plus size={16} />
             New Project
@@ -167,7 +181,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
           placeholder="Search projects..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-10 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+          className="w-full pl-10 pr-10 py-2 min-h-[44px] bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
           data-testid={selectors.projects.search.input}
         />
         {searchTerm && (
@@ -182,6 +196,19 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
       </div>
 
       {/* Projects Grid */}
+      <ExperienceSurface
+        surfaceId="projects-grid"
+        state={projectsGridState}
+        data-testid="projects-grid-surface"
+        aria-label="Projects"
+        statusMessage={
+          projectsGridState === 'loading'
+            ? 'Loading projects'
+            : projectsGridState === 'error'
+              ? `Projects could not be loaded: ${error}`
+              : undefined
+        }
+      >
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
@@ -277,7 +304,8 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
                         e.stopPropagation();
                         setShowActionsFor(isActionsOpen ? null : project.id);
                       }}
-                      className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-700 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      className="flex items-center justify-center min-h-[44px] min-w-[44px] p-1.5 text-gray-500 hover:text-white hover:bg-gray-700 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      aria-label={`Actions for ${project.name}`}
                     >
                       <MoreVertical size={16} />
                     </button>
@@ -295,7 +323,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
                           <button
                             onClick={(e) => handleRunAllWorkflows(e, project.id)}
                             disabled={bulkExecutionInProgress[project.id]}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+                            className="w-full flex items-center gap-3 px-4 py-2.5 min-h-[44px] text-sm text-gray-300 hover:bg-gray-700 transition-colors"
                           >
                             <PlayCircle size={14} />
                             Run All Workflows
@@ -303,7 +331,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
                           <div className="border-t border-gray-700" />
                           <button
                             onClick={(e) => handleDeleteProject(e, project.id, project.name)}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                            className="w-full flex items-center gap-3 px-4 py-2.5 min-h-[44px] text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                           >
                             <Trash2 size={14} />
                             Delete Project
@@ -332,7 +360,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
                         onProjectSelect(project);
                       }
                     }}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-blue-300 hover:text-blue-200 bg-blue-900/30 hover:bg-blue-900/50 border border-blue-500/30 hover:border-blue-500/50 rounded-lg transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 min-h-[44px] text-xs font-medium text-blue-300 hover:text-blue-200 bg-blue-900/30 hover:bg-blue-900/50 border border-blue-500/30 hover:border-blue-500/50 rounded-lg transition-colors"
                     title="Create new workflow in this project"
                   >
                     <Plus size={12} />
@@ -342,7 +370,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
                     <button
                       onClick={(e) => handleRunAllWorkflows(e, project.id)}
                       disabled={bulkExecutionInProgress[project.id]}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-green-300 hover:text-green-200 bg-green-900/30 hover:bg-green-900/50 border border-green-500/30 hover:border-green-500/50 rounded-lg transition-colors disabled:opacity-50"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[44px] text-xs font-medium text-green-300 hover:text-green-200 bg-green-900/30 hover:bg-green-900/50 border border-green-500/30 hover:border-green-500/50 rounded-lg transition-colors disabled:opacity-50"
                       title="Run all workflows in this project"
                     >
                       {bulkExecutionInProgress[project.id] ? (
@@ -373,6 +401,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
           })}
         </div>
       )}
+      </ExperienceSurface>
 
       {/* Import Modal */}
       <ProjectImportModal

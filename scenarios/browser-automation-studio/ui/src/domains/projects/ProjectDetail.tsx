@@ -17,6 +17,10 @@ import { ProjectDetailTabs } from "./ProjectDetailTabs";
 import { WorkflowCardGrid } from "./WorkflowCardGrid";
 import { ProjectFileTree } from "./ProjectFileTree";
 import { useProjectDetailStore } from "./hooks/useProjectDetailStore";
+import {
+  ExperienceSurface,
+  type ExperienceSurfaceState,
+} from "@/components/ExperienceSurface";
 
 const ExecutionPanel = lazy(async () => {
   const module = await import("./ExecutionPanel");
@@ -67,6 +71,19 @@ function ProjectDetail({
   const viewMode = useProjectDetailStore((s) => s.viewMode);
   const workflows = useProjectDetailStore((s) => s.workflows);
   const error = useProjectDetailStore((s) => s.error);
+  const isLoading = useProjectDetailStore((s) => s.isLoading);
+
+  // Declared lifecycle for the project-workflows region
+  // (experience/pages/project-detail.json). A caller that clicked into a project
+  // waits on this rather than on the Workflows tab button, which renders with the
+  // tab strip and so says nothing about whether the workflow list arrived.
+  const projectWorkflowsState: ExperienceSurfaceState = error
+    ? "error"
+    : isLoading
+      ? "loading"
+      : workflows.length === 0
+        ? "empty"
+        : "ready";
   const showEditProjectModal = useProjectDetailStore((s) => s.showEditProjectModal);
   const previewWorkflowId = useProjectDetailStore((s) => s.previewWorkflowId);
 
@@ -259,24 +276,40 @@ function ProjectDetail({
             <Suspense fallback={null}>
               <ExecutionPanel />
             </Suspense>
-          ) : viewMode === "tree" ? (
-            <ProjectFileTree
-              project={project}
-              onWorkflowSelect={onWorkflowSelect}
-              onCreateWorkflow={onCreateWorkflow}
-              onCreateWorkflowDirect={onCreateWorkflowDirect}
-              onStartRecording={onStartRecording}
-              onImportWorkflow={onImportWorkflow}
-            />
           ) : (
-            <WorkflowCardGrid
-              projectId={project.id}
-              onWorkflowSelect={onWorkflowSelect}
-              onCreateWorkflow={onCreateWorkflow}
-              onCreateWorkflowDirect={onCreateWorkflowDirect}
-              onStartRecording={onStartRecording}
-              onImportWorkflow={onImportWorkflow}
-            />
+            <ExperienceSurface
+              surfaceId="project-workflows"
+              state={projectWorkflowsState}
+              data-testid="project-workflows-surface"
+              aria-label="Workflows"
+              statusMessage={
+                projectWorkflowsState === "loading"
+                  ? "Loading workflows"
+                  : projectWorkflowsState === "error"
+                    ? `Workflows could not be loaded: ${error}`
+                    : undefined
+              }
+            >
+              {viewMode === "tree" ? (
+                <ProjectFileTree
+                  project={project}
+                  onWorkflowSelect={onWorkflowSelect}
+                  onCreateWorkflow={onCreateWorkflow}
+                  onCreateWorkflowDirect={onCreateWorkflowDirect}
+                  onStartRecording={onStartRecording}
+                  onImportWorkflow={onImportWorkflow}
+                />
+              ) : (
+                <WorkflowCardGrid
+                  projectId={project.id}
+                  onWorkflowSelect={onWorkflowSelect}
+                  onCreateWorkflow={onCreateWorkflow}
+                  onCreateWorkflowDirect={onCreateWorkflowDirect}
+                  onStartRecording={onStartRecording}
+                  onImportWorkflow={onImportWorkflow}
+                />
+              )}
+            </ExperienceSurface>
           )}
         </div>
       </div>

@@ -22,7 +22,7 @@
 - [x] MinIO declared in `service.json` `dependencies.resources` for screenshot/artifact object storage.
 
 ## Connection Pattern Status
-- [x] Environment-driven configuration. `BAS_SQLITE_PATH` overrides; `DATABASE_URL=file:/abs/path.db` honored as a secondary override; otherwise canonical resolver path is used.
+- [x] Environment-driven configuration. `BAS_SQLITE_PATH` overrides and is passed to `storage.SQLiteDSNAt` as an argument; otherwise `storage.SQLiteDSN` resolves from the scenario identity. A generic `DATABASE_URL` is not read.
 - [x] No hard-coded credentials. SQLite has no auth surface; the only path source is env or resolver.
 - [x] Connection retry with exponential backoff + jitter (`api/database/connection.go:43-86`, configured via `BAS_DB_BASE_RETRY_DELAY_MS`/`BAS_DB_MAX_RETRY_DELAY_MS`/`BAS_DB_RETRY_JITTER_FACTOR`).
 - [x] Pool fixed at 1 open connection (`SetMaxOpenConns(1)` at `api/database/connection.go:84`) — required for SQLite single-writer semantics. `ConnMaxLifetime` honored from config.

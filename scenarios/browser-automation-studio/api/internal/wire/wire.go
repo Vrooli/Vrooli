@@ -33,6 +33,7 @@ import (
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
+	"github.com/vrooli/browser-automation-studio/services/readiness"
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
 	unifiedpersistence "github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
@@ -143,6 +144,12 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 		ExecutionDataRoot:     recordingsRoot,
 		SessionProfileService: sessionProfileSvc,
 	})
+	// Declared-readiness settling for the opening navigation. Optional by
+	// design: if Experience Manager is unavailable every run falls back to
+	// generic navigation with a stated reason.
+	if workflowSvc != nil {
+		workflowSvc.SetReadinessResolver(readiness.NewProfileResolver())
+	}
 
 	// Ensure the demo project exists
 	if workflowSvc != nil {

@@ -74,7 +74,8 @@
       "requires_confirmation": "true",
       "reset": "full",
       "routed_isolation": "true",
-      "seed": "bas/seeds/seed.go"
+      "seed": "bas/seeds/seed.go",
+      "spec_entry_id": "dashboard"
     },
     "name": "New Project Create",
     "version": "1"
@@ -88,7 +89,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "browser-automation-studio",
-          "scenario_path": "/",
+          "scenario_path": "/?tab=projects",
           "timeout_ms": 45000,
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
         },

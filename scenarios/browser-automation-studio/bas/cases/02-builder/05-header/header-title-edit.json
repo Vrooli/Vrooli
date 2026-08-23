@@ -87,11 +87,27 @@
   },
   "nodes": [
     {
-      "action": { "click": { "selector": "@selector/dashboard.tabs.projects" }, "metadata": { "label": "Open Projects dashboard tab" }, "type": "ACTION_TYPE_CLICK" },
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.tabs.projects"
+        },
+        "metadata": {
+          "label": "Open Projects dashboard tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
       "id": "open-projects"
     },
     {
-      "action": { "click": { "selector": "@selector/workflows.cardViewToggle" }, "metadata": { "label": "Switch workflows to card view" }, "type": "ACTION_TYPE_CLICK" },
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.cardViewToggle"
+        },
+        "metadata": {
+          "label": "Switch workflows to card view"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
       "id": "open-card-view"
     },
     {
@@ -102,7 +118,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "browser-automation-studio",
-          "scenario_path": "/",
+          "scenario_path": "/?tab=projects",
           "timeout_ms": 45000,
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
         },

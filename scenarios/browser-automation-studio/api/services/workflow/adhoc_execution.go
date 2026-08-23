@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
+	"github.com/vrooli/browser-automation-studio/services/readiness"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -106,6 +108,34 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	if err := s.validateAdhocSubflows(ctx, req.FlowDefinition, workflowID, projectRoot); err != nil {
 		return nil, err
 	}
+
+	// Settle the opening navigation on the target scenario's declared surfaces.
+	// This is the path bas/ cases actually take — Workflow Health runs every
+	// case through ExecuteAdhocWorkflow — so without it the declared contract
+	// would be resolved for captures and ignored for the suite it exists to fix.
+	// A caller that already injected its own wait (Capture does) reports
+	// explicit-wait here and is left untouched.
+	settle := readiness.Settle(ctx, s.readinessResolver, req.FlowDefinition)
+	if s.log != nil {
+		entry := s.log.WithFields(logrus.Fields{
+			"execution_id":       executionID,
+			"readiness_strategy": settle.Strategy,
+		})
+		if settle.Strategy == readiness.StrategyDeclaredSurface {
+			entry.WithFields(logrus.Fields{
+				"profile_version":   settle.ProfileVersion,
+				"route":             settle.Route,
+				"required_surfaces": settle.RequiredSurfaceIDs,
+			}).Info("Adhoc execution settles on declared readiness surfaces")
+		} else if settle.FallbackReason != "" {
+			// Info, not Debug: a silent fallback is indistinguishable from a
+			// fast pass, which is the failure mode this whole contract exists
+			// to remove. Say which rung was used and why.
+			entry.WithField("fallback_reason", settle.FallbackReason).
+				Info("Adhoc execution uses generic navigation readiness")
+		}
+	}
+	wf.FlowDefinition = req.FlowDefinition
 
 	// Resolve session profile if provided for authenticated execution
 	var storageState json.RawMessage

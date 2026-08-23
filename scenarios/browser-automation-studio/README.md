@@ -31,7 +31,7 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 
 ### Database storage (SQLite)
 - Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The DB file is resolved through `api-core/storage` with `ProfileAuto` — typically `~/.local/share/vrooli/browser-automation-studio/browser-automation-studio.db` on Linux.
-- Override the path with `BAS_SQLITE_PATH=/abs/path.db` or `DATABASE_URL=file:/abs/path.db`. WAL, busy-timeout, and cache pragmas are applied in-process.
+- Override the path with `BAS_SQLITE_PATH=/abs/path.db`. `api-core/storage` resolves the DSN and applies WAL, busy-timeout, and cache pragmas. A generic `DATABASE_URL` is deliberately NOT honored: a variable that does not name a scenario cannot be scoped to one, so an inherited value would redirect every scenario started by the same process.
 - Schema lives in `api/internal/<domain>/storage/sqlite/schemas/` and is applied idempotently on first startup.
 - **Migrating from a previous postgres-backed install**: persistent data is not retained — start fresh. The postgres backend has been removed and there is no migration tool.
 

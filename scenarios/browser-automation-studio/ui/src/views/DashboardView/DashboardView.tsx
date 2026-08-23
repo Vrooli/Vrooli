@@ -399,7 +399,7 @@ function Dashboard({
               {/* Mobile search button */}
               <button
                 onClick={() => setIsSearchModalOpen(true)}
-                className="sm:hidden p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
+                className="sm:hidden flex items-center justify-center min-h-[44px] min-w-[44px] p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                 title="Search"
                 aria-label="Search"
               >
@@ -409,7 +409,7 @@ function Dashboard({
               {onOpenHelp && (
                 <button
                   onClick={onOpenHelp}
-                  className="hidden sm:flex p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
+                  className="hidden sm:flex items-center justify-center min-h-[44px] min-w-[44px] p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                   title="Help"
                   aria-label="Open help"
                   data-testid={selectors.dashboard.docsButton}
@@ -420,7 +420,7 @@ function Dashboard({
               {onOpenSettings && (
                 <button
                   onClick={() => onOpenSettings()}
-                  className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
+                  className="flex items-center justify-center min-h-[44px] min-w-[44px] p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                   title={`Settings (${getModifierKey()}+,)`}
                   aria-label="Open settings"
                   data-testid={selectors.dashboard.settingsButton}

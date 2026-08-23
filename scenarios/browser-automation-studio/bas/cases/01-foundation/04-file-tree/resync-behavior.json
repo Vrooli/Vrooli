@@ -81,7 +81,8 @@
       "requires_confirmation": "true",
       "reset": "full",
       "routed_isolation": "true",
-      "seed": "bas/seeds/seed.go"
+      "seed": "bas/seeds/seed.go",
+      "spec_entry_id": "project-detail"
     },
     "name": "Resync Behavior",
     "version": "1"
@@ -129,7 +130,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; return { initialFolderCount: folders, initialFileCount: files }; })()",
+          "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; return { initialFolderCount: folders, initialFileCount: files }; })()",
           "store_result": "initialTreeState"
         },
         "metadata": {
@@ -236,7 +237,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; const treeRoot = document.querySelector('[data-testid=\"project-file-tree\"]'); return { postResyncFolderCount: folders, postResyncFileCount: files, treeRootExists: !!treeRoot }; })()",
+          "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; const treeRoot = document.querySelector('[data-testid=\"project-file-tree\"]'); return { postResyncFolderCount: folders, postResyncFileCount: files, treeRootExists: !!treeRoot }; })()",
           "store_result": "postResyncTreeState"
         },
         "metadata": {
@@ -249,7 +250,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const errorToasts = document.querySelectorAll('[data-sonner-toast][data-type=\"error\"]'); return { hasErrors: errorToasts.length \u003e 0, errorCount: errorToasts.length }; })()",
+          "expression": "(() => { const errorToasts = document.querySelectorAll('[data-sonner-toast][data-type=\"error\"]'); return { hasErrors: errorToasts.length > 0, errorCount: errorToasts.length }; })()",
           "store_result": "errorCheck"
         },
         "metadata": {

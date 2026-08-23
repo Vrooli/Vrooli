@@ -4,7 +4,7 @@
   "description": "Type-safe Playwright driver for browser automation",
   "main": "dist/server.js",
   "scripts": {
-    "build": "esbuild src/server.ts --bundle --platform=node --target=node18 --outfile=dist/server.js --external:rebrowser-playwright --external:winston --external:prom-client --external:uuid --external:zod --external:@bufbuild/protobuf --external:@bufbuild/protobuf/* --external:ws && mkdir -p dist/browser-scripts && cp -r src/recording/capture/browser-scripts/*.js dist/browser-scripts/",
+    "build": "esbuild src/server.ts --bundle --platform=node --target=node18 --outfile=dist/server.js --external:rebrowser-playwright --external:winston --external:prom-client --external:uuid --external:zod --external:@bufbuild/protobuf --external:@bufbuild/protobuf/* --external:ws && node scripts/stage-browser-scripts.mjs",
     "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",
     "dev": "ts-node src/server.ts",
     "start": "node dist/server.js",
@@ -15,7 +15,7 @@
     "test:integration": "jest tests/integration",
     "test:recording": "jest tests/unit/recording tests/integration/record-mode.test.ts tests/integration/timeline-validation.test.ts tests/integration/pipeline-e2e.test.ts",
     "test:e2e:pipeline": "jest tests/integration/pipeline-e2e.test.ts --runInBand",
-    "test:e2e:record-mode": "./tests/e2e/record-mode-e2e.sh",
+    "test:e2e:record-mode": "node tests/e2e/record-mode-e2e.mjs",
     "test:selectors": "playwright test src/recording/validation/selectors.test.ts",
     "test:selectors:headed": "playwright test src/recording/validation/selectors.test.ts --headed",
     "lint": "eslint src tests --ext .ts",
@@ -23,7 +23,7 @@
     "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts'",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "node scripts/clean.mjs"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",

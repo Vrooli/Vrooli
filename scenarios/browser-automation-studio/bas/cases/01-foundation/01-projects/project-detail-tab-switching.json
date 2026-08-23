@@ -67,7 +67,8 @@
     "labels": {
       "requires_confirmation": "true",
       "reset": "none",
-      "routed_isolation": "true"
+      "routed_isolation": "true",
+      "spec_entry_id": "project-detail"
     },
     "name": "Project Detail Tab Switching",
     "version": "1"
@@ -132,7 +133,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const workflows = document.querySelectorAll('@selector/workflows.card'); return workflows.length \u003e 0 || document.querySelector('@selector/workflowBuilder.search.input') !== null; })()",
+          "expression": "(() => { const workflows = document.querySelectorAll('@selector/workflows.card'); return workflows.length > 0 || document.querySelector('@selector/workflowBuilder.search.input') !== null; })()",
           "store_result": "workflowContentVisible"
         },
         "metadata": {
@@ -193,7 +194,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { return document.querySelector('@selector/executions.list.root, @selector/executions.filters.all, @selector/executions.list.refreshButton') !== null; })()",
+          "expression": "(() => { return document.querySelector('@selector/executions.list.root, @selector/executions.filters.all, @selector/executions.list.refreshButton') !== null; })()",
           "store_result": "executionContentVisible"
         },
         "metadata": {

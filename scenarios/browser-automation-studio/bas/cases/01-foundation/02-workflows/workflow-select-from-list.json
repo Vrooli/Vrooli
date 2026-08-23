@@ -67,7 +67,8 @@
     "labels": {
       "requires_confirmation": "true",
       "reset": "none",
-      "routed_isolation": "true"
+      "routed_isolation": "true",
+      "spec_entry_id": "project-detail"
     },
     "name": "Workflow Select From List",
     "version": "1"
@@ -81,7 +82,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "browser-automation-studio",
-          "scenario_path": "/",
+          "scenario_path": "/?tab=projects",
           "timeout_ms": 45000,
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
         },

@@ -705,6 +705,12 @@ body,
 /* Hero primary button with glow */
 .hero-button-primary {
   position: relative;
+  /* The .hero-button-glow sweep is absolutely positioned at translateX(-100%),
+     so at rest it sits a full button-width to the LEFT of this element. Without
+     clipping it paints outside the button and pushes the document horizontally
+     past the viewport on narrow screens. A shine sweep is meant to be masked by
+     its own button. */
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -741,18 +747,24 @@ body,
 .hero-button-glow {
   position: absolute;
   inset: 0;
+  /* The sweep animates its gradient, not its own position. A translateX(-100%)
+     rest state laid the element a full button-width to the LEFT of the button,
+     and getBoundingClientRect reports that box even when an ancestor clips it
+     visually — so it read as a node outside the viewport on narrow screens.
+     Moving the gradient keeps the element's box exactly on the button. */
   background: linear-gradient(
     90deg,
     transparent,
     rgba(255, 255, 255, 0.2),
     transparent
   );
-  transform: translateX(-100%);
-  transition: transform 0.5s ease;
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  transition: background-position 0.5s ease;
 }
 
 .hero-button-primary:hover .hero-button-glow {
-  transform: translateX(100%);
+  background-position: 0% 0;
 }
 
 /* Hero secondary button */
@@ -1192,4 +1204,22 @@ body,
 
 .animate-cursor-blink {
   animation: cursor-blink 1s step-end infinite;
+}
+
+/* Honour the operating system's reduced-motion preference.
+ *
+ * Two reasons this matters here. It is the accessibility default users expect,
+ * and it makes the scenario deterministically measurable: experience-manager
+ * reconciles geometry floors against a captured page, and an element caught
+ * mid-transition reports bounds that do not reflect the settled layout. The
+ * capture asks for reduced motion; without this block nothing answered. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

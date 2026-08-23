@@ -65,7 +65,7 @@ This document catalogs the architectural seams in browser-automation-studio for 
 **Contract:**
 - UI production modules under `ui/src` must not import from `src/test-utils`.
 - The boundary is enforced by `ui/vitest/boundaries/test-utils-imports.test.ts`.
-- `ui/scripts/run-vitest.sh` now has an explicit smoke/full split: default `pnpm test` runs stable smoke projects, and `pnpm test:full` runs all configured Vitest projects.
+- `ui/scripts/run-vitest.mjs` has an explicit smoke/full split: default `pnpm test` runs stable smoke projects, and `pnpm test:full` (which passes `--suite full`) runs all configured Vitest projects.
 
 **Status:** Good
 - The boundary check runs in the default smoke suite through the `boundaries` Vitest project.
@@ -223,7 +223,7 @@ type Repository interface {
 
 **Controls:**
 - `BAS_SQLITE_PATH` overrides the resolved SQLite file path
-- `DATABASE_URL=file:/abs/path.db` is honored as a fallback override
+- `DATABASE_URL` is NOT honored. It does not name a scenario, so an inherited value redirects every scenario a process starts; `BAS_SQLITE_PATH` is the scenario-scoped override.
 
 **Status:** Good
 - `NewConnection` opens a single SQLite file (driver: `modernc.org/sqlite`, pure Go) and applies the canonical schema from `api/internal/<domain>/storage/sqlite/schemas/` idempotently
@@ -1094,7 +1094,7 @@ Rules: ignored AX nodes are pruned (children spliced up); `bounds`/`dom`/empty-s
 | Recorder | Yes | Yes | Yes | - |
 | EventSink | Yes | Yes | Yes | - |
 | Repository | Yes | Yes | Yes | Medium |
-| Database Storage | `BAS_SQLITE_PATH` / `DATABASE_URL=file:…` overrides; `api-core/storage` resolves the canonical SQLite file | Temp-file SQLite via `setupTestDB` (and in-memory `sql.Open("sqlite", ":memory:")` for credits tests) | N/A | Medium |
+| Database Storage | `BAS_SQLITE_PATH` override; `api-core/storage` resolves the canonical SQLite file and builds the DSN | Temp-file SQLite via `setupTestDB` (and in-memory `sql.Open("sqlite", ":memory:")` for credits tests) | N/A | Medium |
 | Storage | Yes | Yes (MemoryStorage) | Yes | - |
 | WebSocket Hub | Yes | Yes (MockHub) | Yes | - |
 | WorkflowService | Yes (CatalogService, ExecutionService) | Yes | Yes | - |

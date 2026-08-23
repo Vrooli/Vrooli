@@ -123,7 +123,8 @@
       "requires_confirmation": "true",
       "reset": "full",
       "routed_isolation": "true",
-      "seed": "bas/seeds/seed.go"
+      "seed": "bas/seeds/seed.go",
+      "spec_entry_id": "project-detail"
     },
     "name": "Run Vs Test Ux",
     "version": "1"
@@ -258,7 +259,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const actionFiles = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); let hasRunButton = false; actionFiles.forEach(f =\u003e { const text = f.textContent || ''; if (text.includes('action')) { const runBtn = f.querySelector('[data-testid=\"file-tree-run\"]'); if (runBtn) hasRunButton = true; } }); return { hasActionFile: actionFiles.length \u003e 0, hasRunButton }; })()",
+          "expression": "(() => { const actionFiles = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); let hasRunButton = false; actionFiles.forEach(f => { const text = f.textContent || ''; if (text.includes('action')) { const runBtn = f.querySelector('[data-testid=\"file-tree-run\"]'); if (runBtn) hasRunButton = true; } }); return { hasActionFile: actionFiles.length > 0, hasRunButton }; })()",
           "store_result": "actionRunCheck"
         },
         "metadata": {
@@ -358,7 +359,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); let runButtons = document.querySelectorAll('[data-testid=\"file-tree-run\"]').length; let testButtons = document.querySelectorAll('[data-testid=\"file-tree-test\"]').length; return { fileCount: files.length, runButtonCount: runButtons, testButtonCount: testButtons, hasDistinction: runButtons \u003e 0 || testButtons \u003e 0 }; })()",
+          "expression": "(() => { const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); let runButtons = document.querySelectorAll('[data-testid=\"file-tree-run\"]').length; let testButtons = document.querySelectorAll('[data-testid=\"file-tree-test\"]').length; return { fileCount: files.length, runButtonCount: runButtons, testButtonCount: testButtons, hasDistinction: runButtons > 0 || testButtons > 0 }; })()",
           "store_result": "buttonDistinctionCheck"
         },
         "metadata": {

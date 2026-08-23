@@ -69,16 +69,24 @@
   "nodes": [
     {
       "action": {
-        "click": { "selector": "@selector/dashboard.tabs.projects" },
-        "metadata": { "label": "Open Projects dashboard tab" },
+        "click": {
+          "selector": "@selector/dashboard.tabs.projects"
+        },
+        "metadata": {
+          "label": "Open Projects dashboard tab"
+        },
         "type": "ACTION_TYPE_CLICK"
       },
       "id": "open-projects"
     },
     {
       "action": {
-        "click": { "selector": "@selector/workflows.cardViewToggle" },
-        "metadata": { "label": "Switch workflows to card view" },
+        "click": {
+          "selector": "@selector/workflows.cardViewToggle"
+        },
+        "metadata": {
+          "label": "Switch workflows to card view"
+        },
         "type": "ACTION_TYPE_CLICK"
       },
       "id": "open-card-view"
@@ -91,7 +99,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "browser-automation-studio",
-          "scenario_path": "/",
+          "scenario_path": "/?tab=projects",
           "timeout_ms": 45000,
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
         },
@@ -182,7 +190,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const button = document.querySelector('@selector/header.buttons.execute'); if (!button) { return false; } const viewer = document.querySelector('@selector/executions.viewer.root'); return button.hasAttribute('disabled') || viewer !== null; })()",
+          "expression": "(() => { const button = document.querySelector('@selector/header.buttons.execute'); if (!button) { return false; } const viewer = document.querySelector('@selector/executions.viewer.root'); return button.hasAttribute('disabled') || viewer !== null; })()",
           "store_result": "hasExecutionFeedback"
         },
         "metadata": {

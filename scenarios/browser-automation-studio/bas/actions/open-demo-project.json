@@ -13,37 +13,49 @@
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-1b",
+      "id": "fixture-edge-2",
       "source": "fixture-dismiss-tutorial",
       "target": "fixture-click-projects-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-1c",
+      "id": "fixture-edge-3",
       "source": "fixture-click-projects-tab",
       "target": "fixture-wait-for-projects",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-1a",
+      "id": "fixture-edge-4",
       "source": "fixture-wait-for-projects",
+      "target": "fixture-assert-projects-settled",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-edge-5",
+      "source": "fixture-assert-projects-settled",
+      "target": "fixture-assert-projects-ready",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-edge-6",
+      "source": "fixture-assert-projects-ready",
       "target": "fixture-assert-seed-project",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-1b",
+      "id": "fixture-edge-7",
       "source": "fixture-assert-seed-project",
       "target": "fixture-click-demo",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-2",
+      "id": "fixture-edge-8",
       "source": "fixture-click-demo",
       "target": "fixture-assert-demo-heading",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-3",
+      "id": "fixture-edge-9",
       "source": "fixture-assert-demo-heading",
       "target": "fixture-wait-for-project-tabs",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
@@ -96,12 +108,12 @@
     {
       "action": {
         "metadata": {
-          "label": "Open BAS dashboard"
+          "label": "Open the BAS dashboard on its Projects tab"
         },
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "browser-automation-studio",
-          "scenario_path": "/",
+          "scenario_path": "/?tab=projects",
           "timeout_ms": 45000,
           "url": "",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
@@ -140,12 +152,12 @@
     {
       "action": {
         "metadata": {
-          "label": "Wait for Projects tab to load"
+          "label": "Settle the declared projects-grid surface"
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/dashboard.newProjectButton",
-          "state": "WAIT_STATE_VISIBLE",
+          "selector": "[data-testid=\"projects-grid-surface\"][data-experience-state=\"ready\"], [data-testid=\"projects-grid-surface\"][data-experience-state=\"empty\"], [data-testid=\"projects-grid-surface\"][data-experience-state=\"error\"]",
+          "state": "WAIT_STATE_ATTACHED",
           "timeout_ms": 15000
         }
       },
@@ -154,9 +166,39 @@
     {
       "action": {
         "assert": {
-        "failure_message": "The deterministic Demo Browser Automations project should exist. Ensure routed fixture setup completed.",
+          "failure_message": "The projects-grid surface is still reporting data-experience-state=loading after settling, so the dashboard never reached a terminal lifecycle state.",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "selector": "[data-testid=\"projects-grid-surface\"][data-experience-state=\"loading\"]",
+          "timeout_ms": 2000
+        },
+        "metadata": {
+          "label": "Projects grid is no longer loading"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "fixture-assert-projects-settled"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "The projects-grid surface settled to empty or error rather than ready. The seeded demo project is missing or the project list request failed; this is reported in milliseconds instead of as a downstream selector timeout.",
           "mode": "ASSERTION_MODE_EXISTS",
-        "selector": "@selector/projects.cardByName(name=\"Demo Browser Automations\")",
+          "selector": "[data-testid=\"projects-grid-surface\"][data-experience-state=\"ready\"]",
+          "timeout_ms": 2000
+        },
+        "metadata": {
+          "label": "Projects grid settled to ready"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "fixture-assert-projects-ready"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "The deterministic Demo Browser Automations project should exist. Ensure routed fixture setup completed.",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.cardByName(name=\"Demo Browser Automations\")",
           "timeout_ms": 10000
         },
         "metadata": {
@@ -169,7 +211,7 @@
     {
       "action": {
         "click": {
-        "selector": "@selector/projects.cardByName(name=\"Demo Browser Automations\")"
+          "selector": "@selector/projects.cardByName(name=\"Demo Browser Automations\")"
         },
         "metadata": {
           "label": "Select demo project"
@@ -188,13 +230,13 @@
     {
       "action": {
         "assert": {
-        "failure_message": "Project breadcrumb should be visible",
+          "failure_message": "Project breadcrumb should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
-        "selector": "@selector/breadcrumbs.project",
+          "selector": "@selector/breadcrumbs.project",
           "timeout_ms": 5000
         },
         "metadata": {
-        "label": "Verify project breadcrumb"
+          "label": "Verify project breadcrumb"
         },
         "type": "ACTION_TYPE_ASSERT"
       },

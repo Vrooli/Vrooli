@@ -69,7 +69,8 @@
       "requires_confirmation": "true",
       "reset": "full",
       "routed_isolation": "true",
-      "seed": "bas/seeds/seed.go"
+      "seed": "bas/seeds/seed.go",
+      "spec_entry_id": "project-detail"
     },
     "name": "File Tree Crud",
     "version": "1"
@@ -195,7 +196,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); return folders.length \u003e 0 || files.length \u003e 0 || document.querySelector('[data-testid=\"project-file-tree\"]') !== null; })()",
+          "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); return folders.length > 0 || files.length > 0 || document.querySelector('[data-testid=\"project-file-tree\"]') !== null; })()",
           "store_result": "treeHasContent"
         },
         "metadata": {
