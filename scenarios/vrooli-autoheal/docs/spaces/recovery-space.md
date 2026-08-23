@@ -15,4 +15,4 @@
 |---|---|---|---|---|---|
 | R1 | What is the success rate of recovery actions? | vrooli-autoheal | NOW | | Healing service exposes typed outcomes. |
 | R2 | Which checks enter repeated heal loops? | vrooli-autoheal | IN-REACH | | Tracker state exists; durable episode grouping remains to be completed. |
-| R3 | What is end-to-end heal episode duration? | vrooli-autoheal | MISSING | 2026-08-20 | Action duration is not episode duration. |
+| R3 | What is end-to-end heal episode duration? | vrooli-autoheal | IN-REACH | 2026-08-22 | Typed readiness evidence joins a failing probe to the first healthy probe after a recovery action; the operator setpoint has not yet ratified an episode-duration threshold. |

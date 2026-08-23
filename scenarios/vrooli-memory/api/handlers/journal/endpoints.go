@@ -1,8 +1,9 @@
 package journal
 
 import (
-	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal/journal_v1connect"
 	"vrooli-memory/internal/module"
+
+	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal/journal_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

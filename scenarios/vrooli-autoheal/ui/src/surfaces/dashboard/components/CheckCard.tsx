@@ -6,7 +6,7 @@ import type { MouseEvent } from "react";
 import { ActionButtons, StatusIcon } from "../../../shared/components";
 import { Card } from "../../../shared/ui/primitives";
 import { Notice } from "../../../shared/ui/composites";
-import { type HealthResult, type SubCheck, type CheckCategory } from "../../../lib/api";
+import { type ActionLog, type HealthResult, type SubCheck, type CheckCategory } from "../../../lib/api";
 import { selectors } from "../../../consts/selectors";
 import { formatRelativeTime } from "../../../lib/utils";
 
@@ -16,6 +16,7 @@ interface EnrichedCheck extends HealthResult {
   importance?: string;
   category?: CheckCategory;
   intervalSeconds?: number;
+  autoHealIssue?: ActionLog;
 }
 
 interface CheckCardProps {
@@ -133,6 +134,8 @@ function CheckCardImpl({ check, onInfoClick, mobileListItem = false }: CheckCard
             </Notice>
           ) : null}
 
+          {check.autoHealIssue ? <HealingIssueNotice issue={check.autoHealIssue} /> : null}
+
           {/* Sub-checks - displayed as structured checklist */}
           {hasSubChecks && (
             <div className="mt-2 space-y-1">
@@ -167,5 +170,29 @@ function SubCheckRow({ subCheck }: { subCheck: SubCheck }) {
         <span className="min-w-0 break-words text-text-muted/80">- {subCheck.detail}</span>
       )}
     </div>
+  );
+}
+
+function HealingIssueNotice({ issue }: { issue: ActionLog }) {
+  const skipped = issue.actionId === "autoheal-skip";
+  return (
+    <Notice tone={skipped ? "warning" : "danger"} className="mt-2 flex min-w-0 items-start gap-2 p-2">
+      {skipped ? (
+        <AlertTriangle size={14} className="mt-0.5 shrink-0 text-accent-warning" />
+      ) : (
+        <XCircle size={14} className="mt-0.5 shrink-0 text-accent-danger" />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className={`text-xs font-medium ${skipped ? "text-accent-warning" : "text-accent-danger"}`}>
+          {skipped ? "Auto-heal skipped" : "Auto-heal failed"}
+        </p>
+        <p className="mt-0.5 break-words text-xs text-text-muted">
+          {issue.message || issue.error || `Action ${issue.actionId} did not complete`}
+        </p>
+        <p className="mt-0.5 text-[11px] text-text-muted/80" title={new Date(issue.timestamp).toLocaleString()}>
+          Last recovery outcome: {formatRelativeTime(issue.timestamp)}
+        </p>
+      </div>
+    </Notice>
   );
 }

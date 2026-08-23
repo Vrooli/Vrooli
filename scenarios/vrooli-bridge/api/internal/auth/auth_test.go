@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
+	localenrollment "vrooli-bridge/internal/operatorsession"
+
 	"github.com/stretchr/testify/require"
 	sharedsession "github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/trustposture"
-	localenrollment "vrooli-bridge/internal/operatorsession"
 )
 
 // fakeBase64URL JSON-encodes v and base64url's it (no padding) — the JWS
@@ -115,7 +116,9 @@ func TestBreakGlassValidatorIsOfflineAndDistinct(t *testing.T) {
 
 type localStore struct{ record localenrollment.Record }
 
-func (s localStore) Lookup(context.Context, string) (localenrollment.Record, error) { return s.record, nil }
+func (s localStore) Lookup(context.Context, string) (localenrollment.Record, error) {
+	return s.record, nil
+}
 
 func TestValidateLocalDoesNotNeedAuthenticator(t *testing.T) {
 	private, err := sharedsession.GenerateKey()

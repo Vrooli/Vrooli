@@ -37,10 +37,7 @@ func (s *OverlayStrategy) ShouldSkip(rel string) bool {
 // SkipDir returns true for the .overlay subtree so the walker
 // doesn't descend into them.
 func (s *OverlayStrategy) SkipDir(rel string) bool {
-	if strings.HasPrefix(rel, ".overlay") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(rel, ".overlay")
 }
 
 // ClassifyUpper turns an upper-side entry into either a FileChange or

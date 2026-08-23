@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes (harness state only) | harness projections, import runs, retry state | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. The journal corpus is now authoritative in source-ledger; this database is retained for harness-local state during cutover and rollback. |
+| SQLite | embedded storage | yes (harness state only) | harness projections, import runs, retry state | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. The journal corpus is now authoritative in source-ledger; this database is retained for harness-local state during cutover and rollback. |
 | source-ledger | scenario | yes for live wake/recall after phase 16 | journal, recall, forest, facets | generated Connect clients with startup-resolved base URL | Interactive recall fails with a typed unavailable error when the ledger is down; the last successful managed projection remains on disk and continues to provide ambient memory. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
 | ai-gateway | scenario | yes (through source-ledger after phase 16) | journal (classify, embed), forest (summarize) | scenario CLI/API | **Writes degrade, never fail.** An entry is appended unclassified and queued; compaction pauses until inference is available. |

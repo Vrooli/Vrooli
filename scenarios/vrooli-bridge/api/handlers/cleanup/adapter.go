@@ -13,9 +13,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
-	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
-	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 	"vrooli-bridge/internal/audit"
 	"vrooli-bridge/internal/channelsign"
 	internalcleanup "vrooli-bridge/internal/cleanup"
@@ -23,6 +20,10 @@ import (
 	onboardssh "vrooli-bridge/internal/onboard/ssh"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/registry"
+
+	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
+	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 )
 
 func opToProto(op internalcleanup.Operation) *cleanupv1.CleanupOperation {

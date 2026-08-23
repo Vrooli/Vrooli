@@ -52,6 +52,7 @@ var longRunningActionIDs = map[string]struct{}{
 	"recover-pnpm":  {},
 	"start":         {},
 	"stop":          {},
+	"reclaim":       {},
 }
 
 // gatedActionIDs enumerates actions that require runtime recovery ownership.
@@ -64,6 +65,7 @@ var gatedActionIDs = map[string]struct{}{
 	"recover-go":    {},
 	"recover-pnpm":  {},
 	"stop":          {},
+	"reclaim":       {},
 }
 
 // healOutcome is the tri-state outcome of an auto-heal attempt.

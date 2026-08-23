@@ -6,10 +6,11 @@ import (
 	"log"
 	"strings"
 
-	"connectrpc.com/connect"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/cleanup"
 	"vrooli-bridge/internal/nodeauth"
+
+	"connectrpc.com/connect"
 
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
 )

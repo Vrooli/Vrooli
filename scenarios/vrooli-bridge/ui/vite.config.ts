@@ -21,10 +21,10 @@ import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 //
 // Triggering the perf build:
 //   - Direct:  `pnpm run build:profile` always uses --mode profile.
-//   - Via env: `VROOLI_BUILD_MODE=profile pnpm run build` (the conditional
-//              lives in package.json's `build` script). This lets
-//              `VROOLI_BUILD_MODE=profile vrooli scenario restart <name>`
-//              produce the perf bundle through the standard lifecycle path.
+//   - Via env: `VROOLI_BUILD_MODE=profile vrooli scenario restart <name>`.
+//              The lifecycle builder selects the `build:profile` script for
+//              that channel, so the selection is argv the whole way down and
+//              carries no shell conditional.
 export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
 

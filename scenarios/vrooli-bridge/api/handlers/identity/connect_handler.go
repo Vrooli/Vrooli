@@ -12,13 +12,14 @@ import (
 	"strings"
 	"time"
 
+	"vrooli-bridge/internal/auth"
+	internalidentity "vrooli-bridge/internal/identity"
+	internaloperatorsession "vrooli-bridge/internal/operatorsession"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	sharedsession "github.com/vrooli/api-core/operatorsession"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"vrooli-bridge/internal/auth"
-	internalidentity "vrooli-bridge/internal/identity"
-	internaloperatorsession "vrooli-bridge/internal/operatorsession"
 
 	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity"
 )

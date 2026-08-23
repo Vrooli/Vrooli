@@ -74,6 +74,14 @@ type GitOperations interface {
 	IsTracked(ctx context.Context, repoDir, path string) (bool, error)
 }
 
+// BatchGitOperations is an optional extension used by reconciliation passes
+// to answer many path-membership questions with one git process per project.
+// Keeping it optional preserves compatibility with narrow test doubles and
+// older integrations of GitOperations.
+type BatchGitOperations interface {
+	IsTrackedPaths(ctx context.Context, repoDir string, paths []string) (map[string]bool, error)
+}
+
 // ResolveCommitForPath resolves durable provenance without mutating git state.
 func (g *GitOps) ResolveCommitForPath(ctx context.Context, repoDir, path string, appliedAt time.Time) (string, error) {
 	result := g.runner.Run(ctx, "", "", "git", "-C", repoDir, "log", "-1", "--format=%H", "--since="+appliedAt.UTC().Format(time.RFC3339Nano), "--", path)
@@ -101,6 +109,28 @@ func (g *GitOps) IsTracked(ctx context.Context, repoDir, path string) (bool, err
 		return false, nil
 	}
 	return true, nil
+}
+
+// IsTrackedPaths batches the tracked-file query for one repository. Git's
+// --stdin form avoids one process per pending row while retaining exact path
+// matching (including names beginning with a dash).
+func (g *GitOps) IsTrackedPaths(ctx context.Context, repoDir string, paths []string) (map[string]bool, error) {
+	tracked := make(map[string]bool, len(paths))
+	if len(paths) == 0 {
+		return tracked, nil
+	}
+	args := []string{"-C", repoDir, "ls-files", "--full-name", "--stdin"}
+	command := append([]string{"git"}, args...)
+	result := g.runner.Run(ctx, "", strings.Join(paths, "\x00"), command...)
+	if result.Err != nil {
+		return nil, result.Err
+	}
+	for _, path := range strings.Split(strings.TrimSpace(result.Stdout), "\n") {
+		if path != "" {
+			tracked[path] = true
+		}
+	}
+	return tracked, nil
 }
 
 // GitOps is the production implementation of GitOperations.

@@ -1,8 +1,9 @@
 package cleanup
 
 import (
-	cleanupconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup/cleanup_v1connect"
 	"vrooli-bridge/internal/module"
+
+	cleanupconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup/cleanup_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

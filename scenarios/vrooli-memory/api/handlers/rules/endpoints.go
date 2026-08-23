@@ -1,8 +1,9 @@
 package rules
 
 import (
-	rulesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/rules/rules_v1connect"
 	"vrooli-memory/internal/module"
+
+	rulesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/rules/rules_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

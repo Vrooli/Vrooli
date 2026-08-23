@@ -21,11 +21,12 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	testdb "github.com/vrooli/api-core/databasetest"
 	localdb "web-search/internal/database"
 	"web-search/internal/findings"
 	"web-search/internal/research"
 	"web-search/internal/research/agentmanager"
+
+	testdb "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 )

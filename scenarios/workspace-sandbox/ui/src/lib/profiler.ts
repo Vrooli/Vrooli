@@ -13,7 +13,8 @@
  * is never called in a regular `pnpm run build`. The fiber for <Profiler>
  * still exists, but it costs effectively nothing at runtime. Only the
  * perf-build channel (`pnpm run build:profile`, or
- * `VROOLI_BUILD_MODE=profile pnpm run build` — see vite.config.ts) keeps the
+ * `VROOLI_BUILD_MODE=profile vrooli scenario restart workspace-sandbox`,
+ * which selects that same script) keeps the
  * instrumentation in. Wrappers are inert in default prod, fire onRender in
  * the perf bundle.
  */

@@ -11,11 +11,12 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	findingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/findings"
 
-	testdb "github.com/vrooli/api-core/databasetest"
 	handler "web-search/handlers/findings"
 	localdb "web-search/internal/database"
 	"web-search/internal/findingindex"
 	internalfindings "web-search/internal/findings"
+
+	testdb "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/scheduletest"

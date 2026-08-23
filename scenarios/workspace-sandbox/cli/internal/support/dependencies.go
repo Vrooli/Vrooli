@@ -41,6 +41,14 @@ func ResolveSandboxID(core *cliapp.ScenarioApp, shortID string) (string, error) 
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return "", fmt.Errorf("failed to parse sandbox list: %w", err)
 	}
+	if strings.EqualFold(shortID, "latest") {
+		for _, sandbox := range resp.Sandboxes {
+			if sandbox.Status == "active" || sandbox.Status == "creating" {
+				return sandbox.ID, nil
+			}
+		}
+		return "", fmt.Errorf("no active sandbox found for %q", shortID)
+	}
 
 	shortIDLower := strings.ToLower(shortID)
 	matches := make([]SandboxResponse, 0, len(resp.Sandboxes))

@@ -5,8 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle, Info, BookOpen, CheckCircle2, XCircle, Zap, Loader2 } from "lucide-react";
 import {
   fetchCheckHistory, type HealthStatus, type HistoryEntry, type SubCheck, type CheckHistoryResponse,
-  fetchConfig, fetchDefaults, setCheckAutoHeal, fetchCheckActions, executeAction,
-  type ActionResult, type RecoveryAction, normalizeHealthStatus
+  fetchConfig, fetchDefaults, setCheckAutoHeal, fetchCheckActions, executeAction, fetchActionHistory,
+  type ActionLog, type ActionResult, type RecoveryAction, normalizeHealthStatus
 } from "../../lib/api";
 import { formatRelativeTime } from "../../lib/utils";
 import { CodePreview } from "./CodePreview";
@@ -135,6 +135,20 @@ function CheckDetailModalImpl({ checkId, onClose }: CheckDetailModalProps) {
     queryFn: () => fetchCheckActions(checkId),
     staleTime: 30000,
   });
+
+  const { data: actionHistoryData } = useQuery({
+    queryKey: ["action-history", checkId],
+    queryFn: () => fetchActionHistory(checkId),
+    refetchInterval: 30000,
+  });
+
+  const latestHealingIssue = useMemo<ActionLog | undefined>(
+    () => {
+      const latest = actionHistoryData?.logs[0];
+      return latest && !latest.success ? latest : undefined;
+    },
+    [actionHistoryData?.logs],
+  );
 
   // Determine current auto-heal state
   const autoHealEnabled = useMemo(() => {
@@ -444,6 +458,29 @@ function CheckDetailModalImpl({ checkId, onClose }: CheckDetailModalProps) {
                       >
                         Dismiss
                       </button>
+                    </div>
+                  </div>
+                </Notice>
+              )}
+
+              {latestHealingIssue && (
+                <Notice tone={latestHealingIssue.actionId === "autoheal-skip" ? "warning" : "danger"}>
+                  <div className="flex items-start gap-2">
+                    {latestHealingIssue.actionId === "autoheal-skip" ? (
+                      <AlertTriangle size={16} className="mt-0.5 shrink-0 text-accent-warning" />
+                    ) : (
+                      <XCircle size={16} className="mt-0.5 shrink-0 text-accent-danger" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <NoticeTitle tone={latestHealingIssue.actionId === "autoheal-skip" ? "warning" : "danger"}>
+                        {latestHealingIssue.actionId === "autoheal-skip" ? "Auto-heal skipped" : "Auto-heal failed"}
+                      </NoticeTitle>
+                      <p className="mt-1 break-words text-xs text-text-muted">
+                        {latestHealingIssue.message || latestHealingIssue.error || `Action ${latestHealingIssue.actionId} did not complete`}
+                      </p>
+                      <p className="mt-1 text-[11px] text-text-muted/80" title={new Date(latestHealingIssue.timestamp).toLocaleString()}>
+                        Last recovery outcome: {formatRelativeTime(latestHealingIssue.timestamp)}
+                      </p>
                     </div>
                   </div>
                 </Notice>

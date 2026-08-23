@@ -8,12 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
-	_ "modernc.org/sqlite"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/hostbroker"
 	"vrooli-bridge/internal/onboard"
 	internalreadiness "vrooli-bridge/internal/readiness"
+
+	"github.com/gorilla/mux"
+	_ "modernc.org/sqlite"
 )
 
 type readyPinger struct{ err error }

@@ -72,6 +72,8 @@ export interface StatusResponse {
   summary: HealthSummary;
 	checks: HealthResult[];
 	autoHealSkips?: ActionLog[];
+	/** Latest failed or skipped recovery outcome keyed by check id. */
+	autoHealIssues?: Record<string, ActionLog>;
 	tickRunning?: boolean;
   tickStartedAt?: string | null;
   timestamp: string;

@@ -53,6 +53,26 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
+  "plugin": {
+    "slug": "workspace-sandbox",
+    "skills": [
+      {
+        "name": "sandbox",
+        "source": "skills/sandbox/SKILL.md",
+        "command_groups": ["sandbox", "change"]
+      }
+    ],
+    "entitlement_tier": "free",
+    "standalone": {
+      "install_script": "cli/install.sh",
+      "runtime_binaries": [
+        "cli/workspace-sandbox",
+        "cli/standalone-launch.sh",
+        "api/workspace-sandbox-api"
+      ],
+      "resources": []
+    }
+  },
   "runtime": {
     "kind": "long_running",
     "auto_restart_default": false

@@ -6,7 +6,7 @@
 |---|---|
 | Projection | substrate |
 | Owner | `vrooli-autoheal` |
-| Denominator confidence | `PARTIAL` — eight of thirteen cells have a registered autoheal check; five device-layer cells have a live sensor in another scenario that this projection does not yet join; one cell has no sensor anywhere in the platform |
+| Denominator confidence | `PARTIAL` — eleven of seventeen cells are NOW, five are IN-REACH, and SB6 remains the one open-loop crash-accounting gap; SB17 is joined by workload reconciliation |
 | Leg unit | host subsystem |
 
 ## Why This Projection Exists
@@ -44,6 +44,10 @@ read as OK.
 | SB11 | Are host temperatures readable and below their trip points? | vrooli-autoheal | IN-REACH | | Sensor exists: `internal/devicegraph/sysfs_thermal.go`, enumerating every hwmon sensor and thermal zone with its trip points. Thermal throttling presents as a performance regression with every availability signal green. |
 | SB12 | Are correctable and uncorrectable memory errors counted? | vrooli-autoheal | IN-REACH | | Sensor exists: `internal/devicegraph/sysfs_edac.go`, per controller and per DIMM. It grades "no EDAC controller registered" as unmeasurable rather than as zero errors, which is the distinction this cell exists to preserve. |
 | SB13 | Do hardware network interfaces carry traffic without error or drop growth? | vrooli-autoheal | IN-REACH | | Sensor exists: `internal/devicegraph/sysfs_net.go`, link state plus `rx/tx_errors`, `rx/tx_dropped`, `rx_crc_errors` and `collisions`, counting and naming virtual interfaces so their exclusion is visible rather than silent. |
+| SB14 | Does sustained CPU pressure stay below the operator bar? | vrooli-autoheal | NOW | | `system-host-pressure` joins CPU PSI `some.avg10`; load average is not substituted for pressure. |
+| SB15 | Do host memory and swap stay in band, with evicted services reclaimed? | vrooli-autoheal | NOW | | `system-host-pressure` joins memory and swap; stranded memory is distinct from total swap used. |
+| SB16 | Do process count and process-creation rate stay below the operator bar? | vrooli-autoheal | NOW | | `system-host-pressure` joins process count and fork rate; fork rate is unread on darwin and windows by decision. |
+| SB17 | Is every workload accounted for under the declared host workload posture? | vrooli-autoheal | NOW | | `system-host-pressure` joins workload ownership reporting. `host_workload_posture` changes reporting, grading, and recorded detail, never classification. |
 
 ## Reading Contract
 
@@ -89,6 +93,12 @@ a machine that is not broken.
   `internal/collectors/devicegraph.go`, the 60s collector that publishes it.
 
 ## Change Log
+
+- `2026-08-22` — `SB14`-`SB17` authored by the host-pressure recovery plan;
+  `SB14`-`SB16` join portable pressure readings and `SB17` joins workload
+  ownership reporting. `SB17` is gradeable under `whole_host` and remains
+  reporting-only for unmanaged work under `vrooli_only`; changing posture is a
+  setpoint-visible event, not a silent classification change.
 
 - `2026-08-20` — `SB9`-`SB13` added (device identity, storage predictive health,
   thermal telemetry, memory error telemetry, network interface health). Authored

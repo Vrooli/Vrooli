@@ -75,7 +75,7 @@ func (h *ConnectHandler) CreateSandbox(ctx context.Context, req *connect.Request
 }
 
 func (h *ConnectHandler) GetSandboxDiff(ctx context.Context, req *connect.Request[workspacev1.GetSandboxDiffRequest]) (*connect.Response[workspacev1.GetSandboxDiffResponse], error) {
-	id, err := parseSandboxID(req.Msg.GetSandboxId())
+	id, err := h.resolveSandboxID(ctx, req.Msg.GetSandboxId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -109,7 +109,7 @@ func (h *ConnectHandler) PromoteSandbox(ctx context.Context, req *connect.Reques
 	if !req.Msg.GetConfirm() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("confirm is required to promote sandbox changes"))
 	}
-	id, err := parseSandboxID(req.Msg.GetSandboxId())
+	id, err := h.resolveSandboxID(ctx, req.Msg.GetSandboxId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -149,6 +149,24 @@ func parseSandboxID(raw string) (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("sandbox_id must be a UUID: %w", err)
 	}
 	return id, nil
+}
+
+// resolveSandboxID supports the standalone skill's deterministic "latest"
+// handle while preserving strict UUID validation for every other request.
+// The handle is limited to active/creating sandboxes and therefore cannot
+// silently select a terminal or unrelated historical record.
+func (h *ConnectHandler) resolveSandboxID(ctx context.Context, raw string) (uuid.UUID, error) {
+	if raw != "latest" {
+		return parseSandboxID(raw)
+	}
+	result, err := h.Service.List(ctx, &types.ListFilter{Status: []types.Status{types.StatusActive, types.StatusCreating}, Limit: 1})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if len(result.Sandboxes) == 0 || result.Sandboxes[0] == nil {
+		return uuid.Nil, errors.New("no active sandbox exists for latest")
+	}
+	return result.Sandboxes[0].ID, nil
 }
 
 func summary(sandbox *types.Sandbox) *workspacev1.SandboxSummary {

@@ -172,7 +172,7 @@ packages/proto/schemas/vrooli-bridge/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/vrooli-bridge/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/vrooli-bridge/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/vrooli-bridge/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/vrooli-bridge/v1/...   (ui)
        └──▶ packages/proto/gen/python/vrooli_bridge/v1/...    (future tools)
 ```
 

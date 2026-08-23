@@ -15,8 +15,10 @@ import react from "@vitejs/plugin-react";
 //
 // Triggering the perf build:
 //   - Direct:  `pnpm run build:profile`
-//   - Via env: `VROOLI_BUILD_MODE=profile pnpm run build` (the `build`
-//              script appends --mode profile when the env var is set).
+//   - Via env: `VROOLI_BUILD_MODE=profile vrooli scenario restart workspace-sandbox`.
+//              The lifecycle builder selects the `build:profile` script for
+//              that channel, so the selection is argv the whole way down and
+//              carries no shell conditional.
 export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
 

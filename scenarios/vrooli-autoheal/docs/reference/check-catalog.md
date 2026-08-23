@@ -592,6 +592,21 @@ graphical-session layer and makes no statement about RDP.
 
 ---
 
+## Host Pressure
+
+| Field | Value |
+|-------|-------|
+| ID | `system-host-pressure` |
+| Interval | 30 seconds |
+| Category | System |
+| Platforms | Linux, macOS, Windows (unread fields are explicit) |
+| Importance | Host pressure can degrade every workload even when service CPU percentages look healthy |
+
+This check joins CPU pressure, memory and swap, process count, fork rate, and
+workload ownership. It offers evidence reporting, one-service reclaim, and
+operator disposal preview actions. It never kills unmanaged work and never
+uses `swapoff`.
+
 ## Check Intervals Summary
 
 | Interval | Checks | Use Case |
@@ -607,8 +622,8 @@ graphical-session layer and makes no statement about RDP.
 |----------|-------|-------------|
 | Infrastructure | 9 | Network, DNS, Docker, Cloudflared, RDP, NTP, Resolved, Certificate, Display |
 | Resource | 5 | PostgreSQL, Redis, Ollama, Qdrant, SearXNG |
-| System | 6 | Disk, Inode, Swap, Zombies, Ports, Claude Cache |
-| **Total** | **20** | |
+| System | 7 | Disk, Inode, Swap, Zombies, Ports, Claude Cache, Host Pressure |
+| **Total** | **21** | |
 
 ## Adding Custom Checks
 

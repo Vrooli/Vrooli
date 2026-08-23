@@ -28,7 +28,7 @@ ports as outbound source ports. See the project-level port allocation reference
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/vrooli-memory.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
+| _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 | `VROOLI_MEMORY_FRONTIER_TARGET` | `16` | Target number of compaction-eligible, unpinned frontier nodes before compaction considers a reduction. This is a compaction-pressure control, not a prompt-size limit. The full recall frontier also contains non-episode roots, which are deliberately not compacted. The value is calibrated from the initial 412-entry, single-harness import: it retains a 16-node working episode frontier while requiring only cohesive episode clusters to collapse. Must be a positive integer. Recalibrate after the first multi-harness import. |
@@ -109,7 +109,6 @@ Single source of truth for everything the lifecycle needs to know.
 | `lifecycle.health` | `/health` endpoint, startup grace period, periodic checks |
 | `lifecycle.setup` | build steps + idempotency conditions (binary present, UI bundle fresh) |
 | `lifecycle.develop` | how to start the running scenario |
-| `lifecycle.test` | which test command to invoke |
 | `lifecycle.stop` | how to shut down cleanly |
 | `environment` | static env vars set for every lifecycle step |
 | `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |

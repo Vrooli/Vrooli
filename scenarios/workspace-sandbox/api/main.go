@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -437,12 +438,15 @@ func resolveSQLiteDSN() (string, error) {
 }
 
 func main() {
+	standalone := os.Getenv("WORKSPACE_SANDBOX_STANDALONE") == "1"
 	// Preflight checks - must be first, before any initialization. The
 	// rlimit-exec self-exec shim intercepts in init() (rlimit_shim.go) and
 	// exec-replaces the process before this runs, so the shim never reaches
 	// preflight's staleness rebuild or lifecycle guard.
 	if preflight.Run(preflight.Config{
-		ScenarioName: "workspace-sandbox",
+		ScenarioName:          "workspace-sandbox",
+		DisableStaleness:      standalone,
+		DisableLifecycleGuard: standalone,
 	}) {
 		return // Process was re-exec'd after rebuild
 	}

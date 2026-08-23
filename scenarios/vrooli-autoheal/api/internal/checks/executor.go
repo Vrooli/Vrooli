@@ -102,18 +102,31 @@ func resolveCommandPath(name string) string {
 		return override
 	}
 	root := reporoot.ResolveFromOS()
-	if root == "" {
-		return name
+	candidates := []string{}
+	if path, err := exec.LookPath("vrooli"); err == nil {
+		candidates = append(candidates, path)
 	}
-	for _, candidate := range []string{
-		filepath.Join(root, ".vrooli", "build", "vrooli"),
-		filepath.Join(root, ".vrooli", "build", "vrooli.exe"),
-		filepath.Join(root, "vrooli"),
-		filepath.Join(root, "vrooli.exe"),
-	} {
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			return candidate
+	if root != "" {
+		candidates = append(candidates,
+			filepath.Join(root, ".vrooli", "build", "vrooli"),
+			filepath.Join(root, ".vrooli", "build", "vrooli.exe"),
+			filepath.Join(root, "vrooli"),
+			filepath.Join(root, "vrooli.exe"),
+		)
+	}
+	var newest string
+	var newestTime time.Time
+	for _, candidate := range candidates {
+		info, err := os.Stat(candidate)
+		if err != nil || info.IsDir() {
+			continue
 		}
+		if newest == "" || info.ModTime().After(newestTime) {
+			newest, newestTime = candidate, info.ModTime()
+		}
+	}
+	if newest != "" {
+		return newest
 	}
 	return name
 }

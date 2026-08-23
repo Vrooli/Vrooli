@@ -154,6 +154,37 @@ func TestStatus(t *testing.T) {
 	}
 }
 
+func TestStatus_ExposesLatestHealingIssuePerCheck(t *testing.T) {
+	store := &mockStore{actionLogs: &persistence.ActionLogsResponse{Logs: []persistence.ActionLog{
+		{CheckID: "scenario-demo", ActionID: "autoheal-skip", Success: false, Message: "in cooldown", Timestamp: "2026-08-22T20:00:00Z"},
+		{CheckID: "scenario-demo", ActionID: "restart", Success: false, Message: "exit status 1", Timestamp: "2026-08-22T19:59:00Z"},
+		{CheckID: "resource-demo", ActionID: "restart", Success: true, Message: "restarted", Timestamp: "2026-08-22T19:58:00Z"},
+		{CheckID: "recovered-demo", ActionID: "restart", Success: true, Message: "recovered", Timestamp: "2026-08-22T19:57:00Z"},
+		{CheckID: "recovered-demo", ActionID: "restart", Success: false, Message: "older failure", Timestamp: "2026-08-22T19:56:00Z"},
+	}}}
+	h := setupTestHandlers(store)
+
+	req := httptest.NewRequest("GET", "/api/v1/status", nil)
+	w := httptest.NewRecorder()
+	h.Status(w, req)
+
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
+	issues, ok := resp["autoHealIssues"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("autoHealIssues = %T, want object", resp["autoHealIssues"])
+	}
+	issue, ok := issues["scenario-demo"].(map[string]interface{})
+	if !ok || issue["actionId"] != "autoheal-skip" {
+		t.Fatalf("scenario-demo issue = %#v, want newest skipped outcome", issues["scenario-demo"])
+	}
+	if _, exists := issues["resource-demo"]; exists {
+		t.Fatalf("successful recovery should not be exposed as an issue: %#v", issues["resource-demo"])
+	}
+	if _, exists := issues["recovered-demo"]; exists {
+		t.Fatalf("older failure should not survive a newer successful recovery: %#v", issues["recovered-demo"])
+	}
+}
+
 func TestStatus_IncludesActiveTickState(t *testing.T) {
 	store := &mockStore{}
 	h := setupTestHandlers(store)

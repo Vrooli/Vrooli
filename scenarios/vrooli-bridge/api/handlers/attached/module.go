@@ -6,11 +6,12 @@ import (
 	"log"
 	"time"
 
-	"connectrpc.com/connect"
 	internal "vrooli-bridge/internal/attached"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/module"
 	"vrooli-bridge/internal/presence"
+
+	"connectrpc.com/connect"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"

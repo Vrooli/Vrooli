@@ -5,12 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"vrooli-memory/internal/ledgerclient"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	sourcev1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
 	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
 	memoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall"
-	"vrooli-memory/internal/ledgerclient"
 )
 
 type unavailableRecall struct{}

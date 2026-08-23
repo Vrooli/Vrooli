@@ -30,7 +30,10 @@
       "autoheal-health-monitoring",
       "autoheal-host-integrity",
       "autoheal-service-recovery",
-      "autoheal-watchdog"
+      "autoheal-watchdog",
+      "host-pressure-detection",
+      "workload-ownership-reconciliation",
+      "evicted-service-reclaim"
     ],
     "platform_capabilities": {
       "autoheal-health-monitoring": {
@@ -99,6 +102,57 @@
           "status": "experimental",
           "mechanism": "platform-go-scheduled-task-backend",
           "evidence": "windows cross-build and backend contract tests; no real-host qualification"
+        }
+      },
+      "host-pressure-detection": {
+        "linux": {
+          "status": "supported",
+          "mechanism": "native-go-hostpressure-and-autoheal-check",
+          "evidence": "hostpressure fixtures, autoheal contract tests, and Linux runtime check"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "typed-unsupported-fork-rate-with-portable-pressure-fields",
+          "evidence": "darwin cross-build and platform contract tests; fork rate is unread by decision"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "typed-unsupported-fork-rate-with-portable-pressure-fields",
+          "evidence": "windows cross-build and platform contract tests; fork rate is unread by decision"
+        }
+      },
+      "workload-ownership-reconciliation": {
+        "linux": {
+          "status": "supported",
+          "mechanism": "control-plane-hostinventory-and-declared-manifest-join",
+          "evidence": "hostinventory and workloadowner fixture contract tests"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "typed-platform-census-with-explicit-unread-fields",
+          "evidence": "darwin cross-build and platform contract tests"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "typed-platform-census-with-explicit-unread-fields",
+          "evidence": "windows cross-build and platform contract tests"
+        }
+      },
+      "evicted-service-reclaim": {
+        "linux": {
+          "status": "supported",
+          "mechanism": "control-plane-lifecycle-recycle-with-saturation-brake",
+          "evidence": "watchdog reclaim policy tests and Linux lifecycle seam"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "typed-lifecycle-recycle-seam-with-saturation-brake",
+          "evidence": "darwin cross-build and platform contract tests"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "typed-lifecycle-recycle-seam-with-saturation-brake",
+          "evidence": "windows cross-build and platform contract tests"
         }
       }
     },

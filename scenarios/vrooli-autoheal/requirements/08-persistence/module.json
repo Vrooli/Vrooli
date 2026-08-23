@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-22T10:47:03-04:00"
+    "last_validated_at": "2026-08-22T16:58:38-04:00"
   },
   "requirements": [
     {
@@ -32,7 +32,7 @@
           "type": "test",
           "ref": "api/internal/persistence/store_sqlite_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Behavior covered by SQLite persistence tests (result read-back); [REQ:PERSIST-QUERY-001] tagging pending"
         }
       ]
@@ -49,7 +49,7 @@
           "type": "test",
           "ref": "api/internal/persistence/store_sqlite_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Behavior covered by SQLite persistence tests (GetCheckTrends summary); [REQ:PERSIST-QUERY-002] tagging pending"
         }
       ]
@@ -57,7 +57,7 @@
     {
       "id": "PERSIST-HISTORY-001",
       "title": "Store 24-hour history",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
       "description": "Retain health check history for past 24 hours for trend analysis",
@@ -66,7 +66,7 @@
           "type": "test",
           "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -82,7 +82,7 @@
           "type": "test",
           "ref": "api/internal/persistence/store_sqlite_planner_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Cleanup path covered by planner test (CleanupOldResults); behavioral retention test + [REQ:PERSIST-HISTORY-002] tagging pending"
         }
       ]
@@ -99,7 +99,7 @@
           "type": "test",
           "ref": "api/internal/persistence/store_sqlite_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Behavior covered by SQLite persistence tests (ActionLogRoundTrip); [REQ:PERSIST-ACTIONS-001] tagging pending"
         }
       ]

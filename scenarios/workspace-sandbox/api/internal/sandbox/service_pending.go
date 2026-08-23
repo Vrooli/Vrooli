@@ -36,6 +36,26 @@ func (s *Service) ReconcileCommittedChanges(ctx context.Context) CommitReconcili
 		return report
 	}
 	repoState := make(map[string]bool)
+	trackedByRoot := make(map[string]map[string]bool)
+	if batch, ok := s.gitOps.(diff.BatchGitOperations); ok {
+		pathsByRoot := make(map[string][]string)
+		horizon := s.config.CommitResolutionHorizon
+		if horizon < time.Hour {
+			horizon = 720 * time.Hour
+		}
+		for _, change := range changes {
+			if s.clock.Now().Sub(change.AppliedAt) >= horizon {
+				pathsByRoot[change.ProjectRoot] = append(pathsByRoot[change.ProjectRoot], relativeToProjectRoot(change.ProjectRoot, change.FilePath))
+			}
+		}
+		for root, paths := range pathsByRoot {
+			if tracked, batchErr := batch.IsTrackedPaths(ctx, root, paths); batchErr == nil {
+				trackedByRoot[root] = tracked
+			} else {
+				report.Failed++
+			}
+		}
+	}
 	for _, change := range changes {
 		report.Scanned++
 		relPath := relativeToProjectRoot(change.ProjectRoot, change.FilePath)
@@ -62,10 +82,16 @@ func (s *Service) ReconcileCommittedChanges(ctx context.Context) CommitReconcili
 				horizon = 720 * time.Hour
 			}
 			if s.clock.Now().Sub(change.AppliedAt) >= horizon {
-				tracked, trackedErr := s.gitOps.IsTracked(ctx, change.ProjectRoot, relPath)
-				if trackedErr != nil {
-					report.Failed++
-					continue
+				tracked := false
+				if batch, ok := trackedByRoot[change.ProjectRoot]; ok {
+					tracked = batch[relPath]
+				} else {
+					var trackedErr error
+					tracked, trackedErr = s.gitOps.IsTracked(ctx, change.ProjectRoot, relPath)
+					if trackedErr != nil {
+						report.Failed++
+						continue
+					}
 				}
 				if !tracked {
 					if err := s.repo.MarkCommitUnresolvable(ctx, change.ID, s.clock.Now()); err != nil {

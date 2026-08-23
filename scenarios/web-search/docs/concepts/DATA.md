@@ -22,7 +22,7 @@ Use this document to answer:
 ## Storage Overview
 
 web-search persists durable data in its **own embedded SQLite** database
-(`SQLITE_PATH = ${SCENARIO_DATA_DIR}/web-search.db`, applied on startup
+(`${SCENARIO_DATA_DIR}/web-search.db`, applied on startup
 via `api-core/database`) for findings/briefs metadata, and in a **Qdrant
 collection** (`web-search-findings`) for the semantic index, written
 through the `aisearch-go` package (the cli-health adoption pattern).

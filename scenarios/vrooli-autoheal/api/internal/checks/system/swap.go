@@ -187,10 +187,10 @@ func (c *SwapCheck) Run(ctx context.Context) checks.Result {
 	}
 
 	switch {
-	case rate >= highPagesPerSecond:
+	case usedPercent >= c.criticalThreshold || rate >= highPagesPerSecond:
 		result.Status = checks.StatusCritical
 		result.Message = fmt.Sprintf("Swap paging critical: %.1f pages/sec at %d%% swap used", rate, usedPercent)
-	case rate >= nearZeroPagesPerSecond && usedPercent < c.warningThreshold:
+	case rate >= nearZeroPagesPerSecond || usedPercent >= c.warningThreshold:
 		result.Status = checks.StatusWarning
 		result.Message = fmt.Sprintf("Swap paging warning: %.1f pages/sec at %d%% swap used", rate, usedPercent)
 	default:

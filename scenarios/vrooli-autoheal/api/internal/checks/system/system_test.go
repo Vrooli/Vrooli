@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/hostpressure"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
@@ -24,6 +25,42 @@ func TestLinuxOnlyChecksReportNotApplicableOnNonLinux(t *testing.T) {
 		if result.Status != checks.StatusNotApplicable {
 			t.Errorf("%s status = %v, want %v", check.ID(), result.Status, checks.StatusNotApplicable)
 		}
+	}
+}
+
+func TestHostPressureSkipsUnreadSensorsIndependently(t *testing.T) {
+	check := NewHostPressureCheck(
+		WithHostPressureThresholds(50, 17200, 200),
+		WithHostPressureReader(func(context.Context) hostpressure.PressureSnapshot {
+			return hostpressure.PressureSnapshot{
+				CPUPressure:  hostpressure.NewUnread("test", "PSI unavailable"),
+				MemoryAvail:  hostpressure.NewRead(8<<30, "test"),
+				SwapUsed:     hostpressure.NewRead(0, "test"),
+				ProcessCount: hostpressure.NewRead(100, "test"),
+				ForkRate:     hostpressure.NewUnread("test", "fork counter unsupported"),
+			}
+		}),
+	)
+	result := check.Run(context.Background())
+	if result.Status != checks.StatusOK {
+		t.Fatalf("status = %q, want ok when some sensors are unread: %#v", result.Status, result)
+	}
+}
+
+func TestHostPressureUsesSetpointThresholds(t *testing.T) {
+	check := NewHostPressureCheck(
+		WithHostPressureThresholds(10, 1, 200),
+		WithHostPressureReader(func(context.Context) hostpressure.PressureSnapshot {
+			return hostpressure.PressureSnapshot{
+				CPUPressure:  hostpressure.NewRead(11, "test"),
+				MemoryAvail:  hostpressure.NewRead(8<<30, "test"),
+				SwapUsed:     hostpressure.NewRead(0, "test"),
+				ProcessCount: hostpressure.NewRead(100, "test"),
+			}
+		}),
+	)
+	if result := check.Run(context.Background()); result.Status != checks.StatusCritical {
+		t.Fatalf("status = %q, want critical at configured CPU bar: %#v", result.Status, result)
 	}
 }
 

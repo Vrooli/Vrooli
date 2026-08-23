@@ -3,12 +3,13 @@ package scopes
 import (
 	"log"
 
+	"vrooli-memory/internal/ledgerclient"
+	"vrooli-memory/internal/module"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	scopesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/scopes"
 	scopesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/scopes/scopesv1connect"
-	"vrooli-memory/internal/ledgerclient"
-	"vrooli-memory/internal/module"
 )
 
 func Module(client *ledgerclient.Client, logger *log.Logger) module.Module {

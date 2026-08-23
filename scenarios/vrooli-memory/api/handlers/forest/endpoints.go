@@ -1,8 +1,9 @@
 package forest
 
 import (
-	forestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/forest/forest_v1connect"
 	"vrooli-memory/internal/module"
+
+	forestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/forest/forest_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

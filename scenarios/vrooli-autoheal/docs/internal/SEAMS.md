@@ -360,3 +360,13 @@ This change:
 | Checks | `checks/infra/*_test.go` | Check interface compliance, result structure |
 | Platform | `platform/platform_test.go` | Detection accuracy, caching |
 | UI | `ui/src/*.test.tsx` | Component rendering, user interaction |
+
+### Typed readiness and healing-episode read
+
+| | |
+|---|---|
+| **Seam** | Condition/coverage consumers ↔ autoheal startup and recovery evidence |
+| **Module** | `packages/proto/schemas/vrooli-autoheal/v1/healing/healing.proto`, implemented by `handlers.typedHealing.GetReadiness` |
+| **Production wiring** | Autoheal derives first healthy probes after process start and joins persisted failing probes, recovery actions, and subsequent healthy probes. It reports an explicit unknown starter when supervisor attribution is unavailable. Infrastructure-manager reads the generated Connect client through `sources.AutohealReader`. |
+| **Test fake** | Handler tests substitute `StoreInterface` and provide persisted check/action timestamps; source tests substitute discovery and HTTP clients. |
+| **Why it exists** | A3 and R3 require measured timestamps, not a hand-written coverage claim or action duration reused as episode duration. |

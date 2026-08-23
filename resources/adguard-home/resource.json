@@ -140,7 +140,7 @@
   "platforms": {
     "linux": "supported",
     "macos": "supported",
-    "windows": "partial"
+    "windows": "build-verified"
   },
   "dependencies": [],
   "credentials": {

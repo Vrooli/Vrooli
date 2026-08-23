@@ -3,12 +3,13 @@ package rules
 import (
 	"log"
 
+	"vrooli-memory/internal/ledgerclient"
+	"vrooli-memory/internal/module"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	rulesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/rules"
 	rulesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/rules/rules_v1connect"
-	"vrooli-memory/internal/ledgerclient"
-	"vrooli-memory/internal/module"
 )
 
 func Module(client *ledgerclient.Client, logger *log.Logger) module.Module {

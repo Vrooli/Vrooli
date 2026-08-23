@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-02T21:56:28-04:00"
+    "last_validated_at": "2026-08-22T18:31:43-04:00"
   },
   "requirements": [
     {
@@ -28,13 +28,13 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "implemented",
+          "status": "failing",
           "notes": "POST /sandboxes/{id}/rebase updates BaseCommitHash"
         },
         {
           "type": "test",
           "phase": "api",
-          "status": "implemented",
+          "status": "failing",
           "notes": "GET /sandboxes/{id}/conflicts returns conflict info"
         }
       ]
@@ -42,7 +42,7 @@
     {
       "id": "REQ-P2-003-002",
       "title": "Conflict and Rebase API Operations",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-003",
       "category": "feature",
       "description": "HTTP operations for conflict checking and rebasing show conflict details, changed files, and actionable options. A separate CLI surface remains future work.",
@@ -51,14 +51,14 @@
           "type": "manual",
           "ref": "api/internal/handlers/handlers_test.go::TestCheckConflictsSuccess",
           "phase": "api",
-          "status": "implemented",
+          "status": "failing",
           "notes": "conflicts command shows conflict status"
         },
         {
           "type": "manual",
           "ref": "api/internal/handlers/handlers_test.go::TestRebaseSuccess",
           "phase": "api",
-          "status": "implemented",
+          "status": "failing",
           "notes": "rebase command updates sandbox baseline"
         }
       ]

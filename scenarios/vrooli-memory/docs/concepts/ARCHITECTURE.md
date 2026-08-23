@@ -153,7 +153,7 @@ packages/proto/schemas/vrooli-memory/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/vrooli-memory/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/vrooli-memory/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/vrooli-memory/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/vrooli-memory/v1/...   (ui)
        └──▶ packages/proto/gen/python/vrooli_memory/v1/...    (future tools)
 ```
 

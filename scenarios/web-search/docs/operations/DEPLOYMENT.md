@@ -45,7 +45,7 @@ degraded-behavior matrix.
 - **API port:** assigned by lifecycle as `API_PORT` (proto-first
   Connect-RPC + REST `/health`).
 - **UI port:** assigned by lifecycle as `UI_PORT` (react-vite + Tailwind).
-- **Storage:** `SQLITE_PATH = ${SCENARIO_DATA_DIR}/web-search.db` for
+- **Storage:** an embedded SQLite file (`web-search.db`) for
   findings/briefs/audit, applied on startup via `api-core/database`.
 - **Resources (P0, `try_start`):** SearXNG (`SEARXNG_URL`) for live web;
   Qdrant for the `web-search-findings` semantic index; Ollama

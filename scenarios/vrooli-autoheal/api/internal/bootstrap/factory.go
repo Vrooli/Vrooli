@@ -196,6 +196,7 @@ func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
 		system.NewBootHistoryCheck(),        // Unclean shutdown detection
 		system.NewMCERecentCheck(),          // Recent hardware errors via rasdaemon
 		system.NewPMRuntimeHogCheck(),       // Kernel pm_runtime CPU hogs
+		system.NewHostPressureCheck(system.WithReclaimer(system.NewProductionHostPressureReclaimer())), // CPU, memory, swap, process and fork pressure
 	}
 	collector := hostinventory.NewCachedIntegrityCollector(hostinventory.NewIntegrityCollector(hostinventory.IntegrityCollectorOptions{}), 30*time.Second)
 	systemChecks = append(systemChecks, hostchecks.NewChecks(collector)...)

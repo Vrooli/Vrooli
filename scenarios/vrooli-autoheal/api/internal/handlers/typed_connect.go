@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	internalincidents "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reconcile"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -505,10 +507,135 @@ func (s *typedHealing) ListOutcomes(ctx context.Context, req *connect.Request[he
 	return connect.NewResponse(response), nil
 }
 
-func (s *typedHealing) GetEpisodes(_ context.Context, _ *connect.Request[healing.GetEpisodesRequest]) (*connect.Response[healing.GetEpisodesResponse], error) {
-	// Episodes are not yet persisted by the legacy auto-heal engine. Returning an
-	// empty typed collection is intentional: action logs are outcomes, not episodes.
-	return connect.NewResponse(&healing.GetEpisodesResponse{Episodes: []*healing.HealEpisode{}}), nil
+func (s *typedHealing) GetEpisodes(ctx context.Context, req *connect.Request[healing.GetEpisodesRequest]) (*connect.Response[healing.GetEpisodesResponse], error) {
+	readiness, err := s.readiness(ctx, int(req.Msg.GetLimit()))
+	if err != nil {
+		return nil, internalError("load healing episodes", err)
+	}
+	return connect.NewResponse(&healing.GetEpisodesResponse{Episodes: readiness.Episodes}), nil
+}
+
+func (s *typedHealing) GetReadiness(ctx context.Context, req *connect.Request[healing.GetReadinessRequest]) (*connect.Response[healing.GetReadinessResponse], error) {
+	snapshot, err := s.readiness(ctx, int(req.Msg.GetLimit()))
+	if err != nil {
+		return nil, internalError("load startup readiness", err)
+	}
+	return connect.NewResponse(snapshot.Response), nil
+}
+
+type readinessSnapshot struct {
+	Response *healing.GetReadinessResponse
+	Episodes []*healing.HealEpisode
+}
+
+func (s *typedHealing) readiness(ctx context.Context, limit int) (readinessSnapshot, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 100
+	}
+	started := s.h.startedAt.UTC()
+	response := &healing.GetReadinessResponse{
+		Available:        true,
+		ProcessStartedAt: timestamppb.New(started),
+		Elements:         make([]*healing.ReadinessElement, 0),
+		Episodes:         make([]*healing.HealEpisode, 0),
+		ComputedAt:       timestamppb.Now(),
+	}
+	if started.IsZero() {
+		response.Available = false
+		response.UnavailableReason = "process start time is unavailable"
+		return readinessSnapshot{Response: response}, nil
+	}
+	for _, info := range s.h.registry.ListChecks() {
+		results, err := s.h.store.GetRecentResults(ctx, info.ID, limit)
+		if err != nil {
+			return readinessSnapshot{}, fmt.Errorf("read results for %s: %w", info.ID, err)
+		}
+		var firstHealthy *checks.Result
+		for i := range results {
+			result := results[i]
+			if result.Timestamp.Before(started) || result.Status != checks.StatusOK {
+				continue
+			}
+			if firstHealthy == nil || result.Timestamp.Before(firstHealthy.Timestamp) {
+				copy := result
+				firstHealthy = &copy
+			}
+		}
+		element := &healing.ReadinessElement{CheckId: info.ID, Starter: s.h.starter, Evidence: "no healthy probe observed since process start"}
+		if firstHealthy != nil {
+			element.Status = string(firstHealthy.Status)
+			element.ReadyAt = timestamppb.New(firstHealthy.Timestamp)
+			element.LatencyMs = firstHealthy.Timestamp.Sub(started).Milliseconds()
+			element.Evidence = "first persisted healthy probe after process start"
+		} else {
+			element.Status = "unready"
+			element.LatencyMs = -1
+		}
+		response.Elements = append(response.Elements, element)
+	}
+	if events, err := s.h.store.ListSystemEvents(ctx, systemevents.Filters{Limit: limit}); err == nil {
+		for _, event := range events.Events {
+			if event.BootID != "" {
+				response.BootId = event.BootID
+				break
+			}
+		}
+	}
+	logs, err := s.h.store.GetActionLogs(ctx, limit)
+	if err != nil {
+		return readinessSnapshot{}, fmt.Errorf("read healing actions: %w", err)
+	}
+	for _, logEntry := range logs.Logs {
+		at, err := parseTimestamp(logEntry.Timestamp)
+		if err != nil {
+			continue
+		}
+		results, err := s.h.store.GetRecentResults(ctx, logEntry.CheckID, limit)
+		if err != nil {
+			return readinessSnapshot{}, fmt.Errorf("read episode results for %s: %w", logEntry.CheckID, err)
+		}
+		var startedFailure *checks.Result
+		var recovered *checks.Result
+		for i := range results {
+			result := results[i]
+			if result.Timestamp.Before(at) {
+				if result.Status == checks.StatusWarning || result.Status == checks.StatusCritical {
+					if startedFailure == nil || result.Timestamp.After(startedFailure.Timestamp) {
+						copy := result
+						startedFailure = &copy
+					}
+				}
+				continue
+			}
+			if result.Timestamp.After(at) && result.Status == checks.StatusOK {
+				if recovered == nil || result.Timestamp.Before(recovered.Timestamp) {
+					copy := result
+					recovered = &copy
+				}
+			}
+		}
+		if recovered == nil {
+			continue
+		}
+		episodeStart := at
+		if startedFailure != nil {
+			episodeStart = startedFailure.Timestamp
+		}
+		outcome := healing.Outcome_OUTCOME_SUCCEEDED
+		response.Episodes = append(response.Episodes, &healing.HealEpisode{
+			Id: fmt.Sprintf("%s-%d", logEntry.CheckID, logEntry.ID), CheckId: logEntry.CheckID,
+			Trigger: "health_failure", Outcome: outcome, Attempts: 1,
+			StartedAt: timestamppb.New(episodeStart), CompletedAt: timestamppb.New(recovered.Timestamp),
+			EvidenceJson: fmt.Sprintf(`{"action_id":%q,"action_at":%q,"first_healthy_probe":%q}`, logEntry.ActionID, at.Format(time.RFC3339Nano), recovered.Timestamp.Format(time.RFC3339Nano)),
+		})
+	}
+	sort.Slice(response.Episodes, func(i, j int) bool {
+		return response.Episodes[i].GetCompletedAt().AsTime().After(response.Episodes[j].GetCompletedAt().AsTime())
+	})
+	if len(response.Episodes) > limit {
+		response.Episodes = response.Episodes[:limit]
+	}
+	return readinessSnapshot{Response: response, Episodes: response.Episodes}, nil
 }
 
 func (s *typedHealing) GetHistory(ctx context.Context, req *connect.Request[healing.GetHistoryRequest]) (*connect.Response[healing.GetHistoryResponse], error) {

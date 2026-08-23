@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	db "github.com/vrooli/api-core/databasetest"
 	"vrooli-bridge/internal/onboard"
 	onboardmocks "vrooli-bridge/internal/onboard/mocks"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 

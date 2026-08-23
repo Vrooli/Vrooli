@@ -6,10 +6,11 @@ import (
 	"log"
 	"time"
 
-	"connectrpc.com/connect"
-	harnessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness"
 	internalharness "vrooli-memory/internal/harness"
 	"vrooli-memory/internal/maintenance"
+
+	"connectrpc.com/connect"
+	harnessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness"
 )
 
 type connectHandler struct {

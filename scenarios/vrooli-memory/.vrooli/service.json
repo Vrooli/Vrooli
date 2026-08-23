@@ -107,12 +107,6 @@
         }
       ],
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract"
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server"
     }
   },
   "dependencies": {

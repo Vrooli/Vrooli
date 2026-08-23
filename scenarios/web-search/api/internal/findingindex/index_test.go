@@ -10,9 +10,10 @@ import (
 	"sync"
 	"testing"
 
-	testdb "github.com/vrooli/api-core/databasetest"
 	localdb "web-search/internal/database"
 	"web-search/internal/findings"
+
+	testdb "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 

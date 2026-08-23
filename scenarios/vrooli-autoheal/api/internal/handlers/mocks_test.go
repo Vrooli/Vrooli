@@ -31,6 +31,8 @@ type mockStore struct {
 	checkTrendsErr   error
 	transitions      *persistence.TransitionsResponse
 	transitionsErr   error
+	actionLogs       *persistence.ActionLogsResponse
+	actionLogsErr    error
 	systemEvents     *systemevents.Response
 	systemEventsErr  error
 	incidentsErr     error
@@ -222,6 +224,12 @@ func (m *mockStore) SaveActionLog(ctx context.Context, checkID, actionID string,
 }
 
 func (m *mockStore) GetActionLogs(ctx context.Context, limit int) (*persistence.ActionLogsResponse, error) {
+	if m.actionLogsErr != nil {
+		return nil, m.actionLogsErr
+	}
+	if m.actionLogs != nil {
+		return m.actionLogs, nil
+	}
 	return &persistence.ActionLogsResponse{
 		Logs:  []persistence.ActionLog{},
 		Total: 0,

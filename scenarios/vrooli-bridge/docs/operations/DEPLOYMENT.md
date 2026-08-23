@@ -67,7 +67,7 @@ Vrooli install plus the node-agent service.
   `API_PORT`). This stable control-plane port is the only LAN firewall port a
   candidate needs; lifecycle fails rather than silently moving it on collision.
 - UI port: assigned by lifecycle as `UI_PORT` (React fleet dashboard).
-- Storage: SQLite via `api-core/storage` (`SQLITE_PATH`) holding control-plane
+- Storage: SQLite via `api-core/storage` holding control-plane
   metadata — nodes, pairings, capability snapshots, jobs, dispatch and
   provisioning audit, and version history. Schema is Postgres-compatible
   for forward scale.

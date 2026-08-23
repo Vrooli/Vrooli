@@ -1,8 +1,9 @@
 package scopes
 
 import (
-	scopesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/scopes/scopesv1connect"
 	"vrooli-memory/internal/module"
+
+	scopesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/scopes/scopesv1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

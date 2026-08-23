@@ -126,7 +126,7 @@ packages/proto/schemas/web-search/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/web-search/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/web-search/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/web-search/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/web-search/v1/...   (ui)
        └──▶ packages/proto/gen/python/web_search/v1/...    (future tools)
 ```
 

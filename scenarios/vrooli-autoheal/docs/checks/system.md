@@ -112,8 +112,8 @@ Zombie processes:
 - Suggest unhandled child exits
 
 ### Thresholds
-- **Warning**: 5 zombies
-- **Critical**: 20 zombies
+- **Warning**: the configured zombie-process warning threshold
+- **Critical**: the configured zombie-process critical threshold
 
 ### Status Meanings
 - **OK**: Few or no zombies

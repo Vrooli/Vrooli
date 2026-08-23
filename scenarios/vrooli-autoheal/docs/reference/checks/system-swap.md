@@ -34,9 +34,9 @@ observed steady-state paging rates.
 
 | Status | Meaning |
 |--------|---------|
-| **OK** | Swap usage below 50% |
-| **Warning** | Swap usage between 50-80% (or no swap configured) |
-| **Critical** | Swap usage above 80% |
+| **OK** | Swap level is below 50% with quiet traffic, or a high level has near-zero traffic |
+| **Warning** | Swap level is at least 50%, traffic is active but below the high-rate threshold, or the rate source is unavailable |
+| **Critical** | Swap level is at least 80% or paging traffic is at least 128 pages/sec |
 
 ## Why It Matters
 
@@ -152,6 +152,10 @@ The check accepts the following options:
   "swapConfigured": true,
   "warningThreshold": 50,
   "criticalThreshold": 80
+  ,"swapTrafficPagesPerSecond": 0
+  ,"swapTrafficRateAvailable": true
+  ,"nearZeroRateThreshold": 1
+  ,"highRateThreshold": 128
 }
 ```
 

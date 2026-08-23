@@ -140,6 +140,7 @@ export default function App() {
 
   const enrichedChecks: EnrichedCheck[] = useMemo(() => {
     const checks = data?.checks || [];
+    const autoHealIssues = data?.autoHealIssues ?? {};
     return checks.map((check) => {
       const metadata = checksMetadataMap.get(check.checkId);
       return {
@@ -149,9 +150,10 @@ export default function App() {
         importance: metadata?.importance,
         category: metadata?.category,
         intervalSeconds: metadata?.intervalSeconds,
+        autoHealIssue: autoHealIssues[check.checkId],
       };
     });
-  }, [data?.checks, checksMetadataMap]);
+  }, [data?.checks, data?.autoHealIssues, checksMetadataMap]);
 
   const sortedEnrichedChecks = useMemo(() => sortChecksForDisplay(enrichedChecks), [enrichedChecks]);
   const groupedChecks = useMemo(() => groupChecksByStatus(sortedEnrichedChecks), [sortedEnrichedChecks]);

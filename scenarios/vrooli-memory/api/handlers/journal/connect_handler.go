@@ -5,12 +5,13 @@ import (
 	"log"
 	"strings"
 
+	"vrooli-memory/internal/ledgerclient"
+
 	"connectrpc.com/connect"
 	sourcev1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 	memoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal"
 	memoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal/journal_v1connect"
-	"vrooli-memory/internal/ledgerclient"
 )
 
 type connectHandler struct {

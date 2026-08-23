@@ -9,8 +9,9 @@ import (
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/provision"
 
-	"github.com/google/uuid"
 	"vrooli-bridge/internal/registry"
+
+	"github.com/google/uuid"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 

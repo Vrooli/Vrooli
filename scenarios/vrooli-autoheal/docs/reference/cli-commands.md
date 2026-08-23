@@ -366,9 +366,9 @@ max_attempts=5
 attempt=0
 
 while [ $attempt -lt $max_attempts ]; do
-    vrooli-autoheal tick --force --json > /tmp/tick.json
+    vrooli-autoheal tick --force --json > "${TMPDIR:-.}/tick.json"
 
-    critical=$(jq '.summary.critical' /tmp/tick.json)
+    critical=$(jq '.summary.critical' "${TMPDIR:-.}/tick.json")
     if [ "$critical" -eq 0 ]; then
         echo "All checks passing"
         exit 0

@@ -458,7 +458,7 @@ identity and the audit trail, so it is the primary backup target.
 
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|
-| Control-plane SQLite store | Stop the control plane (or quiesce writes) and copy the SQLite file at `SQLITE_PATH`; retain per a configurable policy | Restore the file to `SQLITE_PATH` and restart the control plane | Procedure defined; automated backup wiring not yet implemented. |
+| Control-plane SQLite store | Stop the control plane (or quiesce writes) and copy the scenario's SQLite file; retain per a configurable policy | Restore the file to the scenario's data directory and restart the control plane | Procedure defined; automated backup wiring not yet implemented. |
 | Job logs / result artifacts | Streamed back from nodes and retained per a configurable retention policy | Re-fetch from retained run records where present | Retention policy not yet implemented. |
 | Build artifacts | Not stored by bridge — moved through device-sync-hub; back up there | Re-distribute via device-sync-hub | N/A to bridge's own store. |
 

@@ -278,6 +278,32 @@ func TestSwapCheck_WithMockReader(t *testing.T) {
 	})
 }
 
+func TestSwapCheck_PagingRateMatrix(t *testing.T) {
+	cases := []struct {
+		name string
+		used int64
+		rate float64
+		err  error
+		want checks.Status
+	}{
+		{"low usage and quiet", 20, 0, nil, checks.StatusOK},
+		{"low usage and active", 20, 2, nil, checks.StatusWarning},
+		{"low usage and high", 20, 128, nil, checks.StatusCritical},
+		{"warning usage and quiet", 60, 0, nil, checks.StatusWarning},
+		{"critical usage and quiet", 90, 0, nil, checks.StatusCritical},
+		{"rate unavailable", 20, 0, context.DeadlineExceeded, checks.StatusWarning},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			reader := &mockProcReader{memInfo: &checks.MemInfo{SwapTotal: 100, SwapFree: uint64(100 - tc.used)}}
+			c := NewSwapCheck(WithSwapProcReader(reader), WithSwapRateReader(func() (float64, error) { return tc.rate, tc.err }))
+			if got := c.Run(context.Background()).Status; got != tc.want {
+				t.Fatalf("status = %s, want %s", got, tc.want)
+			}
+		})
+	}
+}
+
 // =============================================================================
 // Zombie Check Mock Tests (additional scenarios)
 // =============================================================================

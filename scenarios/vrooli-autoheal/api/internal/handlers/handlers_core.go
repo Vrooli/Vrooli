@@ -94,6 +94,8 @@ type Handlers struct {
 	lastRetentionErr      string
 	reconcileProvider     reconcile.Provider
 	installedProvider     reconcile.InstalledProvider
+	startedAt             time.Time
+	starter               string
 	// skipLog keeps the action history to one row per auto-heal skip state
 	// change rather than one per tick.
 	skipLog *skipLogGate
@@ -149,6 +151,8 @@ func New(registry *checks.Registry, store *persistence.Store, plat *platform.Cap
 		remediationService: remediationService,
 		reconcileProvider:  reconcile.NewCoreSetProvider(),
 		installedProvider:  reconcile.NewFilesystemInstalledProvider(),
+		startedAt:          time.Now().UTC(),
+		starter:            "unknown",
 		skipLog:            newSkipLogGate(),
 	}
 }
@@ -169,6 +173,8 @@ func NewWithInterface(registry *checks.Registry, store StoreInterface, plat *pla
 		remediationService: remediationService,
 		reconcileProvider:  reconcile.NewCoreSetProvider(),
 		installedProvider:  reconcile.NewFilesystemInstalledProvider(),
+		startedAt:          time.Now().UTC(),
+		starter:            "unknown",
 		skipLog:            newSkipLogGate(),
 	}
 }
@@ -380,14 +386,28 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 	// cooldown, and unavailable-action decisions.
 	if logs, err := h.store.GetActionLogs(r.Context(), 100); err == nil {
 		skips := make([]persistence.ActionLog, 0)
+		issues := make(map[string]persistence.ActionLog)
+		latestOutcomeSeen := make(map[string]bool)
 		for _, log := range logs.Logs {
 			if log.ActionID == "autoheal-skip" {
 				skips = append(skips, log)
 			}
+			// Action history is newest-first. The latest outcome, whether
+			// successful or not, is authoritative for the current card. Do not
+			// resurrect an older failure after a later recovery succeeded.
+			if latestOutcomeSeen[log.CheckID] {
+				continue
+			}
+			latestOutcomeSeen[log.CheckID] = true
+			if !log.Success {
+				issues[log.CheckID] = log
+			}
 		}
 		response["autoHealSkips"] = skips
+		response["autoHealIssues"] = issues
 	} else {
 		response["autoHealSkips"] = []persistence.ActionLog{}
+		response["autoHealIssues"] = map[string]persistence.ActionLog{}
 	}
 	if reporter, ok := h.store.(operationalRetentionReporter); ok {
 		ctx, cancel := context.WithTimeout(r.Context(), healthDependencyTimeout)

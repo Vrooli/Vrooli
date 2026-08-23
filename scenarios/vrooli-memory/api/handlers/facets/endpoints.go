@@ -1,8 +1,9 @@
 package facets
 
 import (
-	facetsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/facets/facets_v1connect"
 	"vrooli-memory/internal/module"
+
+	facetsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/facets/facets_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

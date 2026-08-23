@@ -1,8 +1,9 @@
 package recall
 
 import (
-	recallconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall/recall_v1connect"
 	"vrooli-memory/internal/module"
+
+	recallconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall/recall_v1connect"
 )
 
 var Endpoints = []module.EndpointDescriptor{

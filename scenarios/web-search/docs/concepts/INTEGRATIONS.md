@@ -22,7 +22,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API (findings/briefs/audit) | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API (findings/briefs/audit) | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | SearXNG | resource | optional (try_start) | livesearch (L0/L1), research (L2 source) | JSON search API (`SEARXNG_URL`) | `web-search.live` degrades to unavailable; learnings unaffected. |
 | Qdrant | resource | optional (try_start) | findings (semantic index) | aisearch-go collection `web-search-findings` | Findings recall falls back to text matching; reindex deferred. |
 | Ollama | resource | optional (try_start) | findings (embeddings), livesearch/research (synthesis, distillation) | `embedding.default` + small chat role | Embeddings/synthesis unavailable; raw hits still returned. |

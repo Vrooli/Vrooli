@@ -3,12 +3,13 @@ package forest
 import (
 	"log"
 
+	"vrooli-memory/internal/ledgerclient"
+	"vrooli-memory/internal/module"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	forestv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/forest"
 	forestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/forest/forest_v1connect"
-	"vrooli-memory/internal/ledgerclient"
-	"vrooli-memory/internal/module"
 )
 
 // NewService builds the compaction service. The composition root owns the
