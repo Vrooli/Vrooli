@@ -4,13 +4,16 @@ import (
 	"context"
 	"log"
 	"path/filepath"
+	"time"
 
 	"unit-health/internal/discovery"
+	"unit-health/internal/evidence"
 	"unit-health/internal/module"
 	"unit-health/internal/runhistory"
 	internalvalidation "unit-health/internal/validation"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/maturity-go/assessment"
 	vroolicli "github.com/vrooli/vrooli-cli-go"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -30,6 +33,13 @@ var (
 // timing/status for cross-run diagnostics; pass nil to disable persistence.
 func Module(logger *log.Logger, repoRoot string, history runhistory.Store) module.Module {
 	svc := internalvalidation.New()
+	if cacheStore, cacheErr := newEvidenceStore(); cacheErr != nil {
+		if logger != nil {
+			logger.Printf("validation: evidence cache unavailable, continuing without reuse: %v", cacheErr)
+		}
+	} else {
+		svc.EvidenceStore = cacheStore
+	}
 	// DescribeProvider answers readiness from this provider's own descriptor,
 	// so a readiness probe no longer costs a full target analysis. A load
 	// failure yields the zero Describer, which reports Unimplemented and makes
@@ -42,6 +52,7 @@ func Module(logger *log.Logger, repoRoot string, history runhistory.Store) modul
 	svc.Spec = spec
 	svc.Locator = discovery.DefaultLocator{RepoRoot: repoRoot}
 	svc.History = history
+	svc.ReadinessResolver = internalvalidation.SDAReadinessResolver{}
 	// Capture host facts once; they do not change during the process lifetime.
 	// A failure (CLI unavailable) is non-fatal — the metrics collector backfills
 	// os/arch/num_cpu from the stdlib, leaving richer facts unset.
@@ -70,6 +81,23 @@ func Module(logger *log.Logger, repoRoot string, history runhistory.Store) modul
 	}
 }
 
+const (
+	evidenceCacheMaxBytes = 512 << 20
+	evidenceCacheMaxAge   = 24 * time.Hour
+)
+
+func newEvidenceStore() (*evidence.Store, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli"})
+	if err != nil {
+		return nil, err
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "unit-health"})
+	if err != nil {
+		return nil, err
+	}
+	return evidence.NewStore(filepath.Join(paths.CacheDir, "validation-evidence"), evidenceCacheMaxBytes, evidenceCacheMaxAge)
+}
+
 // Schema returns the empty schema: validation owns no database tables.
 func Schema() string { return "" }
 
@@ -83,8 +111,8 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Validate scenario test maturity",
 		Description: "Discovers test surfaces through Code Facts, plans and optionally runs the canonical test commands, analyzes coverage/architecture/quality, and returns normalized findings plus a shared maturity assessment.",
 		Category:    "validation",
-		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "workspaces": "array<string>", "include_execution": "bool", "use_cache": "bool"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"status": "string", "surfaces": "array<TestSurface>", "workspaces": "array<TestWorkspace>", "findings": "array<ValidationFinding>", "coverage": "array<CoverageTarget>", "projection_checks": "array<ProjectionCheck>", "maturity": "MaturitySummary", "assessment": "common.v1.MaturityAssessment"}},
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "workspaces": "array<string>", "include_execution": "bool", "use_cache": "bool", "fast_test_only": "bool"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"status": "string", "surfaces": "array<TestSurface>", "workspaces": "array<TestWorkspace>", "findings": "array<ValidationFinding>", "coverage": "array<CoverageTarget>", "projection_checks": "array<ProjectionCheck>", "maturity": "MaturitySummary", "assessment": "common.v1.MaturityAssessment", "cache_hit": "bool", "cache_miss_reason": "string", "cache_invalidated_dimensions": "array<string>", "cache_saved_wall_time_ms": "int64", "cache_saved_cpu_time_ms": "int64", "cache_retained_bytes": "int64"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
 	},
 	{

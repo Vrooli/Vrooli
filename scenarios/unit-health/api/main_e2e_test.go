@@ -43,13 +43,6 @@ import (
 )
 
 func TestE2E_BinaryBootsAndServesHealth(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		// SIGTERM is not portable to Windows; the e2e test is gated to
-		// Unix-likes. Windows CI (when added) gets a separate variant
-		// that uses os.Process.Kill or sends Ctrl+Break via taskkill.
-		t.Skip("e2e binary boot test relies on SIGTERM; not portable to Windows")
-	}
-
 	binary := buildBinary(t)
 	port := pickFreePort(t)
 	dbPath := filepath.Join(t.TempDir(), "e2e.db")
@@ -103,15 +96,20 @@ func TestE2E_BinaryBootsAndServesHealth(t *testing.T) {
 		}
 	}
 
-	// Graceful shutdown: SIGTERM and assert the process exits cleanly.
-	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+	// Graceful shutdown on Unix; Windows has no portable SIGTERM equivalent,
+	// so terminate the real process and still assert that the listener exits.
+	if runtime.GOOS == "windows" {
+		if err := cmd.Process.Kill(); err != nil {
+			t.Fatalf("terminate API process: %v", err)
+		}
+	} else if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		t.Fatalf("send SIGTERM: %v", err)
 	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 	select {
 	case err := <-done:
-		if err != nil {
+		if err != nil && runtime.GOOS != "windows" {
 			// SIGTERM-induced exit may surface as a non-nil error
 			// depending on api-core's signal handling. Accept the
 			// signal-terminated exit class but flag any unexpected

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "vrooli lifecycle protect -- node server.js",
     "dev": "vrooli lifecycle protect -- nodemon server.js",
-    "build": "cd ../ui-react && npm run build"
+    "build": "npm --prefix ../ui-react run build"
   },
   "dependencies": {
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",

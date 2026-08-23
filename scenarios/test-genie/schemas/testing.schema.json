@@ -790,6 +790,10 @@
       "description": "One interaction-flow's performance thresholds. Only the axes a targeted capture can measure (LCP and the slowest component's avg/max commit time); build/bundle/startup are scenario-level only. Ratchet is inherited from the parent performance.budgets.ratchet. Zero or absent means the axis is unset.",
       "additionalProperties": false,
       "properties": {
+        "load_only": {
+          "type": "boolean",
+          "description": "Whether the flow is measured only during initial load."
+        },
         "lcp_max_ms": {
           "type": "integer",
           "minimum": 0,
@@ -804,6 +808,42 @@
           "type": "number",
           "minimum": 0,
           "description": "Max commit time for the slowest component during this flow, in milliseconds."
+        },
+        "long_task_total_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max total long-task duration for this flow, in milliseconds."
+        },
+        "long_task_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max individual long-task duration for this flow, in milliseconds."
+        },
+        "raster_total_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max total raster duration for this flow, in milliseconds."
+        },
+        "layout_total_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max total layout duration for this flow, in milliseconds."
+        },
+        "paint_total_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max total paint duration for this flow, in milliseconds."
+        },
+        "dropped_frame_rate_max": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Max dropped-frame rate for this flow."
+        },
+        "input_event_count_min": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum input-event count expected for this flow."
         }
       }
     },
@@ -1059,8 +1099,8 @@
       "properties": {
         "version": {
           "type": "string",
-          "pattern": "^\\d+\\.\\d+\\.\\d+$",
-          "description": "Policy-profile contract version."
+          "const": "2.0.0",
+          "description": "Versioned Unit Health v2 policy-profile contract."
         },
         "template": {
           "type": "object",
@@ -1097,6 +1137,13 @@
             "$ref": "#/definitions/unit_policy_class"
           },
           "description": "Named policy classes referenced by required roles and additive policies."
+        },
+        "runner_profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/unit_runner_profile"
+          },
+          "description": "Named bounded execution profiles resolved by adapters."
         },
         "customization": {
           "$ref": "#/definitions/unit_policy_customization"
@@ -1150,7 +1197,26 @@
     "unit_policy_class": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["adapter", "runner_profile", "test_kind", "hermetic"],
       "properties": {
+        "adapter": {
+          "$ref": "#/definitions/unit_adapter_ref"
+        },
+        "runner_profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "test_kind": {
+          "type": "string",
+          "enum": ["unit", "component", "repository", "integration", "workflow"]
+        },
+        "platforms": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "hermetic": {
+          "$ref": "#/definitions/unit_hermeticity"
+        },
         "language": {
           "type": "string",
           "minLength": 1
@@ -1161,14 +1227,8 @@
         },
         "package_manager": {
           "type": "string",
-          "enum": [
-            "go",
-            "pnpm",
-            "npm",
-            "yarn",
-            "pytest",
-            "bats"
-          ]
+          "minLength": 1,
+          "description": "Adapter-owned package or toolchain identifier; the generic policy contract does not close this vocabulary."
         },
         "coverage": {
           "$ref": "#/definitions/unit_coverage_policy"
@@ -1179,6 +1239,45 @@
         "projection": {
           "$ref": "#/definitions/unit_projection_policy"
         }
+      }
+    },
+    "unit_adapter_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1}
+      }
+    },
+    "unit_runner_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu_weight", "memory_bytes", "max_workers", "timeout_seconds", "no_output_timeout_seconds", "sharding", "network", "filesystem"],
+      "properties": {
+        "cpu_weight": {"type": "integer", "minimum": 0},
+        "memory_bytes": {"type": "integer", "minimum": 0},
+        "max_workers": {"type": "integer", "minimum": 1},
+        "timeout_seconds": {"type": "integer", "minimum": 1},
+        "no_output_timeout_seconds": {"type": "integer", "minimum": 1},
+        "sharding": {"type": "string", "enum": ["none", "file", "workspace", "static"]},
+        "network": {"type": "string", "enum": ["deny", "allow_declared", "allow"]},
+        "filesystem": {"type": "string", "enum": ["temporary_root", "workspace_readonly", "workspace"]},
+        "platforms": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "unit_hermeticity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network", "filesystem", "restore_environment"],
+      "properties": {
+        "network": {"type": "string", "enum": ["deny", "allow_declared", "allow"]},
+        "filesystem": {"type": "string", "enum": ["temporary_root", "workspace_readonly", "workspace"]},
+        "temporary_root": {"type": "boolean"},
+        "restore_environment": {"type": "boolean"},
+        "detect_open_handles": {"type": "boolean"},
+        "detect_child_leaks": {"type": "boolean"},
+        "order_independent": {"type": "boolean"}
       }
     },
     "unit_coverage_policy": {
@@ -1251,26 +1350,10 @@
             "minLength": 1
           }
         },
-        "vitest": {
+        "settings": {
           "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "environment": {
-              "type": "string",
-              "minLength": 1
-            },
-            "setup_files": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "minLength": 1
-              }
-            },
-            "coverage_provider": {
-              "type": "string",
-              "minLength": 1
-            }
-          }
+          "additionalProperties": true,
+          "description": "Adapter-owned projection settings. The selected adapter defines and validates the keys."
         }
       }
     },

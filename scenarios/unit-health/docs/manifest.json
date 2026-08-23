@@ -969,6 +969,22 @@
           }
         },
         {
+          "path": "reference/adapter-authoring.md",
+          "docType": "adapter-reference",
+          "title": "Adapter Authoring",
+          "aliases": ["adapters", "adapter-contract"],
+          "description": "Versioned Unit Health adapter, typed command, artifact, and analyzer contract",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["adapter-contract", "adapter-authoring"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Unit Health adapter contract"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
           "path": "reference/ui-manifest.md",
           "docType": "ui-manifest-reference",
           "title": "UI Manifest",

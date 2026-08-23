@@ -29,6 +29,7 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		Workspaces:       splitCSV(ctx.FlagValues("workspace")),
 		IncludeExecution: ctx.BoolFlag("execution"),
 		UseCache:         true,
+		FastTestOnly:     ctx.BoolFlag("fast-test-only"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("validate scenario %q", scenario), err, nil)

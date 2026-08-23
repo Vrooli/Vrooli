@@ -11,13 +11,19 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"unit-health/internal/discovery"
+	"unit-health/internal/evidence"
 	"unit-health/internal/executor"
+	"unit-health/internal/readiness"
 	"unit-health/internal/runhistory"
 
 	"github.com/vrooli/api-core/metrics"
@@ -41,6 +47,7 @@ type Service struct {
 	Executor executor.Runner
 	// MaxConcurrency bounds parallel command execution. Defaults to NumCPU/2.
 	MaxConcurrency int
+	Admission      *executor.Admission
 	// History persists executed runs and supplies cross-run timing/status
 	// history for the diagnostics analyzer. Nil disables persistence; the
 	// diagnostics then fall back to single-run signals only.
@@ -49,7 +56,69 @@ type Service struct {
 	// Analyzer. Tests inject a deterministic closure; production defaults to
 	// the live target-DAG export and remains conservative if it is unavailable.
 	DependencyResolver DependencyResolver
-	Now                func() time.Time
+	// ReadinessResolver consumes governed dependency readiness. It is distinct
+	// from DependencyResolver, which only supplies graph closure for static
+	// architecture analysis.
+	ReadinessResolver interface {
+		Check(context.Context, string, string, string) (readiness.Report, error)
+	}
+	// EvidenceStore is optional. When configured, exact complete execution
+	// responses can be reused without starting runner children.
+	EvidenceStore     *evidence.Store
+	PolicyDigest      string
+	RunnerProfile     string
+	ToolchainIdentity string
+	Now               func() time.Time
+	cacheMu           sync.Mutex
+	cacheFlights      map[string]*cacheFlight
+}
+
+type cacheFlight struct {
+	done chan struct{}
+}
+
+func (s *Service) beginCacheFlight(key string) (bool, *cacheFlight) {
+	s.cacheMu.Lock()
+	defer s.cacheMu.Unlock()
+	if s.cacheFlights == nil {
+		s.cacheFlights = make(map[string]*cacheFlight)
+	}
+	if flight, exists := s.cacheFlights[key]; exists {
+		return false, flight
+	}
+	flight := &cacheFlight{done: make(chan struct{})}
+	s.cacheFlights[key] = flight
+	return true, flight
+}
+
+func (s *Service) finishCacheFlight(key string, flight *cacheFlight) {
+	s.cacheMu.Lock()
+	if current, exists := s.cacheFlights[key]; exists && current == flight {
+		delete(s.cacheFlights, key)
+		close(flight.done)
+	}
+	s.cacheMu.Unlock()
+}
+
+func cachedResponse(record evidence.Record, runID string) (Response, bool) {
+	var response Response
+	if err := json.Unmarshal(record.Payload, &response); err != nil {
+		return Response{}, false
+	}
+	var savedWallTime int64
+	response.CacheSavedCPUTimeMS = 0
+	for _, command := range response.CommandResults {
+		savedWallTime += command.DurationMS
+		response.CacheSavedCPUTimeMS += command.CPUTimeMS
+	}
+	response.RunID = runID
+	response.CacheHit = true
+	response.CacheMissReason = ""
+	response.CacheInvalidatedDimensions = nil
+	response.CacheSavedWallTimeMS = savedWallTime
+	response.CacheRetainedBytes = int64(len(record.Payload))
+	response.Artifacts = buildArtifacts(response)
+	return response, true
 }
 
 // Request identifies the validation target and execution options.
@@ -60,30 +129,37 @@ type Request struct {
 	Workspaces       []string
 	IncludeExecution bool
 	UseCache         bool
+	FastTestOnly     bool
 }
 
 // Response is the engine's normalized result. It maps one-to-one onto
 // validationv1.ValidateScenarioResponse.
 type Response struct {
-	RunID              string
-	Status             string
-	Summary            string
-	Scenario           string
-	TargetKind         string
-	TargetPath         string
-	DegradedReason     string
-	Surfaces           []Surface
-	Workspaces         []Workspace
-	Plan               ExecutionPlan
-	CommandResults     []CommandResult
-	Coverage           []CoverageTarget
-	ProjectionChecks   []ProjectionCheck
-	Findings           []Finding
-	SuppressedFindings []Finding
-	Diagnostics        []Diagnostic
-	Maturity           Maturity
-	NextSteps          []string
-	Artifacts          []Artifact
+	RunID                      string
+	Status                     string
+	Summary                    string
+	Scenario                   string
+	TargetKind                 string
+	TargetPath                 string
+	DegradedReason             string
+	Surfaces                   []Surface
+	Workspaces                 []Workspace
+	Plan                       ExecutionPlan
+	CommandResults             []CommandResult
+	Coverage                   []CoverageTarget
+	ProjectionChecks           []ProjectionCheck
+	Findings                   []Finding
+	SuppressedFindings         []Finding
+	Diagnostics                []Diagnostic
+	Maturity                   Maturity
+	NextSteps                  []string
+	Artifacts                  []Artifact
+	CacheHit                   bool
+	CacheMissReason            string
+	CacheInvalidatedDimensions []string
+	CacheSavedWallTimeMS       int64
+	CacheSavedCPUTimeMS        int64
+	CacheRetainedBytes         int64
 }
 
 // Artifact is a labeled, typed reference into a run's outputs (the run id, a
@@ -98,29 +174,44 @@ type Artifact struct {
 
 // Surface is a discovered scenario surface from Code Facts.
 type Surface struct {
-	ID             string
-	Kind           string
-	Language       string
-	Framework      string
-	RootPath       string
-	PackageManager string
-	Status         string
-	Confidence     float64
+	ID                string
+	Kind              string
+	Language          string
+	Framework         string
+	RootPath          string
+	PackageManager    string
+	Status            string
+	Confidence        float64
+	ToolchainIdentity string
 }
 
 // Workspace is a testable unit with its canonical framework and commands.
 type Workspace struct {
-	ID                 string
-	Language           string
-	RootPath           string
-	Framework          string
-	CanonicalFramework string
-	InstallCommand     string
-	TestCommand        string
-	CoverageCommand    string
-	PackageManager     string
-	Status             string
-	DegradedReason     string
+	ID                     string
+	Language               string
+	RootPath               string
+	Framework              string
+	CanonicalFramework     string
+	TestCommand            string
+	CoverageCommand        string
+	TestExecutable         string
+	TestArgs               []string
+	CoverageExecutable     string
+	CoverageArgs           []string
+	TestArtifacts          []Artifact
+	TestPath               string
+	AdapterID              string
+	AdapterVersion         string
+	TestKind               string
+	RunnerProfile          string
+	Resource               ResourceLimits
+	TimeoutSeconds         int
+	NoOutputTimeoutSeconds int
+	Hermetic               executor.HermeticPolicy
+	PackageManager         string
+	ToolchainIdentity      string
+	Status                 string
+	DegradedReason         string
 }
 
 // ExecutionPlan is the bounded set of commands Unit Health would run.
@@ -131,23 +222,33 @@ type ExecutionPlan struct {
 
 // PlannedCommand is a single command in the execution plan.
 type PlannedCommand struct {
-	WorkspaceID      string
-	Name             string
-	Command          string
-	WorkingDirectory string
-	TimeoutSeconds   int
-	// Kind is "install" for a pre-test dependency install step or "test" for
-	// the test/coverage command itself. Install steps run (and are gated)
-	// before their workspace's test step so a missing dependency classifies as
-	// TEST_DEPENDENCY_MISSING instead of a generic test misconfiguration.
-	Kind string
+	WorkspaceID            string
+	Name                   string
+	Command                string
+	Executable             string
+	Args                   []string
+	Env                    map[string]string
+	Artifacts              []Artifact
+	Resource               ResourceLimits
+	WorkingDirectory       string
+	TimeoutSeconds         int
+	NoOutputTimeoutSeconds int
+	// Kind identifies the command graph stage. Unit Health currently submits
+	// only test/coverage commands; dependency setup is owned externally by
+	// Scenario Dependency Analyzer.
+	Kind     string
+	TestKind string
+	Hermetic executor.HermeticPolicy
+}
+
+type ResourceLimits struct {
+	CPUWeight   int
+	MemoryBytes int64
+	MaxWorkers  int
 }
 
 // Command kinds for PlannedCommand.Kind.
-const (
-	kindInstall = "install"
-	kindTest    = "test"
-)
+const kindTest = "test"
 
 // CommandResult is the outcome of one executed command.
 type CommandResult struct {
@@ -162,6 +263,8 @@ type CommandResult struct {
 	FailureReason    string
 	FailureClass     string
 	DurationMS       int64
+	CPUTimeMS        int64
+	PeakRSSBytes     int64
 }
 
 // CoverageTarget is per-file/per-surface coverage.
@@ -235,7 +338,20 @@ type Maturity struct {
 }
 
 // New returns a Service with default (real-clock) wiring.
-func New() *Service { return &Service{} }
+func New() *Service {
+	capacity := runtime.NumCPU() / 2
+	if capacity < 1 {
+		capacity = 1
+	}
+	// Keep aggregate memory admission bounded even when the host does not
+	// expose a portable memory API. The floor accommodates one constrained UI
+	// profile; CPU admission still scales with the host.
+	memoryCapacity := int64(capacity) * 512 << 20
+	if memoryCapacity < 2<<30 {
+		memoryCapacity = 2 << 30
+	}
+	return &Service{Admission: executor.NewAdmission(capacity, memoryCapacity)}
+}
 
 func (s *Service) now() time.Time {
 	if s.Now != nil {
@@ -295,9 +411,85 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		resp.Artifacts = buildArtifacts(resp)
 		return resp, nil
 	}
+	inv = filterRequestedWorkspaces(inv, req.Workspaces)
+
+	surfaces, workspaces, plan, findings := buildPlan(scenario, inv, nowStr)
+	if req.FastTestOnly {
+		plan = buildExecutionPlanForMode(workspaces, true)
+	}
+	readinessReport, readinessBlocks := s.checkDependencyReadiness(ctx, targetKind, scenario, inv.RootPath, req.IncludeExecution)
+	if readinessBlocks {
+		for _, requirement := range readinessReport.Requirements {
+			findings = append(findings, Finding{
+				ID:       codeTestDependencyMissing + "-" + requirement.ID,
+				Scenario: scenario, Code: codeTestDependencyMissing, Category: "dependency", Severity: codeSeverity[codeTestDependencyMissing],
+				Message: "Required test dependency is not ready.", Evidence: fmt.Sprintf("%s=%s source=%s", requirement.ID, requirement.Status, requirement.Source),
+				Expected: "All declared unit-test dependencies are ready.", Observed: string(requirement.Status),
+				WhyItMatters: "Unit Health must not run a test against an absent or stale toolchain.", Remediation: requirement.Remediation, CreatedAt: nowStr,
+			})
+		}
+	}
+
+	// Exact cache hits return after discovery, planning, and dependency
+	// readiness, but before source analyzers. This keeps the provider's warm
+	// path cheap without allowing a previously-valid result to mask a currently
+	// unavailable governed dependency.
+	var cacheKey evidence.Key
+	cacheMissReason := ""
+	cacheInvalidatedDimensions := []string(nil)
+	var activeFlight *cacheFlight
+	var activeFlightKey string
+	defer func() {
+		if activeFlight != nil {
+			s.finishCacheFlight(activeFlightKey, activeFlight)
+		}
+	}()
+	if req.IncludeExecution && req.UseCache && !readinessBlocks && s.EvidenceStore != nil && len(plan.Commands) > 0 {
+		if key, keyErr := s.evidenceKeyForMode(inv.RootPath, targetKind, workspaces, req.FastTestOnly); keyErr == nil {
+			cacheKey = key
+			for {
+				if cached, getErr := s.EvidenceStore.Get(key, now); getErr == nil {
+					if cachedResponse, ok := cachedResponse(cached, runID); ok {
+						return cachedResponse, nil
+					}
+					cacheMissReason = "corrupt_or_unreadable_evidence"
+					cacheInvalidatedDimensions = []string{"evidence_integrity"}
+				} else {
+					if errors.Is(getErr, evidence.ErrCorrupt) {
+						cacheMissReason = "corrupt_or_unreadable_evidence"
+						cacheInvalidatedDimensions = []string{"evidence_integrity"}
+					} else if errors.Is(getErr, evidence.ErrStale) {
+						cacheMissReason = "stale_evidence"
+						cacheInvalidatedDimensions = []string{"evidence_age"}
+					} else if errors.Is(getErr, evidence.ErrMiss) {
+						cacheMissReason = "exact_evidence_not_found_or_expired"
+						cacheInvalidatedDimensions = []string{"exact_key_miss"}
+					} else {
+						cacheMissReason = "evidence_store_error"
+						cacheInvalidatedDimensions = []string{"evidence_store"}
+					}
+				}
+				owner, flight := s.beginCacheFlight(key.Digest)
+				if owner {
+					activeFlight, activeFlightKey = flight, key.Digest
+					break
+				}
+				select {
+				case <-flight.done:
+					continue
+				case <-ctx.Done():
+					return Response{}, ctx.Err()
+				}
+			}
+			// A miss is expected when source, policy, platform, or artifacts
+			// changed. It must never prevent a correct fresh run.
+		} else {
+			cacheMissReason = "evidence_key_unavailable"
+			cacheInvalidatedDimensions = []string{"source", "configuration", "dependency", "toolchain", "adapter", "policy", "runner_profile", "platform", "coverage"}
+		}
+	}
 
 	static := collector.Stage("static-analysis")
-	surfaces, workspaces, plan, findings := buildPlan(scenario, inv, nowStr)
 	closure := DependencyClosure{}
 	resolver := s.DependencyResolver
 	if resolver == nil {
@@ -330,7 +522,7 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	// the profile free of execute-path timing entirely.
 	var commandResults []CommandResult
 	var coverage []CoverageTarget
-	if req.IncludeExecution && len(plan.Commands) > 0 {
+	if req.IncludeExecution && len(plan.Commands) > 0 && !readinessBlocks {
 		execStage := collector.Stage("execute")
 		commandResults, findings = s.execute(ctx, scenario, plan, findings, nowStr, execStage)
 		if targetKind == "scenario" {
@@ -363,20 +555,22 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	findings, suppressedFindings = splitSuppressedFindings(findings)
 
 	resp := Response{
-		RunID:              runID,
-		Scenario:           scenario,
-		TargetKind:         targetKind,
-		TargetPath:         inv.RootPath,
-		DegradedReason:     inv.DegradedReason,
-		Surfaces:           surfaces,
-		Workspaces:         workspaces,
-		Plan:               plan,
-		CommandResults:     commandResults,
-		Coverage:           coverage,
-		ProjectionChecks:   projectionChecks,
-		Diagnostics:        diagnostics,
-		Findings:           findings,
-		SuppressedFindings: suppressedFindings,
+		RunID:                      runID,
+		Scenario:                   scenario,
+		TargetKind:                 targetKind,
+		TargetPath:                 inv.RootPath,
+		DegradedReason:             inv.DegradedReason,
+		Surfaces:                   surfaces,
+		Workspaces:                 workspaces,
+		Plan:                       plan,
+		CommandResults:             commandResults,
+		Coverage:                   coverage,
+		ProjectionChecks:           projectionChecks,
+		Diagnostics:                diagnostics,
+		Findings:                   findings,
+		SuppressedFindings:         suppressedFindings,
+		CacheMissReason:            cacheMissReason,
+		CacheInvalidatedDimensions: cacheInvalidatedDimensions,
 	}
 	resp.Status = deriveStatus(inv, findings)
 	if targetKind == "scenario" {
@@ -387,6 +581,15 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	resp.Summary = summarize(scenario, surfaces, workspaces, findings)
 	resp.NextSteps = nextSteps(resp.Status, inv)
 	resp.Artifacts = buildArtifacts(resp)
+	if req.IncludeExecution && req.UseCache && s.EvidenceStore != nil && cacheKey.Digest != "" && cacheableResponse(resp) {
+		if payload, marshalErr := json.Marshal(resp); marshalErr == nil {
+			resp.CacheRetainedBytes = int64(len(payload))
+			if updated, updatedErr := json.Marshal(resp); updatedErr == nil {
+				payload = updated
+			}
+			_ = s.EvidenceStore.Put(cacheKey, payload, now)
+		}
+	}
 
 	// Persist the run for cross-run diagnostics. Only executed runs carry timing
 	// worth recording. Best-effort: a persistence failure must not fail a run.
@@ -394,6 +597,70 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		_ = s.History.Record(ctx, buildRunRecord(resp, plan, now))
 	}
 	return resp, nil
+}
+
+// filterRequestedWorkspaces applies the CLI/API workspace selector before
+// planning, analysis, caching, and execution. A selector is allowed to name a
+// discovered surface id, its workspace root, or the root basename so callers
+// can use stable ids without learning filesystem layout. Unknown selectors
+// intentionally produce the normal explicit no-surface finding rather than
+// silently validating every workspace.
+func filterRequestedWorkspaces(inv discovery.Inventory, requested []string) discovery.Inventory {
+	if len(requested) == 0 {
+		return inv
+	}
+	wanted := make(map[string]struct{}, len(requested))
+	for _, value := range requested {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			wanted[strings.ToLower(filepath.Clean(value))] = struct{}{}
+		}
+	}
+	if len(wanted) == 0 {
+		return inv
+	}
+	selected := make([]discovery.Surface, 0, len(wanted))
+	for _, surface := range inv.Surfaces {
+		candidates := []string{surface.ID, surface.RootPath, filepath.Base(filepath.Clean(surface.RootPath))}
+		matched := false
+		for _, candidate := range candidates {
+			if _, ok := wanted[strings.ToLower(filepath.Clean(candidate))]; ok {
+				matched = true
+				break
+			}
+		}
+		if matched {
+			selected = append(selected, surface)
+		}
+	}
+	if len(selected) == 0 {
+		inv.DegradedReason = fmt.Sprintf("requested workspace(s) %q were not found among discovered surfaces", requested)
+	}
+	inv.Surfaces = selected
+	return inv
+}
+
+func (s *Service) checkDependencyReadiness(ctx context.Context, targetKind, scenario, root string, executionRequested bool) (readiness.Report, bool) {
+	if !executionRequested || s.ReadinessResolver == nil {
+		return readiness.Report{Status: readiness.Ready, Source: "not-requested"}, false
+	}
+	report, err := s.ReadinessResolver.Check(ctx, targetKind, scenario, root)
+	if err != nil {
+		return readiness.Report{Status: readiness.Unavailable, Source: "scenario-dependency-analyzer", Requirements: []readiness.Requirement{{ID: "dependency-readiness", Kind: "readiness", Status: readiness.Unavailable, Source: "scenario-dependency-analyzer", Remediation: "Restore Scenario Dependency Analyzer readiness evidence before executing unit tests."}}}, true
+	}
+	if validateErr := report.Validate(); validateErr != nil {
+		return readiness.Report{Status: readiness.Unavailable, Source: "scenario-dependency-analyzer", Requirements: []readiness.Requirement{{ID: "dependency-readiness", Kind: "readiness", Status: readiness.Unavailable, Source: "scenario-dependency-analyzer", Remediation: "Publish valid dependency-readiness evidence through Scenario Dependency Analyzer."}}}, true
+	}
+	return report, report.BlocksExecution()
+}
+
+func cacheableResponse(resp Response) bool {
+	for _, result := range resp.CommandResults {
+		if result.Status != executor.StatusPassed {
+			return false
+		}
+	}
+	return len(resp.CommandResults) > 0
 }
 
 // buildArtifacts derives the labeled output references for a completed run from
@@ -422,7 +689,7 @@ func buildArtifacts(resp Response) []Artifact {
 	}
 	// Coverage artifacts live under each workspace that ran a coverage command;
 	// the per-file CoverageTarget rows carry file paths but the artifact (Go
-	// coverage.out / Vitest coverage/) is workspace-scoped.
+	// adapter-declared coverage artifacts are workspace-scoped.
 	covered := make(map[string]bool, len(resp.Coverage))
 	for _, c := range resp.Coverage {
 		covered[c.SurfaceID] = true
@@ -480,6 +747,11 @@ func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPl
 			concurrency = 1
 		}
 	}
+	for _, command := range plan.Commands {
+		if command.Resource.MaxWorkers > 0 && command.Resource.MaxWorkers < concurrency {
+			concurrency = command.Resource.MaxWorkers
+		}
+	}
 
 	// Per-workspace child stages narrow execute-path timing to each workspace,
 	// with a `tests` gauge counting the test commands planned for it. A nil
@@ -505,51 +777,19 @@ func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPl
 		}
 	}()
 
-	// Pass 1: dependency installs. These are independent across workspaces, so
-	// they run concurrently, but each gates its own workspace's test command —
-	// a failed install means the test is never run (it would just fail with a
-	// missing-module error that misclassifies the real cause).
-	var installPlanned []PlannedCommand
-	for _, pc := range plan.Commands {
-		if pc.Kind == kindInstall {
-			installPlanned = append(installPlanned, pc)
-		}
-	}
 	out := make([]CommandResult, 0, len(plan.Commands))
-	failedInstall := map[string]bool{}
-	installResults := executor.RunAll(ctx, runner, buildExecCommands(installPlanned), concurrency)
-	for i, r := range installResults {
-		pc := installPlanned[i]
-		out = append(out, toCommandResult(r, pc))
-		if r.Status != executor.StatusPassed {
-			failedInstall[pc.WorkspaceID] = true
-			findings = append(findings, installFinding(scenario, pc, r, now))
-		}
+	// Validation is observational. Dependency setup belongs to Scenario
+	// Dependency Analyzer or an explicit lifecycle workflow; Unit Health never
+	// mutates a workspace or invokes a package manager.
+	commands := buildExecCommands(plan.Commands)
+	var testResults []executor.Result
+	if s.Admission != nil {
+		testResults = executor.RunAllWithAdmission(ctx, runner, commands, concurrency, s.Admission)
+	} else {
+		testResults = executor.RunAll(ctx, runner, commands, concurrency)
 	}
-
-	// Pass 2: test/coverage commands, skipping workspaces whose install failed.
-	var testPlanned []PlannedCommand
-	for _, pc := range plan.Commands {
-		if pc.Kind == kindInstall {
-			continue
-		}
-		if failedInstall[pc.WorkspaceID] {
-			out = append(out, CommandResult{
-				Name:             pc.Name,
-				Command:          pc.Command,
-				WorkingDirectory: pc.WorkingDirectory,
-				Status:           statusSkipped,
-				FailureClass:     executor.ClassMissingDependency,
-				FailureReason:    "dependency install failed; test command not run",
-				TimeoutSeconds:   pc.TimeoutSeconds,
-			})
-			continue
-		}
-		testPlanned = append(testPlanned, pc)
-	}
-	testResults := executor.RunAll(ctx, runner, buildExecCommands(testPlanned), concurrency)
 	for i, r := range testResults {
-		out = append(out, toCommandResult(r, testPlanned[i]))
+		out = append(out, toCommandResult(r, plan.Commands[i]))
 		if f, ok := executionFinding(scenario, r, now); ok {
 			findings = append(findings, f)
 		}
@@ -557,22 +797,32 @@ func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPl
 	return out, findings
 }
 
-// statusSkipped marks a test command that was not run because its dependency
-// install failed. It is a validation-layer outcome, not an executor result.
-const statusSkipped = "skipped"
-
 func buildExecCommands(planned []PlannedCommand) []executor.Command {
 	cmds := make([]executor.Command, 0, len(planned))
 	for _, pc := range planned {
 		cmds = append(cmds, executor.Command{
-			WorkspaceID:    pc.WorkspaceID,
-			Name:           pc.Name,
-			Argv:           strings.Fields(pc.Command),
-			Dir:            pc.WorkingDirectory,
-			TimeoutSeconds: pc.TimeoutSeconds,
+			WorkspaceID:     pc.WorkspaceID,
+			Name:            pc.Name,
+			Executable:      pc.Executable,
+			Args:            append([]string(nil), pc.Args...),
+			Dir:             pc.WorkingDirectory,
+			TimeoutSeconds:  pc.TimeoutSeconds,
+			NoOutputTimeout: time.Duration(pc.NoOutputTimeoutSeconds) * time.Second,
+			Hermetic:        pc.Hermetic,
+			Env:             pc.Env,
+			Artifacts:       toExecutorArtifacts(pc.Artifacts),
+			Resources:       executor.ResourceLimits{CPUWeight: pc.Resource.CPUWeight, MemoryBytes: pc.Resource.MemoryBytes, MaxWorkers: pc.Resource.MaxWorkers},
 		})
 	}
 	return cmds
+}
+
+func toExecutorArtifacts(in []Artifact) []executor.Artifact {
+	out := make([]executor.Artifact, 0, len(in))
+	for _, artifact := range in {
+		out = append(out, executor.Artifact{Label: artifact.Label, Kind: artifact.Kind, Path: artifact.Reference})
+	}
+	return out
 }
 
 func toCommandResult(r executor.Result, pc PlannedCommand) CommandResult {
@@ -588,34 +838,8 @@ func toCommandResult(r executor.Result, pc PlannedCommand) CommandResult {
 		FailureReason:    r.FailureReason,
 		FailureClass:     r.FailureClass,
 		DurationMS:       r.DurationMS,
-	}
-}
-
-// installFinding maps a failed dependency install onto a TEST_DEPENDENCY_MISSING
-// finding so the real cause (a broken/absent install) is not misreported as a
-// test misconfiguration.
-func installFinding(scenario string, pc PlannedCommand, r executor.Result, now string) Finding {
-	evidence := r.FailureReason
-	if tail := strings.TrimSpace(r.Stderr); tail != "" {
-		evidence = r.FailureReason + "\n--- stderr tail ---\n" + tail
-	} else if tail := strings.TrimSpace(r.Stdout); tail != "" {
-		evidence = r.FailureReason + "\n--- stdout tail ---\n" + tail
-	}
-	return Finding{
-		ID:            codeTestDependencyMissing + "-" + pc.WorkspaceID,
-		Scenario:      scenario,
-		WorkspaceID:   pc.WorkspaceID,
-		Code:          codeTestDependencyMissing,
-		Category:      "execution",
-		Severity:      codeSeverity[codeTestDependencyMissing],
-		Message:       fmt.Sprintf("Dependency install %q failed for workspace %q; tests could not run.", pc.Command, pc.WorkspaceID),
-		Evidence:      evidence,
-		Expected:      "Dependencies install cleanly (lockfile-frozen) before the test command runs.",
-		Observed:      fmt.Sprintf("status=%s, class=%s, exit=%d", r.Status, r.FailureClass, r.ExitCode),
-		WhyItMatters:  "Without installed dependencies the test command cannot run, so the workspace is left unvalidated.",
-		Remediation:   "Commit a valid lockfile and ensure dependencies install; inspect the install output for the root cause.",
-		SourceCommand: pc.Command,
-		CreatedAt:     now,
+		CPUTimeMS:        r.CPUTimeMS,
+		PeakRSSBytes:     r.PeakRSSBytes,
 	}
 }
 
@@ -632,6 +856,8 @@ func executionFinding(scenario string, r executor.Result, now string) (Finding, 
 		code, category = codeTestTimeoutHang, "diagnostics"
 	case executor.ClassMisconfiguration:
 		code, category = codeTestMisconfiguration, "execution"
+	case executor.ClassUnsupported:
+		code, category = codeUnitPolicyInvalid, "policy"
 	default:
 		code, category = codeTestExecutionFailure, "execution"
 	}

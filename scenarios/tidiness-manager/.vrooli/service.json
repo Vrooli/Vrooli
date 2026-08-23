@@ -86,12 +86,6 @@
         "description": "Primary relational data store for issue tracking, campaign state, and scan history",
         "schema": "tidiness-manager"
       },
-      "redis": {
-        "type": "redis",
-        "enabled": false,
-        "required": false,
-        "description": "Optional caching layer for expensive operations (AI analysis results, file metrics)"
-      },
       "claude-code": {
         "type": "ai",
         "enabled": false,

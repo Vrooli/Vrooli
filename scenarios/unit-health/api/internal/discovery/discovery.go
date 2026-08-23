@@ -38,6 +38,21 @@ type Surface struct {
 	PackageManager string
 	Status         string
 	Confidence     float64
+	Toolchain      ToolchainObservation
+}
+
+// ToolchainObservation mirrors Code Facts' neutral observation contract. The
+// discovery package keeps it separate from policy so adapters can reconcile
+// facts with declared intent later.
+type ToolchainObservation struct {
+	Ecosystem         string
+	ManifestPaths     []string
+	LockfilePaths     []string
+	BuildSystems      []string
+	RunnerIndicators  []string
+	PackageManager    string
+	ToolchainIdentity string
+	Status            string
 }
 
 // Inventory is the normalized result of a Code Facts describe call.
@@ -195,15 +210,17 @@ func fromCodeFacts(report *factsv1.CodeFactsReport, scenarioName, targetKind, ro
 			root = filepath.Join(inv.RootPath, root)
 		}
 		unit := nearestParseUnit(parseByRoot, root)
+		toolchain := toolchainFromUnit(unit)
 		inv.Surfaces = append(inv.Surfaces, Surface{
 			ID:             s.GetId(),
 			Kind:           strings.TrimPrefix(strings.ToLower(s.GetKind().String()), "surface_kind_"),
 			Language:       languageFromUnit(unit, root),
-			Framework:      frameworkFromRoot(root),
+			Framework:      observedFramework(toolchain, root),
 			RootPath:       root,
-			PackageManager: packageManagerFromRoot(root),
+			PackageManager: observedPackageManager(toolchain, root),
 			Status:         strings.TrimPrefix(strings.ToLower(s.GetStatus().String()), "surface_status_"),
 			Confidence:     confidence(s.GetEvidence()),
+			Toolchain:      toolchain,
 		})
 	}
 	if len(inv.Surfaces) == 0 {
@@ -212,6 +229,62 @@ func fromCodeFacts(report *factsv1.CodeFactsReport, scenarioName, targetKind, ro
 		return fallback
 	}
 	return inv
+}
+
+func observedPackageManager(observation ToolchainObservation, root string) string {
+	if strings.TrimSpace(observation.PackageManager) != "" {
+		return observation.PackageManager
+	}
+	return packageManagerFromRoot(root)
+}
+
+func observedFramework(observation ToolchainObservation, root string) string {
+	if framework := frameworkFromToolchain(observation); framework != "" {
+		return framework
+	}
+	return frameworkFromRoot(root)
+}
+
+func toolchainFromUnit(unit *factsv1.ParseUnit) ToolchainObservation {
+	if unit == nil || unit.GetToolchain() == nil {
+		return ToolchainObservation{}
+	}
+	observation := unit.GetToolchain()
+	return ToolchainObservation{
+		Ecosystem: observation.GetEcosystem(), ManifestPaths: append([]string(nil), observation.GetManifestPaths()...),
+		LockfilePaths: append([]string(nil), observation.GetLockfilePaths()...), BuildSystems: append([]string(nil), observation.GetBuildSystems()...),
+		RunnerIndicators: append([]string(nil), observation.GetRunnerIndicators()...), PackageManager: observation.GetPackageManager(),
+		ToolchainIdentity: observation.GetToolchainIdentity(), Status: strings.TrimPrefix(strings.ToLower(observation.GetStatus().String()), "evidence_status_"),
+	}
+}
+
+// frameworkFromToolchain only translates observed runner indicators into a
+// lookup hint. Adapter selection still requires declared policy and platform
+// matching in Unit Health.
+func frameworkFromToolchain(observation ToolchainObservation) string {
+	for _, indicator := range observation.RunnerIndicators {
+		switch indicator {
+		case "dependency:vitest", "devDependency:vitest":
+			return "vitest"
+		case "dependency:jest", "devDependency:jest":
+			return "jest"
+		case "dependency:pytest", "devDependency:pytest", "config:pytest":
+			return "pytest"
+		}
+	}
+	switch observation.Ecosystem {
+	case "go":
+		return "go test"
+	case "rust":
+		return "cargo"
+	case "bash":
+		for _, indicator := range observation.RunnerIndicators {
+			if indicator == "source:.bats" {
+				return "bats"
+			}
+		}
+	}
+	return ""
 }
 
 func fallbackInventory(scenarioName, targetKind, rootPath string) Inventory {

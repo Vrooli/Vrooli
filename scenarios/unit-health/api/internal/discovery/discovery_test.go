@@ -71,6 +71,29 @@ func TestFromCodeFactsEmptyFallsBackToFilesystem(t *testing.T) {
 	}
 }
 
+func TestFromCodeFactsUsesNeutralToolchainObservation(t *testing.T) {
+	root := t.TempDir()
+	uiRoot := filepath.Join(root, "ui")
+	report := &factsv1.CodeFactsReport{
+		Target:   &factsv1.TargetContext{Scenario: "demo", RootPath: root},
+		Surfaces: []*factsv1.Surface{{Id: "ui", Kind: factsv1.SurfaceKind_SURFACE_KIND_UI, Path: uiRoot}},
+		ParseUnits: []*factsv1.ParseUnit{{
+			Language: "typescript", RootPath: uiRoot,
+			Toolchain: &factsv1.ToolchainObservation{
+				Ecosystem: "node", PackageManager: "pnpm@9", Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
+				RunnerIndicators: []string{"devDependency:vitest"},
+			},
+		}},
+	}
+	inv := fromCodeFacts(report, "demo", "scenario", root)
+	if len(inv.Surfaces) != 1 || inv.Surfaces[0].Framework != "vitest" {
+		t.Fatalf("surface did not use observed runner indicator: %+v", inv.Surfaces)
+	}
+	if inv.Surfaces[0].PackageManager != "pnpm@9" {
+		t.Fatalf("package manager = %q, want versioned observed value", inv.Surfaces[0].PackageManager)
+	}
+}
+
 func TestFallbackInventoryDiscoversRootNodeSurface(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "package.json"), `{"devDependencies":{"vitest":"latest","vite":"latest"}}`)

@@ -1,14 +1,11 @@
 package validation
 
 import (
-	"bufio"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
+
+	"unit-health/internal/adapters"
 )
 
 // defaultCoverageThreshold is the advisory per-file coverage gate used when a
@@ -87,11 +84,11 @@ func analyzeCoverage(scenario, scenarioRoot string, workspaces []Workspace, now 
 				Severity:     codeSeverity[codeCoverageAbsent],
 				FilePath:     ws.RootPath,
 				Message:      fmt.Sprintf("Workspace %q ran a coverage command but no coverage artifact was found.", ws.ID),
-				Evidence:     "no coverage.out, coverage-summary.json, or lcov.info under the workspace",
+				Evidence:     "no adapter-declared coverage artifact under the workspace",
 				Expected:     "A coverage artifact written by the canonical coverage command.",
 				Observed:     "no coverage artifact",
 				WhyItMatters: "Without a coverage artifact, hardening depth for this workspace is invisible.",
-				Remediation:  "Ensure the coverage command writes its artifact to the workspace (Go coverage.out, Vitest coverage/).",
+				Remediation:  "Ensure the adapter-declared coverage artifact is written to the workspace by the governed coverage command.",
 				CreatedAt:    now,
 			})
 			continue
@@ -205,143 +202,22 @@ func round2(v float64) float64 {
 // preferring language-canonical locations. It returns false when no artifact
 // exists.
 func readWorkspaceCoverage(ws Workspace) (map[string]fileCoverage, bool) {
-	switch ws.Language {
-	case "go":
-		if cov, ok := parseGoCoverProfile(filepath.Join(ws.RootPath, "coverage.out")); ok {
-			return cov, true
-		}
-		return nil, false
-	default:
-		// TypeScript/Vite (and any JS) write to coverage/ via Istanbul/V8.
-		dir := filepath.Join(ws.RootPath, "coverage")
-		if cov, ok := parseCoverageSummary(filepath.Join(dir, "coverage-summary.json")); ok {
-			return cov, true
-		}
-		if cov, ok := parseLCOV(filepath.Join(dir, "lcov.info")); ok {
-			return cov, true
-		}
+	artifacts := make([]adapters.Artifact, 0, len(ws.TestArtifacts))
+	for _, artifact := range ws.TestArtifacts {
+		artifacts = append(artifacts, adapters.Artifact{Label: artifact.Label, Kind: artifact.Kind, Path: artifact.Reference})
+	}
+	if len(artifacts) == 0 {
+		// Compatibility for hand-built contract fixtures that predate typed
+		// artifact declarations. Production plans always carry artifacts.
+		artifacts = adapters.DefaultCoverageArtifacts(ws.Language)
+	}
+	metrics, ok := adapters.ReadCoverage(ws.RootPath, artifacts)
+	if !ok {
 		return nil, false
 	}
-}
-
-// parseGoCoverProfile parses a Go cover profile into per-file statement coverage.
-func parseGoCoverProfile(path string) (map[string]fileCoverage, bool) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, false
+	coverage := make(map[string]fileCoverage, len(metrics))
+	for name, metric := range metrics {
+		coverage[name] = fileCoverage{covered: metric.Covered, total: metric.Total}
 	}
-	defer f.Close()
-
-	cov := map[string]fileCoverage{}
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 1024*1024), 4*1024*1024)
-	lines := 0
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" || strings.HasPrefix(line, "mode:") {
-			continue
-		}
-		// Format: <name>:<startLine>.<col>,<endLine>.<col> <numStmts> <count>
-		fields := strings.Fields(line)
-		if len(fields) != 3 {
-			continue
-		}
-		ci := strings.LastIndex(fields[0], ":")
-		if ci <= 0 {
-			continue
-		}
-		name := fields[0][:ci]
-		stmts, err1 := strconv.ParseInt(fields[1], 10, 64)
-		count, err2 := strconv.ParseInt(fields[2], 10, 64)
-		if err1 != nil || err2 != nil {
-			continue
-		}
-		fc := cov[name]
-		fc.total += stmts
-		if count > 0 {
-			fc.covered += stmts
-		}
-		cov[name] = fc
-		lines++
-	}
-	if lines == 0 {
-		return nil, false
-	}
-	return cov, true
-}
-
-// coverageSummaryEntry mirrors Istanbul/Vitest json-summary line metrics.
-type coverageSummaryEntry struct {
-	Lines struct {
-		Total   int64 `json:"total"`
-		Covered int64 `json:"covered"`
-	} `json:"lines"`
-}
-
-// parseCoverageSummary parses a Vitest/Istanbul coverage-summary.json file,
-// dropping the synthetic "total" aggregate (Unit Health re-aggregates per file).
-func parseCoverageSummary(path string) (map[string]fileCoverage, bool) {
-	raw := readFileString(path)
-	if raw == "" {
-		return nil, false
-	}
-	var summary map[string]coverageSummaryEntry
-	if err := json.Unmarshal([]byte(raw), &summary); err != nil {
-		return nil, false
-	}
-	cov := map[string]fileCoverage{}
-	for name, entry := range summary {
-		if strings.EqualFold(name, "total") {
-			continue
-		}
-		cov[name] = fileCoverage{covered: entry.Lines.Covered, total: entry.Lines.Total}
-	}
-	if len(cov) == 0 {
-		return nil, false
-	}
-	return cov, true
-}
-
-// parseLCOV parses an lcov.info file into per-file line coverage using LF/LH.
-func parseLCOV(path string) (map[string]fileCoverage, bool) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, false
-	}
-	defer f.Close()
-
-	cov := map[string]fileCoverage{}
-	var current string
-	var fc fileCoverage
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 1024*1024), 4*1024*1024)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		switch {
-		case strings.HasPrefix(line, "SF:"):
-			current = strings.TrimPrefix(line, "SF:")
-			fc = fileCoverage{}
-		case strings.HasPrefix(line, "LF:"):
-			fc.total = parseInt64(strings.TrimPrefix(line, "LF:"))
-		case strings.HasPrefix(line, "LH:"):
-			fc.covered = parseInt64(strings.TrimPrefix(line, "LH:"))
-		case line == "end_of_record":
-			if current != "" {
-				cov[current] = fc
-			}
-			current = ""
-		}
-	}
-	if len(cov) == 0 {
-		return nil, false
-	}
-	return cov, true
-}
-
-func parseInt64(s string) int64 {
-	v, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64)
-	if err != nil {
-		return 0
-	}
-	return v
+	return coverage, true
 }

@@ -26,16 +26,16 @@ var (
 // Resolve returns the first candidate command available to the invoking user
 // and true, or "", false when none resolve. It probes PATH first (LookPath
 // honors PATHEXT/.exe on Windows), then the user's standard per-user bin dirs
-// which a sudo'd PATH commonly misses. The bare candidate name is returned; the
-// caller invokes it via PATH-based exec.
+// which a sudo'd PATH commonly misses. The resolved path is returned so a
+// caller does not lose the per-user-bin discovery when it later scrubs PATH.
 func Resolve(candidates []string) (string, bool) {
 	for _, c := range candidates {
 		c = strings.TrimSpace(c)
 		if c == "" {
 			continue
 		}
-		if _, err := lookPath(c); err == nil {
-			return c, true
+		if path, err := lookPath(c); err == nil && strings.TrimSpace(path) != "" {
+			return path, true
 		}
 	}
 	home, err := userHomeDir()
@@ -54,10 +54,10 @@ func Resolve(candidates []string) (string, bool) {
 		for _, dir := range userDirs {
 			full := filepath.Join(home, dir, c)
 			if info, statErr := os.Stat(full); statErr == nil && !info.IsDir() {
-				return c, true
+				return full, true
 			}
 			if info, statErr := os.Stat(full + ".exe"); statErr == nil && !info.IsDir() {
-				return c, true
+				return full + ".exe", true
 			}
 		}
 	}

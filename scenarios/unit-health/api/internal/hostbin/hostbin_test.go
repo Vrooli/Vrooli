@@ -16,8 +16,8 @@ func TestResolvePrefersPath(t *testing.T) {
 		return "", errors.New("not found")
 	}
 	got, ok := Resolve([]string{"yarn", "pnpm", "npm"})
-	if !ok || got != "pnpm" {
-		t.Fatalf("Resolve = %q,%v; want pnpm,true", got, ok)
+	if !ok || got != "/usr/bin/pnpm" {
+		t.Fatalf("Resolve = %q,%v; want resolved PATH executable", got, ok)
 	}
 }
 
@@ -35,8 +35,27 @@ func TestResolveFallsBackToUserBinDir(t *testing.T) {
 	userHomeDir = func() (string, error) { return home, nil }
 
 	got, ok := Resolve([]string{"bats"})
-	if !ok || got != "bats" {
-		t.Fatalf("Resolve = %q,%v; want bats,true (from ~/.local/bin)", got, ok)
+	if !ok || got != filepath.Join(home, ".local", "bin", "bats") {
+		t.Fatalf("Resolve = %q,%v; want resolved per-user executable", got, ok)
+	}
+}
+
+func TestResolveFallsBackToWindowsExecutableExtension(t *testing.T) {
+	defer restore()
+	home := filepath.Join(t.TempDir(), "home with spaces")
+	bin := filepath.Join(home, ".local", "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bin, "pytest.exe"), []byte("stub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	lookPath = func(string) (string, error) { return "", errors.New("not on PATH") }
+	userHomeDir = func() (string, error) { return home, nil }
+
+	got, ok := Resolve([]string{"pytest"})
+	if !ok || got != filepath.Join(bin, "pytest.exe") {
+		t.Fatalf("Resolve = %q,%v; want executable-extension fallback", got, ok)
 	}
 }
 

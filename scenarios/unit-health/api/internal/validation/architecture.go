@@ -6,9 +6,11 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
+
+	"unit-health/internal/adapterregistry"
+	"unit-health/internal/adapters"
 )
 
 // analyzeArchitecture runs the static, source-fact-driven test-architecture
@@ -20,13 +22,16 @@ func analyzeArchitecture(scenario string, workspaces []Workspace, now string) []
 }
 
 func analyzeArchitectureWithClosure(scenario string, workspaces []Workspace, now string, closure DependencyClosure) []Finding {
+	registry := adapterregistry.Default()
 	var findings []Finding
 	for _, ws := range workspaces {
 		switch ws.Language {
 		case "go":
 			findings = append(findings, analyzeGoArchitectureWithClosure(scenario, ws, now, closure)...)
 		case "typescript":
-			findings = append(findings, analyzeTSArchitecture(scenario, ws, now)...)
+			if analyzer, ok := registry.Resolve(ws.AdapterID, ws.Language, ws.Framework); ok {
+				findings = append(findings, analyzeAdapterArchitecture(scenario, ws, now, analyzer)...)
+			}
 		}
 	}
 	return findings
@@ -381,166 +386,35 @@ func relTo(base, path string) string {
 	return path
 }
 
-// analyzeTSArchitecture runs the TypeScript/Vite test-architecture checks.
-func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding {
-	var testFiles int
-	var hasTestUtils bool
-	var hasRenderHelper bool
-	var hasSharedRenderHelper bool
-	directRenderFiles := map[string]bool{}
-	rogue := map[string]bool{}
-
-	walkSourceFiles(ws.RootPath, func(path string) {
-		if isTSTestFile(path) {
-			testFiles++
-			if src := readFileString(path); importsTestingLibraryRender(src) && !documentsProviderFreeException(src) {
-				directRenderFiles[path] = true
-			}
-			parent := filepath.Base(filepath.Dir(path))
-			if parent == "__tests__" || parent == "tests" || parent == "test" {
-				if !strings.Contains(path, string(filepath.Separator)+"src"+string(filepath.Separator)) {
-					rogue[filepath.Dir(path)] = true
-				}
-			}
-		}
-		base := filepath.Base(path)
-		dir := filepath.Base(filepath.Dir(path))
-		if dir == "test-utils" || dir == "test-util" || strings.HasPrefix(base, "setupTests.") || strings.HasPrefix(base, "test-utils.") {
-			hasTestUtils = true
-		}
-		if strings.HasPrefix(base, "renderWithProviders.") && filepath.Base(filepath.Dir(path)) == "test-utils" {
-			hasRenderHelper = true
-		}
-		if importsSharedRenderHelper(readFileString(path)) {
-			hasSharedRenderHelper = true
-		}
-	})
-	hasRenderHelper = hasRenderHelper || hasSharedRenderHelper
-
+func analyzeAdapterArchitecture(scenario string, ws Workspace, now string, analyzer adapters.Analyzer) []Finding {
 	var findings []Finding
-	if hasSharedRenderHelper {
-		hasTestUtils = true
-	}
-	mk := func(code, file, message, evidence, expected, observed, why, remediation string) Finding {
-		return Finding{
-			ID:           code + "-" + ws.ID,
+	drifts := analyzer.AnalyzeArchitecture(ws.RootPath)
+	for _, drift := range drifts {
+		if drift.Code == codeUnitProjectionDrift {
+			findings = append(findings, projectionFinding(scenario, ws, drift.File, drift.Message, drift.Evidence, drift.Expected, drift.Observed, drift.WhyItMatters, drift.Remediation, now))
+			continue
+		}
+		findings = append(findings, Finding{
+			ID:           drift.Code + "-" + ws.ID,
 			Scenario:     scenario,
 			WorkspaceID:  ws.ID,
 			Language:     "typescript",
-			Code:         code,
+			Framework:    ws.Framework,
+			Code:         drift.Code,
 			Category:     "architecture",
-			Severity:     codeSeverity[code],
-			FilePath:     file,
-			Message:      message,
-			Evidence:     evidence,
-			Expected:     expected,
-			Observed:     observed,
-			WhyItMatters: why,
-			Remediation:  remediation,
+			Severity:     codeSeverity[drift.Code],
+			FilePath:     drift.File,
+			Message:      drift.Message,
+			Evidence:     drift.Evidence,
+			Expected:     drift.Expected,
+			Observed:     drift.Observed,
+			WhyItMatters: drift.WhyItMatters,
+			Remediation:  drift.Remediation,
 			CreatedAt:    now,
-		}
+		})
 	}
-
-	if testFiles >= 3 && !hasTestUtils {
-		findings = append(findings, mk(codeTestUtilMissing, ws.RootPath,
-			"UI workspace has several test files but no shared test-utils module.",
-			fmt.Sprintf("%d test files; no src/test-utils or setupTests found", testFiles),
-			"A shared src/test-utils (render wrapper, fixtures) and a setupTests file.",
-			"no shared test-utils module",
-			"Without shared render/util helpers, component tests duplicate provider setup and drift.",
-			"Add a src/test-utils module with a custom render and shared fixtures.",
-		))
-	}
-
-	if hasTestUtils && !hasRenderHelper {
-		findings = append(findings, projectionFinding(scenario, ws, filepath.Join(ws.RootPath, "src", "test-utils"),
-			"UI test-utils projection is missing the canonical render helper.",
-			"src/test-utils exists; no renderWithProviders helper found",
-			"src/test-utils/renderWithProviders.tsx exports the canonical provider-aware render helper.",
-			"missing renderWithProviders helper",
-			"Component tests need one provider-aware render path so QueryClient, i18n, router, and theme setup do not drift.",
-			"Add src/test-utils/renderWithProviders.tsx and re-export it from src/test-utils/index.ts.",
-			now,
-		))
-	}
-	if hasRenderHelper && len(directRenderFiles) > 0 {
-		files := make([]string, 0, len(directRenderFiles))
-		for path := range directRenderFiles {
-			files = append(files, relTo(ws.RootPath, path))
-		}
-		sort.Strings(files)
-		findings = append(findings, projectionFinding(scenario, ws, ws.RootPath,
-			"UI tests bypass the canonical renderWithProviders helper.",
-			"direct Testing Library render imports: "+strings.Join(truncateList(files, 10), ", "),
-			"Component tests import renderWithProviders from src/test-utils so provider setup stays centralized.",
-			"direct Testing Library render import",
-			"Bypassing the canonical render helper lets QueryClient, i18n, router, and theme setup drift between tests.",
-			"Replace direct Testing Library render imports with renderWithProviders from src/test-utils, or document a narrow exception with a \"provider-free-exception: <reason>\" comment in the test file.",
-			now,
-		))
-	}
-	findings = append(findings, analyzeVitestProjection(scenario, ws, now)...)
-
-	if len(rogue) > 0 {
-		dirs := make([]string, 0, len(rogue))
-		for d := range rogue {
-			dirs = append(dirs, relTo(ws.RootPath, d))
-		}
-		sort.Strings(dirs)
-		findings = append(findings, mk(codeTestNotColocated, ws.RootPath,
-			"UI test files live outside src/, separated from the code they test.",
-			"non-colocated test dirs: "+strings.Join(dirs, ", "),
-			"Test files co-located with components under src/ (e.g. Button.test.tsx beside Button.tsx).",
-			"tests outside src/",
-			"Separated tests drift from their components and obscure which code is covered.",
-			"Co-locate component tests beside their source under src/.",
-		))
-	}
-
+	findings = append(findings, analyzeAdapterProjection(scenario, ws, now, analyzer)...)
 	return findings
-}
-
-var testingLibraryRenderImportRe = regexp.MustCompile(`(?s)import\s*\{([^}]*)\}\s*from\s*["']@testing-library/react["']`)
-
-// providerFreeExceptionMarker is the documented escape hatch for tests that
-// genuinely must render without the canonical provider stack — e.g. a test of
-// the theme/query provider itself, where wrapping it in renderWithProviders
-// would double-mount the very provider under test. The marker must appear with
-// a reason, e.g.:
-//
-//	// provider-free-exception: this test mounts ThemeProvider itself; the
-//	// canonical wrapper would double-provide and fight over documentElement.
-const providerFreeExceptionMarker = "provider-free-exception:"
-
-func documentsProviderFreeException(src string) bool {
-	return strings.Contains(src, providerFreeExceptionMarker)
-}
-
-func importsTestingLibraryRender(src string) bool {
-	for _, m := range testingLibraryRenderImportRe.FindAllStringSubmatch(src, -1) {
-		for _, part := range strings.Split(m[1], ",") {
-			name := strings.TrimSpace(part)
-			if strings.HasPrefix(name, "type ") {
-				continue
-			}
-			fields := strings.Fields(name)
-			if len(fields) > 0 && fields[0] == "render" {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// importsSharedRenderHelper recognizes the package-owned provider helper as a
-// canonical implementation. Scenario test-utils barrels may continue to
-// re-export it for local fixtures, but the implementation itself must not be
-// copied back into each scenario.
-func importsSharedRenderHelper(src string) bool {
-	if !strings.Contains(src, "@vrooli/api-base/testing") || !strings.Contains(src, "renderWithProviders") {
-		return false
-	}
-	return strings.Contains(src, "import")
 }
 
 func projectionFinding(scenario string, ws Workspace, file, message, evidence, expected, observed, why, remediation, now string) Finding {
@@ -564,45 +438,19 @@ func projectionFinding(scenario string, ws Workspace, file, message, evidence, e
 	}
 }
 
-type projectionExpectation struct {
-	coverageFloor     float64
-	vitestEnv         string
-	setupFiles        []string
-	coverageProvider  string
-	coverageReporters []string
-	coverageInclude   []string
-	coverageExclude   []string
-	reportOnFailure   bool
-}
-
-func resolveProjectionExpectation(ws Workspace) projectionExpectation {
-	expect := projectionExpectation{
-		coverageFloor:     minimumCoverageForPolicyClass("react_vite_ui", unitPolicyClass{Framework: "vitest"}),
-		vitestEnv:         "jsdom",
-		setupFiles:        []string{"./src/test-setup.ts"},
-		coverageProvider:  "v8",
-		coverageReporters: []string{"json-summary", "json"},
-		coverageInclude:   []string{"src/**/*.{ts,tsx}"},
-		coverageExclude: []string{
-			"src/**/*.test.{ts,tsx}",
-			"src/**/*.spec.{ts,tsx}",
-			"src/**/*.d.ts",
-			"src/main.tsx",
-			"src/test-setup.ts",
-			"src/test-utils/**",
-			"src/consts/strings.generated.ts",
-			"src/i18n/locales/**",
-			"src/**/generated/**",
-		},
-		reportOnFailure: true,
+func resolveProjectionPolicy(ws Workspace) adapters.ProjectionPolicy {
+	analyzer, ok := adapterregistry.Default().Resolve(ws.AdapterID, ws.Language, ws.Framework)
+	if !ok {
+		return adapters.ProjectionPolicy{}
 	}
+	policy := analyzer.DefaultProjectionPolicy()
 	root := scenarioRootForWorkspace(ws.RootPath)
 	if root == "" {
-		return expect
+		return policy
 	}
 	profile, _, ok, _ := loadUnitPolicyProfile("", root, "")
 	if !ok {
-		return expect
+		return policy
 	}
 	for _, role := range profile.RequiredRoles {
 		class, exists := profile.PolicyClasses[role.PolicyClass]
@@ -610,23 +458,24 @@ func resolveProjectionExpectation(ws Workspace) projectionExpectation {
 			continue
 		}
 		if class.Coverage.MinimumPercent > 0 {
-			expect.coverageFloor = class.Coverage.MinimumPercent
+			policy.CoverageFloor = class.Coverage.MinimumPercent
 		}
 		if class.Coverage.Provider != "" {
-			expect.coverageProvider = class.Coverage.Provider
+			policy.CoverageProvider = class.Coverage.Provider
 		}
 		if len(class.Coverage.Reporters) > 0 {
-			expect.coverageReporters = class.Coverage.Reporters
+			policy.CoverageReporters = class.Coverage.Reporters
 		}
-		if class.Projection.Vitest.Environment != "" {
-			expect.vitestEnv = class.Projection.Vitest.Environment
+		settings := analyzer.ProjectionPolicyFromSettings(class.Projection.Settings)
+		if settings.Environment != "" {
+			policy.Environment = settings.Environment
 		}
-		if len(class.Projection.Vitest.SetupFiles) > 0 {
-			expect.setupFiles = class.Projection.Vitest.SetupFiles
+		if len(settings.SetupFiles) > 0 {
+			policy.SetupFiles = settings.SetupFiles
 		}
-		return expect
+		return policy
 	}
-	return expect
+	return policy
 }
 
 func scenarioRootForWorkspace(root string) string {
@@ -644,476 +493,15 @@ func scenarioRootForWorkspace(root string) string {
 	return ""
 }
 
-type viteProjection struct {
-	hasVitestConfig    bool
-	environment        string
-	setupFiles         []string
-	coverageProvider   string
-	coverageReporters  []string
-	coverageInclude    []string
-	coverageExclude    []string
-	reportOnFailure    bool
-	hasReportOnFailure bool
-	thresholds         map[string]float64
-	hasImportBanRule   bool
-}
-
-func analyzeVitestProjection(scenario string, ws Workspace, now string) []Finding {
-	if !fileExists(filepath.Join(ws.RootPath, "vite.config.ts")) && !fileExists(filepath.Join(ws.RootPath, "vite.config.js")) {
-		return nil
-	}
-
-	expect := resolveProjectionExpectation(ws)
-	manifest, _ := loadNodeManifest(ws.RootPath)
-	cfg := readFileString(filepath.Join(ws.RootPath, "vite.config.ts"))
-	if cfg == "" {
-		cfg = readFileString(filepath.Join(ws.RootPath, "vite.config.js"))
-	}
-	eslint := readFileString(filepath.Join(ws.RootPath, "eslint.config.js"))
-	proj := parseViteProjection(cfg, eslint)
-
-	var findings []Finding
-	add := func(file, message, evidence, expected, observed, remediation string) {
-		findings = append(findings, projectionFinding(scenario, ws, file, message, evidence, expected, observed,
-			"Native config has to project the declared unit policy so scenario-local edits cannot silently weaken the test contract.",
-			remediation, now))
-	}
-
-	pkgPath := filepath.Join(ws.RootPath, "package.json")
-	vitePath := filepath.Join(ws.RootPath, "vite.config.ts")
-	if !manifest.hasDep("vitest") {
-		add(pkgPath,
-			"UI policy projection is missing the Vitest dependency.",
-			"vitest dependency not found",
-			"package.json declares vitest as the React/Vite unit-test runner.",
-			"missing vitest dependency",
-			"Add vitest through Scenario Dependency Analyzer and keep the test scripts on Vitest.")
-	}
-	if !manifest.hasScript("test") || !strings.Contains(manifest.Scripts["test"], "vitest") {
-		add(pkgPath,
-			"UI policy projection is missing a Vitest test script.",
-			fmt.Sprintf("test=%q", manifest.Scripts["test"]),
-			"package.json scripts.test runs vitest.",
-			"missing or non-Vitest test script",
-			"Set scripts.test to a Vitest command such as \"vitest run\".")
-	}
-	if !manifest.hasScript("test:coverage") || !strings.Contains(manifest.Scripts["test:coverage"], "vitest") || !strings.Contains(manifest.Scripts["test:coverage"], "coverage") {
-		add(pkgPath,
-			"UI policy projection is missing a coverage test script.",
-			fmt.Sprintf("test:coverage=%q", manifest.Scripts["test:coverage"]),
-			"package.json scripts.test:coverage runs Vitest coverage.",
-			"missing or non-Vitest coverage script",
-			"Set scripts.test:coverage to a Vitest coverage command such as \"vitest run --coverage\".")
-	}
-	if !proj.hasVitestConfig {
-		add(vitePath, "UI policy projection is missing the Vite test block.", "no test: block detected", "vite.config declares a test block.", "missing Vitest config", "Add test configuration to vite.config.")
-	}
-	if proj.environment != expect.vitestEnv {
-		add(vitePath, "UI policy projection is missing jsdom test environment.", "environment="+expect.vitestEnv+" not detected", "Vitest test.environment is "+expect.vitestEnv+".", "missing jsdom environment", "Set test.environment to "+fmt.Sprintf("%q", expect.vitestEnv)+".")
-	}
-	if !containsAllSetupFiles(proj.setupFiles, expect.setupFiles) {
-		add(vitePath, "UI policy projection is missing setupFiles registration.", "setupFiles="+strings.Join(expect.setupFiles, ",")+" not detected", "Vitest setupFiles includes "+strings.Join(expect.setupFiles, ", ")+".", "missing setupFiles", "Register the policy-declared setup file(s) in test.setupFiles.")
-	}
-	if proj.coverageProvider != expect.coverageProvider {
-		add(vitePath, "UI policy projection is missing V8 coverage provider.", "coverage.provider="+expect.coverageProvider+" not detected", "Vitest coverage.provider is "+expect.coverageProvider+".", "missing V8 coverage provider", "Set coverage.provider to "+fmt.Sprintf("%q", expect.coverageProvider)+".")
-	}
-	if !containsAllStrings(proj.coverageReporters, expect.coverageReporters) {
-		add(vitePath, "UI policy projection is missing coverage reporters.", strings.Join(expect.coverageReporters, "/")+" reporters not all detected", "Coverage reporters include "+strings.Join(expect.coverageReporters, ", ")+".", "missing coverage reporters", "Include the policy-declared reporters in coverage.reporter.")
-	}
-	if !containsAllStrings(proj.coverageInclude, expect.coverageInclude) {
-		add(vitePath, "UI policy projection is missing an explicit source coverage include set.", "coverage.include="+strings.Join(proj.coverageInclude, ", "), "Coverage include contains "+strings.Join(expect.coverageInclude, ", ")+".", "missing source coverage include", "Set coverage.include so coverage denominators stay scoped to production source files.")
-	}
-	if !containsAllStrings(proj.coverageExclude, expect.coverageExclude) {
-		add(vitePath, "UI policy projection is missing canonical coverage exclusions.", "coverage.exclude="+strings.Join(proj.coverageExclude, ", "), "Coverage exclude contains test scaffolding, generated files, boot files, and locale catalogs.", "missing coverage exclusions", "Restore the canonical coverage.exclude entries without weakening production-source coverage.")
-	}
-	if expect.reportOnFailure && (!proj.hasReportOnFailure || !proj.reportOnFailure) {
-		add(vitePath, "UI policy projection is missing coverage reporting on test failure.", "coverage.reportOnFailure=true not detected", "Vitest coverage.reportOnFailure is true.", "missing coverage reportOnFailure", "Set coverage.reportOnFailure to true so failed coverage runs remain interpretable.")
-	}
-	for _, key := range []string{"lines", "functions", "branches", "statements"} {
-		if v, ok := proj.thresholds[key]; !ok || v < expect.coverageFloor {
-			add(vitePath,
-				"UI policy projection weakens Vitest coverage thresholds.",
-				fmt.Sprintf("%s=%.1f", key, v),
-				fmt.Sprintf("Vitest coverage thresholds are at least %.1f for lines, functions, branches, and statements.", expect.coverageFloor),
-				"coverage threshold below policy",
-				fmt.Sprintf("Restore the threshold to %.1f or higher.", expect.coverageFloor))
-		}
-	}
-	if !proj.hasImportBanRule {
-		add(filepath.Join(ws.RootPath, "eslint.config.js"),
-			"UI policy projection is missing the production import ban for test helpers.",
-			"no-restricted-imports/test-utils pattern not detected",
-			"ESLint forbids production imports from src/test-utils and feature mocks.",
-			"missing production import ban",
-			"Restore the no-restricted-imports patterns for test-utils and feature mocks.")
+func analyzeAdapterProjection(scenario string, ws Workspace, now string, analyzer adapters.Analyzer) []Finding {
+	policy := resolveProjectionPolicy(ws)
+	drifts := analyzer.AnalyzeProjection(adapters.ProjectionInput{
+		RootPath: ws.RootPath,
+		Policy:   policy,
+	})
+	findings := make([]Finding, 0, len(drifts))
+	for _, drift := range drifts {
+		findings = append(findings, projectionFinding(scenario, ws, drift.File, drift.Message, drift.Evidence, drift.Expected, drift.Observed, "Native config has to project the declared unit policy so scenario-local edits cannot silently weaken the test contract.", drift.Remediation, now))
 	}
 	return findings
-}
-
-func parseViteProjection(cfg, eslint string) viteProjection {
-	p := viteProjection{thresholds: map[string]float64{}}
-	clean := stripJSComments(cfg)
-	testBlock, ok := objectValueBlock(clean, "test")
-	p.hasVitestConfig = ok
-	coverageBlock, _ := objectValueBlock(testBlock, "coverage")
-	if values := stringArrayPropertyValues(testBlock, "environment"); len(values) == 1 {
-		p.environment = values[0]
-	}
-	p.setupFiles = stringArrayPropertyValues(testBlock, "setupFiles")
-	if values := stringArrayPropertyValues(coverageBlock, "provider"); len(values) == 1 {
-		p.coverageProvider = values[0]
-	}
-	p.coverageReporters = stringArrayPropertyValues(coverageBlock, "reporter")
-	p.coverageInclude = stringArrayPropertyValues(coverageBlock, "include")
-	p.coverageExclude = stringArrayPropertyValues(coverageBlock, "exclude")
-	p.reportOnFailure, p.hasReportOnFailure = booleanProperty(coverageBlock, "reportOnFailure")
-	thresholdBlock, _ := objectValueBlock(coverageBlock, "thresholds")
-	for _, key := range []string{"lines", "functions", "branches", "statements"} {
-		if v, ok := numericProperty(thresholdBlock, key); ok {
-			p.thresholds[key] = v
-		}
-	}
-	p.hasImportBanRule = hasESLintImportBanProjection(eslint)
-	return p
-}
-
-func containsAllStrings(have, want []string) bool {
-	for _, value := range want {
-		if !containsString(have, value) {
-			return false
-		}
-	}
-	return true
-}
-
-func containsAllSetupFiles(have, want []string) bool {
-	for _, value := range want {
-		found := false
-		for _, candidate := range have {
-			if normalizeSetupPath(candidate) == normalizeSetupPath(value) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
-}
-
-func normalizeSetupPath(path string) string {
-	path = strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(path)), "./")
-	return path
-}
-
-func hasESLintImportBanProjection(src string) bool {
-	lits := stringLiterals(stripJSComments(src))
-	hasRule := false
-	hasTestUtils := false
-	hasFeatureMocks := false
-	for _, lit := range lits {
-		if lit == "no-restricted-imports" {
-			hasRule = true
-		}
-		if strings.Contains(lit, "test-utils") {
-			hasTestUtils = true
-		}
-		if strings.Contains(lit, "features/*/mocks") {
-			hasFeatureMocks = true
-		}
-	}
-	return hasRule && hasTestUtils && hasFeatureMocks
-}
-
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
-}
-
-func stripJSComments(src string) string {
-	var b strings.Builder
-	inLineComment := false
-	inBlockComment := false
-	var quote byte
-	escaped := false
-	for i := 0; i < len(src); i++ {
-		c := src[i]
-		if inLineComment {
-			if c == '\n' {
-				inLineComment = false
-				b.WriteByte(c)
-			}
-			continue
-		}
-		if inBlockComment {
-			if c == '*' && i+1 < len(src) && src[i+1] == '/' {
-				inBlockComment = false
-				i++
-			}
-			continue
-		}
-		if quote != 0 {
-			b.WriteByte(c)
-			if escaped {
-				escaped = false
-				continue
-			}
-			if c == '\\' {
-				escaped = true
-				continue
-			}
-			if c == quote {
-				quote = 0
-			}
-			continue
-		}
-		if c == '/' && i+1 < len(src) {
-			switch src[i+1] {
-			case '/':
-				inLineComment = true
-				i++
-				continue
-			case '*':
-				inBlockComment = true
-				i++
-				continue
-			}
-		}
-		if c == '\'' || c == '"' || c == '`' {
-			quote = c
-		}
-		b.WriteByte(c)
-	}
-	return b.String()
-}
-
-func objectValueBlock(src, key string) (string, bool) {
-	i, ok := propertyValueIndex(src, key)
-	if !ok {
-		return "", false
-	}
-	i = skipSpace(src, i)
-	if i >= len(src) || src[i] != '{' {
-		return "", false
-	}
-	end := matchingDelimiter(src, i, '{', '}')
-	if end <= i {
-		return "", false
-	}
-	return src[i+1 : end], true
-}
-
-func stringArrayPropertyValues(src, key string) []string {
-	i, ok := propertyValueIndex(src, key)
-	if !ok {
-		return nil
-	}
-	i = skipSpace(src, i)
-	if i >= len(src) {
-		return nil
-	}
-	if src[i] == '[' {
-		end := matchingDelimiter(src, i, '[', ']')
-		if end <= i {
-			return nil
-		}
-		return stringLiterals(src[i+1 : end])
-	}
-	if src[i] == '\'' || src[i] == '"' || src[i] == '`' {
-		value, _, ok := readStringLiteral(src, i)
-		if ok {
-			return []string{value}
-		}
-	}
-	return nil
-}
-
-func numericProperty(src, key string) (float64, bool) {
-	i, ok := propertyValueIndex(src, key)
-	if !ok {
-		return 0, false
-	}
-	i = skipSpace(src, i)
-	start := i
-	for i < len(src) && ((src[i] >= '0' && src[i] <= '9') || src[i] == '.') {
-		i++
-	}
-	if i == start {
-		return 0, false
-	}
-	var v float64
-	if _, err := fmt.Sscanf(src[start:i], "%f", &v); err != nil {
-		return 0, false
-	}
-	return v, true
-}
-
-func booleanProperty(src, key string) (bool, bool) {
-	i, ok := propertyValueIndex(src, key)
-	if !ok {
-		return false, false
-	}
-	i = skipSpace(src, i)
-	if strings.HasPrefix(src[i:], "true") {
-		return true, true
-	}
-	if strings.HasPrefix(src[i:], "false") {
-		return false, true
-	}
-	return false, false
-}
-
-func propertyValueIndex(src, key string) (int, bool) {
-	for i := 0; i < len(src); {
-		i = skipSpaceAndCommas(src, i)
-		if i >= len(src) {
-			return 0, false
-		}
-		prop, next, ok := readPropertyName(src, i)
-		if !ok {
-			i++
-			continue
-		}
-		next = skipSpace(src, next)
-		if next >= len(src) || src[next] != ':' {
-			i = next
-			continue
-		}
-		if prop == key {
-			return next + 1, true
-		}
-		i = next + 1
-	}
-	return 0, false
-}
-
-func readPropertyName(src string, i int) (string, int, bool) {
-	if i >= len(src) {
-		return "", i, false
-	}
-	if src[i] == '\'' || src[i] == '"' || src[i] == '`' {
-		value, next, ok := readStringLiteral(src, i)
-		return value, next, ok
-	}
-	if !isIdentStart(src[i]) {
-		return "", i, false
-	}
-	start := i
-	i++
-	for i < len(src) && isIdentPart(src[i]) {
-		i++
-	}
-	return src[start:i], i, true
-}
-
-func stringLiterals(src string) []string {
-	var out []string
-	for i := 0; i < len(src); i++ {
-		if src[i] != '\'' && src[i] != '"' && src[i] != '`' {
-			continue
-		}
-		value, next, ok := readStringLiteral(src, i)
-		if ok {
-			out = append(out, value)
-			i = next - 1
-		}
-	}
-	return out
-}
-
-func readStringLiteral(src string, i int) (string, int, bool) {
-	if i >= len(src) {
-		return "", i, false
-	}
-	quote := src[i]
-	if quote != '\'' && quote != '"' && quote != '`' {
-		return "", i, false
-	}
-	var b strings.Builder
-	escaped := false
-	for j := i + 1; j < len(src); j++ {
-		c := src[j]
-		if escaped {
-			b.WriteByte(c)
-			escaped = false
-			continue
-		}
-		if c == '\\' {
-			escaped = true
-			continue
-		}
-		if c == quote {
-			return b.String(), j + 1, true
-		}
-		b.WriteByte(c)
-	}
-	return "", i, false
-}
-
-func matchingDelimiter(src string, start int, open, close byte) int {
-	if start >= len(src) || src[start] != open {
-		return -1
-	}
-	depth := 0
-	var quote byte
-	escaped := false
-	for i := start; i < len(src); i++ {
-		c := src[i]
-		if quote != 0 {
-			if escaped {
-				escaped = false
-				continue
-			}
-			if c == '\\' {
-				escaped = true
-				continue
-			}
-			if c == quote {
-				quote = 0
-			}
-			continue
-		}
-		if c == '\'' || c == '"' || c == '`' {
-			quote = c
-			continue
-		}
-		if c == open {
-			depth++
-			continue
-		}
-		if c == close {
-			depth--
-			if depth == 0 {
-				return i
-			}
-		}
-	}
-	return -1
-}
-
-func skipSpace(src string, i int) int {
-	for i < len(src) && (src[i] == ' ' || src[i] == '\t' || src[i] == '\n' || src[i] == '\r') {
-		i++
-	}
-	return i
-}
-
-func skipSpaceAndCommas(src string, i int) int {
-	for i < len(src) && (src[i] == ' ' || src[i] == '\t' || src[i] == '\n' || src[i] == '\r' || src[i] == ',') {
-		i++
-	}
-	return i
-}
-
-func isIdentStart(c byte) bool {
-	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c == '$'
-}
-
-func isIdentPart(c byte) bool {
-	return isIdentStart(c) || (c >= '0' && c <= '9') || c == '-'
 }

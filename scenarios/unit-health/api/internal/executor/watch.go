@@ -54,7 +54,14 @@ func (w *tailWriter) String() string {
 // the given duration. It returns a flag set true when it fired.
 func watchNoOutput(ctx context.Context, cancel context.CancelFunc, writers []*tailWriter, timeout time.Duration) *atomic.Bool {
 	fired := &atomic.Bool{}
-	ticker := time.NewTicker(time.Second)
+	interval := timeout / 4
+	if interval < 10*time.Millisecond {
+		interval = 10 * time.Millisecond
+	}
+	if interval > time.Second {
+		interval = time.Second
+	}
+	ticker := time.NewTicker(interval)
 	go func() {
 		defer ticker.Stop()
 		for {

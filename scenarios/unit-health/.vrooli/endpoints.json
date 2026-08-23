@@ -65,6 +65,12 @@
         "type": "object",
         "properties": {
           "assessment": "common.v1.MaturityAssessment",
+          "cache_hit": "bool",
+          "cache_invalidated_dimensions": "array<string>",
+          "cache_miss_reason": "string",
+          "cache_retained_bytes": "int64",
+          "cache_saved_cpu_time_ms": "int64",
+          "cache_saved_wall_time_ms": "int64",
           "coverage": "array<CoverageTarget>",
           "findings": "array<ValidationFinding>",
           "maturity": "MaturitySummary",

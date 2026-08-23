@@ -58,6 +58,7 @@ fails closed if an unmapped code is emitted).
 | `UNSUPPORTED_PARSE_UNIT` | L1 | advisory | tests | info |
 | `TEST_EXECUTION_FAILURE` | L1 | foundation_blocker | tests | error |
 | `TEST_DEPENDENCY_MISSING` | L1 | foundation_blocker | tests | error |
+| `UNIT_TEST_KIND_OUT_OF_SCOPE` | L1 | advisory | tests | warning |
 | `TEST_TIMEOUT_HANG` | L1 | safety_blocker | tests | error |
 | `UNIT_POLICY_PROFILE_INVALID` | L0 | foundation_blocker | tests | error |
 | `UNIT_REQUIRED_ROLE_MISSING` | L0 | foundation_blocker | tests | error |

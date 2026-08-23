@@ -318,7 +318,7 @@ func TestResolveUnitPolicyProfileJestUIDoesNotSatisfyReactViteRole(t *testing.T)
 func TestResolveUnitPolicyProfileMissingPolicyProfileIsInvalid(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, ".vrooli", "testing.json"), `{
-  "version": "1.0.0",
+  "version": "2.0.0",
   "unit": {}
 }`)
 	inv := discovery.Inventory{
@@ -372,7 +372,7 @@ func writeUnitPolicyProfile(t *testing.T, root string, profile unitPolicyProfile
 
 func reactViteUnitPolicyProfile() unitPolicyProfile {
 	return unitPolicyProfile{
-		Version: "1.0.0",
+		Version: "2.0.0",
 		Template: unitPolicyTemplate{
 			ID:            "react-vite",
 			ScenarioClass: "react-vite",
@@ -399,22 +399,28 @@ func reactViteUnitPolicyProfile() unitPolicyProfile {
 				Language:       "go",
 				Framework:      "go test",
 				PackageManager: "go",
-				Coverage:       unitCoveragePolicy{MinimumPercent: 75, Mode: "total"},
-				TestUtils:      unitTestUtilsPolicy{RequiredRoots: []string{"api/internal/testutil"}, ProductionImportBan: true},
-				Projection:     unitProjectionPolicy{RequiredFiles: []string{"api/internal/testutil/no_prod_import_test.go"}},
+				Adapter:        unitAdapterRef{ID: "go", Version: "1.0.0"}, RunnerProfile: "default", TestKind: "unit",
+				Hermetic:   unitHermeticity{Network: "allow", Filesystem: "workspace", RestoreEnvironment: true},
+				Coverage:   unitCoveragePolicy{MinimumPercent: 75, Mode: "total"},
+				TestUtils:  unitTestUtilsPolicy{RequiredRoots: []string{"api/internal/testutil"}, ProductionImportBan: true},
+				Projection: unitProjectionPolicy{RequiredFiles: []string{"api/internal/testutil/no_prod_import_test.go"}},
 			},
 			"go_cli": {
 				Language:       "go",
 				Framework:      "go test",
 				PackageManager: "go",
-				Coverage:       unitCoveragePolicy{MinimumPercent: 75, Mode: "total"},
-				TestUtils:      unitTestUtilsPolicy{RequiredRoots: []string{"cli/internal/testutil"}, ProductionImportBan: true},
-				Projection:     unitProjectionPolicy{RequiredFiles: []string{"cli/app_test.go", "cli/internal/testutil/no_prod_import_test.go"}},
+				Adapter:        unitAdapterRef{ID: "go", Version: "1.0.0"}, RunnerProfile: "default", TestKind: "unit",
+				Hermetic:   unitHermeticity{Network: "allow", Filesystem: "workspace", RestoreEnvironment: true},
+				Coverage:   unitCoveragePolicy{MinimumPercent: 75, Mode: "total"},
+				TestUtils:  unitTestUtilsPolicy{RequiredRoots: []string{"cli/internal/testutil"}, ProductionImportBan: true},
+				Projection: unitProjectionPolicy{RequiredFiles: []string{"cli/app_test.go", "cli/internal/testutil/no_prod_import_test.go"}},
 			},
 			"react_vite_ui": {
 				Language:       "typescript",
 				Framework:      "vitest",
 				PackageManager: "pnpm",
+				Adapter:        unitAdapterRef{ID: "react-vitest", Version: "1.0.0"}, RunnerProfile: "default", TestKind: "unit",
+				Hermetic: unitHermeticity{Network: "allow", Filesystem: "workspace", RestoreEnvironment: true},
 				Coverage: unitCoveragePolicy{
 					MinimumPercent: 85,
 					Mode:           "both",
@@ -429,14 +435,15 @@ func reactViteUnitPolicyProfile() unitPolicyProfile {
 				Projection: unitProjectionPolicy{
 					RequiredFiles:   []string{"ui/vite.config.ts", "ui/src/test-setup.ts", "ui/src/test-utils/renderWithProviders.tsx"},
 					RequiredScripts: []string{"test", "test:coverage"},
-					Vitest: unitVitestProjection{
-						Environment:      "jsdom",
-						SetupFiles:       []string{"./src/test-setup.ts"},
-						CoverageProvider: "v8",
+					Settings: map[string]json.RawMessage{
+						"environment":       json.RawMessage(`"jsdom"`),
+						"setup_files":       json.RawMessage(`["./src/test-setup.ts"]`),
+						"coverage_provider": json.RawMessage(`"v8"`),
 					},
 				},
 			},
 		},
-		Customization: unitPolicyCustomization{Mode: "monotonic", Waivers: []unitPolicyWaiver{}},
+		RunnerProfiles: map[string]unitRunnerProfile{"default": {CPUWeight: 1, MaxWorkers: 1, TimeoutSeconds: 600, NoOutputTimeoutSeconds: 60, Sharding: "none", Network: "allow", Filesystem: "workspace"}},
+		Customization:  unitPolicyCustomization{Mode: "monotonic", Waivers: []unitPolicyWaiver{}},
 	}
 }

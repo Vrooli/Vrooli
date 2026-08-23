@@ -152,7 +152,7 @@ packages/proto/schemas/token-economy/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/token-economy/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/token-economy/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/token-economy/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/token-economy/v1/...   (ui)
        └──▶ packages/proto/gen/python/token_economy/v1/...    (future tools)
 ```
 

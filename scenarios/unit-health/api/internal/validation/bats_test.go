@@ -11,9 +11,9 @@ import (
 
 func withBatsResolver(t *testing.T, bin string, ok bool) {
 	t.Helper()
-	orig := batsBinaryResolver
-	t.Cleanup(func() { batsBinaryResolver = orig })
-	batsBinaryResolver = func([]string) (string, bool) { return bin, ok }
+	orig := externalRunnerBinaryResolver
+	t.Cleanup(func() { externalRunnerBinaryResolver = orig })
+	externalRunnerBinaryResolver = func([]string) (string, bool) { return bin, ok }
 }
 
 func TestNormalizeLanguageBash(t *testing.T) {

@@ -440,7 +440,7 @@ func TestApplyFixRepairsVitestProjectionFieldsFromPolicy(t *testing.T) {
             "reporters": ["text", "json-summary", "json"]
           },
           "projection": {
-            "vitest": {
+            "settings": {
               "environment": "jsdom",
               "setup_files": ["./src/test-setup.ts"]
             }

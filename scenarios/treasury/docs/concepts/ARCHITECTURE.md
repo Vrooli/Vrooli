@@ -108,7 +108,7 @@ packages/proto/schemas/treasury/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/treasury/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/treasury/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/treasury/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/treasury/v1/...   (ui)
        └──▶ packages/proto/gen/python/treasury/v1/...    (future tools)
 ```
 

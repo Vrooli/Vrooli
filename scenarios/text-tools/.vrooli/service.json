@@ -210,5 +210,36 @@
         }
       }
     }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator that no Go code in this scenario currently opens. The declaration records intended caching, not a runtime requirement."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
+      }
+    }
   }
 }

@@ -109,6 +109,18 @@
         "capability_id": "framework_config",
         "clean_requirement": "required"
       },
+      "UNIT_TEST_KIND_OUT_OF_SCOPE": {
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "execution_readiness",
+        "clean_requirement": "required"
+      },
       "UNIT_REQUIRED_ROLE_MISSING": {
         "local_level_impact": "L0",
         "global_impact": "foundation_blocker",

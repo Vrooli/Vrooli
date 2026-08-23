@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
+	"unit-health/internal/adapterregistry"
+	"unit-health/internal/adapters"
 	"unit-health/internal/discovery"
+	"unit-health/internal/executor"
 )
 
 type unitPolicyDocument struct {
@@ -18,11 +22,12 @@ type unitPolicyDocument struct {
 }
 
 type unitPolicyProfile struct {
-	Version       string                     `json:"version"`
-	Template      unitPolicyTemplate         `json:"template"`
-	RequiredRoles []unitPolicyRequiredRole   `json:"required_roles"`
-	PolicyClasses map[string]unitPolicyClass `json:"policy_classes"`
-	Customization unitPolicyCustomization    `json:"customization"`
+	Version        string                       `json:"version"`
+	Template       unitPolicyTemplate           `json:"template"`
+	RequiredRoles  []unitPolicyRequiredRole     `json:"required_roles"`
+	PolicyClasses  map[string]unitPolicyClass   `json:"policy_classes"`
+	RunnerProfiles map[string]unitRunnerProfile `json:"runner_profiles,omitempty"`
+	Customization  unitPolicyCustomization      `json:"customization"`
 }
 
 type unitPolicyTemplate struct {
@@ -45,12 +50,44 @@ type unitPolicyMatch struct {
 }
 
 type unitPolicyClass struct {
+	Adapter        unitAdapterRef       `json:"adapter,omitempty"`
+	RunnerProfile  string               `json:"runner_profile,omitempty"`
+	TestKind       string               `json:"test_kind,omitempty"`
+	Platforms      []string             `json:"platforms,omitempty"`
+	Hermetic       unitHermeticity      `json:"hermetic,omitempty"`
 	Language       string               `json:"language"`
 	Framework      string               `json:"framework"`
 	PackageManager string               `json:"package_manager,omitempty"`
 	Coverage       unitCoveragePolicy   `json:"coverage"`
 	TestUtils      unitTestUtilsPolicy  `json:"test_utils,omitempty"`
 	Projection     unitProjectionPolicy `json:"projection,omitempty"`
+}
+
+type unitAdapterRef struct {
+	ID      string `json:"id"`
+	Version string `json:"version"`
+}
+
+type unitRunnerProfile struct {
+	CPUWeight              int      `json:"cpu_weight,omitempty"`
+	MemoryBytes            int64    `json:"memory_bytes,omitempty"`
+	MaxWorkers             int      `json:"max_workers,omitempty"`
+	TimeoutSeconds         int      `json:"timeout_seconds,omitempty"`
+	NoOutputTimeoutSeconds int      `json:"no_output_timeout_seconds,omitempty"`
+	Sharding               string   `json:"sharding,omitempty"`
+	Network                string   `json:"network,omitempty"`
+	Filesystem             string   `json:"filesystem,omitempty"`
+	Platforms              []string `json:"platforms,omitempty"`
+}
+
+type unitHermeticity struct {
+	Network            string `json:"network,omitempty"`
+	Filesystem         string `json:"filesystem,omitempty"`
+	TemporaryRoot      bool   `json:"temporary_root,omitempty"`
+	RestoreEnvironment bool   `json:"restore_environment,omitempty"`
+	DetectOpenHandles  bool   `json:"detect_open_handles,omitempty"`
+	DetectChildLeaks   bool   `json:"detect_child_leaks,omitempty"`
+	OrderIndependent   bool   `json:"order_independent,omitempty"`
 }
 
 type unitCoveragePolicy struct {
@@ -67,15 +104,9 @@ type unitTestUtilsPolicy struct {
 }
 
 type unitProjectionPolicy struct {
-	RequiredFiles   []string             `json:"required_files,omitempty"`
-	RequiredScripts []string             `json:"required_scripts,omitempty"`
-	Vitest          unitVitestProjection `json:"vitest,omitempty"`
-}
-
-type unitVitestProjection struct {
-	Environment      string   `json:"environment,omitempty"`
-	SetupFiles       []string `json:"setup_files,omitempty"`
-	CoverageProvider string   `json:"coverage_provider,omitempty"`
+	RequiredFiles   []string                   `json:"required_files,omitempty"`
+	RequiredScripts []string                   `json:"required_scripts,omitempty"`
+	Settings        map[string]json.RawMessage `json:"settings,omitempty"`
 }
 
 type unitPolicyCustomization struct {
@@ -169,15 +200,15 @@ func loadUnitPolicyProfile(scenario, root, now string) (unitPolicyProfile, strin
 	}
 	profile := doc.Unit.PolicyProfile
 	if strings.TrimSpace(profile.Version) == "" {
-		return unitPolicyProfile{}, path, false, []Finding{policyFileFinding(scenario, codeUnitPolicyInvalid, path, "unit.policy_profile missing", "unit.policy_profile.version 1.0.0 and template policy classes", "missing unit.policy_profile", now)}
+		return unitPolicyProfile{}, path, false, []Finding{policyFileFinding(scenario, codeUnitPolicyInvalid, path, "unit.policy_profile missing", "unit.policy_profile.version 2.0.0 and versioned adapter/runner policy classes", "missing unit.policy_profile", now)}
 	}
 	return profile, path, true, nil
 }
 
 func validateUnitPolicyProfile(scenario, path string, profile unitPolicyProfile, now string) []Finding {
 	var findings []Finding
-	if profile.Version != "1.0.0" {
-		findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, "version="+profile.Version, "unit.policy_profile.version 1.0.0", "unsupported policy-profile version", now))
+	if profile.Version != "2.0.0" {
+		findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, "version="+profile.Version, "unit.policy_profile.version 2.0.0", "unsupported policy-profile version", now))
 	}
 	if profile.Template.ID == "" || profile.Template.ScenarioClass == "" {
 		findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, "template identity incomplete", "template.id and template.scenario_class", "missing template identity", now))
@@ -191,6 +222,29 @@ func validateUnitPolicyProfile(scenario, path string, profile unitPolicyProfile,
 		}
 	}
 	for name, class := range profile.PolicyClasses {
+		if class.Adapter.ID == "" || class.Adapter.Version == "" {
+			findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, "policy_class="+name+" adapter version missing", "adapter.id and adapter.version", "incomplete adapter identity", now))
+		} else if len(class.Platforms) == 0 || containsPlatform(class.Platforms, runtime.GOOS) {
+			if err := adapters.DefaultPlannerRegistry().ValidateIdentity(adapters.Identity{ID: class.Adapter.ID, Version: class.Adapter.Version}, adapters.Match{Language: class.Language, Framework: class.Framework, Platform: runtime.GOOS}); err != nil {
+				findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, "policy_class="+name+" adapter="+class.Adapter.ID+"@"+class.Adapter.Version, "registered adapter supports the declared language/framework/platform", err.Error(), now))
+			}
+		}
+		if analyzer, ok := adapterregistry.Default().Resolve(class.Adapter.ID, class.Language, class.Framework); ok {
+			if err := analyzer.ValidatePolicySettings(class.Projection.Settings); err != nil {
+				findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, "policy_class="+name+" projection.settings", "adapter-owned projection settings are valid", err.Error(), now))
+			}
+		}
+		if class.RunnerProfile != "" {
+			profileDef, ok := profile.RunnerProfiles[class.RunnerProfile]
+			if !ok {
+				findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, "policy_class="+name+" runner_profile="+class.RunnerProfile, "runner_profile references a declared profile", "unknown runner profile", now))
+			} else {
+				findings = append(findings, validateRunnerProfile(scenario, path, name, profileDef, now)...)
+			}
+		}
+		if class.TestKind != "" && !validUnitTestKind(class.TestKind) {
+			findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, "policy_class="+name+" test_kind="+class.TestKind, "unit, component, repository, integration, or workflow", "unknown test kind", now))
+		}
 		if min := minimumCoverageForPolicyClass(name, class); min > 0 && class.Coverage.MinimumPercent > 0 && class.Coverage.MinimumPercent < min {
 			findings = append(findings, policyFileFinding(scenario, codeUnitPolicyWeakened, path, fmt.Sprintf("policy_class=%s minimum_percent=%.1f", name, class.Coverage.MinimumPercent), fmt.Sprintf("coverage minimum >= %.1f", min), "weaker coverage minimum", now))
 		}
@@ -200,6 +254,70 @@ func validateUnitPolicyProfile(scenario, path string, profile unitPolicyProfile,
 	}
 	findings = applyUnitPolicyWaivers(findings, profile.Customization.Waivers, scenario, path, now)
 	return findings
+}
+
+func validUnitTestKind(kind string) bool {
+	switch kind {
+	case "unit", "component", "repository", "integration", "workflow":
+		return true
+	}
+	return false
+}
+
+func containsPlatform(platforms []string, platform string) bool {
+	for _, candidate := range platforms {
+		if strings.EqualFold(strings.TrimSpace(candidate), platform) {
+			return true
+		}
+	}
+	return false
+}
+
+func validateRunnerProfile(scenario, path, class string, profile unitRunnerProfile, now string) []Finding {
+	var findings []Finding
+	if profile.CPUWeight < 0 || profile.MemoryBytes < 0 || profile.MaxWorkers < 0 || profile.TimeoutSeconds < 0 || profile.NoOutputTimeoutSeconds < 0 {
+		findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, "policy_class="+class+" runner profile has negative budget", "non-negative runner budgets", "negative runner budget", now))
+	}
+	if profile.MaxWorkers == 0 && profile.CPUWeight > 0 {
+		findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, "policy_class="+class+" runner profile has no worker bound", "max_workers >= 1", "unbounded worker profile", now))
+	}
+	return findings
+}
+
+// applyRunnerProfiles projects only bounded execution controls into the
+// neutral plan. Adapter-specific correctness remains in policy validation;
+// this projection carries resource and timeout budgets to the executor.
+func applyRunnerProfiles(root string, workspaces []Workspace) {
+	profile, _, ok, _ := loadUnitPolicyProfile("", root, "")
+	if !ok {
+		return
+	}
+	bySurface := make(map[string]unitPolicyClass, len(profile.RequiredRoles))
+	for _, role := range profile.RequiredRoles {
+		if class, exists := profile.PolicyClasses[role.PolicyClass]; exists && role.Match.SurfaceID != "" {
+			bySurface[role.Match.SurfaceID] = class
+		}
+	}
+	for index := range workspaces {
+		class, exists := bySurface[workspaces[index].ID]
+		if !exists || class.RunnerProfile == "" {
+			continue
+		}
+		runner, exists := profile.RunnerProfiles[class.RunnerProfile]
+		if !exists {
+			continue
+		}
+		workspaces[index].RunnerProfile = class.RunnerProfile
+		workspaces[index].Resource = ResourceLimits{CPUWeight: runner.CPUWeight, MemoryBytes: runner.MemoryBytes, MaxWorkers: runner.MaxWorkers}
+		workspaces[index].TimeoutSeconds = runner.TimeoutSeconds
+		workspaces[index].NoOutputTimeoutSeconds = runner.NoOutputTimeoutSeconds
+		workspaces[index].Hermetic = executor.HermeticPolicy{
+			Network: class.Hermetic.Network, Filesystem: class.Hermetic.Filesystem,
+			TemporaryRoot: class.Hermetic.TemporaryRoot, RestoreEnvironment: class.Hermetic.RestoreEnvironment,
+			DetectChildLeaks: class.Hermetic.DetectChildLeaks, DetectOpenHandles: class.Hermetic.DetectOpenHandles,
+			OrderIndependent: class.Hermetic.OrderIndependent,
+		}
+	}
 }
 
 // applyUnitPolicyWaivers marks matching findings for transparent suppression.
@@ -319,19 +437,9 @@ func findRoleSurface(role unitPolicyRequiredRole, inv discovery.Inventory) (disc
 }
 
 func frameworkMatches(want, got string) bool {
-	want = normalizePolicyFramework(want)
-	got = normalizePolicyFramework(got)
+	want = adapterregistry.NormalizeFramework(want)
+	got = adapterregistry.NormalizeFramework(got)
 	return want != "" && want == got
-}
-
-func normalizePolicyFramework(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	switch value {
-	case "react-vite":
-		return "vite"
-	default:
-		return value
-	}
 }
 
 func pathMatches(want, got, root string) bool {
@@ -357,14 +465,7 @@ func hasSupportedUnitDefault(surface discovery.Surface) bool {
 
 func minimumCoverageForPolicyClass(name string, class unitPolicyClass) float64 {
 	lang := normalizeLanguage(class.Language, "")
-	switch {
-	case strings.Contains(name, "react_vite") || class.Framework == "vitest":
-		return 85
-	case lang == "go":
-		return 75
-	default:
-		return 0
-	}
+	return adapterregistry.MinimumCoverageFloor(class.Adapter.ID, class.Framework, lang, name)
 }
 
 func policyFileFinding(scenario, code, path, evidence, expected, observed, now string) Finding {

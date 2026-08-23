@@ -107,7 +107,7 @@ packages/proto/schemas/unit-health/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/unit-health/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/unit-health/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/unit-health/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/unit-health/v1/...   (ui)
        └──▶ packages/proto/gen/python/unit_health/v1/...    (future tools)
 ```
 

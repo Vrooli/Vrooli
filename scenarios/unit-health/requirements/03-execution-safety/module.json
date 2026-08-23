@@ -22,12 +22,12 @@
     },
     {
       "id": "UH-EXEC-002",
-      "title": "Run canonical language runners",
+      "title": "Run registered typed adapters",
       "status": "planned",
       "prd_ref": "OT-P0-002",
       "category": "api",
       "criticality": "P0",
-      "description": "Go runs `go test` with a coverage profile and package timing; Node runs Vitest with conservative worker settings (coverage script preferred, else a coverage finding); Python runs pytest with optional coverage or degraded unittest.",
+      "description": "Registered language/framework adapters submit executable-plus-argv commands with declared artifacts, bounded resources, platform applicability, and honest missing-tool or unsupported outcomes; dependency provisioning remains owned by Scenario Dependency Analyzer.",
       "tags": ["go", "vitest", "pytest", "runners"],
       "validation": [
         {"type": "unit", "status": "planned", "notes": "Each runner builds the expected argv and conservative env against fixtures; real smoke test runs a tiny passing fixture per language available."}

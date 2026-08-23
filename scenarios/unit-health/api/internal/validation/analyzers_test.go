@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"unit-health/internal/adapters"
 	"unit-health/internal/runhistory"
 )
 
@@ -75,8 +76,8 @@ func TestParseLCOV(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "lcov.info")
 	writeFile(t, path, "SF:src/a.ts\nLF:4\nLH:2\nend_of_record\n")
-	cov, ok := parseLCOV(path)
-	if !ok || cov["src/a.ts"].total != 4 || cov["src/a.ts"].covered != 2 {
+	cov, ok := adapters.ReadCoverage(root, []adapters.Artifact{{Kind: "lcov", Path: "lcov.info"}})
+	if !ok || cov["src/a.ts"].Total != 4 || cov["src/a.ts"].Covered != 2 {
 		t.Fatalf("lcov parse = %+v ok=%v", cov, ok)
 	}
 }

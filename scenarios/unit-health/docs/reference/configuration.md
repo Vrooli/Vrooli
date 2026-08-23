@@ -181,7 +181,7 @@ The canonical location is:
 {
   "unit": {
     "policy_profile": {
-      "version": "1.0.0",
+      "version": "2.0.0",
       "template": {
         "id": "react-vite",
         "scenario_class": "react-vite"
@@ -192,9 +192,12 @@ The canonical location is:
         { "role": "ui", "policy_class": "react_vite_ui" }
       ],
       "policy_classes": {
-        "go_service": {},
-        "go_cli": {},
-        "react_vite_ui": {}
+        "go_service": {"adapter": {"id": "go", "version": "1.0.0"}, "runner_profile": "default", "test_kind": "unit", "hermetic": {"network": "allow", "filesystem": "workspace", "restore_environment": true}},
+        "go_cli": {"adapter": {"id": "go", "version": "1.0.0"}, "runner_profile": "default", "test_kind": "unit", "hermetic": {"network": "allow", "filesystem": "workspace", "restore_environment": true}},
+        "react_vite_ui": {"adapter": {"id": "react-vitest", "version": "1.0.0"}, "runner_profile": "default", "test_kind": "unit", "hermetic": {"network": "allow", "filesystem": "workspace", "restore_environment": true}, "projection": {"settings": {"environment": "jsdom", "setup_files": ["./src/test-setup.ts"]}}}
+      },
+      "runner_profiles": {
+        "default": {"cpu_weight": 1, "memory_bytes": 0, "max_workers": 1, "timeout_seconds": 600, "no_output_timeout_seconds": 60, "sharding": "none", "network": "allow", "filesystem": "workspace"}
       },
       "customization": {
         "mode": "monotonic",
@@ -209,6 +212,12 @@ The canonical location is:
 template-derived scenarios. Test Genie orchestration controls such as `phases`,
 `presets`, `lint`, `business`, and `performance` remain top-level testing
 configuration; they do not replace the unit policy profile.
+
+`projection.settings` is intentionally opaque to the generic policy schema.
+The selected versioned adapter validates and interprets its keys. For example,
+the React/Vitest adapter owns `environment`, `setup_files`, and
+`coverage_provider`; a future adapter may define a different settings shape
+without adding framework vocabulary to the Unit Health kernel.
 
 ### Resolver precedence
 

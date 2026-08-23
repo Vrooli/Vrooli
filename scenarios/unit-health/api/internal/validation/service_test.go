@@ -94,6 +94,41 @@ func TestValidateGoSurfaceIsReady(t *testing.T) {
 	}
 }
 
+func TestValidateHonorsWorkspaceFilterBeforePlanningAndAnalysis(t *testing.T) {
+	spec := loadSpec(t)
+	root := t.TempDir()
+	apiRoot := filepath.Join(root, "api")
+	cliRoot := filepath.Join(root, "cli")
+	writeFile(t, filepath.Join(apiRoot, "go.mod"), "module example.test/api\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(cliRoot, "go.mod"), "module example.test/cli\n\ngo 1.25\n")
+	inv := discovery.Inventory{Scenario: "demo", TargetKind: "scenario", RootPath: root, Surfaces: []discovery.Surface{
+		{ID: "api", Kind: "api", Language: "go", RootPath: apiRoot, Status: "known"},
+		{ID: "cli", Kind: "cli", Language: "go", RootPath: cliRoot, Status: "known"},
+	}}
+	resp, err := newService(fakeDiscoverer{inv: inv}, spec).Validate(context.Background(), Request{Scenario: "demo", Workspaces: []string{"api"}})
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if len(resp.Surfaces) != 1 || resp.Surfaces[0].ID != "api" || len(resp.Workspaces) != 1 || resp.Workspaces[0].ID != "api" || len(resp.Plan.Commands) != 1 || resp.Plan.Commands[0].WorkspaceID != "api" {
+		t.Fatalf("filtered response surfaces=%+v workspaces=%+v plan=%+v", resp.Surfaces, resp.Workspaces, resp.Plan)
+	}
+}
+
+func TestValidateUnknownWorkspaceFilterDoesNotFallBackToAllSurfaces(t *testing.T) {
+	spec := loadSpec(t)
+	root := t.TempDir()
+	apiRoot := filepath.Join(root, "api")
+	writeFile(t, filepath.Join(apiRoot, "go.mod"), "module example.test/api\n\ngo 1.25\n")
+	inv := discovery.Inventory{Scenario: "demo", TargetKind: "scenario", RootPath: root, Surfaces: []discovery.Surface{{ID: "api", Kind: "api", Language: "go", RootPath: apiRoot, Status: "known"}}}
+	resp, err := newService(fakeDiscoverer{inv: inv}, spec).Validate(context.Background(), Request{Scenario: "demo", Workspaces: []string{"missing"}})
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if len(resp.Surfaces) != 0 || len(resp.Workspaces) != 0 || len(resp.Plan.Commands) != 0 || !hasFinding(resp.Findings, codeTestSurfaceAbsent) {
+		t.Fatalf("unknown filter fell back to discovered surfaces: surfaces=%+v workspaces=%+v plan=%+v findings=%v", resp.Surfaces, resp.Workspaces, resp.Plan, codes(resp.Findings))
+	}
+}
+
 func TestValidateJestUISurfaceIsNoncanonical(t *testing.T) {
 	spec := loadSpec(t)
 	root := t.TempDir()

@@ -38,6 +38,14 @@
               }
             },
             {
+              "name": "fast-test-only",
+              "bool": true,
+              "description": "Execute only the fast test command and omit coverage artifacts",
+              "bind": {
+                "field": "fast_test_only"
+              }
+            },
+            {
               "name": "json",
               "description": "Emit JSON output",
               "local_only": true

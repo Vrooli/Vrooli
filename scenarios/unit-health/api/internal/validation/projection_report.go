@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"unit-health/internal/adapterregistry"
+	"unit-health/internal/adapters"
 )
 
 func buildProjectionChecks(scenarioRoot string, workspaces []Workspace) []ProjectionCheck {
@@ -49,49 +52,17 @@ func goProjectionChecks(scenarioRoot string, ws Workspace) []ProjectionCheck {
 }
 
 func tsProjectionChecks(scenarioRoot string, ws Workspace) []ProjectionCheck {
-	expect := resolveProjectionExpectation(ws)
-	manifest, _ := loadNodeManifest(ws.RootPath)
-	cfg := readFileString(filepath.Join(ws.RootPath, "vite.config.ts"))
-	vitePath := filepath.Join(ws.RootPath, "vite.config.ts")
-	if cfg == "" {
-		cfg = readFileString(filepath.Join(ws.RootPath, "vite.config.js"))
-		vitePath = filepath.Join(ws.RootPath, "vite.config.js")
+	analyzer, ok := adapterregistry.Default().Resolve(ws.AdapterID, ws.Language, ws.Framework)
+	if !ok {
+		return nil
 	}
-	eslintPath := filepath.Join(ws.RootPath, "eslint.config.js")
-	eslint := readFileString(eslintPath)
-	proj := parseViteProjection(cfg, eslint)
+	expect := resolveProjectionPolicy(ws)
+	native := analyzer.AnalyzeProjectionChecks(adapters.ProjectionInput{RootPath: ws.RootPath, Policy: expect})
+	checks := make([]ProjectionCheck, 0, len(native)+4)
+	for _, check := range native {
+		checks = append(checks, projectionCheck(ws, check.Key, check.Owner, check.File, check.PolicyValue, check.NativeValue, check.Pass, check.Remediation))
+	}
 	class := policyClassForWorkspace(scenarioRoot, ws)
-
-	checks := []ProjectionCheck{
-		projectionCheck(ws, "runner.dependency", "package.json dependencies", filepath.Join(ws.RootPath, "package.json"), "vitest", boolNative(manifest.hasDep("vitest")), manifest.hasDep("vitest"),
-			"Add vitest through Scenario Dependency Analyzer and keep the test scripts on Vitest."),
-		projectionCheck(ws, "script.test", "package.json scripts", filepath.Join(ws.RootPath, "package.json"), "contains vitest", manifest.Scripts["test"], strings.Contains(manifest.Scripts["test"], "vitest"),
-			"Set scripts.test to a Vitest command such as \"vitest run\"."),
-		projectionCheck(ws, "script.coverage", "package.json scripts", filepath.Join(ws.RootPath, "package.json"), "contains vitest and coverage", manifest.Scripts["test:coverage"], strings.Contains(manifest.Scripts["test:coverage"], "vitest") && strings.Contains(manifest.Scripts["test:coverage"], "coverage"),
-			"Set scripts.test:coverage to a Vitest coverage command such as \"vitest run --coverage\"."),
-		projectionCheck(ws, "vitest.environment", "vite.config.ts test", vitePath, expect.vitestEnv, proj.environment, proj.environment == expect.vitestEnv,
-			"Set test.environment to the policy-declared jsdom environment."),
-		projectionCheck(ws, "vitest.setup_files", "vite.config.ts test", vitePath, strings.Join(expect.setupFiles, ","), strings.Join(proj.setupFiles, ","), containsAllSetupFiles(proj.setupFiles, expect.setupFiles),
-			"Register the policy-declared setup file(s) in test.setupFiles."),
-		projectionCheck(ws, "coverage.provider", "vite.config.ts test.coverage", vitePath, expect.coverageProvider, proj.coverageProvider, proj.coverageProvider == expect.coverageProvider,
-			"Set coverage.provider to the policy-declared provider."),
-		projectionCheck(ws, "coverage.reporters", "vite.config.ts test.coverage", vitePath, strings.Join(expect.coverageReporters, ","), strings.Join(proj.coverageReporters, ","), containsAllStrings(proj.coverageReporters, expect.coverageReporters),
-			"Include every policy-declared reporter in coverage.reporter."),
-		projectionCheck(ws, "coverage.include", "vite.config.ts test.coverage", vitePath, strings.Join(expect.coverageInclude, ","), strings.Join(proj.coverageInclude, ","), containsAllStrings(proj.coverageInclude, expect.coverageInclude),
-			"Set coverage.include so coverage denominators stay scoped to production source files."),
-		projectionCheck(ws, "coverage.exclude", "vite.config.ts test.coverage", vitePath, strings.Join(expect.coverageExclude, ","), strings.Join(proj.coverageExclude, ","), containsAllStrings(proj.coverageExclude, expect.coverageExclude),
-			"Restore the canonical coverage.exclude entries for test scaffolding, generated files, boot files, and locale catalogs."),
-		projectionCheck(ws, "coverage.report_on_failure", "vite.config.ts test.coverage", vitePath, "true", boolNative(proj.hasReportOnFailure && proj.reportOnFailure), proj.hasReportOnFailure && proj.reportOnFailure,
-			"Set coverage.reportOnFailure to true so failed coverage runs remain interpretable."),
-		projectionCheck(ws, "eslint.production_import_ban", "eslint.config.js no-restricted-imports", eslintPath, "test-utils and features/*/mocks banned from production", boolNative(proj.hasImportBanRule), proj.hasImportBanRule,
-			"Restore no-restricted-imports patterns for src/test-utils and feature mocks."),
-	}
-
-	for _, key := range []string{"lines", "functions", "branches", "statements"} {
-		value, ok := proj.thresholds[key]
-		checks = append(checks, projectionCheck(ws, "coverage.threshold."+key, "vite.config.ts test.coverage.thresholds", vitePath, projectionFormatCoverageFloor(expect.coverageFloor), thresholdNative(value, ok), ok && value >= expect.coverageFloor,
-			fmt.Sprintf("Restore the %s threshold to %.1f or higher.", key, expect.coverageFloor)))
-	}
 	for _, root := range class.TestUtils.RequiredRoots {
 		path := resolveProjectionPath(scenarioRoot, ws.RootPath, root)
 		checks = append(checks, projectionCheck(ws, "testutil.root", "unit.policy_profile test_utils.required_roots", path, root, boolNative(fileOrDirExists(path)), fileOrDirExists(path),
@@ -119,7 +90,7 @@ func importsSharedRenderHelperFromWorkspace(root string) bool {
 		if found || !isTSSourceFile(path) {
 			return
 		}
-		found = importsSharedRenderHelper(readFileString(path))
+		found = strings.Contains(readFileString(path), "@vrooli/api-base/testing") && strings.Contains(readFileString(path), "renderWithProviders")
 	})
 	return found
 }
@@ -153,7 +124,7 @@ func defaultPolicyClass(ws Workspace) unitPolicyClass {
 	case "typescript":
 		return unitPolicyClass{
 			Language:  "typescript",
-			Framework: "vitest",
+			Framework: adapterregistry.DefaultFramework("typescript"),
 			TestUtils: unitTestUtilsPolicy{RequiredRoots: []string{filepath.Join(filepath.Base(ws.RootPath), "src", "test-utils")}, ProductionImportBan: true, CanonicalRenderHelper: filepath.Join(filepath.Base(ws.RootPath), "src", "test-utils", "renderWithProviders.tsx")},
 		}
 	default:

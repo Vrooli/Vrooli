@@ -41,6 +41,7 @@ Each finding caps its capability at a rung; only `ERROR`/`BLOCKER` severities fa
 | `TEST_SURFACE_ABSENT` / `UNIT_REQUIRED_ROLE_MISSING` | surface_discovery | L0 | ERROR | Yes |
 | `UNIT_SURFACE_UNGOVERNED` / `UNSUPPORTED_PARSE_UNIT` | surface_discovery | L1 | WARNING / INFO | No |
 | `TEST_DEPENDENCY_MISSING` / `TEST_EXECUTION_FAILURE` / `TEST_TIMEOUT_HANG` | execution_readiness | L0–L2 | ERROR | Yes |
+| `UNIT_TEST_KIND_OUT_OF_SCOPE` | execution_readiness | L1 | WARNING | No |
 | `TEST_MISCONFIGURATION` | execution_readiness | L1 | WARNING | No |
 | `TEST_FRAMEWORK_MISSING` / `UNIT_POLICY_PROFILE_INVALID` / `TEST_FRAMEWORK_NONCANONICAL` / `UNIT_POLICY_WEAKENED` / `UNIT_POLICY_WAIVER_INVALID` / `UNIT_POLICY_PROJECTION_DRIFT` / `COVERAGE_CONFIG_MISSING` | framework_config | L0–L2 | ERROR | Yes |
 | `PACKAGE_MANAGER_MISMATCH` | framework_config | L3 | WARNING | No |
@@ -52,7 +53,7 @@ Each finding caps its capability at a rung; only `ERROR`/`BLOCKER` severities fa
 ## The canonical fix
 
 - **Surface-discovery findings** → add a test surface / required-role tests where absent; govern discovered surfaces so nothing is silently untested (skills: `test`, `unit-testing-architecture-steer`).
-- **Execution-readiness findings** → install missing test dependencies, fix the failing tests, and eliminate hangs (bound or remove the deadlocking test); repair local execution misconfiguration (skills: `test`, `scientific-debugging`).
+- **Execution-readiness findings** → restore missing dependency readiness through Scenario Dependency Analyzer, fix the failing tests, and eliminate hangs (bound or remove the deadlocking test); repair local execution misconfiguration (skills: `test`, `scientific-debugging`). Unit Health remains observational and never installs dependencies or mutates manifests.
 - **Framework-config findings** → configure a canonical framework (Go `go test`, React/Vite `vitest`, Python `pytest`) with coverage-capable config, a valid policy profile, and aligned package manager; never weaken policy or file an invalid waiver (skill: `unit-testing-architecture-steer`).
 - **Test-architecture findings** → co-locate tests with source, add the shared test util, and stop importing production helpers from tests; add injectable seams so behavior is testable (skills: `unit-testing-architecture-steer`, `seam-discovery-and-enforcement`).
 - **Coverage-quality findings** → raise per-file coverage, strengthen assertions, un-skip tests, replace render-only/snapshot-heavy tests with behavioral ones, and cover edge cases (skill: `test`).

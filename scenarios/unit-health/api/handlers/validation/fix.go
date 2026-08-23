@@ -14,6 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"unit-health/internal/adapters/reactvitest"
 	"unit-health/internal/discovery"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -247,10 +248,7 @@ func unitVitestFixProjection(root string) vitestFixProjection {
 						Reporters      []string `json:"reporters"`
 					} `json:"coverage"`
 					Projection struct {
-						Vitest struct {
-							Environment string   `json:"environment"`
-							SetupFiles  []string `json:"setup_files"`
-						} `json:"vitest"`
+						Settings map[string]json.RawMessage `json:"settings"`
 					} `json:"projection"`
 				} `json:"policy_classes"`
 			} `json:"policy_profile"`
@@ -267,11 +265,12 @@ func unitVitestFixProjection(root string) vitestFixProjection {
 		if !ok {
 			return expect
 		}
-		if class.Projection.Vitest.Environment != "" {
-			expect.environment = class.Projection.Vitest.Environment
+		settings := reactvitest.PolicyFromSettings(class.Projection.Settings)
+		if settings.Environment != "" {
+			expect.environment = settings.Environment
 		}
-		if len(class.Projection.Vitest.SetupFiles) > 0 {
-			expect.setupFiles = class.Projection.Vitest.SetupFiles
+		if len(settings.SetupFiles) > 0 {
+			expect.setupFiles = settings.SetupFiles
 		}
 		if class.Coverage.Provider != "" {
 			expect.coverageProvider = class.Coverage.Provider

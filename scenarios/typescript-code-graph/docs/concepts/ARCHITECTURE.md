@@ -107,7 +107,7 @@ packages/proto/schemas/typescript-code-graph/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/typescript-code-graph/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/typescript-code-graph/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/typescript-code-graph/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/typescript-code-graph/v1/...   (ui)
        └──▶ packages/proto/gen/python/typescript_code_graph/v1/...    (future tools)
 ```
 

@@ -8,6 +8,52 @@ work lands, not while work is still speculative.
 
 ## Progress Log
 
+| 2026-08-21 | codex | active | v2 continuation: added the platform-go native process-substrate test gate to every hosted Unit Health OS leg and recorded its outcome in the native evidence manifest; workflow YAML/Bash checks and local platform-go race tests pass. Hosted execution remains pending. |
+
+| 2026-08-21 | codex | active | v2 continuation: made explicit analyzer identities revalidate observed language/framework matches, preventing generic Node/Vitest surfaces from inheriting React/Vitest architecture rules. Focused race tests and vet pass. |
+
+| 2026-08-21 | codex | active | v2 continuation: preserved JavaScript/Node language identity through discovery and planning so generic Node/Jest work uses the Node adapter without React/Vitest findings; added regression coverage for adapter selection and clean generic diagnostics. Focused race tests pass. |
+
+| 2026-08-21 | codex | active | v2 continuation: hardened adapter-owned Go, LCOV, Istanbul, and Cobertura readers to reject malformed, incomplete, impossible, or oversized coverage artifacts instead of accepting partial evidence; focused race tests and vet pass. |
+
+| 2026-08-21 | codex | active | v2 continuation: added single-record-over-budget eviction coverage, proving an individual oversized response cannot remain reusable after bounded-cache admission. Repeated race-enabled evidence tests pass. |
+
+| 2026-08-21 | codex | active | v2 continuation: included host hermetic capability flags in production evidence keys, preventing reuse across hosts whose sandbox support differs despite matching OS/architecture. Repeated race-enabled key tests pass. |
+
+| 2026-08-21 | codex | active | v2 continuation: expanded the native three-OS matrix's targeted validation to include the twenty-fold warm-cache contract alongside zero-child reuse and SDA readiness; workflow YAML/Bash checks and repeated local race tests pass. |
+
+| 2026-08-21 | codex | active | v2 continuation: expanded evidence-key conformance to assert that every source, config, lock, toolchain, adapter, policy, profile, platform, environment, coverage, and artifact-schema dimension changes the canonical digest. Repeated race-enabled tests pass. |
+
+| 2026-08-21 | codex | active | v2 continuation: added restart/reconstruction coverage for the transactional evidence store; repeated race-enabled store recovery tests pass. |
+
+| 2026-08-21 | codex | active | v2 continuation: collected five repeated warm targeted Vitest samples for Web Console, Swarm Manager, and React Component Library, recording median/p90 wall time, user CPU, and peak RSS. These are smoke evidence only; full-suite cold/warm and geometric-mean gates remain open. |
+
+| 2026-08-21 | codex | active | v2 continuation: separated fast-test and coverage evidence with an additive `fast_test_only` validation contract, mode-specific typed planning, artifact omission, distinct cache keys, and a CLI flag. Regenerated Unit Health protobuf artifacts and passed generated-output verification, CLI race tests, and focused API race tests. |
+
+| 2026-08-21 | codex | active | v2 continuation: native CI artifacts now record per-gate outcomes alongside OS/toolchain provenance, so an uploaded matrix artifact distinguishes executor, API lifecycle, adapter compilation, and cache/readiness conformance results. Workflow YAML and Bash validation pass. |
+
+| 2026-08-21 | codex | active | v2 continuation: added native cancellation-after-attachment and executable-extension conformance fixtures, including descendant cleanup assertions. Focused race-enabled repetitions pass; native runner results remain pending. |
+
+| 2026-08-21 | codex | active | v2 continuation: expanded adapter-declared coverage beyond Go/React: bounded Cobertura parsing for pytest, optional pytest-cov detection, and Cargo LCOV through a resolved cargo-llvm-cov executable. Added targeted representative Vitest smoke measurements for the three slow suites; full-suite/native proof remains open. |
+
+| 2026-08-21 | codex | active | v2 continuation: fixed the historical workspace-selector defect (`knw-1787265952686834745`): requested workspace IDs, roots, and basenames now filter discovery before planning, analysis, caching, and execution; unknown selectors produce an explicit absent-surface finding instead of validating every workspace. Added focused regression tests. |
+
+| 2026-08-21 | codex | active | v2 continuation: added a typed executor timeout fixture that launches a grandchild and asserts bounded cleanup via the native containment path. This is runnable on Linux, macOS, and Windows CI and directly exercises the historical descendant-orphan defect (`knw-1787267826185908192`); native runner results remain pending. |
+
+| 2026-08-21 | codex | active | v2 continuation: expanded the native OS CI matrix to persist machine-readable executor events and runner/toolchain manifests as per-OS artifacts (`unit-health-native-evidence-*`), making native containment results durable and independently reviewable when the matrix runs. |
+
+| 2026-08-21 | codex | active | v2 continuation: expanded evidence-store recovery coverage for stale and incomplete records, integrity quarantine, deterministic oldest-first byte-budget eviction, and interrupted temporary writes. Targeted race tests pass. |
+
+| 2026-08-21 | codex | active | v2 continuation: changed weighted CPU/memory admission to FIFO waiter reservation with cancellation-safe removal, preventing resource-heavy or late requests from barging ahead of queued work. Added repeated race-enabled fairness and cancellation tests. |
+
+| 2026-08-21 | codex | active | v2 continuation: wired the bounded evidence store into the production validation module through the platform storage resolver, and included each workspace's effective runner profile in cache keys. Added a targeted key-invalidation regression test. |
+
+| 2026-08-21 | codex | active | v2 continuation: added explicit workspace-scope identities to evidence keys so identical source contents from different selected workspaces cannot cross-reuse cached responses. Added a scope-separation regression test. |
+
+| 2026-08-21 | codex | active | v2 continuation: adapter-owned launcher resolution now preserves absolute package-manager/Python/Cargo/PowerShell paths (including spaces and platform extensions), emits missing-runtime diagnostics before execution, and Jest declares normalized Istanbul/LCOV coverage artifacts. Added first-party planner conformance coverage; native OS and measured slow-suite evidence remain open. |
+
+| 2026-08-21 | codex | active | v2 continuation: moved coverage artifact parsing and detailed native projection checks behind adapter contracts; added the analyzer registry and framework-neutral validation boundary guard; removed Web Console's multi-process test launcher and package-script worker flags from the three slow-suite migrations; added native API e2e CI execution and targeted cache speedup evidence. Native OS CI execution, five-run slow-suite measurements, and final Test Genie/Plan Manager regressions remain required before completion. |
+
 | Date | Author | Status | Notes |
 |---|---|---|---|
 | 2026-06-16 | agi | done | Phases 8 + 9 (skills + final validation). **Phase 8** (`scenarios/prompt-manager/store/skills/packs/core/`): `test` skill — added a "Provider & scorer" callout naming unit-health as the canonical test-maturity provider/scorer behind the Test Genie `unit` phase and pointing agents at `unit-health validate scenario {{TARGET}}` (human) for the workflow, reframing the skill as remediation-not-scorer; added `programmaticHome: unit-health:unit` to skill.json (kept targetDimensions tests+coverage). `unit-testing-architecture-steer` — added a "Programmatic signal" callout (its `TEST_HELPER_FROM_PRODUCTION`/`TEST_UTIL_MISSING`/`TEST_NOT_COLOCATED`/`MISSING_INJECTABLE_SEAM` findings are unit-health-produced; discover via the CLI), added `targetDimensions: [tests]` + `programmaticHome: unit-health:unit`. `e2e-testing` left unchanged (plan said touch only if unit-health recommends it — it doesn't). `prompt-manager skill sync` → 177 skills synced; `prompt-manager skill show` confirms both carry `programmaticHome: unit-health:unit`; `prompt-manager discover "fix unit-health missing testutil coverage low scenario"` ranks `test` #1. (Note: plan's `prompt-manager skill validate` verb doesn't exist — used `skill sync` hash-detection, the real registration path.) **Phase 9**: re-verified maturity-go `go test ./...` green; **LIVE** `test-genie execute test-genie --phases unit --json` → verdict PASS, unit status=passed (warnings only: TEST_UTIL_MISSING etc.) — proving the delegated phase works on a large real scenario, not just unit-health. test-genie baseline diff (`unit-health-hard-cutover`, run 20260616-213503) → "regression" on `unit`+`smoke`, **TRIAGED as not-a-cutover-defect**: tree is dirty (191 files changed since baseline, GCT flagged "likely stale" + "failures may be caused by uncommitted changes"); `smoke` is UI/BAS, unrelated to this work; the `unit` flag is the *expected* finding-shape change (internal-runner observations → unit-health delegated findings) — the phase itself passes standalone. §6a footprint: all edits within declared allowlist roots (unit-health, test-genie, maturity-go, prompt-manager/store/skills); code-facts untouched (read-only), proto untouched. **DEFERRED pre-existing doc-rot (NOT caused by this work):** `docs/{GLOSSARY,reference/cli-commands,guides/test-generation,guides/vault-testing}.md` document a `test-genie coverage <scenario>` CLI verb that does **not exist** in the current binary (`test-genie coverage` → "Unknown command") — stale before this cutover; the docs phase validates links/markdown not CLI existence, so it doesn't gate. Catalog-defining docs (phases/README, phases/unit/README, reference/presets, manifest) WERE corrected in Phase 7. |

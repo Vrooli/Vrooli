@@ -880,7 +880,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/unit-health/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/unit-health/v1/<domain>/`, and
+   `packages/proto/gen/typescript/unit-health/v1/<domain>/`, and
    `packages/proto/gen/python/unit_health/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.

@@ -66,6 +66,7 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[val
 		Workspaces:       req.Msg.GetWorkspaces(),
 		IncludeExecution: req.Msg.GetIncludeExecution(),
 		UseCache:         req.Msg.GetUseCache(),
+		FastTestOnly:     req.Msg.GetFastTestOnly(),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -97,6 +98,7 @@ func (h *SharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 		Path:             req.Msg.GetPath(),
 		IncludeExecution: req.Msg.GetIncludeExecution(),
 		UseCache:         true,
+		FastTestOnly:     false,
 	}))
 	if err != nil {
 		collector.Stop()
@@ -210,14 +212,20 @@ func responseToProto(in internalvalidation.Response, spec *assessment.Spec) (*va
 		return nil, err
 	}
 	out := &validationv1.ValidateScenarioResponse{
-		RunId:          in.RunID,
-		Status:         in.Status,
-		Summary:        in.Summary,
-		Scenario:       in.Scenario,
-		TargetKind:     in.TargetKind,
-		TargetPath:     in.TargetPath,
-		DegradedReason: in.DegradedReason,
-		Plan:           planToProto(in.Plan),
+		RunId:                      in.RunID,
+		Status:                     in.Status,
+		Summary:                    in.Summary,
+		Scenario:                   in.Scenario,
+		TargetKind:                 in.TargetKind,
+		TargetPath:                 in.TargetPath,
+		DegradedReason:             in.DegradedReason,
+		CacheHit:                   in.CacheHit,
+		CacheMissReason:            in.CacheMissReason,
+		CacheInvalidatedDimensions: in.CacheInvalidatedDimensions,
+		CacheSavedWallTimeMs:       in.CacheSavedWallTimeMS,
+		CacheSavedCpuTimeMs:        in.CacheSavedCPUTimeMS,
+		CacheRetainedBytes:         in.CacheRetainedBytes,
+		Plan:                       planToProto(in.Plan),
 		Maturity: &validationv1.MaturitySummary{
 			Rung:      int32(in.Maturity.Rung),
 			Label:     in.Maturity.Label,
@@ -323,19 +331,32 @@ func surfaceToProto(in internalvalidation.Surface) *validationv1.TestSurface {
 }
 
 func workspaceToProto(in internalvalidation.Workspace) *validationv1.TestWorkspace {
-	return &validationv1.TestWorkspace{Id: in.ID, Language: in.Language, RootPath: in.RootPath, Framework: in.Framework, CanonicalFramework: in.CanonicalFramework, TestCommand: in.TestCommand, CoverageCommand: in.CoverageCommand, PackageManager: in.PackageManager, Status: in.Status, DegradedReason: in.DegradedReason}
+	return &validationv1.TestWorkspace{Id: in.ID, Language: in.Language, RootPath: in.RootPath, Framework: in.Framework, CanonicalFramework: in.CanonicalFramework, TestCommand: in.TestCommand, CoverageCommand: in.CoverageCommand, PackageManager: in.PackageManager, Status: in.Status, DegradedReason: in.DegradedReason, RunnerProfile: in.RunnerProfile, Resources: &validationv1.ResourceLimits{CpuWeight: int32(in.Resource.CPUWeight), MemoryBytes: in.Resource.MemoryBytes, MaxWorkers: int32(in.Resource.MaxWorkers)}, AdapterId: in.AdapterID, AdapterVersion: in.AdapterVersion, TestKind: in.TestKind}
 }
 
 func planToProto(in internalvalidation.ExecutionPlan) *validationv1.ExecutionPlan {
 	out := &validationv1.ExecutionPlan{Notes: in.Notes}
 	for _, c := range in.Commands {
-		out.Commands = append(out.Commands, &validationv1.PlannedCommand{WorkspaceId: c.WorkspaceID, Name: c.Name, Command: c.Command, WorkingDirectory: c.WorkingDirectory, TimeoutSeconds: int32(c.TimeoutSeconds)})
+		artifacts := make([]*validationv1.CommandArtifact, 0, len(c.Artifacts))
+		for _, artifact := range c.Artifacts {
+			artifacts = append(artifacts, &validationv1.CommandArtifact{Label: artifact.Label, Kind: artifact.Kind, Path: artifact.Reference})
+		}
+		out.Commands = append(out.Commands, &validationv1.PlannedCommand{
+			WorkspaceId: c.WorkspaceID, Name: c.Name, Command: c.Command,
+			WorkingDirectory: c.WorkingDirectory, TimeoutSeconds: int32(c.TimeoutSeconds),
+			Executable: c.Executable, Args: c.Args, Environment: c.Env,
+			Artifacts: artifacts, Kind: c.Kind,
+			Resources:              &validationv1.ResourceLimits{CpuWeight: int32(c.Resource.CPUWeight), MemoryBytes: c.Resource.MemoryBytes, MaxWorkers: int32(c.Resource.MaxWorkers)},
+			NoOutputTimeoutSeconds: int32(c.NoOutputTimeoutSeconds),
+			TestKind:               c.TestKind,
+			Hermetic:               &validationv1.HermeticPolicy{Network: c.Hermetic.Network, Filesystem: c.Hermetic.Filesystem, TemporaryRoot: c.Hermetic.TemporaryRoot, RestoreEnvironment: c.Hermetic.RestoreEnvironment, DetectChildLeaks: c.Hermetic.DetectChildLeaks, DetectOpenHandles: c.Hermetic.DetectOpenHandles, OrderIndependent: c.Hermetic.OrderIndependent},
+		})
 	}
 	return out
 }
 
 func commandToProto(in internalvalidation.CommandResult) *validationv1.CommandResult {
-	return &validationv1.CommandResult{Name: in.Name, Command: in.Command, WorkingDirectory: in.WorkingDirectory, Status: in.Status, ExitCode: int32(in.ExitCode), StdoutExcerpt: in.StdoutExcerpt, StderrExcerpt: in.StderrExcerpt, TimeoutSeconds: int32(in.TimeoutSeconds), FailureReason: in.FailureReason, FailureClass: in.FailureClass, DurationMs: in.DurationMS}
+	return &validationv1.CommandResult{Name: in.Name, Command: in.Command, WorkingDirectory: in.WorkingDirectory, Status: in.Status, ExitCode: int32(in.ExitCode), StdoutExcerpt: in.StdoutExcerpt, StderrExcerpt: in.StderrExcerpt, TimeoutSeconds: int32(in.TimeoutSeconds), FailureReason: in.FailureReason, FailureClass: in.FailureClass, DurationMs: in.DurationMS, CpuTimeMs: in.CPUTimeMS, PeakRssBytes: in.PeakRSSBytes}
 }
 
 func coverageToProto(in internalvalidation.CoverageTarget) *validationv1.CoverageTarget {

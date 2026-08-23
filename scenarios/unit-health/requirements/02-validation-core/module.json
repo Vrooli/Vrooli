@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "validation-core",
-    "description": "Code Facts intake, per-workspace test planning, canonical framework detection, and the agent-readable maturity assessment.",
+    "description": "Code Facts intake, per-workspace adapter planning, declared-intent reconciliation, and the agent-readable maturity assessment.",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -27,7 +27,7 @@
       "prd_ref": "OT-P0-001",
       "category": "api",
       "criticality": "P0",
-      "description": "The plan builder derives Go workspaces from Go parse units, TypeScript/Vite UI workspaces from TypeScript parse units plus package.json, and Python fallback workspaces with explicit unsupported-by-Code-Facts evidence, producing a dry-run plan in both human and JSON output.",
+      "description": "The plan builder derives workspaces from Code Facts, resolves a versioned adapter against declared intent and host support, and preserves explicit degraded evidence when facts are incomplete, producing a dry-run plan in both human and JSON output.",
       "tags": ["plan", "workspaces", "api"],
       "validation": [
         {"type": "unit", "status": "planned", "notes": "Fixture parse-unit reports produce deterministic per-workspace plans including the degraded Python path."}
@@ -35,12 +35,12 @@
     },
     {
       "id": "UH-CORE-003",
-      "title": "Require canonical test frameworks",
+      "title": "Resolve declared adapters honestly",
       "status": "planned",
       "prd_ref": "OT-P0-005",
       "category": "api",
       "criticality": "P0",
-      "description": "Each workspace is assigned its canonical framework (Go go test, React/Vite vitest, Python pytest preferred / unittest degraded). Jest in a React/Vite UI, a missing test script, a missing coverage config, and a package-manager mismatch each emit a stable finding.",
+      "description": "Each workspace is assigned only a registered, versioned adapter whose observed facts, declared intent, and host platform agree. Missing or noncanonical configuration, unsupported combinations, and package-manager mismatch each emit a stable finding without unrelated framework rules.",
       "tags": ["frameworks", "vitest", "degraded"],
       "validation": [
         {"type": "unit", "status": "planned", "notes": "Fixtures cover Vitest-ok, Jest-degraded, missing-script, missing-coverage-config, and pm-mismatch cases."}

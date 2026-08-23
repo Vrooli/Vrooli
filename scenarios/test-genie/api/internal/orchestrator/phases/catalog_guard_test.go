@@ -367,6 +367,33 @@ func TestTestingSchemaDefinesUnitPolicyProfile(t *testing.T) {
 	}
 }
 
+func TestTestingSchemaKeepsAdapterVocabularyOpen(t *testing.T) {
+	root := scenarioRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, "schemas", "testing.schema.json"))
+	if err != nil {
+		t.Fatalf("read testing schema: %v", err)
+	}
+	var schema struct {
+		Definitions map[string]struct {
+			Properties map[string]struct {
+				Enum []string `json:"enum"`
+				Type string   `json:"type"`
+			} `json:"properties"`
+		} `json:"definitions"`
+	}
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatalf("parse testing schema: %v", err)
+	}
+	packageManager := schema.Definitions["unit_policy_class"].Properties["package_manager"]
+	if packageManager.Type != "string" || len(packageManager.Enum) != 0 {
+		t.Fatalf("package_manager must remain an open adapter-owned string: %+v", packageManager)
+	}
+	projection := schema.Definitions["unit_projection_policy"].Properties["settings"]
+	if projection.Type != "object" {
+		t.Fatalf("projection.settings must be an opaque object: %+v", projection)
+	}
+}
+
 func TestReactViteTemplateDeclaresUnitPolicyProfile(t *testing.T) {
 	root := scenarioRoot(t)
 	templateTestingPath := filepath.Clean(filepath.Join(root, "..", "..", "templates", "scenarios", "react-vite", ".vrooli", "testing.json"))
@@ -393,8 +420,8 @@ func TestReactViteTemplateDeclaresUnitPolicyProfile(t *testing.T) {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatalf("parse react-vite testing.json: %v", err)
 	}
-	if doc.Unit.PolicyProfile.Version != "1.0.0" {
-		t.Fatalf("policy profile version = %q, want 1.0.0", doc.Unit.PolicyProfile.Version)
+	if doc.Unit.PolicyProfile.Version != "2.0.0" {
+		t.Fatalf("policy profile version = %q, want 2.0.0", doc.Unit.PolicyProfile.Version)
 	}
 	if doc.Unit.PolicyProfile.Template["id"] != "react-vite" {
 		t.Fatalf("template id = %q, want react-vite", doc.Unit.PolicyProfile.Template["id"])

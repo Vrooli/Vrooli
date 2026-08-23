@@ -14,7 +14,7 @@
       "prd_ref": "OT-P0-003",
       "category": "api",
       "criticality": "P0",
-      "description": "The coverage analyzer parses Go cover profiles, LCOV, and Vitest coverage summaries, computes per-surface and per-file coverage, and emits low-coverage and coverage-absent findings as hardening gaps within the unit phase.",
+      "description": "Versioned adapters parse their declared coverage artifacts into normalized per-surface and per-file coverage, and Unit Health emits low-coverage and coverage-absent findings as hardening gaps within the delegated unit phase.",
       "tags": ["coverage", "lcov", "vitest"],
       "validation": [
         {"type": "unit", "status": "planned", "notes": "Fixture profiles produce deterministic per-target percentages and threshold findings; absent artifacts produce coverage_absent."}
