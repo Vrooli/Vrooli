@@ -105,7 +105,6 @@ export const strings = {
     summary: {
       scenarios: "fleet.summary.scenarios",
       passing: "fleet.summary.passing",
-      missingFreshness: "fleet.summary.missingFreshness",
       autofixable: "fleet.summary.autofixable",
     },
     profiles: {
@@ -131,7 +130,6 @@ export const strings = {
       failed: "fleet.scenarios.failed",
       recognized: "fleet.scenarios.recognized",
       unrecognized: "fleet.scenarios.unrecognized",
-      missingFreshnessBadge: "fleet.scenarios.missingFreshnessBadge",
       col: {
         scenario: "fleet.scenarios.col.scenario",
         target: "fleet.scenarios.col.target",
@@ -140,7 +138,6 @@ export const strings = {
         errors: "fleet.scenarios.col.errors",
         warnings: "fleet.scenarios.col.warnings",
         autofixable: "fleet.scenarios.col.autofixable",
-        freshness: "fleet.scenarios.col.freshness",
       },
     },
     errors: {

@@ -8,6 +8,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	"audio-tools/internal/modules"
+
 	db "github.com/vrooli/api-core/databasetest"
 )
 

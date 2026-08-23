@@ -107,7 +107,7 @@ packages/proto/schemas/audio-tools/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/audio-tools/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/audio-tools/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/audio-tools/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/audio-tools/v1/...   (ui)
        └──▶ packages/proto/gen/python/audio_tools/v1/...    (future tools)
 ```
 

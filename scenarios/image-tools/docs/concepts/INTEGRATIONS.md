@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API (jobs, recipes, models, automation, measures, storage refs) | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API (jobs, recipes, models, automation, measures, storage refs) | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | api-core storage/blobstore | platform storage | yes | storage seam, all operation domains | `storage` domain seam | Image bytes cannot be persisted; ops fail with a storage error. |
 | root `vrooli` CLI host inventory | local platform | yes (for AI tier) | models selector, backends fallback | `vrooli host inventory --json` via `packages/vrooli-cli-go`, behind the `capabilities` seam (`internal/hostinventory` collector) | No host facts → AI ops cannot select a model; deterministic ops unaffected. |

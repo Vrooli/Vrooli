@@ -24,7 +24,7 @@ Device Sync Hub stores two kinds of state, through two `api-core` seams:
   settings) via `api-core/storage`, the `data` storage class, rooted at
   `~/.vrooli/data/vrooli/device-sync-hub`. The backing engine is
   embedded SQLite through `modernc.org/sqlite`; the lifecycle sets
-  `SQLITE_PATH` through `.vrooli/service.json`, and the API applies
+and the API applies
   schemas on startup through `api-core/database`. The schema is written
   Postgres-compatible for forward multi-tenant readiness, but v1 ships
   SQLite for the single-owner deployment.
@@ -42,7 +42,7 @@ Presence is **not** stored here — it is ephemeral (see below).
 | Concern | Policy |
 |---|---|
 | Storage class | `data` (runtime, owner-private). |
-| Metadata root | `~/.vrooli/data/vrooli/device-sync-hub`, env `SQLITE_PATH`. |
+| Metadata root | `~/.vrooli/data/vrooli/device-sync-hub`, resolved by `api-core/storage` from the scenario id. |
 | Blob root | Resolved by `api-core/blobstore` under the same data class. |
 | Access | Only through the storage `Resolver` and `BlobStore` seams; no domain reads the filesystem directly. |
 | Cross-scenario access | Forbidden — other scenarios reach data only through the versioned CLI/API, never the DB or blobstore. |

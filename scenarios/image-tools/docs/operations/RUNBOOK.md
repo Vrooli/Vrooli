@@ -36,7 +36,7 @@ ports, health checks, logs, and `/ready` gating for on-demand resources.
 | Symptom | Check | Fix |
 |---|---|---|
 | Scenario does not start | `make status`, `make logs` | `make restart`; if stale build, `make setup` then start. |
-| API unhealthy | `/health`, `/ready`, `SQLITE_PATH` writable, API logs | `make setup`, verify writable data dir, then `make restart`. |
+| API unhealthy | `/health`, `/ready`, data dir writable, API logs | `make setup`, verify writable data dir, then `make restart`. |
 | UI blank or stale | UI port, browser console, `ui/dist` freshness | `make setup` then `make restart`. |
 | Model download fails / disk full | `image-tools model list`, free disk on the storage volume, API logs | Free disk or change storage location; re-run `image-tools model install <id>` (downloads are checksummed and resumable/opt-in). |
 | GPU not detected | `vrooli host inventory --json` output (the `capabilities` seam / `internal/hostinventory` collector), API logs for fallback messages | Expected to fall back to the CPU-capable default with a visible warning; verify NVIDIA drivers if GPU is expected. Op still completes on CPU (slower). |
@@ -54,7 +54,7 @@ Vrooli scenario backup substrate (data-backup-manager).
 
 | Data | Backup Procedure | Restore Procedure |
 |---|---|---|
-| SQLite metadata (jobs, recipes, model registry state, measures) | Snapshot `SQLITE_PATH` via data-backup-manager scenario backup. | Restore the snapshot, then `make restart`. |
+| SQLite metadata (jobs, recipes, model registry state, measures) | Snapshot the scenario database via data-backup-manager scenario backup. | Restore the snapshot, then `make restart`. |
 | Image binaries (api-core storage / blobstore) | Backed up as the scenario's storage namespace via data-backup-manager. | Restore the storage namespace, then `make restart`. |
 | Opt-in model weights | Not backed up (reproducible via the model registry). | Re-install on demand with `image-tools model install <id>`. |
 

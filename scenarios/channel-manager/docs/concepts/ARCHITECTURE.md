@@ -171,7 +171,7 @@ packages/proto/schemas/channel-manager/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/channel-manager/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/channel-manager/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/channel-manager/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/channel-manager/v1/...   (ui)
        └──▶ packages/proto/gen/python/channel_manager/v1/...    (future tools)
 ```
 

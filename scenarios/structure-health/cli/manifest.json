@@ -136,9 +136,9 @@
         {
           "name": "docs",
           "description": "Render generated catalog documentation",
-          "flags": [{"name": "json", "description": "Emit JSON output", "local_only": true}],
+          "flags": [{"name": "json", "description": "Emit JSON output", "local_only": true}, {"name": "output", "description": "Write generated Markdown to this path", "local_only": true}],
           "binding": {"kind": "local"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"]}
         }
       ]
     },
@@ -176,6 +176,40 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "census",
+          "description": "Measure every scenario manifest directly from disk for deterministic lifecycle-migration evidence without code-facts reconciliation",
+          "flags": [
+        {
+          "name": "include-steps",
+          "description": "Include the complete lifecycle-step inventory in the JSON result"
+        },
+        {
+          "name": "output",
+          "description": "Write the census JSON to this repository-relative or absolute path"
+        },
+        {
+          "name": "steps-output",
+          "description": "Write the complete lifecycle-step inventory to this repository-relative or absolute path"
+        },
+        {
+          "name": "json",
+              "description": "Emit JSON output",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+      "governance": {
+        "effect": "write",
+        "run_eligible": false,
+        "permissions": [
+          "filesystem:read",
+          "filesystem:write"
+        ]
+      }
         }
       ]
     },

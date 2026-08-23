@@ -107,7 +107,7 @@ packages/proto/schemas/content-desk/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/content-desk/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/content-desk/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/content-desk/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/content-desk/v1/...   (ui)
        └──▶ packages/proto/gen/python/content_desk/v1/...    (future tools)
 ```
 

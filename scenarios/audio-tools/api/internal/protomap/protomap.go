@@ -35,6 +35,7 @@ func ProviderTierFromProto(t commonv1.ProviderTier) string {
 var providerTierToProto = map[string]commonv1.ProviderTier{
 	"byok": commonv1.ProviderTier_PROVIDER_TIER_BYOK, "vrooli": commonv1.ProviderTier_PROVIDER_TIER_VROOLI, "local": commonv1.ProviderTier_PROVIDER_TIER_LOCAL,
 }
+
 var providerTierFromProto = map[commonv1.ProviderTier]string{
 	commonv1.ProviderTier_PROVIDER_TIER_BYOK: "byok", commonv1.ProviderTier_PROVIDER_TIER_VROOLI: "vrooli", commonv1.ProviderTier_PROVIDER_TIER_LOCAL: "local",
 }
@@ -56,6 +57,7 @@ var audioFormatToProto = map[string]commonv1.AudioFormat{
 	"ogg": commonv1.AudioFormat_AUDIO_FORMAT_OGG, "webm": commonv1.AudioFormat_AUDIO_FORMAT_WEBM, "opus": commonv1.AudioFormat_AUDIO_FORMAT_OPUS,
 	"aac": commonv1.AudioFormat_AUDIO_FORMAT_AAC, "pcm_s16le": commonv1.AudioFormat_AUDIO_FORMAT_PCM_S16LE, "pcm": commonv1.AudioFormat_AUDIO_FORMAT_PCM_S16LE,
 }
+
 var audioFormatFromProto = map[commonv1.AudioFormat]string{
 	commonv1.AudioFormat_AUDIO_FORMAT_WAV: "wav", commonv1.AudioFormat_AUDIO_FORMAT_MP3: "mp3", commonv1.AudioFormat_AUDIO_FORMAT_FLAC: "flac",
 	commonv1.AudioFormat_AUDIO_FORMAT_OGG: "ogg", commonv1.AudioFormat_AUDIO_FORMAT_WEBM: "webm", commonv1.AudioFormat_AUDIO_FORMAT_OPUS: "opus",
@@ -78,6 +80,7 @@ var responseFormatToProto = map[string]commonv1.ResponseFormat{
 	"mp3": commonv1.ResponseFormat_RESPONSE_FORMAT_MP3, "wav": commonv1.ResponseFormat_RESPONSE_FORMAT_WAV,
 	"opus": commonv1.ResponseFormat_RESPONSE_FORMAT_OPUS, "flac": commonv1.ResponseFormat_RESPONSE_FORMAT_FLAC,
 }
+
 var responseFormatFromProto = map[commonv1.ResponseFormat]string{
 	commonv1.ResponseFormat_RESPONSE_FORMAT_MP3: "mp3", commonv1.ResponseFormat_RESPONSE_FORMAT_WAV: "wav",
 	commonv1.ResponseFormat_RESPONSE_FORMAT_OPUS: "opus", commonv1.ResponseFormat_RESPONSE_FORMAT_FLAC: "flac",
@@ -98,6 +101,7 @@ func SpeakerModeFromProto(m sttv1.SpeakerMode) string {
 var speakerModeToProto = map[string]sttv1.SpeakerMode{
 	"off": sttv1.SpeakerMode_SPEAKER_MODE_OFF, "filter": sttv1.SpeakerMode_SPEAKER_MODE_FILTER, "advisory": sttv1.SpeakerMode_SPEAKER_MODE_ADVISORY,
 }
+
 var speakerModeFromProto = map[sttv1.SpeakerMode]string{
 	sttv1.SpeakerMode_SPEAKER_MODE_OFF: "off", sttv1.SpeakerMode_SPEAKER_MODE_FILTER: "filter", sttv1.SpeakerMode_SPEAKER_MODE_ADVISORY: "advisory",
 }
@@ -113,6 +117,7 @@ func RejectBehaviorFromProto(r sttv1.RejectBehavior) string {
 var rejectBehaviorToProto = map[string]sttv1.RejectBehavior{
 	"drop": sttv1.RejectBehavior_REJECT_BEHAVIOR_DROP, "show-muted": sttv1.RejectBehavior_REJECT_BEHAVIOR_SHOW_MUTED, "show_muted": sttv1.RejectBehavior_REJECT_BEHAVIOR_SHOW_MUTED,
 }
+
 var rejectBehaviorFromProto = map[sttv1.RejectBehavior]string{
 	sttv1.RejectBehavior_REJECT_BEHAVIOR_DROP: "drop", sttv1.RejectBehavior_REJECT_BEHAVIOR_SHOW_MUTED: "show-muted",
 }
@@ -125,8 +130,10 @@ func StreamingModeFromProto(m sttv1.StreamingMode) string {
 	return enumFromProto(m, streamingModeFromProto)
 }
 
-var streamingModeToProto = map[string]sttv1.StreamingMode{"auto": sttv1.StreamingMode_STREAMING_MODE_AUTO, "off": sttv1.StreamingMode_STREAMING_MODE_OFF}
-var streamingModeFromProto = map[sttv1.StreamingMode]string{sttv1.StreamingMode_STREAMING_MODE_AUTO: "auto", sttv1.StreamingMode_STREAMING_MODE_OFF: "off"}
+var (
+	streamingModeToProto   = map[string]sttv1.StreamingMode{"auto": sttv1.StreamingMode_STREAMING_MODE_AUTO, "off": sttv1.StreamingMode_STREAMING_MODE_OFF}
+	streamingModeFromProto = map[sttv1.StreamingMode]string{sttv1.StreamingMode_STREAMING_MODE_AUTO: "auto", sttv1.StreamingMode_STREAMING_MODE_OFF: "off"}
+)
 
 func StrategyPreferenceToProto(s string) sttv1.StrategyPreference {
 	return enumToProto(s, strategyPreferenceToProto, sttv1.StrategyPreference_STRATEGY_PREFERENCE_UNSPECIFIED)
@@ -139,6 +146,7 @@ func StrategyPreferenceFromProto(p sttv1.StrategyPreference) string {
 var strategyPreferenceToProto = map[string]sttv1.StrategyPreference{
 	"auto": sttv1.StrategyPreference_STRATEGY_PREFERENCE_AUTO, "vad": sttv1.StrategyPreference_STRATEGY_PREFERENCE_VAD, "overlap": sttv1.StrategyPreference_STRATEGY_PREFERENCE_OVERLAP, "passthrough": sttv1.StrategyPreference_STRATEGY_PREFERENCE_PASSTHROUGH,
 }
+
 var strategyPreferenceFromProto = map[sttv1.StrategyPreference]string{
 	sttv1.StrategyPreference_STRATEGY_PREFERENCE_AUTO: "auto", sttv1.StrategyPreference_STRATEGY_PREFERENCE_VAD: "vad", sttv1.StrategyPreference_STRATEGY_PREFERENCE_OVERLAP: "overlap", sttv1.StrategyPreference_STRATEGY_PREFERENCE_PASSTHROUGH: "passthrough",
 }
@@ -158,6 +166,7 @@ func SummarizeLevelFromProto(l summarizev1.SummarizeLevel) string {
 var summarizeLevelToProto = map[string]summarizev1.SummarizeLevel{
 	"light": summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT, "moderate": summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE, "heavy": summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY,
 }
+
 var summarizeLevelFromProto = map[summarizev1.SummarizeLevel]string{
 	summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT: "light", summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE: "moderate", summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY: "heavy",
 }
@@ -186,6 +195,7 @@ func SessionTransportFromProto(t sessionv1.SessionTransport) string {
 var sessionTransportToProto = map[string]sessionv1.SessionTransport{
 	"browser-voice": sessionv1.SessionTransport_SESSION_TRANSPORT_BROWSER_VOICE, "browser_voice": sessionv1.SessionTransport_SESSION_TRANSPORT_BROWSER_VOICE, "fake": sessionv1.SessionTransport_SESSION_TRANSPORT_FAKE,
 }
+
 var sessionTransportFromProto = map[sessionv1.SessionTransport]string{
 	sessionv1.SessionTransport_SESSION_TRANSPORT_BROWSER_VOICE: "browser-voice", sessionv1.SessionTransport_SESSION_TRANSPORT_FAKE: "fake",
 }

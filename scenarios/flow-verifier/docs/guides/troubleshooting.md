@@ -222,7 +222,7 @@ make generate
 The generator runs entirely on local plugins (no BSR network calls) and
 writes to language-specific output paths: Go under
 `packages/proto/gen/go/flow-verifier/v1/`, TypeScript under
-`packages/proto/gen/typescript/js/flow-verifier/v1/`, and Python under
+`packages/proto/gen/typescript/flow-verifier/v1/`, and Python under
 `packages/proto/gen/python/flow_verifier/v1/`.
 
 ### Codegen ran but Go imports still fail

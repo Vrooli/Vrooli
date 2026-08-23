@@ -382,6 +382,37 @@ func CheckServicePortConfiguration(content []byte, filePath string, scenario ...
 	return dedupePortViolations(violations)
 }
 
+// CheckPortEnvConvention enforces the direct NAME -> NAME_PORT mapping used by
+// component run.port. With ownership declared in the manifest, no step-name
+// heuristic remains to compensate for a differently named environment key.
+func CheckPortEnvConvention(content []byte, filePath string) []Violation {
+	if !shouldCheckPortsServiceJSON(filePath) {
+		return nil
+	}
+	var payload struct {
+		Ports map[string]struct {
+			EnvVar string `json:"env_var"`
+		} `json:"ports"`
+	}
+	if err := json.Unmarshal(content, &payload); err != nil {
+		return []Violation{newPortsViolation(filePath, 1, fmt.Sprintf("service.json must be valid JSON to validate port environment names: %v", err))}
+	}
+	source := string(content)
+	var violations []Violation
+	for name, port := range payload.Ports {
+		expected := strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_PORT"
+		if strings.TrimSpace(port.EnvVar) == expected {
+			continue
+		}
+		violations = append(violations, newPortsViolation(
+			filePath,
+			findPortsJSONLine(source, strconv.Quote(name), "\"env_var\""),
+			fmt.Sprintf("ports.%s.env_var must be %q so component port ownership is explicit", name, expected),
+		))
+	}
+	return violations
+}
+
 func validateDeclaredPort(name string, entry map[string]any, source, filePath string, violations *[]Violation) {
 	envVarLine := findPortsJSONLine(source, strconv.Quote(name), "\"env_var\"")
 	envVar, ok := entry["env_var"].(string)

@@ -11,10 +11,9 @@ const sample = `{
   "cli": {"enabled": true, "command": "demo"},
   "ports": {"api": {"env_var": "API_PORT", "range": "15000-19999"}, "ui": {"env_var": "UI_PORT", "range": "20000-24999"}},
   "lifecycle": {
-    "health": {"endpoints": {"api": "/health"}, "checks": [{"name": "api_endpoint", "type": "http", "target": "http://localhost:${API_PORT}/health", "critical": true}], "startup_grace_period": 15000},
-    "setup": {"condition": {"checks": [{"type": "binaries", "targets": ["api/demo-api"]}, {"type": "ui-bundle", "bundle_path": "ui/dist/index.html", "source_dir": "ui/src"}]}, "steps": [{"name": "build-api", "run": "cd api && go build ."}]},
-    "develop": {"steps": [{"name": "start-api", "run": "cd api && ./demo-api", "background": true}]}
+    "health": {"endpoints": {"api": "/health"}, "checks": [{"name": "api_endpoint", "type": "http", "target": "http://localhost:${API_PORT}/health", "critical": true}], "startup_grace_period": 15000}
   },
+  "components": {"api": {"role": "api", "build": {"kind": "go_module", "dir": "api"}, "run": {"argv": ["{{bin.api}}"], "cwd": "api", "port": "api"}}},
   "dependencies": {"resources": {"postgres": {"startup_policy": "must_start", "freshness_policy": "reuse_running"}}}
 }`
 
@@ -35,14 +34,6 @@ func TestParse(t *testing.T) {
 	}
 	if in.Lifecycle.Health.StartupGracePeriod != 15000 {
 		t.Fatalf("grace period = %d", in.Lifecycle.Health.StartupGracePeriod)
-	}
-	bins := in.FreshCheckByType("binaries")
-	if len(bins) != 1 || len(bins[0].Targets) != 1 {
-		t.Fatalf("binaries fresh-check wrong: %+v", bins)
-	}
-	bundles := in.FreshCheckByType("ui-bundle")
-	if len(bundles) != 1 || bundles[0].BundlePath != "ui/dist/index.html" {
-		t.Fatalf("ui-bundle fresh-check wrong: %+v", bundles)
 	}
 	if len(in.Deps.Resources) != 1 || in.Deps.Resources["postgres"].StartupPolicy != "must_start" {
 		t.Fatalf("deps wrong: %+v", in.Deps)

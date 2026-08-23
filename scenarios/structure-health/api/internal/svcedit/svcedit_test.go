@@ -122,3 +122,21 @@ func TestAppendToSliceCreatesArray(t *testing.T) {
 		t.Fatalf("array not appended: %s", out)
 	}
 }
+
+func TestRenameKeyPreservesPositionAndValue(t *testing.T) {
+	doc, err := Parse([]byte("{\n  \"before\": 1,\n  \"deployment\": {\n    \"tiers\": {}\n  },\n  \"after\": 2\n}\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if !RenameKey(doc.Root(), "deployment", "tier_feasibility") {
+		t.Fatal("RenameKey returned false")
+	}
+	out, err := doc.Bytes()
+	if err != nil {
+		t.Fatalf("bytes: %v", err)
+	}
+	want := "{\n  \"before\": 1,\n  \"tier_feasibility\": {\n    \"tiers\": {}\n  },\n  \"after\": 2\n}\n"
+	if string(out) != want {
+		t.Fatalf("rename changed position or value.\nwant:\n%s\ngot:\n%s", want, out)
+	}
+}

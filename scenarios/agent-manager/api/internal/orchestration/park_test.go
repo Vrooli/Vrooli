@@ -3,6 +3,8 @@ package orchestration_test
 import (
 	"context"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -277,6 +279,58 @@ func TestWakeRun_Idempotent(t *testing.T) {
 	}
 	if got.Status != domain.RunStatusRunning {
 		t.Errorf("idempotent wake changed status to %s, want unchanged running", got.Status)
+	}
+}
+
+func TestWakeRun_ConcurrentNotificationsStartOneContinuation(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	var continueCalls atomic.Int32
+	continued := make(chan struct{})
+	var signalOnce sync.Once
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{SupportsMessages: true, SupportsContinuation: true, MaxTurns: 100, SupportedModels: []string{"mock-model"}})
+	mockRunner.ContinueFunc = func(_ context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		continueCalls.Add(1)
+		signalOnce.Do(func() { close(continued) })
+		return &runner.ExecuteResult{Success: true, ExitCode: 0, SessionID: req.SessionID}, nil
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mockRunner); err != nil {
+		t.Fatalf("register runner: %v", err)
+	}
+	svc := orchestration.New(
+		repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
+	)
+	run := newParkableRun(t, ctx, svc, repos)
+	if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: "test-genie", Key: "run-concurrent"}); err != nil {
+		t.Fatalf("ParkRun: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := svc.WakeRun(ctx, orchestration.WakeRunInput{RunID: run.ID, Result: "terminal"}); err != nil {
+				t.Errorf("WakeRun: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
+	select {
+	case <-continued:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for the single continuation")
+	}
+	if got := continueCalls.Load(); got != 1 {
+		t.Fatalf("concurrent wake notifications started %d continuations, want 1", got)
 	}
 }
 

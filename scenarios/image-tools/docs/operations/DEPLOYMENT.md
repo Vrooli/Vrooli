@@ -39,7 +39,7 @@ Always-on, declared and started by the lifecycle:
 - **React + Vite UI** — production bundle served by `ui/server.js`.
   Port assigned by lifecycle as `UI_PORT`.
 - **SQLite** — scenario metadata (jobs, recipes, model registry state,
-  measures) at `SQLITE_PATH`.
+  measures) in the scenario database.
 - **api-core storage / blobstore** — image binaries stored outside the
   repo by default; per-request save-location override supported.
 - **root `vrooli` CLI host inventory** — hardware capability/capacity facts

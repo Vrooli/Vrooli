@@ -323,6 +323,63 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 	return dedupeHealthViolations(violations)
 }
 
+// CheckStopProcessOwnership rejects stop commands that select processes by a
+// host-wide pattern. Lifecycle stop is allowed to target recorded PIDs, or a
+// pattern that is explicitly scoped to the owning scenario. This catches the
+// dangerous `pkill -f 'node server.js'` class without constraining the control
+// plane's PID-based stop implementation.
+func CheckStopProcessOwnership(content []byte, filePath string) []Violation {
+	if !shouldCheckHealthServiceJSON(filePath) {
+		return nil
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		return nil
+	}
+	name := scenarioNameFromServicePath(filePath)
+	lifecycle, _ := payload["lifecycle"].(map[string]any)
+	stop, _ := lifecycle["stop"].(map[string]any)
+	steps, _ := stop["steps"].([]any)
+	var violations []Violation
+	for _, raw := range steps {
+		step, _ := raw.(map[string]any)
+		exec, _ := step["exec"].([]any)
+		parts := make([]string, 0, len(exec))
+		for _, arg := range exec {
+			if text, ok := arg.(string); ok {
+				parts = append(parts, text)
+			}
+		}
+		command := strings.Join(parts, " ")
+		lower := strings.ToLower(command)
+		if !strings.Contains(lower, "pkill") && !strings.Contains(lower, "killall") && !strings.Contains(lower, "pgrep") {
+			continue
+		}
+		if name != "" && strings.Contains(strings.ToLower(command), strings.ToLower(name)) {
+			continue
+		}
+		line := findHealthJSONLine(string(content), "\"stop\"")
+		violations = append(violations, Violation{
+			Type: "config_stop_process_ownership", Severity: "high",
+			Title:       "Stop process ownership issue",
+			Description: fmt.Sprintf("scenario %q has a stop command with an unscoped process pattern: %s; pattern-based stops must include the scenario name or use recorded PIDs", name, command),
+			FilePath:    filePath, LineNumber: line,
+			Recommendation: "Use the lifecycle runtime registry's recorded process IDs, or scope the pattern to this scenario.", Standard: "configuration-v1",
+		})
+	}
+	return violations
+}
+
+func scenarioNameFromServicePath(filePath string) string {
+	parts := strings.Split(filepath.ToSlash(filePath), "/")
+	for i, part := range parts {
+		if part == "scenarios" && i+1 < len(parts) {
+			return parts[i+1]
+		}
+	}
+	return ""
+}
+
 func findHealthCheck(checks []any, name string) map[string]any {
 	for _, entry := range checks {
 		checkMap, ok := entry.(map[string]any)

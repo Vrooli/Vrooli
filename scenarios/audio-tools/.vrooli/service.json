@@ -187,7 +187,6 @@
   },
   "environment": {
     "GOWORK": "off",
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/audio-tools.db",
     "AUDIO_WHISPER_URL": "http://localhost:8090",
     "AUDIO_KYUTAI_URL": "http://localhost:8094",
     "AUDIO_SHERPA_URL": "http://localhost:8880",

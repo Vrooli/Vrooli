@@ -208,6 +208,63 @@ execution settles terminal ──▶ notify blocking waiters + nudge parent
 - `internal/orchestration/workflow_nudge_integration_test.go` — run node reaches its next node with zero `AdvanceWorkflowExecution` calls; nudge tolerates concurrent explicit advance; progression across a simulated restart via the recovery backstop.
 - `internal/database/repository_workflow_test.go::TestWorkflowExecutionRepositoryExecutionIDForRun` — the reverse run→execution link.
 
+## Lifecycle ownership and operator diagnostics
+
+The durable lifecycle is intentionally split at the wait boundary:
+
+| State | Durable owner | Process expectation | Recovery action |
+| --- | --- | --- | --- |
+| `running` | Run executor | one runner turn may be active | inspect heartbeat and runner process |
+| `parked` | Await registry + run repository | no runner process is required | recover the persisted await handle and reattach one watcher |
+| `running` after wake | Run executor | one continuation turn may be active | verify the typed wake result was injected |
+| terminal | Run repository / workflow repository | no runner process | reconcile dependents from the durable terminal record |
+
+The parked record is the source of truth. A watcher never creates a replacement
+operation and a process liveness scan never reaps a parked run. The handle
+(`producer`, `key`, `deadline`, registration time), last heartbeat, run id, and
+workflow id are the minimum evidence needed to diagnose a recovery:
+
+```text
+parked run → producer/key + deadline + last heartbeat
+          → startup reattach (one watcher)
+          → producer result | typed timeout | typed producer failure
+          → clear handle before wake
+          → continuation or terminal failure
+```
+
+Operator guidance: if a run remains parked, report the run id, producer/key,
+deadline, last heartbeat, and the next action (`await`, `timeout`, `cancel`, or
+`inspect producer`). Do not manually start a second wait. A human shell wait
+may remain blocking in the human session, but managed agents must use the
+server-owned park/wake contract so restart recovery and cancellation remain
+observable.
+
+### Recovery runbook
+
+1. Read the run and confirm `status=parked`, `await_handle.producer`,
+   `await_handle.key`, `deadline`, and `last_heartbeat`.
+2. Check the producer's existing operation by that same key. Do not submit a
+   replacement operation.
+3. If the producer is terminal, allow startup recovery or an explicit reattach
+   to invoke the same waiter; it will wake the run once.
+4. If the deadline has elapsed, expect the typed timeout wake. If the producer
+   failed, expect a typed producer-error wake. If the run is intentionally
+   stopped, expect cancellation and no continuation.
+5. After wake, verify the handle is cleared, `last_await_result` is present,
+   heartbeat is fresh, and the continuation has the same conversation,
+   sandbox, working directory, custom environment, and a valid fresh identity.
+
+### Troubleshooting ownership failures
+
+- Parked with no watcher: inspect Agent Manager startup recovery and the
+  persisted handle; do not restart the producer.
+- Repeated wake attempts: inspect run events and `last_await_key`; a
+  non-parked run is an idempotent no-op.
+- Stale heartbeat while parked: expected; parked runs are exempt from runner
+  liveness reaping. Check the deadline and producer state instead.
+- Missing continuation environment or identity: treat as a lifecycle defect;
+  the wake path must rebuild it, not ask the agent to reconstruct private state.
+
 ## Post-run sandbox finalization
 
 Runner turn status and sandbox finalization are separate temporal flows. A runner can finish and emit several assistant messages before process exit; assistant messages are not terminal. The terminal signal is the runner result/process completion path. After that, sandbox apply/checkpoint runs as post-turn finalization and records one of:

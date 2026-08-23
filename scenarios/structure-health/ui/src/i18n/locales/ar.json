@@ -93,7 +93,6 @@
     "summary": {
       "scenarios": "الأهداف",
       "passing": "ناجح",
-      "missingFreshness": "بدون فحص حداثة",
       "autofixable": "قابل للإصلاح التلقائي"
     },
     "profiles": {
@@ -119,7 +118,6 @@
       "failed": "فاشل",
       "recognized": "معروف",
       "unrecognized": "إرشادي",
-      "missingFreshnessBadge": "بدون فحص حداثة",
       "col": {
         "scenario": "السيناريو",
         "target": "الهدف",
@@ -127,8 +125,7 @@
         "profile": "الملف الشخصي",
         "errors": "الأخطاء",
         "warnings": "التحذيرات",
-        "autofixable": "قابل للإصلاح التلقائي",
-        "freshness": "الحداثة"
+        "autofixable": "قابل للإصلاح التلقائي"
       }
     },
     "errors": {

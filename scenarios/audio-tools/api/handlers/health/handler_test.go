@@ -17,6 +17,7 @@ import (
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/server"
 	"audio-tools/internal/testutil/mocks"
+
 	"github.com/vrooli/api-core/apihttptest"
 	apihealth "github.com/vrooli/api-core/health"
 	httpx "github.com/vrooli/api-core/servertest"

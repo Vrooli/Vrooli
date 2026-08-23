@@ -107,7 +107,7 @@ packages/proto/schemas/business-health/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/business-health/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/business-health/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/business-health/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/business-health/v1/...   (ui)
        └──▶ packages/proto/gen/python/business_health/v1/...    (future tools)
 ```
 

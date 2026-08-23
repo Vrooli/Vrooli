@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "structure-and-lifecycle-rules",
     "description": "Universal structure checks plus lifecycle-wiring reconcile rules: freshness-check presence, production-serving conformance, and dependency well-formedness.",
+    "last_validated_at": "2026-08-19T22:17:01-04:00",
+    "module": "structure-and-lifecycle-rules",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -15,22 +16,38 @@
       "category": "api",
       "criticality": "P0",
       "description": "The validator flags missing/invalid service.json, a service.name that does not match the directory, and missing required top-level files or per-surface directories; a conformant scenario produces no structural findings.",
-      "tags": ["structure", "skeleton", "api"],
+      "tags": [
+        "structure",
+        "skeleton",
+        "api"
+      ],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go covers the conformant-clean, service.json-missing, and service-name-mismatch cases."}
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "rules/rules_test.go covers the conformant-clean, service.json-missing, and service-name-mismatch cases."
+        }
       ]
     },
     {
       "id": "SH-RULE-002",
       "title": "Flag missing per-surface freshness checks",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "api",
       "criticality": "P0",
       "description": "Each buildable surface must declare a well-formed freshness check (binaries / ui-bundle); a missing or malformed check is a finding, closing the silent-rebuild gap where a scenario rebuilds on every start.",
-      "tags": ["freshness", "lifecycle-wiring", "api"],
+      "tags": [
+        "freshness",
+        "lifecycle-wiring",
+        "api"
+      ],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a buildable surface without a freshness check emits FRESHNESS_CHECK_MISSING."}
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "manifestschema component tests assert invalid component build and process declarations emit SCENARIO_COMPONENT_INVALID."
+        }
       ]
     },
     {
@@ -41,12 +58,33 @@
       "category": "api",
       "criticality": "P0",
       "description": "Each declared surface must have a build(setup)→start(develop)→port/env→health-check chain; API surfaces must expose root /health, declare a critical ${API_PORT}/health lifecycle probe, and run api-core preflight before service initialization.",
-      "tags": ["lifecycle-wiring", "health-check", "preflight", "api"],
+      "tags": [
+        "lifecycle-wiring",
+        "health-check",
+        "preflight",
+        "api"
+      ],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a surface without a health check emits HEALTH_CHECK_MISSING."},
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts malformed health targets emit HEALTH_CHECK_MALFORMED."},
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts prefixed-only health routes emit HEALTH_ENDPOINT_MISSING."},
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts missing or malformed API preflight emits API_PREFLIGHT_* findings."}
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "rules/rules_test.go asserts a surface without a health check emits HEALTH_CHECK_MISSING."
+        },
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "rules/rules_test.go asserts malformed health targets emit HEALTH_CHECK_MALFORMED."
+        },
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "rules/rules_test.go asserts prefixed-only health routes emit HEALTH_ENDPOINT_MISSING."
+        },
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "rules/rules_test.go asserts missing or malformed API preflight emits API_PREFLIGHT_* findings."
+        }
       ]
     },
     {
@@ -57,10 +95,23 @@
       "category": "api",
       "criticality": "P0",
       "description": "A UI surface's develop step must serve the built production bundle (NODE_ENV=production, conditioned on dist) rather than a dev server, and API services must use api-core/server.Run instead of direct ListenAndServe calls.",
-      "tags": ["production-serving", "ui", "api", "server-run"],
+      "tags": [
+        "production-serving",
+        "ui",
+        "api",
+        "server-run"
+      ],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a dev-server UI develop step emits PRODUCTION_SERVE_NONCONFORMANT."},
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts direct ListenAndServe emits API_SERVER_RUN_NONCONFORMANT."}
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "rules/rules_test.go asserts a dev-server UI develop step emits PRODUCTION_SERVE_NONCONFORMANT."
+        },
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "rules/rules_test.go asserts direct ListenAndServe emits API_SERVER_RUN_NONCONFORMANT."
+        }
       ]
     },
     {
@@ -71,9 +122,17 @@
       "category": "api",
       "criticality": "P0",
       "description": "A surface declared in service.json with no actual implementation (and the reverse) emits a reconcile-mismatch finding so dangling or undeclared surfaces are caught.",
-      "tags": ["reconcile", "surface", "api"],
+      "tags": [
+        "reconcile",
+        "surface",
+        "api"
+      ],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a declared-not-actual surface emits SURFACE_RECONCILE_MISMATCH."}
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "rules/rules_test.go asserts a declared-not-actual surface emits SURFACE_RECONCILE_MISMATCH."
+        }
       ]
     },
     {
@@ -84,9 +143,17 @@
       "category": "api",
       "criticality": "P0",
       "description": "Dependency declarations must be well-formed (valid startup_policy/freshness_policy, resolvable, acyclic); an invalid policy or unresolved/cyclic dependency is a finding.",
-      "tags": ["dependencies", "lifecycle-wiring", "api"],
+      "tags": [
+        "dependencies",
+        "lifecycle-wiring",
+        "api"
+      ],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts an invalid dependency policy emits DEPENDENCY_DECLARATION_INVALID."}
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "rules/rules_test.go asserts an invalid dependency policy emits DEPENDENCY_DECLARATION_INVALID."
+        }
       ]
     }
   ]

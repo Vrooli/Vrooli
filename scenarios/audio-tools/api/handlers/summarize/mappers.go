@@ -4,8 +4,9 @@
 package summarize
 
 import (
-	"audio-tools/internal/protoint"
 	"errors"
+
+	"audio-tools/internal/protoint"
 
 	"connectrpc.com/connect"
 

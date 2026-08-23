@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, persistence-backed domains | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, persistence-backed domains | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | `vrooli-bridge` | scenario | yes | `devices`, `sessions` | Node/attached-device registry, scopes, allowlisted dispatch, durable runs, audit | Device inventory reports every device `unreachable` with "bridge unavailable" as the reason. No device is assumed present. |
 | `ai-gateway` | scenario | for `ai.*` steps and agent planning | `flows`, `agent` | Provider-neutral inference by intent, role, and constraints | AI steps and agent planning report `unavailable` naming the missing gateway capability. No direct provider fallback exists. |

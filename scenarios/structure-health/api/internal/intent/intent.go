@@ -1,6 +1,6 @@
 // Package intent is structure-health's typed reader of a target scenario's
 // declared service.json — the "intent" half of the reconcile. It is deliberately
-// permissive (unknown fields are ignored, free-form steps are kept as-is) so it
+// permissive (unknown fields are ignored) so it
 // reads any scenario's manifest, not just the react-vite/Go shape.
 package intent
 
@@ -45,11 +45,7 @@ type Port struct {
 
 // Lifecycle holds the lifecycle phases structure-health inspects.
 type Lifecycle struct {
-	Health  Health
-	Setup   Phase
-	Develop Phase
-	Test    Phase
-	Stop    Phase
+	Health Health
 }
 
 // Health is the lifecycle health contract.
@@ -65,38 +61,6 @@ type HealthCheck struct {
 	Type     string `json:"type"`
 	Target   string `json:"target"`
 	Critical bool   `json:"critical"`
-}
-
-// Phase is a lifecycle phase with its steps and an optional freshness condition.
-type Phase struct {
-	Description string     `json:"description"`
-	Steps       []Step     `json:"steps"`
-	Condition   *Condition `json:"condition"`
-}
-
-// Step is a single lifecycle step.
-type Step struct {
-	Name        string     `json:"name"`
-	Run         string     `json:"run"`
-	Description string     `json:"description"`
-	Background  bool       `json:"background"`
-	Condition   *Condition `json:"condition"`
-}
-
-// Condition gates a phase or step; its Checks are the freshness/provisioning
-// checks structure-health validates for presence and well-formedness.
-type Condition struct {
-	FileExists string       `json:"file_exists"`
-	Checks     []FreshCheck `json:"checks"`
-}
-
-// FreshCheck is one freshness/provisioning check (binaries, cli, ui-bundle, …).
-type FreshCheck struct {
-	Type       string   `json:"type"`
-	Targets    []string `json:"targets"`
-	Command    string   `json:"command"`
-	BundlePath string   `json:"bundle_path"`
-	SourceDir  string   `json:"source_dir"`
 }
 
 // Dependencies are the declared scenario/resource dependencies, each a flat
@@ -161,11 +125,7 @@ func Parse(raw []byte) (Intent, error) {
 		} `json:"cli"`
 		Ports     map[string]Port `json:"ports"`
 		Lifecycle struct {
-			Health  Health `json:"health"`
-			Setup   Phase  `json:"setup"`
-			Develop Phase  `json:"develop"`
-			Test    Phase  `json:"test"`
-			Stop    Phase  `json:"stop"`
+			Health Health `json:"health"`
 		} `json:"lifecycle"`
 		Dependencies Dependencies `json:"dependencies"`
 	}
@@ -182,28 +142,8 @@ func Parse(raw []byte) (Intent, error) {
 		CLIEnabled:  doc.CLI.Enabled,
 		CLICommand:  doc.CLI.Command,
 		Ports:       doc.Ports,
-		Lifecycle: Lifecycle{
-			Health:  doc.Lifecycle.Health,
-			Setup:   doc.Lifecycle.Setup,
-			Develop: doc.Lifecycle.Develop,
-			Test:    doc.Lifecycle.Test,
-			Stop:    doc.Lifecycle.Stop,
-		},
-		Deps: doc.Dependencies,
-		Raw:  rawMap,
+		Lifecycle:   Lifecycle{Health: doc.Lifecycle.Health},
+		Deps:        doc.Dependencies,
+		Raw:         rawMap,
 	}, nil
-}
-
-// FreshCheckByType returns the setup-condition freshness checks of a given type.
-func (i Intent) FreshCheckByType(checkType string) []FreshCheck {
-	var out []FreshCheck
-	if i.Lifecycle.Setup.Condition == nil {
-		return out
-	}
-	for _, c := range i.Lifecycle.Setup.Condition.Checks {
-		if c.Type == checkType {
-			out = append(out, c)
-		}
-	}
-	return out
 }

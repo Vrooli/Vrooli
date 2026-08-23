@@ -26,6 +26,7 @@ import (
 	"audio-tools/internal/buildidentity"
 	"audio-tools/internal/conformance"
 	"audio-tools/internal/stt/session"
+
 	"github.com/google/uuid"
 	corestorage "github.com/vrooli/api-core/storage"
 )

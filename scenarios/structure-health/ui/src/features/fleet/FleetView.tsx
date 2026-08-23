@@ -89,7 +89,6 @@ export function FleetView() {
           <SummaryStats
             targetCount={data.targetCount || data.scenarioCount}
             passingTargetCount={data.passingTargetCount || data.passingCount}
-            missingFreshnessCount={data.missingFreshnessCount}
             autofixableTotal={data.autofixableTotal}
           />
           <ProfileDistributionCard profiles={profiles} />
@@ -105,19 +104,17 @@ export function FleetView() {
 function SummaryStats({
   targetCount,
   passingTargetCount,
-  missingFreshnessCount,
   autofixableTotal,
 }: {
   targetCount: number;
   passingTargetCount: number;
-  missingFreshnessCount: number;
   autofixableTotal: number;
 }) {
   const { t } = useTranslation();
   return (
     <dl
       data-testid={selectors.fleet.summary}
-      className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+      className="grid grid-cols-2 gap-3 sm:grid-cols-3"
     >
       <Stat
         testId={selectors.fleet.summaryScenarios}
@@ -128,11 +125,6 @@ function SummaryStats({
         testId={selectors.fleet.summaryPassing}
         label={t(strings.fleet.summary.passing)}
         value={passingTargetCount}
-      />
-      <Stat
-        testId={selectors.fleet.summaryMissingFreshness}
-        label={t(strings.fleet.summary.missingFreshness)}
-        value={missingFreshnessCount}
       />
       <Stat
         testId={selectors.fleet.summaryAutofixable}
@@ -297,7 +289,6 @@ function ScenarioOffendersTable({
     errorCount: number;
     warningCount: number;
     autofixableCount: number;
-    missingFreshnessCheck: boolean;
     degradedReason: string;
   }[];
 }) {
@@ -349,9 +340,6 @@ function ScenarioOffendersTable({
               </th>
               <th scope="col" className="px-2 py-1 text-end font-medium">
                 {t(strings.fleet.scenarios.col.autofixable)}
-              </th>
-              <th scope="col" className="px-2 py-1 text-start font-medium">
-                {t(strings.fleet.scenarios.col.freshness)}
               </th>
             </tr>
           </thead>
@@ -424,13 +412,6 @@ function ScenarioOffendersTable({
                 </td>
                 <td className="px-2 py-1.5 text-end tabular-nums text-app-info">
                   {entry.autofixableCount}
-                </td>
-                <td className="px-2 py-1.5">
-                  {entry.missingFreshnessCheck && (
-                    <span className="rounded-control border border-app-warning/40 bg-app-warning/10 px-1.5 py-0.5 text-xs font-medium text-app-warning">
-                      {t(strings.fleet.scenarios.missingFreshnessBadge)}
-                    </span>
-                  )}
                 </td>
               </tr>
             ))}

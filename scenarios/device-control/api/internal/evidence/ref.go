@@ -49,6 +49,9 @@ func (s EvidenceSink) Put(id string, raw []byte, redaction Result) (Reference, e
 	return newReference(id, raw, redaction, "image", "", 0)
 }
 
+// EvidenceSink is a stateless value struct holding only its Policy: there is no
+// cache, pool, or connection to amortize, so constructing one per call is free.
+// ast-grep-ignore: no-discarded-stateful-helper
 func NewReference(id string, raw []byte, redaction Result) (Reference, error) {
 	return NewEvidenceSink(DefaultPolicy).Put(id, raw, redaction)
 }

@@ -107,7 +107,7 @@ packages/proto/schemas/go-code-graph/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/go-code-graph/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/go-code-graph/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/go-code-graph/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/go-code-graph/v1/...   (ui)
        └──▶ packages/proto/gen/python/go_code_graph/v1/...    (future tools)
 ```
 

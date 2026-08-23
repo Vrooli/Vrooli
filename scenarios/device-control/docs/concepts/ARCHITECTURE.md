@@ -170,7 +170,7 @@ packages/proto/schemas/device-control/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/device-control/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/device-control/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/device-control/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/device-control/v1/...   (ui)
        └──▶ packages/proto/gen/python/device_control/v1/...    (future tools)
 ```
 

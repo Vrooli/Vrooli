@@ -107,7 +107,7 @@ packages/proto/schemas/development-toolchain-validator/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/development-toolchain-validator/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/development-toolchain-validator/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/development-toolchain-validator/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/development-toolchain-validator/v1/...   (ui)
        └──▶ packages/proto/gen/python/development_toolchain_validator/v1/...    (future tools)
 ```
 

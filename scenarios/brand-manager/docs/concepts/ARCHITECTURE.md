@@ -107,7 +107,7 @@ packages/proto/schemas/brand-manager/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/brand-manager/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/brand-manager/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/brand-manager/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/brand-manager/v1/...   (ui)
        └──▶ packages/proto/gen/python/brand_manager/v1/...    (future tools)
 ```
 

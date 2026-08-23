@@ -47,6 +47,9 @@ func TestDiscoverNestedParseUnitsEmitsBashUnit(t *testing.T) {
 		if u.GetStatus() != factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED {
 			t.Errorf("bash unit %q status = %v, want UNSUPPORTED", u.GetRootPath(), u.GetStatus())
 		}
+		if u.GetToolchain() == nil || u.GetToolchain().GetEcosystem() != "bash" {
+			t.Errorf("bash unit %q toolchain = %+v, want bash observation", u.GetRootPath(), u.GetToolchain())
+		}
 	}
 	if !roots[filepath.Join(root, "cli")] {
 		t.Errorf("expected a bash unit at cli/, got roots=%v", roots)

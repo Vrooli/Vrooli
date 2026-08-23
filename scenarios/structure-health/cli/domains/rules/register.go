@@ -2,6 +2,9 @@ package rules
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -71,6 +74,19 @@ func coverage(ctx cliapp.RunContext) error {
 
 func docs(ctx cliapp.RunContext) error {
 	markdown := GeneratedMarkdown()
+	if output := strings.TrimSpace(ctx.Flag("output")); output != "" {
+		path, err := filepath.Abs(output)
+		if err != nil {
+			return fmt.Errorf("resolve rules documentation output: %w", err)
+		}
+		if err := os.WriteFile(path, []byte(markdown), 0o644); err != nil {
+			return fmt.Errorf("write rules documentation %s: %w", path, err)
+		}
+		if ctx.JSON() {
+			return cliapp.PrintReportJSON(ctx.Stdout(), map[string]string{"output": path})
+		}
+		return ctx.RenderList(cliapp.ListReport{Summary: []string{"Generated structural rule catalog"}, ResultsHeading: "Output", Results: []string{path}})
+	}
 	if ctx.JSON() {
 		return cliapp.PrintReportJSON(ctx.Stdout(), map[string]string{"markdown": markdown})
 	}

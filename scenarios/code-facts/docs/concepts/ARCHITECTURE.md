@@ -82,6 +82,7 @@ only the resulting proof statuses and evidence.
 | `api/internal/indexcontrol/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/cache/` | Domain core and persistence contract | standard library and `database/sql` only in adapter files | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/facts/` | Evidence orchestration | analyzer providers, report cache, and typed Describe APIs | public Search delegates to the generation-fenced retrieval boundary |
+| `api/internal/fswatch/` | Filesystem observation substrate | standard library and native OS watcher APIs | bounded roots, debounce, and backstop tests |
 | `api/internal/database/` | Cross-cutting substrate | database drivers and standard library | package tests |
 | `api/internal/logging/` | Cross-cutting substrate | standard library only | compile-time interface use |
 | `api/internal/httpc/` | Cross-cutting substrate | `net/http` | package tests |

@@ -131,12 +131,6 @@
         "required": true,
         "purpose": "historical foliage data and user trips"
       },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "real-time weather data caching"
-      },
       "ollama": {
         "type": "ollama",
         "enabled": true,

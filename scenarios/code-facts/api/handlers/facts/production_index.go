@@ -20,6 +20,7 @@ import (
 
 	"code-facts/internal/catalog"
 	internalfacts "code-facts/internal/facts"
+	"code-facts/internal/fswatch"
 	"code-facts/internal/indexcontrol"
 	"code-facts/internal/retrieval"
 
@@ -312,26 +313,61 @@ func (index *ProductionIndex) runBuild(ctx context.Context, job indexcontrol.Job
 }
 
 func (index *ProductionIndex) watch(ctx context.Context) {
-	changes := time.NewTicker(5 * time.Second)
-	audit := time.NewTicker(5 * time.Minute)
-	defer changes.Stop()
-	defer audit.Stop()
+	roots := []string{"scenarios", "packages", "cmd/vrooli", "internal", "resources"}
+	absoluteRoots := make([]string, 0, len(roots))
+	for _, root := range roots {
+		absoluteRoots = append(absoluteRoots, filepath.Join(index.repoRoot, filepath.FromSlash(root)))
+	}
+	watcher, _ := fswatch.New(absoluteRoots)
+	if watcher != nil {
+		defer watcher.Close()
+	}
+	events := (<-chan struct{})(nil)
+	if watcher != nil {
+		events = watcher.Events()
+	}
+	backstop := time.NewTimer(5 * time.Minute)
+	defer backstop.Stop()
+	debounce := time.NewTimer(time.Hour)
+	if !debounce.Stop() {
+		<-debounce.C
+	}
+	pending := false
+	refresh := func() {
+		paths, err := index.dirtyPaths(ctx)
+		if err == nil && len(paths) > 0 {
+			if paths, err = index.filterDrift(ctx, paths); err == nil && len(paths) > 0 {
+				if len(paths) > 256 {
+					paths = paths[:256]
+				}
+				_ = index.refreshDirtyBatch(ctx, paths)
+			}
+		}
+	}
+	// The watcher is started asynchronously by the service bootstrap. A source
+	// edit can race that startup window, so perform one bounded reconciliation
+	// after the native watches are installed; the event path handles all later
+	// edits and the five-minute audit covers missed events after that.
+	refresh()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-changes.C:
-			paths, err := index.dirtyPaths(ctx)
-			if err == nil && len(paths) > 0 {
-				if paths, err = index.filterDrift(ctx, paths); err == nil && len(paths) > 0 {
-					if len(paths) > 256 {
-						paths = paths[:256]
-					}
-					_ = index.refreshDirtyBatch(ctx, paths)
-				}
+		case _, ok := <-events:
+			if !ok {
+				events = nil
+				continue
 			}
-		case <-audit.C:
+			if !pending {
+				pending = true
+				debounce.Reset(100 * time.Millisecond)
+			}
+		case <-debounce.C:
+			pending = false
+			refresh()
+		case <-backstop.C:
 			_ = index.auditManifest(ctx)
+			backstop.Reset(5 * time.Minute)
 		}
 	}
 }

@@ -15,10 +15,6 @@ import (
 	"structure-health/internal/validation"
 )
 
-// freshnessFindingCode marks a missing buildable-surface freshness check — the
-// silent-rebuild offender signal the fleet view surfaces.
-const freshnessFindingCode = "FRESHNESS_CHECK_MISSING"
-
 // Lister enumerates the scenarios to scan. It is a seam so tests can inject a
 // fixed list without touching the filesystem.
 type Lister interface {
@@ -145,7 +141,6 @@ type ScenarioEntry struct {
 	WarningCount      int
 	TotalFindings     int
 	AutofixableCount  int
-	MissingFreshness  bool
 	Surfaces          []string
 	DegradedReason    string
 }
@@ -179,7 +174,6 @@ type Result struct {
 	ProfileDistribution []ProfileCount
 	ScenarioCount       int
 	PassingCount        int
-	MissingFreshness    int
 	AutofixableTotal    int
 	Errors              []ScanError
 	TargetCount         int
@@ -267,9 +261,6 @@ func (s *Scanner) scanTargets(ctx context.Context, targets []Target) (Result, er
 		if entry.Passed {
 			result.PassingCount++
 			result.PassingTargetCount++
-		}
-		if entry.MissingFreshness {
-			result.MissingFreshness++
 		}
 		result.AutofixableTotal += entry.AutofixableCount
 
@@ -359,9 +350,6 @@ func rollup(target Target, resp validation.Response) ScenarioEntry {
 		}
 		if f.AutofixAvailable {
 			entry.AutofixableCount++
-		}
-		if f.Code == freshnessFindingCode {
-			entry.MissingFreshness = true
 		}
 	}
 	entry.Passed = entry.ErrorCount == 0

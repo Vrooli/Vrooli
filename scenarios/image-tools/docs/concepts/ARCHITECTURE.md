@@ -159,7 +159,7 @@ packages/proto/schemas/image-tools/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/image-tools/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/image-tools/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/image-tools/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/image-tools/v1/...   (ui)
        └──▶ packages/proto/gen/python/image_tools/v1/...    (future tools)
 ```
 

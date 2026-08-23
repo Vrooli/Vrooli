@@ -7,7 +7,7 @@
 // Scenario, the most numerous kind in the repository, had none: its 18 rules
 // all parse service.json into map[string]any and hand-check individual shapes,
 // so the document as a whole was never validated. That blind spot let 405
-// schema violations accumulate across 121 manifests unseen.
+// schema violations accumulate across the scenario fleet unseen.
 //
 // This rule closes it by compiling the real schema and validating the real
 // document, so drift between service.schema.json and what scenarios write
@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -38,6 +39,7 @@ const maxReportedViolations = 8
 var (
 	schemaRelParts = []string{".vrooli", "schemas"}
 	schemaFileName = "service.schema.json"
+	quotedProperty = regexp.MustCompile(`'[^']+'`)
 )
 
 type compiledSchema struct {
@@ -70,37 +72,10 @@ func CheckServiceManifestSchema(content []byte, filePath string) []Violation {
 		return nil
 	}
 
-	schemaDir, ok := findSchemaDir(filePath)
-	if !ok {
-		return []Violation{newViolation(filePath, 1,
-			"cannot locate .vrooli/schemas/service.schema.json above this manifest; scenario manifests cannot be validated")}
-	}
-
-	schema, err := loadSchema(schemaDir)
+	messages, err := ValidationMessages(content, filePath)
 	if err != nil {
-		// A schema that will not compile is the failure mode that hid this
-		// entire class of drift: a broken $ref made every standards-compliant
-		// validator bail, so nothing validated and nothing complained.
-		return []Violation{newViolation(filePath, 1,
-			fmt.Sprintf("service.schema.json does not compile, so no scenario manifest can be validated: %v", err))}
+		return []Violation{newViolation(filePath, 1, err.Error())}
 	}
-
-	var document any
-	if err := json.Unmarshal(content, &document); err != nil {
-		return []Violation{newViolation(filePath, 1, fmt.Sprintf("service.json is not valid JSON: %v", err))}
-	}
-
-	err = schema.Validate(document)
-	if err == nil {
-		return nil
-	}
-	validationErr, ok := err.(*jsonschema.ValidationError)
-	if !ok {
-		return []Violation{newViolation(filePath, 1, fmt.Sprintf("service.json failed schema validation: %v", err))}
-	}
-
-	messages := leafMessages(validationErr)
-	sort.Strings(messages)
 
 	source := string(content)
 	out := make([]Violation, 0, len(messages))
@@ -115,6 +90,48 @@ func CheckServiceManifestSchema(content []byte, filePath string) []Violation {
 	return out
 }
 
+// ValidationMessages returns every canonical-schema violation for a scenario
+// manifest without applying the UI-facing finding cap used by
+// CheckServiceManifestSchema. Fleet census evidence needs the complete count:
+// truncating one noisy manifest would make the repository total irreproducible.
+//
+// Infrastructure failures (an unreachable or uncompilable schema) are returned
+// as errors because no manifest can be honestly graded in that state. Malformed
+// manifest JSON is a document violation and is therefore returned as one
+// message, allowing the census to identify the offending manifest.
+func ValidationMessages(content []byte, filePath string) ([]string, error) {
+	schemaDir, ok := findSchemaDir(filePath)
+	if !ok {
+		return nil, fmt.Errorf("cannot locate .vrooli/schemas/service.schema.json above this manifest; scenario manifests cannot be validated")
+	}
+
+	schema, err := loadSchema(schemaDir)
+	if err != nil {
+		// A schema that will not compile is the failure mode that hid this
+		// entire class of drift: a broken $ref made every standards-compliant
+		// validator bail, so nothing validated and nothing complained.
+		return nil, fmt.Errorf("service.schema.json does not compile, so no scenario manifest can be validated: %w", err)
+	}
+
+	var document any
+	if err := json.Unmarshal(content, &document); err != nil {
+		return []string{fmt.Sprintf("service.json is not valid JSON: %v", err)}, nil
+	}
+
+	err = schema.Validate(document)
+	if err == nil {
+		return nil, nil
+	}
+	validationErr, ok := err.(*jsonschema.ValidationError)
+	if !ok {
+		return []string{fmt.Sprintf("service.json failed schema validation: %v", err)}, nil
+	}
+
+	messages := leafMessages(validationErr)
+	sort.Strings(messages)
+	return messages, nil
+}
+
 // leafMessages flattens a ValidationError tree to its leaves. The root node
 // only ever says "doesn't validate with ..."; the actionable text — which
 // property, which constraint — lives at the leaves.
@@ -127,7 +144,7 @@ func leafMessages(err *jsonschema.ValidationError) []string {
 		if location == "" {
 			location = "/"
 		}
-		return []string{fmt.Sprintf("%s: %s", location, err.Message)}
+		return []string{fmt.Sprintf("%s: %s", location, normalizeValidationMessage(err.Message))}
 	}
 	seen := make(map[string]struct{})
 	var out []string
@@ -141,6 +158,26 @@ func leafMessages(err *jsonschema.ValidationError) []string {
 		}
 	}
 	return out
+}
+
+// normalizeValidationMessage removes the jsonschema library's dependence on
+// Go map iteration order. additionalProperties and required-property failures
+// can name more than one property; their order has no semantic meaning, but it
+// must be stable for census evidence to be byte-reproducible.
+func normalizeValidationMessage(message string) string {
+	properties := quotedProperty.FindAllString(message, -1)
+	if len(properties) < 2 {
+		return message
+	}
+	sort.Strings(properties)
+	switch {
+	case strings.HasPrefix(message, "additionalProperties ") && strings.HasSuffix(message, " not allowed"):
+		return "additionalProperties " + strings.Join(properties, ", ") + " not allowed"
+	case strings.HasPrefix(message, "missing properties: "):
+		return "missing properties: " + strings.Join(properties, ", ")
+	default:
+		return message
+	}
 }
 
 // lineForPointer makes a finding clickable by pointing at the offending key

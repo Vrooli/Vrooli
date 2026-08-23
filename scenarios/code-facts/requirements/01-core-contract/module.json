@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P0 requirements for Code Facts target resolution, fact selection, evidence status, proof synthesis, cache, and programmatic surfaces.",
-    "last_validated_at": "2026-08-21T00:11:27-04:00",
+    "last_validated_at": "2026-08-21T23:51:20-04:00",
     "module": "core-contract",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -244,7 +244,7 @@
     {
       "id": "CF-P0-011",
       "title": "When a governed root changes, the catalog shall classify every eligible source in one active generation.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "category": "catalog",
       "criticality": "P0",
@@ -259,7 +259,7 @@
           "type": "test",
           "ref": "api/internal/facts/corpus_contract_test.go::TestCorpusPolicyFixtureIsComplete",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The fixture gate protects the complete role vocabulary, governed roots, exclusions, and deterministic three-times multiplier. Catalog behavior coverage is added with the catalog implementation."
         },
         {
@@ -297,7 +297,7 @@
     {
       "id": "CF-P0-013",
       "title": "When a natural-language query arrives, the service shall fuse evaluated lexical and semantic candidates within the hybrid-search budgets.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-013",
       "category": "retrieval.hybrid",
       "criticality": "P0",
@@ -313,14 +313,14 @@
           "type": "test",
           "ref": "api/internal/facts/corpus_contract_test.go::TestRetrievalEvaluationCorpusHasAuthoritativeLocators",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The evaluation-contract test verifies reviewed categories, immutable quality gates, and source-backed locators. Retrieval evaluation is added with the fusion engine."
         },
         {
           "type": "test",
           "ref": "api/internal/retrieval/hybrid_test.go::TestHybridEngineRunsLegsConcurrentlyAndExplainsFusion",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Shared concurrent lexical and semantic fusion preserves per-leg reciprocal-rank evidence. Exact queries bypass semantic and reranking, while embedder, vector-store, and reranker failures preserve truthful lexical service. The versioned installed-host profile report passes recall@5 and MRR@3 gates; final full-provider latency and evaluation remain planned."
         }
       ]
@@ -341,9 +341,9 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/handlers/facts/production_index_test.go::TestProductionIndexOrdinaryFileRefreshIsAtomicAndWithinFreshnessBudget",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/handlers/facts/production_index_test.go::TestProductionIndexOrdinaryFileRefreshIsAtomicAndWithinFreshnessBudget",
           "notes": "Production-index coverage proves an ordinary file update commits catalog hash, FTS rows, digest, and cache invalidation under 15 seconds; stale and deleted rows disappear, and a clean committed change missed by the watcher is recovered by manifest reconciliation."
         },
         {
@@ -365,7 +365,7 @@
     {
       "id": "CF-P0-015",
       "title": "When a result is returned, the service shall separate stable provenance, retrieval relevance, and relationship proof.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-015",
       "category": "evidence",
       "criticality": "P0",
@@ -380,7 +380,7 @@
           "type": "test",
           "ref": "api/internal/catalog/catalog_test.go::TestStableEvidenceIdentityIgnoresMutableLinePosition",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Stable file, symbol, contract, and content-anchor identities exclude mutable line ranges. Search-response separation remains planned for the retrieval phase."
         },
         {

@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	intexp "audio-tools/internal/experiment"
-	"audio-tools/internal/qualification"
+	trustfloor "audio-tools/internal/qualification"
+
 	"github.com/stretchr/testify/require"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 )

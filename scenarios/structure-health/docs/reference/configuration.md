@@ -29,7 +29,7 @@ for the full policy.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/structure-health.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
+| _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 
@@ -77,13 +77,16 @@ Single source of truth for everything the lifecycle needs to know.
 | `service` | name, display name, description, version, category, maintainers, repository URL |
 | `ports` | port-name → env-var + range mapping (lifecycle allocates from these) |
 | `cli` | command name, install scripts (per OS), invoke shape, freshness inputs |
+| `components` | portable process builds, argv, environment, port ownership, readiness, peers, and storage |
 | `lifecycle.health` | `/health` endpoint, startup grace period, periodic checks |
-| `lifecycle.setup` | build steps + idempotency conditions (binary present, UI bundle fresh) |
-| `lifecycle.develop` | how to start the running scenario |
-| `lifecycle.test` | which test command to invoke |
+| `lifecycle.setup` | exceptional ordered setup work expressed as native argv steps |
+| `lifecycle.develop` | exceptional ordered development work expressed as native argv steps |
 | `lifecycle.stop` | how to shut down cleanly |
 | `environment` | static env vars set for every lifecycle step |
 | `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |
+
+Testing is not a lifecycle phase. `.vrooli/testing.json` declares suites,
+and `vrooli scenario test <name>` delegates the run to Test Genie.
 
 The template ships with `dependencies.resources: {}` — SQLite is
 in-process, so no resource is required. Scenarios add resources here

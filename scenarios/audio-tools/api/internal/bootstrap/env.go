@@ -81,8 +81,6 @@ type Env struct {
 	EnableVrooli bool
 	EnableLocal  bool
 	DBKeyPath    string
-	SqlitePath   string
-	SqliteDB     string
 }
 
 // Load reads all audio-tools env vars at process start. No side effects.
@@ -103,7 +101,5 @@ func Load() Env {
 		EnableVrooli:          Bool("AUDIO_AI_ENABLE_VROOLI", false),
 		EnableLocal:           Bool("AUDIO_AI_ENABLE_LOCAL", true),
 		DBKeyPath:             Or("AUDIO_TOOLS_DB_KEY_PATH", ""),
-		SqlitePath:            Optional("SQLITE_PATH"),
-		SqliteDB:              Optional("SQLITE_DB"),
 	}
 }

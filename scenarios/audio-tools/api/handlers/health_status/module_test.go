@@ -10,6 +10,7 @@ import (
 	"audio-tools/handlers/health_status"
 	"audio-tools/internal/capabilities"
 	capmocks "audio-tools/internal/capabilities/mocks"
+
 	"github.com/gorilla/mux"
 )
 
@@ -38,7 +39,7 @@ func TestDescribeCapabilitiesReturnsSharedRegistryJSON(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
 	var body struct {
-		Definitions []capabilities.Def `json:"definitions"`
+		Definitions []capabilities.Def   `json:"definitions"`
 		States      []capabilities.State `json:"states"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {

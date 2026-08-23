@@ -140,6 +140,18 @@ func TestServicePortEnvUsageCorrelatesOptionalRuntimeEvidenceArtifact(t *testing
 	}
 }
 
+func TestPortEnvConventionRequiresDirectNameMapping(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".vrooli", "service.json")
+	content := []byte(`{"ports":{"api":{"env_var":"PORT"},"playwright_driver":{"env_var":"PLAYWRIGHT_DRIVER_PORT"}}}`)
+	violations := CheckPortEnvConvention(content, path)
+	if len(violations) != 1 || !strings.Contains(violations[0].Description, `ports.api.env_var must be "API_PORT"`) {
+		t.Fatalf("violations = %#v", violations)
+	}
+	if got := CheckPortEnvConvention([]byte(`{"ports":{"api":{"env_var":"API_PORT"},"playwright_driver":{"env_var":"PLAYWRIGHT_DRIVER_PORT"}}}`), path); len(got) != 0 {
+		t.Fatalf("conformant ports = %#v", got)
+	}
+}
+
 func writePortUsageScenarioFile(t *testing.T, root, rel, content string) string {
 	t.Helper()
 	path := filepath.Join(root, filepath.FromSlash(rel))

@@ -65,18 +65,6 @@ func conformantIntent() intent.Intent {
 		},
 		Lifecycle: intent.Lifecycle{
 			Health: intent.Health{Checks: []intent.HealthCheck{{Type: "http", Target: "http://localhost:${API_PORT}/health", Critical: true}}},
-			Setup: intent.Phase{
-				Steps: []intent.Step{{Name: "build-api", Run: "cd api && go build ."}, {Name: "build-ui", Run: "cd ui && pnpm build"}},
-				Condition: &intent.Condition{Checks: []intent.FreshCheck{
-					{Type: "binaries", Targets: []string{"api/demo-api"}},
-					{Type: "ui-bundle", BundlePath: "ui/dist/index.html", SourceDir: "ui/src"},
-					{Type: "cli", Command: "demo"},
-				}},
-			},
-			Develop: intent.Phase{Steps: []intent.Step{
-				{Name: "start-api", Run: "cd api && ./demo-api", Background: true},
-				{Name: "start-ui", Run: "cd ui && node server.js", Background: true},
-			}},
 		},
 	}
 }
@@ -137,17 +125,6 @@ func TestServiceNameMismatch(t *testing.T) {
 	got := Evaluate(Input{Model: model, ServiceJSONReadable: true})
 	if codes(got)["SERVICE_NAME_MISMATCH"] == 0 {
 		t.Fatalf("expected SERVICE_NAME_MISMATCH, got %+v", got)
-	}
-}
-
-// [REQ:SH-RULE-002]
-func TestMissingFreshnessCheck(t *testing.T) {
-	root := conformantRoot(t)
-	in := conformantIntent()
-	in.Lifecycle.Setup.Condition = nil // drop all freshness checks
-	got := evalAt(root, in, fullProfile())
-	if codes(got)["FRESHNESS_CHECK_MISSING"] == 0 {
-		t.Fatalf("expected FRESHNESS_CHECK_MISSING, got %+v", got)
 	}
 }
 
@@ -296,20 +273,6 @@ func main() {
 }
 
 // [REQ:SH-RULE-004]
-func TestProductionServeNonconformant(t *testing.T) {
-	root := conformantRoot(t)
-	in := conformantIntent()
-	in.Lifecycle.Develop.Steps = []intent.Step{
-		{Name: "start-api", Run: "cd api && ./demo-api", Background: true},
-		{Name: "start-ui", Run: "cd ui && pnpm dev", Background: true},
-	}
-	got := evalAt(root, in, fullProfile())
-	if codes(got)["PRODUCTION_SERVE_NONCONFORMANT"] == 0 {
-		t.Fatalf("expected PRODUCTION_SERVE_NONCONFORMANT, got %+v", got)
-	}
-}
-
-// [REQ:SH-RULE-004]
 func TestPortBandNonconformant(t *testing.T) {
 	root := conformantRoot(t)
 	in := conformantIntent()
@@ -318,20 +281,6 @@ func TestPortBandNonconformant(t *testing.T) {
 	got := evalAt(root, in, fullProfile())
 	if codes(got)["PORT_BAND_NONCONFORMANT"] == 0 {
 		t.Fatalf("expected PORT_BAND_NONCONFORMANT, got %+v", got)
-	}
-}
-
-// [REQ:SH-RULE-004]
-func TestAPIBinaryNameNonconformant(t *testing.T) {
-	root := conformantRoot(t)
-	in := conformantIntent()
-	in.Lifecycle.Develop.Steps = []intent.Step{
-		{Name: "start-api", Run: "cd api && ./wrong-binary", Background: true},
-		{Name: "start-ui", Run: "cd ui && node server.js", Background: true},
-	}
-	got := evalAt(root, in, fullProfile())
-	if codes(got)["API_BINARY_NAME_NONCONFORMANT"] == 0 {
-		t.Fatalf("expected API_BINARY_NAME_NONCONFORMANT, got %+v", got)
 	}
 }
 

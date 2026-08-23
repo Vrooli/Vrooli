@@ -90,7 +90,6 @@
     "summary": {
       "scenarios": "ターゲット",
       "passing": "合格",
-      "missingFreshness": "鮮度チェックなし",
       "autofixable": "自動修正可能"
     },
     "profiles": {
@@ -115,7 +114,6 @@
       "failed": "不合格",
       "recognized": "認識済み",
       "unrecognized": "アドバイザリ",
-      "missingFreshnessBadge": "鮮度チェックなし",
       "col": {
         "scenario": "シナリオ",
         "target": "ターゲット",
@@ -123,8 +121,7 @@
         "profile": "プロファイル",
         "errors": "エラー",
         "warnings": "警告",
-        "autofixable": "自動修正可能",
-        "freshness": "鮮度"
+        "autofixable": "自動修正可能"
       }
     },
     "errors": {

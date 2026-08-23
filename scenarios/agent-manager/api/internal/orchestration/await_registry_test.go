@@ -250,6 +250,37 @@ func TestAwaitRegistry_RecoverParkedRunsRespawnsWaiters(t *testing.T) {
 	}
 }
 
+func TestAwaitRegistry_RecoverAlreadyTerminalProducerDuringDowntime(t *testing.T) {
+	waker := newRecordingWaker()
+	waiter := mocks.NewFakeWaiter(orchestration.ProducerTestGenie)
+	parked := &domain.Run{ID: uuid.New(), Status: domain.RunStatusParked, AwaitHandle: handle(orchestration.ProducerTestGenie, "scn/downtime-run", nil)}
+	waker.parked = []*domain.Run{parked}
+
+	// The producer completed while Agent Manager was down. Its durable result
+	// is available before the replacement registry attaches; the recovery path
+	// must consume that same operation key rather than create another one.
+	waiter.Resolve(`{"status":"passed","run_id":"downtime-run"}`)
+	reg := orchestration.NewAwaitRegistry(waker, waiter)
+	waker.reg = reg
+	defer reg.Stop()
+
+	n, err := reg.RecoverParkedRuns(context.Background())
+	if err != nil {
+		t.Fatalf("RecoverParkedRuns: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("recovery registered %d watchers, want 1", n)
+	}
+	in := waker.awaitWake(t)
+	if in.RunID != parked.ID || in.TimedOut || in.Result != `{"status":"passed","run_id":"downtime-run"}` {
+		t.Fatalf("unexpected recovered wake: %+v", in)
+	}
+	calls := waiter.Calls()
+	if len(calls) != 1 || calls[0] != "scn/downtime-run" {
+		t.Fatalf("recovery changed the producer identity: calls=%v", calls)
+	}
+}
+
 func TestAwaitRegistry_StopCancelsAllWaiters(t *testing.T) {
 	waker := newRecordingWaker()
 	reg := orchestration.NewAwaitRegistry(waker, mocks.NewFakeWaiter(orchestration.ProducerTestGenie))

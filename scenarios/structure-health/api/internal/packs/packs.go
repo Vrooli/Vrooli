@@ -17,16 +17,12 @@ import (
 	"structure-health/internal/packs/targetpack"
 	"structure-health/internal/rules"
 
-	developsteps "structure-health/internal/packs/configpack/developsteps"
 	envvalidation "structure-health/internal/packs/configpack/envvalidation"
 	hardcodedvalues "structure-health/internal/packs/configpack/hardcodedvalues"
 	healthlifecycle "structure-health/internal/packs/configpack/healthlifecycle"
 	manifestschema "structure-health/internal/packs/configpack/manifestschema"
 	ports "structure-health/internal/packs/configpack/ports"
 	runtimestorage "structure-health/internal/packs/configpack/runtimestorage"
-	setupconditions "structure-health/internal/packs/configpack/setupconditions"
-	setupsteps "structure-health/internal/packs/configpack/setupsteps"
-	teststeps "structure-health/internal/packs/configpack/teststeps"
 	requiredlayout "structure-health/internal/packs/structurepack/requiredlayout"
 	testcoverage "structure-health/internal/packs/structurepack/testcoverage"
 	uilifecyclelaunch "structure-health/internal/packs/structurepack/uilifecyclelaunch"
@@ -110,17 +106,17 @@ var registry = []entry{
 
 	// ---- config pack: service.json rules ----
 	{
-		Code: "PROFILE_DEVELOP_STEPS", Name: "Develop Lifecycle Steps",
-		Feed: feedServiceJSON, Severity: "medium",
-		run: func(c, p, s string) []auditrules.Violation {
-			return developsteps.CheckDevelopLifecycleSteps([]byte(c), p)
-		},
-	},
-	{
 		Code: "PROFILE_HEALTH_LIFECYCLE", Name: "Health Lifecycle Event",
 		Feed: feedServiceJSON, Severity: "high",
 		run: func(c, p, s string) []auditrules.Violation {
 			return healthlifecycle.CheckServiceHealthLifecycle([]byte(c), p)
+		},
+	},
+	{
+		Code: "PROFILE_STOP_PROCESS_OWNERSHIP", Name: "Stop Process Ownership",
+		Feed: feedServiceJSON, Severity: "high",
+		run: func(c, p, s string) []auditrules.Violation {
+			return healthlifecycle.CheckStopProcessOwnership([]byte(c), p)
 		},
 	},
 	{
@@ -131,22 +127,10 @@ var registry = []entry{
 		},
 	},
 	{
-		Code: "PROFILE_SETUP_CONDITIONS", Name: "Setup Conditions",
+		Code: "SCENARIO_PORT_ENV_CONVENTION", Name: "Scenario Port Environment Convention",
 		Feed: feedServiceJSON, Severity: "high",
 		run: func(c, p, s string) []auditrules.Violation {
-			return setupconditions.CheckServiceSetupConditions([]byte(c), p)
-		},
-	},
-	{
-		Code: "PROFILE_TEST_STEPS", Name: "Test Lifecycle Steps",
-		Feed: feedServiceJSON, Severity: "high",
-		run: func(c, p, s string) []auditrules.Violation { return teststeps.CheckLifecycleTestSteps([]byte(c), p) },
-	},
-	{
-		Code: "PROFILE_SETUP_STEPS", Name: "Setup Steps Configuration",
-		Feed: feedServiceJSON, Severity: "medium",
-		run: func(c, p, s string) []auditrules.Violation {
-			return setupsteps.CheckSetupStepsConfiguration([]byte(c), p)
+			return ports.CheckPortEnvConvention([]byte(c), p)
 		},
 	},
 	{
@@ -156,6 +140,62 @@ var registry = []entry{
 		Feed: feedServiceJSON, Severity: "high",
 		run: func(c, p, s string) []auditrules.Violation {
 			return manifestschema.CheckServiceManifestSchema([]byte(c), p)
+		},
+	},
+	{
+		Code: "SCENARIO_SHELL_FORBIDDEN", Name: "Scenario Shell-Free Declaration",
+		Feed: feedServiceJSON, Severity: "high",
+		run: func(c, p, s string) []auditrules.Violation {
+			return manifestschema.CheckScenarioShellInvocations([]byte(c), p)
+		},
+	},
+	{
+		Code: "SCENARIO_COMPONENT_INVALID", Name: "Scenario Component Contract",
+		Feed: feedServiceJSON, Severity: "warning",
+		run: func(c, p, s string) []auditrules.Violation {
+			return manifestschema.CheckScenarioComponents([]byte(c), p)
+		},
+	},
+	{
+		Code: "SCENARIO_PEER_BINDING_INVALID", Name: "Scenario Peer Binding",
+		Feed: feedServiceJSON, Severity: "warning",
+		run: func(c, p, s string) []auditrules.Violation {
+			return manifestschema.CheckScenarioPeerBindings([]byte(c), p)
+		},
+	},
+	{
+		Code: "SCENARIO_HARDCODED_PEER_ADDRESS", Name: "Scenario Hardcoded Peer Address",
+		Feed: feedServiceJSON, Severity: "high",
+		run: func(c, p, s string) []auditrules.Violation {
+			return manifestschema.CheckScenarioHardcodedPeerAddress([]byte(c), p)
+		},
+	},
+	{
+		Code: "SCENARIO_SECRET_LITERAL", Name: "Scenario Secret Literal",
+		Feed: feedServiceJSON, Severity: "high",
+		run: func(c, p, s string) []auditrules.Violation {
+			return manifestschema.CheckScenarioSecretLiteral([]byte(c), p)
+		},
+	},
+	{
+		Code: "SCENARIO_REDECLARES_RESOURCE_ENV", Name: "Scenario Resource Environment Redeclaration",
+		Feed: feedServiceJSON, Severity: "high",
+		run: func(c, p, s string) []auditrules.Violation {
+			return manifestschema.CheckScenarioRedeclaresResourceEnv([]byte(c), p)
+		},
+	},
+	{
+		Code: "SCENARIO_UI_SERVES_BUILD", Name: "Scenario UI Serves Production Build",
+		Feed: feedServiceJSON, Severity: "high",
+		run: func(c, p, s string) []auditrules.Violation {
+			return manifestschema.CheckScenarioUIServesBuild([]byte(c), p)
+		},
+	},
+	{
+		Code: "SCENARIO_BUILD_KIND_UNKNOWN", Name: "Scenario Build Kind",
+		Feed: feedServiceJSON, Severity: "warning",
+		run: func(c, p, s string) []auditrules.Violation {
+			return manifestschema.CheckScenarioBuildKinds([]byte(c), p)
 		},
 	},
 

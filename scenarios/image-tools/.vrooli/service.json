@@ -203,9 +203,7 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/image-tools.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

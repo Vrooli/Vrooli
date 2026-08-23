@@ -183,7 +183,7 @@ packages/proto/schemas/device-sync-hub/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/device-sync-hub/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/device-sync-hub/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/device-sync-hub/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/device-sync-hub/v1/...   (ui)
        └──▶ packages/proto/gen/python/device_sync_hub/v1/...          (future tools)
 ```
 

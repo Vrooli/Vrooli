@@ -14,6 +14,8 @@ type (
 func Catalog() []CatalogEntry { return apiRules.Catalog() }
 func Coverage() []CoverageRow { return apiRules.Coverage() }
 
+// GeneratedMarkdown intentionally reads the linked API catalog at build time;
+// CLI freshness therefore includes api/internal/rules in service.json.
 func GeneratedMarkdown() string {
 	entries := Catalog()
 	rows := Coverage()

@@ -3,15 +3,13 @@ package bootstrap
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
 	localdb "audio-tools/internal/database"
 	"audio-tools/internal/modules"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"
+
 	// modernc.org/sqlite registers the pure-Go sqlite driver under the
 	// "sqlite" name; api-core's database.Connect resolves it by driver name.
 	_ "modernc.org/sqlite"
@@ -54,40 +52,8 @@ func OpenDB(ctx context.Context, env Env) (*database.RoutedDB, string, error) {
 	return db, dsn, nil
 }
 
-func resolveDSN(env Env) (string, error) {
-	if env.SqlitePath != "" {
-		return sqliteFileDSN(env.SqlitePath)
-	}
-	if env.SqliteDB != "" {
-		return sqliteFileDSN(env.SqliteDB)
-	}
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		return "", fmt.Errorf("create storage resolver: %w", err)
-	}
-	path, err := resolver.Path(
-		storage.Options{ScenarioID: "audio-tools"},
-		storage.ClassData,
-		"audio-tools.db",
-	)
-	if err != nil {
-		return "", fmt.Errorf("resolve audio-tools db path: %w", err)
-	}
-	return sqliteFileDSN(path)
-}
-
-func sqliteFileDSN(path string) (string, error) {
-	if strings.HasPrefix(path, "file:") {
-		return path, nil
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
-		path,
-	), nil
+// resolveDSN returns the DSN for audio-tools' own database, resolved from the
+// scenario's identity rather than from the environment.
+func resolveDSN(Env) (string, error) {
+	return storage.SQLiteDSN(storage.SQLiteConfig{Scenario: "audio-tools"})
 }

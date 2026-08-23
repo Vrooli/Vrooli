@@ -28,7 +28,6 @@ const fullResponse = () =>
   create(ScanFleetResponseSchema, {
     scenarioCount: 3,
     passingCount: 1,
-    missingFreshnessCount: 1,
     autofixableTotal: 4,
     entries: [
       create(FleetScenarioEntrySchema, {
@@ -39,7 +38,6 @@ const fullResponse = () =>
         errorCount: 2,
         warningCount: 1,
         autofixableCount: 3,
-        missingFreshnessCheck: true,
         surfaces: ["api", "cli", "ui"],
         degradedReason: "",
       }),
@@ -51,14 +49,13 @@ const fullResponse = () =>
         errorCount: 0,
         warningCount: 0,
         autofixableCount: 1,
-        missingFreshnessCheck: false,
         surfaces: ["api"],
         degradedReason: "partial scan",
       }),
     ],
     ruleConformance: [
       create(RuleConformanceSchema, {
-        code: "FRESHNESS_CHECK_MISSING",
+        code: "SCENARIO_COMPONENT_INVALID",
         offendingScenarios: 2,
         totalFindings: 2,
         autofixable: 1,
@@ -132,7 +129,6 @@ describe("FleetView", () => {
     // Summary counters
     expect(screen.getByTestId(selectors.fleet.summaryScenarios)).toHaveTextContent("3");
     expect(screen.getByTestId(selectors.fleet.summaryPassing)).toHaveTextContent("1");
-    expect(screen.getByTestId(selectors.fleet.summaryMissingFreshness)).toHaveTextContent("1");
     expect(screen.getByTestId(selectors.fleet.summaryAutofixable)).toHaveTextContent("4");
 
     // Profile distribution
@@ -149,7 +145,7 @@ describe("FleetView", () => {
     expect(ruleRows).toHaveLength(2);
     expect(ruleRows[0]).toHaveAttribute(
       "data-testid",
-      selectors.fleet.ruleRow({ code: "FRESHNESS_CHECK_MISSING" }),
+      selectors.fleet.ruleRow({ code: "SCENARIO_COMPONENT_INVALID" }),
     );
 
     // Scenario offenders

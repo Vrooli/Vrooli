@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"audio-tools/internal/conformance"
+
 	"github.com/stretchr/testify/require"
 )
 

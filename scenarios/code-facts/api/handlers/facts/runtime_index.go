@@ -58,7 +58,7 @@ func (controller *RuntimeIndexController) Reconcile(ctx context.Context, generat
 		return nil, err
 	}
 	job, err := controller.Runtime.Reconcile(ctx, generation)
-	return controlResponse("reconciliation started", job, controller, ctx, err)
+	return controlResponse(ctx, "reconciliation started", job, controller, err)
 }
 
 func (controller *RuntimeIndexController) Reindex(ctx context.Context, generation string) (*factsv1.IndexControlResponse, error) {
@@ -66,7 +66,7 @@ func (controller *RuntimeIndexController) Reindex(ctx context.Context, generatio
 		return nil, err
 	}
 	job, err := controller.Runtime.StartShadow(ctx, generation)
-	return controlResponse("shadow reindex started", job, controller, ctx, err)
+	return controlResponse(ctx, "shadow reindex started", job, controller, err)
 }
 
 func (controller *RuntimeIndexController) Cancel(ctx context.Context, id string) (*factsv1.IndexControlResponse, error) {
@@ -124,7 +124,7 @@ func (controller *RuntimeIndexController) ready() error {
 	return nil
 }
 
-func controlResponse(message string, job indexcontrol.Job, controller *RuntimeIndexController, ctx context.Context, err error) (*factsv1.IndexControlResponse, error) {
+func controlResponse(ctx context.Context, message string, job indexcontrol.Job, controller *RuntimeIndexController, err error) (*factsv1.IndexControlResponse, error) {
 	if err != nil {
 		return nil, err
 	}

@@ -54,29 +54,27 @@ func (h *Handler) ScanFleet(ctx context.Context, req *connect.Request[fleetv1.Sc
 
 func resultToProto(in internalfleet.Result) *fleetv1.ScanFleetResponse {
 	out := &fleetv1.ScanFleetResponse{
-		ScenarioCount:         int32(in.ScenarioCount),
-		PassingCount:          int32(in.PassingCount),
-		MissingFreshnessCount: int32(in.MissingFreshness),
-		AutofixableTotal:      int32(in.AutofixableTotal),
-		TargetCount:           int32(in.TargetCount),
-		PassingTargetCount:    int32(in.PassingTargetCount),
+		ScenarioCount:      int32(in.ScenarioCount),
+		PassingCount:       int32(in.PassingCount),
+		AutofixableTotal:   int32(in.AutofixableTotal),
+		TargetCount:        int32(in.TargetCount),
+		PassingTargetCount: int32(in.PassingTargetCount),
 	}
 	for _, e := range in.Entries {
 		out.Entries = append(out.Entries, &fleetv1.FleetScenarioEntry{
-			Scenario:              e.Scenario,
-			Passed:                e.Passed,
-			ProfileId:             e.ProfileID,
-			ProfileRecognized:     e.ProfileRecognized,
-			ErrorCount:            int32(e.ErrorCount),
-			WarningCount:          int32(e.WarningCount),
-			TotalFindings:         int32(e.TotalFindings),
-			AutofixableCount:      int32(e.AutofixableCount),
-			MissingFreshnessCheck: e.MissingFreshness,
-			Surfaces:              e.Surfaces,
-			DegradedReason:        e.DegradedReason,
-			TargetKind:            e.TargetKind,
-			TargetId:              e.TargetID,
-			TargetPath:            e.TargetRoot,
+			Scenario:          e.Scenario,
+			Passed:            e.Passed,
+			ProfileId:         e.ProfileID,
+			ProfileRecognized: e.ProfileRecognized,
+			ErrorCount:        int32(e.ErrorCount),
+			WarningCount:      int32(e.WarningCount),
+			TotalFindings:     int32(e.TotalFindings),
+			AutofixableCount:  int32(e.AutofixableCount),
+			Surfaces:          e.Surfaces,
+			DegradedReason:    e.DegradedReason,
+			TargetKind:        e.TargetKind,
+			TargetId:          e.TargetID,
+			TargetPath:        e.TargetRoot,
 		})
 	}
 	for _, rc := range in.RuleConformance {

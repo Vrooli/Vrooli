@@ -47,7 +47,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Statically grades every discovered scenario (or the requested subset) through structure-health's engine and returns per-scenario rollups, profile/surface distributions, per-rule conformance, and auto-fixable coverage.",
 		Category:    "fleet",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenarios": "array<string>"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"entries": "array<FleetScenarioEntry>", "rule_conformance": "array<RuleConformance>", "profile_distribution": "array<ProfileDistribution>", "scenario_count": "int32", "passing_count": "int32", "missing_freshness_count": "int32", "autofixable_total": "int32", "errors": "array<FleetScanError>"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"entries": "array<FleetScenarioEntry>", "rule_conformance": "array<RuleConformance>", "profile_distribution": "array<ProfileDistribution>", "scenario_count": "int32", "passing_count": "int32", "autofixable_total": "int32", "errors": "array<FleetScanError>"}},
 		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Scenario enumeration or grading failure"}},
 	},
 }

@@ -20,7 +20,7 @@ Use this document to answer:
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
 | scenario-authenticator | scenario | yes | auth, devices | HTTP `/api/v1/auth/*` + `/api/v1/sessions/*` | **Fail closed** in production — requests rejected if unreachable beyond the cache window. |
-| SQLite (api-core/storage) | embedded storage | yes | devices, transfer, settings | `SQLITE_PATH` lifecycle env var, `data` storage class | API reports unhealthy if unreachable. |
+| SQLite (api-core/storage) | embedded storage | yes | devices, transfer, settings | resolved by `api-core/storage` from the scenario id, `data` storage class | API reports unhealthy if unreachable. |
 | api-core/blobstore | embedded storage | yes | transfer | BlobStore seam under the `data` class | Upload/download fail; API health degrades. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
 | Redis | resource | optional | realtime | presence registry + pairing-code TTL cache | **Graceful degradation** to in-memory; single-instance only. |

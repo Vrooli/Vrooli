@@ -29,12 +29,9 @@ const (
 	RuleServiceNameMismatch  = "SERVICE_NAME_MISMATCH"
 	RuleHealthCheckMissing   = "HEALTH_CHECK_MISSING"
 	RuleHealthCheckMalformed = "HEALTH_CHECK_MALFORMED"
-	RuleFreshnessMissing     = "FRESHNESS_CHECK_MISSING"
 	RuleSurfaceDirMissing    = "SURFACE_DIR_MISSING"
 	RuleRequiredFileMissing  = "REQUIRED_FILE_MISSING"
 	RulePortBand             = "PORT_BAND_NONCONFORMANT"
-	RuleAPIBinaryName        = "API_BINARY_NAME_NONCONFORMANT"
-	RuleProductionServe      = "PRODUCTION_SERVE_NONCONFORMANT"
 	RuleProjectConfigSurface = "PROJECT_CONFIG_SURFACE"
 )
 
@@ -42,12 +39,9 @@ var registry = autofixcore.NewRegistry(
 	autofixcore.Fixer{RuleID: RuleServiceNameMismatch, Preview: previewServiceName, CanFix: canFix(previewServiceName)},
 	autofixcore.Fixer{RuleID: RuleHealthCheckMissing, Preview: previewHealthCheck, CanFix: canFix(previewHealthCheck)},
 	autofixcore.Fixer{RuleID: RuleHealthCheckMalformed, Preview: previewMalformedHealthCheck, CanFix: canFix(previewMalformedHealthCheck)},
-	autofixcore.Fixer{RuleID: RuleFreshnessMissing, Preview: previewFreshnessChecks, CanFix: canFix(previewFreshnessChecks)},
 	autofixcore.Fixer{RuleID: RuleSurfaceDirMissing, Preview: previewSurfaceDirs, CanFix: canFix(previewSurfaceDirs)},
 	autofixcore.Fixer{RuleID: RuleRequiredFileMissing, Preview: previewRequiredFiles, CanFix: canFix(previewRequiredFiles)},
 	autofixcore.Fixer{RuleID: RulePortBand, Preview: previewPortBand, CanFix: canFix(previewPortBand)},
-	autofixcore.Fixer{RuleID: RuleAPIBinaryName, Preview: previewAPIBinaryName, CanFix: canFix(previewAPIBinaryName)},
-	autofixcore.Fixer{RuleID: RuleProductionServe, Preview: previewProductionServe, CanFix: canFix(previewProductionServe)},
 	autofixcore.Fixer{RuleID: RuleProjectConfigSurface, Preview: previewProjectConfigSurface, CanFix: canFix(previewProjectConfigSurface)},
 )
 
@@ -58,7 +52,7 @@ func Preview(root string, ruleIDs []string) ([]Candidate, error) {
 
 // Apply writes the requested edits one at a time, re-previewing from fresh disk
 // state after every write. Several structure-health rules (SERVICE_NAME_MISMATCH,
-// HEALTH_CHECK_MISSING, FRESHNESS_CHECK_MISSING) edit the *same* service.json, so
+// HEALTH_CHECK_MISSING and component repairs can edit the same service.json, so
 // re-previewing is what makes them compose: each later candidate is recomputed
 // against the already-applied earlier one instead of clobbering it with a stale
 // full-file snapshot. Idempotency holds because Preview re-checks state and emits
@@ -106,8 +100,8 @@ func CanFix(root, ruleID, findingPath string) bool {
 // fixer is registered for it, detection_only otherwise.
 func FixClassFor(code string) autofixcore.FixClass {
 	switch code {
-	case RuleServiceNameMismatch, RuleHealthCheckMissing, RuleHealthCheckMalformed, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing,
-		RulePortBand, RuleAPIBinaryName, RuleProductionServe:
+	case RuleServiceNameMismatch, RuleHealthCheckMissing, RuleHealthCheckMalformed, RuleSurfaceDirMissing, RuleRequiredFileMissing,
+		RulePortBand:
 		return autofixcore.FixClassAutofix
 	case RuleProjectConfigSurface:
 		return autofixcore.FixClassAutofix
@@ -353,65 +347,6 @@ func previewMalformedHealthCheck(root string) ([]Candidate, error) {
 	}}, nil
 }
 
-// previewFreshnessChecks adds the missing per-surface freshness checks in a
-// single edit (binaries for api, cli for cli, ui-bundle for ui).
-func previewFreshnessChecks(root string) ([]Candidate, error) {
-	in, err := intent.Load(root)
-	if err != nil {
-		return nil, nil
-	}
-	api, ui, cli := declaredSurfaces(in)
-	scenario := scenarioName(root, in)
-
-	type want struct {
-		declared bool
-		typ      string
-		build    func() interface{}
-	}
-	wants := []want{
-		{api, "binaries", func() interface{} {
-			return svcedit.NewObject("type", "binaries", "targets", []interface{}{"api/" + scenario + "-api"})
-		}},
-		{cli, "cli", func() interface{} {
-			return svcedit.NewObject("type", "cli", "command", scenario)
-		}},
-		{ui, "ui-bundle", func() interface{} {
-			return svcedit.NewObject("type", "ui-bundle", "bundle_path", "ui/dist/index.html", "source_dir", "ui/src")
-		}},
-	}
-
-	var missing []want
-	for _, w := range wants {
-		if w.declared && len(in.FreshCheckByType(w.typ)) == 0 {
-			missing = append(missing, w)
-		}
-	}
-	if len(missing) == 0 {
-		return nil, nil
-	}
-	doc, before, err := loadServiceJSON(root)
-	if err != nil {
-		return nil, nil
-	}
-	condition := svcedit.EnsureMap(svcedit.EnsureMap(svcedit.EnsureMap(doc.Root(), "lifecycle"), "setup"), "condition")
-	types := make([]string, 0, len(missing))
-	for _, w := range missing {
-		svcedit.AppendToSlice(condition, "checks", w.build())
-		types = append(types, w.typ)
-	}
-	after, err := doc.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	return []Candidate{{
-		RuleID:      RuleFreshnessMissing,
-		FilePath:    filepath.Join(root, filepath.FromSlash(serviceJSONRel)),
-		Description: "Add missing lifecycle.setup freshness checks: " + strings.Join(types, ", ") + ".",
-		Before:      string(before),
-		After:       string(after),
-	}}, nil
-}
-
 // previewPortBand rewrites each canonical listener port (api/ui/websocket) whose
 // env_var or range is present but off its canonical band, in a single
 // format-preserving edit. Missing allocations and out-of-band fixed ports are
@@ -466,126 +401,6 @@ func previewPortBand(root string) ([]Candidate, error) {
 		RuleID:      RulePortBand,
 		FilePath:    filepath.Join(root, filepath.FromSlash(serviceJSONRel)),
 		Description: "Move canonical port(s) " + strings.Join(names, ", ") + " back onto their allocated env_var/band.",
-		Before:      string(before),
-		After:       string(after),
-	}}, nil
-}
-
-// previewAPIBinaryName renames the start-api invocation (and its file_exists
-// condition) to the canonical api/<scenario>-api binary, preserving the rest of
-// the command. It only fires on the two lifecycle-recognized run shapes, so the
-// rename is always surgical.
-func previewAPIBinaryName(root string) ([]Candidate, error) {
-	in, err := intent.Load(root)
-	if err != nil {
-		return nil, nil
-	}
-	expected := rules.ExpectedAPIBinaryName(scenarioName(root, in))
-	if expected == "" {
-		return nil, nil
-	}
-	var step *intent.Step
-	for i := range in.Lifecycle.Develop.Steps {
-		if strings.TrimSpace(in.Lifecycle.Develop.Steps[i].Name) == "start-api" {
-			step = &in.Lifecycle.Develop.Steps[i]
-			break
-		}
-	}
-	if step == nil {
-		return nil, nil
-	}
-	current, fixedRun, ok := rules.RewriteAPIBinary(step.Run, expected)
-	if !ok {
-		return nil, nil
-	}
-	doc, before, err := loadServiceJSON(root)
-	if err != nil {
-		return nil, nil
-	}
-	develop, ok := svcedit.GetMap(svcedit.EnsureMap(doc.Root(), "lifecycle"), "develop")
-	if !ok {
-		return nil, nil
-	}
-	stepMap, ok := svcedit.FindMapInSlice(develop, "steps", func(m *svcedit.Map) bool {
-		return strings.TrimSpace(svcedit.StringField(m, "name")) == "start-api"
-	})
-	if !ok {
-		return nil, nil
-	}
-	stepMap.Set("run", fixedRun)
-	// Repoint the staleness condition at the renamed binary when it referenced
-	// the old name (the condition.file_exists tracks the api binary).
-	if cond, ok := svcedit.GetMap(stepMap, "condition"); ok {
-		if fe := svcedit.StringField(cond, "file_exists"); strings.Contains(fe, current) {
-			cond.Set("file_exists", strings.Replace(fe, current, expected, 1))
-		}
-	}
-	after, err := doc.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	return []Candidate{{
-		RuleID:      RuleAPIBinaryName,
-		FilePath:    filepath.Join(root, filepath.FromSlash(serviceJSONRel)),
-		Description: fmt.Sprintf("Rename the start-api binary from %q to the canonical %q.", current, expected),
-		Before:      string(before),
-		After:       string(after),
-	}}, nil
-}
-
-// previewProductionServe rewrites a UI develop step that runs a dev server into
-// one that serves the built production bundle, preserving the hashed-asset
-// caching guarantee. It edits only the step's run command.
-func previewProductionServe(root string) ([]Candidate, error) {
-	in, err := intent.Load(root)
-	if err != nil {
-		return nil, nil
-	}
-	if _, ui, _ := declaredSurfaces(in); !ui {
-		return nil, nil
-	}
-	// Mirror productionServeRules' UI-step selection exactly (name lowercased,
-	// run matched as-is) so the fixer rewrites the same step the rule flagged.
-	var step *intent.Step
-	for i := range in.Lifecycle.Develop.Steps {
-		s := &in.Lifecycle.Develop.Steps[i]
-		if strings.Contains(strings.ToLower(s.Name), "ui") || strings.Contains(s.Run, "ui") {
-			step = s
-			break
-		}
-	}
-	if step == nil || !rules.IsDevServer(step.Run) {
-		return nil, nil
-	}
-	doc, before, err := loadServiceJSON(root)
-	if err != nil {
-		return nil, nil
-	}
-	develop, ok := svcedit.GetMap(svcedit.EnsureMap(doc.Root(), "lifecycle"), "develop")
-	if !ok {
-		return nil, nil
-	}
-	stepName := strings.TrimSpace(step.Name)
-	stepMap, ok := svcedit.FindMapInSlice(develop, "steps", func(m *svcedit.Map) bool {
-		name := strings.TrimSpace(svcedit.StringField(m, "name"))
-		if stepName != "" {
-			return name == stepName
-		}
-		return rules.IsDevServer(svcedit.StringField(m, "run"))
-	})
-	if !ok {
-		return nil, nil
-	}
-	const productionRun = "cd ui && NODE_ENV=production node server.js"
-	stepMap.Set("run", productionRun)
-	after, err := doc.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	return []Candidate{{
-		RuleID:      RuleProductionServe,
-		FilePath:    filepath.Join(root, filepath.FromSlash(serviceJSONRel)),
-		Description: "Serve the built ui/dist bundle (" + productionRun + ") instead of a dev server.",
 		Before:      string(before),
 		After:       string(after),
 	}}, nil

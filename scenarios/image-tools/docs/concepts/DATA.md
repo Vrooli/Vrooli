@@ -19,7 +19,7 @@ Use this document to answer:
 image-tools has two distinct stores with a hard split:
 
 - **Scenario metadata → embedded SQLite** through `modernc.org/sqlite`.
-  The lifecycle sets `SQLITE_PATH` through `.vrooli/service.json`, and the
+  The database path is resolved from the scenario id by `api-core/storage`, and the
   API applies schemas on startup through `api-core/database`. SQLite holds
   jobs, recipes, model-registry state, watch-folder/automation config,
   measures, and usage/cost records. None of these are image bytes.

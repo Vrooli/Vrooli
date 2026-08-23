@@ -119,6 +119,43 @@ func TestProjectPackRejectsDuplicateCredentialDescriptorInOneManifest(t *testing
 	t.Fatalf("expected duplicate credential descriptor finding, got %v", got)
 }
 
+func TestProjectPackRejectsDuplicateSchemaID(t *testing.T) {
+	root := validProjectFixture(t)
+	write(t, root, "schemas/first.schema.json", `{"$schema":"http://json-schema.org/draft-07/schema#","$id":"https://example.test/shared"}`)
+	write(t, root, "scenarios/demo/schemas/second.schema.json", `{"$schema":"http://json-schema.org/draft-07/schema#","$id":"https://example.test/shared"}`)
+
+	got := Evaluate("project", root, "repo")
+	for _, finding := range got {
+		if finding.Code == "REPO_SCHEMA_ID_UNIQUE" {
+			if !strings.Contains(finding.Message, "schemas/first.schema.json") || !strings.Contains(finding.Message, "scenarios/demo/schemas/second.schema.json") {
+				t.Fatalf("duplicate finding does not name both owners: %+v", finding)
+			}
+			return
+		}
+	}
+	t.Fatalf("expected duplicate schema id finding, got %v", got)
+}
+
+func TestRepositorySchemaIDsAreUnique(t *testing.T) {
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(root, ".vrooli", "schemas", "service.schema.json")); err == nil {
+			break
+		}
+		parent := filepath.Dir(root)
+		if parent == root {
+			t.Skip("repository root is unavailable")
+		}
+		root = parent
+	}
+	if findings := projectSchemaIDRules(root); len(findings) != 0 {
+		t.Fatalf("repository schema IDs are not unique: %v", findings)
+	}
+}
+
 func TestProjectPackReportsOwningScenarioManifestSchemaViolation(t *testing.T) {
 	root := validProjectFixture(t)
 	write(t, root, ".vrooli/schemas/cli-manifest.schema.json", `{"type":"object","required":["name"],"properties":{"name":{"type":"string"}},"additionalProperties":true}`)

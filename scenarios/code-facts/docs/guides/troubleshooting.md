@@ -222,7 +222,7 @@ make generate
 The generator runs entirely on local plugins (no BSR network calls) and
 writes to language-specific output paths: Go under
 `packages/proto/gen/go/code-facts/v1/`, TypeScript under
-`packages/proto/gen/typescript/js/code-facts/v1/`, and Python under
+`packages/proto/gen/typescript/code-facts/v1/`, and Python under
 `packages/proto/gen/python/code_facts/v1/`.
 
 ### Codegen ran but Go imports still fail

@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "hello-plugin",
+  "description": "Standalone fixture command surface used by scenario-to-plugin conformance tests.",
+  "groups": [
+    {
+      "name": "hello",
+      "description": "Say hello",
+      "commands": [
+        {
+          "name": "hello",
+          "description": "Print a deterministic greeting",
+          "flags": [{"name": "name", "description": "Name to greet"}],
+          "governance": {"effect": "read", "run_eligible": true, "permissions": []}
+        }
+      ]
+    },
+    {
+      "name": "status",
+      "description": "Report fixture health",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Print ok",
+          "governance": {"effect": "read", "run_eligible": true, "permissions": []}
+        }
+      ]
+    }
+  ],
+  "omitted": []
+}

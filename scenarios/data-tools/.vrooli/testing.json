@@ -10,7 +10,7 @@
       "verbose": false
     },
     "policy_profile": {
-      "version": "1.0.0",
+      "version": "2.0.0",
       "template": {
         "id": "react-vite",
         "scenario_class": "custom"
@@ -56,6 +56,17 @@
             "required_files": [
               "api/internal/testutil/no_prod_import_test.go"
             ]
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "go",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
           }
         },
         "go_cli": {
@@ -77,12 +88,35 @@
               "cli/app_test.go",
               "cli/internal/testutil/no_prod_import_test.go"
             ]
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "go",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
           }
         }
       },
       "customization": {
         "mode": "monotonic",
         "waivers": []
+      },
+      "runner_profiles": {
+        "default": {
+          "cpu_weight": 1,
+          "memory_bytes": 536870912,
+          "max_workers": 1,
+          "timeout_seconds": 600,
+          "no_output_timeout_seconds": 60,
+          "sharding": "none",
+          "network": "allow",
+          "filesystem": "workspace"
+        }
       }
     }
   }

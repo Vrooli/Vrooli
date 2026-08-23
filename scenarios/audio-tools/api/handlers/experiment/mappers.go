@@ -8,7 +8,7 @@ import (
 
 	intexp "audio-tools/internal/experiment"
 	"audio-tools/internal/protoint"
-	"audio-tools/internal/qualification"
+	trustfloor "audio-tools/internal/qualification"
 
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 	"google.golang.org/protobuf/encoding/protojson"

@@ -1,10 +1,11 @@
 package diagnostics
 
 import (
-	"audio-tools/internal/protoint"
 	"context"
 	"errors"
 	"fmt"
+
+	"audio-tools/internal/protoint"
 
 	"connectrpc.com/connect"
 

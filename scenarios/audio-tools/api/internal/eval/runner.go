@@ -8,7 +8,7 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/protoint"
-	"audio-tools/internal/qualification"
+	trustfloor "audio-tools/internal/qualification"
 	"audio-tools/internal/stt"
 	"audio-tools/internal/stt/egress"
 	"audio-tools/internal/stt/ingress"

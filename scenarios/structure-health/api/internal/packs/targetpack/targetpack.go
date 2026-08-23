@@ -13,8 +13,9 @@ import (
 	"strconv"
 	"strings"
 
-	repocontract "github.com/vrooli/repo-contract-go"
 	"structure-health/internal/rules"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 var digestPattern = regexp.MustCompile(`@sha256:[0-9a-fA-F]{64}$`)

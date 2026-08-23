@@ -337,7 +337,6 @@ const literalSelectors = {
     summary: "fleet-summary",
     summaryScenarios: "fleet-summary-scenarios",
     summaryPassing: "fleet-summary-passing",
-    summaryMissingFreshness: "fleet-summary-missing-freshness",
     summaryAutofixable: "fleet-summary-autofixable",
     profiles: "fleet-profiles",
     rules: "fleet-rules",

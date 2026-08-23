@@ -4,6 +4,14 @@
 |---|---|
 | `surfaces` | Implemented in Phase 7. Scenario API/CLI/UI/sidecar metadata and generic target status, with evidence from directories and manifests. |
 | `parse_units` | Implemented in Phase 7. Go modules, TypeScript projects, explicit `tsconfig.json` configs, unsupported Node packages, and unknown units. |
+
+Each parse unit also carries a neutral `ToolchainObservation` envelope. It
+records observed manifest and lockfile paths, build-system markers,
+package-manager/toolchain identity, and runner indicators such as declared
+scripts or dependencies. These are observations with provenance; Code Facts
+does not decide whether a framework is canonical or whether a declared adapter
+is policy-compliant. Unit Health reconciles them with declared intent and host
+capabilities.
 | `imports` | Implemented in Phase 8. Import specs/bindings from provider graphs, preserving provider attributes such as Go import paths and TypeScript source modules. |
 | `symbols` | Implemented in Phase 8. Declaration-like graph nodes normalized from provider output. |
 | `references` | Implemented in Phase 8. Resolved symbol references and Go type-usage facts where graph providers emit them. |

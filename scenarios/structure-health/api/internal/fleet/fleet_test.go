@@ -41,7 +41,7 @@ func resp(profile string, recognized bool, findings ...validation.Finding) valid
 func TestScanAggregatesRollupAndDistributions(t *testing.T) {
 	engine := fakeEngine{responses: map[string]validation.Response{
 		"alpha": resp("react-vite-go", true,
-			validation.Finding{Code: "FRESHNESS_CHECK_MISSING", Severity: "error", AutofixAvailable: true},
+			validation.Finding{Code: "SCENARIO_COMPONENT_INVALID", Severity: "error", AutofixAvailable: true},
 			validation.Finding{Code: "PROFILE_ENV_VALIDATION", Severity: "warning"},
 		),
 		"beta": resp("react-vite-go", true), // clean
@@ -63,9 +63,6 @@ func TestScanAggregatesRollupAndDistributions(t *testing.T) {
 	if result.PassingCount != 2 {
 		t.Fatalf("passing count = %d, want 2", result.PassingCount)
 	}
-	if result.MissingFreshness != 1 {
-		t.Fatalf("missing freshness = %d, want 1", result.MissingFreshness)
-	}
 	if result.AutofixableTotal != 2 {
 		t.Fatalf("autofixable total = %d, want 2", result.AutofixableTotal)
 	}
@@ -80,7 +77,7 @@ func TestScanAggregatesRollupAndDistributions(t *testing.T) {
 		t.Fatalf("alpha declared surfaces = %v, want [api]", got)
 	}
 
-	// Rule conformance: PROFILE_ENV_VALIDATION offends 2 scenarios, FRESHNESS 1.
+	// Rule conformance: PROFILE_ENV_VALIDATION offends 2 scenarios, component contract 1.
 	if len(result.RuleConformance) != 2 {
 		t.Fatalf("rule conformance count = %d, want 2", len(result.RuleConformance))
 	}

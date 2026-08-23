@@ -47,13 +47,9 @@ func Evaluate(in Input) []Finding {
 	out = append(out, serviceJSONRules(in)...)
 	out = append(out, requiredFileRules(in)...)
 	out = append(out, surfaceDirRules(in)...)
-	out = append(out, lifecycleWiringRules(in)...)
-	out = append(out, freshnessRules(in)...)
 	out = append(out, apiEntrypointRules(in)...)
 	out = append(out, dependencyRules(in)...)
 	out = append(out, portBandRules(in)...)
-	out = append(out, apiBinaryNameRules(in)...)
-	out = append(out, productionServeRules(in)...)
 	out = append(out, reconcileRules(in)...)
 	out = append(out, deployabilityInstanceRules(in)...)
 	return out
@@ -148,92 +144,6 @@ func surfaceDirRules(in Input) []Finding {
 	return out
 }
 
-// lifecycleWiringRules asserts each declared+buildable surface has the
-// build→start chain plus a port/env binding.
-func lifecycleWiringRules(in Input) []Finding {
-	lc := in.Model.Intent.Lifecycle
-	setup := stepRuns(lc.Setup.Steps)
-	develop := stepRuns(lc.Develop.Steps)
-	var out []Finding
-	for _, s := range in.Model.Surfaces {
-		if !s.Declared {
-			continue
-		}
-		switch strings.ToLower(s.Kind) {
-		case "api", "ui":
-			if !mentions(setup, s.Surface) && !mentions(setup, "build") {
-				out = append(out, Finding{
-					Code:        "LIFECYCLE_STEP_MISSING",
-					Severity:    sevError,
-					Title:       "no setup/build step for surface " + s.Surface,
-					Message:     "Surface " + s.Surface + " is declared but no lifecycle.setup step builds it.",
-					Location:    ".vrooli/service.json",
-					Remediation: "Add a lifecycle.setup step that builds the " + s.Surface + " surface.",
-					Surface:     s.Surface,
-				})
-			}
-			if !mentions(develop, s.Surface) && !mentions(develop, "start") {
-				out = append(out, Finding{
-					Code:        "LIFECYCLE_STEP_MISSING",
-					Severity:    sevError,
-					Title:       "no develop/start step for surface " + s.Surface,
-					Message:     "Surface " + s.Surface + " is declared but no lifecycle.develop step starts it.",
-					Location:    ".vrooli/service.json",
-					Remediation: "Add a background lifecycle.develop step that starts the " + s.Surface + " surface.",
-					Surface:     s.Surface,
-				})
-			}
-			if _, ok := in.Model.Intent.Ports[s.Surface]; !ok {
-				out = append(out, Finding{
-					Code:        "LIFECYCLE_STEP_MISSING",
-					Severity:    sevError,
-					Title:       "no port binding for surface " + s.Surface,
-					Message:     "Surface " + s.Surface + " is declared but has no ports." + s.Surface + " env_var/range binding.",
-					Location:    ".vrooli/service.json",
-					Remediation: "Add a ports." + s.Surface + " entry with an env_var and range.",
-					Surface:     s.Surface,
-				})
-			}
-		}
-	}
-	return out
-}
-
-// freshnessRules asserts each buildable surface declares a freshness check so
-// the lifecycle skips rebuilds when sources are unchanged.
-func freshnessRules(in Input) []Finding {
-	intentDoc := in.Model.Intent
-	var out []Finding
-	for _, s := range in.Model.Surfaces {
-		if !s.Declared {
-			continue
-		}
-		var checkType, hint string
-		switch strings.ToLower(s.Kind) {
-		case "api":
-			checkType, hint = "binaries", "a binaries check listing api/<scenario>-api"
-		case "ui":
-			checkType, hint = "ui-bundle", "a ui-bundle check with bundle_path and source_dir"
-		case "cli":
-			checkType, hint = "cli", "a cli check naming the installed command"
-		default:
-			continue
-		}
-		if len(intentDoc.FreshCheckByType(checkType)) == 0 {
-			out = append(out, Finding{
-				Code:        "FRESHNESS_CHECK_MISSING",
-				Severity:    sevWarning,
-				Title:       "missing freshness check for surface " + s.Surface,
-				Message:     "Surface " + s.Surface + " has no lifecycle.setup " + checkType + " freshness check; it rebuilds on every start.",
-				Location:    ".vrooli/service.json",
-				Remediation: "Add " + hint + " under lifecycle.setup.condition.checks.",
-				Surface:     s.Surface,
-			})
-		}
-	}
-	return out
-}
-
 // dependencyRules asserts dependency declarations use valid enums and no edge
 // names the scenario itself (a trivial cycle).
 func dependencyRules(in Input) []Finding {
@@ -314,68 +224,6 @@ func portBandRules(in Input) []Finding {
 	return out
 }
 
-// apiBinaryNameRules asserts the start-api develop step invokes the canonical
-// api/<scenario>-api binary. It fires only when the step uses one of the two
-// lifecycle-recognized invocation shapes (`cd api && ./<bin>` or `./api/<bin>`)
-// with the wrong binary name, so the fix is a deterministic in-place rename;
-// non-canonical shapes are left to the detection-only PROFILE_DEVELOP_STEPS pack.
-func apiBinaryNameRules(in Input) []Finding {
-	expected := ExpectedAPIBinaryName(firstNonEmpty(in.Model.Intent.Name, in.Model.Scenario))
-	if expected == "" {
-		return nil
-	}
-	step := findStep(in.Model.Intent.Lifecycle.Develop.Steps, "start-api")
-	if step == nil {
-		return nil
-	}
-	current, _, ok := RewriteAPIBinary(step.Run, expected)
-	if !ok {
-		return nil
-	}
-	return []Finding{{
-		Code:        "API_BINARY_NAME_NONCONFORMANT",
-		Severity:    sevWarning,
-		Title:       "start-api invokes the wrong binary name",
-		Message:     "start-api runs ./" + current + " but the canonical api binary is " + expected + "; lifecycle restart detection keys on api/" + expected + ".",
-		Location:    ".vrooli/service.json",
-		Remediation: "Rename the start-api invocation (and its file_exists condition) to api/" + expected + ".",
-		Surface:     "api",
-	}}
-}
-
-// productionServeRules asserts the UI develop step serves the built bundle
-// rather than a dev server, preserving the hashed-asset caching guarantee.
-func productionServeRules(in Input) []Finding {
-	if !uiDeclared(in.Model) {
-		return nil
-	}
-	develop := in.Model.Intent.Lifecycle.Develop.Steps
-	var uiStep *intent.Step
-	for i := range develop {
-		s := &develop[i]
-		if strings.Contains(strings.ToLower(s.Name), "ui") || strings.Contains(s.Run, "ui") {
-			uiStep = s
-			break
-		}
-	}
-	if uiStep == nil {
-		return nil // covered by lifecycleWiringRules
-	}
-	run := uiStep.Run
-	if isDevServer(run) {
-		return []Finding{{
-			Code:        "PRODUCTION_SERVE_NONCONFORMANT",
-			Severity:    sevWarning,
-			Title:       "UI develop step runs a dev server",
-			Message:     "The UI develop step appears to run a dev server (" + strings.TrimSpace(run) + ") instead of serving the built production bundle.",
-			Location:    ".vrooli/service.json",
-			Remediation: "Serve the built ui/dist bundle (e.g. node server.js) with NODE_ENV=production.",
-			Surface:     "ui",
-		}}
-	}
-	return nil
-}
-
 // reconcileRules flags declared-but-not-detected and detected-but-not-declared
 // surfaces.
 func reconcileRules(in Input) []Finding {
@@ -430,43 +278,6 @@ func surfaceDeclared(m reconcile.Model, kind string) bool {
 	return false
 }
 
-func stepRuns(steps []intent.Step) []string {
-	out := make([]string, 0, len(steps))
-	for _, s := range steps {
-		out = append(out, strings.ToLower(s.Name+" "+s.Run))
-	}
-	return out
-}
-
-func mentions(haystacks []string, needle string) bool {
-	needle = strings.ToLower(needle)
-	for _, h := range haystacks {
-		if strings.Contains(h, needle) {
-			return true
-		}
-	}
-	return false
-}
-
-func isDevServer(run string) bool {
-	r := strings.ToLower(run)
-	for _, marker := range []string{"vite dev", "vite serve", "run dev", "pnpm dev", "npm run dev", "vite\"", "vite "} {
-		if strings.Contains(r, marker) {
-			return true
-		}
-	}
-	// "vite" alone (the bare dev binary) but not "vite build" / "vite preview".
-	if strings.Contains(r, "vite") && !strings.Contains(r, "vite build") && !strings.Contains(r, "vite preview") && !strings.Contains(r, "dist") && !strings.Contains(r, "server.js") {
-		return true
-	}
-	return false
-}
-
-// IsDevServer reports whether a UI develop-step run command launches a dev
-// server instead of serving the built production bundle. Exported so the
-// matching auto-fixer detects exactly the steps this rule flags.
-func IsDevServer(run string) bool { return isDevServer(run) }
-
 // CanonicalPortBand returns the canonical range + env_var for a canonically
 // identified listener port (api/ui/websocket, by name or env_var) and ok=false
 // for scenario-defined ports that receive no band enforcement. It is the single
@@ -484,65 +295,6 @@ func CanonicalPortBand(name, envVar string) (band, env string, ok bool) {
 	}
 }
 
-// ExpectedAPIBinaryName returns the canonical api binary name (<scenario>-api)
-// for a scenario, or "" when the scenario is unknown.
-func ExpectedAPIBinaryName(scenario string) string {
-	scenario = strings.TrimSpace(scenario)
-	if scenario == "" {
-		return ""
-	}
-	return scenario + "-api"
-}
-
-// RewriteAPIBinary rewrites a start-api run command so it invokes the expected
-// binary, preserving any surrounding command (env preamble, cd, args). It
-// recognizes the two lifecycle-sanctioned shapes — `cd api && ./<bin>` and
-// `./api/<bin>` — and returns the current (wrong) binary base name, the
-// rewritten command, and ok=true only when a safe rename applies. Shared by
-// apiBinaryNameRules and the binary-name auto-fixer so detection and remediation
-// never drift.
-func RewriteAPIBinary(run, expected string) (current, fixed string, ok bool) {
-	expected = strings.TrimSpace(expected)
-	if strings.TrimSpace(run) == "" || expected == "" {
-		return "", "", false
-	}
-	// Shape: ./api/<bin>
-	if idx := strings.Index(run, "./api/"); idx >= 0 {
-		rest := run[idx+len("./api/"):]
-		bin := leadingBinaryToken(rest)
-		if bin == "" || bin == expected {
-			return "", "", false
-		}
-		return bin, run[:idx] + "./api/" + expected + rest[len(bin):], true
-	}
-	// Shape: cd api && … ./<bin>
-	if strings.Contains(run, "cd api") {
-		if idx := strings.LastIndex(run, "./"); idx >= 0 {
-			rest := run[idx+len("./"):]
-			bin := leadingBinaryToken(rest)
-			if bin == "" || bin == expected {
-				return "", "", false
-			}
-			return bin, run[:idx] + "./" + expected + rest[len(bin):], true
-		}
-	}
-	return "", "", false
-}
-
-// leadingBinaryToken returns the leading binary-name token (letters, digits,
-// '.', '-', '_') from the start of s, stopping at the first other character.
-func leadingBinaryToken(s string) string {
-	end := 0
-	for _, r := range s {
-		if r == '.' || r == '-' || r == '_' || (r >= '0' && r <= '9') || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
-			end += len(string(r))
-			continue
-		}
-		break
-	}
-	return s[:end]
-}
-
 // firstNonEmpty returns the first non-blank string.
 func firstNonEmpty(values ...string) string {
 	for _, v := range values {
@@ -551,16 +303,6 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-// findStep returns a pointer to the named lifecycle step, or nil.
-func findStep(steps []intent.Step, name string) *intent.Step {
-	for i := range steps {
-		if strings.TrimSpace(steps[i].Name) == name {
-			return &steps[i]
-		}
-	}
-	return nil
 }
 
 // sortedKeys returns the map keys in deterministic order.

@@ -107,7 +107,7 @@ packages/proto/schemas/flow-verifier/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/flow-verifier/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/flow-verifier/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/flow-verifier/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/flow-verifier/v1/...   (ui)
        └──▶ packages/proto/gen/python/flow_verifier/v1/...    (future tools)
 ```
 

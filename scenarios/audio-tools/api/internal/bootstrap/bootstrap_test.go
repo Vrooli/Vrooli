@@ -28,7 +28,7 @@ func TestBuild_EndToEnd(t *testing.T) {
 	t.Setenv("AUDIO_WHISPER_URL", whisper.URL)
 	t.Setenv("AUDIO_SHERPA_URL", kokoro.URL)
 	t.Setenv("AUDIO_OLLAMA_URL", ollama.URL)
-	t.Setenv("SQLITE_PATH", filepath.Join(dir, "bootstrap.db"))
+	t.Setenv("VROOLI_STORAGE_ROOT", dir)
 	t.Setenv("AUDIO_TOOLS_DB_KEY_PATH", filepath.Join(dir, "byok.key"))
 
 	srv, cleanup, err := bootstrap.Build(context.Background())

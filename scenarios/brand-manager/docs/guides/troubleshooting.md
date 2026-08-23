@@ -229,7 +229,7 @@ make generate
 The generator runs entirely on local plugins (no BSR network calls) and
 writes to language-specific output paths: Go under
 `packages/proto/gen/go/brand-manager/v1/`, TypeScript under
-`packages/proto/gen/typescript/js/brand-manager/v1/`, and Python under
+`packages/proto/gen/typescript/brand-manager/v1/`, and Python under
 `packages/proto/gen/python/brand_manager/v1/`.
 
 ### Codegen ran but Go imports still fail

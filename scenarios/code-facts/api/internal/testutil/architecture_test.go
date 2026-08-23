@@ -57,7 +57,7 @@ func TestDomainPackagesAreTransportFreeAndIndependent(t *testing.T) {
 }
 
 func TestZoneMapMatchesTopLevelPackageTree(t *testing.T) {
-	wantInternal := []string{"analysis", "cache", "catalog", "database", "facts", "httpc", "httpx", "indexcontrol", "logging", "middleware", "module", "modules", "proof", "registration", "retrieval", "server", "targets", "testutil"}
+	wantInternal := []string{"analysis", "cache", "catalog", "database", "facts", "fswatch", "httpc", "httpx", "indexcontrol", "logging", "middleware", "module", "modules", "proof", "registration", "retrieval", "server", "targets", "testutil"}
 	wantHandlers := []string{"facts", "health"}
 	assertDirectorySet(t, "..", wantInternal)
 	assertDirectorySet(t, filepath.Join("..", "..", "handlers"), wantHandlers)

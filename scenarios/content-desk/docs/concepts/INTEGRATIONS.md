@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, persistence-backed domains | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, persistence-backed domains | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | channel-manager | scenario | no (P1) | ledger, review | Connect-RPC: eligibility, release receipt, metric inbox acknowledgement | Approved drafts are handed to Channel Manager; eligibility degrades to unknown and metric/release deliveries are idempotent. |
 | ai-gateway | scenario | no (P1) | claims | Connect-RPC: assisted claim extraction | **Extraction is optional by design.** Author-declared claims are the P0 path, so inference being unavailable never blocks a draft. |

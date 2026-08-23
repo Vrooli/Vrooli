@@ -294,6 +294,7 @@ func goParseUnit(root, gomod string) *factsv1.ParseUnit {
 		ConfigPath: gomod,
 		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
 		Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "Go module discovered from go.mod.", gomod)},
+		Toolchain:  toolchainObservation(root, "go", gomod),
 	}
 }
 
@@ -305,6 +306,7 @@ func tsParseUnit(root, tsconfig string) *factsv1.ParseUnit {
 		ConfigPath: tsconfig,
 		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
 		Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "TypeScript project discovered from tsconfig.json.", tsconfig)},
+		Toolchain:  toolchainObservation(root, "node", tsconfig),
 	}
 }
 
@@ -317,6 +319,7 @@ func nodePackageUnit(root string) *factsv1.ParseUnit {
 		ConfigPath: packagePath,
 		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
 		Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "Node package has no tsconfig.json, so it cannot route to a supported analyzer.", packagePath)},
+		Toolchain:  toolchainObservation(root, "node", packagePath),
 	}
 }
 
@@ -355,6 +358,7 @@ func dependencyParseUnit(root, manifest, language string) *factsv1.ParseUnit {
 		ConfigPath: manifest,
 		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
 		Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "Dependency manifest discovered for downstream typed ecosystem adapters; Code Facts does not parse package vulnerability state.", manifest)},
+		Toolchain:  toolchainObservation(root, language, manifest),
 	}
 }
 
@@ -364,21 +368,129 @@ func dependencyParseUnit(root, manifest, language string) *factsv1.ParseUnit {
 // such as unit-health use the language + root to attribute bats test surfaces.
 func bashParseUnit(root string) *factsv1.ParseUnit {
 	return &factsv1.ParseUnit{
-		Id:       "bash:" + filepath.ToSlash(root),
-		Language: "bash",
-		RootPath: root,
-		Status:   factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
-		Evidence: []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "Shell scripts (.sh/.bats) discovered; Code Facts reports the language but has no bash graph analyzer.", root)},
+		Id:        "bash:" + filepath.ToSlash(root),
+		Language:  "bash",
+		RootPath:  root,
+		Status:    factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
+		Evidence:  []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "Shell scripts (.sh/.bats) discovered; Code Facts reports the language but has no bash graph analyzer.", root)},
+		Toolchain: toolchainObservation(root, "bash", ""),
 	}
+}
+
+// toolchainObservation reports observed manifests and neutral indicators. It
+// deliberately does not select or validate a framework or adapter.
+func toolchainObservation(root, ecosystem, primaryManifest string) *factsv1.ToolchainObservation {
+	observation := &factsv1.ToolchainObservation{
+		Ecosystem: ecosystem,
+		Status:    factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
+	}
+	if primaryManifest != "" {
+		observation.ManifestPaths = append(observation.ManifestPaths, primaryManifest)
+		observation.Evidence = append(observation.Evidence, evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "Toolchain manifest observed.", primaryManifest))
+	}
+	for _, name := range []string{"go.mod", "tsconfig.json", "package.json", "pyproject.toml", "requirements.txt", "Cargo.toml"} {
+		path := filepath.Join(root, name)
+		if fileExists(path) && !containsPath(observation.ManifestPaths, path) {
+			observation.ManifestPaths = append(observation.ManifestPaths, path)
+		}
+	}
+	for _, name := range []string{"pnpm-lock.yaml", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "bun.lock", "bun.lockb", "go.sum", "Cargo.lock", "poetry.lock", "Pipfile.lock"} {
+		path := filepath.Join(root, name)
+		if fileExists(path) {
+			observation.LockfilePaths = append(observation.LockfilePaths, path)
+		}
+	}
+	if fileExists(filepath.Join(root, "go.mod")) {
+		observation.BuildSystems = append(observation.BuildSystems, "go-module")
+	}
+	if fileExists(filepath.Join(root, "Cargo.toml")) {
+		observation.BuildSystems = append(observation.BuildSystems, "cargo")
+	}
+	if content, err := os.ReadFile(filepath.Join(root, "go.mod")); err == nil {
+		for _, line := range strings.Split(string(content), "\n") {
+			fields := strings.Fields(line)
+			if len(fields) == 2 && fields[0] == "go" {
+				observation.ToolchainIdentity = "go@" + fields[1]
+				break
+			}
+		}
+	}
+	packagePath := filepath.Join(root, "package.json")
+	if fileExists(packagePath) {
+		var manifest struct {
+			Scripts         map[string]string `json:"scripts"`
+			PackageManager  string            `json:"packageManager"`
+			Dependencies    map[string]any    `json:"dependencies"`
+			DevDependencies map[string]any    `json:"devDependencies"`
+		}
+		if readJSON(packagePath, &manifest) == nil {
+			observation.PackageManager = manifest.PackageManager
+			for key := range manifest.Scripts {
+				observation.RunnerIndicators = append(observation.RunnerIndicators, "script:"+key)
+			}
+			for key := range manifest.Dependencies {
+				observation.RunnerIndicators = append(observation.RunnerIndicators, "dependency:"+key)
+			}
+			for key := range manifest.DevDependencies {
+				observation.RunnerIndicators = append(observation.RunnerIndicators, "devDependency:"+key)
+			}
+		}
+	}
+	if hasFilesWithSuffix(root, ".bats") {
+		observation.RunnerIndicators = append(observation.RunnerIndicators, "source:.bats")
+	}
+	if ecosystem == "python" {
+		for _, name := range []string{"pyproject.toml", "setup.cfg", "setup.py"} {
+			path := filepath.Join(root, name)
+			if content, err := os.ReadFile(path); err == nil && strings.Contains(strings.ToLower(string(content)), "pytest") {
+				observation.RunnerIndicators = append(observation.RunnerIndicators, "config:pytest")
+			}
+		}
+	}
+	sort.Strings(observation.ManifestPaths)
+	sort.Strings(observation.LockfilePaths)
+	sort.Strings(observation.BuildSystems)
+	sort.Strings(observation.RunnerIndicators)
+	return observation
+}
+
+func containsPath(paths []string, candidate string) bool {
+	for _, path := range paths {
+		if filepath.Clean(path) == filepath.Clean(candidate) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasFilesWithSuffix(root, suffix string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || found {
+			return nil
+		}
+		if entry.IsDir() {
+			if path != root && shouldPruneDir(entry.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(path), suffix) {
+			found = true
+		}
+		return nil
+	})
+	return found
 }
 
 func unknownUnit(root string) *factsv1.ParseUnit {
 	return &factsv1.ParseUnit{
-		Id:       "unknown:" + filepath.ToSlash(root),
-		Language: "unknown",
-		RootPath: root,
-		Status:   factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
-		Evidence: []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "No bounded Go module, TypeScript project, or supported package manifest was discovered.", root)},
+		Id:        "unknown:" + filepath.ToSlash(root),
+		Language:  "unknown",
+		RootPath:  root,
+		Status:    factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
+		Evidence:  []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "No bounded Go module, TypeScript project, or supported package manifest was discovered.", root)},
+		Toolchain: &factsv1.ToolchainObservation{Ecosystem: "unknown", Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN, Evidence: []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN, "No toolchain manifest or source indicator was discovered.", root)}},
 	}
 }
 

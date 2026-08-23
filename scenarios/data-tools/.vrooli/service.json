@@ -119,12 +119,6 @@
         "required": true,
         "purpose": "Store tool configurations and processing results"
       },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache and event bus for real-time operations"
-      },
       "minio": {
         "type": "minio",
         "enabled": false,
@@ -178,7 +172,8 @@
       "role": "api",
       "build": {
         "kind": "go_module",
-        "dir": "api"
+        "dir": "api",
+        "entry": "./cmd/server"
       },
       "run": {
         "argv": [

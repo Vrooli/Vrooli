@@ -107,7 +107,7 @@ packages/proto/schemas/structure-health/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/structure-health/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/structure-health/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/structure-health/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/structure-health/v1/...   (ui)
        └──▶ packages/proto/gen/python/structure_health/v1/...    (future tools)
 ```
 

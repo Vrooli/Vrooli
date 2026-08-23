@@ -10,9 +10,10 @@ import (
 	"regexp"
 	"strings"
 
+	"structure-health/internal/rules"
+
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/vrooli/api-core/scopecatalog"
-	"structure-health/internal/rules"
 )
 
 var concreteScopeLiteral = regexp.MustCompile(`\b[a-z0-9][a-z0-9-]*:(?:read|write|destructive)\b`)

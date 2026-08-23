@@ -3,15 +3,25 @@ package bootstrap_test
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"audio-tools/internal/bootstrap"
+
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/storage"
 )
 
 func TestOpenDB_MigratesQualificationEvidenceBeforeSchemaDriftCheck(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "legacy.db")
+	// Storage is isolated by redirecting the class-root tree rather than by
+	// naming a database file, so the legacy fixture must be seeded at exactly
+	// the path this scenario's own identity resolves to.
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+	path, err := storage.SQLitePath(storage.SQLiteConfig{Scenario: "audio-tools"})
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+
 	legacy, err := sql.Open("sqlite", path)
 	require.NoError(t, err)
 	_, err = legacy.Exec(`CREATE TABLE qualification_evidence (
@@ -30,7 +40,7 @@ func TestOpenDB_MigratesQualificationEvidenceBeforeSchemaDriftCheck(t *testing.T
 	require.NoError(t, err)
 	require.NoError(t, legacy.Close())
 
-	db, _, err := bootstrap.OpenDB(context.Background(), bootstrap.Env{SqlitePath: path})
+	db, _, err := bootstrap.OpenDB(context.Background(), bootstrap.Env{})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 

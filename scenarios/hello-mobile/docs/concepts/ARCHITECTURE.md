@@ -107,7 +107,7 @@ packages/proto/schemas/hello-mobile/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/hello-mobile/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/hello-mobile/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/hello-mobile/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/hello-mobile/v1/...   (ui)
        └──▶ packages/proto/gen/python/hello_mobile/v1/...    (future tools)
 ```
 

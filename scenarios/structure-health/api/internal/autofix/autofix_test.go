@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
 
-// serviceJSON declares api+ui surfaces with a wrong name, no http health check,
-// and no freshness checks — so SERVICE_NAME_MISMATCH, HEALTH_CHECK_MISSING and
-// FRESHNESS_CHECK_MISSING are all auto-fixable. It carries an unknown field and a
-// deliberate key order to prove edits are format-preserving.
+// serviceJSON declares api+ui surfaces with a wrong name and no http health
+// check. It carries an unknown field and deliberate key order to prove edits
+// are format-preserving.
 const serviceJSON = `{
   "$schema": "../schema.json",
   "version": "1.0.0",
@@ -42,12 +42,9 @@ const serviceJSON = `{
 }
 `
 
-// serviceJSONBandBinaryServe declares a canonical api port off its band with the
-// wrong env var, a start-api step invoking the wrong binary (with a matching
-// stale condition), and a start-ui step running a dev server — so PORT_BAND,
-// API_BINARY_NAME and PRODUCTION_SERVE are all auto-fixable. service.name is set
-// so the expected api binary is deterministic regardless of the temp dir. A
-// deliberate key order + unknown field prove edits are format-preserving.
+// serviceJSONBandBinaryServe declares a canonical API port off its band with
+// the wrong env var and otherwise unrelated component commands. A deliberate
+// key order plus unknown field prove focused edits are format-preserving.
 const serviceJSONBandBinaryServe = `{
   "service": {
     "name": "demo",
@@ -63,26 +60,16 @@ const serviceJSONBandBinaryServe = `{
       "range": "20000-24999"
     }
   },
-  "lifecycle": {
-    "develop": {
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "export DB=1 && cd api && ./wrong",
-          "background": true,
-          "condition": {
-            "file_exists": "api/wrong"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && pnpm dev",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {"kind": "go_module", "dir": "api"},
+      "run": {"argv": ["./wrong"], "cwd": "api", "env": {"DB": "1"}, "port": "api"}
+    },
+    "ui": {
+      "role": "ui",
+      "build": {"kind": "pnpm_vite", "dir": "ui"},
+      "run": {"argv": ["pnpm", "dev"], "cwd": "ui", "port": "ui"}
     }
   }
 }
@@ -132,22 +119,6 @@ func ruleSet(candidates []Candidate) map[string]bool {
 	return out
 }
 
-// startAPIRun digs the start-api step's run command out of a parsed service.json.
-func startAPIRun(t *testing.T, doc map[string]any) string {
-	t.Helper()
-	lc, _ := doc["lifecycle"].(map[string]any)
-	dev, _ := lc["develop"].(map[string]any)
-	steps, _ := dev["steps"].([]any)
-	for _, s := range steps {
-		m, _ := s.(map[string]any)
-		if name, _ := m["name"].(string); name == "start-api" {
-			run, _ := m["run"].(string)
-			return run
-		}
-	}
-	return ""
-}
-
 // [REQ:SH-FIX-001] [REQ:SH-FIX-004]
 func TestPreviewIsDryRunAndProducesFixes(t *testing.T) {
 	root := writeScenario(t, serviceJSON)
@@ -159,7 +130,7 @@ func TestPreviewIsDryRunAndProducesFixes(t *testing.T) {
 		t.Fatalf("preview: %v", err)
 	}
 	got := ruleSet(candidates)
-	for _, want := range []string{RuleServiceNameMismatch, RuleHealthCheckMissing, RuleFreshnessMissing} {
+	for _, want := range []string{RuleServiceNameMismatch, RuleHealthCheckMissing} {
 		if !got[want] {
 			t.Fatalf("preview missing candidate %s; got %v", want, got)
 		}
@@ -190,15 +161,12 @@ func TestApplyComposesServiceJSONEditsAndIsIdempotent(t *testing.T) {
 
 	raw, _ := os.ReadFile(path)
 	out := string(raw)
-	// All three service.json edits composed into one file (none clobbered).
+	// Both service.json edits composed into one file (neither clobbered).
 	if !strings.Contains(out, `"name": "`+filepath.Base(root)+`"`) {
 		t.Fatalf("name not fixed:\n%s", out)
 	}
 	if !strings.Contains(out, `"type": "http"`) {
 		t.Fatalf("health check not added:\n%s", out)
-	}
-	if !strings.Contains(out, `"type": "binaries"`) || !strings.Contains(out, `"type": "ui-bundle"`) {
-		t.Fatalf("freshness checks not added:\n%s", out)
 	}
 	// Unknown field preserved.
 	if !strings.Contains(out, `"customField": "preserved"`) {
@@ -299,9 +267,7 @@ func TestApplyCreatesReadmeNotMakefile(t *testing.T) {
 	}
 }
 
-// newFixerRules are the three deterministic service.json remediations added on
-// top of the original set.
-var newFixerRules = []string{RulePortBand, RuleAPIBinaryName, RuleProductionServe}
+var newFixerRules = []string{RulePortBand}
 
 // [REQ:SH-FIX-002]
 func TestNewFixersPreviewProducesCandidates(t *testing.T) {
@@ -334,18 +300,15 @@ func TestNewFixersApplyComposeAndAreIdempotent(t *testing.T) {
 	raw, _ := os.ReadFile(path)
 	out := string(raw)
 	for _, want := range []string{
-		`"env_var": "API_PORT"`,         // port band: env var corrected
-		`"range": "15000-19999"`,        // port band: range corrected
-		`./demo-api`,                    // binary renamed (preamble preserved)
-		`"file_exists": "api/demo-api"`, // condition repointed
-		`node server.js`,                // ui serves the built bundle
-		`"customField": "preserved"`,    // unknown field survives
+		`"env_var": "API_PORT"`,
+		`"range": "15000-19999"`,
+		`"customField": "preserved"`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("apply result missing %q:\n%s", want, out)
 		}
 	}
-	for _, gone := range []string{`./wrong`, `pnpm dev`, `"range": "10000-12000"`, `"env_var": "PORT"`} {
+	for _, gone := range []string{`"range": "10000-12000"`, `"env_var": "PORT"`} {
 		if strings.Contains(out, gone) {
 			t.Fatalf("apply result still contains %q:\n%s", gone, out)
 		}
@@ -354,13 +317,6 @@ func TestNewFixersApplyComposeAndAreIdempotent(t *testing.T) {
 	if err := json.Unmarshal(raw, &sink); err != nil {
 		t.Fatalf("apply produced invalid json: %v", err)
 	}
-	// The env preamble on start-api is preserved (surgical rename). Compared
-	// semantically because svcedit canonically HTML-escapes && (&&) on
-	// write, exactly as the generated service.json files store it.
-	if run := startAPIRun(t, sink); run != "export DB=1 && cd api && ./demo-api" {
-		t.Fatalf("start-api preamble not preserved, run = %q", run)
-	}
-
 	again, err := Apply(root, newFixerRules)
 	if err != nil {
 		t.Fatalf("re-apply: %v", err)
@@ -375,7 +331,7 @@ func TestNewFixersApplyComposeAndAreIdempotent(t *testing.T) {
 }
 
 // [REQ:SH-FIX-003]
-func TestPortBandFilterLeavesDevelopStepsUntouched(t *testing.T) {
+func TestPortBandFilterLeavesComponentsUntouched(t *testing.T) {
 	root := writeScenario(t, serviceJSONBandBinaryServe)
 	applied, err := Apply(root, []string{RulePortBand})
 	if err != nil {
@@ -389,15 +345,25 @@ func TestPortBandFilterLeavesDevelopStepsUntouched(t *testing.T) {
 	if !strings.Contains(out, `"range": "15000-19999"`) {
 		t.Fatalf("port band not fixed:\n%s", out)
 	}
-	// The develop-step fixers were filtered out.
-	if !strings.Contains(out, `./wrong`) || !strings.Contains(out, `pnpm dev`) {
-		t.Fatalf("develop steps changed despite port-band-only filter:\n%s", out)
+	// Port correction preserves unrelated manifest values. Compare decoded
+	// subtrees so the assertion does not depend on array line wrapping.
+	var before, after map[string]any
+	if err := json.Unmarshal([]byte(serviceJSONBandBinaryServe), &before); err != nil {
+		t.Fatalf("decode fixture: %v", err)
+	}
+	if err := json.Unmarshal(raw, &after); err != nil {
+		t.Fatalf("decode result: %v", err)
+	}
+	for _, key := range []string{"service", "components"} {
+		if !reflect.DeepEqual(after[key], before[key]) {
+			t.Fatalf("%s changed during port correction:\nbefore=%v\nafter=%v", key, before[key], after[key])
+		}
 	}
 }
 
 // [REQ:SH-FIX-003]
 func TestFixClassFor(t *testing.T) {
-	for _, code := range []string{RuleServiceNameMismatch, RuleHealthCheckMissing, RuleHealthCheckMalformed, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing, RulePortBand, RuleAPIBinaryName, RuleProductionServe, RuleProjectConfigSurface} {
+	for _, code := range []string{RuleServiceNameMismatch, RuleHealthCheckMissing, RuleHealthCheckMalformed, RuleSurfaceDirMissing, RuleRequiredFileMissing, RulePortBand, RuleProjectConfigSurface} {
 		if !FixClassFor(code).Autofixable() {
 			t.Fatalf("%s should be autofixable", code)
 		}
@@ -407,9 +373,6 @@ func TestFixClassFor(t *testing.T) {
 	// precise autofix signal instead.
 	if FixClassFor("PROFILE_PORTS").Autofixable() {
 		t.Fatal("PROFILE_PORTS should be detection_only")
-	}
-	if FixClassFor("PROFILE_DEVELOP_STEPS").Autofixable() {
-		t.Fatal("PROFILE_DEVELOP_STEPS should be detection_only")
 	}
 	if FixClassFor("SERVICE_JSON_MISSING").Autofixable() {
 		t.Fatal("SERVICE_JSON_MISSING should be detection_only")

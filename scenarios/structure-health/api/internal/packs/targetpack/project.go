@@ -8,8 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	repocontract "github.com/vrooli/repo-contract-go"
 	"structure-health/internal/rules"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // projectContract is deliberately a small read model. The project pack reads
@@ -104,6 +105,7 @@ func evaluateProject(root string) []rules.Finding {
 	appendProjectCheck(&out, projectBundleProfile(contract), "PROJECT_BUNDLE_PROFILE", ".vrooli/repo-contract.json", "Restore the mini_vrooli_bundle include, exclude, and parameter policy.")
 	appendProjectCheck(&out, projectResourceArtifacts(root), "PROJECT_RESOURCE_ARTIFACTS", ".vrooli/schemas/resource-definitions.json", "Regenerate resource schema artifacts and repair missing resource references.")
 	out = append(out, projectCredentialDescriptorRules(root, contract)...)
+	out = append(out, projectSchemaIDRules(root)...)
 	out = append(out, projectCLIManifestSchemaRules(root)...)
 	out = append(out, projectScopeVocabularyRules(root)...)
 	return out

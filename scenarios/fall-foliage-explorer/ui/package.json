@@ -7,7 +7,7 @@
     "start": "vrooli lifecycle protect -- node server.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "type-check": "if command -v tsc >/dev/null 2>&1; then tsc --noEmit; else node -e \"console.log('TypeScript compiler unavailable until pnpm install; syntax-only build continues')\"; fi",
+    "type-check": "tsc --noEmit",
     "build": "pnpm run type-check && node ./scripts/build.js"
   },
   "dependencies": {

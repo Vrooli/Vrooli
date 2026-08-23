@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"agent-manager/internal/adapters/artifact"
@@ -632,6 +633,11 @@ type ProbeResult struct {
 
 // Orchestrator coordinates agent execution using injected dependencies.
 type Orchestrator struct {
+	// wakeMu serializes the parked→running claim. The durable run repository is
+	// intentionally a simple whole-row update, so two waiter notifications that
+	// arrive concurrently must not both observe parked and start continuations.
+	wakeMu sync.Mutex
+
 	// Repositories (persistence)
 	profiles              repository.ProfileRepository
 	workflows             repository.WorkflowRepository

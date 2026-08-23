@@ -93,7 +93,6 @@
     "summary": {
       "scenarios": "Targets",
       "passing": "Passing",
-      "missingFreshness": "Missing freshness",
       "autofixable": "Auto-fixable"
     },
     "profiles": {
@@ -119,7 +118,6 @@
       "failed": "Fail",
       "recognized": "recognized",
       "unrecognized": "advisory",
-      "missingFreshnessBadge": "missing freshness",
       "col": {
         "scenario": "Scenario",
         "target": "Target",
@@ -127,8 +125,7 @@
         "profile": "Profile",
         "errors": "Errors",
         "warnings": "Warnings",
-        "autofixable": "Auto-fixable",
-        "freshness": "Freshness"
+        "autofixable": "Auto-fixable"
       }
     },
     "errors": {

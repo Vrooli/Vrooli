@@ -827,7 +827,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/content-desk/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/content-desk/v1/<domain>/`, and
+   `packages/proto/gen/typescript/content-desk/v1/<domain>/`, and
    `packages/proto/gen/python/content_desk/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.
@@ -879,7 +879,7 @@ payload shapes. See `SEAMS.md::Wire contracts live in proto, not seams`.
 that:
 
 1. `go build -o <tmp> .` from the api directory
-2. Boots the binary with `API_PORT`, `SQLITE_PATH`, and
+2. Boots the binary with `API_PORT` and
    `VROOLI_LIFECYCLE_MANAGED=true` set
 3. Polls `/health` over a real socket
 4. Sends `SIGTERM` and asserts clean exit within 5s

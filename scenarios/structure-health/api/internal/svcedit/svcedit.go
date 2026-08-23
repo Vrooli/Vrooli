@@ -105,6 +105,33 @@ func StringField(parent *orderedmap.OrderedMap, key string) string {
 	return s
 }
 
+// RenameKey renames one object member without changing its position or value.
+// It returns false when oldKey is absent or newKey already exists.
+func RenameKey(parent *orderedmap.OrderedMap, oldKey, newKey string) bool {
+	value, ok := parent.Get(oldKey)
+	if !ok || oldKey == newKey {
+		return false
+	}
+	if _, exists := parent.Get(newKey); exists {
+		return false
+	}
+
+	keys := append([]string(nil), parent.Keys()...)
+	values := make(map[string]interface{}, len(keys))
+	for _, key := range keys {
+		values[key], _ = parent.Get(key)
+		parent.Delete(key)
+	}
+	for _, key := range keys {
+		if key == oldKey {
+			parent.Set(newKey, value)
+			continue
+		}
+		parent.Set(key, values[key])
+	}
+	return true
+}
+
 // FindMapInSlice returns the first object element of the array at sliceKey that
 // satisfies match, allowing in-place edits (elements are normalized to
 // pointers). It returns false when the array is absent or no element matches.

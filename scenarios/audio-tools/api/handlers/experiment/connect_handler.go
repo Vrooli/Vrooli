@@ -21,9 +21,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-var (
-	errServiceNotConfigured = errors.New("experiment service not configured")
-)
+var errServiceNotConfigured = errors.New("experiment service not configured")
 
 const (
 	// A known-duration experiment gets 25% headroom plus a small fixed setup

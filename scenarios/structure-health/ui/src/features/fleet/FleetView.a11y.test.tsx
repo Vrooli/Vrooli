@@ -39,7 +39,6 @@ describe("FleetView accessibility", () => {
       create(ScanFleetResponseSchema, {
         scenarioCount: 1,
         passingCount: 0,
-        missingFreshnessCount: 1,
         autofixableTotal: 1,
         entries: [
           create(FleetScenarioEntrySchema, {
@@ -50,12 +49,11 @@ describe("FleetView accessibility", () => {
             errorCount: 1,
             warningCount: 0,
             autofixableCount: 1,
-            missingFreshnessCheck: true,
           }),
         ],
         ruleConformance: [
           create(RuleConformanceSchema, {
-            code: "FRESHNESS_CHECK_MISSING",
+            code: "SCENARIO_COMPONENT_INVALID",
             offendingScenarios: 1,
             totalFindings: 1,
             autofixable: 1,
