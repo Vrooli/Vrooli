@@ -216,7 +216,7 @@ func (s *Service) buildCells(
 		byBar[bar.CellRef] = bar
 	}
 	devices := groupDevices(graph)
-	cells := make([]Cell, 0, len(SubstrateJoins)*len(HostOSes)*2)
+	cells := make([]Cell, 0, (len(SubstrateJoins)*2+len(CapabilityJoins))*len(HostOSes))
 
 	for _, join := range SubstrateJoins {
 		authoredCell, authored := authoredStatus(definition, join.CellRef)
@@ -255,6 +255,56 @@ func (s *Service) buildCells(
 				applyBar(&cell, join, devices[class], byBar)
 				cells = append(cells, cell)
 			}
+		}
+	}
+	for _, join := range CapabilityJoins {
+		authoredCell, authored := authoredStatus(definition, join.CellRef)
+		question := authoredCell.Question
+		if question == "" {
+			question = join.Question
+		}
+		gapDays, gapDated := gapAge(authoredCell.GapOpenedOn, now)
+		for _, hostOS := range HostOSes {
+			cell := Cell{
+				Key:     CellKey{DeviceClass: join.DeviceClass, Rung: join.Rung, HostOS: hostOS},
+				CellRef: join.CellRef, Question: question, Capability: join.Capability,
+				Status: authoredCell.Status, StatusSource: "space document",
+				Observation: ObservationUnread,
+				Reason:      "host OS was not sampled; portability is resolved by the capability grid",
+				ReasonCode:  "host_not_sampled", Trust: internalcondition.TrustUntrusted,
+				GapOpenedOn: authoredCell.GapOpenedOn, GapOpenDays: gapDays, GapDated: gapDated,
+				ObservedAt: now, UngradedReason: "runtime condition is graded by the condition projection; this ladder row reports capability resolution only",
+				Band: internalcondition.BandNotGradeable,
+			}
+			if !authored {
+				cell.Status = spacedoc.CellStatus("")
+				cell.StatusSource = "unauthored: the substrate space document declares no cell " + join.CellRef
+			}
+			if hostOS == s.hostOS() && checks.Available {
+				platforms := checkPlatformCoverage(checks)
+				applicable := false
+				for _, coverage := range platforms {
+					if coverage.HostOS == hostOS && coverage.Applicable > 0 {
+						applicable = true
+						break
+					}
+				}
+				if applicable {
+					cell.Status = spacedoc.StatusNow
+					cell.StatusSource = "live check-platform declaration join"
+					cell.Observation = ObservationNotApplicable
+					cell.Reason = "runtime condition is graded by the condition projection; this row resolves the capability declaration"
+					cell.ReasonCode = "condition_projection_owned"
+					cell.Trust = internalcondition.TrustValid
+				}
+			} else if hostOS == s.hostOS() && !checks.Available {
+				cell.Trust = internalcondition.TrustUnavailable
+				cell.UnavailableReason = checks.Reason
+				cell.Reason = "the check-platform source could not be read: " + checks.Reason
+				cell.ReasonCode = "check_platform_source_unavailable"
+			}
+			applyCapabilityJoin(&cell, grid, checks, hostOS)
+			cells = append(cells, cell)
 		}
 	}
 	SortCells(cells)

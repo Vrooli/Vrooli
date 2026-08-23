@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/deployability"
+	"github.com/vrooli/vrooli/packages/hostreq"
 )
 
 // repoRoot walks up from the test's working directory to the repository root,
@@ -30,6 +31,35 @@ func repoRoot(t *testing.T) string {
 			t.Fatal("no repository root with .vrooli/capability-vocabulary.json was found above the test directory")
 		}
 		dir = parent
+	}
+}
+
+func TestAttachObservedQualificationsSeparatesDeclarationFromHostEvidence(t *testing.T) {
+	grid := Grid{Capabilities: []Entry{{
+		Capability: "credential-storage",
+		Platforms: []PlatformEntry{
+			{
+				HostOS: deployability.HostOSLinux, Status: deployability.CapabilityImplemented, Qualification: deployability.QualificationQualified,
+				Declarers: []deployability.CapabilityDeclarer{{Name: "login_keyring_unlock", Role: "control", Resolved: true}},
+			},
+			{
+				HostOS: deployability.HostOSWindows, Status: deployability.CapabilityImplemented, Qualification: deployability.QualificationQualified,
+				Declarers: []deployability.CapabilityDeclarer{{Name: "login_keyring_unlock", Role: "control"}},
+			},
+		},
+	}}}
+	observed := []hostreq.ObservedSafeguard{{Name: "login_keyring_unlock", ExecutionState: "pending", ObservedAt: time.Now().UTC()}}
+	grid = AttachObservedQualifications(grid, observed, deployability.HostOSLinux)
+	local := grid.Capabilities[0].Platforms[0]
+	if local.Status != deployability.CapabilityImplemented || local.Qualification != deployability.QualificationQualified {
+		t.Fatalf("host evidence changed declaration resolution: %+v", local)
+	}
+	if local.ObservedQualification != deployability.QualificationUnqualified || len(local.ObservedDeclarers) != 1 {
+		t.Fatalf("pending safeguard was not qualified as unresolved evidence: %+v", local)
+	}
+	remote := grid.Capabilities[0].Platforms[1]
+	if !strings.HasPrefix(remote.ObservedQualificationReason, "host_not_sampled") {
+		t.Fatalf("remote platform did not retain explicit unread reason: %+v", remote)
 	}
 }
 

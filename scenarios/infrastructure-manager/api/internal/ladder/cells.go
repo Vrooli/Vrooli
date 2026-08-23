@@ -104,6 +104,42 @@ var SubstrateJoins = []SubstrateJoin{
 	},
 }
 
+// CapabilityJoin is a portability-only substrate row. Host-pressure and
+// workload-ownership are check-backed capabilities, not device-graph rungs,
+// so they must not be represented as synthetic devices or graded against a
+// hardware quantity. These rows join the authored substrate cells to the
+// capability grid and make the per-platform resolution visible in ladder
+// output; the condition projection owns their live numeric grading.
+type CapabilityJoin struct {
+	CellRef     string
+	DeviceClass string
+	Rung        Rung
+	Capability  string
+	Question    string
+}
+
+// CapabilityJoins are intentionally separate from SubstrateJoins. Keeping
+// them out of the device graph prevents a missing hardware device from being
+// mistaken for a healthy pressure reading.
+var CapabilityJoins = []CapabilityJoin{
+	{
+		CellRef: "substrate/SB14", DeviceClass: "host-pressure-cpu", Rung: RungTelemetry,
+		Capability: "host-pressure-detection", Question: "Does the host expose the CPU-pressure detection capability on this platform?",
+	},
+	{
+		CellRef: "substrate/SB15", DeviceClass: "host-pressure-memory", Rung: RungTelemetry,
+		Capability: "host-pressure-detection", Question: "Does the host expose memory and swap pressure detection on this platform?",
+	},
+	{
+		CellRef: "substrate/SB16", DeviceClass: "host-pressure-fork-rate", Rung: RungTelemetry,
+		Capability: "host-pressure-detection", Question: "Does the host expose process and fork-rate detection on this platform?",
+	},
+	{
+		CellRef: "substrate/SB17", DeviceClass: "workload-ownership", Rung: RungTelemetry,
+		Capability: "workload-ownership-reconciliation", Question: "Does the host expose workload-ownership reconciliation on this platform?",
+	},
+}
+
 // countSensorsAtCriticalTrip counts thermal sensors whose current temperature
 // has reached their critical trip point. A sensor that publishes no trip point
 // is not counted as safe — it is excluded from the population and named, so

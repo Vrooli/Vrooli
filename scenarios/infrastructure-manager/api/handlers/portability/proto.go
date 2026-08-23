@@ -56,18 +56,29 @@ func protoTier(tier deployability.DeliveryTier) portabilityv1.DeliveryTier {
 
 func protoPlatform(platform internalportability.PlatformEntry) *portabilityv1.PlatformEntry {
 	return &portabilityv1.PlatformEntry{
-		HostOs:              protoHostOS(platform.HostOS),
-		Status:              protoStatus(platform.Status),
-		Qualification:       protoQualification(platform.Qualification),
-		Implementer:         platform.Implementer,
-		Mechanism:           platform.Mechanism,
-		Reason:              platform.Reason,
-		QualificationReason: platform.QualificationReason,
-		HasImplementation:   platform.HasImplementation,
-		Controls:            platform.Controls,
-		Absent:              platform.Absent,
-		Declarers:           protoDeclarers(platform.Declarers),
+		HostOs:                      protoHostOS(platform.HostOS),
+		Status:                      protoStatus(platform.Status),
+		Qualification:               protoQualification(platform.Qualification),
+		ObservedQualification:       protoQualification(platform.ObservedQualification),
+		ObservedQualificationReason: platform.ObservedQualificationReason,
+		Implementer:                 platform.Implementer,
+		Mechanism:                   platform.Mechanism,
+		Reason:                      platform.Reason,
+		QualificationReason:         platform.QualificationReason,
+		HasImplementation:           platform.HasImplementation,
+		Controls:                    platform.Controls,
+		Absent:                      platform.Absent,
+		Declarers:                   protoDeclarers(platform.Declarers),
+		ObservedDeclarers:           protoObservedDeclarers(platform.ObservedDeclarers),
 	}
+}
+
+func protoObservedDeclarers(declarers []internalportability.ObservedDeclarer) []*portabilityv1.ObservedDeclarer {
+	result := make([]*portabilityv1.ObservedDeclarer, 0, len(declarers))
+	for _, declarer := range declarers {
+		result = append(result, &portabilityv1.ObservedDeclarer{Name: declarer.Name, State: declarer.State, Qualification: protoQualification(declarer.Qualification), Reason: declarer.Reason})
+	}
+	return result
 }
 
 func protoDeclarers(declarers []deployability.CapabilityDeclarer) []*portabilityv1.CapabilityDeclarer {
@@ -93,13 +104,22 @@ func protoEntry(entry internalportability.Entry) *portabilityv1.CapabilityEntry 
 
 func protoGrid(grid internalportability.Grid, entries []internalportability.Entry) *portabilityv1.Grid {
 	out := &portabilityv1.Grid{
-		ManifestRoot:  grid.ManifestRoot,
-		ManifestsRead: int32(grid.ManifestsRead),
-		ComputedAt:    timestamppb.New(grid.ComputedAt),
-		Capabilities:  make([]*portabilityv1.CapabilityEntry, 0, len(entries)),
+		ManifestRoot:       grid.ManifestRoot,
+		ManifestsRead:      int32(grid.ManifestsRead),
+		ComputedAt:         timestamppb.New(grid.ComputedAt),
+		Capabilities:       make([]*portabilityv1.CapabilityEntry, 0, len(entries)),
+		ObservedSafeguards: make([]*portabilityv1.ObservedSafeguard, 0, len(grid.ObservedSafeguards)),
 	}
 	for _, entry := range entries {
 		out.Capabilities = append(out.Capabilities, protoEntry(entry))
+	}
+	for _, safeguard := range grid.ObservedSafeguards {
+		out.ObservedSafeguards = append(out.ObservedSafeguards, &portabilityv1.ObservedSafeguard{
+			Name: safeguard.Name, Capability: safeguard.Capability, CapabilityRole: safeguard.CapabilityRole,
+			Platforms: safeguard.Platforms, SupportClass: safeguard.SupportClass,
+			ExecutionState: safeguard.ExecutionState, Notes: safeguard.Notes,
+			ObservedAt: timestamppb.New(safeguard.ObservedAt),
+		})
 	}
 	return out
 }

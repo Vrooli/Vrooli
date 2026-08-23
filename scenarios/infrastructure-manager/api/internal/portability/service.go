@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/deployability"
+	"github.com/vrooli/vrooli/packages/hostreq"
 )
 
 // Service is the domain's read surface. It is read-only by construction: the
@@ -49,7 +50,17 @@ func (s *Service) Grid(ctx context.Context) (Grid, error) {
 	if err != nil {
 		return Grid{}, err
 	}
-	return reader.Grid(s.now())
+	grid, err := reader.Grid(s.now())
+	if err != nil {
+		return Grid{}, err
+	}
+	observed, err := hostreq.ListObservedSafeguards(s.root, s.now)
+	if err != nil {
+		return Grid{}, err
+	}
+	grid.ObservedSafeguards = observed
+	grid = AttachObservedQualifications(grid, observed, currentHostOS())
+	return grid, nil
 }
 
 // Fleet computes the fleet view over the same grid.

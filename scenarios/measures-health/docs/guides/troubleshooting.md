@@ -222,7 +222,7 @@ make generate
 The generator runs entirely on local plugins (no BSR network calls) and
 writes to language-specific output paths: Go under
 `packages/proto/gen/go/measures-health/v1/`, TypeScript under
-`packages/proto/gen/typescript/js/measures-health/v1/`, and Python under
+`packages/proto/gen/typescript/measures-health/v1/`, and Python under
 `packages/proto/gen/python/measures_health/v1/`.
 
 ### Codegen ran but Go imports still fail

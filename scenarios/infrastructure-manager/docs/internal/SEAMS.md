@@ -387,6 +387,16 @@ an actionable diff showing exactly which entries diverged.
 | **Test fake** | `PlatformVerdictSource` and injected discovery/HTTP clients make source outage, verdict, and readiness joins substitutable. |
 | **Why it exists** | The instrument is a read-only projection. Ownership stays with SDA/autoheal so a stopped source becomes an explicit availability condition rather than a fabricated empty or locally recomputed answer. |
 
+### Control-plane host safeguard observations
+
+| | |
+|---|---|
+| **Seam** | Infrastructure-manager ↔ control-plane host-requirement inspection |
+| **Interface** | `packages/hostreq::ListObservedSafeguards` backed by `internal/runtime::ListObservedSafeguardsAt` |
+| **Production wiring** | The portability service and commissioning condition reader pass the repository root to the read-only control-plane boundary; the CLI list command uses the same runtime reader. |
+| **Test fake** | `packages/hostreq` has a live metadata invariant test; scenario source tests can substitute the owning `sources.Reader` at the condition fan-out boundary. |
+| **Why it exists** | Host safeguard state must be observed through the control plane without giving a scenario a remediation path or shelling out to a potentially stale CLI binary. Failed inspections remain explicit failed observations rather than disappearing from the denominator. |
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).

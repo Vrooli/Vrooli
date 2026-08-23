@@ -64,9 +64,7 @@
           "match": {
             "surface_id": "ui",
             "kind": "ui",
-            "path": "ui",
-            "language": "typescript",
-            "framework": "vite"
+            "path": "ui"
           }
         }
       ],

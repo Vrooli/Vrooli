@@ -2,6 +2,7 @@ package sources
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -11,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/vrooli/internal/workloadowner"
 	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/actions"
 	actionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/actions/actions_v1connect"
 	checksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/checks"
@@ -31,6 +33,10 @@ type AutohealReader struct {
 	// them once per request cycle instead of once per projection keeps a
 	// multi-projection read from paying the core-set subprocess repeatedly.
 	Qualifiers *QualifierCache
+	// Workloads is the control-plane workload-ownership join. It is injected so
+	// source tests can prove unread and posture behavior without touching the
+	// host, while production uses the shared host-inventory cache.
+	Workloads func(context.Context) (workloadowner.Report, error)
 }
 
 // QualifierCache holds one registry-wide qualifier read for a short window.
@@ -83,13 +89,17 @@ func (c *QualifierCache) get(now time.Time, fetch func() checkQualifiers) checkQ
 //
 // Do not renumber: SB7 and SB8 are cited by cell_ref in the operator setpoint.
 var substrateSensors = map[string][]string{
-	"substrate/SB1": {"host-kernel-error-signals"},
-	"substrate/SB2": {"system-panic-evidence", "system-pstore-evidence"},
-	"substrate/SB3": {"system-mce-recent"},
-	"substrate/SB4": {"system-gpu", "resource-gpu-access"},
-	"substrate/SB5": {"host-kernel-module-drift", "host-device-driver-binding", "host-runtime-integrity"},
-	"substrate/SB7": {"system-boot-history"},
-	"substrate/SB8": {"os-watchdog", "host-capability-drift"},
+	"substrate/SB1":  {"host-kernel-error-signals"},
+	"substrate/SB2":  {"system-panic-evidence", "system-pstore-evidence"},
+	"substrate/SB3":  {"system-mce-recent"},
+	"substrate/SB4":  {"system-gpu", "resource-gpu-access"},
+	"substrate/SB5":  {"host-kernel-module-drift", "host-device-driver-binding", "host-runtime-integrity"},
+	"substrate/SB7":  {"system-boot-history"},
+	"substrate/SB8":  {"os-watchdog", "host-capability-drift"},
+	"substrate/SB14": {"system-load", "system-host-pressure"},
+	"substrate/SB15": {"system-memory", "system-swap", "system-host-pressure"},
+	"substrate/SB16": {"system-load", "system-zombies", "system-host-pressure"},
+	"substrate/SB17": {"system-host-pressure"},
 }
 
 // severityOf projects a check status onto an ordered severity so a substrate
@@ -370,9 +380,17 @@ func (r AutohealReader) readSubstrate(ctx context.Context) ([]Observation, error
 	if err != nil {
 		return nil, err
 	}
+	latest, err := checksClient.GetStatus(ctx, connect.NewRequest(&checksv1.GetStatusRequest{}))
+	if err != nil {
+		return nil, err
+	}
 	byCheck := make(map[string]*actionsv1.PerCheckTrend, len(trends.Msg.GetTrends()))
 	for _, trend := range trends.Msg.GetTrends() {
 		byCheck[trend.GetCheckId()] = trend
+	}
+	byLatest := make(map[string]*checksv1.CheckResult, len(latest.Msg.GetChecks()))
+	for _, result := range latest.Msg.GetChecks() {
+		byLatest[result.GetCheckId()] = result
 	}
 	qualifiers := r.qualifiers(ctx, checksClient)
 	checkedAt := time.Now().UTC()
@@ -385,6 +403,10 @@ func (r AutohealReader) readSubstrate(ctx context.Context) ([]Observation, error
 
 	out := make([]Observation, 0, len(cellRefs))
 	for _, cellRef := range cellRefs {
+		if observation, handled := r.readHostPressureCell(ctx, cellRef, byLatest, qualifiers, checkedAt); handled {
+			out = append(out, observation)
+			continue
+		}
 		worst, worstCheck, observedAt := -1.0, "", time.Time{}
 		var hints TrustHints
 		missing := make([]string, 0)
@@ -434,6 +456,96 @@ func (r AutohealReader) readSubstrate(ctx context.Context) ([]Observation, error
 		})
 	}
 	return out, nil
+}
+
+// readHostPressureCell preserves the authored units for SB14-SB17. The
+// ordinary autoheal trend endpoint exposes only ordered check status, which
+// is appropriate for legacy severity cells but cannot grade a percent,
+// megabyte, fork-rate, or workload-count bar without silently comparing
+// unlike quantities.
+func (r AutohealReader) readHostPressureCell(ctx context.Context, cellRef string, latest map[string]*checksv1.CheckResult, qualifiers checkQualifiers, checkedAt time.Time) (Observation, bool) {
+	if cellRef == "substrate/SB17" {
+		if r.Workloads == nil {
+			return unreadHostPressureObservation(cellRef, "workload ownership reader is not configured", checkedAt), true
+		}
+		report, err := r.Workloads(ctx)
+		if err != nil {
+			return unreadHostPressureObservation(cellRef, "workload ownership read failed: "+err.Error(), checkedAt), true
+		}
+		hints := qualifiers.hintsFor("system-host-pressure")
+		if report.Posture == workloadowner.VrooliOnly && len(report.Informational) > 0 {
+			hints.Untrusted = false
+		}
+		return Observation{ID: "system-host-pressure", CellRef: cellRef, Value: float64(len(report.Findings)), Unit: "unmanaged workloads", Source: "control-plane/workloadowner", ObservedAt: checkedAt, TrustHints: hints}, true
+	}
+	if cellRef != "substrate/SB14" && cellRef != "substrate/SB15" && cellRef != "substrate/SB16" {
+		return Observation{}, false
+	}
+	result, ok := latest["system-host-pressure"]
+	if !ok {
+		return unreadHostPressureObservation(cellRef, "system-host-pressure has no latest result", checkedAt), true
+	}
+	var details map[string]any
+	if err := json.Unmarshal([]byte(result.GetDetailsJson()), &details); err != nil {
+		return unreadHostPressureObservation(cellRef, "system-host-pressure details are unreadable", checkedAt), true
+	}
+	key, unit := hostPressureCellDetail(cellRef)
+	value, ok := numericDetail(details, key)
+	if !ok {
+		return unreadHostPressureObservation(cellRef, "system-host-pressure detail "+key+" is unreadable", checkedAt), true
+	}
+	observedAt := checkedAt
+	if result.GetObservedAt() != nil {
+		observedAt = result.GetObservedAt().AsTime()
+	}
+	hints := qualifiers.hintsFor("system-host-pressure")
+	if result.GetStatus() == checksv1.CheckStatus_CHECK_STATUS_UNSPECIFIED || result.GetStatus() == checksv1.CheckStatus_CHECK_STATUS_NOT_APPLICABLE {
+		hints.Untrusted = true
+		hints.UntrustedReason = "system-host-pressure has no gradeable status"
+	}
+	return Observation{ID: "system-host-pressure", CellRef: cellRef, Value: value, Unit: unit, Source: "vrooli-autoheal/checks.GetStatus", ObservedAt: observedAt, TrustHints: hints}, true
+}
+
+func hostPressureCellDetail(cellRef string) (string, string) {
+	switch cellRef {
+	case "substrate/SB14":
+		return "cpu_pressure_percent", "percent"
+	case "substrate/SB15":
+		return "stranded_memory_mb", "megabytes of stranded memory"
+	case "substrate/SB16":
+		return "fork_rate_per_second", "forks per second"
+	case "substrate/SB17":
+		return "unmanaged_workloads", "unmanaged workloads"
+	default:
+		return "", ""
+	}
+}
+
+func numericDetail(details map[string]any, key string) (float64, bool) {
+	value, ok := details[key]
+	if !ok {
+		return 0, false
+	}
+	switch value := value.(type) {
+	case float64:
+		return value, true
+	case float32:
+		return float64(value), true
+	case int:
+		return float64(value), true
+	case int64:
+		return float64(value), true
+	case json.Number:
+		parsed, err := value.Float64()
+		return parsed, err == nil
+	default:
+		return 0, false
+	}
+}
+
+func unreadHostPressureObservation(cellRef, reason string, observedAt time.Time) Observation {
+	_, unit := hostPressureCellDetail(cellRef)
+	return Observation{ID: "system-host-pressure", CellRef: cellRef, Unit: unit, Source: "vrooli-autoheal/checks.GetStatus", ObservedAt: observedAt, TrustHints: TrustHints{UnitMatches: true, Untrusted: true, UntrustedReason: reason}}
 }
 
 func (r AutohealReader) readRecovery(ctx context.Context) ([]Observation, error) {

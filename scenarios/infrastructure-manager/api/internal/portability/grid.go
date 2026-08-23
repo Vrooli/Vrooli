@@ -2,10 +2,12 @@ package portability
 
 import (
 	"encoding/json"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/deployability"
+	"github.com/vrooli/vrooli/packages/hostreq"
 )
 
 // CapabilitySituation classifies a whole capability row. The resolution status
@@ -35,17 +37,31 @@ func Situations() []CapabilitySituation {
 // because a cross-compiled implementation and one proven on real hardware both
 // resolve as implemented and are not the same claim.
 type PlatformEntry struct {
-	HostOS              deployability.HostOS                     `json:"host_os"`
-	Status              deployability.CapabilityResolutionStatus `json:"status"`
-	Qualification       deployability.Qualification              `json:"qualification"`
-	Implementer         string                                   `json:"implementer,omitempty"`
-	Mechanism           string                                   `json:"mechanism,omitempty"`
-	Reason              string                                   `json:"reason"`
-	QualificationReason string                                   `json:"qualification_reason"`
-	HasImplementation   bool                                     `json:"has_implementation"`
-	Controls            []string                                 `json:"controls,omitempty"`
-	Absent              []string                                 `json:"absent,omitempty"`
-	Declarers           []deployability.CapabilityDeclarer       `json:"declarers,omitempty"`
+	HostOS                      deployability.HostOS                     `json:"host_os"`
+	Status                      deployability.CapabilityResolutionStatus `json:"status"`
+	Qualification               deployability.Qualification              `json:"qualification"`
+	ObservedQualification       deployability.Qualification              `json:"observed_qualification"`
+	ObservedQualificationReason string                                   `json:"observed_qualification_reason"`
+	Implementer                 string                                   `json:"implementer,omitempty"`
+	Mechanism                   string                                   `json:"mechanism,omitempty"`
+	Reason                      string                                   `json:"reason"`
+	QualificationReason         string                                   `json:"qualification_reason"`
+	HasImplementation           bool                                     `json:"has_implementation"`
+	Controls                    []string                                 `json:"controls,omitempty"`
+	Absent                      []string                                 `json:"absent,omitempty"`
+	Declarers                   []deployability.CapabilityDeclarer       `json:"declarers,omitempty"`
+	ObservedDeclarers           []ObservedDeclarer                       `json:"observed_declarers,omitempty"`
+}
+
+// ObservedDeclarer is the host-side evidence for one declared provider or
+// control. It is intentionally separate from CapabilityDeclarer: declaration
+// resolution is deterministic across hosts, while observation is only valid
+// for the host sampled at read time.
+type ObservedDeclarer struct {
+	Name          string                      `json:"name"`
+	State         string                      `json:"state"`
+	Qualification deployability.Qualification `json:"qualification"`
+	Reason        string                      `json:"reason"`
 }
 
 // Entry is one capability row across every host OS.
@@ -69,10 +85,11 @@ func (e Entry) Platform(hostOS deployability.HostOS) (PlatformEntry, bool) {
 // Grid is the whole capability readout. ManifestRoot is part of the readout,
 // not metadata about it: a grid is only meaningful against a named tree.
 type Grid struct {
-	Capabilities  []Entry   `json:"capabilities"`
-	ManifestRoot  string    `json:"manifest_root"`
-	ManifestsRead int       `json:"manifests_read"`
-	ComputedAt    time.Time `json:"computed_at"`
+	Capabilities       []Entry                     `json:"capabilities"`
+	ManifestRoot       string                      `json:"manifest_root"`
+	ManifestsRead      int                         `json:"manifests_read"`
+	ComputedAt         time.Time                   `json:"computed_at"`
+	ObservedSafeguards []hostreq.ObservedSafeguard `json:"observed_safeguards,omitempty"`
 }
 
 // Capability returns one row by name.
@@ -119,23 +136,89 @@ func (r *Reader) Grid(now time.Time) (Grid, error) {
 			resolution := deployability.ResolveCapability(implementations, capability, hostOS)
 			statuses[hostOS] = resolution.Status
 			entry.Platforms = append(entry.Platforms, PlatformEntry{
-				HostOS:              hostOS,
-				Status:              resolution.Status,
-				Qualification:       resolution.Qualification,
-				Implementer:         resolution.Implementer,
-				Mechanism:           resolution.Mechanism,
-				Reason:              resolution.Reason,
-				QualificationReason: resolution.Qualification.Reason(),
-				HasImplementation:   resolution.Status.HasImplementation(),
-				Controls:            resolution.Controls,
-				Absent:              resolution.Absent,
-				Declarers:           resolution.Declarers,
+				HostOS:                      hostOS,
+				Status:                      resolution.Status,
+				Qualification:               resolution.Qualification,
+				ObservedQualification:       deployability.QualificationUndeclared,
+				ObservedQualificationReason: "host observation is not attached to a manifest-only grid read",
+				Implementer:                 resolution.Implementer,
+				Mechanism:                   resolution.Mechanism,
+				Reason:                      resolution.Reason,
+				QualificationReason:         resolution.Qualification.Reason(),
+				HasImplementation:           resolution.Status.HasImplementation(),
+				Controls:                    resolution.Controls,
+				Absent:                      resolution.Absent,
+				Declarers:                   resolution.Declarers,
 			})
 		}
 		entry.Situation, entry.SituationReason = classifySituation(capability, statuses, vocabulary.PlatformPolicies)
 		grid.Capabilities = append(grid.Capabilities, entry)
 	}
 	return grid, nil
+}
+
+// AttachObservedQualifications joins the control-plane's read-only safeguard
+// observations onto an already resolved grid. It never changes Status or the
+// declaration Qualification. A non-local platform is explicitly marked
+// host_not_sampled so absence of a host observation cannot look like failure.
+func AttachObservedQualifications(grid Grid, observed []hostreq.ObservedSafeguard, hostOS deployability.HostOS) Grid {
+	byName := make(map[string]hostreq.ObservedSafeguard, len(observed))
+	for _, item := range observed {
+		byName[item.Name] = item
+	}
+	for entryIndex := range grid.Capabilities {
+		for platformIndex := range grid.Capabilities[entryIndex].Platforms {
+			platform := &grid.Capabilities[entryIndex].Platforms[platformIndex]
+			platform.ObservedQualification = deployability.QualificationUndeclared
+			platform.ObservedQualificationReason = "host_not_sampled: this platform was not observed on the current host"
+			if platform.HostOS != hostOS {
+				continue
+			}
+			platform.ObservedQualificationReason = "no safeguard observation applies to this capability"
+			observedRows := make([]ObservedDeclarer, 0, len(platform.Declarers))
+			for _, declarer := range platform.Declarers {
+				item, ok := byName[declarer.Name]
+				if !ok {
+					observedRows = append(observedRows, ObservedDeclarer{Name: declarer.Name, State: "host_not_sampled", Qualification: deployability.QualificationUndeclared, Reason: "no control-plane observation exists for this declarer"})
+					continue
+				}
+				qualification, reason := observedQualification(item.ExecutionState)
+				observedRows = append(observedRows, ObservedDeclarer{Name: declarer.Name, State: item.ExecutionState, Qualification: qualification, Reason: reason})
+				if qualification.Rank() < platform.ObservedQualification.Rank() || platform.ObservedQualification == deployability.QualificationUndeclared {
+					platform.ObservedQualification = qualification
+					platform.ObservedQualificationReason = reason
+				}
+			}
+			platform.ObservedDeclarers = observedRows
+		}
+	}
+	return grid
+}
+
+func observedQualification(state string) (deployability.Qualification, string) {
+	switch strings.TrimSpace(state) {
+	case "already_present", "applied", "installed":
+		return deployability.QualificationQualified, "control-plane observed the safeguard present or applied"
+	case "not_applicable":
+		return deployability.QualificationIneligible, "control-plane observed the safeguard as not applicable"
+	case "unsupported":
+		return deployability.QualificationIneligible, "control-plane observed the safeguard as unsupported"
+	case "failed", "manual_action_required", "reboot_required":
+		return deployability.QualificationDegraded, "control-plane observed an unresolved safeguard action"
+	default:
+		return deployability.QualificationUnqualified, "control-plane observed the safeguard but it is not yet applied"
+	}
+}
+
+func currentHostOS() deployability.HostOS {
+	switch runtime.GOOS {
+	case "darwin":
+		return deployability.HostOSMacOS
+	case "windows":
+		return deployability.HostOSWindows
+	default:
+		return deployability.HostOSLinux
+	}
 }
 
 // capabilityImplementations projects the authored manifests onto the pure

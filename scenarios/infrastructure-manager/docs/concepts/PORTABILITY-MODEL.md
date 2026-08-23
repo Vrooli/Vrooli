@@ -142,10 +142,11 @@ Recorded as data. The distance between this model and the code is the point of m
 | `control` role | **Implemented.** Safeguards declare `control`; providers remain `primary` or `peer`. | `.vrooli/schemas/safeguard.schema.json`, `internal/safeguards/*/safeguard.json` |
 | `AND` resolution for controls | **Implemented.** A provider only resolves fully when every control resolves; incomplete cells retain the provider and name absent controls. | `internal/deployability/capability.go` |
 | Absent declarers reported | **Implemented.** Every resolution branch reports unresolved declarers, including the winner branch. | `internal/deployability/capability.go` |
-| Scenario participation | **2 of 120.** Only `system-monitor` and `vrooli-autoheal` declare `service.platform_capabilities`, contributing 14 of the 41 capabilities between them. | `scenarios/*/.vrooli/service.json` |
+| Declared vs observed qualification | **Implemented.** The portability grid keeps declaration resolution unchanged while attaching per-declarer control-plane state, an observed qualification, and an explicit `host_not_sampled` reason for non-local platforms. | `api/internal/portability/grid.go`, `packages/hostreq`, `packages/proto/schemas/infrastructure-manager/v1/portability/portability.proto` |
+| Scenario participation | **Derived for the fleet; 2 of 120 also author overrides.** `scenario-dependency-analyzer` computes all scenario/resource closure verdicts; `system-monitor` and `vrooli-autoheal` retain `service.platform_capabilities` only for capability truth the closure cannot see. | `scenarios/scenario-dependency-analyzer/api/internal/deployment/platform_verdict.go`, `scenarios/*/.vrooli/service.json` |
 | Safeguard enumeration | **Available.** `vrooli host safeguard list` reports every manifest with capability, role, declared platforms, and an explicit observed-state value; focused lookup accepts hyphenated and underscored names. | `internal/cli/vroolicli/hostinstall.go` |
 | Conformance gate | **Available.** `vrooli capability conformance` discovers claims, cross-compiles their Go modules, and fails with manifest-level compiler evidence; the repo contract names the gate. | `internal/deployability/conformance.go`, `.vrooli/repo-contract.json` |
-| `unread` vs `untrusted` on non-local OSes | **Not distinguished.** Non-local ladder rows carry the generic untrusted reason rather than a structural "no such host was sampled" code. | `api/internal/ladder/` |
+| `unread` vs `untrusted` on non-local OSes | **Distinguished.** Non-local ladder rows carry `host_not_sampled`, while an observed but unverifiable reading remains `UNTRUSTED`. | `api/internal/ladder/` |
 
 ## Governing Principles
 

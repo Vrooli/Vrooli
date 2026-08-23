@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "confidence": {
     "level": "SKETCH",
-    "rationale": "The eleven reliability spaces exist and every gradeable bar carries a unit, but the obligation list they should derive from has not been approved as a separate registry. Four of the seven original substrate bars were ratified on 2026-08-20 against live host readings (decision 2026-08-20-substrate-ratification-round-1); three remain provisional with stated, specific defects, and five new device-layer bars (decision 2026-08-20-substrate-device-cells) are provisional pending both an operator review and the join their cells need. The setpoint denominator remains SKETCH: confidence is lifted by naming obligations, not by ratifying bars, and the substrate cell set growing from eight to thirteen without a single new sensor is evidence the spaces are still under-declared.",
+    "rationale": "The eleven reliability spaces exist and every gradeable bar carries a unit, but the obligation list they should derive from has not been approved as a separate registry. The host-pressure bars were ratified on 2026-08-22 against captured readings and joined to their autoheal and control-plane sensors; older device-layer bars remain provisional pending their separate joins. The setpoint denominator remains SKETCH: confidence is lifted by naming obligations, not by ratifying bars.",
     "recorded_on": "2026-08-20"
   },
   "constants": {
@@ -74,6 +74,20 @@
       "decision_ref": "2026-07-23-round-2",
       "unit": "seconds",
       "max": 900.0,
+      "gradeable": true
+    },
+    {
+      "id": "commissioning-host-requirements",
+      "cell_ref": "commissioning/CM2",
+      "projection": "commissioning",
+      "target_kind": "host-requirements-satisfaction",
+      "deadband": "all declared host requirements are satisfied",
+      "sustain": "one read",
+      "actuator": "instrumentation-gap",
+      "decision_ref": "2026-08-22-host-requirements-join",
+      "ratification_note": "The control-plane host-requirements reader emits the percentage of declared safeguards in a satisfied execution state. A complete 100 percent result is the only gradeable boundary; a lower result identifies commissioning work rather than host runtime degradation.",
+      "unit": "percent",
+      "min": 100.0,
       "gradeable": true
     },
     {
@@ -455,6 +469,75 @@
       "decision_ref": "2026-08-20-substrate-device-cells",
       "provisional": true,
       "provisional_reason": "The cell is IN-REACH: its sensor ships in system-monitor's device graph but this projection does not join it, so the bar grades nothing until the join lands. This one additionally cannot be ratified as a value bar at all until the sensor grows a per-window delta; a review that approved it today would be approving a deadband that has no readable quantity behind it."
+    },
+    {
+      "id": "substrate-cpu-pressure",
+      "cell_ref": "substrate/SB14",
+      "projection": "substrate",
+      "target_kind": "cpu-saturation",
+      "deadband": "CPU PSI some.avg10 remains below 50%; the 0.60% captured reading is comfortably below the bar and the 2026-08-19 load-110 outage establishes the need for a brake",
+      "sustain": "10m",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-22-host-pressure",
+      "unit": "percent",
+      "max": 50.0,
+      "gradeable": true,
+      "ratification_note": "Derived from the 2026-08-19 saturation outage and the 2026-08-22 fixture reading; the bar is not equal to the captured reading."
+    },
+    {
+      "id": "substrate-memory-swap-pressure",
+      "cell_ref": "substrate/SB15",
+      "projection": "substrate",
+      "target_kind": "memory-and-swap-exhaustion",
+      "deadband": "stranded swapped memory remains below 17,200 MB for the sustain window; this is half of the 34,400 MB observed with 39,000 MB available",
+      "sustain": "10m",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-22-host-pressure",
+      "unit": "megabytes of stranded memory",
+      "max": 17200.0,
+      "gradeable": true,
+      "ratification_note": "The threshold is derived from the captured stranded-memory evidence with a recovery margin."
+    },
+    {
+      "id": "substrate-process-and-fork-growth",
+      "cell_ref": "substrate/SB16",
+      "projection": "substrate",
+      "target_kind": "process-table-and-fork-rate-growth",
+      "deadband": "fork rate remains below 200 per second for the sustain window; fork rate is unread on darwin and windows by decision",
+      "sustain": "10m",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-22-host-pressure",
+      "unit": "forks per second",
+      "max": 200.0,
+      "gradeable": true,
+      "ratification_note": "The 200/s bar is below the captured 324/s incident and far below the 2,481/s incident, so both storms are findings while ordinary low-fork operation remains below the bar."
+    },
+    {
+      "id": "substrate-workload-ownership",
+      "cell_ref": "substrate/SB17",
+      "projection": "substrate",
+      "target_kind": "workload-ownership",
+      "deadband": "whole_host: zero unmanaged workloads; vrooli_only: unmanaged workloads are informational and not gradeable",
+      "sustain": "one reconciliation",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-22-host-pressure",
+      "unit": "unmanaged workloads",
+      "max": 0.0,
+      "gradeable": true,
+      "ratification_note": "Ratified against the workload-owner fixture and live reconciliation join. Under whole_host, zero unmanaged workloads is the gradeable bar; under vrooli_only unmanaged workloads remain informational because they represent the operator's other work. A posture change is a setpoint-visible event, not a silent behavior change."
+    },
+    {
+      "id": "availability-declared-crash-loop",
+      "cell_ref": "availability/A2",
+      "projection": "availability",
+      "target_kind": "declared-workload-crash-loop",
+      "deadband": "declared workload restart rate remains below 2,700 restarts per hour",
+      "sustain": "1h",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-08-22-host-pressure",
+      "unit": "restarts per hour",
+      "max": 2700.0,
+      "gradeable": true
     }
   ],
   "unmapped": [

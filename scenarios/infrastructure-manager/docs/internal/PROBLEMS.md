@@ -84,24 +84,6 @@ evidence.
 **Revisit trigger:** resume the loop and run the resume-protocol scan before the
 first vertical slice reports anything as `measured`.
 
-### P-003 — Two of four trust rules cannot be computed until roadmap Gap 10 ships
-
-**Status:** closed 2026-08-20 · **owner:** `vrooli-autoheal`
-
-Ghost and shelved verdicts need a two-direction `check reconcile` and a
-shelve-with-expiry verb on `vrooli-autoheal`, neither of which exists. The
-scenario computes saturated and unit-mismatch, and marks the rest `UNTRUSTED`
-rather than assuming `VALID`, so the gap degrades conservatively — but declared
-blindness is wider than it will be, and the shelving record is a hand-maintained
-artifact in the meantime.
-
-**Resolution:** the typed autoheal checks surface now exposes both-direction
-reconcile, saturation, and mandatory-expiry shelves; the condition source
-consumes those reads and assigns the closed trust vocabulary conservatively.
-
-**Evidence:** `scenarios/vrooli-autoheal/api/internal/handlers/typed_connect.go`
-and the autoheal checks/reconcile tests.
-
 ### P-004 — Generated from a template whose registry status is `quarantined`
 
 **Status:** open · escalated upstream · **owner:** `template-manager`
@@ -150,22 +132,6 @@ board could consume.
 Do not compensate for the gap here with log scraping — that would breach the
 typed-read boundary that keeps credentials out of the reading store.
 
-### P-007 — `vrooli-autoheal` has no typed read surface at all
-
-**Status:** closed 2026-08-20 · **owner:** this scenario's plan
-
-`vrooli-autoheal` backs three of ten projections (`supervision`, `availability`,
-`recovery`), owns the check registry, and answers two of four trust rules.
-
-The typed surface now preserves the existing checks, actions, incidents,
-healing, and Measures domains rather than introducing a minimal shim.
-
-**Evidence:** `packages/proto/schemas/vrooli-autoheal/v1/`,
-`scenarios/vrooli-autoheal/api/internal/handlers/typed_connect.go`, and
-`scenarios/vrooli-autoheal/cli/manifest.json`.
-
-**Refs:** `scenarios/vrooli-autoheal/api/main.go`, `api/internal/{checks,healing,incidents}/`
-
 ### P-008 — No control layer has authored a reliability space doc
 
 **Status:** substantially resolved 2026-08-20 · **owner:** each control layer
@@ -204,43 +170,6 @@ reads. Until then, the subprocess carries the same 10s deadline and
 `UNAVAILABLE` degradation as every typed source.
 
 **Refs:** `internal/capacity/`, `packages/api-core/discovery/resolve.go`
-
-### P-010 — Capability resolution is `OR` for a population that is partly `AND`
-
-**Status:** closed 2026-08-22 · **owner:** the control plane (`internal/deployability`)
-
-**Symptom:** Nine capability×OS cells in `portability grid` report
-`IMPLEMENTED` while a safeguard declaring that same capability is unsupported
-on that OS. `credential-storage` reads green on Windows and macOS while both
-credential safeguards are Linux-only; `remote-desktop` reads green on all three
-while `remote_session_protection` — the hardening half — is Linux-only;
-`developer-utility` reads green on Windows while `vrooli_launcher`,
-`onboarding_apply_privileges` and `path_hygiene` are not.
-
-**Root cause:** `ResolveCapability` collects every declarer that supports the
-target OS, sorts by qualification rank, and returns `candidates[0]`. The
-declarers that do *not* support that OS are collected into `unwired` and
-`ineligible` and then discarded, because the function returns from the winner
-branch before reading them. This is correct for **tools**, which are
-substitutable — `winget` genuinely does stand in for `apt-get`. It is wrong for
-**safeguards**, which are independently required controls: five declare
-`crash-forensics` and they are five jobs, not five ways of doing one job.
-
-**Workaround (historical):** read `vrooli host safeguard <name>` per safeguard, or read the
-`platforms` array in each `safeguard.json` directly. Do not treat a green
-capability row as evidence that every control in that category is present.
-
-**Resolution:** added `control` to the `capability_role` vocabulary, resolve
-`control` declarers conjunctively, and add an absent-declarer set to
-`CapabilityResolution` that is populated in **every** branch including the
-winner branch. Reporting the absent set is worth doing for providers too:
-*"resolves via winget; apt-get, dnf, pacman, rpm are Linux-only"* is strictly
-better than a bare green lamp. Model documented in
-[`../concepts/PORTABILITY-MODEL.md`](../concepts/PORTABILITY-MODEL.md)
-§ Provider Roles And Control Roles.
-
-**Refs:** `internal/deployability/capability.go`,
-`.vrooli/schemas/safeguard.schema.json`, `api/internal/portability/grid.go`
 
 ## Architecture Drift
 

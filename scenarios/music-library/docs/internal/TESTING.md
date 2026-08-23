@@ -941,7 +941,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/music-library/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/music-library/v1/<domain>/`, and
+   `packages/proto/gen/typescript/music-library/v1/<domain>/`, and
    `packages/proto/gen/python/music_library/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.

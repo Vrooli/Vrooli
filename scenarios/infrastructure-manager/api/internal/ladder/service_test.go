@@ -226,6 +226,11 @@ func TestUnreachableSourceKeepsTheAuthoredCellStatus(t *testing.T) {
 		if cell.Key.HostOS != "linux" {
 			continue
 		}
+		if isCapabilityJoinClass(cell.Key.DeviceClass) {
+			// These rows are backed by the check-platform source, not the
+			// device graph that this test deliberately makes unreachable.
+			continue
+		}
 		if cell.Trust != internalcondition.TrustUnavailable {
 			t.Errorf("%s carries trust %s while its source was unreachable, want UNAVAILABLE", cell.Key, cell.Trust)
 		}
@@ -242,6 +247,15 @@ func TestUnreachableSourceKeepsTheAuthoredCellStatus(t *testing.T) {
 	if thermal.StatusSource != "space document" {
 		t.Errorf("substrate/SB11 status source is %q, want the space document", thermal.StatusSource)
 	}
+}
+
+func isCapabilityJoinClass(class string) bool {
+	for _, join := range CapabilityJoins {
+		if join.DeviceClass == class {
+			return true
+		}
+	}
+	return false
 }
 
 // TestUnreadableDeviceIsUntrustedNotMissing separates the two blind states the
@@ -411,6 +425,7 @@ func TestUnconfiguredSourcesStillProduceAFullGrid(t *testing.T) {
 	for _, join := range SubstrateJoins {
 		expected += len(join.Classes) * len(HostOSes)
 	}
+	expected += len(CapabilityJoins) * len(HostOSes)
 	if len(snapshot.Cells) != expected {
 		t.Fatalf("the ladder produced %d cells, want %d", len(snapshot.Cells), expected)
 	}
@@ -429,6 +444,40 @@ func TestUnconfiguredSourcesStillProduceAFullGrid(t *testing.T) {
 		if source.Reason == "" {
 			t.Errorf("source %s is unavailable with no reason", source.ID)
 		}
+	}
+}
+
+func TestCapabilityRowsExposePortableResolutionWithoutSyntheticDevices(t *testing.T) {
+	service := newService(t,
+		stubGraph{graph: sources.DeviceGraph{}},
+		stubGrid{grid: liveGrid(t)},
+		stubChecks{checks: []sources.CheckPlatforms{{CheckID: "system-host-pressure"}}})
+	snapshot := service.Snapshot(context.Background())
+
+	for _, join := range CapabilityJoins {
+		for _, hostOS := range HostOSes {
+			cell := cellFor(t, snapshot, join.CellRef, join.DeviceClass, hostOS)
+			if cell.Capability != join.Capability {
+				t.Errorf("%s/%s joined capability %q, want %q", join.CellRef, hostOS, cell.Capability, join.Capability)
+			}
+			if cell.DeviceCount != 0 {
+				t.Errorf("%s/%s fabricated %d synthetic devices", join.CellRef, hostOS, cell.DeviceCount)
+			}
+			if hostOS == service.hostOS() {
+				if cell.Status != spacedoc.StatusNow || cell.Trust != internalcondition.TrustValid {
+					t.Errorf("%s/%s current-platform row has status=%s trust=%s, want NOW/VALID", join.CellRef, hostOS, cell.Status, cell.Trust)
+				}
+				continue
+			}
+			if cell.Observation != ObservationUnread {
+				t.Errorf("%s/%s is %s, want unread because the host was not sampled", join.CellRef, hostOS, cell.Observation)
+			}
+		}
+	}
+	forkMac := cellFor(t, snapshot, "substrate/SB16", "host-pressure-fork-rate", "macos")
+	forkWindows := cellFor(t, snapshot, "substrate/SB16", "host-pressure-fork-rate", "windows")
+	if forkMac.Observation != ObservationUnread || forkWindows.Observation != ObservationUnread {
+		t.Fatalf("fork-rate portability rows must remain unread off Linux: macos=%s windows=%s", forkMac.Observation, forkWindows.Observation)
 	}
 }
 

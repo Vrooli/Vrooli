@@ -5,11 +5,16 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/operatorstate"
+	"github.com/vrooli/vrooli/internal/workloadowner"
 	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/coverage"
 	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/sources"
 )
@@ -17,7 +22,7 @@ import (
 // readerProjections are the projections this scenario has a live typed reader
 // for. Everything else reports an explicitly unconfigured source rather than
 // an empty-but-healthy result.
-var readerProjections = []string{"availability", "recovery", "substrate"}
+var readerProjections = []string{"availability", "commissioning", "recovery", "substrate"}
 
 // NewConfiguredService wires the condition domain's read-only source adapters.
 // Handler packages only translate transport messages; source setup and band
@@ -31,9 +36,36 @@ func NewConfiguredService(root string, db *database.RoutedDB, clk schedule.Clock
 	// multi-second subprocess, so a read covering N projections paid that cost
 	// N times before this was shared.
 	qualifiers := sources.NewQualifierCache(5 * time.Second)
+	workloadReader := func(ctx context.Context) (workloadowner.Report, error) {
+		snapshot, err := hostinventory.CollectWorkloads(ctx)
+		if err != nil {
+			return workloadowner.Report{}, err
+		}
+		declarations, err := workloadowner.DeclarationsFromRoot(root)
+		if err != nil {
+			return workloadowner.Report{}, err
+		}
+		posture := workloadowner.VrooliOnly
+		if doc, stateErr := operatorstate.New(operatorstate.Config{RepoRoot: root}).Load(ctx); stateErr == nil && doc.HostWorkloadPosture == string(workloadowner.WholeHost) {
+			posture = workloadowner.WholeHost
+		}
+		observed := make([]workloadowner.Workload, 0, len(snapshot.Containers)+len(snapshot.ServiceUnits)+len(snapshot.ScheduledTasks))
+		observed = append(observed, snapshot.Containers...)
+		observed = append(observed, snapshot.ServiceUnits...)
+		observed = append(observed, snapshot.ScheduledTasks...)
+		report := workloadowner.Classify(observed, declarations, posture, 10)
+		if len(snapshot.Unread) > 0 {
+			return report, fmt.Errorf("workload census unread: %s", strings.Join(snapshot.Unread, "; "))
+		}
+		return report, nil
+	}
 	readers := make(map[string]sources.Reader, len(readerProjections))
 	for _, projection := range readerProjections {
-		readers[projection] = sources.AutohealReader{Resolver: resolver, HTTP: httpClient, Projection: projection, Qualifiers: qualifiers}
+		if projection == "commissioning" {
+			readers[projection] = sources.HostRequirementsReader{Root: root}
+			continue
+		}
+		readers[projection] = sources.AutohealReader{Resolver: resolver, HTTP: httpClient, Projection: projection, Qualifiers: qualifiers, Workloads: workloadReader}
 	}
 	service := &Service{
 		Source:         fanoutSource{readers: readers},
@@ -109,7 +141,7 @@ func PeerSourceAvailability(projection string, checkedAt time.Time) []SourceAvai
 		switch {
 		case owner[projection] == source && served[projection]:
 			availability.Available = true
-			availability.Reason = fmt.Sprintf("served by the autoheal %s reader", projection)
+			availability.Reason = fmt.Sprintf("served by the %s reader", sourceID(projection))
 		default:
 			availability.Reason = fmt.Sprintf("typed reader for %s is not configured for projection %s", source, projection)
 		}
@@ -127,13 +159,13 @@ func (s fanoutSource) Read(ctx context.Context, projection string) ([]Observatio
 	reader, ok := s.readers[projection]
 	if !ok {
 		return nil, SourceAvailability{
-			Source:    "vrooli-autoheal",
+			Source:    sourceID(projection),
 			Available: false,
 			Reason:    fmt.Sprintf("no typed reader is configured for projection %s", projection),
 			CheckedAt: checkedAt,
 		}, nil
 	}
-	result := sources.Read(ctx, []sources.Endpoint{{ID: "vrooli-autoheal", Reader: reader}}, 10*time.Second)[0]
+	result := sources.Read(ctx, []sources.Endpoint{{ID: sourceID(projection), Reader: reader}}, 10*time.Second)[0]
 	availability := SourceAvailability{Source: result.ID, Available: result.Available, Reason: result.Reason, CheckedAt: result.CheckedAt}
 	readings := make([]Observation, 0, len(result.Observations))
 	for _, reading := range result.Observations {
@@ -155,6 +187,13 @@ func (s fanoutSource) Read(ctx context.Context, projection string) ([]Observatio
 	return readings, availability, nil
 }
 
+func sourceID(projection string) string {
+	if projection == "commissioning" {
+		return "control-plane/host-requirements"
+	}
+	return "vrooli-autoheal"
+}
+
 // ReadAll reads every projection that has a configured reader and merges the
 // results. The trust triple is only honest over a known denominator, so a
 // caller that names no projection gets the whole readable surface rather than
@@ -162,9 +201,19 @@ func (s fanoutSource) Read(ctx context.Context, projection string) ([]Observatio
 func (s *Service) ReadAll(ctx context.Context) Snapshot {
 	projections := append([]string(nil), readerProjections...)
 	sort.Strings(projections)
+	snapshots := make([]Snapshot, len(projections))
+	var wg sync.WaitGroup
+	for index, projection := range projections {
+		wg.Add(1)
+		go func(index int, projection string) {
+			defer wg.Done()
+			snapshots[index] = s.Read(ctx, projection)
+		}(index, projection)
+	}
+	wg.Wait()
+
 	merged := Snapshot{Trust: TrustTriple{Distribution: map[TrustVerdict]int{}}}
-	for _, projection := range projections {
-		snapshot := s.Read(ctx, projection)
+	for _, snapshot := range snapshots {
 		merged.Readings = append(merged.Readings, snapshot.Readings...)
 		merged.Sources = append(merged.Sources, snapshot.Sources...)
 		for verdict, count := range snapshot.Trust.Distribution {

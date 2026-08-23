@@ -107,7 +107,7 @@ packages/proto/schemas/measures-health/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/measures-health/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/measures-health/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/measures-health/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/measures-health/v1/...   (ui)
        └──▶ packages/proto/gen/python/measures_health/v1/...    (future tools)
 ```
 
