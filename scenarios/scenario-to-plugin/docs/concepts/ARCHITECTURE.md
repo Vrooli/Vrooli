@@ -107,7 +107,7 @@ packages/proto/schemas/scenario-to-plugin/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/scenario-to-plugin/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/scenario-to-plugin/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/scenario-to-plugin/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/scenario-to-plugin/v1/...   (ui)
        └──▶ packages/proto/gen/python/scenario_to_plugin/v1/...    (future tools)
 ```
 

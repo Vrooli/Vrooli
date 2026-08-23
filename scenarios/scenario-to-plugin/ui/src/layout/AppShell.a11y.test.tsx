@@ -25,10 +25,11 @@ describe("AppShell accessibility", () => {
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
+    await screen.findByText(/Readiness is unavailable|No governed scenarios were returned/);
     await expectNoA11yViolations(container);
   });
 
-  it("exposes exactly one primary navigation landmark", () => {
+  it("exposes exactly one primary navigation landmark", async () => {
     renderWithProviders(
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
@@ -36,5 +37,6 @@ describe("AppShell accessibility", () => {
 
     expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
     expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
+    await screen.findByText(/Readiness is unavailable|No governed scenarios were returned/);
   });
 });

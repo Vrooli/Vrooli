@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"scenario-to-plugin/internal/capabilities"
@@ -24,7 +25,7 @@ import (
 
 	capsH "scenario-to-plugin/handlers/capabilities"
 	healthH "scenario-to-plugin/handlers/health"
-	notesH "scenario-to-plugin/handlers/notes" // EXAMPLE-DOMAIN:notes
+	pipelineH "scenario-to-plugin/handlers/pipeline"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -81,12 +82,16 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	repoRoot := os.Getenv("VROOLI_ROOT")
+	if repoRoot == "" {
+		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
+	}
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "scenario-to-plugin-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
+		pipelineH.NewWithDB(repoRoot, db.Primary()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -94,19 +99,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 

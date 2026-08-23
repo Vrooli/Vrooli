@@ -10,6 +10,7 @@ service HealingService {
   rpc ListOutcomes(ListOutcomesRequest) returns (ListOutcomesResponse);
   rpc GetEpisodes(GetEpisodesRequest) returns (GetEpisodesResponse);
   rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  rpc GetReadiness(GetReadinessRequest) returns (GetReadinessResponse);
 }
 
 enum Outcome {
@@ -46,3 +47,24 @@ message GetEpisodesRequest { string check_id = 1; int32 limit = 2; }
 message GetEpisodesResponse { repeated HealEpisode episodes = 1; }
 message GetHistoryRequest { string check_id = 1; int32 limit = 2; }
 message GetHistoryResponse { repeated HealOutcome outcomes = 1; }
+
+message GetReadinessRequest { int32 limit = 1; }
+
+message ReadinessElement {
+  string check_id = 1;
+  string status = 2;
+  google.protobuf.Timestamp ready_at = 3;
+  int64 latency_ms = 4;
+  string starter = 5;
+  string evidence = 6;
+}
+
+message GetReadinessResponse {
+  bool available = 1;
+  string unavailable_reason = 2;
+  string boot_id = 3;
+  google.protobuf.Timestamp process_started_at = 4;
+  repeated ReadinessElement elements = 5;
+  repeated HealEpisode episodes = 6;
+  google.protobuf.Timestamp computed_at = 7;
+}

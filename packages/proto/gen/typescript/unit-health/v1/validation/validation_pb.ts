@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file unit-health/v1/validation/validation.proto.
  */
 export const file_unit_health_v1_validation_validation: GenFile = /*@__PURE__*/
-  fileDesc("Cip1bml0LWhlYWx0aC92MS92YWxpZGF0aW9uL3ZhbGlkYXRpb24ucHJvdG8SIHZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uInsKF1ZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSEgoKd29ya3NwYWNlcxgDIAMoCRIZChFpbmNsdWRlX2V4ZWN1dGlvbhgEIAEoCBIRCgl1c2VfY2FjaGUYBSABKAgirAgKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSEAoIc2NlbmFyaW8YBCABKAkSEwoLdGFyZ2V0X2tpbmQYBSABKAkSEwoLdGFyZ2V0X3BhdGgYBiABKAkSFwoPZGVncmFkZWRfcmVhc29uGAcgASgJEj8KCHN1cmZhY2VzGAggAygLMi0udnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uVGVzdFN1cmZhY2USQwoKd29ya3NwYWNlcxgJIAMoCzIvLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlRlc3RXb3Jrc3BhY2USPQoEcGxhbhgKIAEoCzIvLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLkV4ZWN1dGlvblBsYW4SSAoPY29tbWFuZF9yZXN1bHRzGAsgAygLMi8udnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uQ29tbWFuZFJlc3VsdBJCCghjb3ZlcmFnZRgMIAMoCzIwLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLkNvdmVyYWdlVGFyZ2V0EkUKCGZpbmRpbmdzGA0gAygLMjMudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbkZpbmRpbmcSQQoLZGlhZ25vc3RpY3MYDiADKAsyLC52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5EaWFnbm9zdGljEkMKCG1hdHVyaXR5GA8gASgLMjEudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uTWF0dXJpdHlTdW1tYXJ5EkIKBmNvdW50cxgQIAEoCzIyLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25Db3VudHMSEgoKbmV4dF9zdGVwcxgRIAMoCRIxCgphc3Nlc3NtZW50GBIgASgLMh0uY29tbW9uLnYxLk1hdHVyaXR5QXNzZXNzbWVudBI9CglhcnRpZmFjdHMYEyADKAsyKi52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5BcnRpZmFjdBJMChFwcm9qZWN0aW9uX2NoZWNrcxgUIAMoCzIxLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlByb2plY3Rpb25DaGVjaxJQChNzdXBwcmVzc2VkX2ZpbmRpbmdzGBUgAygLMjMudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uVmFsaWRhdGlvbkZpbmRpbmci3QEKD1Byb2plY3Rpb25DaGVjaxIKCgJpZBgBIAEoCRIUCgx3b3Jrc3BhY2VfaWQYAiABKAkSEgoKc3VyZmFjZV9pZBgDIAEoCRILCgNrZXkYBCABKAkSDQoFb3duZXIYBSABKAkSEQoJZmlsZV9wYXRoGAYgASgJEhQKDHBvbGljeV92YWx1ZRgHIAEoCRIUCgxuYXRpdmVfdmFsdWUYCCABKAkSDgoGc3RhdHVzGAkgASgJEhMKC3JlbWVkaWF0aW9uGAogASgJEhQKDGZpbmRpbmdfY29kZRgLIAEoCSI6CghBcnRpZmFjdBINCgVsYWJlbBgBIAEoCRIMCgRraW5kGAIgASgJEhEKCXJlZmVyZW5jZRgDIAEoCSKcAQoLVGVzdFN1cmZhY2USCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIQCghsYW5ndWFnZRgDIAEoCRIRCglmcmFtZXdvcmsYBCABKAkSEQoJcm9vdF9wYXRoGAUgASgJEhcKD3BhY2thZ2VfbWFuYWdlchgGIAEoCRIOCgZzdGF0dXMYByABKAkSEgoKY29uZmlkZW5jZRgIIAEoASLiAQoNVGVzdFdvcmtzcGFjZRIKCgJpZBgBIAEoCRIQCghsYW5ndWFnZRgCIAEoCRIRCglyb290X3BhdGgYAyABKAkSEQoJZnJhbWV3b3JrGAQgASgJEhsKE2Nhbm9uaWNhbF9mcmFtZXdvcmsYBSABKAkSFAoMdGVzdF9jb21tYW5kGAYgASgJEhgKEGNvdmVyYWdlX2NvbW1hbmQYByABKAkSFwoPcGFja2FnZV9tYW5hZ2VyGAggASgJEg4KBnN0YXR1cxgJIAEoCRIXCg9kZWdyYWRlZF9yZWFzb24YCiABKAkiYgoNRXhlY3V0aW9uUGxhbhJCCghjb21tYW5kcxgBIAMoCzIwLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlBsYW5uZWRDb21tYW5kEg0KBW5vdGVzGAIgASgJInkKDlBsYW5uZWRDb21tYW5kEhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEg8KB2NvbW1hbmQYAyABKAkSGQoRd29ya2luZ19kaXJlY3RvcnkYBCABKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgFIvkBCg1Db21tYW5kUmVzdWx0EgwKBG5hbWUYASABKAkSDwoHY29tbWFuZBgCIAEoCRIZChF3b3JraW5nX2RpcmVjdG9yeRgDIAEoCRIOCgZzdGF0dXMYBCABKAkSEQoJZXhpdF9jb2RlGAUgASgFEhYKDnN0ZG91dF9leGNlcnB0GAYgASgJEhYKDnN0ZGVycl9leGNlcnB0GAcgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgIIAEoBRIWCg5mYWlsdXJlX3JlYXNvbhgJIAEoCRIVCg1mYWlsdXJlX2NsYXNzGAogASgJEhMKC2R1cmF0aW9uX21zGAsgASgDIr4BCg5Db3ZlcmFnZVRhcmdldBIKCgJpZBgBIAEoCRIQCghsYW5ndWFnZRgCIAEoCRISCgpzdXJmYWNlX2lkGAMgASgJEhEKCWZpbGVfcGF0aBgEIAEoCRIVCg1jb3ZlcmVkX2xpbmVzGAUgASgDEhMKC3RvdGFsX2xpbmVzGAYgASgDEhgKEGNvdmVyYWdlX3BlcmNlbnQYByABKAESEQoJdGhyZXNob2xkGAggASgBEg4KBnN0YXR1cxgJIAEoCSL1AgoRVmFsaWRhdGlvbkZpbmRpbmcSCgoCaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSEgoKc3VyZmFjZV9pZBgDIAEoCRIUCgx3b3Jrc3BhY2VfaWQYBCABKAkSEAoIbGFuZ3VhZ2UYBSABKAkSEQoJZnJhbWV3b3JrGAYgASgJEgwKBGNvZGUYByABKAkSEAoIY2F0ZWdvcnkYCCABKAkSEAoIc2V2ZXJpdHkYCSABKAkSEQoJZmlsZV9wYXRoGAogASgJEg4KBnN5bWJvbBgLIAEoCRIPCgdtZXNzYWdlGAwgASgJEhAKCGV2aWRlbmNlGA0gASgJEhAKCGV4cGVjdGVkGA4gASgJEhAKCG9ic2VydmVkGA8gASgJEhYKDndoeV9pdF9tYXR0ZXJzGBAgASgJEhMKC3JlbWVkaWF0aW9uGBEgASgJEhYKDnNvdXJjZV9jb21tYW5kGBIgASgJEhIKCmNyZWF0ZWRfYXQYEyABKAkiZQoKRGlhZ25vc3RpYxIMCgRraW5kGAEgASgJEhQKDHdvcmtzcGFjZV9pZBgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEhAKCGV2aWRlbmNlGAQgASgJEhAKCHNldmVyaXR5GAUgASgJIkEKD01hdHVyaXR5U3VtbWFyeRIMCgRydW5nGAEgASgFEg0KBWxhYmVsGAIgASgJEhEKCXJhdGlvbmFsZRgDIAEoCSKgAQoQVmFsaWRhdGlvbkNvdW50cxIOCgZlcnJvcnMYASABKAUSEAoId2FybmluZ3MYAiABKAUSDQoFaW5mb3MYAyABKAUSEAoIc3VyZmFjZXMYBCABKAUSEgoKd29ya3NwYWNlcxgFIAEoBRIYChBjb3ZlcmFnZV90YXJnZXRzGAYgASgFEhsKE3N1cHByZXNzZWRfZmluZGluZ3MYByABKAUynwEKEVZhbGlkYXRpb25TZXJ2aWNlEokBChBWYWxpZGF0ZVNjZW5hcmlvEjkudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QaOi52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2VCWFpWZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby91bml0LWhlYWx0aC92MS92YWxpZGF0aW9uO3ZhbGlkYXRpb25fdjFiBnByb3RvMw", [file_common_v1_maturity]);
+  fileDesc("Cip1bml0LWhlYWx0aC92MS92YWxpZGF0aW9uL3ZhbGlkYXRpb24ucHJvdG8SIHZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uIpMBChdWYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhIKCndvcmtzcGFjZXMYAyADKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YBCABKAgSEQoJdXNlX2NhY2hlGAUgASgIEhYKDmZhc3RfdGVzdF9vbmx5GAYgASgIIuEJChhWYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhAKCHNjZW5hcmlvGAQgASgJEhMKC3RhcmdldF9raW5kGAUgASgJEhMKC3RhcmdldF9wYXRoGAYgASgJEhcKD2RlZ3JhZGVkX3JlYXNvbhgHIAEoCRI/CghzdXJmYWNlcxgIIAMoCzItLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlRlc3RTdXJmYWNlEkMKCndvcmtzcGFjZXMYCSADKAsyLy52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5UZXN0V29ya3NwYWNlEj0KBHBsYW4YCiABKAsyLy52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5FeGVjdXRpb25QbGFuEkgKD2NvbW1hbmRfcmVzdWx0cxgLIAMoCzIvLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLkNvbW1hbmRSZXN1bHQSQgoIY292ZXJhZ2UYDCADKAsyMC52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5Db3ZlcmFnZVRhcmdldBJFCghmaW5kaW5ncxgNIAMoCzIzLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25GaW5kaW5nEkEKC2RpYWdub3N0aWNzGA4gAygLMiwudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uRGlhZ25vc3RpYxJDCghtYXR1cml0eRgPIAEoCzIxLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLk1hdHVyaXR5U3VtbWFyeRJCCgZjb3VudHMYECABKAsyMi52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0aW9uQ291bnRzEhIKCm5leHRfc3RlcHMYESADKAkSMQoKYXNzZXNzbWVudBgSIAEoCzIdLmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQSPQoJYXJ0aWZhY3RzGBMgAygLMioudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uQXJ0aWZhY3QSTAoRcHJvamVjdGlvbl9jaGVja3MYFCADKAsyMS52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5Qcm9qZWN0aW9uQ2hlY2sSUAoTc3VwcHJlc3NlZF9maW5kaW5ncxgVIAMoCzIzLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRpb25GaW5kaW5nEhEKCWNhY2hlX2hpdBgWIAEoCBIZChFjYWNoZV9taXNzX3JlYXNvbhgXIAEoCRIkChxjYWNoZV9pbnZhbGlkYXRlZF9kaW1lbnNpb25zGBggAygJEiAKGGNhY2hlX3NhdmVkX3dhbGxfdGltZV9tcxgZIAEoAxIfChdjYWNoZV9zYXZlZF9jcHVfdGltZV9tcxgaIAEoAxIcChRjYWNoZV9yZXRhaW5lZF9ieXRlcxgbIAEoAyLdAQoPUHJvamVjdGlvbkNoZWNrEgoKAmlkGAEgASgJEhQKDHdvcmtzcGFjZV9pZBgCIAEoCRISCgpzdXJmYWNlX2lkGAMgASgJEgsKA2tleRgEIAEoCRINCgVvd25lchgFIAEoCRIRCglmaWxlX3BhdGgYBiABKAkSFAoMcG9saWN5X3ZhbHVlGAcgASgJEhQKDG5hdGl2ZV92YWx1ZRgIIAEoCRIOCgZzdGF0dXMYCSABKAkSEwoLcmVtZWRpYXRpb24YCiABKAkSFAoMZmluZGluZ19jb2RlGAsgASgJIjoKCEFydGlmYWN0Eg0KBWxhYmVsGAEgASgJEgwKBGtpbmQYAiABKAkSEQoJcmVmZXJlbmNlGAMgASgJIpwBCgtUZXN0U3VyZmFjZRIKCgJpZBgBIAEoCRIMCgRraW5kGAIgASgJEhAKCGxhbmd1YWdlGAMgASgJEhEKCWZyYW1ld29yaxgEIAEoCRIRCglyb290X3BhdGgYBSABKAkSFwoPcGFja2FnZV9tYW5hZ2VyGAYgASgJEg4KBnN0YXR1cxgHIAEoCRISCgpjb25maWRlbmNlGAggASgBIv8CCg1UZXN0V29ya3NwYWNlEgoKAmlkGAEgASgJEhAKCGxhbmd1YWdlGAIgASgJEhEKCXJvb3RfcGF0aBgDIAEoCRIRCglmcmFtZXdvcmsYBCABKAkSGwoTY2Fub25pY2FsX2ZyYW1ld29yaxgFIAEoCRIUCgx0ZXN0X2NvbW1hbmQYBiABKAkSGAoQY292ZXJhZ2VfY29tbWFuZBgHIAEoCRIXCg9wYWNrYWdlX21hbmFnZXIYCCABKAkSDgoGc3RhdHVzGAkgASgJEhcKD2RlZ3JhZGVkX3JlYXNvbhgKIAEoCRIWCg5ydW5uZXJfcHJvZmlsZRgLIAEoCRJDCglyZXNvdXJjZXMYDCABKAsyMC52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5SZXNvdXJjZUxpbWl0cxISCgphZGFwdGVyX2lkGA0gASgJEhcKD2FkYXB0ZXJfdmVyc2lvbhgOIAEoCRIRCgl0ZXN0X2tpbmQYDyABKAkiYgoNRXhlY3V0aW9uUGxhbhJCCghjb21tYW5kcxgBIAMoCzIwLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLlBsYW5uZWRDb21tYW5kEg0KBW5vdGVzGAIgASgJIroECg5QbGFubmVkQ29tbWFuZBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgdjb21tYW5kGAMgASgJEhkKEXdvcmtpbmdfZGlyZWN0b3J5GAQgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoBRISCgpleGVjdXRhYmxlGAYgASgJEgwKBGFyZ3MYByADKAkSVgoLZW52aXJvbm1lbnQYCCADKAsyQS52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5QbGFubmVkQ29tbWFuZC5FbnZpcm9ubWVudEVudHJ5EkQKCWFydGlmYWN0cxgJIAMoCzIxLnZyb29saS51bml0X2hlYWx0aC52MS52YWxpZGF0aW9uLkNvbW1hbmRBcnRpZmFjdBJDCglyZXNvdXJjZXMYCiABKAsyMC52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5SZXNvdXJjZUxpbWl0cxIMCgRraW5kGAsgASgJEiEKGW5vX291dHB1dF90aW1lb3V0X3NlY29uZHMYDCABKAUSEQoJdGVzdF9raW5kGA0gASgJEkIKCGhlcm1ldGljGA4gASgLMjAudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uSGVybWV0aWNQb2xpY3kaMgoQRW52aXJvbm1lbnRFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIjwKD0NvbW1hbmRBcnRpZmFjdBINCgVsYWJlbBgBIAEoCRIMCgRraW5kGAIgASgJEgwKBHBhdGgYAyABKAkiTwoOUmVzb3VyY2VMaW1pdHMSEgoKY3B1X3dlaWdodBgBIAEoBRIUCgxtZW1vcnlfYnl0ZXMYAiABKAMSEwoLbWF4X3dvcmtlcnMYAyABKAUivgEKDkhlcm1ldGljUG9saWN5Eg8KB25ldHdvcmsYASABKAkSEgoKZmlsZXN5c3RlbRgCIAEoCRIWCg50ZW1wb3Jhcnlfcm9vdBgDIAEoCBIbChNyZXN0b3JlX2Vudmlyb25tZW50GAQgASgIEhoKEmRldGVjdF9jaGlsZF9sZWFrcxgFIAEoCBIbChNkZXRlY3Rfb3Blbl9oYW5kbGVzGAYgASgIEhkKEW9yZGVyX2luZGVwZW5kZW50GAcgASgIIqYCCg1Db21tYW5kUmVzdWx0EgwKBG5hbWUYASABKAkSDwoHY29tbWFuZBgCIAEoCRIZChF3b3JraW5nX2RpcmVjdG9yeRgDIAEoCRIOCgZzdGF0dXMYBCABKAkSEQoJZXhpdF9jb2RlGAUgASgFEhYKDnN0ZG91dF9leGNlcnB0GAYgASgJEhYKDnN0ZGVycl9leGNlcnB0GAcgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgIIAEoBRIWCg5mYWlsdXJlX3JlYXNvbhgJIAEoCRIVCg1mYWlsdXJlX2NsYXNzGAogASgJEhMKC2R1cmF0aW9uX21zGAsgASgDEhMKC2NwdV90aW1lX21zGAwgASgDEhYKDnBlYWtfcnNzX2J5dGVzGA0gASgDIr4BCg5Db3ZlcmFnZVRhcmdldBIKCgJpZBgBIAEoCRIQCghsYW5ndWFnZRgCIAEoCRISCgpzdXJmYWNlX2lkGAMgASgJEhEKCWZpbGVfcGF0aBgEIAEoCRIVCg1jb3ZlcmVkX2xpbmVzGAUgASgDEhMKC3RvdGFsX2xpbmVzGAYgASgDEhgKEGNvdmVyYWdlX3BlcmNlbnQYByABKAESEQoJdGhyZXNob2xkGAggASgBEg4KBnN0YXR1cxgJIAEoCSL1AgoRVmFsaWRhdGlvbkZpbmRpbmcSCgoCaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSEgoKc3VyZmFjZV9pZBgDIAEoCRIUCgx3b3Jrc3BhY2VfaWQYBCABKAkSEAoIbGFuZ3VhZ2UYBSABKAkSEQoJZnJhbWV3b3JrGAYgASgJEgwKBGNvZGUYByABKAkSEAoIY2F0ZWdvcnkYCCABKAkSEAoIc2V2ZXJpdHkYCSABKAkSEQoJZmlsZV9wYXRoGAogASgJEg4KBnN5bWJvbBgLIAEoCRIPCgdtZXNzYWdlGAwgASgJEhAKCGV2aWRlbmNlGA0gASgJEhAKCGV4cGVjdGVkGA4gASgJEhAKCG9ic2VydmVkGA8gASgJEhYKDndoeV9pdF9tYXR0ZXJzGBAgASgJEhMKC3JlbWVkaWF0aW9uGBEgASgJEhYKDnNvdXJjZV9jb21tYW5kGBIgASgJEhIKCmNyZWF0ZWRfYXQYEyABKAkiZQoKRGlhZ25vc3RpYxIMCgRraW5kGAEgASgJEhQKDHdvcmtzcGFjZV9pZBgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEhAKCGV2aWRlbmNlGAQgASgJEhAKCHNldmVyaXR5GAUgASgJIkEKD01hdHVyaXR5U3VtbWFyeRIMCgRydW5nGAEgASgFEg0KBWxhYmVsGAIgASgJEhEKCXJhdGlvbmFsZRgDIAEoCSKgAQoQVmFsaWRhdGlvbkNvdW50cxIOCgZlcnJvcnMYASABKAUSEAoId2FybmluZ3MYAiABKAUSDQoFaW5mb3MYAyABKAUSEAoIc3VyZmFjZXMYBCABKAUSEgoKd29ya3NwYWNlcxgFIAEoBRIYChBjb3ZlcmFnZV90YXJnZXRzGAYgASgFEhsKE3N1cHByZXNzZWRfZmluZGluZ3MYByABKAUynwEKEVZhbGlkYXRpb25TZXJ2aWNlEokBChBWYWxpZGF0ZVNjZW5hcmlvEjkudnJvb2xpLnVuaXRfaGVhbHRoLnYxLnZhbGlkYXRpb24uVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QaOi52cm9vbGkudW5pdF9oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2VCWFpWZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby91bml0LWhlYWx0aC92MS92YWxpZGF0aW9uO3ZhbGlkYXRpb25fdjFiBnByb3RvMw", [file_common_v1_maturity]);
 
 /**
  * ValidateScenarioRequest identifies the target to validate.
@@ -55,6 +55,16 @@ export type ValidateScenarioRequest = Message<"vrooli.unit_health.v1.validation.
    * @generated from field: bool use_cache = 5;
    */
   useCache: boolean;
+
+  /**
+   * Run only the fast test command and reuse no coverage artifact. The default
+   * remains the historical coverage-capable execution path; this explicit mode
+   * lets callers collect lightweight test evidence separately from coverage
+   * evidence without weakening either cache contract.
+   *
+   * @generated from field: bool fast_test_only = 6;
+   */
+  fastTestOnly: boolean;
 };
 
 /**
@@ -192,6 +202,36 @@ export type ValidateScenarioResponse = Message<"vrooli.unit_health.v1.validation
    * @generated from field: repeated vrooli.unit_health.v1.validation.ValidationFinding suppressed_findings = 21;
    */
   suppressedFindings: ValidationFinding[];
+
+  /**
+   * @generated from field: bool cache_hit = 22;
+   */
+  cacheHit: boolean;
+
+  /**
+   * @generated from field: string cache_miss_reason = 23;
+   */
+  cacheMissReason: string;
+
+  /**
+   * @generated from field: repeated string cache_invalidated_dimensions = 24;
+   */
+  cacheInvalidatedDimensions: string[];
+
+  /**
+   * @generated from field: int64 cache_saved_wall_time_ms = 25;
+   */
+  cacheSavedWallTimeMs: bigint;
+
+  /**
+   * @generated from field: int64 cache_saved_cpu_time_ms = 26;
+   */
+  cacheSavedCpuTimeMs: bigint;
+
+  /**
+   * @generated from field: int64 cache_retained_bytes = 27;
+   */
+  cacheRetainedBytes: bigint;
 };
 
 /**
@@ -438,6 +478,31 @@ export type TestWorkspace = Message<"vrooli.unit_health.v1.validation.TestWorksp
    * @generated from field: string degraded_reason = 10;
    */
   degradedReason: string;
+
+  /**
+   * @generated from field: string runner_profile = 11;
+   */
+  runnerProfile: string;
+
+  /**
+   * @generated from field: vrooli.unit_health.v1.validation.ResourceLimits resources = 12;
+   */
+  resources?: ResourceLimits | undefined;
+
+  /**
+   * @generated from field: string adapter_id = 13;
+   */
+  adapterId: string;
+
+  /**
+   * @generated from field: string adapter_version = 14;
+   */
+  adapterVersion: string;
+
+  /**
+   * @generated from field: string test_kind = 15;
+   */
+  testKind: string;
 };
 
 /**
@@ -486,6 +551,8 @@ export type PlannedCommand = Message<"vrooli.unit_health.v1.validation.PlannedCo
   name: string;
 
   /**
+   * Deprecated display form retained for human-readable diagnostics only.
+   *
    * @generated from field: string command = 3;
    */
   command: string;
@@ -499,6 +566,54 @@ export type PlannedCommand = Message<"vrooli.unit_health.v1.validation.PlannedCo
    * @generated from field: int32 timeout_seconds = 5;
    */
   timeoutSeconds: number;
+
+  /**
+   * The executable and argv are the execution authority. No shell parsing is
+   * permitted for adapter commands.
+   *
+   * @generated from field: string executable = 6;
+   */
+  executable: string;
+
+  /**
+   * @generated from field: repeated string args = 7;
+   */
+  args: string[];
+
+  /**
+   * @generated from field: map<string, string> environment = 8;
+   */
+  environment: { [key: string]: string };
+
+  /**
+   * @generated from field: repeated vrooli.unit_health.v1.validation.CommandArtifact artifacts = 9;
+   */
+  artifacts: CommandArtifact[];
+
+  /**
+   * @generated from field: vrooli.unit_health.v1.validation.ResourceLimits resources = 10;
+   */
+  resources?: ResourceLimits | undefined;
+
+  /**
+   * @generated from field: string kind = 11;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: int32 no_output_timeout_seconds = 12;
+   */
+  noOutputTimeoutSeconds: number;
+
+  /**
+   * @generated from field: string test_kind = 13;
+   */
+  testKind: string;
+
+  /**
+   * @generated from field: vrooli.unit_health.v1.validation.HermeticPolicy hermetic = 14;
+   */
+  hermetic?: HermeticPolicy | undefined;
 };
 
 /**
@@ -507,6 +622,107 @@ export type PlannedCommand = Message<"vrooli.unit_health.v1.validation.PlannedCo
  */
 export const PlannedCommandSchema: GenMessage<PlannedCommand> = /*@__PURE__*/
   messageDesc(file_unit_health_v1_validation_validation, 7);
+
+/**
+ * @generated from message vrooli.unit_health.v1.validation.CommandArtifact
+ */
+export type CommandArtifact = Message<"vrooli.unit_health.v1.validation.CommandArtifact"> & {
+  /**
+   * @generated from field: string label = 1;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string path = 3;
+   */
+  path: string;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.CommandArtifact.
+ * Use `create(CommandArtifactSchema)` to create a new message.
+ */
+export const CommandArtifactSchema: GenMessage<CommandArtifact> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 8);
+
+/**
+ * @generated from message vrooli.unit_health.v1.validation.ResourceLimits
+ */
+export type ResourceLimits = Message<"vrooli.unit_health.v1.validation.ResourceLimits"> & {
+  /**
+   * @generated from field: int32 cpu_weight = 1;
+   */
+  cpuWeight: number;
+
+  /**
+   * @generated from field: int64 memory_bytes = 2;
+   */
+  memoryBytes: bigint;
+
+  /**
+   * @generated from field: int32 max_workers = 3;
+   */
+  maxWorkers: number;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.ResourceLimits.
+ * Use `create(ResourceLimitsSchema)` to create a new message.
+ */
+export const ResourceLimitsSchema: GenMessage<ResourceLimits> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 9);
+
+/**
+ * @generated from message vrooli.unit_health.v1.validation.HermeticPolicy
+ */
+export type HermeticPolicy = Message<"vrooli.unit_health.v1.validation.HermeticPolicy"> & {
+  /**
+   * @generated from field: string network = 1;
+   */
+  network: string;
+
+  /**
+   * @generated from field: string filesystem = 2;
+   */
+  filesystem: string;
+
+  /**
+   * @generated from field: bool temporary_root = 3;
+   */
+  temporaryRoot: boolean;
+
+  /**
+   * @generated from field: bool restore_environment = 4;
+   */
+  restoreEnvironment: boolean;
+
+  /**
+   * @generated from field: bool detect_child_leaks = 5;
+   */
+  detectChildLeaks: boolean;
+
+  /**
+   * @generated from field: bool detect_open_handles = 6;
+   */
+  detectOpenHandles: boolean;
+
+  /**
+   * @generated from field: bool order_independent = 7;
+   */
+  orderIndependent: boolean;
+};
+
+/**
+ * Describes the message vrooli.unit_health.v1.validation.HermeticPolicy.
+ * Use `create(HermeticPolicySchema)` to create a new message.
+ */
+export const HermeticPolicySchema: GenMessage<HermeticPolicy> = /*@__PURE__*/
+  messageDesc(file_unit_health_v1_validation_validation, 10);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.CommandResult
@@ -569,6 +785,16 @@ export type CommandResult = Message<"vrooli.unit_health.v1.validation.CommandRes
    * @generated from field: int64 duration_ms = 11;
    */
   durationMs: bigint;
+
+  /**
+   * @generated from field: int64 cpu_time_ms = 12;
+   */
+  cpuTimeMs: bigint;
+
+  /**
+   * @generated from field: int64 peak_rss_bytes = 13;
+   */
+  peakRssBytes: bigint;
 };
 
 /**
@@ -576,7 +802,7 @@ export type CommandResult = Message<"vrooli.unit_health.v1.validation.CommandRes
  * Use `create(CommandResultSchema)` to create a new message.
  */
 export const CommandResultSchema: GenMessage<CommandResult> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 8);
+  messageDesc(file_unit_health_v1_validation_validation, 11);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.CoverageTarget
@@ -633,7 +859,7 @@ export type CoverageTarget = Message<"vrooli.unit_health.v1.validation.CoverageT
  * Use `create(CoverageTargetSchema)` to create a new message.
  */
 export const CoverageTargetSchema: GenMessage<CoverageTarget> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 9);
+  messageDesc(file_unit_health_v1_validation_validation, 12);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.ValidationFinding
@@ -742,7 +968,7 @@ export type ValidationFinding = Message<"vrooli.unit_health.v1.validation.Valida
  * Use `create(ValidationFindingSchema)` to create a new message.
  */
 export const ValidationFindingSchema: GenMessage<ValidationFinding> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 10);
+  messageDesc(file_unit_health_v1_validation_validation, 13);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.Diagnostic
@@ -781,7 +1007,7 @@ export type Diagnostic = Message<"vrooli.unit_health.v1.validation.Diagnostic"> 
  * Use `create(DiagnosticSchema)` to create a new message.
  */
 export const DiagnosticSchema: GenMessage<Diagnostic> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 11);
+  messageDesc(file_unit_health_v1_validation_validation, 14);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.MaturitySummary
@@ -808,7 +1034,7 @@ export type MaturitySummary = Message<"vrooli.unit_health.v1.validation.Maturity
  * Use `create(MaturitySummarySchema)` to create a new message.
  */
 export const MaturitySummarySchema: GenMessage<MaturitySummary> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 12);
+  messageDesc(file_unit_health_v1_validation_validation, 15);
 
 /**
  * @generated from message vrooli.unit_health.v1.validation.ValidationCounts
@@ -855,7 +1081,7 @@ export type ValidationCounts = Message<"vrooli.unit_health.v1.validation.Validat
  * Use `create(ValidationCountsSchema)` to create a new message.
  */
 export const ValidationCountsSchema: GenMessage<ValidationCounts> = /*@__PURE__*/
-  messageDesc(file_unit_health_v1_validation_validation, 13);
+  messageDesc(file_unit_health_v1_validation_validation, 16);
 
 /**
  * ValidationService is Unit Health's test-maturity validation surface.

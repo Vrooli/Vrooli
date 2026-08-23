@@ -55,6 +55,12 @@ message ValidateScenarioRequest {
 
   // Whether upstream Code Facts discovery may use cached facts.
   bool use_cache = 5;
+
+  // Run only the fast test command and reuse no coverage artifact. The default
+  // remains the historical coverage-capable execution path; this explicit mode
+  // lets callers collect lightweight test evidence separately from coverage
+  // evidence without weakening either cache contract.
+  bool fast_test_only = 6;
 }
 
 message ValidateScenarioResponse {
@@ -100,6 +106,12 @@ message ValidateScenarioResponse {
   // visible and separate from active findings so operators can audit every
   // exception without counting it as an active maturity failure.
   repeated ValidationFinding suppressed_findings = 21;
+  bool cache_hit = 22;
+  string cache_miss_reason = 23;
+  repeated string cache_invalidated_dimensions = 24;
+  int64 cache_saved_wall_time_ms = 25;
+  int64 cache_saved_cpu_time_ms = 26;
+  int64 cache_retained_bytes = 27;
 }
 
 // ProjectionCheck is one policy-vs-native comparison for unit-test
@@ -176,6 +188,11 @@ message TestWorkspace {
   string package_manager = 8;
   string status = 9;
   string degraded_reason = 10;
+  string runner_profile = 11;
+  ResourceLimits resources = 12;
+  string adapter_id = 13;
+  string adapter_version = 14;
+  string test_kind = 15;
 }
 
 // ExecutionPlan is the bounded set of commands Unit Health would run.
@@ -187,9 +204,43 @@ message ExecutionPlan {
 message PlannedCommand {
   string workspace_id = 1;
   string name = 2;
+  // Deprecated display form retained for human-readable diagnostics only.
   string command = 3;
   string working_directory = 4;
   int32 timeout_seconds = 5;
+  // The executable and argv are the execution authority. No shell parsing is
+  // permitted for adapter commands.
+  string executable = 6;
+  repeated string args = 7;
+  map<string, string> environment = 8;
+  repeated CommandArtifact artifacts = 9;
+  ResourceLimits resources = 10;
+  string kind = 11;
+  int32 no_output_timeout_seconds = 12;
+  string test_kind = 13;
+  HermeticPolicy hermetic = 14;
+}
+
+message CommandArtifact {
+  string label = 1;
+  string kind = 2;
+  string path = 3;
+}
+
+message ResourceLimits {
+  int32 cpu_weight = 1;
+  int64 memory_bytes = 2;
+  int32 max_workers = 3;
+}
+
+message HermeticPolicy {
+  string network = 1;
+  string filesystem = 2;
+  bool temporary_root = 3;
+  bool restore_environment = 4;
+  bool detect_child_leaks = 5;
+  bool detect_open_handles = 6;
+  bool order_independent = 7;
 }
 
 message CommandResult {
@@ -206,6 +257,8 @@ message CommandResult {
   // timeout, no_output_stall, system.
   string failure_class = 10;
   int64 duration_ms = 11;
+  int64 cpu_time_ms = 12;
+  int64 peak_rss_bytes = 13;
 }
 
 message CoverageTarget {

@@ -9,5 +9,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Method:   "GET",
 		Summary:  "Describe declared scenario dependencies and their current recovery actions.",
 		Category: "capabilities",
+		RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe},
 	},
 }

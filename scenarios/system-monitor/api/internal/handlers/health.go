@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -322,17 +321,24 @@ func (h *HealthHandler) checkNodeRed() map[string]interface{} {
 	return healthutil.MarkConnected(result)
 }
 
-// checkOllama tests Ollama AI service connectivity via the resource-ollama CLI.
+// checkOllama tests Ollama over its HTTP health surface. Health handlers must
+// not fork a control-plane CLI: that turns every liveness request into a
+// process-creation event and makes the handler unavailable when the CLI is.
 func (h *HealthHandler) checkOllama() map[string]interface{} {
 	result := healthutil.NewResult()
-
+	base := strings.TrimRight(os.Getenv("OLLAMA_BASE_URL"), "/")
+	if base == "" { base = "http://127.0.0.1:11434" }
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "resource-ollama", "status")
-	if err := cmd.Run(); err != nil {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/tags", nil)
+	if err != nil { return healthutil.WithError(result,"OLLAMA_CONNECTION_FAILED",err.Error(),"network",true) }
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
 		return healthutil.WithError(result, "OLLAMA_CONNECTION_FAILED",
-			fmt.Sprintf("resource-ollama status failed: %v", err), "network", true)
+			fmt.Sprintf("Ollama HTTP health request failed: %v", err), "network", true)
 	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 { return healthutil.WithError(result,"OLLAMA_CONNECTION_FAILED",fmt.Sprintf("Ollama returned HTTP %d",resp.StatusCode),"network",true) }
 	return healthutil.MarkConnected(result)
 }
 

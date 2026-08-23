@@ -21,7 +21,7 @@ describe("App composition", () => {
     cleanup();
   });
 
-  it("renders the shell title (smoke: providers + routes wire up)", () => {
+  it("renders the shell title (smoke: providers + routes wire up)", async () => {
     renderWithProviders(
       <Providers>
         <TestAppRouter initialEntries={["/"]} />
@@ -29,5 +29,8 @@ describe("App composition", () => {
       { withoutRouter: true },
     );
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+    // Drain the dashboard's readiness effect before teardown so React's async
+    // state transition is observed inside the test's act boundary.
+    await screen.findByText(/Readiness is unavailable|No governed scenarios were returned/);
   });
 });

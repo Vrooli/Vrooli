@@ -42,6 +42,9 @@ const (
 	// HealingServiceGetHistoryProcedure is the fully-qualified name of the HealingService's GetHistory
 	// RPC.
 	HealingServiceGetHistoryProcedure = "/vrooli.vrooli_autoheal.v1.healing.HealingService/GetHistory"
+	// HealingServiceGetReadinessProcedure is the fully-qualified name of the HealingService's
+	// GetReadiness RPC.
+	HealingServiceGetReadinessProcedure = "/vrooli.vrooli_autoheal.v1.healing.HealingService/GetReadiness"
 )
 
 // HealingServiceClient is a client for the vrooli.vrooli_autoheal.v1.healing.HealingService
@@ -50,6 +53,7 @@ type HealingServiceClient interface {
 	ListOutcomes(context.Context, *connect.Request[healing.ListOutcomesRequest]) (*connect.Response[healing.ListOutcomesResponse], error)
 	GetEpisodes(context.Context, *connect.Request[healing.GetEpisodesRequest]) (*connect.Response[healing.GetEpisodesResponse], error)
 	GetHistory(context.Context, *connect.Request[healing.GetHistoryRequest]) (*connect.Response[healing.GetHistoryResponse], error)
+	GetReadiness(context.Context, *connect.Request[healing.GetReadinessRequest]) (*connect.Response[healing.GetReadinessResponse], error)
 }
 
 // NewHealingServiceClient constructs a client for the
@@ -82,6 +86,12 @@ func NewHealingServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(healingServiceMethods.ByName("GetHistory")),
 			connect.WithClientOptions(opts...),
 		),
+		getReadiness: connect.NewClient[healing.GetReadinessRequest, healing.GetReadinessResponse](
+			httpClient,
+			baseURL+HealingServiceGetReadinessProcedure,
+			connect.WithSchema(healingServiceMethods.ByName("GetReadiness")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -90,6 +100,7 @@ type healingServiceClient struct {
 	listOutcomes *connect.Client[healing.ListOutcomesRequest, healing.ListOutcomesResponse]
 	getEpisodes  *connect.Client[healing.GetEpisodesRequest, healing.GetEpisodesResponse]
 	getHistory   *connect.Client[healing.GetHistoryRequest, healing.GetHistoryResponse]
+	getReadiness *connect.Client[healing.GetReadinessRequest, healing.GetReadinessResponse]
 }
 
 // ListOutcomes calls vrooli.vrooli_autoheal.v1.healing.HealingService.ListOutcomes.
@@ -107,12 +118,18 @@ func (c *healingServiceClient) GetHistory(ctx context.Context, req *connect.Requ
 	return c.getHistory.CallUnary(ctx, req)
 }
 
+// GetReadiness calls vrooli.vrooli_autoheal.v1.healing.HealingService.GetReadiness.
+func (c *healingServiceClient) GetReadiness(ctx context.Context, req *connect.Request[healing.GetReadinessRequest]) (*connect.Response[healing.GetReadinessResponse], error) {
+	return c.getReadiness.CallUnary(ctx, req)
+}
+
 // HealingServiceHandler is an implementation of the
 // vrooli.vrooli_autoheal.v1.healing.HealingService service.
 type HealingServiceHandler interface {
 	ListOutcomes(context.Context, *connect.Request[healing.ListOutcomesRequest]) (*connect.Response[healing.ListOutcomesResponse], error)
 	GetEpisodes(context.Context, *connect.Request[healing.GetEpisodesRequest]) (*connect.Response[healing.GetEpisodesResponse], error)
 	GetHistory(context.Context, *connect.Request[healing.GetHistoryRequest]) (*connect.Response[healing.GetHistoryResponse], error)
+	GetReadiness(context.Context, *connect.Request[healing.GetReadinessRequest]) (*connect.Response[healing.GetReadinessResponse], error)
 }
 
 // NewHealingServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -140,6 +157,12 @@ func NewHealingServiceHandler(svc HealingServiceHandler, opts ...connect.Handler
 		connect.WithSchema(healingServiceMethods.ByName("GetHistory")),
 		connect.WithHandlerOptions(opts...),
 	)
+	healingServiceGetReadinessHandler := connect.NewUnaryHandler(
+		HealingServiceGetReadinessProcedure,
+		svc.GetReadiness,
+		connect.WithSchema(healingServiceMethods.ByName("GetReadiness")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_autoheal.v1.healing.HealingService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case HealingServiceListOutcomesProcedure:
@@ -148,6 +171,8 @@ func NewHealingServiceHandler(svc HealingServiceHandler, opts ...connect.Handler
 			healingServiceGetEpisodesHandler.ServeHTTP(w, r)
 		case HealingServiceGetHistoryProcedure:
 			healingServiceGetHistoryHandler.ServeHTTP(w, r)
+		case HealingServiceGetReadinessProcedure:
+			healingServiceGetReadinessHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -167,4 +192,8 @@ func (UnimplementedHealingServiceHandler) GetEpisodes(context.Context, *connect.
 
 func (UnimplementedHealingServiceHandler) GetHistory(context.Context, *connect.Request[healing.GetHistoryRequest]) (*connect.Response[healing.GetHistoryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_autoheal.v1.healing.HealingService.GetHistory is not implemented"))
+}
+
+func (UnimplementedHealingServiceHandler) GetReadiness(context.Context, *connect.Request[healing.GetReadinessRequest]) (*connect.Response[healing.GetReadinessResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_autoheal.v1.healing.HealingService.GetReadiness is not implemented"))
 }

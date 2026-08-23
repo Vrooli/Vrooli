@@ -118,7 +118,7 @@ CONFIDENCE_LEVEL_PARTIAL: ConfidenceLevel
 CONFIDENCE_LEVEL_SKETCH: ConfidenceLevel
 
 class LadderCell(_message.Message):
-    __slots__ = ("device_class", "rung", "host_os", "key", "cell_ref", "question", "status", "status_source", "observation", "reason", "mechanism", "remediation", "blocked_by", "trust", "unavailable_reason", "device_count", "blind_devices", "bar_id", "graded", "ungraded_reason", "band", "provisional", "capability", "capability_status", "capability_reason", "observed_at", "fault_unit", "fault_count", "fault_counted", "severity", "severity_known", "gap_opened_on", "gap_open_days", "gap_dated")
+    __slots__ = ("device_class", "rung", "host_os", "key", "cell_ref", "question", "status", "status_source", "observation", "reason", "reason_code", "mechanism", "remediation", "blocked_by", "trust", "unavailable_reason", "device_count", "blind_devices", "bar_id", "graded", "ungraded_reason", "band", "provisional", "capability", "capability_status", "capability_reason", "observed_at", "fault_unit", "fault_count", "fault_counted", "severity", "severity_known", "gap_opened_on", "gap_open_days", "gap_dated")
     DEVICE_CLASS_FIELD_NUMBER: _ClassVar[int]
     RUNG_FIELD_NUMBER: _ClassVar[int]
     HOST_OS_FIELD_NUMBER: _ClassVar[int]
@@ -129,6 +129,7 @@ class LadderCell(_message.Message):
     STATUS_SOURCE_FIELD_NUMBER: _ClassVar[int]
     OBSERVATION_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    REASON_CODE_FIELD_NUMBER: _ClassVar[int]
     MECHANISM_FIELD_NUMBER: _ClassVar[int]
     REMEDIATION_FIELD_NUMBER: _ClassVar[int]
     BLOCKED_BY_FIELD_NUMBER: _ClassVar[int]
@@ -163,6 +164,7 @@ class LadderCell(_message.Message):
     status_source: str
     observation: Observation
     reason: str
+    reason_code: str
     mechanism: str
     remediation: str
     blocked_by: Rung
@@ -187,7 +189,7 @@ class LadderCell(_message.Message):
     gap_opened_on: str
     gap_open_days: int
     gap_dated: bool
-    def __init__(self, device_class: _Optional[str] = ..., rung: _Optional[_Union[Rung, str]] = ..., host_os: _Optional[str] = ..., key: _Optional[str] = ..., cell_ref: _Optional[str] = ..., question: _Optional[str] = ..., status: _Optional[_Union[CellStatus, str]] = ..., status_source: _Optional[str] = ..., observation: _Optional[_Union[Observation, str]] = ..., reason: _Optional[str] = ..., mechanism: _Optional[str] = ..., remediation: _Optional[str] = ..., blocked_by: _Optional[_Union[Rung, str]] = ..., trust: _Optional[_Union[TrustVerdict, str]] = ..., unavailable_reason: _Optional[str] = ..., device_count: _Optional[int] = ..., blind_devices: _Optional[int] = ..., bar_id: _Optional[str] = ..., graded: _Optional[bool] = ..., ungraded_reason: _Optional[str] = ..., band: _Optional[_Union[BandVerdict, str]] = ..., provisional: _Optional[bool] = ..., capability: _Optional[str] = ..., capability_status: _Optional[str] = ..., capability_reason: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., fault_unit: _Optional[str] = ..., fault_count: _Optional[float] = ..., fault_counted: _Optional[bool] = ..., severity: _Optional[int] = ..., severity_known: _Optional[bool] = ..., gap_opened_on: _Optional[str] = ..., gap_open_days: _Optional[int] = ..., gap_dated: _Optional[bool] = ...) -> None: ...
+    def __init__(self, device_class: _Optional[str] = ..., rung: _Optional[_Union[Rung, str]] = ..., host_os: _Optional[str] = ..., key: _Optional[str] = ..., cell_ref: _Optional[str] = ..., question: _Optional[str] = ..., status: _Optional[_Union[CellStatus, str]] = ..., status_source: _Optional[str] = ..., observation: _Optional[_Union[Observation, str]] = ..., reason: _Optional[str] = ..., reason_code: _Optional[str] = ..., mechanism: _Optional[str] = ..., remediation: _Optional[str] = ..., blocked_by: _Optional[_Union[Rung, str]] = ..., trust: _Optional[_Union[TrustVerdict, str]] = ..., unavailable_reason: _Optional[str] = ..., device_count: _Optional[int] = ..., blind_devices: _Optional[int] = ..., bar_id: _Optional[str] = ..., graded: _Optional[bool] = ..., ungraded_reason: _Optional[str] = ..., band: _Optional[_Union[BandVerdict, str]] = ..., provisional: _Optional[bool] = ..., capability: _Optional[str] = ..., capability_status: _Optional[str] = ..., capability_reason: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., fault_unit: _Optional[str] = ..., fault_count: _Optional[float] = ..., fault_counted: _Optional[bool] = ..., severity: _Optional[int] = ..., severity_known: _Optional[bool] = ..., gap_opened_on: _Optional[str] = ..., gap_open_days: _Optional[int] = ..., gap_dated: _Optional[bool] = ...) -> None: ...
 
 class CheckPlatformCoverage(_message.Message):
     __slots__ = ("host_os", "applicable", "total", "universal", "available", "reason")

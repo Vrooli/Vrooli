@@ -7,7 +7,7 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "scenario-to-plugin",
-  "description": "Experience contract for Scenario to Plugin. The product is a release console, and its organizing object is the gate ladder \u2014 composition, conformance, attestation, rehearsal, publication. Every page either shows a position on that ladder or explains one rung. Product pages are `draft` and every claim is `aspirational` because no route is built yet; elements and bindings are declared so claims can be promoted to machine tier without rewriting page intent. Two honesty properties are load-bearing and appear as claims on several pages: a gate never renders green from an absent check, and a stage that was never judged is never rendered as a failure.",
+  "description": "Experience contract for Scenario to Plugin. The product is a release console, and its organizing object is the gate ladder — composition, conformance, attestation, rehearsal, publication. Every page either shows a position on that ladder or explains one rung. Product pages are `draft` and every claim is `aspirational` because no route is built yet; elements and bindings are declared so claims can be promoted to machine tier without rewriting page intent. Two honesty properties are load-bearing and appear as claims on several pages: a gate never renders green from an absent check, and a stage that was never judged is never rendered as a failure.",
   "pages": [
     {
       "id": "readiness",
@@ -50,12 +50,6 @@
       "path": "pages/attribution.json",
       "title": "Install Attribution",
       "status": "draft"
-    },
-    {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
-      "status": "active"
     },
     {
       "id": "settings",

@@ -634,6 +634,19 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "concepts/SKILL-PUBLICATION.md",
+          "docType": "publication-doctrine",
+          "title": "Skill Publication Doctrine",
+          "aliases": ["skill-publication", "plugin-source"],
+          "description": "Publication source ownership, readiness checklist, and package conventions",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["skill-publication", "plugin-source"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "deployable"],
+          "completion": "required",
+          "validation": {"forbiddenPlaceholders": ["[TODO]"]}
         }
       ]
     },
@@ -928,6 +941,19 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "guides/build-and-publishing.md",
+          "docType": "publishing-guide",
+          "title": "Build And Publishing",
+          "aliases": ["publish", "release-pipeline"],
+          "description": "Compose, validate, attest, rehearse, gate, and distribute an Agent Plugin",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["plugin-publishing", "release-pipeline"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "deployable"],
+          "completion": "required",
+          "validation": {"forbiddenPlaceholders": ["[TODO]"]}
         }
       ]
     },
@@ -1329,6 +1355,19 @@
             ],
             "allowNotApplicable": true
           }
+        },
+        {
+          "path": "internal/SECURITY-POSTURE.md",
+          "docType": "security-posture",
+          "title": "Security Posture",
+          "aliases": ["publication-security", "agent-plugin-security"],
+          "description": "Threat model, 13-point publication checklist, scanner posture, and disclosure policy",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["publication-security", "scanner-policy"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "deployable"],
+          "completion": "required",
+          "validation": {"forbiddenPlaceholders": ["[TODO]"]}
         },
         {
           "path": "internal/DECISIONS.md",

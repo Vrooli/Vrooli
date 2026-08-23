@@ -541,6 +541,226 @@ func (x *GetHistoryResponse) GetOutcomes() []*HealOutcome {
 	return nil
 }
 
+type GetReadinessRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetReadinessRequest) Reset() {
+	*x = GetReadinessRequest{}
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReadinessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReadinessRequest) ProtoMessage() {}
+
+func (x *GetReadinessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReadinessRequest.ProtoReflect.Descriptor instead.
+func (*GetReadinessRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_healing_healing_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetReadinessRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ReadinessElement struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CheckId       string                 `protobuf:"bytes,1,opt,name=check_id,json=checkId,proto3" json:"check_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	ReadyAt       *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ready_at,json=readyAt,proto3" json:"ready_at,omitempty"`
+	LatencyMs     int64                  `protobuf:"varint,4,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
+	Starter       string                 `protobuf:"bytes,5,opt,name=starter,proto3" json:"starter,omitempty"`
+	Evidence      string                 `protobuf:"bytes,6,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReadinessElement) Reset() {
+	*x = ReadinessElement{}
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReadinessElement) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadinessElement) ProtoMessage() {}
+
+func (x *ReadinessElement) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadinessElement.ProtoReflect.Descriptor instead.
+func (*ReadinessElement) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_healing_healing_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ReadinessElement) GetCheckId() string {
+	if x != nil {
+		return x.CheckId
+	}
+	return ""
+}
+
+func (x *ReadinessElement) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ReadinessElement) GetReadyAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReadyAt
+	}
+	return nil
+}
+
+func (x *ReadinessElement) GetLatencyMs() int64 {
+	if x != nil {
+		return x.LatencyMs
+	}
+	return 0
+}
+
+func (x *ReadinessElement) GetStarter() string {
+	if x != nil {
+		return x.Starter
+	}
+	return ""
+}
+
+func (x *ReadinessElement) GetEvidence() string {
+	if x != nil {
+		return x.Evidence
+	}
+	return ""
+}
+
+type GetReadinessResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Available         bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
+	UnavailableReason string                 `protobuf:"bytes,2,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
+	BootId            string                 `protobuf:"bytes,3,opt,name=boot_id,json=bootId,proto3" json:"boot_id,omitempty"`
+	ProcessStartedAt  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=process_started_at,json=processStartedAt,proto3" json:"process_started_at,omitempty"`
+	Elements          []*ReadinessElement    `protobuf:"bytes,5,rep,name=elements,proto3" json:"elements,omitempty"`
+	Episodes          []*HealEpisode         `protobuf:"bytes,6,rep,name=episodes,proto3" json:"episodes,omitempty"`
+	ComputedAt        *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetReadinessResponse) Reset() {
+	*x = GetReadinessResponse{}
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReadinessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReadinessResponse) ProtoMessage() {}
+
+func (x *GetReadinessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_healing_healing_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReadinessResponse.ProtoReflect.Descriptor instead.
+func (*GetReadinessResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_healing_healing_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetReadinessResponse) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *GetReadinessResponse) GetUnavailableReason() string {
+	if x != nil {
+		return x.UnavailableReason
+	}
+	return ""
+}
+
+func (x *GetReadinessResponse) GetBootId() string {
+	if x != nil {
+		return x.BootId
+	}
+	return ""
+}
+
+func (x *GetReadinessResponse) GetProcessStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ProcessStartedAt
+	}
+	return nil
+}
+
+func (x *GetReadinessResponse) GetElements() []*ReadinessElement {
+	if x != nil {
+		return x.Elements
+	}
+	return nil
+}
+
+func (x *GetReadinessResponse) GetEpisodes() []*HealEpisode {
+	if x != nil {
+		return x.Episodes
+	}
+	return nil
+}
+
+func (x *GetReadinessResponse) GetComputedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ComputedAt
+	}
+	return nil
+}
+
 var File_vrooli_autoheal_v1_healing_healing_proto protoreflect.FileDescriptor
 
 const file_vrooli_autoheal_v1_healing_healing_proto_rawDesc = "" +
@@ -578,18 +798,38 @@ const file_vrooli_autoheal_v1_healing_healing_proto_rawDesc = "" +
 	"\bcheck_id\x18\x01 \x01(\tR\acheckId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"`\n" +
 	"\x12GetHistoryResponse\x12J\n" +
-	"\boutcomes\x18\x01 \x03(\v2..vrooli.vrooli_autoheal.v1.healing.HealOutcomeR\boutcomes*y\n" +
+	"\boutcomes\x18\x01 \x03(\v2..vrooli.vrooli_autoheal.v1.healing.HealOutcomeR\boutcomes\"+\n" +
+	"\x13GetReadinessRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\"\xd1\x01\n" +
+	"\x10ReadinessElement\x12\x19\n" +
+	"\bcheck_id\x18\x01 \x01(\tR\acheckId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x125\n" +
+	"\bready_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\areadyAt\x12\x1d\n" +
+	"\n" +
+	"latency_ms\x18\x04 \x01(\x03R\tlatencyMs\x12\x18\n" +
+	"\astarter\x18\x05 \x01(\tR\astarter\x12\x1a\n" +
+	"\bevidence\x18\x06 \x01(\tR\bevidence\"\xa0\x03\n" +
+	"\x14GetReadinessResponse\x12\x1c\n" +
+	"\tavailable\x18\x01 \x01(\bR\tavailable\x12-\n" +
+	"\x12unavailable_reason\x18\x02 \x01(\tR\x11unavailableReason\x12\x17\n" +
+	"\aboot_id\x18\x03 \x01(\tR\x06bootId\x12H\n" +
+	"\x12process_started_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x10processStartedAt\x12O\n" +
+	"\belements\x18\x05 \x03(\v23.vrooli.vrooli_autoheal.v1.healing.ReadinessElementR\belements\x12J\n" +
+	"\bepisodes\x18\x06 \x03(\v2..vrooli.vrooli_autoheal.v1.healing.HealEpisodeR\bepisodes\x12;\n" +
+	"\vcomputed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"computedAt*y\n" +
 	"\aOutcome\x12\x17\n" +
 	"\x13OUTCOME_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11OUTCOME_SUCCEEDED\x10\x01\x12\x12\n" +
 	"\x0eOUTCOME_FAILED\x10\x02\x12\x15\n" +
 	"\x11OUTCOME_TIMED_OUT\x10\x03\x12\x13\n" +
-	"\x0fOUTCOME_SKIPPED\x10\x042\x8a\x03\n" +
+	"\x0fOUTCOME_SKIPPED\x10\x042\x8b\x04\n" +
 	"\x0eHealingService\x12\x7f\n" +
 	"\fListOutcomes\x126.vrooli.vrooli_autoheal.v1.healing.ListOutcomesRequest\x1a7.vrooli.vrooli_autoheal.v1.healing.ListOutcomesResponse\x12|\n" +
 	"\vGetEpisodes\x125.vrooli.vrooli_autoheal.v1.healing.GetEpisodesRequest\x1a6.vrooli.vrooli_autoheal.v1.healing.GetEpisodesResponse\x12y\n" +
 	"\n" +
-	"GetHistory\x124.vrooli.vrooli_autoheal.v1.healing.GetHistoryRequest\x1a5.vrooli.vrooli_autoheal.v1.healing.GetHistoryResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/healing;healing_v1b\x06proto3"
+	"GetHistory\x124.vrooli.vrooli_autoheal.v1.healing.GetHistoryRequest\x1a5.vrooli.vrooli_autoheal.v1.healing.GetHistoryResponse\x12\x7f\n" +
+	"\fGetReadiness\x126.vrooli.vrooli_autoheal.v1.healing.GetReadinessRequest\x1a7.vrooli.vrooli_autoheal.v1.healing.GetReadinessResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/healing;healing_v1b\x06proto3"
 
 var (
 	file_vrooli_autoheal_v1_healing_healing_proto_rawDescOnce sync.Once
@@ -604,7 +844,7 @@ func file_vrooli_autoheal_v1_healing_healing_proto_rawDescGZIP() []byte {
 }
 
 var file_vrooli_autoheal_v1_healing_healing_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_vrooli_autoheal_v1_healing_healing_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_vrooli_autoheal_v1_healing_healing_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_vrooli_autoheal_v1_healing_healing_proto_goTypes = []any{
 	(Outcome)(0),                  // 0: vrooli.vrooli_autoheal.v1.healing.Outcome
 	(*HealOutcome)(nil),           // 1: vrooli.vrooli_autoheal.v1.healing.HealOutcome
@@ -615,28 +855,38 @@ var file_vrooli_autoheal_v1_healing_healing_proto_goTypes = []any{
 	(*GetEpisodesResponse)(nil),   // 6: vrooli.vrooli_autoheal.v1.healing.GetEpisodesResponse
 	(*GetHistoryRequest)(nil),     // 7: vrooli.vrooli_autoheal.v1.healing.GetHistoryRequest
 	(*GetHistoryResponse)(nil),    // 8: vrooli.vrooli_autoheal.v1.healing.GetHistoryResponse
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
+	(*GetReadinessRequest)(nil),   // 9: vrooli.vrooli_autoheal.v1.healing.GetReadinessRequest
+	(*ReadinessElement)(nil),      // 10: vrooli.vrooli_autoheal.v1.healing.ReadinessElement
+	(*GetReadinessResponse)(nil),  // 11: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse
+	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
 }
 var file_vrooli_autoheal_v1_healing_healing_proto_depIdxs = []int32{
 	0,  // 0: vrooli.vrooli_autoheal.v1.healing.HealOutcome.outcome:type_name -> vrooli.vrooli_autoheal.v1.healing.Outcome
-	9,  // 1: vrooli.vrooli_autoheal.v1.healing.HealOutcome.observed_at:type_name -> google.protobuf.Timestamp
+	12, // 1: vrooli.vrooli_autoheal.v1.healing.HealOutcome.observed_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.vrooli_autoheal.v1.healing.HealEpisode.outcome:type_name -> vrooli.vrooli_autoheal.v1.healing.Outcome
-	9,  // 3: vrooli.vrooli_autoheal.v1.healing.HealEpisode.started_at:type_name -> google.protobuf.Timestamp
-	9,  // 4: vrooli.vrooli_autoheal.v1.healing.HealEpisode.completed_at:type_name -> google.protobuf.Timestamp
+	12, // 3: vrooli.vrooli_autoheal.v1.healing.HealEpisode.started_at:type_name -> google.protobuf.Timestamp
+	12, // 4: vrooli.vrooli_autoheal.v1.healing.HealEpisode.completed_at:type_name -> google.protobuf.Timestamp
 	1,  // 5: vrooli.vrooli_autoheal.v1.healing.ListOutcomesResponse.outcomes:type_name -> vrooli.vrooli_autoheal.v1.healing.HealOutcome
 	2,  // 6: vrooli.vrooli_autoheal.v1.healing.GetEpisodesResponse.episodes:type_name -> vrooli.vrooli_autoheal.v1.healing.HealEpisode
 	1,  // 7: vrooli.vrooli_autoheal.v1.healing.GetHistoryResponse.outcomes:type_name -> vrooli.vrooli_autoheal.v1.healing.HealOutcome
-	3,  // 8: vrooli.vrooli_autoheal.v1.healing.HealingService.ListOutcomes:input_type -> vrooli.vrooli_autoheal.v1.healing.ListOutcomesRequest
-	5,  // 9: vrooli.vrooli_autoheal.v1.healing.HealingService.GetEpisodes:input_type -> vrooli.vrooli_autoheal.v1.healing.GetEpisodesRequest
-	7,  // 10: vrooli.vrooli_autoheal.v1.healing.HealingService.GetHistory:input_type -> vrooli.vrooli_autoheal.v1.healing.GetHistoryRequest
-	4,  // 11: vrooli.vrooli_autoheal.v1.healing.HealingService.ListOutcomes:output_type -> vrooli.vrooli_autoheal.v1.healing.ListOutcomesResponse
-	6,  // 12: vrooli.vrooli_autoheal.v1.healing.HealingService.GetEpisodes:output_type -> vrooli.vrooli_autoheal.v1.healing.GetEpisodesResponse
-	8,  // 13: vrooli.vrooli_autoheal.v1.healing.HealingService.GetHistory:output_type -> vrooli.vrooli_autoheal.v1.healing.GetHistoryResponse
-	11, // [11:14] is the sub-list for method output_type
-	8,  // [8:11] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	12, // 8: vrooli.vrooli_autoheal.v1.healing.ReadinessElement.ready_at:type_name -> google.protobuf.Timestamp
+	12, // 9: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.process_started_at:type_name -> google.protobuf.Timestamp
+	10, // 10: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.elements:type_name -> vrooli.vrooli_autoheal.v1.healing.ReadinessElement
+	2,  // 11: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.episodes:type_name -> vrooli.vrooli_autoheal.v1.healing.HealEpisode
+	12, // 12: vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse.computed_at:type_name -> google.protobuf.Timestamp
+	3,  // 13: vrooli.vrooli_autoheal.v1.healing.HealingService.ListOutcomes:input_type -> vrooli.vrooli_autoheal.v1.healing.ListOutcomesRequest
+	5,  // 14: vrooli.vrooli_autoheal.v1.healing.HealingService.GetEpisodes:input_type -> vrooli.vrooli_autoheal.v1.healing.GetEpisodesRequest
+	7,  // 15: vrooli.vrooli_autoheal.v1.healing.HealingService.GetHistory:input_type -> vrooli.vrooli_autoheal.v1.healing.GetHistoryRequest
+	9,  // 16: vrooli.vrooli_autoheal.v1.healing.HealingService.GetReadiness:input_type -> vrooli.vrooli_autoheal.v1.healing.GetReadinessRequest
+	4,  // 17: vrooli.vrooli_autoheal.v1.healing.HealingService.ListOutcomes:output_type -> vrooli.vrooli_autoheal.v1.healing.ListOutcomesResponse
+	6,  // 18: vrooli.vrooli_autoheal.v1.healing.HealingService.GetEpisodes:output_type -> vrooli.vrooli_autoheal.v1.healing.GetEpisodesResponse
+	8,  // 19: vrooli.vrooli_autoheal.v1.healing.HealingService.GetHistory:output_type -> vrooli.vrooli_autoheal.v1.healing.GetHistoryResponse
+	11, // 20: vrooli.vrooli_autoheal.v1.healing.HealingService.GetReadiness:output_type -> vrooli.vrooli_autoheal.v1.healing.GetReadinessResponse
+	17, // [17:21] is the sub-list for method output_type
+	13, // [13:17] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_autoheal_v1_healing_healing_proto_init() }
@@ -650,7 +900,7 @@ func file_vrooli_autoheal_v1_healing_healing_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_autoheal_v1_healing_healing_proto_rawDesc), len(file_vrooli_autoheal_v1_healing_healing_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

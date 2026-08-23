@@ -1,150 +1,34 @@
 {
-  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "scenario-to-plugin",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Agent Plugin delivery ramp CLI.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
-      "commands": [
-        {
-          "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
-        }
-      ]
-    }
-  ],
-  "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
-  },
-  "exceptions": [
+      "name": "readiness",
+      "description": "Inspect publish readiness",
+      "commands": [{"name": "list", "description": "List named readiness blockers", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": []}}]
+    },
     {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
+      "name": "package",
+      "description": "Compose and inspect packages",
+      "commands": [{"name": "compose", "description": "Compose an Agent Plugin tree", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:write"]}}, {"name": "show", "description": "Show a package record", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": []}}]
+    },
+    {
+      "name": "publish",
+      "description": "Governed publication operations",
+      "commands": [{"name": "run", "description": "Publish only with a matching release decision", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:external"], "requires_confirmation": true}}]
     }
   ],
-  "omitted": []
+  "omitted": [
+    {"service": "Capabilities", "method": "Describe", "reason": "The capabilities REST health probe is an operational endpoint, not an operator command."},
+    {"service": "DeclarationService", "method": "GetDeclaration", "reason": "The readiness CLI uses the fleet REST projection; per-scenario declaration lookup remains an RPC-only API surface."},
+    {"service": "DeclarationService", "method": "ListReadiness", "reason": "The readiness CLI uses the fleet REST projection."},
+    {"service": "CompositionService", "method": "Compose", "reason": "The package CLI uses the REST operator projection for transport portability."},
+    {"service": "CompositionService", "method": "GetPackage", "reason": "The package CLI uses the REST operator projection for transport portability."},
+    {"service": "ConformanceService", "method": "Check", "reason": "Conformance is invoked by the governed pipeline and is not exposed as an unscoped operator command."},
+    {"service": "AttestationService", "method": "Attest", "reason": "Attestation is invoked by the governed pipeline and is not exposed as an unscoped operator command."},
+    {"service": "RehearsalService", "method": "Run", "reason": "Rehearsal requires workspace-sandbox orchestration and is invoked by the governed pipeline."},
+    {"service": "DistributionService", "method": "Publish", "reason": "Publication requires the governed release handshake and is exposed through the publish command's REST projection."},
+    {"service": "DistributionService", "method": "Revoke", "reason": "Revocation history is controlled by the governed distribution workflow."}
+  ]
 }

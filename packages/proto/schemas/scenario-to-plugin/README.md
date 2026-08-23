@@ -1,58 +1,19 @@
-# Template proto sources
+# Scenario-to-plugin proto sources
 
-This folder is **not** a regular template directory.
+This is the canonical wire contract for the Agent Plugin delivery ramp. The
+six domain packages are declaration, composition, conformance, attestation,
+rehearsal, and distribution; every RPC comment traces to a requirement id in
+`scenarios/scenario-to-plugin/requirements/`.
 
-At scenario generation time, `template-manager generate` reads the
-`relocations` block in `template.json` and copies this entire `proto/`
-tree into `packages/proto/schemas/<your-scenario>/`, substituting
-`scenario-to-plugin` and `scenario_to_plugin` in both path components
-and file content. The `proto/` folder does **not** appear inside the
-generated scenario.
+Shared health and error envelopes are conventional runtime contracts. The
+domain packages are scenario-owned contracts, not template example domains.
 
-After relocation, the generator runs `make generate` in
-`packages/proto/` so the scenario's `api/`, `ui/`, and `cli/` can
-import generated Go and TypeScript types immediately.
+After changing these sources, regenerate bindings with:
 
-## What's here
+```bash
+cd packages/proto
+make generate SCENARIO=scenario-to-plugin
+```
 
-- `v1/shared/health.proto` — wire contract for the `/health` endpoint.
-  Mirrors `packages/api-core/health/health.go`'s `Response` and
-  `DependencyStatus` types field-for-field with matching JSON names so
-  the api-core handler chain produces JSON that decodes into the
-  generated proto type without translation.
-
-  After relocation this lands at
-  `packages/proto/schemas/<your-scenario>/v1/shared/health.proto`. The
-  namespace comes from the relocation `to` path in `template.json`,
-  not from a directory inside `proto/` — matching the convention used
-  by every existing scenario in `packages/proto/schemas/`.
-
-The `notes` example-domain proto files carry `@template react-vite/example`.
-That annotation is intentional. It lets proto-health distinguish scaffold
-reference contracts from scenario-owned contracts without guessing based on
-generic domain names. Generated scenarios should remove the annotation only
-when the contract is intentionally adopted as real scenario surface or
-replaced by the scenario's own domain proto. The shared `health` and `errors`
-contracts are conventional infrastructure contracts, not example-domain
-scaffold, so they do not carry `@template`.
-
-## Adding a new schema
-
-After the scenario is generated, add new `.proto` files under
-`packages/proto/schemas/<your-scenario>/v1/` (or a `v1/<domain>/`
-subdirectory if the domain warrants its own folder). Then run
-`cd packages/proto && make generate && make lint` and commit the
-regenerated artifacts in `packages/proto/gen/`.
-
-## Why this layout
-
-`packages/proto/schemas/` is the canonical source of truth for every
-scenario's wire contracts. Keeping the template's protos here as a
-relocation source — rather than directly in `packages/proto/schemas/` —
-prevents the template's protos from leaking into builds: a scenario's
-generated artifacts always come from its own substituted copy at
-`packages/proto/schemas/<your-scenario>/`, never from this template tree.
-
-See `templates/scenarios/react-vite/template.json::relocations` for the
-generator wiring and `internal/cli/scenariohandlers/template_runtime.go`
-for the relocation implementation.
+Generated Go, TypeScript, and Python bindings under `packages/proto/gen/` are
+compiled and validated by the scenario API and CLI tests.

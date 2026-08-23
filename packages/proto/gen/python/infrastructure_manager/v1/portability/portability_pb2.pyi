@@ -26,6 +26,7 @@ class ResolutionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RESOLUTION_STATUS_UNWIRED: _ClassVar[ResolutionStatus]
     RESOLUTION_STATUS_PEERLESS: _ClassVar[ResolutionStatus]
     RESOLUTION_STATUS_STATUS_INVALID: _ClassVar[ResolutionStatus]
+    RESOLUTION_STATUS_CONTROLS_INCOMPLETE: _ClassVar[ResolutionStatus]
 
 class Qualification(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -69,6 +70,7 @@ RESOLUTION_STATUS_INELIGIBLE: ResolutionStatus
 RESOLUTION_STATUS_UNWIRED: ResolutionStatus
 RESOLUTION_STATUS_PEERLESS: ResolutionStatus
 RESOLUTION_STATUS_STATUS_INVALID: ResolutionStatus
+RESOLUTION_STATUS_CONTROLS_INCOMPLETE: ResolutionStatus
 QUALIFICATION_UNSPECIFIED: Qualification
 QUALIFICATION_UNDECLARED: Qualification
 QUALIFICATION_INELIGIBLE: Qualification
@@ -91,7 +93,7 @@ DELIVERY_TIER_DESKTOP: DeliveryTier
 DELIVERY_TIER_MOBILE: DeliveryTier
 
 class PlatformEntry(_message.Message):
-    __slots__ = ("host_os", "status", "qualification", "implementer", "mechanism", "reason", "qualification_reason", "has_implementation")
+    __slots__ = ("host_os", "status", "qualification", "implementer", "mechanism", "reason", "qualification_reason", "has_implementation", "controls", "absent", "declarers", "observed_qualification", "observed_qualification_reason", "observed_declarers")
     HOST_OS_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     QUALIFICATION_FIELD_NUMBER: _ClassVar[int]
@@ -100,6 +102,12 @@ class PlatformEntry(_message.Message):
     REASON_FIELD_NUMBER: _ClassVar[int]
     QUALIFICATION_REASON_FIELD_NUMBER: _ClassVar[int]
     HAS_IMPLEMENTATION_FIELD_NUMBER: _ClassVar[int]
+    CONTROLS_FIELD_NUMBER: _ClassVar[int]
+    ABSENT_FIELD_NUMBER: _ClassVar[int]
+    DECLARERS_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_QUALIFICATION_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_QUALIFICATION_REASON_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_DECLARERS_FIELD_NUMBER: _ClassVar[int]
     host_os: HostOS
     status: ResolutionStatus
     qualification: Qualification
@@ -108,7 +116,39 @@ class PlatformEntry(_message.Message):
     reason: str
     qualification_reason: str
     has_implementation: bool
-    def __init__(self, host_os: _Optional[_Union[HostOS, str]] = ..., status: _Optional[_Union[ResolutionStatus, str]] = ..., qualification: _Optional[_Union[Qualification, str]] = ..., implementer: _Optional[str] = ..., mechanism: _Optional[str] = ..., reason: _Optional[str] = ..., qualification_reason: _Optional[str] = ..., has_implementation: _Optional[bool] = ...) -> None: ...
+    controls: _containers.RepeatedScalarFieldContainer[str]
+    absent: _containers.RepeatedScalarFieldContainer[str]
+    declarers: _containers.RepeatedCompositeFieldContainer[CapabilityDeclarer]
+    observed_qualification: Qualification
+    observed_qualification_reason: str
+    observed_declarers: _containers.RepeatedCompositeFieldContainer[ObservedDeclarer]
+    def __init__(self, host_os: _Optional[_Union[HostOS, str]] = ..., status: _Optional[_Union[ResolutionStatus, str]] = ..., qualification: _Optional[_Union[Qualification, str]] = ..., implementer: _Optional[str] = ..., mechanism: _Optional[str] = ..., reason: _Optional[str] = ..., qualification_reason: _Optional[str] = ..., has_implementation: _Optional[bool] = ..., controls: _Optional[_Iterable[str]] = ..., absent: _Optional[_Iterable[str]] = ..., declarers: _Optional[_Iterable[_Union[CapabilityDeclarer, _Mapping]]] = ..., observed_qualification: _Optional[_Union[Qualification, str]] = ..., observed_qualification_reason: _Optional[str] = ..., observed_declarers: _Optional[_Iterable[_Union[ObservedDeclarer, _Mapping]]] = ...) -> None: ...
+
+class CapabilityDeclarer(_message.Message):
+    __slots__ = ("name", "role", "declared_status", "resolved", "reason")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESOLVED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    role: str
+    declared_status: str
+    resolved: bool
+    reason: str
+    def __init__(self, name: _Optional[str] = ..., role: _Optional[str] = ..., declared_status: _Optional[str] = ..., resolved: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class ObservedDeclarer(_message.Message):
+    __slots__ = ("name", "state", "qualification", "reason")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    QUALIFICATION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    state: str
+    qualification: Qualification
+    reason: str
+    def __init__(self, name: _Optional[str] = ..., state: _Optional[str] = ..., qualification: _Optional[_Union[Qualification, str]] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class CapabilityEntry(_message.Message):
     __slots__ = ("capability", "situation", "situation_reason", "platforms")
@@ -123,16 +163,38 @@ class CapabilityEntry(_message.Message):
     def __init__(self, capability: _Optional[str] = ..., situation: _Optional[_Union[CapabilitySituation, str]] = ..., situation_reason: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[PlatformEntry, _Mapping]]] = ...) -> None: ...
 
 class Grid(_message.Message):
-    __slots__ = ("capabilities", "manifest_root", "manifests_read", "computed_at")
+    __slots__ = ("capabilities", "manifest_root", "manifests_read", "computed_at", "observed_safeguards")
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     MANIFEST_ROOT_FIELD_NUMBER: _ClassVar[int]
     MANIFESTS_READ_FIELD_NUMBER: _ClassVar[int]
     COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_SAFEGUARDS_FIELD_NUMBER: _ClassVar[int]
     capabilities: _containers.RepeatedCompositeFieldContainer[CapabilityEntry]
     manifest_root: str
     manifests_read: int
     computed_at: _timestamp_pb2.Timestamp
-    def __init__(self, capabilities: _Optional[_Iterable[_Union[CapabilityEntry, _Mapping]]] = ..., manifest_root: _Optional[str] = ..., manifests_read: _Optional[int] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    observed_safeguards: _containers.RepeatedCompositeFieldContainer[ObservedSafeguard]
+    def __init__(self, capabilities: _Optional[_Iterable[_Union[CapabilityEntry, _Mapping]]] = ..., manifest_root: _Optional[str] = ..., manifests_read: _Optional[int] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., observed_safeguards: _Optional[_Iterable[_Union[ObservedSafeguard, _Mapping]]] = ...) -> None: ...
+
+class ObservedSafeguard(_message.Message):
+    __slots__ = ("name", "capability", "capability_role", "platforms", "support_class", "execution_state", "notes", "observed_at")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_ROLE_FIELD_NUMBER: _ClassVar[int]
+    PLATFORMS_FIELD_NUMBER: _ClassVar[int]
+    SUPPORT_CLASS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_STATE_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    capability: str
+    capability_role: str
+    platforms: _containers.RepeatedScalarFieldContainer[str]
+    support_class: str
+    execution_state: str
+    notes: _containers.RepeatedScalarFieldContainer[str]
+    observed_at: _timestamp_pb2.Timestamp
+    def __init__(self, name: _Optional[str] = ..., capability: _Optional[str] = ..., capability_role: _Optional[str] = ..., platforms: _Optional[_Iterable[str]] = ..., support_class: _Optional[str] = ..., execution_state: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetGridRequest(_message.Message):
     __slots__ = ("capabilities",)
@@ -259,7 +321,7 @@ class DesktopBundlingVerdict(_message.Message):
     def __init__(self, resources: _Optional[int] = ..., host_required: _Optional[int] = ..., vendorable: _Optional[int] = ..., prohibited: _Optional[int] = ..., unknown: _Optional[int] = ..., database_blocked: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class FleetReadout(_message.Message):
-    __slots__ = ("blocked_by_os", "docker_blocked", "peerless", "tier_upgrades", "desktop_bundling", "manifest_root", "computed_at")
+    __slots__ = ("blocked_by_os", "docker_blocked", "peerless", "tier_upgrades", "desktop_bundling", "manifest_root", "computed_at", "available", "reason")
     BLOCKED_BY_OS_FIELD_NUMBER: _ClassVar[int]
     DOCKER_BLOCKED_FIELD_NUMBER: _ClassVar[int]
     PEERLESS_FIELD_NUMBER: _ClassVar[int]
@@ -267,6 +329,8 @@ class FleetReadout(_message.Message):
     DESKTOP_BUNDLING_FIELD_NUMBER: _ClassVar[int]
     MANIFEST_ROOT_FIELD_NUMBER: _ClassVar[int]
     COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
     blocked_by_os: _containers.RepeatedCompositeFieldContainer[ScenarioBlock]
     docker_blocked: _containers.RepeatedCompositeFieldContainer[ScenarioBlock]
     peerless: _containers.RepeatedCompositeFieldContainer[ScenarioPeerless]
@@ -274,7 +338,9 @@ class FleetReadout(_message.Message):
     desktop_bundling: DesktopBundlingVerdict
     manifest_root: str
     computed_at: _timestamp_pb2.Timestamp
-    def __init__(self, blocked_by_os: _Optional[_Iterable[_Union[ScenarioBlock, _Mapping]]] = ..., docker_blocked: _Optional[_Iterable[_Union[ScenarioBlock, _Mapping]]] = ..., peerless: _Optional[_Iterable[_Union[ScenarioPeerless, _Mapping]]] = ..., tier_upgrades: _Optional[_Iterable[_Union[TierUpgrade, _Mapping]]] = ..., desktop_bundling: _Optional[_Union[DesktopBundlingVerdict, _Mapping]] = ..., manifest_root: _Optional[str] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    available: bool
+    reason: str
+    def __init__(self, blocked_by_os: _Optional[_Iterable[_Union[ScenarioBlock, _Mapping]]] = ..., docker_blocked: _Optional[_Iterable[_Union[ScenarioBlock, _Mapping]]] = ..., peerless: _Optional[_Iterable[_Union[ScenarioPeerless, _Mapping]]] = ..., tier_upgrades: _Optional[_Iterable[_Union[TierUpgrade, _Mapping]]] = ..., desktop_bundling: _Optional[_Union[DesktopBundlingVerdict, _Mapping]] = ..., manifest_root: _Optional[str] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., available: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class GetFleetRequest(_message.Message):
     __slots__ = ("view",)

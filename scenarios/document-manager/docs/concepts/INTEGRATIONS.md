@@ -56,7 +56,7 @@ then edit the service manifest.
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, all persistence-backed domains | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API, all persistence-backed domains | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
 | Routed file-store seam | platform seam | yes | `intake`, `derivation`, `corpus` | `filerouting.RoutedRoots` picked per request | Test-mode isolation breaks if bypassed; enforced by the `storage` phase. |
 | AI Gateway | scenario | yes (P0) | `enrichment`, `sensitivity`, `custody` | Connect-RPC; role + profile requests | Enrichment degrades to unavailable; parse tiers 1–2 keep working. |

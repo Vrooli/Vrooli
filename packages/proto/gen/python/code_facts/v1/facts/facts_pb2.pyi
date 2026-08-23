@@ -532,20 +532,44 @@ class Evidence(_message.Message):
     def __init__(self, status: _Optional[_Union[EvidenceStatus, str]] = ..., confidence: _Optional[float] = ..., range: _Optional[_Union[SourceRange, _Mapping]] = ..., symbol: _Optional[str] = ..., analyzer: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class ParseUnit(_message.Message):
-    __slots__ = ("id", "language", "root_path", "config_path", "status", "evidence")
+    __slots__ = ("id", "language", "root_path", "config_path", "status", "evidence", "toolchain")
     ID_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     ROOT_PATH_FIELD_NUMBER: _ClassVar[int]
     CONFIG_PATH_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    TOOLCHAIN_FIELD_NUMBER: _ClassVar[int]
     id: str
     language: str
     root_path: str
     config_path: str
     status: EvidenceStatus
     evidence: _containers.RepeatedCompositeFieldContainer[Evidence]
-    def __init__(self, id: _Optional[str] = ..., language: _Optional[str] = ..., root_path: _Optional[str] = ..., config_path: _Optional[str] = ..., status: _Optional[_Union[EvidenceStatus, str]] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ...) -> None: ...
+    toolchain: ToolchainObservation
+    def __init__(self, id: _Optional[str] = ..., language: _Optional[str] = ..., root_path: _Optional[str] = ..., config_path: _Optional[str] = ..., status: _Optional[_Union[EvidenceStatus, str]] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ..., toolchain: _Optional[_Union[ToolchainObservation, _Mapping]] = ...) -> None: ...
+
+class ToolchainObservation(_message.Message):
+    __slots__ = ("ecosystem", "manifest_paths", "lockfile_paths", "build_systems", "runner_indicators", "package_manager", "toolchain_identity", "status", "evidence")
+    ECOSYSTEM_FIELD_NUMBER: _ClassVar[int]
+    MANIFEST_PATHS_FIELD_NUMBER: _ClassVar[int]
+    LOCKFILE_PATHS_FIELD_NUMBER: _ClassVar[int]
+    BUILD_SYSTEMS_FIELD_NUMBER: _ClassVar[int]
+    RUNNER_INDICATORS_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_MANAGER_FIELD_NUMBER: _ClassVar[int]
+    TOOLCHAIN_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    ecosystem: str
+    manifest_paths: _containers.RepeatedScalarFieldContainer[str]
+    lockfile_paths: _containers.RepeatedScalarFieldContainer[str]
+    build_systems: _containers.RepeatedScalarFieldContainer[str]
+    runner_indicators: _containers.RepeatedScalarFieldContainer[str]
+    package_manager: str
+    toolchain_identity: str
+    status: EvidenceStatus
+    evidence: _containers.RepeatedCompositeFieldContainer[Evidence]
+    def __init__(self, ecosystem: _Optional[str] = ..., manifest_paths: _Optional[_Iterable[str]] = ..., lockfile_paths: _Optional[_Iterable[str]] = ..., build_systems: _Optional[_Iterable[str]] = ..., runner_indicators: _Optional[_Iterable[str]] = ..., package_manager: _Optional[str] = ..., toolchain_identity: _Optional[str] = ..., status: _Optional[_Union[EvidenceStatus, str]] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ...) -> None: ...
 
 class Surface(_message.Message):
     __slots__ = ("id", "kind", "path", "status", "evidence")

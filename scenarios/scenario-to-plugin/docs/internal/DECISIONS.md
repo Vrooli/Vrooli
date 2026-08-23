@@ -191,6 +191,43 @@ doctrine names, and the one `PLG-REHEARSE-NO-STEALTH` exists to catch.
 **Revisit if.** Never. If this blocks every scenario, the correct response
 is to make one scenario standalone-installable, not to relax the gate.
 
+### D-014 — Retire the pre-standard MCP implementation without migrating its templates
+
+**Decision.** `scenario-to-mcp` is prior art only. The ramp may reuse the
+idea of declaring tools and launching a stdio server when it composes an
+optional MCP adapter, but it must not copy the old manifest or server
+implementation.
+
+**Evidence reviewed.** `scenarios/scenario-to-mcp/templates/manifest-template.json`
+uses a hand-rolled top-level `protocol_version: "1.0"` and embeds Vrooli
+ports and a scenario path. That shape is not the Agent Plugins `mcp.json`
+contract. `templates/server-template.js` is a Node stdio server that imports
+the MCP SDK, executes child processes, calls axios, and attempts registry
+registration; it is not a portable, declaration-owned adapter.
+
+**Reusable.** The explicit tool list, server command/argument split, and
+stdio transport are useful inputs to `PLG-COMPOSE-MCP` after validation.
+**Not reusable.** The legacy protocol shape, hard-coded Vrooli runtime
+environment, child-process escape hatch, mutable registry callback, and
+template interpolation are rejected because they bypass the new declaration,
+conformance, and governance gates.
+
+**Revisit if.** The Agent Plugins MCP component contract changes.
+
+### D-015 — Declarations own source paths; packages use fixed Agent Plugins locations
+
+**Decision.** A wrapped scenario declares the owned `skills/<name>/SKILL.md`
+source and standalone artifacts in `.vrooli/service.json`. Composition copies
+those files into the fixed package locations and writes only the closed
+Agent Plugins 1.0.0 metadata manifest; skill prose is never synthesized.
+
+**Why.** This keeps ownership and drift visible at the source boundary while
+matching the portable package contract. The declaration is the machine-checkable
+readiness predicate; `plugin.json` is metadata, not a second component registry.
+
+**Revisit if.** The Agent Plugins specification changes its fixed component
+locations or the service schema gains a more precise source ownership model.
+
 ## Superseded Decisions
 
 | Decision | Superseded by | Note |

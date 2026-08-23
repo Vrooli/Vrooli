@@ -80,6 +80,9 @@ void i18n.use(initReactI18next).init({
   },
   lng: detectInitialLocale(),
   fallbackLng: "en",
+  // Use the explicit v4 suffixes (`_one`, `_other`, `_zero`) authored in the
+  // locale catalogs instead of i18next's legacy numeric plural keys.
+  compatibilityJSON: "v4",
   // React already escapes interpolated values; double-escaping mangles output.
   interpolation: { escapeValue: false },
   returnNull: false,

@@ -9,7 +9,7 @@
     "dev": "vrooli lifecycle protect -- vite",
     "build": "pnpm selector:manifest && tsc --noEmit && vite build",
     "profile": "pnpm selector:manifest && tsc --noEmit && vite build --mode profile",
-    "build:profile": "tsc --noEmit && vite build --mode profile",
+    "build:profile": "pnpm selector:manifest && tsc --noEmit && vite build --mode profile",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "lint:fix": "eslint src --ext ts,tsx --fix",

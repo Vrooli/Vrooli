@@ -699,3 +699,68 @@ func TestGenerateReapsExpiredStagingTreesFromEarlierRuns(t *testing.T) {
 		}
 	}
 }
+
+// TestPublishDirectoryMergeKeepsUnstagedTargetFiles pins the shared-import
+// contract. publishSharedImports runs only for a scoped generation, whose
+// staging tree contains just the shared types the selected scenarios import.
+// Pruning against that tree deleted every other scenario's shared types from
+// gen/ — silently, since a scoped run never looks at them.
+func TestPublishDirectoryMergeKeepsUnstagedTargetFiles(t *testing.T) {
+	stage := t.TempDir()
+	target := t.TempDir()
+
+	// The scoped run materialized one shared type...
+	if err := os.WriteFile(filepath.Join(stage, "types_pb.ts"), []byte("staged\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// ...while the repository already holds several others.
+	survivors := []string{"attestation_pb.ts", "evidence_pb.ts", "metrics_pb.ts"}
+	for _, name := range survivors {
+		if err := os.WriteFile(filepath.Join(target, name), []byte("existing\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := publishDirectoryMerge(stage, target); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range survivors {
+		if _, err := os.Stat(filepath.Join(target, name)); err != nil {
+			t.Fatalf("shared type %s must survive a scoped publish: %v", name, err)
+		}
+	}
+	staged, err := os.ReadFile(filepath.Join(target, "types_pb.ts"))
+	if err != nil {
+		t.Fatalf("staged shared type must be published: %v", err)
+	}
+	if string(staged) != "staged\n" {
+		t.Fatalf("published content = %q, want %q", staged, "staged\n")
+	}
+}
+
+// The pruning publisher is still correct where the stage IS authoritative, so
+// a full generation must continue to remove outputs whose sources are gone.
+func TestPublishDirectoryStillPrunesWhenStageIsAuthoritative(t *testing.T) {
+	stage := t.TempDir()
+	target := t.TempDir()
+	if err := os.WriteFile(filepath.Join(stage, "kept_pb.ts"), []byte("kept\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"kept_pb.ts", "removed_pb.ts"} {
+		if err := os.WriteFile(filepath.Join(target, name), []byte("old\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := publishDirectory(stage, target); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(filepath.Join(target, "removed_pb.ts")); !os.IsNotExist(err) {
+		t.Fatal("a full publish must remove an output the staging tree no longer produces")
+	}
+	if _, err := os.Stat(filepath.Join(target, "kept_pb.ts")); err != nil {
+		t.Fatalf("a staged output must remain: %v", err)
+	}
+}

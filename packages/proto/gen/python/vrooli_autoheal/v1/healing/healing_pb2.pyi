@@ -98,3 +98,43 @@ class GetHistoryResponse(_message.Message):
     OUTCOMES_FIELD_NUMBER: _ClassVar[int]
     outcomes: _containers.RepeatedCompositeFieldContainer[HealOutcome]
     def __init__(self, outcomes: _Optional[_Iterable[_Union[HealOutcome, _Mapping]]] = ...) -> None: ...
+
+class GetReadinessRequest(_message.Message):
+    __slots__ = ("limit",)
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    limit: int
+    def __init__(self, limit: _Optional[int] = ...) -> None: ...
+
+class ReadinessElement(_message.Message):
+    __slots__ = ("check_id", "status", "ready_at", "latency_ms", "starter", "evidence")
+    CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    READY_AT_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    STARTER_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    check_id: str
+    status: str
+    ready_at: _timestamp_pb2.Timestamp
+    latency_ms: int
+    starter: str
+    evidence: str
+    def __init__(self, check_id: _Optional[str] = ..., status: _Optional[str] = ..., ready_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., latency_ms: _Optional[int] = ..., starter: _Optional[str] = ..., evidence: _Optional[str] = ...) -> None: ...
+
+class GetReadinessResponse(_message.Message):
+    __slots__ = ("available", "unavailable_reason", "boot_id", "process_started_at", "elements", "episodes", "computed_at")
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    UNAVAILABLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    BOOT_ID_FIELD_NUMBER: _ClassVar[int]
+    PROCESS_STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    ELEMENTS_FIELD_NUMBER: _ClassVar[int]
+    EPISODES_FIELD_NUMBER: _ClassVar[int]
+    COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
+    available: bool
+    unavailable_reason: str
+    boot_id: str
+    process_started_at: _timestamp_pb2.Timestamp
+    elements: _containers.RepeatedCompositeFieldContainer[ReadinessElement]
+    episodes: _containers.RepeatedCompositeFieldContainer[HealEpisode]
+    computed_at: _timestamp_pb2.Timestamp
+    def __init__(self, available: _Optional[bool] = ..., unavailable_reason: _Optional[str] = ..., boot_id: _Optional[str] = ..., process_started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., elements: _Optional[_Iterable[_Union[ReadinessElement, _Mapping]]] = ..., episodes: _Optional[_Iterable[_Union[HealEpisode, _Mapping]]] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...

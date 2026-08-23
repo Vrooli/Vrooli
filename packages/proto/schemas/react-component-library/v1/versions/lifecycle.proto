@@ -53,6 +53,17 @@ message CleanupItem {
   int32 adoption_count = 4;
   int32 dependency_count = 5;
   int32 age_days = 6;
+  repeated VersionReference references = 7;
+}
+message VersionReference {
+  string kind = 1;
+  string owner_library_id = 2;
+  string owner_version = 3;
+  string owner_path = 4;
+  string import_specifier = 5;
+  string evidence = 6;
+  string owner_scenario = 7;
+  string adoption_id = 8;
 }
 message PlanCleanupRequest { CleanupScope scope = 1; }
 message PlanCleanupResponse {

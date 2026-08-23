@@ -45,7 +45,27 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import * as React from "react";
+import { renderWithProviders as renderWithBaseProviders } from "@vrooli/api-base/testing";
+import type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
+import { Providers } from "../app/providers";
+import { i18n } from "../i18n";
+
+/**
+ * Keep component tests on the scenario's real i18n singleton and provider
+ * tree. api-base supplies the generic harness, but its default test i18n is
+ * intentionally empty and cannot exercise this scenario's catalogs.
+ */
+export function renderWithProviders(
+  ui: React.ReactElement,
+  options: ProviderRenderOptions = {},
+): ProviderRenderResult {
+  return renderWithBaseProviders(ui, {
+    ...options,
+    i18n,
+    extraProviders: (children) => React.createElement(Providers, { children }),
+  });
+}
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";

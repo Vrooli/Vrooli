@@ -395,6 +395,20 @@ message ParseUnit {
   string config_path = 4;
   EvidenceStatus status = 5;
   repeated Evidence evidence = 6;
+  // Neutral observations; downstream policy decides adapter correctness.
+  ToolchainObservation toolchain = 7;
+}
+
+message ToolchainObservation {
+  string ecosystem = 1;
+  repeated string manifest_paths = 2;
+  repeated string lockfile_paths = 3;
+  repeated string build_systems = 4;
+  repeated string runner_indicators = 5;
+  string package_manager = 6;
+  string toolchain_identity = 7;
+  EvidenceStatus status = 8;
+  repeated Evidence evidence = 9;
 }
 
 message Surface {

@@ -467,8 +467,11 @@ type LadderCell struct {
 	StatusSource string      `protobuf:"bytes,8,opt,name=status_source,json=statusSource,proto3" json:"status_source,omitempty"`
 	Observation  Observation `protobuf:"varint,9,opt,name=observation,proto3,enum=vrooli.infrastructure_manager.v1.ladder.Observation" json:"observation,omitempty"`
 	Reason       string      `protobuf:"bytes,10,opt,name=reason,proto3" json:"reason,omitempty"`
-	Mechanism    string      `protobuf:"bytes,11,opt,name=mechanism,proto3" json:"mechanism,omitempty"`
-	Remediation  string      `protobuf:"bytes,12,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	// Stable machine-readable explanation; host_not_sampled means this
+	// instrument has not sampled that host OS, not that a sensor failed.
+	ReasonCode  string `protobuf:"bytes,35,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	Mechanism   string `protobuf:"bytes,11,opt,name=mechanism,proto3" json:"mechanism,omitempty"`
+	Remediation string `protobuf:"bytes,12,opt,name=remediation,proto3" json:"remediation,omitempty"`
 	// blocked_by names the lower rung whose blindness suppressed this grade.
 	BlockedBy         Rung         `protobuf:"varint,13,opt,name=blocked_by,json=blockedBy,proto3,enum=vrooli.infrastructure_manager.v1.ladder.Rung" json:"blocked_by,omitempty"`
 	Trust             TrustVerdict `protobuf:"varint,14,opt,name=trust,proto3,enum=vrooli.infrastructure_manager.v1.ladder.TrustVerdict" json:"trust,omitempty"`
@@ -605,6 +608,13 @@ func (x *LadderCell) GetObservation() Observation {
 func (x *LadderCell) GetReason() string {
 	if x != nil {
 		return x.Reason
+	}
+	return ""
+}
+
+func (x *LadderCell) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
 	}
 	return ""
 }
@@ -2045,7 +2055,7 @@ var File_infrastructure_manager_v1_ladder_ladder_proto protoreflect.FileDescript
 
 const file_infrastructure_manager_v1_ladder_ladder_proto_rawDesc = "" +
 	"\n" +
-	"-infrastructure-manager/v1/ladder/ladder.proto\x12'vrooli.infrastructure_manager.v1.ladder\x1a\x1fgoogle/protobuf/timestamp.proto\"\x90\v\n" +
+	"-infrastructure-manager/v1/ladder/ladder.proto\x12'vrooli.infrastructure_manager.v1.ladder\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb1\v\n" +
 	"\n" +
 	"LadderCell\x12!\n" +
 	"\fdevice_class\x18\x01 \x01(\tR\vdeviceClass\x12A\n" +
@@ -2058,7 +2068,9 @@ const file_infrastructure_manager_v1_ladder_ladder_proto_rawDesc = "" +
 	"\rstatus_source\x18\b \x01(\tR\fstatusSource\x12V\n" +
 	"\vobservation\x18\t \x01(\x0e24.vrooli.infrastructure_manager.v1.ladder.ObservationR\vobservation\x12\x16\n" +
 	"\x06reason\x18\n" +
-	" \x01(\tR\x06reason\x12\x1c\n" +
+	" \x01(\tR\x06reason\x12\x1f\n" +
+	"\vreason_code\x18# \x01(\tR\n" +
+	"reasonCode\x12\x1c\n" +
 	"\tmechanism\x18\v \x01(\tR\tmechanism\x12 \n" +
 	"\vremediation\x18\f \x01(\tR\vremediation\x12L\n" +
 	"\n" +

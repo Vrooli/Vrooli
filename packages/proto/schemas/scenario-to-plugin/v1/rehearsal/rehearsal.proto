@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_plugin.v1.rehearsal;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/rehearsal;rehearsal_v1";
+
+// PLG-REHEARSE-CLEAN, PLG-REHEARSE-IDEMPOTENT, PLG-REHEARSE-NO-STEALTH.
+service RehearsalService {
+  // Runs install and documented commands in an isolated workspace.
+  rpc Run(RunRequest) returns (RunResponse);
+}
+message RunRequest { string package_id = 1; string sandbox = 2; }
+message RunResponse { bool passed = 1; string journey_manifest = 2; repeated CommandResult commands = 3; repeated Finding findings = 4; }
+message CommandResult { string command = 1; int32 exit_code = 2; string redacted_output = 3; }
+message Finding { string code = 1; string message = 2; }

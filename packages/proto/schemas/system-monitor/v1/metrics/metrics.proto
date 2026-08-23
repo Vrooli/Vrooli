@@ -50,6 +50,9 @@ message MetricsResponse {
   MetricValue connections = 8;
   MetricValue gpu = 9;
   MetricValue disk = 10;
+	MetricValue swap_traffic = 12;
+	MetricValue major_faults = 13;
+	MetricValue fragmentation_index = 14;
 }
 
 // MetricValue carries a measurement or an explicit non-measured state.
@@ -103,6 +106,19 @@ message MetricTimelineSample {
   MetricValue connections = 8;
   MetricValue gpu = 9;
   MetricValue swap = 12;
+	MetricValue swap_traffic = 13;
+	MetricValue major_faults = 14;
+	MetricValue fragmentation_index = 15;
+	MetricValue cpu_context_switches_per_second = 16;
+	MetricValue cpu_interrupts_per_second = 17;
+	MetricValue cpu_normalized_load_1 = 18;
+	MetricValue cpu_normalized_load_5 = 19;
+	MetricValue cpu_run_queue_depth = 20;
+	MetricValue cpu_stall_some_avg10 = 21;
+	MetricValue cpu_stall_full_avg10 = 22;
+	MetricValue cpu_core_imbalance_index = 23;
+	MetricValue cpu_mode_iowait = 24;
+	MetricValue cpu_mode_steal = 25;
 }
 
 // MetricsTimelineResponse contains a windowed series of metric samples.
@@ -149,11 +165,32 @@ message CPUMetrics {
   // System load averages (1, 5, 15 minute).
   repeated double load_average = 3;
 
-  // Context switches per second.
-  int64 context_switches = 4;
+  reserved 4;
+  reserved "context_switches";
 
-  // Total goroutines.
-  int32 total_goroutines = 5;
+  reserved 5;
+  reserved "total_goroutines";
+
+  // Typed CPU observations. usage remains as a compatibility projection.
+  MetricValue usage_state = 6;
+  MetricValue context_switches_per_second = 7;
+  MetricValue interrupts_per_second = 8;
+  MetricValue load_average_state = 9;
+  MetricValue normalized_load_1 = 10;
+  MetricValue normalized_load_5 = 11;
+  MetricValue run_queue_depth = 12;
+  MetricValue cpu_psi_some_avg10 = 13;
+  MetricValue cpu_psi_full_avg10 = 14;
+  map<string, MetricValue> mode_breakdown = 15;
+  map<string, MetricValue> per_core_utilization = 16;
+  MetricValue core_imbalance_index = 17;
+  MetricValue quota_throttling = 18;
+  MetricValue frequency_derate_ratio = 19;
+  MetricValue thermal_throttle_evidence = 20;
+  MetricValue fork_rate = 21;
+  MetricValue thermal_trip_point_celsius = 22;
+  repeated ProcessInfo top_cpu_seconds_processes = 23;
+  ProcessTimelineResponse historical_cpu_attribution = 24;
 }
 
 // MemoryMetrics contains memory-related metrics.
@@ -164,14 +201,18 @@ message MemoryMetrics {
   // Top memory-consuming processes.
   repeated ProcessInfo top_processes = 2;
 
-  // Memory growth patterns.
-  repeated MemoryGrowth growth_patterns = 3;
+  reserved 3;
+  reserved "growth_patterns";
 
   // Swap memory information.
   SwapInfo swap_usage = 4;
 
   // Disk usage information.
   DiskInfo disk_usage = 5;
+
+  PagingMetrics paging = 6;
+  FragmentationMetrics fragmentation = 7;
+  repeated ProcessInfo top_paging_processes = 8;
 }
 
 // NetworkMetrics contains network-related metrics.
@@ -201,7 +242,10 @@ message SystemHealth {
   repeated CertificateInfo certificates = 3;
 
   // Inotify watcher information (Linux-specific).
-  optional InotifyWatcherInfo inotify_watchers = 4;
+	optional InotifyWatcherInfo inotify_watchers = 4;
+
+	// Goroutine count for the system-monitor API process, not host telemetry.
+	int32 api_process_goroutines = 5;
 }
 
 // GPUMetrics contains GPU-related metrics.
@@ -334,6 +378,27 @@ message ProcessInfo {
 
   // Number of goroutines (Go processes only).
   int32 goroutines = 9;
+
+  int64 swap_kb = 10;
+  double major_faults_per_second = 11;
+  double cpu_seconds = 12;
+  MetricValue cpu_seconds_state = 13;
+}
+
+message PagingMetrics {
+  MetricValue swap_in_per_second = 1;
+  MetricValue swap_out_per_second = 2;
+  MetricValue swap_traffic_pages_per_second = 3;
+  MetricValue major_faults_per_second = 4;
+  MetricValue page_faults_per_second = 5;
+}
+
+message FragmentationMetrics {
+  MetricValue max_free_order = 1;
+  MetricValue low_order_share = 2;
+  MetricValue compaction_failure_ratio = 3;
+  map<string, MetricValue> compaction_rates = 4;
+  map<string, string> buddyinfo = 5;
 }
 
 // TCPConnectionStates tracks TCP connection state distribution.
@@ -421,18 +486,6 @@ message CertificateInfo {
 
   // Certificate status.
   string status = 3;
-}
-
-// MemoryGrowth tracks memory growth patterns.
-message MemoryGrowth {
-  // Process name.
-  string process = 1;
-
-  // Growth rate in MB per hour.
-  double growth_mb_per_hour = 2;
-
-  // Risk level of the growth pattern.
-  string risk_level = 3;
 }
 
 // SwapInfo contains swap memory information.
@@ -562,7 +615,14 @@ message ProcessTimelineEntry {
   google.protobuf.Timestamp first_seen = 8;
 
   // Last sample timestamp included in this row.
-  google.protobuf.Timestamp last_seen = 9;
+	google.protobuf.Timestamp last_seen = 9;
+
+	// CPU seconds accumulated across the requested window. This is distinct
+	// from average CPU percentage and is the durable historical attribution rank.
+	double cpu_seconds = 10;
+
+	// Maximum instantaneous CPU percentage observed in the requested window.
+	double max_cpu_pct = 11;
 }
 
 // ProcessTimelineResponse ranks process consumers over a time window.
@@ -580,7 +640,11 @@ message ProcessTimelineResponse {
   int32 count = 4;
 
   // Ranked process consumers.
-  repeated ProcessTimelineEntry entries = 5;
+	repeated ProcessTimelineEntry entries = 5;
+
+	// Actual covered range; empty when no samples were available.
+	google.protobuf.Timestamp covered_start = 6;
+	google.protobuf.Timestamp covered_end = 7;
 }
 
 // ProcessHealthInfo summarizes process health.
@@ -696,6 +760,9 @@ message GetProcessTimelineRequest {
 
   // Maximum ranked rows to return.
   optional int32 top = 3;
+
+  // Ranking: cpu (default), cpu_seconds, rss, or gpu.
+  string rank = 4;
 }
 
 // GetProcessTimelineResponse returns a ranked process-consumer timeline.

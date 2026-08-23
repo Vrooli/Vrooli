@@ -130,7 +130,7 @@ packages/proto/schemas/scenario-to-android/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/scenario-to-android/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/scenario-to-android/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/scenario-to-android/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/scenario-to-android/v1/...   (ui)
        └──▶ packages/proto/gen/python/scenario_to_android/v1/...    (future tools)
 ```
 

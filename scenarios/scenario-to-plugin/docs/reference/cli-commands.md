@@ -194,59 +194,6 @@ Never conflate `1` and `3`. A CI job that treats `unavailable` as a
 failed package attributes an infrastructure problem to an author; one
 that treats a closed gate as retryable will loop forever.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario, then remove
-it.
-
-#### `scenario-to-plugin notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
-
-```bash
-scenario-to-plugin notes list
-scenario-to-plugin notes list --json
-```
-
-#### `scenario-to-plugin notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-scenario-to-plugin notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-#### `scenario-to-plugin notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-scenario-to-plugin notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-#### `scenario-to-plugin notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-scenario-to-plugin notes attach abc123 --file ./example.png
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Output contracts
 
 Every scenario command should render through one of three human

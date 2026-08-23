@@ -20,7 +20,7 @@ Two stores, with different guarantees:
 
 1. **SQLite** (via `modernc.org/sqlite`) holds metadata, derivations,
    anchors, enrichment records, sensitivity decisions, custody records
-   and collections. The lifecycle sets `SQLITE_PATH` through
+   and collections. The path is resolved by `api-core/storage` from the scenario id
    `.vrooli/service.json`, and the API applies schemas on startup
    through `api-core/database`.
 2. **The artifact store** holds opaque bytes: original documents and

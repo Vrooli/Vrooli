@@ -107,20 +107,42 @@ class CleanupScope(_message.Message):
     def __init__(self, component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., older_than_days: _Optional[int] = ...) -> None: ...
 
 class CleanupItem(_message.Message):
-    __slots__ = ("version", "eligible", "reason", "adoption_count", "dependency_count", "age_days")
+    __slots__ = ("version", "eligible", "reason", "adoption_count", "dependency_count", "age_days", "references")
     VERSION_FIELD_NUMBER: _ClassVar[int]
     ELIGIBLE_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
     ADOPTION_COUNT_FIELD_NUMBER: _ClassVar[int]
     DEPENDENCY_COUNT_FIELD_NUMBER: _ClassVar[int]
     AGE_DAYS_FIELD_NUMBER: _ClassVar[int]
+    REFERENCES_FIELD_NUMBER: _ClassVar[int]
     version: RetireCandidate
     eligible: bool
     reason: str
     adoption_count: int
     dependency_count: int
     age_days: int
-    def __init__(self, version: _Optional[_Union[RetireCandidate, _Mapping]] = ..., eligible: _Optional[bool] = ..., reason: _Optional[str] = ..., adoption_count: _Optional[int] = ..., dependency_count: _Optional[int] = ..., age_days: _Optional[int] = ...) -> None: ...
+    references: _containers.RepeatedCompositeFieldContainer[VersionReference]
+    def __init__(self, version: _Optional[_Union[RetireCandidate, _Mapping]] = ..., eligible: _Optional[bool] = ..., reason: _Optional[str] = ..., adoption_count: _Optional[int] = ..., dependency_count: _Optional[int] = ..., age_days: _Optional[int] = ..., references: _Optional[_Iterable[_Union[VersionReference, _Mapping]]] = ...) -> None: ...
+
+class VersionReference(_message.Message):
+    __slots__ = ("kind", "owner_library_id", "owner_version", "owner_path", "import_specifier", "evidence", "owner_scenario", "adoption_id")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    OWNER_LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    OWNER_VERSION_FIELD_NUMBER: _ClassVar[int]
+    OWNER_PATH_FIELD_NUMBER: _ClassVar[int]
+    IMPORT_SPECIFIER_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    OWNER_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    ADOPTION_ID_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    owner_library_id: str
+    owner_version: str
+    owner_path: str
+    import_specifier: str
+    evidence: str
+    owner_scenario: str
+    adoption_id: str
+    def __init__(self, kind: _Optional[str] = ..., owner_library_id: _Optional[str] = ..., owner_version: _Optional[str] = ..., owner_path: _Optional[str] = ..., import_specifier: _Optional[str] = ..., evidence: _Optional[str] = ..., owner_scenario: _Optional[str] = ..., adoption_id: _Optional[str] = ...) -> None: ...
 
 class PlanCleanupRequest(_message.Message):
     __slots__ = ("scope",)

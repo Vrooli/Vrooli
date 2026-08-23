@@ -23,7 +23,7 @@ describe("AppShell structure (cimode)", () => {
     cleanup();
   });
 
-  it("renders the title, sidebar, bottom nav, and main outlet", () => {
+  it("renders the title, sidebar, bottom nav, and main outlet", async () => {
     renderShell();
     expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
@@ -31,19 +31,20 @@ describe("AppShell structure (cimode)", () => {
     expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+    await screen.findByText(/Readiness is unavailable|No governed scenarios were returned/);
   });
 
-  it("keeps locale switching out of the header chrome", () => {
+  it("keeps locale switching out of the header chrome", async () => {
     renderShell();
     expect(screen.queryByTestId(selectors.settingsPage.localeOption({ code: "en" }))).not.toBeInTheDocument();
     expect(screen.queryByTestId(selectors.settingsPage.localeOption({ code: "ja" }))).not.toBeInTheDocument();
+    await screen.findByText(/Readiness is unavailable|No governed scenarios were returned/);
   });
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     for (const key of [
       "dashboard",
-      "notes", // EXAMPLE-DOMAIN:notes
       "settings",
     ] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();

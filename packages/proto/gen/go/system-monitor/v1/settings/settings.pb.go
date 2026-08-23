@@ -64,9 +64,15 @@ type SystemSettings struct {
 	DiskEscalationDebounceTicks int32 `protobuf:"varint,16,opt,name=disk_escalation_debounce_ticks,json=diskEscalationDebounceTicks,proto3" json:"disk_escalation_debounce_ticks,omitempty"`
 	// A rise of at least this many percentage points in a single evaluation
 	// escalates immediately, bounding the delay debounce introduces.
-	DiskFastFillJumpPercent float64 `protobuf:"fixed64,17,opt,name=disk_fast_fill_jump_percent,json=diskFastFillJumpPercent,proto3" json:"disk_fast_fill_jump_percent,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	DiskFastFillJumpPercent      float64 `protobuf:"fixed64,17,opt,name=disk_fast_fill_jump_percent,json=diskFastFillJumpPercent,proto3" json:"disk_fast_fill_jump_percent,omitempty"`
+	CpuHighPercent               float64 `protobuf:"fixed64,18,opt,name=cpu_high_percent,json=cpuHighPercent,proto3" json:"cpu_high_percent,omitempty"`
+	CpuCriticalPercent           float64 `protobuf:"fixed64,19,opt,name=cpu_critical_percent,json=cpuCriticalPercent,proto3" json:"cpu_critical_percent,omitempty"`
+	CpuEscalationCooldownSeconds int32   `protobuf:"varint,20,opt,name=cpu_escalation_cooldown_seconds,json=cpuEscalationCooldownSeconds,proto3" json:"cpu_escalation_cooldown_seconds,omitempty"`
+	CpuEscalationDebounceTicks   int32   `protobuf:"varint,21,opt,name=cpu_escalation_debounce_ticks,json=cpuEscalationDebounceTicks,proto3" json:"cpu_escalation_debounce_ticks,omitempty"`
+	CpuSustainedWindowTicks      int32   `protobuf:"varint,22,opt,name=cpu_sustained_window_ticks,json=cpuSustainedWindowTicks,proto3" json:"cpu_sustained_window_ticks,omitempty"`
+	CpuPressureThreshold         float64 `protobuf:"fixed64,23,opt,name=cpu_pressure_threshold,json=cpuPressureThreshold,proto3" json:"cpu_pressure_threshold,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *SystemSettings) Reset() {
@@ -214,6 +220,48 @@ func (x *SystemSettings) GetDiskEscalationDebounceTicks() int32 {
 func (x *SystemSettings) GetDiskFastFillJumpPercent() float64 {
 	if x != nil {
 		return x.DiskFastFillJumpPercent
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetCpuHighPercent() float64 {
+	if x != nil {
+		return x.CpuHighPercent
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetCpuCriticalPercent() float64 {
+	if x != nil {
+		return x.CpuCriticalPercent
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetCpuEscalationCooldownSeconds() int32 {
+	if x != nil {
+		return x.CpuEscalationCooldownSeconds
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetCpuEscalationDebounceTicks() int32 {
+	if x != nil {
+		return x.CpuEscalationDebounceTicks
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetCpuSustainedWindowTicks() int32 {
+	if x != nil {
+		return x.CpuSustainedWindowTicks
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetCpuPressureThreshold() float64 {
+	if x != nil {
+		return x.CpuPressureThreshold
 	}
 	return 0
 }
@@ -745,7 +793,8 @@ var File_system_monitor_v1_settings_settings_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_settings_settings_proto_rawDesc = "" +
 	"\n" +
-	")system-monitor/v1/settings/settings.proto\x12!vrooli.system_monitor.v1.settings\x1a\x1cgoogle/api/annotations.proto\"\xa9\a\n" +
+	")system-monitor/v1/settings/settings.proto\x12!vrooli.system_monitor.v1.settings\x1a\x1cgoogle/api/annotations.proto\"\x82\n" +
+	"\n" +
 	"\x0eSystemSettings\x12\x16\n" +
 	"\x06active\x18\x01 \x01(\bR\x06active\x12<\n" +
 	"\x1ametric_collection_interval\x18\x02 \x01(\x05R\x18metricCollectionInterval\x12<\n" +
@@ -764,7 +813,13 @@ const file_system_monitor_v1_settings_settings_proto_rawDesc = "" +
 	"\x15disk_critical_percent\x18\x0e \x01(\x01R\x13diskCriticalPercent\x12G\n" +
 	" disk_escalation_cooldown_seconds\x18\x0f \x01(\x05R\x1ddiskEscalationCooldownSeconds\x12C\n" +
 	"\x1edisk_escalation_debounce_ticks\x18\x10 \x01(\x05R\x1bdiskEscalationDebounceTicks\x12<\n" +
-	"\x1bdisk_fast_fill_jump_percent\x18\x11 \x01(\x01R\x17diskFastFillJumpPercent\"\x14\n" +
+	"\x1bdisk_fast_fill_jump_percent\x18\x11 \x01(\x01R\x17diskFastFillJumpPercent\x12(\n" +
+	"\x10cpu_high_percent\x18\x12 \x01(\x01R\x0ecpuHighPercent\x120\n" +
+	"\x14cpu_critical_percent\x18\x13 \x01(\x01R\x12cpuCriticalPercent\x12E\n" +
+	"\x1fcpu_escalation_cooldown_seconds\x18\x14 \x01(\x05R\x1ccpuEscalationCooldownSeconds\x12A\n" +
+	"\x1dcpu_escalation_debounce_ticks\x18\x15 \x01(\x05R\x1acpuEscalationDebounceTicks\x12;\n" +
+	"\x1acpu_sustained_window_ticks\x18\x16 \x01(\x05R\x17cpuSustainedWindowTicks\x124\n" +
+	"\x16cpu_pressure_threshold\x18\x17 \x01(\x01R\x14cpuPressureThreshold\"\x14\n" +
 	"\x12GetSettingsRequest\"\x94\x01\n" +
 	"\x13GetSettingsResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12M\n" +

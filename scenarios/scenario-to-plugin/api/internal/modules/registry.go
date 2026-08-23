@@ -20,15 +20,19 @@ import (
 	"scenario-to-plugin/internal/module"
 
 	capsH "scenario-to-plugin/handlers/capabilities"
+	pipelineH "scenario-to-plugin/handlers/pipeline"
 
 	apidb "github.com/vrooli/api-core/database"
+	attestation "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/attestation"
+	composition "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/composition"
+	conformance "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/conformance"
+	declaration "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/declaration"
+	distribution "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/distribution"
+	rehearsal "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/rehearsal"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "scenario-to-plugin/handlers/health"
-	notesH "scenario-to-plugin/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "scenario-to-plugin/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +43,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, pipelineH.Endpoints...)
 	return out
 }
 
@@ -66,7 +70,12 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_scenario_to_plugin_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "declaration", File: declaration.File_scenario_to_plugin_v1_declaration_declaration_proto},
+		{Module: "composition", File: composition.File_scenario_to_plugin_v1_composition_composition_proto},
+		{Module: "conformance", File: conformance.File_scenario_to_plugin_v1_conformance_conformance_proto},
+		{Module: "attestation", File: attestation.File_scenario_to_plugin_v1_attestation_attestation_proto},
+		{Module: "rehearsal", File: rehearsal.File_scenario_to_plugin_v1_rehearsal_rehearsal_proto},
+		{Module: "distribution", File: distribution.File_scenario_to_plugin_v1_distribution_distribution_proto},
 	}
 }
 
@@ -81,6 +90,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(pipelineH.Schema),
 	}
 }

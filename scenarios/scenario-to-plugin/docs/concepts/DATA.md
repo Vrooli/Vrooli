@@ -85,38 +85,6 @@ No domain reads another domain's tables. Cross-domain reads go through
 the owning domain's service, which is what keeps the pipeline chain
 enforceable rather than advisory.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships the `notes` domain as a worked CRUD slice with a
-binary attachment-upload exception, showing how a real domain owns its
-tables, metadata, and opaque blob bytes. Copy its shape, then remove it.
-
-Its Data Ownership rows:
-
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
-
-Its Schema Map row:
-
-| Table/File/Object | Owner | Defined In | Used By |
-|---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
-
-Its Retention And Deletion row:
-
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
-
-The attachment BlobStore seam is the reference implementation for this
-scenario's capture store: opaque bytes behind a seam, metadata in
-SQLite, nothing binary inside a proto payload.
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Migrations And Compatibility
 
 - Schemas are applied on startup by `api-core/database`. Each domain's

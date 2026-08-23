@@ -8,21 +8,23 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ValidateScenarioRequest(_message.Message):
-    __slots__ = ("scenario", "path", "workspaces", "include_execution", "use_cache")
+    __slots__ = ("scenario", "path", "workspaces", "include_execution", "use_cache", "fast_test_only")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     WORKSPACES_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     USE_CACHE_FIELD_NUMBER: _ClassVar[int]
+    FAST_TEST_ONLY_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     path: str
     workspaces: _containers.RepeatedScalarFieldContainer[str]
     include_execution: bool
     use_cache: bool
-    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., workspaces: _Optional[_Iterable[str]] = ..., include_execution: _Optional[bool] = ..., use_cache: _Optional[bool] = ...) -> None: ...
+    fast_test_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., workspaces: _Optional[_Iterable[str]] = ..., include_execution: _Optional[bool] = ..., use_cache: _Optional[bool] = ..., fast_test_only: _Optional[bool] = ...) -> None: ...
 
 class ValidateScenarioResponse(_message.Message):
-    __slots__ = ("run_id", "status", "summary", "scenario", "target_kind", "target_path", "degraded_reason", "surfaces", "workspaces", "plan", "command_results", "coverage", "findings", "diagnostics", "maturity", "counts", "next_steps", "assessment", "artifacts", "projection_checks", "suppressed_findings")
+    __slots__ = ("run_id", "status", "summary", "scenario", "target_kind", "target_path", "degraded_reason", "surfaces", "workspaces", "plan", "command_results", "coverage", "findings", "diagnostics", "maturity", "counts", "next_steps", "assessment", "artifacts", "projection_checks", "suppressed_findings", "cache_hit", "cache_miss_reason", "cache_invalidated_dimensions", "cache_saved_wall_time_ms", "cache_saved_cpu_time_ms", "cache_retained_bytes")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
@@ -44,6 +46,12 @@ class ValidateScenarioResponse(_message.Message):
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
     PROJECTION_CHECKS_FIELD_NUMBER: _ClassVar[int]
     SUPPRESSED_FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    CACHE_HIT_FIELD_NUMBER: _ClassVar[int]
+    CACHE_MISS_REASON_FIELD_NUMBER: _ClassVar[int]
+    CACHE_INVALIDATED_DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
+    CACHE_SAVED_WALL_TIME_MS_FIELD_NUMBER: _ClassVar[int]
+    CACHE_SAVED_CPU_TIME_MS_FIELD_NUMBER: _ClassVar[int]
+    CACHE_RETAINED_BYTES_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: str
     summary: str
@@ -65,7 +73,13 @@ class ValidateScenarioResponse(_message.Message):
     artifacts: _containers.RepeatedCompositeFieldContainer[Artifact]
     projection_checks: _containers.RepeatedCompositeFieldContainer[ProjectionCheck]
     suppressed_findings: _containers.RepeatedCompositeFieldContainer[ValidationFinding]
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., scenario: _Optional[str] = ..., target_kind: _Optional[str] = ..., target_path: _Optional[str] = ..., degraded_reason: _Optional[str] = ..., surfaces: _Optional[_Iterable[_Union[TestSurface, _Mapping]]] = ..., workspaces: _Optional[_Iterable[_Union[TestWorkspace, _Mapping]]] = ..., plan: _Optional[_Union[ExecutionPlan, _Mapping]] = ..., command_results: _Optional[_Iterable[_Union[CommandResult, _Mapping]]] = ..., coverage: _Optional[_Iterable[_Union[CoverageTarget, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[ValidationFinding, _Mapping]]] = ..., diagnostics: _Optional[_Iterable[_Union[Diagnostic, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., counts: _Optional[_Union[ValidationCounts, _Mapping]] = ..., next_steps: _Optional[_Iterable[str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[Artifact, _Mapping]]] = ..., projection_checks: _Optional[_Iterable[_Union[ProjectionCheck, _Mapping]]] = ..., suppressed_findings: _Optional[_Iterable[_Union[ValidationFinding, _Mapping]]] = ...) -> None: ...
+    cache_hit: bool
+    cache_miss_reason: str
+    cache_invalidated_dimensions: _containers.RepeatedScalarFieldContainer[str]
+    cache_saved_wall_time_ms: int
+    cache_saved_cpu_time_ms: int
+    cache_retained_bytes: int
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., scenario: _Optional[str] = ..., target_kind: _Optional[str] = ..., target_path: _Optional[str] = ..., degraded_reason: _Optional[str] = ..., surfaces: _Optional[_Iterable[_Union[TestSurface, _Mapping]]] = ..., workspaces: _Optional[_Iterable[_Union[TestWorkspace, _Mapping]]] = ..., plan: _Optional[_Union[ExecutionPlan, _Mapping]] = ..., command_results: _Optional[_Iterable[_Union[CommandResult, _Mapping]]] = ..., coverage: _Optional[_Iterable[_Union[CoverageTarget, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[ValidationFinding, _Mapping]]] = ..., diagnostics: _Optional[_Iterable[_Union[Diagnostic, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., counts: _Optional[_Union[ValidationCounts, _Mapping]] = ..., next_steps: _Optional[_Iterable[str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[Artifact, _Mapping]]] = ..., projection_checks: _Optional[_Iterable[_Union[ProjectionCheck, _Mapping]]] = ..., suppressed_findings: _Optional[_Iterable[_Union[ValidationFinding, _Mapping]]] = ..., cache_hit: _Optional[bool] = ..., cache_miss_reason: _Optional[str] = ..., cache_invalidated_dimensions: _Optional[_Iterable[str]] = ..., cache_saved_wall_time_ms: _Optional[int] = ..., cache_saved_cpu_time_ms: _Optional[int] = ..., cache_retained_bytes: _Optional[int] = ...) -> None: ...
 
 class ProjectionCheck(_message.Message):
     __slots__ = ("id", "workspace_id", "surface_id", "key", "owner", "file_path", "policy_value", "native_value", "status", "remediation", "finding_code")
@@ -124,7 +138,7 @@ class TestSurface(_message.Message):
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., language: _Optional[str] = ..., framework: _Optional[str] = ..., root_path: _Optional[str] = ..., package_manager: _Optional[str] = ..., status: _Optional[str] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class TestWorkspace(_message.Message):
-    __slots__ = ("id", "language", "root_path", "framework", "canonical_framework", "test_command", "coverage_command", "package_manager", "status", "degraded_reason")
+    __slots__ = ("id", "language", "root_path", "framework", "canonical_framework", "test_command", "coverage_command", "package_manager", "status", "degraded_reason", "runner_profile", "resources", "adapter_id", "adapter_version", "test_kind")
     ID_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     ROOT_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -135,6 +149,11 @@ class TestWorkspace(_message.Message):
     PACKAGE_MANAGER_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_REASON_FIELD_NUMBER: _ClassVar[int]
+    RUNNER_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    RESOURCES_FIELD_NUMBER: _ClassVar[int]
+    ADAPTER_ID_FIELD_NUMBER: _ClassVar[int]
+    ADAPTER_VERSION_FIELD_NUMBER: _ClassVar[int]
+    TEST_KIND_FIELD_NUMBER: _ClassVar[int]
     id: str
     language: str
     root_path: str
@@ -145,7 +164,12 @@ class TestWorkspace(_message.Message):
     package_manager: str
     status: str
     degraded_reason: str
-    def __init__(self, id: _Optional[str] = ..., language: _Optional[str] = ..., root_path: _Optional[str] = ..., framework: _Optional[str] = ..., canonical_framework: _Optional[str] = ..., test_command: _Optional[str] = ..., coverage_command: _Optional[str] = ..., package_manager: _Optional[str] = ..., status: _Optional[str] = ..., degraded_reason: _Optional[str] = ...) -> None: ...
+    runner_profile: str
+    resources: ResourceLimits
+    adapter_id: str
+    adapter_version: str
+    test_kind: str
+    def __init__(self, id: _Optional[str] = ..., language: _Optional[str] = ..., root_path: _Optional[str] = ..., framework: _Optional[str] = ..., canonical_framework: _Optional[str] = ..., test_command: _Optional[str] = ..., coverage_command: _Optional[str] = ..., package_manager: _Optional[str] = ..., status: _Optional[str] = ..., degraded_reason: _Optional[str] = ..., runner_profile: _Optional[str] = ..., resources: _Optional[_Union[ResourceLimits, _Mapping]] = ..., adapter_id: _Optional[str] = ..., adapter_version: _Optional[str] = ..., test_kind: _Optional[str] = ...) -> None: ...
 
 class ExecutionPlan(_message.Message):
     __slots__ = ("commands", "notes")
@@ -156,21 +180,84 @@ class ExecutionPlan(_message.Message):
     def __init__(self, commands: _Optional[_Iterable[_Union[PlannedCommand, _Mapping]]] = ..., notes: _Optional[str] = ...) -> None: ...
 
 class PlannedCommand(_message.Message):
-    __slots__ = ("workspace_id", "name", "command", "working_directory", "timeout_seconds")
+    __slots__ = ("workspace_id", "name", "command", "working_directory", "timeout_seconds", "executable", "args", "environment", "artifacts", "resources", "kind", "no_output_timeout_seconds", "test_kind", "hermetic")
+    class EnvironmentEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     COMMAND_FIELD_NUMBER: _ClassVar[int]
     WORKING_DIRECTORY_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTABLE_FIELD_NUMBER: _ClassVar[int]
+    ARGS_FIELD_NUMBER: _ClassVar[int]
+    ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
+    RESOURCES_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    NO_OUTPUT_TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    TEST_KIND_FIELD_NUMBER: _ClassVar[int]
+    HERMETIC_FIELD_NUMBER: _ClassVar[int]
     workspace_id: str
     name: str
     command: str
     working_directory: str
     timeout_seconds: int
-    def __init__(self, workspace_id: _Optional[str] = ..., name: _Optional[str] = ..., command: _Optional[str] = ..., working_directory: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+    executable: str
+    args: _containers.RepeatedScalarFieldContainer[str]
+    environment: _containers.ScalarMap[str, str]
+    artifacts: _containers.RepeatedCompositeFieldContainer[CommandArtifact]
+    resources: ResourceLimits
+    kind: str
+    no_output_timeout_seconds: int
+    test_kind: str
+    hermetic: HermeticPolicy
+    def __init__(self, workspace_id: _Optional[str] = ..., name: _Optional[str] = ..., command: _Optional[str] = ..., working_directory: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., executable: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ..., environment: _Optional[_Mapping[str, str]] = ..., artifacts: _Optional[_Iterable[_Union[CommandArtifact, _Mapping]]] = ..., resources: _Optional[_Union[ResourceLimits, _Mapping]] = ..., kind: _Optional[str] = ..., no_output_timeout_seconds: _Optional[int] = ..., test_kind: _Optional[str] = ..., hermetic: _Optional[_Union[HermeticPolicy, _Mapping]] = ...) -> None: ...
+
+class CommandArtifact(_message.Message):
+    __slots__ = ("label", "kind", "path")
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    label: str
+    kind: str
+    path: str
+    def __init__(self, label: _Optional[str] = ..., kind: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
+
+class ResourceLimits(_message.Message):
+    __slots__ = ("cpu_weight", "memory_bytes", "max_workers")
+    CPU_WEIGHT_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_BYTES_FIELD_NUMBER: _ClassVar[int]
+    MAX_WORKERS_FIELD_NUMBER: _ClassVar[int]
+    cpu_weight: int
+    memory_bytes: int
+    max_workers: int
+    def __init__(self, cpu_weight: _Optional[int] = ..., memory_bytes: _Optional[int] = ..., max_workers: _Optional[int] = ...) -> None: ...
+
+class HermeticPolicy(_message.Message):
+    __slots__ = ("network", "filesystem", "temporary_root", "restore_environment", "detect_child_leaks", "detect_open_handles", "order_independent")
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    FILESYSTEM_FIELD_NUMBER: _ClassVar[int]
+    TEMPORARY_ROOT_FIELD_NUMBER: _ClassVar[int]
+    RESTORE_ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
+    DETECT_CHILD_LEAKS_FIELD_NUMBER: _ClassVar[int]
+    DETECT_OPEN_HANDLES_FIELD_NUMBER: _ClassVar[int]
+    ORDER_INDEPENDENT_FIELD_NUMBER: _ClassVar[int]
+    network: str
+    filesystem: str
+    temporary_root: bool
+    restore_environment: bool
+    detect_child_leaks: bool
+    detect_open_handles: bool
+    order_independent: bool
+    def __init__(self, network: _Optional[str] = ..., filesystem: _Optional[str] = ..., temporary_root: _Optional[bool] = ..., restore_environment: _Optional[bool] = ..., detect_child_leaks: _Optional[bool] = ..., detect_open_handles: _Optional[bool] = ..., order_independent: _Optional[bool] = ...) -> None: ...
 
 class CommandResult(_message.Message):
-    __slots__ = ("name", "command", "working_directory", "status", "exit_code", "stdout_excerpt", "stderr_excerpt", "timeout_seconds", "failure_reason", "failure_class", "duration_ms")
+    __slots__ = ("name", "command", "working_directory", "status", "exit_code", "stdout_excerpt", "stderr_excerpt", "timeout_seconds", "failure_reason", "failure_class", "duration_ms", "cpu_time_ms", "peak_rss_bytes")
     NAME_FIELD_NUMBER: _ClassVar[int]
     COMMAND_FIELD_NUMBER: _ClassVar[int]
     WORKING_DIRECTORY_FIELD_NUMBER: _ClassVar[int]
@@ -182,6 +269,8 @@ class CommandResult(_message.Message):
     FAILURE_REASON_FIELD_NUMBER: _ClassVar[int]
     FAILURE_CLASS_FIELD_NUMBER: _ClassVar[int]
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    CPU_TIME_MS_FIELD_NUMBER: _ClassVar[int]
+    PEAK_RSS_BYTES_FIELD_NUMBER: _ClassVar[int]
     name: str
     command: str
     working_directory: str
@@ -193,7 +282,9 @@ class CommandResult(_message.Message):
     failure_reason: str
     failure_class: str
     duration_ms: int
-    def __init__(self, name: _Optional[str] = ..., command: _Optional[str] = ..., working_directory: _Optional[str] = ..., status: _Optional[str] = ..., exit_code: _Optional[int] = ..., stdout_excerpt: _Optional[str] = ..., stderr_excerpt: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., failure_reason: _Optional[str] = ..., failure_class: _Optional[str] = ..., duration_ms: _Optional[int] = ...) -> None: ...
+    cpu_time_ms: int
+    peak_rss_bytes: int
+    def __init__(self, name: _Optional[str] = ..., command: _Optional[str] = ..., working_directory: _Optional[str] = ..., status: _Optional[str] = ..., exit_code: _Optional[int] = ..., stdout_excerpt: _Optional[str] = ..., stderr_excerpt: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., failure_reason: _Optional[str] = ..., failure_class: _Optional[str] = ..., duration_ms: _Optional[int] = ..., cpu_time_ms: _Optional[int] = ..., peak_rss_bytes: _Optional[int] = ...) -> None: ...
 
 class CoverageTarget(_message.Message):
     __slots__ = ("id", "language", "surface_id", "file_path", "covered_lines", "total_lines", "coverage_percent", "threshold", "status")

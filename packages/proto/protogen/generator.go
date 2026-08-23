@@ -470,7 +470,10 @@ func (g *Generator) publishSharedImports(stageGen, targetGen string, scenarios [
 				continue
 			}
 			logf(g.cfg.Logger, "protogen: publishing shared import directory: %s", filepath.ToSlash(filepath.Join("gen", root, entry.Name())))
-			if err := publishDirectory(filepath.Join(stageRoot, entry.Name()), filepath.Join(targetRoot, entry.Name())); err != nil {
+			// Merge, never prune: publishSharedImports runs only for a scoped
+			// generation, whose staging tree holds just the shared types the
+			// selected scenarios import.
+			if err := publishDirectoryMerge(filepath.Join(stageRoot, entry.Name()), filepath.Join(targetRoot, entry.Name())); err != nil {
 				return err
 			}
 		}
@@ -485,6 +488,41 @@ func isScenarioOutput(name string, scenarios []string) bool {
 		}
 	}
 	return false
+}
+
+// publishDirectoryMerge publishes every staged file into target without
+// removing target files the staging tree lacks.
+//
+// Use it wherever the staging tree is not authoritative for the whole target.
+// A scoped generation only materializes the shared types that the selected
+// scenarios happen to import, so pruning against that tree deletes every
+// shared type the rest of the repository depends on — a full generation is
+// then the only way to notice, because the loss is silent.
+func publishDirectoryMerge(source, target string) error {
+	if _, err := os.Stat(source); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		return err
+	}
+	if err := filepath.WalkDir(source, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		return publishFile(path, filepath.Join(target, rel))
+	}); err != nil {
+		return fmt.Errorf("publish generated directory %s: %w", target, err)
+	}
+	return os.RemoveAll(source)
 }
 
 func publishDirectory(source, target string) error {

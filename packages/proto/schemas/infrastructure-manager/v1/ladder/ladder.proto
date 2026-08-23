@@ -124,6 +124,9 @@ message LadderCell {
 
   Observation observation = 9;
   string reason = 10;
+  // Stable machine-readable explanation; host_not_sampled means this
+  // instrument has not sampled that host OS, not that a sensor failed.
+  string reason_code = 35;
   string mechanism = 11;
   string remediation = 12;
   // blocked_by names the lower rung whose blindness suppressed this grade.

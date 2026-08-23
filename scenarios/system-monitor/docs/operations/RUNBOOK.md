@@ -152,12 +152,21 @@ produce one execution and reclaimed bytes are never double-counted.
 Only `safe`-tier providers run unattended. `safe_with_owner`, `conditional`,
 and `forbidden` are withheld and reported in the response.
 
+Host pressure is a third remediation path. `vrooli-watchdog --report-only`
+reads CPU pressure, stranded memory, process/fork growth, and workload
+ownership from the shared setpoint and emits evidence without deleting or
+restarting anything. Reclaim is available only through the governed lifecycle
+action, with the saturation and serving-request brakes applied; abandoned
+workloads go to the conditional `undeclared-workload` provider for operator
+approval.
+
 ### Host floor
 
 Underneath both sits the emergency watchdog at
-`~/.vrooli/libexec/emergency-watchdog.sh`, installed by the `emergency_watchdog`
-safeguard (`vrooli setup`) and run every five minutes by a systemd user timer.
-It needs no Go toolchain. It watches available (not free) space, requests
+`~/.vrooli/libexec/vrooli-watchdog`, installed by the `emergency_watchdog`
+safeguard (`vrooli setup`) and run every five minutes by the native user
+scheduler. It is a self-contained binary and does not depend on the running
+scenario or a Go toolchain at runtime. It watches available (not free) space, requests
 `high`-band cleanup below its floor and `critical` below half the floor, bounds
 its own log, and tolerates a failed write — during the 2026-07-31 incident it
 died with `printf: write error: No space left on device`.

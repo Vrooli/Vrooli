@@ -63,38 +63,6 @@ rather than left to caller discipline:
 | rehearsal | Install the attested package in a clean room and exercise its documented commands. | Convert a build claim into a runtime claim, and emit protocol-profile evidence. | Rehearsal runs, journey manifests, evidence references. | workflow | integration, reporting | Rehearsal, Journey, GateResult | `api/internal/rehearsal/`, `api/handlers/rehearsal/`, `cli/domains/rehearsal/`, `ui/src/features/rehearsal/` |
 | distribution | Ask for the release decision, publish through channel adapters, confirm, and revoke. | Own the governance handshake and every outward-facing channel call. | Publications, channel outcomes, revocations, install attribution. | workflow | integration | Channel, Publication, Revocation, Adapter | `api/internal/distribution/`, `api/handlers/distribution/`, `cli/domains/distribution/`, `ui/src/features/distribution/` |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships `notes` as a worked CRUD vertical slice with a binary
-upload exception. Copy its shape for your own domains, then remove it.
-
-| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
-|---|---|---|---|---|---|---|---|
-| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | Note, Attachment | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/scenario-to-plugin/v1/notes/` |
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
-
-The `notes` attachments path is the reference for this scenario's only
-binary edge: artifact upload and download in `composition` follows the
-same REST multipart exception while keeping metadata proto-typed.
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Domain Details
 
 ### health

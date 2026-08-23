@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../test-utils";
+import { Providers } from "./providers";
 import { selectors } from "../consts/selectors";
 import { TestAppRouter } from "./routes";
 
@@ -15,20 +16,14 @@ describe("AppRouter", () => {
     cleanup();
   });
 
-  it("renders the dashboard at /", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
+  it("renders the dashboard at /", async () => {
+    renderWithProviders(<Providers><TestAppRouter initialEntries={["/"]} /></Providers>, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
+    await screen.findByText(/Readiness is unavailable|No governed scenarios were returned/);
   });
-
-  // EXAMPLE-DOMAIN:notes START
-  it("renders the notes page at /notes", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/notes"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.notes)).toBeInTheDocument();
-  });
-  // EXAMPLE-DOMAIN:notes END
 
   it("renders the settings page at /settings", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    renderWithProviders(<Providers><TestAppRouter initialEntries={["/settings"]} /></Providers>, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
   });
 });

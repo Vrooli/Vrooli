@@ -2609,13 +2609,15 @@ func (x *Evidence) GetMessage() string {
 }
 
 type ParseUnit struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Language      string                 `protobuf:"bytes,2,opt,name=language,proto3" json:"language,omitempty"`
-	RootPath      string                 `protobuf:"bytes,3,opt,name=root_path,json=rootPath,proto3" json:"root_path,omitempty"`
-	ConfigPath    string                 `protobuf:"bytes,4,opt,name=config_path,json=configPath,proto3" json:"config_path,omitempty"`
-	Status        EvidenceStatus         `protobuf:"varint,5,opt,name=status,proto3,enum=vrooli.code_facts.v1.facts.EvidenceStatus" json:"status,omitempty"`
-	Evidence      []*Evidence            `protobuf:"bytes,6,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Language   string                 `protobuf:"bytes,2,opt,name=language,proto3" json:"language,omitempty"`
+	RootPath   string                 `protobuf:"bytes,3,opt,name=root_path,json=rootPath,proto3" json:"root_path,omitempty"`
+	ConfigPath string                 `protobuf:"bytes,4,opt,name=config_path,json=configPath,proto3" json:"config_path,omitempty"`
+	Status     EvidenceStatus         `protobuf:"varint,5,opt,name=status,proto3,enum=vrooli.code_facts.v1.facts.EvidenceStatus" json:"status,omitempty"`
+	Evidence   []*Evidence            `protobuf:"bytes,6,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	// Neutral observations; downstream policy decides adapter correctness.
+	Toolchain     *ToolchainObservation `protobuf:"bytes,7,opt,name=toolchain,proto3" json:"toolchain,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2692,6 +2694,121 @@ func (x *ParseUnit) GetEvidence() []*Evidence {
 	return nil
 }
 
+func (x *ParseUnit) GetToolchain() *ToolchainObservation {
+	if x != nil {
+		return x.Toolchain
+	}
+	return nil
+}
+
+type ToolchainObservation struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Ecosystem         string                 `protobuf:"bytes,1,opt,name=ecosystem,proto3" json:"ecosystem,omitempty"`
+	ManifestPaths     []string               `protobuf:"bytes,2,rep,name=manifest_paths,json=manifestPaths,proto3" json:"manifest_paths,omitempty"`
+	LockfilePaths     []string               `protobuf:"bytes,3,rep,name=lockfile_paths,json=lockfilePaths,proto3" json:"lockfile_paths,omitempty"`
+	BuildSystems      []string               `protobuf:"bytes,4,rep,name=build_systems,json=buildSystems,proto3" json:"build_systems,omitempty"`
+	RunnerIndicators  []string               `protobuf:"bytes,5,rep,name=runner_indicators,json=runnerIndicators,proto3" json:"runner_indicators,omitempty"`
+	PackageManager    string                 `protobuf:"bytes,6,opt,name=package_manager,json=packageManager,proto3" json:"package_manager,omitempty"`
+	ToolchainIdentity string                 `protobuf:"bytes,7,opt,name=toolchain_identity,json=toolchainIdentity,proto3" json:"toolchain_identity,omitempty"`
+	Status            EvidenceStatus         `protobuf:"varint,8,opt,name=status,proto3,enum=vrooli.code_facts.v1.facts.EvidenceStatus" json:"status,omitempty"`
+	Evidence          []*Evidence            `protobuf:"bytes,9,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ToolchainObservation) Reset() {
+	*x = ToolchainObservation{}
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToolchainObservation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToolchainObservation) ProtoMessage() {}
+
+func (x *ToolchainObservation) ProtoReflect() protoreflect.Message {
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToolchainObservation.ProtoReflect.Descriptor instead.
+func (*ToolchainObservation) Descriptor() ([]byte, []int) {
+	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *ToolchainObservation) GetEcosystem() string {
+	if x != nil {
+		return x.Ecosystem
+	}
+	return ""
+}
+
+func (x *ToolchainObservation) GetManifestPaths() []string {
+	if x != nil {
+		return x.ManifestPaths
+	}
+	return nil
+}
+
+func (x *ToolchainObservation) GetLockfilePaths() []string {
+	if x != nil {
+		return x.LockfilePaths
+	}
+	return nil
+}
+
+func (x *ToolchainObservation) GetBuildSystems() []string {
+	if x != nil {
+		return x.BuildSystems
+	}
+	return nil
+}
+
+func (x *ToolchainObservation) GetRunnerIndicators() []string {
+	if x != nil {
+		return x.RunnerIndicators
+	}
+	return nil
+}
+
+func (x *ToolchainObservation) GetPackageManager() string {
+	if x != nil {
+		return x.PackageManager
+	}
+	return ""
+}
+
+func (x *ToolchainObservation) GetToolchainIdentity() string {
+	if x != nil {
+		return x.ToolchainIdentity
+	}
+	return ""
+}
+
+func (x *ToolchainObservation) GetStatus() EvidenceStatus {
+	if x != nil {
+		return x.Status
+	}
+	return EvidenceStatus_EVIDENCE_STATUS_UNSPECIFIED
+}
+
+func (x *ToolchainObservation) GetEvidence() []*Evidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
 type Surface struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -2705,7 +2822,7 @@ type Surface struct {
 
 func (x *Surface) Reset() {
 	*x = Surface{}
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[30]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2717,7 +2834,7 @@ func (x *Surface) String() string {
 func (*Surface) ProtoMessage() {}
 
 func (x *Surface) ProtoReflect() protoreflect.Message {
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[30]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2730,7 +2847,7 @@ func (x *Surface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Surface.ProtoReflect.Descriptor instead.
 func (*Surface) Descriptor() ([]byte, []int) {
-	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{30}
+	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *Surface) GetId() string {
@@ -2782,7 +2899,7 @@ type GenericFact struct {
 
 func (x *GenericFact) Reset() {
 	*x = GenericFact{}
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[31]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2794,7 +2911,7 @@ func (x *GenericFact) String() string {
 func (*GenericFact) ProtoMessage() {}
 
 func (x *GenericFact) ProtoReflect() protoreflect.Message {
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[31]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2807,7 +2924,7 @@ func (x *GenericFact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenericFact.ProtoReflect.Descriptor instead.
 func (*GenericFact) Descriptor() ([]byte, []int) {
-	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{31}
+	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GenericFact) GetId() string {
@@ -2863,7 +2980,7 @@ type Warning struct {
 
 func (x *Warning) Reset() {
 	*x = Warning{}
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[32]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2875,7 +2992,7 @@ func (x *Warning) String() string {
 func (*Warning) ProtoMessage() {}
 
 func (x *Warning) ProtoReflect() protoreflect.Message {
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[32]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2888,7 +3005,7 @@ func (x *Warning) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Warning.ProtoReflect.Descriptor instead.
 func (*Warning) Descriptor() ([]byte, []int) {
-	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{32}
+	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *Warning) GetCode() string {
@@ -2938,7 +3055,7 @@ type CacheMetadata struct {
 
 func (x *CacheMetadata) Reset() {
 	*x = CacheMetadata{}
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[33]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2950,7 +3067,7 @@ func (x *CacheMetadata) String() string {
 func (*CacheMetadata) ProtoMessage() {}
 
 func (x *CacheMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[33]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2963,7 +3080,7 @@ func (x *CacheMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CacheMetadata.ProtoReflect.Descriptor instead.
 func (*CacheMetadata) Descriptor() ([]byte, []int) {
-	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{33}
+	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *CacheMetadata) GetCacheKey() string {
@@ -3103,7 +3220,7 @@ type CacheScopeSummary struct {
 
 func (x *CacheScopeSummary) Reset() {
 	*x = CacheScopeSummary{}
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[34]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3115,7 +3232,7 @@ func (x *CacheScopeSummary) String() string {
 func (*CacheScopeSummary) ProtoMessage() {}
 
 func (x *CacheScopeSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[34]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3128,7 +3245,7 @@ func (x *CacheScopeSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CacheScopeSummary.ProtoReflect.Descriptor instead.
 func (*CacheScopeSummary) Descriptor() ([]byte, []int) {
-	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{34}
+	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *CacheScopeSummary) GetScope() string {
@@ -3170,7 +3287,7 @@ type CacheStatus struct {
 
 func (x *CacheStatus) Reset() {
 	*x = CacheStatus{}
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[35]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3182,7 +3299,7 @@ func (x *CacheStatus) String() string {
 func (*CacheStatus) ProtoMessage() {}
 
 func (x *CacheStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[35]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3195,7 +3312,7 @@ func (x *CacheStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CacheStatus.ProtoReflect.Descriptor instead.
 func (*CacheStatus) Descriptor() ([]byte, []int) {
-	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{35}
+	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *CacheStatus) GetTarget() *CodeTarget {
@@ -3280,7 +3397,7 @@ type ClearCacheResponse struct {
 
 func (x *ClearCacheResponse) Reset() {
 	*x = ClearCacheResponse{}
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[36]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3292,7 +3409,7 @@ func (x *ClearCacheResponse) String() string {
 func (*ClearCacheResponse) ProtoMessage() {}
 
 func (x *ClearCacheResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[36]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3305,7 +3422,7 @@ func (x *ClearCacheResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearCacheResponse.ProtoReflect.Descriptor instead.
 func (*ClearCacheResponse) Descriptor() ([]byte, []int) {
-	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{36}
+	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ClearCacheResponse) GetCacheKey() string {
@@ -3353,7 +3470,7 @@ type CodeFactsReport struct {
 
 func (x *CodeFactsReport) Reset() {
 	*x = CodeFactsReport{}
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[37]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3365,7 +3482,7 @@ func (x *CodeFactsReport) String() string {
 func (*CodeFactsReport) ProtoMessage() {}
 
 func (x *CodeFactsReport) ProtoReflect() protoreflect.Message {
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[37]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3378,7 +3495,7 @@ func (x *CodeFactsReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodeFactsReport.ProtoReflect.Descriptor instead.
 func (*CodeFactsReport) Descriptor() ([]byte, []int) {
-	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{37}
+	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *CodeFactsReport) GetTarget() *TargetContext {
@@ -3456,7 +3573,7 @@ type ListSurfacesResponse struct {
 
 func (x *ListSurfacesResponse) Reset() {
 	*x = ListSurfacesResponse{}
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[38]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3468,7 +3585,7 @@ func (x *ListSurfacesResponse) String() string {
 func (*ListSurfacesResponse) ProtoMessage() {}
 
 func (x *ListSurfacesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[38]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3481,7 +3598,7 @@ func (x *ListSurfacesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSurfacesResponse.ProtoReflect.Descriptor instead.
 func (*ListSurfacesResponse) Descriptor() ([]byte, []int) {
-	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{38}
+	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ListSurfacesResponse) GetTarget() *TargetContext {
@@ -3526,7 +3643,7 @@ type ProofReport struct {
 
 func (x *ProofReport) Reset() {
 	*x = ProofReport{}
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[39]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3538,7 +3655,7 @@ func (x *ProofReport) String() string {
 func (*ProofReport) ProtoMessage() {}
 
 func (x *ProofReport) ProtoReflect() protoreflect.Message {
-	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[39]
+	mi := &file_code_facts_v1_facts_facts_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3551,7 +3668,7 @@ func (x *ProofReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProofReport.ProtoReflect.Descriptor instead.
 func (*ProofReport) Descriptor() ([]byte, []int) {
-	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{39}
+	return file_code_facts_v1_facts_facts_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ProofReport) GetTarget() *TargetContext {
@@ -3801,7 +3918,7 @@ const file_code_facts_v1_facts_facts_proto_rawDesc = "" +
 	"\x05range\x18\x03 \x01(\v2'.vrooli.code_facts.v1.facts.SourceRangeR\x05range\x12\x16\n" +
 	"\x06symbol\x18\x04 \x01(\tR\x06symbol\x12\x1a\n" +
 	"\banalyzer\x18\x05 \x01(\tR\banalyzer\x12\x18\n" +
-	"\amessage\x18\x06 \x01(\tR\amessage\"\xfb\x01\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\"\xcb\x02\n" +
 	"\tParseUnit\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\blanguage\x18\x02 \x01(\tR\blanguage\x12\x1b\n" +
@@ -3809,7 +3926,18 @@ const file_code_facts_v1_facts_facts_proto_rawDesc = "" +
 	"\vconfig_path\x18\x04 \x01(\tR\n" +
 	"configPath\x12B\n" +
 	"\x06status\x18\x05 \x01(\x0e2*.vrooli.code_facts.v1.facts.EvidenceStatusR\x06status\x12@\n" +
-	"\bevidence\x18\x06 \x03(\v2$.vrooli.code_facts.v1.facts.EvidenceR\bevidence\"\xef\x01\n" +
+	"\bevidence\x18\x06 \x03(\v2$.vrooli.code_facts.v1.facts.EvidenceR\bevidence\x12N\n" +
+	"\ttoolchain\x18\a \x01(\v20.vrooli.code_facts.v1.facts.ToolchainObservationR\ttoolchain\"\xb2\x03\n" +
+	"\x14ToolchainObservation\x12\x1c\n" +
+	"\tecosystem\x18\x01 \x01(\tR\tecosystem\x12%\n" +
+	"\x0emanifest_paths\x18\x02 \x03(\tR\rmanifestPaths\x12%\n" +
+	"\x0elockfile_paths\x18\x03 \x03(\tR\rlockfilePaths\x12#\n" +
+	"\rbuild_systems\x18\x04 \x03(\tR\fbuildSystems\x12+\n" +
+	"\x11runner_indicators\x18\x05 \x03(\tR\x10runnerIndicators\x12'\n" +
+	"\x0fpackage_manager\x18\x06 \x01(\tR\x0epackageManager\x12-\n" +
+	"\x12toolchain_identity\x18\a \x01(\tR\x11toolchainIdentity\x12B\n" +
+	"\x06status\x18\b \x01(\x0e2*.vrooli.code_facts.v1.facts.EvidenceStatusR\x06status\x12@\n" +
+	"\bevidence\x18\t \x03(\v2$.vrooli.code_facts.v1.facts.EvidenceR\bevidence\"\xef\x01\n" +
 	"\aSurface\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12;\n" +
 	"\x04kind\x18\x02 \x01(\x0e2'.vrooli.code_facts.v1.facts.SurfaceKindR\x04kind\x12\x12\n" +
@@ -3999,7 +4127,7 @@ func file_code_facts_v1_facts_facts_proto_rawDescGZIP() []byte {
 }
 
 var file_code_facts_v1_facts_facts_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_code_facts_v1_facts_facts_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_code_facts_v1_facts_facts_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
 var file_code_facts_v1_facts_facts_proto_goTypes = []any{
 	(TargetKind)(0),                        // 0: vrooli.code_facts.v1.facts.TargetKind
 	(FactFamily)(0),                        // 1: vrooli.code_facts.v1.facts.FactFamily
@@ -4037,17 +4165,18 @@ var file_code_facts_v1_facts_facts_proto_goTypes = []any{
 	(*SourceRange)(nil),                    // 33: vrooli.code_facts.v1.facts.SourceRange
 	(*Evidence)(nil),                       // 34: vrooli.code_facts.v1.facts.Evidence
 	(*ParseUnit)(nil),                      // 35: vrooli.code_facts.v1.facts.ParseUnit
-	(*Surface)(nil),                        // 36: vrooli.code_facts.v1.facts.Surface
-	(*GenericFact)(nil),                    // 37: vrooli.code_facts.v1.facts.GenericFact
-	(*Warning)(nil),                        // 38: vrooli.code_facts.v1.facts.Warning
-	(*CacheMetadata)(nil),                  // 39: vrooli.code_facts.v1.facts.CacheMetadata
-	(*CacheScopeSummary)(nil),              // 40: vrooli.code_facts.v1.facts.CacheScopeSummary
-	(*CacheStatus)(nil),                    // 41: vrooli.code_facts.v1.facts.CacheStatus
-	(*ClearCacheResponse)(nil),             // 42: vrooli.code_facts.v1.facts.ClearCacheResponse
-	(*CodeFactsReport)(nil),                // 43: vrooli.code_facts.v1.facts.CodeFactsReport
-	(*ListSurfacesResponse)(nil),           // 44: vrooli.code_facts.v1.facts.ListSurfacesResponse
-	(*ProofReport)(nil),                    // 45: vrooli.code_facts.v1.facts.ProofReport
-	nil,                                    // 46: vrooli.code_facts.v1.facts.GenericFact.AttributesEntry
+	(*ToolchainObservation)(nil),           // 36: vrooli.code_facts.v1.facts.ToolchainObservation
+	(*Surface)(nil),                        // 37: vrooli.code_facts.v1.facts.Surface
+	(*GenericFact)(nil),                    // 38: vrooli.code_facts.v1.facts.GenericFact
+	(*Warning)(nil),                        // 39: vrooli.code_facts.v1.facts.Warning
+	(*CacheMetadata)(nil),                  // 40: vrooli.code_facts.v1.facts.CacheMetadata
+	(*CacheScopeSummary)(nil),              // 41: vrooli.code_facts.v1.facts.CacheScopeSummary
+	(*CacheStatus)(nil),                    // 42: vrooli.code_facts.v1.facts.CacheStatus
+	(*ClearCacheResponse)(nil),             // 43: vrooli.code_facts.v1.facts.ClearCacheResponse
+	(*CodeFactsReport)(nil),                // 44: vrooli.code_facts.v1.facts.CodeFactsReport
+	(*ListSurfacesResponse)(nil),           // 45: vrooli.code_facts.v1.facts.ListSurfacesResponse
+	(*ProofReport)(nil),                    // 46: vrooli.code_facts.v1.facts.ProofReport
+	nil,                                    // 47: vrooli.code_facts.v1.facts.GenericFact.AttributesEntry
 }
 var file_code_facts_v1_facts_facts_proto_depIdxs = []int32{
 	0,  // 0: vrooli.code_facts.v1.facts.CodeTarget.kind:type_name -> vrooli.code_facts.v1.facts.TargetKind
@@ -4065,7 +4194,7 @@ var file_code_facts_v1_facts_facts_proto_depIdxs = []int32{
 	13, // 12: vrooli.code_facts.v1.facts.IndexStatus.active_jobs:type_name -> vrooli.code_facts.v1.facts.IndexJob
 	13, // 13: vrooli.code_facts.v1.facts.IndexControlResponse.job:type_name -> vrooli.code_facts.v1.facts.IndexJob
 	15, // 14: vrooli.code_facts.v1.facts.IndexControlResponse.status:type_name -> vrooli.code_facts.v1.facts.IndexStatus
-	43, // 15: vrooli.code_facts.v1.facts.CodeFactsResult.report:type_name -> vrooli.code_facts.v1.facts.CodeFactsReport
+	44, // 15: vrooli.code_facts.v1.facts.CodeFactsResult.report:type_name -> vrooli.code_facts.v1.facts.CodeFactsReport
 	24, // 16: vrooli.code_facts.v1.facts.DescribeFleetImportsResponse.results:type_name -> vrooli.code_facts.v1.facts.CodeFactsResult
 	6,  // 17: vrooli.code_facts.v1.facts.ListSurfacesRequest.target:type_name -> vrooli.code_facts.v1.facts.CodeTarget
 	6,  // 18: vrooli.code_facts.v1.facts.CheckProtoAdoptionRequest.target:type_name -> vrooli.code_facts.v1.facts.CodeTarget
@@ -4079,70 +4208,73 @@ var file_code_facts_v1_facts_facts_proto_depIdxs = []int32{
 	33, // 26: vrooli.code_facts.v1.facts.Evidence.range:type_name -> vrooli.code_facts.v1.facts.SourceRange
 	2,  // 27: vrooli.code_facts.v1.facts.ParseUnit.status:type_name -> vrooli.code_facts.v1.facts.EvidenceStatus
 	34, // 28: vrooli.code_facts.v1.facts.ParseUnit.evidence:type_name -> vrooli.code_facts.v1.facts.Evidence
-	3,  // 29: vrooli.code_facts.v1.facts.Surface.kind:type_name -> vrooli.code_facts.v1.facts.SurfaceKind
-	4,  // 30: vrooli.code_facts.v1.facts.Surface.status:type_name -> vrooli.code_facts.v1.facts.SurfaceStatus
-	34, // 31: vrooli.code_facts.v1.facts.Surface.evidence:type_name -> vrooli.code_facts.v1.facts.Evidence
-	1,  // 32: vrooli.code_facts.v1.facts.GenericFact.family:type_name -> vrooli.code_facts.v1.facts.FactFamily
-	34, // 33: vrooli.code_facts.v1.facts.GenericFact.evidence:type_name -> vrooli.code_facts.v1.facts.Evidence
-	46, // 34: vrooli.code_facts.v1.facts.GenericFact.attributes:type_name -> vrooli.code_facts.v1.facts.GenericFact.AttributesEntry
-	2,  // 35: vrooli.code_facts.v1.facts.Warning.status:type_name -> vrooli.code_facts.v1.facts.EvidenceStatus
-	6,  // 36: vrooli.code_facts.v1.facts.CacheStatus.target:type_name -> vrooli.code_facts.v1.facts.CodeTarget
-	39, // 37: vrooli.code_facts.v1.facts.CacheStatus.entries_metadata:type_name -> vrooli.code_facts.v1.facts.CacheMetadata
-	40, // 38: vrooli.code_facts.v1.facts.CacheStatus.scopes:type_name -> vrooli.code_facts.v1.facts.CacheScopeSummary
-	32, // 39: vrooli.code_facts.v1.facts.CodeFactsReport.target:type_name -> vrooli.code_facts.v1.facts.TargetContext
-	35, // 40: vrooli.code_facts.v1.facts.CodeFactsReport.parse_units:type_name -> vrooli.code_facts.v1.facts.ParseUnit
-	36, // 41: vrooli.code_facts.v1.facts.CodeFactsReport.surfaces:type_name -> vrooli.code_facts.v1.facts.Surface
-	37, // 42: vrooli.code_facts.v1.facts.CodeFactsReport.facts:type_name -> vrooli.code_facts.v1.facts.GenericFact
-	34, // 43: vrooli.code_facts.v1.facts.CodeFactsReport.evidence:type_name -> vrooli.code_facts.v1.facts.Evidence
-	38, // 44: vrooli.code_facts.v1.facts.CodeFactsReport.warnings:type_name -> vrooli.code_facts.v1.facts.Warning
-	39, // 45: vrooli.code_facts.v1.facts.CodeFactsReport.cache:type_name -> vrooli.code_facts.v1.facts.CacheMetadata
-	32, // 46: vrooli.code_facts.v1.facts.ListSurfacesResponse.target:type_name -> vrooli.code_facts.v1.facts.TargetContext
-	36, // 47: vrooli.code_facts.v1.facts.ListSurfacesResponse.surfaces:type_name -> vrooli.code_facts.v1.facts.Surface
-	38, // 48: vrooli.code_facts.v1.facts.ListSurfacesResponse.warnings:type_name -> vrooli.code_facts.v1.facts.Warning
-	39, // 49: vrooli.code_facts.v1.facts.ListSurfacesResponse.cache:type_name -> vrooli.code_facts.v1.facts.CacheMetadata
-	32, // 50: vrooli.code_facts.v1.facts.ProofReport.target:type_name -> vrooli.code_facts.v1.facts.TargetContext
-	1,  // 51: vrooli.code_facts.v1.facts.ProofReport.family:type_name -> vrooli.code_facts.v1.facts.FactFamily
-	37, // 52: vrooli.code_facts.v1.facts.ProofReport.facts:type_name -> vrooli.code_facts.v1.facts.GenericFact
-	34, // 53: vrooli.code_facts.v1.facts.ProofReport.evidence:type_name -> vrooli.code_facts.v1.facts.Evidence
-	38, // 54: vrooli.code_facts.v1.facts.ProofReport.warnings:type_name -> vrooli.code_facts.v1.facts.Warning
-	39, // 55: vrooli.code_facts.v1.facts.ProofReport.cache:type_name -> vrooli.code_facts.v1.facts.CacheMetadata
-	7,  // 56: vrooli.code_facts.v1.facts.CodeFactsService.DescribeCodeFacts:input_type -> vrooli.code_facts.v1.facts.DescribeCodeFactsRequest
-	8,  // 57: vrooli.code_facts.v1.facts.CodeFactsService.Search:input_type -> vrooli.code_facts.v1.facts.SearchRequest
-	23, // 58: vrooli.code_facts.v1.facts.CodeFactsService.DescribeFleetImports:input_type -> vrooli.code_facts.v1.facts.DescribeFleetImportsRequest
-	26, // 59: vrooli.code_facts.v1.facts.CodeFactsService.ListSurfaces:input_type -> vrooli.code_facts.v1.facts.ListSurfacesRequest
-	27, // 60: vrooli.code_facts.v1.facts.CodeFactsService.CheckProtoAdoption:input_type -> vrooli.code_facts.v1.facts.CheckProtoAdoptionRequest
-	28, // 61: vrooli.code_facts.v1.facts.CodeFactsService.CheckEndpointProof:input_type -> vrooli.code_facts.v1.facts.CheckEndpointProofRequest
-	29, // 62: vrooli.code_facts.v1.facts.CodeFactsService.GetCacheStatus:input_type -> vrooli.code_facts.v1.facts.GetCacheStatusRequest
-	30, // 63: vrooli.code_facts.v1.facts.CodeFactsService.InspectCache:input_type -> vrooli.code_facts.v1.facts.InspectCacheRequest
-	31, // 64: vrooli.code_facts.v1.facts.CodeFactsService.ClearCache:input_type -> vrooli.code_facts.v1.facts.ClearCacheRequest
-	14, // 65: vrooli.code_facts.v1.facts.CodeFactsService.GetIndexStatus:input_type -> vrooli.code_facts.v1.facts.GetIndexStatusRequest
-	16, // 66: vrooli.code_facts.v1.facts.CodeFactsService.ReconcileIndex:input_type -> vrooli.code_facts.v1.facts.ReconcileIndexRequest
-	17, // 67: vrooli.code_facts.v1.facts.CodeFactsService.Reindex:input_type -> vrooli.code_facts.v1.facts.ReindexRequest
-	18, // 68: vrooli.code_facts.v1.facts.CodeFactsService.CancelIndexJob:input_type -> vrooli.code_facts.v1.facts.CancelIndexJobRequest
-	19, // 69: vrooli.code_facts.v1.facts.CodeFactsService.PromoteIndexGeneration:input_type -> vrooli.code_facts.v1.facts.PromoteIndexGenerationRequest
-	20, // 70: vrooli.code_facts.v1.facts.CodeFactsService.RollbackIndexGeneration:input_type -> vrooli.code_facts.v1.facts.RollbackIndexGenerationRequest
-	21, // 71: vrooli.code_facts.v1.facts.CodeFactsService.CleanupIndex:input_type -> vrooli.code_facts.v1.facts.CleanupIndexRequest
-	43, // 72: vrooli.code_facts.v1.facts.CodeFactsService.DescribeCodeFacts:output_type -> vrooli.code_facts.v1.facts.CodeFactsReport
-	12, // 73: vrooli.code_facts.v1.facts.CodeFactsService.Search:output_type -> vrooli.code_facts.v1.facts.SearchResponse
-	25, // 74: vrooli.code_facts.v1.facts.CodeFactsService.DescribeFleetImports:output_type -> vrooli.code_facts.v1.facts.DescribeFleetImportsResponse
-	44, // 75: vrooli.code_facts.v1.facts.CodeFactsService.ListSurfaces:output_type -> vrooli.code_facts.v1.facts.ListSurfacesResponse
-	45, // 76: vrooli.code_facts.v1.facts.CodeFactsService.CheckProtoAdoption:output_type -> vrooli.code_facts.v1.facts.ProofReport
-	45, // 77: vrooli.code_facts.v1.facts.CodeFactsService.CheckEndpointProof:output_type -> vrooli.code_facts.v1.facts.ProofReport
-	41, // 78: vrooli.code_facts.v1.facts.CodeFactsService.GetCacheStatus:output_type -> vrooli.code_facts.v1.facts.CacheStatus
-	41, // 79: vrooli.code_facts.v1.facts.CodeFactsService.InspectCache:output_type -> vrooli.code_facts.v1.facts.CacheStatus
-	42, // 80: vrooli.code_facts.v1.facts.CodeFactsService.ClearCache:output_type -> vrooli.code_facts.v1.facts.ClearCacheResponse
-	15, // 81: vrooli.code_facts.v1.facts.CodeFactsService.GetIndexStatus:output_type -> vrooli.code_facts.v1.facts.IndexStatus
-	22, // 82: vrooli.code_facts.v1.facts.CodeFactsService.ReconcileIndex:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
-	22, // 83: vrooli.code_facts.v1.facts.CodeFactsService.Reindex:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
-	22, // 84: vrooli.code_facts.v1.facts.CodeFactsService.CancelIndexJob:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
-	22, // 85: vrooli.code_facts.v1.facts.CodeFactsService.PromoteIndexGeneration:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
-	22, // 86: vrooli.code_facts.v1.facts.CodeFactsService.RollbackIndexGeneration:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
-	22, // 87: vrooli.code_facts.v1.facts.CodeFactsService.CleanupIndex:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
-	72, // [72:88] is the sub-list for method output_type
-	56, // [56:72] is the sub-list for method input_type
-	56, // [56:56] is the sub-list for extension type_name
-	56, // [56:56] is the sub-list for extension extendee
-	0,  // [0:56] is the sub-list for field type_name
+	36, // 29: vrooli.code_facts.v1.facts.ParseUnit.toolchain:type_name -> vrooli.code_facts.v1.facts.ToolchainObservation
+	2,  // 30: vrooli.code_facts.v1.facts.ToolchainObservation.status:type_name -> vrooli.code_facts.v1.facts.EvidenceStatus
+	34, // 31: vrooli.code_facts.v1.facts.ToolchainObservation.evidence:type_name -> vrooli.code_facts.v1.facts.Evidence
+	3,  // 32: vrooli.code_facts.v1.facts.Surface.kind:type_name -> vrooli.code_facts.v1.facts.SurfaceKind
+	4,  // 33: vrooli.code_facts.v1.facts.Surface.status:type_name -> vrooli.code_facts.v1.facts.SurfaceStatus
+	34, // 34: vrooli.code_facts.v1.facts.Surface.evidence:type_name -> vrooli.code_facts.v1.facts.Evidence
+	1,  // 35: vrooli.code_facts.v1.facts.GenericFact.family:type_name -> vrooli.code_facts.v1.facts.FactFamily
+	34, // 36: vrooli.code_facts.v1.facts.GenericFact.evidence:type_name -> vrooli.code_facts.v1.facts.Evidence
+	47, // 37: vrooli.code_facts.v1.facts.GenericFact.attributes:type_name -> vrooli.code_facts.v1.facts.GenericFact.AttributesEntry
+	2,  // 38: vrooli.code_facts.v1.facts.Warning.status:type_name -> vrooli.code_facts.v1.facts.EvidenceStatus
+	6,  // 39: vrooli.code_facts.v1.facts.CacheStatus.target:type_name -> vrooli.code_facts.v1.facts.CodeTarget
+	40, // 40: vrooli.code_facts.v1.facts.CacheStatus.entries_metadata:type_name -> vrooli.code_facts.v1.facts.CacheMetadata
+	41, // 41: vrooli.code_facts.v1.facts.CacheStatus.scopes:type_name -> vrooli.code_facts.v1.facts.CacheScopeSummary
+	32, // 42: vrooli.code_facts.v1.facts.CodeFactsReport.target:type_name -> vrooli.code_facts.v1.facts.TargetContext
+	35, // 43: vrooli.code_facts.v1.facts.CodeFactsReport.parse_units:type_name -> vrooli.code_facts.v1.facts.ParseUnit
+	37, // 44: vrooli.code_facts.v1.facts.CodeFactsReport.surfaces:type_name -> vrooli.code_facts.v1.facts.Surface
+	38, // 45: vrooli.code_facts.v1.facts.CodeFactsReport.facts:type_name -> vrooli.code_facts.v1.facts.GenericFact
+	34, // 46: vrooli.code_facts.v1.facts.CodeFactsReport.evidence:type_name -> vrooli.code_facts.v1.facts.Evidence
+	39, // 47: vrooli.code_facts.v1.facts.CodeFactsReport.warnings:type_name -> vrooli.code_facts.v1.facts.Warning
+	40, // 48: vrooli.code_facts.v1.facts.CodeFactsReport.cache:type_name -> vrooli.code_facts.v1.facts.CacheMetadata
+	32, // 49: vrooli.code_facts.v1.facts.ListSurfacesResponse.target:type_name -> vrooli.code_facts.v1.facts.TargetContext
+	37, // 50: vrooli.code_facts.v1.facts.ListSurfacesResponse.surfaces:type_name -> vrooli.code_facts.v1.facts.Surface
+	39, // 51: vrooli.code_facts.v1.facts.ListSurfacesResponse.warnings:type_name -> vrooli.code_facts.v1.facts.Warning
+	40, // 52: vrooli.code_facts.v1.facts.ListSurfacesResponse.cache:type_name -> vrooli.code_facts.v1.facts.CacheMetadata
+	32, // 53: vrooli.code_facts.v1.facts.ProofReport.target:type_name -> vrooli.code_facts.v1.facts.TargetContext
+	1,  // 54: vrooli.code_facts.v1.facts.ProofReport.family:type_name -> vrooli.code_facts.v1.facts.FactFamily
+	38, // 55: vrooli.code_facts.v1.facts.ProofReport.facts:type_name -> vrooli.code_facts.v1.facts.GenericFact
+	34, // 56: vrooli.code_facts.v1.facts.ProofReport.evidence:type_name -> vrooli.code_facts.v1.facts.Evidence
+	39, // 57: vrooli.code_facts.v1.facts.ProofReport.warnings:type_name -> vrooli.code_facts.v1.facts.Warning
+	40, // 58: vrooli.code_facts.v1.facts.ProofReport.cache:type_name -> vrooli.code_facts.v1.facts.CacheMetadata
+	7,  // 59: vrooli.code_facts.v1.facts.CodeFactsService.DescribeCodeFacts:input_type -> vrooli.code_facts.v1.facts.DescribeCodeFactsRequest
+	8,  // 60: vrooli.code_facts.v1.facts.CodeFactsService.Search:input_type -> vrooli.code_facts.v1.facts.SearchRequest
+	23, // 61: vrooli.code_facts.v1.facts.CodeFactsService.DescribeFleetImports:input_type -> vrooli.code_facts.v1.facts.DescribeFleetImportsRequest
+	26, // 62: vrooli.code_facts.v1.facts.CodeFactsService.ListSurfaces:input_type -> vrooli.code_facts.v1.facts.ListSurfacesRequest
+	27, // 63: vrooli.code_facts.v1.facts.CodeFactsService.CheckProtoAdoption:input_type -> vrooli.code_facts.v1.facts.CheckProtoAdoptionRequest
+	28, // 64: vrooli.code_facts.v1.facts.CodeFactsService.CheckEndpointProof:input_type -> vrooli.code_facts.v1.facts.CheckEndpointProofRequest
+	29, // 65: vrooli.code_facts.v1.facts.CodeFactsService.GetCacheStatus:input_type -> vrooli.code_facts.v1.facts.GetCacheStatusRequest
+	30, // 66: vrooli.code_facts.v1.facts.CodeFactsService.InspectCache:input_type -> vrooli.code_facts.v1.facts.InspectCacheRequest
+	31, // 67: vrooli.code_facts.v1.facts.CodeFactsService.ClearCache:input_type -> vrooli.code_facts.v1.facts.ClearCacheRequest
+	14, // 68: vrooli.code_facts.v1.facts.CodeFactsService.GetIndexStatus:input_type -> vrooli.code_facts.v1.facts.GetIndexStatusRequest
+	16, // 69: vrooli.code_facts.v1.facts.CodeFactsService.ReconcileIndex:input_type -> vrooli.code_facts.v1.facts.ReconcileIndexRequest
+	17, // 70: vrooli.code_facts.v1.facts.CodeFactsService.Reindex:input_type -> vrooli.code_facts.v1.facts.ReindexRequest
+	18, // 71: vrooli.code_facts.v1.facts.CodeFactsService.CancelIndexJob:input_type -> vrooli.code_facts.v1.facts.CancelIndexJobRequest
+	19, // 72: vrooli.code_facts.v1.facts.CodeFactsService.PromoteIndexGeneration:input_type -> vrooli.code_facts.v1.facts.PromoteIndexGenerationRequest
+	20, // 73: vrooli.code_facts.v1.facts.CodeFactsService.RollbackIndexGeneration:input_type -> vrooli.code_facts.v1.facts.RollbackIndexGenerationRequest
+	21, // 74: vrooli.code_facts.v1.facts.CodeFactsService.CleanupIndex:input_type -> vrooli.code_facts.v1.facts.CleanupIndexRequest
+	44, // 75: vrooli.code_facts.v1.facts.CodeFactsService.DescribeCodeFacts:output_type -> vrooli.code_facts.v1.facts.CodeFactsReport
+	12, // 76: vrooli.code_facts.v1.facts.CodeFactsService.Search:output_type -> vrooli.code_facts.v1.facts.SearchResponse
+	25, // 77: vrooli.code_facts.v1.facts.CodeFactsService.DescribeFleetImports:output_type -> vrooli.code_facts.v1.facts.DescribeFleetImportsResponse
+	45, // 78: vrooli.code_facts.v1.facts.CodeFactsService.ListSurfaces:output_type -> vrooli.code_facts.v1.facts.ListSurfacesResponse
+	46, // 79: vrooli.code_facts.v1.facts.CodeFactsService.CheckProtoAdoption:output_type -> vrooli.code_facts.v1.facts.ProofReport
+	46, // 80: vrooli.code_facts.v1.facts.CodeFactsService.CheckEndpointProof:output_type -> vrooli.code_facts.v1.facts.ProofReport
+	42, // 81: vrooli.code_facts.v1.facts.CodeFactsService.GetCacheStatus:output_type -> vrooli.code_facts.v1.facts.CacheStatus
+	42, // 82: vrooli.code_facts.v1.facts.CodeFactsService.InspectCache:output_type -> vrooli.code_facts.v1.facts.CacheStatus
+	43, // 83: vrooli.code_facts.v1.facts.CodeFactsService.ClearCache:output_type -> vrooli.code_facts.v1.facts.ClearCacheResponse
+	15, // 84: vrooli.code_facts.v1.facts.CodeFactsService.GetIndexStatus:output_type -> vrooli.code_facts.v1.facts.IndexStatus
+	22, // 85: vrooli.code_facts.v1.facts.CodeFactsService.ReconcileIndex:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
+	22, // 86: vrooli.code_facts.v1.facts.CodeFactsService.Reindex:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
+	22, // 87: vrooli.code_facts.v1.facts.CodeFactsService.CancelIndexJob:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
+	22, // 88: vrooli.code_facts.v1.facts.CodeFactsService.PromoteIndexGeneration:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
+	22, // 89: vrooli.code_facts.v1.facts.CodeFactsService.RollbackIndexGeneration:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
+	22, // 90: vrooli.code_facts.v1.facts.CodeFactsService.CleanupIndex:output_type -> vrooli.code_facts.v1.facts.IndexControlResponse
+	75, // [75:91] is the sub-list for method output_type
+	59, // [59:75] is the sub-list for method input_type
+	59, // [59:59] is the sub-list for extension type_name
+	59, // [59:59] is the sub-list for extension extendee
+	0,  // [0:59] is the sub-list for field type_name
 }
 
 func init() { file_code_facts_v1_facts_facts_proto_init() }
@@ -4156,7 +4288,7 @@ func file_code_facts_v1_facts_facts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_code_facts_v1_facts_facts_proto_rawDesc), len(file_code_facts_v1_facts_facts_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   41,
+			NumMessages:   42,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

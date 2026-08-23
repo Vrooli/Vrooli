@@ -52,6 +52,7 @@ enum ResolutionStatus {
   RESOLUTION_STATUS_UNWIRED = 4;
   RESOLUTION_STATUS_PEERLESS = 5;
   RESOLUTION_STATUS_STATUS_INVALID = 6;
+  RESOLUTION_STATUS_CONTROLS_INCOMPLETE = 7;
 }
 
 // Qualification is the honesty ladder, ascending with real-world proof. It is
@@ -102,6 +103,30 @@ message PlatformEntry {
   // has_implementation is the resolver's own answer to "does code run here?",
   // carried so a caller never re-derives it by comparing against one status.
   bool has_implementation = 8;
+  repeated string controls = 9;
+  repeated string absent = 10;
+  repeated CapabilityDeclarer declarers = 11;
+  // observed_qualification is host evidence, not a replacement for the
+  // declaration qualification above. It is explicit when the current host
+  // has not sampled the platform or declarer.
+  Qualification observed_qualification = 12;
+  string observed_qualification_reason = 13;
+  repeated ObservedDeclarer observed_declarers = 14;
+}
+
+message CapabilityDeclarer {
+  string name = 1;
+  string role = 2;
+  string declared_status = 3;
+  bool resolved = 4;
+  string reason = 5;
+}
+
+message ObservedDeclarer {
+  string name = 1;
+  string state = 2;
+  Qualification qualification = 3;
+  string reason = 4;
 }
 
 message CapabilityEntry {
@@ -119,6 +144,18 @@ message Grid {
   string manifest_root = 2;
   int32 manifests_read = 3;
   google.protobuf.Timestamp computed_at = 4;
+  repeated ObservedSafeguard observed_safeguards = 5;
+}
+
+message ObservedSafeguard {
+  string name = 1;
+  string capability = 2;
+  string capability_role = 3;
+  repeated string platforms = 4;
+  string support_class = 5;
+  string execution_state = 6;
+  repeated string notes = 7;
+  google.protobuf.Timestamp observed_at = 8;
 }
 
 message GetGridRequest {
@@ -206,6 +243,10 @@ message FleetReadout {
   DesktopBundlingVerdict desktop_bundling = 5;
   string manifest_root = 6;
   google.protobuf.Timestamp computed_at = 7;
+  // available is false when SDA cannot be reached. In that case no local
+  // closure computation is substituted.
+  bool available = 8;
+  string reason = 9;
 }
 
 message GetFleetRequest {

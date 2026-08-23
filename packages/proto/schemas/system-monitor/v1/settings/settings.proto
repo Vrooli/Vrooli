@@ -77,6 +77,13 @@ message SystemSettings {
   // A rise of at least this many percentage points in a single evaluation
   // escalates immediately, bounding the delay debounce introduces.
   double disk_fast_fill_jump_percent = 17;
+
+  double cpu_high_percent = 18;
+  double cpu_critical_percent = 19;
+  int32 cpu_escalation_cooldown_seconds = 20;
+  int32 cpu_escalation_debounce_ticks = 21;
+  int32 cpu_sustained_window_ticks = 22;
+  double cpu_pressure_threshold = 23;
 }
 
 // =============================================================================
