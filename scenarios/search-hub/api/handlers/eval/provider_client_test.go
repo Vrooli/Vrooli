@@ -132,6 +132,16 @@ func TestParseIndexTimestampUsesDeclaredNestedField(t *testing.T) {
 	require.Equal(t, "2026-08-13T11:34:20.777491506Z", got.UTC().Format(time.RFC3339Nano))
 }
 
+func TestParseIndexTimestampAcceptsUnixSecondsFromProtoJSON(t *testing.T) {
+	got := parseIndexTimestamp([]byte(`{"lastReconcileAtUnix":"1787139260"}`), "lastReconcileAtUnix")
+	require.Equal(t, time.Unix(1787139260, 0).UTC(), got)
+}
+
+func TestParseSnapshotReadsCodeFactsDocumentCount(t *testing.T) {
+	got := parseSnapshot([]byte(`{"searchDocuments":42}`))
+	require.Equal(t, int32(42), got.GetIndexedCount())
+}
+
 func readRequestBody(t *testing.T, req *http.Request) string {
 	t.Helper()
 	raw, err := req.GetBody()

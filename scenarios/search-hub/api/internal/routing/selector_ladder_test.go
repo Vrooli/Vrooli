@@ -7,9 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"search-hub/internal/routing"
+
 	aisearch "github.com/vrooli/ai-go/search"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
-	"search-hub/internal/routing"
 )
 
 type selectorLadderReranker struct {

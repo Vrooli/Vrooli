@@ -77,3 +77,19 @@ func EnsureCollectionForBinding(ctx context.Context, store VectorStore, b Source
 	}
 	return store.EnsureCollection(ctx, spec)
 }
+
+// UpsertPoints applies the governed storage profile's batch size when the
+// store supports BatchVectorStore. Other stores retain compatible one-point
+// writes. This is the common write path for adopters that do not use a
+// GenerationStore.
+func UpsertPoints(ctx context.Context, store VectorStore, spec CollectionSpec, points []Point) error {
+	if batchStore, ok := store.(BatchVectorStore); ok {
+		return batchStore.UpsertBatch(ctx, points, spec.Storage.UpsertBatchSize)
+	}
+	for _, point := range points {
+		if err := store.Upsert(ctx, point); err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -13,6 +13,7 @@ import (
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/shared"
 )
 
 // QueryClient is the consumer-owned seam for the public federated query path.
@@ -265,6 +266,9 @@ func (r *FederatedRunner) runFederatedCase(ctx context.Context, suite *evalv1.Ev
 		expectedProvider = suite.GetProviderId()
 	}
 	cr := &evalv1.CaseResult{CaseId: c.GetCaseId(), ExpectedProviderId: expectedProvider}
+	if routingResponse != nil {
+		cr.RoutingTrace = routingResponse.GetRoutingTrace()
+	}
 	if reason, withheld := automaticExclusions[expectedProvider]; withheld {
 		cr.Outcome = "unavailable"
 		cr.OutcomeReason = fmt.Sprintf("expected provider %q withheld from automatic routing: %s", expectedProvider, reason)
@@ -273,6 +277,11 @@ func (r *FederatedRunner) runFederatedCase(ctx context.Context, suite *evalv1.Ev
 	if err != nil {
 		cr.Outcome = "error"
 		cr.OutcomeReason = err.Error()
+		cr.RoutingTrace = &sharedv1.RoutingTrace{
+			StrategyName:      strategyName,
+			IndexStatus:       "unavailable",
+			UnavailableReason: "query_error: " + err.Error(),
+		}
 		if unavailableError(err) || ctx.Err() != nil || caseCtx.Err() != nil {
 			cr.Outcome = "unavailable"
 		}

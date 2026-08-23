@@ -121,7 +121,7 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
   (description + `intended_home`, no endpoint). They surface in
   `providers list` / `status` as the live Track-A adoption checklist
   (MOD-P1-010, gap requirements REQ-P1-006..015).
-- Storage: embedded SQLite (`SQLITE_PATH`). See [`DATA.md`](DATA.md).
+- Storage: embedded SQLite, resolved by `api-core/storage`. See [`DATA.md`](DATA.md).
 - Requirements: MOD-P0-001 (registry + self-registration), MOD-P1-010
   (gap-corpus stubs).
 - Tests: descriptor validation, registry CRUD, gap-stub listing.
@@ -240,7 +240,7 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
 - Does not own: query orchestration (routing) or descriptors (registry).
   Query text is **hashed** (SHA-256) before it reaches telemetry — the
   tables carry no recoverable user input.
-- Storage: embedded SQLite (`SQLITE_PATH`). See [`DATA.md`](DATA.md).
+- Storage: embedded SQLite, resolved by `api-core/storage`. See [`DATA.md`](DATA.md).
 - Requirements: MOD-P1-008 (measurement backbone).
 - Tests: `internal/metrics/store_test.go` (Record + p50/p95 + window +
   per-provider aggregates), `handlers/metrics/connect_handler_test.go`

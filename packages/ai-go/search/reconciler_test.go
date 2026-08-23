@@ -2,7 +2,9 @@ package aisearch
 
 import (
 	"context"
+	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -295,5 +297,159 @@ func TestIdentityChunkerKeepsUnsuffixedPointID(t *testing.T) {
 		}
 		sort.Strings(got)
 		t.Fatalf("expected un-suffixed point ID %s, store has %v", want, got)
+	}
+}
+
+type generatedPagedSource struct {
+	total  int
+	failAt int
+}
+
+func (s generatedPagedSource) LoadPage(_ context.Context, request PageRequest) (SourcePage, error) {
+	start := 0
+	if request.Cursor != "" {
+		var err error
+		start, err = strconv.Atoi(request.Cursor)
+		if err != nil {
+			return SourcePage{}, err
+		}
+	}
+	if s.failAt > 0 && start >= s.failAt {
+		return SourcePage{}, fmt.Errorf("fixture page failure")
+	}
+	end := start + request.Limit
+	if end > s.total {
+		end = s.total
+	}
+	docs := make([]SourceDoc, 0, end-start)
+	for i := start; i < end; i++ {
+		id := fmt.Sprintf("source-%08d", i)
+		docs = append(docs, SourceDoc{ID: id, Kind: "fixture", ContentHash: "hash:" + id, Body: "body " + id})
+	}
+	page := SourcePage{Documents: docs, Done: end == s.total}
+	if !page.Done {
+		page.NextCursor = strconv.Itoa(end)
+	}
+	return page, nil
+}
+
+type fakeGenerationStore struct {
+	maxLookup  int
+	active     map[string]StoredSourceState
+	staged     int
+	begin      bool
+	promoted   bool
+	rolledBack bool
+	cleaned    bool
+}
+
+func (s *fakeGenerationStore) BeginGeneration(context.Context, GenerationMetadata) error {
+	s.begin = true
+	return nil
+}
+
+func (s *fakeGenerationStore) LookupActiveSources(_ context.Context, ids []string) (map[string]StoredSourceState, error) {
+	if len(ids) > s.maxLookup {
+		s.maxLookup = len(ids)
+	}
+	out := make(map[string]StoredSourceState)
+	for _, id := range ids {
+		if state, ok := s.active[id]; ok {
+			out[id] = state
+		}
+	}
+	return out, nil
+}
+
+func (s *fakeGenerationStore) StageSource(_ context.Context, _ string, _ GenerationSourceWrite) error {
+	s.staged++
+	return nil
+}
+
+func (s *fakeGenerationStore) StageDelete(context.Context, string, string) error { return nil }
+
+func (s *fakeGenerationStore) ValidateGeneration(context.Context, string) (GenerationValidation, error) {
+	return GenerationValidation{SourceCount: s.staged, PointCount: s.staged, Valid: true}, nil
+}
+
+func (s *fakeGenerationStore) PromoteGeneration(context.Context, string) error {
+	s.promoted = true
+	return nil
+}
+
+func (s *fakeGenerationStore) RollbackGeneration(context.Context, string) error {
+	s.rolledBack = true
+	return nil
+}
+
+func (s *fakeGenerationStore) CleanupGenerations(context.Context, int) error {
+	s.cleaned = true
+	return nil
+}
+
+func TestStreamingReconcilerBoundsLargeCorpusByPage(t *testing.T) {
+	const (
+		corpusSize = 10_000
+		pageSize   = 64
+	)
+	store := &fakeGenerationStore{}
+	embedder := &countingEmbedder{}
+	reconciler := NewStreamingReconciler(embedder)
+	result, err := reconciler.RunFull(context.Background(), StreamingBinding{
+		Kind: "fixture", Store: store, Source: generatedPagedSource{total: corpusSize},
+		IDPrefix: "fixture:", PageSize: pageSize,
+	}, GenerationMetadata{ID: "generation-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Promoted || !store.promoted || !store.cleaned || store.rolledBack {
+		t.Fatalf("generation lifecycle mismatch: result=%+v store=%+v", result, store)
+	}
+	if result.Sources != corpusSize || result.Embedded != corpusSize {
+		t.Fatalf("expected all generated sources, got sources=%d embedded=%d", result.Sources, result.Embedded)
+	}
+	if result.MaxPageDocuments > pageSize || store.maxLookup > pageSize {
+		t.Fatalf("bounded planner exceeded page: result=%d lookup=%d limit=%d", result.MaxPageDocuments, store.maxLookup, pageSize)
+	}
+}
+
+func TestStreamingReconcilerRollsBackWithoutPromotionOnPageFailure(t *testing.T) {
+	store := &fakeGenerationStore{}
+	reconciler := NewStreamingReconciler(&countingEmbedder{})
+	_, err := reconciler.RunFull(context.Background(), StreamingBinding{
+		Kind: "fixture", Store: store, Source: generatedPagedSource{total: 8, failAt: 2},
+		IDPrefix: "fixture:", PageSize: 2,
+	}, GenerationMetadata{ID: "generation-fails"})
+	if err == nil {
+		t.Fatal("expected page failure")
+	}
+	if !store.rolledBack || store.promoted {
+		t.Fatalf("failed shadow generation must roll back without promotion: %+v", store)
+	}
+}
+
+func TestStreamingReconcilerSkipsCompleteUnchangedSourceBeforeChunking(t *testing.T) {
+	id := "source-00000000"
+	hash := "hash:" + id
+	pointID := PointIDFor("fixture:", id, 0, 1)
+	store := &fakeGenerationStore{active: map[string]StoredSourceState{
+		id: {
+			SourceHash:  hash,
+			Model:       "fixture-model",
+			ChunkPolicy: "identity-v1",
+			Points: map[string]ScrollItem{
+				pointID: {SourceHash: hash, SourceID: id, ChunkTotal: 1},
+			},
+		},
+	}}
+	embedder := &countingEmbedder{}
+	result, err := NewStreamingReconciler(embedder).RunFull(context.Background(), StreamingBinding{
+		Kind: "fixture", Store: store, Source: generatedPagedSource{total: 1}, IDPrefix: "fixture:", PageSize: 1,
+	}, GenerationMetadata{ID: "generation-reuse", Model: "fixture-model", ChunkPolicy: "identity-v1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Embedded != 0 || result.Reused != 1 || embedder.calls != 0 {
+		t.Fatalf("unchanged source must skip chunk/embed wholesale: result=%+v calls=%d", result, embedder.calls)
 	}
 }

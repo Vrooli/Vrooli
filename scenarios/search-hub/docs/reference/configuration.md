@@ -29,7 +29,7 @@ for the full policy.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/search-hub.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
+| _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 | `scenarios/search-hub/api/internal/routing/strategies.json:router_factors.query_budget` | `25s` | Total router budget for listing providers, fan-out, optional external escalation, and reranking. Keep this below the CLI HTTP timeout so degraded responses can return before clients give up. |
@@ -98,7 +98,6 @@ Single source of truth for everything the lifecycle needs to know.
 | `lifecycle.health` | `/health` endpoint, startup grace period, periodic checks |
 | `lifecycle.setup` | build steps + idempotency conditions (binary present, UI bundle fresh) |
 | `lifecycle.develop` | how to start the running scenario |
-| `lifecycle.test` | which test command to invoke |
 | `lifecycle.stop` | how to shut down cleanly |
 | `environment` | static env vars set for every lifecycle step |
 | `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |
@@ -311,6 +310,22 @@ token at the provider's first `RegisterProvider`, stores it server-side, and
 presents it on every reindex / config-write / per-request override. Public search
 (no overrides) needs no token. A provider that declares neither `reindex_endpoint`
 nor `config_endpoint` is routable but not sweep-tunable.
+
+### Indexed-provider status and scope contract
+
+A `local_index` provider declares `status_endpoint`, `index_timestamp_field`,
+`freshness_budget`, and the shared `reindex_endpoint`. Status responses may use
+RFC3339 timestamps or Unix seconds/milliseconds. Search Hub maps the generic
+generation, document/source/card/graph counts, index state, drift flag, and
+degraded-stage fields into `ProviderHealth`; it does not infer them from the
+provider name. Automatic routing withholds stale generations while explicit
+selection remains available for diagnosis.
+
+Provider request templates may use `{{scope}}`, `{{scope_kind}}`, and
+`{{scope_value}}`. The canonical scopes are `global`, `scenario:<id>`, and
+`path:<prefix>`. Providers must apply the scope before ranking, and should carry
+explicit stage budgets inside their request body when their internal retrieval
+pipeline has multiple bounded legs.
 
 ## Cross-references
 

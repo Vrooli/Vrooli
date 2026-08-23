@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -77,6 +78,9 @@ func Validate(d *registryv1.ProviderDescriptor) error {
 	default:
 		return ErrInvalidDescriptor{Field: "lifecycle", Reason: "must be LIFECYCLE_PRODUCTION, LIFECYCLE_FIXTURE, or LIFECYCLE_EXPERIMENTAL"}
 	}
+	if err := validateRoutingProfile(d.RoutingProfile); err != nil {
+		return err
+	}
 	if d.FreshnessBudget != nil {
 		if err := d.FreshnessBudget.CheckValid(); err != nil || d.FreshnessBudget.AsDuration() < 0 {
 			return ErrInvalidDescriptor{Field: "freshness_budget", Reason: "must be a non-negative duration"}
@@ -96,6 +100,35 @@ func Validate(d *registryv1.ProviderDescriptor) error {
 		}
 		if err := validateResultMapping(d.ResultMapping); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func validateRoutingProfile(profile *registryv1.RoutingProfile) error {
+	if profile == nil {
+		return nil
+	}
+	if len(profile.GetAnswerSpaces()) == 0 && len(profile.GetIntents()) == 0 && len(profile.GetPositiveExamples()) == 0 && len(profile.GetExclusions()) > 0 {
+		return ErrInvalidDescriptor{Field: "routing_profile", Reason: "must declare at least one positive answer space, intent, or positive example"}
+	}
+	for field, values := range map[string][]string{
+		"routing_profile.answer_spaces":     profile.GetAnswerSpaces(),
+		"routing_profile.intents":           profile.GetIntents(),
+		"routing_profile.positive_examples": profile.GetPositiveExamples(),
+		"routing_profile.exclusions":        profile.GetExclusions(),
+	} {
+		seen := make(map[string]struct{}, len(values))
+		for index, value := range values {
+			value = strings.TrimSpace(value)
+			if value == "" {
+				return ErrInvalidDescriptor{Field: fmt.Sprintf("%s[%d]", field, index), Reason: "must not be blank"}
+			}
+			key := strings.ToLower(value)
+			if _, ok := seen[key]; ok {
+				return ErrInvalidDescriptor{Field: fmt.Sprintf("%s[%d]", field, index), Reason: fmt.Sprintf("duplicates %q", value)}
+			}
+			seen[key] = struct{}{}
 		}
 	}
 	return nil

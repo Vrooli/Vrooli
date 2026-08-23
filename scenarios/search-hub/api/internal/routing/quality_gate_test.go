@@ -8,9 +8,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"search-hub/internal/routing"
+
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
-	"search-hub/internal/routing"
 )
 
 type fakeEvalQuality struct {

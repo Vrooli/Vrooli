@@ -30,13 +30,16 @@ import (
 	"sync"
 	"time"
 
-	aisearch "github.com/vrooli/ai-go/search"
 	"search-hub/internal/httpc"
 	"search-hub/internal/providers"
 	internalregistry "search-hub/internal/registry"
 
+	aisearch "github.com/vrooli/ai-go/search"
+
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/shared"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -266,6 +269,15 @@ type Router struct {
 	statusCache      *routingv1.StatusResponse
 	statusCacheAt    time.Time
 	probeLatencies   map[string]time.Duration
+	providerCallMu   sync.Mutex
+	providerCalls    map[string]*providerCall
+}
+
+type providerCall struct {
+	done    chan struct{}
+	cancel  context.CancelFunc
+	waiters int
+	result  *routingv1.ProviderResultGroup
 }
 
 // NewRouter constructs a Router, applying defaults for the optional Deps
@@ -351,6 +363,7 @@ func NewRouter(d Deps) *Router {
 			DemotionWindow:         d.ProviderBreaker.DemotionWindow,
 		}, d.DemotionStore),
 		probeLatencies: make(map[string]time.Duration),
+		providerCalls:  make(map[string]*providerCall),
 	}
 }
 
@@ -436,6 +449,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		widenedLeafCount   int
 		fanoutBoundReached bool
 		routingIndexReason string
+		routingTrace       *sharedv1.RoutingTrace
 		rerankLatency      int64
 		partial            bool
 		pendingProviders   int
@@ -470,7 +484,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		autoCandidates, qualityExplain = r.filterAutomatic(qctx, autoCandidates)
 		autoCandidates = r.filterDemoted(autoCandidates)
 		var webShaped bool
-		targets, autoExplain, selectionFallback, selectorLeg, webShaped, selectedLeafCount, widenedLeafCount, fanoutBoundReached, routingIndexReason, selectionReason = r.autoSelect(qctx, autoCandidates, query, selectedStrategy)
+		targets, autoExplain, selectionFallback, selectorLeg, webShaped, selectedLeafCount, widenedLeafCount, fanoutBoundReached, routingIndexReason, selectionReason, routingTrace = r.autoSelect(qctx, autoCandidates, query, selectedStrategy)
 		autoExplain = append(qualityExplain, autoExplain...)
 		// The LLM classifier was removed from the interactive path. Preserve the
 		// legacy telemetry field as an explicit zero rather than charging lexical
@@ -563,6 +577,13 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 			resp.Degraded = true
 		}
 	}
+	if routingEvaluation {
+		if routingTrace == nil {
+			routingTrace = &sharedv1.RoutingTrace{StrategyName: selectedStrategy.Name, IndexStatus: "unavailable", UnavailableReason: "automatic_selection_trace_unavailable"}
+		}
+		routingTrace.ReturnedEvidence = returnedEvidenceState(groups, partial, pendingProviders)
+		resp.RoutingTrace = routingTrace
+	}
 	if req.GetExplain() {
 		if backgroundEvaluation {
 			resp.RoutingExplanation = []string{"background evaluation: explicit bounded fan-out; classifier and reranker bypassed"}
@@ -619,6 +640,26 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		r.deps.Recorder.Record(qctx, sample)
 	}
 	return resp, nil
+}
+
+func returnedEvidenceState(groups []*routingv1.ProviderResultGroup, partial bool, pending int) string {
+	if partial || pending > 0 {
+		return "partial"
+	}
+	for _, group := range groups {
+		if group.GetDegraded() {
+			continue
+		}
+		if len(group.GetHits()) > 0 {
+			return "hits"
+		}
+	}
+	for _, group := range groups {
+		if group.GetDegraded() {
+			return "degraded"
+		}
+	}
+	return "empty"
 }
 
 func (r *Router) filterDemoted(providers []*registryv1.ProviderDescriptor) []*registryv1.ProviderDescriptor {
@@ -1012,16 +1053,21 @@ func (r *Router) rerankBudgetWithTimeout(ctx context.Context, timeout time.Durat
 // every eligible provider description before the cross-encoder chooses the
 // bounded fan-out. A failed semantic index is visible and falls back to that
 // lexical arm; it never silently changes the active strategy's evidence.
-func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDescriptor, query string, strategy RetrievalStrategy) (targets []*registryv1.ProviderDescriptor, explain []string, selectionFallback bool, selectorLeg string, webShaped bool, selectedLeafCount, widenedLeafCount int, boundReached bool, routingIndexReason, selectionReason string) {
+func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDescriptor, query string, strategy RetrievalStrategy) (targets []*registryv1.ProviderDescriptor, explain []string, selectionFallback bool, selectorLeg string, webShaped bool, selectedLeafCount, widenedLeafCount int, boundReached bool, routingIndexReason, selectionReason string, trace *sharedv1.RoutingTrace) {
 	profiles := buildProfiles(active)
+	trace = &sharedv1.RoutingTrace{StrategyName: strategy.Name, IndexStatus: "not_used"}
 	if len(profiles) == 0 {
-		return nil, []string{"automatic routing found no eligible provider leaves"}, true, selectorLegLexical, false, 0, 0, false, "no_eligible_provider", ""
+		trace.UnavailableReason = "no_eligible_provider"
+		return nil, []string{"automatic routing found no eligible provider leaves"}, true, selectorLegLexical, false, 0, 0, false, "no_eligible_provider", "", trace
 	}
 	if r.deps.Classifier != nil {
 		result, err := r.deps.Classifier.Classify(ctx, query, profiles)
 		if err != nil {
 			shortlist := lexicalProviderShortlist(query, profiles, 1)
-			return providersByID(active, profileIDs(shortlist)), []string{"legacy classifier compatibility fallback; lexical top-1 selected"}, true, selectorLegLexical, false, len(shortlist), 0, len(profiles) > len(shortlist), "legacy_classifier_removed", ""
+			trace.IndexStatus = "not_used"
+			trace.SelectionReason = "classifier_compatibility_fallback"
+			trace.SelectedProviderIds = profileIDs(shortlist)
+			return providersByID(active, profileIDs(shortlist)), []string{"legacy classifier compatibility fallback; lexical top-1 selected"}, true, selectorLegLexical, false, len(shortlist), 0, len(profiles) > len(shortlist), "legacy_classifier_removed", "", trace
 		}
 		ids := result.ProviderIDs
 		if len(ids) == 0 {
@@ -1034,26 +1080,40 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 		if len(chosen) > r.factors.MaxFanoutWidth {
 			chosen = chosen[:r.factors.MaxFanoutWidth]
 		}
-		return providersByID(active, profileIDs(chosen)), []string{"legacy classifier compatibility path"}, false, selectorLegLexical, result.WebShaped && result.Confidence >= autoExternalThreshold(), len(chosen), 0, false, "", ""
+		trace.SelectionReason = "classifier_compatibility"
+		trace.SelectedProviderIds = profileIDs(chosen)
+		return providersByID(active, profileIDs(chosen)), []string{"legacy classifier compatibility path"}, false, selectorLegLexical, result.WebShaped && result.Confidence >= autoExternalThreshold(), len(chosen), 0, false, "", "", trace
 	}
 
 	shortlistWidth := strategyIntParam(strategy, StageLexical, "shortlist_width", r.factors.MaxFanoutWidth)
-	shortlist := lexicalProviderShortlist(query, profiles, shortlistWidth)
+	lexicalRanking := lexicalProviderShortlist(query, profiles, len(profiles))
+	trace.LexicalTopProviderIds = topProviderIDs(lexicalRanking, routingTraceTopK)
+	shortlist := lexicalRanking
+	if len(shortlist) > shortlistWidth {
+		shortlist = shortlist[:shortlistWidth]
+	}
 	var semanticRanking []ProviderProfile
-	var lexicalRanking []ProviderProfile
+	denseScores := map[string]float64{}
 	if strategyHasStage(strategy, StageEmbedding) {
-		lexicalRanking = lexicalProviderShortlist(query, profiles, len(profiles))
+		trace.IndexStatus = "unavailable"
+	}
+	if strategyHasStage(strategy, StageEmbedding) {
 		candidateLimit := len(profiles)
 		if strategyStringParam(strategy, StageEmbedding, "candidate_scope", "") != "all" {
 			candidateLimit = strategyIntParam(strategy, StageEmbedding, "shortlist_width", r.factors.MaxFanoutWidth)
 		}
 		if r.deps.DescriptionIndex == nil {
 			routingIndexReason = "routing_index_unavailable"
+			trace.IndexReason = routingIndexReason
+			trace.UnavailableReason = routingIndexReason
 			explain = append(explain, "semantic provider-description index unavailable; lexical fallback strategy selected")
 		} else {
 			semantic, result := r.deps.DescriptionIndex.Shortlist(ctx, query, profiles, candidateLimit)
 			if result.Available && len(semantic) > 0 {
 				semanticRanking = semantic
+				denseScores = result.Scores
+				trace.IndexStatus = "available"
+				trace.DenseTopProviderIds = topProviderIDs(semanticRanking, routingTraceTopK)
 				evidenceWidth := strategyIntParam(strategy, StageEmbedding, "evidence_width", r.factors.MaxFanoutWidth)
 				if strategyStringParam(strategy, StageEmbedding, "evidence_scope", "") == "all" {
 					evidenceWidth = len(profiles)
@@ -1066,9 +1126,14 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 				if routingIndexReason == "" {
 					routingIndexReason = "routing_index_unavailable"
 				}
+				trace.IndexReason = routingIndexReason
+				trace.UnavailableReason = routingIndexReason
 				explain = append(explain, fmt.Sprintf("semantic provider-description index unavailable (%s); lexical fallback strategy selected", routingIndexReason))
 			}
 		}
+	}
+	if !strategyHasStage(strategy, StageEmbedding) {
+		selectionReason = "lexical_shortlist"
 	}
 	if strategyHasStage(strategy, StageEmbedding) && routingIndexReason == "" && strategyHasStage(strategy, StageCrossEncoder) {
 		selectionWidth := strategyIntParam(strategy, StageEmbedding, "selection_width", len(shortlist))
@@ -1086,15 +1151,21 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 	}
 
 	ordered := shortlist
+	var picked []ProviderProfile
+	var rerankScores map[string]float64
 	selectorLeg = selectorLegLexical
 	if strategyHasStage(strategy, StageCrossEncoder) && len(shortlist) > 1 {
-		picked, leg, rerankScores, err := rerankProviderCandidates(ctx, query, shortlist, r.deps.Reranker)
+		var leg string
+		var err error
+		picked, leg, rerankScores, err = rerankProviderCandidates(ctx, query, shortlist, r.deps.Reranker)
 		if err != nil {
 			selectionFallback = true
 			selectionReason = rerankerDegradationReason(ctx, err)
+			trace.UnavailableReason = selectionReason
 			explain = append(explain, fmt.Sprintf("cross-encoder and LLM provider picks unavailable (%s); lexical provider pick selected (%s)", oneLine(err.Error()), selectionReason))
 		} else {
 			ordered = picked
+			selectionReason = "cross_encoder"
 			if strategyHasStage(strategy, StageEmbedding) && routingIndexReason == "" {
 				// Keep a strong exact lexical signal in the final provider
 				// decision. The cross-encoder remains the primary semantic
@@ -1105,6 +1176,7 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 				// metadata, not a provider-specific exception.
 				if strategyStringParam(strategy, StageEmbedding, "selection_policy", "fused") == "lexical_guarded" {
 					ordered = guardedSemanticProviderSelection(query, picked, semanticRanking, lexicalRanking, r.factors.MaxFanoutWidth, rerankScores)
+					selectionReason = "cross_encoder_guarded_lexical"
 					explain = append(explain, "cross-encoder order applied with a guarded lexical safety floor")
 				} else {
 					lexicalEvidence := lexicalRanking
@@ -1137,7 +1209,9 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 		chosen = append(chosen, profile.ProviderID)
 	}
 	if len(chosen) == 0 {
-		return nil, append(explain, "lexical provider selection returned no candidate"), true, selectorLegLexical, false, selectedLeafCount, 0, boundReached, "no_selection", "reranker_down"
+		trace.SelectionReason = "no_selection"
+		trace.UnavailableReason = "reranker_down"
+		return nil, append(explain, "lexical provider selection returned no candidate"), true, selectorLegLexical, false, selectedLeafCount, 0, boundReached, "no_selection", "reranker_down", trace
 	}
 	if strategyHasStage(strategy, StageEmbedding) && routingIndexReason == "" {
 		explain = append(explain, "automatic routing via semantic provider-description strategy (no LLM classifier)")
@@ -1146,8 +1220,11 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 	}
 	explain = append(explain, fmt.Sprintf("bounded automatic fan-out width=%d", fanoutWidth))
 	explain = append(explain, fmt.Sprintf("routed to provider leaves: %s", strings.Join(chosen, ", ")))
+	trace.SelectedProviderIds = chosen
+	trace.SelectionReason = selectionReason
+	trace.Candidates = buildRoutingTraceCandidates(query, semanticRanking, lexicalRanking, shortlist, picked, ordered, denseScores, rerankScores)
 	webShaped = queryLooksWebShaped(query)
-	return providersByID(active, chosen), explain, selectionFallback, selectorLeg, webShaped, selectedLeafCount, widenedLeafCount, boundReached, routingIndexReason, selectionReason
+	return providersByID(active, chosen), explain, selectionFallback, selectorLeg, webShaped, selectedLeafCount, widenedLeafCount, boundReached, routingIndexReason, selectionReason, trace
 }
 
 func rerankerDegradationReason(ctx context.Context, err error) string {
@@ -1418,6 +1495,52 @@ func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescr
 // on any failure it returns a degraded group carrying a human-readable note
 // rather than an error, so one bad provider never sinks the query.
 func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32, scope string) *routingv1.ProviderResultGroup {
+	key := strings.Join([]string{d.GetProviderId(), query, fmt.Sprint(limit), scope}, "\x00")
+	r.providerCallMu.Lock()
+	if call := r.providerCalls[key]; call != nil {
+		call.waiters++
+		r.providerCallMu.Unlock()
+		return r.waitForProviderCall(ctx, key, d.GetProviderId(), call)
+	}
+	callCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	call := &providerCall{done: make(chan struct{}), cancel: cancel, waiters: 1}
+	r.providerCalls[key] = call
+	r.providerCallMu.Unlock()
+	go func() {
+		defer cancel()
+		call.result = r.callProviderDirect(callCtx, d, query, limit, scope)
+		close(call.done)
+		r.providerCallMu.Lock()
+		if r.providerCalls[key] == call {
+			delete(r.providerCalls, key)
+		}
+		r.providerCallMu.Unlock()
+	}()
+	return r.waitForProviderCall(ctx, key, d.GetProviderId(), call)
+}
+
+func (r *Router) waitForProviderCall(ctx context.Context, key, providerID string, call *providerCall) *routingv1.ProviderResultGroup {
+	select {
+	case <-call.done:
+		if call.result == nil {
+			return degrade(&routingv1.ProviderResultGroup{}, "provider call completed without a result")
+		}
+		return proto.Clone(call.result).(*routingv1.ProviderResultGroup)
+	case <-ctx.Done():
+		r.providerCallMu.Lock()
+		call.waiters--
+		if call.waiters == 0 {
+			call.cancel()
+			if r.providerCalls[key] == call {
+				delete(r.providerCalls, key)
+			}
+		}
+		r.providerCallMu.Unlock()
+		return degrade(&routingv1.ProviderResultGroup{ProviderId: providerID}, fmt.Sprintf("request cancelled: %s", oneLine(ctx.Err().Error())))
+	}
+}
+
+func (r *Router) callProviderDirect(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32, scope string) *routingv1.ProviderResultGroup {
 	start := r.deps.Now()
 	g := &routingv1.ProviderResultGroup{ProviderId: d.GetProviderId()}
 	defer func() {

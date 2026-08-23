@@ -24,12 +24,44 @@ interface, never the impl.
 | Sparse encode | `SparseEncoder` | `NewBM25SparseEncoder()` (local, model-free) | hybrid only; Qdrant applies IDF |
 | Vector store | `VectorStore` | `NewVectorStore(url, key, collection)` (Qdrant) | named dense+sparse, server-side RRF |
 | Sources | `Source` | per-consumer adapter | one `SourceDoc` per indexable unit |
+| Large sources | `PagedSource`, `ChangeSetSource` | per-consumer catalog adapter | bounded pages and explicit changed/deleted sets |
 | Chunking | `Chunker` | `NewIdentityChunker()` / markdown | 1→1 (commands) or 1→N (docs) |
 | Embed text | `EmbeddingTextComposer` | `NewIdentityComposer()` / contextual | nil ⇒ identity (embeds `Body`) |
 | Reranking | `Reranker` | `NewCrossEncoderReranker()`, `NewLLMReranker(model)`, `NewRerankerChain(...)` | cross-encoder → llm → fused |
+| Lexical search | `LexicalSearcher` | per-consumer SQLite/FTS adapter | remains independent from model/vector availability |
+| Admission | `Admission` | `NewWeightedAdmission(capacity)` | one process-wide bound for expensive work |
+| Generations | `GenerationStore` | per-consumer catalog/vector adapter | shadow build, validation, promotion, rollback, cleanup |
 
 `Reconciler` ties a set of `SourceBinding`s to the store and computes/apply the
 drift between each source and its collection.
+
+`StreamingReconciler` is the required path for a corpus that cannot fit in a
+bounded `LoadAll`/`ScrollIDs` snapshot. It reads one `PagedSource` page, looks
+up only those source identities, stages changed vectors into a shadow
+generation, validates it, and promotes it atomically. Cancellation or any page,
+embed, store, or validation error rolls the candidate back. The active
+generation remains readable throughout the build. `RunChanges` applies bounded
+explicit upserts and source-level deletes through the same promotion contract.
+
+`NewPagedSourceAdapter(Source)` exists only for intentionally small corpora. It
+materializes the legacy source once and serves stable pages; it is not the
+large-corpus implementation.
+
+## Concurrent lexical and semantic fusion
+
+`ConcurrentFusion` starts `LexicalSearcher` and `SemanticSearcher` together,
+uses reciprocal-rank fusion, and returns `RankEvidence` for every contributing
+leg. One failed leg produces a truthful `degraded` entry and the healthy leg's
+results. Both failed legs return an error. This keeps exact lexical retrieval
+available when Ollama, Qdrant, or a reranker is stopped.
+
+Use one `WeightedAdmission` instance across query, embed, rerank, and indexing
+callers. Acquisition honors request cancellation. A weight greater than the
+configured capacity is rejected instead of waiting forever.
+
+Adopter tests can import `github.com/vrooli/ai-go/search/searchtest` for
+copy-safe deterministic paged-source, lexical, semantic, embedder, vector-store,
+and reranker fakes. Production packages must not import that package.
 
 ## Quick start (dense-only, single-chunk — the common case)
 
@@ -173,6 +205,11 @@ These are byte-stable so a live collection is never silently re-embedded:
   `source_id`, `chunk_index`, `chunk_total`, `body` (retrievable text).
 - **Vectors** — a named `dense` vector (even dense-only consumers); optional
   named `sparse` vector with the `idf` modifier.
+- **Storage profile** — `CollectionSpec.Storage` controls on-disk dense,
+  sparse, payload, and HNSW storage; HNSW construction; optimizer workers;
+  scalar quantization; and bounded upsert batch size. `BatchVectorStore` is the
+  optional batch-write extension; the Qdrant implementation clamps every
+  request to the package page maximum.
 
 ### Schema-mismatch guard + remediation
 

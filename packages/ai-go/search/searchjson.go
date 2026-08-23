@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // searchjson.go parses the scenario-owned `.vrooli/search.json` — the single
@@ -100,8 +101,12 @@ type ProviderConfig struct {
 	// IndexTimestampField names the status response field containing the last
 	// successful index/reconcile timestamp. Search Hub defaults it to
 	// last_indexed_at when omitted; dotted paths are supported.
-	IndexTimestampField string          `json:"index_timestamp_field,omitempty"`
-	ResultMapping       json.RawMessage `json:"result_mapping,omitempty"`
+	IndexTimestampField string `json:"index_timestamp_field,omitempty"`
+	// FreshnessBudget is the maximum age Search Hub may accept for this
+	// provider's active generation before withholding it from automatic routing.
+	// It uses protobuf/Go duration syntax (for example "24h" or "900s").
+	FreshnessBudget string          `json:"freshness_budget,omitempty"`
+	ResultMapping   json.RawMessage `json:"result_mapping,omitempty"`
 	// Secured control-plane targets (search-hub.v1.control.SearchControlService):
 	// reindex_endpoint drives an async corpus reconcile; config_endpoint writes a
 	// new tuning block back into this file. Both are opaque registry Endpoint
@@ -602,6 +607,12 @@ func (f SearchFile) Validate() error {
 		}
 		if err := p.Performance.Validate(); err != nil {
 			return fmt.Errorf("search.json: provider %q: %w", p.ProviderID, err)
+		}
+		if raw := strings.TrimSpace(p.FreshnessBudget); raw != "" {
+			budget, err := time.ParseDuration(raw)
+			if err != nil || budget < 0 {
+				return fmt.Errorf("search.json: provider %q: freshness_budget %q is not a non-negative duration", p.ProviderID, raw)
+			}
 		}
 		if err := p.RoutingProfile.Validate(); err != nil {
 			return fmt.Errorf("search.json: provider %q: %w", p.ProviderID, err)

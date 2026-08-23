@@ -189,6 +189,16 @@ func TestPerformancePolicyDefaults(t *testing.T) {
 	}
 }
 
+func TestParseSearchFileValidatesFreshnessBudget(t *testing.T) {
+	valid, err := ParseSearchFile([]byte(`{"version":"1.0.0","providers":[{"provider_id":"a","freshness_budget":"24h","tuning":{"engine":"dense"}}]}`))
+	if err != nil || valid.Providers[0].FreshnessBudget != "24h" {
+		t.Fatalf("valid freshness budget rejected: file=%+v err=%v", valid, err)
+	}
+	if _, err := ParseSearchFile([]byte(`{"version":"1.0.0","providers":[{"provider_id":"a","freshness_budget":"tomorrow","tuning":{"engine":"dense"}}]}`)); err == nil {
+		t.Fatal("invalid freshness budget accepted")
+	}
+}
+
 func TestResolvedTuning(t *testing.T) {
 	p := ProviderConfig{Tuning: TuningConfig{Engine: EngineHybrid}}
 	rt := p.ResolvedTuning()

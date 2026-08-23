@@ -11,6 +11,7 @@ import (
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/shared"
 
 	"search-hub/internal/eval"
 
@@ -58,7 +59,7 @@ func federatedSuite(cases ...*evalv1.EvalCase) *evalv1.EvalSuite {
 func TestFederatedRunnerLabelsRoutingRankMarginAndDegradation(t *testing.T) {
 	run, err := newFederatedRunner(fakeFederatedQuery{
 		responses: map[string]*routingv1.QueryResponse{
-			"met":       {CorporaSearched: []string{"owner.leaf"}, Ranked: []*routingv1.SearchHit{federatedHit("owner.leaf", "wanted", 0.8), federatedHit("owner.leaf", "other", 0.4)}},
+			"met":       {CorporaSearched: []string{"owner.leaf"}, Ranked: []*routingv1.SearchHit{federatedHit("owner.leaf", "wanted", 0.8), federatedHit("owner.leaf", "other", 0.4)}, RoutingTrace: &sharedv1.RoutingTrace{StrategyName: "lexical-cross-encoder", IndexStatus: "not_used", SelectedProviderIds: []string{"owner.leaf"}, ReturnedEvidence: "hits"}},
 			"misrouted": {CorporaSearched: []string{"sibling"}, Ranked: []*routingv1.SearchHit{federatedHit("sibling", "wanted", 0.9)}},
 			"sibling":   {CorporaSearched: []string{"sibling"}, Ranked: []*routingv1.SearchHit{federatedHit("sibling", "answer", 0.9)}},
 			"thin":      {CorporaSearched: []string{"owner.leaf"}, Ranked: []*routingv1.SearchHit{federatedHit("owner.leaf", "wanted", 0.8), federatedHit("owner.leaf", "other", 0.795)}},
@@ -81,6 +82,8 @@ func TestFederatedRunnerLabelsRoutingRankMarginAndDegradation(t *testing.T) {
 	}
 	require.Equal(t, "met", got["met"].GetOutcome())
 	require.True(t, got["met"].GetProviderRouted())
+	require.Equal(t, "lexical-cross-encoder", got["met"].GetRoutingTrace().GetStrategyName())
+	require.Equal(t, []string{"owner.leaf"}, got["met"].GetRoutingTrace().GetSelectedProviderIds())
 	require.InDelta(t, 0.5, got["met"].GetMargin(), 1e-9)
 	require.Equal(t, "answered_by_sibling", got["misrouted"].GetOutcome())
 	require.False(t, got["misrouted"].GetProviderRouted())
@@ -90,7 +93,84 @@ func TestFederatedRunnerLabelsRoutingRankMarginAndDegradation(t *testing.T) {
 	require.Equal(t, "thin_margin", got["thin"].GetOutcome())
 	require.Equal(t, "error", got["degraded"].GetOutcome())
 	require.Equal(t, "routing timeout", got["degraded"].GetOutcomeReason())
+	require.Contains(t, got["degraded"].GetRoutingTrace().GetUnavailableReason(), "query_error")
 	require.True(t, run.GetDegraded())
+}
+
+func TestFederatedRunnerPersistsStratifiedRoutingEvidence(t *testing.T) {
+	strata := []struct {
+		name  string
+		query string
+	}{
+		{name: "exact_identifier", query: "sqliteDemotionStore"},
+		{name: "implementation_location", query: "where is provider demotion computed"},
+		{name: "contract", query: "what is the search provider registration contract"},
+		{name: "command", query: "how do I run the scenario test suite"},
+		{name: "documentation", query: "where are the search hub retrieval guarantees documented"},
+		{name: "workflow", query: "what happens when a provider becomes stale"},
+		{name: "paraphrase", query: "find the code that decides whether a corpus can be routed"},
+	}
+	responses := make(map[string]*routingv1.QueryResponse, len(strata))
+	cases := make([]*evalv1.EvalCase, 0, len(strata))
+	for _, stratum := range strata {
+		providerID := "owner.leaf"
+		responses[stratum.query] = &routingv1.QueryResponse{
+			CorporaSearched: []string{providerID},
+			Ranked:          []*routingv1.SearchHit{federatedHit(providerID, stratum.name, 0.9), federatedHit(providerID, "background", 0.1)},
+			RoutingTrace: &sharedv1.RoutingTrace{
+				StrategyName:          "semantic-cross-encoder",
+				IndexStatus:           "available",
+				DenseTopProviderIds:   []string{providerID, "sibling.leaf"},
+				LexicalTopProviderIds: []string{providerID, "sibling.leaf"},
+				Candidates: []*sharedv1.ProviderRoutingEvidence{{
+					ProviderId:        providerID,
+					DenseRank:         1,
+					DenseScore:        0.91,
+					LexicalRank:       1,
+					LexicalScore:      4.0,
+					InEvidenceUnion:   true,
+					CrossEncoderRank:  1,
+					CrossEncoderScore: 0.95,
+					Selected:          true,
+				}},
+				SelectedProviderIds: []string{providerID},
+				SelectionReason:     "cross_encoder_guarded_lexical",
+				ReturnedEvidence:    "hits",
+			},
+		}
+		cases = append(cases, &evalv1.EvalCase{
+			CaseId:             "diagnostic." + stratum.name,
+			Query:              stratum.query,
+			ExpectedProviderId: providerID,
+			ExpectIds:          []string{stratum.name},
+			ExpectWithinTopK:   1,
+			Tags:               []string{"routing-diagnostic", stratum.name},
+		})
+	}
+
+	run, err := newFederatedRunner(fakeFederatedQuery{responses: responses}).Run(
+		context.Background(),
+		&evalv1.EvalSuite{SuiteId: eval.RouterSuiteID, Cases: cases},
+		"stratified-routing-diagnostics",
+		10,
+	)
+	require.NoError(t, err)
+	require.Len(t, run.GetResults(), len(strata))
+	for _, result := range run.GetResults() {
+		require.Equal(t, "met", result.GetOutcome(), result.GetCaseId())
+		trace := result.GetRoutingTrace()
+		require.NotNil(t, trace, result.GetCaseId())
+		require.NotEmpty(t, trace.GetDenseTopProviderIds(), result.GetCaseId())
+		require.NotEmpty(t, trace.GetLexicalTopProviderIds(), result.GetCaseId())
+		require.NotEmpty(t, trace.GetCandidates(), result.GetCaseId())
+		require.Equal(t, int32(1), trace.GetCandidates()[0].GetDenseRank(), result.GetCaseId())
+		require.Equal(t, int32(1), trace.GetCandidates()[0].GetLexicalRank(), result.GetCaseId())
+		require.True(t, trace.GetCandidates()[0].GetInEvidenceUnion(), result.GetCaseId())
+		require.Equal(t, int32(1), trace.GetCandidates()[0].GetCrossEncoderRank(), result.GetCaseId())
+		require.Equal(t, []string{"owner.leaf"}, trace.GetSelectedProviderIds(), result.GetCaseId())
+		require.Equal(t, "hits", trace.GetReturnedEvidence(), result.GetCaseId())
+		require.Equal(t, "owner.leaf", result.GetExpectedProviderId(), result.GetCaseId())
+	}
 }
 
 func TestFederatedRunnerGradesNegativesAndCapturesConfig(t *testing.T) {

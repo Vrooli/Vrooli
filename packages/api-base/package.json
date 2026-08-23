@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "clean": "rm -rf dist coverage",
+    "clean": "node scripts/clean.mjs",
     "prepack": "pnpm build",
     "test": "vitest run",
     "test:watch": "vitest",

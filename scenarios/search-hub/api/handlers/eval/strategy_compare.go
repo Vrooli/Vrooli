@@ -11,9 +11,10 @@ import (
 
 	"connectrpc.com/connect"
 
+	internalregistry "search-hub/internal/registry"
+
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
-	internalregistry "search-hub/internal/registry"
 )
 
 const strategyHeldoutFraction = 0.30

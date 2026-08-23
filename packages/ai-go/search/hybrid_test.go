@@ -2,8 +2,21 @@ package aisearch
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
+
+type lexicalSearchFunc func(context.Context, SearchQuery) ([]SearchResult, error)
+
+func (f lexicalSearchFunc) SearchLexical(ctx context.Context, query SearchQuery) ([]SearchResult, error) {
+	return f(ctx, query)
+}
+
+type semanticSearchFunc func(context.Context, SearchQuery) ([]SearchResult, error)
+
+func (f semanticSearchFunc) SearchSemantic(ctx context.Context, query SearchQuery) ([]SearchResult, error) {
+	return f(ctx, query)
+}
 
 func TestNewHybridEngineAlwaysDeclaresSparse(t *testing.T) {
 	cfg := Config{
@@ -85,4 +98,77 @@ func TestEnsureCollectionForBindingRejectsBeforeQdrant(t *testing.T) {
 	if err := EnsureCollectionForBinding(context.Background(), store, hybrid, denseSpec); err == nil {
 		t.Fatal("EnsureCollectionForBinding must reject the mismatch before touching Qdrant")
 	}
+}
+
+func TestConcurrentFusionRunsLegsTogetherAndExplainsRanks(t *testing.T) {
+	started := make(chan string, 2)
+	release := make(chan struct{})
+	fusion := ConcurrentFusion{
+		Lexical: lexicalSearchFunc(func(context.Context, SearchQuery) ([]SearchResult, error) {
+			started <- "lexical"
+			<-release
+			return []SearchResult{{ID: "shared", Score: 0.8}, {ID: "lexical-only", Score: 0.7}}, nil
+		}),
+		Semantic: semanticSearchFunc(func(context.Context, SearchQuery) ([]SearchResult, error) {
+			started <- "semantic"
+			<-release
+			return []SearchResult{{ID: "semantic-only", Score: 0.9}, {ID: "shared", Score: 0.6}}, nil
+		}),
+	}
+	type outcome struct {
+		response FusionResponse
+		err      error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		response, err := fusion.Search(context.Background(), SearchQuery{Query: "hybrid", Limit: 3})
+		done <- outcome{response: response, err: err}
+	}()
+	seen := map[string]bool{<-started: true, <-started: true}
+	if !seen["lexical"] || !seen["semantic"] {
+		t.Fatalf("both legs must start before either is released: %v", seen)
+	}
+	close(release)
+	got := <-done
+	if got.err != nil {
+		t.Fatal(got.err)
+	}
+	if len(got.response.Results) != 3 || got.response.Results[0].Result.ID != "shared" {
+		t.Fatalf("shared result should win reciprocal-rank fusion: %+v", got.response.Results)
+	}
+	if len(got.response.Results[0].Evidence) != 2 {
+		t.Fatalf("fused result must explain both ranks: %+v", got.response.Results[0].Evidence)
+	}
+}
+
+func TestConcurrentFusionDegradesToHealthyLeg(t *testing.T) {
+	fusion := ConcurrentFusion{
+		Lexical: lexicalSearchFunc(func(context.Context, SearchQuery) ([]SearchResult, error) {
+			return nil, errors.New("lexical unavailable")
+		}),
+		Semantic: semanticSearchFunc(func(context.Context, SearchQuery) ([]SearchResult, error) {
+			return []SearchResult{{ID: "semantic", Score: 0.9}}, nil
+		}),
+	}
+	response, err := fusion.Search(context.Background(), SearchQuery{Query: "fallback"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Results) != 1 || len(response.Degraded) != 1 || response.Degraded[0] != "lexical" {
+		t.Fatalf("expected truthful semantic-only degradation, got %+v", response)
+	}
+}
+
+func TestWeightedAdmissionHonorsCancellation(t *testing.T) {
+	admission := NewWeightedAdmission(1)
+	release, err := admission.Acquire(context.Background(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := admission.Acquire(ctx, 1); !errors.Is(err, context.Canceled) {
+		t.Fatalf("queued admission must return context cancellation, got %v", err)
+	}
+	release()
 }

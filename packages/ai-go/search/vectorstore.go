@@ -142,15 +142,47 @@ func (v *qdrantVectorStore) endpoint(suffix string) (string, error) {
 type namedVectorParams struct {
 	Size     int    `json:"size"`
 	Distance string `json:"distance"`
+	OnDisk   bool   `json:"on_disk,omitempty"`
+}
+
+type sparseIndexParams struct {
+	OnDisk bool `json:"on_disk,omitempty"`
 }
 
 type sparseVectorParams struct {
-	Modifier string `json:"modifier,omitempty"`
+	Modifier string             `json:"modifier,omitempty"`
+	Index    *sparseIndexParams `json:"index,omitempty"`
+}
+
+type hnswConfig struct {
+	M                 int  `json:"m,omitempty"`
+	EFConstruct       int  `json:"ef_construct,omitempty"`
+	FullScanThreshold int  `json:"full_scan_threshold,omitempty"`
+	OnDisk            bool `json:"on_disk,omitempty"`
+}
+
+type optimizerConfig struct {
+	IndexingThreshold      int `json:"indexing_threshold,omitempty"`
+	MaxOptimizationThreads int `json:"max_optimization_threads,omitempty"`
+}
+
+type scalarQuantization struct {
+	Type      string  `json:"type"`
+	Quantile  float64 `json:"quantile,omitempty"`
+	AlwaysRAM bool    `json:"always_ram,omitempty"`
+}
+
+type quantizationConfig struct {
+	Scalar scalarQuantization `json:"scalar"`
 }
 
 type createCollectionRequest struct {
-	Vectors       map[string]namedVectorParams  `json:"vectors"`
-	SparseVectors map[string]sparseVectorParams `json:"sparse_vectors,omitempty"`
+	Vectors            map[string]namedVectorParams  `json:"vectors"`
+	SparseVectors      map[string]sparseVectorParams `json:"sparse_vectors,omitempty"`
+	OnDiskPayload      bool                          `json:"on_disk_payload,omitempty"`
+	HNSWConfig         *hnswConfig                   `json:"hnsw_config,omitempty"`
+	OptimizersConfig   *optimizerConfig              `json:"optimizers_config,omitempty"`
+	QuantizationConfig *quantizationConfig           `json:"quantization_config,omitempty"`
 }
 
 // --- schema inspection ------------------------------------------------------
@@ -356,6 +388,9 @@ func intPayload(payload map[string]any, key string) int {
 // rather than silently upserting named-vector points into an incompatible
 // collection. The guard never auto-drops; remediation is operator-initiated.
 func (v *qdrantVectorStore) EnsureCollection(ctx context.Context, spec CollectionSpec) error {
+	if err := validateStorageProfile(spec.Storage); err != nil {
+		return err
+	}
 	// CollectionSpec.Name is an optional cross-check; the store (NewVectorStore)
 	// owns the authoritative collection name. A non-empty disagreement is a
 	// mis-target (the adopter set spec.Name expecting it to choose the
@@ -388,17 +423,41 @@ func (v *qdrantVectorStore) EnsureCollection(ctx context.Context, spec Collectio
 	}
 	create := createCollectionRequest{
 		Vectors: map[string]namedVectorParams{
-			denseVectorName: {Size: size, Distance: distance},
+			denseVectorName: {Size: size, Distance: distance, OnDisk: spec.Storage.OnDiskVectors},
 		},
+		OnDiskPayload: spec.Storage.OnDiskPayload,
+	}
+	if spec.Storage.OnDiskHNSW || spec.Storage.HNSWM > 0 || spec.Storage.HNSWEFConstruct > 0 || spec.Storage.FullScanThreshold > 0 {
+		create.HNSWConfig = &hnswConfig{
+			M:                 spec.Storage.HNSWM,
+			EFConstruct:       spec.Storage.HNSWEFConstruct,
+			FullScanThreshold: spec.Storage.FullScanThreshold,
+			OnDisk:            spec.Storage.OnDiskHNSW,
+		}
+	}
+	if spec.Storage.IndexingThreshold > 0 || spec.Storage.MaxOptimizationThreads > 0 {
+		create.OptimizersConfig = &optimizerConfig{
+			IndexingThreshold:      spec.Storage.IndexingThreshold,
+			MaxOptimizationThreads: spec.Storage.MaxOptimizationThreads,
+		}
+	}
+	if spec.Storage.ScalarQuantization {
+		create.QuantizationConfig = &quantizationConfig{Scalar: scalarQuantization{
+			Type:      "int8",
+			Quantile:  spec.Storage.Quantile,
+			AlwaysRAM: spec.Storage.QuantizationAlwaysRAM,
+		}}
 	}
 	if spec.Sparse {
 		modifier := strings.TrimSpace(spec.SparseModifier)
 		if modifier == "" {
 			modifier = DefaultSparseModifier
 		}
-		create.SparseVectors = map[string]sparseVectorParams{
-			sparseVectorName: {Modifier: modifier},
+		params := sparseVectorParams{Modifier: modifier}
+		if spec.Storage.OnDiskSparse {
+			params.Index = &sparseIndexParams{OnDisk: true}
 		}
+		create.SparseVectors = map[string]sparseVectorParams{sparseVectorName: params}
 	}
 	body, err := json.Marshal(create)
 	if err != nil {
@@ -421,6 +480,29 @@ func (v *qdrantVectorStore) EnsureCollection(ctx context.Context, spec Collectio
 	// Record the model + layout on the meta sentinel so a future model/dimension
 	// swap is caught by the guard above instead of corrupting this collection.
 	return v.writeMetaSentinel(ctx, spec, size, distance)
+}
+
+func validateStorageProfile(profile StorageProfile) error {
+	values := []struct {
+		name  string
+		value int
+	}{
+		{name: "hnsw_m", value: profile.HNSWM},
+		{name: "hnsw_ef_construct", value: profile.HNSWEFConstruct},
+		{name: "full_scan_threshold", value: profile.FullScanThreshold},
+		{name: "indexing_threshold", value: profile.IndexingThreshold},
+		{name: "max_optimization_threads", value: profile.MaxOptimizationThreads},
+		{name: "upsert_batch_size", value: profile.UpsertBatchSize},
+	}
+	for _, entry := range values {
+		if entry.value < 0 {
+			return fmt.Errorf("aisearch: storage profile %s must be non-negative", entry.name)
+		}
+	}
+	if profile.Quantile < 0 || profile.Quantile > 1 {
+		return fmt.Errorf("aisearch: storage profile quantile must be within 0..1")
+	}
+	return nil
 }
 
 // checkLayout compares a discovered layout against the requested spec and
@@ -503,26 +585,50 @@ type sparseVectorJSON struct {
 // Upsert inserts or updates one point. The vector is always a named-vector map
 // ({"dense": [...]}); when Sparse is set the named "sparse" vector is added.
 func (v *qdrantVectorStore) Upsert(ctx context.Context, point Point) error {
-	id := strings.TrimSpace(point.ID)
-	if id == "" {
-		return fmt.Errorf("point id is required")
+	return v.UpsertBatch(ctx, []Point{point}, 1)
+}
+
+// UpsertBatch writes points in bounded requests. batchSize is clamped to
+// MaxSourcePageSize so a malformed operator value cannot create an unbounded
+// payload. The method is additive through BatchVectorStore; existing adopters
+// that call Upsert retain byte-equivalent one-point writes.
+func (v *qdrantVectorStore) UpsertBatch(ctx context.Context, points []Point, batchSize int) error {
+	if len(points) == 0 {
+		return nil
+	}
+	if batchSize <= 0 {
+		batchSize = DefaultSourcePageSize
+	}
+	if batchSize > MaxSourcePageSize {
+		batchSize = MaxSourcePageSize
 	}
 	endpoint, err := v.endpoint("/points")
 	if err != nil {
 		return err
 	}
 	endpoint = withWait(endpoint)
-
-	vec := map[string]any{denseVectorName: point.Dense}
-	if point.Sparse != nil {
-		vec[sparseVectorName] = sparseVectorJSON{Indices: point.Sparse.Indices, Values: point.Sparse.Values}
+	for start := 0; start < len(points); start += batchSize {
+		end := start + batchSize
+		if end > len(points) {
+			end = len(points)
+		}
+		requestPoints := make([]map[string]any, 0, end-start)
+		for _, point := range points[start:end] {
+			id := strings.TrimSpace(point.ID)
+			if id == "" {
+				return fmt.Errorf("point id is required")
+			}
+			vec := map[string]any{denseVectorName: point.Dense}
+			if point.Sparse != nil {
+				vec[sparseVectorName] = sparseVectorJSON{Indices: point.Sparse.Indices, Values: point.Sparse.Values}
+			}
+			requestPoints = append(requestPoints, map[string]any{"id": id, "vector": vec, "payload": point.Payload})
+		}
+		if err := v.writeJSON(ctx, http.MethodPut, endpoint, map[string]any{"points": requestPoints}, "upsert"); err != nil {
+			return err
+		}
 	}
-	reqBody := map[string]any{
-		"points": []map[string]any{
-			{"id": id, "vector": vec, "payload": point.Payload},
-		},
-	}
-	return v.writeJSON(ctx, http.MethodPut, endpoint, reqBody, "upsert")
+	return nil
 }
 
 type setPayloadRequest struct {

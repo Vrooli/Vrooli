@@ -47,6 +47,25 @@ read them. (`EmbedTaskPrefix` remains a `Config` *field* — the
 | `RERANKER_URL` | string | `""` (falls back to resource env) | Cross-encoder reranker endpoint. When empty, the reranker resource's own unprefixed env (`RERANKER_BASE_URL`/`RERANKER_URL`/`RERANKER_HOST+PORT`) is used — preserving zero-config local use. Lets two scenarios on one host point at different reranker instances. |
 | `RERANKER_MODEL` | string | `""` (falls back to resource env) | Cross-encoder model identifier read by the reranker resource. Distinct from `RERANK_ROLE` (which selects the LLM *fallback* leg). When empty, the resource's own env applies. |
 
+### Qdrant storage profile
+
+Set `CollectionSpec.Storage` from the scenario's governed configuration when a
+corpus needs a non-default Qdrant layout. The profile exposes on-disk dense
+vectors, sparse indexes, payload, and HNSW; HNSW `m`, construction effort, and
+full-scan threshold; optimizer indexing threshold and worker count; scalar
+quantization; and bounded upsert batch size. Zero values preserve Qdrant
+defaults. Do not hide these values in adopter-specific request JSON.
+
+Use `BatchVectorStore.UpsertBatch` for bounded writes. The Qdrant adapter clamps
+the requested batch size to `MaxSourcePageSize`. Use `ReconcileParallelism` and
+a shared `WeightedAdmission` budget to bound workers and total expensive work.
+
+Large sources must implement `PagedSource`; event-driven sources should also
+implement `ChangeSetSource`. Use `StreamingReconciler` with a
+`GenerationStore`, so cancellation or validation failure rolls back a shadow
+generation and never changes the serving alias. `NewPagedSourceAdapter` is for
+small legacy sources because it intentionally materializes `LoadAll` once.
+
 The factors that used to appear here (`EMBED_TASK_PREFIX`, `RERANK_ENABLED`,
 `RERANK_BLEND`, `RERANK_SHORTLIST`, `RELEVANCE_MAX_GAP`, `RELEVANCE_HARD_FLOOR`)
 now live in the `tuning` block of `search.json` — see [`search-json.md`](search-json.md)

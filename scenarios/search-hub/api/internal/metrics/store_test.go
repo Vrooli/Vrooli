@@ -10,9 +10,10 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
-	db "github.com/vrooli/api-core/databasetest"
 	localdb "search-hub/internal/database"
 	"search-hub/internal/metrics"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 )

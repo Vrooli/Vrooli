@@ -787,6 +787,38 @@ resource lifecycle validation on future host profiles.
 
 **Refs:** `resources/reranker/resource.json`, `vrooli resource validate reranker`.
 
+### 2026-08-16 — Positive route profiles improve attribution but do not justify semantic promotion
+
+**Symptom:** The route-discriminative semantic arm has a complete stage trace
+and retains the expected owner at the same 89.39% routing precision as the
+lexical incumbent, but its end-to-end retrieval recall is materially worse
+(0.00625 versus 0.2625) on the current composed router suite.
+
+**Root cause:** The new trace shows two separate losses: 62/179 gradeable
+cases miss the semantic dense top-six window and five lose the expected owner
+at guarded selection. Among cases where the owner is selected, provider-owned
+retrieval frequently returns hits that do not satisfy the declared expected
+top-K. The route profile contract fixes the prior representation ambiguity,
+but it cannot manufacture provider corpus quality or make a dense embedding
+encode exact project identifiers reliably.
+
+**Workaround:** Keep `lexical-cross-encoder` active. Use the persisted
+`routing_trace` to distinguish dense-index misses, selector misses, and
+provider-retrieval misses. Use explicit provider selection for high-value exact
+queries until the owner corpora and held-out evidence improve.
+
+**Real fix:** Grow and validate provider-owned positive corpora, add controlled
+hybrid/exact evidence where providers need it, and rerun the same paired
+comparison only after the eligible denominator and substrate are comparable.
+Do not weaken the promotion guard to turn a tied routing score into a semantic
+write-back.
+
+**Owner:** Search Hub plus the affected provider owners.
+
+**Refs:** Comparison runs `17c28c65-7c12-4414-8aac-374d33be510c`,
+`1f7145fd-4b6f-435c-9403-ff86df27139c`, and
+`6fda3d94-559c-40cf-bd85-36db62632aa3`; `internal/PERFORMANCE.md`.
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

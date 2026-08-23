@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -93,6 +94,28 @@ func (s staticResolver) ResolveScenarioURL(_ context.Context, scenarioID string)
 // status+body or a transport error.
 type routeDoer struct {
 	byURL map[string]cannedResponse
+}
+
+type coalescingDoer struct {
+	mu      sync.Mutex
+	calls   int
+	started chan struct{}
+	release chan struct{}
+}
+
+func (doer *coalescingDoer) Do(req *http.Request) (*http.Response, error) {
+	doer.mu.Lock()
+	doer.calls++
+	if doer.calls == 1 {
+		close(doer.started)
+	}
+	doer.mu.Unlock()
+	select {
+	case <-req.Context().Done():
+		return nil, req.Context().Err()
+	case <-doer.release:
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"results":[{"name":"shared","score":0.9}]}`))}, nil
+	}
 }
 
 type cannedResponse struct {
@@ -372,6 +395,34 @@ func TestUnreachableProviderDegrades(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, resp.GetGroups()[0].GetDegraded())
 	require.Contains(t, resp.GetGroups()[0].GetNote(), "circuit unavailable")
+}
+
+func TestIdenticalConcurrentProviderCallsAreCoalesced(t *testing.T) {
+	doer := &coalescingDoer{started: make(chan struct{}), release: make(chan struct{})}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}},
+		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:     doer,
+	})
+	results := make(chan *routingv1.QueryResponse, 2)
+	errs := make(chan error, 2)
+	for range 2 {
+		go func() {
+			response, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "same", All: true})
+			results <- response
+			errs <- err
+		}()
+	}
+	<-doer.started
+	time.Sleep(20 * time.Millisecond)
+	close(doer.release)
+	for range 2 {
+		require.NoError(t, <-errs)
+		require.Equal(t, int32(1), (<-results).GetGroups()[0].GetCount())
+	}
+	doer.mu.Lock()
+	defer doer.mu.Unlock()
+	require.Equal(t, 1, doer.calls)
 }
 
 func TestProviderCircuitFailsFastAndRecoversWithProbe(t *testing.T) {

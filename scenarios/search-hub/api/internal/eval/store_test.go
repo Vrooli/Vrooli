@@ -10,9 +10,10 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 
-	db "github.com/vrooli/api-core/databasetest"
 	localdb "search-hub/internal/database"
 	"search-hub/internal/eval"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/scheduletest"
 )

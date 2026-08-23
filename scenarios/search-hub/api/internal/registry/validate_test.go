@@ -90,6 +90,29 @@ func TestValidateActiveOK(t *testing.T) {
 	require.NoError(t, registry.Validate(d))
 }
 
+func TestValidateRoutingProfileRejectsBlankDuplicateAndNegativeOnlyFacets(t *testing.T) {
+	cases := []struct {
+		name  string
+		value *registryv1.RoutingProfile
+		field string
+	}{
+		{"blank", &registryv1.RoutingProfile{AnswerSpaces: []string{" "}}, "routing_profile.answer_spaces[0]"},
+		{"duplicate", &registryv1.RoutingProfile{Intents: []string{"locate", " LOCATE "}}, "routing_profile.intents[1]"},
+		{"negative only", &registryv1.RoutingProfile{Exclusions: []string{"implementation"}}, "routing_profile"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := validActive()
+			d.RoutingProfile = tc.value
+			registry.Normalize(d)
+			err := registry.Validate(d)
+			var invalid registry.ErrInvalidDescriptor
+			require.ErrorAs(t, err, &invalid)
+			require.Equal(t, tc.field, invalid.Field)
+		})
+	}
+}
+
 func TestValidateStatusEndpointDefaultsIndexTimestampDeclaration(t *testing.T) {
 	d := validActive()
 	d.StatusEndpoint = &registryv1.Endpoint{Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{ScenarioId: "cli-health", Path: "/status"}}}

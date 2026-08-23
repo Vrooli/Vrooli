@@ -11,6 +11,7 @@ import (
 	aisearch "github.com/vrooli/ai-go/search"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/shared"
 )
 
 const defaultAutoExternalThreshold = 0.60
@@ -40,14 +41,18 @@ func truncateForErr(value string) string {
 	return value
 }
 
-// ProviderProfile is the registry-derived text used by the routing ladder.
-// The router never embeds provider-specific knowledge; registered identity,
-// type, group, and description are the complete scoring input.
+// ProviderProfile is the registry-derived input used by the routing ladder.
+// The router never embeds provider-specific knowledge; identity, type, group,
+// description, and declarative route facets are the complete scoring input.
 type ProviderProfile struct {
 	ProviderID         string
 	Type               string
 	Group              string
 	Description        string
+	AnswerSpaces       []string
+	Intents            []string
+	PositiveExamples   []string
+	Exclusions         []string
 	OmittedProviderIDs []string
 }
 
@@ -63,13 +68,30 @@ func buildProfiles(active []*registryv1.ProviderDescriptor) []ProviderProfile {
 			continue
 		}
 		out = append(out, ProviderProfile{
-			ProviderID:  id,
-			Type:        typ,
-			Group:       strings.TrimSpace(provider.GetProviderGroup()),
-			Description: strings.TrimSpace(provider.GetDescription()),
+			ProviderID:       id,
+			Type:             typ,
+			Group:            strings.TrimSpace(provider.GetProviderGroup()),
+			Description:      strings.TrimSpace(provider.GetDescription()),
+			AnswerSpaces:     cleanRouteValues(provider.GetRoutingProfile().GetAnswerSpaces()),
+			Intents:          cleanRouteValues(provider.GetRoutingProfile().GetIntents()),
+			PositiveExamples: cleanRouteValues(provider.GetRoutingProfile().GetPositiveExamples()),
+			Exclusions:       cleanRouteValues(provider.GetRoutingProfile().GetExclusions()),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ProviderID < out[j].ProviderID })
+	return out
+}
+
+func cleanRouteValues(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			out = append(out, value)
+		}
+	}
 	return out
 }
 
@@ -310,6 +332,78 @@ func providerCandidates(profiles []ProviderProfile) []*routingv1.SearchHit {
 		})
 	}
 	return candidates
+}
+
+const (
+	routingTraceTopK          = 6
+	routingTraceMaxCandidates = routingTraceTopK * 2
+)
+
+func topProviderIDs(profiles []ProviderProfile, limit int) []string {
+	if limit <= 0 || len(profiles) <= limit {
+		return profileIDs(profiles)
+	}
+	return profileIDs(profiles[:limit])
+}
+
+func buildRoutingTraceCandidates(query string, semantic, lexical, union, picked, selected []ProviderProfile, denseScores map[string]float64, rerankScores map[string]float64) []*sharedv1.ProviderRoutingEvidence {
+	denseRanks := make(map[string]int, len(semantic))
+	for rank, profile := range semantic {
+		denseRanks[profile.ProviderID] = rank + 1
+	}
+	lexicalRanks := make(map[string]int, len(lexical))
+	lexicalScores := make(map[string]float64, len(lexical))
+	for rank, profile := range lexical {
+		lexicalRanks[profile.ProviderID] = rank + 1
+		lexicalScores[profile.ProviderID] = lexicalDescriptionScore(query, profile)
+	}
+	unionIDs := make(map[string]struct{}, len(union))
+	for _, profile := range union {
+		unionIDs[profile.ProviderID] = struct{}{}
+	}
+	crossRanks := make(map[string]int, len(picked))
+	for rank, profile := range picked {
+		crossRanks[profile.ProviderID] = rank + 1
+	}
+	selectedIDs := make(map[string]struct{}, len(selected))
+	for _, profile := range selected {
+		selectedIDs[profile.ProviderID] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(union)+len(semantic)+len(lexical))
+	ordered := make([]ProviderProfile, 0, len(union)+len(semantic)+len(lexical))
+	for _, profiles := range [][]ProviderProfile{union, semantic, lexical} {
+		for _, profile := range profiles {
+			if _, ok := seen[profile.ProviderID]; ok {
+				continue
+			}
+			seen[profile.ProviderID] = struct{}{}
+			ordered = append(ordered, profile)
+		}
+	}
+	if len(ordered) > routingTraceMaxCandidates {
+		ordered = ordered[:routingTraceMaxCandidates]
+	}
+	evidence := make([]*sharedv1.ProviderRoutingEvidence, 0, len(ordered))
+	for _, profile := range ordered {
+		item := &sharedv1.ProviderRoutingEvidence{
+			ProviderId:        profile.ProviderID,
+			DenseRank:         int32(denseRanks[profile.ProviderID]),
+			DenseScore:        denseScores[profile.ProviderID],
+			LexicalRank:       int32(lexicalRanks[profile.ProviderID]),
+			LexicalScore:      lexicalScores[profile.ProviderID],
+			InEvidenceUnion:   hasProviderID(unionIDs, profile.ProviderID),
+			CrossEncoderRank:  int32(crossRanks[profile.ProviderID]),
+			CrossEncoderScore: rerankScores[profile.ProviderID],
+			Selected:          hasProviderID(selectedIDs, profile.ProviderID),
+		}
+		evidence = append(evidence, item)
+	}
+	return evidence
+}
+
+func hasProviderID(ids map[string]struct{}, id string) bool {
+	_, ok := ids[id]
+	return ok
 }
 
 func rerankProviderCandidates(ctx context.Context, query string, profiles []ProviderProfile, reranker Reranker) ([]ProviderProfile, string, map[string]float64, error) {

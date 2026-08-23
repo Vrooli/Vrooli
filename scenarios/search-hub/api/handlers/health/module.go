@@ -3,9 +3,10 @@ package health
 import (
 	"net/http"
 
-	apihealth "github.com/vrooli/api-core/health"
 	"search-hub/internal/database"
 	"search-hub/internal/module"
+
+	apihealth "github.com/vrooli/api-core/health"
 
 	"github.com/gorilla/mux"
 )

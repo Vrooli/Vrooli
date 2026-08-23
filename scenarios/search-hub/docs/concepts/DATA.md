@@ -20,7 +20,7 @@ Search Hub persists **only its own metadata** — the provider registry
 and per-query telemetry. It stores **no vectors and no corpus content**
 (the thin-router invariant; each provider owns its corpus). The store is
 the template's embedded **SQLite** (`modernc.org/sqlite`, CGO-clean),
-rooted at `SQLITE_PATH` (default `${SCENARIO_DATA_DIR}/search-hub.db`).
+rooted at `${SCENARIO_DATA_DIR}/search-hub.db`, resolved by `api-core/storage` from the scenario id.
 Schemas are applied on startup through `api-core/database`'s
 `EnsureSchemas` over the `modules.AllSchemas()` registry.
 

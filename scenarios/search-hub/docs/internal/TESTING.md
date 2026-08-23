@@ -880,7 +880,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/search-hub/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/search-hub/v1/<domain>/`, and
+   `packages/proto/gen/typescript/search-hub/v1/<domain>/`, and
    `packages/proto/gen/python/search_hub/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.
@@ -932,7 +932,7 @@ payload shapes. See `SEAMS.md::Wire contracts live in proto, not seams`.
 that:
 
 1. `go build -o <tmp> .` from the api directory
-2. Boots the binary with `API_PORT`, `SQLITE_PATH`, and
+2. Boots the binary with `API_PORT` and
    `VROOLI_LIFECYCLE_MANAGED=true` set
 3. Polls `/health` over a real socket
 4. Sends `SIGTERM` and asserts clean exit within 5s
@@ -1048,6 +1048,36 @@ The operational eviction drill is also part of the validation contract:
    active reranker leg in the evidence.
 
 ## Common patterns and anti-patterns
+
+### Route-discriminative comparison evidence (2026-08-16)
+
+After changing routing metadata or semantic representations, rebuild and
+restart Search Hub through its lifecycle target before running a comparison;
+an already-running API process can otherwise produce valid-looking runs from
+the old binary. The authoritative follow-up command was:
+
+```bash
+search-hub strategy compare \
+  --strategies semantic-cross-encoder,lexical-cross-encoder,lexical-fallback \
+  --apply --json
+```
+
+Inspect the persisted `routing_trace` on the returned `router.routing` runs.
+The trace is diagnostic only: it must not alter the evaluator's expected IDs
+or grading labels. For each gradeable case, compare dense top-1/3/6 recall,
+evidence-union membership, selected-provider membership, returned-evidence
+state, and the final expected-hit rank. A dense miss rescued by lexical
+evidence is still a dense miss; a selected owner whose expected item is absent
+or outside declared top-K is a provider-retrieval failure. These are different
+remediation owners and must remain separate in reports.
+
+The 2026-08-16 comparison persisted complete traces for all 213 cases in each
+arm. The semantic arm retained the expected owner in 173/179 evidence unions
+and 160/179 selected sets, but its end-to-end retrieval recall was only
+0.00625 versus 0.2625 for the lexical incumbent. Promotion was refused by the
+paired-significance guard (delta mean 0, CI lower 0) despite a held-out routing
+fold hold. See `internal/PERFORMANCE.md` for the immutable run IDs and stage
+counts.
 
 | ✅ DO | ❌ DON'T |
 |---|---|

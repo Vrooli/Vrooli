@@ -8,7 +8,7 @@
   "endpoint": {
     "http_json": {
       "scenario_id": "prompt-manager",
-      "path": "/api/v1/discover",
+      "path": "/vrooli.prompt_manager.v1.discovery.DiscoveryService/Discover",
       "method": "HTTP_METHOD_POST",
       "body_template": "{\"queries\":[\"{{query}}\"],\"type\":\"{{type}}\",\"limit\":{{limit}}}",
       "headers": { "Content-Type": "application/json" }

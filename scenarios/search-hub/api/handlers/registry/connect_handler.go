@@ -7,9 +7,10 @@ import (
 
 	"connectrpc.com/connect"
 
+	"search-hub/internal/control"
+
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
-	"search-hub/internal/control"
 
 	internalregistry "search-hub/internal/registry"
 )

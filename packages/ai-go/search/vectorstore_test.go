@@ -89,6 +89,99 @@ func TestEnsureCollectionHybridShape(t *testing.T) {
 	}
 }
 
+func TestEnsureCollectionAppliesStorageProfile(t *testing.T) {
+	doer := &capturingDoer{respond: func(req capturedReq) (int, string) {
+		if req.method == http.MethodGet {
+			return http.StatusNotFound, "{}"
+		}
+		return http.StatusOK, "{}"
+	}}
+	store := NewVectorStoreWithClient("http://q", "", "profiled", doer)
+	err := store.EnsureCollection(context.Background(), CollectionSpec{
+		DenseSize: fixtureDenseSize,
+		Sparse:    true,
+		Storage: StorageProfile{
+			OnDiskVectors:          true,
+			OnDiskPayload:          true,
+			OnDiskSparse:           true,
+			OnDiskHNSW:             true,
+			HNSWM:                  24,
+			HNSWEFConstruct:        128,
+			FullScanThreshold:      20_000,
+			IndexingThreshold:      30_000,
+			MaxOptimizationThreads: 3,
+			UpsertBatchSize:        128,
+			ScalarQuantization:     true,
+			Quantile:               0.99,
+			QuantizationAlwaysRAM:  true,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	put := doer.createPut(t, "profiled")
+	vectors, _ := put.body["vectors"].(map[string]any)
+	dense, _ := vectors["dense"].(map[string]any)
+	if dense["on_disk"] != true || put.body["on_disk_payload"] != true {
+		t.Fatalf("dense/payload disk profile missing: %v", put.body)
+	}
+	sparse, _ := put.body["sparse_vectors"].(map[string]any)
+	sparseVector, _ := sparse["sparse"].(map[string]any)
+	sparseIndex, _ := sparseVector["index"].(map[string]any)
+	if sparseIndex["on_disk"] != true {
+		t.Fatalf("sparse disk profile missing: %v", sparseVector)
+	}
+	hnsw, _ := put.body["hnsw_config"].(map[string]any)
+	if hnsw["on_disk"] != true || hnsw["m"] != float64(24) || hnsw["ef_construct"] != float64(128) {
+		t.Fatalf("HNSW profile missing: %v", hnsw)
+	}
+	quantization, _ := put.body["quantization_config"].(map[string]any)
+	if _, ok := quantization["scalar"]; !ok {
+		t.Fatalf("quantization profile missing: %v", quantization)
+	}
+	optimizers, _ := put.body["optimizers_config"].(map[string]any)
+	if optimizers["max_optimization_threads"] != float64(3) {
+		t.Fatalf("optimizer worker profile missing: %v", optimizers)
+	}
+}
+
+func TestQdrantUpsertBatchBoundsRequests(t *testing.T) {
+	doer := &capturingDoer{}
+	store := NewVectorStoreWithClient("http://q", "", "batched", doer)
+	batchStore, ok := store.(BatchVectorStore)
+	if !ok {
+		t.Fatal("Qdrant store must implement BatchVectorStore")
+	}
+	points := make([]Point, 5)
+	for i := range points {
+		points[i] = Point{ID: fmt.Sprintf("point-%d", i), Dense: []float64{float64(i)}}
+	}
+	if err := batchStore.UpsertBatch(context.Background(), points, 2); err != nil {
+		t.Fatal(err)
+	}
+	if len(doer.requests) != 3 {
+		t.Fatalf("expected bounded batches of 2,2,1; got %d requests", len(doer.requests))
+	}
+	for i, request := range doer.requests {
+		batch, _ := request.body["points"].([]any)
+		if len(batch) > 2 {
+			t.Fatalf("request %d exceeded batch bound: %d", i, len(batch))
+		}
+	}
+}
+
+func TestEnsureCollectionRejectsInvalidStorageProfileBeforeHTTP(t *testing.T) {
+	doer := &capturingDoer{}
+	store := NewVectorStoreWithClient("http://q", "", "invalid-profile", doer)
+	err := store.EnsureCollection(context.Background(), CollectionSpec{Storage: StorageProfile{Quantile: 1.5}})
+	if err == nil || !strings.Contains(err.Error(), "quantile") {
+		t.Fatalf("expected quantile validation error, got %v", err)
+	}
+	if len(doer.requests) != 0 {
+		t.Fatalf("invalid profile must fail before HTTP, got %d request(s)", len(doer.requests))
+	}
+}
+
 func TestEnsureCollectionDenseOnlyOmitsSparse(t *testing.T) {
 	doer := &capturingDoer{respond: func(req capturedReq) (int, string) {
 		if req.method == http.MethodGet {

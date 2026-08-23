@@ -20,15 +20,12 @@ make stop
 make start
 ```
 
-If a process is genuinely orphaned, find and kill it:
+If a process is genuinely orphaned, let the control plane reconcile its owned state:
 
 ```bash
 vrooli scenario status search-hub
-# Then either:
 make stop
-# Or, as last resort:
-pkill -f 'search-hub-api'
-pkill -f 'node server.js'
+vrooli scenario start search-hub --clean-stale
 ```
 
 **Don't** use `make stop && make start` on autopilot — `make restart`
@@ -171,8 +168,8 @@ Increase open-file limits or check that loopback is reachable.
 ### API E2E test (`go test -tags=e2e`) hangs
 
 The E2E harness boots the actual binary and waits for `/health`. If
-schema bootstrap fails (corrupt SQLite file, unwritable
-`SQLITE_PATH`), `/health` never returns ready and the test times out.
+schema bootstrap fails (corrupt SQLite file, unwritable data
+directory), `/health` never returns ready and the test times out.
 Wipe the test data dir and retry. The default lives under
 `${XDG_DATA_HOME:-~/.local/share}/vrooli/search-hub/`.
 
@@ -184,14 +181,17 @@ file the report names — never to lower the threshold. Floors live in
 
 ## Storage
 
-### `SQLITE_PATH` resolves to an unwritable directory
+### The resolved database directory is not writable
 
 The default route is `${SCENARIO_DATA_DIR}/search-hub.db` via
 `api-core/storage`. If your filesystem is unusual (read-only home,
 strict sandboxing), override:
 
 ```bash
-export SQLITE_PATH=/tmp/search-hub.db
+# Redirect the whole storage tree, not one database file. The root is
+# scenario-agnostic, so every scenario beneath it still resolves to its own
+# separate path.
+export VROOLI_STORAGE_ROOT=/tmp/vrooli-storage
 make start
 ```
 
@@ -204,7 +204,7 @@ SQLite single-writer behaviour. If two processes (e.g., a stale API
 plus a new one) hold the file, find and kill the older one:
 
 ```bash
-fuser "$(echo "${SQLITE_PATH:-${SCENARIO_DATA_DIR}/search-hub.db}")"
+fuser "${SCENARIO_DATA_DIR}/search-hub.db"
 ```
 
 `make stop` followed by `make start` is usually sufficient.
@@ -222,7 +222,7 @@ make generate
 The generator runs entirely on local plugins (no BSR network calls) and
 writes to language-specific output paths: Go under
 `packages/proto/gen/go/search-hub/v1/`, TypeScript under
-`packages/proto/gen/typescript/js/search-hub/v1/`, and Python under
+`packages/proto/gen/typescript/search-hub/v1/`, and Python under
 `packages/proto/gen/python/search_hub/v1/`.
 
 ### Codegen ran but Go imports still fail

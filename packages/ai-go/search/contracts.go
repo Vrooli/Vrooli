@@ -42,6 +42,57 @@ type Source interface {
 	LoadAll(ctx context.Context) ([]SourceDoc, error)
 }
 
+// PageRequest asks a PagedSource for a bounded, stable page. Cursor is opaque
+// to the caller. Limit is a hard upper bound, not a hint.
+type PageRequest struct {
+	Cursor string
+	Limit  int
+}
+
+// SourcePage is one page from a corpus. NextCursor must advance when Done is
+// false. Documents must be stable for the lifetime of one reconciliation run.
+type SourcePage struct {
+	Documents  []SourceDoc
+	NextCursor string
+	Done       bool
+}
+
+// PagedSource is the large-corpus source contract. Implementations enumerate
+// without materializing the corpus. Reconciliation holds at most one page.
+type PagedSource interface {
+	LoadPage(ctx context.Context, request PageRequest) (SourcePage, error)
+}
+
+// ChangeOperation describes an explicit incremental source mutation.
+type ChangeOperation string
+
+const (
+	ChangeUpsert ChangeOperation = "upsert"
+	ChangeDelete ChangeOperation = "delete"
+)
+
+// SourceChange is one source-level change. Document is required for upserts;
+// SourceID is required for deletes.
+type SourceChange struct {
+	Operation ChangeOperation
+	SourceID  string
+	Document  SourceDoc
+}
+
+// ChangeSet is a bounded, ordered set of source mutations after a durable
+// cursor. NextCursor is committed only after generation promotion succeeds.
+type ChangeSet struct {
+	Cursor     string
+	NextCursor string
+	Changes    []SourceChange
+}
+
+// ChangeSetSource supplies explicit changed/deleted sources so event-driven
+// adopters need not enumerate their full corpus between periodic audits.
+type ChangeSetSource interface {
+	LoadChanges(ctx context.Context, cursor string, limit int) (ChangeSet, error)
+}
+
 // =============================================================================
 // 2. Chunking
 // =============================================================================
@@ -186,6 +237,26 @@ type CollectionSpec struct {
 	Model               string // embedding model, recorded in metadata
 	Role                string // embedding policy role, recorded in metadata
 	PolicySchemaVersion string // Ollama policy schema version, recorded in metadata
+	Storage             StorageProfile
+}
+
+// StorageProfile exposes Qdrant's production storage controls. Zero values
+// retain Qdrant defaults. Profiles are explicit so operators can trade memory,
+// indexing speed, and recall without private request JSON in each adopter.
+type StorageProfile struct {
+	OnDiskVectors          bool
+	OnDiskPayload          bool
+	OnDiskSparse           bool
+	OnDiskHNSW             bool
+	HNSWM                  int
+	HNSWEFConstruct        int
+	FullScanThreshold      int
+	IndexingThreshold      int
+	MaxOptimizationThreads int
+	UpsertBatchSize        int
+	ScalarQuantization     bool
+	Quantile               float64
+	QuantizationAlwaysRAM  bool
 }
 
 // Point is one upsert: a deterministic ID, a dense vector, an optional sparse
@@ -254,6 +325,37 @@ type SearchResult struct {
 	Weak bool
 }
 
+// LexicalSearcher is a first-class exact/keyword retrieval leg. It is kept
+// independent from VectorStore so lexical search remains available when model
+// or vector resources are unavailable.
+type LexicalSearcher interface {
+	SearchLexical(ctx context.Context, query SearchQuery) ([]SearchResult, error)
+}
+
+// SemanticSearcher is the dense or hybrid retrieval leg used by local fusion.
+type SemanticSearcher interface {
+	SearchSemantic(ctx context.Context, query SearchQuery) ([]SearchResult, error)
+}
+
+// RankEvidence records how one retrieval leg contributed to a fused result.
+type RankEvidence struct {
+	Leg   string  `json:"leg"`
+	Rank  int     `json:"rank"`
+	Score float64 `json:"score"`
+}
+
+// FusedResult keeps the original hit and explainable per-leg rank evidence.
+type FusedResult struct {
+	Result   SearchResult   `json:"result"`
+	Evidence []RankEvidence `json:"evidence"`
+}
+
+// Admission bounds shared expensive work. Acquire returns a release function;
+// callers must invoke it exactly once after successful acquisition.
+type Admission interface {
+	Acquire(ctx context.Context, weight int64) (release func(), err error)
+}
+
 // ScrollItem is the per-point projection used by the reconciler to detect
 // drift and ghosts without re-reading vectors. It carries both drift levels:
 // SourceHash gates a whole unchanged file (§4.1), PayloadHash gates an
@@ -285,6 +387,13 @@ type VectorStore interface {
 	CountPoints(ctx context.Context) (int, error)
 	ScrollIDs(ctx context.Context) (map[string]ScrollItem, error)
 	Available(ctx context.Context) bool
+}
+
+// BatchVectorStore is the optional bounded-write extension implemented by the
+// Qdrant store. Existing VectorStore fakes and adopters remain source-compatible.
+type BatchVectorStore interface {
+	VectorStore
+	UpsertBatch(ctx context.Context, points []Point, batchSize int) error
 }
 
 // =============================================================================

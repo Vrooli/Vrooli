@@ -10,30 +10,9 @@ import (
 
 	internaleval "search-hub/internal/eval"
 
-	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 )
-
-type fakeClock struct {
-	mu  sync.Mutex
-	now time.Time
-}
-
-func (c *fakeClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
-}
-
-func (c *fakeClock) Advance(d time.Duration) {
-	c.mu.Lock()
-	c.now = c.now.Add(d)
-	c.mu.Unlock()
-}
-
-func (c *fakeClock) NewTimer(d time.Duration) schedule.Timer   { return schedule.System().NewTimer(d) }
-func (c *fakeClock) NewTicker(d time.Duration) schedule.Ticker { return schedule.System().NewTicker(d) }
-func (c *fakeClock) Sleep(d time.Duration)                     { c.Advance(d) }
 
 type fakeSuites struct {
 	mu     sync.Mutex
@@ -145,9 +124,9 @@ func (r *fakeRunner) Run(_ context.Context, suite *evalv1.EvalSuite, tag string,
 	return &evalv1.EvalRun{RunId: r.name + "-" + id, SuiteId: id, Tag: tag, Tier: r.name}, nil
 }
 
-func testScheduler(t *testing.T, suites []*evalv1.EvalSuite, concurrency int) (*Scheduler, *fakeSuites, *fakeRunner, *fakeRunner, *fakeStore, *fakeClock) {
+func testScheduler(t *testing.T, suites []*evalv1.EvalSuite, concurrency int) (*Scheduler, *fakeSuites, *fakeRunner, *fakeRunner, *fakeStore, *scheduletest.FakeClock) {
 	t.Helper()
-	clk := &fakeClock{now: time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC)}
+	clk := scheduletest.New(time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC))
 	source := &fakeSuites{suites: suites}
 	direct := &fakeRunner{name: "direct"}
 	federated := &fakeRunner{name: "federated"}
@@ -253,7 +232,7 @@ func TestSchedulerDoesNotOverlapCycles(t *testing.T) {
 }
 
 func TestSchedulerValidatesOnSeparateCadenceAndPersistsVerdicts(t *testing.T) {
-	clk := &fakeClock{now: time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC)}
+	clk := scheduletest.New(time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC))
 	source := &fakeSuites{suites: []*evalv1.EvalSuite{suite("one")}}
 	direct := &fakeRunner{name: "direct"}
 	federated := &fakeRunner{name: "federated"}
@@ -307,7 +286,7 @@ func TestSchedulerValidatesOnSeparateCadenceAndPersistsVerdicts(t *testing.T) {
 }
 
 func TestSchedulerDelaysFirstTickForDependencyStartup(t *testing.T) {
-	clk := &fakeClock{now: time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC)}
+	clk := scheduletest.New(time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC))
 	store := &fakeStore{}
 	started := make(chan struct{})
 	release := make(chan struct{})

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -242,13 +243,27 @@ func fieldValue(payload map[string]any, field string) any {
 }
 
 func parseTimestampValue(value any) time.Time {
-	text, ok := value.(string)
-	if !ok {
-		return time.Time{}
-	}
-	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05Z07:00"} {
-		if timestamp, err := time.Parse(layout, text); err == nil {
-			return timestamp
+	switch value := value.(type) {
+	case string:
+		for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05Z07:00"} {
+			if timestamp, err := time.Parse(layout, value); err == nil {
+				return timestamp
+			}
+		}
+		if unix, err := strconv.ParseInt(value, 10, 64); err == nil {
+			if unix > 1e12 {
+				return time.UnixMilli(unix).UTC()
+			}
+			if unix > 1e9 {
+				return time.Unix(unix, 0).UTC()
+			}
+		}
+	case float64:
+		if value > 1e12 {
+			return time.UnixMilli(int64(value)).UTC()
+		}
+		if value > 1e9 {
+			return time.Unix(int64(value), 0).UTC()
 		}
 	}
 	return time.Time{}
@@ -272,7 +287,7 @@ func parseSnapshot(raw []byte) *evalv1.ConfigSnapshot {
 	if s := firstString(m, "embed_model", "embedModel", "model"); s != "" {
 		snap.EmbedModel = s
 	}
-	if n, ok := firstNumber(m, "indexed_count", "indexedCount"); ok {
+	if n, ok := firstNumber(m, "indexed_count", "indexedCount", "search_documents", "searchDocuments", "document_count", "documentCount"); ok {
 		snap.IndexedCount = int32(n)
 	}
 	return snap

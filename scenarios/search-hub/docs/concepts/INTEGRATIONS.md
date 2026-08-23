@@ -22,8 +22,7 @@ reaches providers at runtime — never owning their data.
 
 - **Storage — embedded SQLite (no resource dependency).** The `registry`
   (`providers`) and, later, `metrics` (`query_telemetry`) stores live in
-  the template's embedded SQLite (`modernc.org/sqlite`, CGO-clean) at
-  `SQLITE_PATH`. There is no `postgres` dependency: Phase 2 proposed one,
+  the template's embedded SQLite (`modernc.org/sqlite`, CGO-clean) at `api-core/storage`. There is no `postgres` dependency: Phase 2 proposed one,
   but Phase 3 stayed on SQLite (registry data is tiny; the pure-Go test
   harness needs no external service). See the Intentional Deviations
   table in [`ARCHITECTURE.md`](ARCHITECTURE.md).
@@ -54,7 +53,7 @@ reaches providers at runtime — never owning their data.
 
 | Dependency | Type | Required? | Startup Policy | Used By | Failure / Degradation Behavior |
 |---|---|---|---|---|---|
-| SQLite (`SQLITE_PATH`) | embedded store | n/a (in-process) | n/a | registry, metrics | API unhealthy if the DB file is unwritable; no external service. |
+| SQLite | embedded store | n/a (in-process) | n/a | registry, metrics | API unhealthy if the DB file is unwritable; no external service. |
 | `ollama` | shared resource | yes | `try_start` + `degraded_behavior` | routing classifier, LLM rerank fallback, eval corpusgen | Classifier down ⇒ explicit `--type`/`--all`; LLM rerank fallback down ⇒ by-provider grouping when TEI also cannot answer. |
 | `reranker` | shared resource | no | `try_start` | routing rerank primary | Unavailable ⇒ Ollama LLM rerank fallback; all rerank legs unavailable ⇒ by-provider grouping + `degraded` flag. |
 | `cli-health` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
@@ -65,7 +64,7 @@ reaches providers at runtime — never owning their data.
 | Vrooli lifecycle | local platform | yes | n/a | API, UI, CLI | Start through lifecycle commands. |
 
 > **Storage note (2026-06-03, Phase 3).** `.vrooli/service.json` keeps
-> the template's `SQLITE_PATH` — it now backs the live `registry` store
+> the template's scenario database — it now backs the live `registry` store
 > (the `notes` worked example was removed). The cross-scenario base URL
 > for each provider is resolved at call-time via the backend resolver
 > (never client-computed) — descriptors store a logical
@@ -96,7 +95,7 @@ reaches providers at runtime — never owning their data.
 
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
-| SQLite (`SQLITE_PATH`) | `PingContext` error (unwritable/corrupt DB file) | `/health` returns unhealthy dependency status. | health handler tests |
+| SQLite | `PingContext` error (unwritable/corrupt DB file) | `/health` returns unhealthy dependency status. | health handler tests |
 | `reranker` | TEI `/health` or `/rerank` error/timeout | Fall back to Ollama LLM rerank within the router budget. | shared-reranker chain adapter tests |
 | `ollama` | classify/rerank call error or timeout | Degrade per policy above; surface in `status` (`classifier_available` / `reranker_available`). | routing/rerank degradation tests (Phase 5/6) |
 | Provider scenario | unreachable within per-provider timeout | Skip provider, surface warning, return partial results. | federation-correctness tests (Phase 4) |

@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
+	internalregistry "search-hub/internal/registry"
+
 	"github.com/stretchr/testify/require"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
-	internalregistry "search-hub/internal/registry"
 )
 
 type quorumLister struct {

@@ -1,6 +1,7 @@
 package providers_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,6 +13,25 @@ import (
 
 	"search-hub/internal/providers"
 )
+
+func TestRenderBodyPropagatesFederatedScopeWithoutLosingProviderFilters(t *testing.T) {
+	template := `{"query":"{{query}}","limit":{{limit}},"scope":"{{scope}}","roles":["implementation"],"families":["FACT_FAMILY_SYMBOLS"]}`
+	body, err := providers.RenderBodyWithScope(template, "find Search", 7, "code", "scenario:code-facts")
+	require.NoError(t, err)
+	var payload struct {
+		Query    string   `json:"query"`
+		Limit    int      `json:"limit"`
+		Scope    string   `json:"scope"`
+		Roles    []string `json:"roles"`
+		Families []string `json:"families"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &payload))
+	require.Equal(t, "find Search", payload.Query)
+	require.Equal(t, 7, payload.Limit)
+	require.Equal(t, "scenario:code-facts", payload.Scope)
+	require.Equal(t, []string{"implementation"}, payload.Roles)
+	require.Equal(t, []string{"FACT_FAMILY_SYMBOLS"}, payload.Families)
+}
 
 // TestMapResultsCLIHealthFixture is the Phase 3 proof that the generic mapping
 // path turns a real cli-health SearchService.Search response into unified

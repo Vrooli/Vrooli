@@ -503,6 +503,43 @@ declared at 11454 to avoid the host's MinIO port 9000.
 
 ## Regression Procedure
 
+## Phase follow-up — route-discriminative semantic diagnostics (2026-08-16)
+
+The route-profile and stage-trace follow-up was validated on the restarted
+Search Hub process after rebuilding the API and UI artifacts. The full managed
+suite passed 21/21 in Test Genie run `20260816-155029-1135242f`. The lifecycle
+restart reported the known Ollama configuration-build warning, but Search Hub
+became healthy and the comparison runs recorded the cross-encoder leg and an
+available provider-description index.
+
+The authoritative three-arm comparison was requested with `--apply`; the
+write-back guard refused promotion:
+
+| Arm | Run | Gradeable / unavailable | Routing precision | Pass rate | Retrieval recall | P95 | Trace cases |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `lexical-cross-encoder` (incumbent) | `17c28c65-7c12-4414-8aac-374d33be510c` | 179 / 34 | 0.8939 | 0.1788 | 0.2625 | 6381 ms | 213 / 213 |
+| `semantic-cross-encoder` | `1f7145fd-4b6f-435c-9403-ff86df27139c` | 179 / 34 | 0.8939 | 0.0000 | 0.00625 | 4843 ms | 213 / 213 |
+| `lexical-fallback` | `6fda3d94-559c-40cf-bd85-36db62632aa3` | 179 / 34 | 0.8939 | 0.0726 | 0.1000 | 5781 ms | 213 / 213 |
+
+For the semantic arm, expected-owner evidence was present in the dense top
+1/3/6 for 52/87/117 of the 179 gradeable cases (29.1%/48.6%/65.4%). The
+positive lexical/dense evidence union retained the expected owner for 173/179
+cases (96.6%), and the selected provider set retained it for 160/179 (89.4%),
+matching the incumbent's routing precision. The remaining loss is downstream:
+the owner can be selected and still fail to return the expected item within
+the case's declared top-K, so this comparison separates provider retrieval
+quality from route selection instead of calling it a semantic routing win.
+
+The candidate held the held-out routing fold, but its paired routing delta was
+exactly zero with a 95% CI lower bound of zero. The guarded `--apply` request
+therefore returned `write-back refused: no strategy cleared both paired
+significance and held-out validation`; `lexical-cross-encoder` remains active.
+The run's traces also show a second concrete limitation: 62/179 gradeable
+cases miss the semantic dense top-six window, while five more lose the owner
+at the guarded selector. The route profile is now useful evidence, but the
+current provider corpus and query representation are not sufficient grounds
+for semantic promotion.
+
 1. Run `make test`.
 2. Capture relevant API/UI command timing.
 3. For UI interaction regressions, use `ui/perf/README.md` and the

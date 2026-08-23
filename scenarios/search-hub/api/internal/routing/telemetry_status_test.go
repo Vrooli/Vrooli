@@ -263,6 +263,32 @@ func TestStatusReportsProbedIndexAgeAndPointCount(t *testing.T) {
 	require.Equal(t, 1, doer.statusCalls)
 }
 
+func TestStatusMapsTypedProviderIndexState(t *testing.T) {
+	now := time.Unix(1787139260, 0).UTC().Add(5 * time.Minute)
+	doer := &statusDoer{body: `{"activeGeneration":"g7","state":"updating","sourceFiles":"100","searchDocuments":"80","semanticCards":"60","graphFacts":"40","lastReconcileAtUnix":"1787139260","degradedStages":["semantic"],"drifted":true}`}
+	p := providerWithStatus(doer.body)
+	p.IndexTimestampField = "lastReconcileAtUnix"
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{p}},
+		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:     doer, Now: func() time.Time { return now },
+	})
+
+	status, err := r.Status(context.Background())
+	require.NoError(t, err)
+	health := status.GetProviders()[0]
+	require.Equal(t, "g7", health.GetActiveGeneration())
+	require.Equal(t, int64(100), health.GetSourceFiles())
+	require.Equal(t, int64(80), health.GetPointCount())
+	require.Equal(t, int64(60), health.GetSemanticCards())
+	require.Equal(t, int64(40), health.GetGraphFacts())
+	require.Equal(t, "updating", health.GetIndexState())
+	require.Equal(t, []string{"semantic"}, health.GetDegradedStages())
+	require.True(t, health.GetDrifted())
+	require.True(t, health.GetDegraded())
+	require.Equal(t, "5m0s", health.GetIndexAge())
+}
+
 func TestStatusExcludesProviderPastFreshnessBudget(t *testing.T) {
 	now := time.Date(2026, 8, 12, 8, 0, 0, 0, time.UTC)
 	doer := &statusDoer{body: `{"last_indexed_at":"2026-08-12T07:30:00Z","point_count":42}`}

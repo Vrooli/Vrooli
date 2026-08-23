@@ -25,6 +25,8 @@ const (
 	// worker pool (one in-flight embed per worker).
 	DefaultReconcileParallelism = 4
 	MaxReconcileParallelism     = 16
+	DefaultSourcePageSize       = 256
+	MaxSourcePageSize           = 4096
 
 	// DefaultRerankShortlist is the over-fetch depth handed to the reranker: the
 	// query pulls this many candidates (or the page size, whichever is larger) so

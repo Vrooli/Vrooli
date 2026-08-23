@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/shared"
 )
 
 type fixtureDescriptionEmbedder struct{}
@@ -126,6 +127,49 @@ func TestDescriptionEmbeddingSegmentsCarryRegistryContext(t *testing.T) {
 		"provider: knowledge-observatory.docs; type: doc; group: knowledge-observatory; description: Project guides",
 		"provider: knowledge-observatory.docs; type: doc; group: knowledge-observatory; description: Searchable references",
 	}, segments)
+}
+
+func TestDescriptionEmbeddingSegmentsPreferPositiveRouteProfile(t *testing.T) {
+	segments := descriptionEmbeddingSegments(ProviderProfile{
+		ProviderID:       "code-facts.contracts",
+		Type:             "contract",
+		Group:            "code-facts",
+		Description:      "ordinary implementation details that are not the contract owner",
+		AnswerSpaces:     []string{"service_contract"},
+		Intents:          []string{"locate", "explain"},
+		PositiveExamples: []string{"where is the RPC declared"},
+		Exclusions:       []string{"ordinary implementation"},
+	})
+
+	require.Equal(t, []string{
+		"provider: code-facts.contracts; type: contract; group: code-facts; answer space: service_contract",
+		"provider: code-facts.contracts; type: contract; group: code-facts; intent: locate",
+		"provider: code-facts.contracts; type: contract; group: code-facts; intent: explain",
+		"provider: code-facts.contracts; type: contract; group: code-facts; positive example: where is the RPC declared",
+	}, segments)
+	for _, segment := range segments {
+		require.NotContains(t, segment, "ordinary implementation")
+	}
+}
+
+func TestBuildRoutingTraceCandidatesCapturesBoundedStageEvidence(t *testing.T) {
+	semantic := []ProviderProfile{{ProviderID: "dense", Description: "contract"}, {ProviderID: "shared"}}
+	lexical := []ProviderProfile{{ProviderID: "shared", Description: "contract"}, {ProviderID: "exact", Description: "implementation"}}
+	union := boundedProviderEvidenceUnion(semantic, lexical, 2)
+	selected := []ProviderProfile{{ProviderID: "shared"}, {ProviderID: "exact"}}
+	evidence := buildRoutingTraceCandidates("contract implementation", semantic, lexical, union, semantic, selected, map[string]float64{"dense": 0.9, "shared": 0.8}, map[string]float64{"dense": 0.3, "shared": 0.8})
+
+	require.Len(t, evidence, 3)
+	byID := make(map[string]*sharedv1.ProviderRoutingEvidence, len(evidence))
+	for _, item := range evidence {
+		byID[item.GetProviderId()] = item
+	}
+	require.Equal(t, int32(1), byID["dense"].GetDenseRank())
+	require.Equal(t, int32(1), byID["shared"].GetLexicalRank())
+	require.True(t, byID["shared"].GetInEvidenceUnion())
+	require.Equal(t, int32(1), byID["dense"].GetCrossEncoderRank())
+	require.True(t, byID["shared"].GetSelected())
+	require.True(t, byID["exact"].GetSelected())
 }
 
 func TestFuseProviderRankingsKeepsConsensusAndFallbackSignals(t *testing.T) {

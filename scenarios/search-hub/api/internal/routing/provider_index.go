@@ -24,6 +24,9 @@ type DescriptionIndexResult struct {
 	Returned  int
 	Omitted   []string
 	Dropped   []string
+	// Scores is the dense score for each retained provider id. It is diagnostic
+	// metadata only; provider selection still consumes the ordered shortlist.
+	Scores map[string]float64
 }
 
 // ProviderDescriptionIndex turns registered natural-language descriptions into
@@ -71,7 +74,7 @@ func NewPersistentEmbeddingDescriptionIndex(embedder aisearch.Embedder, cachePat
 }
 
 func (i *EmbeddingDescriptionIndex) Shortlist(ctx context.Context, query string, profiles []ProviderProfile, limit int) ([]ProviderProfile, DescriptionIndexResult) {
-	result := DescriptionIndexResult{Total: len(profiles)}
+	result := DescriptionIndexResult{Total: len(profiles), Scores: make(map[string]float64, len(profiles))}
 	if limit <= 0 {
 		limit = defaultMaxFanoutWidth
 	}
@@ -95,7 +98,9 @@ func (i *EmbeddingDescriptionIndex) Shortlist(ctx context.Context, query string,
 		if !ok {
 			continue
 		}
-		scored = append(scored, scoredProfile{profile: profile, score: descriptionVectorScore(queryVector, entry)})
+		score := descriptionVectorScore(queryVector, entry)
+		result.Scores[profile.ProviderID] = score
+		scored = append(scored, scoredProfile{profile: profile, score: score})
 	}
 	i.mu.Unlock()
 	if len(scored) == 0 {
@@ -231,7 +236,15 @@ func unavailableDescriptionIndexResult(query string, profiles []ProviderProfile,
 
 func lexicalDescriptionScore(query string, profile ProviderProfile) float64 {
 	terms := strings.Fields(strings.ToLower(query))
-	text := strings.ToLower(strings.Join([]string{profile.ProviderID, profile.Type, profile.Group, profile.Description}, " "))
+	text := strings.ToLower(strings.Join([]string{
+		profile.ProviderID,
+		profile.Type,
+		profile.Group,
+		profile.Description,
+		strings.Join(profile.AnswerSpaces, " "),
+		strings.Join(profile.Intents, " "),
+		strings.Join(profile.PositiveExamples, " "),
+	}, " "))
 	var score float64
 	for _, term := range terms {
 		term = strings.Trim(term, " ,.!?:;()[]{}\"'")
@@ -245,17 +258,17 @@ func lexicalDescriptionScore(query string, profile ProviderProfile) float64 {
 func profileFingerprint(profiles []ProviderProfile) string {
 	var b strings.Builder
 	for _, profile := range profiles {
-		fmt.Fprintf(&b, "%s\x00%s\x00%s\x00%s\x00", profile.ProviderID, profile.Type, profile.Group, profile.Description)
+		fmt.Fprintf(&b, "%s\x00%s\x00%s\x00%s\x00%s\x00%s\x00%s\x00%s\x00", profile.ProviderID, profile.Type, profile.Group, profile.Description, strings.Join(profile.AnswerSpaces, "\x01"), strings.Join(profile.Intents, "\x01"), strings.Join(profile.PositiveExamples, "\x01"), strings.Join(profile.Exclusions, "\x01"))
 	}
 	return b.String()
 }
 
-// Version 4 records the task-prefixed Nomic recipe plus sentence-level
-// description segments enriched with registry identity context. Bumping this value is
+// Version 5 records the task-prefixed Nomic recipe plus positive route-profile
+// segments enriched with registry identity context. Bumping this value is
 // intentional: vectors generated with the legacy symmetric recipe must never
-// be compared with task-prefixed query vectors or the prior description-only
-// representation after a restart.
-const descriptionIndexPolicyVersion = "4"
+// be compared with task-prefixed query vectors or prior representations after
+// a restart.
+const descriptionIndexPolicyVersion = "5"
 
 // descriptionEmbeddingSegments keeps each registered routing description's
 // distinct route examples and responsibilities searchable without storing
@@ -266,6 +279,20 @@ const descriptionIndexPolicyVersion = "4"
 // the best segment preserves the descriptor's natural-language intent while
 // remaining bounded by the registry data.
 func descriptionEmbeddingSegments(profile ProviderProfile) []string {
+	identity := providerIdentityText(profile)
+	if profileHasPositiveRouteProfile(profile) {
+		segments := make([]string, 0, len(profile.AnswerSpaces)+len(profile.Intents)+len(profile.PositiveExamples))
+		for _, value := range profile.AnswerSpaces {
+			segments = append(segments, identity+"; answer space: "+value)
+		}
+		for _, value := range profile.Intents {
+			segments = append(segments, identity+"; intent: "+value)
+		}
+		for _, value := range profile.PositiveExamples {
+			segments = append(segments, identity+"; positive example: "+value)
+		}
+		return segments
+	}
 	description := strings.TrimSpace(profile.Description)
 	if description == "" {
 		return nil
@@ -283,7 +310,22 @@ func descriptionEmbeddingSegments(profile ProviderProfile) []string {
 	if len(segments) == 0 {
 		segments = []string{description}
 	}
-	context := make([]string, 0, 4)
+	if identity == "" {
+		return segments
+	}
+	enriched := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		enriched = append(enriched, identity+"; description: "+segment)
+	}
+	return enriched
+}
+
+func profileHasPositiveRouteProfile(profile ProviderProfile) bool {
+	return len(profile.AnswerSpaces) > 0 || len(profile.Intents) > 0 || len(profile.PositiveExamples) > 0
+}
+
+func providerIdentityText(profile ProviderProfile) string {
+	context := make([]string, 0, 3)
 	if id := strings.TrimSpace(profile.ProviderID); id != "" {
 		context = append(context, "provider: "+id)
 	}
@@ -293,15 +335,7 @@ func descriptionEmbeddingSegments(profile ProviderProfile) []string {
 	if group := strings.TrimSpace(profile.Group); group != "" {
 		context = append(context, "group: "+group)
 	}
-	identity := strings.Join(context, "; ")
-	if identity == "" {
-		return segments
-	}
-	enriched := make([]string, 0, len(segments))
-	for _, segment := range segments {
-		enriched = append(enriched, identity+"; description: "+segment)
-	}
-	return enriched
+	return strings.Join(context, "; ")
 }
 
 func descriptionVectorScore(query []float64, entry descriptionVector) float64 {

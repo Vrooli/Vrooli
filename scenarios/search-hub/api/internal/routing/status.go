@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -268,8 +269,17 @@ func (r *Router) providerHealth(ctx context.Context, p *registryv1.ProviderDescr
 
 	h.Reachable = true
 	h.Reachability = "endpoint resolved"
-	var lastIndexedAt time.Time
-	h.IndexAge, h.PointCount, lastIndexedAt = r.probeIndexStatus(ctx, p)
+	snapshot := r.probeIndexStatus(ctx, p)
+	h.IndexAge, h.PointCount = snapshot.age, snapshot.documents
+	h.ActiveGeneration, h.SourceFiles = snapshot.generation, snapshot.sourceFiles
+	h.SemanticCards, h.GraphFacts = snapshot.semanticCards, snapshot.graphFacts
+	h.IndexState = snapshot.state
+	h.DegradedStages = append([]string(nil), snapshot.degraded...)
+	h.Drifted = snapshot.drifted
+	if snapshot.state == "uninitialized" || len(snapshot.degraded) > 0 {
+		h.Degraded = true
+	}
+	lastIndexedAt := snapshot.timestamp
 	if !lastIndexedAt.IsZero() {
 		h.LastIndexedAt = timestamppb.New(lastIndexedAt)
 		age := r.deps.Now().Sub(lastIndexedAt)
@@ -335,17 +345,34 @@ func providerRecoveryState(stats *providerYieldStats, demoted bool, now time.Tim
 	return "demoted", false
 }
 
-func (r *Router) probeIndexStatus(ctx context.Context, p *registryv1.ProviderDescriptor) (string, int64, time.Time) {
+type providerIndexSnapshot struct {
+	age           string
+	documents     int64
+	timestamp     time.Time
+	generation    string
+	sourceFiles   int64
+	semanticCards int64
+	graphFacts    int64
+	state         string
+	degraded      []string
+	drifted       bool
+}
+
+func (r *Router) probeIndexStatus(ctx context.Context, p *registryv1.ProviderDescriptor) providerIndexSnapshot {
+	result := providerIndexSnapshot{}
 	hj := p.GetStatusEndpoint().GetHttpJson()
 	if hj == nil {
-		return "not_applicable: provider has no status_endpoint", 0, time.Time{}
+		result.age = "not_applicable: provider has no status_endpoint"
+		return result
 	}
 	if r.deps.Doer == nil {
-		return "unreported: status probe transport unavailable", 0, time.Time{}
+		result.age = "unreported: status probe transport unavailable"
+		return result
 	}
 	base, err := r.deps.Resolver.ResolveScenarioURL(ctx, hj.GetScenarioId())
 	if err != nil {
-		return fmt.Sprintf("unreported: status endpoint unreachable: %s", oneLine(err.Error())), 0, time.Time{}
+		result.age = fmt.Sprintf("unreported: status endpoint unreachable: %s", oneLine(err.Error()))
+		return result
 	}
 	body := strings.TrimSpace(hj.GetBodyTemplate())
 	if body == "" {
@@ -358,23 +385,28 @@ func (r *Router) probeIndexStatus(ctx context.Context, p *registryv1.ProviderDes
 	url := strings.TrimRight(base, "/") + hj.GetPath()
 	req, err := http.NewRequestWithContext(probeCtx, httpMethod(hj.GetMethod()), url, bytes.NewReader([]byte(body)))
 	if err != nil {
-		return fmt.Sprintf("unreported: status request invalid: %s", oneLine(err.Error())), 0, time.Time{}
+		result.age = fmt.Sprintf("unreported: status request invalid: %s", oneLine(err.Error()))
+		return result
 	}
 	for key, value := range hj.GetHeaders() {
 		req.Header.Set(key, value)
 	}
 	resp, err := r.deps.Doer.Do(req)
 	if err != nil {
-		return fmt.Sprintf("unreported: status probe failed: %s", oneLine(err.Error())), 0, time.Time{}
+		result.age = fmt.Sprintf("unreported: status probe failed: %s", oneLine(err.Error()))
+		return result
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Sprintf("unreported: status probe returned HTTP %d", resp.StatusCode), 0, time.Time{}
+		result.age = fmt.Sprintf("unreported: status probe returned HTTP %d", resp.StatusCode)
+		return result
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
-		return fmt.Sprintf("unreported: status response unreadable: %s", oneLine(err.Error())), 0, time.Time{}
+		result.age = fmt.Sprintf("unreported: status response unreadable: %s", oneLine(err.Error()))
+		return result
 	}
+	readProviderIndexFields(raw, &result)
 	timestamp, pointCount, ok := parseDeclaredIndexStatus(raw, p.GetIndexTimestampField())
 	if !ok {
 		if r.deps.Logger != nil {
@@ -387,13 +419,69 @@ func (r *Router) probeIndexStatus(ctx context.Context, p *registryv1.ProviderDes
 		timestamp, pointCount, ok = parseIndexStatus(raw)
 	}
 	if !ok {
-		return "unreported: status response has no usable declared index timestamp", pointCount, time.Time{}
+		result.age, result.documents = "unreported: status response has no usable declared index timestamp", pointCount
+		return result
 	}
 	age := r.deps.Now().Sub(timestamp)
 	if age < 0 {
 		age = 0
 	}
-	return age.Round(time.Second).String(), pointCount, timestamp
+	result.age, result.timestamp = age.Round(time.Second).String(), timestamp
+	if result.documents == 0 {
+		result.documents = pointCount
+	}
+	return result
+}
+
+func readProviderIndexFields(raw []byte, result *providerIndexSnapshot) {
+	var payload map[string]any
+	if result == nil || json.Unmarshal(raw, &payload) != nil {
+		return
+	}
+	result.generation = firstStatusString(payload, "activeGeneration", "active_generation")
+	result.state = firstStatusString(payload, "state", "indexState", "index_state")
+	result.documents = firstStatusInt(payload, "searchDocuments", "search_documents", "indexedCount", "indexed_count")
+	result.sourceFiles = firstStatusInt(payload, "sourceFiles", "source_files")
+	result.semanticCards = firstStatusInt(payload, "semanticCards", "semantic_cards")
+	result.graphFacts = firstStatusInt(payload, "graphFacts", "graph_facts")
+	for _, key := range []string{"degradedStages", "degraded_stages"} {
+		if values, ok := payload[key].([]any); ok {
+			for _, value := range values {
+				if stage, ok := value.(string); ok && strings.TrimSpace(stage) != "" {
+					result.degraded = append(result.degraded, stage)
+					if strings.Contains(strings.ToLower(stage), "drift") {
+						result.drifted = true
+					}
+				}
+			}
+		}
+	}
+	if value, ok := payload["drifted"].(bool); ok {
+		result.drifted = value
+	}
+}
+
+func firstStatusString(payload map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := payload[key].(string); ok {
+			return value
+		}
+	}
+	return ""
+}
+
+func firstStatusInt(payload map[string]any, keys ...string) int64 {
+	for _, key := range keys {
+		if value, ok := payload[key].(float64); ok {
+			return int64(value)
+		}
+		if value, ok := payload[key].(string); ok {
+			if parsed, err := strconv.ParseInt(value, 10, 64); err == nil {
+				return parsed
+			}
+		}
+	}
+	return 0
 }
 
 func (r *Router) statusProbeTimeout(providerID string) time.Duration {
@@ -503,12 +591,20 @@ func parseTimestamp(value any) (time.Time, bool) {
 				return timestamp, true
 			}
 		}
+		if unix, err := strconv.ParseInt(value, 10, 64); err == nil {
+			if unix > 1e12 {
+				return time.UnixMilli(unix).UTC(), true
+			}
+			if unix > 1e9 {
+				return time.Unix(unix, 0).UTC(), true
+			}
+		}
 	case float64:
 		if value > 1e12 {
-			return time.UnixMilli(int64(value)), true
+			return time.UnixMilli(int64(value)).UTC(), true
 		}
 		if value > 1e9 {
-			return time.Unix(int64(value), 0), true
+			return time.Unix(int64(value), 0).UTC(), true
 		}
 	}
 	return time.Time{}, false
