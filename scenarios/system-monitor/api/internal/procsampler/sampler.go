@@ -35,8 +35,11 @@ type ProcessSample struct {
 	Cwd                  string  // resolved /proc/<pid>/cwd target ("" when unreadable)
 	Owner                string  // attributed scenario name or "unknown" (filled by the attributor)
 	CPUPct               float64 // CPU% over the inter-sample interval
-	RSSKB                int64   // resident set size in kibibytes
-	SwapKB               int64   // swap-resident size in kibibytes
+	CPUSeconds           float64 // CPU seconds consumed during the inter-sample interval
+	CPUSecondsStatus     string  // measured, not_yet_sampled, or refused
+	CPUSecondsReason     string
+	RSSKB                int64 // resident set size in kibibytes
+	SwapKB               int64 // swap-resident size in kibibytes
 	Threads              int
 	MajorFaults          uint64
 	MajorFaultsPerSecond float64
@@ -148,19 +151,27 @@ func (t *cpuDeltaTracker) apply(samples []ProcessSample, now time.Time) {
 		cur := cpuTicks{utime: s.utime, stime: s.stime, majorFaults: s.MajorFaults}
 		next[s.PID] = cur
 		if elapsed <= 0 {
+			s.CPUSecondsStatus = "not_yet_sampled"
+			s.CPUSecondsReason = "sample interval is not positive"
 			continue
 		}
 		prior, ok := t.prev[s.PID]
 		if !ok {
+			s.CPUSecondsStatus = "not_yet_sampled"
+			s.CPUSecondsReason = "process has no prior CPU counter sample"
 			continue
 		}
 		// Guard against pid reuse / counter resets: a negative delta means a
 		// different process now holds this pid, so skip rather than report a
 		// bogus spike.
 		if cur.utime < prior.utime || cur.stime < prior.stime {
+			s.CPUSecondsStatus = "not_yet_sampled"
+			s.CPUSecondsReason = "process CPU counter reset or PID was reused"
 			continue
 		}
 		deltaTicks := float64((cur.utime - prior.utime) + (cur.stime - prior.stime))
+		s.CPUSeconds = deltaTicks / clockTicksPerSec
+		s.CPUSecondsStatus = "measured"
 		s.CPUPct = (deltaTicks / clockTicksPerSec) / elapsed * 100.0
 		if cur.majorFaults >= prior.majorFaults {
 			s.MajorFaultsPerSecond = float64(cur.majorFaults-prior.majorFaults) / elapsed

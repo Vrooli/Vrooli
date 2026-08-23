@@ -6,7 +6,8 @@ import { formatBytes, formatProtoTimestamp } from '../../../shared/utils/formatt
 import type {
   MetricsResponse,
   DetailedMetrics,
-  MetricHistory
+  MetricHistory,
+  MetricValue
 } from '../../../types';
 import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 import { buildSingleSeriesData, combineFlowSeries, combineMemorySeries } from '../../../shared/utils/chartData';
@@ -41,8 +42,8 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
   const swapUsage = memoryDetails?.swapUsage;
   const topProcesses = memoryDetails?.topProcesses;
   const topPagingProcesses = memoryDetails?.topPagingProcesses;
-  const paging = memoryDetails?.paging as any;
-  const fragmentation = memoryDetails?.fragmentation as any;
+	const paging = memoryDetails?.paging;
+	const fragmentation = memoryDetails?.fragmentation;
   const swapTrafficState = paging?.swapTrafficPagesPerSecond?.state;
   const swapTraffic = swapTrafficState?.case === 'measured' ? swapTrafficState.value : undefined;
 
@@ -165,13 +166,13 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
           <h3 className="section-heading">Top Paging Consumers</h3>
           <div className="card-subtitle">Processes ranked by major faults per second</div>
         </div>
-        {renderProcessTable(topPagingProcesses, 'Major faults/sec', process => (process as any).majorFaultsPerSecond)}
+				{renderProcessTable(topPagingProcesses, 'Major faults/sec', process => process.majorFaultsPerSecond)}
       </div>
     </MetricDetailLayout>
   );
 };
 
-function metricStateReason(state: { case?: string; value?: unknown } | undefined): string | undefined {
+function metricStateReason(state: MetricValue['state'] | undefined): string | undefined {
 	if (!state) return undefined;
 	if (state.case === 'unsupportedReason' || state.case === 'failedError' || state.case === 'staleReason' || state.case === 'notYetSampledReason') {
 		return String(state.value ?? 'Metric unavailable.');

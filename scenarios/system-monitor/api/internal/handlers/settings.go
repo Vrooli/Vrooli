@@ -216,6 +216,9 @@ func (h *SettingsHandler) validateSettings(settings *services.Settings) error {
 	if settings.CPUThreshold < 0 || settings.CPUThreshold > 100 {
 		return apierrors.Validation("cpu_threshold", "must be between 0 and 100")
 	}
+	if err := validateCPUBands(settings); err != nil {
+		return err
+	}
 	if settings.MemoryThreshold < 0 || settings.MemoryThreshold > 100 {
 		return apierrors.Validation("memory_threshold", "must be between 0 and 100")
 	}
@@ -254,6 +257,34 @@ func (h *SettingsHandler) validateSettings(settings *services.Settings) error {
 		return apierrors.Validation("retention_check_interval_seconds", "must be less than or equal to 604800 seconds")
 	}
 
+	return nil
+}
+
+func validateCPUBands(settings *services.Settings) error {
+	if settings.CPUHighPercent < 0 || settings.CPUHighPercent > 100 {
+		return apierrors.Validation("cpu_high_percent", "must be between 0 and 100")
+	}
+	if settings.CPUCriticalPercent < 0 || settings.CPUCriticalPercent > 100 {
+		return apierrors.Validation("cpu_critical_percent", "must be between 0 and 100")
+	}
+	if settings.CPUThreshold >= settings.CPUHighPercent {
+		return apierrors.Validation("cpu_high_percent", "must be greater than cpu_threshold")
+	}
+	if settings.CPUHighPercent >= settings.CPUCriticalPercent {
+		return apierrors.Validation("cpu_critical_percent", "must be greater than cpu_high_percent")
+	}
+	if settings.CPUEscalationCooldownSeconds < 0 {
+		return apierrors.Validation("cpu_escalation_cooldown_seconds", "must be non-negative")
+	}
+	if settings.CPUEscalationDebounceTicks < 1 {
+		return apierrors.Validation("cpu_escalation_debounce_ticks", "must be at least 1")
+	}
+	if settings.CPUSustainedWindowTicks < 1 {
+		return apierrors.Validation("cpu_sustained_window_ticks", "must be at least 1")
+	}
+	if settings.CPUPressureThreshold < 0 || settings.CPUPressureThreshold > 100 {
+		return apierrors.Validation("cpu_pressure_threshold", "must be between 0 and 100")
+	}
 	return nil
 }
 

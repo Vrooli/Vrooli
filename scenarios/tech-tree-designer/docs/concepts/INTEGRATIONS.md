@@ -14,7 +14,7 @@ Record scenario and resource dependencies for TTD.
 
 | Resource | Required | Purpose |
 |---|---:|---|
-| SQLite | yes | Embedded scenario data store through lifecycle-provided `SQLITE_PATH`. |
+| SQLite | yes | Embedded scenario data store resolved by `api-core/storage` from the scenario id. |
 
 TTD does not call Ollama, OpenRouter, Postgres, Qdrant, or Redis directly. SDA may depend on heavier resources internally, but TTD only consumes SDA's graph contract.
 

@@ -12,6 +12,7 @@ type processTimelineAgg struct {
 	aggregated  bool
 	cpuSum      float64
 	cpuMax      float64
+	cpuSeconds  float64
 	rssMax      int64
 	gpuVRAMMax  float64
 	sampleCount int64
@@ -29,21 +30,23 @@ func NewProcessTimelineAccumulator() *ProcessTimelineAccumulator {
 	return &ProcessTimelineAccumulator{merged: map[string]*processTimelineAgg{}}
 }
 
-func (a *ProcessTimelineAccumulator) AddRaw(owner, comm string, pid int, cpu float64, rss int64, gpuVRAMMB float64, ts time.Time) {
+func (a *ProcessTimelineAccumulator) AddRaw(owner, comm string, pid int, cpu, cpuSeconds float64, rss int64, gpuVRAMMB float64, ts time.Time) {
 	row := a.entry(owner, comm)
 	if row.sampleCount == 0 {
 		row.pid = pid
 	}
 	row.addCPU(cpu, 1)
+	row.cpuSeconds += cpuSeconds
 	row.addRSS(rss)
 	row.addGPU(gpuVRAMMB)
 	row.addWindow(ts, ts)
 }
 
-func (a *ProcessTimelineAccumulator) AddRollup(owner, comm string, avgCPU, maxCPU float64, maxRSS, count int64, minute time.Time) {
+func (a *ProcessTimelineAccumulator) AddRollup(owner, comm string, avgCPU, maxCPU, cpuSeconds float64, maxRSS, count int64, minute time.Time) {
 	row := a.entry(owner, comm)
 	row.aggregated = true
 	row.cpuSum += avgCPU * float64(count)
+	row.cpuSeconds += cpuSeconds
 	if maxCPU > row.cpuMax {
 		row.cpuMax = maxCPU
 	}
@@ -63,6 +66,9 @@ func (a *ProcessTimelineAccumulator) Entries(top int, rank string) []ProcessTime
 		}
 		if rank == "rss" && entries[i].RSSKB != entries[j].RSSKB {
 			return entries[i].RSSKB > entries[j].RSSKB
+		}
+		if rank == "cpu_seconds" && entries[i].CPUSeconds != entries[j].CPUSeconds {
+			return entries[i].CPUSeconds > entries[j].CPUSeconds
 		}
 		if entries[i].CPUPct != entries[j].CPUPct {
 			return entries[i].CPUPct > entries[j].CPUPct
@@ -129,6 +135,8 @@ func (a *processTimelineAgg) entry() ProcessTimelineEntry {
 		PID:         a.pid,
 		Aggregated:  a.aggregated,
 		CPUPct:      avg,
+		MaxCPUPct:   a.cpuMax,
+		CPUSeconds:  a.cpuSeconds,
 		RSSKB:       a.rssMax,
 		GPUVRAMMB:   a.gpuVRAMMax,
 		SampleCount: a.sampleCount,

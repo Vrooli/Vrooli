@@ -333,7 +333,7 @@ export const MetricLineChart = ({
                           type="button"
                           className="metric-chart-legend__item"
                           aria-pressed={!isHidden}
-                          onClick={() => toggleSeries(line.dataKey)}
+							onClick={() => { toggleSeries(line.dataKey); }}
                           style={{ opacity: isHidden ? 0.35 : 1 }}
                         >
                           <span

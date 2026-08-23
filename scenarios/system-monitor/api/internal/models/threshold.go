@@ -19,15 +19,16 @@ type Threshold struct {
 
 // ThresholdViolation represents a threshold violation event
 type ThresholdViolation struct {
-	MetricName     string    `json:"metric_name"`
-	CurrentValue   float64   `json:"current_value"`
-	ThresholdValue float64   `json:"threshold_value"`
-	Severity       string    `json:"severity"`
-	ViolationType  string    `json:"violation_type"` // warning, critical
-	Timestamp      time.Time `json:"timestamp"`
-	Duration       string    `json:"duration"`
-	PreviousValue  float64   `json:"previous_value"`
-	Trend          string    `json:"trend"` // increasing, decreasing, stable
+	MetricName     string                 `json:"metric_name"`
+	CurrentValue   float64                `json:"current_value"`
+	ThresholdValue float64                `json:"threshold_value"`
+	Severity       string                 `json:"severity"`
+	ViolationType  string                 `json:"violation_type"` // warning, critical
+	Timestamp      time.Time              `json:"timestamp"`
+	Duration       string                 `json:"duration"`
+	PreviousValue  float64                `json:"previous_value"`
+	Trend          string                 `json:"trend"` // increasing, decreasing, stable
+	Details        map[string]interface{} `json:"details,omitempty"`
 }
 
 // Alert represents a system alert

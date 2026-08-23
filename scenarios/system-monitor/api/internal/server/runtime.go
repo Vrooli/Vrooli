@@ -98,7 +98,8 @@ func Run(cfg *config.Config) error {
 	// threshold setting, the violation model, and the alert repository are all
 	// reachable only from tests.
 	thresholdScheduler := services.NewThresholdScheduler(settingsMgr, alertSvc, repo, apiLog.With("service", "threshold"),
-		services.WithPressureReporter(cleanupmanager.NewClient(cleanupmanager.Config{})))
+		services.WithPressureReporter(cleanupmanager.NewClient(cleanupmanager.Config{})),
+		services.WithCPUObservationSource(monitorSvc))
 	thresholdScheduler.Start()
 
 	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc, settingsMgr)

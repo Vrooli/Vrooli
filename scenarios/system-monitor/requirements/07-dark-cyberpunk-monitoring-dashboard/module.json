@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-22T12:01:57-04:00"
+    "last_validated_at": "2026-08-22T15:56:32-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-007",
       "title": "Vrooli Operational Console Dashboard",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "ui",
       "description": "System must provide a governed, responsive monitoring dashboard using the vrooli-default / Vrooli Operational Console design system with React. This supersedes the former Matrix-theme requirement by the production-readiness decision dated 2026-08-19: the default system is the platform-supported design contract and is already covered by UI governance.",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test React components"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify vrooli-default token consistency"
         },
         {
@@ -32,13 +32,13 @@
         {
           "type": "test",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "UI renders \u003c 2s"
         },
         {
           "type": "test",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Smooth animations"
         },
         {

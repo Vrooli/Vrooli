@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-22T12:01:57-04:00"
+    "last_validated_at": "2026-08-22T15:56:32-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-004",
       "title": "Time-Series Data Storage",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "core",
       "description": "System must persist metrics through a selected durable backend, ensuring no data loss",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/repository/cycle_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test storage interfaces"
         },
         {
           "type": "test",
           "ref": "api/internal/server/runtime.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify fallback mechanism"
         },
         {
@@ -43,7 +43,7 @@
           "type": "test",
           "ref": "api/internal/repository/sqlite/repository_test.go",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Handle 1000+ writes/second"
         },
         {

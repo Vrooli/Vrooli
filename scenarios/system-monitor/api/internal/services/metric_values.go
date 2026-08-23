@@ -47,11 +47,27 @@ func metricState(data *collectors.MetricData, key, unavailableReason string) mod
 	if state.Provenance == "" {
 		state.Provenance = "system-monitor/" + data.CollectorName
 	}
-	if status, ok := data.Values["status"].(string); ok && status != "" {
+	// CPU and other multi-signal collectors carry independent states beside
+	// each value. Prefer that envelope over the collector-wide status so an
+	// unavailable signal cannot be mistaken for an unmeasured generic value.
+	if status, ok := data.Values[key+"_status"].(string); ok && status != "" {
 		state.Status = status
 	}
-	if reason, ok := data.Values["reason"].(string); ok && reason != "" {
+	if reason, ok := data.Values[key+"_reason"].(string); ok && reason != "" {
 		state.Reason = reason
+	}
+	if provenance, ok := data.Values[key+"_provenance"].(string); ok && provenance != "" {
+		state.Provenance = provenance
+	}
+	if status, ok := data.Values["status"].(string); ok && status != "" {
+		if _, hasSignalStatus := data.Values[key+"_status"]; !hasSignalStatus {
+			state.Status = status
+		}
+	}
+	if reason, ok := data.Values["reason"].(string); ok && reason != "" {
+		if _, hasSignalReason := data.Values[key+"_reason"]; !hasSignalReason {
+			state.Reason = reason
+		}
 	}
 	if errText, ok := data.Values["error"].(string); ok && errText != "" {
 		state.Reason = errText
@@ -92,6 +108,20 @@ func metricUnits(data *collectors.MetricData, key string) string {
 	}
 	if key == "tcp_connections" {
 		return "count"
+	}
+	switch key {
+	case "context_switches_per_second", "interrupts_per_second", "fork_rate":
+		return "per second"
+	case "run_queue_depth":
+		return "processes"
+	case "normalized_load_1", "normalized_load_5", "load_average":
+		return "load/core"
+	case "quota_throttling":
+		return "per second, percent"
+	case "frequency_derate_ratio":
+		return "ratio"
+	case "thermal_throttle_evidence", "thermal_trip_point_celsius":
+		return "celsius"
 	}
 	return "percent"
 }

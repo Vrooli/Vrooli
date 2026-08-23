@@ -20,14 +20,6 @@ type ProcessCollector struct {
 	forkRate forkRateTracker
 }
 
-type processStat struct {
-	pid     int
-	comm    string
-	state   string
-	threads int
-	rssKB   int64
-}
-
 var (
 	topProcessSamplerMu sync.Mutex
 	topProcessSampler   procsampler.Sampler = procsampler.NewSampler()
@@ -144,45 +136,6 @@ func highThreadProcessesFromSamples(samples []procsampler.ProcessSample) []map[s
 	return processes
 }
 
-func zombieProcessesFromStats(stats []processStat) []map[string]interface{} {
-	var zombies []map[string]interface{}
-	for _, stat := range stats {
-		if stat.state == "Z" {
-			zombies = append(zombies, map[string]interface{}{
-				"pid":    stat.pid,
-				"name":   stat.comm,
-				"status": "zombie",
-			})
-			if len(zombies) >= 10 {
-				break
-			}
-		}
-	}
-	return zombies
-}
-
-func highThreadProcessesFromStats(stats []processStat) []map[string]interface{} {
-	stats = append([]processStat(nil), stats...)
-	sort.SliceStable(stats, func(i, j int) bool {
-		return stats[i].threads > stats[j].threads
-	})
-
-	processes := []map[string]interface{}{}
-	for _, stat := range stats {
-		if stat.threads > 20 {
-			processes = append(processes, map[string]interface{}{
-				"pid":     stat.pid,
-				"name":    stat.comm,
-				"threads": stat.threads,
-			})
-			if len(processes) >= 5 {
-				break
-			}
-		}
-	}
-	return processes
-}
-
 // processHealth builds the health summary from the zombie and high-thread
 // results already computed in Collect (no re-shelling), plus a single
 // process-table scan for critical-process presence (replaces 4 pgrep forks).
@@ -271,62 +224,6 @@ func GetResourceLeakCandidates() []map[string]interface{} {
 	// Leak candidates require historical process observations. Do not invent
 	// candidates when that evidence has not been collected.
 	return nil
-}
-
-func readProcessStats(ctx context.Context) ([]processStat, error) {
-	entries, err := os.ReadDir("/proc")
-	if err != nil {
-		return nil, err
-	}
-	stats := make([]processStat, 0, len(entries))
-	for _, entry := range entries {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		if !entry.IsDir() {
-			continue
-		}
-		pid, err := strconv.Atoi(entry.Name())
-		if err != nil {
-			continue
-		}
-		raw, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
-		if err != nil {
-			continue
-		}
-		stat, ok := parseProcessStat(pid, string(raw))
-		if !ok {
-			continue
-		}
-		stats = append(stats, stat)
-	}
-	return stats, nil
-}
-
-func parseProcessStat(pid int, line string) (processStat, bool) {
-	line = strings.TrimSpace(line)
-	openParen := strings.IndexByte(line, '(')
-	closeParen := strings.LastIndexByte(line, ')')
-	if openParen < 0 || closeParen < 0 || closeParen < openParen {
-		return processStat{}, false
-	}
-	rest := strings.Fields(line[closeParen+1:])
-	if len(rest) < 22 {
-		return processStat{}, false
-	}
-	rssPages := atoiOrZero(rest[21])
-	return processStat{
-		pid:     pid,
-		comm:    line[openParen+1 : closeParen],
-		state:   rest[0],
-		threads: atoiOrZero(rest[17]),
-		rssKB:   int64(rssPages) * int64(os.Getpagesize()/1024),
-	}, true
-}
-
-func atoiOrZero(s string) int {
-	n, _ := strconv.Atoi(strings.TrimSpace(s))
-	return n
 }
 
 func topProcessSamples(limit int, less func(a, b procsampler.ProcessSample) bool) ([]procsampler.ProcessSample, error) {

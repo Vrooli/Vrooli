@@ -107,7 +107,7 @@ packages/proto/schemas/template-manager/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/template-manager/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/template-manager/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/template-manager/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/template-manager/v1/...   (ui)
        └──▶ packages/proto/gen/python/template_manager/v1/...    (future tools)
 ```
 

@@ -74,7 +74,17 @@ export interface GPUCardDetails {
 export interface MetricHistory {
   windowSeconds: number;
   sampleIntervalSeconds: number;
-  cpu: ChartDataPoint[];
+	cpu: ChartDataPoint[];
+	cpuContextSwitches?: ChartDataPoint[];
+	cpuInterrupts?: ChartDataPoint[];
+	cpuNormalizedLoad1?: ChartDataPoint[];
+	cpuNormalizedLoad5?: ChartDataPoint[];
+	cpuRunQueue?: ChartDataPoint[];
+	cpuStallSome?: ChartDataPoint[];
+	cpuStallFull?: ChartDataPoint[];
+	cpuCoreImbalance?: ChartDataPoint[];
+	cpuModeIowait?: ChartDataPoint[];
+	cpuModeSteal?: ChartDataPoint[];
   memory: ChartDataPoint[];
   /** Swap utilisation %, projected separately from memory. */
   swap: ChartDataPoint[];

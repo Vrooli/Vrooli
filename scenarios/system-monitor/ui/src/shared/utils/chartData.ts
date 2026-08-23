@@ -55,8 +55,8 @@ export const combineMemorySeries = (
     existing[key] = value;
     combined.set(point.timestamp, existing);
   };
-  (memorySeries ?? []).forEach(point => upsert(point, 'memory'));
-  (swapSeries ?? []).forEach(point => upsert(point, 'swap'));
+	(memorySeries ?? []).forEach(point => { upsert(point, 'memory'); });
+	(swapSeries ?? []).forEach(point => { upsert(point, 'swap'); });
   return Array.from(combined.values()).sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );

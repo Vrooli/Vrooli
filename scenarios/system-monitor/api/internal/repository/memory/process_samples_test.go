@@ -76,3 +76,26 @@ func TestMemoryProcessTimeline_RanksByGPUVRAM(t *testing.T) {
 		t.Fatalf("gpu ranking = %#v", entries)
 	}
 }
+
+func TestMemoryProcessTimeline_RanksByCumulativeCPUSeconds(t *testing.T) {
+	repo := NewRepository()
+	now := time.Now().UTC()
+	// The instantaneous leader is short-lived; the historical CPU-seconds
+	// leader accumulates work across the requested window and must win this rank.
+	if err := repo.SaveProcessSamples(context.Background(), []repository.ProcessSample{
+		{Timestamp: now.Add(-2 * time.Second), PID: 1, Owner: "burst", Comm: "burst", CPUPct: 95, CPUSeconds: 0.1},
+		{Timestamp: now.Add(-1 * time.Second), PID: 2, Owner: "worker", Comm: "worker", CPUPct: 20, CPUSeconds: 2.0},
+		{Timestamp: now, PID: 2, Owner: "worker", Comm: "worker", CPUPct: 20, CPUSeconds: 2.0},
+	}); err != nil {
+		t.Fatalf("save samples: %v", err)
+	}
+	entries, err := repo.QueryProcessTimeline(context.Background(), repository.ProcessTimelineQuery{
+		Start: now.Add(-time.Minute), End: now.Add(time.Second), Rank: "cpu_seconds",
+	})
+	if err != nil {
+		t.Fatalf("query cpu-seconds timeline: %v", err)
+	}
+	if len(entries) != 2 || entries[0].Owner != "worker" || entries[0].CPUSeconds != 4 {
+		t.Fatalf("cpu-seconds ranking = %#v", entries)
+	}
+}

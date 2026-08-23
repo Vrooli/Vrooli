@@ -88,21 +88,31 @@ func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricsp
 	samples := make([]*metricspb.MetricTimelineSample, len(m.Samples))
 	for i, s := range m.Samples {
 		samples[i] = &metricspb.MetricTimelineSample{
-			CycleId:            s.CycleID,
-			Timestamp:          timestamppb.New(s.Timestamp),
-			CpuUsage:           s.CPUUsage,
-			MemoryUsage:        s.MemoryUsage,
-			TcpConnections:     int32(s.TCPConnections),
-			GpuUsage:           s.GPUUsage,
-			SwapUsage:          s.SwapUsage,
-			Cpu:                metricValue(s.CPUState, s.CPUUsage),
-			Memory:             metricValue(s.MemoryState, s.MemoryUsage),
-			Connections:        metricValue(s.ConnectionsState, float64(s.TCPConnections)),
-			Gpu:                metricValue(s.GPUState, dereferenceFloat(s.GPUUsage)),
-			Swap:               metricValue(s.SwapState, dereferenceFloat(s.SwapUsage)),
-			SwapTraffic:        metricValue(s.SwapTrafficState, 0),
-			MajorFaults:        metricValue(s.MajorFaultsState, 0),
-			FragmentationIndex: metricValue(s.FragmentationIndexState, 0),
+			CycleId:                     s.CycleID,
+			Timestamp:                   timestamppb.New(s.Timestamp),
+			CpuUsage:                    s.CPUUsage,
+			MemoryUsage:                 s.MemoryUsage,
+			TcpConnections:              int32(s.TCPConnections),
+			GpuUsage:                    s.GPUUsage,
+			SwapUsage:                   s.SwapUsage,
+			Cpu:                         metricValue(s.CPUState, s.CPUUsage),
+			Memory:                      metricValue(s.MemoryState, s.MemoryUsage),
+			Connections:                 metricValue(s.ConnectionsState, float64(s.TCPConnections)),
+			Gpu:                         metricValue(s.GPUState, dereferenceFloat(s.GPUUsage)),
+			Swap:                        metricValue(s.SwapState, dereferenceFloat(s.SwapUsage)),
+			SwapTraffic:                 metricValue(s.SwapTrafficState, 0),
+			MajorFaults:                 metricValue(s.MajorFaultsState, 0),
+			FragmentationIndex:          metricValue(s.FragmentationIndexState, 0),
+			CpuContextSwitchesPerSecond: metricValue(s.CPUContextSwitchesPerSecond, 0),
+			CpuInterruptsPerSecond:      metricValue(s.CPUInterruptsPerSecond, 0),
+			CpuNormalizedLoad_1:         metricValue(s.CPUNormalizedLoad1, 0),
+			CpuNormalizedLoad_5:         metricValue(s.CPUNormalizedLoad5, 0),
+			CpuRunQueueDepth:            metricValue(s.CPURunQueueDepth, 0),
+			CpuStallSomeAvg10:           metricValue(s.CPUStallSomeAvg10, 0),
+			CpuStallFullAvg10:           metricValue(s.CPUStallFullAvg10, 0),
+			CpuCoreImbalanceIndex:       metricValue(s.CPUCoreImbalanceIndex, 0),
+			CpuModeIowait:               metricValue(s.CPUModeIowait, 0),
+			CpuModeSteal:                metricValue(s.CPUModeSteal, 0),
 		}
 	}
 	return &metricspb.MetricsTimelineResponse{
@@ -177,6 +187,8 @@ func ProcessTimelineResponseToProto(windowSeconds int, owner string, top int, en
 			Pid:         int32(e.PID),
 			Aggregated:  e.Aggregated,
 			CpuPct:      e.CPUPct,
+			CpuSeconds:  e.CPUSeconds,
+			MaxCpuPct:   e.MaxCPUPct,
 			RssKb:       e.RSSKB,
 			SampleCount: e.SampleCount,
 		}
@@ -188,23 +200,56 @@ func ProcessTimelineResponseToProto(windowSeconds int, owner string, top int, en
 		}
 		pbEntries = append(pbEntries, row)
 	}
-	return &metricspb.ProcessTimelineResponse{
+	response := &metricspb.ProcessTimelineResponse{
 		WindowSeconds: int32(windowSeconds),
 		Owner:         owner,
 		Top:           int32(top),
 		Count:         int32(len(pbEntries)),
 		Entries:       pbEntries,
 	}
+	for _, e := range entries {
+		if !e.FirstSeen.IsZero() && (response.CoveredStart == nil || e.FirstSeen.Before(response.CoveredStart.AsTime())) {
+			response.CoveredStart = timestamppb.New(e.FirstSeen)
+		}
+		if !e.LastSeen.IsZero() && (response.CoveredEnd == nil || e.LastSeen.After(response.CoveredEnd.AsTime())) {
+			response.CoveredEnd = timestamppb.New(e.LastSeen)
+		}
+	}
+	return response
 }
 
 func cpuMetricsToProto(m models.CPUMetrics) *metricspb.CPUMetrics {
 	return &metricspb.CPUMetrics{
-		Usage:           m.Usage,
-		TopProcesses:    processInfoSliceToProto(m.TopProcesses),
-		LoadAverage:     m.LoadAverage,
-		ContextSwitches: m.ContextSwitches,
-		TotalGoroutines: int32(m.Goroutines),
+		Usage:                    m.Usage,
+		TopProcesses:             processInfoSliceToProto(m.TopProcesses),
+		TopCpuSecondsProcesses:   processInfoSliceToProto(m.TopCPUSecondsProcesses),
+		LoadAverage:              m.LoadAverage,
+		UsageState:               metricValue(m.UsageState, m.Usage),
+		ContextSwitchesPerSecond: metricValue(m.ContextSwitchesPerSecond, 0),
+		InterruptsPerSecond:      metricValue(m.InterruptsPerSecond, 0),
+		LoadAverageState:         metricValue(m.LoadAverageState, 0),
+		NormalizedLoad_1:         metricValue(m.NormalizedLoad1, 0),
+		NormalizedLoad_5:         metricValue(m.NormalizedLoad5, 0),
+		RunQueueDepth:            metricValue(m.RunQueueDepth, 0),
+		CpuPsiSomeAvg10:          metricValue(m.StallSomeAvg10, 0),
+		CpuPsiFullAvg10:          metricValue(m.StallFullAvg10, 0),
+		ModeBreakdown:            metricStateMapToProto(m.ModeBreakdown),
+		PerCoreUtilization:       metricStateMapToProto(m.PerCoreUtilization),
+		CoreImbalanceIndex:       metricValue(m.CoreImbalanceIndex, 0),
+		QuotaThrottling:          metricValue(m.QuotaThrottling, 0),
+		FrequencyDerateRatio:     metricValue(m.FrequencyDerateRatio, 0),
+		ThermalThrottleEvidence:  metricValue(m.ThermalThrottleEvidence, 0),
+		ThermalTripPointCelsius:  metricValue(m.ThermalTripPointCelsius, 0),
+		ForkRate:                 metricValue(m.ForkRate, 0),
 	}
+}
+
+func metricStateMapToProto(states map[string]models.MetricState) map[string]*metricspb.MetricValue {
+	result := make(map[string]*metricspb.MetricValue, len(states))
+	for key, state := range states {
+		result[key] = metricValue(state, 0)
+	}
+	return result
 }
 
 func memoryMetricsToProto(m models.MemoryMetrics) *metricspb.MemoryMetrics {
@@ -262,6 +307,7 @@ func systemHealthToProto(m models.SystemHealth) *metricspb.SystemHealth {
 	if m.InotifyWatchers != nil {
 		pb.InotifyWatchers = inotifyWatcherInfoToProto(m.InotifyWatchers)
 	}
+	pb.ApiProcessGoroutines = int32(m.APIProcessGoroutines)
 	return pb
 }
 
@@ -388,6 +434,8 @@ func processInfoSliceToProto(ms []models.ProcessInfo) []*metricspb.ProcessInfo {
 			Goroutines:           int32(m.Goroutines),
 			SwapKb:               m.SwapKB,
 			MajorFaultsPerSecond: m.MajorFaultsPerSecond,
+			CpuSeconds:           m.CPUSeconds,
+			CpuSecondsState:      metricValue(m.CPUSecondsState, m.CPUSeconds),
 		}
 	}
 	return result

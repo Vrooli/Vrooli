@@ -17,7 +17,6 @@ func TestCollectorsDoNotFabricateNonLinuxMetrics(t *testing.T) {
 	t.Cleanup(func() { collectorOS = originalOS })
 
 	collectors := []Collector{
-		NewCPUCollector(),
 		NewNetworkCollector(),
 		NewProcessCollector(),
 	}
@@ -84,29 +83,37 @@ func TestCPUCollector_Collect(t *testing.T) {
 
 		// The first CPU delta is intentionally not a numeric measurement. The
 		// collector must expose the reason rather than fabricate a zero.
-		if got := metrics.Values["status"]; got != "failed" {
-			t.Fatalf("first sample status = %v, want failed", got)
+		if got := metrics.Values["status"]; got != "not_yet_sampled" {
+			t.Fatalf("first sample status = %v, want not_yet_sampled", got)
 		}
 		if _, exists := metrics.Values["usage_percent"]; exists {
 			t.Fatal("first CPU sample must not expose a fabricated usage_percent")
 		}
 
 		// Stable metadata is available even before the first delta.
-		requiredFields := []string{"cores", "goroutines", "status", "reason"}
+		requiredFields := []string{"cores", "status", "reason"}
 		for _, field := range requiredFields {
 			if _, exists := metrics.Values[field]; !exists {
 				t.Errorf("Expected field %s in values", field)
 			}
 		}
 
+		time.Sleep(20 * time.Millisecond)
 		metrics, err = collector.Collect(ctx)
 		if err != nil {
 			t.Fatalf("second CPU collection failed: %v", err)
 		}
-		if metrics.Values["status"] != "measured" {
-			t.Fatalf("second sample status = %v, want measured", metrics.Values["status"])
+		if metrics.Values["status"] == "not_yet_sampled" {
+			time.Sleep(20 * time.Millisecond)
+			metrics, err = collector.Collect(ctx)
+			if err != nil {
+				t.Fatalf("retry CPU collection failed: %v", err)
+			}
 		}
-		for _, field := range []string{"usage_percent", "load_average", "context_switches"} {
+		if metrics.Values["status"] != "measured" {
+			t.Fatalf("second valid sample status = %v, want measured", metrics.Values["status"])
+		}
+		for _, field := range []string{"usage_percent", "load_average", "context_switches_per_second"} {
 			if _, exists := metrics.Values[field]; !exists {
 				t.Errorf("measured sample missing field %s", field)
 			}

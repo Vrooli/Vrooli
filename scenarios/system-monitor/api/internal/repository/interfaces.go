@@ -56,6 +56,9 @@ type ProcessSample struct {
 	Cwd                  string
 	Owner                string
 	CPUPct               float64
+	CPUSeconds           float64
+	CPUSecondsStatus     string
+	CPUSecondsReason     string
 	RSSKB                int64
 	SwapKB               int64
 	MajorFaultsPerSecond float64
@@ -71,7 +74,7 @@ type ProcessTimelineQuery struct {
 	End   time.Time
 	Owner string // optional scenario filter; "" means all owners
 	Top   int    // optional cap on ranked rows returned; <=0 means a default
-	Rank  string // "cpu" (default), "rss", or "gpu"
+	Rank  string // "cpu" (default), "cpu_seconds", "rss", or "gpu"
 }
 
 // ProcessTimelineEntry is one ranked consumer over the queried window,
@@ -82,6 +85,8 @@ type ProcessTimelineEntry struct {
 	PID         int  // representative pid; 0 when aggregated across rollups
 	Aggregated  bool // true when the entry spans rollup (per-minute) rows
 	CPUPct      float64
+	MaxCPUPct   float64
+	CPUSeconds  float64
 	RSSKB       int64
 	GPUVRAMMB   float64
 	SampleCount int64

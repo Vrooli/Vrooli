@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-22T12:01:57-04:00"
+    "last_validated_at": "2026-08-22T15:56:32-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-006",
       "title": "System Report Generation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "api",
       "description": "System must generate comprehensive daily and weekly reports via API endpoint",
@@ -14,7 +14,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test report generation logic"
         },
         {
@@ -26,7 +26,7 @@
         {
           "type": "test",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Report generation \u003c 30s"
         },
         {

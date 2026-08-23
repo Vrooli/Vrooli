@@ -24,6 +24,46 @@ func NewPressureCollector() *PressureCollector {
 func (c *PressureCollector) Collect(context.Context) (*MetricData, error) {
 	values := map[string]interface{}{"available": false}
 	if runtime.GOOS == "linux" {
+		if raw, err := os.ReadFile("/proc/pressure/cpu"); err == nil {
+			values["cpu_available"] = true
+			cpu := parsePSI(string(raw))
+			values["cpu_psi"] = cpu
+			// Keep state per PSI signal. A kernel may expose the interface while
+			// omitting one of the stall classes, which must not be presented as a
+			// measured zero.
+			for _, class := range []string{"some", "full"} {
+				if _, present := cpu[class]; !present {
+					for _, window := range []string{"avg10", "avg60", "avg300"} {
+						key := "cpu_psi_" + class + "_" + window
+						values[key+"_status"] = "unsupported"
+						values[key+"_reason"] = "CPU PSI class is absent from /proc/pressure/cpu"
+					}
+				}
+			}
+			for class, metrics := range cpu {
+				for window, value := range metrics {
+					values["cpu_psi_"+class+"_"+window] = value
+					values["cpu_psi_"+class+"_"+window+"_status"] = "measured"
+				}
+			}
+			values["cpu_psi_status"] = "measured"
+			values["cpu_psi_provenance"] = "linux /proc/pressure/cpu"
+			if total, ok := cpu["some"]["total"]; ok {
+				for key, value := range counterRateValues(c.rates, "cpu_psi_some_total", uint64(total), time.Now()) {
+					values["cpu_psi_some_total_"+key] = value
+				}
+			}
+		} else {
+			values["cpu_available"] = false
+			if os.IsNotExist(err) {
+				values["cpu_psi_status"] = "unsupported"
+				values["cpu_psi_reason"] = "CPU pressure stall information is unavailable because the Linux PSI interface is absent"
+			} else {
+				values["cpu_psi_status"] = "failed"
+				values["cpu_psi_reason"] = "read /proc/pressure/cpu: " + err.Error()
+			}
+			values["cpu_psi_provenance"] = "linux /proc/pressure/cpu"
+		}
 		if raw, err := os.ReadFile("/proc/pressure/memory"); err == nil {
 			values["available"] = true
 			memory := parsePSI(string(raw))
@@ -99,6 +139,9 @@ func (c *PressureCollector) Collect(context.Context) (*MetricData, error) {
 			}
 		}
 	} else {
+		values["cpu_psi_status"] = "unsupported"
+		values["cpu_psi_reason"] = "CPU pressure stall information is a Linux PSI interface"
+		values["cpu_psi_provenance"] = "platform pressure backend"
 		paging := readPlatformPaging(nil)
 		values["degraded_reason"] = "PSI is only available on Linux"
 		values["paging_status"] = map[bool]string{true: "measured", false: "unsupported"}[paging.supported]

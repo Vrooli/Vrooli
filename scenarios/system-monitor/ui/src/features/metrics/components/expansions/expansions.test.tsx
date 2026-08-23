@@ -12,14 +12,25 @@ describe('metric expansion views', () => {
   it('renders CPU and memory process details and safe empty values', () => {
     render(<CpuExpansion details={{ topProcesses: [{ name: 'api', pid: 10, cpuPercent: 3.2 }], loadAverage: [1, 2, 3], contextSwitches: 1234, totalGoroutines: 9 } as unknown as CPUMetrics} />);
     expect(screen.getByText('api (10)')).toBeInTheDocument();
-    expect(screen.getByText('1.00, 2.00, 3.00')).toBeInTheDocument();
-    expect(screen.getByText('1,234')).toBeInTheDocument();
+    expect(screen.getByText('Utilization:')).toBeInTheDocument();
+    expect(screen.getAllByText('not yet sampled').length).toBeGreaterThan(0);
 
     render(<MemoryExpansion details={{ topProcesses: [{ name: 'api', pid: 10, memoryMb: 44 }], swapUsage: { percent: 2 }, diskUsage: { percent: 70 } } as unknown as MemoryMetrics} />);
     expect(screen.getByText('Top Processes by Memory:')).toBeInTheDocument();
     expect(screen.getByText('44.0 MB')).toBeInTheDocument();
     render(<CpuExpansion details={{} as CPUMetrics} />);
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('not yet sampled').length).toBeGreaterThan(0);
+  });
+
+  it('renders typed CPU expansion states', () => {
+    render(<CpuExpansion details={{
+      runQueueDepth: { state: { case: 'measured', value: 2 } },
+      cpuPsiSomeAvg10: { state: { case: 'measured', value: 4 } },
+      topProcesses: [],
+    } as never} />);
+    expect(screen.getByText('2.0 processes')).toBeInTheDocument();
+    expect(screen.getByText('4.0% some')).toBeInTheDocument();
+    expect(screen.getAllByText('not yet sampled').length).toBeGreaterThan(0);
   });
 
   it('renders disk capacity, IO, network states, and optional sections', () => {

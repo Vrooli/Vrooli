@@ -114,6 +114,9 @@ CREATE TABLE IF NOT EXISTS process_samples (
 	cwd TEXT,
 	owner TEXT NOT NULL,
 	cpu_pct REAL NOT NULL,
+	cpu_seconds REAL NOT NULL DEFAULT 0,
+	cpu_seconds_status TEXT NOT NULL DEFAULT 'not_yet_sampled',
+	cpu_seconds_reason TEXT NOT NULL DEFAULT '',
 	rss_kb INTEGER NOT NULL,
 	threads INTEGER NOT NULL,
 	gpu_vram_mb REAL NOT NULL DEFAULT 0,
@@ -134,6 +137,7 @@ CREATE TABLE IF NOT EXISTS process_sample_rollups (
 	comm TEXT NOT NULL,
 	avg_cpu_pct REAL NOT NULL,
 	max_cpu_pct REAL NOT NULL,
+	cpu_seconds REAL NOT NULL DEFAULT 0,
 	avg_rss_kb INTEGER NOT NULL,
 	max_rss_kb INTEGER NOT NULL,
 	avg_major_faults_per_second REAL NOT NULL DEFAULT 0,
@@ -983,6 +987,14 @@ func hydrateMetricsResponse(resp *models.MetricsResponse, cycleID string, observ
 		if cpu, ok := values["usage_percent"].(float64); ok {
 			resp.CPUUsage = cpu
 		}
+		resp.CPUContextSwitchesPerSecond = cpuMetricState(cycleID, observedAt, values, "context_switches_per_second")
+		resp.CPUInterruptsPerSecond = cpuMetricState(cycleID, observedAt, values, "interrupts_per_second")
+		resp.CPUNormalizedLoad1 = cpuMetricState(cycleID, observedAt, values, "normalized_load_1")
+		resp.CPUNormalizedLoad5 = cpuMetricState(cycleID, observedAt, values, "normalized_load_5")
+		resp.CPURunQueueDepth = cpuMetricState(cycleID, observedAt, values, "run_queue_depth")
+		resp.CPUCoreImbalanceIndex = cpuMetricState(cycleID, observedAt, values, "core_imbalance_index")
+		resp.CPUModeIowait = cpuModeMetricState(cycleID, observedAt, values, "iowait")
+		resp.CPUModeSteal = cpuModeMetricState(cycleID, observedAt, values, "steal")
 	case "memory":
 		resp.MemoryState = state
 		if mem, ok := values["usage_percent"].(float64); ok {
@@ -1024,13 +1036,42 @@ func hydrateMetricsResponse(resp *models.MetricsResponse, cycleID string, observ
 			}
 		}
 	case "pressure":
+		resp.CPUStallSomeAvg10 = pressureMetricState(cycleID, observedAt, collector, values, "cpu_psi_some_avg10", "cpu_psi_status", "cpu_psi_reason")
+		resp.CPUStallFullAvg10 = pressureMetricState(cycleID, observedAt, collector, values, "cpu_psi_full_avg10", "cpu_psi_status", "cpu_psi_reason")
 		resp.SwapTrafficState = pressureMetricState(cycleID, observedAt, collector, values, "swap_traffic_pages_per_second", "swap_traffic_rate_status", "swap_traffic_rate_reason")
 		resp.MajorFaultsState = pressureMetricState(cycleID, observedAt, collector, values, "pgmajfault_per_second", "pgmajfault_rate_status", "pgmajfault_rate_reason")
 		resp.FragmentationIndexState = pressureMetricState(cycleID, observedAt, collector, values, "fragmentation_max_free_order", "fragmentation_status", "fragmentation_reason")
 	}
 }
 
+func cpuMetricState(cycleID string, observedAt time.Time, values map[string]interface{}, key string) models.MetricState {
+	return pressureMetricState(cycleID, observedAt, "cpu", values, key, key+"_status", key+"_reason")
+}
+
+func cpuModeMetricState(cycleID string, observedAt time.Time, values map[string]interface{}, mode string) models.MetricState {
+	state := models.MetricState{Status: "not_yet_sampled", Reason: "CPU mode breakdown has not been sampled", CycleID: cycleID, ObservedAt: observedAt, Provenance: "system-monitor/cpu", Units: "percent"}
+	raw, ok := values["mode_breakdown"].(map[string]interface{})
+	if !ok {
+		if typed, typedOK := values["mode_breakdown"].(map[string]float64); typedOK {
+			if value, exists := typed[mode]; exists {
+				state.Status, state.Value, state.Reason = "measured", value, ""
+				return state
+			}
+		}
+		return state
+	}
+	if value, exists := raw[mode].(float64); exists {
+		state.Status, state.Value, state.Reason = "measured", value, ""
+		return state
+	}
+	return state
+}
+
 func pressureMetricState(cycleID string, observedAt time.Time, collector string, values map[string]interface{}, valueKey, statusKey, reasonKey string) models.MetricState {
+	if _, hasSignalStatus := values[valueKey+"_status"]; hasSignalStatus {
+		statusKey = valueKey + "_status"
+		reasonKey = valueKey + "_reason"
+	}
 	state := models.MetricState{Status: "not_yet_sampled", CycleID: cycleID, ObservedAt: observedAt, Provenance: "system-monitor/" + collector}
 	if status, ok := values[statusKey].(string); ok && status != "" {
 		state.Status = status

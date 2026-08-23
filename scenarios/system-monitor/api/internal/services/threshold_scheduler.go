@@ -35,6 +35,13 @@ type DiskUsageSource interface {
 	ReadDiskUsage(ctx context.Context) (collectors.DiskUsage, error)
 }
 
+// CPUObservationSource supplies the latest scheduler-owned CPU observation.
+// Refused states are deliberately preserved so alerting can skip them rather
+// than treating an unavailable host as healthy.
+type CPUObservationSource interface {
+	ReadCPUObservation(ctx context.Context) (models.CPUMetrics, error)
+}
+
 // RootDiskUsageSource measures the host root filesystem.
 type RootDiskUsageSource struct {
 	Path string
@@ -97,26 +104,30 @@ type RemediationResult struct {
 // re-read every tick, optional run-on-startup, stop channel) rather than
 // inventing a second scheduling idiom in the same package.
 type ThresholdScheduler struct {
-	settings *SettingsManager
-	alerts   *AlertService
-	repo     repository.ThresholdRepository
-	source   DiskUsageSource
-	reporter PressureReporter
-	log      *slog.Logger
-	clock    Clock
+	settings  *SettingsManager
+	alerts    *AlertService
+	repo      repository.ThresholdRepository
+	source    DiskUsageSource
+	cpuSource CPUObservationSource
+	reporter  PressureReporter
+	log       *slog.Logger
+	clock     Clock
 
-	mu            sync.Mutex
-	bands         bandTracker
-	hasRun        bool
-	lastRunAt     time.Time
-	lastErr       error
-	lastUsage     collectors.DiskUsage
-	lastViolation *models.ThresholdViolation
-	violations    int64
-	previousValue float64
-	hasPrevious   bool
-	lastBand      PressureBand
-	lastRemedy    *RemediationResult
+	mu             sync.Mutex
+	bands          bandTracker
+	hasRun         bool
+	lastRunAt      time.Time
+	lastErr        error
+	lastUsage      collectors.DiskUsage
+	lastViolation  *models.ThresholdViolation
+	violations     int64
+	previousValue  float64
+	hasPrevious    bool
+	lastBand       PressureBand
+	lastRemedy     *RemediationResult
+	cpuConsecutive int
+	cpuLastBand    PressureBand
+	cpuLastEmit    time.Time
 
 	// evaluated is signalled after every completed evaluation when non-nil.
 	// Tests use it to synchronise with the loop rather than sleeping.
@@ -143,6 +154,14 @@ func WithDiskUsageSource(src DiskUsageSource) ThresholdSchedulerOption {
 	return func(s *ThresholdScheduler) {
 		if src != nil {
 			s.source = src
+		}
+	}
+}
+
+func WithCPUObservationSource(src CPUObservationSource) ThresholdSchedulerOption {
+	return func(s *ThresholdScheduler) {
+		if src != nil {
+			s.cpuSource = src
 		}
 	}
 }
@@ -242,12 +261,16 @@ func (s *ThresholdScheduler) RunOnce(ctx context.Context) {
 	if err != nil {
 		s.recordRun(usage, err, nil, bandDecision{})
 		s.log.Error("disk threshold evaluation failed", "error", err)
+		s.evaluateCPU(ctx, settings)
 		return
 	}
 
 	violation, decision := s.evaluate(settings, usage)
 	s.recordRun(usage, nil, violation, decision)
 	if violation == nil {
+		// CPU is evaluated independently of disk. A missing/refused CPU source
+		// is not a passing sample and therefore cannot clear its window.
+		s.evaluateCPU(ctx, settings)
 		return
 	}
 
@@ -268,6 +291,84 @@ func (s *ThresholdScheduler) RunOnce(ctx context.Context) {
 		"trend", violation.Trend,
 		"available_bytes", usage.AvailableBytes,
 	)
+	s.evaluateCPU(ctx, settings)
+}
+
+func (s *ThresholdScheduler) evaluateCPU(ctx context.Context, settings Settings) {
+	if s.cpuSource == nil {
+		return
+	}
+	cpu, err := s.cpuSource.ReadCPUObservation(ctx)
+	if err != nil || cpu.UsageState.Status != "measured" {
+		return
+	}
+	value := cpu.UsageState.Value
+	band := classifyCPUBand(value, settings)
+	if band == BandNormal {
+		s.mu.Lock()
+		s.cpuConsecutive = 0
+		s.cpuLastBand = BandNormal
+		s.mu.Unlock()
+		return
+	}
+	s.mu.Lock()
+	s.cpuConsecutive++
+	consecutive := s.cpuConsecutive
+	prior := s.cpuLastBand
+	last := s.cpuLastEmit
+	now := s.clock.Now()
+	s.cpuLastBand = band
+	s.mu.Unlock()
+	window := settings.CPUSustainedWindowTicks
+	if window < 1 {
+		window = 1
+	}
+	debounce := settings.CPUEscalationDebounceTicks
+	if debounce < 1 {
+		debounce = 1
+	}
+	if consecutive < window || consecutive < debounce {
+		return
+	}
+	if prior == band && !last.IsZero() && now.Sub(last) < time.Duration(settings.CPUEscalationCooldownSeconds)*time.Second {
+		return
+	}
+	violation := &models.ThresholdViolation{MetricName: "cpu_usage", CurrentValue: value, ThresholdValue: cpuBandBoundary(band, settings), Severity: band.Severity(), ViolationType: band.String(), Timestamp: now, Details: map[string]interface{}{"mode_breakdown": cpu.ModeBreakdown, "stall": map[string]interface{}{"some_avg10": cpu.StallSomeAvg10, "full_avg10": cpu.StallFullAvg10}, "top_consumers": cpu.TopProcesses}}
+	s.mu.Lock()
+	s.cpuLastEmit = now
+	s.mu.Unlock()
+	if err := s.repo.SaveThresholdViolation(ctx, violation); err != nil {
+		s.log.Error("persist CPU threshold violation failed", "error", err)
+		return
+	}
+	if s.alerts != nil {
+		if err := s.alerts.SendThresholdViolation(ctx, violation); err != nil {
+			s.log.Error("send CPU threshold violation failed", "error", err)
+		}
+	}
+}
+
+func classifyCPUBand(value float64, settings Settings) PressureBand {
+	switch {
+	case value >= settings.CPUCriticalPercent:
+		return BandCritical
+	case value >= settings.CPUHighPercent:
+		return BandHigh
+	case value >= settings.CPUThreshold:
+		return BandWarning
+	default:
+		return BandNormal
+	}
+}
+func cpuBandBoundary(band PressureBand, settings Settings) float64 {
+	switch band {
+	case BandCritical:
+		return settings.CPUCriticalPercent
+	case BandHigh:
+		return settings.CPUHighPercent
+	default:
+		return settings.CPUThreshold
+	}
 }
 
 // escalate forwards a high or critical band to the remediation service.

@@ -119,9 +119,7 @@
     },
     "resources": {}
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/tech-tree-designer.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

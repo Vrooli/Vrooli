@@ -446,7 +446,41 @@ func GetLargestDirectories(mount string, depth, limit int) ([]models.DiskUsageEn
 	if limit <= 0 {
 		limit = 8
 	}
-	sizes:=map[string]int64{};root:=filepath.Clean(mount);err:=filepath.WalkDir(root,func(path string,d os.DirEntry,walkErr error)error{if walkErr!=nil{return filepath.SkipDir};if d.IsDir(){if strings.Count(strings.TrimPrefix(path,root),string(filepath.Separator))>depth{return filepath.SkipDir};return nil};info,e:=d.Info();if e==nil{for dir:=filepath.Dir(path);strings.HasPrefix(dir,root);dir=filepath.Dir(dir){sizes[dir]+=info.Size();if dir==root{break}}};return nil});if err!=nil{return entries,err};for path,size:=range sizes{if path!=root{entries=append(entries,models.DiskUsageEntry{Path:path,SizeBytes:size,SizeHuman:formatBytesHuman(size),Category:"directory"})}};sort.Slice(entries,func(i,j int)bool{return entries[i].SizeBytes>entries[j].SizeBytes});if len(entries)>limit{entries=entries[:limit]}
+	sizes := map[string]int64{}
+	root := filepath.Clean(mount)
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return filepath.SkipDir
+		}
+		if d.IsDir() {
+			if strings.Count(strings.TrimPrefix(path, root), string(filepath.Separator)) > depth {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		info, e := d.Info()
+		if e == nil {
+			for dir := filepath.Dir(path); strings.HasPrefix(dir, root); dir = filepath.Dir(dir) {
+				sizes[dir] += info.Size()
+				if dir == root {
+					break
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return entries, err
+	}
+	for path, size := range sizes {
+		if path != root {
+			entries = append(entries, models.DiskUsageEntry{Path: path, SizeBytes: size, SizeHuman: formatBytesHuman(size), Category: "directory"})
+		}
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].SizeBytes > entries[j].SizeBytes })
+	if len(entries) > limit {
+		entries = entries[:limit]
+	}
 	return entries, nil
 }
 
@@ -462,6 +496,26 @@ func GetLargestFiles(mount string, limit int) ([]models.DiskUsageEntry, error) {
 	if limit <= 0 {
 		limit = 8
 	}
-	root:=filepath.Clean(mount);err:=filepath.WalkDir(root,func(path string,d os.DirEntry,walkErr error)error{if walkErr!=nil{return filepath.SkipDir};if d.IsDir(){return nil};info,e:=d.Info();if e==nil&&info.Size()>50*1024*1024{entries=append(entries,models.DiskUsageEntry{Path:path,SizeBytes:info.Size(),SizeHuman:formatBytesHuman(info.Size()),Category:"file"})};return nil});if err!=nil{return entries,err};sort.Slice(entries,func(i,j int)bool{return entries[i].SizeBytes>entries[j].SizeBytes});if len(entries)>limit{entries=entries[:limit]}
+	root := filepath.Clean(mount)
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return filepath.SkipDir
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, e := d.Info()
+		if e == nil && info.Size() > 50*1024*1024 {
+			entries = append(entries, models.DiskUsageEntry{Path: path, SizeBytes: info.Size(), SizeHuman: formatBytesHuman(info.Size()), Category: "file"})
+		}
+		return nil
+	})
+	if err != nil {
+		return entries, err
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].SizeBytes > entries[j].SizeBytes })
+	if len(entries) > limit {
+		entries = entries[:limit]
+	}
 	return entries, nil
 }

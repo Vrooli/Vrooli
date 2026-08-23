@@ -3,6 +3,8 @@ package templateengine
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 	"testing"
 
@@ -19,7 +21,6 @@ func destroyRepo(t *testing.T, scenario string, withScenarioDir bool) string {
 		filepath.Join("packages", "proto", "schemas", scenario, "v1", "health"),
 		filepath.Join("packages", "proto", "gen", "go", scenario, "v1"),
 		filepath.Join("packages", "proto", "gen", "typescript", scenario, "v1"),
-		filepath.Join("packages", "proto", "gen", "typescript", "js", scenario, "v1"),
 		filepath.Join("packages", "proto", "gen", "python", python, "v1"),
 	}
 	if withScenarioDir {
@@ -131,8 +132,20 @@ func TestDestroyDryRunDeletesNothingButListsEverything(t *testing.T) {
 
 	result := runDestroyIn(t, root, templatecontracts.DestroyRequest{Name: "throwaway-probe", DryRun: true, Force: true})
 
-	if len(result.PathsRemoved) < 7 {
-		t.Fatalf("dry run should list the whole footprint, got %v", result.PathsRemoved)
+	// Name the footprint rather than counting it: a magic number silently
+	// accepts a surface that has gained or lost a generated tree.
+	want := []string{
+		"packages/proto/gen/go/throwaway-probe",
+		"packages/proto/gen/manifests/throwaway-probe.lock.json",
+		"packages/proto/gen/python/throwaway_probe",
+		"packages/proto/gen/typescript/throwaway-probe",
+		"packages/proto/schemas/throwaway-probe",
+		"scenarios/throwaway-probe",
+	}
+	got := append([]string(nil), result.PathsRemoved...)
+	sort.Strings(got)
+	if !slices.Equal(got, want) {
+		t.Fatalf("dry run footprint =\n  %v\nwant\n  %v", got, want)
 	}
 	for _, rel := range result.PathsRemoved {
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {

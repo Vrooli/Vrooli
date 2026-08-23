@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-22T12:01:57-04:00"
+    "last_validated_at": "2026-08-22T15:56:32-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-001",
       "title": "Historical Trend Analysis System",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-011",
       "category": "core",
       "description": "The system should expose metric history through a dedicated timeline endpoint and render it against the shared observation window used by the dashboard.",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/services/report_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test trend calculation accuracy"
         },
         {
           "type": "test",
           "ref": "api/internal/services/monitor_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify timeline data retrieval"
         },
         {
@@ -36,7 +36,7 @@
           "type": "test",
           "ref": "api/internal/repository/sqlite/repository_test.go",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Analysis completion \u003c 2s for 30 days of data"
         },
         {
@@ -50,7 +50,7 @@
           "type": "test",
           "ref": "api/internal/repository/sqlite/swap_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Paging flow and fragmentation timeline series preserve measured states without zero fabrication"
         }
       ]

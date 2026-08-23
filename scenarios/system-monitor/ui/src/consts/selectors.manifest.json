@@ -2,6 +2,9 @@
   "selectors": {
     "capacity": { "testId": "system-monitor-capacity", "selector": "h2" },
     "cpu": { "testId": "system-monitor-cpu", "selector": "h2" },
+    "cpu-mode-breakdown": { "testId": "cpu-mode-breakdown", "selector": "[data-testid=cpu-mode-breakdown]" },
+    "cpu-stall-panel": { "testId": "cpu-stall-panel", "selector": "[data-testid=cpu-stall-panel]" },
+    "cpu-attribution-panel": { "testId": "cpu-attribution-panel", "selector": "[data-testid=cpu-attribution-panel]" },
     "dashboard": { "testId": "system-monitor-dashboard", "selector": "h2" },
     "disk": { "testId": "system-monitor-disk", "selector": "h2" },
     "forensics": { "testId": "system-monitor-forensics", "selector": "h2" },

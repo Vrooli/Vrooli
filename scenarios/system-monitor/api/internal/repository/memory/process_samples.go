@@ -29,14 +29,14 @@ func (r *MemoryRepository) QueryProcessTimeline(_ context.Context, q repository.
 		if !processSampleMatchesQuery(s, q) {
 			continue
 		}
-		acc.AddRaw(s.Owner, s.Comm, s.PID, s.CPUPct, s.RSSKB, s.GPUVRAMMB, s.Timestamp)
+		acc.AddRaw(s.Owner, s.Comm, s.PID, s.CPUPct, s.CPUSeconds, s.RSSKB, s.GPUVRAMMB, s.Timestamp)
 	}
 
 	for _, ru := range r.processRollups {
 		if !processRollupMatchesQuery(ru, q) {
 			continue
 		}
-		acc.AddRollup(ru.Owner, ru.Comm, ru.AvgCPUPct, ru.MaxCPUPct, ru.MaxRSSKB, ru.SampleCount, ru.Minute)
+		acc.AddRollup(ru.Owner, ru.Comm, ru.AvgCPUPct, ru.MaxCPUPct, ru.CPUSeconds, ru.MaxRSSKB, ru.SampleCount, ru.Minute)
 	}
 
 	return acc.Entries(q.Top, q.Rank), nil
@@ -93,16 +93,17 @@ func (r *MemoryRepository) RollupProcessSamples(_ context.Context, from, to time
 	result := repository.RollupResult{From: from, To: to}
 
 	type bucket struct {
-		minute   time.Time
-		owner    string
-		comm     string
-		cpuSum   float64
-		cpuMax   float64
-		rssSum   int64
-		rssMax   int64
-		faultSum float64
-		faultMax float64
-		count    int64
+		minute     time.Time
+		owner      string
+		comm       string
+		cpuSum     float64
+		cpuMax     float64
+		rssSum     int64
+		rssMax     int64
+		faultSum   float64
+		faultMax   float64
+		cpuSeconds float64
+		count      int64
 	}
 	buckets := map[string]*bucket{}
 	kept := r.processSamples[:0]
@@ -119,6 +120,7 @@ func (r *MemoryRepository) RollupProcessSamples(_ context.Context, from, to time
 			buckets[k] = b
 		}
 		b.cpuSum += s.CPUPct
+		b.cpuSeconds += s.CPUSeconds
 		if s.CPUPct > b.cpuMax {
 			b.cpuMax = s.CPUPct
 		}
@@ -145,6 +147,7 @@ func (r *MemoryRepository) RollupProcessSamples(_ context.Context, from, to time
 			Comm:                    b.comm,
 			AvgCPUPct:               b.cpuSum / float64(b.count),
 			MaxCPUPct:               b.cpuMax,
+			CPUSeconds:              b.cpuSeconds,
 			AvgRSSKB:                b.rssSum / b.count,
 			MaxRSSKB:                b.rssMax,
 			AvgMajorFaultsPerSecond: b.faultSum / float64(b.count),
@@ -165,6 +168,7 @@ func (r *MemoryRepository) mergeRollup(in processRollup) {
 			total := ex.SampleCount + in.SampleCount
 			ex.AvgCPUPct = (ex.AvgCPUPct*float64(ex.SampleCount) + in.AvgCPUPct*float64(in.SampleCount)) / float64(total)
 			ex.AvgRSSKB = (ex.AvgRSSKB*ex.SampleCount + in.AvgRSSKB*in.SampleCount) / total
+			ex.CPUSeconds += in.CPUSeconds
 			if in.MaxCPUPct > ex.MaxCPUPct {
 				ex.MaxCPUPct = in.MaxCPUPct
 			}

@@ -24,8 +24,8 @@ func (r *Repository) SaveProcessSamples(ctx context.Context, samples []repositor
 		return fmt.Errorf("begin process-sample tx: %w", err)
 	}
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO process_samples (ts, pid, ppid, comm, cmdline, cwd, owner, cpu_pct, rss_kb, threads, gpu_vram_mb, swap_kb, major_faults_per_second, metrics_status, metrics_reason)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		`INSERT INTO process_samples (ts, pid, ppid, comm, cmdline, cwd, owner, cpu_pct, cpu_seconds, cpu_seconds_status, cpu_seconds_reason, rss_kb, threads, gpu_vram_mb, swap_kb, major_faults_per_second, metrics_status, metrics_reason)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		_ = tx.Rollback()
 		return fmt.Errorf("prepare process-sample insert: %w", err)
@@ -34,7 +34,7 @@ func (r *Repository) SaveProcessSamples(ctx context.Context, samples []repositor
 
 	for _, s := range samples {
 		if _, err := stmt.ExecContext(ctx,
-			s.Timestamp.UTC(), s.PID, s.PPID, s.Comm, s.Cmdline, s.Cwd, s.Owner, s.CPUPct, s.RSSKB, s.Threads, s.GPUVRAMMB, s.SwapKB, s.MajorFaultsPerSecond, s.MetricsStatus, s.MetricsReason,
+			s.Timestamp.UTC(), s.PID, s.PPID, s.Comm, s.Cmdline, s.Cwd, s.Owner, s.CPUPct, s.CPUSeconds, s.CPUSecondsStatus, s.CPUSecondsReason, s.RSSKB, s.Threads, s.GPUVRAMMB, s.SwapKB, s.MajorFaultsPerSecond, s.MetricsStatus, s.MetricsReason,
 		); err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("insert process sample: %w", err)
@@ -66,7 +66,7 @@ func (r *Repository) QueryProcessTimeline(ctx context.Context, q repository.Proc
 }
 
 func (r *Repository) addRawProcessTimelineRows(ctx context.Context, q repository.ProcessTimelineQuery, acc *repository.ProcessTimelineAccumulator) error {
-	rawQuery := `SELECT owner, comm, pid, cpu_pct, rss_kb, gpu_vram_mb, ts FROM process_samples WHERE ts >= ? AND ts < ?`
+	rawQuery := `SELECT owner, comm, pid, cpu_pct, cpu_seconds, rss_kb, gpu_vram_mb, ts FROM process_samples WHERE ts >= ? AND ts < ?`
 	rawArgs := []interface{}{q.Start.UTC(), q.End.UTC()}
 	if q.Owner != "" {
 		rawQuery += " AND owner = ?"
@@ -80,23 +80,23 @@ func (r *Repository) addRawProcessTimelineRows(ctx context.Context, q repository
 
 	for rawRows.Next() {
 		var (
-			owner, comm string
-			pid         int
-			cpu         float64
-			rss         int64
-			gpuVRAM     float64
-			ts          time.Time
+			owner, comm     string
+			pid             int
+			cpu, cpuSeconds float64
+			rss             int64
+			gpuVRAM         float64
+			ts              time.Time
 		)
-		if err := rawRows.Scan(&owner, &comm, &pid, &cpu, &rss, &gpuVRAM, &ts); err != nil {
+		if err := rawRows.Scan(&owner, &comm, &pid, &cpu, &cpuSeconds, &rss, &gpuVRAM, &ts); err != nil {
 			return err
 		}
-		acc.AddRaw(owner, comm, pid, cpu, rss, gpuVRAM, ts)
+		acc.AddRaw(owner, comm, pid, cpu, cpuSeconds, rss, gpuVRAM, ts)
 	}
 	return rawRows.Err()
 }
 
 func (r *Repository) addRollupProcessTimelineRows(ctx context.Context, q repository.ProcessTimelineQuery, acc *repository.ProcessTimelineAccumulator) error {
-	rollQuery := `SELECT owner, comm, avg_cpu_pct, max_cpu_pct, max_rss_kb, sample_count, minute
+	rollQuery := `SELECT owner, comm, avg_cpu_pct, max_cpu_pct, cpu_seconds, max_rss_kb, sample_count, minute
 		FROM process_sample_rollups WHERE minute >= ? AND minute < ?`
 	rollArgs := []interface{}{q.Start.UTC(), q.End.UTC()}
 	if q.Owner != "" {
@@ -111,16 +111,16 @@ func (r *Repository) addRollupProcessTimelineRows(ctx context.Context, q reposit
 
 	for rollRows.Next() {
 		var (
-			owner, comm    string
-			avgCPU, maxCPU float64
-			maxRSS         int64
-			count          int64
-			minute         time.Time
+			owner, comm                string
+			avgCPU, maxCPU, cpuSeconds float64
+			maxRSS                     int64
+			count                      int64
+			minute                     time.Time
 		)
-		if err := rollRows.Scan(&owner, &comm, &avgCPU, &maxCPU, &maxRSS, &count, &minute); err != nil {
+		if err := rollRows.Scan(&owner, &comm, &avgCPU, &maxCPU, &cpuSeconds, &maxRSS, &count, &minute); err != nil {
 			return err
 		}
-		acc.AddRollup(owner, comm, avgCPU, maxCPU, maxRSS, count, minute)
+		acc.AddRollup(owner, comm, avgCPU, maxCPU, cpuSeconds, maxRSS, count, minute)
 	}
 	return rollRows.Err()
 }
@@ -160,35 +160,36 @@ func (r *Repository) RollupProcessSamples(ctx context.Context, from, to time.Tim
 	result := repository.RollupResult{From: from, To: to}
 
 	type bucket struct {
-		minute   time.Time
-		owner    string
-		comm     string
-		cpuSum   float64
-		cpuMax   float64
-		rssSum   int64
-		rssMax   int64
-		faultSum float64
-		faultMax float64
-		count    int64
+		minute     time.Time
+		owner      string
+		comm       string
+		cpuSum     float64
+		cpuMax     float64
+		rssSum     int64
+		rssMax     int64
+		faultSum   float64
+		faultMax   float64
+		cpuSeconds float64
+		count      int64
 	}
 	buckets := map[string]*bucket{}
 
 	// Read raw rows fully into memory first (drain the cursor before any write).
 	rows, err := r.db.QueryContext(ctx,
-		"SELECT ts, owner, comm, cpu_pct, rss_kb, major_faults_per_second FROM process_samples WHERE ts >= ? AND ts < ?",
+		"SELECT ts, owner, comm, cpu_pct, cpu_seconds, rss_kb, major_faults_per_second FROM process_samples WHERE ts >= ? AND ts < ?",
 		from.UTC(), to.UTC())
 	if err != nil {
 		return result, fmt.Errorf("read raw for rollup: %w", err)
 	}
 	for rows.Next() {
 		var (
-			ts          time.Time
-			owner, comm string
-			cpu         float64
-			rss         int64
-			faults      float64
+			ts              time.Time
+			owner, comm     string
+			cpu, cpuSeconds float64
+			rss             int64
+			faults          float64
 		)
-		if err := rows.Scan(&ts, &owner, &comm, &cpu, &rss, &faults); err != nil {
+		if err := rows.Scan(&ts, &owner, &comm, &cpu, &cpuSeconds, &rss, &faults); err != nil {
 			rows.Close()
 			return result, err
 		}
@@ -200,6 +201,7 @@ func (r *Repository) RollupProcessSamples(ctx context.Context, from, to time.Tim
 			buckets[k] = b
 		}
 		b.cpuSum += cpu
+		b.cpuSeconds += cpuSeconds
 		if cpu > b.cpuMax {
 			b.cpuMax = cpu
 		}
@@ -230,11 +232,12 @@ func (r *Repository) RollupProcessSamples(ctx context.Context, from, to time.Tim
 	}
 	// Upsert each bucket, merging into any existing rollup for that minute so a
 	// re-run (overlapping windows) stays correct rather than double-counting.
-	upsert := `INSERT INTO process_sample_rollups (minute, owner, comm, avg_cpu_pct, max_cpu_pct, avg_rss_kb, max_rss_kb, avg_major_faults_per_second, max_major_faults_per_second, sample_count)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	upsert := `INSERT INTO process_sample_rollups (minute, owner, comm, avg_cpu_pct, max_cpu_pct, cpu_seconds, avg_rss_kb, max_rss_kb, avg_major_faults_per_second, max_major_faults_per_second, sample_count)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(minute, owner, comm) DO UPDATE SET
 			avg_cpu_pct = (avg_cpu_pct * sample_count + excluded.avg_cpu_pct * excluded.sample_count) / (sample_count + excluded.sample_count),
 			max_cpu_pct = MAX(max_cpu_pct, excluded.max_cpu_pct),
+			cpu_seconds = cpu_seconds + excluded.cpu_seconds,
 			avg_rss_kb = (avg_rss_kb * sample_count + excluded.avg_rss_kb * excluded.sample_count) / (sample_count + excluded.sample_count),
 			max_rss_kb = MAX(max_rss_kb, excluded.max_rss_kb),
 			avg_major_faults_per_second = (avg_major_faults_per_second * sample_count + excluded.avg_major_faults_per_second * excluded.sample_count) / (sample_count + excluded.sample_count),
@@ -245,7 +248,7 @@ func (r *Repository) RollupProcessSamples(ctx context.Context, from, to time.Tim
 		avgRSS := b.rssSum / b.count
 		avgFaults := b.faultSum / float64(b.count)
 		if _, err := tx.ExecContext(ctx, upsert,
-			b.minute, b.owner, b.comm, avgCPU, b.cpuMax, avgRSS, b.rssMax, avgFaults, b.faultMax, b.count,
+			b.minute, b.owner, b.comm, avgCPU, b.cpuMax, b.cpuSeconds, avgRSS, b.rssMax, avgFaults, b.faultMax, b.count,
 		); err != nil {
 			_ = tx.Rollback()
 			return result, fmt.Errorf("upsert rollup: %w", err)

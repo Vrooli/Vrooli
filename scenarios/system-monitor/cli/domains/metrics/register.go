@@ -28,7 +28,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "current", Description: "Get the current metrics snapshot", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "fresh", Description: "Collect a fresh metrics snapshot", Bool: true}}}, RunCtx: h.current},
 			{Name: "detailed", Description: "Get detailed system metrics", RunCtx: h.detailed},
 			{Name: "processes", Description: "Get process monitoring metrics", RunCtx: h.processes},
-			{Name: "process-timeline", Description: "Top process consumers over a window, grouped by source scenario", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "window", Description: "Window duration (e.g. 5m, 1h) or bare seconds", Default: "5m"}, {Name: "owner", Description: "Filter to a single owner/scenario"}, {Name: "top", Description: "Maximum ranked consumers to return", Default: "20"}}}, RunCtx: h.processTimeline},
+			{Name: "process-timeline", Description: "Top process consumers over a window, grouped by source scenario", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "window", Description: "Window duration (e.g. 5m, 1h) or bare seconds", Default: "5m"}, {Name: "owner", Description: "Filter to a single owner/scenario"}, {Name: "top", Description: "Maximum ranked consumers to return", Default: "20"}, {Name: "rank", Description: "Rank by cpu, cpu_seconds, rss, or gpu", Default: "cpu"}}}, RunCtx: h.processTimeline},
 			{Name: "infrastructure", Description: "Get infrastructure pool and queue metrics", RunCtx: h.infrastructure},
 			{Name: "devices", Description: "Show the graded hardware device graph: every enumerated device with its per-rung observability state", RunCtx: h.devices},
 			{Name: "timeline", Description: "Get recent metrics history", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "window", Description: "Timeline window in seconds", Default: "120"}, {Name: "interval", Description: "Sample interval in seconds", Default: "5"}}}, RunCtx: h.timeline},
@@ -229,11 +229,16 @@ func (h *handlers) processTimeline(ctx cliapp.RunContext) error {
 		return err
 	}
 	owner := strings.TrimSpace(ctx.Flag("owner"))
+	rank := strings.TrimSpace(ctx.Flag("rank"))
+	if rank == "" {
+		rank = "cpu"
+	}
 
 	resp, err := h.client.GetProcessTimeline(context.Background(), connect.NewRequest(&metricspb.GetProcessTimelineRequest{
 		WindowSeconds: protoInt32(windowSeconds),
 		Owner:         owner,
 		Top:           protoInt32(top),
+		Rank:          rank,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("get process timeline", err, nil)
@@ -248,12 +253,13 @@ func (h *handlers) processTimeline(ctx cliapp.RunContext) error {
 			fmt.Sprintf("Window: %ds", response.GetWindowSeconds()),
 			fmt.Sprintf("Owner filter: %s", ownerFilterLabel(response.GetOwner())),
 			fmt.Sprintf("Ranked consumers: %d", response.GetCount()),
+			fmt.Sprintf("Covered range: %s to %s", support.FormatTimestamp(response.GetCoveredStart()), support.FormatTimestamp(response.GetCoveredEnd())),
 		},
 		ResultsHeading: "Top Consumers by Scenario",
 		Results:        processTimelineRows(response.GetEntries()),
 		RetrievalHints: []string{
 			"system-monitor metrics process-timeline --window 1h --json",
-			"system-monitor metrics process-timeline --owner security-health",
+			"system-monitor metrics process-timeline --owner security-health --rank cpu_seconds",
 		},
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, report)
@@ -279,8 +285,8 @@ func processTimelineRows(entries []*metricspb.ProcessTimelineEntry) []string {
 		if !e.GetAggregated() && e.GetPid() > 0 {
 			pid = fmt.Sprintf("pid=%d", e.GetPid())
 		}
-		rows = append(rows, fmt.Sprintf("%s %s cpu=%s rss=%.1fMB samples=%d (%s)",
-			e.GetOwner(), e.GetComm(), support.FormatPercent(e.GetCpuPct()), float64(e.GetRssKb())/1024, e.GetSampleCount(), pid))
+		rows = append(rows, fmt.Sprintf("%s %s cpu=%s max_cpu=%s cpu_seconds=%.3f rss=%.1fMB samples=%d (%s)",
+			e.GetOwner(), e.GetComm(), support.FormatPercent(e.GetCpuPct()), support.FormatPercent(e.GetMaxCpuPct()), e.GetCpuSeconds(), float64(e.GetRssKb())/1024, e.GetSampleCount(), pid))
 	}
 	return rows
 }

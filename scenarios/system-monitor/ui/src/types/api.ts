@@ -7,6 +7,7 @@ export type {
   MetricsTimelineResponse,
   DetailedMetrics,
   CPUMetrics,
+  MetricValue,
   MemoryMetrics,
   NetworkMetrics,
   SystemHealth,

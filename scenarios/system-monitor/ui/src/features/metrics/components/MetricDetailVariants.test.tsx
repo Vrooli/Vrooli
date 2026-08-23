@@ -21,13 +21,46 @@ describe('metric detail variants', () => {
       processMonitorData={{} as never} metricHistory={{ cpu: [] } as never} onBack={vi.fn()}
     />);
     expect(screen.getByText('33.0% utilization')).toBeInTheDocument();
-    expect(screen.getByText('1 min')).toBeInTheDocument();
+    expect(screen.getByTestId('cpu-mode-chart')).toBeInTheDocument();
     expect(screen.getByText('processes')).toBeInTheDocument();
 
     render(<CpuDetailView metrics={null} detailedMetrics={null} processMonitorData={null} metricHistory={null} onBack={vi.fn()} />);
     expect(screen.getByText('Utilization not measured')).toBeInTheDocument();
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
-    expect(screen.getByText('no processes')).toBeInTheDocument();
+    expect(screen.getAllByText('not yet sampled').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('no processes').length).toBeGreaterThan(0);
+  });
+
+  it('renders typed CPU diagnostic states and thermal evidence', () => {
+    render(<CpuDetailView
+      metrics={null}
+      detailedMetrics={{
+        cpuDetails: {
+          usage: 42,
+          usageState: { state: { case: 'measured', value: 42 } },
+          loadAverage: [2, 1, 0.5],
+          loadAverageState: { state: { case: 'measured', value: 2 } },
+          contextSwitchesPerSecond: { state: { case: 'measured', value: 12 } },
+          modeBreakdown: { user: { state: { case: 'measured', value: 40 } }, steal: { state: { case: 'measured', value: 6 } } },
+          cpuPsiSomeAvg10: { state: { case: 'measured', value: 11 } },
+          cpuPsiFullAvg10: { state: { case: 'unsupportedReason', value: 'PSI is Linux-specific' }, provenance: 'cpu PSI' },
+          runQueueDepth: { state: { case: 'measured', value: 3 } },
+          normalizedLoad1: { state: { case: 'measured', value: 0.5 } },
+          normalizedLoad5: { state: { case: 'measured', value: 0.4 } },
+          perCoreUtilization: { cpu0: { state: { case: 'measured', value: 90 } } },
+          coreImbalanceIndex: { state: { case: 'measured', value: 35 } },
+          quotaThrottling: { state: { case: 'unsupportedReason', value: 'no cgroup CPU limit applies' } },
+          frequencyDerateRatio: { state: { case: 'measured', value: 0.8 } },
+          thermalThrottleEvidence: { state: { case: 'measured', value: 71 } },
+          thermalTripPointCelsius: { state: { case: 'measured', value: 85 } },
+          topProcesses: [],
+        },
+        timestamp: { seconds: 1n, nanos: 0 },
+      } as never}
+      processMonitorData={{} as never} metricHistory={{ cpu: [] } as never} onBack={vi.fn()}
+    />);
+    expect(screen.getByText('42.0% utilization — hypervisor steal detected')).toBeInTheDocument();
+    expect(screen.getByText('85.0')).toBeInTheDocument();
+    expect(screen.getAllByText(/unsupportedReason/).length).toBeGreaterThan(0);
   });
 
   it('renders network states, pools, and unavailable details', () => {

@@ -1,45 +1,60 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/api-core/storage"
 )
 
-func TestSQLiteFileDSNUsesFileURIAsIs(t *testing.T) {
-	const dsn = "file:test.db?mode=memory"
+// The DSN construction itself is owned and exhaustively tested by
+// api-core/storage. What is worth asserting HERE is the property that is
+// specific to this scenario: that it opens ITS OWN database, and that nothing
+// arriving in the environment can move it.
 
-	got, err := sqliteFileDSN(dsn)
+func TestScenarioResolvesItsOwnDatabase(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+
+	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{Scenario: "tech-tree-designer"})
 	if err != nil {
-		t.Fatalf("sqliteFileDSN() error = %v", err)
+		t.Fatalf("SQLiteDSN returned error: %v", err)
 	}
-	if got != dsn {
-		t.Fatalf("sqliteFileDSN() = %q, want %q", got, dsn)
+	if !strings.HasPrefix(dsn, "file:") {
+		t.Fatalf("expected a file DSN, got %q", dsn)
+	}
+	if !strings.Contains(dsn, "tech-tree-designer") {
+		t.Fatalf("DSN is not scoped to this scenario: %q", dsn)
+	}
+	for _, want := range []string{"journal_mode(WAL)", "foreign_keys(ON)", "busy_timeout(10000)"} {
+		if !strings.Contains(dsn, want) {
+			t.Errorf("DSN missing %s: %q", want, dsn)
+		}
 	}
 }
 
-func TestSQLiteFileDSNCreatesParentAndAddsPragmas(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "nested", "tech-tree-designer.db")
+// TestScenarioIgnoresInheritedDatabasePath is the regression test for the
+// cross-scenario database hijack: a supervisor that exports a database path and
+// then restarts this scenario must not redirect its storage.
+func TestScenarioIgnoresInheritedDatabasePath(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
+	inherited := filepath.Join(root, "inherited", "autoheal.sqlite")
+	for _, key := range []string{"SQLITE_PATH", "SQLITE_DB"} {
+		t.Setenv(key, inherited)
+	}
+	t.Setenv("SCENARIO_NAME", "vrooli-autoheal")
+	t.Setenv("VROOLI_SCENARIO", "vrooli-autoheal")
+	t.Setenv("SCENARIO_DATA_DIR", filepath.Join(root, "autoheal-data"))
 
-	got, err := sqliteFileDSN(dbPath)
+	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{Scenario: "tech-tree-designer"})
 	if err != nil {
-		t.Fatalf("sqliteFileDSN() error = %v", err)
+		t.Fatalf("SQLiteDSN returned error: %v", err)
 	}
-
-	if _, err := os.Stat(filepath.Dir(dbPath)); err != nil {
-		t.Fatalf("expected parent directory to exist: %v", err)
+	if strings.Contains(dsn, "autoheal") || strings.Contains(dsn, "inherited") {
+		t.Fatalf("an inherited environment redirected this scenario: %q", dsn)
 	}
-	if !strings.HasPrefix(got, "file:"+dbPath+"?") {
-		t.Fatalf("sqliteFileDSN() = %q, want file URI for %q", got, dbPath)
-	}
-	for _, pragma := range []string{
-		"_pragma=foreign_keys(ON)",
-		"_pragma=journal_mode(WAL)",
-		"_pragma=busy_timeout(10000)",
-	} {
-		if !strings.Contains(got, pragma) {
-			t.Fatalf("sqliteFileDSN() = %q, missing %q", got, pragma)
-		}
+	if !strings.Contains(dsn, "tech-tree-designer") {
+		t.Fatalf("expected this scenario's own database, got %q", dsn)
 	}
 }

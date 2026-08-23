@@ -36,9 +36,9 @@ describe('MemoryDetailView', () => {
   });
 
   it('renders the fragmentation trend only for measured state and explains unsupported state', () => {
-    const base: any = { timestamp: { seconds: 0n, nanos: 0 }, memoryDetails: {
+    const base = { timestamp: { seconds: 0n, nanos: 0 }, memoryDetails: {
       usage: 55, paging: {}, fragmentation: { maxFreeOrder: { state: { case: 'unsupportedReason', value: 'Linux buddyinfo unavailable' } } }
-    } };
+    } } as never;
     const { rerender } = render(<MemoryDetailView metrics={null} detailedMetrics={base} metricHistory={{ fragmentation: [] } as never} onBack={vi.fn()} />);
     expect(screen.getByText('Linux buddyinfo unavailable')).toBeInTheDocument();
     expect(screen.queryByText('Memory Fragmentation')).not.toBeInTheDocument();

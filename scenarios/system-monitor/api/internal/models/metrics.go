@@ -6,23 +6,33 @@ import (
 
 // MetricsResponse represents the current system metrics
 type MetricsResponse struct {
-	CycleID          string      `json:"cycle_id,omitempty"`
-	CPUUsage         float64     `json:"cpu_usage"`
-	MemoryUsage      float64     `json:"memory_usage"`
-	TCPConnections   int         `json:"tcp_connections"`
-	GPUUsage         *float64    `json:"gpu_usage,omitempty"`
-	SwapUsage        *float64    `json:"swap_usage,omitempty"`
-	DiskUsage        float64     `json:"disk_usage"`
-	CPUState         MetricState `json:"cpu_state"`
-	MemoryState      MetricState `json:"memory_state"`
-	ConnectionsState MetricState `json:"connections_state"`
-	GPUState         MetricState `json:"gpu_state"`
-	SwapState        MetricState `json:"swap_state"`
-	SwapTrafficState MetricState `json:"swap_traffic_state"`
-	MajorFaultsState MetricState `json:"major_faults_state"`
-	FragmentationIndexState MetricState `json:"fragmentation_index_state"`
-	DiskState        MetricState `json:"disk_state"`
-	Timestamp        time.Time   `json:"timestamp"`
+	CycleID                     string      `json:"cycle_id,omitempty"`
+	CPUUsage                    float64     `json:"cpu_usage"`
+	MemoryUsage                 float64     `json:"memory_usage"`
+	TCPConnections              int         `json:"tcp_connections"`
+	GPUUsage                    *float64    `json:"gpu_usage,omitempty"`
+	SwapUsage                   *float64    `json:"swap_usage,omitempty"`
+	DiskUsage                   float64     `json:"disk_usage"`
+	CPUState                    MetricState `json:"cpu_state"`
+	CPUContextSwitchesPerSecond MetricState `json:"cpu_context_switches_per_second"`
+	CPUInterruptsPerSecond      MetricState `json:"cpu_interrupts_per_second"`
+	CPUNormalizedLoad1          MetricState `json:"cpu_normalized_load_1"`
+	CPUNormalizedLoad5          MetricState `json:"cpu_normalized_load_5"`
+	CPURunQueueDepth            MetricState `json:"cpu_run_queue_depth"`
+	CPUStallSomeAvg10           MetricState `json:"cpu_stall_some_avg10"`
+	CPUStallFullAvg10           MetricState `json:"cpu_stall_full_avg10"`
+	CPUCoreImbalanceIndex       MetricState `json:"cpu_core_imbalance_index"`
+	CPUModeIowait               MetricState `json:"cpu_mode_iowait"`
+	CPUModeSteal                MetricState `json:"cpu_mode_steal"`
+	MemoryState                 MetricState `json:"memory_state"`
+	ConnectionsState            MetricState `json:"connections_state"`
+	GPUState                    MetricState `json:"gpu_state"`
+	SwapState                   MetricState `json:"swap_state"`
+	SwapTrafficState            MetricState `json:"swap_traffic_state"`
+	MajorFaultsState            MetricState `json:"major_faults_state"`
+	FragmentationIndexState     MetricState `json:"fragmentation_index_state"`
+	DiskState                   MetricState `json:"disk_state"`
+	Timestamp                   time.Time   `json:"timestamp"`
 }
 
 // MetricState is the internal representation of the API's five-state metric
@@ -77,21 +87,31 @@ type PressureHistory struct {
 
 // MetricTimelineSample represents a single sample in a metrics timeline.
 type MetricTimelineSample struct {
-	CycleID          string      `json:"cycle_id,omitempty"`
-	Timestamp        time.Time   `json:"timestamp"`
-	CPUUsage         float64     `json:"cpu_usage"`
-	MemoryUsage      float64     `json:"memory_usage"`
-	TCPConnections   int         `json:"tcp_connections"`
-	GPUUsage         *float64    `json:"gpu_usage,omitempty"`
-	SwapUsage        *float64    `json:"swap_usage,omitempty"`
-	CPUState         MetricState `json:"cpu_state"`
-	MemoryState      MetricState `json:"memory_state"`
-	ConnectionsState MetricState `json:"connections_state"`
-	GPUState         MetricState `json:"gpu_state"`
-	SwapState        MetricState `json:"swap_state"`
-	SwapTrafficState MetricState `json:"swap_traffic_state"`
-	MajorFaultsState MetricState `json:"major_faults_state"`
-	FragmentationIndexState MetricState `json:"fragmentation_index_state"`
+	CycleID                     string      `json:"cycle_id,omitempty"`
+	Timestamp                   time.Time   `json:"timestamp"`
+	CPUUsage                    float64     `json:"cpu_usage"`
+	MemoryUsage                 float64     `json:"memory_usage"`
+	TCPConnections              int         `json:"tcp_connections"`
+	GPUUsage                    *float64    `json:"gpu_usage,omitempty"`
+	SwapUsage                   *float64    `json:"swap_usage,omitempty"`
+	CPUState                    MetricState `json:"cpu_state"`
+	CPUContextSwitchesPerSecond MetricState `json:"cpu_context_switches_per_second"`
+	CPUInterruptsPerSecond      MetricState `json:"cpu_interrupts_per_second"`
+	CPUNormalizedLoad1          MetricState `json:"cpu_normalized_load_1"`
+	CPUNormalizedLoad5          MetricState `json:"cpu_normalized_load_5"`
+	CPURunQueueDepth            MetricState `json:"cpu_run_queue_depth"`
+	CPUStallSomeAvg10           MetricState `json:"cpu_stall_some_avg10"`
+	CPUStallFullAvg10           MetricState `json:"cpu_stall_full_avg10"`
+	CPUCoreImbalanceIndex       MetricState `json:"cpu_core_imbalance_index"`
+	CPUModeIowait               MetricState `json:"cpu_mode_iowait"`
+	CPUModeSteal                MetricState `json:"cpu_mode_steal"`
+	MemoryState                 MetricState `json:"memory_state"`
+	ConnectionsState            MetricState `json:"connections_state"`
+	GPUState                    MetricState `json:"gpu_state"`
+	SwapState                   MetricState `json:"swap_state"`
+	SwapTrafficState            MetricState `json:"swap_traffic_state"`
+	MajorFaultsState            MetricState `json:"major_faults_state"`
+	FragmentationIndexState     MetricState `json:"fragmentation_index_state"`
 }
 
 // MetricsTimelineResponse contains a windowed series of metric samples.
@@ -159,11 +179,28 @@ type GPUProcessInfo struct {
 
 // CPUMetrics contains CPU-related metrics
 type CPUMetrics struct {
-	Usage           float64       `json:"usage"`
-	TopProcesses    []ProcessInfo `json:"top_processes"`
-	LoadAverage     []float64     `json:"load_average"`
-	ContextSwitches int64         `json:"context_switches"`
-	Goroutines      int           `json:"total_goroutines"`
+	Usage                    float64                `json:"usage"`
+	TopProcesses             []ProcessInfo          `json:"top_processes"`
+	TopCPUSecondsProcesses   []ProcessInfo          `json:"top_cpu_seconds_processes"`
+	LoadAverage              []float64              `json:"load_average"`
+	ContextSwitches          int64                  `json:"context_switches"`
+	UsageState               MetricState            `json:"usage_state"`
+	ContextSwitchesPerSecond MetricState            `json:"context_switches_per_second"`
+	InterruptsPerSecond      MetricState            `json:"interrupts_per_second"`
+	LoadAverageState         MetricState            `json:"load_average_state"`
+	NormalizedLoad1          MetricState            `json:"normalized_load_1"`
+	NormalizedLoad5          MetricState            `json:"normalized_load_5"`
+	RunQueueDepth            MetricState            `json:"run_queue_depth"`
+	StallSomeAvg10           MetricState            `json:"stall_some_avg10"`
+	StallFullAvg10           MetricState            `json:"stall_full_avg10"`
+	ModeBreakdown            map[string]MetricState `json:"mode_breakdown,omitempty"`
+	PerCoreUtilization       map[string]MetricState `json:"per_core_utilization,omitempty"`
+	CoreImbalanceIndex       MetricState            `json:"core_imbalance_index"`
+	QuotaThrottling          MetricState            `json:"quota_throttling"`
+	FrequencyDerateRatio     MetricState            `json:"frequency_derate_ratio"`
+	ThermalThrottleEvidence  MetricState            `json:"thermal_throttle_evidence"`
+	ThermalTripPointCelsius  MetricState            `json:"thermal_trip_point_celsius"`
+	ForkRate                 MetricState            `json:"fork_rate"`
 }
 
 // MemoryMetrics contains memory-related metrics
@@ -226,10 +263,11 @@ type SocketOwnerInfo struct {
 
 // SystemHealth contains overall system health information
 type SystemHealth struct {
-	FileDescriptors     FileDescriptorInfo  `json:"file_descriptors"`
-	ServiceDependencies []ServiceHealth     `json:"service_dependencies"`
-	Certificates        []CertificateInfo   `json:"certificates"`
-	InotifyWatchers     *InotifyWatcherInfo `json:"inotify_watchers,omitempty"`
+	FileDescriptors      FileDescriptorInfo  `json:"file_descriptors"`
+	ServiceDependencies  []ServiceHealth     `json:"service_dependencies"`
+	Certificates         []CertificateInfo   `json:"certificates"`
+	InotifyWatchers      *InotifyWatcherInfo `json:"inotify_watchers,omitempty"`
+	APIProcessGoroutines int                 `json:"api_process_goroutines,omitempty"`
 }
 
 // InotifyWatcherInfo captures inotify watcher and instance utilisation
@@ -277,17 +315,19 @@ type DiskDetailResponse struct {
 
 // ProcessInfo represents information about a system process
 type ProcessInfo struct {
-	PID                  int     `json:"pid"`
-	Name                 string  `json:"name"`
-	CPUPercent           float64 `json:"cpu_percent"`
-	MemoryMB             float64 `json:"memory_mb"`
-	Connections          int     `json:"connections"`
-	Threads              int     `json:"threads"`
-	FDs                  int     `json:"file_descriptors"`
-	Status               string  `json:"status"`
-	Goroutines           int     `json:"goroutines,omitempty"`
-	SwapKB               int64   `json:"swap_kb,omitempty"`
-	MajorFaultsPerSecond float64 `json:"major_faults_per_second,omitempty"`
+	PID                  int         `json:"pid"`
+	Name                 string      `json:"name"`
+	CPUPercent           float64     `json:"cpu_percent"`
+	MemoryMB             float64     `json:"memory_mb"`
+	Connections          int         `json:"connections"`
+	Threads              int         `json:"threads"`
+	FDs                  int         `json:"file_descriptors"`
+	Status               string      `json:"status"`
+	Goroutines           int         `json:"goroutines,omitempty"`
+	SwapKB               int64       `json:"swap_kb,omitempty"`
+	MajorFaultsPerSecond float64     `json:"major_faults_per_second,omitempty"`
+	CPUSeconds           float64     `json:"cpu_seconds,omitempty"`
+	CPUSecondsState      MetricState `json:"cpu_seconds_state"`
 }
 
 // TCPConnectionStates tracks TCP connection states

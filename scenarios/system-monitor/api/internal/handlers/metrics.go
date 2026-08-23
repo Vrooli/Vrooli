@@ -88,8 +88,12 @@ func (h *MetricsHandler) GetProcessTimeline(ctx context.Context, req *connect.Re
 		top = int(req.Msg.GetTop())
 	}
 	owner := req.Msg.GetOwner()
+	rank := req.Msg.GetRank()
+	if rank == "" {
+		rank = "cpu"
+	}
 
-	entries, err := h.monitorSvc.GetProcessTimeline(ctx, window, owner, top)
+	entries, err := h.monitorSvc.GetProcessTimelineRanked(ctx, window, owner, top, rank)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -276,6 +280,8 @@ type processTimelineEntryJSON struct {
 	PID         int     `json:"pid,omitempty"`
 	Aggregated  bool    `json:"aggregated"`
 	CPUPct      float64 `json:"cpu_pct"`
+	CPUSeconds  float64 `json:"cpu_seconds"`
+	MaxCPUPct   float64 `json:"max_cpu_pct"`
 	RSSKB       int64   `json:"rss_kb"`
 	GPUVRAMMB   float64 `json:"gpu_vram_mb"`
 	SampleCount int64   `json:"sample_count"`
@@ -319,7 +325,7 @@ func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http
 	}
 
 	rank := r.URL.Query().Get("rank")
-	if rank != "rss" && rank != "gpu" {
+	if rank != "rss" && rank != "gpu" && rank != "cpu_seconds" {
 		rank = "cpu"
 	}
 	entries, err := h.monitorSvc.GetProcessTimelineRanked(ctx, window, owner, top, rank)
@@ -336,6 +342,8 @@ func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http
 			PID:         e.PID,
 			Aggregated:  e.Aggregated,
 			CPUPct:      e.CPUPct,
+			CPUSeconds:  e.CPUSeconds,
+			MaxCPUPct:   e.MaxCPUPct,
 			RSSKB:       e.RSSKB,
 			GPUVRAMMB:   e.GPUVRAMMB,
 			SampleCount: e.SampleCount,

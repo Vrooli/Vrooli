@@ -34,6 +34,7 @@ type processRollup struct {
 	Comm                    string
 	AvgCPUPct               float64
 	MaxCPUPct               float64
+	CPUSeconds              float64
 	AvgRSSKB                int64
 	MaxRSSKB                int64
 	AvgMajorFaultsPerSecond float64
@@ -137,6 +138,14 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 				}
 			}
 			response.CPUState = memoryMetricState(entry.CycleID, entry.Timestamp, entry.CollectorName, entry.Values, "usage_percent")
+			response.CPUContextSwitchesPerSecond = cpuMetricState(entry, "context_switches_per_second")
+			response.CPUInterruptsPerSecond = cpuMetricState(entry, "interrupts_per_second")
+			response.CPUNormalizedLoad1 = cpuMetricState(entry, "normalized_load_1")
+			response.CPUNormalizedLoad5 = cpuMetricState(entry, "normalized_load_5")
+			response.CPURunQueueDepth = cpuMetricState(entry, "run_queue_depth")
+			response.CPUCoreImbalanceIndex = cpuMetricState(entry, "core_imbalance_index")
+			response.CPUModeIowait = cpuModeMetricState(entry, "iowait")
+			response.CPUModeSteal = cpuModeMetricState(entry, "steal")
 		}
 
 		// Memory metrics
@@ -172,6 +181,8 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 			response.GPUState = memoryMetricState(entry.CycleID, entry.Timestamp, entry.CollectorName, entry.Values, "total_usage_percent")
 		}
 		if entry.CollectorName == "pressure" {
+			response.CPUStallSomeAvg10 = pressureMetricStateMemory(entry, "cpu_psi_some_avg10", "cpu_psi_status", "cpu_psi_reason")
+			response.CPUStallFullAvg10 = pressureMetricStateMemory(entry, "cpu_psi_full_avg10", "cpu_psi_status", "cpu_psi_reason")
 			response.SwapTrafficState = pressureMetricStateMemory(entry, "swap_traffic_pages_per_second", "swap_traffic_rate_status", "swap_traffic_rate_reason")
 			response.MajorFaultsState = pressureMetricStateMemory(entry, "pgmajfault_per_second", "pgmajfault_rate_status", "pgmajfault_rate_reason")
 			response.FragmentationIndexState = pressureMetricStateMemory(entry, "fragmentation_max_free_order", "fragmentation_status", "fragmentation_reason")
@@ -197,8 +208,39 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 	return results, nil
 }
 
+func cpuMetricState(entry metricEntry, key string) models.MetricState {
+	state := models.MetricState{Status: "not_yet_sampled", Reason: "CPU signal has not been sampled", Provenance: "system-monitor/cpu", CycleID: entry.CycleID, ObservedAt: entry.Timestamp}
+	if status, ok := entry.Values[key+"_status"].(string); ok && status != "" {
+		state.Status = status
+	}
+	if reason, ok := entry.Values[key+"_reason"].(string); ok && reason != "" {
+		state.Reason = reason
+	}
+	if provenance, ok := entry.Values[key+"_provenance"].(string); ok && provenance != "" {
+		state.Provenance = provenance
+	}
+	if value, ok := entry.Values[key].(float64); ok {
+		state.Status, state.Value, state.Reason = "measured", value, ""
+	}
+	return state
+}
+
+func cpuModeMetricState(entry metricEntry, mode string) models.MetricState {
+	state := models.MetricState{Status: "not_yet_sampled", Reason: "CPU mode breakdown has not been sampled", Provenance: "system-monitor/cpu", Units: "percent", CycleID: entry.CycleID, ObservedAt: entry.Timestamp}
+	if raw, ok := entry.Values["mode_breakdown"].(map[string]float64); ok {
+		if value, exists := raw[mode]; exists {
+			state.Status, state.Value, state.Reason = "measured", value, ""
+		}
+	}
+	return state
+}
+
 func pressureMetricStateMemory(entry metricEntry, valueKey, statusKey, reasonKey string) models.MetricState {
 	state := models.MetricState{Status: "not_yet_sampled", Reason: "rate has not been sampled", Provenance: "system-monitor/pressure", CycleID: entry.CycleID, ObservedAt: entry.Timestamp}
+	if _, hasSignalStatus := entry.Values[valueKey+"_status"]; hasSignalStatus {
+		statusKey = valueKey + "_status"
+		reasonKey = valueKey + "_reason"
+	}
 	if status, ok := entry.Values[statusKey].(string); ok && status != "" {
 		state.Status = status
 	}

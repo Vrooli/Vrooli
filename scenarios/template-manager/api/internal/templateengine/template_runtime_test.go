@@ -1603,7 +1603,6 @@ func TestCleanupRelocationTargets_RemovesProtoGeneratedArtifacts(t *testing.T) {
 		relocTo,
 		filepath.Join(repoRoot, "packages", "proto", "gen", "go", scenarioID),
 		filepath.Join(repoRoot, "packages", "proto", "gen", "typescript", scenarioID),
-		filepath.Join(repoRoot, "packages", "proto", "gen", "typescript", "js", scenarioID),
 		filepath.Join(repoRoot, "packages", "proto", "gen", "python", scenarioID),
 		filepath.Join(repoRoot, "packages", "proto", "gen", "python", "template_validation_react_vite"),
 	}

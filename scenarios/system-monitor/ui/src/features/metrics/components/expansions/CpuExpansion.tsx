@@ -1,4 +1,4 @@
-import type { CPUMetrics, ProcessInfo } from '../../../../types';
+import type { CPUMetrics, MetricValue, ProcessInfo } from '../../../../types';
 import { formatOptionalNumber } from '../../../../shared/utils/formatters';
 
 interface CpuExpansionProps {
@@ -27,30 +27,33 @@ export const CpuExpansion = ({ details }: CpuExpansionProps) => (
 
     <div className="metric-grid-2col" data-sm-style="sm-style-c08663b577">
       <div className="detail-item">
-        <span className="detail-label" data-sm-style="sm-style-a6b497e153">
-          Load Average:
-        </span>
-        <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
-          {details.loadAverage?.slice(0, 3).map((load: number) => load.toFixed(2)).join(', ') ?? '—'}
-        </span>
+        <span className="detail-label">Utilization:</span>
+        <span className="detail-value">{metricLabel(details.usageState)}</span>
       </div>
       <div className="detail-item">
-        <span className="detail-label" data-sm-style="sm-style-a6b497e153">
-          Context Switches:
-        </span>
-        <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
-          {details.contextSwitches?.toLocaleString() ?? '—'}
-        </span>
+        <span className="detail-label">Steal:</span>
+        <span className="detail-value">{metricLabel(details.modeBreakdown?.steal, '%')}</span>
+      </div>
+      <div className="detail-item">
+        <span className="detail-label">Run Queue:</span>
+        <span className="detail-value">{metricLabel(details.runQueueDepth, ' processes')}</span>
+      </div>
+      <div className="detail-item">
+        <span className="detail-label">CPU Stall:</span>
+        <span className="detail-value">{metricLabel(details.cpuPsiSomeAvg10, '% some')}</span>
+      </div>
+      <div className="detail-item">
+        <span className="detail-label">Core imbalance:</span>
+        <span className="detail-value">{metricLabel(details.coreImbalanceIndex, ' pp')}</span>
       </div>
     </div>
 
-    <div className="detail-item">
-      <span className="detail-label" data-sm-style="sm-style-a6b497e153">
-        Total Goroutines:
-      </span>
-      <span className="detail-value" data-sm-style="sm-style-dbed1e5364">
-        {details.totalGoroutines ?? '—'}
-      </span>
-    </div>
   </div>
 );
+
+const metricLabel = (metric?: MetricValue, suffix = ''): string => {
+  if (!metric?.state?.case) return 'not yet sampled';
+  if (metric.state.case === 'measured') return `${metric.state.value.toFixed(1)}${suffix}`;
+  if (metric.state.case === 'notYetSampledReason') return `waiting for next sample: ${metric.state.value}`;
+  return `${metric.state.case}: ${String(metric.state.value || 'no value')}${metric.provenance ? ` (${metric.provenance})` : ''}`;
+};

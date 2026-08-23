@@ -26,6 +26,12 @@ const defaultSettings: ProtoSettings = create(SystemSettingsSchema, {
   thresholdCheckInterval: 20,
   cooldownPeriodSeconds: 300,
   cpuThreshold: 85.0,
+  cpuHighPercent: 92.0,
+  cpuCriticalPercent: 97.0,
+  cpuEscalationCooldownSeconds: 1800,
+  cpuEscalationDebounceTicks: 2,
+  cpuSustainedWindowTicks: 3,
+  cpuPressureThreshold: 10.0,
   memoryThreshold: 90.0,
   diskThreshold: 85.0,
 });
@@ -296,6 +302,31 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                       memoryThreshold: parseFloat(e.target.value) || 90
                     })); }}
                   />
+                </div>
+
+                <div>
+                  <label className="input-label">CPU High Band</label>
+                  <input type="number" className="input-field" min="1" max="100" step="0.1" value={settings.cpuHighPercent} onChange={(e) => { setSettings(prev => ({ ...prev, cpuHighPercent: parseFloat(e.target.value) || 92 })); }} />
+                </div>
+
+                <div>
+                  <label className="input-label">CPU Critical Band</label>
+                  <input type="number" className="input-field" min="1" max="100" step="0.1" value={settings.cpuCriticalPercent} onChange={(e) => { setSettings(prev => ({ ...prev, cpuCriticalPercent: parseFloat(e.target.value) || 97 })); }} />
+                </div>
+
+                <div>
+                  <label className="input-label">CPU Sustained Samples</label>
+                  <input type="number" className="input-field" min="1" max="100" value={settings.cpuSustainedWindowTicks} onChange={(e) => { setSettings(prev => ({ ...prev, cpuSustainedWindowTicks: parseInt(e.target.value) || 3 })); }} />
+                </div>
+
+                <div>
+                  <label className="input-label">CPU Debounce Samples</label>
+                  <input type="number" className="input-field" min="1" max="100" value={settings.cpuEscalationDebounceTicks} onChange={(e) => { setSettings(prev => ({ ...prev, cpuEscalationDebounceTicks: parseInt(e.target.value) || 2 })); }} />
+                </div>
+
+                <div>
+                  <label className="input-label">CPU Cooldown (seconds)</label>
+                  <input type="number" className="input-field" min="0" max="86400" value={settings.cpuEscalationCooldownSeconds} onChange={(e) => { setSettings(prev => ({ ...prev, cpuEscalationCooldownSeconds: parseInt(e.target.value) || 1800 })); }} />
                 </div>
 
                 <div>

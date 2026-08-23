@@ -41,6 +41,30 @@
         }
       },
       "id": "wait-cpu-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Mode breakdown visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/cpu-mode-breakdown", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      },
+      "id": "wait-cpu-mode-breakdown"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Stall panel visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/cpu-stall-panel", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      },
+      "id": "wait-cpu-stall-panel"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Attribution panel visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/cpu-attribution-panel", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      },
+      "id": "wait-cpu-attribution-panel"
     }
   ],
   "settings": {

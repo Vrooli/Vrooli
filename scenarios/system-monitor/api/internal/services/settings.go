@@ -21,8 +21,14 @@ type Settings struct {
 	CooldownPeriodSeconds int `json:"cooldown_period_seconds"`
 
 	// System thresholds
-	CPUThreshold    float64 `json:"cpu_threshold"`
-	MemoryThreshold float64 `json:"memory_threshold"`
+	CPUThreshold                 float64 `json:"cpu_threshold"`
+	CPUHighPercent               float64 `json:"cpu_high_percent"`
+	CPUCriticalPercent           float64 `json:"cpu_critical_percent"`
+	CPUEscalationCooldownSeconds int     `json:"cpu_escalation_cooldown_seconds"`
+	CPUEscalationDebounceTicks   int     `json:"cpu_escalation_debounce_ticks"`
+	CPUSustainedWindowTicks      int     `json:"cpu_sustained_window_ticks"`
+	CPUPressureThreshold         float64 `json:"cpu_pressure_threshold"`
+	MemoryThreshold              float64 `json:"memory_threshold"`
 
 	// DiskThreshold is the warning band boundary: the usage percentage at
 	// which disk pressure starts being recorded. It is deliberately the same
@@ -96,14 +102,20 @@ func WithSettingsConfigStore(cs ConfigStore) SettingsOption {
 
 // Default settings (always start inactive for safety)
 var defaultSettings = Settings{
-	Active:                   false, // ALWAYS start inactive for safety
-	MetricCollectionInterval: 20,    // 20 seconds
-	AnomalyDetectionInterval: 30,    // 30 seconds
-	ThresholdCheckInterval:   20,    // 20 seconds
-	CooldownPeriodSeconds:    300,   // 5 minutes
-	CPUThreshold:             85.0,  // 85%
-	MemoryThreshold:          90.0,  // 90%
-	DiskThreshold:            80.0,  // warning band
+	Active:                       false, // ALWAYS start inactive for safety
+	MetricCollectionInterval:     20,    // 20 seconds
+	AnomalyDetectionInterval:     30,    // 30 seconds
+	ThresholdCheckInterval:       20,    // 20 seconds
+	CooldownPeriodSeconds:        300,   // 5 minutes
+	CPUThreshold:                 85.0,  // 85%
+	CPUHighPercent:               92.0,
+	CPUCriticalPercent:           97.0,
+	CPUEscalationCooldownSeconds: 1800,
+	CPUEscalationDebounceTicks:   2,
+	CPUSustainedWindowTicks:      3,
+	CPUPressureThreshold:         10.0,
+	MemoryThreshold:              90.0, // 90%
+	DiskThreshold:                80.0, // warning band
 
 	DiskHighPercent:               90.0,
 	DiskCriticalPercent:           95.0,
@@ -144,6 +156,9 @@ func sanitizeSettings(settings Settings) (Settings, bool) {
 		settings.CPUThreshold = defaultSettings.CPUThreshold
 		changed = true
 	}
+	if sanitizeCPUBands(&settings) {
+		changed = true
+	}
 
 	if settings.MemoryThreshold <= 0 {
 		settings.MemoryThreshold = defaultSettings.MemoryThreshold
@@ -174,6 +189,41 @@ func sanitizeSettings(settings Settings) (Settings, bool) {
 	}
 
 	return settings, changed
+}
+
+func sanitizeCPUBands(settings *Settings) bool {
+	changed := false
+	if settings.CPUHighPercent <= 0 {
+		settings.CPUHighPercent = defaultSettings.CPUHighPercent
+		changed = true
+	}
+	if settings.CPUCriticalPercent <= 0 {
+		settings.CPUCriticalPercent = defaultSettings.CPUCriticalPercent
+		changed = true
+	}
+	if settings.CPUEscalationCooldownSeconds <= 0 {
+		settings.CPUEscalationCooldownSeconds = defaultSettings.CPUEscalationCooldownSeconds
+		changed = true
+	}
+	if settings.CPUEscalationDebounceTicks <= 0 {
+		settings.CPUEscalationDebounceTicks = defaultSettings.CPUEscalationDebounceTicks
+		changed = true
+	}
+	if settings.CPUSustainedWindowTicks <= 0 {
+		settings.CPUSustainedWindowTicks = defaultSettings.CPUSustainedWindowTicks
+		changed = true
+	}
+	if settings.CPUPressureThreshold <= 0 {
+		settings.CPUPressureThreshold = defaultSettings.CPUPressureThreshold
+		changed = true
+	}
+	if !(settings.CPUThreshold < settings.CPUHighPercent && settings.CPUHighPercent < settings.CPUCriticalPercent) {
+		settings.CPUThreshold = defaultSettings.CPUThreshold
+		settings.CPUHighPercent = defaultSettings.CPUHighPercent
+		settings.CPUCriticalPercent = defaultSettings.CPUCriticalPercent
+		changed = true
+	}
+	return changed
 }
 
 // sanitizeDiskBands restores any unset escalation setting to its default and

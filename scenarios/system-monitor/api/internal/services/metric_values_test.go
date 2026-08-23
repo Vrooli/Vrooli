@@ -39,3 +39,18 @@ func TestDiskMetricStatePreservesNestedFailure(t *testing.T) {
 		t.Fatalf("diskMetricState() = %#v, want nested failed state", state)
 	}
 }
+
+func TestMetricStateUsesPerSignalCPUEnvelope(t *testing.T) {
+	state := metricState(&collectors.MetricData{
+		CollectorName: "cpu",
+		Values: map[string]interface{}{
+			"status":                      "measured",
+			"quota_throttling_status":     "unsupported",
+			"quota_throttling_reason":     "no cgroup CPU limit applies",
+			"quota_throttling_provenance": "cgroup v2 cpu.max",
+		},
+	}, "quota_throttling", "quota unavailable")
+	if state.Status != "unsupported" || state.Reason != "no cgroup CPU limit applies" || state.Value != 0 {
+		t.Fatalf("metricState() = %#v, want per-signal unsupported state", state)
+	}
+}

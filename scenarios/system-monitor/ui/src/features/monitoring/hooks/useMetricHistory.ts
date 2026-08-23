@@ -35,7 +35,17 @@ const cloneSeries = (series?: ChartDataPoint[]) => (series ? [...series] : undef
 const ensureHistoryBase = (history: MetricHistory | null): MetricHistory => ({
   windowSeconds: history?.windowSeconds ?? 0,
   sampleIntervalSeconds: history?.sampleIntervalSeconds ?? 0,
-  cpu: history?.cpu ? [...history.cpu] : [],
+	cpu: history?.cpu ? [...history.cpu] : [],
+	cpuContextSwitches: cloneSeries(history?.cpuContextSwitches),
+	cpuInterrupts: cloneSeries(history?.cpuInterrupts),
+	cpuNormalizedLoad1: cloneSeries(history?.cpuNormalizedLoad1),
+	cpuNormalizedLoad5: cloneSeries(history?.cpuNormalizedLoad5),
+	cpuRunQueue: cloneSeries(history?.cpuRunQueue),
+	cpuStallSome: cloneSeries(history?.cpuStallSome),
+	cpuStallFull: cloneSeries(history?.cpuStallFull),
+	cpuCoreImbalance: cloneSeries(history?.cpuCoreImbalance),
+	cpuModeIowait: cloneSeries(history?.cpuModeIowait),
+	cpuModeSteal: cloneSeries(history?.cpuModeSteal),
   memory: history?.memory ? [...history.memory] : [],
   swap: history?.swap ? [...history.swap] : [],
   swapTraffic: history?.swapTraffic ? [...history.swapTraffic] : [],
@@ -73,9 +83,19 @@ export const useMetricHistory = (
           ...base,
           windowSeconds: data.windowSeconds,
           sampleIntervalSeconds: data.sampleIntervalSeconds,
-          cpu: data.samples
-            .filter(sample => sample.cpu?.state.case === 'measured')
-            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpu?.state.value) })),
+			cpu: data.samples
+				.filter(sample => sample.cpu?.state.case === 'measured')
+				.map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpu?.state.value) })),
+			cpuContextSwitches: data.samples.filter(sample => sample.cpuContextSwitchesPerSecond?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuContextSwitchesPerSecond?.state.value) })),
+			cpuInterrupts: data.samples.filter(sample => sample.cpuInterruptsPerSecond?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuInterruptsPerSecond?.state.value) })),
+			cpuNormalizedLoad1: data.samples.filter(sample => sample.cpuNormalizedLoad1?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuNormalizedLoad1?.state.value) })),
+			cpuNormalizedLoad5: data.samples.filter(sample => sample.cpuNormalizedLoad5?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuNormalizedLoad5?.state.value) })),
+			cpuRunQueue: data.samples.filter(sample => sample.cpuRunQueueDepth?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuRunQueueDepth?.state.value) })),
+			cpuStallSome: data.samples.filter(sample => sample.cpuStallSomeAvg10?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuStallSomeAvg10?.state.value) })),
+			cpuStallFull: data.samples.filter(sample => sample.cpuStallFullAvg10?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuStallFullAvg10?.state.value) })),
+			cpuCoreImbalance: data.samples.filter(sample => sample.cpuCoreImbalanceIndex?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuCoreImbalanceIndex?.state.value) })),
+			cpuModeIowait: data.samples.filter(sample => sample.cpuModeIowait?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuModeIowait?.state.value) })),
+			cpuModeSteal: data.samples.filter(sample => sample.cpuModeSteal?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuModeSteal?.state.value) })),
           memory: data.samples
             .filter(sample => sample.memory?.state.case === 'measured')
             .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.memory?.state.value) })),

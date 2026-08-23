@@ -10,52 +10,58 @@ type platformCPUState struct {
 	previous    []uint64
 	previousAt  time.Time
 	initialized bool
+	perCore     map[string][]uint64
 }
 
 type platformCPUReading struct {
-	usage           float64
-	status          string
-	reason          string
-	provenance      string
-	loadAverage     []float64
-	contextSwitches *int64
+	usage      float64
+	status     string
+	reason     string
+	provenance string
+	values     map[string]interface{}
 }
 
-func deltaCPUUsage(state *platformCPUState, counters []uint64, now time.Time, idleIndexes ...int) (float64, bool) {
-	if len(counters) == 0 {
-		return 0, false
+// deltaCPUValues applies one consistent definition on every platform: idle
+// and iowait are capacity not doing runnable work; all other accounted modes
+// are used time. The returned map contains mode percentages for diagnostics.
+func deltaCPUValues(state *platformCPUState, counters []uint64, now time.Time, names []string, idleIndexes ...int) (float64, map[string]float64, bool) {
+	if len(counters) == 0 || len(counters) != len(names) {
+		return 0, nil, false
 	}
 	first := !state.initialized || len(state.previous) != len(counters)
 	if first {
 		state.previous = append(state.previous[:0], counters...)
 		state.previousAt = now
 		state.initialized = true
-		return 0, false
+		return 0, nil, false
 	}
-
-	var totalDelta uint64
-	var idleDelta uint64
+	deltas := make([]uint64, len(counters))
+	var total uint64
 	for i, current := range counters {
 		if current < state.previous[i] {
 			state.previous = append(state.previous[:0], counters...)
 			state.previousAt = now
-			return 0, false
+			return 0, nil, false
 		}
-		delta := current - state.previous[i]
-		totalDelta += delta
-		for _, idleIndex := range idleIndexes {
-			if i == idleIndex {
-				idleDelta += delta
-			}
-		}
+		deltas[i] = current - state.previous[i]
+		total += deltas[i]
 	}
 	state.previous = append(state.previous[:0], counters...)
 	state.previousAt = now
-	if totalDelta == 0 {
-		return 0, true
+	if total == 0 {
+		return 0, nil, false
 	}
-	used := totalDelta - idleDelta
-	return float64(used) / float64(totalDelta) * 100, true
+	modes := make(map[string]float64, len(names))
+	idle := uint64(0)
+	for _, i := range idleIndexes {
+		if i >= 0 && i < len(deltas) {
+			idle += deltas[i]
+		}
+	}
+	for i, name := range names {
+		modes[name] = float64(deltas[i]) * 100 / float64(total)
+	}
+	return float64(total-idle) * 100 / float64(total), modes, true
 }
 
 // platformCPUUnsupported is used by the fallback build and is also kept here

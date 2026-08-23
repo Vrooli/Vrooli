@@ -129,9 +129,8 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, templateDir string, reloc
 // validation flow has already completed by the time cleanup runs.
 //
 // The proto/gen/ artifact paths mirror the repository's generated output
-// layout. Go uses the scenario id directly, TypeScript nests generated JS
-// under gen/typescript/js/<scenario-id>, and Python rewrites hyphens to
-// underscores for package names.
+// layout. Go and TypeScript use the scenario id directly, and Python rewrites
+// hyphens to underscores for package names.
 func cleanupRelocationTargets(relocations []templatecontracts.ResolvedRelocation) {
 	for _, path := range relocationArtifactPaths(relocations) {
 		_ = os.RemoveAll(path)

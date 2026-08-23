@@ -113,9 +113,7 @@
     "resources": {},
     "scenarios": {}
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/template-manager.db"
-  },
+  "environment": {},
   "components": {
     "api": {
       "role": "api",

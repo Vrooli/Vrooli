@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -166,6 +167,7 @@ func (s *MonitorService) registerCollectors() {
 	cpu := collectors.NewCPUCollector()
 	configureCollectorProfile(cpu, s.collectionProfile, "cpu")
 	cpu.SetSnapshotProvider(s.snapshots)
+	cpu.SetDeviceGraphProvider(s.deviceGraphs)
 	mem := collectors.NewMemoryCollector()
 	configureCollectorProfile(mem, s.collectionProfile, "memory")
 	mem.SetSnapshotProvider(s.snapshots)
@@ -544,6 +546,9 @@ func (s *MonitorService) sampleProcesses(ctx context.Context, now time.Time, gpu
 			Cwd:                  ps.Cwd,
 			Owner:                ps.Owner,
 			CPUPct:               ps.CPUPct,
+			CPUSeconds:           ps.CPUSeconds,
+			CPUSecondsStatus:     ps.CPUSecondsStatus,
+			CPUSecondsReason:     ps.CPUSecondsReason,
 			RSSKB:                ps.RSSKB,
 			SwapKB:               ps.SwapKB,
 			MajorFaultsPerSecond: ps.MajorFaultsPerSecond,
@@ -691,8 +696,8 @@ func (s *MonitorService) GetProcessTimeline(ctx context.Context, window time.Dur
 	return s.GetProcessTimelineRanked(ctx, window, owner, top, "cpu")
 }
 
-// GetProcessTimelineRanked returns bounded scenario attribution ranked by CPU
-// (default) or RSS. Invalid rank values fail closed to the CPU default.
+// GetProcessTimelineRanked returns bounded scenario attribution ranked by CPU,
+// cumulative CPU seconds, RSS, or GPU. Invalid rank values fail closed to CPU.
 func (s *MonitorService) GetProcessTimelineRanked(ctx context.Context, window time.Duration, owner string, top int, rank string) ([]repository.ProcessTimelineEntry, error) {
 	if s.procRepo == nil {
 		return nil, nil
@@ -700,7 +705,7 @@ func (s *MonitorService) GetProcessTimelineRanked(ctx context.Context, window ti
 	if window <= 0 {
 		window = 5 * time.Minute
 	}
-	if rank != "rss" {
+	if rank != "rss" && rank != "gpu" && rank != "cpu_seconds" {
 		rank = "cpu"
 	}
 	now := s.clock.Now()
@@ -890,21 +895,31 @@ func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, 
 	samples := make([]models.MetricTimelineSample, 0, len(results))
 	for _, m := range results {
 		samples = append(samples, models.MetricTimelineSample{
-			CycleID:                 m.CycleID,
-			Timestamp:               m.Timestamp,
-			CPUUsage:                m.CPUUsage,
-			MemoryUsage:             m.MemoryUsage,
-			TCPConnections:          m.TCPConnections,
-			GPUUsage:                m.GPUUsage,
-			SwapUsage:               m.SwapUsage,
-			CPUState:                m.CPUState,
-			MemoryState:             m.MemoryState,
-			ConnectionsState:        m.ConnectionsState,
-			GPUState:                m.GPUState,
-			SwapState:               m.SwapState,
-			SwapTrafficState:        m.SwapTrafficState,
-			MajorFaultsState:        m.MajorFaultsState,
-			FragmentationIndexState: m.FragmentationIndexState,
+			CycleID:                     m.CycleID,
+			Timestamp:                   m.Timestamp,
+			CPUUsage:                    m.CPUUsage,
+			MemoryUsage:                 m.MemoryUsage,
+			TCPConnections:              m.TCPConnections,
+			GPUUsage:                    m.GPUUsage,
+			SwapUsage:                   m.SwapUsage,
+			CPUState:                    m.CPUState,
+			CPUContextSwitchesPerSecond: m.CPUContextSwitchesPerSecond,
+			CPUInterruptsPerSecond:      m.CPUInterruptsPerSecond,
+			CPUNormalizedLoad1:          m.CPUNormalizedLoad1,
+			CPUNormalizedLoad5:          m.CPUNormalizedLoad5,
+			CPURunQueueDepth:            m.CPURunQueueDepth,
+			CPUStallSomeAvg10:           m.CPUStallSomeAvg10,
+			CPUStallFullAvg10:           m.CPUStallFullAvg10,
+			CPUCoreImbalanceIndex:       m.CPUCoreImbalanceIndex,
+			CPUModeIowait:               m.CPUModeIowait,
+			CPUModeSteal:                m.CPUModeSteal,
+			MemoryState:                 m.MemoryState,
+			ConnectionsState:            m.ConnectionsState,
+			GPUState:                    m.GPUState,
+			SwapState:                   m.SwapState,
+			SwapTrafficState:            m.SwapTrafficState,
+			MajorFaultsState:            m.MajorFaultsState,
+			FragmentationIndexState:     m.FragmentationIndexState,
 		})
 	}
 
@@ -927,9 +942,11 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 	diskData := latest["disk"]
 	gpuData := latest["gpu"]
 	pressureData := latest["pressure"]
+	processData := latest["process"]
 
 	// Get top processes
 	topCPUProcs, _ := collectors.GetTopProcessesByCPU(5)
+	topCPUSecondsProcs, _ := collectors.GetTopProcessesByCPUSeconds(5)
 	topMemProcs, _ := collectors.GetTopProcessesByMemory(5)
 	topPagingProcs, _ := collectors.GetTopProcessesByPaging(5)
 
@@ -938,8 +955,12 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 		Timestamp: s.clock.Now(),
 	}
 
-	populateCPUDetails(detailed, cpuData, topCPUProcs)
+	populateCPUDetails(detailed, cpuData, processData, topCPUProcs, topCPUSecondsProcs)
 	populateMemoryDetails(detailed, memData, diskData, pressureData, topMemProcs, topPagingProcs)
+	if pressureData != nil {
+		detailed.CPUDetails.StallSomeAvg10 = pressureState(pressureData, "cpu_psi_some_avg10", "cpu_psi_status", "cpu_psi_reason")
+		detailed.CPUDetails.StallFullAvg10 = pressureState(pressureData, "cpu_psi_full_avg10", "cpu_psi_status", "cpu_psi_reason")
+	}
 	populateNetworkDetails(detailed, netData)
 	populateSystemDetails(detailed, diskData)
 	populateGPUDetails(detailed, gpuData)
@@ -947,6 +968,16 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 	detailed.SystemDetails.ServiceDependencies = s.infra.CheckServiceDependencies()
 
 	return detailed, nil
+}
+
+// ReadCPUObservation returns the latest scheduler-owned CPU reading for
+// threshold evaluation. It never advances collector state or invents a value.
+func (s *MonitorService) ReadCPUObservation(ctx context.Context) (models.CPUMetrics, error) {
+	detailed, err := s.GetDetailedMetrics(ctx)
+	if err != nil {
+		return models.CPUMetrics{}, err
+	}
+	return detailed.CPUDetails, nil
 }
 
 func (s *MonitorService) latestCollectorSnapshot() map[string]*collectors.MetricData {
@@ -1040,21 +1071,78 @@ func highestDiskPressure(partitions []models.DiskPartitionInfo) float64 {
 }
 
 // populateCPUDetails fills the CPU section of detailed from the cpu collector data.
-func populateCPUDetails(detailed *models.DetailedMetrics, cpuData *collectors.MetricData, topCPUProcs []map[string]interface{}) {
+func populateCPUDetails(detailed *models.DetailedMetrics, cpuData, processData *collectors.MetricData, topCPUProcs, topCPUSecondsProcs []map[string]interface{}) {
 	if cpuData == nil {
 		return
 	}
 
 	detailed.CPUDetails = models.CPUMetrics{
-		Usage:           getFloat64Value(cpuData.Values, "usage_percent"),
-		LoadAverage:     getFloat64Slice(cpuData.Values, "load_average"),
-		ContextSwitches: getInt64Value(cpuData.Values, "context_switches"),
-		Goroutines:      getIntValue(cpuData.Values, "goroutines"),
+		Usage:                    getFloat64Value(cpuData.Values, "usage_percent"),
+		LoadAverage:              getFloat64Slice(cpuData.Values, "load_average"),
+		UsageState:               metricState(cpuData, "usage_percent", "CPU has not been measured"),
+		ContextSwitchesPerSecond: metricState(cpuData, "context_switches_per_second", "context-switch counter rate has not been sampled"),
+		InterruptsPerSecond:      metricState(cpuData, "interrupts_per_second", "interrupt counter rate has not been sampled"),
+		NormalizedLoad1:          metricState(cpuData, "normalized_load_1", "normalized load is unavailable"),
+		NormalizedLoad5:          metricState(cpuData, "normalized_load_5", "normalized load is unavailable"),
+		RunQueueDepth:            metricState(cpuData, "run_queue_depth", "run-queue depth is unavailable"),
+		ModeBreakdown:            metricStateMap(cpuData, "mode_breakdown", "CPU mode accounting is unavailable"),
+		PerCoreUtilization:       metricStateMap(cpuData, "per_core_utilization", "per-core utilization is unavailable"),
+		CoreImbalanceIndex:       metricState(cpuData, "core_imbalance_index", "core imbalance is unavailable"),
+		QuotaThrottling:          metricState(cpuData, "quota_throttling", "CPU quota throttling is unavailable"),
+		FrequencyDerateRatio:     metricState(cpuData, "frequency_derate_ratio", "CPU frequency backend is unavailable"),
+		ThermalThrottleEvidence:  metricState(cpuData, "thermal_throttle_evidence", "thermal attribution is unavailable"),
+		ThermalTripPointCelsius:  metricState(cpuData, "thermal_trip_point_celsius", "thermal trip point is unavailable"),
+		ForkRate:                 metricState(processData, "fork_rate", "fork-rate counter is unavailable"),
 	}
+	detailed.CPUDetails.LoadAverageState = cpuLoadState(cpuData)
 
 	for _, proc := range topCPUProcs {
 		detailed.CPUDetails.TopProcesses = append(detailed.CPUDetails.TopProcesses, convertToProcessInfo(proc))
 	}
+	for _, proc := range topCPUSecondsProcs {
+		detailed.CPUDetails.TopCPUSecondsProcesses = append(detailed.CPUDetails.TopCPUSecondsProcesses, convertToProcessInfo(proc))
+	}
+}
+
+func metricStateMap(data *collectors.MetricData, key, reason string) map[string]models.MetricState {
+	result := map[string]models.MetricState{}
+	if data == nil {
+		return result
+	}
+	if raw, ok := data.Values[key].(map[string]float64); ok {
+		for name, value := range raw {
+			result[name] = models.MetricState{Status: "measured", Value: value, Units: "percent", Provenance: data.Tags["source"], ObservedAt: data.Timestamp}
+		}
+	}
+	if len(result) == 0 {
+		result["_state"] = metricState(data, key, reason)
+	}
+	return result
+}
+
+func cpuLoadState(data *collectors.MetricData) models.MetricState {
+	state := metricState(data, "load_average", "load average is unavailable")
+	if data == nil {
+		return state
+	}
+	if status, ok := data.Values["load_average_status"].(string); ok && status != "" {
+		state.Status = status
+	}
+	if reason, ok := data.Values["load_average_reason"].(string); ok {
+		state.Reason = reason
+	}
+	if provenance, ok := data.Values["load_average_provenance"].(string); ok && provenance != "" {
+		state.Provenance = provenance
+	}
+	if loads, ok := data.Values["load_average"].([]float64); ok && len(loads) > 0 && state.Status == "measured" {
+		state.Value = loads[0]
+		state.Units = "load"
+		state.Reason = ""
+	}
+	if state.Status != "measured" {
+		state.Value = 0
+	}
+	return state
 }
 
 // populateMemoryDetails fills the memory section of detailed (including disk
@@ -1125,7 +1213,15 @@ func populatePressureDetails(memory *models.MemoryMetrics, data *collectors.Metr
 }
 
 func pressureState(data *collectors.MetricData, valueKey, statusKey, reasonKey string) models.MetricState {
-	state := models.MetricState{Status: "not_yet_sampled", Reason: "rate has not been sampled", Provenance: "system-monitor/pressure", ObservedAt: data.Timestamp}
+	units := "per second"
+	if strings.Contains(valueKey, "psi_") {
+		units = "percent"
+	}
+	state := models.MetricState{Status: "not_yet_sampled", Reason: "rate has not been sampled", Provenance: "system-monitor/pressure", Units: units, ObservedAt: data.Timestamp}
+	if _, hasSignalStatus := data.Values[valueKey+"_status"]; hasSignalStatus {
+		statusKey = valueKey + "_status"
+		reasonKey = valueKey + "_reason"
+	}
 	if status, ok := data.Values[statusKey].(string); ok && status != "" {
 		state.Status = status
 	}
@@ -1188,6 +1284,7 @@ func populateNetworkDetails(detailed *models.DetailedMetrics, netData *collector
 // populateSystemDetails fills the system section of detailed (file descriptors
 // and inotify watchers) from the disk collector data.
 func populateSystemDetails(detailed *models.DetailedMetrics, diskData *collectors.MetricData) {
+	detailed.SystemDetails.APIProcessGoroutines = runtime.NumGoroutine()
 	if diskData == nil {
 		return
 	}
@@ -1303,6 +1400,13 @@ func convertToProcessInfo(proc map[string]interface{}) models.ProcessInfo {
 		Status:               getStringValue(proc, "status"),
 		SwapKB:               getInt64Value(proc, "swap_kb"),
 		MajorFaultsPerSecond: getFloat64Value(proc, "major_faults_per_second"),
+		CPUSeconds:           getFloat64Value(proc, "cpu_seconds"),
+		CPUSecondsState: models.MetricState{
+			Status: getStringValue(proc, "cpu_seconds_status"),
+			Value:  getFloat64Value(proc, "cpu_seconds"),
+			Reason: getStringValue(proc, "cpu_seconds_reason"),
+			Units:  "seconds",
+		},
 	}
 }
 

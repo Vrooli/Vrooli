@@ -51,9 +51,9 @@ export const buildDiskUsageCard = (
 };
 
 export const renderProcessTable = (
-  processes: Array<{ name: string; pid: number; cpuPercent?: number; memoryMb?: number }> | undefined,
+  processes: Array<{ name: string; pid: number; cpuPercent?: number; memoryMb?: number; majorFaultsPerSecond?: number; cpuSeconds?: number }> | undefined,
   valueLabel: string,
-  valueAccessor: (process: { cpuPercent?: number; memoryMb?: number }) => number | undefined
+  valueAccessor: (process: { cpuPercent?: number; memoryMb?: number; majorFaultsPerSecond?: number; cpuSeconds?: number }) => number | undefined
 ) => {
   if (!processes || processes.length === 0) {
     return (

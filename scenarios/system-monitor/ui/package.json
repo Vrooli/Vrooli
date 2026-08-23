@@ -49,7 +49,7 @@
     "build:profile": "tsc --noEmit && tsc -b && vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint .",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc -b",
     "preview": "vite preview",
     "start": "vrooli lifecycle protect -- vite",
     "test": "vitest run --config vite.config.ts",
