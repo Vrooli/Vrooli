@@ -827,7 +827,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/prose-studio/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/prose-studio/v1/<domain>/`, and
+   `packages/proto/gen/typescript/prose-studio/v1/<domain>/`, and
    `packages/proto/gen/python/prose_studio/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.

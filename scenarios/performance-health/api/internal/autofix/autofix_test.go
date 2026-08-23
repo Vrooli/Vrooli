@@ -253,3 +253,34 @@ func snapshot(t *testing.T, root string) string {
 	}
 	return string(b)
 }
+
+// A scenario declaring only `build` gets `build:profile` added, and `build`
+// itself is left untouched — no shell conditional is introduced.
+func TestInjectBuildProfileScriptLeavesBuildAlone(t *testing.T) {
+	before := `{
+  "name": "demo-ui",
+  "scripts": {
+    "build": "tsc --noEmit && vite build"
+  }
+}
+`
+	after, changed, err := injectBuildProfileScript(before)
+	if err != nil || !changed {
+		t.Fatalf("changed=%v err=%v", changed, err)
+	}
+	if !contains(after, `"build": "tsc --noEmit && vite build"`) {
+		t.Fatalf("build was rewritten:\n%s", after)
+	}
+	if !contains(after, `"build:profile": "tsc --noEmit && vite build --mode profile"`) {
+		t.Fatalf("build:profile missing:\n%s", after)
+	}
+	for _, tok := range []string{"$(", "VROOLI_BUILD_MODE", "[ "} {
+		if contains(after, tok) {
+			t.Fatalf("shell token %q reintroduced:\n%s", tok, after)
+		}
+	}
+	// Idempotent: a second pass is a no-op.
+	if _, changed2, err := injectBuildProfileScript(after); err != nil || changed2 {
+		t.Fatalf("second pass changed=%v err=%v", changed2, err)
+	}
+}

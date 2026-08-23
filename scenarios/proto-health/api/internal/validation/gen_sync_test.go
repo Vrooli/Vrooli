@@ -121,7 +121,6 @@ func makeManifestRepo(t *testing.T) string {
 	for _, path := range []string{
 		filepath.Join(protoRoot, "gen", "go", "demo", "v1", "core", "core.pb.go"),
 		filepath.Join(protoRoot, "gen", "typescript", "demo", "v1", "core", "core_pb.ts"),
-		filepath.Join(protoRoot, "gen", "typescript", "js", "demo", "v1", "core", "core_pb.js"),
 		filepath.Join(protoRoot, "gen", "python", "demo", "v1", "core", "core_pb2.py"),
 		filepath.Join(protoRoot, "gen", "python", "demo", "v1", "core", "py.typed"),
 	} {

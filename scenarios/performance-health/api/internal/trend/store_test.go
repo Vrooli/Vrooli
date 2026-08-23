@@ -187,3 +187,169 @@ func TestEnsureColumnsAddsFlow(t *testing.T) {
 		t.Fatalf("pre-existing row must survive with flow='', got %#v found=%v err=%v", got, found, err)
 	}
 }
+
+// [REQ:PH-TREND-001] CLS survives an insert/read round trip with its fractional
+// magnitude intact. It is stored REAL rather than in one of the INTEGER
+// millisecond columns because cumulative layout shift is a unitless ratio,
+// typically well below 1 — an INTEGER column would persist every real reading
+// as 0.
+func TestCLSRoundTripsAsAFraction(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:"+t.TempDir()+"/trend.db?_pragma=busy_timeout(5000)")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.ExecContext(context.Background(), Schema()); err != nil {
+		t.Fatalf("schema: %v", err)
+	}
+	store := NewStore(db)
+
+	const want = 0.02939214801135392
+	if err := store.Insert(context.Background(), Sample{Scenario: "demo", CLS: want, LCPMs: 248}); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	latest, found, err := store.Latest(context.Background(), "demo")
+	if err != nil || !found {
+		t.Fatalf("expected a sample, got found=%v err=%v", found, err)
+	}
+	if latest.CLS != want {
+		t.Errorf("CLS = %v, want %v (0 means the column or scan order regressed)", latest.CLS, want)
+	}
+	if latest.LCPMs != 248 {
+		t.Errorf("LCPMs = %d, want 248 — a column-order slip would shift neighbouring values", latest.LCPMs)
+	}
+}
+
+// [REQ:PH-TREND-001] EnsureColumns adds cls to a database created before the
+// column existed, without disturbing rows already persisted. This is the
+// upgrade path every existing install takes.
+func TestEnsureColumnsAddsCLSToAnOlderDatabase(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:"+t.TempDir()+"/trend.db?_pragma=busy_timeout(5000)")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	// A pre-CLS table with one persisted sample.
+	if _, err := db.ExecContext(context.Background(), `
+		CREATE TABLE perf_samples (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			scenario TEXT NOT NULL,
+			flow TEXT NOT NULL DEFAULT '',
+			captured_at TEXT NOT NULL,
+			go_build_ms INTEGER NOT NULL DEFAULT 0,
+			ui_build_ms INTEGER NOT NULL DEFAULT 0,
+			bundle_bytes INTEGER NOT NULL DEFAULT 0,
+			lcp_ms INTEGER NOT NULL DEFAULT 0,
+			startup_ms INTEGER NOT NULL DEFAULT 0,
+			slowest_component TEXT NOT NULL DEFAULT '',
+			slowest_component_avg_ms REAL NOT NULL DEFAULT 0,
+			slowest_component_max_ms REAL NOT NULL DEFAULT 0,
+			drawn_fps REAL NOT NULL DEFAULT 0,
+			dropped_frame_rate REAL NOT NULL DEFAULT 0,
+			long_task_total_ms INTEGER NOT NULL DEFAULT 0,
+			long_task_max_ms REAL NOT NULL DEFAULT 0,
+			raster_total_ms REAL NOT NULL DEFAULT 0,
+			layout_total_ms REAL NOT NULL DEFAULT 0,
+			paint_total_ms REAL NOT NULL DEFAULT 0,
+			input_event_count INTEGER NOT NULL DEFAULT 0,
+			note TEXT NOT NULL DEFAULT ''
+		);
+		INSERT INTO perf_samples (scenario, captured_at, lcp_ms) VALUES ('demo', '2026-08-21T00:00:00Z', 512);`); err != nil {
+		t.Fatalf("seed legacy table: %v", err)
+	}
+
+	if err := EnsureColumns(context.Background(), db); err != nil {
+		t.Fatalf("EnsureColumns: %v", err)
+	}
+	// Idempotent on re-run.
+	if err := EnsureColumns(context.Background(), db); err != nil {
+		t.Fatalf("EnsureColumns re-run: %v", err)
+	}
+
+	latest, found, err := NewStore(db).Latest(context.Background(), "demo")
+	if err != nil || !found {
+		t.Fatalf("legacy row unreadable after migration: found=%v err=%v", found, err)
+	}
+	if latest.LCPMs != 512 {
+		t.Errorf("pre-existing sample lost its LCP: got %d, want 512", latest.LCPMs)
+	}
+	if latest.CLS != 0 {
+		t.Errorf("a row written before the column existed must default to 0, got %v", latest.CLS)
+	}
+	// The navigation columns are additive on the same upgrade path.
+	if latest.LoadEventEndMs != 0 || latest.ResponseEndMs != 0 || latest.NavigationType != "" {
+		t.Errorf("pre-navigation row must default to zero/empty, got load=%d response=%d type=%q",
+			latest.LoadEventEndMs, latest.ResponseEndMs, latest.NavigationType)
+	}
+	// A sample written AFTER the migration must persist the new columns, which
+	// proves the ALTERs landed rather than the reads merely defaulting.
+	if err := NewStore(db).Insert(context.Background(), Sample{
+		Scenario: "demo", LoadEventEndMs: 202, NavigationType: "navigate", CLS: 0.03,
+	}); err != nil {
+		t.Fatalf("insert after migration: %v", err)
+	}
+	after, _, err := NewStore(db).Latest(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("read after migration: %v", err)
+	}
+	if after.LoadEventEndMs != 202 || after.NavigationType != "navigate" || after.CLS != 0.03 {
+		t.Errorf("migrated columns did not persist: load=%d type=%q cls=%v",
+			after.LoadEventEndMs, after.NavigationType, after.CLS)
+	}
+}
+
+// [REQ:PH-TREND-001] Navigation phases and the navigation type round-trip, and
+// stay monotonic through the insert/scan column ordering. The ordering check is
+// the cheap guard against a column-order slip: four plausible numbers in the
+// wrong slots would otherwise look fine.
+func TestNavigationTimingRoundTrips(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:"+t.TempDir()+"/trend.db?_pragma=busy_timeout(5000)")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.ExecContext(context.Background(), Schema()); err != nil {
+		t.Fatalf("schema: %v", err)
+	}
+	store := NewStore(db)
+
+	want := Sample{
+		Scenario: "demo", LCPMs: 248, CLS: 0.03,
+		ResponseEndMs: 4, DOMInteractiveMs: 14, DOMContentLoadedMs: 101, LoadEventEndMs: 202,
+		NavigationType: "reload",
+	}
+	if err := store.Insert(context.Background(), want); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	got, found, err := store.Latest(context.Background(), "demo")
+	if err != nil || !found {
+		t.Fatalf("expected a sample, got found=%v err=%v", found, err)
+	}
+	for _, c := range []struct {
+		name      string
+		got, want int64
+	}{
+		{"ResponseEndMs", got.ResponseEndMs, want.ResponseEndMs},
+		{"DOMInteractiveMs", got.DOMInteractiveMs, want.DOMInteractiveMs},
+		{"DOMContentLoadedMs", got.DOMContentLoadedMs, want.DOMContentLoadedMs},
+		{"LoadEventEndMs", got.LoadEventEndMs, want.LoadEventEndMs},
+		{"LCPMs", got.LCPMs, want.LCPMs},
+	} {
+		if c.got != c.want {
+			t.Errorf("%s = %d, want %d", c.name, c.got, c.want)
+		}
+	}
+	if got.NavigationType != "reload" {
+		t.Errorf("NavigationType = %q, want reload — a reload is not comparable with a cold navigate", got.NavigationType)
+	}
+	if got.CLS != 0.03 {
+		t.Errorf("CLS = %v, want 0.03 — neighbouring columns must not shift", got.CLS)
+	}
+	if !(got.ResponseEndMs <= got.DOMInteractiveMs &&
+		got.DOMInteractiveMs <= got.DOMContentLoadedMs &&
+		got.DOMContentLoadedMs <= got.LoadEventEndMs) {
+		t.Errorf("navigation phases lost their ordering through the store: %d/%d/%d/%d",
+			got.ResponseEndMs, got.DOMInteractiveMs, got.DOMContentLoadedMs, got.LoadEventEndMs)
+	}
+}

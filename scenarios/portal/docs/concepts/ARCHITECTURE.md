@@ -107,7 +107,7 @@ packages/proto/schemas/portal/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/portal/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/portal/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/portal/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/portal/v1/...   (ui)
        └──▶ packages/proto/gen/python/portal/v1/...    (future tools)
 ```
 

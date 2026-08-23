@@ -107,7 +107,7 @@ packages/proto/schemas/persona/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/persona/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/persona/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/persona/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/persona/v1/...   (ui)
        └──▶ packages/proto/gen/python/persona/v1/...    (future tools)
 ```
 

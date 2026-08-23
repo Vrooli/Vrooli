@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P0 operational targets for the owner notification spine. Amended 2026-08-17 to make sensitivity labelling default-deny, to name the missing push-provider resource, and to add unroutable visibility, request idempotency, and bounded delivery history.",
-    "last_validated_at": "2026-08-18T04:54:35-04:00",
+    "last_validated_at": "2026-08-22T16:44:17-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -25,7 +25,7 @@
     {
       "id": "NOTIFICA-P0-002",
       "title": "Direct notification request",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "When an agent, scenario, or operator submits a notification request, the system shall persist it and shall return a durable notification id.",
@@ -34,7 +34,7 @@
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestSend_IsIdempotentAndLeavesDurableTerminalState",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Durable acceptance and idempotency are covered by the hub service test."
         }
       ]
@@ -42,7 +42,7 @@
     {
       "id": "NOTIFICA-P0-003",
       "title": "Device and channel registry",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "The system shall record the owner's devices, the channels each device accepts, and the address used for each channel.",
@@ -51,7 +51,7 @@
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestRecipients_DevicesAndQuietWindowsAreDurable",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Device, push address, and quiet-window persistence are covered by the hub service test."
         }
       ]
@@ -59,7 +59,7 @@
     {
       "id": "NOTIFICA-P0-004",
       "title": "Observable delivery state",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "The system shall record every delivery attempt with its outcome and shall expose the state of any notification through the API, the CLI, and the UI.",
@@ -68,7 +68,7 @@
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestProcess_RedactsSensitiveContentAndRecordsRetryReceipt",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Attempt rows, terminal state, and receipts are covered by the retry/receipt service test; API, CLI, and UI are exercised by their suites."
         }
       ]
@@ -76,7 +76,7 @@
     {
       "id": "NOTIFICA-P0-005",
       "title": "Quiet hours",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
       "description": "When a notification falls inside a configured quiet window, the system shall hold it until the window closes unless its urgency is marked critical.",
@@ -85,7 +85,7 @@
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestRecipients_DevicesAndQuietWindowsAreDurable",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Quiet-hour hold behavior is covered by the hub service test."
         }
       ]
@@ -93,7 +93,7 @@
     {
       "id": "NOTIFICA-P0-006",
       "title": "Duplicate suppression",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "criticality": "P0",
       "description": "When repeated requests carry the same dedupe key inside its window, the system shall collapse them into one delivery.",
@@ -102,7 +102,7 @@
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestProcess_DedupeCollapsesRepeatedKey",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Dedupe suppression is covered by the hub service test."
         }
       ]
@@ -110,7 +110,7 @@
     {
       "id": "NOTIFICA-P0-007",
       "title": "Identity without local accounts",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
       "description": "The system shall resolve identity from scenario-authenticator tokens and shall key recipients by that identity, so no password, profile table, or scenario-issued API key exists here.",
@@ -119,7 +119,7 @@
           "type": "test",
           "ref": "api/internal/identity/identity_test.go::TestSubject",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Identity verification fails closed through the shared owneridentity seam."
         }
       ]
@@ -127,7 +127,7 @@
     {
       "id": "NOTIFICA-P0-008",
       "title": "Retry with terminal failure",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "When a delivery attempt fails retryably, the system shall retry with backoff, and shall mark the delivery failed with a stated reason once the retry budget is spent.",
@@ -136,7 +136,7 @@
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestProcess_RedactsSensitiveContentAndRecordsRetryReceipt",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Retry backoff and delivery-attempt recording are covered by the hub service test."
         }
       ]
@@ -161,7 +161,7 @@
     {
       "id": "NOTIFICA-P0-010",
       "title": "Sensitivity labelling with default-deny",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "criticality": "P0",
       "description": "The system shall require a sensitivity label on every notification at the ingress contract, and shall treat a channel as unapproved for a label unless that channel declares approval. When a channel is unapproved for a notification's label, the system shall deliver a content-free pointer to the console instead of the body, and shall never omit the notification silently.",
@@ -170,7 +170,7 @@
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestProcess_RoutesRegisteredChannelsAndRedactsByApproval",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Sensitivity approval and content-free pointer fallback are covered by the hub routing test."
         }
       ]
@@ -178,7 +178,7 @@
     {
       "id": "NOTIFICA-P0-011",
       "title": "Unroutable delivery is visible",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "criticality": "P0",
       "description": "When no approved channel and no reachable node can serve a notification, the system shall mark it unroutable with a stated reason and shall surface it in the API, the CLI, and the UI. It shall never leave such a notification in a pending state, because a silently pending notification is indistinguishable from one that was never requested.",
@@ -187,7 +187,7 @@
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestSend_IsIdempotentAndLeavesDurableTerminalState",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "No-channel requests reach the visible unroutable terminal state."
         }
       ]
@@ -195,7 +195,7 @@
     {
       "id": "NOTIFICA-P0-012",
       "title": "Request idempotency",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-012",
       "criticality": "P0",
       "description": "When a caller retries a notification request carrying the same idempotency key, the system shall return the original notification id and shall not create a second notification. This is distinct from duplicate suppression: it protects a caller whose request timed out in flight, regardless of any dedupe window.",
@@ -204,7 +204,7 @@
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestSend_IsIdempotentAndLeavesDurableTerminalState",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Repeated requests return the original durable identifier."
         }
       ]
@@ -212,7 +212,7 @@
     {
       "id": "NOTIFICA-P0-013",
       "title": "Bounded delivery history",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-013",
       "criticality": "P0",
       "description": "The system shall enforce a stated retention rule on notification and delivery-attempt records, and shall record that rule in the data documentation. Retry multiplies attempt rows, so an unbounded history is a defect rather than a deferred feature.",
@@ -221,7 +221,7 @@
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestRetain_DeletesExpiredNotificationHistory",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Retention deletion is covered by the hub service test and the retention rule is documented in DATA.md."
         }
       ]
@@ -229,7 +229,7 @@
     {
       "id": "NOTIFICA-P0-014",
       "title": "Push subscription lifecycle",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-014",
       "criticality": "P0",
       "description": "The system shall store one push subscription per browser and per recipient, shall remove a subscription when the push service reports it gone, and shall renew a subscription when the browser reports it changed. A subscription that expired without replacement shall make the recipient's push channel report unavailable rather than appear healthy.",
@@ -238,7 +238,7 @@
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestProcess_RemovesGoneSubscription",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Subscription replacement and gone-endpoint removal are covered by the push lifecycle service test; real browser renewal remains device validation."
         }
       ]

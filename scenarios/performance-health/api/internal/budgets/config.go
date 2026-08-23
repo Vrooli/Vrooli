@@ -26,6 +26,11 @@ type budgetRecord struct {
 	UIBuildMaxMs            int64                       `json:"ui_build_max_ms,omitempty"`
 	BundleMaxBytes          int64                       `json:"bundle_max_bytes,omitempty"`
 	LCPMaxMs                int64                       `json:"lcp_max_ms,omitempty"`
+	CLSMax                  float64                     `json:"cls_max,omitempty"`
+	ResponseEndMaxMs        int64                       `json:"response_end_max_ms,omitempty"`
+	DOMInteractiveMaxMs     int64                       `json:"dom_interactive_max_ms,omitempty"`
+	DOMContentLoadedMaxMs   int64                       `json:"dom_content_loaded_max_ms,omitempty"`
+	LoadEventEndMaxMs       int64                       `json:"load_event_end_max_ms,omitempty"`
 	StartupMaxMs            int64                       `json:"startup_max_ms,omitempty"`
 	ComponentCommitAvgMaxMs float64                     `json:"component_commit_avg_max_ms,omitempty"`
 	ComponentCommitMaxMs    float64                     `json:"component_commit_max_ms,omitempty"`
@@ -47,6 +52,7 @@ type budgetRecord struct {
 // level.
 type flowBudgetRecord struct {
 	LCPMaxMs                int64   `json:"lcp_max_ms,omitempty"`
+	CLSMax                  float64 `json:"cls_max,omitempty"`
 	ComponentCommitAvgMaxMs float64 `json:"component_commit_avg_max_ms,omitempty"`
 	ComponentCommitMaxMs    float64 `json:"component_commit_max_ms,omitempty"`
 	DrawnFPSMin             float64 `json:"drawn_fps_min,omitempty"`
@@ -67,6 +73,11 @@ func (r budgetRecord) toBudget(scenario string) Budget {
 		UIBuildMaxMs:            r.UIBuildMaxMs,
 		BundleMaxBytes:          r.BundleMaxBytes,
 		LCPMaxMs:                r.LCPMaxMs,
+		CLSMax:                  r.CLSMax,
+		ResponseEndMaxMs:        r.ResponseEndMaxMs,
+		DOMInteractiveMaxMs:     r.DOMInteractiveMaxMs,
+		DOMContentLoadedMaxMs:   r.DOMContentLoadedMaxMs,
+		LoadEventEndMaxMs:       r.LoadEventEndMaxMs,
 		StartupMaxMs:            r.StartupMaxMs,
 		ComponentCommitAvgMaxMs: r.ComponentCommitAvgMaxMs,
 		ComponentCommitMaxMs:    r.ComponentCommitMaxMs,
@@ -95,6 +106,11 @@ func recordFromBudget(b Budget) budgetRecord {
 		UIBuildMaxMs:            b.UIBuildMaxMs,
 		BundleMaxBytes:          b.BundleMaxBytes,
 		LCPMaxMs:                b.LCPMaxMs,
+		CLSMax:                  b.CLSMax,
+		ResponseEndMaxMs:        b.ResponseEndMaxMs,
+		DOMInteractiveMaxMs:     b.DOMInteractiveMaxMs,
+		DOMContentLoadedMaxMs:   b.DOMContentLoadedMaxMs,
+		LoadEventEndMaxMs:       b.LoadEventEndMaxMs,
 		StartupMaxMs:            b.StartupMaxMs,
 		ComponentCommitAvgMaxMs: b.ComponentCommitAvgMaxMs,
 		ComponentCommitMaxMs:    b.ComponentCommitMaxMs,

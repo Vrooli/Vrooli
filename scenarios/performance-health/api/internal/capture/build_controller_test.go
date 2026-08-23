@@ -9,7 +9,7 @@ import (
 )
 
 // [REQ:PH-CAPTURE-005] StartProfile returns the UI URL only after the served
-// bundle is verified to carry the onProfilerRender marker (profile build took).
+// bundle is verified to carry a react-dom/profiling marker (profile build took).
 func TestStartProfileVerifiesInstrumentedBundle(t *testing.T) {
 	c := &CLIBuildController{
 		Restart:      func(context.Context, string, bool) error { return nil },
@@ -68,7 +68,7 @@ func TestDefaultVerifyBundleScansLinkedScript(t *testing.T) {
 		_, _ = w.Write([]byte(`<html><body><script src="/assets/app.js"></script></body></html>`))
 	})
 	mux.HandleFunc("/assets/app.js", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`function onProfilerRender(){}`))
+		_, _ = w.Write([]byte(`function injectProfilingHooks(){}`))
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -92,5 +92,32 @@ func TestDefaultVerifyBundleAbsentMarker(t *testing.T) {
 	ok, err := defaultVerifyBundle(context.Background(), srv.Client(), srv.URL)
 	if err != nil || ok {
 		t.Fatalf("expected absent marker, got ok=%v err=%v", ok, err)
+	}
+}
+
+// TestBundleMarkerRejectsAppLevelProfilerName: a plain production bundle that
+// merely mentions the app's own onProfilerRender export must NOT verify as
+// instrumented. When a scenario reaches its profiler util through a dynamic
+// import, that name becomes a chunk export and survives minification in the
+// default build too — keying on it reported a plain prod bundle as a perf
+// build, and the capture then produced a trace with no ⚛ marks that read as
+// "no component activity" rather than "not a perf build".
+func TestBundleMarkerRejectsAppLevelProfilerName(t *testing.T) {
+	defaultBundle := `const {onProfilerRender:n}=await import("./profiler-D7qAmvGi.js");`
+	if containsBundleMarker(defaultBundle) {
+		t.Errorf("a default production bundle verified as instrumented: %s", defaultBundle)
+	}
+
+	profileBundle := `function injectProfilingHooks(){};function markComponentRenderStarted(){}`
+	if !containsBundleMarker(profileBundle) {
+		t.Errorf("a react-dom/profiling bundle failed to verify: %s", profileBundle)
+	}
+
+	// Each marker independently proves the profiling build, so one React
+	// rename degrades the check rather than breaking it.
+	for _, marker := range bundleMarkers {
+		if !containsBundleMarker("prefix " + marker + " suffix") {
+			t.Errorf("marker %q did not match on its own", marker)
+		}
 	}
 }

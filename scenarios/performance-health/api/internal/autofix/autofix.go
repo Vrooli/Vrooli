@@ -232,7 +232,7 @@ func previewBuildProfileScript(root string) ([]Candidate, error) {
 	return []Candidate{{
 		RuleID:      readiness.RuleBuildProfileScript,
 		FilePath:    path,
-		Description: "Add the build:profile script and make build mode-aware in package.json.",
+		Description: "Add the build:profile script to package.json.",
 		Before:      before,
 		After:       after,
 	}}, nil
@@ -250,6 +250,10 @@ func injectBuildProfileScript(before string) (string, bool, error) {
 		}
 	}
 	changed := false
+	// `build` is left alone. Channel selection is a lifecycle decision — the
+	// pnpm_vite/node_bundle builders run `pnpm run build:profile` when
+	// VROOLI_BUILD_MODE=profile — so the only thing a scenario must declare is
+	// the channel script itself.
 	if _, ok := scripts["build:profile"]; !ok {
 		base := scripts["build"]
 		if strings.TrimSpace(base) == "" {
@@ -259,12 +263,6 @@ func injectBuildProfileScript(before string) (string, bool, error) {
 		} else {
 			scripts["build:profile"] = strings.TrimSpace(base) + " --mode profile"
 		}
-		changed = true
-	}
-	// Make `build` mode-aware so VROOLI_BUILD_MODE=profile produces the perf
-	// bundle through the standard lifecycle path.
-	if base, ok := scripts["build"]; ok && !strings.Contains(base, "VROOLI_BUILD_MODE") && !strings.Contains(base, "--mode profile") {
-		scripts["build"] = strings.TrimSpace(base) + ` $([ "$VROOLI_BUILD_MODE" = profile ] && echo --mode profile)`
 		changed = true
 	}
 	if !changed {

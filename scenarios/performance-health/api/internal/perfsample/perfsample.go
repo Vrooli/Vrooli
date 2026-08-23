@@ -19,12 +19,26 @@ type Sample struct {
 	// a scenario-level sample (build/bundle/startup/scenario-LCP); a non-empty
 	// value scopes the sample to one budgeted journey so per-flow budgets gate
 	// independently of the scenario aggregate.
-	Flow                  string
-	CapturedAt            time.Time
-	GoBuildMs             int64
-	UIBuildMs             int64
-	BundleBytes           int64
-	LCPMs                 int64
+	Flow        string
+	CapturedAt  time.Time
+	GoBuildMs   int64
+	UIBuildMs   int64
+	BundleBytes int64
+	LCPMs       int64
+	// CLS is cumulative layout shift. Unitless (not a duration), so unlike every
+	// other axis here it is a float rather than a millisecond count.
+	CLS float64
+	// Navigation phases, milliseconds from navigation start. Monotonic:
+	// ResponseEndMs <= DOMInteractiveMs <= DOMContentLoadedMs <= LoadEventEndMs.
+	ResponseEndMs      int64
+	DOMInteractiveMs   int64
+	DOMContentLoadedMs int64
+	LoadEventEndMs     int64
+	// NavigationType qualifies the sample ("navigate", "reload",
+	// "back_forward", "prerender"): a reload and a cold navigate are not
+	// comparable, so the trend carries the distinction rather than silently
+	// mixing them. Context, never a gated axis.
+	NavigationType        string
 	StartupMs             int64
 	SlowestComponent      string
 	SlowestComponentAvgMs float64

@@ -71,8 +71,16 @@ func (h *handlers) analyze(ctx cliapp.RunContext) error {
 			results = append(results, fmt.Sprintf("  [%s] %s @ %s — %s", f.GetSeverity(), f.GetComponent(), loc, f.GetEvidence()))
 		}
 	}
+	summary := []string{fmt.Sprintf("%s: LCP=%dms FCP=%dms CLS=%.3f long-task=%dms drawn-fps=%.1f dropped=%.1f%%, %d finding(s).", msg.GetScenario(), msg.GetLcpMs(), msg.GetFcpMs(), msg.GetCls(), msg.GetLongTaskMs(), frame.GetApproxDrawnFps(), frame.GetDroppedFrameRate()*100, len(msg.GetFindings()))}
+	// Navigation gets its own line: five more numbers on the summary row stops
+	// being readable, and the phases are only meaningful read together. Omitted
+	// entirely when the observer never fired.
+	if msg.GetLoadEventEndMs() > 0 || msg.GetResponseEndMs() > 0 {
+		summary = append(summary, fmt.Sprintf("  navigation (%s): response-end=%dms dom-interactive=%dms dom-content-loaded=%dms load-event-end=%dms",
+			navigationTypeOrUnknown(msg.GetNavigationType()), msg.GetResponseEndMs(), msg.GetDomInteractiveMs(), msg.GetDomContentLoadedMs(), msg.GetLoadEventEndMs()))
+	}
 	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%s: LCP=%dms FCP=%dms long-task=%dms drawn-fps=%.1f dropped=%.1f%%, %d finding(s).", msg.GetScenario(), msg.GetLcpMs(), msg.GetFcpMs(), msg.GetLongTaskMs(), frame.GetApproxDrawnFps(), frame.GetDroppedFrameRate()*100, len(msg.GetFindings()))},
+		Summary:        summary,
 		ResultsHeading: "Component commit profile",
 		Results:        results,
 	})
@@ -141,4 +149,13 @@ func firstFlag(values []string) string {
 		}
 	}
 	return ""
+}
+
+// navigationTypeOrUnknown labels a sample whose navigation type the browser did
+// not report, so the line never reads "navigation ()".
+func navigationTypeOrUnknown(t string) string {
+	if t == "" {
+		return "unknown"
+	}
+	return t
 }

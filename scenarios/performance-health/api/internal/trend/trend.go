@@ -59,12 +59,15 @@ func (s *Store) Insert(ctx context.Context, sample Sample) error {
 	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO perf_samples
-			(scenario, flow, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
+			(scenario, flow, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, cls,
+			 response_end_ms, dom_interactive_ms, dom_content_loaded_ms, load_event_end_ms, navigation_type, startup_ms,
 			 slowest_component, slowest_component_avg_ms, slowest_component_max_ms, drawn_fps, dropped_frame_rate,
 			 long_task_total_ms, long_task_max_ms, raster_total_ms, layout_total_ms, paint_total_ms, input_event_count, note)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		sample.Scenario, sample.Flow, capturedAt.UTC().Format(timeLayout), sample.GoBuildMs, sample.UIBuildMs,
-		sample.BundleBytes, sample.LCPMs, sample.StartupMs,
+		sample.BundleBytes, sample.LCPMs, sample.CLS,
+		sample.ResponseEndMs, sample.DOMInteractiveMs, sample.DOMContentLoadedMs, sample.LoadEventEndMs,
+		sample.NavigationType, sample.StartupMs,
 		sample.SlowestComponent, sample.SlowestComponentAvgMs, sample.SlowestComponentMaxMs,
 		sample.DrawnFPS, sample.DroppedFrameRate, sample.LongTaskTotalMs, sample.LongTaskMaxMs,
 		sample.RasterTotalMs, sample.LayoutTotalMs, sample.PaintTotalMs, sample.InputEventCount, sample.Note,
@@ -90,7 +93,8 @@ func (s *Store) Series(ctx context.Context, scenario, flow string, limit int) ([
 		limit = 50
 	}
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT scenario, flow, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
+		SELECT scenario, flow, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, cls,
+			response_end_ms, dom_interactive_ms, dom_content_loaded_ms, load_event_end_ms, navigation_type, startup_ms,
 			slowest_component, slowest_component_avg_ms, slowest_component_max_ms, drawn_fps, dropped_frame_rate,
 			long_task_total_ms, long_task_max_ms, raster_total_ms, layout_total_ms, paint_total_ms, input_event_count, note
 		FROM perf_samples
@@ -109,7 +113,9 @@ func (s *Store) Series(ctx context.Context, scenario, flow string, limit int) ([
 			capturedAt string
 		)
 		if scanErr := rows.Scan(&sample.Scenario, &sample.Flow, &capturedAt, &sample.GoBuildMs, &sample.UIBuildMs,
-			&sample.BundleBytes, &sample.LCPMs, &sample.StartupMs,
+			&sample.BundleBytes, &sample.LCPMs, &sample.CLS,
+			&sample.ResponseEndMs, &sample.DOMInteractiveMs, &sample.DOMContentLoadedMs, &sample.LoadEventEndMs,
+			&sample.NavigationType, &sample.StartupMs,
 			&sample.SlowestComponent, &sample.SlowestComponentAvgMs, &sample.SlowestComponentMaxMs,
 			&sample.DrawnFPS, &sample.DroppedFrameRate, &sample.LongTaskTotalMs, &sample.LongTaskMaxMs,
 			&sample.RasterTotalMs, &sample.LayoutTotalMs, &sample.PaintTotalMs, &sample.InputEventCount, &sample.Note); scanErr != nil {
@@ -190,6 +196,12 @@ func EnsureColumns(ctx context.Context, db Executor) error {
 		{"layout_total_ms", "ALTER TABLE perf_samples ADD COLUMN layout_total_ms REAL NOT NULL DEFAULT 0"},
 		{"paint_total_ms", "ALTER TABLE perf_samples ADD COLUMN paint_total_ms REAL NOT NULL DEFAULT 0"},
 		{"input_event_count", "ALTER TABLE perf_samples ADD COLUMN input_event_count INTEGER NOT NULL DEFAULT 0"},
+		{"cls", "ALTER TABLE perf_samples ADD COLUMN cls REAL NOT NULL DEFAULT 0"},
+		{"response_end_ms", "ALTER TABLE perf_samples ADD COLUMN response_end_ms INTEGER NOT NULL DEFAULT 0"},
+		{"dom_interactive_ms", "ALTER TABLE perf_samples ADD COLUMN dom_interactive_ms INTEGER NOT NULL DEFAULT 0"},
+		{"dom_content_loaded_ms", "ALTER TABLE perf_samples ADD COLUMN dom_content_loaded_ms INTEGER NOT NULL DEFAULT 0"},
+		{"load_event_end_ms", "ALTER TABLE perf_samples ADD COLUMN load_event_end_ms INTEGER NOT NULL DEFAULT 0"},
+		{"navigation_type", "ALTER TABLE perf_samples ADD COLUMN navigation_type TEXT NOT NULL DEFAULT ''"},
 	}
 	for _, col := range additive {
 		if _, ok := existing[col.name]; ok {

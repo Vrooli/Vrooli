@@ -165,7 +165,7 @@ func writeInstrumentedReactVite(t *testing.T) string {
 	mustWrite(t, filepath.Join(ui, "package.json"), `{
   "name": "good-ui",
   "scripts": {
-    "build": "vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build": "vite build",
     "build:profile": "vite build --mode profile"
   },
   "dependencies": { "react": "^19.0.0" },

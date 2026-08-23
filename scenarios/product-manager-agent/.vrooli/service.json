@@ -139,8 +139,8 @@
       "redis": {
         "type": "redis",
         "enabled": true,
-        "required": true,
-        "purpose": "Cache analysis results and session management"
+        "required": false,
+        "purpose": "Optional. The API constructs a client at startup and pings it, logging rather than failing when the ping errors, then holds the handle without ever performing a data operation. No scenario state depends on Redis being present."
       },
       "postgres": {
         "type": "postgres",
@@ -159,9 +159,9 @@
       },
       "qdrant": {
         "type": "qdrant",
-        "enabled": false,
-        "required": false,
-        "purpose": "Semantic search for features and feedback (optional)"
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector store for product-analysis embeddings. api/main.go:48 calls log.Fatal when QDRANT_URL is absent, so this is a hard start requirement, not an accelerator."
       }
     }
   },
@@ -204,6 +204,37 @@
         ],
         "cwd": "ui",
         "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator. The scenario opens a client when Redis is reachable and serves a working no-Redis path when it is not."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
       }
     }
   }

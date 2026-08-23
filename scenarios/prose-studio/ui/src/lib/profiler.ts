@@ -18,8 +18,8 @@
  * costs effectively nothing — microseconds at mount, zero at runtime.
  *
  * Only the perf-build channel (`pnpm run build:profile`, or
- * `VROOLI_BUILD_MODE=profile pnpm run build` — see vite.config.ts) keeps the
- * instrumentation in. So:
+ * `VROOLI_BUILD_MODE=profile vrooli scenario restart <name>`, which selects
+ * that same script) keeps the instrumentation in. So:
  *
  *   - Default prod: <Profiler> wrappers are inert. No measurable impact.
  *   - Perf build:   wrappers fire onRender, this util emits user_timing.

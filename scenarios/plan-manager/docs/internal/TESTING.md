@@ -686,7 +686,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/plan-manager/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/plan-manager/v1/<domain>/`, and
+   `packages/proto/gen/typescript/plan-manager/v1/<domain>/`, and
    `packages/proto/gen/python/plan_manager/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.

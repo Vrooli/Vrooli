@@ -59,22 +59,59 @@ type traceFile struct {
 	TraceEvents []traceEvent `json:"traceEvents"`
 }
 
-// webVitals is the shape written by the injected PerformanceObserver in the
-// browser-automation-studio perf capture (the `web-vitals` capture artifact).
+// webVitals mirrors the payload written by the injected PerformanceObserver in
+// the browser-automation-studio perf capture (the `web-vitals` capture
+// artifact). The producer is
+// `scenarios/browser-automation-studio/playwright-driver/src/tracing/web-vitals-script.ts`
+// and it is the authority on these names — it stores raw PerformanceEntry
+// fields, so timings are `startTime`, never `start`.
+//
+// Field names here must track that script exactly. They silently did not: this
+// struct read `start` for paint/LCP/long-task timings, so LCP and FCP decoded
+// as zero on every capture while long-task duration (the one name that did
+// match) came through. Zeroed LCP then flowed into perfsample and the trend
+// table, which is what LCP budgets compare against. testdata/web-vitals.json is
+// a verbatim capture that pins the contract.
 type webVitals struct {
 	LongTasks []struct {
-		Start    float64 `json:"start"`
-		Duration float64 `json:"duration"`
-		Name     string  `json:"name"`
+		StartTime float64 `json:"startTime"`
+		Duration  float64 `json:"duration"`
+		Name      string  `json:"name"`
 	} `json:"longTasks"`
 	Paint []struct {
-		Name  string  `json:"name"`
-		Start float64 `json:"start"`
+		Name      string  `json:"name"`
+		StartTime float64 `json:"startTime"`
 	} `json:"paint"`
+	// LCP.Value is the entry's startTime — the LCP metric itself. RenderTime is
+	// deliberately not used: it is 0 for cross-origin resources without
+	// Timing-Allow-Origin, which would reintroduce a silent zero.
 	LCP *struct {
-		Start float64 `json:"start"`
-		Size  float64 `json:"size"`
+		Value      float64 `json:"value"`
+		Size       float64 `json:"size"`
+		RenderTime float64 `json:"renderTime"`
+		LoadTime   float64 `json:"loadTime"`
 	} `json:"lcp"`
+	// FCP is recorded top-level as well as in Paint; the producer sets both.
+	FCP *float64 `json:"fcp"`
+	// CLS accumulates only layout shifts without recent input, matching the
+	// standard metric definition.
+	CLS *struct {
+		Value   float64 `json:"value"`
+		Entries int     `json:"entries"`
+	} `json:"cls"`
+	// Navigation carries the PerformanceNavigationTiming phases. All four
+	// timings are milliseconds from navigation start and are monotonically
+	// ordered: responseEnd <= domInteractive <= domContentLoaded <=
+	// loadEventEnd. Type is context ("navigate", "reload", "back_forward",
+	// "prerender"), not a metric — a reload and a cold navigate are not
+	// comparable, so it travels with the sample.
+	Navigation *struct {
+		DOMContentLoaded float64 `json:"domContentLoaded"`
+		LoadEventEnd     float64 `json:"loadEventEnd"`
+		ResponseEnd      float64 `json:"responseEnd"`
+		DOMInteractive   float64 `json:"domInteractive"`
+		Type             string  `json:"type"`
+	} `json:"navigation"`
 }
 
 // phaseSuffix matches the React Profiler phase annotation, e.g. " (update)",
@@ -119,8 +156,16 @@ func (l FileTraceLoader) Load(_ context.Context, scenario, artifact string) (Res
 	if vitals, ok := readWebVitals(artifact); ok {
 		res.LongTaskMs = longTaskTotalMs(vitals)
 		res.LongTaskMaxMs = longTaskMaxMs(vitals)
-		res.FCPMs = paintMs(vitals, "first-contentful-paint")
+		res.FCPMs = fcpMs(vitals)
 		res.LCPMs = lcpMs(vitals)
+		res.CLS = clsValue(vitals)
+		if nav := vitals.Navigation; nav != nil {
+			res.ResponseEndMs = roundMs(nav.ResponseEnd)
+			res.DOMInteractiveMs = roundMs(nav.DOMInteractive)
+			res.DOMContentLoadedMs = roundMs(nav.DOMContentLoaded)
+			res.LoadEventEndMs = roundMs(nav.LoadEventEnd)
+			res.NavigationType = nav.Type
+		}
 	}
 
 	// Deterministic finding derivation with symbol location.
@@ -411,10 +456,19 @@ func longTaskMaxMs(wv webVitals) float64 {
 	return round1(max)
 }
 
+// fcpMs prefers the producer's top-level fcp and falls back to the paint entry,
+// so a payload that carries only one of the two still reports a real number.
+func fcpMs(wv webVitals) int64 {
+	if wv.FCP != nil {
+		return int64(math.Round(*wv.FCP))
+	}
+	return paintMs(wv, "first-contentful-paint")
+}
+
 func paintMs(wv webVitals, name string) int64 {
 	for _, p := range wv.Paint {
 		if p.Name == name {
-			return int64(math.Round(p.Start))
+			return int64(math.Round(p.StartTime))
 		}
 	}
 	return 0
@@ -424,7 +478,20 @@ func lcpMs(wv webVitals) int64 {
 	if wv.LCP == nil {
 		return 0
 	}
-	return int64(math.Round(wv.LCP.Start))
+	return int64(math.Round(wv.LCP.Value))
+}
+
+// roundMs converts a PerformanceEntry timing to whole milliseconds, matching
+// how LCP and FCP are carried.
+func roundMs(v float64) int64 { return int64(math.Round(v)) }
+
+// clsValue reports cumulative layout shift, which is unitless rather than a
+// duration and so is carried as a float rather than rounded to milliseconds.
+func clsValue(wv webVitals) float64 {
+	if wv.CLS == nil {
+		return 0
+	}
+	return wv.CLS.Value
 }
 
 func round1(v float64) float64 {

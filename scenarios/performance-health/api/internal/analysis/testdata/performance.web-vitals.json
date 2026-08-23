@@ -1,12 +1,35 @@
 {
   "longTasks": [
-    { "start": 41000, "duration": 92.5, "name": "self" },
-    { "start": 60000, "duration": 67.0, "name": "self" }
+    {
+      "startTime": 41000,
+      "duration": 92.5,
+      "name": "self"
+    },
+    {
+      "startTime": 60000,
+      "duration": 67.0,
+      "name": "self"
+    }
   ],
   "paint": [
-    { "name": "first-paint", "start": 132 },
-    { "name": "first-contentful-paint", "start": 148 }
+    {
+      "name": "first-paint",
+      "startTime": 132
+    },
+    {
+      "name": "first-contentful-paint",
+      "startTime": 148
+    }
   ],
-  "lcp": { "start": 1240, "size": 30000 },
-  "marks": []
+  "lcp": {
+    "value": 1240,
+    "size": 30000,
+    "renderTime": 1240,
+    "loadTime": 0
+  },
+  "cls": {
+    "value": 0.041,
+    "entries": 2
+  },
+  "fcp": 148
 }

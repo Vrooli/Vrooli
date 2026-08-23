@@ -131,14 +131,15 @@ func (h *Handler) sweepFlow(ctx context.Context, scenario, slug string, tier rea
 		return res
 	}
 
-	sample := perfsample.Sample{Scenario: scenario, Flow: slug, LCPMs: ares.LCPMs, Note: "sweep"}
+	sample := perfsample.Sample{Scenario: scenario, Flow: slug, LCPMs: ares.LCPMs, CLS: ares.CLS, Note: "sweep"}
+	fillNavigationSample(&sample, ares)
 	fillInteractionSample(&sample, ares)
 	if slowest, ok := slowestComponent(ares.Components); ok {
 		sample.SlowestComponent = slowest.Component
 		sample.SlowestComponentAvgMs = slowest.AvgMs
 		sample.SlowestComponentMaxMs = slowest.MaxMs
 	}
-	if h.trend != nil && (sample.LCPMs > 0 || sample.SlowestComponent != "" || sample.HasInteractionMetrics()) {
+	if h.trend != nil && (sample.LCPMs > 0 || sample.CLS > 0 || sample.LoadEventEndMs > 0 || sample.SlowestComponent != "" || sample.HasInteractionMetrics()) {
 		if err := h.trend.Insert(ctx, sample); err != nil {
 			h.logger.Printf("sweep(%s/%s): persist flow sample: %v", scenario, slug, err)
 		}
@@ -155,6 +156,17 @@ func (h *Handler) sweepFlow(ctx context.Context, scenario, slug string, tier rea
 			v.Axis, v.Measured, unitSuffix(v.Unit), v.Budget, unitSuffix(v.Unit)))
 	}
 	return res
+}
+
+// fillNavigationSample copies the PerformanceNavigationTiming phases onto the
+// persisted sample. Mirrors the analysis handler's copy: each handler package
+// owns its own projection of analysis.Result onto a perfsample.
+func fillNavigationSample(sample *perfsample.Sample, res analysis.Result) {
+	sample.ResponseEndMs = res.ResponseEndMs
+	sample.DOMInteractiveMs = res.DOMInteractiveMs
+	sample.DOMContentLoadedMs = res.DOMContentLoadedMs
+	sample.LoadEventEndMs = res.LoadEventEndMs
+	sample.NavigationType = res.NavigationType
 }
 
 func fillInteractionSample(sample *perfsample.Sample, res analysis.Result) {

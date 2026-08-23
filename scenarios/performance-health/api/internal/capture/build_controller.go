@@ -15,25 +15,50 @@ import (
 	"github.com/vrooli/api-core/discovery"
 )
 
-// The profile-build contract honored by the react-vite template's `build`
-// script: `VROOLI_BUILD_MODE=profile vrooli scenario restart <name>` rebuilds
-// the UI with `vite build --mode profile`, which aliases react-dom → profiling
-// and keeps identifier names (esbuild.keepNames) so the <React.Profiler>
-// onProfilerRender boundary survives minification and emits ⚛ marks.
+// The profile-build contract: `VROOLI_BUILD_MODE=profile vrooli scenario
+// restart <name>` makes the lifecycle builder run the UI's `build:profile`
+// script, which builds with `vite build --mode profile`. That aliases react-dom
+// → react-dom/profiling and keeps identifier names (esbuild.keepNames) so the
+// <React.Profiler> boundary emits ⚛ marks.
 const (
 	profileBuildEnvVar = "VROOLI_BUILD_MODE"
 	profileBuildValue  = "profile"
 	uiPortKey          = "UI_PORT"
-
-	// bundleMarker is the identifier the perf-build keeps in the served bundle;
-	// its presence proves the page was built in profile mode (Tier-1 ready).
-	bundleMarker = "onProfilerRender"
 )
+
+// bundleMarkers are react-dom/profiling internals. Their presence in the served
+// bundle proves the page was built against the profiling react-dom, which is
+// what actually decides whether <React.Profiler>'s onRender fires.
+//
+// The app-level `onProfilerRender` name is NOT a usable marker: when a scenario
+// reaches its profiler util through a dynamic import, the name becomes a chunk
+// export and survives minification in the ordinary production build too. Keying
+// on it reports a plain prod bundle as instrumented, and the capture then yields
+// a trace with no ⚛ marks that reads as "no component activity" rather than
+// "not a perf build". Several markers are listed so a React release that renames
+// one internal degrades to a narrower check instead of a false negative.
+var bundleMarkers = []string{
+	"injectProfilingHooks",
+	"markComponentRenderStarted",
+}
+
+// bundleMarkerDescription names the markers for operator-facing errors.
+var bundleMarkerDescription = strings.Join(bundleMarkers, " or ")
+
+// containsBundleMarker reports whether source carries any profiling-build marker.
+func containsBundleMarker(source string) bool {
+	for _, marker := range bundleMarkers {
+		if strings.Contains(source, marker) {
+			return true
+		}
+	}
+	return false
+}
 
 // CLIBuildController is the production BuildController: it restarts a scenario in
 // profile build mode by shelling `vrooli scenario restart` with VROOLI_BUILD_MODE
 // set, resolves the served UI URL via discovery, and verifies the served bundle
-// actually carries the onProfilerRender marker before reporting the URL. A
+// actually carries a react-dom/profiling marker before reporting the URL. A
 // restart that yields no UI URL (no UI surface) is a clean skip upstream, not an
 // error.
 type CLIBuildController struct {
@@ -75,7 +100,7 @@ func (c *CLIBuildController) StartProfile(ctx context.Context, scenario string) 
 		return "", fmt.Errorf("could not verify served bundle for %q: %w", scenario, err)
 	}
 	if !instrumented {
-		return "", fmt.Errorf("served bundle for %q is not instrumented (missing %s); profile build did not take", scenario, bundleMarker)
+		return "", fmt.Errorf("served bundle for %q is not instrumented (missing %s); profile build did not take", scenario, bundleMarkerDescription)
 	}
 	return uiURL, nil
 }
@@ -146,14 +171,14 @@ func defaultRestart(ctx context.Context, scenario string, profileMode bool) erro
 var scriptSrcRe = regexp.MustCompile(`<script[^>]+src=["']([^"']+)["']`)
 
 // defaultVerifyBundle fetches the served HTML, locates the JS module bundles,
-// and reports whether any of them contains the onProfilerRender marker.
+// and reports whether any of them carries a profiling-build marker.
 func defaultVerifyBundle(ctx context.Context, client *http.Client, uiURL string) (bool, error) {
 	html, err := fetch(ctx, client, uiURL)
 	if err != nil {
 		return false, err
 	}
 	// Fast path: some bundlers inline the entry; check the HTML itself.
-	if strings.Contains(html, bundleMarker) {
+	if containsBundleMarker(html) {
 		return true, nil
 	}
 	base := strings.TrimRight(uiURL, "/")
@@ -170,7 +195,7 @@ func defaultVerifyBundle(ctx context.Context, client *http.Client, uiURL string)
 		if err != nil {
 			continue
 		}
-		if strings.Contains(js, bundleMarker) {
+		if containsBundleMarker(js) {
 			return true, nil
 		}
 	}

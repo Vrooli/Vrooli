@@ -107,7 +107,7 @@ packages/proto/schemas/program-runtime/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/program-runtime/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/program-runtime/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/program-runtime/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/program-runtime/v1/...   (ui)
        └──▶ packages/proto/gen/python/program_runtime/v1/...    (future tools)
 ```
 

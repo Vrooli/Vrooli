@@ -35,10 +35,22 @@ type Result struct {
 	LongTaskMaxMs float64
 	LCPMs         int64
 	FCPMs         int64
-	FrameSummary  FrameSummary
-	BrowserWork   []EventSummary
-	InputEvents   []EventSummary
-	Findings      []Finding
+	// CLS is cumulative layout shift — unitless, so it is not an "Ms" field.
+	// The capture has always recorded it; it was simply never read.
+	CLS float64
+	// Navigation phases, milliseconds from navigation start. Monotonic:
+	// ResponseEndMs <= DOMInteractiveMs <= DOMContentLoadedMs <= LoadEventEndMs.
+	ResponseEndMs      int64
+	DOMInteractiveMs   int64
+	DOMContentLoadedMs int64
+	LoadEventEndMs     int64
+	// NavigationType qualifies the sample ("navigate", "reload",
+	// "back_forward", "prerender"). Context, never a gated metric.
+	NavigationType string
+	FrameSummary   FrameSummary
+	BrowserWork    []EventSummary
+	InputEvents    []EventSummary
+	Findings       []Finding
 }
 
 // Finding is one deterministic, located performance finding.

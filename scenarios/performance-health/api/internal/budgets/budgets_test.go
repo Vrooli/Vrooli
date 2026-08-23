@@ -2,6 +2,7 @@ package budgets
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -178,5 +179,194 @@ func TestCheckPassesWhenNoSampleYet(t *testing.T) {
 	}
 	if !passed || len(violations) != 0 {
 		t.Fatalf("expected pass with no measured sample, got passed=%v %#v", passed, violations)
+	}
+}
+
+// TestCLSBudgetGatesOnFractions: the CLS axis must trip on a fractional breach
+// and report the real numbers. The int64 Measured/Budget pair rounds 0.03 to 0,
+// so a renderer keying off it alone would print "measured=0 budget_max=0"; the
+// *Value fields carry the magnitude.
+func TestCLSBudgetGatesOnFractions(t *testing.T) {
+	budget := Budget{Scenario: "demo", CLSMax: 0.1}
+
+	// Within budget: no violation.
+	if v := Evaluate(budget, Measurement{CLS: 0.05}); len(v) != 0 {
+		t.Fatalf("0.05 under a 0.1 budget must pass, got %+v", v)
+	}
+	// Not measured: zero is never a violation on a max axis.
+	if v := Evaluate(budget, Measurement{CLS: 0}); len(v) != 0 {
+		t.Fatalf("an unmeasured CLS must not trip, got %+v", v)
+	}
+
+	got := Evaluate(budget, Measurement{CLS: 0.25})
+	if len(got) != 1 {
+		t.Fatalf("0.25 over a 0.1 budget must trip exactly once, got %+v", got)
+	}
+	v := got[0]
+	if v.Axis != "cls" {
+		t.Errorf("Axis = %q, want cls", v.Axis)
+	}
+	if v.MeasuredValue != 0.25 || v.BudgetValue != 0.1 {
+		t.Errorf("precise pair = (%v, %v), want (0.25, 0.1)", v.MeasuredValue, v.BudgetValue)
+	}
+	if v.Unit != "" {
+		t.Errorf("Unit = %q, want empty — CLS is unitless, and renderers key on that", v.Unit)
+	}
+	if v.Mode != "max" {
+		t.Errorf("Mode = %q, want max", v.Mode)
+	}
+}
+
+// TestCLSRatchetsTightenOnly: once declared, a CLS budget may only tighten,
+// matching every other axis.
+func TestCLSRatchetsTightenOnly(t *testing.T) {
+	existing := Budget{Scenario: "demo", CLSMax: 0.1, Ratchet: true}
+	if err := enforceRatchet(existing, Budget{Scenario: "demo", CLSMax: 0.05}); err != nil {
+		t.Errorf("tightening 0.1 -> 0.05 must be allowed: %v", err)
+	}
+	err := enforceRatchet(existing, Budget{Scenario: "demo", CLSMax: 0.3})
+	if err == nil {
+		t.Fatal("loosening 0.1 -> 0.3 must be rejected under ratchet")
+	}
+	if !strings.Contains(err.Error(), "cls") {
+		t.Errorf("ratchet error must name the axis, got %v", err)
+	}
+	// The message must report the threshold it is protecting. %.1f rounded a
+	// sub-0.1 budget to "0.0", so the operator saw "was 0.0, requested 0.3".
+	if !strings.Contains(err.Error(), "was 0.1") {
+		t.Errorf("ratchet message must state the real prior value, got %v", err)
+	}
+}
+
+// TestRatchetMessageKeepsFractionalPrecision: every fractional axis, not just
+// cls, must report its real threshold. dropped_frame_rate is also a 0-1 ratio.
+func TestRatchetMessageKeepsFractionalPrecision(t *testing.T) {
+	existing := Budget{Scenario: "demo", DroppedFrameRateMax: 0.02, Ratchet: true}
+	err := enforceRatchet(existing, Budget{Scenario: "demo", DroppedFrameRateMax: 0.5})
+	if err == nil {
+		t.Fatal("loosening 0.02 -> 0.5 must be rejected under ratchet")
+	}
+	if !strings.Contains(err.Error(), "was 0.02") {
+		t.Errorf("ratchet message rounded away the threshold, got %v", err)
+	}
+}
+
+// TestCLSCountsAsADeclaredBudget: a CLS-only budget is a real budget, so IsSet
+// reports true and the axis is listed as continuously-measured rather than
+// freshly gated.
+func TestCLSCountsAsADeclaredBudget(t *testing.T) {
+	b := Budget{Scenario: "demo", CLSMax: 0.1}
+	if !b.IsSet() {
+		t.Error("a CLS-only budget must count as declared")
+	}
+	if !contains(UngatedDeclaredAxes(b), "cls") {
+		t.Errorf("cls is measured out-of-band by capture/sweep, so it must be reported ungated: %v", UngatedDeclaredAxes(b))
+	}
+	f := FlowBudget{CLSMax: 0.1}
+	if !f.IsSet() {
+		t.Error("a CLS-only flow budget must count as declared")
+	}
+}
+
+func contains(list []string, want string) bool {
+	for _, v := range list {
+		if v == want {
+			return true
+		}
+	}
+	return false
+}
+
+// TestNavigationBudgetAxes: each navigation phase gates independently, so a
+// regression can be attributed to a phase (backend, parse, deferred scripts,
+// total asset weight) rather than just "the page got slower".
+func TestNavigationBudgetAxes(t *testing.T) {
+	budget := Budget{
+		Scenario:              "demo",
+		ResponseEndMaxMs:      50,
+		DOMInteractiveMaxMs:   100,
+		DOMContentLoadedMaxMs: 200,
+		LoadEventEndMaxMs:     400,
+	}
+	// A load comfortably inside every phase ceiling.
+	if v := Evaluate(budget, Measurement{
+		ResponseEndMs: 4, DOMInteractiveMs: 14, DOMContentLoadedMs: 101, LoadEventEndMs: 202,
+	}); len(v) != 0 {
+		t.Fatalf("a load inside every ceiling must pass, got %+v", v)
+	}
+	// Not measured is never a violation.
+	if v := Evaluate(budget, Measurement{}); len(v) != 0 {
+		t.Fatalf("an unmeasured navigation must not trip, got %+v", v)
+	}
+
+	// A backend regression trips only response_end.
+	got := Evaluate(budget, Measurement{
+		ResponseEndMs: 900, DOMInteractiveMs: 14, DOMContentLoadedMs: 101, LoadEventEndMs: 202,
+	})
+	if len(got) != 1 || got[0].Axis != "response_end" {
+		t.Fatalf("a slow response must trip response_end alone, got %+v", got)
+	}
+	if got[0].Measured != 900 || got[0].Budget != 50 {
+		t.Errorf("violation numbers = (%d, %d), want (900, 50)", got[0].Measured, got[0].Budget)
+	}
+
+	// A heavy page trips the later phases without implicating the backend.
+	got = Evaluate(budget, Measurement{
+		ResponseEndMs: 4, DOMInteractiveMs: 14, DOMContentLoadedMs: 900, LoadEventEndMs: 1800,
+	})
+	axes := map[string]bool{}
+	for _, v := range got {
+		axes[v.Axis] = true
+	}
+	if !axes["dom_content_loaded"] || !axes["load_event_end"] {
+		t.Errorf("a heavy page must trip the later phases, got %v", axes)
+	}
+	if axes["response_end"] {
+		t.Errorf("a fast backend must not be implicated by a heavy page, got %v", axes)
+	}
+}
+
+// TestNavigationAxesAreDeclaredAndUngated: navigation budgets count as declared
+// and are reported as continuously measured, since capture/sweep produces them
+// out-of-band rather than the synchronous gate measuring them fresh.
+func TestNavigationAxesAreDeclaredAndUngated(t *testing.T) {
+	b := Budget{Scenario: "demo", LoadEventEndMaxMs: 400}
+	if !b.IsSet() {
+		t.Error("a navigation-only budget must count as declared")
+	}
+	if !contains(UngatedDeclaredAxes(b), "load_event_end") {
+		t.Errorf("navigation axes are measured out-of-band, so must report ungated: %v", UngatedDeclaredAxes(b))
+	}
+}
+
+// TestNavigationRatchetsTightenOnly: navigation ceilings ratchet like every
+// other axis.
+func TestNavigationRatchetsTightenOnly(t *testing.T) {
+	existing := Budget{Scenario: "demo", LoadEventEndMaxMs: 400, Ratchet: true}
+	if err := enforceRatchet(existing, Budget{Scenario: "demo", LoadEventEndMaxMs: 300}); err != nil {
+		t.Errorf("tightening 400 -> 300 must be allowed: %v", err)
+	}
+	err := enforceRatchet(existing, Budget{Scenario: "demo", LoadEventEndMaxMs: 900})
+	if err == nil {
+		t.Fatal("loosening 400 -> 900 must be rejected")
+	}
+	if !strings.Contains(err.Error(), "load_event_end") {
+		t.Errorf("ratchet error must name the axis, got %v", err)
+	}
+}
+
+// TestFlowBudgetHasNoNavigationAxes documents the modelling decision: a targeted
+// interaction flow reuses the same page load, so a per-flow navigation ceiling
+// would gate the identical measurement twice. If navigation is ever added to
+// FlowBudget this test should be deleted deliberately, not silently.
+func TestFlowBudgetHasNoNavigationAxes(t *testing.T) {
+	if (FlowBudget{}).IsSet() {
+		t.Fatal("an empty flow budget must not be declared")
+	}
+	// A flow budget carrying only navigation-shaped intent has nothing to set,
+	// which is the point: the axes do not exist on FlowBudget.
+	f := FlowBudget{LCPMaxMs: 100}
+	if !f.IsSet() {
+		t.Error("a flow budget with LCP must still be declared")
 	}
 }

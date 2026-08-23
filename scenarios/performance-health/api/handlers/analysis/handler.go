@@ -54,11 +54,18 @@ func (h *Handler) AnalyzeTrace(ctx context.Context, req *connect.Request[analysi
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	out := &analysisv1.AnalyzeTraceResponse{
-		Scenario:     res.Scenario,
-		LongTaskMs:   res.LongTaskMs,
-		LcpMs:        res.LCPMs,
-		FcpMs:        res.FCPMs,
-		FrameSummary: mapFrameSummary(res.FrameSummary),
+		Scenario:   res.Scenario,
+		LongTaskMs: res.LongTaskMs,
+		LcpMs:      res.LCPMs,
+		FcpMs:      res.FCPMs,
+		Cls:        res.CLS,
+
+		ResponseEndMs:      res.ResponseEndMs,
+		DomInteractiveMs:   res.DOMInteractiveMs,
+		DomContentLoadedMs: res.DOMContentLoadedMs,
+		LoadEventEndMs:     res.LoadEventEndMs,
+		NavigationType:     res.NavigationType,
+		FrameSummary:       mapFrameSummary(res.FrameSummary),
 	}
 	for _, c := range res.Components {
 		out.Components = append(out.Components, &analysisv1.ComponentTiming{
@@ -89,21 +96,33 @@ func (h *Handler) AnalyzeTrace(ctx context.Context, req *connect.Request[analysi
 		sample := perfsample.Sample{
 			Scenario: res.Scenario,
 			LCPMs:    res.LCPMs,
+			CLS:      res.CLS,
 			Note:     "analysis",
 		}
+		fillNavigationSample(&sample, res)
 		fillInteractionSample(&sample, res)
 		if slowest, ok := slowestComponent(res.Components); ok {
 			sample.SlowestComponent = slowest.Component
 			sample.SlowestComponentAvgMs = slowest.AvgMs
 			sample.SlowestComponentMaxMs = slowest.MaxMs
 		}
-		if sample.LCPMs > 0 || sample.SlowestComponent != "" || sample.HasInteractionMetrics() {
+		if sample.LCPMs > 0 || sample.CLS > 0 || sample.LoadEventEndMs > 0 || sample.SlowestComponent != "" || sample.HasInteractionMetrics() {
 			if err := h.trend.Insert(ctx, sample); err != nil {
 				h.logger.Printf("analysis.AnalyzeTrace(%s): persist trend sample: %v", scenario, err)
 			}
 		}
 	}
 	return connect.NewResponse(out), nil
+}
+
+// fillNavigationSample copies the PerformanceNavigationTiming phases onto the
+// persisted sample so the navigation budget axes have a producer.
+func fillNavigationSample(sample *perfsample.Sample, res internalanalysis.Result) {
+	sample.ResponseEndMs = res.ResponseEndMs
+	sample.DOMInteractiveMs = res.DOMInteractiveMs
+	sample.DOMContentLoadedMs = res.DOMContentLoadedMs
+	sample.LoadEventEndMs = res.LoadEventEndMs
+	sample.NavigationType = res.NavigationType
 }
 
 func fillInteractionSample(sample *perfsample.Sample, res internalanalysis.Result) {

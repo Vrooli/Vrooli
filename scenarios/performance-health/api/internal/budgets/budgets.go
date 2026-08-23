@@ -33,7 +33,17 @@ type Budget struct {
 	UIBuildMaxMs   int64
 	BundleMaxBytes int64
 	LCPMaxMs       int64
-	StartupMaxMs   int64
+	// CLSMax caps cumulative layout shift. Unitless and typically well below 1,
+	// so it is a float — an int64 threshold could only ever express 0 or 1.
+	CLSMax float64
+	// Navigation-phase ceilings, milliseconds from navigation start. These are
+	// scenario-level only: a targeted interaction flow reuses the same page
+	// load, so a per-flow copy would gate the identical measurement twice.
+	ResponseEndMaxMs      int64
+	DOMInteractiveMaxMs   int64
+	DOMContentLoadedMaxMs int64
+	LoadEventEndMaxMs     int64
+	StartupMaxMs          int64
 	// ComponentCommitAvgMaxMs caps the slowest component's AVERAGE commit time.
 	ComponentCommitAvgMaxMs float64
 	// ComponentCommitMaxMs caps the slowest component's MAX commit time.
@@ -63,6 +73,7 @@ type Budget struct {
 // component's avg/max commit time, and interaction health.
 type FlowBudget struct {
 	LCPMaxMs                int64
+	CLSMax                  float64
 	ComponentCommitAvgMaxMs float64
 	ComponentCommitMaxMs    float64
 	DrawnFPSMin             float64
@@ -78,7 +89,7 @@ type FlowBudget struct {
 
 // IsSet reports whether the flow budget declares at least one positive threshold.
 func (f FlowBudget) IsSet() bool {
-	return f.LCPMaxMs > 0 || f.ComponentCommitAvgMaxMs > 0 || f.ComponentCommitMaxMs > 0 ||
+	return f.LCPMaxMs > 0 || f.CLSMax > 0 || f.ComponentCommitAvgMaxMs > 0 || f.ComponentCommitMaxMs > 0 ||
 		f.DrawnFPSMin > 0 || f.DroppedFrameRateMax > 0 || f.LongTaskTotalMaxMs > 0 ||
 		f.LongTaskMaxMs > 0 || f.RasterTotalMaxMs > 0 || f.LayoutTotalMaxMs > 0 ||
 		f.PaintTotalMaxMs > 0 || f.InputEventCountMin > 0
@@ -88,7 +99,9 @@ func (f FlowBudget) IsSet() bool {
 // (scenario-level or any per-flow).
 func (b Budget) IsSet() bool {
 	if b.GoBuildMaxMs > 0 || b.UIBuildMaxMs > 0 || b.BundleMaxBytes > 0 ||
-		b.LCPMaxMs > 0 || b.StartupMaxMs > 0 ||
+		b.LCPMaxMs > 0 || b.CLSMax > 0 || b.StartupMaxMs > 0 ||
+		b.ResponseEndMaxMs > 0 || b.DOMInteractiveMaxMs > 0 ||
+		b.DOMContentLoadedMaxMs > 0 || b.LoadEventEndMaxMs > 0 ||
 		b.ComponentCommitAvgMaxMs > 0 || b.ComponentCommitMaxMs > 0 ||
 		b.DrawnFPSMin > 0 || b.DroppedFrameRateMax > 0 || b.LongTaskTotalMaxMs > 0 ||
 		b.LongTaskMaxMs > 0 || b.RasterTotalMaxMs > 0 || b.LayoutTotalMaxMs > 0 ||
@@ -111,6 +124,11 @@ type Measurement struct {
 	UIBuildMs            int64
 	BundleBytes          int64
 	LCPMs                int64
+	CLS                  float64
+	ResponseEndMs        int64
+	DOMInteractiveMs     int64
+	DOMContentLoadedMs   int64
+	LoadEventEndMs       int64
 	StartupMs            int64
 	ComponentCommitAvgMs float64
 	ComponentCommitMaxMs float64
@@ -132,9 +150,15 @@ type Violation struct {
 	Axis     string
 	Measured int64
 	Budget   int64
-	Unit     string
-	Detail   string
-	Mode     string
+	// MeasuredValue and BudgetValue carry the unrounded numbers. Every axis
+	// populates them; they exist for axes whose magnitude the int64 fields above
+	// destroy — CLS is unitless and typically well under 1, so rounding reports
+	// a breach of "0 over 0". Renderers pick the precise pair for unitless axes.
+	MeasuredValue float64
+	BudgetValue   float64
+	Unit          string
+	Detail        string
+	Mode          string
 }
 
 // MeasurementSource supplies the latest measured sample for a scenario. The
@@ -220,7 +244,7 @@ func enforceRatchet(existing, incoming Budget) error {
 	}
 	loosenedF := func(axis string, was, now float64) error {
 		if was > 0 && now > was {
-			return fmt.Errorf("budgets: ratchet violation: %s budget may only tighten (was %.1f, requested %.1f)", axis, was, now)
+			return fmt.Errorf("budgets: ratchet violation: %s budget may only tighten (was %g, requested %g)", axis, was, now)
 		}
 		return nil
 	}
@@ -232,7 +256,7 @@ func enforceRatchet(existing, incoming Budget) error {
 	}
 	tightenedF := func(axis string, was, now float64) error {
 		if was > 0 && now > 0 && now < was {
-			return fmt.Errorf("budgets: ratchet violation: %s budget may only tighten (was %.1f, requested %.1f)", axis, was, now)
+			return fmt.Errorf("budgets: ratchet violation: %s budget may only tighten (was %g, requested %g)", axis, was, now)
 		}
 		return nil
 	}
@@ -241,6 +265,11 @@ func enforceRatchet(existing, incoming Budget) error {
 		loosened("ui_build", existing.UIBuildMaxMs, incoming.UIBuildMaxMs),
 		loosened("bundle", existing.BundleMaxBytes, incoming.BundleMaxBytes),
 		loosened("lcp", existing.LCPMaxMs, incoming.LCPMaxMs),
+		loosenedF("cls", existing.CLSMax, incoming.CLSMax),
+		loosened("response_end", existing.ResponseEndMaxMs, incoming.ResponseEndMaxMs),
+		loosened("dom_interactive", existing.DOMInteractiveMaxMs, incoming.DOMInteractiveMaxMs),
+		loosened("dom_content_loaded", existing.DOMContentLoadedMaxMs, incoming.DOMContentLoadedMaxMs),
+		loosened("load_event_end", existing.LoadEventEndMaxMs, incoming.LoadEventEndMaxMs),
 		loosened("startup", existing.StartupMaxMs, incoming.StartupMaxMs),
 		loosenedF("component_commit_avg", existing.ComponentCommitAvgMaxMs, incoming.ComponentCommitAvgMaxMs),
 		loosenedF("component_commit_max", existing.ComponentCommitMaxMs, incoming.ComponentCommitMaxMs),
@@ -266,6 +295,7 @@ func enforceRatchet(existing, incoming Budget) error {
 		}
 		for _, err := range []error{
 			loosened("flow:"+slug+".lcp", was.LCPMaxMs, now.LCPMaxMs),
+			loosenedF("flow:"+slug+".cls", was.CLSMax, now.CLSMax),
 			loosenedF("flow:"+slug+".component_commit_avg", was.ComponentCommitAvgMaxMs, now.ComponentCommitAvgMaxMs),
 			loosenedF("flow:"+slug+".component_commit_max", was.ComponentCommitMaxMs, now.ComponentCommitMaxMs),
 			tightenedF("flow:"+slug+".drawn_fps", was.DrawnFPSMin, now.DrawnFPSMin),
@@ -479,12 +509,14 @@ func EvaluateFlow(fb FlowBudget, m Measurement) []Violation {
 	}, m)
 	if fb.DroppedFrameRateMax > 0 && m.DrawnFPS == 0 && m.DroppedFrameRate == 0 {
 		violations = append(violations, Violation{
-			Axis:     "dropped_frame_rate",
-			Measured: 100,
-			Budget:   int64(math.Round(fb.DroppedFrameRateMax * 100)),
-			Unit:     "%",
-			Detail:   "frame evidence missing",
-			Mode:     "max",
+			Axis:          "dropped_frame_rate",
+			Measured:      100,
+			Budget:        int64(math.Round(fb.DroppedFrameRateMax * 100)),
+			MeasuredValue: 100,
+			BudgetValue:   fb.DroppedFrameRateMax * 100,
+			Unit:          "%",
+			Detail:        "frame evidence missing",
+			Mode:          "max",
 		})
 		sort.Slice(violations, func(i, j int) bool { return violations[i].Axis < violations[j].Axis })
 	}
@@ -499,47 +531,77 @@ func Evaluate(b Budget, m Measurement) []Violation {
 	var out []Violation
 	checkInt := func(axis string, measured, budget int64, unit string) {
 		if budget > 0 && measured > budget {
-			out = append(out, Violation{Axis: axis, Measured: measured, Budget: budget, Unit: unit})
+			out = append(out, Violation{
+				Axis: axis, Measured: measured, Budget: budget,
+				MeasuredValue: float64(measured), BudgetValue: float64(budget), Unit: unit,
+			})
+		}
+	}
+	// checkUnitless is the max check for a ratio axis. It keeps full precision
+	// and leaves Unit empty, which is how a renderer knows to print the value
+	// rather than a rounded millisecond count.
+	checkUnitless := func(axis string, measured, budget float64, detail string) {
+		if budget > 0 && measured > budget {
+			out = append(out, Violation{
+				Axis:          axis,
+				Measured:      int64(math.Round(measured)),
+				Budget:        int64(math.Round(budget)),
+				MeasuredValue: measured,
+				BudgetValue:   budget,
+				Detail:        detail,
+				Mode:          "max",
+			})
 		}
 	}
 	checkInt("go_build", m.GoBuildMs, b.GoBuildMaxMs, "ms")
 	checkInt("ui_build", m.UIBuildMs, b.UIBuildMaxMs, "ms")
 	checkInt("bundle", m.BundleBytes, b.BundleMaxBytes, "bytes")
 	checkInt("lcp", m.LCPMs, b.LCPMaxMs, "ms")
+	checkUnitless("cls", m.CLS, b.CLSMax, "cumulative layout shift")
+	checkInt("response_end", m.ResponseEndMs, b.ResponseEndMaxMs, "ms")
+	checkInt("dom_interactive", m.DOMInteractiveMs, b.DOMInteractiveMaxMs, "ms")
+	checkInt("dom_content_loaded", m.DOMContentLoadedMs, b.DOMContentLoadedMaxMs, "ms")
+	checkInt("load_event_end", m.LoadEventEndMs, b.LoadEventEndMaxMs, "ms")
 	checkInt("startup", m.StartupMs, b.StartupMaxMs, "ms")
 
 	checkFloat := func(axis string, measured, budget float64, detail string) {
 		if budget > 0 && measured > budget {
 			out = append(out, Violation{
-				Axis:     axis,
-				Measured: int64(math.Round(measured)),
-				Budget:   int64(math.Round(budget)),
-				Unit:     "ms",
-				Detail:   detail,
+				Axis:          axis,
+				Measured:      int64(math.Round(measured)),
+				Budget:        int64(math.Round(budget)),
+				MeasuredValue: measured,
+				BudgetValue:   budget,
+				Unit:          "ms",
+				Detail:        detail,
 			})
 		}
 	}
 	checkFloatUnit := func(axis string, measured, budget float64, unit, detail string) {
 		if budget > 0 && measured > budget {
 			out = append(out, Violation{
-				Axis:     axis,
-				Measured: int64(math.Round(measured)),
-				Budget:   int64(math.Round(budget)),
-				Unit:     unit,
-				Detail:   detail,
-				Mode:     "max",
+				Axis:          axis,
+				Measured:      int64(math.Round(measured)),
+				Budget:        int64(math.Round(budget)),
+				MeasuredValue: measured,
+				BudgetValue:   budget,
+				Unit:          unit,
+				Detail:        detail,
+				Mode:          "max",
 			})
 		}
 	}
 	checkMinFloat := func(axis string, measured, budget float64, unit, detail string) {
 		if budget > 0 && measured < budget {
 			out = append(out, Violation{
-				Axis:     axis,
-				Measured: int64(math.Round(measured)),
-				Budget:   int64(math.Round(budget)),
-				Unit:     unit,
-				Detail:   detail,
-				Mode:     "min",
+				Axis:          axis,
+				Measured:      int64(math.Round(measured)),
+				Budget:        int64(math.Round(budget)),
+				MeasuredValue: measured,
+				BudgetValue:   budget,
+				Unit:          unit,
+				Detail:        detail,
+				Mode:          "min",
 			})
 		}
 	}
@@ -567,7 +629,11 @@ func checkMinIntViolation(axis string, measured, budget int64, unit, detail stri
 	if budget <= 0 || measured >= budget {
 		return Violation{}, false
 	}
-	return Violation{Axis: axis, Measured: measured, Budget: budget, Unit: unit, Detail: detail, Mode: "min"}, true
+	return Violation{
+		Axis: axis, Measured: measured, Budget: budget,
+		MeasuredValue: float64(measured), BudgetValue: float64(budget),
+		Unit: unit, Detail: detail, Mode: "min",
+	}, true
 }
 
 // Findings projects budget violations into shared maturity findings at ERROR
@@ -629,6 +695,22 @@ func UngatedDeclaredAxes(b Budget) []string {
 	var out []string
 	if b.LCPMaxMs > 0 {
 		out = append(out, "lcp")
+	}
+	if b.CLSMax > 0 {
+		out = append(out, "cls")
+	}
+	for _, axis := range []struct {
+		name  string
+		value int64
+	}{
+		{"response_end", b.ResponseEndMaxMs},
+		{"dom_interactive", b.DOMInteractiveMaxMs},
+		{"dom_content_loaded", b.DOMContentLoadedMaxMs},
+		{"load_event_end", b.LoadEventEndMaxMs},
+	} {
+		if axis.value > 0 {
+			out = append(out, axis.name)
+		}
 	}
 	if b.StartupMaxMs > 0 {
 		out = append(out, "startup")

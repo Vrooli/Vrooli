@@ -53,6 +53,11 @@ func (h *handlers) set(ctx cliapp.RunContext) error {
 		UiBuildMaxMs:            parseInt64(firstFlag(ctx.FlagValues("ui-build-max-ms"))),
 		BundleMaxBytes:          parseInt64(firstFlag(ctx.FlagValues("bundle-max-bytes"))),
 		LcpMaxMs:                parseInt64(firstFlag(ctx.FlagValues("lcp-max-ms"))),
+		ClsMax:                  parseFloat(firstFlag(ctx.FlagValues("cls-max"))),
+		ResponseEndMaxMs:        parseInt64(firstFlag(ctx.FlagValues("response-end-max-ms"))),
+		DomInteractiveMaxMs:     parseInt64(firstFlag(ctx.FlagValues("dom-interactive-max-ms"))),
+		DomContentLoadedMaxMs:   parseInt64(firstFlag(ctx.FlagValues("dom-content-loaded-max-ms"))),
+		LoadEventEndMaxMs:       parseInt64(firstFlag(ctx.FlagValues("load-event-end-max-ms"))),
 		StartupMaxMs:            parseInt64(firstFlag(ctx.FlagValues("startup-max-ms"))),
 		ComponentCommitAvgMaxMs: parseFloat(firstFlag(ctx.FlagValues("component-commit-avg-max-ms"))),
 		ComponentCommitMaxMs:    parseFloat(firstFlag(ctx.FlagValues("component-commit-max-ms"))),
@@ -114,6 +119,12 @@ func (h *handlers) check(ctx cliapp.RunContext) error {
 		if v.GetDetail() != "" {
 			detail = " — " + v.GetDetail()
 		}
+		// A unitless axis (cls) carries its magnitude only in the *_value fields:
+		// the int64 pair rounds 0.03 to 0, which would render "measured=0 budget_max=0".
+		if v.GetUnit() == "" {
+			results = append(results, fmt.Sprintf("%s — measured=%.3f budget_%s=%.3f%s", v.GetAxis(), v.GetMeasuredValue(), relation, v.GetBudgetValue(), detail))
+			continue
+		}
 		results = append(results, fmt.Sprintf("%s — measured=%d budget_%s=%d %s%s", v.GetAxis(), v.GetMeasured(), relation, v.GetBudget(), v.GetUnit(), detail))
 	}
 	if len(results) == 0 {
@@ -135,6 +146,11 @@ func budgetLines(b *budgetsv1.Budget) []string {
 		fmt.Sprintf("ui_build_max=%dms", b.GetUiBuildMaxMs()),
 		fmt.Sprintf("bundle_max=%dB", b.GetBundleMaxBytes()),
 		fmt.Sprintf("lcp_max=%dms", b.GetLcpMaxMs()),
+		fmt.Sprintf("cls_max=%.3f", b.GetClsMax()),
+		fmt.Sprintf("response_end_max=%dms", b.GetResponseEndMaxMs()),
+		fmt.Sprintf("dom_interactive_max=%dms", b.GetDomInteractiveMaxMs()),
+		fmt.Sprintf("dom_content_loaded_max=%dms", b.GetDomContentLoadedMaxMs()),
+		fmt.Sprintf("load_event_end_max=%dms", b.GetLoadEventEndMaxMs()),
 		fmt.Sprintf("startup_max=%dms", b.GetStartupMaxMs()),
 		fmt.Sprintf("component_commit_avg_max=%.1fms", b.GetComponentCommitAvgMaxMs()),
 		fmt.Sprintf("component_commit_max=%.1fms", b.GetComponentCommitMaxMs()),

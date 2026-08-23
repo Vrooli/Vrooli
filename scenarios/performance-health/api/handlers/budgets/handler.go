@@ -83,6 +83,7 @@ func mergeBudgetWrite(existing, in internalbudgets.Budget, flow string) internal
 		}
 		cp[flow] = internalbudgets.FlowBudget{
 			LCPMaxMs:                in.LCPMaxMs,
+			CLSMax:                  in.CLSMax,
 			ComponentCommitAvgMaxMs: in.ComponentCommitAvgMaxMs,
 			ComponentCommitMaxMs:    in.ComponentCommitMaxMs,
 			DrawnFPSMin:             in.DrawnFPSMin,
@@ -131,7 +132,9 @@ func (h *Handler) CheckBudget(ctx context.Context, req *connect.Request[budgetsv
 	out := &budgetsv1.CheckBudgetResponse{Scenario: scenario, Passed: passed}
 	for _, v := range violations {
 		out.Violations = append(out.Violations, &budgetsv1.BudgetViolation{
-			Axis: v.Axis, Measured: v.Measured, Budget: v.Budget, Unit: v.Unit, Flow: flow, Mode: v.Mode, Detail: v.Detail,
+			Axis: v.Axis, Measured: v.Measured, Budget: v.Budget,
+			MeasuredValue: v.MeasuredValue, BudgetValue: v.BudgetValue,
+			Unit: v.Unit, Flow: flow, Mode: v.Mode, Detail: v.Detail,
 		})
 	}
 	return connect.NewResponse(out), nil
@@ -144,6 +147,11 @@ func budgetToProto(b internalbudgets.Budget) *budgetsv1.Budget {
 		UiBuildMaxMs:            b.UIBuildMaxMs,
 		BundleMaxBytes:          b.BundleMaxBytes,
 		LcpMaxMs:                b.LCPMaxMs,
+		ClsMax:                  b.CLSMax,
+		ResponseEndMaxMs:        b.ResponseEndMaxMs,
+		DomInteractiveMaxMs:     b.DOMInteractiveMaxMs,
+		DomContentLoadedMaxMs:   b.DOMContentLoadedMaxMs,
+		LoadEventEndMaxMs:       b.LoadEventEndMaxMs,
 		StartupMaxMs:            b.StartupMaxMs,
 		ComponentCommitAvgMaxMs: b.ComponentCommitAvgMaxMs,
 		ComponentCommitMaxMs:    b.ComponentCommitMaxMs,
@@ -163,6 +171,7 @@ func budgetToProto(b internalbudgets.Budget) *budgetsv1.Budget {
 		for slug, fb := range b.Flows {
 			out.Flows[slug] = &budgetsv1.FlowBudget{
 				LcpMaxMs:                fb.LCPMaxMs,
+				ClsMax:                  fb.CLSMax,
 				ComponentCommitAvgMaxMs: fb.ComponentCommitAvgMaxMs,
 				ComponentCommitMaxMs:    fb.ComponentCommitMaxMs,
 				DrawnFpsMin:             fb.DrawnFPSMin,
@@ -190,6 +199,11 @@ func budgetFromProto(b *budgetsv1.Budget) internalbudgets.Budget {
 		UIBuildMaxMs:            b.GetUiBuildMaxMs(),
 		BundleMaxBytes:          b.GetBundleMaxBytes(),
 		LCPMaxMs:                b.GetLcpMaxMs(),
+		CLSMax:                  b.GetClsMax(),
+		ResponseEndMaxMs:        b.GetResponseEndMaxMs(),
+		DOMInteractiveMaxMs:     b.GetDomInteractiveMaxMs(),
+		DOMContentLoadedMaxMs:   b.GetDomContentLoadedMaxMs(),
+		LoadEventEndMaxMs:       b.GetLoadEventEndMaxMs(),
 		StartupMaxMs:            b.GetStartupMaxMs(),
 		ComponentCommitAvgMaxMs: b.GetComponentCommitAvgMaxMs(),
 		ComponentCommitMaxMs:    b.GetComponentCommitMaxMs(),
@@ -209,6 +223,7 @@ func budgetFromProto(b *budgetsv1.Budget) internalbudgets.Budget {
 		for slug, fb := range b.GetFlows() {
 			out.Flows[slug] = internalbudgets.FlowBudget{
 				LCPMaxMs:                fb.GetLcpMaxMs(),
+				CLSMax:                  fb.GetClsMax(),
 				ComponentCommitAvgMaxMs: fb.GetComponentCommitAvgMaxMs(),
 				ComponentCommitMaxMs:    fb.GetComponentCommitMaxMs(),
 				DrawnFPSMin:             fb.GetDrawnFpsMin(),

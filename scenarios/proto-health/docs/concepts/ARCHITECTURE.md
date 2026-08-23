@@ -120,7 +120,7 @@ packages/proto/schemas/proto-health/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/proto-health/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/proto-health/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/proto-health/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/proto-health/v1/...   (ui)
        └──▶ packages/proto/gen/python/proto_health/v1/...    (future tools)
 ```
 

@@ -4,9 +4,9 @@
   "description": "Scalable App Cookbook Web Interface",
   "private": true,
   "scripts": {
-    "dev": "bash -c 'PORT=${UI_PORT:-3301}; exec vrooli lifecycle protect -- vite --port ${PORT} --host'",
+    "dev": "vrooli lifecycle protect -- vite",
     "build": "vite build",
-    "preview": "bash -c 'PORT=${UI_PORT:-3301}; exec vite preview --port ${PORT} --host'"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@vrooli/api-base": "file:../../../packages/api-base",

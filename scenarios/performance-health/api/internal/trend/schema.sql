@@ -10,6 +10,17 @@ CREATE TABLE IF NOT EXISTS perf_samples (
   ui_build_ms INTEGER NOT NULL DEFAULT 0,
   bundle_bytes INTEGER NOT NULL DEFAULT 0,
   lcp_ms INTEGER NOT NULL DEFAULT 0,
+  -- Cumulative layout shift is unitless and fractional, so REAL rather than the
+  -- INTEGER millisecond columns around it.
+  cls REAL NOT NULL DEFAULT 0,
+  -- PerformanceNavigationTiming phases, milliseconds from navigation start.
+  response_end_ms INTEGER NOT NULL DEFAULT 0,
+  dom_interactive_ms INTEGER NOT NULL DEFAULT 0,
+  dom_content_loaded_ms INTEGER NOT NULL DEFAULT 0,
+  load_event_end_ms INTEGER NOT NULL DEFAULT 0,
+  -- Navigation kind ("navigate", "reload", "back_forward", "prerender"); a
+  -- reload is not comparable with a cold navigate.
+  navigation_type TEXT NOT NULL DEFAULT '',
   startup_ms INTEGER NOT NULL DEFAULT 0,
   slowest_component TEXT NOT NULL DEFAULT '',
   slowest_component_avg_ms REAL NOT NULL DEFAULT 0,

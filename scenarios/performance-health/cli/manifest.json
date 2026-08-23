@@ -406,6 +406,26 @@
               "description": "Maximum Largest Contentful Paint in milliseconds"
             },
             {
+              "name": "cls-max",
+              "description": "Maximum Cumulative Layout Shift (unitless, e.g. 0.1)"
+            },
+            {
+              "name": "response-end-max-ms",
+              "description": "Maximum navigation responseEnd in milliseconds"
+            },
+            {
+              "name": "dom-interactive-max-ms",
+              "description": "Maximum navigation domInteractive in milliseconds"
+            },
+            {
+              "name": "dom-content-loaded-max-ms",
+              "description": "Maximum navigation domContentLoaded in milliseconds"
+            },
+            {
+              "name": "load-event-end-max-ms",
+              "description": "Maximum navigation loadEventEnd in milliseconds"
+            },
+            {
               "name": "startup-max-ms",
               "description": "Maximum time-to-healthy in milliseconds"
             },
