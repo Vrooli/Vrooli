@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-20T04:07:50.814330572Z",
+  "last_run": "2026-08-22T20:07:10.014085099Z",
   "status": "warning",
   "measured": 4,
   "total": 4,
@@ -8,7 +8,7 @@
       "runner": "codex",
       "type": "catalog_stale",
       "severity": "warning",
-      "message": "catalog age is 16 days; staleness budget is 14 days",
+      "message": "catalog age is 18 days; staleness budget is 14 days",
       "fingerprint": "model-policy-drift/codex/catalog_stale//"
     },
     {
@@ -39,14 +39,14 @@
       "runner": "claude-code",
       "type": "catalog_stale",
       "severity": "warning",
-      "message": "catalog age is 16 days; staleness budget is 14 days",
+      "message": "catalog age is 18 days; staleness budget is 14 days",
       "fingerprint": "model-policy-drift/claude-code/catalog_stale//"
     },
     {
       "runner": "opencode",
       "type": "catalog_stale",
       "severity": "warning",
-      "message": "catalog age is 16 days; staleness budget is 14 days",
+      "message": "catalog age is 18 days; staleness budget is 14 days",
       "fingerprint": "model-policy-drift/opencode/catalog_stale//"
     },
     {
@@ -69,14 +69,6 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
-      "model": "opencode/deepseek-v4-flash-free",
-      "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/deepseek-v4-flash-free"
-    },
-    {
-      "runner": "opencode",
-      "type": "unnamed_live_model",
-      "severity": "warning",
       "model": "opencode/hy3-free",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/hy3-free"
@@ -85,17 +77,17 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
-      "model": "opencode/laguna-s-2.1-free",
+      "model": "opencode/mimo-v2.5-free",
       "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/laguna-s-2.1-free"
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/mimo-v2.5-free"
     },
     {
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
-      "model": "opencode/mimo-v2.5-free",
+      "model": "opencode/muse-spark-1.2-contributor-free",
       "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/mimo-v2.5-free"
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/muse-spark-1.2-contributor-free"
     },
     {
       "runner": "opencode",
@@ -112,6 +104,14 @@
       "model": "opencode/nemotron-3.5-lightning-free",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/nemotron-3.5-lightning-free"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "opencode/x-preview-f-free",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//opencode/x-preview-f-free"
     },
     {
       "runner": "opencode",
@@ -453,14 +453,6 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
-      "model": "openrouter/deepcogito/cogito-v2.1-671b",
-      "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/deepcogito/cogito-v2.1-671b"
-    },
-    {
-      "runner": "opencode",
-      "type": "unnamed_live_model",
-      "severity": "warning",
       "model": "openrouter/deepseek/deepseek-chat",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/deepseek/deepseek-chat"
@@ -528,6 +520,14 @@
       "model": "openrouter/deepseek/deepseek-v3.2-exp",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/deepseek/deepseek-v3.2-exp"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/deepseek/deepseek-v4-flash-vision-exp",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/deepseek/deepseek-v4-flash-vision-exp"
     },
     {
       "runner": "opencode",
@@ -893,6 +893,14 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
+      "model": "openrouter/mancer/weaver",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/mancer/weaver"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
       "model": "openrouter/meituan/longcat-2.0",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/meituan/longcat-2.0"
@@ -984,6 +992,14 @@
       "model": "openrouter/meta/muse-spark-1.2",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/meta/muse-spark-1.2"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/meta/muse-spark-1.2-contributor",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/meta/muse-spark-1.2-contributor"
     },
     {
       "runner": "opencode",
@@ -1088,6 +1104,14 @@
       "model": "openrouter/mistralai/ministral-3b-2512",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/mistralai/ministral-3b-2512"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/mistralai/ministral-8b",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/mistralai/ministral-8b"
     },
     {
       "runner": "opencode",
@@ -1813,14 +1837,6 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
-      "model": "openrouter/openai/gpt-oss-20b:free",
-      "message": "runner offers a live model not named by this policy",
-      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/openai/gpt-oss-20b:free"
-    },
-    {
-      "runner": "opencode",
-      "type": "unnamed_live_model",
-      "severity": "warning",
       "model": "openrouter/openai/gpt-oss-safeguard-20b",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/openai/gpt-oss-safeguard-20b"
@@ -2485,6 +2501,14 @@
       "runner": "opencode",
       "type": "unnamed_live_model",
       "severity": "warning",
+      "model": "openrouter/stealth/ox-alpha",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/stealth/ox-alpha"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
       "model": "openrouter/stepfun/step-3.5-flash",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/stepfun/step-3.5-flash"
@@ -2504,6 +2528,22 @@
       "model": "openrouter/tencent/hunyuan-a13b-instruct",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/tencent/hunyuan-a13b-instruct"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/tencent/hy-mt2-1.8b",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/tencent/hy-mt2-1.8b"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/tencent/hy-mt2-30b-a3b",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/tencent/hy-mt2-30b-a3b"
     },
     {
       "runner": "opencode",
@@ -2568,6 +2608,22 @@
       "model": "openrouter/thinkingmachines/inkling-small",
       "message": "runner offers a live model not named by this policy",
       "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/thinkingmachines/inkling-small"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/thinkingmachines/inkling-small:free",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/thinkingmachines/inkling-small:free"
+    },
+    {
+      "runner": "opencode",
+      "type": "unnamed_live_model",
+      "severity": "warning",
+      "model": "openrouter/thinkingmachines/inkling:free",
+      "message": "runner offers a live model not named by this policy",
+      "fingerprint": "model-policy-drift/opencode/unnamed_live_model//openrouter/thinkingmachines/inkling:free"
     },
     {
       "runner": "opencode",
@@ -2877,7 +2933,7 @@
       "runner": "grok",
       "type": "catalog_stale",
       "severity": "warning",
-      "message": "catalog age is 16 days; staleness budget is 14 days",
+      "message": "catalog age is 18 days; staleness budget is 14 days",
       "fingerprint": "model-policy-drift/grok/catalog_stale//"
     }
   ],

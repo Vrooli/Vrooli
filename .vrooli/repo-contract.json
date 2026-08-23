@@ -3,7 +3,8 @@
   "version": "1.2.0",
   "platform": {
     "mode": "cross_platform_go_native",
-    "legacy_project_bash_supported": false
+    "legacy_project_bash_supported": false,
+    "platform_conformance_gate": "vrooli capability conformance"
   },
   "root": {
     "markers": {

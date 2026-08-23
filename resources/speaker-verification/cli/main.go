@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
 const (
@@ -45,6 +46,14 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
-	app.SetCommands(app.StandardLifecycleCommands())
+	// Every accelerated resource answers the broker the same way. What a rung
+	// means here is this resource's; how the broker asks is the fleet's.
+	app.SetCommandsWithSubgroups(
+		app.StandardLifecycleCommands(),
+		[]cliapp.SubcommandGroup{companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{
+			Resource: "speaker-verification",
+			Steps:    companion.DeviceSteps("gpu"),
+		})},
+	)
 	return app, nil
 }

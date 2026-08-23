@@ -91,6 +91,14 @@
               "items": {
                 "$ref": "#/definitions/adoptionMode"
               }
+            },
+            "owns_resource_environment": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]*$"
+              },
+              "uniqueItems": true
             }
           },
           "additionalProperties": false

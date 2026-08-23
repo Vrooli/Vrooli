@@ -6,27 +6,50 @@
   "cli": {
     "enabled": true,
     "command": "resource-cloudflared",
-    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
     "artifacts": {
-      "manifest": {"location": "sibling"},
-      "build_metadata": {"location": "sibling"}
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
     },
     "distribution": {
       "kind": "prebuilt_artifact",
       "artifact_name": "resource-cloudflared_${os}_${arch}"
     },
-    "invoke": {"kind": "installed_command", "command": "resource-cloudflared"},
-    "freshness": {"inputs": ["cli/**", "resource.json"]},
-    "source_build": {"kind": "go_module"}
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-cloudflared"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
   },
   "template": "managed-service",
   "driver": "managed-service",
+  "bundling": "host-required",
+  "privilege": "user",
   "hostTools": [
     {
       "name": "cloudflared",
       "required": true,
       "reason": "The managed service adopts the separately governed cloudflared host tool.",
-      "platforms": ["linux", "macos", "windows"],
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
       "bundling": "host-required"
     }
   ],
@@ -36,7 +59,9 @@
         "control-plane": "managed-private",
         "desktop-bundle": "managed-private"
       },
-      "allowed_modes": ["managed-private"],
+      "allowed_modes": [
+        "managed-private"
+      ],
       "shared_reuse_requires_consent": true,
       "external_management": "forbidden"
     },
@@ -49,7 +74,9 @@
       "kind": "none",
       "license": "Cloudflare Terms of Service",
       "targets": [
-        {"executable": "cloudflared"}
+        {
+          "executable": "cloudflared"
+        }
       ]
     },
     "credential_files": [
@@ -66,7 +93,9 @@
       "run",
       "--token-file=${RESOURCE_STATE_DIR}/cloudflare-connector-token"
     ],
-    "shutdown": {"signal": "terminate"}
+    "shutdown": {
+      "signal": "terminate"
+    }
   },
   "category": "network",
   "requirements": {
@@ -86,7 +115,11 @@
     "windows": "supported"
   },
   "ports": [
-    {"name": "http", "container": 20242, "host": 20242}
+    {
+      "name": "http",
+      "container": 20242,
+      "host": 20242
+    }
   ],
   "environment_exports": {
     "from_ports": {
@@ -119,26 +152,56 @@
         "linux": {
           "support": "conditional",
           "mode": "manual",
-          "architectures": ["amd64", "arm64"],
-          "requires": ["cloudflared"],
-          "limitations": ["cloudflared is supplied by the governed host tool catalog and must be present on PATH."],
-          "evidence": ["manifest-validation", "host-tool-preflight"]
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "cloudflared"
+          ],
+          "limitations": [
+            "cloudflared is supplied by the governed host tool catalog and must be present on PATH."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
         },
         "macos": {
           "support": "conditional",
           "mode": "manual",
-          "architectures": ["amd64", "arm64"],
-          "requires": ["cloudflared"],
-          "limitations": ["cloudflared is supplied by the governed host tool catalog and must be present on PATH."],
-          "evidence": ["manifest-validation", "host-tool-preflight"]
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "cloudflared"
+          ],
+          "limitations": [
+            "cloudflared is supplied by the governed host tool catalog and must be present on PATH."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
         },
         "windows": {
           "support": "conditional",
           "mode": "manual",
-          "architectures": ["amd64", "arm64"],
-          "requires": ["cloudflared"],
-          "limitations": ["cloudflared is supplied by the governed host tool catalog and must be present on PATH."],
-          "evidence": ["manifest-validation", "host-tool-preflight"]
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "cloudflared"
+          ],
+          "limitations": [
+            "cloudflared is supplied by the governed host tool catalog and must be present on PATH."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
         }
       }
     }

@@ -2,9 +2,6 @@
   "$schema": "schemas/service.schema.json",
   "dependencies": {
     "resources": {
-      "--help": {
-        "enabled": false
-      },
       "adguard-home": {
         "description": "Managed AdGuard Home DNS filtering and resolver service for scenarios such as Network Manager",
         "enabled": false,
@@ -249,6 +246,19 @@
       "when": [
         "setup"
       ]
+    },
+    {
+      "name": "nvidia_driver",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Accelerator readiness is a host requirement, not a per-resource probe. The safeguard proves the NVIDIA driver is ready, that the compute device nodes survive a boot with no client attached, and that the invoking user can open them. Registering it here is what makes it run outside setup: without a develop-time registration the host is only checked at install, which is exactly when the device nodes are least likely to exist.",
+      "notes": "No-op on hosts without NVIDIA display hardware. Optional because a CPU fallback is a supported, reported state; a resource that must have an accelerator declares acceleration.require = required."
     },
     {
       "name": "host_hardening",

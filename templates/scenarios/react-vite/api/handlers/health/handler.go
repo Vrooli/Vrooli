@@ -9,7 +9,6 @@ package health
 import (
 	"context"
 	"net/http"
-
 	"{{SCENARIO_ID}}/internal/database"
 
 	apihealth "github.com/vrooli/api-core/health"

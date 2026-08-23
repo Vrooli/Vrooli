@@ -46,6 +46,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
 const (
@@ -399,30 +400,17 @@ func isTranscription(r *http.Request) bool {
 // report resolves whisper's active capacity claim and reports the given activity
 // state. Best-effort: a missing vrooli binary, no live claim, or any CLI error is
 // swallowed — the edge never lets capacity reporting affect transcription.
+// report tells the broker this resource started or stopped working.
+//
+// Finding the active claim and setting its state is the half every capacity
+// companion shares, so it comes from packages/capacity/companion rather than
+// being copied here. What stays local is the edge's own contract: this runs off
+// the request path, and every failure is swallowed so a broker outage can never
+// affect a transcription.
 func (h *Handlers) report(resource, state string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
-	out, err := h.Exec(ctx, "vrooli", "capacity", "list", "--owner", resource, "--active", "--json")
-	if err != nil {
-		return
-	}
-	var payload struct {
-		Claims []struct {
-			ClaimID string `json:"claim_id"`
-			OwnerID string `json:"owner_id"`
-		} `json:"claims"`
-	}
-	if json.Unmarshal(out, &payload) != nil {
-		return
-	}
-	for _, c := range payload.Claims {
-		if c.OwnerID == resource && c.ClaimID != "" {
-			// activity auto-resolves the generation server-side (last-writer-wins),
-			// so the edge does not pass --generation.
-			_, _ = h.Exec(ctx, "vrooli", "capacity", "activity", "--claim-id", c.ClaimID, "--state", state, "--json")
-			return
-		}
-	}
+	companion.Reporter{Resource: resource, Exec: h.Exec}.ReportActivity(ctx, state)
 }
 
 func (h *Handlers) env(key, fallback string) string {

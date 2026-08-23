@@ -96,38 +96,50 @@
     }
   },
   "compose_file": "docker/docker-compose.yml",
-  "gpu": {
-    "probe": "nvidia",
-    "compose_overlay": "docker/docker-compose.gpu.yml",
-    "env_overrides": {
-      "KYUTAI_STT_DEVICE": "cuda"
-    }
-  },
-  "capacity": {
-    "resource_kind": "vram",
-    "gpu_index": 0,
-    "preferred_bytes": 3221225472,
-    "floor_bytes": 0,
-    "priority": "service",
-    "yield_when_idle": true,
-    "idle_grace_seconds": 900,
-    "idle_unload_ttl_seconds": 900,
-    "profile": {
-      "steps": [
-        {
-          "label": "loaded",
-          "amount_bytes": 3221225472
+  "acceleration": {
+    "backends": [
+      "cuda",
+      "cpu"
+    ],
+    "require": "preferred",
+    "cuda": {
+      "min_compute": "8.9",
+      "compose_overlay": "docker/docker-compose.gpu.yml",
+      "env": {
+        "KYUTAI_STT_DEVICE": "cuda"
+      }
+    },
+    "cpu": {},
+    "claim": {
+      "resource_kind": "vram",
+      "gpu_index": 0,
+      "preferred_bytes": 3221225472,
+      "floor_bytes": 0,
+      "priority": "service",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 900,
+      "idle_unload_ttl_seconds": 900,
+      "profile": {
+        "steps": [
+          {
+            "label": "loaded",
+            "amount_bytes": 3221225472
+          },
+          {
+            "label": "unloaded",
+            "amount_bytes": 0
+          }
+        ],
+        "apply": {
+          "verb": "capacity",
+          "argv": [
+            "degrade",
+            "--to",
+            "{label}"
+          ]
         },
-        {
-          "label": "unloaded",
-          "amount_bytes": 0
-        }
-      ],
-      "apply": {
-        "verb": "stop",
-        "argv": []
-      },
-      "upshift": false
+        "upshift": false
+      }
     }
   },
   "category": "ai",
@@ -135,9 +147,6 @@
     "ram_mb": 4096,
     "disk_mb": 8192,
     "cpu_cores": 2,
-    "gpu": {
-      "min_cuda_compute": "8.9"
-    },
     "network": "required",
     "bucket": "large",
     "source": "estimated",
@@ -215,5 +224,20 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "host-required",
+  "hostSafeguards": [
+    {
+      "name": "nvidia_driver",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "reason": "This resource declares an accelerator backend. The safeguard proves the host driver is ready, that the compute device nodes survive a boot with no client attached, and that this user can open them; without all three the resource starts and silently falls back to the CPU.",
+      "notes": "No-op on hosts without NVIDIA display hardware. Optional because a CPU fallback is a supported, reported state rather than a start-time failure; a resource that must have an accelerator declares acceleration.require = required instead."
+    }
+  ]
 }

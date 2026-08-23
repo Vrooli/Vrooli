@@ -13,6 +13,10 @@
       "$ref": "common.schema.json#/definitions/retention",
       "description": "Declared storage ceilings for the runtime data this scenario accumulates. Enforced by packages/api-core/retention. Distinct from durable_data, which declares what to back up."
     },
+    "plugin": {
+      "$ref": "#/definitions/pluginDeclaration",
+      "description": "Optional, explicit publication contract consumed by scenario-to-plugin. Absence means this scenario is not publishable."
+    },
     "$schema": {
       "type": "string",
       "description": "Schema reference"
@@ -461,13 +465,21 @@
   "definitions": {
     "platformCapability": {
       "type": "object",
-      "required": ["status", "mechanism", "evidence"],
+      "description": "One host OS declaration. mechanism names the interface an implementation uses or would use, and is required for every status except unsupported. For unsupported it must be OMITTED, not filled with a placeholder: the capability resolver reads a named mechanism as 'something exists here and nobody wired it' (unwired) and an absent one as 'deliberately absent on this platform' (ineligible). A placeholder such as \"none\" would park a genuine no-equivalent case in the wire-me-up queue forever.",
+      "required": ["status", "evidence"],
       "additionalProperties": false,
       "properties": {
-        "status": {"enum": ["supported", "build-verified", "experimental", "unqualified"]},
+        "status": {"enum": ["supported", "build-verified", "experimental", "unqualified", "unsupported"]},
         "mechanism": {"type": "string", "minLength": 1},
         "evidence": {"type": "string", "minLength": 1}
-      }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "unsupported"}}, "required": ["status"]},
+          "then": {},
+          "else": {"required": ["mechanism"]}
+        }
+      ]
     },
     "component": {
       "type": "object",
@@ -580,17 +592,6 @@
         "wait": {"type": "string", "enum": ["started", "ready"]}
       },
       "required": ["component", "wait"],
-      "additionalProperties": false
-    },
-    "scenarioBinding": {
-      "type": "object",
-      "properties": {
-        "env_var": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
-        "form": {"type": "string", "enum": ["http_base_url", "ws_base_url", "host_port", "port_number"]},
-        "port": {"type": "string", "pattern": "^[a-z0-9_]+$"},
-        "when_unavailable": {"type": "string", "enum": ["omit", "fail"]}
-      },
-      "required": ["env_var", "form", "port", "when_unavailable"],
       "additionalProperties": false
     },
     "generationMetadata": {
@@ -918,6 +919,10 @@
           "type": "string",
           "description": "Scenario identifier"
         },
+        "type": {
+          "type": "string",
+          "description": "Dependency type metadata"
+        },
         "required": {
           "type": "boolean",
           "default": true,
@@ -945,6 +950,14 @@
           "type": "string",
           "description": "Semantic version range that is acceptable"
         },
+        "version": {
+          "type": "string",
+          "description": "Dependency version metadata"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Why the dependency is used"
+        },
         "description": {
           "type": "string",
           "description": "Human-readable context for the dependency"
@@ -967,11 +980,6 @@
           "type": "string",
           "enum": ["embed", "discover", "either"],
           "description": "How a Tier 2 bundle satisfies this scenario dependency edge."
-        },
-        "bindings": {
-          "type": "array",
-          "items": {"$ref": "#/definitions/scenarioBinding"},
-          "description": "Environment values derived from the peer scenario's declared ports."
         },
         "config": {
           "type": "object",
@@ -998,7 +1006,7 @@
           }
         }
       ],
-      "additionalProperties": true
+      "additionalProperties": false
     },
     "deploymentRequirements": {
       "type": "object",
@@ -1247,6 +1255,96 @@
         "expires_at": {
           "type": "string",
           "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "pluginDeclaration": {
+      "type": "object",
+      "description": "The governed source declaration for an Agent Plugin package.",
+      "required": ["slug", "skills", "standalone"],
+      "properties": {
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "skills": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/definitions/pluginSkill"}
+        },
+        "mcp": {"$ref": "#/definitions/pluginMCP"},
+        "entitlement_tier": {
+          "type": "string",
+          "enum": ["free", "pro", "enterprise"]
+        },
+        "standalone": {"$ref": "#/definitions/pluginStandalone"}
+      },
+      "additionalProperties": false
+    },
+    "pluginSkill": {
+      "type": "object",
+      "required": ["name", "source", "command_groups"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "source": {
+          "type": "string",
+          "pattern": "^skills/[a-z0-9]+(?:-[a-z0-9]+)*/SKILL\\.md$"
+        },
+        "command_groups": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "pluginMCP": {
+      "type": "object",
+      "required": ["name", "command"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "command": {"type": "string", "minLength": 1},
+        "args": {"type": "array", "items": {"type": "string"}},
+        "authentication": {
+          "type": "string",
+          "enum": ["none", "environment", "user_config"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "pluginStandalone": {
+      "type": "object",
+      "description": "Machine-checkable standalone-install predicate inputs.",
+      "required": ["install_script", "runtime_binaries", "resources"],
+      "properties": {
+        "install_script": {
+          "type": "string",
+          "pattern": "^(?:[a-zA-Z0-9._-]+/)*[a-zA-Z0-9._-]+\\.(?:sh|ps1)$"
+        },
+        "runtime_binaries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:[a-zA-Z0-9._-]+/)*[a-zA-Z0-9._-]+$"
+          },
+          "uniqueItems": true
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true
         }
       },
       "additionalProperties": false

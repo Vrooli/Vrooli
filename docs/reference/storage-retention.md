@@ -22,9 +22,10 @@ portable host path on that platform.
 Use the upstream tool's discovery or configuration mechanism when a path is not
 stable: `pnpm store path` reports pnpm's active store, Go documents
 `GOPATH/pkg/mod` as the default module cache and `GOMODCACHE` as its override,
-and Docker Desktop exposes its VM disk image location through its settings
-rather than a fixed macOS host path. The repository records these as bounded
-defaults plus relocation guidance, never as a guessed Desktop VM path.
+and Docker-compatible macOS providers expose their VM/backend disk location
+through provider configuration rather than a fixed host path. The repository
+records these as bounded defaults plus relocation guidance, never as a guessed
+Docker Desktop, Colima, or other provider VM path.
 
 References: [pnpm store](https://pnpm.io/cli/store), [Go module cache](https://go.dev/ref/mod),
 [Docker daemon storage](https://docs.docker.com/engine/daemon/), and [Docker Desktop disk image settings](https://docs.docker.com/desktop/settings-and-maintenance/settings/).
@@ -357,14 +358,18 @@ after `vrooli scenario stop`, putting a second writer on the file mid-rebuild.
 
 ```bash
 vrooli scenario stop vrooli-autoheal
-pkill -f vrooli-autoheal-loop          # the watchdog, or it restarts the API
-pgrep -af vrooli-autoheal-api          # must print nothing before continuing
+vrooli scenario status vrooli-autoheal # must report stopped before continuing
 vrooli-autoheal retention status                  # measure, change nothing
 vrooli-autoheal retention enforce --dry-run       # what would go
 vrooli-autoheal retention enforce --compact       # prune, then rewrite
 vrooli-autoheal retention enforce --rebuild       # keep-the-survivors fast path
 vrooli scenario start vrooli-autoheal
 ```
+
+If the watchdog restarts the API after `vrooli scenario stop`, abort the
+retention operation and report the control-plane stop defect. Host-process
+remediation belongs to the control plane; do not terminate watchdog processes
+out of band.
 
 Both `--compact` and `--rebuild` print the projected copy size and the available
 free space before rewriting anything, and refuse when the copy would not fit.
@@ -416,7 +421,7 @@ authoring declarations:
 | Go build cache | user cache directory `/go-build` | user cache directory `/go-build` | user cache directory `/go-build` | `GOCACHE` |
 | Go module cache | `$GOPATH/pkg/mod` | `$GOPATH/pkg/mod` | `$GOPATH/pkg/mod` | `GOMODCACHE` |
 | uv cache | `$XDG_CACHE_HOME/uv` or `$HOME/.cache/uv` | same Unix convention | `%LOCALAPPDATA%\\uv\\cache` | `UV_CACHE_DIR` |
-| Docker Engine daemon data | `/var/lib/docker` | Docker Desktop VM/backend; do not treat it as a native host directory | `C:\\ProgramData\\docker` | daemon `data-root` |
+| Docker Engine daemon data | `/var/lib/docker` | Provider VM/backend (Docker Desktop, Colima, OrbStack, or Rancher Desktop); do not treat it as a native host directory | `C:\\ProgramData\\docker` | provider settings or daemon `data-root` |
 | Ollama models | `/usr/share/ollama/.ollama/models` for the standard installer | `~/.ollama/models` | `C:\\Users\\%username%\\.ollama\\models` | `OLLAMA_MODELS` |
 | PostgreSQL cluster | no universal default; `-D`/`PGDATA` | no universal default; `-D`/`PGDATA` | no universal default; `-D`/`PGDATA` | `PGDATA` or service/container bind mount |
 
@@ -439,6 +444,12 @@ that `durable_data` calls a directory, and a `directory` target it calls a
 formatted file.
 
 ## See also
+
+The `undeclared-workload` provider is a separate, conditional cleanup surface.
+It previews only abandoned workloads with evidence tied to a Vrooli declaration,
+requires operator approval, and never removes unmanaged or declared work. Its
+preview and audit records use the same storage-manager cleanup contract as
+disk retention; disposal is not an automatic retention sweep.
 
 - [`packages/api-core/retention`](../../packages/api-core/retention/doc.go) — package documentation
 - [`packages/api-core/storage`](../../packages/api-core/storage/doc.go) — where the class roots and shadow isolation come from

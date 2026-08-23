@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
 	"{{SCENARIO_ID}}/internal/middleware"
 
 	"github.com/stretchr/testify/require"

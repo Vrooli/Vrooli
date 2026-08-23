@@ -5,7 +5,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
 	"{{SCENARIO_ID}}/internal/notes"
 )
 

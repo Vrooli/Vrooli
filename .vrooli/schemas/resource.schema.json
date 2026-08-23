@@ -4,7 +4,7 @@
   "title": "Vrooli Resource Manifest",
   "description": "Manifest schema for manifest-driven resource control plane resources.",
   "type": "object",
-  "additionalProperties": true,
+  "additionalProperties": false,
   "required": [
     "name",
     "cli",
@@ -167,31 +167,395 @@
     "compose_file": {
       "type": "string"
     },
-    "gpu": {
+    "acceleration": {
       "type": "object",
-      "description": "Optional GPU probe; when probe succeeds, overlay compose file and env overrides are applied.",
+      "description": "The single accelerator declaration. Replaces the deprecated gpu block, requirements.gpu, and the top-level capacity block.",
       "properties": {
-        "probe": {
+        "backends": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "cuda",
+              "metal",
+              "rocm",
+              "vulkan",
+              "cpu"
+            ]
+          },
+          "description": "Ordered backend preference. The last entry is the floor the resource can always fall back to."
+        },
+        "require": {
           "type": "string",
           "enum": [
-            "nvidia"
-          ]
+            "required",
+            "preferred",
+            "none"
+          ],
+          "default": "preferred",
+          "description": "required fails install and start when no declared non-CPU backend is ready; preferred falls through and records mode drift; none makes the accelerator opportunistic."
         },
-        "compose_overlay": {
-          "type": "string",
-          "description": "Path to an overlay compose file relative to the resource root (or absolute)."
-        },
-        "env_overrides": {
+        "cuda": {
           "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
+          "description": "Configuration used when the cuda backend is selected.",
+          "properties": {
+            "min_compute": {
+              "type": "string",
+              "pattern": "^[0-9]+(\\.[0-9]+)?$",
+              "description": "Minimum vendor compute capability as a decimal string. Replaces requirements.gpu.min_cuda_compute."
+            },
+            "compose_overlay": {
+              "type": "string",
+              "description": "Compose overlay layered on when this backend is selected, relative to the resource root or absolute."
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Environment applied to the resource process when this backend is selected."
+            },
+            "verify": {
+              "type": "object",
+              "description": "Overrides how the control plane reads observed placement for this backend.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "process-device",
+                    "container-device",
+                    "none"
+                  ],
+                  "description": "Evidence source. Absent selects the default for this backend and placement target."
+                },
+                "device": {
+                  "type": "string",
+                  "description": "Narrows a device check to one device-node family."
+                }
+              },
+              "additionalProperties": false
+            },
+            "library_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Directories the dynamic loader must search for this backend's shared libraries, relative to the staged artifact or absolute. Acquisition verifies the artifact's runtime closure against them."
+            }
+          },
+          "additionalProperties": false
+        },
+        "metal": {
+          "type": "object",
+          "description": "Configuration used when the metal backend is selected.",
+          "properties": {
+            "compose_overlay": {
+              "type": "string",
+              "description": "Compose overlay layered on when this backend is selected, relative to the resource root or absolute."
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Environment applied to the resource process when this backend is selected."
+            },
+            "verify": {
+              "type": "object",
+              "description": "Overrides how the control plane reads observed placement for this backend.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "process-device",
+                    "container-device",
+                    "none"
+                  ],
+                  "description": "Evidence source. Absent selects the default for this backend and placement target."
+                },
+                "device": {
+                  "type": "string",
+                  "description": "Narrows a device check to one device-node family."
+                }
+              },
+              "additionalProperties": false
+            },
+            "library_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Directories the dynamic loader must search for this backend's shared libraries, relative to the staged artifact or absolute. Acquisition verifies the artifact's runtime closure against them."
+            }
+          },
+          "additionalProperties": false
+        },
+        "rocm": {
+          "type": "object",
+          "description": "Configuration used when the rocm backend is selected.",
+          "properties": {
+            "compose_overlay": {
+              "type": "string",
+              "description": "Compose overlay layered on when this backend is selected, relative to the resource root or absolute."
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Environment applied to the resource process when this backend is selected."
+            },
+            "verify": {
+              "type": "object",
+              "description": "Overrides how the control plane reads observed placement for this backend.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "process-device",
+                    "container-device",
+                    "none"
+                  ],
+                  "description": "Evidence source. Absent selects the default for this backend and placement target."
+                },
+                "device": {
+                  "type": "string",
+                  "description": "Narrows a device check to one device-node family."
+                }
+              },
+              "additionalProperties": false
+            },
+            "library_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Directories the dynamic loader must search for this backend's shared libraries, relative to the staged artifact or absolute. Acquisition verifies the artifact's runtime closure against them."
+            }
+          },
+          "additionalProperties": false
+        },
+        "vulkan": {
+          "type": "object",
+          "description": "Configuration used when the vulkan backend is selected.",
+          "properties": {
+            "compose_overlay": {
+              "type": "string",
+              "description": "Compose overlay layered on when this backend is selected, relative to the resource root or absolute."
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Environment applied to the resource process when this backend is selected."
+            },
+            "verify": {
+              "type": "object",
+              "description": "Overrides how the control plane reads observed placement for this backend.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "process-device",
+                    "container-device",
+                    "none"
+                  ],
+                  "description": "Evidence source. Absent selects the default for this backend and placement target."
+                },
+                "device": {
+                  "type": "string",
+                  "description": "Narrows a device check to one device-node family."
+                }
+              },
+              "additionalProperties": false
+            },
+            "library_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Directories the dynamic loader must search for this backend's shared libraries, relative to the staged artifact or absolute. Acquisition verifies the artifact's runtime closure against them."
+            }
+          },
+          "additionalProperties": false
+        },
+        "cpu": {
+          "type": "object",
+          "description": "Configuration used when the cpu backend is selected.",
+          "properties": {
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Environment applied to the resource process when this backend is selected."
+            },
+            "verify": {
+              "type": "object",
+              "description": "Overrides how the control plane reads observed placement for this backend.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "process-device",
+                    "container-device",
+                    "none"
+                  ],
+                  "description": "Evidence source. Absent selects the default for this backend and placement target."
+                },
+                "device": {
+                  "type": "string",
+                  "description": "Narrows a device check to one device-node family."
+                }
+              },
+              "additionalProperties": false
+            },
+            "library_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Directories the dynamic loader must search for this backend's shared libraries, relative to the staged artifact or absolute. Acquisition verifies the artifact's runtime closure against them."
+            }
+          },
+          "additionalProperties": false
+        },
+        "claim": {
+          "$ref": "#/definitions/capacityClaim"
         }
       },
+      "additionalProperties": false,
       "required": [
-        "probe"
+        "backends"
       ],
-      "additionalProperties": false
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "const": "cuda"
+                }
+              }
+            },
+            "required": [
+              "backends"
+            ]
+          },
+          "then": {
+            "required": [
+              "cuda"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "const": "metal"
+                }
+              }
+            },
+            "required": [
+              "backends"
+            ]
+          },
+          "then": {
+            "required": [
+              "metal"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "const": "rocm"
+                }
+              }
+            },
+            "required": [
+              "backends"
+            ]
+          },
+          "then": {
+            "required": [
+              "rocm"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "const": "vulkan"
+                }
+              }
+            },
+            "required": [
+              "backends"
+            ]
+          },
+          "then": {
+            "required": [
+              "vulkan"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "const": "cpu"
+                }
+              }
+            },
+            "required": [
+              "backends"
+            ]
+          },
+          "then": {
+            "required": [
+              "cpu"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "require": {
+                "const": "required"
+              }
+            },
+            "required": [
+              "require"
+            ]
+          },
+          "then": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "not": {
+                    "const": "cpu"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "binary": {
       "type": "string"
@@ -240,6 +604,7 @@
           "type": "string",
           "enum": [
             "supported",
+            "build-verified",
             "partial",
             "unsupported"
           ]
@@ -248,6 +613,7 @@
           "type": "string",
           "enum": [
             "supported",
+            "build-verified",
             "partial",
             "unsupported"
           ]
@@ -256,6 +622,7 @@
           "type": "string",
           "enum": [
             "supported",
+            "build-verified",
             "partial",
             "unsupported"
           ]
@@ -594,6 +961,71 @@
           "description": "Bumps when the adapter's on-disk state schema changes incompatibly."
         }
       }
+    },
+    "companions": {
+      "type": "array",
+      "description": "Host-side companion processes the compose-service driver supervises alongside the container.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "name",
+          "command"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "operator_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Operator capability references this resource satisfies."
+    },
+    "portability_tier": {
+      "type": "string",
+      "description": "Declared portability tier for this resource."
+    },
+    "runtime_env_command": {
+      "type": "object",
+      "description": "CLI invocation whose KEY=VALUE stdout is appended to the compose process environment.",
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "additionalProperties": false
     }
   },
   "definitions": {
@@ -820,7 +1252,10 @@
             },
             "layout": {
               "type": "string",
-              "enum": ["file", "dir"],
+              "enum": [
+                "file",
+                "dir"
+              ],
               "description": "Artifact verification/launch layout; directory artifacts use the declared entry_path and tree digest."
             },
             "entry_path": {
@@ -835,7 +1270,10 @@
             },
             "verification": {
               "type": "string",
-              "enum": ["checksum", "host-tool"],
+              "enum": [
+                "checksum",
+                "host-tool"
+              ],
               "description": "Use host-tool only when acquisition.kind=none explicitly adopts a separately governed PATH tool; staged artifacts remain checksum-verified."
             },
             "sha256": {
@@ -863,9 +1301,13 @@
               ]
             },
             {
-              "required": ["verification"],
+              "required": [
+                "verification"
+              ],
               "properties": {
-                "verification": {"const": "host-tool"}
+                "verification": {
+                  "const": "host-tool"
+                }
               }
             }
           ],
@@ -879,11 +1321,23 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["name", "path", "acquisition"],
+            "required": [
+              "name",
+              "path",
+              "acquisition"
+            ],
             "properties": {
-              "name": {"type": "string", "minLength": 1},
-              "path": {"type": "string", "minLength": 1},
-              "acquisition": {"$ref": "acquisition.schema.json#"}
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "acquisition": {
+                "$ref": "acquisition.schema.json#"
+              }
             },
             "additionalProperties": false
           }
@@ -911,11 +1365,23 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["logical_id", "path"],
+            "required": [
+              "logical_id",
+              "path"
+            ],
             "properties": {
-              "logical_id": {"type": "string", "minLength": 3},
-              "field": {"type": "string", "minLength": 1},
-              "path": {"type": "string", "minLength": 1}
+              "logical_id": {
+                "type": "string",
+                "minLength": 3
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              }
             },
             "additionalProperties": false
           },
@@ -923,13 +1389,55 @@
         },
         "bootstrap": {
           "type": "object",
-          "required": ["marker", "executable"],
+          "required": [
+            "marker",
+            "executable"
+          ],
           "properties": {
-            "marker": {"type": "string", "minLength": 1},
-            "executable": {"type": "string", "minLength": 1},
-            "arguments": {"type": "array", "items": {"type": "string"}},
-            "password_env": {"type": "string"},
-            "password_file": {"type": "string"}
+            "marker": {
+              "type": "string",
+              "minLength": 1
+            },
+            "executable": {
+              "type": "string",
+              "minLength": 1
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "password_env": {
+              "type": "string"
+            },
+            "password_file": {
+              "type": "string"
+            },
+            "executable_by_platform": {
+              "type": "object",
+              "description": "Per-target bootstrap executable, relative to the staged tree, for platforms whose archive layout or executable suffix differs.",
+              "patternProperties": {
+                "^(linux|macos|windows)(-(amd64|arm64))?$": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            "arguments_by_platform": {
+              "type": "object",
+              "description": "Per-target bootstrap argv that replaces arguments entirely for the named platforms.",
+              "patternProperties": {
+                "^(linux|macos|windows)(-(amd64|arm64))?$": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
           },
           "additionalProperties": false,
           "description": "One idempotent initialization command run from the verified directory artifact when the marker is absent."
@@ -937,20 +1445,37 @@
         "process_limits": {
           "type": "object",
           "properties": {
-            "memory_high_percent": {"type": "integer", "minimum": 1, "maximum": 100},
-            "memory_max_percent": {"type": "integer", "minimum": 1, "maximum": 100},
-            "oom_score_adjust": {"type": "integer", "minimum": -1000, "maximum": 1000}
+            "memory_high_percent": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "memory_max_percent": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "oom_score_adjust": {
+              "type": "integer",
+              "minimum": -1000,
+              "maximum": 1000
+            }
           },
           "additionalProperties": false,
           "description": "Limits applied by the managed-service supervisor to the launched process."
         },
         "shutdown": {
           "type": "object",
-          "required": ["signal"],
+          "required": [
+            "signal"
+          ],
           "properties": {
             "signal": {
               "type": "string",
-              "enum": ["terminate", "interrupt"],
+              "enum": [
+                "terminate",
+                "interrupt"
+              ],
               "description": "Platform-neutral first shutdown request. terminate is SIGTERM on Unix; interrupt is SIGINT on Unix and the native console-control request on Windows."
             }
           },
@@ -971,6 +1496,19 @@
             "content": {
               "type": "string",
               "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "arguments_by_platform": {
+          "type": "object",
+          "description": "Per-target argv that replaces arguments entirely for the named platforms. Keys are \"os\" or \"os-arch\"; the exact os-arch key wins. A platform difference belongs here rather than in a runtime.GOOS branch in the driver.",
+          "patternProperties": {
+            "^(linux|macos|windows)(-(amd64|arm64))?$": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           "additionalProperties": false
@@ -1036,6 +1574,137 @@
         "reason"
       ],
       "additionalProperties": false
+    },
+    "capacityClaim": {
+      "type": "object",
+      "description": "Capacity broker claim. A vram claim must declare a degrade profile and yield_when_idle, otherwise the broker can never step the resource down.",
+      "properties": {
+        "resource_kind": {
+          "type": "string",
+          "enum": [
+            "vram"
+          ]
+        },
+        "preferred_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "floor_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "priority": {
+          "type": "string"
+        },
+        "gpu_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "protected": {
+          "type": "boolean"
+        },
+        "yield_when_idle": {
+          "type": "boolean"
+        },
+        "idle_unload_ttl_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "idle_grace_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "profile": {
+          "type": "object",
+          "description": "The adopter-declared degradation ladder, ordered preferred to floor.",
+          "properties": {
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "amount_bytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "label",
+                  "amount_bytes"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "apply": {
+              "type": "object",
+              "properties": {
+                "verb": {
+                  "type": "string",
+                  "description": "Resource CLI verb the broker invokes to ask for a step down."
+                },
+                "argv": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Argument vector; may contain the {label} placeholder."
+                }
+              },
+              "required": [
+                "verb"
+              ],
+              "additionalProperties": false
+            },
+            "upshift": {
+              "type": "boolean",
+              "description": "Whether the broker may raise the resource back up when capacity frees."
+            }
+          },
+          "required": [
+            "steps",
+            "apply"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "resource_kind",
+        "preferred_bytes"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "resource_kind": {
+                "const": "vram"
+              }
+            },
+            "required": [
+              "resource_kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "profile",
+              "yield_when_idle"
+            ],
+            "properties": {
+              "yield_when_idle": {
+                "const": true
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

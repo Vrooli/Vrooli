@@ -137,6 +137,8 @@ flowchart LR
   VAIN[(validation-inbox/*)]
   %% @node VW external:vision-walk
   VW([Vision Walk])
+  %% @node OFFERDESK instrument:offer-desk
+  OFFERDESK[offer-desk]
 
   OP --> CS
   OP --> FT

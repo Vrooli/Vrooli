@@ -30,7 +30,7 @@
     },
     "platform": {
       "type": "object",
-      "required": ["mode", "legacy_project_bash_supported"],
+      "required": ["mode", "legacy_project_bash_supported", "platform_conformance_gate"],
       "properties": {
         "mode": {
           "type": "string",
@@ -39,6 +39,10 @@
         "legacy_project_bash_supported": {
           "type": "boolean",
           "const": false
+        },
+        "platform_conformance_gate": {
+          "type": "string",
+          "const": "vrooli capability conformance"
         }
       },
       "additionalProperties": false

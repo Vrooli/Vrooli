@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
 // DegradeHandlers owns the dependencies of the `capacity-degrade` verb (the
@@ -48,19 +49,31 @@ func realExec(ctx context.Context, name string, args ...string) (string, error) 
 	return string(out), err
 }
 
-// DegradeCommand returns the `capacity-degrade` command for registration. The
-// broker invokes it as `whisper capacity-degrade --to <model>` when it needs to
-// reclaim VRAM from an idle whisper; `--upshift --to <model>` recreates larger
-// when headroom returns.
-func DegradeCommand(h *DegradeHandlers) cliapp.Command {
+// CapacityCommand returns the `capacity` command group every accelerated
+// resource exposes. The broker invokes `whisper capacity degrade --to <model>`
+// when it needs to reclaim VRAM, and `whisper capacity upshift --to <model>`
+// when headroom returns. The verb and its flags are the fleet-wide contract
+// from packages/capacity/companion; what each rung means is whisper's.
+func CapacityCommand(h *DegradeHandlers) cliapp.Command {
 	if h == nil {
 		h = DefaultDegrade()
 	}
+	verbs := companion.Verbs{
+		Resource: "whisper",
+		Degrade: func(_ context.Context, label string) error {
+			return h.Run([]string{"--to", label})
+		},
+		Upshift: func(_ context.Context, label string) error {
+			return h.Run([]string{"--to", label, "--upshift"})
+		},
+		Stdout: h.Stdout,
+		Stderr: h.Stderr,
+	}
 	return cliapp.Command{
-		Name:        "capacity-degrade",
-		Description: "Resize Whisper to a smaller (or, with --upshift, larger) model at the capacity broker's request",
-		Usage:       "whisper capacity-degrade --to <tiny|base|small|medium|large-v3> [--upshift] [--json]",
-		Run:         h.Run,
+		Name:        "capacity",
+		Description: "Respond to the capacity broker: resize Whisper to a smaller or larger model",
+		Usage:       "whisper capacity degrade --to <tiny|base|small|medium|large-v3>",
+		Run:         verbs.Run,
 	}
 }
 

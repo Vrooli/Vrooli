@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-
 	"{{SCENARIO_ID}}/internal/notes"
 
 	"github.com/stretchr/testify/require"

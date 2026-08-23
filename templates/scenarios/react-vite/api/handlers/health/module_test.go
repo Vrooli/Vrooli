@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-
 	"{{SCENARIO_ID}}/handlers/health"
 	"{{SCENARIO_ID}}/internal/testutil/mocks"
 

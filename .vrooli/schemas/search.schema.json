@@ -87,6 +87,12 @@
           "default": "last_indexed_at",
           "description": "Optional status-response field containing the last successful index/reconcile timestamp. Supports dotted paths; defaults to last_indexed_at."
         },
+        "freshness_budget": {
+          "type": "string",
+          "minLength": 2,
+          "pattern": "^[0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h)$",
+          "description": "Maximum age of the active index generation before Search Hub withholds the provider from automatic routing (for example 24h or 900s)."
+        },
         "reindex_endpoint": {
           "$ref": "#/definitions/endpoint",
           "description": "Secured control-plane target for the shared, token-gated search-hub.v1.control.SearchControlService reindex verbs (Reindex/ReindexStatus/ReindexCancel). Declared by a provider that exposes its corpus to the sweep; absent for routable-but-not-tunable providers."

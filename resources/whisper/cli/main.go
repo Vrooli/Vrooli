@@ -51,7 +51,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	groups := app.StandardLifecycleCommands()
 	groups = append(groups, cliapp.CommandGroup{
 		Title:    "Capability",
-		Commands: []cliapp.Command{recommend.Commands(nil), recommend.DegradeCommand(nil), activityproxy.Command(nil)},
+		Commands: []cliapp.Command{recommend.Commands(nil), recommend.CapacityCommand(nil), activityproxy.Command(nil)},
 	})
 	app.SetCommands(groups)
 	return app, nil

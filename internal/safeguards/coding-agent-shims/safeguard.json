@@ -12,7 +12,7 @@
   "privilege": "user",
   "bundling": "prohibited",
   "capability": "ai-cli",
-  "capability_role": "peer",
+  "capability_role": "control",
   "storage": {
     "entries": {
       "shims": {

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 	"time"
-
 	"{{SCENARIO_ID}}/internal/notes"
 
 	"github.com/stretchr/testify/require"

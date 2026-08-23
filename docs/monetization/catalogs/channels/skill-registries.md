@@ -26,7 +26,7 @@ Three things have to be true before this channel produces measurable
 subscription lift:
 
 1. **At least one Vrooli capability has to be standalone-installable.** Today, scenarios depend on the full Vrooli runtime + shared resources (postgres, redis, ollama). A skill that says "first install the entire Vrooli stack" defeats the point. The architectural prerequisite is per-capability install paths for the headline scenarios — Git Control Tower and Prompt Manager are the natural pilots.
-2. **At least one signed, scanned skill has to be live in a curated registry.** Self-publishing to GitHub doesn't count; the discovery flow runs through registries that surface curated/verified skills, and trust scores depend on Cosign signatures + SLSA provenance + scanner clearance. See [`docs/skills/publishing-guide.md`](../../skills/publishing-guide.md) for the full pipeline.
+2. **At least one signed, scanned skill has to be live in a curated registry.** Self-publishing to GitHub doesn't count; the discovery flow runs through registries that surface curated/verified skills, and trust scores depend on Cosign signatures + SLSA provenance + scanner clearance. See [`scenario-to-plugin/docs/guides/build-and-publishing.md`](../../../../scenarios/scenario-to-plugin/docs/guides/build-and-publishing.md) for the full pipeline.
 3. **Telemetry has to exist.** Without 60+ days of install counts, referrer traffic, and install→subscription correlation, this channel is unfalsifiable. `financial-tracker` needs install-origin attribution before activation.
 
 ## Lifecycle interpretation
@@ -46,8 +46,8 @@ When the first skill is published and the channel enters the pilot phase:
 
 Beyond that:
 
-- **Security baseline is non-negotiable.** Every published skill MUST pass the [security baseline](../../skills/security-baseline.md) — Cosign signature, SLSA provenance, SBOM, scanner clearance, OWASP Agentic Skills Top 10 checklist. Publishing without these does net harm: a flagged Vrooli skill damages every other Vrooli skill's trust score, and recovery from a "Vrooli ships malware" headline is steep.
-- **Workspace-sandbox by default.** Where possible, install scripts should set up the capability to run *under* workspace-sandbox rather than directly in the agent's shell. This converts Vrooli's existing accountability substrate into a publish-time differentiator: 99% of published skills go raw-shell; "runs under workspace-sandbox" is a real moat in a market where 13.4% of skills carry critical vulns.
+- **Security baseline is non-negotiable:** every publication must pass the ramp's [security posture](../../../../scenarios/scenario-to-plugin/docs/internal/SECURITY-POSTURE.md).
+- **Workspace-sandbox by default:** the [build guide](../../../../scenarios/scenario-to-plugin/docs/guides/build-and-publishing.md) must configure the capability to run under workspace-sandbox where possible.
 - **Per-skill telemetry separation.** Each skill's installs, referrer traffic, and downstream subscription conversion tracked separately. Aggregate channel revenue is meaningless without per-skill resolution.
 - **Human-facing announcement is optional but expected when useful.** The channel itself is agent-audience, but a signed, curated skill is also a credible OSS/dev-log event. Marketing-crew may tell the builder-in-public story if the post stays factual, avoids paywall framing, and links back to the capability rather than inventing a human marketing campaign around the registry.
 
@@ -92,5 +92,5 @@ If a published skill ever participates in producing recommendations *back into a
 
 ## Notes
 
-- Operator's call to make this `active`. Capturing it as `candidate` early is cheap; activating it without the prerequisites in place would be a guardrail violation against the candidate-trigger principle ([STRATEGY.md §4](../STRATEGY.md)).
-- The skills scaffolding ([`skills/README.md`](../../../skills/README.md), [`skills/SECURITY.md`](../../../skills/SECURITY.md), [`path:docs/skills/`](../../skills/)) is documentation work that proceeds independently of activation. Building the scaffolding before the first skill ships is the cheap-and-correct order.
+- Operator's call to make this `active`. Capturing it as `candidate` early is cheap; activating it without the prerequisites in place would be a guardrail violation against the candidate-trigger principle ([STRATEGY.md §4](../../strategy/STRATEGY.md)).
+- The publication scaffolding lives in the scenario-to-plugin ramp ([doctrine](../../../../scenarios/scenario-to-plugin/docs/concepts/SKILL-PUBLICATION.md), [template](../../../../scenarios/scenario-to-plugin/templates/scenario-skill/), [security posture](../../../../scenarios/scenario-to-plugin/docs/internal/SECURITY-POSTURE.md)) and proceeds independently of activation.

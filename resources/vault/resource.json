@@ -232,9 +232,9 @@
     "weight": 1
   },
   "platforms": {
-    "linux": "partial",
-    "macos": "partial",
-    "windows": "partial"
+    "linux": "build-verified",
+    "macos": "build-verified",
+    "windows": "build-verified"
   },
   "hostTools": [
     {

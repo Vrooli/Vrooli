@@ -2,7 +2,10 @@ module resource-kopia/cli
 
 go 1.25.0
 
-require github.com/vrooli/cli-core v0.0.0
+require (
+	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/envkit-go v0.0.0
+)
 
 require github.com/vrooli/vrooli v0.0.0
 
@@ -18,6 +21,8 @@ github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 

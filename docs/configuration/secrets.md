@@ -117,9 +117,76 @@ different operator action. Never treat one as another.
 | Provider absent | This host has no native secure store | Run `vrooli setup`; it selects and initializes the encrypted authority. |
 | Unconfigured | The store works and holds no value for this identity and field | `vrooli credentials provision --identity <id> --field <field>` |
 
+`vrooli credentials doctor` reports configured values that are missing from
+the latest recovery receipt under `recovery.uncovered`. That is an escrow
+freshness failure: re-export the encrypted recovery material. It reports a
+required descriptor with no value under `recovery.required_absent`, with its
+manifest description in `recovery.required_absent_details`. That is a
+provisioning failure: supply the value through `vrooli credentials provision`.
+An unavailable or absent provider is not classified as required-but-absent,
+because a broken provider cannot prove that a value is missing. The two lists
+are intentionally distinct so an apparently current receipt cannot hide a
+credential that was never provisioned.
+
 The distinction is not cosmetic. Before it existed, an unreachable session bus
 was reported as "credential is not configured", so an operator with a perfectly
 provisioned key was told to provision it again.
+
+Credential descriptors can also declare `provisioning: derived` with a
+`derived_from` field. These values are obtained by the declaring component
+after the operator-supplied source exists; onboarding shows them as status and
+does not offer a second secret input. A derived value that is absent while its
+source is absent is therefore not reported as an operator provisioning gap.
+
+### Encrypted root copy
+
+The encrypted fallback store can be copied without opening it or supplying its
+passphrase:
+
+```bash
+vrooli credentials store copy --sink /media/operator/Recovery/vrooli-credentials
+```
+
+To persist the sink and refresh interval for an unattended scheduler, configure
+it once:
+
+```bash
+vrooli credentials store copy configure \
+  --sink /media/operator/Recovery/vrooli-credentials --interval 15m
+```
+
+Configuration installs a native per-user schedule: a systemd user timer on
+Linux, a launchd agent on macOS, or a Windows scheduled task. The
+`scheduled` command remains the one-shot entrypoint used by those schedulers.
+Use `--enabled=false` to remove the schedule. The persisted configuration
+contains only the sink, interval, and non-secret object-store settings.
+
+An S3-compatible object store is also a valid generic sink:
+
+```bash
+vrooli credentials store copy configure \
+  --sink s3://recovery-bucket/vrooli \
+  --object-store-credential-identity vrooli/recovery-store \
+  --object-store-region us-east-1 \
+  --object-store-endpoint https://s3.example.invalid --interval 15m
+```
+
+The identity must be provisioned in the credential authority with the
+configured access-key and secret-key fields (defaults:
+`s3-access-key-id` and `s3-secret-access-key`; an optional
+`s3-session-token` is supported). The endpoint may be any S3-compatible service;
+no cloud provider is special-cased. Object-store credentials are resolved only
+for the upload and are never written to the sink or scheduler configuration.
+
+The command copies only `secrets.enc.json`, atomically (an object PUT is the
+atomic replacement for an S3 sink), with owner-only POSIX
+permissions for filesystem sinks, and writes non-secret freshness metadata to
+`~/.vrooli/state/credential-store-copy.json`. The sink is refused when it
+resolves inside a registered Kopia repository, because that would make bare
+host recovery circular. Doctor reports when the receipt is missing, the copy
+predates a store write, or its passphrase-wrap generation is older than the
+current store. The copied file remains encrypted and is opened with the store
+passphrase during recovery; the sink never receives a credential value.
 
 ## Diagnosing a host
 
@@ -343,6 +410,13 @@ same disk, so possession of the disk (or the Pi's SD card) is enough. Doctor
 reports which of the two is in use rather than presenting one uniform level of
 protection.
 
+Doctor also reports the unattended native-wrap capability independently of the
+active store. A macOS binary built without CGO reports that Keychain wrapping
+is unavailable, and Windows reports the live DPAPI availability, even when the
+store is still uninitialized or currently opened by the passphrase wrap. This
+prevents a degraded local build from being mistaken for an unattended-reboot
+configuration.
+
 ### The host-bound wrap needs TPM group access
 
 Having a TPM is not the same as being able to use one. Distributions ship
@@ -367,13 +441,24 @@ mode grants its group nothing. `vrooli setup --dry-run` names the exact account
 and group it would change before changing anything.
 
 When the native backend is unavailable, setup persists the encrypted backend
-and initializes it through Vrooli's own credential-store commands. The
-initialization runs as the invoking operator even when setup itself was
-elevated, so root's TPM/keyring visibility cannot create an authority the
-operator cannot use. A host-bound wrap is used when available; otherwise setup
-asks for a passphrase without echoing it. If a later setup run sees a newly
-available TPM, it adds the host-bound wrap itself. The data key does not change,
-so no stored value is re-encrypted and nothing can be lost.
+and queues a typed `credential-store-passphrase` request. It never opens a
+terminal or asks for the passphrase. vrooli-onboarding resolves that request
+through its browser, CLI, or API surface. A host-bound wrap is used when
+available; otherwise the operator passphrase is retained. If a later session
+gains a usable unattended provider, `vrooli credentials store rewrap` adds it
+without changing the data key or re-encrypting stored values.
+
+The encrypted store also supports `vrooli credentials store reselect`, which
+re-diagnoses the native authority and migrates values by copy, read-back
+verification, and final selection commit. A failed migration leaves the
+selection unchanged. `vrooli credentials store retire --backend encrypted-file`
+only removes an empty, unselected fallback.
+
+On macOS the encrypted-file fallback can use a Keychain-held wrapping key; on
+Windows it can use DPAPI. Both providers require a real protect/unprotect
+round-trip and report a typed unavailable result when the native facility is
+not reachable. Linux continues to prefer `systemd-creds` host-bound wrapping,
+then the native wrap where applicable, then the operator passphrase.
 
 Group membership is fixed at login, so a newly granted TPM group takes effect
 in a **new login session**. Re-running `vrooli setup` after that session is the
@@ -415,3 +500,78 @@ printf '%s' "$RECOVERY_PASSPHRASE" | vrooli credentials recovery restore \
 # separate stdin lines; stored values are not re-encrypted.
 printf 'CURRENT_PASSPHRASE\nNEW_PASSPHRASE\n' | vrooli credentials store change-passphrase
 ```
+
+## Generic escrow onboarding and evidence
+
+Credential escrow is an operator capability, not an implicit setup side
+effect. Setup performs metadata-only discovery and queues the typed decision
+when the sink or recovery-bundle passphrase is absent:
+
+```bash
+vrooli setup
+vrooli capability status --json
+```
+
+The onboarding Credentials step renders the returned descriptor. Select a
+candidate, review its preview, and confirm the apply. The provider revalidates
+the candidate immediately before writing. A provider may create an encrypted
+root copy, an encrypted recovery bundle, and a native refresh schedule, but it
+must finish read-back verification before reporting ready. Onboarding displays
+the provider's evidence and remediation; it does not read the credential
+store, execute backup code, or choose a sink.
+
+The sink rules are deliberately strict:
+
+- Choose a discovered candidate or an explicitly configured object-store
+  reference. `/tmp`, the current directory, the credential-store root, the
+  protected backup root, and any Kopia repository are not valid sinks.
+- A writable path is not enough. The candidate must have a stable identity and
+  observed physical independence when the host exposes that fact. Unknown
+  independence is degraded and remains pending operator review.
+- Do not assume that a removable mount named `Elements` is approved. Existing
+  disabled or temporary configuration is preserved until the operator selects
+  the candidate and confirms the reviewed preview.
+- Keep the recovery-bundle passphrase separate from the bundle. It is accepted
+  through the write-only onboarding input, held in memory for the apply, and
+  never stored in operator state, a receipt, a log, a process argument, or a
+  JSON response.
+
+The evidence files are metadata-only:
+
+| Evidence | Location | What counts as verified |
+|---|---|---|
+| Copy configuration | `~/.vrooli/config/credential-store-copy.json` | Enabled sink and interval are the reviewed configuration. |
+| Root-copy receipt | `~/.vrooli/state/credential-store-copy.json` | Artifact identity, source generation, checksum, sink identity, read-back verification, and schedule state are present. |
+| Recovery receipt | `~/.vrooli/state/recovery-receipt.json` | Bundle identity, source generation, checksum, coverage addresses, decrypt/read-back verification, and verification time are present. |
+| Durable backup evidence | data-backup-manager coverage, run, restore, and drill records | Destination readiness, successful snapshot, scratch restore, checksum evidence, and a verified drill are all present; a snapshot alone is insufficient. |
+
+An old recovery receipt does not prove current coverage: a changed store
+generation or a newly declared credential returns the capability to pending or
+degraded. Required-but-absent credentials must be provisioned before complete
+coverage can be claimed.
+
+### Native schedule support
+
+The schedule provider is selected by the control plane, never by onboarding:
+
+| Platform | Provider | Evidence / fallback |
+|---|---|---|
+| Linux | `systemd-user` | User service and timer are enabled; inspect the copy receipt after a refresh. |
+| macOS | `launchd-user` | Per-user LaunchAgent is bootstrapped; inspect the copy receipt after a refresh. |
+| Windows | `windows-task-scheduler-user` | Per-user Task Scheduler task is created; inspect the copy receipt after a refresh. |
+| Other | `unsupported` | Capability is degraded with the safe manual action `vrooli credentials store copy scheduled --format json`. |
+
+Cross-building the CLI proves portability of the contract, not native scheduler
+availability. An unsupported result is honest remediation, not a successful
+schedule.
+
+### Migrating the disabled temporary configuration
+
+Do not edit the old copy configuration to point at a guessed path. Inspect it
+and the current evidence, choose a candidate through onboarding, preview, and
+then apply. The apply writes the new configuration only after both artifacts
+are readable and verified. If scheduling must be paused while preserving the
+last known sink, use the control-plane command with `--enabled=false`; do not
+delete an older verified artifact. Re-run setup and capability status after a
+failed or interrupted apply; the operation is idempotent and reports the next
+retry or remediation step.

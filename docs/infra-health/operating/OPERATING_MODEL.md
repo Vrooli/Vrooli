@@ -70,6 +70,17 @@ Infra Health has three loops:
 > The runtime-health loop reads its signals from the instrument. It does not maintain a
 > parallel sensor map: `focus next` is the queue, `condition explain` is the evidence, and
 > `coverage open-loop` is the gap list.
+
+> The platform-code-audit loop reads its cross-platform evidence the same way, and for the
+> same reason: the team's hand-maintained cross-platform ledger was retired on 2026-08-20
+> precisely because it drifted from the manifests it described. Its mechanical inputs are
+> `vrooli capability ledger` (per-capability, per-OS resolution, no scenario running),
+> `vrooli capability fleet` (which scenarios are blocked on which OS), and
+> `infrastructure-manager portability grid` plus `ladder status` (the same with situation
+> classification and trust). The loop's own contribution is the **judgment** half — whether
+> a gap is worth closing, and whether a platform slice is well built — which is why
+> `platform-code-audit` stays deferred as prose rather than becoming a coverage ratio.
+> **Never restate a per-capability or per-OS fact by hand in an audit note; cite the query.**
 3. **Contrarian hygiene loop** - `infra-contrarian` challenges pending work items against the failure-mode rubric, runs stale work item review, and proposes framework-meta updates only when the team contract itself needs repair.
 
 ## Operating Graph

@@ -2,7 +2,6 @@ package health
 
 import (
 	"net/http"
-
 	"{{SCENARIO_ID}}/internal/database"
 	"{{SCENARIO_ID}}/internal/module"
 

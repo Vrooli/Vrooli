@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
-
 	"{{SCENARIO_ID}}/internal/notes"
 )
 

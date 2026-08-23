@@ -52,14 +52,18 @@ func TestE2E_BinaryBootsAndServesHealth(t *testing.T) {
 
 	binary := buildBinary(t)
 	port := pickFreePort(t)
-	dbPath := filepath.Join(t.TempDir(), "e2e.db")
 
 	cmd := exec.Command(binary)
 	cmd.Env = append(os.Environ(),
 		// api-core's apiserver.Config reads API_PORT (see
 		// packages/api-core/server/server.go::config.getenv).
 		"API_PORT="+strconv.Itoa(port),
-		"SQLITE_PATH="+dbPath,
+		// Isolate storage by redirecting the whole class tree rather than by
+		// naming a database file. The root is scenario-agnostic, so the binary
+		// still resolves its own path beneath it — which is why this is safe
+		// where a database-path variable was not: such a variable is inherited
+		// by every process the binary goes on to start.
+		"VROOLI_STORAGE_ROOT="+t.TempDir(),
 		// Pass the preflight lifecycle guard. Without this the binary
 		// errors out with "must be run through the Vrooli lifecycle
 		// system" before opening any listener. preflight.LifecycleManagedEnvVar

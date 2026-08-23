@@ -53,13 +53,13 @@
     },
     "capability": {
       "type": "string",
-      "enum": ["credential-storage", "process-containment", "crash-forensics", "hardware-error-telemetry", "headless-gui", "network-host-config", "clock-accuracy", "service-resource-limits", "gpu-driver-health", "remote-desktop", "ai-cli", "code-analysis", "test-execution", "protobuf-toolchain", "source-control", "container-runtime", "media-processing", "data-query", "build-toolchain", "package-management", "network-transfer", "runtime-language", "load-testing", "backup-storage", "web-proxy", "terminal-multiplexing", "developer-utility"],
+      "enum": ["ai-cli","autoheal-health-monitoring","autoheal-host-integrity","autoheal-service-recovery","autoheal-watchdog","backup-storage","build-toolchain","clock-accuracy","code-analysis","container-runtime","crash-forensics","credential-storage","data-query","developer-utility","evicted-service-reclaim","gpu-driver-health","hardware-error-telemetry","headless-gui","host-pressure-detection","load-testing","media-processing","network-host-config","network-transfer","package-management","process-containment","protobuf-toolchain","remote-desktop","runtime-language","service-resource-limits","source-control","system-monitor-cpu","system-monitor-device-graph","system-monitor-disk","system-monitor-gpu","system-monitor-memory","system-monitor-memory-errors","system-monitor-network","system-monitor-process","system-monitor-storage-health","system-monitor-thermal","terminal-multiplexing","test-execution","web-proxy","workload-disposal","workload-ownership-reconciliation"],
       "description": "Capability delivered by this safeguard; values are governed by .vrooli/capability-vocabulary.json."
     },
     "capability_role": {
       "type": "string",
-      "enum": ["primary", "peer"],
-      "description": "Whether this is the primary implementation or a platform peer for the capability."
+      "enum": ["primary", "peer", "control"],
+      "description": "Whether this is the primary implementation, a platform peer, or a required host control for the capability."
     },
     "bundlingReason": {
       "type": "string",

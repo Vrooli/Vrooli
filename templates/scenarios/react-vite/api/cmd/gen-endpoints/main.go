@@ -21,10 +21,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"{{SCENARIO_ID}}/internal/modules"
 
 	gen "github.com/vrooli/api-core/endpoints/gen"
-
-	"{{SCENARIO_ID}}/internal/modules"
 )
 
 func main() {

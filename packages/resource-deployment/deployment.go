@@ -144,10 +144,16 @@ type ManagedService struct {
 	DataArtifacts    []ManagedServiceDataArtifact `json:"data_artifacts,omitempty"`
 	AttachHealthPath string                       `json:"attach_health_path,omitempty"`
 	Arguments        []string                     `json:"arguments,omitempty"`
-	Environment      map[string]string            `json:"environment,omitempty"`
-	Bootstrap        *ServiceBootstrap            `json:"bootstrap,omitempty"`
-	ProcessLimits    *ProcessLimits               `json:"process_limits,omitempty"`
-	Shutdown         *ServiceShutdown             `json:"shutdown,omitempty"`
+	// ArgumentsByPlatform replaces Arguments entirely for the targets that need
+	// different ones, so a platform difference is declared here rather than
+	// branched on runtime.GOOS in the driver. PostgreSQL is the motivating
+	// case: -k names a Unix-domain socket directory, and Windows PostgreSQL has
+	// no Unix-domain sockets at all.
+	ArgumentsByPlatform map[string][]string `json:"arguments_by_platform,omitempty"`
+	Environment         map[string]string   `json:"environment,omitempty"`
+	Bootstrap           *ServiceBootstrap   `json:"bootstrap,omitempty"`
+	ProcessLimits       *ProcessLimits      `json:"process_limits,omitempty"`
+	Shutdown            *ServiceShutdown    `json:"shutdown,omitempty"`
 	// EnvironmentFile is an optional resource-owned, line-oriented KEY=VALUE
 	// file loaded from RESOURCE_DATA_DIR immediately before launch. It gives a
 	// resource a durable, non-shell model/config switch without granting the
@@ -235,11 +241,63 @@ func (l ProcessLimits) Validate() error {
 // uses the already verified artifact root. PasswordFile is written from the
 // named PasswordEnv at launch time and is never part of the manifest itself.
 type ServiceBootstrap struct {
-	Marker       string   `json:"marker"`
-	Executable   string   `json:"executable"`
-	Arguments    []string `json:"arguments,omitempty"`
-	PasswordEnv  string   `json:"password_env,omitempty"`
-	PasswordFile string   `json:"password_file,omitempty"`
+	Marker     string `json:"marker"`
+	Executable string `json:"executable"`
+	// ExecutableByPlatform overrides Executable for targets whose staged tree
+	// puts the bootstrap tool somewhere else, such as a bin/ root instead of a
+	// Debian usr/lib path, or a name carrying an .exe suffix.
+	ExecutableByPlatform map[string]string `json:"executable_by_platform,omitempty"`
+	Arguments            []string          `json:"arguments,omitempty"`
+	// ArgumentsByPlatform replaces Arguments entirely for the targets that need
+	// different ones. PostgreSQL is the motivating case: --auth-local writes a
+	// pg_hba.conf "local" line, and local lines exist only on Unix.
+	ArgumentsByPlatform map[string][]string `json:"arguments_by_platform,omitempty"`
+	PasswordEnv         string              `json:"password_env,omitempty"`
+	PasswordFile        string              `json:"password_file,omitempty"`
+}
+
+// ForPlatform resolves the platform-specific bootstrap contract. A target with
+// no override keeps the declared defaults.
+func (b ServiceBootstrap) ForPlatform(osName, arch string) ServiceBootstrap {
+	if executable, ok := platformOverride(b.ExecutableByPlatform, osName, arch); ok {
+		b.Executable = executable
+	}
+	if arguments, ok := platformOverride(b.ArgumentsByPlatform, osName, arch); ok {
+		b.Arguments = arguments
+	}
+	return b
+}
+
+// ArgumentsFor resolves the platform-specific launch arguments.
+func (m ManagedService) ArgumentsFor(osName, arch string) []string {
+	if arguments, ok := platformOverride(m.ArgumentsByPlatform, osName, arch); ok {
+		return arguments
+	}
+	return m.Arguments
+}
+
+// platformOverride prefers an exact "os-arch" key and falls back to the bare
+// OS name. Most platform differences are properties of the operating system
+// rather than the architecture, and repeating an identical value once per
+// architecture is how a table drifts.
+func platformOverride[T any](values map[string]T, osName, arch string) (T, bool) {
+	var zero T
+	if len(values) == 0 {
+		return zero, false
+	}
+	platform, err := CanonicalPlatform(osName, arch)
+	if err == nil {
+		if value, ok := values[platform.String()]; ok {
+			return value, true
+		}
+		if value, ok := values[platform.OS]; ok {
+			return value, true
+		}
+	}
+	if value, ok := values[strings.ToLower(strings.TrimSpace(osName))]; ok {
+		return value, true
+	}
+	return zero, false
 }
 
 func (b ServiceBootstrap) Validate() error {

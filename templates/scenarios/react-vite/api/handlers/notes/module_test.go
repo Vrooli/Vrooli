@@ -2,7 +2,6 @@ package notes_test
 
 import (
 	"context"
-	db "github.com/vrooli/api-core/databasetest"
 	"io"
 	"log"
 	"net/http"
@@ -10,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"{{SCENARIO_ID}}/handlers/notes"
+
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"

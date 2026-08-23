@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"{{SCENARIO_ID}}/internal/modules"
 
 	db "github.com/vrooli/api-core/databasetest"
-	"{{SCENARIO_ID}}/internal/modules"
 
 	"github.com/stretchr/testify/require"
 

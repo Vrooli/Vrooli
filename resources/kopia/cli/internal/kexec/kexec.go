@@ -11,8 +11,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sort"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // Call describes a single kopia invocation: the argv passed to the kopia
@@ -56,7 +57,7 @@ func (r *BinaryRunner) Run(ctx context.Context, c Call) ([]byte, error) {
 		binary = "kopia"
 	}
 	cmd := exec.CommandContext(ctx, binary, c.Args...)
-	cmd.Env = mergeEnv(os.Environ(), c.Env)
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, mapEnv(c.Env))
 	if len(c.Stdin) > 0 {
 		cmd.Stdin = bytes.NewReader(c.Stdin)
 	}
@@ -76,35 +77,10 @@ func (r *BinaryRunner) Run(ctx context.Context, c Call) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
-// mergeEnv overlays the key=value pairs in overlay onto the base environment,
-// replacing any existing keys. Keys are sorted for deterministic argv ordering
-// in tests that inspect the resulting environment.
-func mergeEnv(base []string, overlay map[string]string) []string {
-	if len(overlay) == 0 {
-		return base
+func mapEnv(values map[string]string) envkit.Env {
+	entries := make(envkit.Env, 0, len(values))
+	for key, value := range values {
+		entries = append(entries, key+"="+value)
 	}
-	out := make([]string, 0, len(base)+len(overlay))
-	skip := make(map[string]struct{}, len(overlay))
-	for k := range overlay {
-		skip[k] = struct{}{}
-	}
-	for _, kv := range base {
-		key := kv
-		if i := strings.IndexByte(kv, '='); i >= 0 {
-			key = kv[:i]
-		}
-		if _, replaced := skip[key]; replaced {
-			continue
-		}
-		out = append(out, kv)
-	}
-	keys := make([]string, 0, len(overlay))
-	for k := range overlay {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		out = append(out, k+"="+overlay[k])
-	}
-	return out
+	return entries
 }

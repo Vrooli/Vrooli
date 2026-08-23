@@ -107,7 +107,7 @@ packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/{{SCENARIO_ID}}/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/{{SCENARIO_ID}}/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/{{SCENARIO_ID}}/v1/...   (ui)
        └──▶ packages/proto/gen/python/{{SCENARIO_ID_SNAKE}}/v1/...    (future tools)
 ```
 

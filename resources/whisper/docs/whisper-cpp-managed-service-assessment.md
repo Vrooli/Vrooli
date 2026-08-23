@@ -74,6 +74,58 @@ newer.
 
 ## 6. Migration plan
 
+## Accelerator declaration and VRAM claim (2026-08-21)
+
+Whisper declares `backends: ["cuda", "cpu"]` with `require: preferred`. On Linux
+it selects the CPU target, because upstream v1.9.2 publishes no Linux CUDA
+release asset, and the control plane reports that honestly:
+
+```
+declared_mode: cuda   observed_mode: cpu   mode_drift: true
+healthy: false        serving: true        status_code: mode_drift
+```
+
+That is the accurate state, not a fault. The resource transcribes correctly; it
+does so about 13x slower than the recorded GPU figure below.
+
+### Where the VRAM claim's numbers come from
+
+The claim previously reserved **5 GiB preferred / 2 GiB floor**, unmeasured, for
+a resource holding **zero** device bytes — 5 GiB of a 16 GiB card reserved for
+nothing. The rungs are now derived from the one real GPU measurement in this
+document: **2,640 MiB observed for a medium Whisper model** (the faster-whisper
+row below).
+
+| Rung | Amount | Derivation |
+|---|---|---|
+| `large-v3` | 5,016 MiB | 1.9x the medium measurement, the GGML parameter-count ratio |
+| `medium` | 2,640 MiB | **measured** — the observed resident figure recorded below |
+| `small` | 924 MiB | 0.35x the medium measurement, the GGML parameter-count ratio |
+
+The `medium` rung is a measurement. The other two are ratios from it, and are
+labelled as such rather than presented as observations. They are still a
+material improvement on the previous figures, which were neither.
+
+**These are not measurements of a whisper.cpp CUDA build.** No such build exists
+to measure: see the blocked work below.
+
+### Blocked: the Linux CUDA artifact
+
+Producing one needs two things this work could not obtain:
+
+1. **A CUDA toolkit.** This host has no `nvcc` and no `/usr/local/cuda`.
+   Installing one is a privileged host change, and privilege is only ever
+   requested through `vrooli setup`.
+2. **A place to publish the result.** Vrooli's managed-service acquisition
+   consumes upstream release assets pinned by digest — whisper's own targets
+   point at `github.com/ggml-org/whisper.cpp/releases`. There is no Vrooli
+   release channel for a binary Vrooli builds itself, and creating one is a
+   distribution decision, not an implementation detail.
+
+Until both exist, a digest-pinned CUDA target would point at nothing. The CPU
+target remains the declared Linux fallback, and the drift is reported rather
+than hidden.
+
 1. Produce and smoke a Linux CUDA artifact, or explicitly retain the CPU
    target with its measured latency budget.
 2. Build and sign the macOS native server artifact; smoke it on macOS arm64.
@@ -89,6 +141,7 @@ newer.
 | whisper.cpp v1.8.5 small (CPU) | same | `the quick brown fox jumps.` | 0.00 | 2.35 s | server request RSS 10.9 MiB; resident model not sampled |
 | whisper.cpp v1.8.5 large-v3 (CPU) | same | `the quick brown fox jumps.` | 0.00 | 15.56 s | resident server RSS 3,498,344 KiB; 0 MiB GPU |
 | whisper.cpp v1.9.2 medium (native managed-service CPU, 12 threads) | same | `the quick brown fox jumps.` | 0.00 | 5.3 s | clean acquired GGML model; resident model not sampled |
+| whisper.cpp v1.9.2 medium (native managed-service CPU, 12 threads) | same | `the quick brown fox jumps.` | 0.00 | **3.85 s / 4.06 s** | 2026-08-21 re-measurement on the same host, two consecutive `POST /inference` calls; `nvidia-smi` shows the `whisper-server` pid holding **0 MiB** of device memory while the resource declares `cuda` |
 
 Commands are reproducible from the recorded scratch directory:
 

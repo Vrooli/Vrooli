@@ -1,13 +1,14 @@
 package server_test
 
 import (
-	httpx "github.com/vrooli/api-core/servertest"
 	"io"
 	"log"
 	"net/http"
 	"testing"
 	"{{SCENARIO_ID}}/internal/module"
 	"{{SCENARIO_ID}}/internal/server"
+
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
 

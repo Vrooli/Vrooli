@@ -51,7 +51,7 @@ claim that every scenario or platform is production-ready.
 | External-server thin client | Supported as a deployment mode; the target server must be reachable and validated |
 | Bundled private runtime | Implemented for eligible dependency plans; release promotion requires target-specific evidence |
 | Shared Tier 1 resource | Consent and broker lease contract exists; release evidence is fixture/environment dependent |
-| Tier 2 peer protocol | Unsupported; the provider resolver is not a peer protocol |
+| Tier 2 peer route | Implemented for bounded, scoped scenario calls through the authenticated `vrooli-bridge` relay; full peer capability remains evidence-gated |
 | Linux native desktop journey | The primary validated path when the required display and capture tools are available |
 | Windows and macOS | Build/package claims are separate from native runtime claims and require target evidence |
 | Mobile, hosted cloud, and appliance targets | Directional or reference material, not the current universal deployment path |
@@ -104,10 +104,11 @@ after installation and silently change the deployment shape.
 | Bundled private | The app must work without a Vrooli server and every required dependency has an eligible local route | Desktop supervisor owns only verified private services | Allowed only when every required capability is local and evidenced |
 | External-server thin client | Users connect to a shared Tier 1 server | Tier 1 owns the API, resources, data, and credentials | Not available |
 | Shared resource | A desktop app may reuse a running Tier 1 or authenticated peer provider | Broker owns authorization and leases; desktop does not own provider lifecycle | Depends on the provider |
-| Tier 2 peer | Apps need to call one another directly | Not currently supported as a release capability | Not claimable |
+| Tier 2 peer | Apps need to call one another through `[node/]scenario[@variant]` | `vrooli-bridge` relay is the intended route for bounded scenario calls; full peer capability awaits the ten-item evidence bar | Not claimable until both-side peer evidence is complete |
 
 The [desktop evidence contract](../reference/scenario-to-desktop-evidence-and-tier-contract.md)
-defines the required assertions and evidence for these modes.
+defines the required assertions and evidence for these modes, including the
+ten-item bar for a full Tier 2 peer claim.
 
 ## Authoring rules
 

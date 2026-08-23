@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/vrooli/api-core/apihttptest"
-	db "github.com/vrooli/api-core/databasetest"
 	"io"
 	"log"
 	"mime/multipart"
@@ -13,6 +11,9 @@ import (
 	"net/http/httptest"
 	"testing"
 	"{{SCENARIO_ID}}/handlers/notes"
+
+	"github.com/vrooli/api-core/apihttptest"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/vrooli/api-core/schedule"
 

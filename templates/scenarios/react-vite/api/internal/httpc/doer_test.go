@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
 	"{{SCENARIO_ID}}/internal/httpc"
 	"{{SCENARIO_ID}}/internal/testutil/mocks"
 
