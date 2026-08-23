@@ -96,8 +96,6 @@
         "cli/**/*.go",
         "cli/go.mod",
         "cli/go.sum",
-        "cli/install.sh",
-        "cli/install.ps1",
         ".vrooli/service.json",
         "packages/cli-core/**/*.go"
       ]

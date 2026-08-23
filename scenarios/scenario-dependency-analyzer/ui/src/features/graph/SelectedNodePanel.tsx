@@ -83,10 +83,10 @@ export function SelectedNodePanel({ node, connections }: SelectedNodePanelProps)
                         <p className="text-xs text-muted-foreground">
                           {purpose || edge.label || "Dependency relationship"}
                         </p>
-                        <p className="text-[11px] uppercase tracking-widest text-muted-foreground/80">
+                        <p className="text-[11px] uppercase tracking-widest text-muted-foreground">
                           {edge.required ? "Required" : "Optional"} · Weight {edge.weight.toFixed(2)}
                         </p>
-                        <div className="mt-2 space-y-1 text-[11px] text-muted-foreground/90">
+                        <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
                           {accessMethod && <p>Access: {accessMethod}</p>}
                           {foundInFile && <p>File: {foundInFile}</p>}
                           {patternType && <p>Pattern: {patternType}</p>}

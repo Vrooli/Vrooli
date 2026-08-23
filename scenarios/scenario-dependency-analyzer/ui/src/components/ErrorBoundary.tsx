@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
     return (
       <div
-        className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground"
+        className="flex min-h-full items-center justify-center bg-background p-6 text-foreground"
         data-testid={selectors.errorBoundary.root}
         role="alert"
       >

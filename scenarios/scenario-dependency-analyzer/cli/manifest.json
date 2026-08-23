@@ -958,6 +958,92 @@
         }
       ]
     }
+    ,{
+      "name": "analyze",
+      "flat": true,
+      "commands": [{"name": "analyze", "description": "Analyze scenario dependencies", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "core-set",
+      "flat": true,
+      "commands": [{"name": "core-set", "description": "Show the trusted dependency core set", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "cycles",
+      "flat": true,
+      "commands": [{"name": "cycles", "description": "Inspect dependency cycles", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "deployment",
+      "flat": true,
+      "commands": [{"name": "deployment", "description": "Inspect deployment dependencies", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "drift",
+      "flat": true,
+      "commands": [{"name": "drift", "description": "Inspect dependency drift", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "graph",
+      "flat": true,
+      "commands": [{"name": "graph", "description": "Inspect dependency graphs", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "impact",
+      "flat": true,
+      "commands": [{"name": "impact", "description": "Inspect dependency impact", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "list",
+      "flat": true,
+      "commands": [{"name": "list", "description": "List scenario dependencies", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "optimize",
+      "flat": true,
+      "commands": [{"name": "optimize", "description": "Optimize dependency layout", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}]
+    },
+    {
+      "name": "propose",
+      "flat": true,
+      "commands": [{"name": "propose", "description": "Propose dependency changes", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}]
+    },
+    {
+      "name": "resources",
+      "flat": true,
+      "commands": [{"name": "resources", "description": "Inspect resource usage", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "scan",
+      "flat": true,
+      "commands": [{"name": "scan", "description": "Scan scenario dependencies", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}]
+    },
+    {
+      "name": "bundle",
+      "commands": [{"name": "manifest", "description": "Show the deployment bundle manifest", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "dag",
+      "commands": [{"name": "export", "description": "Export the dependency DAG", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "deps",
+      "commands": [{"name": "reconcile", "description": "Reconcile dependency records", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}]
+    },
+    {
+      "name": "deps-approved",
+      "commands": [
+        {"name": "approve", "description": "Approve a dependency", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+        {"name": "deny", "description": "Deny a dependency", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}
+      ]
+    },
+    {
+      "name": "scenarios",
+      "commands": [
+        {"name": "get", "description": "Get scenario dependency details", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+        {"name": "list", "description": "List analyzed scenarios", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}
+      ]
+    }
   ],
   "measures": {
     "domains": [
@@ -997,6 +1083,11 @@
       "service": "DependencyGovernanceService",
       "method": "ValidateFleetApprovedDependencies",
       "reason": "Exposed through the `deps approved validate --all` CLI path, which shares the validate command surface with single-scenario validation."
+    },
+    {
+      "service": "PlatformVerdictService",
+      "method": "ListPlatformVerdicts",
+      "reason": "Typed Connect read consumed by infrastructure-manager portability fleet; it is not a standalone CLI command."
     }
   ]
 }

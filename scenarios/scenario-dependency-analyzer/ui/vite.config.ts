@@ -45,6 +45,7 @@ export default defineConfig(({ mode }) => {
       coverage: {
         provider: "v8",
         reporter: ["text", "json-summary", "json"],
+        reportOnFailure: true,
         include: ["src/**/*.{ts,tsx}"],
         exclude: [
           "src/**/*.test.{ts,tsx}",
@@ -54,8 +55,9 @@ export default defineConfig(({ mode }) => {
           "src/test-setup.ts",
           "src/test-utils/**",
           "src/consts/strings.generated.ts",
-          "src/i18n/locales/**"
-        ]
+          "src/i18n/locales/**",
+          "src/**/generated/**"
+        ],
       }
     }
   };

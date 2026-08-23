@@ -827,7 +827,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/scenario-to-ios/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/scenario-to-ios/v1/<domain>/`, and
+   `packages/proto/gen/typescript/scenario-to-ios/v1/<domain>/`, and
    `packages/proto/gen/python/scenario_to_ios/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.

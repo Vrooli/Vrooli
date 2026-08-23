@@ -73,7 +73,23 @@ export default tseslint.config(
       "@typescript-eslint/no-unnecessary-type-assertion": "off",
       "@typescript-eslint/restrict-template-expressions": "off",
       "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
-      "react-refresh/only-export-components": "off"
+      "react-refresh/only-export-components": "off",
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/test-utils",
+                "**/test-utils/*",
+                "**/features/*/mocks",
+                "**/features/*/mocks/*"
+              ],
+              message: "Production code must not import test-only helpers or feature mocks."
+            }
+          ]
+        }
+      ]
     },
     settings: {
       "import/resolver": {
@@ -82,6 +98,12 @@ export default tseslint.config(
           project: "./tsconfig.json"
         }
       }
+    }
+  },
+  {
+    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "**/*.a11y.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": "off"
     }
   }
 );

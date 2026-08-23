@@ -30,7 +30,7 @@ export function NodeTooltip({ hover }: NodeTooltipProps) {
       </p>
       <p className="mt-1 font-semibold text-foreground">{node.label}</p>
       {node.metadata && node.metadata["purpose"] ? (
-        <p className="mt-2 text-xs text-muted-foreground/90">
+      <p className="mt-2 text-xs text-muted-foreground">
           {(node.metadata["purpose"] as string) ?? ""}
         </p>
       ) : null}
@@ -61,7 +61,7 @@ export function EdgeTooltip({ hover }: EdgeTooltipProps) {
       style={{ left: position.x, top: position.y }}
     >
       <p className="font-semibold text-foreground">{edge.label || edge.type}</p>
-      <p className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground/80">
+      <p className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground">
         {edge.required ? "Required" : "Optional"} · Weight {edge.weight.toFixed(2)}
       </p>
       {metadata.access_method ? (

@@ -1,12 +1,17 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import { installChunkReloadGuard } from "@vrooli/api-base";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { onProfilerRender } from "./lib/profiler";
 import "./i18n";
 import "./styles/global.css";
+
+// INTEROP-CRITICAL: embedded keyboard and gamepad navigation is initialized
+// before the application renders.
+initSpatialNav();
 
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are
 // gone, so a tab opened before the deploy would crash on its next

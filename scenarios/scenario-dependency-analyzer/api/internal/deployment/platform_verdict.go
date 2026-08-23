@@ -92,29 +92,39 @@ func BuildPlatformFleet(scenariosDir, filter string, now time.Time) (PlatformFle
 		if err != nil {
 			return PlatformFleetReport{}, err
 		}
+		overrides, err := authoredPlatformOverrides(filepath.Join(scenariosDir, name, ".vrooli", "service.json"))
+		if err != nil {
+			return PlatformFleetReport{}, fmt.Errorf("scenario %s platform overrides: %w", name, err)
+		}
 		verdict := ScenarioPlatformVerdict{Scenario: name, Platforms: make([]PlatformVerdict, 0, len(platformVerdictOSes))}
 		for _, hostOS := range platformVerdictOSes {
-			resolution := deployability.Resolve(deployability.ResolutionInput{
-				Target: deployability.TargetDeclaration{Name: name, Dependencies: declarations},
-				Tier:   deployability.TierLocal,
-				OS:     hostOS,
-			})
-			blocking := ""
-			for _, dependency := range resolution.Dependencies {
-				if dependency.Verdict == deployability.VerdictIneligible || dependency.Verdict == deployability.VerdictUnknown {
-					blocking = dependency.Name
-					break
+			if override, ok := overrides[hostOS]; ok {
+				verdict.Overridden = true
+				verdict.OverrideReason = "service.platform_capabilities overrides dependency derivation for this scenario"
+				verdict.Platforms = append(verdict.Platforms, override)
+			} else {
+				resolution := deployability.Resolve(deployability.ResolutionInput{
+					Target: deployability.TargetDeclaration{Name: name, Dependencies: declarations},
+					Tier:   deployability.TierLocal,
+					OS:     hostOS,
+				})
+				blocking := ""
+				for _, dependency := range resolution.Dependencies {
+					if dependency.Verdict == deployability.VerdictIneligible || dependency.Verdict == deployability.VerdictUnknown {
+						blocking = dependency.Name
+						break
+					}
 				}
+				status := "eligible"
+				if blocking != "" {
+					status = "blocked"
+				}
+				reason := "all declared dependencies resolve on " + string(hostOS)
+				if blocking != "" {
+					reason = "dependency " + blocking + " does not resolve on " + string(hostOS)
+				}
+				verdict.Platforms = append(verdict.Platforms, PlatformVerdict{HostOS: hostOS, Status: status, Reason: reason, BlockingDependency: blocking, Derived: true})
 			}
-			status := "eligible"
-			if blocking != "" {
-				status = "blocked"
-			}
-			reason := "all declared dependencies resolve on " + string(hostOS)
-			if blocking != "" {
-				reason = "dependency " + blocking + " does not resolve on " + string(hostOS)
-			}
-			verdict.Platforms = append(verdict.Platforms, PlatformVerdict{HostOS: hostOS, Status: status, Reason: reason, BlockingDependency: blocking, Derived: true})
 			desktop := deployability.Resolve(deployability.ResolutionInput{Target: deployability.TargetDeclaration{Name: name, Dependencies: declarations}, Tier: deployability.TierDesktop, OS: hostOS})
 			for _, dependency := range desktop.Dependencies {
 				for _, dependencyReason := range dependency.Reasons {
@@ -129,6 +139,84 @@ func BuildPlatformFleet(scenariosDir, filter string, now time.Time) (PlatformFle
 	}
 	_ = now // computed_at is owned by the transport boundary.
 	return result, nil
+}
+
+type authoredPlatformCapability struct {
+	Status    string `json:"status"`
+	Mechanism string `json:"mechanism"`
+	Evidence  string `json:"evidence"`
+}
+
+// authoredPlatformOverrides reads the two intentionally hand-authored
+// scenario capability blocks. They describe capability-level truth that a
+// resource closure cannot see, so they win for the corresponding host OS and
+// remain explicitly marked as overrides in the transport result.
+func authoredPlatformOverrides(path string) (map[deployability.HostOS]PlatformVerdict, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var manifest struct {
+		Service struct {
+			PlatformCapabilities map[string]map[string]authoredPlatformCapability `json:"platform_capabilities"`
+		} `json:"service"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, err
+	}
+	byOS := make(map[deployability.HostOS][]struct {
+		name  string
+		claim authoredPlatformCapability
+	})
+	for capability, platforms := range manifest.Service.PlatformCapabilities {
+		for osName, claim := range platforms {
+			hostOS, ok := parsePlatformVerdictOS(osName)
+			if !ok {
+				return nil, fmt.Errorf("unknown host OS %q for capability %q", osName, capability)
+			}
+			byOS[hostOS] = append(byOS[hostOS], struct {
+				name  string
+				claim authoredPlatformCapability
+			}{name: capability, claim: claim})
+		}
+	}
+	result := make(map[deployability.HostOS]PlatformVerdict, len(byOS))
+	for hostOS, claims := range byOS {
+		sort.Slice(claims, func(i, j int) bool { return claims[i].name < claims[j].name })
+		status := "supported"
+		reason := "authored platform_capabilities claims resolve on " + string(hostOS)
+		blocking := ""
+		for _, item := range claims {
+			switch strings.ToLower(strings.TrimSpace(item.claim.Status)) {
+			case "unsupported":
+				status = "blocked"
+				if blocking == "" {
+					blocking = "capability:" + item.name
+					reason = "authored capability " + item.name + " is unsupported on " + string(hostOS)
+				}
+			case "partial", "experimental", "unqualified", "build-verified":
+				if status == "supported" {
+					status = "degraded"
+					reason = "authored platform_capabilities include an unqualified claim on " + string(hostOS)
+				}
+			}
+		}
+		result[hostOS] = PlatformVerdict{HostOS: hostOS, Status: status, Reason: reason, BlockingDependency: blocking, Overridden: true}
+	}
+	return result, nil
+}
+
+func parsePlatformVerdictOS(value string) (deployability.HostOS, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "linux":
+		return deployability.HostOSLinux, true
+	case "macos", "darwin":
+		return deployability.HostOSMacOS, true
+	case "windows":
+		return deployability.HostOSWindows, true
+	default:
+		return "", false
+	}
 }
 
 func isDockerRequirement(requirement string) bool {

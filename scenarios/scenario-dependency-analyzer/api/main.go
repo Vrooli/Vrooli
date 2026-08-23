@@ -35,7 +35,7 @@ func main() {
 	}
 	log.Println("Scenario Dependency Analyzer database schemas initialized")
 
-	if err := app.Run(cfg, db.Primary()); err != nil {
+	if err := app.Run(cfg, db); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

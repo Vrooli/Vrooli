@@ -660,6 +660,9 @@ func TestLoadConfig(t *testing.T) {
 		// beneath it still resolves to its own separate path.
 		t.Setenv("API_PORT", "8080")
 		t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+		if os.Getenv("API_PORT") != "8080" {
+			t.Fatal("API_PORT test setup was not applied")
+		}
 
 		// Note: loadConfig calls log.Fatal on error, so we can't easily test
 		// the error paths without refactoring. We'll just verify it works with valid config.

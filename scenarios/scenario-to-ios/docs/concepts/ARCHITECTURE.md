@@ -141,7 +141,7 @@ packages/proto/schemas/scenario-to-ios/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/scenario-to-ios/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/scenario-to-ios/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/scenario-to-ios/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/scenario-to-ios/v1/...   (ui)
        └──▶ packages/proto/gen/python/scenario_to_ios/v1/...    (future tools)
 ```
 

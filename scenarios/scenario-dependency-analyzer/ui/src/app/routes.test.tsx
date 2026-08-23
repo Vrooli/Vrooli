@@ -1,8 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { renderWithProviders } from "@vrooli/api-base/testing";
-import { expectNoA11yViolations } from "@vrooli/api-base/testing";
+import { renderWithProviders, expectNoA11yViolations } from "../test-utils";
 import { routes, TestAppRouter } from "./routes";
 
 const graphPayload = {
@@ -141,14 +140,14 @@ describe("App routes", () => {
   });
 
   it("renders a deep-linked graph route", async () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/graph?layout=grid&graph_type=scenario"]} />);
+    renderWithProviders(<TestAppRouter initialEntries={["/graph?layout=grid&graph_type=scenario"]} />, { withoutRouter: true });
 
     await waitFor(() => expect(screen.getByText("System Telemetry")).toBeInTheDocument());
     expect(screen.getAllByTestId("sda-nav-graph").some((item) => item.getAttribute("aria-current") === "page")).toBe(true);
   });
 
   it("renders a keyboard-friendly graph data view and selects nodes from it", async () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/graph"]} />);
+    renderWithProviders(<TestAppRouter initialEntries={["/graph"]} />, { withoutRouter: true });
 
     await waitFor(() => expect(screen.getByRole("table", { name: "Dependency graph nodes" })).toBeInTheDocument());
     expect(screen.getByRole("table", { name: "Dependency graph edges" })).toBeInTheDocument();
@@ -164,7 +163,7 @@ describe("App routes", () => {
   });
 
   it("keeps graph table empty states visible when filters hide all rows", async () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/graph"]} />);
+    renderWithProviders(<TestAppRouter initialEntries={["/graph"]} />, { withoutRouter: true });
 
     await waitFor(() => expect(screen.getByRole("table", { name: "Dependency graph nodes" })).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText("Focus Search"), { target: { value: "no-such-dependency" } });
@@ -174,7 +173,7 @@ describe("App routes", () => {
   });
 
   it("navigates between primary surfaces", async () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/"]} />);
+    renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
 
     const catalogNav = screen
       .getAllByTestId("sda-nav-catalog")
@@ -189,7 +188,7 @@ describe("App routes", () => {
   });
 
   it("has no obvious shell accessibility violations", async () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/"]} />);
+    renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
 
     await waitFor(() => expect(screen.getByTestId("sda-layout-shell")).toBeInTheDocument());
     await expectNoA11yViolations(document.body);
@@ -198,7 +197,7 @@ describe("App routes", () => {
   it("surfaces graph loading failures without hiding the graph controls", async () => {
     failGraph = true;
 
-    renderWithProviders(<TestAppRouter initialEntries={["/graph"]} />);
+    renderWithProviders(<TestAppRouter initialEntries={["/graph"]} />, { withoutRouter: true });
 
     await waitFor(() => expect(screen.getByText("We hit turbulence while loading data.")).toBeInTheDocument());
     expect(screen.getByText("Scenario API request failed (500)")).toBeInTheDocument();
@@ -207,7 +206,7 @@ describe("App routes", () => {
 
   it("runs catalog scan and apply through the API client seam", async () => {
     const fetchMock = vi.mocked(globalThis.fetch);
-    renderWithProviders(<TestAppRouter initialEntries={["/catalog?scenario=alpha"]} />);
+    renderWithProviders(<TestAppRouter initialEntries={["/catalog?scenario=alpha"]} />, { withoutRouter: true });
 
     await waitFor(() => expect(screen.getAllByText("Alpha Scenario").length).toBeGreaterThan(0));
     fireEvent.click(screen.getByRole("button", { name: "Scan & apply" }));
@@ -222,7 +221,7 @@ describe("App routes", () => {
   });
 
   it("renders deployment degraded states from metadata gaps and blockers", async () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/deployment"]} />);
+    renderWithProviders(<TestAppRouter initialEntries={["/deployment"]} />, { withoutRouter: true });
 
     await waitFor(() => expect(screen.getByText("Alpha Scenario")).toBeInTheDocument());
     expect(screen.getByText("Critical gaps")).toBeInTheDocument();
@@ -232,7 +231,7 @@ describe("App routes", () => {
   });
 
   it("opens deployment details from the keyboard-friendly status list", async () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/deployment"]} />);
+    renderWithProviders(<TestAppRouter initialEntries={["/deployment"]} />, { withoutRouter: true });
 
     const statusRow = await screen.findByRole("button", { name: /Alpha Scenario/i });
     fireEvent.keyDown(statusRow, { key: "Enter" });
@@ -244,7 +243,7 @@ describe("App routes", () => {
 
   it("surfaces deployment scan failures from the mutation path", async () => {
     failScan = true;
-    renderWithProviders(<TestAppRouter initialEntries={["/deployment"]} />);
+    renderWithProviders(<TestAppRouter initialEntries={["/deployment"]} />, { withoutRouter: true });
 
     await screen.findByRole("button", { name: /Alpha Scenario/i });
     const scanButton = screen.getAllByRole("button", { name: "Scan" })[0];

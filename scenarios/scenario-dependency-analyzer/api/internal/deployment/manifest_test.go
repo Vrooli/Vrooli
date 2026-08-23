@@ -71,6 +71,9 @@ func TestRealScenarioComponentProjectionFidelity(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			scenarioPath := filepath.Join(repoRoot, "scenarios", test.name)
+			if _, statErr := os.Stat(filepath.Join(scenarioPath, ".vrooli", "service.json")); os.IsNotExist(statErr) {
+				t.Skipf("fixture scenario %q is not present in this worktree", test.name)
+			}
 			cfg, err := config.LoadServiceConfig(scenarioPath)
 			if err != nil {
 				t.Fatal(err)

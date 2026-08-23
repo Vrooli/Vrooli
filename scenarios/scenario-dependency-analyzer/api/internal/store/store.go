@@ -38,6 +38,7 @@ func (s *Store) CleanupInvalidScenarioDependencies(known map[string]struct{}) er
 	if err != nil {
 		return fmt.Errorf("query scenario dependencies: %w", err)
 	}
+	defer rows.Close()
 
 	orphaned := make([]string, 0)
 	for rows.Next() {

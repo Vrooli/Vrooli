@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { renderWithProviders } from "@vrooli/api-base/testing";
+import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { GovernancePage } from "./GovernancePage";
 

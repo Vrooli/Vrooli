@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/maturity-go/assessment"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -35,9 +37,10 @@ import (
 )
 
 // Run boots the HTTP API using the provided configuration and database connection.
-func Run(cfg appconfig.Config, dbConn *sql.DB) error {
-	db = dbConn
-	rt := ensureRuntime(cfg, dbConn)
+func Run(cfg appconfig.Config, dbConn *database.RoutedDB) error {
+	primaryDB := dbConn.Primary()
+	db = primaryDB
+	rt := ensureRuntime(cfg, primaryDB)
 	log.Println("Scenario Dependency Analyzer runtime initialized")
 	// Catalog discovery touches every scenario directory and the cleanup shares
 	// the API's SQLite connection. It is maintenance, not a readiness
@@ -50,7 +53,15 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 	})
-	handler := corsMiddleware.Handler(router)
+	handler := corsMiddleware.Handler(securityHeaders(router))
+
+	// Route test-genie requests into an installed test pool without restarting
+	// the scenario. The production path remains the primary database when the
+	// test-mode header is absent or the scenario is not in development mode.
+	rootMux := http.NewServeMux()
+	devrouting.Register(rootMux, dbConn)
+	rootMux.Handle("/", handler)
+	handler = apihttp.TestModeMiddleware(rootMux)
 
 	h := newHandler(rt)
 	graphIngest := newGraphIngestService(rt)
@@ -144,6 +155,19 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		IdleTimeout:       60 * time.Second,
 	}
 	return server.ListenAndServe()
+}
+
+// securityHeaders protects every REST and Connect response at the router
+// boundary so newly registered routes inherit the same policy.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		header := w.Header()
+		header.Set("X-Content-Type-Options", "nosniff")
+		header.Set("X-Frame-Options", "DENY")
+		header.Set("X-XSS-Protection", "0")
+		header.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func cleanupInvalidScenarioDependencies(rt *Runtime) {

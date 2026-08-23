@@ -254,7 +254,7 @@ function ScenarioDependencyAnalyzerRoutes() {
             <AlertCircle className="h-4 w-4" aria-hidden="true" />
             <div>
               <p className="font-semibold">We hit turbulence while loading data.</p>
-              <p className="text-xs opacity-80">{error}</p>
+              <p className="text-xs text-muted-foreground">{error}</p>
             </div>
           </CardContent>
         </Card>

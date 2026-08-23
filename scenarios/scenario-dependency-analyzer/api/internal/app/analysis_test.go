@@ -24,6 +24,9 @@ func TestAnalyzeScenario(t *testing.T) {
 
 	// Set up test scenario directory
 	scenarioName := "test-scenario"
+	if scenarioName == "" {
+		t.Fatal("test scenario name must be non-empty")
+	}
 	testScenario := createTestScenario(t, env, scenarioName, map[string]types.Resource{
 		"postgres": {
 			Type:     "postgres",

@@ -28,10 +28,8 @@
 }
 
 body {
-  background: radial-gradient(circle at 20% 20%, rgba(16, 45, 59, 0.6), transparent 55%),
-    radial-gradient(circle at 80% 0%, rgba(39, 87, 57, 0.35), transparent 45%),
-    linear-gradient(135deg, hsl(222, 45%, 6%) 0%, hsl(222, 47%, 12%) 100%);
-  min-height: 100vh;
+  background: #0f172a;
+  min-height: 100%;
   font-feature-settings: "salt" on, "liga" on;
 }
 

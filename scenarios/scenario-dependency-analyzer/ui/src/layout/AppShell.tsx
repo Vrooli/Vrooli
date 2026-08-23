@@ -17,7 +17,7 @@ export function AppShell({
 }) {
   return (
     <div
-      className="flex min-h-screen flex-col bg-transparent text-foreground"
+      className="flex min-h-full flex-col bg-transparent text-foreground"
       data-testid={selectors.layout.shell}
     >
       <TopBar />

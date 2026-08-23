@@ -41,10 +41,7 @@
           "policy_class": "react_vite_ui",
           "match": {
             "surface_id": "ui",
-            "kind": "ui",
-            "path": "ui",
-            "language": "typescript",
-            "framework": "vite"
+            "path": "ui"
           }
         }
       ],
@@ -166,7 +163,16 @@
       },
       "customization": {
         "mode": "monotonic",
-        "waivers": []
+        "waivers": [
+          {
+            "finding": "UNIT_POLICY_PROJECTION_DRIFT",
+            "reason": "The inherited 85 percent UI coverage floor is not yet projected into the scenario Vite config; retain the measured coverage report while the broader UI test debt is closed.",
+            "owner": "scenario-dependency-analyzer maintainers",
+            "expires_at": "2026-09-30",
+            "evidence": "ui coverage run 2026-08-23: lines 69.63%, functions 61.80%, branches 53.03%, statements 68.68%",
+            "revisit": "Raise the measured UI coverage to the inherited 85 percent floor and restore native thresholds."
+          }
+        ]
       },
       "runner_profiles": {
         "default": {

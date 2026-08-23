@@ -7,7 +7,7 @@ export function TopBar() {
 
   return (
     <header
-      className="border-b border-border/50 bg-background/80 px-6 py-5 backdrop-blur-sm sm:px-10"
+      className="border-b border-border/50 bg-[#0f172a] px-6 py-5 sm:px-10"
       data-testid={selectors.layout.topBar}
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
