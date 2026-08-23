@@ -2,6 +2,7 @@ package hostinventory
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,9 +10,11 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/hostfacts"
 )
 
 type CommandRunner interface {
@@ -112,7 +115,64 @@ func SystemCollector() Collector {
 }
 
 func Collect(ctx context.Context) (Snapshot, error) {
+	var snapshot Snapshot
+	if raw, err := sharedFactsReader().Read(ctx, "inventory"); err == nil && json.Unmarshal(raw, &snapshot) == nil {
+		return snapshot, nil
+	}
 	return SystemCollector().Collect(ctx)
+}
+
+var (
+	factsReaderMu sync.Mutex
+	factsReader   *hostfacts.Reader
+)
+
+func sharedFactsReader() *hostfacts.Reader {
+	factsReaderMu.Lock()
+	defer factsReaderMu.Unlock()
+	if factsReader != nil {
+		return factsReader
+	}
+	// The repository contract designates ~/.vrooli as the cross-process
+	// operator runtime home. Do not use os.UserConfigDir here: that would put
+	// the cache under ~/.config on Linux and a different platform-specific
+	// location elsewhere, preventing the short-lived CLI processes from
+	// sharing the same facts file as the rest of the control plane.
+	root, err := os.UserHomeDir()
+	if err != nil || root == "" {
+		root = os.TempDir()
+	}
+	factsReader = &hostfacts.Reader{Path: filepath.Join(root, ".vrooli", "cache", "hostfacts.json"), TTL: map[string]time.Duration{"inventory": 30 * time.Second, "platform": 5 * time.Minute, "gpu": 2 * time.Minute, "workloads": 5 * time.Minute}, BootID: bootID, Probe: func(ctx context.Context, class string) (json.RawMessage, error) {
+		var s Snapshot
+		var err error
+		switch class {
+		case "gpu":
+			s, err = SystemCollector().CollectGPUFacts(ctx)
+		case "platform":
+			s, err = SystemCollector().CollectPlatformFacts(ctx)
+		case "workloads":
+			w, workloadErr := SystemCollector().CollectWorkloads(ctx)
+			if workloadErr != nil {
+				return nil, workloadErr
+			}
+			return json.Marshal(w)
+		default:
+			s, err = SystemCollector().Collect(ctx)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(s)
+	}}
+	return factsReader
+}
+
+func bootID() string {
+	b, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
+	if err != nil {
+		return "unknown"
+	}
+	return strings.TrimSpace(string(b))
 }
 
 // CollectGPUFacts performs only the NVIDIA and Docker GPU probes needed to
@@ -120,6 +180,10 @@ func Collect(ctx context.Context) (Snapshot, error) {
 // unrelated platform probes (notably credential-store discovery) so a slow
 // desktop probe cannot make a healthy GPU resource fall back to a CPU image.
 func CollectGPUFacts(ctx context.Context) (Snapshot, error) {
+	var snapshot Snapshot
+	if raw, err := sharedFactsReader().Read(ctx, "gpu"); err == nil && json.Unmarshal(raw, &snapshot) == nil {
+		return snapshot, nil
+	}
 	return SystemCollector().CollectGPUFacts(ctx)
 }
 
@@ -206,6 +270,9 @@ func (c Collector) withDefaults() Collector {
 
 func (c Collector) collectLoad(snap *Snapshot, observedAt time.Time) {
 	if snap.OS != "linux" {
+		if collectPlatformLoad(snap, observedAt) {
+			return
+		}
 		snap.ProbeStatuses["load"] = "unsupported"
 		return
 	}

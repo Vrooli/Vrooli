@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"strings"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	hostruntime "github.com/vrooli/vrooli/internal/runtime"
-	"github.com/vrooli/vrooli/internal/safeguards"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
@@ -126,33 +124,18 @@ func renderSafeguardList(output io.Writer, jsonOut bool) error {
 }
 
 func listSafeguards() ([]safeguardListEntry, error) {
-	dirs, err := fs.ReadDir(safeguards.Manifests, ".")
+	observed, err := hostruntime.ListObservedSafeguardsAt(".", nil)
 	if err != nil {
 		return nil, err
 	}
-	entries := make([]safeguardListEntry, 0, len(dirs))
-	for _, dir := range dirs {
-		if !dir.IsDir() {
-			continue
-		}
-		data, err := fs.ReadFile(safeguards.Manifests, dir.Name()+"/safeguard.json")
-		if err != nil {
-			return nil, err
-		}
-		var manifest hostreqkit.SafeguardManifest
-		if err := json.Unmarshal(data, &manifest); err != nil {
-			return nil, fmt.Errorf("parse safeguard %s: %w", dir.Name(), err)
-		}
-		entry := safeguardListEntry{Name: manifest.Name, Capability: manifest.Capability, CapabilityRole: manifest.CapabilityRole, Platforms: append([]string(nil), manifest.Platforms...), ObservedState: "host_not_sampled", ObservedAt: time.Now().UTC().Format(time.RFC3339Nano)}
-		if status, inspectErr := hostruntime.InspectSafeguard(manifest.Name); inspectErr == nil {
-			entry.ObservedState = string(status.ExecutionState)
-			entry.SupportClass = string(status.SupportClass)
-			entry.ObservedNotes = append([]string(nil), status.Notes...)
-		} else {
-			entry.SupportClass = "unavailable"
-			entry.ObservedNotes = []string{inspectErr.Error()}
-		}
-		entries = append(entries, entry)
+	entries := make([]safeguardListEntry, 0, len(observed))
+	for _, item := range observed {
+		entries = append(entries, safeguardListEntry{
+			Name: item.Name, Capability: item.Capability, CapabilityRole: item.CapabilityRole,
+			Platforms: append([]string(nil), item.Platforms...), ObservedState: string(item.ExecutionState),
+			SupportClass: string(item.SupportClass), ObservedAt: item.ObservedAt.Format(time.RFC3339Nano),
+			ObservedNotes: append([]string(nil), item.Notes...),
+		})
 	}
 	return entries, nil
 }

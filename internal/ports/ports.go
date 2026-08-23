@@ -19,7 +19,6 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/scenarioenv"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
@@ -188,13 +187,6 @@ func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, _ []
 		return Environment{}, err
 	}
 	for key, value := range resolution.Values {
-		envVars[key] = value
-	}
-	peerValues, err := scenarioenv.Resolve(context.Background(), m.Home, item.Manifest, resolution.Values)
-	if err != nil {
-		return Environment{}, err
-	}
-	for key, value := range peerValues {
 		envVars[key] = value
 	}
 

@@ -2,6 +2,7 @@ package vroolicli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -43,6 +44,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -52,6 +54,7 @@ import (
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
 	"github.com/vrooli/vrooli/internal/structureprovider"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
+	"github.com/vrooli/vrooli/internal/workloadowner"
 )
 
 type VersionInfo struct {
@@ -1009,8 +1012,9 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Root:         func(ctx *CommandContext) string { return ctx.Root },
 			OutputFormat: projectOutputFormat,
 		}),
-		topcli.CommandHost:  func(ctx *CommandContext, args []string) error { return ctx.app.runHostCommand(ctx, args) },
-		topcli.CommandAgent: func(ctx *CommandContext, args []string) error { return ctx.app.runAgentCommand(ctx, args) },
+		topcli.CommandHost:     func(ctx *CommandContext, args []string) error { return ctx.app.runHostCommand(ctx, args) },
+		topcli.CommandWorkload: func(ctx *CommandContext, args []string) error { return ctx.app.runWorkloadCommand(ctx, args) },
+		topcli.CommandAgent:    func(ctx *CommandContext, args []string) error { return ctx.app.runAgentCommand(ctx, args) },
 		topcli.CommandCapacity: capacityhandlers.RootHandler(capacityhandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,
 			OutputFormat: projectOutputFormat,
@@ -1039,6 +1043,76 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 	})
 	handlers[topcli.CommandCleanup] = projectcli.CleanupHandler(commandStdout, handlers[topcli.CommandOrphans], handlers[topcli.CommandLocks], templateValidationCleanupHandler)
 	return handlers
+}
+
+func (app *App) runWorkloadCommand(ctx *CommandContext, args []string) error {
+	if len(args) == 0 || commandWantsHelp(args) {
+		commandtree.RenderHelp(ctx.Stdout, commandtree.Help{Title: "Vrooli Workloads", Description: "Observe host workloads and classify them against Vrooli declarations.", Usage: "vrooli workload list [--posture whole_host|vrooli_only] [--json]"}, []commandtree.Spec[string]{{Name: "list", Summary: "List observed workloads", Handler: "list"}})
+		return nil
+	}
+	if args[0] != "list" {
+		return rootcli.NewUnknownCommandError(args[0], []string{"list"})
+	}
+	posture := workloadowner.VrooliOnly
+	postureExplicit := false
+	for i := 1; i < len(args); i++ {
+		if args[i] == "--posture" && i+1 < len(args) {
+			posture = workloadowner.Posture(args[i+1])
+			postureExplicit = true
+			i++
+		}
+	}
+	if !postureExplicit {
+		state, stateErr := operatorstate.New(operatorstate.Config{RepoRoot: ctx.Root}).Load(context.Background())
+		if stateErr != nil {
+			return fmt.Errorf("load host workload posture: %w", stateErr)
+		}
+		if state.HostWorkloadPosture == string(workloadowner.WholeHost) {
+			posture = workloadowner.WholeHost
+		}
+	}
+	census, err := hostinventory.CollectWorkloads(context.Background())
+	if err != nil {
+		return err
+	}
+	observed := workloadowner.LiveReport{Unread: census.Unread, EvidenceNote: "classification is computed from hostinventory observations and enabled resource manifests"}
+	observed.Observed = append(observed.Observed, census.Containers...)
+	observed.Observed = append(observed.Observed, census.ServiceUnits...)
+	observed.Observed = append(observed.Observed, census.ScheduledTasks...)
+	declarations, declarationErr := workloadowner.DeclarationsFromRoot(ctx.Root)
+	if declarationErr != nil {
+		observed.Unread = append(observed.Unread, "declarations: "+declarationErr.Error())
+	}
+	observed.Report = workloadowner.Classify(observed.Observed, declarations, posture, 2700)
+	workloadowner.RedactForPosture(&observed.Report)
+	if ctx.Globals.JSON || containsArg(args, "--json") {
+		return json.NewEncoder(ctx.Stdout).Encode(observed)
+	}
+	rows := append([]workloadowner.Finding{}, observed.Report.Declared...)
+	rows = append(rows, observed.Report.Findings...)
+	rows = append(rows, observed.Report.Informational...)
+	for _, f := range rows {
+		_, _ = fmt.Fprintf(ctx.Stdout, "%s\t%s\t%s\t%s\n", f.Class, f.Kind, f.Name, f.Reason)
+		for _, evidence := range f.Evidence {
+			_, _ = fmt.Fprintf(ctx.Stdout, "\t evidence: %s\n", evidence)
+		}
+		if f.ProposedAction != "" {
+			_, _ = fmt.Fprintf(ctx.Stdout, "\t proposed_action: %s\n", f.ProposedAction)
+		}
+	}
+	for _, note := range observed.Unread {
+		_, _ = fmt.Fprintf(ctx.Stdout, "unread\t%s\n", note)
+	}
+	return nil
+}
+
+func containsArg(args []string, wanted string) bool {
+	for _, arg := range args {
+		if arg == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func (app *App) runHostCommand(ctx *CommandContext, args []string) error {

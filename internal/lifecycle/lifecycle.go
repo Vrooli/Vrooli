@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/hostreq"
@@ -241,7 +242,7 @@ func defaultGoListJSON(dir string) ([]byte, error) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, goBin, "list", "-deps", "-json", ".")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off")
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off"})
 	return cmd.Output()
 }
 
@@ -1667,19 +1668,6 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
-}
-
-func mergeEnv(base []string, overrides map[string]string) []string {
-	merged := append([]string(nil), base...)
-	keys := make([]string, 0, len(overrides))
-	for key := range overrides {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		merged = setEnvValue(merged, key, overrides[key])
-	}
-	return merged
 }
 
 func setEnvValue(env []string, key, value string) []string {

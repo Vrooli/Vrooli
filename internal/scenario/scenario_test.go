@@ -1085,7 +1085,7 @@ func TestDeclaredComponentContractRoundTrips(t *testing.T) {
       "run": {"argv": ["node", "dist/server.js"], "cwd": "playwright-driver", "port": "playwright_driver", "supervised_by": "api", "depends_on": [{"component": "api", "wait": "ready"}]}
     }
   },
-  "dependencies": {"scenarios": {"landing-page-business-suite": {"required": true, "startup_policy": "try_start", "degraded_behavior": "Local work remains available.", "bundle_policy": "discover", "bindings": [{"env_var": "BAS_ENTITLEMENT_SERVICE_URL", "form": "http_base_url", "port": "api", "when_unavailable": "omit"}]}}},
+  "dependencies": {"scenarios": {"landing-page-business-suite": {"required": true, "startup_policy": "try_start", "degraded_behavior": "Local work remains available.", "bundle_policy": "discover"}}},
   "lifecycle": {"setup": {"steps": [{"name": "provision", "exec": ["resource-minio", "create-bucket", "test"], "cwd": "api", "env": {"MODE": "test"}, "on_error": "retry", "retry": {"max_attempts": 3, "delay": 50, "backoff": "linear"}, "timeout": 1000}]}}
 }`)
 
@@ -1097,7 +1097,7 @@ func TestDeclaredComponentContractRoundTrips(t *testing.T) {
 		t.Fatalf("supervised_by = %q, want api", got)
 	}
 	dependency := manifest.Dependencies.Scenarios["landing-page-business-suite"]
-	if dependency.BundlePolicy != "discover" || len(dependency.Bindings) != 1 {
+	if dependency.BundlePolicy != "discover" {
 		t.Fatalf("dependency contract = %#v", dependency)
 	}
 	step := manifest.Lifecycle.Setup.Steps[0]
@@ -1109,7 +1109,7 @@ func TestDeclaredComponentContractRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	for _, field := range []string{`"components"`, `"bindings"`, `"bundle_policy"`, `"exec"`, `"on_error"`} {
+	for _, field := range []string{`"components"`, `"bundle_policy"`, `"exec"`, `"on_error"`} {
 		if !bytes.Contains(encoded, []byte(field)) {
 			t.Fatalf("round-trip output missing %s: %s", field, encoded)
 		}

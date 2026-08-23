@@ -1,74 +1,11 @@
 package scenarioenv
 
 import (
-	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
-
-	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
-
-type fakeStore struct {
-	instance scenarioruntime.Instance
-	claims   []scenarioruntime.PortClaim
-}
-
-func (s *fakeStore) ListInstances(context.Context, scenarioruntime.InstanceFilter) ([]scenarioruntime.Instance, error) {
-	if s.instance.InstanceID == "" {
-		return nil, nil
-	}
-	return []scenarioruntime.Instance{s.instance}, nil
-}
-
-func (s *fakeStore) ListPortClaims(context.Context, scenarioruntime.PortClaimFilter) ([]scenarioruntime.PortClaim, error) {
-	return s.claims, nil
-}
-func (s *fakeStore) Close() error { return nil }
-
-func bindingManifest(policy string) scenario.ServiceManifest {
-	return scenario.ServiceManifest{Dependencies: scenario.Dependencies{Scenarios: map[string]scenario.Dependency{
-		"authority": {Bindings: []scenario.Binding{{EnvVar: "AUTHORITY_URL", Form: "http_base_url", Port: "api", WhenUnavailable: policy}}},
-	}}}
-}
-
-func TestResolveProjectsRuntimePortAndHonorsUnavailablePolicy(t *testing.T) {
-	store := &fakeStore{
-		instance: scenarioruntime.Instance{InstanceID: "inst-1", Scenario: "authority", Variant: "live", Status: scenarioruntime.StatusRunning},
-		claims:   []scenarioruntime.PortClaim{{InstanceID: "inst-1", PortName: "api", Port: 18444, Status: scenarioruntime.ClaimStatusBound}},
-	}
-	open := func(context.Context, string) (peerStore, error) { return store, nil }
-	got, err := resolve(context.Background(), t.TempDir(), bindingManifest("fail"), map[string]string{}, open)
-	if err != nil {
-		t.Fatalf("resolve: %v", err)
-	}
-	if got["AUTHORITY_URL"] != "http://127.0.0.1:18444" {
-		t.Fatalf("binding = %q", got["AUTHORITY_URL"])
-	}
-
-	empty := &fakeStore{}
-	open = func(context.Context, string) (peerStore, error) { return empty, nil }
-	got, err = resolve(context.Background(), t.TempDir(), bindingManifest("omit"), map[string]string{}, open)
-	if err != nil || len(got) != 0 {
-		t.Fatalf("omit = %#v, %v", got, err)
-	}
-	_, err = resolve(context.Background(), t.TempDir(), bindingManifest("fail"), map[string]string{}, open)
-	if err == nil || !strings.Contains(err.Error(), "AUTHORITY_URL") {
-		t.Fatalf("fail error = %v", err)
-	}
-}
-
-func TestResolveRejectsResourcePeerCollision(t *testing.T) {
-	_, err := resolve(context.Background(), t.TempDir(), bindingManifest("omit"), map[string]string{"AUTHORITY_URL": "resource"}, func(context.Context, string) (peerStore, error) {
-		return &fakeStore{}, nil
-	})
-	if err == nil || !strings.Contains(err.Error(), "collision") {
-		t.Fatalf("collision error = %v", err)
-	}
-}
 
 func TestPeerRecordPermissionsAndStaleness(t *testing.T) {
 	home := t.TempDir()

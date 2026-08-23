@@ -61,19 +61,20 @@ type Session struct {
 // fields not yet understood by this binary. Their JSON bytes are retained so
 // a patch from this version cannot erase a field owned by a newer version.
 type Document struct {
-	Schema         string                     `json:"$schema,omitempty"`
-	Version        string                     `json:"version"`
-	UpdatedAt      string                     `json:"updated_at"`
-	TrustPosture   string                     `json:"trust_posture,omitempty"`
-	Core           *CoreSet                   `json:"core,omitempty"`
-	ActiveProfile  *string                    `json:"active_profile,omitempty"`
-	Scenarios      map[string]ScenarioChoice  `json:"scenarios,omitempty"`
-	Resources      map[string]EnabledChoice   `json:"resources,omitempty"`
-	HostTools      map[string]OptInChoice     `json:"host_tools,omitempty"`
-	HostSafeguards map[string]OptInChoice     `json:"host_safeguards,omitempty"`
-	Completion     *Completion                `json:"completion,omitempty"`
-	Session        *Session                   `json:"session,omitempty"`
-	RawFields      map[string]json.RawMessage `json:"-"`
+	Schema              string                     `json:"$schema,omitempty"`
+	Version             string                     `json:"version"`
+	UpdatedAt           string                     `json:"updated_at"`
+	TrustPosture        string                     `json:"trust_posture,omitempty"`
+	HostWorkloadPosture string                     `json:"host_workload_posture,omitempty"`
+	Core                *CoreSet                   `json:"core,omitempty"`
+	ActiveProfile       *string                    `json:"active_profile,omitempty"`
+	Scenarios           map[string]ScenarioChoice  `json:"scenarios,omitempty"`
+	Resources           map[string]EnabledChoice   `json:"resources,omitempty"`
+	HostTools           map[string]OptInChoice     `json:"host_tools,omitempty"`
+	HostSafeguards      map[string]OptInChoice     `json:"host_safeguards,omitempty"`
+	Completion          *Completion                `json:"completion,omitempty"`
+	Session             *Session                   `json:"session,omitempty"`
+	RawFields           map[string]json.RawMessage `json:"-"`
 }
 
 type Config struct {
@@ -261,14 +262,15 @@ func (s *Service) loadLocked(path string) (Document, error) {
 func Default() Document {
 	return Document{
 		Schema: SchemaPath, Version: "1.0.0",
-		Scenarios: map[string]ScenarioChoice{}, Resources: map[string]EnabledChoice{},
+		HostWorkloadPosture: "vrooli_only",
+		Scenarios:           map[string]ScenarioChoice{}, Resources: map[string]EnabledChoice{},
 		HostTools: map[string]OptInChoice{}, HostSafeguards: map[string]OptInChoice{},
 		RawFields: map[string]json.RawMessage{},
 	}
 }
 
 var knownFields = map[string]bool{
-	"$schema": true, "version": true, "updated_at": true, "trust_posture": true,
+	"$schema": true, "version": true, "updated_at": true, "trust_posture": true, "host_workload_posture": true,
 	"core": true, "active_profile": true, "scenarios": true, "resources": true,
 	"host_tools": true, "host_safeguards": true, "completion": true, "session": true,
 }
@@ -290,6 +292,9 @@ func unmarshalDocument(data []byte, doc *Document) error {
 		}
 	}
 	*doc = Document(decoded)
+	if doc.HostWorkloadPosture == "" {
+		doc.HostWorkloadPosture = "vrooli_only"
+	}
 	doc.RawFields = raw
 	return nil
 }
@@ -357,6 +362,9 @@ func (s *Service) validate(merged []byte, doc Document) error {
 	if doc.TrustPosture != "" && doc.TrustPosture != "personal" && doc.TrustPosture != "shared" && doc.TrustPosture != "hosted" {
 		return errors.New("operator state validation failed at /trust_posture: must be personal, shared, or hosted")
 	}
+	if doc.HostWorkloadPosture != "" && doc.HostWorkloadPosture != "whole_host" && doc.HostWorkloadPosture != "vrooli_only" {
+		return errors.New("operator state validation failed at /host_workload_posture: must be whole_host or vrooli_only")
+	}
 	schemaPath := strings.TrimSpace(s.cfg.SchemaPath)
 	if schemaPath == "" && strings.TrimSpace(s.cfg.RepoRoot) != "" {
 		schemaPath = filepath.Join(s.cfg.RepoRoot, SchemaPath)
@@ -389,7 +397,7 @@ func (s *Service) validate(merged []byte, doc Document) error {
 	}
 	// Validate the fields owned by this version. RawFields are deliberately
 	// excluded: they are future schema fields and must survive this writer.
-	owned, err := marshalDocument(Document{Schema: doc.Schema, Version: doc.Version, UpdatedAt: doc.UpdatedAt, TrustPosture: doc.TrustPosture, Core: doc.Core, ActiveProfile: doc.ActiveProfile, Scenarios: doc.Scenarios, Resources: doc.Resources, HostTools: doc.HostTools, HostSafeguards: doc.HostSafeguards, Completion: doc.Completion})
+	owned, err := marshalDocument(Document{Schema: doc.Schema, Version: doc.Version, UpdatedAt: doc.UpdatedAt, TrustPosture: doc.TrustPosture, HostWorkloadPosture: doc.HostWorkloadPosture, Core: doc.Core, ActiveProfile: doc.ActiveProfile, Scenarios: doc.Scenarios, Resources: doc.Resources, HostTools: doc.HostTools, HostSafeguards: doc.HostSafeguards, Completion: doc.Completion})
 	if err != nil {
 		return err
 	}

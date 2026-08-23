@@ -1,6 +1,10 @@
 package hostinventory
 
-import "time"
+import (
+	"time"
+
+	"github.com/vrooli/vrooli/internal/workloadowner"
+)
 
 type SourceKind string
 
@@ -69,6 +73,26 @@ type Snapshot struct {
 	Warnings                []string                `json:"warnings,omitempty"`
 	ProbeStatuses           map[string]string       `json:"probe_statuses,omitempty"`
 	FieldProvenance         map[string]Provenance
+}
+
+// WorkloadSnapshot is the opt-in, bounded host workload census. It is kept
+// separate from Snapshot so callers requesting CPU/GPU facts do not pay for
+// container, service-manager, or listener enumeration.
+type WorkloadSnapshot struct {
+	Containers     []workloadowner.Workload `json:"containers,omitempty"`
+	ServiceUnits   []workloadowner.Workload `json:"service_units,omitempty"`
+	ScheduledTasks []workloadowner.Workload `json:"scheduled_tasks,omitempty"`
+	Listening      []ListeningPort          `json:"listening_ports,omitempty"`
+	Unread         []string                 `json:"unread,omitempty"`
+	Evidence       []string                 `json:"evidence,omitempty"`
+}
+
+type ListeningPort struct {
+	Protocol string `json:"protocol"`
+	Address  string `json:"address"`
+	Port     int    `json:"port"`
+	Process  string `json:"process,omitempty"`
+	Evidence string `json:"evidence"`
 }
 
 // WaylandCapability describes both the observed preference and whether the

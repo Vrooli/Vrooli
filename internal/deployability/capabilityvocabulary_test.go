@@ -1,15 +1,13 @@
 package deployability
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
-	"sort"
 	"testing"
 )
+
+//go:generate go run ./cmd/capability-vocabulary --root ../..
 
 // TestCapabilitySchemaEnumsFollowTheSingleVocabulary is the repository
 // contract for capability names. Schemas are consumer artifacts; the JSON
@@ -18,23 +16,29 @@ import (
 // schema named in the output.
 func TestCapabilitySchemaEnumsFollowTheSingleVocabulary(t *testing.T) {
 	root := repositoryRootForVocabularyTest(t)
-	var vocabulary struct {
-		Capabilities []string `json:"capabilities"`
+	if err := CheckCapabilitySchemaEnums(root); err != nil {
+		t.Fatal(err)
 	}
-	readJSONForVocabularyTest(t, filepath.Join(root, ".vrooli", "capability-vocabulary.json"), &vocabulary)
-	want := append([]string(nil), vocabulary.Capabilities...)
-	sort.Strings(want)
-	for _, schemaName := range []string{"safeguard.schema.json", "tool.schema.json"} {
-		var schema struct {
-			Properties map[string]struct {
-				Enum []string `json:"enum"`
-			} `json:"properties"`
+}
+
+func TestGenerateCapabilitySchemaEnumsRewritesOnlyTheConsumerEnum(t *testing.T) {
+	root := t.TempDir()
+	writeJSONForVocabularyTest(t, filepath.Join(root, ".vrooli", "capability-vocabulary.json"), `{"capabilities":["zeta","alpha"]}`)
+	const stale = "{\n  \"properties\": {\n    \"capability\": {\n      \"enum\": [\"stale\"]\n    },\n    \"other\": {\n      \"description\": \"unchanged\"\n    }\n  }\n}\n"
+	for _, name := range []string{"safeguard.schema.json", "tool.schema.json"} {
+		writeJSONForVocabularyTest(t, filepath.Join(root, ".vrooli", "schemas", name), stale)
+	}
+	if err := GenerateCapabilitySchemaEnums(root); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"safeguard.schema.json", "tool.schema.json"} {
+		data, err := os.ReadFile(filepath.Join(root, ".vrooli", "schemas", name))
+		if err != nil {
+			t.Fatal(err)
 		}
-		readJSONForVocabularyTest(t, filepath.Join(root, ".vrooli", "schemas", schemaName), &schema)
-		got := append([]string(nil), schema.Properties["capability"].Enum...)
-		sort.Strings(got)
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("%s capability enum drifted from .vrooli/capability-vocabulary.json: got %v want %v", schemaName, got, want)
+		want := "{\n  \"properties\": {\n    \"capability\": {\n      \"enum\": [\"alpha\",\"zeta\"]\n    },\n    \"other\": {\n      \"description\": \"unchanged\"\n    }\n  }\n}\n"
+		if string(data) != want {
+			t.Fatalf("generated %s = %q, want %q", name, data, want)
 		}
 	}
 }
@@ -52,13 +56,12 @@ func runtimeCallerForVocabularyTest() (uintptr, string, int, bool) {
 	return runtime.Caller(0)
 }
 
-func readJSONForVocabularyTest(t *testing.T, path string, value any) {
+func writeJSONForVocabularyTest(t *testing.T, path, content string) {
 	t.Helper()
-	data, err := os.ReadFile(path)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := json.Unmarshal(data, value); err != nil {
-		t.Fatal(fmt.Errorf("parse %s: %w", path, err))
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -221,20 +221,19 @@ type Dependencies struct {
 }
 
 type Dependency struct {
-	Type                 string    `json:"type,omitempty"`
-	Enabled              bool      `json:"enabled,omitempty"`
-	Required             bool      `json:"required,omitempty"`
-	StartupPolicy        string    `json:"startup_policy,omitempty"`
-	FreshnessPolicy      string    `json:"freshness_policy,omitempty"`
-	DegradedBehavior     string    `json:"degraded_behavior,omitempty"`
-	Purpose              string    `json:"purpose,omitempty"`
-	Description          string    `json:"description,omitempty"`
-	Database             string    `json:"database,omitempty"`
-	VersionRange         string    `json:"versionRange,omitempty"`
-	RuntimeOnly          bool      `json:"runtime_only,omitempty"`
-	RuntimeOnlyRationale string    `json:"runtime_only_rationale,omitempty"`
-	BundlePolicy         string    `json:"bundle_policy,omitempty"`
-	Bindings             []Binding `json:"bindings,omitempty"`
+	Type                 string `json:"type,omitempty"`
+	Enabled              bool   `json:"enabled,omitempty"`
+	Required             bool   `json:"required,omitempty"`
+	StartupPolicy        string `json:"startup_policy,omitempty"`
+	FreshnessPolicy      string `json:"freshness_policy,omitempty"`
+	DegradedBehavior     string `json:"degraded_behavior,omitempty"`
+	Purpose              string `json:"purpose,omitempty"`
+	Description          string `json:"description,omitempty"`
+	Database             string `json:"database,omitempty"`
+	VersionRange         string `json:"versionRange,omitempty"`
+	RuntimeOnly          bool   `json:"runtime_only,omitempty"`
+	RuntimeOnlyRationale string `json:"runtime_only_rationale,omitempty"`
+	BundlePolicy         string `json:"bundle_policy,omitempty"`
 
 	// Config holds dependency-specific keys that aren't modeled as typed fields.
 	// The declaring scenario and the dependency own the config schema together.
@@ -282,13 +281,6 @@ type ComponentReadiness struct {
 type ComponentDependency struct {
 	Component string `json:"component"`
 	Wait      string `json:"wait"`
-}
-
-type Binding struct {
-	EnvVar          string `json:"env_var"`
-	Form            string `json:"form"`
-	Port            string `json:"port"`
-	WhenUnavailable string `json:"when_unavailable"`
 }
 
 // TierFeasibility is authored evidence about where a scenario can run. It is
@@ -925,10 +917,7 @@ func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if v, ok := raw["bindings"]; ok {
-		if err := json.Unmarshal(v, &dependency.Bindings); err != nil {
-			return fmt.Errorf("bindings: %w", err)
-		}
-		delete(raw, "bindings")
+		return fmt.Errorf("bindings are no longer supported; resolve scenario addresses through discovery: %s", string(v))
 	}
 	if v, ok := raw["config"]; ok {
 		var cfg map[string]json.RawMessage
@@ -1047,11 +1036,6 @@ func (dependency Dependency) MarshalJSON() ([]byte, error) {
 	}
 	if err := emitIfNonEmpty("bundle_policy", dependency.BundlePolicy); err != nil {
 		return nil, err
-	}
-	if len(dependency.Bindings) > 0 {
-		if err := emit("bindings", dependency.Bindings); err != nil {
-			return nil, err
-		}
 	}
 	if len(dependency.Config) > 0 {
 		out["config"] = append([]byte(nil), dependency.Config...)

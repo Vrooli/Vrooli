@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -910,7 +911,11 @@ func envSliceMap(values []string) map[string]string {
 // prompt when they detect stale state; a lifecycle request has no interactive
 // stdin to answer such prompts, so fail deterministically instead.
 func lifecycleStepEnv(phase string, overrides map[string]string) []string {
-	stepEnv := mergeEnv(os.Environ(), overrides)
+	overlay := make(envkit.Env, 0, len(overrides))
+	for key, value := range overrides {
+		overlay = append(overlay, key+"="+value)
+	}
+	stepEnv := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, overlay)
 	stepEnv = setEnvValue(stepEnv, "PATH", hostreqkit.AugmentUserToolPath(
 		envValue(stepEnv, "HOME"),
 		envValue(stepEnv, "PATH"),

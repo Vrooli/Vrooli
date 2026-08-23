@@ -33,6 +33,7 @@ const (
 	CommandAuth             CommandID = "auth"
 	CommandRecovery         CommandID = "recovery"
 	CommandHost             CommandID = "host"
+	CommandWorkload         CommandID = "workload"
 	CommandCapacity         CommandID = "capacity"
 	CommandCapability       CommandID = "capability"
 	CommandCredentials      CommandID = "credentials"
@@ -66,6 +67,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandAuth), Group: "Maintenance Commands", Summary: "Report sign-in state for host tools (buf, future: claude/codex/gh/...)", Handler: CommandAuth, Suggestable: true},
 		{Name: string(CommandRecovery), Group: "Maintenance Commands", Summary: "Baseline Modes recovery floor: restore points and engagement manifests", Handler: CommandRecovery, Suggestable: true},
 		{Name: string(CommandHost), Group: "Maintenance Commands", Summary: "Inspect local host inventory via the shared Go collector", Handler: CommandHost, Suggestable: true},
+		{Name: string(CommandWorkload), Group: "Maintenance Commands", Summary: "List host workloads and their Vrooli ownership posture", Handler: CommandWorkload, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: false, CanRunWithoutRoot: ListOrHelpWithoutRoot}},
 		{Name: string(CommandCapacity), Group: "Maintenance Commands", Summary: "Arbitrate host resource capacity (GPU VRAM/RAM/CPU) via the claim ledger", Handler: CommandCapacity, Suggestable: true},
 		{Name: string(CommandCapability), Group: "Maintenance Commands", Summary: "Read the manifest-derived cross-platform capability ledger", Handler: CommandCapability, Suggestable: true},
 		{Name: string(CommandCredentials), Group: "Configuration Commands", Summary: "Provision and inspect credentials through the native secure-store authority", Handler: CommandCredentials, Suggestable: true},

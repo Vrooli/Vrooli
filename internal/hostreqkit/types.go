@@ -157,6 +157,9 @@ type ItemStatus struct {
 // than as a synthetic success.
 type ObservedSafeguard struct {
 	Name           string         `json:"name"`
+	Capability     string         `json:"capability,omitempty"`
+	CapabilityRole string         `json:"capability_role,omitempty"`
+	Platforms      []string       `json:"platforms,omitempty"`
 	SupportClass   SupportClass   `json:"support_class"`
 	ExecutionState ExecutionState `json:"execution_state"`
 	Notes          []string       `json:"notes,omitempty"`

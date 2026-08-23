@@ -2,6 +2,7 @@ package hostinventory
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -20,6 +21,10 @@ func CurrentPlatform() string {
 // runtime capability layer. It intentionally shares Collector seams so tests
 // can model command and file state without a process-wide cache.
 func CollectPlatformFacts(ctx context.Context) Snapshot {
+	var cached Snapshot
+	if raw, err := sharedFactsReader().Read(ctx, "platform"); err == nil && json.Unmarshal(raw, &cached) == nil {
+		return cached
+	}
 	snapshot, _ := SystemCollector().CollectPlatformFacts(ctx)
 	return snapshot
 }

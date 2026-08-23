@@ -1,13 +1,18 @@
 package runtime
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/safeguards"
 )
 
 var ErrUnsupportedPlatform = hostreqkit.ErrUnsupportedPlatform
@@ -97,20 +102,76 @@ func EnsureSafeguard(name string, opts EnsureOptions) (ItemStatus, error) {
 // handling. It never calls Apply and is the control-plane boundary for
 // observed host state consumers.
 func InspectSafeguard(name string) (ItemStatus, error) {
+	root, err := os.Getwd()
+	if err != nil {
+		return ItemStatus{}, fmt.Errorf("resolve project root for safeguard %q: %w", name, err)
+	}
+	return InspectSafeguardAt(root, name)
+}
+
+// InspectSafeguardAt performs the unprivileged read half of focused safeguard
+// handling against an explicit repository root. It never calls Apply and is
+// safe for typed consumers running from a scenario module directory.
+func InspectSafeguardAt(root, name string) (ItemStatus, error) {
 	name = strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), "-", "_")
 	if name == "" {
 		return ItemStatus{}, fmt.Errorf("safeguard name is required")
 	}
 	host := Current()
-	root, err := os.Getwd()
-	if err != nil {
-		return ItemStatus{}, fmt.Errorf("resolve project root for safeguard %q: %w", name, err)
-	}
 	requirement, err := hostreq.ResolveSafeguard(root, name, host.OS)
 	if err != nil {
 		return ItemStatus{}, err
 	}
 	return inspectRequirement(host, requirement), nil
+}
+
+// ListObservedSafeguardsAt returns the complete, read-only host safeguard
+// observation surface owned by the control plane. Errors for an individual
+// safeguard remain in that safeguard's notes and failed state; one broken
+// probe cannot make the rest of the roster disappear.
+func ListObservedSafeguardsAt(root string, now func() time.Time) ([]hostreqkit.ObservedSafeguard, error) {
+	if strings.TrimSpace(root) == "" {
+		return nil, fmt.Errorf("repository root is required")
+	}
+	if now == nil {
+		now = func() time.Time { return time.Now().UTC() }
+	}
+	dirs, err := fs.ReadDir(safeguards.Manifests, ".")
+	if err != nil {
+		return nil, fmt.Errorf("read safeguard catalog: %w", err)
+	}
+	result := make([]hostreqkit.ObservedSafeguard, 0, len(dirs))
+	for _, dir := range dirs {
+		if !dir.IsDir() {
+			continue
+		}
+		data, readErr := fs.ReadFile(safeguards.Manifests, dir.Name()+"/safeguard.json")
+		if readErr != nil {
+			return nil, fmt.Errorf("read safeguard %s: %w", dir.Name(), readErr)
+		}
+		var manifest hostreqkit.SafeguardManifest
+		if unmarshalErr := json.Unmarshal(data, &manifest); unmarshalErr != nil {
+			return nil, fmt.Errorf("parse safeguard %s: %w", dir.Name(), unmarshalErr)
+		}
+		observedAt := now().UTC()
+		item := hostreqkit.ObservedSafeguard{
+			Name: manifest.Name, Capability: manifest.Capability, CapabilityRole: manifest.CapabilityRole,
+			Platforms: append([]string(nil), manifest.Platforms...), ObservedAt: observedAt,
+		}
+		status, inspectErr := InspectSafeguardAt(root, manifest.Name)
+		if inspectErr != nil {
+			item.SupportClass = hostreqkit.SupportUnsupported
+			item.ExecutionState = hostreqkit.ExecutionFailed
+			item.Notes = []string{inspectErr.Error()}
+		} else {
+			item.SupportClass = status.SupportClass
+			item.ExecutionState = status.ExecutionState
+			item.Notes = append([]string(nil), status.Notes...)
+		}
+		result = append(result, item)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
+	return result, nil
 }
 
 func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report, error) {

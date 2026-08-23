@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/buildinfo"
@@ -649,7 +650,11 @@ func (s *setupService) RunDevelopWithOptions(root, home string, opts Options, st
 	if err := s.applyDotEnv(root); err != nil {
 		return err
 	}
-	env := mergeEnvironment(os.Environ(), projectEnv.EnvVars)
+	overlay := make(envkit.Env, 0, len(projectEnv.EnvVars))
+	for key, value := range projectEnv.EnvVars {
+		overlay = append(overlay, key+"="+value)
+	}
+	env := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, overlay)
 	apiPort := resolveAPIPort(projectEnv.EnvVars)
 	if apiPort <= 0 {
 		apiPort = defaultAPIPort
@@ -971,25 +976,6 @@ func loadDotEnv(path string) (map[string]string, error) {
 		}
 	}
 	return values, scanner.Err()
-}
-
-func mergeEnvironment(base []string, overlay map[string]string) []string {
-	env := append([]string(nil), base...)
-	for key, value := range overlay {
-		prefix := key + "="
-		replaced := false
-		for index, entry := range env {
-			if strings.HasPrefix(entry, prefix) {
-				env[index] = prefix + value
-				replaced = true
-				break
-			}
-		}
-		if !replaced {
-			env = append(env, prefix+value)
-		}
-	}
-	return env
 }
 
 func resolveAPIPort(values map[string]string) int {

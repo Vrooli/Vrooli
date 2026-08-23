@@ -1,0 +1,15 @@
+# Known cross-compile exclusions for the repository-wide portability sweep.
+# These are source templates or intentional fixtures, not production modules.
+./scenarios/go-code-graph/bas/fixtures/go-cycles
+./templates/resources/cloud-api/cli
+./templates/resources/compose-service/cli
+./templates/resources/desktop-app/cli
+./templates/resources/docker-service/cli
+./templates/resources/external-cli/cli
+./templates/resources/managed-service/cli
+./templates/resources/manual-resource/cli
+./templates/resources/native-cli/cli
+./templates/scenarios/landing-page-react-vite/api
+./templates/scenarios/landing-page-react-vite/cli
+./templates/scenarios/react-vite/api
+./templates/scenarios/react-vite/cli
