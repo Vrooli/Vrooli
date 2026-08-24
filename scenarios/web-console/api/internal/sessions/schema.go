@@ -1,8 +1,10 @@
 package sessions
 
-import _ "embed"
+import (
+	_ "embed"
 
-import monetization "github.com/vrooli/vrooli/packages/monetization-go"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
+)
 
 //go:embed schema.sql
 var schemaSQL string

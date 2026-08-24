@@ -12,6 +12,8 @@ const (
 	KindPaste     = sessioncore.KindPaste
 )
 
-type PTY = sessioncore.PTY
-type LaunchSpec = sessioncore.LaunchSpec
-type Factory = sessioncore.Factory
+type (
+	PTY        = sessioncore.PTY
+	LaunchSpec = sessioncore.LaunchSpec
+	Factory    = sessioncore.Factory
+)

@@ -16,7 +16,7 @@
     "strings:gen": "node scripts/gen-strings.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check",
     "pretest": "pnpm run selector:manifest && pnpm run strings:gen",
-    "test": "./scripts/run-vitest-batches.sh"
+    "test": "vitest run"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",

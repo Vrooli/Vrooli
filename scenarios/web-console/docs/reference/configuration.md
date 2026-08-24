@@ -131,13 +131,18 @@ The terminal launcher presents configurable shortcut entries alongside the empty
 - **Attributed OpenCode** and **Attributed Grok** use the same additive
   preflight pattern.
 
-The source for the ambient shell functions is
-[CODE: lib/coding-agent-shell-functions.sh]. It defines `claude`, `codex`, and
-`grok` functions that call the shared launcher when it is on `PATH` and use the
-raw binary otherwise. The functions never construct a shell command from the
-agent's arguments and never retry the agent after a launcher failure. Source
-the file from an interactive shell profile only after verifying the launcher
-degradation suite.
+Ambient attribution is no longer a shell function. It is delivered by the
+`coding_agent_shims` host safeguard
+([CODE: internal/safeguards/coding-agent-shims]), which installs one link per
+agent in `~/.vrooli/bin` pointing at `vrooli-agent-launcher`. The launcher
+attributes the run and then replaces its own process image with the real agent,
+so nothing of it survives into the agent's lifetime.
+
+A shim is a real executable, so attribution reaches every shell, non-interactive
+contexts, and agents started with `execve` — none of which a bash function could
+cover. The shell-function version required an `~/.bashrc` edit that nothing
+installed, upgraded, or removed; if a host still has that block, delete it. The
+shims make it redundant, and leaving it in place only adds a hop.
 
 The `TerminalLauncher` component accepts a `shortcuts` prop, enabling parent scenarios to inject custom shortcut lists without modifying the component. This is the extension point for OT-P1-002 (Shortcut Profile Management).
 

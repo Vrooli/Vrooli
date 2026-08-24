@@ -1,28 +1,49 @@
 {
-  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {
     "id": "voice-input-button",
     "title": "VoiceInputButton",
-    "purpose": "Expose one fixed-footprint microphone control; consumers own errors and recovery actions.",
-    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.1.0/story.json"
+    "purpose": "Expose one fixed-footprint microphone control whose recording, timeout, transcription, and cancellation states remain perceivable.",
+    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.2.0/story.json"
   },
   "states": [
     { "id": "idle", "example": "idle", "description": "Ready to start voice input." },
-    { "id": "preparing", "example": "preparing", "description": "Microphone is preparing." },
-    { "id": "recording", "example": "recording", "description": "Capturing microphone input." },
-    { "id": "recovering", "example": "recovering", "description": "The action is recovering." },
-    { "id": "transcribing", "example": "transcribing", "description": "Audio is being transcribed." },
+    { "id": "preparing", "example": "preparing", "description": "Microphone capture is preparing." },
+    { "id": "recording", "example": "recording", "description": "Capturing microphone input with visible level feedback." },
+    { "id": "recovering", "example": "recovering", "description": "Capture is recovering without changing the control footprint." },
+    { "id": "transcribing", "example": "transcribing", "description": "Transcription is active and can be cancelled inside the same control." },
     { "id": "unavailable", "example": "unavailable", "description": "Voice input is unavailable." },
-    { "id": "error", "example": "error", "description": "Error state without an embedded recovery surface." },
-    { "id": "timeout", "example": "timeout", "description": "Recording reaches its timeout variant." }
+    { "id": "error", "example": "error", "description": "Voice input ended in an error state." },
+    { "id": "timeout", "example": "timeout", "description": "Recording approaches its timeout with an in-control progress ring." }
   ],
   "elements": [
-    { "id": "voice-control", "role": "button", "description": "The only rendered control." }
+    { "id": "voice-control", "role": "button", "description": "The only rendered voice-input control." }
   ],
   "claims": [
-    { "id": "voice-input-action", "type": "element-present", "statement": "Every state exposes exactly one named microphone control.", "tier": "machine", "elements": ["voice-control"], "states": ["idle", "recording", "error"] }
+    {
+      "id": "voice-input-action",
+      "type": "element-present",
+      "statement": "Every lifecycle state exposes exactly one named voice-input control.",
+      "tier": "machine",
+      "elements": ["voice-control"],
+      "states": ["idle", "preparing", "recording", "recovering", "transcribing", "unavailable", "error", "timeout"]
+    },
+    {
+      "id": "transcription-cancel-in-control",
+      "type": "element-present",
+      "statement": "The transcribing state exposes cancellation through the same voice-input control.",
+      "tier": "machine",
+      "elements": ["voice-control"],
+      "states": ["transcribing"]
+    }
   ],
-  "bindings": { "elements": { "voice-control": { "testid": "voice-input-control" } } }
+  "bindings": {
+    "elements": {
+      "voice-control": {
+        "selector": "button",
+        "note": "The component fixture renders exactly one button; semantic selection remains joinable when accessibility snapshots omit DOM test IDs."
+      }
+    }
+  }
 }

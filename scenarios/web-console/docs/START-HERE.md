@@ -26,8 +26,9 @@ Complete. The scenario boots through the standard Vrooli lifecycle:
 
 - `make start` / `make stop` / `make restart` / `make status` all
   delegate to `vrooli scenario ...`.
-- `make test` runs the test-genie comprehensive preset
-  (see `.vrooli/service.json::lifecycle.test`).
+- `make test` submits the Test Genie comprehensive preset through
+  `vrooli scenario test web-console`; `.vrooli/testing.json` owns any
+  scenario-specific test configuration.
 - API health is exposed at `/health` and gated by the
   `health` Connect service in `api/internal/health/`.
 

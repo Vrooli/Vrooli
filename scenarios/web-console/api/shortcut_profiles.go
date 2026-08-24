@@ -40,6 +40,17 @@ type ShortcutProfileStore struct {
 }
 
 // defaultShortcuts are the built-in shortcuts per PRD (OT-P0-006).
+//
+// These are plain agent commands. They do not name vrooli-agent-launcher and do
+// not preflight it, because the coding_agent_shims host safeguard puts a shim
+// for each agent on PATH; running `codex` already routes through the launcher
+// and picks up an identity. That is also why the separate "(attributed)"
+// entries are gone — every entry is attributed now, and a duplicate set that
+// hand-rolled the launcher invocation only invited the two to drift apart.
+//
+// Claude Code keeps its governed `vrooli agent launch` invocation: that routes
+// through agent-manager, which owns the run outright rather than attributing an
+// externally started one. The shim would work, but it is the weaker guarantee.
 var defaultShortcuts = []ShortcutEntry{
 	{
 		Label:       "Claude Code",
@@ -61,26 +72,6 @@ var defaultShortcuts = []ShortcutEntry{
 		Command:     "grok",
 		Description: "xAI Grok CLI — conversation captured from its session transcript",
 	},
-	{
-		Label:       "Claude Code (attributed)",
-		Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent claude -- --dangerously-skip-permissions; fi; exec vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
-		Description: "Claude Code with best-effort Agent Manager attribution; direct fallback stays available",
-	},
-	{
-		Label:       "Codex (attributed)",
-		Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent codex -- --yolo; fi; exec codex --yolo",
-		Description: "Codex with best-effort Agent Manager attribution; direct fallback stays available",
-	},
-	{
-		Label:       "OpenCode (attributed)",
-		Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent opencode --; fi; exec opencode",
-		Description: "OpenCode with best-effort Agent Manager attribution; direct fallback stays available",
-	},
-	{
-		Label:       "Grok (attributed)",
-		Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent grok --; fi; exec grok",
-		Description: "Grok with best-effort Agent Manager attribution; direct fallback stays available",
-	},
 }
 
 // legacyDefaultShortcutSets are prior built-in default shortcut lists that
@@ -91,6 +82,48 @@ var defaultShortcuts = []ShortcutEntry{
 // Append a snapshot here whenever defaultShortcuts changes, so the prior shape
 // stays recognizable as "untouched seed".
 var legacyDefaultShortcutSets = [][]ShortcutEntry{
+	{
+		{
+			Label:       "Claude Code",
+			Command:     "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
+			Description: "AI coding assistant with full permissions",
+		},
+		{
+			Label:       "Codex",
+			Command:     "codex --yolo",
+			Description: "OpenAI Codex CLI in auto-approve mode",
+		},
+		{
+			Label:       "OpenCode",
+			Command:     "opencode",
+			Description: "OpenCode TUI — conversation captured via its local server API",
+		},
+		{
+			Label:       "Grok",
+			Command:     "grok",
+			Description: "xAI Grok CLI — conversation captured from its session transcript",
+		},
+		{
+			Label:       "Claude Code (attributed)",
+			Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent claude -- --dangerously-skip-permissions; fi; exec vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
+			Description: "Claude Code with best-effort Agent Manager attribution; direct fallback stays available",
+		},
+		{
+			Label:       "Codex (attributed)",
+			Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent codex -- --yolo; fi; exec codex --yolo",
+			Description: "Codex with best-effort Agent Manager attribution; direct fallback stays available",
+		},
+		{
+			Label:       "OpenCode (attributed)",
+			Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent opencode --; fi; exec opencode",
+			Description: "OpenCode with best-effort Agent Manager attribution; direct fallback stays available",
+		},
+		{
+			Label:       "Grok (attributed)",
+			Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent grok --; fi; exec grok",
+			Description: "Grok with best-effort Agent Manager attribution; direct fallback stays available",
+		},
+	},
 	{
 		{
 			Label:       "Claude Code",

@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"strings"
+	"testing"
 	"time"
 )
-import "testing"
 
 func TestAppendAssistantEvent_Basic(t *testing.T) {
 	store := NewConversationStore()

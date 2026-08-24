@@ -1,10 +1,10 @@
 /**
  * @vrooliComponentSource react-component-library:VoiceInputButton
- * @vrooliComponentVersion 4.0.0
+ * @vrooliComponentVersion 4.2.0
  * @vrooliComponentAdoption fca0af9a-3a97-46e6-b43a-b8c6504d9361
- * @vrooliComponentAppliedAt 2026-08-09T14:56:08Z
- * @vrooliComponentSourceSha256 917eef020c6f5479c4d7bbaa930ccf0276bfb4270d3fe5b0aceb1e0ad7cb5c5d
- * @vrooliComponentDriftHash 917eef020c6f5479c4d7bbaa930ccf0276bfb4270d3fe5b0aceb1e0ad7cb5c5d
+ * @vrooliComponentAppliedAt 2026-08-20T01:50:37Z
+ * @vrooliComponentSourceSha256 91615366abb778b246fdb8fe76f00401afcd90c343a4d3f5bfd0aaeef5177d29
+ * @vrooliComponentDriftHash 91615366abb778b246fdb8fe76f00401afcd90c343a4d3f5bfd0aaeef5177d29
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -12,9 +12,10 @@
  */
 import type { ReactNode, SVGProps } from "react";
 
-export type VoiceInputGlyphKind = "alert" | "loader" | "mic";
+export type VoiceInputGlyphKind = "alert" | "cancel" | "loader" | "mic";
 
 const paths: Record<VoiceInputGlyphKind, ReactNode> = {
+  cancel: <path d="M18 6 6 18M6 6l12 12" />,
   mic: (
     <>
       <rect x="8" y="3" width="8" height="12" rx="4" />
@@ -43,6 +44,7 @@ export function VoiceInputButtonGlyph({
   return (
     <svg
       {...props}
+      data-rcl-voice-glyph
       aria-hidden="true"
       className={className}
       viewBox="0 0 24 24"

@@ -2,9 +2,9 @@
  * @vrooliComponentSource react-component-library:Pressable
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption fca0af9a-3a97-46e6-b43a-b8c6504d9361
- * @vrooliComponentAppliedAt 2026-08-09T14:56:08Z
- * @vrooliComponentSourceSha256 c602c0925568c371342c5099f747059a4e4804392e532f5c10e630d7ae3d7532
- * @vrooliComponentDriftHash 3c9f0b0a5da5221d46540c17755633a801b6b6f1ea5a8b08e736cf0a4d306ef5
+ * @vrooliComponentAppliedAt 2026-08-20T01:50:37Z
+ * @vrooliComponentSourceSha256 2dd98ba6b5fdc594c07014c6b28bf1ceb63ad53b4eb2b382c020bc12e40d5d17
+ * @vrooliComponentDriftHash a359edbd880ce2cb6eccb331ccaa1fdb2fbeaf68440fd2f4644526610d2a2a80
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -20,11 +20,12 @@ import {
 } from "./ControlBase";
 
 const pressableStyles = `
-[data-rcl-pressable-content] { display: inline-grid; place-items: center; min-inline-size: 0; }
-[data-rcl-pressable-label], [data-rcl-pressable-pending] { grid-area: 1 / 1; display: inline-flex; align-items: center; gap: var(--space-2xs); }
-[data-rcl-pressable-pending] { visibility: hidden; }
+[data-rcl-pressable-content] { position: relative; display: inline-flex; align-items: center; min-inline-size: 0; }
+[data-rcl-pressable-label], [data-rcl-pressable-pending] { display: inline-flex; align-items: center; gap: var(--space-2xs); }
+[data-rcl-pressable-pending] { position: absolute; inset: 0; justify-content: center; visibility: hidden; white-space: nowrap; }
 [data-rcl-pressable][data-rcl-pending="true"] [data-rcl-pressable-label] { visibility: hidden; }
 [data-rcl-pressable][data-rcl-pending="true"] [data-rcl-pressable-pending] { visibility: visible; }
+[data-rcl-control][data-control-size="icon"] [data-rcl-pressable-pending] > span:not([data-rcl-pressable-spinner]) { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 [data-rcl-pressable-spinner] { inline-size: var(--space-sm); block-size: var(--space-sm); flex: 0 0 auto; border: var(--border-strong) solid color-mix(in srgb, currentColor 28%, transparent); border-block-start-color: currentColor; border-radius: var(--radius-pill); animation: rcl-pressable-spin var(--dur-moderate) linear infinite; }
 @keyframes rcl-pressable-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { [data-rcl-pressable-spinner] { animation: none; } }
@@ -81,12 +82,15 @@ export const Pressable = forwardRef<HTMLButtonElement, PressableProps>(
           style={style}
         >
           <span data-rcl-pressable-content>
-            <span data-rcl-pressable-label aria-hidden={pending}>
+            <span
+              data-rcl-pressable-label
+              aria-hidden={pending && size !== "icon"}
+            >
               {children}
             </span>
             <span
               data-rcl-pressable-pending
-              aria-hidden={!pending}
+              aria-hidden={!pending || size === "icon"}
               aria-live="polite"
             >
               <span aria-hidden="true" data-rcl-pressable-spinner />

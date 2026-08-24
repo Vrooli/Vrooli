@@ -8,8 +8,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities"
 	internalcaps "web-console/internal/capabilities"
+
+	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities"
 )
 
 type fakeService struct {

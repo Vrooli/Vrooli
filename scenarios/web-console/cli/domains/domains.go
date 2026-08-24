@@ -6,6 +6,7 @@ import (
 	"web-console/cli/domains/conversation"
 	"web-console/cli/domains/events"
 	filepreview "web-console/cli/domains/file_preview"
+	"web-console/cli/domains/hooks"
 	"web-console/cli/domains/metrics"
 	"web-console/cli/domains/session"
 	"web-console/cli/domains/settings"
@@ -87,6 +88,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		sessionGroup,
 		targetGroup,
 		terminal.Register(core),
+		hooks.Register(),
 		workspaceGroup,
 		settingsGroup,
 		shortcutsGroup,

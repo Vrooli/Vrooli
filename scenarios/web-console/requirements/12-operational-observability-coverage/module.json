@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-19T13:10:33-04:00"
+    "last_validated_at": "2026-08-19T17:55:51-04:00"
   },
   "requirements": [
     {
@@ -18,7 +18,7 @@
           "type": "test",
           "ref": "api/events_test.go:TestEventLogger_AllEventTypes",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Verify all lifecycle events emitted"
         },
         {
@@ -39,21 +39,21 @@
           "type": "test",
           "ref": "api/events_test.go:TestHandleEvents_InvalidLimitFallback",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Invalid limit param falls back to default"
         },
         {
           "type": "test",
           "ref": "api/events_test.go:TestEventLogger_SubscriberNotification",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Subscribers receive emitted events in real time"
         },
         {
           "type": "test",
           "ref": "api/events_test.go:TestHandleEvents_LimitCappedAt1000",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Events endpoint caps limit at 1000 for safety"
         }
       ]
@@ -61,7 +61,7 @@
     {
       "id": "REQ-P1-004b",
       "title": "Operational Metrics Collection",
-      "status": "pending",
+      "status": "planned",
       "prd_ref": "OT-P1-004",
       "category": "performance",
       "description": "Metrics collection for session count, active connections, WebSocket throughput, reconnect rate, and AI provider latency. Exposed via /metrics endpoint.",
@@ -80,14 +80,14 @@
           "type": "test",
           "ref": "api/metrics_test.go:TestMetrics_AtomicConcurrency",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Atomic counters under concurrent load"
         },
         {
           "type": "test",
           "ref": "api/metrics_test.go:TestMetrics_PerformanceOverhead",
           "phase": "performance",
-          "status": "failing",
+          "status": "planned",
           "notes": "No performance impact from logging (\u003c1ms overhead)"
         }
       ]
@@ -104,7 +104,7 @@
           "type": "test",
           "ref": "api/metrics_test.go:TestMetrics_PerformanceOverhead",
           "phase": "performance",
-          "status": "failing",
+          "status": "planned",
           "notes": "Performance overhead benchmark passes"
         }
       ]

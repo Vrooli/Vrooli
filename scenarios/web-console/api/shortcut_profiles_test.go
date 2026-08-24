@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -26,14 +27,25 @@ func TestShortcutProfileStore_DefaultProfile(t *testing.T) {
 	if profiles[0].Scope != "service" {
 		t.Errorf("expected service scope, got %q", profiles[0].Scope)
 	}
-	if len(profiles[0].Shortcuts) != 8 {
-		t.Errorf("expected 8 default shortcuts, got %d", len(profiles[0].Shortcuts))
+	// One entry per agent. The "(attributed)" duplicates were retired with the
+	// shell functions: the coding_agent_shims safeguard means a plain agent
+	// command is already attributed, so a second hand-rolled set would only
+	// drift from the first.
+	if len(profiles[0].Shortcuts) != 4 {
+		t.Fatalf("expected 4 default shortcuts, got %d", len(profiles[0].Shortcuts))
 	}
 	if got := profiles[0].Shortcuts[0].Command; got != "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions" {
 		t.Errorf("default Claude shortcut = %q, want governed project invocation", got)
 	}
-	if got := profiles[0].Shortcuts[4].Command; got != "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent claude -- --dangerously-skip-permissions; fi; exec vrooli agent launch --runner claude --arg=--dangerously-skip-permissions" {
-		t.Errorf("attributed Claude shortcut = %q, want PATH preflight", got)
+	// Codex runs as the bare binary; the PATH shim supplies attribution, so a
+	// shortcut must never hand-roll a launcher preflight of its own.
+	if got := profiles[0].Shortcuts[1].Command; got != "codex --yolo" {
+		t.Errorf("default Codex shortcut = %q, want the plain agent command", got)
+	}
+	for _, shortcut := range profiles[0].Shortcuts {
+		if strings.Contains(shortcut.Command, "vrooli-agent-launcher") {
+			t.Errorf("shortcut %q names the launcher directly (%q); the shim makes that redundant", shortcut.Label, shortcut.Command)
+		}
 	}
 }
 
@@ -163,8 +175,9 @@ func TestConnect_GetEffective(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetEffective: %v", err)
 	}
-	if len(resp.Msg.GetShortcuts()) != 8 {
-		t.Errorf("expected 8 shortcuts, got %d", len(resp.Msg.GetShortcuts()))
+	// One entry per agent; the retired "(attributed)" duplicates are gone.
+	if len(resp.Msg.GetShortcuts()) != 4 {
+		t.Fatalf("expected 4 shortcuts, got %d", len(resp.Msg.GetShortcuts()))
 	}
 	if got := resp.Msg.GetShortcuts()[0].GetCommand(); got != "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions" {
 		t.Errorf("effective Claude shortcut = %q, want governed project invocation", got)

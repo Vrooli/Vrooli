@@ -9,10 +9,11 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
-	targetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/targets"
 	sessionsH "web-console/handlers/sessions"
 	intsessions "web-console/internal/sessions"
+
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	targetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/targets"
 )
 
 func readyRemoteTarget() remoteTerminalTarget {

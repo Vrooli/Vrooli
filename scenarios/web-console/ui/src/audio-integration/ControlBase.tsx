@@ -2,9 +2,9 @@
  * @vrooliComponentSource react-component-library:ControlBase
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption fca0af9a-3a97-46e6-b43a-b8c6504d9361
- * @vrooliComponentAppliedAt 2026-08-09T14:56:08Z
- * @vrooliComponentSourceSha256 475566260f1b3ea29b3123767b9751186515295330f6e79f0aa6e99b82ad9b64
- * @vrooliComponentDriftHash 80ed32c52654599979485c1d7be62d2cbe60f5a9cce944981db407a020742db8
+ * @vrooliComponentAppliedAt 2026-08-20T01:50:37Z
+ * @vrooliComponentSourceSha256 16389ca051fbbe63df470e938c61bf07028e2ccb4ab6a893f341ef697551c3d4
+ * @vrooliComponentDriftHash eca7809528d46f910d8ff6b9bd6cf386c43af8bce7a1a47a6e65bbb8e07e574e
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -16,6 +16,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { motionTransition } from "./foundations/VisualRecipes";
 
 export type ControlVariant =
   | "primary"
@@ -148,8 +149,7 @@ const styleSheet = `
 [data-rcl-control] {
   appearance: none;
   box-sizing: border-box;
-  position: relative;
-  isolation: isolate;
+      isolation: isolate;
   min-height: var(--tap-target-min);
   min-width: var(--tap-target-min);
   border-width: var(--border-hairline);
@@ -165,7 +165,7 @@ const styleSheet = `
   user-select: none;
   white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
-  transition: transform var(--dur-quick) var(--ease-standard), filter var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), background-color var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard);
+  transition: ${motionTransition(["transform", "filter", "box-shadow", "background-color", "border-color", "color"])};
 }
 [data-rcl-control]:hover:not(:disabled) {
   filter: brightness(1.06) saturate(1.04);
