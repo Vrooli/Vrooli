@@ -2,60 +2,109 @@
   "schemaVersion": 1,
   "kind": "preview-harness-registry",
   "ownership": "preview-only",
+  "referenceStories": "reference-stories.json",
   "families": [
     {
       "id": "showcase",
       "version": "1.0.0",
       "export": "Showcase",
-      "archetypes": ["direct", "variant"]
+      "archetypes": ["direct", "variant"],
+      "subjectKinds": [
+        "foundation",
+        "hook",
+        "primitive",
+        "component",
+        "pattern",
+        "navigation",
+        "page-template"
+      ],
+      "requiredCapabilities": [],
+      "configKeys": ["title", "detail", "status"]
     },
     {
       "id": "controlled-state",
       "version": "1.0.0",
       "export": "ControlledState",
-      "archetypes": ["controlled"]
+      "archetypes": ["controlled"],
+      "subjectKinds": ["primitive", "component"],
+      "requiredCapabilities": ["controlled-value"],
+      "configKeys": [
+        "title",
+        "detail",
+        "status",
+        "valueProp",
+        "changeProp",
+        "initialValue"
+      ]
     },
     {
       "id": "state-transition",
       "version": "1.0.0",
       "export": "StateTransition",
-      "archetypes": ["interaction"]
+      "archetypes": ["interaction"],
+      "subjectKinds": ["primitive", "component", "navigation"],
+      "requiredCapabilities": ["interactive"],
+      "configKeys": ["title", "detail", "status"]
     },
     {
       "id": "async-state",
       "version": "1.0.0",
       "export": "AsyncState",
-      "archetypes": ["async"]
+      "archetypes": ["async"],
+      "subjectKinds": ["hook", "component", "pattern", "page-template"],
+      "requiredCapabilities": ["async-state"],
+      "configKeys": ["title", "detail", "status"]
     },
     {
       "id": "recovery",
       "version": "1.0.0",
       "export": "Recovery",
-      "archetypes": ["recovery"]
+      "archetypes": ["recovery"],
+      "subjectKinds": ["component", "pattern", "navigation", "page-template"],
+      "requiredCapabilities": ["recovery"],
+      "configKeys": ["title", "detail", "status"]
     },
     {
       "id": "data-state",
       "version": "1.0.0",
       "export": "DataState",
-      "archetypes": ["fixture"]
+      "archetypes": ["fixture"],
+      "subjectKinds": ["component", "pattern", "navigation", "page-template"],
+      "requiredCapabilities": ["data-source"],
+      "configKeys": ["title", "detail", "status"]
     },
     {
       "id": "overlay-interaction",
       "version": "1.0.0",
       "export": "OverlayInteraction",
-      "archetypes": ["overlay"]
+      "archetypes": ["overlay"],
+      "subjectKinds": ["component", "pattern", "navigation"],
+      "requiredCapabilities": ["overlay"],
+      "configKeys": ["title", "detail", "status"]
     },
     {
       "id": "responsive-mode",
       "version": "1.0.0",
       "export": "ResponsiveMode",
-      "archetypes": ["responsive"]
+      "archetypes": ["responsive"],
+      "subjectKinds": [
+        "primitive",
+        "component",
+        "navigation",
+        "pattern",
+        "page-template"
+      ],
+      "requiredCapabilities": ["responsive"],
+      "configKeys": ["title", "detail", "status"]
     },
     {
       "id": "hook-contract",
       "version": "1.0.0",
       "export": "HookContract",
-      "archetypes": ["hook"]
+      "archetypes": ["hook"],
+      "subjectKinds": ["hook"],
+      "requiredCapabilities": ["hook-contract"],
+      "configKeys": ["title", "detail", "status"]
     }
   ]
 }

@@ -99,10 +99,10 @@ history remain after retirement; only the version source folder is reclaimed.
 
 ```bash
 react-component-library versions plan-cleanup --component-id "react-component-library:Button" --older-than-days 30
-react-component-library versions cleanup --component-id "react-component-library:Button" --older-than-days 30 --plan-hash "<hash>" --confirm
+react-component-library versions cleanup --component-id "react-component-library:Button" --older-than-days 30 --plan-hash "sha256:example-plan-hash" --confirm true
 react-component-library versions plan-cleanup --older-than-days 90
 react-component-library versions cleanup-draft "react-component-library:Button" --older-than-days 14
-react-component-library versions cleanup-draft "react-component-library:Button" --older-than-days 14 --confirm
+react-component-library versions cleanup-draft "react-component-library:Button" --older-than-days 14 --confirm true
 ```
 
 `plan-cleanup` is read-only and returns blocked items plus an exact plan hash.

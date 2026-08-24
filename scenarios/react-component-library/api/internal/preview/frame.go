@@ -90,17 +90,20 @@ func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame)
 	if err != nil {
 		return "", "", "", nil, err
 	}
-	var implementation *components.Component
+	var implementations []components.Component
 	for index := range componentsList {
 		candidate, getErr := s.components.Get(ctx, componentsList[index].ID)
 		if getErr == nil && candidate.CatalogID == frame.Asset {
-			implementation = &candidate
-			break
+			implementations = append(implementations, candidate)
 		}
 	}
-	if implementation == nil {
+	if len(implementations) == 0 {
 		return "", "", "", nil, frameBundleError(frame.Asset, "frame asset has no react-vite implementation")
 	}
+	if len(implementations) > 1 {
+		return "", "", "", nil, frameBundleError(frame.Asset, "frame asset has ambiguous react-vite implementations")
+	}
+	implementation := &implementations[0]
 	version := strings.TrimSpace(frame.Version)
 	if version == "" {
 		// Schema-v3 stories predate immutable frame references. Keep them

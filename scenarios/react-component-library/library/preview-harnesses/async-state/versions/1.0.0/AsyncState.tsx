@@ -1,5 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 
+import { PreviewShowcase } from "../../../showcase/versions/1.0.0/PreviewShowcase";
+
 export type PreviewHarnessProps = {
   subject: ComponentType<Record<string, unknown>>;
   args?: Record<string, unknown>;
@@ -17,19 +19,14 @@ export function AsyncState({
   description = "A representative asynchronous state with its status context visible.",
 }: PreviewHarnessProps) {
   return (
-    <section
-      aria-label={label}
-      data-preview-harness="async-state"
-      data-preview-sheet="shared-harness"
+    <PreviewShowcase
+      subject={Subject}
+      args={args}
+      family="async-state"
+      label={label}
+      description={description}
     >
-      <header>
-        <p data-preview-harness-label>{label}</p>
-        <p data-preview-harness-description>{description}</p>
-      </header>
-      <div data-preview-harness-subject>
-        <Subject {...args} />
-      </div>
       {children}
-    </section>
+    </PreviewShowcase>
   );
 }

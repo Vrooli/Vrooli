@@ -26,7 +26,7 @@
       "id": "primary",
       "name": "Primary",
       "harness": "ButtonStory",
-      "args": { "children": { "$text": "Save changes" }, "variant": "primary" },
+      "args": { "children": { "$text": "Save changes" }, "aria-label": "Save changes", "variant": "primary" },
       "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }],
       "mode": "live"
     },
@@ -62,8 +62,35 @@
           "detail": "The generic harness supplies context; Button remains the subject."
         }
       },
-      "args": { "children": { "$text": "Save changes" }, "variant": "primary" },
+      "args": { "children": { "$text": "Save changes" }, "aria-label": "Save changes", "variant": "primary" },
       "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }],
+      "mode": "live"
+    },
+    {
+      "id": "async-save",
+      "name": "Async save pending",
+      "harness": "AsyncSaveStory",
+      "args": { "children": { "$text": "Save changes" }, "aria-label": "Save changes", "variant": "primary" },
+      "expect": [
+        { "kind": "role", "role": "button", "name": "Save changes" },
+        { "kind": "role", "role": "status", "name": "Saving changes status" },
+        { "kind": "count", "selector": "button", "value": "1" }
+      ],
+      "interactions": [
+        { "kind": "click", "target": { "role": "button", "name": "Save changes" } },
+        { "kind": "settle" }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "long-content",
+      "name": "Long content stress",
+      "harness": "LongContentStory",
+      "args": { "children": { "$text": "Review and apply all pending workspace configuration changes" }, "aria-label": "Review and apply all pending workspace configuration changes" },
+      "expect": [
+        { "kind": "role", "role": "button", "name": "Review and apply all pending workspace configuration changes" },
+        { "kind": "count", "selector": "button", "value": "1" }
+      ],
       "mode": "live"
     }
   ]

@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    "name": "capture-story-evidence",
+    "description": "Generic, data-driven capture and validation for one isolated RCL story. Supply story_url; the workflow uses only the universal harness contract and contains no component-specific knowledge.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "component-harness",
+      "spec_entry_id": "component-harness",
+      "requirements_json": "[\"PR-001\"]",
+      "input_contract": "story_url:string"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-story",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "url": "${@params/story_url}",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the supplied isolated story URL" }
+      }
+    },
+    {
+      "id": "wait-harness-ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Wait for the story harness to reach ready" }
+      }
+    },
+    {
+      "id": "assert-harness-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "The supplied story did not reach the isolated harness-ready state."
+        },
+        "metadata": { "label": "Validate the harness lifecycle" }
+      }
+    },
+    {
+      "id": "assert-story-root",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid=\"component-harness-root\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "The supplied story did not expose its rendered subject root."
+        },
+        "metadata": { "label": "Validate the supplied story subject" }
+      }
+    },
+    {
+      "id": "assert-story-status",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid=\"component-harness-root\"]",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "expected": { "string_value": "passed" },
+          "attribute_name": "data-rcl-story-status",
+          "timeout_ms": 5000,
+          "failure_message": "The supplied story contract reported a failed expectation or interaction."
+        },
+        "metadata": { "label": "Validate the declared story contract result" }
+      }
+    },
+    {
+      "id": "capture-story",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": { "label": "Capture the supplied story evidence boundary" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "edge-navigate-ready", "source": "navigate-story", "target": "wait-harness-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-ready-assert", "source": "wait-harness-ready", "target": "assert-harness-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-assert-root", "source": "assert-harness-ready", "target": "assert-story-root", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-root-status", "source": "assert-story-root", "target": "assert-story-status", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-status-capture", "source": "assert-story-status", "target": "capture-story", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

@@ -1,12 +1,12 @@
 /** @vrooliComponentSource react-component-library:StatusBadge */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   ChevronRight,
   CircleAlert,
-  FileCheck2,
   Play,
+  ScanSearch,
   ShieldCheck,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -15,16 +15,21 @@ import {
   getComponentTestReport,
   listComponentTestReports,
   runComponentTest,
+  type ComponentTestArtifact,
   type ComponentTestReport,
   type ComponentTestResult,
 } from "../../api/componentTests";
+import { API_BASE } from "../../api/client";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { StatusBadge } from "../../components/StatusBadge";
 import { assetSearchForTab } from "../../routes";
 import type { ComponentExperience } from "../../api/components";
-import { EvidenceCarousel } from "../../../../library/components/EvidenceCarousel/versions/1.0.7/EvidenceCarousel";
 import { OverlayCanvas } from "../../../../library/components/OverlayCanvas/versions/1.0.7/OverlayCanvas";
+import {
+  EvidenceCarousel,
+  type EvidenceItem,
+} from "../../../../library/components/EvidenceCarousel/versions/1.0.7/EvidenceCarousel";
 
 type VerdictTone = "success" | "danger" | "warning" | "neutral";
 
@@ -49,6 +54,30 @@ function verdictLabel(verdict: string) {
           ? "Unmeasured"
           : "Inconclusive";
 }
+
+const EVIDENCE_KINDS: ReadonlyArray<{ id: string; label: string; aliases: readonly string[] }> = [
+  { id: "screenshot", label: "Screenshot", aliases: ["screenshot", "bas-screenshot"] },
+  {
+    id: "accessibility-tree",
+    label: "Accessibility Tree",
+    aliases: ["accessibility", "bas-accessibility"],
+  },
+  // BAS returns computed styles and bounds inline in its accessibility snapshot,
+  // so these are intentionally mapped to the accessibility artifact rather than
+  // presented as falsely unavailable.
+  {
+    id: "computed-style",
+    label: "Computed Styles",
+    aliases: ["computed-style", "computed_style", "accessibility", "bas-accessibility"],
+  },
+  {
+    id: "layout-box",
+    label: "Layout Box",
+    aliases: ["layout-box", "layout_box", "accessibility", "bas-accessibility"],
+  },
+  { id: "console", label: "Console", aliases: ["console", "console_logs", "bas-console_logs"] },
+  { id: "performance", label: "Performance", aliases: ["performance", "bas-performance"] },
+] as const;
 
 function StageRow({ result }: { result: ComponentTestResult }) {
   const isPassing = result.verdict === "passed";
@@ -83,6 +112,335 @@ function StageRow({ result }: { result: ComponentTestResult }) {
       </div>
       <StatusBadge tone={tone(result.verdict)}>{verdictLabel(result.verdict)}</StatusBadge>
     </li>
+  );
+}
+
+type CaptureItem = EvidenceItem & {
+  label: string;
+  available: boolean;
+  artifact?: ComponentTestArtifact;
+};
+
+function browserVisibleArtifactUrl(reference: string): string {
+  const rclBase = API_BASE.replace(/\/$/, "");
+  if (reference.startsWith("/embedded/")) return `${rclBase}${reference}`;
+
+  // Historical reports persisted BAS's loopback URL before the embedded
+  // proxy route existed. Rewrite those records at read time so opening old
+  // evidence never asks a hosted RCL page for loopback-network permission.
+  try {
+    const parsed = new URL(reference);
+    if (
+      (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") &&
+      parsed.pathname.startsWith("/api/v1/artifacts/")
+    ) {
+      return `${rclBase}/embedded/browser-automation-studio${parsed.pathname}${parsed.search}`;
+    }
+  } catch {
+    // Non-URL references are internal provenance identifiers, not browser URLs.
+  }
+  return reference;
+}
+
+const MAX_EVIDENCE_BYTES = 8_000_000;
+
+function summarizePerformance(value: unknown): {
+  summary: Record<string, unknown>;
+  truncated: boolean;
+} {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { summary: { value }, truncated: false };
+  }
+  const record = value as Record<string, unknown>;
+  const traceEvents = Array.isArray(record.traceEvents) ? record.traceEvents : [];
+  const names = new Map<string, number>();
+  let minTimestamp = Number.POSITIVE_INFINITY;
+  let maxTimestamp = Number.NEGATIVE_INFINITY;
+  traceEvents.forEach((event) => {
+    if (!event || typeof event !== "object") return;
+    const item = event as Record<string, unknown>;
+    const name = typeof item.name === "string" ? item.name : "unnamed";
+    names.set(name, (names.get(name) ?? 0) + 1);
+    if (typeof item.ts === "number") {
+      minTimestamp = Math.min(minTimestamp, item.ts);
+      maxTimestamp = Math.max(
+        maxTimestamp,
+        item.ts + (typeof item.dur === "number" ? item.dur : 0),
+      );
+    }
+  });
+  const topEvents = [...names.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12)
+    .map(([name, count]) => ({ name, count }));
+  return {
+    summary: {
+      capture: "Performance trace",
+      traceEventCount: traceEvents.length,
+      durationMs:
+        Number.isFinite(minTimestamp) && Number.isFinite(maxTimestamp)
+          ? Math.round((maxTimestamp - minTimestamp) / 1000)
+          : null,
+      webVitals: record.metadata,
+      mostFrequentEvents: topEvents,
+    },
+    truncated: traceEvents.length > 0,
+  };
+}
+
+function PerformanceArtifactSummary({ value }: { value: Record<string, unknown> }) {
+  const events = Array.isArray(value.mostFrequentEvents) ? value.mostFrequentEvents : [];
+  const max = Math.max(...events.map((event) => (event as { count?: number }).count ?? 0), 1);
+  return (
+    <div className="space-y-space-sm p-space-sm">
+      <div className="grid gap-space-xs sm:grid-cols-3">
+        {[
+          ["Trace events", value.traceEventCount ?? "—"],
+          ["Captured duration", value.durationMs == null ? "—" : `${value.durationMs} ms`],
+          ["Payload", "Summarized"],
+        ].map(([title, metric]) => (
+          <div
+            key={String(title)}
+            className="rounded-control border border-app-border bg-app-surface p-space-xs"
+          >
+            <p className="text-xs text-app-muted-foreground">{String(title)}</p>
+            <p className="mt-space-3xs text-lg font-semibold">{String(metric)}</p>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-control border border-app-border bg-app-surface p-space-xs">
+        <div className="flex items-center justify-between gap-space-xs">
+          <h4 className="text-xs font-semibold uppercase tracking-wide">Most frequent events</h4>
+          <span className="text-xs text-app-muted-foreground">Top 12</span>
+        </div>
+        <div className="mt-space-xs space-y-space-2xs">
+          {events.length ? (
+            events.map((event, index) => {
+              const item = event as { name?: string; count?: number };
+              const count = item.count ?? 0;
+              return (
+                <div key={`${item.name ?? "event"}-${index}`} className="text-xs">
+                  <div className="flex justify-between gap-space-xs">
+                    <span className="truncate font-mono">{item.name ?? "Unnamed event"}</span>
+                    <span className="text-app-muted-foreground">{count}</span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-pill bg-app-surface-muted">
+                    <div
+                      className="h-full rounded-pill bg-app-primary"
+                      style={{ width: `${Math.max(4, (count / max) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-xs text-app-muted-foreground">No trace events were recorded.</p>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-app-muted-foreground">
+        The raw Chrome trace remains available as the durable artifact; this view is summarized to
+        keep the evidence viewer responsive.
+      </p>
+    </div>
+  );
+}
+
+function StructuredArtifact({ reference, label }: { reference: string; label: string }) {
+  const [state, setState] = useState<{
+    status: "loading" | "ready" | "error";
+    text: string;
+    value?: Record<string, unknown>;
+  }>({
+    status: "loading",
+    text: "",
+  });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setState({ status: "loading", text: "" });
+    void fetch(browserVisibleArtifactUrl(reference), {
+      signal: controller.signal,
+      credentials: "include",
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Evidence request returned ${response.status}.`);
+        const contentLength = Number(response.headers.get("content-length") ?? 0);
+        if (contentLength > MAX_EVIDENCE_BYTES) {
+          throw new Error(
+            `${label} is too large to render safely (${Math.round(contentLength / 1024)} KB).`,
+          );
+        }
+        const text = await response.text();
+        if (text.length > MAX_EVIDENCE_BYTES) {
+          throw new Error(
+            `${label} is too large to render safely (${Math.round(text.length / 1024)} KB).`,
+          );
+        }
+        return text;
+      })
+      .then((text) => {
+        let formatted = text;
+        let structuredValue: Record<string, unknown> | undefined;
+        try {
+          const parsed = JSON.parse(text) as unknown;
+          const result =
+            label === "Performance"
+              ? summarizePerformance(parsed)
+              : { summary: parsed, truncated: false };
+          formatted = JSON.stringify(result.summary, null, 2);
+          if (label === "Performance" && result.summary && typeof result.summary === "object") {
+            structuredValue = result.summary as Record<string, unknown>;
+          }
+          if (result.truncated) {
+            formatted +=
+              "\n\nTrace events are summarized above to keep the evidence viewer responsive.";
+          }
+        } catch {
+          // Markdown and plain-text artifacts are already display-ready.
+        }
+        setState({
+          status: "ready",
+          text: formatted,
+          value: structuredValue,
+        });
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setState({
+          status: "error",
+          text: error instanceof Error ? error.message : "The evidence could not be loaded.",
+        });
+      });
+    return () => controller.abort();
+  }, [reference]);
+
+  return (
+    <div className="min-h-[18rem] overflow-auto p-space-sm">
+      {state.status === "loading" ? (
+        <p className="text-xs text-app-muted-foreground">Loading {label}…</p>
+      ) : state.status === "error" ? (
+        <p role="alert" className="text-xs text-app-danger">
+          {state.text}
+        </p>
+      ) : label === "Performance" && state.value ? (
+        <PerformanceArtifactSummary value={state.value} />
+      ) : (
+        <pre className="whitespace-pre-wrap break-words rounded-control border border-app-border bg-app-surface p-space-sm font-mono text-xs leading-relaxed text-app-foreground">
+          {state.text}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function EvidenceWorkspace({
+  items,
+  selectedId,
+  onSelect,
+  hasBASArtifacts,
+  overlaySubjects,
+  overlayMessage,
+}: {
+  items: CaptureItem[];
+  selectedId?: string;
+  onSelect: (item: CaptureItem) => void;
+  hasBASArtifacts: boolean;
+  overlaySubjects: Array<{
+    id: string;
+    label: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>;
+  overlayMessage: string;
+}) {
+  const [showOverlay, setShowOverlay] = useState(true);
+  const evidenceItems: EvidenceItem[] = items.map((item) => ({
+    id: item.id,
+    kind: item.id,
+    label: item.label,
+    status: item.available ? "available" : "missing",
+    reference: item.artifact?.reference,
+  }));
+
+  return (
+    <div className="space-y-space-xs">
+      {!hasBASArtifacts ? (
+        <div className="rounded-control border border-app-warning/30 bg-app-warning/5 p-space-xs text-xs text-app-muted-foreground">
+          <span className="font-medium text-app-foreground">
+            No BAS capture bundle in this report.
+          </span>{" "}
+          This report may predate browser evidence publishing. Run the component tests again to
+          collect inspectable captures.
+        </div>
+      ) : null}
+      <EvidenceCarousel
+        items={evidenceItems}
+        selectedId={selectedId}
+        onSelect={(item) => {
+          const selected = items.find((candidate) => candidate.id === item.id);
+          if (selected) onSelect(selected);
+        }}
+        renderControls={(item) =>
+          item.id === "screenshot" && item.status === "available" ? (
+            <label className="flex items-center gap-space-2xs text-xs text-app-muted-foreground">
+              <input
+                type="checkbox"
+                checked={showOverlay}
+                onChange={(event) => setShowOverlay(event.target.checked)}
+              />
+              Show measured overlay
+            </label>
+          ) : null
+        }
+        renderContent={(item) => {
+          const capture = items.find((candidate) => candidate.id === item.id);
+          if (
+            !capture?.available ||
+            !capture.artifact?.reference ||
+            (!capture.artifact.reference.startsWith("http") &&
+              !capture.artifact.reference.startsWith("/embedded/"))
+          ) {
+            return (
+              <div className="flex min-h-[18rem] items-center justify-center p-space-md">
+                <div className="max-w-md text-center">
+                  <p className="text-sm font-medium">{item.label ?? item.kind} is not captured</p>
+                  <p className="mt-space-3xs text-xs text-app-muted-foreground">
+                    This evidence type was not published by the selected test report. Run the
+                    current contract to collect it.
+                  </p>
+                </div>
+              </div>
+            );
+          }
+          const reference = browserVisibleArtifactUrl(capture.artifact.reference);
+          if (item.id === "screenshot") {
+            return (
+              <div className="relative flex min-h-[18rem] items-center justify-center overflow-auto p-space-sm">
+                <img
+                  src={reference}
+                  alt="Captured component screenshot"
+                  className="max-h-[42rem] max-w-full object-contain"
+                />
+                {showOverlay && overlaySubjects.length ? (
+                  <div className="pointer-events-none absolute inset-space-sm">
+                    <OverlayCanvas subjects={overlaySubjects} message={overlayMessage} />
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
+          return (
+            <StructuredArtifact
+              reference={capture.artifact.reference}
+              label={item.label ?? item.kind}
+            />
+          );
+        }}
+      />
+    </div>
   );
 }
 
@@ -214,32 +572,6 @@ function Report({ report }: { report: ComponentTestReport }) {
             ))}
           </ul>
         </section>
-        {(report.artifacts?.length ?? 0) > 0 && (
-          <section
-            aria-labelledby="test-evidence-heading"
-            className="rounded-control border border-app-border bg-app-background p-space-xs"
-          >
-            <div className="flex items-center gap-space-2xs">
-              <FileCheck2 aria-hidden className="h-icon-sm w-icon-sm text-app-info" />
-              <h4 id="test-evidence-heading" className="text-sm font-semibold">
-                Evidence
-              </h4>
-            </div>
-            <p className="mt-space-3xs text-xs text-app-muted-foreground">
-              Durable inputs captured with this run.
-            </p>
-            <ul className="mt-space-2xs space-y-space-3xs">
-              {report.artifacts?.map((artifact) => (
-                <li
-                  key={artifact.reference}
-                  className="break-all font-mono text-xs text-app-muted-foreground"
-                >
-                  {artifact.kind} · {artifact.reference}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
       </div>
     </article>
   );
@@ -288,6 +620,7 @@ export function ComponentTestPanel({
     ),
   );
   const [selectedClaimID, setSelectedClaimID] = useState("");
+  const [selectedCaptureKind, setSelectedCaptureKind] = useState("screenshot");
   const reportID = search.get("testReport") || "";
   const queryClient = useQueryClient();
   const reports = useQuery({
@@ -306,6 +639,7 @@ export function ComponentTestPanel({
       void queryClient.invalidateQueries({ queryKey: ["component-tests", componentId, version] }),
   });
   const latest = run.data ?? selected.data ?? reports.data?.[0];
+  const capturedArtifacts = latest?.artifacts ?? [];
   const activeClaimID = selectedClaimID || failedClaims[0]?.id || "";
   const activeClaim = experience?.claims.find((claim) => claim.id === activeClaimID);
   const activeEvidence = experience?.evidence.find(
@@ -320,6 +654,19 @@ export function ComponentTestPanel({
     width: subject.bounds?.width ?? 0,
     height: subject.bounds?.height ?? 0,
   }));
+  const captureItems = EVIDENCE_KINDS.map(({ id, label, aliases }) => ({
+    id,
+    kind: id,
+    label,
+    artifact: capturedArtifacts.find((candidate) => aliases.includes(candidate.kind)),
+  })).map((item) => ({
+    ...item,
+    available: Boolean(item.artifact),
+    status: item.artifact ? ("available" as const) : ("missing" as const),
+  }));
+  const hasBASArtifacts = capturedArtifacts.some((artifact) => artifact.kind.startsWith("bas-"));
+  const selectedCapture =
+    captureItems.find((item) => item.id === selectedCaptureKind) ?? captureItems[0];
 
   return (
     <section
@@ -393,77 +740,146 @@ export function ComponentTestPanel({
       <section
         data-testid="claim-overlay-panel"
         aria-label="Claim overlay and evidence"
-        className="space-y-space-xs rounded-panel border border-app-border bg-app-surface-muted p-space-sm"
+        className="overflow-hidden rounded-panel border border-app-border bg-app-surface"
       >
-        <div className="flex flex-wrap items-center justify-between gap-space-xs">
-          <div>
-            <h3 className="text-sm font-semibold">Claim overlay</h3>
-            <p className="text-xs text-app-muted-foreground">
-              Select a failed claim to inspect its measured subjects.
-            </p>
-          </div>
-          {failedClaims.length ? (
-            <div role="tablist" aria-label="Failed claims" className="flex flex-wrap gap-space-2xs">
-              {failedClaims.map((claim) => (
-                <button
-                  key={claim.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={claim.id === activeClaimID}
-                  onClick={() => setSelectedClaimID(claim.id)}
-                  className="rounded-control border border-app-border px-space-xs py-space-2xs text-xs focus:outline-none focus:ring-2 focus:ring-app-primary"
-                >
-                  {claim.id}
-                </button>
-              ))}
+        <header className="flex flex-wrap items-start justify-between gap-space-xs border-b border-app-border bg-app-surface-muted p-space-sm">
+          <div className="flex items-start gap-space-xs">
+            <span className="flex h-control-md w-control-md shrink-0 items-center justify-center rounded-control bg-app-primary/10 text-app-primary">
+              <ScanSearch className="h-icon-md w-icon-md" aria-hidden />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold">Experience evidence</h3>
+              <p className="mt-space-3xs max-w-2xl text-xs text-app-muted-foreground">
+                Review the observation, inspect its measured subjects, and open the exact BAS
+                capture that supports the result.
+              </p>
             </div>
-          ) : null}
-        </div>
-        {activeClaim && activeEvidence && measurement ? (
-          <>
-            <p className="text-xs text-app-muted-foreground">{activeClaim.statement}</p>
-            <dl className="grid grid-cols-3 gap-space-2xs text-xs">
-              <div>
-                <dt className="text-app-muted-foreground">Observed</dt>
-                <dd className="font-semibold">{measurement.observed ?? "—"}</dd>
+          </div>
+          <StatusBadge tone={failedClaims.length ? "danger" : "success"}>
+            {failedClaims.length
+              ? `${failedClaims.length} claim${failedClaims.length === 1 ? "" : "s"} need attention`
+              : "All claims passed"}
+          </StatusBadge>
+        </header>
+        {failedClaims.length ? (
+          <div className="grid gap-0 lg:grid-cols-[minmax(12rem,0.3fr)_minmax(0,1fr)]">
+            <nav
+              aria-label="Claims needing attention"
+              className="border-b border-app-border bg-app-surface-muted p-space-xs lg:border-b-0 lg:border-r"
+            >
+              <p className="px-space-2xs pb-space-2xs text-xs font-semibold uppercase tracking-wide text-app-muted-foreground">
+                Claims needing attention
+              </p>
+              <div role="tablist" aria-label="Failed claims" className="space-y-space-2xs">
+                {failedClaims.map((claim) => {
+                  const selected = claim.id === activeClaimID;
+                  return (
+                    <button
+                      key={claim.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={selected}
+                      onClick={() => setSelectedClaimID(claim.id)}
+                      className={`flex w-full items-start gap-space-2xs rounded-control border p-space-xs text-left text-xs transition focus:outline-none focus:ring-2 focus:ring-app-primary ${selected ? "border-app-primary bg-app-primary/10" : "border-transparent hover:border-app-border hover:bg-app-surface"}`}
+                    >
+                      <CircleAlert
+                        className="mt-0.5 h-icon-sm w-icon-sm shrink-0 text-app-danger"
+                        aria-hidden
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-medium">{claim.id}</span>
+                        <span className="mt-space-3xs block text-app-muted-foreground">
+                          {claim.statement}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-              <div>
-                <dt className="text-app-muted-foreground">Required</dt>
-                <dd className="font-semibold">{measurement.required ?? "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-app-muted-foreground">Unit</dt>
-                <dd className="font-semibold">{measurement.unit || "—"}</dd>
-              </div>
-            </dl>
-            <OverlayCanvas
-              subjects={overlaySubjects}
-              message={`${measurement.metric || activeClaim.id} measured overlay`}
-            />
-          </>
+            </nav>
+            <div className="space-y-space-sm p-space-sm">
+              {activeClaim && activeEvidence && measurement ? (
+                <>
+                  <div>
+                    <p className="text-sm font-medium">{activeClaim.statement}</p>
+                    <p className="mt-space-3xs text-xs text-app-muted-foreground">
+                      {activeEvidence.exampleName || activeEvidence.stateId || "Selected scenario"}
+                      {activeEvidence.viewport ? ` · ${activeEvidence.viewport}` : ""}
+                    </p>
+                  </div>
+                  <dl className="grid gap-space-2xs sm:grid-cols-3">
+                    {[
+                      ["Observed", measurement.observed ?? "—"],
+                      ["Required", measurement.required ?? "—"],
+                      ["Unit", measurement.unit || "—"],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="rounded-control border border-app-border bg-app-surface-muted p-space-xs"
+                      >
+                        <dt className="text-xs text-app-muted-foreground">{label}</dt>
+                        <dd className="mt-space-3xs text-sm font-semibold">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <OverlayCanvas
+                    subjects={overlaySubjects}
+                    message={`${measurement.metric || activeClaim.id} measured overlay`}
+                  />
+                </>
+              ) : (
+                <div
+                  data-testid="claim-overlay-unmeasured"
+                  className="rounded-control border border-app-warning/30 bg-app-warning/5 p-space-sm"
+                >
+                  <p className="text-sm font-medium">Measurement unavailable</p>
+                  <p className="mt-space-3xs text-xs text-app-muted-foreground">
+                    This claim failed, but the run did not produce subject bounds for an overlay.
+                  </p>
+                </div>
+              )}
+              <section
+                aria-labelledby="capture-inspector-heading"
+                className="border-t border-app-border pt-space-sm"
+              >
+                <EvidenceWorkspace
+                  items={captureItems}
+                  selectedId={selectedCapture?.id}
+                  onSelect={(item) => setSelectedCaptureKind(item.id)}
+                  hasBASArtifacts={hasBASArtifacts}
+                  overlaySubjects={overlaySubjects}
+                  overlayMessage={`${measurement?.metric || activeClaim?.id || "Claim"} measured overlay`}
+                />
+              </section>
+            </div>
+          </div>
         ) : (
-          <p
-            data-testid="claim-overlay-unmeasured"
-            className="rounded-control border border-dashed border-app-border p-space-xs text-xs text-app-muted-foreground"
-          >
-            Unmeasured: no capture is available for the selected claim.
-          </p>
+          <div data-testid="claim-overlay-empty" className="space-y-space-sm p-space-sm">
+            <div className="flex items-start gap-space-xs rounded-control border border-app-success/30 bg-app-success/5 p-space-sm">
+              <CheckCircle2
+                className="mt-0.5 h-icon-md w-icon-md shrink-0 text-app-success"
+                aria-hidden
+              />
+              <div>
+                <p className="text-sm font-medium">No failed claims to inspect</p>
+                <p className="mt-space-3xs text-xs text-app-muted-foreground">
+                  All experience claims passed. The capture bundle is still available for review
+                  below.
+                </p>
+              </div>
+            </div>
+            <section aria-labelledby="capture-inspector-heading-empty">
+              <EvidenceWorkspace
+                items={captureItems}
+                selectedId={selectedCapture?.id}
+                onSelect={(item) => setSelectedCaptureKind(item.id)}
+                hasBASArtifacts={hasBASArtifacts}
+                overlaySubjects={overlaySubjects}
+                overlayMessage="Measured claim overlay"
+              />
+            </section>
+          </div>
         )}
-        <EvidenceCarousel
-          items={[
-            "screenshot",
-            "accessibility-tree",
-            "computed-style",
-            "layout-box",
-            "console",
-            "performance",
-          ].map((kind) => ({
-            id: kind,
-            kind,
-            status: activeEvidence?.captureRef ? ("available" as const) : ("missing" as const),
-            reference: activeEvidence?.captureRef,
-          }))}
-        />
       </section>
       {reports.data && reports.data.length > 1 && (
         <section aria-labelledby="test-history-heading">

@@ -230,6 +230,31 @@ func TestService_GetBundleVersionWithFrameBundlesSubjectAndCatalogFrame(t *testi
 	require.Contains(t, bundle.FixtureJSON, "fixtures.resource-collection")
 }
 
+func TestService_GetBundleVersionWithFrameRejectsAmbiguousImplementations(t *testing.T) {
+	comp := &fakeComponentsService{
+		getFn: func(_ context.Context, id string) (components.Component, error) {
+			if id == "frame-a" || id == "frame-b" {
+				return components.Component{ID: id, CatalogID: "navigation.page", LibraryID: "react-component-library:PageFrame", LatestVersion: "1.0.0"}, nil
+			}
+			return components.Component{ID: id, LibraryID: "react-component-library:Subject", LatestVersion: "1.0.0"}, nil
+		},
+		listFn: func(context.Context, components.SearchQuery) ([]components.Component, error) {
+			return []components.Component{{ID: "frame-a"}, {ID: "frame-b"}}, nil
+		},
+		getContentFn: func(context.Context, string) (components.Content, error) {
+			return components.Content{Body: "export default function Subject() { return <aside>subject</aside> }", SourcePath: "components/Subject.tsx"}, nil
+		},
+		getVersionContentFn: func(context.Context, string, string) (components.Content, error) {
+			return components.Content{Body: "export function PageFrame() { return <main /> }", SourcePath: "components/PageFrame.tsx"}, nil
+		},
+	}
+	repoRoot := filepath.Join("..", "..", "..", "..", "..")
+	svc := NewServiceWithDepsAtRoot(comp, NewEsbuilder(), nil, repoRoot)
+	_, err := svc.GetBundleVersionWithFrame(context.Background(), "subject-id", "1.0.0", &components.StoryFrame{Asset: "navigation.page", Version: "1.0.0", Region: "navigation", Capability: "navigation"})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ambiguous react-vite implementations")
+}
+
 func TestService_GetBundleVersionWithSharedHarnessInjectsGenericPreviewAsset(t *testing.T) {
 	comp := &fakeComponentsService{
 		getFn: func(_ context.Context, id string) (components.Component, error) {
@@ -245,6 +270,81 @@ func TestService_GetBundleVersionWithSharedHarnessInjectsGenericPreviewAsset(t *
 	require.NoError(t, err)
 	require.Contains(t, bundle.SharedHarnessJS, "data-preview-harness")
 	require.NotContains(t, bundle.SharedHarnessJS, "library/components/")
+}
+
+func TestService_GetBundleVersionWithSharedHarnessBundlesEveryRegisteredFamily(t *testing.T) {
+	comp := &fakeComponentsService{
+		getFn: func(_ context.Context, id string) (components.Component, error) {
+			return components.Component{ID: id, LibraryID: "react-component-library:PreviewSubject", LatestVersion: "1.0.0"}, nil
+		},
+		getVersionContentFn: func(_ context.Context, _, _ string) (components.Content, error) {
+			return components.Content{Body: "export default function Subject() { return <button>subject</button> }", SourcePath: "components/PreviewSubject/versions/1.0.0/PreviewSubject.tsx"}, nil
+		},
+	}
+	repoRoot := filepath.Join("..", "..", "..", "..", "..")
+	svc := NewServiceWithDepsAtRoot(comp, NewEsbuilder(), nil, repoRoot).(*service)
+	families := []struct {
+		asset  string
+		export string
+	}{
+		{asset: "preview.showcase", export: "Showcase"},
+		{asset: "preview.controlled-state", export: "ControlledState"},
+		{asset: "preview.state-transition", export: "StateTransition"},
+		{asset: "preview.async-state", export: "AsyncState"},
+		{asset: "preview.recovery", export: "Recovery"},
+		{asset: "preview.data-state", export: "DataState"},
+		{asset: "preview.overlay-interaction", export: "OverlayInteraction"},
+		{asset: "preview.responsive-mode", export: "ResponsiveMode"},
+		{asset: "preview.hook-contract", export: "HookContract"},
+	}
+	for _, family := range families {
+		t.Run(family.asset, func(t *testing.T) {
+			bundle, err := svc.GetBundleVersionWithFrameAndHarness(context.Background(), "subject-id", "1.0.0", nil, &components.StoryHarnessRef{Asset: family.asset, Version: "1.0.0", Export: family.export})
+			require.NoError(t, err)
+			require.Contains(t, bundle.SharedHarnessJS, "data-preview-harness")
+		})
+	}
+}
+
+func TestService_GetBundleVersionWithSharedHarnessRejectsUndeclaredConfig(t *testing.T) {
+	comp := &fakeComponentsService{
+		getFn: func(_ context.Context, id string) (components.Component, error) {
+			return components.Component{ID: id, LibraryID: "react-component-library:Button", LatestVersion: "1.0.0"}, nil
+		},
+		getVersionContentFn: func(_ context.Context, _, _ string) (components.Content, error) {
+			return components.Content{Body: "export default function Subject() { return <button>subject</button> }", SourcePath: "components/Button/versions/1.0.0/Button.tsx"}, nil
+		},
+	}
+	repoRoot := filepath.Join("..", "..", "..", "..", "..")
+	svc := NewServiceWithDepsAtRoot(comp, NewEsbuilder(), nil, repoRoot).(*service)
+	_, err := svc.GetBundleVersionWithFrameAndHarness(context.Background(), "subject-id", "1.0.0", nil, &components.StoryHarnessRef{
+		Asset: "preview.showcase", Version: "1.0.0", Export: "Showcase",
+		Config: []byte(`{"title":"Button","notRegistered":true}`),
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `config key "notRegistered" is not declared`)
+}
+
+func TestService_GetBundleVersionWithCompositionDigestIncludesReferences(t *testing.T) {
+	comp := &fakeComponentsService{
+		getContentFn: func(context.Context, string) (components.Content, error) {
+			return components.Content{Body: "export default function Subject() { return <button>subject</button> }", SourcePath: "components/Subject.tsx"}, nil
+		},
+		getVersionContentFn: func(context.Context, string, string) (components.Content, error) {
+			return components.Content{Body: "export default function Subject() { return <button>subject</button> }", SourcePath: "components/Subject/versions/1.0.0/Subject.tsx"}, nil
+		},
+	}
+	repoRoot := filepath.Join("..", "..", "..", "..", "..")
+	svc := NewServiceWithDepsAtRoot(comp, NewEsbuilder(), nil, repoRoot).(*service)
+	first, err := svc.GetBundleVersionWithFrameAndHarness(context.Background(), "subject-id", "1.0.0", nil, &components.StoryHarnessRef{
+		Asset: "preview.showcase", Version: "1.0.0", Export: "Showcase", Config: []byte(`{"title":"One"}`),
+	})
+	require.NoError(t, err)
+	second, err := svc.GetBundleVersionWithFrameAndHarness(context.Background(), "subject-id", "1.0.0", nil, &components.StoryHarnessRef{
+		Asset: "preview.showcase", Version: "1.0.0", Export: "Showcase", Config: []byte(`{"title":"Two"}`),
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, first.SHA256, second.SHA256)
 }
 
 func TestService_GetBundle_AllowsHookFixtures(t *testing.T) {

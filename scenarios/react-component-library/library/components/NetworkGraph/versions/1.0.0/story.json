@@ -1,1 +1,25 @@
-{"schemaVersion":3,"kind":"component","title":"NetworkGraph","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"nodes":[{"id":"catalog","label":"Catalog","health":"healthy"},{"id":"asset","label":"Asset","health":"degraded"}],"edges":[{"from":"catalog","to":"asset"}]},"expect":[{"kind":"text","value":"Catalog"},{"kind":"text","value":"Asset"}],"mode":"pinned"}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "NetworkGraph",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "nodes": [
+          { "id": "catalog", "label": "Catalog", "health": "healthy" },
+          { "id": "asset", "label": "Asset", "health": "degraded" }
+        ],
+        "edges": [{ "from": "catalog", "to": "asset" }]
+      },
+      "expect": [
+        { "kind": "role", "role": "button", "name": "Catalog, healthy" },
+        { "kind": "role", "role": "button", "name": "Asset, degraded" }
+      ],
+      "mode": "pinned"
+    }
+  ]
+}

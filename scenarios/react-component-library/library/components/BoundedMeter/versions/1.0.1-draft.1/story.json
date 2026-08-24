@@ -1,13 +1,13 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "args": {
     "fields": [
-      { "name": "label", "type": "string", "default": "Capacity" },
-      { "name": "value", "type": "number", "default": 72 },
-      { "name": "max", "type": "number", "default": 100 },
-      { "name": "valueText", "type": "string", "default": "72%" },
-      { "name": "description", "type": "string", "default": "72% used" }
+      { "path": "label", "label": "Label", "kind": "text", "default": "Capacity" },
+      { "path": "value", "label": "Value", "kind": "number", "default": 72 },
+      { "path": "max", "label": "Maximum", "kind": "number", "default": 100 },
+      { "path": "valueText", "label": "Value text", "kind": "text", "default": "72%" },
+      { "path": "description", "label": "Description", "kind": "text", "default": "72% used" }
     ]
   },
   "environment": { "fixtures": [] },

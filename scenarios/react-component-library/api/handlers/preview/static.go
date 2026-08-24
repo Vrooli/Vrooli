@@ -368,6 +368,10 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSyste
   .rcl-preview-stage--overlay { min-height: 100vh; padding: 0; }
   /* Stable boundary for component-sheet screenshot evidence. */
   [data-preview-sheet] { min-height: 100%; box-sizing: border-box; }
+  [data-preview-sheet]:has([data-preview-harness-density="compact"]) {
+    width: min(100%, 640px);
+    margin-inline: auto;
+  }
   .rcl-preview-well {
     width: min(100%, 760px);
     box-sizing: border-box;
@@ -773,6 +777,7 @@ const tag = (el && el.tagName ? el.tagName.toLowerCase() : "");
   if (tag === "img") return "img";
   if (tag === "select") return "combobox";
   if (tag === "textarea") return "textbox";
+  if (tag === "output") return "status";
   if (tag === "input") {
     const type = (el.getAttribute("type") || "text").toLowerCase();
     if (["button", "submit", "reset"].includes(type)) return "button";
@@ -880,6 +885,7 @@ const reportStoryResult = (passed, failures) => {
       measures: performanceEntries,
     },
   };
+  if (harnessRoot) harnessRoot.dataset.rclStoryStatus = passed ? "passed" : "failed";
   // The DOM mirror is consumed only by the server-owned headless runner; the
   // normal iframe path continues to receive the typed postMessage below.
   storyResultEl.textContent = JSON.stringify(result);
@@ -1138,13 +1144,17 @@ try {
 	  if (previewStory.sharedHarness) {
 		const SharedHarness = SharedHarnessMod[previewStory.sharedHarness.export];
 		if (typeof SharedHarness !== "function") throw new Error("preview: shared harness export " + previewStory.sharedHarness.export + " was not found");
-		renderElement(wrapStandalone(React.createElement(SharedHarness, { subject: Cmp, args: props, config: previewStory.sharedHarness.config || {}, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })));
+		renderSheet(React.createElement(SharedHarness, { subject: Cmp, args: props, config: previewStory.sharedHarness.config || {}, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent }), "shared-harness");
 		return;
 	  }
 	  if (previewStory.harness) {
         const Harness = HarnessMod[previewStory.harness];
         if (typeof Harness !== "function") throw new Error("preview: harness export " + previewStory.harness + " was not found");
-		renderSheet(wrapStandalone(React.createElement(Harness, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })), "local-harness");
+		// A local harness owns its own Preview composition. Do not add the
+		// host's legacy specimen well around it: that duplicates the shared
+		// PreviewShowcase when a local harness has adopted the foundation and
+		// still leaves the capture boundary explicit and host-owned.
+		renderSheet(React.createElement(Harness, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent }), "local-harness");
         return;
       }
       const standaloneSubject = previewStory.kind === "hook"
@@ -1182,6 +1192,12 @@ try {
         if (expectation.value === undefined) return node.hasAttribute(attribute) ? "" : "expected attribute value was not found";
         return node.getAttribute(attribute) === expectation.value ? "" : "expected attribute value was not found";
       }
+      if (expectation.kind === "count") {
+        if (!expectation.selector) return "count expectation requires a selector";
+        const expected = Number(expectation.value);
+        if (!Number.isInteger(expected) || expected < 0) return "count expectation requires a non-negative integer value";
+        return document.querySelectorAll(expectation.selector).length === expected ? "" : "expected element count was not met";
+      }
       if (expectation.kind === "layout") {
         if (!node) return "expected layout target was not found";
         const rect = node.getBoundingClientRect();
@@ -1203,7 +1219,19 @@ try {
       for (const interaction of previewStory.interactions || []) {
         let target = locate(interaction.target);
         if (interaction.kind === "settle") { await new Promise((resolve) => setTimeout(resolve, 20)); continue; }
-        if (interaction.kind === "waitFor") { await new Promise((resolve) => setTimeout(resolve, Math.min(Math.max(Number(interaction.text) || 0, 0), 1000))); continue; }
+		if (interaction.kind === "waitFor") {
+		  const waitText = String(interaction.text || "").trim();
+		  const deadline = Date.now() + 2000;
+		  while (waitText && Date.now() < deadline) {
+		    const visibleText = Array.from(document.querySelectorAll("body *")).some((candidate) => {
+		      const style = getComputedStyle(candidate);
+		      return candidate.textContent?.includes(waitText) && style.display !== "none" && style.visibility !== "hidden";
+		    });
+		    if (visibleText) break;
+		    await new Promise((resolve) => setTimeout(resolve, 20));
+		  }
+		  continue;
+		}
         if (!target && previewStory.kind === "hook" && interaction.kind === "key") target = window;
         if (!target && previewStory.kind === "hook" && interaction.kind === "click") target = document.querySelector("[data-rcl-hook-action=start]");
         if (!target && previewStory.kind === "hook" && interaction.kind === "focus") target = document.querySelector("[data-rcl-hook-root]");

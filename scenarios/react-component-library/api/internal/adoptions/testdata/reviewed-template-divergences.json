@@ -8,7 +8,7 @@
       "path": "ui/src/components/ui/button.tsx",
       "libraryId": "react-component-library:Button",
       "vendoredVersion": "1.2.0",
-      "catalogVersion": "2.0.0",
+      "catalogVersion": "2.2.0",
       "status": "behind",
       "reason": "Button 2.0.0 is the governed ControlBase-backed catalog release; the react-vite template is outside this plan's write boundary and will be reconverged with the next template refresh."
     },
@@ -32,7 +32,7 @@
       "path": "ui/src/components/ui/empty-state.tsx",
       "libraryId": "react-component-library:EmptyState",
       "vendoredVersion": "1.1.0",
-      "catalogVersion": "1.2.0",
+      "catalogVersion": "1.7.3",
       "status": "behind",
       "reason": "EmptyState 1.2.0 is the governed semantic empty-state release; the template copy is outside this plan's write boundary and remains explicitly reviewed until the next template refresh."
     },

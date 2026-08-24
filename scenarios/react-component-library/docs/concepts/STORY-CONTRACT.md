@@ -47,6 +47,30 @@ The complete authoring inventory, compatibility matrix, migration ledger, and
 screenshot evidence matrix are maintained in
 [`../guides/asset-preview-composition.md`](../guides/asset-preview-composition.md).
 
+### Realistic story-set quality gate
+
+A story set is not representative because all of its examples look correct.
+Before a story set enters a review set, inspect the public API and include the
+credible states that users can encounter. Depending on the asset, this can
+include long content, disabled or unavailable actions, loading and async
+pending states, failed or empty data, focus and keyboard paths, narrow
+viewports, and recovery after an interaction. Keep an intentional empty state
+when emptiness is the subject under review.
+
+Use a compact harness when context competes with the subject. A harness or
+frame must explain the subject, not add decorative dashboard content. Every
+story in a review set must have an explicit disposition after individual and
+composite inspection: `accepted`, `revise`, `reject`, `intentional-empty`, or
+`deferred`. Automated expectations prove behavior only; they do not prove
+visual usefulness.
+
+Evidence metadata is optional. When a story does not declare `evidence`, Preview
+assigns it to the default `core` review set and infers a state from its stable
+story ID (`loading`, `error`, `empty`, `disabled`, `focus`, or `default`). Use
+`evidence.reviewSet` or `evidence.states` only for an intentional exception or
+a specialized review set. Authors should not repeat the default capture matrix
+in every component contract.
+
 ## Grammar
 
 Every asset version contains exactly one `story.json`. Schema version 1 remains
@@ -226,10 +250,12 @@ permitted.
 
 Interactions are ordered, identity-scoped and use only `click`, `type`, `key`,
 `focus`, `blur`, `waitFor`, and `settle`. Targets use named selectors or safe
-role/name locators. `settle` waits for the declared deterministic idle signal;
-timeouts are diagnostics, never implicit success. Expectations use `role`,
-`text`, `attribute`, `visible`, or `notVisible`. They cannot execute scripts,
-inspect arbitrary browser state, or create network/storage mutations.
+role/name locators. `waitFor` names visible text that must appear after the
+preceding interaction; the evaluator waits for it with a bounded timeout.
+`settle` waits for the declared deterministic idle signal; timeouts are
+diagnostics, never implicit success. Expectations use `role`, `text`,
+`attribute`, `visible`, or `notVisible`. They cannot execute scripts, inspect
+arbitrary browser state, or create network/storage mutations.
 
 ## Hook stories
 
@@ -264,7 +290,7 @@ registered start/stop actions.
 ## Migration invariant
 
 Catalog conformance fails when an eligible version has no valid `story.json`,
-has more than one, still contains `examples.json`, declares legacy `controls`
+has duplicate story contracts, still contains `examples.json`, declares legacy `controls`
 or `setup`, uses an undeclared environment fixture, or declares an invalid
 frame. This is a greenfield cutover: there is no compatibility reader.
 

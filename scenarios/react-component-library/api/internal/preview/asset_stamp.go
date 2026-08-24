@@ -10,6 +10,7 @@ var (
 	previewMarkerAttribute      = regexp.MustCompile(`\sdata-rcl-(?:asset|version|stamp)(?:\s*=\s*(?:"[^"]*"|'[^']*'|\{[^}]*\}))?`)
 	previewComponentDeclaration = regexp.MustCompile(`(?m)(?:export\s+)?(?:function\s+([A-Za-z_$][\w$]*)\b|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=)`)
 	previewCreateElement        = regexp.MustCompile(`\bcreateElement\(\s*[A-Za-z_$][\w$]*\s*,\s*\{`)
+	previewTypeParameterList    = regexp.MustCompile(`^<[A-Za-z_$][\w$]*(?:\s+extends\b|\s*,|\s*:)`)
 )
 
 // stampPreviewSource is the API-preview counterpart of the Vite stamp
@@ -93,6 +94,10 @@ func previewOwnedOpening(source string, start int) (int, int) {
 			nameEnd++
 		}
 		name := source[open+1 : nameEnd]
+		if previewTypeParameterList.MatchString(source[open:]) {
+			position = nameEnd
+			continue
+		}
 		end := jsxOpeningEnd(source, nameEnd)
 		if end < 0 {
 			return -1, -1

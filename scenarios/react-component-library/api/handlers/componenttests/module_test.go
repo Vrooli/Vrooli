@@ -31,7 +31,7 @@ import (
 type passingExecutor struct{}
 
 func (passingExecutor) ExecuteStory(context.Context, string, string, string) (domain.StoryExecution, error) {
-	return domain.StoryExecution{Passed: true}, nil
+	return domain.StoryExecution{Passed: true, AccessibilityJSON: `{"contract":"bas-accessibility-snapshot/v1"}`, Artifacts: []domain.Artifact{{Reference: "test://capture"}}}, nil
 }
 
 func TestModuleRunsAndListsDurableContractReport(t *testing.T) {

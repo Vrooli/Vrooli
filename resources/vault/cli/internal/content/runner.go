@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 	"time"
 )
 
@@ -62,7 +64,7 @@ func (n *nativeRunner) Run(ctx context.Context, vaultArgs []string, stdin []byte
 		defer cancel()
 	}
 	cmd := exec.CommandContext(ctx, n.binary, vaultArgs...)
-	cmd.Env = append(os.Environ(), "VAULT_ADDR="+n.addr, "VAULT_TOKEN="+n.token)
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, envkit.Env{"VAULT_ADDR=" + n.addr, "VAULT_TOKEN=" + n.token})
 	if len(stdin) > 0 {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}

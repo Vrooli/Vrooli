@@ -4,6 +4,8 @@ export type PreviewShowcaseConfig = {
   title?: string;
   detail?: string;
   status?: string;
+  /** Use for compact controls where the context must not compete with the subject. */
+  density?: "comfortable" | "compact";
 };
 
 export type PreviewShowcaseProps = {
@@ -30,21 +32,25 @@ export function PreviewShowcase({
   description,
   children,
 }: PreviewShowcaseProps) {
+  const compact = config?.density === "compact";
   return (
     <section
       aria-label={label}
       data-preview-harness={family}
+      data-preview-harness-density={config?.density ?? "comfortable"}
       style={{
         display: "grid",
-        gap: "var(--space-lg, 24px)",
+        gap: compact ? "var(--space-md, 16px)" : "var(--space-lg, 24px)",
         width: "min(100%, 48rem)",
+        maxWidth: "100%",
+        marginInline: "auto",
         boxSizing: "border-box",
-        padding: "var(--space-xl, 40px)",
+        padding: compact ? "var(--space-lg, 24px)" : "var(--space-xl, 40px)",
         border: "var(--border-hairline, 1px) solid var(--color-border)",
         borderRadius: "var(--radius-panel, 12px)",
         background: "var(--color-surface-raised)",
         color: "var(--color-foreground)",
-        boxShadow: "var(--elev-raised, 0 12px 32px rgb(15 23 42 / 12%))",
+        boxShadow: compact ? "none" : "var(--elev-raised, 0 12px 32px rgb(15 23 42 / 12%))",
       }}
     >
       <header
@@ -79,7 +85,7 @@ export function PreviewShowcase({
       </header>
       <div
         data-preview-harness-subject
-        style={{ display: "grid", placeItems: "center", minWidth: 0 }}
+        style={{ display: "grid", justifyItems: compact ? "start" : "center", minWidth: 0 }}
       >
         <Subject {...args} />
       </div>

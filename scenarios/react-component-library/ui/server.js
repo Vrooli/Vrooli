@@ -39,6 +39,7 @@ export function startReactComponentLibraryServer() {
     distDir: "./dist",
     serviceName: "react-component-library",
     corsOrigins: "*",
+    embeddedProxy: { allowedScenarios: ["browser-automation-studio"] },
     setupRoutes(app) {
       app.get("/assets/:id/preview", (req, res, next) => {
         if (!isAssetPreviewRoute(req.path)) {

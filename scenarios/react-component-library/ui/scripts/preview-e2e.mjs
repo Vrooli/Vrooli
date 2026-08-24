@@ -87,6 +87,10 @@ function screenshotHash(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+function captureResultPath() {
+  return process.env.RCL_PREVIEW_E2E_RESULT_PATH || "";
+}
+
 function safeArtifactPart(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-");
 }
@@ -110,17 +114,51 @@ function storySheetGroups(stories) {
   return groups;
 }
 
+function requestedStoryIDs(storyIDs, storyMetadata) {
+  const requested = process.env.RCL_PREVIEW_STORY_IDS?.trim();
+  if (requested) {
+    if (requested.toLowerCase() === "all") return [...new Set(storyIDs.filter(Boolean))];
+    return [...new Set(requested.split(",").map((story) => story.trim()).filter(Boolean))];
+  }
+  const reviewSet = process.env.RCL_PREVIEW_REVIEW_SET?.trim();
+  if (reviewSet) {
+    const selected = storyIDs.filter(
+      (story) => (storyMetadata.get(story)?.evidence?.reviewSet || "core") === reviewSet,
+    );
+    if (selected.length === 0) throw new Error(`review set ${reviewSet} has no declared stories`);
+    return [...new Set(selected)];
+  }
+  return [...new Set(storyIDs.filter(Boolean))];
+}
+
+function storyState(storyID, metadata) {
+  if (metadata?.state) return metadata.state;
+  if (metadata?.evidence?.states?.length === 1) return metadata.evidence.states[0];
+  const normalized = String(storyID).toLowerCase();
+  if (/loading|pending|async|saving|working/.test(normalized)) return "loading";
+  if (/error|failed|failure|invalid/.test(normalized)) return "error";
+  if (/empty|no-results|no-results/.test(normalized)) return "empty";
+  if (/disabled|unavailable|locked/.test(normalized)) return "disabled";
+  if (/focus|keyboard/.test(normalized)) return "focus";
+  if (/long|stress|overflow/.test(normalized)) return "stress";
+  if (/success|ready|resolved|recovered/.test(normalized)) return "success";
+  return "default";
+}
+
 async function captureStorySheet(page, tiles, metadata) {
   const tilesHTML = tiles
     .map(
-      ({ story, bytes }) => `
+      ({ story, storyName, state, sourceArtifact, bytes }) => `
         <article data-preview-sheet-tile>
-          <h2>${escapeHTML(story)}</h2>
+          <h2>${escapeHTML(storyName || story)}</h2>
+          <p data-preview-sheet-story-id>${escapeHTML(story)} · ${escapeHTML(state || "default")}</p>
           <img alt="${escapeHTML(story)} story" src="data:image/png;base64,${Buffer.from(bytes).toString("base64")}" />
+          <small>source: ${escapeHTML(sourceArtifact || "capture unavailable")}</small>
         </article>`,
     )
     .join("");
-  await page.setContent(`<!doctype html>
+  await page.setContent(
+    `<!doctype html>
     <html><head><style>
       :root { color-scheme: ${metadata.theme}; }
       * { box-sizing: border-box; }
@@ -132,13 +170,18 @@ async function captureStorySheet(page, tiles, metadata) {
       [data-preview-sheet-grid] { display: grid; grid-template-columns: repeat(${tiles.length > 1 ? 2 : 1}, minmax(0, 1fr)); gap: 16px; align-items: start; }
       [data-preview-sheet-tile] { display: grid; gap: 8px; min-width: 0; }
       [data-preview-sheet-tile] h2 { margin: 0; font-size: 13px; font-weight: 700; }
+      [data-preview-sheet-story-id], [data-preview-sheet-tile] small { margin: 0; color: ${metadata.theme === "dark" ? "#cbd5e1" : "#475569"}; font-size: 11px; overflow-wrap: anywhere; }
       [data-preview-sheet-tile] img { display: block; width: 100%; height: auto; border: 1px solid ${metadata.theme === "dark" ? "#475569" : "#cbd5e1"}; border-radius: 10px; }
+      [data-preview-sheet-footer] { margin: 0; color: ${metadata.theme === "dark" ? "#94a3b8" : "#64748b"}; font-size: 11px; }
     </style></head><body>
       <main data-preview-sheet="story-gallery" data-preview-capture-boundary="component-sheet">
-        <header data-preview-sheet-header><h1>${escapeHTML(metadata.title)}</h1><p>${tiles.length} stories · ${escapeHTML(metadata.theme)} · ${escapeHTML(metadata.viewport)}</p></header>
+        <header data-preview-sheet-header><h1>${escapeHTML(metadata.title)}</h1><p>${tiles.length} stories · ${escapeHTML(metadata.version || "version unknown")} · ${escapeHTML(metadata.kit || "kit unknown")} · ${escapeHTML(metadata.theme)} · ${escapeHTML(metadata.viewport)}</p></header>
         <div data-preview-sheet-grid>${tilesHTML}</div>
+        <p data-preview-sheet-footer>source manifest: ${escapeHTML(metadata.manifestPath || "capture-manifest.json")}</p>
       </main>
-    </body></html>`, { waitUntil: "load" });
+    </body></html>`,
+    { waitUntil: "load" },
+  );
   const sheet = page.locator("[data-preview-sheet]");
   await sheet.waitFor({ state: "visible" });
   return sheet.screenshot({ animations: "disabled" });
@@ -189,21 +232,56 @@ function themesForKit(kit) {
 
 function assetTimeoutMs() {
   const requested = Number(process.env.RCL_PREVIEW_ASSET_TIMEOUT_MS);
-  return Number.isFinite(requested) && requested > 0 ? requested : 120_000;
+  return Number.isFinite(requested) && requested > 0 ? Math.min(requested, 600_000) : 120_000;
 }
 
-async function withAssetTimeout(operation, label) {
+function storyTimeoutMs() {
+  const requested = Number(process.env.RCL_PREVIEW_STORY_TIMEOUT_MS);
+  const fallback = Math.min(assetTimeoutMs(), 60_000);
+  return Number.isFinite(requested) && requested > 0
+    ? Math.min(requested, assetTimeoutMs())
+    : fallback;
+}
+
+async function withTimeout(operation, timeoutMs, label) {
   let timer;
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => {
-      reject(new Error(`asset preview timed out after ${assetTimeoutMs()}ms: ${label}`));
-    }, assetTimeoutMs());
+      reject(new Error(`preview timed out after ${timeoutMs}ms: ${label}`));
+    }, timeoutMs);
   });
   try {
     return await Promise.race([operation(), timeout]);
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function withAssetTimeout(operation, label) {
+  return withTimeout(operation, assetTimeoutMs(), `asset ${label}`);
+}
+
+function classifyCaptureFailure(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/timed out/i.test(message)) {
+    return { stage: "settle", category: "capture-infrastructure", retryable: true };
+  }
+  if (/404|not found|story mismatch|no indexed story/i.test(message)) {
+    return { stage: "resolve", category: "resolver-contract", retryable: false };
+  }
+  if (/expectation|expected .*count|unsupported browser expectation/i.test(message)) {
+    return { stage: "assert", category: "expectation", retryable: false };
+  }
+  if (/overflow|unexpectedly small|blank .*background|blank root|did not mount|preview error|root=\)/i.test(message)) {
+    return { stage: "mount", category: "product-rendering", retryable: false };
+  }
+  if (/screenshot|component sheet|capture/i.test(message)) {
+    return { stage: "capture", category: "capture-infrastructure", retryable: true };
+  }
+  if (/requestfailed|ERR_ABORTED|navigation|browser|context/i.test(message)) {
+    return { stage: "navigate", category: "environment", retryable: true };
+  }
+  return { stage: "navigate", category: "capture-infrastructure", retryable: true };
 }
 
 async function selectResolvedTheme(page, theme) {
@@ -222,6 +300,8 @@ async function captureThemeTier(
   componentID,
   storyIDs = [],
   sourceOverride = "",
+  componentLabel = componentID,
+  storyMetadata = new Map(),
 ) {
   const captures = {};
   const outputDir = screenshotArtifactDir();
@@ -234,17 +314,14 @@ async function captureThemeTier(
   const captureContexts = [];
   const viewports = previewViewports();
   const kits = previewKits();
-  const requestedStories = process.env.RCL_PREVIEW_STORY_IDS?.trim();
   const requestedStory = process.env.RCL_PREVIEW_STORY_ID?.trim();
-  const stories = requestedStories && requestedStories.toLowerCase() !== "all"
-    ? [...new Set(requestedStories.split(",").map((story) => story.trim()).filter(Boolean))]
-    : requestedStories?.toLowerCase() === "all"
-      ? [...new Set(storyIDs.filter(Boolean))]
-      : requestedStory
-        ? [requestedStory]
-    : storyIDs.length > 0
-      ? [...new Set(storyIDs)]
-      : [undefined];
+  const selectedStoryIDs = requestedStory
+    ? [requestedStory]
+    : requestedStoryIDs(storyIDs, storyMetadata);
+  const stories = selectedStoryIDs.length > 0 ? selectedStoryIDs : [undefined];
+  if (stories.filter(Boolean).length !== new Set(stories.filter(Boolean)).size) {
+    throw new Error("capture request contains duplicate story IDs");
+  }
   const sheetMode = process.env.RCL_PREVIEW_STORY_SHEET === "1" && stories.length > 1;
   const sheetGroups = sheetMode ? storySheetGroups(stories.filter(Boolean)) : [];
 
@@ -269,6 +346,25 @@ async function captureThemeTier(
     if (mountedSources.size === 0)
       throw new Error("no story-pinned preview source available for capture");
     const sources = [...mountedSources];
+    const parsedSourceEntries = sources.map((source, index) => ({
+      source,
+      index,
+      story: new URL(source).searchParams.get("story") || undefined,
+    }));
+    // A focused run must select the matching story-pinned source rather than
+    // replaying the requested story against every iframe source mounted by the
+    // editor. That old fallback produced duplicate authoritative rows for a
+    // one-story request and made source cardinality look like subject
+    // cardinality.
+    const matchingSources = parsedSourceEntries.filter(
+      (entry) => !entry.story || stories.includes(entry.story),
+    );
+    const sourceEntries =
+      stories.length === 1 && matchingSources.some((entry) => entry.story === stories[0])
+        ? matchingSources.filter((entry) => entry.story === stories[0])
+        : stories.length > 1
+          ? matchingSources
+          : [matchingSources[0] || parsedSourceEntries[0]];
     for (const kit of kits) {
       for (const viewport of viewports) {
         const captureContext = await page
@@ -284,21 +380,40 @@ async function captureThemeTier(
           await page.waitForTimeout(100);
           captures[theme] ||= [];
           const sheetTiles = new Map();
-          for (let index = 0; index < sources.length; index += 1) {
-            const source = sources[index];
-            for (const storyID of stories) {
-              const kitSource = new URL(source);
-              kitSource.searchParams.set("kit", kit);
-              // Preserve the story's declared frame. Isolated capture removes
-              // the editor workspace, but it must retain the component's
-              // declared composition context so the artifact proves the
-              // component works inside its intended sheet.
-              // A focused capture may target any declared story without
-              // changing the catalog route or the selected story in the host
-              // editor. This keeps visual ground truth available for states
-              // such as an exiting/hidden Presence boundary.
-              if (storyID) kitSource.searchParams.set("story", storyID);
-              await capturePage.goto(kitSource.toString(), { waitUntil: "domcontentloaded" });
+          for (const sourceEntry of sourceEntries) {
+            const { source, index } = sourceEntry;
+            const storiesForSource = sourceEntry.story
+              ? stories.filter((story) => story === sourceEntry.story)
+              : stories;
+            for (const storyID of storiesForSource) {
+              await withTimeout(async () => {
+                const kitSource = new URL(source);
+                kitSource.searchParams.set("kit", kit);
+                // Preserve the story's declared frame. Isolated capture removes
+                // the editor workspace, but it must retain the component's
+                // declared composition context so the artifact proves the
+                // component works inside its intended sheet.
+                // A focused capture may target any declared story without
+                // changing the catalog route or the selected story in the host
+                // editor. This keeps visual ground truth available for states
+                // such as an exiting/hidden Presence boundary.
+                if (storyID) kitSource.searchParams.set("story", storyID);
+                const forcedFailure = process.env.RCL_PREVIEW_FORCE_FAILURE || "";
+                if (forcedFailure === "404") {
+                  throw new Error(
+                    `preview route returned 404 for ${baseURL()}/preview/does-not-exist/harness.html?story=${encodeURIComponent(storyID || "default")}`,
+                  );
+                }
+                await capturePage.goto(kitSource.toString(), { waitUntil: "domcontentloaded" });
+                if (forcedFailure === "timeout") {
+                  await new Promise((resolve) => setTimeout(resolve, storyTimeoutMs() + 250));
+                }
+                if (forcedFailure === "blank-root") {
+                  await capturePage.evaluate(() => document.querySelector("#root")?.replaceChildren());
+                }
+                if (forcedFailure === "expectation") {
+                  throw new Error(`story ${storyID || "default"} forced expectation failure`);
+                }
               try {
                 await capturePage
                   .locator("#root > *")
@@ -422,9 +537,23 @@ async function captureThemeTier(
               captures[theme].push({
                 kit,
                 story,
+                theme,
+                storyName: storyMetadata.get(story)?.name || story,
+                specimen: storyMetadata.get(story)?.harness || null,
+                harness: storyMetadata.get(story)?.sharedHarness || null,
+                frame: storyMetadata.get(story)?.frame || null,
+                fixtureIds: storyMetadata.get(story)?.fixtureIds || [],
+                state: storyState(story, storyMetadata.get(story)),
+                automated: {
+                  consoleErrors: 0,
+                  overflow: visual.scrollWidth > visual.viewportWidth + 1,
+                  a11yViolations: null,
+                },
+                human: { status: "needs-review", notes: [] },
                 index,
                 viewport: viewport.name,
                 viewportWidth: visual.viewportWidth,
+                viewportHeight: viewport.height,
                 scrollWidth: visual.scrollWidth,
                 background: visual.background,
                 bytes: bytes.length,
@@ -436,10 +565,17 @@ async function captureThemeTier(
                 captureSelector: "[data-preview-sheet]",
                 artifact: outputDir ? artifact : undefined,
               });
-              const tileKey = `${index}`;
+              const tileKey = sheetMode ? "all" : `${index}`;
               const tiles = sheetTiles.get(tileKey) || [];
-              tiles.push({ story, bytes });
+              tiles.push({
+                story,
+                storyName: storyMetadata.get(story)?.name || story,
+                state: storyState(story, storyMetadata.get(story)),
+                bytes,
+                sourceArtifact: captures[theme].at(-1)?.artifact || null,
+              });
               sheetTiles.set(tileKey, tiles);
+              }, storyTimeoutMs(), `story ${storyID || "default"} · ${kit} · ${viewport.name} · ${theme}`);
             }
           }
           if (sheetMode && outputDir) {
@@ -452,18 +588,37 @@ async function captureThemeTier(
                   .map((story) => tiles.find((tile) => tile.story === story))
                   .filter(Boolean);
                 if (selectedTiles.length === 0) continue;
+                if (selectedTiles.length !== group.length) {
+                  throw new Error(
+                    `review sheet is missing ${group.length - selectedTiles.length} source capture(s) for ${group.join(", ")}`,
+                  );
+                }
+                const sourceArtifacts = selectedTiles
+                  .map((tile) => tile.sourceArtifact)
+                  .filter(Boolean);
+                if (new Set(sourceArtifacts).size !== sourceArtifacts.length) {
+                  throw new Error(`review sheet has duplicate source captures for ${group.join(", ")}`);
+                }
+                const sourceURL = sources[Number(sourceIndex)] || sources[0];
                 const bytes = await captureStorySheet(sheetPage, selectedTiles, {
-                  title: `${componentID} stories`,
+                  title: `${componentLabel} stories`,
+                  version: new URL(sourceURL).searchParams.get("version") || "version unknown",
+                  kit,
                   theme,
                   viewport: viewport.name,
+                  manifestPath: "capture-manifest.json",
                 });
                 const storyLabel = group.map((story) => safeArtifactPart(story)).join("-");
                 const artifact = `${safeArtifactPart(componentID)}--stories-${storyLabel}--${sourceIndex}--${safeArtifactPart(kit)}--${safeArtifactPart(viewport.name)}--${theme}.png`;
                 await writeFile(path.join(outputDir, artifact), bytes);
                 captures[theme].push({
                   stories: group,
+                  sourceArtifacts,
+                  theme,
                   index: Number(sourceIndex),
                   viewport: viewport.name,
+                  viewportWidth: viewport.width,
+                  viewportHeight: viewport.height,
                   kit,
                   bytes: bytes.length,
                   hash: screenshotHash(bytes),
@@ -484,6 +639,7 @@ async function captureThemeTier(
   }
 
   for (const light of captures.light || []) {
+    if (light.stories) continue;
     const dark = (captures.dark || []).find(
       (candidate) =>
         candidate.kit === light.kit &&
@@ -589,7 +745,11 @@ async function componentStories(componentID) {
         // Story IDs are scoped to a component version. Reusing an ID such as
         // "primary" across released contracts must not let a historical
         // expectation overwrite the version currently rendered in the frame.
-        stories.set(`${contract.version}:${story.id}`, story.expect || []);
+        stories.set(`${contract.version}:${story.id}`, {
+          ...story,
+          expect: story.expect || [],
+          fixtureIds: contract.environment?.fixtures || [],
+        });
       }
     } catch {
       throw new Error("indexed story contract has invalid storiesJson");
@@ -600,6 +760,22 @@ async function componentStories(componentID) {
 
 async function assertStoryExpectations(frame, name, expectations) {
   for (const expectation of expectations) {
+    if (expectation.kind === "count") {
+      if (!expectation.selector) {
+        throw new Error(`story ${name} has a count expectation without a selector`);
+      }
+      const expected = Number(expectation.value);
+      if (!Number.isInteger(expected) || expected < 0) {
+        throw new Error(`story ${name} has an invalid count expectation value ${JSON.stringify(expectation.value)}`);
+      }
+      const actual = await frame.locator(expectation.selector).count();
+      if (actual !== expected) {
+        throw new Error(
+          `story ${name} expected ${expectation.selector} count=${expected}, got ${actual}`,
+        );
+      }
+      continue;
+    }
     if (expectation.kind === "role") {
       await frame
         .getByRole(expectation.role, { name: expectation.name, exact: true })
@@ -797,8 +973,17 @@ async function assertAssetPreview(page, componentID, target = {}) {
       const version = frameURL.searchParams.get("version") || "__current__";
       const declared = expectations.get(`${version}:${story}`);
       if (!declared) throw new Error(`preview frame ${story} has no indexed story expectations`);
-      await assertStoryExpectations(previewFrame, story, declared);
-      frameResults.push({ url: previewFrame.url(), story, expectationCount: declared.length });
+      await assertStoryExpectations(previewFrame, story, declared.expect);
+      frameResults.push({
+        url: previewFrame.url(),
+        story,
+        storyName: declared.name || story,
+        specimen: declared.harness || null,
+        harness: declared.sharedHarness || null,
+        frame: declared.frame || null,
+        fixtureIds: declared.fixtureIds || [],
+        expectationCount: declared.expect.length,
+      });
     }
     const hostError = await page
       .locator('[data-testid="components-editor-preview-error"]')
@@ -819,18 +1004,23 @@ async function assertAssetPreview(page, componentID, target = {}) {
     const renderedVersion = frameResults[0]
       ? new URL(frameResults[0].url).searchParams.get("version") || ""
       : "";
-    const storyIDs = [...expectations.keys()]
-      .filter((key) => !renderedVersion || key.startsWith(`${renderedVersion}:`))
-      .map((key) => key.slice(key.indexOf(":") + 1));
+    const storyMetadata = new Map(
+      [...expectations.entries()]
+        .filter(([key]) => !renderedVersion || key.startsWith(`${renderedVersion}:`))
+        .map(([key, value]) => [key.slice(key.indexOf(":") + 1), value]),
+    );
+    const storyIDs = [...storyMetadata.keys()]
     const screenshots = await captureThemeTier(
       page,
       frameElements,
       componentID,
       storyIDs,
       frameResults[0]?.url || frameSrc,
+      target.label,
+      storyMetadata,
     );
     assertNoKnownRuntimeErrors(logs);
-    return {
+    const result = {
       ok: true,
       componentID,
       frameSrc,
@@ -839,6 +1029,38 @@ async function assertAssetPreview(page, componentID, target = {}) {
       badge,
       previewResponses: responses,
     };
+    if (screenshotArtifactDir()) {
+      const outputDir = screenshotArtifactDir();
+      const captureRows = Object.values(screenshots)
+        .flat()
+        .filter((entry) => entry.artifact)
+        .map((entry) => ({
+          assetId: target.id,
+          assetLabel: target.label,
+          version: renderedVersion,
+          storyId: entry.story || null,
+          storyName: entry.storyName || entry.story || null,
+          specimen: entry.specimen || null,
+          frame: entry.frame || null,
+          harness: entry.harness || null,
+          fixtureIds: entry.fixtureIds || [],
+          kit: entry.kit,
+          theme: entry.theme || null,
+          viewport: { name: entry.viewport, width: entry.viewportWidth, height: entry.viewportHeight || null },
+          state: entry.state || "default",
+          artifactKind: entry.stories ? "review-sheet" : "individual",
+          artifact: entry.artifact,
+          sourceArtifacts: entry.sourceArtifacts || [],
+          hash: entry.hash,
+          automated: entry.automated || {},
+          human: entry.human || { status: "needs-review", notes: [] },
+        }));
+      await writeFile(
+        path.join(outputDir, `capture-manifest-${safeArtifactPart(target.id)}.json`),
+        `${JSON.stringify({ schemaVersion: 2, kind: "react-component-library-preview-capture", generatedAt: new Date().toISOString(), captures: captureRows }, null, 2)}\n`,
+      );
+    }
+    return result;
   } catch (error) {
     throw new PreviewFailure(error instanceof Error ? error.message : String(error), {
       logs,
@@ -849,6 +1071,90 @@ async function assertAssetPreview(page, componentID, target = {}) {
     page.off("pageerror", onPageError);
     page.off("requestfailed", onRequestFailed);
     page.off("response", onResponse);
+  }
+}
+
+function manifestRows(results) {
+  return results.flatMap((result) =>
+    Object.values(result.screenshots || {})
+      .flat()
+      .filter((entry) => entry.artifact)
+      .map((entry) => ({
+        assetId: result.componentID,
+        assetLabel: result.label,
+        version: entry.version || new URL(result.frames[0]?.url || "http://localhost").searchParams.get("version") || null,
+        storyId: entry.story || null,
+        storyIds: entry.stories || null,
+        artifactKind: entry.stories ? "review-sheet" : "individual",
+        storyName: entry.storyName || entry.story || null,
+        specimen: entry.specimen || null,
+        frame: entry.frame || null,
+        harness: entry.harness || null,
+        fixtureIds: entry.fixtureIds || [],
+        kit: entry.kit,
+        theme: entry.theme || null,
+        viewport: { name: entry.viewport, width: entry.viewportWidth || null, height: entry.viewportHeight || null },
+        state: entry.state || "default",
+        artifact: entry.artifact,
+        sourceArtifacts: entry.sourceArtifacts || [],
+        hash: entry.hash,
+        automated: entry.automated || {},
+        human: entry.human || { status: "needs-review", notes: [] },
+      })),
+  );
+}
+
+function captureRequest(componentTargets) {
+  return {
+    assets: componentTargets.map((target) => ({ id: target.id, label: target.label })),
+    stories: process.env.RCL_PREVIEW_STORY_IDS?.trim() || "all",
+    reviewSet: process.env.RCL_PREVIEW_REVIEW_SET?.trim() || "core",
+    kits: previewKits(),
+    themes: [...new Set(previewKits().flatMap((kit) => themesForKit(kit)))],
+    viewports: previewViewports(),
+    storyTimeoutMs: storyTimeoutMs(),
+    assetTimeoutMs: assetTimeoutMs(),
+    artifactDirectory: screenshotArtifactDir() || null,
+  };
+}
+
+async function writeRunManifest(results, failures = [], request = null) {
+  const outputDir = screenshotArtifactDir();
+  const destination = captureResultPath() || (outputDir ? path.join(outputDir, "capture-manifest.json") : "");
+  if (!destination) return;
+  await mkdir(path.dirname(destination), { recursive: true });
+  const captures = manifestRows(results);
+  const summary = {
+    passed: results.length,
+    failed: failures.length,
+    skipped: 0,
+    timedOut: failures.filter((failure) => failure.category === "capture-infrastructure" && /timed out/i.test(failure.message || "")).length,
+  };
+  await writeFile(
+    destination,
+    `${JSON.stringify({
+      schemaVersion: 2,
+      kind: "react-component-library-preview-capture",
+      generatedAt: new Date().toISOString(),
+      request,
+      summary,
+      captures,
+      failures,
+    }, null, 2)}\n`,
+  );
+  if (outputDir) {
+    const reportLines = [
+      "React Component Library Preview capture report",
+      `passed=${summary.passed} failed=${summary.failed} skipped=${summary.skipped} timedOut=${summary.timedOut}`,
+      `manifest=${path.basename(destination)}`,
+      ...captures.map((capture) =>
+        `${capture.artifactKind} ${capture.assetId} ${capture.storyId || capture.storyIds?.join(",") || "unknown-story"} ${capture.theme} ${capture.viewport.name} artifact=${capture.artifact || "none"} sources=${capture.sourceArtifacts.join(",") || "none"}`,
+      ),
+      ...failures.map((failure) =>
+        `failure ${failure.category} stage=${failure.stage} retryable=${failure.retryable} ${failure.message}`,
+      ),
+    ];
+    await writeFile(path.join(outputDir, "capture-report.txt"), `${reportLines.join("\n")}\n`);
   }
 }
 
@@ -869,6 +1175,7 @@ async function main() {
 
     const results = [];
     const failures = [];
+    const request = captureRequest(componentTargets);
     for (const target of componentTargets) {
       // A preview route can load large dependency graphs and third-party
       // runtime modules. Reusing the host page across the whole catalog lets
@@ -888,9 +1195,13 @@ async function main() {
         });
       } catch (error) {
         console.error(`[preview] failed ${target.label}`);
+        const classification = classifyCaptureFailure(error);
         failures.push({
           componentID: target.id,
           label: target.label,
+          stage: classification.stage,
+          category: classification.category,
+          retryable: classification.retryable,
           message: error instanceof Error ? error.message : String(error),
           details: error instanceof PreviewFailure ? compactDetails(error.details) : undefined,
         });
@@ -901,12 +1212,19 @@ async function main() {
     }
 
     if (failures.length > 0) {
+      await writeRunManifest(results, failures, request);
       throw new Error(
         `preview failed for ${failures.length}/${componentTargets.length} catalog asset(s): ${JSON.stringify(failures)}`,
       );
     }
 
-    console.log(JSON.stringify({ ok: true, checked: componentTargets.length, results }, null, 2));
+    await writeRunManifest(results, [], request);
+    console.log(JSON.stringify({
+      ok: true,
+      checked: componentTargets.length,
+      summary: { passed: results.length, failed: 0, skipped: 0, timedOut: 0 },
+      results,
+    }, null, 2));
     console.log("[REQ:SC-004] Preview sweep rendered every catalog asset story.");
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error), {

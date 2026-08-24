@@ -100,6 +100,15 @@ type StoryHarnessRef struct {
 	Config  json.RawMessage `json:"config,omitempty"`
 }
 
+// StoryEvidence describes the capture review set without moving executable
+// content or assertions out of the story contract. It is intentionally small:
+// the runner owns the concrete matrix and the author only names the intended
+// review purpose and state coverage.
+type StoryEvidence struct {
+	ReviewSet string   `json:"reviewSet,omitempty"`
+	States    []string `json:"states,omitempty"`
+}
+
 // storyFixtureAdapters is deliberately server-owned. A story may select a
 // fixture id, but it cannot name an arbitrary provider/import to execute.
 var storyFixtureAdapters = map[string]struct{}{
@@ -121,6 +130,7 @@ type StoryDefinition struct {
 	SharedHarness *StoryHarnessRef   `json:"sharedHarness,omitempty"`
 	Frame         *StoryFrame        `json:"frame,omitempty"`
 	Geometry      *StoryGeometry     `json:"geometry,omitempty"`
+	Evidence      *StoryEvidence     `json:"evidence,omitempty"`
 	Args          json.RawMessage    `json:"args"`
 	Environment   map[string]string  `json:"environment,omitempty"`
 	Interactions  []StoryInteraction `json:"interactions,omitempty"`
@@ -514,6 +524,9 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		if story.SharedHarness != nil {
 			diagnostics = append(diagnostics, validateStoryHarnessRef(pointer+"/sharedHarness", story.SharedHarness)...)
 		}
+		if story.Harness != "" && story.SharedHarness != nil {
+			diagnostics = append(diagnostics, storyDiagnostic(pointer, "exclusive_harness", "a story must choose either a local harness or a shared harness, not both"))
+		}
 		if contract.SchemaVersion < 3 && story.Frame != nil {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/frame", "schema_version", "frame requires schemaVersion 3"))
 		}
@@ -756,7 +769,7 @@ func validateStoryInteraction(pointer string, assetKind StoryKind, interaction S
 }
 
 func allowedExpectation(kind string) bool {
-	return map[string]bool{"role": true, "text": true, "attribute": true, "visible": true, "notVisible": true, "layout": true}[kind]
+	return map[string]bool{"role": true, "text": true, "attribute": true, "visible": true, "notVisible": true, "layout": true, "count": true}[kind]
 }
 
 func isJSONScalar(raw json.RawMessage) bool {

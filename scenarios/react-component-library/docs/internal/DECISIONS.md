@@ -394,3 +394,13 @@ The frozen calibration corpus lives under `scenarios/react-component-library/cal
 # Final validation evidence is split by oracle
 
 The targeted checks are the authoritative evidence for the instrument changes: they directly cover the modified evaluator, floor, gate, story, capture, conformance, and adoption paths. The required producer-owned baseline diff is also retained, but its fresh member run terminates with the generic `phase did not apply to one or both captured targets` regression classification. Because that classifier does not identify a failing implementation assertion and repeats after managed recovery, it is reported as validation-infrastructure friction rather than converted into a false pass.
+
+# Asset graph report disposition
+
+The dated asset-graph workspace report is now a historical pointer. Its
+durable hierarchy and Preview-composition facts are owned by
+`docs/concepts/ARCHITECTURE.md`, `docs/concepts/STORY-CONTRACT.md`,
+`docs/guides/asset-preview-composition.md`, and
+`docs/guides/preview-composition-migration.md`. Current counts must be
+recreated from the catalog index for each validation run; they must not be
+copied forward from the historical report.

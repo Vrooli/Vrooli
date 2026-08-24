@@ -1,4 +1,5 @@
 /** @vrooliComponentSource overlays.dialog */
+import { useState } from "react";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import type { ComponentStory } from "../../api/components";
@@ -20,6 +21,17 @@ type ActiveStory = {
 };
 type OverrideState = Record<string, "idle" | "applying" | "applied" | "error">;
 
+export type PreviewDiagnostics = {
+  iframeUrl: string;
+  componentId: string;
+  storyId: string;
+  version: string;
+  kit: string;
+  theme: string;
+  frame: string;
+  error?: string;
+};
+
 interface ToolProps {
   activeSpecimen: string | null;
   activeExample?: ActiveStory;
@@ -30,6 +42,7 @@ interface ToolProps {
   specimenOverrides: Record<string, Record<string, unknown>>;
   overrideMessages: Record<string, string>;
   previewEvents: EditorPreviewEvent[];
+  previewDiagnostics: PreviewDiagnostics;
   onApply: (props: Record<string, unknown>, environment?: Record<string, string>) => void;
   onReset: () => void;
   onClearEvents: () => void;
@@ -82,7 +95,25 @@ function parseArgs(raw: string): Record<string, unknown> {
 
 export function ComponentEditorTools(props: ToolProps) {
   const { t } = useTranslation();
-  const { activeExample, activeSpecimenLabel, inspector, previewEvents, onClearEvents } = props;
+  const {
+    activeExample,
+    activeSpecimenLabel,
+    inspector,
+    previewEvents,
+    onClearEvents,
+    previewDiagnostics,
+  } = props;
+  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
+  const diagnosticsText = JSON.stringify(previewDiagnostics, null, 2);
+  const copyDiagnostics = async () => {
+    try {
+      await navigator.clipboard.writeText(diagnosticsText);
+      setDiagnosticsCopied(true);
+      window.setTimeout(() => setDiagnosticsCopied(false), 1800);
+    } catch {
+      setDiagnosticsCopied(false);
+    }
+  };
   return (
     <>
       <div className="grid gap-space-xs xl:grid-cols-[minmax(18rem,0.8fr)_minmax(20rem,1.2fr)]">
@@ -129,6 +160,43 @@ export function ComponentEditorTools(props: ToolProps) {
             </li>
           ) : null}
         </ol>
+      </section>
+      <section
+        data-testid={selectors.components.editor.previewDiagnostics}
+        className="mt-space-xs rounded-md border border-app-border p-space-xs"
+        aria-label={t(strings.components.editor.previewDiagnostics)}
+      >
+        <div className="mb-space-2xs flex items-center justify-between gap-space-2xs">
+          <div>
+            <h3 className="text-sm font-semibold">{t(strings.components.editor.previewDiagnostics)}</h3>
+            <p className="text-xs text-app-muted-foreground">
+              {t(strings.components.editor.previewDiagnosticsDescription)}
+            </p>
+          </div>
+          <Button
+            data-testid={selectors.components.editor.previewDiagnosticsCopy}
+            type="button"
+            variant="secondary"
+            className="h-control-compact shrink-0 px-space-2xs text-xs"
+            onClick={() => void copyDiagnostics()}
+          >
+            {diagnosticsCopied
+              ? t(strings.components.editor.previewDiagnosticsCopied)
+              : t(strings.components.editor.previewDiagnosticsCopy)}
+          </Button>
+        </div>
+        <pre className="max-h-content-short overflow-auto whitespace-pre-wrap break-all rounded bg-app-muted/50 p-space-2xs font-mono text-xs text-app-muted-foreground">
+          {diagnosticsText}
+        </pre>
+        {diagnosticsCopied ? (
+          <span
+            data-testid={selectors.components.editor.previewDiagnosticsCopied}
+            role="status"
+            className="sr-only"
+          >
+            {t(strings.components.editor.previewDiagnosticsCopied)}
+          </span>
+        ) : null}
       </section>
     </>
   );

@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 const DefaultCommandTimeout = 5 * time.Second
@@ -76,7 +78,7 @@ func (ExecRunner) Run(ctx context.Context, command Command) (Result, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, command.Name, command.Args...) // #nosec G204 -- command.Name is restricted by allowedResourceCommand; args are fixed by adapters, prompt data is passed via stdin.
-	cmd.Env = os.Environ()
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	for key, value := range command.Env {
 		cmd.Env = append(cmd.Env, key+"="+value)
 	}

@@ -69,4 +69,33 @@ describe("ComponentTestPanel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Test history could not be loaded");
     expect(screen.queryByText("No component test evidence yet")).not.toBeInTheDocument();
   });
+
+  it("surfaces BAS artifacts as readable evidence states", async () => {
+    api.listComponentTestReports.mockResolvedValue([
+      {
+        id: "ctr_capture",
+        verdict: "passed",
+        results: [],
+        artifacts: [
+          {
+            kind: "bas-screenshot",
+            label: "story:screenshot",
+            assetLibraryId: "rcl:Button",
+            version: "1.0.0",
+            reference: "http://127.0.0.1:17116/api/v1/artifacts/capture.png",
+          },
+        ],
+      },
+    ]);
+    renderWithProviders(<ComponentTestPanel componentId="button-id" version="1.0.0" />);
+    expect(await screen.findByRole("tab", { name: "Screenshot: Captured" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "Accessibility Tree: Not captured" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("screenshotmissing")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Captured component screenshot" }).getAttribute("src"),
+    ).toContain("/embedded/browser-automation-studio/api/v1/artifacts/capture.png");
+    expect(screen.queryByRole("link", { name: /open.*capture/i })).not.toBeInTheDocument();
+  });
 });

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // Config holds validated environment configuration
@@ -143,12 +145,20 @@ func LoadConfig() (*Config, error) {
 
 // GetDatabaseConnectionString returns the PostgreSQL connection string
 func (c *Config) GetDatabaseConnectionString() string {
-	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		c.PostgresHost,
-		c.PostgresPort,
-		c.PostgresUser,
-		c.PostgresPassword,
-		c.PostgresDB,
-	)
+	dsn, _ := database.ResolvePostgresDSN(func(key string) string {
+		switch key {
+		case "POSTGRES_HOST":
+			return c.PostgresHost
+		case "POSTGRES_PORT":
+			return c.PostgresPort
+		case "POSTGRES_USER":
+			return c.PostgresUser
+		case "POSTGRES_PASSWORD":
+			return c.PostgresPassword
+		case "POSTGRES_DB":
+			return c.PostgresDB
+		}
+		return ""
+	})
+	return dsn
 }

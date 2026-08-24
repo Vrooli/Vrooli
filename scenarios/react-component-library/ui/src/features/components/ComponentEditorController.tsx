@@ -38,7 +38,11 @@ import { errorMessage } from "../../lib/errorMessage";
 import { EmulatorToolbar } from "./EmulatorChrome";
 import { ComponentEditorStage } from "./ComponentEditorStage";
 import { ComponentEditorSource } from "./ComponentEditorSource";
-import { ComponentEditorMobileTools, ComponentEditorTools } from "./ComponentEditorTools";
+import {
+  ComponentEditorMobileTools,
+  ComponentEditorTools,
+  type PreviewDiagnostics,
+} from "./ComponentEditorTools";
 import { ThemeSwitcher, type PreviewKit } from "./ThemeSwitcher";
 import { DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplates";
 import { AssetWorkspace } from "../assets/AssetWorkspace";
@@ -466,7 +470,7 @@ export function ComponentEditorImpl({
       setComparedSpecimens((current) => {
         const next = new Set(current);
         if (next.has(identity)) next.delete(identity);
-        else if (next.size < 2) next.add(identity);
+        else if (next.size < 4) next.add(identity);
         return next;
       });
       activateSpecimen(identity);
@@ -628,10 +632,15 @@ export function ComponentEditorImpl({
     [storiesQuery.data?.stories],
   );
   const examples = storySpecimens;
+  const selectAllComparison = useCallback(() => {
+    const selected = examples.slice(0, 4).map((example) => specimenIdentity(example));
+    setComparedSpecimens(new Set(selected));
+    if (selected[0]) activateSpecimen(selected[0]);
+  }, [activateSpecimen, examples]);
   // Only the active specimen is mounted in the normal workspace; comparison
   // mounts exactly two. Waiting for every indexed example left the region in
   // loading forever even after the visible preview had announced readiness.
-  const expectedReadyCount = comparedSpecimens.size === 2 ? 2 : 1;
+  const expectedReadyCount = comparedSpecimens.size >= 2 ? comparedSpecimens.size : 1;
 
   useEffect(() => {
     // A transient loading/fallback specimen can outlive the story query when
@@ -866,7 +875,7 @@ export function ComponentEditorImpl({
     : examples.length > 0
       ? examples
       : [undefined];
-  const comparisonActive = !stageMode && comparedSpecimens.size === 2;
+  const comparisonActive = !stageMode && comparedSpecimens.size >= 2;
   const visibleSpecimens = stageMode
     ? specimens
         .filter(
@@ -886,6 +895,17 @@ export function ComponentEditorImpl({
   );
   const framePickerEnabled = renderable && Boolean(activeVersion);
   const activeSpecimenLabel = activeExample?.displayName || activeExample?.name;
+  const activeSpecimenError = activeSpecimen ? specimenErrors[activeSpecimen] : undefined;
+  const previewDiagnostics: PreviewDiagnostics = {
+    iframeUrl: previewFrameRef.current?.src ?? "",
+    componentId: id,
+    storyId: activeExample?.storyId ?? "",
+    version: activeExample?.version ?? activeVersion,
+    kit: previewKit,
+    theme: resolvedPreviewTheme,
+    frame: frameOverride?.asset ?? "default",
+    ...(activeSpecimenError ? { error: activeSpecimenError } : {}),
+  };
   const paneLabels: Record<WorkspacePane, string> = {
     files: t(strings.components.editor.files),
     preview: t(strings.components.editor.previewMode),
@@ -937,6 +957,7 @@ export function ComponentEditorImpl({
     specimenOverrides,
     overrideMessages,
     previewEvents,
+    previewDiagnostics,
     onApply: applyPropsOverride,
     onReset: resetPropsOverride,
     onClearEvents: () => setPreviewEvents([]),
@@ -1270,6 +1291,18 @@ export function ComponentEditorImpl({
                             >
                               {stageMode ? "Focus" : "Canvas"}
                             </Button>
+                            {!stageMode && specimens.length > 1 && (
+                              <Button
+                                type="button"
+                                variant={comparisonActive ? "primary" : "secondary"}
+                                className="h-control-tight px-space-2xs text-xs"
+                                data-testid={selectors.components.editor.storySheetAll}
+                                aria-pressed={comparisonActive}
+                                onClick={selectAllComparison}
+                              >
+                                Story sheet ({Math.min(specimens.length, 4)})
+                              </Button>
+                            )}
                             <EmulatorToolbar emulator={emulator} compactOnMobile />
                             {activeSpecimen && (
                               <IconButton
@@ -1320,6 +1353,7 @@ export function ComponentEditorImpl({
                             toolsDocked={desktopLayout}
                             toolsOpen={desktopLayout && !previewToolsCollapsed}
                             onClearComparison={() => setComparedSpecimens(new Set())}
+                            onSelectAllComparison={selectAllComparison}
                             onToggleComparison={toggleComparison}
                             onRetrySpecimen={retrySpecimen}
                             onRegisterPreviewFrame={registerPreviewFrame}

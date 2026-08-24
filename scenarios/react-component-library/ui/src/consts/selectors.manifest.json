@@ -364,6 +364,10 @@
       "testId": "components-editor-example-title",
       "selector": "[data-testid=\"components-editor-example-title\"]"
     },
+    "components.editor.exampleDimensions": {
+      "testId": "components-editor-example-dimensions",
+      "selector": "[data-testid=\"components-editor-example-dimensions\"]"
+    },
     "components.editor.storyDescription": {
       "testId": "components-editor-story-description",
       "selector": "[data-testid=\"components-editor-story-description\"]"
@@ -383,6 +387,10 @@
     "components.editor.comparisonClear": {
       "testId": "components-editor-comparison-clear",
       "selector": "[data-testid=\"components-editor-comparison-clear\"]"
+    },
+    "components.editor.storySheetAll": {
+      "testId": "components-editor-story-sheet-all",
+      "selector": "[data-testid=\"components-editor-story-sheet-all\"]"
     },
     "components.editor.galleryStatus": {
       "testId": "components-editor-gallery-status",
@@ -943,6 +951,10 @@
     "versions.itemDiffButton": {
       "testId": "versions-item-diff-button",
       "selector": "[data-testid=\"versions-item-diff-button\"]"
+    },
+    "versions.progressionPanel": {
+      "testId": "versions-progression-panel",
+      "selector": "[data-testid=\"versions-progression-panel\"]"
     },
     "versions.diff.card": {
       "testId": "versions-diff-card",

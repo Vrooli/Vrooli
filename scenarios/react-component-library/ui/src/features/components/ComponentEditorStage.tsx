@@ -68,6 +68,7 @@ type StageProps = {
   /** The docked tools are currently expanded rather than collapsed away. */
   toolsOpen: boolean;
   onClearComparison: () => void;
+  onSelectAllComparison: () => void;
   onToggleComparison: (identity: SpecimenIdentity) => void;
   onRetrySpecimen: (identity: SpecimenIdentity) => void;
   onRegisterPreviewFrame: (identity: SpecimenIdentity, frame: HTMLIFrameElement | null) => void;
@@ -104,6 +105,7 @@ export function ComponentEditorStage({
   toolsDocked,
   toolsOpen,
   onClearComparison,
+  onSelectAllComparison,
   onToggleComparison,
   onRetrySpecimen,
   onRegisterPreviewFrame,
@@ -226,6 +228,14 @@ export function ComponentEditorStage({
               onClick={onClearComparison}
             >
               {t(strings.components.editor.showAllStories)}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-control-compact shrink-0 px-space-2xs text-xs"
+              onClick={onSelectAllComparison}
+            >
+              Story sheet (4 max)
             </Button>
           </div>
         )}
@@ -446,7 +456,7 @@ export function ComponentEditorStage({
                                 }
                                 aria-pressed={comparedSpecimens.has(identity)}
                                 disabled={
-                                  !comparedSpecimens.has(identity) && comparedSpecimens.size >= 2
+                                  !comparedSpecimens.has(identity) && comparedSpecimens.size >= 4
                                 }
                                 density="compact"
                                 className="h-control-compact min-h-control-compact min-w-control-compact shrink-0"

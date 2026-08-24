@@ -25,7 +25,8 @@
     "strings:gen": "node scripts/gen-strings.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check",
     "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
-    "preview:inventory": "node ./scripts/preview-composition-inventory.mjs"
+    "preview:inventory": "node ./scripts/preview-composition-inventory.mjs",
+    "preview:harness:check": "node ./scripts/preview-harness-conformance.mjs"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",

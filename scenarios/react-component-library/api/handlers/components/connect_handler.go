@@ -473,13 +473,17 @@ func (h *connectHandler) ListPreviewFrames(ctx context.Context, req *connect.Req
 				candidate.DiagnosticCode = "not_canonical_frame"
 				candidate.Diagnostic = "region-bearing catalog asset is not approved as a canonical Preview frame"
 			}
-			implementation, found := findCatalogImplementation(implementations, asset.ID)
-			if !found && candidate.Compatible {
+			matches := findCatalogImplementations(implementations, asset.ID)
+			if len(matches) == 0 && candidate.Compatible {
 				candidate.Compatible = false
 				candidate.DiagnosticCode = "implementation_missing"
 				candidate.Diagnostic = "catalog frame has no indexed react-vite implementation"
-			} else if found {
-				candidate.Version = implementation.LatestVersion
+			} else if len(matches) > 1 && candidate.Compatible {
+				candidate.Compatible = false
+				candidate.DiagnosticCode = "implementation_ambiguous"
+				candidate.Diagnostic = "catalog frame resolves to multiple indexed implementations"
+			} else if len(matches) == 1 {
+				candidate.Version = matches[0].LatestVersion
 			}
 			if candidate.Compatible {
 				if required := asset.RegionCapabilities[selectedRegion]; required != "" {
@@ -645,17 +649,20 @@ func (h *connectHandler) validatePreviewFramePersistence(ctx context.Context, su
 	if capability != "" && subjectCapability(subject.CatalogID) != capability {
 		return fmt.Errorf("subject capability %q does not match frame capability %q", subjectCapability(subject.CatalogID), capability)
 	}
-	implementation, ok := func() (components.Component, bool) {
+	matches := func() []components.Component {
 		items, listErr := h.deps.Service.List(ctx, components.SearchQuery{Limit: 10000})
 		if listErr != nil {
-			return components.Component{}, false
+			return nil
 		}
-		return findCatalogImplementation(items, assetID)
+		return findCatalogImplementations(items, assetID)
 	}()
-	if !ok {
+	if len(matches) == 0 {
 		return fmt.Errorf("frame %q has no indexed implementation", assetID)
 	}
-	if _, err := h.deps.Service.GetVersion(ctx, implementation.ID, version); err != nil {
+	if len(matches) > 1 {
+		return fmt.Errorf("frame %q resolves to multiple indexed implementations", assetID)
+	}
+	if _, err := h.deps.Service.GetVersion(ctx, matches[0].ID, version); err != nil {
 		return fmt.Errorf("frame %q version %q is unavailable: %w", assetID, version, err)
 	}
 	return nil
@@ -668,13 +675,14 @@ func subjectCapability(catalogID string) string {
 	return ""
 }
 
-func findCatalogImplementation(items []components.Component, catalogID string) (components.Component, bool) {
+func findCatalogImplementations(items []components.Component, catalogID string) []components.Component {
+	matches := make([]components.Component, 0, 1)
 	for _, item := range items {
 		if item.CatalogID == catalogID && item.AssetKind != components.AssetKindHook {
-			return item, true
+			matches = append(matches, item)
 		}
 	}
-	return components.Component{}, false
+	return matches
 }
 
 func containsString(items []string, wanted string) bool {

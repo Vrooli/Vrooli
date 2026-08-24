@@ -43,9 +43,11 @@ type Result struct {
 }
 
 type Evidence struct {
-	Kind        string               `json:"kind"`
-	Console     *ConsoleEvidence     `json:"console,omitempty"`
-	Performance *PerformanceEvidence `json:"performance,omitempty"`
+	Kind              string               `json:"kind"`
+	Console           *ConsoleEvidence     `json:"console,omitempty"`
+	Performance       *PerformanceEvidence `json:"performance,omitempty"`
+	AccessibilityJSON string               `json:"accessibilityJson,omitempty"`
+	Artifacts         []string             `json:"artifacts,omitempty"`
 }
 
 type ConsoleEvidence struct {
@@ -103,11 +105,13 @@ type StoryReader interface {
 // runner intentionally consumes the preview harness result rather than
 // reimplementing DOM assertions in Go.
 type StoryExecution struct {
-	Passed      bool
-	Failures    []string
-	Duration    time.Duration
-	Console     ConsoleEvidence
-	Performance PerformanceEvidence
+	Passed            bool
+	Failures          []string
+	Duration          time.Duration
+	Console           ConsoleEvidence
+	Performance       PerformanceEvidence
+	AccessibilityJSON string
+	Artifacts         []Artifact
 }
 
 // ExecutorUnavailableError means the browser harness cannot run in the
@@ -212,6 +216,7 @@ func (r Runner) directStoryResults(ctx context.Context, asset components.Compone
 		return nil, nil, fmt.Errorf("decode story contract for %s@%s: %w", asset.LibraryID, version.Version, err)
 	}
 	results := []Result{{Stage: StageContract, AssetLibraryID: asset.LibraryID, Version: version.Version, Verdict: VerdictPassed, Message: "validated story contract accepted"}}
+	artifacts := make([]Artifact, 0, len(story.Stories)*4+1)
 	for _, definition := range story.Stories {
 		if r.Executor == nil {
 			results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictBlocked, Message: "story executor is not configured", Remediation: "configure the preview harness executor before trusting story results"})
@@ -239,14 +244,31 @@ func (r Runner) directStoryResults(ctx context.Context, asset components.Compone
 			verdict = VerdictFailed
 		}
 		results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: verdict, Message: message, Remediation: remediationFor(verdict), Evidence: storyEvidence(execution)})
+		artifacts = append(artifacts, execution.Artifacts...)
+		evidenceVerdict := VerdictPassed
+		evidenceMessage := "BAS evidence bundle captured and parsed"
+		if len(execution.Artifacts) == 0 || strings.TrimSpace(execution.AccessibilityJSON) == "" {
+			evidenceVerdict = VerdictBlocked
+			evidenceMessage = "BAS did not return the complete structured evidence bundle"
+		}
+		results = append(results, Result{Stage: StageEvidence, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: evidenceVerdict, Message: evidenceMessage, Remediation: "repair BAS capture artifact production before trusting experience evidence", Evidence: storyEvidence(execution)})
 	}
-	return results, []Artifact{{Kind: "story-contract", Label: "story.json", AssetLibraryID: asset.LibraryID, Version: version.Version, Reference: asset.LibraryID + "@" + version.Version + ":story.json"}}, nil
+	artifacts = append(artifacts, Artifact{Kind: "story-contract", Label: "story.json", AssetLibraryID: asset.LibraryID, Version: version.Version, Reference: asset.LibraryID + "@" + version.Version + ":story.json"})
+	return results, artifacts, nil
 }
 
 func storyEvidence(execution StoryExecution) []Evidence {
+	refs := make([]string, 0, len(execution.Artifacts))
+	for _, artifact := range execution.Artifacts {
+		if artifact.Reference != "" {
+			refs = append(refs, artifact.Reference)
+		}
+	}
 	return []Evidence{
 		{Kind: "console", Console: &execution.Console},
 		{Kind: "performance", Performance: &execution.Performance},
+		{Kind: "accessibility", AccessibilityJSON: execution.AccessibilityJSON},
+		{Kind: "bas-capture", Artifacts: refs},
 	}
 }
 

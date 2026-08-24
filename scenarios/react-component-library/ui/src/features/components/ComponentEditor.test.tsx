@@ -646,6 +646,18 @@ describe("ComponentEditor", () => {
       );
       await screen.findByRole("button", { name: "Primary" });
       await screen.findByTestId(selectors.components.editor.previewToolsPanel);
+      const diagnostics = await screen.findByTestId(
+        selectors.components.editor.previewDiagnostics,
+      );
+      expect(diagnostics).toHaveTextContent('"componentId": "cmp-events"');
+      expect(diagnostics).toHaveTextContent('"storyId": "primary"');
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText },
+      });
+      fireEvent.click(screen.getByTestId(selectors.components.editor.previewDiagnosticsCopy));
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining('"kit": "vrooli-default"'));
       const frame = await screen.findByTestId<HTMLIFrameElement>(
         selectors.components.editor.previewFrame,
       );
@@ -799,7 +811,8 @@ describe("ComponentEditor", () => {
           argsJson: '{"fields":[]}',
           environmentJson: '{"fixtures":[]}',
           storiesJson: '[{"id":"primary","name":"Primary","args":{}}]',
-          contractJson: '{"schemaVersion":3,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"primary","name":"Primary","args":{}}]}',
+          contractJson:
+            '{"schemaVersion":3,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"primary","name":"Primary","args":{}}]}',
           sourcePath: "story.json",
         },
       ],
@@ -838,9 +851,7 @@ describe("ComponentEditor", () => {
       />,
     );
 
-    const picker = await screen.findByTestId<HTMLSelectElement>(
-      "components-editor-frame-picker",
-    );
+    const picker = await screen.findByTestId<HTMLSelectElement>("components-editor-frame-picker");
     expect(persistPreviewFrame).not.toHaveBeenCalled();
     await userEvent.selectOptions(picker, "navigation.page");
     const save = await screen.findByTestId("components-editor-frame-save");
@@ -1161,7 +1172,7 @@ describe("ComponentEditor", () => {
           argsJson: '{"fields":[]}',
           environmentJson: '{"fixtures":[]}',
           storiesJson:
-            '[{"id":"primary","name":"Primary","args":{}},{"id":"disabled","name":"Disabled","args":{}}]',
+            '[{"id":"primary","name":"Primary","args":{}},{"id":"disabled","name":"Disabled","args":{}},{"id":"loading","name":"Loading","args":{}},{"id":"error","name":"Error","args":{}},{"id":"success","name":"Success","args":{}}]',
           contractJson: "{}",
           sourcePath: "story.json",
         },
@@ -1193,8 +1204,10 @@ describe("ComponentEditor", () => {
     );
     await user.click(updatedComparisonButtons[1]!);
     expect(await screen.findAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(2);
+    await user.click(screen.getByTestId(selectors.components.editor.storySheetAll));
+    expect(await screen.findAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(4);
     await user.click(screen.getByTestId(selectors.components.editor.comparisonClear));
-    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(2);
+    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(5);
     expect(screen.getAllByTestId(selectors.components.editor.exampleCard)[0]).toHaveClass(
       "resize",
       "overflow-auto",
@@ -1213,7 +1226,7 @@ describe("ComponentEditor", () => {
       name: "Move Primary. Use arrow keys to reorder.",
     });
     fireEvent.keyDown(primaryMoveHandle, { key: "ArrowRight" });
-    expect(caseTitles()).toEqual(["Disabled", "Primary"]);
+    expect(caseTitles()).toEqual(["Disabled", "Primary", "Loading", "Error", "Success"]);
 
     let draggedIdentity = "";
     const dataTransfer = {
@@ -1255,7 +1268,7 @@ describe("ComponentEditor", () => {
     );
     fireEvent.drop(canvasSurface, { dataTransfer, clientX: 900, clientY: 900 });
     expect(dataTransfer.getData).toHaveBeenCalled();
-    expect(caseTitles()).toEqual(["Primary", "Disabled"]);
+    expect(caseTitles()).toEqual(["Primary", "Disabled", "Loading", "Error", "Success"]);
 
     await user.click(screen.getByRole("button", { name: "Focus Disabled" }));
     expect(screen.getByTestId(selectors.components.editor.gallery)).toHaveAttribute(

@@ -91,6 +91,19 @@ func TestParseStoryContractSupportsVersionedSharedHarness(t *testing.T) {
 	}
 }
 
+func TestParseStoryContractRejectsLocalAndSharedHarnessTogether(t *testing.T) {
+	_, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id":"invalid","name":"Invalid","harness":"Local","sharedHarness":{"asset":"preview.showcase","version":"1.0.0","export":"Showcase"},"args":{}}]
+}`))
+	if len(diagnostics) != 1 || diagnostics[0].Rule != "exclusive_harness" {
+		t.Fatalf("diagnostics = %v", diagnostics)
+	}
+}
+
 type frameRegistry map[string]CatalogFrameAsset
 
 func (r frameRegistry) LookupCatalogFrameAsset(id string) (CatalogFrameAsset, bool) {
@@ -191,6 +204,38 @@ func TestParseStoryContractSupportsLayoutExpectations(t *testing.T) {
 	expectation := contract.Stories[0].Expect[0]
 	if expectation.Kind != "layout" || expectation.MinWidth == nil || *expectation.MinWidth != 240 || !expectation.NoOverflow {
 		t.Fatalf("layout expectation = %#v", expectation)
+	}
+}
+
+func TestParseStoryContractSupportsCountExpectations(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id":"single","name":"Single subject","args":{},"expect":[{"kind":"count","selector":"button","value":"1"}]}]
+}`))
+	if len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diagnostics)
+	}
+	if expectation := contract.Stories[0].Expect[0]; expectation.Kind != "count" || expectation.Selector != "button" || expectation.Value != "1" {
+		t.Fatalf("count expectation = %#v", expectation)
+	}
+}
+
+func TestParseStoryContractSupportsEvidenceReviewSets(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id":"loading","name":"Loading","args":{},"evidence":{"reviewSet":"core","states":["loading","mobile"]}}]
+}`))
+	if len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diagnostics)
+	}
+	if evidence := contract.Stories[0].Evidence; evidence == nil || evidence.ReviewSet != "core" || len(evidence.States) != 2 {
+		t.Fatalf("evidence = %#v", evidence)
 	}
 }
 

@@ -30,8 +30,8 @@ function hierarchy(root) {
 }
 
 function storyDisposition(story, hasLocalHarness) {
-  if (hasLocalHarness) return "local-harness";
   if (story.sharedHarness) return "shared-harness";
+  if (story.harness || hasLocalHarness) return "local-harness";
   if (story.frame) return "frame";
   if (story.expect?.length || story.interactions?.length) return "behavioral-direct";
   return "direct";
@@ -51,11 +51,13 @@ const entries = filesUnder(libraryRoot)
       id: story.id ?? null,
       name: story.name ?? null,
       disposition: storyDisposition(story, hasLocalHarness),
-      migration: hasLocalHarness
-        ? "requires-review"
-        : story.sharedHarness || story.frame
-          ? "adopted"
-          : "eligible-for-representative-review",
+      migration: story.sharedHarness
+        ? "adopted"
+        : hasLocalHarness
+          ? "requires-review"
+          : story.sharedHarness || story.frame
+            ? "adopted"
+            : "eligible-for-representative-review",
       harness: story.harness ?? null,
       frame: story.frame ?? parsed.frame ?? null,
       sharedHarness: story.sharedHarness ?? null,
@@ -64,26 +66,30 @@ const entries = filesUnder(libraryRoot)
         : 0,
       expectationCount: Array.isArray(story.expect) ? story.expect.length : 0,
       interactionCount: Array.isArray(story.interactions) ? story.interactions.length : 0,
-      exception: hasLocalHarness
-        ? {
-            kind: "intentional-local-harness-review",
-            reason:
-              "Local executable composition requires behavior-equivalence review before shared-harness migration.",
-            owner: "react-component-library Preview maintainers",
-            revisitWhen:
-              "A matching shared harness family has equivalent interaction, accessibility, and visual evidence.",
-          }
-        : null,
+      exception:
+        story.sharedHarness || !hasLocalHarness
+          ? null
+          : {
+              kind: "intentional-local-harness-review",
+              reason:
+                "Local executable composition requires behavior-equivalence review before shared-harness migration.",
+              owner: "react-component-library Preview maintainers",
+              revisitWhen:
+                "A matching shared harness family has equivalent interaction, accessibility, and visual evidence.",
+            },
     }));
-    const disposition = hasLocalHarness
-      ? "local-harness"
-      : shared
-        ? "shared-harness"
-        : frame
-          ? "frame"
-          : stories.some((story) => story.expect?.length || story.interactions?.length)
-            ? "behavioral-direct"
-            : "direct";
+    const storyDispositions = stories.map((story) => storyDisposition(story, hasLocalHarness));
+    const uniqueDispositions = [...new Set(storyDispositions)];
+    const disposition =
+      uniqueDispositions.length > 1
+        ? "mixed-composition"
+        : shared
+          ? "shared-harness"
+          : frame
+            ? "frame"
+            : stories.some((story) => story.expect?.length || story.interactions?.length)
+              ? "behavioral-direct"
+              : "direct";
     const root = relative.split("/")[1] ?? "unknown";
     return {
       path: relative,
@@ -93,7 +99,9 @@ const entries = filesUnder(libraryRoot)
       stories: stories.map((story) => story.id).filter(Boolean),
       disposition,
       storyRecords,
-      migrationStatus: hasLocalHarness ? "requires-review" : "classified",
+      migrationStatus: uniqueDispositions.includes("local-harness")
+        ? "requires-review"
+        : "classified",
       frame: frame
         ? { asset: frame.asset, version: frame.version ?? null, region: frame.region }
         : null,

@@ -525,11 +525,14 @@ export function DrawerShell() { useFocusTrap(); useEscapeKey(); return <div role
 	require.NoError(t, err)
 	draft, err := svc.GetVersion(context.Background(), got.Component.ID, got.DraftVersion)
 	require.NoError(t, err)
-	require.Len(t, draft.Files, 3)
+	// story.json is a Preview contract and is exposed in the Files tab, but it
+	// is not part of the production source/adoption closure. The parity report
+	// remains limited to the three source files copied from the origin.
+	require.Len(t, draft.Files, 4)
 	require.NotNil(t, draft.ParityReport)
 	require.Empty(t, draft.ParityReport.Findings)
 	require.Equal(t, []string{"DrawerShell.tsx", "useEscapeKey.ts", "useFocusTrap.ts"}, draft.ParityReport.OriginFiles)
-	require.Equal(t, []string{"DrawerShell.tsx", "useEscapeKey.ts", "useFocusTrap.ts"}, []string{draft.Files[0].Path, draft.Files[1].Path, draft.Files[2].Path})
+	require.Equal(t, []string{"DrawerShell.tsx", "useEscapeKey.ts", "useFocusTrap.ts", "story.json"}, []string{draft.Files[0].Path, draft.Files[1].Path, draft.Files[2].Path, draft.Files[3].Path})
 	require.True(t, draft.Files[0].IsEntry)
 	require.Contains(t, draft.Files[0].Content, `from "./useFocusTrap"`)
 	require.FileExists(t, filepath.Join(root, "components", "drawer-shell", "versions", got.DraftVersion, "useFocusTrap.ts"))

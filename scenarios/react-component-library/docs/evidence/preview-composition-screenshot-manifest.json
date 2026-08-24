@@ -158,6 +158,264 @@
         "The composed app-shell sheet preserves hierarchy and contrast in the dark theme."
       ],
       "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:Button",
+      "version": "2.2.0",
+      "stories": [
+        "primary",
+        "start-icon",
+        "disabled-long-label",
+        "shared-showcase"
+      ],
+      "frame": "per-story-declared-frame",
+      "harness": "per-story-declared-harness",
+      "theme": "light",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 4,
+      "path": "docs/evidence/preview-composition/button-stories-sheet-light.png",
+      "inspected": true,
+      "findings": [
+        "Four independently rendered story sheets are presented together with visible story labels.",
+        "The bounded sheet reduces review artifacts while preserving each story's subject and declared harness composition."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:Button",
+      "version": "2.2.0",
+      "stories": [
+        "primary",
+        "start-icon",
+        "disabled-long-label",
+        "shared-showcase"
+      ],
+      "frame": "per-story-declared-frame",
+      "harness": "per-story-declared-harness",
+      "theme": "dark",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 4,
+      "path": "docs/evidence/preview-composition/button-stories-sheet-dark.png",
+      "inspected": true,
+      "findings": [
+        "The four-story sheet remains legible and structurally consistent in the dark theme."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:FilterBar",
+      "version": "1.0.0",
+      "stories": ["default", "interactive"],
+      "frame": "per-story-declared-frame",
+      "harness": "per-story-declared-harness",
+      "theme": "light",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 2,
+      "path": "docs/evidence/preview-composition/filterbar-stories-sheet-light.png",
+      "inspected": true,
+      "findings": [
+        "Two independently rendered FilterBar stories are presented together with visible labels.",
+        "The interactive story preserves its applied-state status while the default story remains a clean baseline.",
+        "The artifact contains only the bounded component sheet, without Preview workspace chrome."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:FilterBar",
+      "version": "1.0.0",
+      "stories": ["default", "interactive"],
+      "frame": "per-story-declared-frame",
+      "harness": "per-story-declared-harness",
+      "theme": "dark",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 2,
+      "path": "docs/evidence/preview-composition/filterbar-stories-sheet-dark.png",
+      "inspected": true,
+      "findings": [
+        "The two-story sheet remains legible and structurally consistent in the dark theme."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:Toggle",
+      "version": "1.0.0",
+      "stories": ["default", "interactive", "pressed", "disabled"],
+      "frame": "per-story-declared-frame",
+      "harness": "per-story-declared-harness",
+      "theme": "light",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 4,
+      "path": "docs/evidence/preview-composition/toggle-stories-sheet-light.png",
+      "inspected": true,
+      "findings": [
+        "The bounded four-story Toggle sheet preserves labels and keeps the subject legible across off, on, interactive, and disabled states."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:Toggle",
+      "version": "1.0.0",
+      "stories": ["default", "interactive", "pressed", "disabled"],
+      "frame": "per-story-declared-frame",
+      "harness": "per-story-declared-harness",
+      "theme": "dark",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 4,
+      "path": "docs/evidence/preview-composition/toggle-stories-sheet-dark.png",
+      "inspected": true,
+      "findings": [
+        "The same four-story sheet remains legible and structurally consistent in the dark theme."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:Toggle",
+      "version": "1.0.0",
+      "stories": ["shared-controlled"],
+      "frame": "per-story-declared-frame",
+      "harness": {
+        "asset": "preview.controlled-state",
+        "version": "1.0.0",
+        "export": "ControlledState"
+      },
+      "theme": "light",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 1,
+      "path": "docs/evidence/preview-composition/toggle-shared-controlled-light.png",
+      "inspected": true,
+      "findings": [
+        "The shared controlled-state harness renders Toggle as the injected subject with a readable title, detail, and focused control."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:Toggle",
+      "version": "1.0.0",
+      "stories": ["shared-controlled"],
+      "frame": "per-story-declared-frame",
+      "harness": {
+        "asset": "preview.controlled-state",
+        "version": "1.0.0",
+        "export": "ControlledState"
+      },
+      "theme": "dark",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 1,
+      "path": "docs/evidence/preview-composition/toggle-shared-controlled-dark.png",
+      "inspected": true,
+      "findings": [
+        "The shared controlled-state harness remains legible and coherent in the dark theme."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:Toggle",
+      "version": "1.0.0",
+      "stories": ["shared-controlled"],
+      "frame": "per-story-declared-frame",
+      "harness": {
+        "asset": "preview.controlled-state",
+        "version": "1.0.0",
+        "export": "ControlledState"
+      },
+      "theme": "light",
+      "kit": "vrooli-default",
+      "viewport": { "width": 390, "height": 844 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 1,
+      "path": "docs/evidence/preview-composition/toggle-shared-controlled-mobile-light.png",
+      "inspected": true,
+      "findings": [
+        "The shared harness title and detail wrap cleanly at the mobile viewport without subject clipping or horizontal overflow."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:Toggle",
+      "version": "1.0.0",
+      "stories": ["shared-controlled"],
+      "frame": "per-story-declared-frame",
+      "harness": {
+        "asset": "preview.controlled-state",
+        "version": "1.0.0",
+        "export": "ControlledState"
+      },
+      "theme": "dark",
+      "kit": "vrooli-default",
+      "viewport": { "width": 390, "height": 844 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 1,
+      "path": "docs/evidence/preview-composition/toggle-shared-controlled-mobile-dark.png",
+      "inspected": true,
+      "findings": [
+        "The mobile controlled-state composition remains legible and preserves the same geometry in the dark theme."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:MorphingIcon",
+      "version": "2.0.7",
+      "stories": ["toggle", "copy-button"],
+      "frame": "per-story-declared-frame",
+      "harness": "per-story-declared-harness",
+      "theme": "light",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 2,
+      "path": "docs/evidence/preview-composition/morphing-icon-stories-sheet-light.png",
+      "inspected": true,
+      "findings": [
+        "The bounded sheet presents both stateful MorphingIcon stories with labels and no Preview workspace chrome.",
+        "The local harness preserves the real subject interaction while providing a stable professional surface height."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:MorphingIcon",
+      "version": "2.0.7",
+      "stories": ["toggle", "copy-button"],
+      "frame": "per-story-declared-frame",
+      "harness": "per-story-declared-harness",
+      "theme": "dark",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "sheetSize": 2,
+      "path": "docs/evidence/preview-composition/morphing-icon-stories-sheet-dark.png",
+      "inspected": true,
+      "findings": [
+        "The two-story sheet retains contrast and subject visibility in the dark theme."
+      ],
+      "disposition": "accepted"
     }
   ],
   "reviewRules": [

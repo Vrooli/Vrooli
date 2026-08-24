@@ -2,233 +2,53 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "SidebarShell",
-  "args": {
-    "fields": [
-      {
-        "path": "mode",
-        "label": "Mode",
-        "kind": "text",
-        "default": "persistent"
-      },
-      {
-        "path": "mobileOpen",
-        "label": "Mobile Open",
-        "kind": "boolean",
-        "default": false
-      },
-      {
-        "path": "mobileLabel",
-        "label": "Mobile Label",
-        "kind": "text",
-        "default": "Workspace navigation"
-      },
-      {
-        "path": "desktopLabel",
-        "label": "Desktop Label",
-        "kind": "text",
-        "default": "Workspace"
-      },
-      {
-        "path": "closeLabel",
-        "label": "Close Label",
-        "kind": "text",
-        "default": "Close navigation"
-      },
-      {
-        "path": "width",
-        "label": "Width",
-        "kind": "number",
-        "default": 280
-      },
-      {
-        "path": "children",
-        "label": "Children",
-        "kind": "structured",
-        "default": {
-          "$node": "nav",
-          "props": {
-            "className": "p-3"
-          },
-          "children": [
-            {
-              "$text": "Dashboard Components Adoptions"
-            }
-          ]
-        }
-      },
-      {
-        "path": "mobileHeader",
-        "label": "Mobile Header",
-        "kind": "structured",
-        "default": {
-          "$node": "strong",
-          "children": [
-            {
-              "$text": "Menu"
-            }
-          ]
-        }
-      },
-      {
-        "path": "onMobileClose",
-        "label": "On Mobile Close",
-        "kind": "structured",
-        "default": {
-          "$handler": "close"
-        }
-      }
-    ]
-  },
-  "environment": {
-    "fixtures": []
-  },
-  "frame": {
-    "asset": "navigation.page",
-    "version": "1.0.0",
-    "region": "navigation",
-    "capability": "navigation",
-    "fixture": "fixtures.resource-collection"
-  },
+  "args": { "fields": [
+    { "path": "mode", "label": "Mode", "kind": "enum", "options": ["persistent", "overlay", "responsive"], "default": "persistent" },
+    { "path": "mobileOpen", "label": "Mobile Open", "kind": "boolean", "default": false },
+    { "path": "width", "label": "Width", "kind": "number", "default": 280 }
+  ] },
+  "environment": { "fixtures": [] },
+  "frame": { "asset": "navigation.page", "version": "1.0.0", "region": "navigation", "capability": "navigation", "fixture": "fixtures.resource-collection" },
   "stories": [
     {
-      "id": "persistent",
-      "name": "Persistent",
-      "args": {
-        "mode": "persistent",
-        "mobileOpen": false,
-        "mobileLabel": "Workspace navigation",
-        "desktopLabel": "Workspace",
-        "closeLabel": "Close navigation",
-        "width": 280,
-        "children": {
-          "$node": "nav",
-          "props": {
-            "className": "p-3"
-          },
-          "children": [
-            {
-              "$text": "Dashboard Components Adoptions"
-            }
-          ]
-        }
-      },
+      "id": "persistent", "name": "Persistent workspace navigation", "harness": "Persistent",
+      "args": { "mode": "persistent", "mobileOpen": false, "width": 280 },
       "expect": [
-        {
-          "kind": "role",
-          "role": "complementary",
-          "name": "Workspace"
-        },
-        {
-          "kind": "text",
-          "value": "Dashboard Components Adoptions"
-        }
+        { "kind": "role", "role": "complementary", "name": "Workspace" },
+        { "kind": "text", "value": "Northstar workspace" },
+        { "kind": "text", "value": "Resources" },
+        { "kind": "text", "value": "2 alerts" }
       ],
-      "mode": "pinned"
+      "mode": "live"
     },
     {
-      "id": "overlay-open",
-      "name": "Overlay Open",
-      "args": {
-        "mode": "overlay",
-        "mobileOpen": true,
-        "mobileLabel": "Mobile navigation",
-        "closeLabel": "Close menu",
-        "mobileHeader": {
-          "$node": "strong",
-          "children": [
-            {
-              "$text": "Menu"
-            }
-          ]
-        },
-        "onMobileClose": {
-          "$handler": "close"
-        },
-        "children": {
-          "$node": "div",
-          "props": {
-            "className": "p-4"
-          },
-          "children": [
-            {
-              "$text": "Settings and account"
-            }
-          ]
-        }
-      },
+      "id": "overlay-open", "name": "Open mobile navigation", "harness": "OverlayOpen",
+      "args": { "mode": "overlay", "mobileOpen": true },
       "expect": [
-        {
-          "kind": "role",
-          "role": "dialog",
-          "name": "Mobile navigation"
-        },
-        {
-          "kind": "text",
-          "value": "Settings and account"
-        }
+        { "kind": "role", "role": "dialog", "name": "Mobile navigation" },
+        { "kind": "text", "value": "Northstar menu" },
+        { "kind": "text", "value": "Settings" }
       ],
-      "mode": "pinned"
+      "mode": "live"
     },
     {
-      "id": "fixture-failure",
-      "name": "Fixture failure",
-      "args": {
-        "mode": "persistent",
-        "mobileOpen": false,
-        "children": {
-          "$node": "nav",
-          "children": [
-            {
-              "$text": "Failed records"
-            }
-          ]
-        }
-      },
+      "id": "fixture-failure", "name": "Navigation data failure", "harness": "FixtureFailure",
+      "args": { "mode": "persistent", "mobileOpen": false },
       "expect": [
-        {
-          "kind": "role",
-          "role": "alert"
-        }
+        { "kind": "role", "role": "alert" },
+        { "kind": "text", "value": "Navigation data is unavailable" }
       ],
-      "mode": "pinned"
+      "mode": "live"
     },
     {
-      "id": "responsive-closed",
-      "name": "Responsive Closed",
-      "args": {
-        "mode": "responsive",
-        "mobileOpen": false,
-        "mobileLabel": "Scenario navigation",
-        "desktopLabel": "Scenario",
-        "closeLabel": "Close menu",
-        "onMobileClose": {
-          "$handler": "close"
-        },
-        "children": {
-          "$node": "div",
-          "props": {
-            "className": "p-4"
-          },
-          "children": [
-            {
-              "$text": "Scenario links"
-            }
-          ]
-        }
-      },
+      "id": "responsive-closed", "name": "Responsive navigation closed", "harness": "ResponsiveClosed",
+      "args": { "mode": "responsive", "mobileOpen": false },
       "expect": [
-        {
-          "kind": "text",
-          "value": "Scenario links"
-        },
-        {
-          "kind": "attribute",
-          "selector": "[data-testid='sidebar-shell']",
-          "name": "data-mode",
-          "value": "responsive"
-        }
+        { "kind": "text", "value": "Scenario" },
+        { "kind": "attribute", "selector": "[data-testid='sidebar-shell']", "name": "data-mode", "value": "responsive" },
+        { "kind": "text", "value": "Overview" }
       ],
-      "mode": "pinned"
+      "mode": "live"
     }
   ]
 }

@@ -9,6 +9,7 @@
 package preview
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -129,12 +130,28 @@ func (s *service) GetBundleVersionWithFrameAndHarness(ctx context.Context, id, v
 		bundle.SharedHarnessJS = shared
 	}
 	bundle.Dependencies = appendUniqueDeclarations(bundle.Dependencies, frameDeps)
-	frameDigest := ""
-	if frame != nil {
-		frameDigest = frame.Asset + frame.Version + frame.Region + frame.Fixture
-	}
-	bundle.SHA256 = digest(bundle.JS + bundle.HarnessJS + bundle.SharedHarnessJS + bundle.FrameJS + bundle.FixtureJSON + frameDigest)
+	// Include the complete declarative composition in the digest. A capability
+	// change, harness config change, or export change must produce a distinct
+	// preview artifact even when the generated JavaScript happens to be the
+	// same. This is the immutable composition boundary used by evidence and
+	// screenshot manifests.
+	composition, _ := json.Marshal(struct {
+		Frame   *components.StoryFrame      `json:"frame,omitempty"`
+		Harness *components.StoryHarnessRef `json:"harness,omitempty"`
+	}{Frame: frame, Harness: harness})
+	bundle.SHA256 = digest(bundle.JS + bundle.HarnessJS + bundle.SharedHarnessJS + bundle.FrameJS + bundle.FixtureJSON + string(composition))
 	return bundle, nil
+}
+
+type sharedHarnessFamily struct {
+	ID         string   `json:"id"`
+	Version    string   `json:"version"`
+	Export     string   `json:"export"`
+	ConfigKeys []string `json:"configKeys"`
+}
+
+type sharedHarnessRegistry struct {
+	Families []sharedHarnessFamily `json:"families"`
 }
 
 func (s *service) bundleSharedHarness(ctx context.Context, harness *components.StoryHarnessRef) (string, error) {
@@ -150,25 +167,23 @@ func (s *service) bundleSharedHarness(ctx context.Context, harness *components.S
 	if manifestErr != nil {
 		return "", frameBundleError(harness.Asset, "shared harness registry was not found")
 	}
-	var manifest struct {
-		Families []struct {
-			ID      string `json:"id"`
-			Version string `json:"version"`
-			Export  string `json:"export"`
-		} `json:"families"`
-	}
+	var manifest sharedHarnessRegistry
 	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
 		return "", frameBundleError(harness.Asset, "shared harness registry is invalid")
 	}
-	registered := false
-	for _, family := range manifest.Families {
+	var registered *sharedHarnessFamily
+	for index := range manifest.Families {
+		family := &manifest.Families[index]
 		if family.ID == parts[1] && family.Version == harness.Version && family.Export == harness.Export {
-			registered = true
+			registered = family
 			break
 		}
 	}
-	if !registered {
+	if registered == nil {
 		return "", frameBundleError(harness.Asset, "shared harness is not registered at the requested version/export")
+	}
+	if err := validateSharedHarnessConfig(harness.Config, registered.ConfigKeys); err != nil {
+		return "", frameBundleError(harness.Asset, err.Error())
 	}
 	path := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "preview-harnesses", parts[1], "versions", harness.Version, harness.Export+".tsx")
 	root := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "preview-harnesses")
@@ -187,11 +202,34 @@ func (s *service) bundleSharedHarness(ctx context.Context, harness *components.S
 	if strings.Contains(string(content), "library/components/") || strings.Contains(string(content), "library/primitives/") || strings.Contains(string(content), "library/hooks/") {
 		return "", frameBundleError(harness.Asset, "shared harness must not import a component-specific library asset")
 	}
-	js, _, err := s.bundler.BuildBundle(ctx, string(content), filepath.ToSlash(filepath.Join("library", "preview-harnesses", parts[1], "versions", harness.Version, harness.Export+".tsx")))
+	// Use the validated absolute path as the bundler source so relative imports
+	// between generic Preview foundations resolve from the harness directory.
+	// The path remains inside the registry root checked above.
+	js, _, err := s.bundler.BuildBundle(ctx, string(content), cleanPath)
 	if err != nil {
 		return "", err
 	}
 	return js, nil
+}
+
+func validateSharedHarnessConfig(raw json.RawMessage, allowed []string) error {
+	if len(bytes.TrimSpace(raw)) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return nil
+	}
+	var config map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &config); err != nil {
+		return fmt.Errorf("shared harness config must be a JSON object")
+	}
+	keys := make(map[string]struct{}, len(allowed))
+	for _, key := range allowed {
+		keys[key] = struct{}{}
+	}
+	for key := range config {
+		if _, ok := keys[key]; !ok {
+			return fmt.Errorf("shared harness config key %q is not declared by the registry", key)
+		}
+	}
+	return nil
 }
 
 func appendUniqueDeclarations(base, extra []deps.Declaration) []deps.Declaration {

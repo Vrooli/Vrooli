@@ -40,6 +40,41 @@ shipping.
 
 ## Catalog gate calibration and rendered evidence
 
+### Preview evidence runner boundary
+
+Use the scenario-owned `ui/scripts/preview-e2e.mjs` runner for component-story
+evidence. It uses the repository's installed Playwright runtime because the
+check must navigate the catalog, follow the story-pinned iframe, assert the
+declared story contract, reopen the exact isolated preview URL, and capture the
+`data-preview-sheet` root. Go unit tests and Browser Automation Studio page
+captures do not currently provide all of those operations as one contract.
+
+Browser Automation Studio remains the preferred producer for ordinary
+scenario-page workflows and lifecycle evidence. It is not a replacement for
+the RCL story runner until it can select exact story IDs inside the preview
+iframe, preserve frame/harness metadata, and return one authoritative artifact
+per story. Do not add one-off browser scripts for individual components; extend
+the shared runner and its machine-readable manifest instead.
+
+The run manifest is the authoritative capture summary. Each failure includes
+`stage`, `category`, `retryable`, and `message`; categories distinguish
+environment, resolver/contract, product rendering, expectation, and capture
+infrastructure failures. A story timeout is bounded independently from the
+asset timeout with `RCL_PREVIEW_STORY_TIMEOUT_MS`. Earlier successful artifacts
+remain in the output directory and manifest when a later story fails.
+
+The default review request is the `core` set. Stories without evidence metadata
+belong to that set automatically, and the runner infers their state from the
+story ID. Add per-story evidence metadata only when the story needs an explicit
+review-set or state override.
+
+The runner supports controlled diagnostics for its own validation with
+`RCL_PREVIEW_FORCE_FAILURE=blank-root|404|timeout|expectation`; these hooks are
+test-only and must never be used for acceptance captures. Use a small
+`RCL_PREVIEW_STORY_TIMEOUT_MS` for the timeout case. A forced failure must
+produce a non-zero run and a manifest failure row—it must not become a blank
+successful screenshot.
+
 Catalog verdicts are valid only when their runner is backed by the oracle it
 claims to measure. `unmeasured` is a first-class result: it is displayed beside
 pass and fail, remains in every score denominator, and never becomes pass by

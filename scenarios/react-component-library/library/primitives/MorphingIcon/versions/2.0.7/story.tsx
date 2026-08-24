@@ -4,7 +4,7 @@ import { IconButton } from "../../../../components/IconButton/versions/2.0.0/Ico
 import { Surface } from "../../../Surface/versions/1.0.0/Surface";
 import { MorphingIcon } from "./MorphingIcon";
 
-const stageStyle = { display: "grid", gap: "var(--space-lg, 24px)", width: "100%", maxWidth: "36rem", boxSizing: "border-box" as const, padding: "var(--space-lg, 24px)", color: "var(--color-foreground, #142033)", fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)" };
+const stageStyle = { display: "grid", gap: "var(--space-lg, 24px)", width: "100%", minHeight: "12rem", maxWidth: "36rem", boxSizing: "border-box" as const, padding: "var(--space-lg, 24px)", color: "var(--color-foreground, #142033)", fontFamily: "var(--font-sans, ui-sans-serif, system-ui, sans-serif)" };
 
 export function ToggleMorphingIcon() {
   const [sent, setSent] = useState(false);

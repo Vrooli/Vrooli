@@ -29,13 +29,13 @@ import (
 )
 
 func Module(db *sql.DB, assets components.Service, sourceRoot string, logger *log.Logger) module.Module {
-	return ModuleWithExecutor(db, assets, sourceRoot, domain.NewChromeHarnessExecutor(), logger)
+	return ModuleWithExecutor(db, assets, sourceRoot, domain.NewBASCaptureExecutor(), logger)
 }
 
 // ModuleWithGeneratedFixture wires the provider-owned generated scenario
 // contract into the production Test Genie validation phase.
 func ModuleWithGeneratedFixture(db *sql.DB, assets components.Service, adoptionService adoptions.Service, sourceRoot string, logger *log.Logger) module.Module {
-	return ModuleWithExecutorAndFixture(db, assets, sourceRoot, domain.NewChromeHarnessExecutor(), NewGeneratedFixtureValidator(adoptionService, assets, sourceRoot, logger), logger)
+	return ModuleWithExecutorAndFixture(db, assets, sourceRoot, domain.NewBASCaptureExecutor(), NewGeneratedFixtureValidator(adoptionService, assets, sourceRoot, logger), logger)
 }
 
 // ModuleWithExecutor keeps the browser boundary explicit for module tests;

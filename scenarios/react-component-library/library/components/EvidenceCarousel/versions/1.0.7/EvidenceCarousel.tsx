@@ -1,60 +1,137 @@
 /** @vrooliComponentSource react-component-library:EvidenceCarousel */
-import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
-import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
+import type { ReactNode } from "react";
 import {
-  CONTROL_VARIANTS,
-  CONTROL_SIZES,
-  SURFACE_ELEVATIONS,
-} from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
+  CheckCircle2,
+  CircleAlert,
+  FileText,
+  Image,
+  ScanSearch,
+} from "lucide-react";
+
 export interface EvidenceItem {
   id: string;
   kind: string;
   status: "available" | "missing" | "stale";
   reference?: string;
+  label?: string;
 }
-export function EvidenceCarousel({ items = [] }: { items?: EvidenceItem[] }) {
+
+export interface EvidenceCarouselProps {
+  items?: EvidenceItem[];
+  selectedId?: string;
+  onSelect?: (item: EvidenceItem) => void;
+  renderContent?: (item: EvidenceItem) => ReactNode;
+  renderControls?: (item: EvidenceItem) => ReactNode;
+}
+
+const STATUS_LABELS: Record<EvidenceItem["status"], string> = {
+  available: "Captured",
+  missing: "Not captured",
+  stale: "Stale capture",
+};
+
+function kindLabel(kind: string) {
+  return kind
+    .replace(/^bas-/, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function iconFor(kind: string) {
+  return kind === "screenshot"
+    ? Image
+    : kind === "accessibility-tree"
+      ? ScanSearch
+      : FileText;
+}
+
+function statusIcon(status: EvidenceItem["status"]) {
+  return status === "available" ? CheckCircle2 : CircleAlert;
+}
+
+export function EvidenceCarousel({
+  items = [],
+  selectedId,
+  onSelect,
+  renderContent,
+  renderControls,
+}: EvidenceCarouselProps) {
+  const selected = items.find((item) => item.id === selectedId) ?? items[0];
+  const selectedContent =
+    selected && renderContent ? renderContent(selected) : null;
+
   return (
     <section
-      className={SURFACE_ELEVATIONS.raised}
-      aria-label="Evidence carousel"
+      aria-label="Evidence workspace"
       data-rcl-asset="visualization.evidence-carousel"
       data-rcl-version="1.0.7"
       data-rcl-stamp="source"
       data-testid="visualization-evidence-carousel"
-      style={{ boxShadow: "var(--elev-raised)", padding: "var(--space-xs)" }}
+      className="overflow-hidden rounded-panel border border-app-border bg-app-surface"
     >
-      <Stack gap="xs">
-        <Text as="strong" textStyle="label">
-          Evidence
-        </Text>
+      <div className="border-b border-app-border bg-app-surface-muted px-space-sm pt-space-xs">
+        <div className="flex items-center justify-end gap-space-xs pb-space-xs">
+          <span className="text-xs text-app-muted-foreground">
+            {items.filter((item) => item.status === "available").length}/
+            {items.length} captured
+          </span>
+        </div>
         <div
-          role="list"
-          data-bespoke="horizontal evidence strip preserves native scrolling"
-          style={{ display: "flex", gap: "var(--space-xs)", overflowX: "auto" }}
+          role="tablist"
+          aria-label="Evidence types"
+          className="flex gap-space-2xs overflow-x-auto"
         >
-          {items.length ? (
-            items.map((item) => (
+          {items.map((item) => {
+            const Icon = iconFor(item.id);
+            const StatusIcon = statusIcon(item.status);
+            const isSelected = item.id === selected?.id;
+            const label = item.label ?? kindLabel(item.kind);
+            return (
               <button
                 key={item.id}
                 type="button"
-                className={`${CONTROL_VARIANTS.secondary} ${CONTROL_SIZES.md}`}
+                role="tab"
+                aria-selected={isSelected}
+                aria-controls={`evidence-panel-${item.id}`}
+                aria-label={`${label}: ${STATUS_LABELS[item.status]}`}
                 data-status={item.status}
-                data-bespoke="evidence reference action remains a native button"
-                style={{ minHeight: "var(--control-height)" }}
+                onClick={() => onSelect?.(item)}
+                className={`relative flex min-w-max items-center gap-space-2xs border-b-2 px-space-2xs py-space-xs text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-app-primary focus:ring-inset ${isSelected ? "border-app-primary text-app-primary" : "border-transparent text-app-muted-foreground hover:border-app-border hover:text-app-foreground"}`}
               >
-                <Text as="span" textStyle="label">
-                  {item.kind}
-                </Text>
-                <Text as="small" tone="muted">
-                  {item.reference ?? item.status}
-                </Text>
+                <Icon className="h-icon-sm w-icon-sm" aria-hidden />
+                <span>{label}</span>
+                <StatusIcon
+                  className={`h-icon-xs w-icon-xs ${item.status === "available" ? "text-app-success" : item.status === "stale" ? "text-app-warning" : "text-app-muted-foreground"}`}
+                  aria-hidden
+                />
+                <span className="sr-only">{STATUS_LABELS[item.status]}</span>
               </button>
-            ))
-          ) : (
-            <Text tone="muted">No evidence captured.</Text>
-          )}
+            );
+          })}
         </div>
-      </Stack>
+      </div>
+      {selected ? (
+        <div
+          id={`evidence-panel-${selected.id}`}
+          role="tabpanel"
+          aria-label={selected.label ?? kindLabel(selected.kind)}
+        >
+          {renderControls?.(selected) ? (
+            <div className="flex flex-wrap items-center gap-space-xs border-b border-app-border px-space-sm py-space-xs">
+              {renderControls(selected)}
+            </div>
+          ) : null}
+          <div className="min-h-[18rem] bg-app-background">
+            {selectedContent}
+          </div>
+        </div>
+      ) : (
+        <div className="flex min-h-[18rem] items-center justify-center p-space-md">
+          <span className="text-xs text-app-muted-foreground">
+            No evidence captured.
+          </span>
+        </div>
+      )}
     </section>
   );
 }

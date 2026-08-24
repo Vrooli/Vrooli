@@ -68,7 +68,7 @@ func (e executor) ExecuteStory(_ context.Context, libraryID, version, storyID st
 	if result, ok := e.results[libraryID+"@"+version+":"+storyID]; ok {
 		return result, nil
 	}
-	return StoryExecution{Passed: true, Duration: time.Millisecond}, nil
+	return StoryExecution{Passed: true, Duration: time.Millisecond, AccessibilityJSON: `{"contract":"bas-accessibility-snapshot/v1"}`, Artifacts: []Artifact{{Reference: "test://capture"}}}, nil
 }
 
 func componentStory(id string) components.StoryContract {
@@ -87,7 +87,7 @@ func TestRunnerRequiresPinAndReportsEachClosureAsset(t *testing.T) {
 	report, err := runner.Run(context.Background(), Request{ComponentID: "root", Version: "1.0.0", IncludeClosure: true})
 	require.NoError(t, err)
 	require.Equal(t, VerdictPassed, report.Verdict)
-	require.Len(t, report.Results, 8)
+	require.Len(t, report.Results, 10)
 	require.Equal(t, "rcl:hook", report.Results[0].AssetLibraryID)
 	require.Equal(t, StageStatic, report.Results[1].Stage)
 }
@@ -131,7 +131,7 @@ func TestRunnerRecordsRenderedStoryFailure(t *testing.T) {
 	report, err := runner.Run(context.Background(), Request{ComponentID: "root", Version: "1.0.0"})
 	require.NoError(t, err)
 	require.Equal(t, VerdictFailed, report.Verdict)
-	result := report.Results[len(report.Results)-1]
+	result := report.Results[len(report.Results)-2]
 	require.Equal(t, VerdictFailed, result.Verdict)
 	require.Equal(t, "broken", result.Subject)
 	require.Contains(t, result.Message, "Missing")
@@ -144,10 +144,12 @@ func TestRunnerAttachesConsoleAndPerformanceEvidenceToRenderedStory(t *testing.T
 		Stories: stories{"root@1.0.0": componentStory("measured")},
 		Executor: executor{results: map[string]StoryExecution{
 			"rcl:root@1.0.0:measured": {
-				Passed:      true,
-				Duration:    time.Millisecond,
-				Console:     ConsoleEvidence{ConsoleErrors: []string{"warning"}},
-				Performance: PerformanceEvidence{MountMS: 12.5, CommitCount: 3, RerenderCount: 2, LongTasks: []float64{55.25}, NodeCount: 17},
+				Passed:            true,
+				Duration:          time.Millisecond,
+				Console:           ConsoleEvidence{ConsoleErrors: []string{"warning"}},
+				Performance:       PerformanceEvidence{MountMS: 12.5, CommitCount: 3, RerenderCount: 2, LongTasks: []float64{55.25}, NodeCount: 17},
+				AccessibilityJSON: `{"contract":"bas-accessibility-snapshot/v1"}`,
+				Artifacts:         []Artifact{{Reference: "test://capture"}},
 			},
 		}},
 	}
@@ -155,7 +157,7 @@ func TestRunnerAttachesConsoleAndPerformanceEvidenceToRenderedStory(t *testing.T
 	require.NoError(t, err)
 	result := report.Results[len(report.Results)-1]
 	require.Equal(t, VerdictPassed, result.Verdict)
-	require.Len(t, result.Evidence, 2)
+	require.Len(t, result.Evidence, 4)
 	require.Equal(t, "console", result.Evidence[0].Kind)
 	require.Equal(t, []string{"warning"}, result.Evidence[0].Console.ConsoleErrors)
 	require.Equal(t, "performance", result.Evidence[1].Kind)
@@ -164,6 +166,8 @@ func TestRunnerAttachesConsoleAndPerformanceEvidenceToRenderedStory(t *testing.T
 	require.Equal(t, 2, result.Evidence[1].Performance.RerenderCount)
 	require.Equal(t, []float64{55.25}, result.Evidence[1].Performance.LongTasks)
 	require.Equal(t, 17, result.Evidence[1].Performance.NodeCount)
+	require.Equal(t, "accessibility", result.Evidence[2].Kind)
+	require.Equal(t, "bas-capture", result.Evidence[3].Kind)
 }
 
 func TestRunnerFailsWhenAStoryDoesNotMount(t *testing.T) {

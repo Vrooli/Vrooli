@@ -224,7 +224,10 @@ For efficient review, the capture runner supports a bounded story sheet. Set
 Each tile is still rendered and validated in its own isolated harness before it
 is placed on the labeled sheet. The manifest records the complete `stories`
 array and `sheetSize`, so a contact sheet does not hide which stories were
-reviewed.
+reviewed. The rendered sheet header includes the component version, kit, theme,
+and viewport; each tile includes the story ID, state, and source artifact; and
+the footer points back to `capture-manifest.json`. Individual captures remain
+the authoritative evidence and the sheet is only a review accelerator.
 
 In the live Components Preview canvas, use the per-story comparison controls or
 the bounded Story sheet control to select a group of stories. The canvas switches from a

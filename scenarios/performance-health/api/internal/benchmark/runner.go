@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	"performance-health/internal/scenarioroot"
 )
 
@@ -250,7 +251,7 @@ func defaultExec(ctx context.Context, dir, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
 	if name == "go" && os.Getenv("GOWORK") == "" {
-		cmd.Env = append(os.Environ(), "GOWORK=off")
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off"})
 	}
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard

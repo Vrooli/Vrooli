@@ -198,6 +198,21 @@ func TestRenderHarnessHTMLSupportsScopedTemporaryPropsOverrides(t *testing.T) {
 	require.NotContains(t, html, `eval(`)
 }
 
+func TestRenderHarnessHTMLWaitForInteractionWaitsForVisibleText(t *testing.T) {
+	html := renderHarnessHTML("cmp-1", internalpreview.Bundle{
+		JS:         "export default function Demo() { return null }",
+		SourcePath: "components/Demo.tsx",
+		SHA256:     "sha",
+	}, harnessStory{
+		Name:             "interactive",
+		Version:          "1.0.0",
+		InteractionsJSON: `[{"kind":"waitFor","text":"Copied"}]`,
+	}, testPreviewCSS)
+	require.Contains(t, html, `const waitText = String(interaction.text || "").trim()`)
+	require.Contains(t, html, `const deadline = Date.now() + 2000`)
+	require.Contains(t, html, `const visibleText = Array.from(document.querySelectorAll("body *"))`)
+}
+
 func TestRenderHarnessHTMLIncludesFrameAndFixtureComposition(t *testing.T) {
 	html := renderHarnessHTML("cmp-sidebar", internalpreview.Bundle{
 		JS:          "export default function Sidebar() { return null }",

@@ -101,6 +101,43 @@
         }
       ],
       "mode": "live"
+    },
+    {
+      "id": "shared-controlled",
+      "name": "Shared controlled adapter",
+      "sharedHarness": {
+        "asset": "preview.controlled-state",
+        "version": "1.0.0",
+        "export": "ControlledState",
+        "config": {
+          "title": "A reusable controlled contract",
+          "detail": "The harness owns the controlled loop; Toggle remains the injected subject.",
+          "valueProp": "pressed",
+          "changeProp": "onPressedChange",
+          "initialValue": false
+        }
+      },
+      "args": {
+        "children": "Shared controlled toggle",
+        "aria-label": "Shared controlled toggle"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Shared controlled toggle"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Shared controlled toggle"
+          }
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

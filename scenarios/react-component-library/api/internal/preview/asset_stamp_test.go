@@ -106,3 +106,17 @@ func TestStampPreviewSourceIgnoresTypeScriptComparisonsBeforeJSX(t *testing.T) {
 		t.Fatalf("root marker was not placed safely: %s", got)
 	}
 }
+
+func TestStampPreviewSourceIgnoresNestedTypeParameterLists(t *testing.T) {
+	source := `export function ObjectField<T extends Record<string, unknown>>() {
+  const setValue = <TKey extends keyof T>(key: TKey, value: T[TKey]) => ({ key, value });
+  return <section data-rcl-object-field>{String(setValue("value", "ready" as T["value"]))}</section>;
+}`
+	got := stampPreviewSource(source, "library/components/ObjectField/versions/1.0.0/ObjectField.tsx", "forms.object-field", "1.0.0")
+	if strings.Contains(got, `<TKey extends keyof T data-rcl-asset`) {
+		t.Fatalf("nested type parameter list was stamped as JSX: %s", got)
+	}
+	if !strings.Contains(got, `data-rcl-asset="forms.object-field"`) {
+		t.Fatalf("component root was not stamped: %s", got)
+	}
+}
