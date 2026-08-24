@@ -22,8 +22,8 @@ func TestNonScenarioGateFailsOnDeclarationError(t *testing.T) {
 	}
 
 	result := New(Deps{RepoRoot: root}).validateNonScenarioGate(context.Background(), "linux")
-	if result.OwnerCount != 1 || result.ErrorCount == 0 {
-		t.Fatalf("gate result = %+v, want one owner and an error", result)
+	if result.OwnerCount != 3 || result.ErrorCount == 0 {
+		t.Fatalf("gate result = %+v, want three owners including aggregate subjects and an error", result)
 	}
 }
 
@@ -38,7 +38,7 @@ func TestNonScenarioGatePassesCurrentShape(t *testing.T) {
 	}
 
 	result := New(Deps{RepoRoot: root}).validateNonScenarioGate(context.Background(), "linux")
-	if result.OwnerCount != 1 || result.ErrorCount != 0 {
-		t.Fatalf("gate result = %+v, want one owner and no errors", result)
+	if result.OwnerCount != 3 || result.ErrorCount != 0 {
+		t.Fatalf("gate result = %+v, want three owners including aggregate subjects and no errors", result)
 	}
 }

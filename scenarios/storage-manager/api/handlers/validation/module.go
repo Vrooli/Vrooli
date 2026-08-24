@@ -140,6 +140,12 @@ func parseOwnerKind(value string) (corestorage.OwnerKind, bool) {
 		return corestorage.OwnerTool, true
 	case string(corestorage.OwnerSafeguard):
 		return corestorage.OwnerSafeguard, true
+	case string(corestorage.OwnerPackage):
+		return corestorage.OwnerPackage, true
+	case string(corestorage.OwnerControlPlane):
+		return corestorage.OwnerControlPlane, true
+	case string(corestorage.OwnerProject):
+		return corestorage.OwnerProject, true
 	default:
 		return "", false
 	}

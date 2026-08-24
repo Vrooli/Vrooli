@@ -105,7 +105,7 @@ func TestRunWaitHumanStreams(t *testing.T) {
 }
 
 func TestRunWaitHumanNeverTreatsMissingTerminalEventAsSuccess(t *testing.T) {
-	withStreamServer(t, &streamServer{events: []*runspb.RunEvent{{Event: "phase_started", RunId: "R", Scenario: "demo", Phase: "unit"}}, waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "in_progress"}})
+	withStreamServer(t, &streamServer{events: []*runspb.RunEvent{{Event: "phase_started", RunId: "R", Target: "demo", Phase: "unit"}}, waitStatus: &runspb.RunLiveStatus{RunId: "R", Target: "demo", Status: "in_progress"}})
 	previous := stderrOut
 	var errOut bytes.Buffer
 	stderrOut = &errOut
@@ -123,7 +123,7 @@ func TestRunWaitHumanNeverTreatsMissingTerminalEventAsSuccess(t *testing.T) {
 
 func TestRunStatusPendingDirectsOneCanonicalQuietWait(t *testing.T) { // [REQ:TESTGENIE-ORCH-P0]
 	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{
-		RunId: "R", Scenario: "demo", Status: "in_progress", EtaKnown: true,
+		RunId: "R", Target: "demo", Status: "in_progress", EtaKnown: true,
 		EstimatedRemainingSeconds: 41, RecommendedNextCheckSeconds: 7,
 		Standing: &commonv1.OperationStanding{Lifecycle: "executing", Directive: "wait", ReattachCommand: "test-genie runs wait --json demo R"},
 	}})
@@ -147,7 +147,7 @@ func TestRunStatusPendingDirectsOneCanonicalQuietWait(t *testing.T) { // [REQ:TE
 
 func TestRunStatusJSONCarriesTypedWaitActionOnlyWhilePending(t *testing.T) { // [REQ:TESTGENIE-ORCH-P0]
 	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{
-		RunId: "R", Scenario: "demo", Status: "in_progress", EstimatedRemainingSeconds: 41,
+		RunId: "R", Target: "demo", Status: "in_progress", EstimatedRemainingSeconds: 41,
 		Standing: &commonv1.OperationStanding{Lifecycle: "executing", Directive: "wait", ReattachCommand: "test-genie runs wait --json demo R"},
 	}})
 	var out bytes.Buffer
@@ -170,7 +170,7 @@ func TestRunStatusJSONCarriesTypedWaitActionOnlyWhilePending(t *testing.T) { // 
 }
 
 func TestRunStatusTerminalOmitsWaitAction(t *testing.T) {
-	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "failed", Verdict: "FAIL"}})
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Target: "demo", Status: "failed", Verdict: "FAIL"}})
 	var out bytes.Buffer
 	if err := runStatus(nil, []string{"--json", "demo", "R"}, &out); err != nil {
 		t.Fatalf("terminal runStatus --json: %v", err)
@@ -205,10 +205,10 @@ func TestRunWaitHumanFailureExitCode(t *testing.T) {
 // suite had no phases.
 func TestRunWaitHumanHydratesCanonicalTerminalPhasesAfterEventOnlyReplay(t *testing.T) {
 	withStreamServer(t, &streamServer{
-		events:     []*runspb.RunEvent{{Event: "run_completed", RunId: "R", Scenario: "demo", Success: false, Verdict: "FAIL"}},
-		waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "failed", Verdict: "FAIL"},
+		events:     []*runspb.RunEvent{{Event: "run_completed", RunId: "R", Target: "demo", Success: false, Verdict: "FAIL"}},
+		waitStatus: &runspb.RunLiveStatus{RunId: "R", Target: "demo", Status: "failed", Verdict: "FAIL"},
 		terminalRun: &runspb.RunInfo{
-			RunId: "R", Scenario: "demo", Status: "failed",
+			RunId: "R", Target: "demo", Status: "failed",
 			Phases: []*runspb.PhaseInfo{
 				{Name: "unit", Status: "passed", DurationSeconds: 2},
 				{Name: "workflow", Status: "failed", DurationSeconds: 9},
@@ -270,7 +270,7 @@ func TestRunWaitJSONSnapshot(t *testing.T) {
 }
 
 func TestRunWaitAcceptsTrailingJSONFlag(t *testing.T) {
-	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "passed"}})
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Target: "demo", Status: "passed"}})
 	var buf bytes.Buffer
 	if err := runWait(nil, []string{"demo", "R", "--json"}, &buf); err != nil {
 		t.Fatalf("trailing --json wait: %v", err)
@@ -300,7 +300,7 @@ func TestRunWaitJSONFallsThroughToWaitRunOutsideAgentManager(t *testing.T) {
 }
 
 func TestRunWaitJSONRejectsNonterminalResponseWithoutTimeout(t *testing.T) {
-	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "in_progress"}})
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Target: "demo", Status: "in_progress"}})
 	var out bytes.Buffer
 	err := runWait(nil, []string{"--json", "demo", "R"}, &out)
 	var exit *exitErr
@@ -313,7 +313,7 @@ func TestRunWaitJSONRejectsNonterminalResponseWithoutTimeout(t *testing.T) {
 }
 
 func TestRunWaitJSONAnnouncesAttachmentWithoutPollGuidance(t *testing.T) {
-	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "passed"}})
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Target: "demo", Status: "passed"}})
 	previous := stderrOut
 	var errOut bytes.Buffer
 	stderrOut = &errOut
@@ -339,8 +339,8 @@ func TestRunWaitJSONAnnouncesAttachmentWithoutPollGuidance(t *testing.T) {
 
 func TestRunWaitJSONClassifiesProviderOutageAsNotComparable(t *testing.T) {
 	withStreamServer(t, &streamServer{
-		waitStatus:  &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "failed"},
-		terminalRun: &runspb.RunInfo{RunId: "R", Scenario: "demo", Status: "failed", Phases: []*runspb.PhaseInfo{{Name: "unit", Status: "provider_unavailable"}}},
+		waitStatus:  &runspb.RunLiveStatus{RunId: "R", Target: "demo", Status: "failed"},
+		terminalRun: &runspb.RunInfo{RunId: "R", Target: "demo", Status: "failed", Phases: []*runspb.PhaseInfo{{Name: "unit", Status: "provider_unavailable"}}},
 	})
 	var out bytes.Buffer
 	err := runWait(nil, []string{"--json", "demo", "R"}, &out)
@@ -372,9 +372,9 @@ func TestRunWaitJSONReportsRecoverableTransportInterruption(t *testing.T) {
 
 func TestRunWaitJSONUsesCanonicalTerminalPhasesAndDurations(t *testing.T) {
 	withStreamServer(t, &streamServer{
-		waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "failed", Verdict: "FAIL"},
+		waitStatus: &runspb.RunLiveStatus{RunId: "R", Target: "demo", Status: "failed", Verdict: "FAIL"},
 		terminalRun: &runspb.RunInfo{
-			RunId: "R", Scenario: "demo", Status: "failed",
+			RunId: "R", Target: "demo", Status: "failed",
 			Phases: []*runspb.PhaseInfo{
 				{Name: "unit", Status: "passed", DurationSeconds: 2},
 				{Name: "workflow", Status: "failed", DurationSeconds: 9},
@@ -412,14 +412,14 @@ func TestRunWaitJSONUsesCanonicalTerminalPhasesAndDurations(t *testing.T) {
 
 func TestRunWaitAndShowJSONAgreeOnCanonicalTerminalEvidence(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
 	run := &runspb.RunInfo{
-		RunId: "R", Scenario: "demo", Status: "failed",
+		RunId: "R", Target: "demo", Status: "failed",
 		Phases: []*runspb.PhaseInfo{
 			{Name: "unit", Status: "passed", DurationSeconds: 2},
 			{Name: "workflow", Status: "failed", DurationSeconds: 9},
 		},
 	}
 	withStreamServer(t, &streamServer{
-		waitStatus:      &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "failed", Verdict: "FAIL"},
+		waitStatus:      &runspb.RunLiveStatus{RunId: "R", Target: "demo", Status: "failed", Verdict: "FAIL"},
 		terminalRun:     run,
 		snapshotVersion: 1,
 	})
@@ -509,11 +509,11 @@ func TestRunFollowStreams(t *testing.T) {
 
 func TestRunFollowRendersStandingAndFindingsBreadcrumb(t *testing.T) {
 	withStreamServer(t, &streamServer{events: []*runspb.RunEvent{
-		{Event: "run_started", RunId: "R", Scenario: "demo"},
+		{Event: "run_started", RunId: "R", Target: "demo"},
 		{
 			Event:           "phase_completed",
 			RunId:           "R",
-			Scenario:        "demo",
+			Target:          "demo",
 			Phase:           "architecture",
 			Status:          "passed",
 			DurationSeconds: 2,
@@ -531,7 +531,7 @@ func TestRunFollowRendersStandingAndFindingsBreadcrumb(t *testing.T) {
 				DocumentationTopics:  []string{"architecture maturity next move"},
 			},
 		},
-		{Event: "run_completed", RunId: "R", Scenario: "demo", Success: true, Verdict: "PASS"},
+		{Event: "run_completed", RunId: "R", Target: "demo", Success: true, Verdict: "PASS"},
 	}})
 	var buf bytes.Buffer
 	if err := runFollow(nil, []string{"demo", "R"}, &buf); err != nil {

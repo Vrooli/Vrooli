@@ -157,7 +157,7 @@ func (f *fakeRunsServer) StartRun(_ context.Context, req *connect.Request[runspb
 		return nil, f.startErr
 	}
 	return connect.NewResponse(&runspb.StartRunResponse{
-		RunId: "20260101-000000-abcd1234", Scenario: req.Msg.GetScenario(),
+		RunId: "20260101-000000-abcd1234", Target: req.Msg.GetTarget(),
 		EstimatedTotalSeconds: f.eta, EtaKnown: f.eta > 0, Coalesced: f.coalesced,
 	}), nil
 }
@@ -443,7 +443,7 @@ func TestRunDurableJSONEmitsStartHandleAndRunHandle(t *testing.T) {
 func TestRunDurableJSONLFirstEventIsRunStarted(t *testing.T) {
 	t.Setenv("TEST_GENIE_AUTOBACKGROUND_SECONDS", "60")
 	h := &fakeRunsServer{eta: 600, events: []*runspb.RunEvent{
-		{Event: evRunStarted, RunId: "R7", Scenario: "demo"},
+		{Event: evRunStarted, RunId: "R7", Target: "demo"},
 		{Event: evRunCompleted, Success: true, Verdict: "PASS"},
 	}}
 	url := newFakeRunsServer(t, h)

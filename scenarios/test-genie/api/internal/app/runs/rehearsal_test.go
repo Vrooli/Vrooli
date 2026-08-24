@@ -105,21 +105,21 @@ func TestCopiedRunEvidenceRehearsal(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSH
 			got.canonical++
 		}
 
-		firstRun, err := service.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Scenario: scenario, RunId: record.RunID}))
+		firstRun, err := service.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: scenario, RunId: record.RunID}))
 		if err != nil {
 			t.Fatalf("%s get run: %v", record.RunID, err)
 		}
-		secondRun, err := service.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Scenario: scenario, RunId: record.RunID}))
+		secondRun, err := service.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: scenario, RunId: record.RunID}))
 		if err != nil || !reflect.DeepEqual(firstRun.Msg, secondRun.Msg) {
 			t.Fatalf("%s repeated run projection changed: %v", record.RunID, err)
 		}
 
 		_, catalogErr := sharedartifacts.ReadArtifactCatalog(copied, record.RunID)
-		firstArtifacts, err := service.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Scenario: scenario, RunId: record.RunID}))
+		firstArtifacts, err := service.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Target: scenario, RunId: record.RunID}))
 		if err != nil {
 			t.Fatalf("%s list artifacts: %v", record.RunID, err)
 		}
-		secondArtifacts, err := service.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Scenario: scenario, RunId: record.RunID}))
+		secondArtifacts, err := service.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Target: scenario, RunId: record.RunID}))
 		if err != nil || !reflect.DeepEqual(firstArtifacts.Msg, secondArtifacts.Msg) {
 			t.Fatalf("%s repeated artifact projection changed: %v", record.RunID, err)
 		}
@@ -133,7 +133,7 @@ func TestCopiedRunEvidenceRehearsal(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSH
 		for _, artifact := range firstArtifacts.Msg.GetArtifacts() {
 			got.artifacts++
 			if _, err := service.GetRunArtifact(context.Background(), connect.NewRequest(&runspb.GetRunArtifactRequest{
-				Scenario: scenario, RunId: record.RunID, ArtifactId: artifact.GetId(),
+				Target: scenario, RunId: record.RunID, ArtifactId: artifact.GetId(),
 			})); err != nil {
 				t.Fatalf("%s artifact %s failed integrity resolution: %v", record.RunID, artifact.GetId(), err)
 			}

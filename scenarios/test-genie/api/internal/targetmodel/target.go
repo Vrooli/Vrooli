@@ -51,7 +51,7 @@ func (t Target) HasRuntime() bool {
 	return t.Kind == commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO
 }
 
-// Resolve accepts a legacy bare scenario slug or the generalized kind:id
+// Resolve accepts a supported bare scenario-slug alias or the generalized kind:id
 // notation. An explicit path under scenarios/ is promoted to a scenario target
 // so it receives the full scenario contract rather than a generic tree gate.
 func Resolve(repoRoot, expression string) (Target, error) {

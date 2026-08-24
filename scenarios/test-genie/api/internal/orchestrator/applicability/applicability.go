@@ -29,13 +29,17 @@ const (
 	CodeDefaultUnknown       = "applicability.default_unknown"
 	CodeInvalidDefault       = "applicability.invalid_default"
 	CodeInvalidPredicate     = "applicability.invalid_predicate"
+	CodeTargetKindUndeclared = "applicability.target_kind_undeclared"
 )
 
 // Context is the target-scenario fact set used for declarative applicability.
 // The maps should be precomputed by the orchestrator workspace layer.
 type Context struct {
-	HostOS                string
-	TargetKind            string
+	HostOS     string
+	TargetKind string
+	// DeclaredTargetKinds comes from the provider descriptor and forms a hard
+	// planning boundary before predicates or defaults are evaluated.
+	DeclaredTargetKinds   []string
 	TargetID              string
 	TargetRoot            string
 	ScenarioName          string
@@ -70,6 +74,16 @@ type Result struct {
 }
 
 func Evaluate(phase string, declaration providerdescriptor.Applicability, ctx Context) Result {
+	if len(ctx.DeclaredTargetKinds) > 0 && !containsNormalized(ctx.DeclaredTargetKinds, ctx.TargetKind) {
+		return Result{
+			Phase:  phase,
+			Status: StatusNotApplicable,
+			Reasons: []Reason{{
+				Code:    CodeTargetKindUndeclared,
+				Message: fmt.Sprintf("provider does not declare target kind %s", strings.TrimSpace(ctx.TargetKind)),
+			}},
+		}
+	}
 	anyReasons, anyMatched, invalid := evaluateAny(declaration.Any, ctx)
 	if invalid != nil {
 		return invalidResult(phase, *invalid)
@@ -98,6 +112,16 @@ func Evaluate(phase string, declaration providerdescriptor.Applicability, ctx Co
 	result.Reasons = append(result.Reasons, anyReasons...)
 	result.Reasons = append(result.Reasons, allReasons...)
 	return result
+}
+
+func containsNormalized(values []string, want string) bool {
+	want = normalizeKey(want)
+	for _, value := range values {
+		if normalizeKey(value) == want {
+			return true
+		}
+	}
+	return false
 }
 
 func evaluateAny(predicates []providerdescriptor.Predicate, ctx Context) ([]Reason, bool, *Reason) {

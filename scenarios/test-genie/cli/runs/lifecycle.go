@@ -51,7 +51,7 @@ func printTimeoutHint(w io.Writer, scenario, runID string, timeout, nextCheck in
 // Returns 0 on any error.
 func fetchNextCheck(cl runs_v1connect.RunsServiceClient, scenario, runID string) int {
 	resp, err := cl.GetRunStatus(context.Background(), connect.NewRequest(&runspb.GetRunStatusRequest{
-		Scenario: scenario, RunId: runID,
+		Target: scenario, RunId: runID,
 	}))
 	if err != nil {
 		return 0
@@ -168,7 +168,7 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, runID string, timeout int) error {
 	printWaitAttachmentReceipt(stderrOut, scenario, runID, timeout)
 	resp, err := cl.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{
-		Scenario: scenario, RunId: runID, TimeoutSeconds: int32(timeout),
+		Target: scenario, RunId: runID, TimeoutSeconds: int32(timeout),
 	}))
 	if err != nil {
 		// A transport interruption is not test evidence and must not look like a
@@ -310,7 +310,7 @@ func normalizeWaitFlags(args []string) []string {
 // suppressHeartbeats opts this follower out of heartbeat keep-alives server-side.
 func streamRunEvents(ctx context.Context, cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, runID string, suppressHeartbeats bool) (*runspb.RunEvent, []execTypes.Phase, error) {
 	stream, err := cl.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{
-		Scenario: scenario, RunId: runID, SuppressHeartbeats: suppressHeartbeats,
+		Target: scenario, RunId: runID, SuppressHeartbeats: suppressHeartbeats,
 	}))
 	if err != nil {
 		return nil, nil, err
@@ -341,8 +341,8 @@ func printTerminalStandingView(cl runs_v1connect.RunsServiceClient, w io.Writer,
 	// from WaitRun's canonical terminal snapshot before printing the summary so
 	// human wait/follow agree with JSON wait and `runs show`.
 	if snapshot, err := cl.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{
-		Scenario: scenario,
-		RunId:    runID,
+		Target: scenario,
+		RunId:  runID,
 	})); err == nil && !snapshot.Msg.GetTimedOut() && snapshot.Msg.GetTerminalRun() != nil && len(snapshot.Msg.GetDegradedReasons()) == 0 {
 		view := cliexec.BuildRunStandingViewFromWaitResponse(context.Background(), snapshot.Msg, report.RunScoreCLI)
 		if len(view.Phases) > 0 || len(phases) == 0 {
@@ -360,7 +360,7 @@ func printTerminalStandingView(cl runs_v1connect.RunsServiceClient, w io.Writer,
 		Error:       terminal.GetError(),
 	}
 	resp.PhaseSummary = summarizeRunPhases(phases)
-	view := cliexec.BuildRunStandingView(context.Background(), resp, firstNonEmpty(terminal.GetScenario(), scenario), "", runID, nil, false, 0, report.RunScoreCLI)
+	view := cliexec.BuildRunStandingView(context.Background(), resp, firstNonEmpty(terminal.GetTarget(), scenario), "", runID, nil, false, 0, report.RunScoreCLI)
 	pr := report.New(w, view.Scenario, "", nil, nil, false, nil, nil)
 	pr.SetStreamedObservations(true)
 	pr.PrintResultsView(view)
@@ -436,7 +436,7 @@ func runAbort(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		return err
 	}
 	resp, err := cl.AbortRun(context.Background(), connect.NewRequest(&runspb.AbortRunRequest{
-		Scenario: scenario, RunId: runID,
+		Target: scenario, RunId: runID,
 	}))
 	if err != nil {
 		return &exitErr{code: exitNotComparable, err: err}
@@ -466,7 +466,7 @@ func runStatus(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		return err
 	}
 	resp, err := cl.GetRunStatus(context.Background(), connect.NewRequest(&runspb.GetRunStatusRequest{
-		Scenario: scenario, RunId: runID,
+		Target: scenario, RunId: runID,
 	}))
 	if err != nil {
 		return &exitErr{code: exitNotComparable, err: err}
@@ -483,7 +483,7 @@ func printLiveStatus(w io.Writer, st *runspb.RunLiveStatus) {
 		return
 	}
 	fmt.Fprintf(w, "run:      %s\n", st.GetRunId())
-	fmt.Fprintf(w, "scenario: %s\n", st.GetScenario())
+	fmt.Fprintf(w, "scenario: %s\n", st.GetTarget())
 	fmt.Fprintf(w, "status:   %s\n", st.GetStatus())
 	if st.GetActivePhase() != "" {
 		fmt.Fprintf(w, "phase:    %s (%d/%d)\n", st.GetActivePhase(), st.GetPhaseIndex(), st.GetPhaseTotal())
@@ -522,8 +522,8 @@ func printFollowEvent(w io.Writer, ev *runspb.RunEvent) {
 		printFollowStanding(w, ev)
 	case "run_completed":
 		fmt.Fprintf(w, "\n%s\n", ev.GetVerdict())
-		if ev.GetScenario() != "" && ev.GetRunId() != "" {
-			fmt.Fprintf(w, "findings: test-genie runs findings %s --scenario %s\n", ev.GetRunId(), ev.GetScenario())
+		if ev.GetTarget() != "" && ev.GetRunId() != "" {
+			fmt.Fprintf(w, "findings: test-genie runs findings %s --scenario %s\n", ev.GetRunId(), ev.GetTarget())
 		}
 	}
 }
@@ -533,7 +533,7 @@ func printFollowStanding(w io.Writer, ev *runspb.RunEvent) {
 	if presentation == nil {
 		return
 	}
-	pr := report.New(w, ev.GetScenario(), "", nil, nil, false, nil, nil)
+	pr := report.New(w, ev.GetTarget(), "", nil, nil, false, nil, nil)
 	pr.PrintPhaseStanding(execTypes.Phase{
 		Name:              ev.GetPhase(),
 		Status:            ev.GetStatus(),

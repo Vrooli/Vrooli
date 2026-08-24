@@ -126,7 +126,7 @@ func adviseChanged(ctx context.Context, apiClient *cliutil.APIClient) FreshnessA
 		wg.Add(1)
 		go func(i int, scenario string) {
 			defer wg.Done()
-			resp, err := cl.CheckFreshness(ctx, connect.NewRequest(&runspb.CheckFreshnessRequest{Scenario: scenario}))
+			resp, err := cl.CheckFreshness(ctx, connect.NewRequest(&runspb.CheckFreshnessRequest{Target: scenario}))
 			if err != nil {
 				return // advisory means advisory — skip silently
 			}

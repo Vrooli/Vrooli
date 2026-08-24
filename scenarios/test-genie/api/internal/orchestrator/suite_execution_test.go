@@ -454,7 +454,7 @@ func TestDiscoverPhaseDefinitionsIgnoresScenarioLocalScripts(t *testing.T) {
 	}
 
 	orchestrator := &SuiteOrchestrator{phaseTimeout: time.Minute}
-	defs, err := orchestrator.discoverPhaseDefinitions(workspacepkg.Environment{TestDir: testDir})
+	defs, err := orchestrator.discoverPhaseDefinitions(workspacepkg.Environment{CoverageDir: testDir})
 	if err != nil {
 		t.Fatalf("discover phases: %v", err)
 	}
@@ -805,6 +805,7 @@ func searchDescriptor(scenario string) string {
   "orderHint":2000,
   "timeout":"120s",
   "validation":{"contract":"scenario-validation/v1","includeExecution":true},
+  "targets":{"kinds":["scenario"],"selection":"enumerate"},
   "applicability":{"default":"not_applicable","any":[{"fileExists":".vrooli/search.json"},{"serviceCapability":"search"}]},
   "policy":{
     "selection":"default_when_applicable",
@@ -847,6 +848,7 @@ func testPhaseDescriptor(scenario, phase, applicability string) string {
   "orderHint":100,
   "timeout":"120s",
   "validation":{"contract":"scenario-validation/v1","includeExecution":true},
+  "targets":{"kinds":["scenario"],"selection":"enumerate"},
   ` + applicability + `,
   "policy":{
     "selection":"default_when_applicable",
@@ -1291,7 +1293,7 @@ func TestRequirementsSyncDecision(t *testing.T) {
 
 	t.Run("[REQ:TESTGENIE-ORCH-P0] config flag disables sync", func(t *testing.T) {
 		cfg := &workspacepkg.Config{
-			Requirements: workspacepkg.RequirementSettings{
+			Requirements: workspacepkg.SyncRequirementSettings{
 				Sync: boolPtr(false),
 			},
 		}

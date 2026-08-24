@@ -157,7 +157,7 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 	svc := NewService(root, runmanager.New(fake, root), nil, nil)
 	ctx := context.Background()
 
-	start, err := svc.StartRun(ctx, connect.NewRequest(&runspb.StartRunRequest{Scenario: "demo"}))
+	start, err := svc.StartRun(ctx, connect.NewRequest(&runspb.StartRunRequest{Target: "demo"}))
 	if err != nil {
 		t.Fatalf("StartRun: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 	}
 	<-fake.started
 
-	st, err := svc.GetRunStatus(ctx, connect.NewRequest(&runspb.GetRunStatusRequest{Scenario: "demo", RunId: runID}))
+	st, err := svc.GetRunStatus(ctx, connect.NewRequest(&runspb.GetRunStatusRequest{Target: "demo", RunId: runID}))
 	if err != nil {
 		t.Fatalf("GetRunStatus: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 	}
 
 	// Wait with a short timeout returns a non-terminal snapshot (run continues).
-	wr, err := svc.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Scenario: "demo", RunId: runID, TimeoutSeconds: 1}))
+	wr, err := svc.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Target: "demo", RunId: runID, TimeoutSeconds: 1}))
 	if err != nil {
 		t.Fatalf("WaitRun(timeout): %v", err)
 	}
@@ -195,7 +195,7 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 
 	close(fake.release)
 
-	wr2, err := svc.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Scenario: "demo", RunId: runID}))
+	wr2, err := svc.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Target: "demo", RunId: runID}))
 	if err != nil {
 		t.Fatalf("WaitRun(terminal): %v", err)
 	}
@@ -218,7 +218,7 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 	if phase := terminalRun.GetPhases()[0]; phase.GetName() != "architecture" || phase.GetStatus() != "passed" || phase.GetDurationSeconds() != 7 {
 		t.Fatalf("terminal phase = %+v", phase)
 	}
-	show, err := svc.GetRun(ctx, connect.NewRequest(&runspb.GetRunRequest{Scenario: "demo", RunId: runID}))
+	show, err := svc.GetRun(ctx, connect.NewRequest(&runspb.GetRunRequest{Target: "demo", RunId: runID}))
 	if err != nil {
 		t.Fatalf("GetRun(terminal): %v", err)
 	}
@@ -252,7 +252,7 @@ func TestLifecycleRPC_StartRunPreviewsOnceForAdmission(t *testing.T) {
 	defer manager.Shutdown()
 	svc := NewService(root, manager, planner, nil)
 
-	if _, err := svc.StartRun(context.Background(), connect.NewRequest(&runspb.StartRunRequest{Scenario: "demo"})); err != nil {
+	if _, err := svc.StartRun(context.Background(), connect.NewRequest(&runspb.StartRunRequest{Target: "demo"})); err != nil {
 		t.Fatalf("StartRun: %v", err)
 	}
 	if got := planner.callCount(); got != 1 {
@@ -356,7 +356,7 @@ func TestLifecycleRPC_PreservesArtifactCatalogFailureAsDegradedEvidence(t *testi
 		t.Fatal(err)
 	}
 	svc := NewService(root, nil, nil, nil)
-	show, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Scenario: "demo", RunId: "catalog-failed"}))
+	show, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: "demo", RunId: "catalog-failed"}))
 	if err != nil {
 		t.Fatalf("GetRun: %v", err)
 	}
@@ -383,14 +383,14 @@ func TestLifecycleRPC_LegacyTerminalReadIsExplicitlyDegraded(t *testing.T) { // 
 		t.Fatalf("append legacy run: %v", err)
 	}
 	svc := NewService(root, runmanager.New(nil, root), nil, nil)
-	wait, err := svc.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{Scenario: "demo", RunId: "legacy"}))
+	wait, err := svc.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{Target: "demo", RunId: "legacy"}))
 	if err != nil {
 		t.Fatalf("WaitRun legacy: %v", err)
 	}
 	if wait.Msg.GetTerminalRun() != nil || len(wait.Msg.GetDegradedReasons()) != 2 || len(wait.Msg.GetStatus().GetDegradedReasons()) != 2 {
 		t.Fatalf("legacy wait must be degraded without canonical record: %+v", wait.Msg)
 	}
-	show, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Scenario: "demo", RunId: "legacy"}))
+	show, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: "demo", RunId: "legacy"}))
 	if err != nil {
 		t.Fatalf("GetRun legacy: %v", err)
 	}
@@ -407,14 +407,14 @@ func TestLifecycleRPC_Abort(t *testing.T) {
 	svc := NewService(root, runmanager.New(fake, root), nil, nil)
 	ctx := context.Background()
 
-	start, err := svc.StartRun(ctx, connect.NewRequest(&runspb.StartRunRequest{Scenario: "demo"}))
+	start, err := svc.StartRun(ctx, connect.NewRequest(&runspb.StartRunRequest{Target: "demo"}))
 	if err != nil {
 		t.Fatalf("StartRun: %v", err)
 	}
 	runID := start.Msg.GetRunId()
 	<-fake.started
 
-	ab, err := svc.AbortRun(ctx, connect.NewRequest(&runspb.AbortRunRequest{Scenario: "demo", RunId: runID}))
+	ab, err := svc.AbortRun(ctx, connect.NewRequest(&runspb.AbortRunRequest{Target: "demo", RunId: runID}))
 	if err != nil {
 		t.Fatalf("AbortRun: %v", err)
 	}

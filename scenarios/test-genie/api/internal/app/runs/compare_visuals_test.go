@@ -89,7 +89,7 @@ func TestCompareRunVisuals(t *testing.T) {
 	writePageScreenshot(t, root, "cur", "/new", gradient(120, 90))
 
 	resp, err := svc.CompareRunVisuals(context.Background(), connect.NewRequest(&runspb.CompareRunVisualsRequest{
-		Scenario: "demo", BaseRunId: "base", CurrentRunId: "cur",
+		Target: "demo", BaseRunId: "base", CurrentRunId: "cur",
 	}))
 	if err != nil {
 		t.Fatalf("CompareRunVisuals: %v", err)
@@ -120,7 +120,7 @@ func TestCompareRunVisualsRemovedPage(t *testing.T) {
 	writePageScreenshot(t, root, "cur", "/", gradient(80, 60))
 
 	resp, err := svc.CompareRunVisuals(context.Background(), connect.NewRequest(&runspb.CompareRunVisualsRequest{
-		Scenario: "demo", BaseRunId: "base", CurrentRunId: "cur",
+		Target: "demo", BaseRunId: "base", CurrentRunId: "cur",
 	}))
 	if err != nil {
 		t.Fatalf("CompareRunVisuals: %v", err)
@@ -135,7 +135,7 @@ func TestCompareRunVisualsRemovedPage(t *testing.T) {
 func TestCompareRunVisualsRequiresRunIDs(t *testing.T) {
 	svc, _ := newTestService(t)
 	_, err := svc.CompareRunVisuals(context.Background(), connect.NewRequest(&runspb.CompareRunVisualsRequest{
-		Scenario: "demo", BaseRunId: "", CurrentRunId: "cur",
+		Target: "demo", BaseRunId: "", CurrentRunId: "cur",
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected InvalidArgument, got %v", err)

@@ -225,7 +225,7 @@ func printLedger(w io.Writer, ledger *runspb.ReliabilityLedger) {
 			p.GetDuration().GetP50(), p.GetDuration().GetP95(), p.GetTotalObservations())
 		for _, ws := range p.GetWorstScenarios() {
 			fmt.Fprintf(w, "          worst: %s fail=%.0f%% (%d/%d)\n",
-				ws.GetScenario(), ws.GetFailureRate()*100, ws.GetFailures(), ws.GetExecuted())
+				ws.GetTarget(), ws.GetFailureRate()*100, ws.GetFailures(), ws.GetExecuted())
 		}
 	}
 }

@@ -49,6 +49,15 @@ type projectContract struct {
 			Kind        string `json:"kind"`
 			Regenerable bool   `json:"regenerable"`
 			Sensitive   bool   `json:"sensitive"`
+			Owner       string `json:"owner"`
+			Protected   bool   `json:"protected"`
+			Cleanup     string `json:"cleanup"`
+			Retention   *struct {
+				MaxAge        string `json:"max_age"`
+				MaxBytes      string `json:"max_bytes"`
+				KeepCount     int    `json:"keep_count"`
+				ProtectActive bool   `json:"protect_active"`
+			} `json:"retention"`
 		} `json:"entries"`
 		Scoped map[string]string `json:"scoped"`
 	} `json:"runtime_home"`
@@ -163,7 +172,7 @@ func projectRuntimeHome(c projectContract) error {
 		path, kind             string
 		regenerable, sensitive bool
 	}{
-		"plans": {"plans", "dir", false, false}, "state": {"state", "dir", false, false}, "config": {"config", "dir", false, false}, "data": {"data", "dir", false, false}, "runtime_db": {"state/runtime.db", "file", false, false}, "secrets": {"secrets.json", "file", false, true}, "secrets_enc": {"secrets.enc.json", "file", false, true}, "bin": {"bin", "dir", true, false}, "cache": {"cache", "dir", true, false}, "logs": {"logs", "dir", true, false}, "metrics": {"metrics", "dir", true, false}, "processes": {"processes", "dir", true, false}, "build": {"build", "dir", true, false},
+		"plans": {"plans", "dir", false, false}, "state": {"state", "dir", false, false}, "config": {"config", "dir", false, false}, "data": {"data", "dir", false, false}, "runtime_db": {"state/runtime.db", "file", false, false}, "secrets": {"secrets.json", "file", false, true}, "secrets_enc": {"secrets.enc.json", "file", false, true}, "bin": {"bin", "dir", true, false}, "cache": {"cache", "dir", true, false}, "logs": {"logs", "dir", true, false}, "metrics": {"metrics", "dir", true, false}, "processes": {"processes", "dir", true, false}, "build": {"build", "dir", true, false}, "test_runs": {"test-runs", "dir", true, false}, "backups": {"backups", "dir", false, false}, "artifacts": {"artifacts", "dir", true, false},
 	}
 	if len(c.RuntimeHome.Entries) != len(want) {
 		return fmt.Errorf("runtime_home entry count is invalid")
@@ -173,6 +182,13 @@ func projectRuntimeHome(c projectContract) error {
 		got, ok := c.RuntimeHome.Entries[key]
 		if !ok || got.Path != expected.path || got.Kind != expected.kind || got.Regenerable != expected.regenerable || (expected.sensitive && !got.Sensitive) {
 			return fmt.Errorf("runtime_home entry %q is invalid", key)
+		}
+		if expected.regenerable {
+			if got.Owner != "control_plane" || got.Cleanup != "storage_manager" || got.Retention == nil || !got.Retention.ProtectActive {
+				return fmt.Errorf("runtime_home entry %q lacks regenerable retention policy", key)
+			}
+		} else if !got.Protected || (got.Cleanup != "" && got.Cleanup != "never") || got.Retention != nil {
+			return fmt.Errorf("runtime_home entry %q is not conservatively protected", key)
 		}
 		if prior, duplicate := seen[got.Path]; duplicate {
 			return fmt.Errorf("runtime_home entries %q and %q share path %q", prior, key, got.Path)

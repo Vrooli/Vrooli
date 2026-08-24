@@ -75,7 +75,7 @@ func BuildRunStandingViewFromLiveStatus(ctx context.Context, st *runspb.RunLiveS
 		PhaseSummary: summarizePhases(phases),
 		Error:        st.GetError(),
 	}
-	return BuildRunStandingView(ctx, resp, st.GetScenario(), st.GetStatus(), st.GetRunId(), nil, timedOut, st.GetRecommendedNextCheckSeconds(), scoreRunner)
+	return BuildRunStandingView(ctx, resp, st.GetTarget(), st.GetStatus(), st.GetRunId(), nil, timedOut, st.GetRecommendedNextCheckSeconds(), scoreRunner)
 }
 
 // BuildRunStandingViewFromWaitResponse projects terminal phases from the
@@ -90,7 +90,7 @@ func BuildRunStandingViewFromWaitResponse(ctx context.Context, response *runspb.
 	if terminal := response.GetTerminalRun(); terminal != nil {
 		view.RunID = terminal.GetRunId()
 		view.ExecutionID = terminal.GetRunId()
-		view.Scenario = terminal.GetScenario()
+		view.Scenario = terminal.GetTarget()
 		view.Status = terminal.GetStatus()
 		view.Success = terminal.GetStatus() == "passed"
 		view.Phases = phasesFromTerminalRun(terminal)

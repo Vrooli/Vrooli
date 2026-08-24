@@ -46,6 +46,14 @@ type FileProviderConfig struct {
 	// held 5,064,705 files in its trash alone, which took long enough to blow
 	// the API write timeout and fail the plan outright.
 	MeasureBudget time.Duration
+
+	// Retention limits are used by contract-backed providers. Generic file
+	// providers leave these zero and continue to use the active policy only.
+	RetentionMaxAge   time.Duration
+	RetentionMaxBytes int64
+	ProtectActive     bool
+	RepairClass       string
+	OwnershipRepairer cleanup.OwnershipRepairer
 }
 
 // defaultMeasureBudget bounds measurement of a single root.
@@ -67,6 +75,9 @@ type FileProvider struct {
 	action          string
 	topLevelEntries bool
 	measureBudget   time.Duration
+	protectActive   bool
+	repairClass     string
+	repairer        cleanup.OwnershipRepairer
 
 	// memo holds the most recent measurement so a single plan does not walk
 	// the same trees twice. See previewMemo.
@@ -146,6 +157,9 @@ func newFileProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProv
 		action:          action,
 		topLevelEntries: cfg.TopLevelEntries,
 		measureBudget:   cfg.MeasureBudget,
+		protectActive:   cfg.ProtectActive,
+		repairClass:     cfg.RepairClass,
+		repairer:        cfg.OwnershipRepairer,
 	}
 }
 
@@ -184,6 +198,9 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 	var reclaimed int64
 	var skipped []string
 	var warnings []string
+	var repairAttempted bool
+	var repairAttempts, repairs, retryAttempts uint64
+	var appliedItems []string
 	for _, item := range req.Preview.Items {
 		if err := ctx.Err(); err != nil {
 			return cleanup.ApplyResult{}, err
@@ -204,6 +221,32 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 			continue
 		}
 		if err := p.files.RemoveAll(ctx, item.Path); err != nil {
+			if !repairAttempted && p.repairer != nil && p.repairClass != "" && isPermissionError(err) {
+				repairAttempted = true
+				repairAttempts++
+				repairCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				repair, repairErr := p.repairer.Repair(repairCtx, p.repairClass)
+				cancel()
+				if repairErr != nil {
+					warnings = append(warnings, fmt.Sprintf("ownership repair unavailable for %s: %s", p.repairClass, cleanup.Redact(repairErr.Error())))
+				} else if repair.Failed > 0 || repair.Repaired == 0 {
+					code := repair.Code
+					if code == "" {
+						code = "runtime_home_repair_refused"
+					}
+					warnings = append(warnings, fmt.Sprintf("ownership repair refused for %s: %s", p.repairClass, code))
+				} else {
+					repairs += repair.Repaired
+					retryAttempts++
+					if retryErr := p.files.RemoveAll(ctx, item.Path); retryErr == nil {
+						reclaimed += item.Bytes
+						appliedItems = append(appliedItems, item.ID)
+						continue
+					} else {
+						warnings = append(warnings, fmt.Sprintf("cleanup retry failed for %s: %s", item.ID, cleanup.Redact(retryErr.Error())))
+					}
+				}
+			}
 			// A single unremovable entry must not abandon the rest of the run.
 			//
 			// Previously this returned immediately with a zero-valued result,
@@ -222,9 +265,13 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 	return cleanup.ApplyResult{
 		ProviderID:     p.meta.ID,
 		Applied:        reclaimed > 0,
+		AppliedItems:   appliedItems,
 		ReclaimedBytes: reclaimed,
 		SkippedItems:   skipped,
 		Warnings:       warnings,
+		RepairAttempts: repairAttempts,
+		Repairs:        repairs,
+		RetryAttempts:  retryAttempts,
 	}, nil
 }
 
@@ -303,7 +350,7 @@ func (p *FileProvider) measure(ctx context.Context, scope cleanup.ObservationSco
 // collectFiles adds one candidate per individual file beneath root.
 func (p *FileProvider) collectFiles(ctx context.Context, root string, now time.Time, policy cleanup.ProviderPolicy, out *cleanup.Preview) error {
 	return p.files.Walk(ctx, root, func(info cleanup.FileInfo) error {
-		if info.Path == root || info.IsDir || !p.withinConfiguredRoot(info.Path) || activePath(info.Path) {
+		if info.Path == root || info.IsDir || !p.withinConfiguredRoot(info.Path) || p.isActivePath(info.Path) {
 			return nil
 		}
 		if policy.MinAge > 0 && now.Sub(info.ModTime) < policy.MinAge {
@@ -365,7 +412,7 @@ func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, 
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if !p.withinConfiguredRoot(entry.Path) || activePath(entry.Path) {
+		if !p.withinConfiguredRoot(entry.Path) || p.isActivePath(entry.Path) {
 			continue
 		}
 		// The newest mtime in a subtree is at least as new as its top-level
@@ -516,6 +563,10 @@ func (p *FileProvider) withinConfiguredRoot(path string) bool {
 	return false
 }
 
+func (p *FileProvider) isActivePath(path string) bool {
+	return activePath(path) || (p.protectActive && activeLeasePath(path))
+}
+
 func cleanRoots(roots []string) []string {
 	out := make([]string, 0, len(roots))
 	for _, root := range roots {
@@ -552,12 +603,27 @@ func activePath(path string) bool {
 	return filepath.Clean(path) == filepath.Join(os.TempDir(), "claude-1000")
 }
 
+func activeLeasePath(path string) bool {
+	name := strings.ToLower(filepath.Base(path))
+	return strings.HasSuffix(name, ".active") || strings.HasSuffix(name, ".lease") ||
+		strings.HasSuffix(name, ".running") || strings.HasSuffix(name, ".in-progress") ||
+		name == "current" || name == "active"
+}
+
 func isFileMissing(err error) bool {
 	if errors.Is(err, fs.ErrNotExist) {
 		return true
 	}
 	errText := strings.ToLower(err.Error())
 	return strings.Contains(errText, "not found") || strings.Contains(errText, "does not exist")
+}
+
+func isPermissionError(err error) bool {
+	if errors.Is(err, os.ErrPermission) {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "permission denied") || strings.Contains(message, "operation not permitted") || strings.Contains(message, "eacces") || strings.Contains(message, "eperm")
 }
 
 func stableItemID(providerID, path string) string {

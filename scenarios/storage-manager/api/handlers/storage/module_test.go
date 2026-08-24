@@ -59,9 +59,18 @@ func TestInventoryEndpointReturnsTypedOwnerRecords(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&inventory); err != nil {
 		t.Fatal(err)
 	}
-	if len(inventory.Owners) != 1 || inventory.Owners[0].ID != "demo" {
+	if len(inventory.Owners) != 3 || ownerByID(inventory.Owners, "demo") == nil {
 		t.Fatalf("inventory = %#v", inventory)
 	}
+}
+
+func ownerByID(owners []corestorage.OwnerManifest, id string) *corestorage.OwnerManifest {
+	for i := range owners {
+		if owners[i].ID == id {
+			return &owners[i]
+		}
+	}
+	return nil
 }
 
 type fakeOllamaInventory struct {

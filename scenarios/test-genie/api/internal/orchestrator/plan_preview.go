@@ -76,7 +76,7 @@ func (o *SuiteOrchestrator) loadExecutionPlanContext(req SuiteExecutionRequest) 
 		return nil, shared.NewValidationError("target or scenarioName is required")
 	}
 
-	var ws *workspacepkg.ScenarioWorkspace
+	var ws *workspacepkg.TargetWorkspace
 	var err error
 	if expression == "" {
 		// Keep the fixture/test and legacy API path independent of the repository
@@ -107,8 +107,6 @@ func (o *SuiteOrchestrator) loadExecutionPlanContext(req SuiteExecutionRequest) 
 	}
 
 	ws.SetRuntimeURLs(req.UIURL, req.APIURL)
-	ws.SetClaims(o.claims)
-
 	env := ws.Environment()
 	config, err := workspacepkg.LoadTestingConfig(env.ScenarioDir)
 	if err != nil {

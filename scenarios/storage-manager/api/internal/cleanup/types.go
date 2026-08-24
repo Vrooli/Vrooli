@@ -208,6 +208,9 @@ type ApplyResult struct {
 	ReclaimedBytes int64
 	SkippedItems   []string
 	Warnings       []string
+	RepairAttempts uint64
+	Repairs        uint64
+	RetryAttempts  uint64
 }
 
 type VerifyRequest struct {

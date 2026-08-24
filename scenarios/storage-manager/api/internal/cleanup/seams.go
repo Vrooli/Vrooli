@@ -34,6 +34,19 @@ type FileSystem interface {
 	RemoveAll(ctx context.Context, path string) error
 }
 
+// OwnershipRepairer is the only privileged seam exposed to cleanup. It is
+// intentionally class-scoped: a provider can request repair for its declared
+// runtime-home class, never an arbitrary host path or command.
+type OwnershipRepairer interface {
+	Repair(ctx context.Context, class string) (OwnershipRepairResult, error)
+}
+
+type OwnershipRepairResult struct {
+	Repaired uint64
+	Failed   uint64
+	Code     string
+}
+
 type ProcessCommand struct {
 	Name string
 	Args []string

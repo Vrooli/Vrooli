@@ -145,13 +145,13 @@ func (s *Service) GetCostReport(ctx context.Context, req *connect.Request[runspb
 	}
 	compareWindow := time.Duration(req.Msg.GetCompareWindowSeconds()) * time.Second
 	now := time.Now().UTC()
-	current, err := s.costSource.CostReport(ctx, req.Msg.GetScenario(), now.Add(-window), now)
+	current, err := s.costSource.CostReport(ctx, req.Msg.GetTarget(), now.Add(-window), now)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	var previous []execution.CostSummary
 	if compareWindow > 0 {
-		previous, err = s.costSource.CostReport(ctx, req.Msg.GetScenario(), now.Add(-window-compareWindow), now.Add(-window))
+		previous, err = s.costSource.CostReport(ctx, req.Msg.GetTarget(), now.Add(-window-compareWindow), now.Add(-window))
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -182,7 +182,7 @@ func (s *Service) GetCostReport(ctx context.Context, req *connect.Request[runspb
 	}
 	out := make([]*runspb.CostPhaseSummary, 0, len(current))
 	for _, c := range current {
-		row := &runspb.CostPhaseSummary{Scenario: c.Scenario, Phase: c.Phase, SampleCount: int32(c.SampleCount), PassingSampleCount: int32(c.PassingSampleCount), FailingSampleCount: int32(c.FailingSampleCount), ReliableSampleCount: int32(c.ReliableSampleCount), ExcludedSampleCount: int32(c.ExcludedSampleCount), TotalWallClockMs: c.TotalWallClockMs, MedianWallClockMs: c.MedianWallClockMs, P90WallClockMs: c.P90WallClockMs, PassingMedianWallClockMs: c.PassingMedianWallClockMs, PassingP90WallClockMs: c.PassingP90WallClockMs, FailingMedianWallClockMs: c.FailingMedianWallClockMs, FailingP90WallClockMs: c.FailingP90WallClockMs, TotalCpuUserMs: c.TotalCPUUserMs, MaxPeakRssBytes: c.MaxPeakRSSBytes, PredictionSampleCount: int32(c.PredictionSampleCount), PredictionErrorTotalMs: c.PredictionErrorTotalMs, PredictionMeanAbsoluteErrorMs: c.PredictionMeanAbsoluteErrorMs, PredictionMeanAbsoluteErrorPercent: c.PredictionMeanAbsoluteErrorPercent, CacheHitCount: int32(c.CacheHitCount), ExecutedSampleCount: int32(c.ExecutedSampleCount), CacheHitRatePercent: c.CacheHitRatePercent, CacheAuditCount: int32(c.CacheAuditCount), CacheAuditMismatchCount: int32(c.CacheAuditMismatchCount), CacheNoSavingCount: int32(c.CacheNoSavingCount), CacheAuditWallClockMs: c.CacheAuditWallClockMs, EstimatedGrossSavedWallClockMs: c.EstimatedGrossSavedWallClockMs, EstimatedNetSavedWallClockMs: c.EstimatedNetSavedWallClockMs, ProviderScenario: c.ProviderScenario, QueueLatencyMedianMs: c.QueueLatencyMedianMs, QueueLatencyP90Ms: c.QueueLatencyP90Ms, RepeatFailureWallClockMs: c.RepeatFailureWallClockMs, RepeatFailureSampleCount: int32(c.RepeatFailureSampleCount)}
+		row := &runspb.CostPhaseSummary{Target: c.Scenario, Phase: c.Phase, SampleCount: int32(c.SampleCount), PassingSampleCount: int32(c.PassingSampleCount), FailingSampleCount: int32(c.FailingSampleCount), ReliableSampleCount: int32(c.ReliableSampleCount), ExcludedSampleCount: int32(c.ExcludedSampleCount), TotalWallClockMs: c.TotalWallClockMs, MedianWallClockMs: c.MedianWallClockMs, P90WallClockMs: c.P90WallClockMs, PassingMedianWallClockMs: c.PassingMedianWallClockMs, PassingP90WallClockMs: c.PassingP90WallClockMs, FailingMedianWallClockMs: c.FailingMedianWallClockMs, FailingP90WallClockMs: c.FailingP90WallClockMs, TotalCpuUserMs: c.TotalCPUUserMs, MaxPeakRssBytes: c.MaxPeakRSSBytes, PredictionSampleCount: int32(c.PredictionSampleCount), PredictionErrorTotalMs: c.PredictionErrorTotalMs, PredictionMeanAbsoluteErrorMs: c.PredictionMeanAbsoluteErrorMs, PredictionMeanAbsoluteErrorPercent: c.PredictionMeanAbsoluteErrorPercent, CacheHitCount: int32(c.CacheHitCount), ExecutedSampleCount: int32(c.ExecutedSampleCount), CacheHitRatePercent: c.CacheHitRatePercent, CacheAuditCount: int32(c.CacheAuditCount), CacheAuditMismatchCount: int32(c.CacheAuditMismatchCount), CacheNoSavingCount: int32(c.CacheNoSavingCount), CacheAuditWallClockMs: c.CacheAuditWallClockMs, EstimatedGrossSavedWallClockMs: c.EstimatedGrossSavedWallClockMs, EstimatedNetSavedWallClockMs: c.EstimatedNetSavedWallClockMs, ProviderScenario: c.ProviderScenario, QueueLatencyMedianMs: c.QueueLatencyMedianMs, QueueLatencyP90Ms: c.QueueLatencyP90Ms, RepeatFailureWallClockMs: c.RepeatFailureWallClockMs, RepeatFailureSampleCount: int32(c.RepeatFailureSampleCount)}
 		if p, ok := prior[c.Scenario+"\x00"+c.Phase]; ok {
 			row.ChangeWallClockMs = c.TotalWallClockMs - p.TotalWallClockMs
 			if p.TotalWallClockMs != 0 {
@@ -331,7 +331,7 @@ func (s *Service) scenarioDir(scenario string) (string, error) {
 
 // ListRuns enumerates runs for a scenario, newest-first.
 func (s *Service) ListRuns(ctx context.Context, req *connect.Request[runspb.ListRunsRequest]) (*connect.Response[runspb.ListRunsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +362,7 @@ func (s *Service) ListRuns(ctx context.Context, req *connect.Request[runspb.List
 
 // GetRun returns a single run record.
 func (s *Service) GetRun(ctx context.Context, req *connect.Request[runspb.GetRunRequest]) (*connect.Response[runspb.GetRunResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -379,7 +379,7 @@ func (s *Service) GetRun(ctx context.Context, req *connect.Request[runspb.GetRun
 
 // DeleteRun removes a run's artifacts and index entry.
 func (s *Service) DeleteRun(ctx context.Context, req *connect.Request[runspb.DeleteRunRequest]) (*connect.Response[runspb.DeleteRunResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +394,7 @@ func (s *Service) DeleteRun(ctx context.Context, req *connect.Request[runspb.Del
 // TTL field, so this compatibility surface grants the documented default
 // rather than recreating the old indefinite index pin.
 func (s *Service) PinRun(ctx context.Context, req *connect.Request[runspb.PinRunRequest]) (*connect.Response[runspb.PinRunResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -420,7 +420,7 @@ func (s *Service) PinRun(ctx context.Context, req *connect.Request[runspb.PinRun
 
 // UnpinRun revokes a consumer's protection lease.
 func (s *Service) UnpinRun(ctx context.Context, req *connect.Request[runspb.UnpinRunRequest]) (*connect.Response[runspb.UnpinRunResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +442,7 @@ func (s *Service) UnpinRun(ctx context.Context, req *connect.Request[runspb.Unpi
 
 // CompareRuns classifies per-phase differences between two runs.
 func (s *Service) CompareRuns(ctx context.Context, req *connect.Request[runspb.CompareRunsRequest]) (*connect.Response[runspb.CompareRunsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +471,7 @@ func (s *Service) CompareRuns(ctx context.Context, req *connect.Request[runspb.C
 // comprehensive+baseline run at this sha?" Matching is exact on every non-empty
 // filter; status defaults to "passed"; require_clean excludes dirty-tree runs.
 func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindRunRequest]) (*connect.Response[runspb.FindRunResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -498,7 +498,7 @@ func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindR
 	currentConfiguration := ""
 	if matchCurrentSource {
 		sourceDir := dir
-		if targetExpression := strings.TrimSpace(req.Msg.GetScenario()); strings.Contains(targetExpression, ":") {
+		if targetExpression := strings.TrimSpace(req.Msg.GetTarget()); strings.Contains(targetExpression, ":") {
 			target, resolveErr := targetmodel.Resolve(filepath.Dir(s.scenariosRoot), targetExpression)
 			if resolveErr != nil {
 				return nil, connect.NewError(connect.CodeInvalidArgument, resolveErr)
@@ -512,10 +512,10 @@ func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindR
 			return connect.NewResponse(&runspb.FindRunResponse{Found: false}), nil
 		}
 		previewRequest := orchestrator.SuiteExecutionRequest{
-			ScenarioName: req.Msg.GetScenario(), Preset: preset, CaptureProfile: captureProfile,
+			ScenarioName: req.Msg.GetTarget(), Preset: preset, CaptureProfile: captureProfile,
 		}
-		if strings.Contains(strings.TrimSpace(req.Msg.GetScenario()), ":") {
-			previewRequest.Target = req.Msg.GetScenario()
+		if strings.Contains(strings.TrimSpace(req.Msg.GetTarget()), ":") {
+			previewRequest.Target = req.Msg.GetTarget()
 		}
 		preview, err := s.planner.Preview(ctx, previewRequest)
 		if err != nil || preview == nil {
@@ -566,7 +566,7 @@ func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindR
 
 // GetPhaseArtifact returns the raw phase-results JSON for a run+phase.
 func (s *Service) GetPhaseArtifact(ctx context.Context, req *connect.Request[runspb.GetPhaseArtifactRequest]) (*connect.Response[runspb.GetPhaseArtifactResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +599,7 @@ func (s *Service) GetPhaseArtifact(ctx context.Context, req *connect.Request[run
 // exposing its private storage locators. Runs predating catalogs use a
 // read-only discovery projection with explicit legacy provenance.
 func (s *Service) ListRunArtifacts(ctx context.Context, req *connect.Request[runspb.ListRunArtifactsRequest]) (*connect.Response[runspb.ListRunArtifactsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -635,7 +635,7 @@ func (s *Service) ListRunArtifacts(ctx context.Context, req *connect.Request[run
 		if producingPhase != "" && artifact.ProducingPhase != producingPhase {
 			continue
 		}
-		out = append(out, toArtifactRef(req.Msg.GetScenario(), runID, artifact))
+		out = append(out, toArtifactRef(req.Msg.GetTarget(), runID, artifact))
 	}
 	response := &runspb.ListRunArtifactsResponse{
 		SchemaVersion:    int32(catalog.SchemaVersion),
@@ -652,7 +652,7 @@ func (s *Service) ListRunArtifacts(ctx context.Context, req *connect.Request[run
 // GetRunArtifact returns safe metadata for one artifact and verifies that its
 // bytes still resolve to a regular file inside this run's allowed roots.
 func (s *Service) GetRunArtifact(ctx context.Context, req *connect.Request[runspb.GetRunArtifactRequest]) (*connect.Response[runspb.GetRunArtifactResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -669,7 +669,7 @@ func (s *Service) GetRunArtifact(ctx context.Context, req *connect.Request[runsp
 		return nil, mapArtifactError(err)
 	}
 	return connect.NewResponse(&runspb.GetRunArtifactResponse{
-		Artifact:         toArtifactRef(req.Msg.GetScenario(), runID, artifact),
+		Artifact:         toArtifactRef(req.Msg.GetTarget(), runID, artifact),
 		LegacyDiscovered: artifact.Provenance == sharedartifacts.ArtifactProvenanceLegacy,
 	}), nil
 }
@@ -740,7 +740,7 @@ func cloneStringMap(input map[string]string) map[string]string {
 // manifest. It intentionally does not open findings.json: that artifact owns
 // detailed findings and is accessed only through an explicit artifact route.
 func (s *Service) GetRunFindings(ctx context.Context, req *connect.Request[runspb.GetRunFindingsRequest]) (*connect.Response[runspb.GetRunFindingsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -757,7 +757,7 @@ func (s *Service) GetRunFindings(ctx context.Context, req *connect.Request[runsp
 		if errors.Is(err, os.ErrNotExist) {
 			projection, projectionErr := loadRunProjection(sharedruns.NewIndex(dir), runID)
 			if projectionErr == nil && projection.record.Status == sharedruns.StatusFailed && len(projection.record.Phases) == 0 {
-				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("run %q failed before phase execution, so it has no findings manifest; inspect the terminal error with test-genie runs status --scenario %s %s", runID, req.Msg.GetScenario(), runID))
+				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("run %q failed before phase execution, so it has no findings manifest; inspect the terminal error with test-genie runs status --target %s %s", runID, req.Msg.GetTarget(), runID))
 			}
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no evidence manifest for run %q", runID))
 		}
@@ -774,7 +774,7 @@ func (s *Service) GetRunFindings(ctx context.Context, req *connect.Request[runsp
 		})
 	}
 	return connect.NewResponse(&runspb.GetRunFindingsResponse{
-		Scenario:    manifest.Scenario,
+		Target:      manifest.Scenario,
 		RunId:       manifest.RunID,
 		Verdict:     manifest.Verdict,
 		CompletedAt: manifest.CreatedAt.UTC().Format(time.RFC3339),
@@ -806,7 +806,7 @@ func latestRunID(scenarioDir string) (string, error) {
 // content is served by the REST artifact route; this returns the relative-path
 // handles that route consumes.
 func (s *Service) ListRunVideos(ctx context.Context, req *connect.Request[runspb.ListRunVideosRequest]) (*connect.Response[runspb.ListRunVideosResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -834,7 +834,7 @@ func (s *Service) ListRunVideos(ctx context.Context, req *connect.Request[runspb
 // content is served by the REST artifact route; this returns the structured
 // page set + rel-path handles git-control-tower diffs at the metadata level.
 func (s *Service) ListRunVisuals(ctx context.Context, req *connect.Request[runspb.ListRunVisualsRequest]) (*connect.Response[runspb.ListRunVisualsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -863,7 +863,7 @@ func (s *Service) ListRunVisuals(ctx context.Context, req *connect.Request[runsp
 // only enumerates run artifacts and supplies inline screenshot bytes; ui-health
 // owns the pixel math and verdict taxonomy.
 func (s *Service) CompareRunVisuals(ctx context.Context, req *connect.Request[runspb.CompareRunVisualsRequest]) (*connect.Response[runspb.CompareRunVisualsResponse], error) {
-	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	dir, err := s.scenarioDir(req.Msg.GetTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -895,7 +895,7 @@ func (s *Service) CompareRunVisuals(ctx context.Context, req *connect.Request[ru
 		comparer = defaultVisualHealthComparer{}
 	}
 	visualResp, err := comparer.CompareArtifacts(ctx, &visualpb.CompareArtifactsRequest{
-		Scenario:     req.Msg.GetScenario(),
+		Scenario:     req.Msg.GetTarget(),
 		BaseRunId:    baseRunID,
 		CurrentRunId: curRunID,
 		Base:         s.visualCompareArtifacts(dir, baseRunID, baseVisuals),

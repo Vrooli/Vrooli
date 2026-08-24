@@ -66,7 +66,7 @@ func TestGetFleetHealthAssemblesPayload(t *testing.T) {
 	if fh.GetCapturedAt() == "" {
 		t.Fatal("captured_at empty; fleet data must be as-of stamped")
 	}
-	if len(fh.GetScenarios()) == 0 || fh.GetScenarios()[0].GetScenario() != "flaky" {
+	if len(fh.GetScenarios()) == 0 || fh.GetScenarios()[0].GetTarget() != "flaky" {
 		t.Fatalf("most-errored first wrong: %+v", fh.GetScenarios())
 	}
 	if got := fh.GetNeverTestedInWindow(); len(got) != 1 || got[0] != "untouched" {

@@ -93,6 +93,26 @@ func TestExecutionPlanServicePreviewUsesScenarioHistoryFirst(t *testing.T) {
 	}
 }
 
+func TestExecutionPlanServicePreviewPreservesGeneralizedTargetIdentity(t *testing.T) {
+	svc := NewExecutionPlanService(
+		&stubPlanBuilder{preview: &orchestrator.ExecutionPlanPreview{
+			ScenarioName: "redis",
+			TargetKind:   "resource",
+			TargetID:     "redis",
+			Phases:       []orchestrator.PlannedPhase{{Name: "portability"}},
+		}},
+		&stubPhaseSampleReader{},
+	)
+
+	preview, err := svc.Preview(context.Background(), orchestrator.SuiteExecutionRequest{Target: "resource:redis"})
+	if err != nil {
+		t.Fatalf("preview failed: %v", err)
+	}
+	if preview.TargetKind != "resource" || preview.TargetID != "redis" {
+		t.Fatalf("target identity = %s:%s, want resource:redis", preview.TargetKind, preview.TargetID)
+	}
+}
+
 func TestExecutionPlanServicePreviewBlendsScenarioAndGlobalHistory(t *testing.T) {
 	svc := NewExecutionPlanService(
 		&stubPlanBuilder{

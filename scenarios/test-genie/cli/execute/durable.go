@@ -193,7 +193,7 @@ func followInline(parent context.Context, client runs_v1connect.RunsServiceClien
 	// backgrounded) so an agent following inline is not re-woken on every beat;
 	// an interactive terminal keeps them as a liveness signal.
 	stream, err := client.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{
-		Scenario: scenario, RunId: runID, SuppressHeartbeats: !isStdoutTTY(),
+		Target: scenario, RunId: runID, SuppressHeartbeats: !isStdoutTTY(),
 	}))
 	if err != nil {
 		return fmt.Errorf("follow run: %w", err)
@@ -235,7 +235,7 @@ func followInline(parent context.Context, client runs_v1connect.RunsServiceClien
 func followJSONL(ctx context.Context, client runs_v1connect.RunsServiceClient, scenario, runID string, out io.Writer) error {
 	// A machine consumer never wants heartbeat keep-alive noise — always suppress.
 	stream, err := client.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{
-		Scenario: scenario, RunId: runID, SuppressHeartbeats: true,
+		Target: scenario, RunId: runID, SuppressHeartbeats: true,
 	}))
 	if err != nil {
 		_ = emitEventLine(out, jsonlErrorEvent(scenario, runID, err))
@@ -269,7 +269,7 @@ func followJSONL(ctx context.Context, client runs_v1connect.RunsServiceClient, s
 // the run id (as executionId), the per-phase results, and any terminal error.
 func followJSONFinal(ctx context.Context, client runs_v1connect.RunsServiceClient, scenario, runID string, handle RunHandle, out io.Writer) error {
 	stream, err := client.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{
-		Scenario: scenario, RunId: runID, SuppressHeartbeats: true,
+		Target: scenario, RunId: runID, SuppressHeartbeats: true,
 	}))
 	if err != nil {
 		emitJSONError(out, scenario, runID, err)
@@ -401,7 +401,7 @@ func eventToMap(ev *runspb.RunEvent) map[string]any {
 		}
 	}
 	put("run_id", ev.GetRunId())
-	put("scenario", ev.GetScenario())
+	put("scenario", ev.GetTarget())
 	put("artifact_dir", ev.GetArtifactDir())
 	put("preset", ev.GetPreset())
 	put("phase", ev.GetPhase())
@@ -526,9 +526,9 @@ func runBusyGuidance(err error) (string, bool) {
 			preset = "default"
 		}
 		var b strings.Builder
-		fmt.Fprintf(&b, "✗ %s already has an in-progress run %s (preset %s) — only one run per scenario at a time.\n", bi.GetScenario(), bi.GetRunId(), preset)
-		printAgentWaitBlock(&b, bi.GetScenario(), bi.GetRunId(), 0, false, RecommendedWaitSeconds(0, false))
-		fmt.Fprintf(&b, "  abort: test-genie runs abort %s %s\n", bi.GetScenario(), bi.GetRunId())
+		fmt.Fprintf(&b, "✗ %s already has an in-progress run %s (preset %s) — only one run per scenario at a time.\n", bi.GetTarget(), bi.GetRunId(), preset)
+		printAgentWaitBlock(&b, bi.GetTarget(), bi.GetRunId(), 0, false, RecommendedWaitSeconds(0, false))
+		fmt.Fprintf(&b, "  abort: test-genie runs abort %s %s\n", bi.GetTarget(), bi.GetRunId())
 		return b.String(), true
 	}
 	return "", false
@@ -536,8 +536,8 @@ func runBusyGuidance(err error) (string, bool) {
 
 func toStartRunRequest(req Request) *runspb.StartRunRequest {
 	return &runspb.StartRunRequest{
-		Scenario:               req.ScenarioName,
-		Target:                 targetProto(req.Target),
+		Target:                 req.ScenarioName,
+		TargetRef:              targetProto(req.Target),
 		Preset:                 req.Preset,
 		Phases:                 req.Phases,
 		Skip:                   req.Skip,

@@ -146,7 +146,7 @@ func costReportCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) 
 			return nil, err
 		}
 		resp, err := cl.GetCostReport(context.Background(), connect.NewRequest(&runspb.GetCostReportRequest{
-			Scenario:             ctx.Flag("scenario"),
+			Target:               ctx.Flag("scenario"),
 			WindowSeconds:        int64(window.Seconds()),
 			CompareWindowSeconds: int64(compareWindow.Seconds()),
 			Fleet:                ctx.Flag("fleet") == "true",
@@ -184,7 +184,7 @@ func costReportReport(_ cliapp.OperationContext, msg *runspb.GetCostReportRespon
 // appear only when they are known, so a line never asserts a fact the data does
 // not contain.
 func formatCostRow(phase *runspb.CostPhaseSummary) string {
-	name := phase.GetScenario() + "/" + phase.GetPhase()
+	name := phase.GetTarget() + "/" + phase.GetPhase()
 	if provider := phase.GetProviderScenario(); provider != "" {
 		name += " [" + provider + "]"
 	}
@@ -242,7 +242,7 @@ func runCost(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		return err
 	}
 	resp, err := cl.GetCostReport(context.Background(), connect.NewRequest(&runspb.GetCostReportRequest{
-		Scenario: *scenario, WindowSeconds: int64(window.Seconds()), CompareWindowSeconds: int64(compareWindow.Seconds()),
+		Target: *scenario, WindowSeconds: int64(window.Seconds()), CompareWindowSeconds: int64(compareWindow.Seconds()),
 		Fleet: *fleet,
 	}))
 	if err != nil {
@@ -362,7 +362,7 @@ func listRunArtifactsCall(apiClient *cliutil.APIClient) func(cliapp.OperationCon
 			}
 		}
 		resp, err := cl.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{
-			Scenario: ctx.Flag("scenario"), RunId: ctx.Positional("run_id"), Kinds: kinds, ProducingPhase: ctx.Flag("phase"),
+			Target: ctx.Flag("scenario"), RunId: ctx.Positional("run_id"), Kinds: kinds, ProducingPhase: ctx.Flag("phase"),
 		}))
 		if err != nil {
 			return nil, err
@@ -393,7 +393,7 @@ func getRunArtifactCall(apiClient *cliutil.APIClient) func(cliapp.OperationConte
 			return nil, err
 		}
 		resp, err := cl.GetRunArtifact(context.Background(), connect.NewRequest(&runspb.GetRunArtifactRequest{
-			Scenario: ctx.Flag("scenario"), RunId: ctx.Positional("run_id"), ArtifactId: ctx.Positional("artifact_id"),
+			Target: ctx.Flag("scenario"), RunId: ctx.Positional("run_id"), ArtifactId: ctx.Positional("artifact_id"),
 		}))
 		if err != nil {
 			return nil, err
@@ -422,9 +422,9 @@ func listRunsCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*
 			return nil, err
 		}
 		resp, err := cl.ListRuns(context.Background(), connect.NewRequest(&runspb.ListRunsRequest{
-			Scenario: strings.TrimSpace(ctx.Flag("scenario")),
-			Status:   strings.TrimSpace(ctx.Flag("status")),
-			Limit:    int32(limit),
+			Target: strings.TrimSpace(ctx.Flag("scenario")),
+			Status: strings.TrimSpace(ctx.Flag("status")),
+			Limit:  int32(limit),
 		}))
 		if err != nil {
 			return nil, &exitErr{code: exitNotComparable, err: err}
@@ -454,7 +454,7 @@ func getRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*ru
 		if err != nil {
 			return nil, err
 		}
-		resp, err := cl.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Scenario: ctx.Flag("scenario"), RunId: ctx.Positional("run_id")}))
+		resp, err := cl.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: ctx.Flag("scenario"), RunId: ctx.Positional("run_id")}))
 		if err != nil {
 			return nil, &exitErr{code: exitNotComparable, err: err}
 		}
@@ -492,9 +492,9 @@ func deleteRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (
 			return nil, err
 		}
 		resp, err := cl.DeleteRun(context.Background(), connect.NewRequest(&runspb.DeleteRunRequest{
-			Scenario: ctx.Flag("scenario"),
-			RunId:    ctx.Positional("run_id"),
-			Force:    ctx.BoolFlag("force"),
+			Target: ctx.Flag("scenario"),
+			RunId:  ctx.Positional("run_id"),
+			Force:  ctx.BoolFlag("force"),
 		}))
 		if err != nil {
 			return nil, &exitErr{code: exitNotComparable, err: err}
@@ -514,7 +514,7 @@ func pinRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*ru
 			return nil, err
 		}
 		resp, err := cl.PinRun(context.Background(), connect.NewRequest(&runspb.PinRunRequest{
-			Scenario: ctx.Flag("scenario"),
+			Target:   ctx.Flag("scenario"),
 			RunId:    ctx.Positional("run_id"),
 			PinnedBy: strings.TrimSpace(ctx.Flag("by")),
 			Reason:   strings.TrimSpace(ctx.Flag("reason")),
@@ -537,7 +537,7 @@ func unpinRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*
 			return nil, err
 		}
 		resp, err := cl.UnpinRun(context.Background(), connect.NewRequest(&runspb.UnpinRunRequest{
-			Scenario: ctx.Flag("scenario"),
+			Target:   ctx.Flag("scenario"),
 			RunId:    ctx.Positional("run_id"),
 			PinnedBy: strings.TrimSpace(ctx.Flag("by")),
 		}))
@@ -559,10 +559,10 @@ func compareRunsCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext)
 			return nil, err
 		}
 		resp, err := cl.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{
-			Scenario: ctx.Flag("scenario"),
-			RunIdA:   ctx.Positional("left_run_id"),
-			RunIdB:   ctx.Positional("right_run_id"),
-			Phase:    strings.TrimSpace(ctx.Flag("phase")),
+			Target: ctx.Flag("scenario"),
+			RunIdA: ctx.Positional("left_run_id"),
+			RunIdB: ctx.Positional("right_run_id"),
+			Phase:  strings.TrimSpace(ctx.Flag("phase")),
 		}))
 		if err != nil {
 			return nil, &exitErr{code: exitNotComparable, err: err}
@@ -597,7 +597,7 @@ func checkFreshnessCall(apiClient *cliutil.APIClient) func(cliapp.OperationConte
 		if err != nil {
 			return nil, err
 		}
-		resp, err := cl.CheckFreshness(context.Background(), connect.NewRequest(&runspb.CheckFreshnessRequest{Scenario: scenario, Phases: phases}))
+		resp, err := cl.CheckFreshness(context.Background(), connect.NewRequest(&runspb.CheckFreshnessRequest{Target: scenario, Phases: phases}))
 		if err != nil {
 			return nil, &exitErr{code: exitNotComparable, err: err}
 		}
@@ -676,7 +676,7 @@ func abortRunCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*
 		if err != nil {
 			return nil, err
 		}
-		resp, err := cl.AbortRun(context.Background(), connect.NewRequest(&runspb.AbortRunRequest{Scenario: ctx.Positional("scenario"), RunId: ctx.Positional("run_id")}))
+		resp, err := cl.AbortRun(context.Background(), connect.NewRequest(&runspb.AbortRunRequest{Target: ctx.Positional("scenario"), RunId: ctx.Positional("run_id")}))
 		if err != nil {
 			return nil, &exitErr{code: exitNotComparable, err: err}
 		}
@@ -698,7 +698,7 @@ func runStatusCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (
 		if err != nil {
 			return nil, err
 		}
-		resp, err := cl.GetRunStatus(context.Background(), connect.NewRequest(&runspb.GetRunStatusRequest{Scenario: ctx.Positional("scenario"), RunId: ctx.Positional("run_id")}))
+		resp, err := cl.GetRunStatus(context.Background(), connect.NewRequest(&runspb.GetRunStatusRequest{Target: ctx.Positional("scenario"), RunId: ctx.Positional("run_id")}))
 		if err != nil {
 			return nil, &exitErr{code: exitNotComparable, err: err}
 		}
@@ -763,7 +763,7 @@ func runList(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		return err
 	}
 	resp, err := cl.ListRuns(context.Background(), connect.NewRequest(&runspb.ListRunsRequest{
-		Scenario: scen, Status: strings.TrimSpace(*status), Limit: int32(*limit),
+		Target: scen, Status: strings.TrimSpace(*status), Limit: int32(*limit),
 	}))
 	if err != nil {
 		return &exitErr{code: exitNotComparable, err: err}
@@ -806,7 +806,7 @@ func runShow(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	resp, err := cl.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Scenario: scen, RunId: rest[0]}))
+	resp, err := cl.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: scen, RunId: rest[0]}))
 	if err != nil {
 		return &exitErr{code: exitNotComparable, err: err}
 	}
@@ -856,7 +856,7 @@ func runDelete(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	resp, err := cl.DeleteRun(context.Background(), connect.NewRequest(&runspb.DeleteRunRequest{Scenario: scen, RunId: rest[0], Force: *force}))
+	resp, err := cl.DeleteRun(context.Background(), connect.NewRequest(&runspb.DeleteRunRequest{Target: scen, RunId: rest[0], Force: *force}))
 	if err != nil {
 		return &exitErr{code: exitNotComparable, err: err}
 	}
@@ -893,7 +893,7 @@ func runPin(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		return err
 	}
 	resp, err := cl.PinRun(context.Background(), connect.NewRequest(&runspb.PinRunRequest{
-		Scenario: scen, RunId: rest[0], PinnedBy: strings.TrimSpace(*by), Reason: strings.TrimSpace(*reason),
+		Target: scen, RunId: rest[0], PinnedBy: strings.TrimSpace(*by), Reason: strings.TrimSpace(*reason),
 	}))
 	if err != nil {
 		return &exitErr{code: exitNotComparable, err: err}
@@ -929,7 +929,7 @@ func runUnpin(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	resp, err := cl.UnpinRun(context.Background(), connect.NewRequest(&runspb.UnpinRunRequest{Scenario: scen, RunId: rest[0], PinnedBy: strings.TrimSpace(*by)}))
+	resp, err := cl.UnpinRun(context.Background(), connect.NewRequest(&runspb.UnpinRunRequest{Target: scen, RunId: rest[0], PinnedBy: strings.TrimSpace(*by)}))
 	if err != nil {
 		return &exitErr{code: exitNotComparable, err: err}
 	}
@@ -962,7 +962,7 @@ func runCompare(apiClient *cliutil.APIClient, args []string, w io.Writer) error 
 		return err
 	}
 	resp, err := cl.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{
-		Scenario: scen, RunIdA: rest[0], RunIdB: rest[1], Phase: strings.TrimSpace(*phase),
+		Target: scen, RunIdA: rest[0], RunIdB: rest[1], Phase: strings.TrimSpace(*phase),
 	}))
 	if err != nil {
 		return &exitErr{code: exitNotComparable, err: err}
@@ -1043,7 +1043,7 @@ func runFreshness(apiClient *cliutil.APIClient, args []string, w io.Writer) erro
 		return err
 	}
 	resp, err := cl.CheckFreshness(context.Background(), connect.NewRequest(&runspb.CheckFreshnessRequest{
-		Scenario: scen, Phases: phases,
+		Target: scen, Phases: phases,
 	}))
 	if err != nil {
 		return &exitErr{code: exitNotComparable, err: err}

@@ -27,8 +27,8 @@ func getRunFindingsCall(apiClient *cliutil.APIClient) func(cliapp.OperationConte
 			runID = "latest"
 		}
 		resp, err := cl.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{
-			Scenario: ctx.Flag("scenario"),
-			RunId:    runID,
+			Target: ctx.Flag("scenario"),
+			RunId:  runID,
 		}))
 		if err != nil {
 			return nil, err
@@ -41,7 +41,7 @@ func getRunFindingsCall(apiClient *cliutil.APIClient) func(cliapp.OperationConte
 // scorecard. cli-core owns the --json vs human selection (ProtoList), so both
 // modes derive from the one GetRunFindingsResponse payload.
 func getRunFindingsReport(_ cliapp.OperationContext, msg *runspb.GetRunFindingsResponse) cliapp.ListReport {
-	summary := []string{fmt.Sprintf("Findings: %s run %s", msg.GetScenario(), msg.GetRunId())}
+	summary := []string{fmt.Sprintf("Findings: %s run %s", msg.GetTarget(), msg.GetRunId())}
 	if v := strings.TrimSpace(msg.GetVerdict()); v != "" {
 		summary = append(summary, "Verdict: "+v)
 	}

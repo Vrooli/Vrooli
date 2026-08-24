@@ -132,7 +132,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 	seedCtx, cancel := context.WithTimeout(ctx, playbooksCfg.Seeds.SeedTimeout())
 	defer cancel()
 
-	seedManager := seeds.NewManager(env.ScenarioDir, env.AppRoot, env.TestDir, logWriter)
+	seedManager := seeds.NewManager(env.ScenarioDir, env.AppRoot, env.CoverageDir, logWriter)
 	restoreSeedEnv := applyEnv(isoResult.Env)
 	_, seedErr := seedManager.Apply(seedCtx)
 	restoreSeedEnv()

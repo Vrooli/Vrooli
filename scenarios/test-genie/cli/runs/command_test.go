@@ -115,7 +115,7 @@ func TestRunsCompareRequiresTwoIDs(t *testing.T) {
 
 func (f *fakeClient) CheckFreshness(_ context.Context, req *connect.Request[runspb.CheckFreshnessRequest]) (*connect.Response[runspb.CheckFreshnessResponse], error) {
 	if f.freshnessFn != nil {
-		resp, err := f.freshnessFn(req.Msg.GetScenario())
+		resp, err := f.freshnessFn(req.Msg.GetTarget())
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +126,7 @@ func (f *fakeClient) CheckFreshness(_ context.Context, req *connect.Request[runs
 
 func TestRunsFreshnessFreshExitsZero(t *testing.T) {
 	withFakeClient(t, &fakeClient{freshness: &runspb.CheckFreshnessResponse{
-		Scenario:   "demo",
+		Target:     "demo",
 		TreeDigest: "td:abc",
 		Phases: []*runspb.PhaseFreshness{
 			{Phase: "unit", Status: "fresh", LastRunId: "r1"},
@@ -144,7 +144,7 @@ func TestRunsFreshnessFreshExitsZero(t *testing.T) {
 
 func TestRunsFreshnessStaleExitsOneWithCommand(t *testing.T) {
 	withFakeClient(t, &fakeClient{freshness: &runspb.CheckFreshnessResponse{
-		Scenario:   "demo",
+		Target:     "demo",
 		TreeDigest: "td:abc",
 		Phases: []*runspb.PhaseFreshness{
 			{Phase: "unit", Status: "stale", LastRunCompletedAt: "2026-06-09T00:00:00Z"},
@@ -169,8 +169,8 @@ func TestRunsFreshnessStaleExitsOneWithCommand(t *testing.T) {
 
 func TestRunsFreshnessPositionalScenario(t *testing.T) {
 	withFakeClient(t, &fakeClient{freshness: &runspb.CheckFreshnessResponse{
-		Scenario: "demo",
-		Phases:   []*runspb.PhaseFreshness{{Phase: "unit", Status: "fresh"}},
+		Target: "demo",
+		Phases: []*runspb.PhaseFreshness{{Phase: "unit", Status: "fresh"}},
 	}})
 	var buf bytes.Buffer
 	if err := runFreshness(nil, []string{"demo"}, &buf); err != nil {

@@ -420,7 +420,7 @@ func (s *Service) applyProvider(ctx context.Context, plan Plan, pp ProviderPlan,
 			Redacted: true,
 		})
 	}
-	_ = s.audit(ctx, AuditEvent{Type: "provider.applied", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes", result.ReclaimedBytes)})
+	_ = s.audit(ctx, AuditEvent{Type: "provider.applied", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes repairs=%d retries=%d", result.ReclaimedBytes, result.Repairs, result.RetryAttempts)})
 	return result, true, nil
 }
 

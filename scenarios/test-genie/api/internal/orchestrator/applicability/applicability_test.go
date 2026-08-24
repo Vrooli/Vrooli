@@ -77,6 +77,19 @@ func TestEvaluateHostOSApplicability(t *testing.T) {
 	}
 }
 
+func TestEvaluateRejectsUndeclaredTargetKindBeforePredicatesAndDefault(t *testing.T) {
+	got := Evaluate("provider", providerdescriptor.Applicability{
+		Default: "applies",
+		Any:     []providerdescriptor.Predicate{{TargetKind: "package"}},
+	}, Context{TargetKind: "resource", DeclaredTargetKinds: []string{"package"}})
+	if got.Status != StatusNotApplicable {
+		t.Fatalf("status = %s, want not_applicable", got.Status)
+	}
+	if len(got.Reasons) != 1 || got.Reasons[0].Code != CodeTargetKindUndeclared {
+		t.Fatalf("reasons = %#v, want target-kind gate", got.Reasons)
+	}
+}
+
 func TestEvaluateExplicitNonApplicableIsSurfaced(t *testing.T) {
 	got := Evaluate("search", providerdescriptor.Applicability{
 		Default: "not_applicable",

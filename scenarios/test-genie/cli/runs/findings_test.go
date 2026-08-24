@@ -9,8 +9,8 @@ import (
 
 func TestGetRunFindingsReportLabelsHistoricalStanding(t *testing.T) {
 	report := getRunFindingsReport(nil, &runspb.GetRunFindingsResponse{
-		Scenario: "demo",
-		RunId:    "historical",
+		Target: "demo",
+		RunId:  "historical",
 		Phases: []*runspb.RunFindingsPhase{{
 			Name: "ui-health",
 			MaturityStanding: &runspb.PhaseMaturityStanding{

@@ -47,6 +47,7 @@ below is provider-delegated and declares a maturity ladder; every phase's
 | `quality` | quality-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/quality/README.md` |
 | `search` | search-hub | 4 | provider-delegated | `scenarios/test-genie/docs/phases/search/README.md` |
 | `security` | security-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/security/README.md` |
+| `soak` | audio-tools | 1 | provider-delegated | `scenarios/audio-tools/docs/test-genie/soak/README.md` |
 | `storage` | storage-manager | 5 | provider-delegated | `scenarios/test-genie/docs/phases/storage/README.md` |
 | `structure` | structure-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/structure/README.md` |
 | `environment_conformance` | envresolve-go | 4 | repository-scanned | `scenarios/test-genie/docs/phases/env-conformance/README.md` |

@@ -6,19 +6,24 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"storage-manager/hostfs"
 	"storage-manager/hostpaths"
+	cleanupcore "storage-manager/internal/cleanup"
 	"storage-manager/internal/module"
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/providers"
 
 	"github.com/vrooli/api-core/discovery"
+	coreRetention "github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
@@ -118,12 +123,130 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		GoBuildCacheRoots:    roots.GoBuildCache,
 		PlaywrightCacheRoots: roots.PlaywrightCache,
 		ScenarioBinariesRoot: binRoot,
+		RuntimeHomeProviders: runtimeHomeProviderConfigs(repoRoot, home, newRuntimeHomeBrokerRepairer()),
 		Saturated:            autohealSaturationProbe(http.DefaultClient),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return providers.NewRegistry(builtIns...)
+}
+
+func runtimeHomeProviderConfigs(repoRoot, home string, repairers ...cleanupcore.OwnershipRepairer) []providers.FileProviderConfig {
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return nil
+	}
+	entries, err := contract.RuntimeHomeEntries(home)
+	if err != nil {
+		return nil
+	}
+	configs := make([]providers.FileProviderConfig, 0)
+	var repairer cleanupcore.OwnershipRepairer
+	if len(repairers) > 0 {
+		repairer = repairers[0]
+	}
+	for _, entry := range entries {
+		if !entry.Regenerable || entry.Cleanup != "storage_manager" || entry.Retention == nil {
+			continue
+		}
+		limits, parseErr := runtimeHomeRetentionLimits(entry.Retention)
+		if parseErr != nil {
+			// Contract validation already rejects this in normal operation. Keep
+			// provider construction fail-closed if a caller supplies a bad root.
+			continue
+		}
+		configs = append(configs, providers.FileProviderConfig{
+			ID: "runtime-home-" + entry.Key, Name: "Runtime home " + entry.Key,
+			Roots: []string{entry.AbsPath}, Description: "Remove contract-eligible runtime-home entries",
+			TopLevelEntries: true, RetentionMaxAge: limits.MaxAge, RetentionMaxBytes: limits.MaxBytes,
+			ProtectActive: entry.Retention.ProtectActive,
+			RepairClass:   entry.Key, OwnershipRepairer: repairer,
+		})
+	}
+	return configs
+}
+
+type runtimeHomeBrokerRepairer struct {
+	socket string
+	uid    uint32
+	gid    uint32
+}
+
+func newRuntimeHomeBrokerRepairer() cleanupcore.OwnershipRepairer {
+	current, err := user.Current()
+	if err != nil {
+		return &runtimeHomeBrokerRepairer{socket: "/run/vrooli/privilege-broker.sock"}
+	}
+	uid, uidErr := strconv.ParseUint(current.Uid, 10, 32)
+	gid, gidErr := strconv.ParseUint(current.Gid, 10, 32)
+	if uidErr != nil || gidErr != nil {
+		return &runtimeHomeBrokerRepairer{socket: "/run/vrooli/privilege-broker.sock"}
+	}
+	return &runtimeHomeBrokerRepairer{socket: "/run/vrooli/privilege-broker.sock", uid: uint32(uid), gid: uint32(gid)}
+}
+
+func (r *runtimeHomeBrokerRepairer) Repair(ctx context.Context, class string) (cleanupcore.OwnershipRepairResult, error) {
+	if r == nil || r.uid == 0 || r.gid == 0 {
+		return cleanupcore.OwnershipRepairResult{}, fmt.Errorf("privilege broker is unavailable")
+	}
+	request := struct {
+		Version     string `json:"version"`
+		RequestID   string `json:"request_id"`
+		Action      string `json:"action"`
+		RuntimeHome struct {
+			Class       string `json:"class"`
+			ExpectedUID uint32 `json:"expected_uid"`
+			ExpectedGID uint32 `json:"expected_gid"`
+		} `json:"runtime_home"`
+	}{Version: "v1", RequestID: "storage-manager-runtime-home-" + class, Action: "runtime-home.ownership.repair"}
+	request.RuntimeHome.Class = class
+	request.RuntimeHome.ExpectedUID = r.uid
+	request.RuntimeHome.ExpectedGID = r.gid
+	conn, err := (&net.Dialer{}).DialContext(ctx, "unix", r.socket)
+	if err != nil {
+		return cleanupcore.OwnershipRepairResult{}, err
+	}
+	defer conn.Close()
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(deadline)
+	}
+	if err := json.NewEncoder(conn).Encode(request); err != nil {
+		return cleanupcore.OwnershipRepairResult{}, err
+	}
+	var result struct {
+		Status   string `json:"status"`
+		Code     string `json:"code"`
+		Evidence struct {
+			Repaired uint64 `json:"repaired"`
+			Failed   uint64 `json:"failed"`
+		} `json:"evidence"`
+	}
+	if err := json.NewDecoder(io.LimitReader(conn, 64<<10)).Decode(&result); err != nil {
+		return cleanupcore.OwnershipRepairResult{}, err
+	}
+	if result.Status == "failed" {
+		return cleanupcore.OwnershipRepairResult{Failed: result.Evidence.Failed, Code: result.Code}, nil
+	}
+	return cleanupcore.OwnershipRepairResult{Repaired: result.Evidence.Repaired, Failed: result.Evidence.Failed, Code: result.Code}, nil
+}
+
+func runtimeHomeRetentionLimits(policy *repocontract.RetentionPolicy) (providers.RuntimeHomeRetentionConfig, error) {
+	if policy == nil {
+		return providers.RuntimeHomeRetentionConfig{}, nil
+	}
+	var out providers.RuntimeHomeRetentionConfig
+	var err error
+	if policy.MaxAge != "" {
+		out.MaxAge, err = coreRetention.ParseAge(policy.MaxAge)
+		if err != nil {
+			return out, err
+		}
+	}
+	if policy.MaxBytes != "" {
+		out.MaxBytes, err = coreRetention.ParseBytes(policy.MaxBytes)
+	}
+	return out, err
 }
 
 // autohealSaturationProbe keeps irreversible cleanup behind the same

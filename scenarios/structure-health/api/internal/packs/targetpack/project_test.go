@@ -34,9 +34,20 @@ func projectFixtureJSON(t *testing.T) string {
 		key, path, kind        string
 		regenerable, sensitive bool
 	}{
-		{"plans", "plans", "dir", false, false}, {"state", "state", "dir", false, false}, {"config", "config", "dir", false, false}, {"data", "data", "dir", false, false}, {"runtime_db", "state/runtime.db", "file", false, false}, {"secrets", "secrets.json", "file", false, true}, {"secrets_enc", "secrets.enc.json", "file", false, true}, {"bin", "bin", "dir", true, false}, {"cache", "cache", "dir", true, false}, {"logs", "logs", "dir", true, false}, {"metrics", "metrics", "dir", true, false}, {"processes", "processes", "dir", true, false}, {"build", "build", "dir", true, false},
+		{"plans", "plans", "dir", false, false}, {"state", "state", "dir", false, false}, {"config", "config", "dir", false, false}, {"data", "data", "dir", false, false}, {"runtime_db", "state/runtime.db", "file", false, false}, {"secrets", "secrets.json", "file", false, true}, {"secrets_enc", "secrets.enc.json", "file", false, true}, {"bin", "bin", "dir", true, false}, {"cache", "cache", "dir", true, false}, {"logs", "logs", "dir", true, false}, {"metrics", "metrics", "dir", true, false}, {"processes", "processes", "dir", true, false}, {"build", "build", "dir", true, false}, {"test_runs", "test-runs", "dir", true, false}, {"backups", "backups", "dir", false, false}, {"artifacts", "artifacts", "dir", true, false},
 	} {
 		entries[item.key] = map[string]any{"path": item.path, "kind": item.kind, "regenerable": item.regenerable, "sensitive": item.sensitive}
+	}
+	for _, raw := range entries {
+		entry := raw.(map[string]any)
+		entry["owner"] = "control_plane"
+		if entry["regenerable"].(bool) {
+			entry["cleanup"] = "storage_manager"
+			entry["retention"] = map[string]any{"max_age": "30d", "max_bytes": "10GiB", "keep_count": 3, "protect_active": true}
+		} else {
+			entry["protected"] = true
+			entry["cleanup"] = "never"
+		}
 	}
 	doc := map[string]any{
 		"$schema": "schemas/repo-contract.schema.json", "version": "1.2.0",

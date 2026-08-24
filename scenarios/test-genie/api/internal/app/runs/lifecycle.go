@@ -31,12 +31,12 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 	if s.runManager == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
 	}
-	scenario := strings.TrimSpace(req.Msg.GetScenario())
-	target := req.Msg.GetTarget()
-	if target != nil {
+	scenario := strings.TrimSpace(req.Msg.GetTarget())
+	targetRef := req.Msg.GetTargetRef()
+	if targetRef != nil {
 		// The admission key is the canonical target expression. The typed target
 		// remains on the request and response for consumers that do not use text.
-		if expression := targetExpression(target); expression != "" {
+		if expression := targetExpression(targetRef); expression != "" {
 			scenario = expression
 		}
 	}
@@ -50,7 +50,7 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 	input := execution.SuiteExecutionInput{
 		Request: orchestrator.SuiteExecutionRequest{
 			ScenarioName:           scenario,
-			Target:                 targetExpression(target),
+			Target:                 targetExpression(targetRef),
 			Preset:                 strings.TrimSpace(req.Msg.GetPreset()),
 			Phases:                 req.Msg.GetPhases(),
 			Skip:                   req.Msg.GetSkip(),
@@ -76,7 +76,7 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 		return nil, err
 	}
 	if runID := s.runManager.CoalescedRunID(input.Request); runID != "" {
-		return connect.NewResponse(&runspb.StartRunResponse{RunId: runID, Scenario: scenario, Target: target, Coalesced: true}), nil
+		return connect.NewResponse(&runspb.StartRunResponse{RunId: runID, Target: scenario, TargetRef: targetRef, Coalesced: true}), nil
 	}
 
 	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, EstimatedTotalSeconds: etaTotal})
@@ -93,11 +93,11 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 	}
 	return connect.NewResponse(&runspb.StartRunResponse{
 		RunId:                 res.RunID,
-		Scenario:              scenario,
+		Target:                scenario,
 		EstimatedTotalSeconds: int32(etaTotal),
 		EtaKnown:              etaKnown,
 		Coalesced:             res.Coalesced,
-		Target:                target,
+		TargetRef:             targetRef,
 	}), nil
 }
 
@@ -266,9 +266,9 @@ func saturationError(err error) *connect.Error {
 func busyError(busy *runmanager.BusyError) *connect.Error {
 	cerr := connect.NewError(connect.CodeFailedPrecondition, busy)
 	if detail, derr := connect.NewErrorDetail(&runspb.RunBusyInfo{
-		Scenario: busy.Scenario,
-		RunId:    busy.RunID,
-		Preset:   busy.Preset,
+		Target: busy.Scenario,
+		RunId:  busy.RunID,
+		Preset: busy.Preset,
 	}); derr == nil {
 		cerr.AddDetail(detail)
 	}
@@ -281,7 +281,7 @@ func (s *Service) FollowRun(ctx context.Context, req *connect.Request[runspb.Fol
 	if s.runManager == nil {
 		return connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
 	}
-	scenario := strings.TrimSpace(req.Msg.GetScenario())
+	scenario := strings.TrimSpace(req.Msg.GetTarget())
 	runID := strings.TrimSpace(req.Msg.GetRunId())
 	// suppress_heartbeats is a per-follower filter: the manager keeps publishing
 	// heartbeats to the shared broadcaster (other followers — e.g. browser SSE —
@@ -325,7 +325,7 @@ func (s *Service) WaitRun(ctx context.Context, req *connect.Request[runspb.WaitR
 	if s.runManager == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
 	}
-	scenario := strings.TrimSpace(req.Msg.GetScenario())
+	scenario := strings.TrimSpace(req.Msg.GetTarget())
 	runID := strings.TrimSpace(req.Msg.GetRunId())
 
 	waitCtx := ctx
@@ -367,7 +367,7 @@ func (s *Service) AbortRun(ctx context.Context, req *connect.Request[runspb.Abor
 	if s.runManager == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
 	}
-	st, err := s.runManager.Abort(strings.TrimSpace(req.Msg.GetScenario()), strings.TrimSpace(req.Msg.GetRunId()))
+	st, err := s.runManager.Abort(strings.TrimSpace(req.Msg.GetTarget()), strings.TrimSpace(req.Msg.GetRunId()))
 	if err != nil {
 		return nil, mapRunError(err)
 	}
@@ -379,7 +379,7 @@ func (s *Service) GetRunStatus(ctx context.Context, req *connect.Request[runspb.
 	if s.runManager == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
 	}
-	st, err := s.runManager.Status(strings.TrimSpace(req.Msg.GetScenario()), strings.TrimSpace(req.Msg.GetRunId()))
+	st, err := s.runManager.Status(strings.TrimSpace(req.Msg.GetTarget()), strings.TrimSpace(req.Msg.GetRunId()))
 	if err != nil {
 		return nil, mapRunError(err)
 	}
@@ -392,7 +392,7 @@ func toRunEvent(ev runmanager.Event) *runspb.RunEvent {
 		Event:             ev.Kind,
 		ElapsedSeconds:    ev.ElapsedSeconds,
 		RunId:             ev.RunID,
-		Scenario:          ev.Scenario,
+		Target:            ev.Scenario,
 		ArtifactDir:       ev.ArtifactDir,
 		Preset:            ev.Preset,
 		Phase:             ev.Phase,
@@ -438,7 +438,7 @@ func toLiveStatus(st runmanager.LiveStatus) *runspb.RunLiveStatus {
 	}
 	return &runspb.RunLiveStatus{
 		RunId:                       st.RunID,
-		Scenario:                    st.Scenario,
+		Target:                      st.Scenario,
 		Status:                      st.Status,
 		ActivePhase:                 st.ActivePhase,
 		PhaseIndex:                  int32(st.PhaseIndex),

@@ -14,8 +14,19 @@ import (
 )
 
 type fleetAcceptanceReport struct {
-	Reports    []json.RawMessage `json:"reports"`
-	ErrorCount int               `json:"error_count"`
+	Reports    []fleetAcceptanceOwner `json:"reports"`
+	ErrorCount int                    `json:"error_count"`
+}
+
+type fleetAcceptanceOwner struct {
+	OwnerKind string                   `json:"owner_kind"`
+	OwnerID   string                   `json:"owner_id"`
+	Findings  []fleetAcceptanceFinding `json:"findings"`
+}
+
+type fleetAcceptanceFinding struct {
+	Code     string `json:"code"`
+	Severity int    `json:"severity"`
 }
 
 // TestFleetValidationAcceptance exercises the same REST surface used by
@@ -33,15 +44,24 @@ func TestFleetValidationAcceptance(t *testing.T) {
 	if resp.Code != http.StatusOK {
 		t.Fatalf("validate fleet status = %d, body=%s", resp.Code, resp.Body.String())
 	}
+	body := resp.Body.Bytes()
 	var report fleetAcceptanceReport
-	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
+	if err := json.Unmarshal(body, &report); err != nil {
 		t.Fatalf("decode fleet report: %v", err)
 	}
 	if len(report.Reports) == 0 {
 		t.Fatal("validate fleet returned no owner reports")
 	}
 	if report.ErrorCount != 0 {
-		t.Fatalf("validate fleet returned %d error or blocker findings", report.ErrorCount)
+		var severe []string
+		for _, owner := range report.Reports {
+			for _, finding := range owner.Findings {
+				if finding.Severity >= 2 {
+					severe = append(severe, owner.OwnerKind+"/"+owner.OwnerID+":"+finding.Code)
+				}
+			}
+		}
+		t.Fatalf("validate fleet returned %d error or blocker findings: %v", report.ErrorCount, severe)
 	}
 }
 

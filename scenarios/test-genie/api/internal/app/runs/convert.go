@@ -94,7 +94,7 @@ func toTerminalRunInfo(r sharedruns.RunRecord, result *orchestrator.SuiteExecuti
 	}
 	return &runspb.RunInfo{
 		RunId:           r.RunID,
-		Scenario:        r.Scenario,
+		Target:          r.Scenario,
 		StartedAt:       formatTime(r.StartedAt),
 		CompletedAt:     formatTime(r.CompletedAt),
 		Status:          r.Status,
@@ -125,7 +125,7 @@ func toTerminalRunInfo(r sharedruns.RunRecord, result *orchestrator.SuiteExecuti
 		EvidenceTier:                      evidenceTier(r, result),
 		SourceScope:                       sourceScope(r, result),
 		SourceStable:                      sourceStable(result),
-		Target:                            &commonv1.ValidationTarget{Kind: targetKind(r.TargetKind), Id: r.TargetID},
+		TargetRef:                         &commonv1.ValidationTarget{Kind: targetKind(r.TargetKind), Id: r.TargetID},
 	}
 }
 

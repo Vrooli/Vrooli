@@ -189,6 +189,7 @@ func validDescriptor(scenario, phase string) string {
   "findingSource":"docs",
   "validation":{"contract":"scenario-validation/v1","includeExecution":true},
   "applicability":{"default":"applies"},
+  "targets":{"kinds":["scenario","package","resource","tool","safeguard","team","control-plane","docs","project"],"selection":"enumerate"},
   "policy":{
     "selection":"default_when_applicable",
     "providerReadiness":"required_when_applicable",

@@ -119,7 +119,7 @@ func printFleet(w io.Writer, fh *runspb.FleetHealth) {
 			break // ranking is most-errored first; the rest are clean
 		}
 		fmt.Fprintf(w, "      %-32s fail=%.0f%% (%d/%d runs) issues=%d last=%s %s\n",
-			sc.GetScenario(), sc.GetFailureRate()*100, sc.GetFailedRuns(), sc.GetRuns(),
+			sc.GetTarget(), sc.GetFailureRate()*100, sc.GetFailedRuns(), sc.GetRuns(),
 			sc.GetIssues(), sc.GetLastOutcome(), ageLabel(sc.GetAgeDays()))
 		shown++
 		if shown >= 10 {

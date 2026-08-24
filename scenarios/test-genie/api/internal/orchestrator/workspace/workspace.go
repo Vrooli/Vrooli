@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 
-	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/shared"
 	"test-genie/internal/targetmodel"
 
@@ -55,10 +54,10 @@ type Environment struct {
 	// ArtifactRoot is the durable evidence owner. It is the source directory
 	// for scenarios and a runtime-home target directory otherwise.
 	ArtifactRoot string
-	// TestDir is the legacy "testing workspace" root. Vrooli no longer requires
-	// scenarios to include a top-level test/ directory; this now defaults to
+	// CoverageDir is the testing workspace root. Vrooli no longer requires
+	// scenarios to include a top-level test/ directory; this defaults to
 	// coverage/ to keep all test-related artifacts and optional configs together.
-	TestDir         string
+	CoverageDir     string
 	AppRoot         string
 	PhysicalAppRoot string
 	Mapping         Mapping
@@ -68,9 +67,6 @@ type Environment struct {
 	UIURL         string // Base URL for the scenario UI (e.g., "http://localhost:3000")
 	APIURL        string // Base URL for the scenario API (e.g., "http://localhost:8080")
 	TargetRuntime TargetRuntime
-	// Claims is retained for the legacy routed-run compatibility surface. The
-	// provider-delegated path owns its own execution and isolation contract.
-	Claims *playbooksclaims.Service
 }
 
 // TargetRuntime manages the lifecycle of the scenario under test when a phase
@@ -80,16 +76,16 @@ type TargetRuntime interface {
 	Restore(ctx context.Context, logWriter io.Writer) error
 }
 
-// ScenarioWorkspace captures the canonical paths for a scenario so the orchestrator
+// TargetWorkspace captures canonical paths for a validation target so the orchestrator
 // doesn't have to re-derive them on every call.
-type ScenarioWorkspace struct {
+type TargetWorkspace struct {
 	Name        string
 	TargetKind  string
 	TargetID    string
 	TargetRoot  string
 	ScenarioDir string
-	// TestDir is the legacy "testing workspace" root (now coverage/ by default).
-	TestDir         string
+	// CoverageDir is the target's coverage workspace (coverage/ for scenarios).
+	CoverageDir     string
 	PhaseDir        string
 	AppRoot         string
 	PhysicalAppRoot string
@@ -102,7 +98,6 @@ type ScenarioWorkspace struct {
 	uiURL         string
 	apiURL        string
 	targetRuntime TargetRuntime
-	claims        *playbooksclaims.Service
 }
 
 // Options configures scenario workspace resolution.
@@ -133,7 +128,7 @@ type ResolvedLink struct {
 }
 
 // New loads and validates the file-system layout for a scenario.
-func New(scenariosRoot, scenario string) (*ScenarioWorkspace, error) {
+func New(scenariosRoot, scenario string) (*TargetWorkspace, error) {
 	return NewWithOptions(scenariosRoot, scenario, Options{})
 }
 
@@ -141,7 +136,7 @@ func New(scenariosRoot, scenario string) (*ScenarioWorkspace, error) {
 // source directory remains the target itself, while all run artifacts are
 // owned by the runtime-home target store rather than being written into the
 // source tree. Such targets intentionally have no lifecycle runtime.
-func NewTarget(repoRoot string, target targetmodel.Target) (*ScenarioWorkspace, error) {
+func NewTarget(repoRoot string, target targetmodel.Target) (*TargetWorkspace, error) {
 	if target.HasRuntime() {
 		return nil, fmt.Errorf("NewTarget is only for non-scenario targets")
 	}
@@ -163,14 +158,14 @@ func NewTarget(repoRoot string, target targetmodel.Target) (*ScenarioWorkspace, 
 	if err != nil {
 		return nil, fmt.Errorf("resolve target artifacts: %w", err)
 	}
-	return &ScenarioWorkspace{
+	return &TargetWorkspace{
 		Name:            target.ID,
 		TargetKind:      targetKindName(target.Kind),
 		TargetID:        target.ID,
 		TargetRoot:      target.Root,
 		ScenarioDir:     target.Path,
 		artifactRoot:    artifactRoot,
-		TestDir:         target.Path,
+		CoverageDir:     target.Path,
 		PhaseDir:        filepath.Join(target.Path, "coverage", "phases"),
 		AppRoot:         repoRoot,
 		PhysicalAppRoot: repoRoot,
@@ -179,7 +174,8 @@ func NewTarget(repoRoot string, target targetmodel.Target) (*ScenarioWorkspace, 
 }
 
 func targetKindName(kind commonv1.ValidationTargetKind) string {
-	return strings.TrimPrefix(strings.ToLower(kind.String()), "validation_target_kind_")
+	name := strings.TrimPrefix(strings.ToLower(kind.String()), "validation_target_kind_")
+	return strings.ReplaceAll(name, "_", "-")
 }
 
 func firstNonEmpty(values ...string) string {
@@ -192,7 +188,7 @@ func firstNonEmpty(values ...string) string {
 }
 
 // NewWithOptions loads and validates the file-system layout for a scenario.
-func NewWithOptions(scenariosRoot, scenario string, opts Options) (*ScenarioWorkspace, error) {
+func NewWithOptions(scenariosRoot, scenario string, opts Options) (*TargetWorkspace, error) {
 	name := strings.TrimSpace(scenario)
 	if name == "" {
 		return nil, shared.NewValidationError("scenarioName is required")
@@ -240,14 +236,14 @@ func NewWithOptions(scenariosRoot, scenario string, opts Options) (*ScenarioWork
 		return nil, err
 	}
 
-	return &ScenarioWorkspace{
+	return &TargetWorkspace{
 		Name:            name,
 		TargetKind:      "scenario",
 		TargetID:        name,
 		TargetRoot:      filepath.ToSlash(filepath.Join("scenarios", name)),
 		ScenarioDir:     scenarioDir,
 		artifactRoot:    scenarioDir,
-		TestDir:         testDir,
+		CoverageDir:     testDir,
 		PhaseDir:        phaseDir,
 		AppRoot:         physicalAppRoot,
 		PhysicalAppRoot: physicalAppRoot,
@@ -256,7 +252,7 @@ func NewWithOptions(scenariosRoot, scenario string, opts Options) (*ScenarioWork
 }
 
 // Environment returns the phase environment bound to this workspace.
-func (w *ScenarioWorkspace) Environment() Environment {
+func (w *TargetWorkspace) Environment() Environment {
 	if w == nil {
 		return Environment{}
 	}
@@ -267,29 +263,19 @@ func (w *ScenarioWorkspace) Environment() Environment {
 		TargetRoot:      w.TargetRoot,
 		ScenarioDir:     w.ScenarioDir,
 		ArtifactRoot:    firstNonEmpty(w.artifactRoot, w.ScenarioDir),
-		TestDir:         w.TestDir,
+		CoverageDir:     w.CoverageDir,
 		AppRoot:         w.AppRoot,
 		PhysicalAppRoot: w.PhysicalAppRoot,
 		Mapping:         w.Mapping,
 		UIURL:           w.uiURL,
 		APIURL:          w.apiURL,
 		TargetRuntime:   w.targetRuntime,
-		Claims:          w.claims,
 	}
-}
-
-// SetClaims configures the playbooks-claims service used to guard
-// concurrent playbooks runs against the same scenario.
-func (w *ScenarioWorkspace) SetClaims(svc *playbooksclaims.Service) {
-	if w == nil {
-		return
-	}
-	w.claims = svc
 }
 
 // SetRuntimeURLs configures the runtime service URLs for phases that need to connect
 // to running services (e.g., Lighthouse audits, integration tests).
-func (w *ScenarioWorkspace) SetRuntimeURLs(uiURL, apiURL string) {
+func (w *TargetWorkspace) SetRuntimeURLs(uiURL, apiURL string) {
 	if w == nil {
 		return
 	}
@@ -299,7 +285,7 @@ func (w *ScenarioWorkspace) SetRuntimeURLs(uiURL, apiURL string) {
 
 // SetTargetRuntime configures the lifecycle manager used by phases that need to
 // restart the scenario under test.
-func (w *ScenarioWorkspace) SetTargetRuntime(runtime TargetRuntime) {
+func (w *TargetWorkspace) SetTargetRuntime(runtime TargetRuntime) {
 	if w == nil {
 		return
 	}
@@ -307,7 +293,7 @@ func (w *ScenarioWorkspace) SetTargetRuntime(runtime TargetRuntime) {
 }
 
 // EnsureArtifactDir lazily creates the artifact directory and returns its path.
-func (w *ScenarioWorkspace) EnsureArtifactDir() (string, error) {
+func (w *TargetWorkspace) EnsureArtifactDir() (string, error) {
 	if w == nil {
 		return "", fmt.Errorf("workspace is not configured")
 	}

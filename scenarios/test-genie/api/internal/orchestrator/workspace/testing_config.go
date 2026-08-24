@@ -19,7 +19,7 @@ var timeoutPattern = regexp.MustCompile(`^([0-9]+)([smh]?)$`)
 type Config struct {
 	Phases       map[string]PhaseSettings
 	Presets      map[string][]string
-	Requirements RequirementSettings
+	Requirements SyncRequirementSettings
 	Sections     map[string]bool
 }
 
@@ -28,9 +28,9 @@ type PhaseSettings struct {
 	Timeout time.Duration
 }
 
-// RequirementSettings mirrors the legacy bash orchestrator flags so the Go
-// runner can make the same sync decisions without shell scripts.
-type RequirementSettings struct {
+// SyncRequirementSettings captures the requirements synchronization policy
+// used by the Go runner.
+type SyncRequirementSettings struct {
 	Enforce *bool
 	Sync    *bool
 }
@@ -38,7 +38,7 @@ type RequirementSettings struct {
 type rawTestingConfig struct {
 	Phases       map[string]rawPhaseSettings `json:"phases"`
 	Presets      map[string][]string         `json:"presets"`
-	Requirements rawRequirementSettings      `json:"requirements"`
+	Requirements rawSyncRequirementSettings  `json:"requirements"`
 }
 
 type rawPhaseSettings struct {
@@ -46,7 +46,7 @@ type rawPhaseSettings struct {
 	Timeout string `json:"timeout"`
 }
 
-type rawRequirementSettings struct {
+type rawSyncRequirementSettings struct {
 	Enforce *bool `json:"enforce"`
 	Sync    *bool `json:"sync"`
 }
@@ -73,7 +73,7 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 	cfg := &Config{
 		Phases:       map[string]PhaseSettings{},
 		Presets:      map[string][]string{},
-		Requirements: RequirementSettings{},
+		Requirements: SyncRequirementSettings{},
 		Sections:     map[string]bool{},
 	}
 	for section := range sections {
@@ -109,7 +109,7 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 		cfg.Presets[normalized] = filtered
 	}
 
-	cfg.Requirements = RequirementSettings{
+	cfg.Requirements = SyncRequirementSettings{
 		Enforce: raw.Requirements.Enforce,
 		Sync:    raw.Requirements.Sync,
 	}

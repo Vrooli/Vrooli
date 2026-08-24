@@ -47,7 +47,7 @@ func withFakeGit(t *testing.T, outputs map[string][]string) {
 }
 
 func freshResp(scenario string, statuses map[string]string, cmd string) *runspb.CheckFreshnessResponse {
-	resp := &runspb.CheckFreshnessResponse{Scenario: scenario, SuggestedCommand: cmd}
+	resp := &runspb.CheckFreshnessResponse{Target: scenario, SuggestedCommand: cmd}
 	for phase, status := range statuses {
 		resp.Phases = append(resp.Phases, &runspb.PhaseFreshness{Phase: phase, Status: status})
 	}

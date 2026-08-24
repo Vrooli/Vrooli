@@ -17,12 +17,14 @@ import (
 // detect → analyze pipeline; the Connect handler and the CLI are thin
 // translation layers over ValidateScenario.
 type Service struct {
-	repoRoot     string
-	detector     Detector
-	analyzers    []Analyzer
-	logger       *log.Logger
-	allowlist    map[string]struct{}
-	allowlistErr error
+	repoRoot               string
+	detector               Detector
+	analyzers              []Analyzer
+	logger                 *log.Logger
+	allowlist              map[string]struct{}
+	allowlistErr           error
+	filesystemAllowlist    map[string]filesystemException
+	filesystemAllowlistErr error
 }
 
 // Deps wires the Service's seams. Detector and Analyzers default to the real
@@ -50,7 +52,8 @@ func New(d Deps) *Service {
 		logger = log.Default()
 	}
 	allowlist, allowlistErr := loadMigrationAllowlist(d.RepoRoot)
-	return &Service{repoRoot: d.RepoRoot, detector: detector, analyzers: analyzers, logger: logger, allowlist: allowlist, allowlistErr: allowlistErr}
+	filesystemAllowlist, filesystemAllowlistErr := loadFilesystemAllowlist(d.RepoRoot)
+	return &Service{repoRoot: d.RepoRoot, detector: detector, analyzers: analyzers, logger: logger, allowlist: allowlist, allowlistErr: allowlistErr, filesystemAllowlist: filesystemAllowlist, filesystemAllowlistErr: filesystemAllowlistErr}
 }
 
 // MigrationAllowlistSize is included in fleet responses so the operator can
@@ -137,7 +140,11 @@ func (s *Service) validateNonScenarioGate(ctx context.Context, platform corestor
 func storageTargetSubject(kind corestorage.OwnerKind, id, repoRoot, manifestPath string) *commonv1.ValidationTarget {
 	root := ""
 	if repoRoot != "" && manifestPath != "" {
-		if rel, err := filepath.Rel(repoRoot, filepath.Dir(manifestPath)); err == nil {
+		base := filepath.Dir(manifestPath)
+		if kind == corestorage.OwnerProject {
+			base = repoRoot
+		}
+		if rel, err := filepath.Rel(repoRoot, base); err == nil {
 			root = filepath.ToSlash(rel)
 		}
 	}
@@ -154,6 +161,12 @@ func storageTargetKind(kind corestorage.OwnerKind) commonv1.ValidationTargetKind
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL
 	case corestorage.OwnerSafeguard:
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD
+	case corestorage.OwnerPackage:
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE
+	case corestorage.OwnerControlPlane:
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE
+	case corestorage.OwnerProject:
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT
 	default:
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED
 	}
@@ -204,6 +217,9 @@ func (s *Service) validateOwnerFromInventory(ctx context.Context, kind corestora
 func (s *Service) validateOwnerFromInventoryWithDetector(ctx context.Context, kind corestorage.OwnerKind, id string, platform corestorage.Platform, inventory corestorage.OwnerInventory, detector Detector, declarationOnly bool) (Report, error) {
 	if s.allowlistErr != nil {
 		return Report{}, fmt.Errorf("load storage migration allowlist: %w", s.allowlistErr)
+	}
+	if s.filesystemAllowlistErr != nil {
+		return Report{}, fmt.Errorf("load filesystem contract allowlist: %w", s.filesystemAllowlistErr)
 	}
 	if id == "" {
 		return Report{}, fmt.Errorf("%s name is required", kind)
@@ -326,7 +342,8 @@ func (s *Service) validateOwnerFromInventoryWithDetector(ctx context.Context, ki
 		HasMigrations: hasMigrations,
 		Findings:      findings,
 	}
-	return s.applyMigrationAllowlist(report), nil
+	report = s.applyMigrationAllowlist(report)
+	return s.applyFilesystemAllowlist(report), nil
 }
 
 func analyzerSupportsKind(analyzer Analyzer, kind corestorage.OwnerKind) bool {

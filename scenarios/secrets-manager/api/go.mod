@@ -15,7 +15,11 @@ require (
 	modernc.org/sqlite v1.54.0
 )
 
-require github.com/felixge/httpsnoop v1.0.3 // indirect
+require (
+	github.com/felixge/httpsnoop v1.0.3 // indirect
+	github.com/klauspost/compress v1.17.4 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
+)
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 

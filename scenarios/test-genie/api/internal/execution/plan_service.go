@@ -55,6 +55,8 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 
 	preview := &ExecutionPlanPreview{
 		ScenarioName:             basePlan.ScenarioName,
+		TargetKind:               basePlan.TargetKind,
+		TargetID:                 basePlan.TargetID,
 		PresetUsed:               basePlan.PresetUsed,
 		Warnings:                 append([]string(nil), basePlan.Warnings...),
 		PhaseSetDigest:           basePlan.PhaseSetDigest,

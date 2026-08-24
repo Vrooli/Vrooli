@@ -46,7 +46,7 @@ test-genie execute my-scenario --preset architecture-audit
 |-------|-------------|---------|
 | Structure | Validates scenario skeleton and lifecycle wiring through structure-health. | 1m |
 | Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 2m |
-| UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 5m |
+| UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 15m |
 | API Health | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. | 2m |
 | Architecture | Validates structural cohesion through architecture-cartographer. | 3m |
 | Documentation | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 90s |
@@ -65,12 +65,13 @@ test-genie execute my-scenario --preset comprehensive
 | Portability | Runs the deployability resolver against declared resource inputs and the observed host OS. | 2m |
 | Structure | Validates scenario skeleton and lifecycle wiring through structure-health. | 1m |
 | Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 2m |
-| UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 5m |
+| UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 15m |
 | API Health | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. | 2m |
 | Architecture | Validates structural cohesion through architecture-cartographer. | 3m |
 | Dependencies | Validates dependency readiness, governance, runtime status, release-age policy, and graph drift. | 15m |
 | Quality | Validates static quality contracts, lint and type policy, and strict config through quality-health. | 2m |
 | Documentation | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 90s |
+| Long-form dictation soak | Runs the provider-owned accelerated browser qualification for the virtual-replay dictation cell and gates on its complete conformance artifact. | 15m |
 | Performance | Validates API/UI build performance and Lighthouse budgets through performance-health. | 5m |
 | Unit | Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health. | 15m |
 | Storage | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-manager. | 2m |
@@ -86,7 +87,7 @@ test-genie execute my-scenario --preset comprehensive
 | Monetization Conformance | Validates monetization trust boundaries, declarations, and local metering posture. | 90s |
 | Search | Validates search-enabled scenarios through Search Hub's search maturity contract. | 90s |
 | Provider Conformance | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. | 90s |
-| Component Tests | Runs version-pinned React component and hook contracts through the React Component Library provider. | 10m |
+| Component Tests | Runs version-pinned React component and hook contracts through the React Component Library provider. | 20m |
 | Agent Conformance | Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles. | 45s |
 | Templates | Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager. | 90s |
 | Event Capture Conformance | Validates opt-in receipt-capture declarations against published protobuf contracts and the reconciled global policy snapshot. | 45s |
@@ -104,6 +105,7 @@ test-genie execute my-scenario --preset comprehensive
 | Dependencies | Adaptive | Adaptive | No | Yes |
 | Quality | Adaptive | Adaptive | No | Yes |
 | Documentation | Adaptive | Adaptive | Yes | Yes |
+| Long-form dictation soak | Adaptive | Adaptive | No | Yes |
 | Performance | Adaptive | Adaptive | No | Yes |
 | Unit | Adaptive | Adaptive | No | Yes |
 | Storage | Adaptive | Adaptive | No | Yes |

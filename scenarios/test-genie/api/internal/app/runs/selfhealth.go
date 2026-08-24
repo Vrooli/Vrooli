@@ -268,7 +268,7 @@ func phaseReliabilityToProto(p selfhealth.PhaseReliability) *runspb.PhaseReliabi
 	}
 	for _, ws := range p.WorstScenarios {
 		out.WorstScenarios = append(out.WorstScenarios, &runspb.ScenarioFailureRate{
-			Scenario:    ws.Scenario,
+			Target:      ws.Scenario,
 			Executed:    int32(ws.Executed),
 			Failures:    int32(ws.Failures),
 			FailureRate: ws.FailureRate,

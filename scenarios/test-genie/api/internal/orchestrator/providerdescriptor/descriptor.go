@@ -494,7 +494,44 @@ func loadPromptManagerSkillIDs(repoRoot string) (map[string]struct{}, error) {
 			}
 		}
 	}
+	if err := addScenarioOwnedSkillIDs(repoRoot, ids); err != nil {
+		return nil, err
+	}
 	return ids, nil
+}
+
+// addScenarioOwnedSkillIDs indexes the skills a scenario owns in its own
+// skills/ root. These are as active as any pack skill; they simply do not live
+// in prompt-manager's store, so enumerating the packs alone under-reports the
+// corpus and makes a live skill look unknown.
+func addScenarioOwnedSkillIDs(repoRoot string, ids map[string]struct{}) error {
+	scenariosDir := filepath.Join(repoRoot, "scenarios")
+	scenarios, err := os.ReadDir(scenariosDir)
+	if err != nil {
+		return fmt.Errorf("read scenarios directory: %w", err)
+	}
+	for _, scenario := range scenarios {
+		if !scenario.IsDir() {
+			continue
+		}
+		skillsDir := filepath.Join(scenariosDir, scenario.Name(), "skills")
+		entries, readErr := os.ReadDir(skillsDir)
+		if readErr != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			if _, statErr := os.Stat(filepath.Join(skillsDir, entry.Name(), "SKILL.md")); statErr != nil {
+				continue
+			}
+			if _, seen := ids[entry.Name()]; !seen {
+				ids[entry.Name()] = struct{}{}
+			}
+		}
+	}
+	return nil
 }
 
 func validateRecommendedSkillIDs(path string, spec *assessment.Spec, skillIDs map[string]struct{}) []Diagnostic {

@@ -26,6 +26,8 @@ require (
 
 require golang.org/x/mod v0.37.0
 
+require github.com/klauspost/compress v1.17.4 // indirect
+
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect

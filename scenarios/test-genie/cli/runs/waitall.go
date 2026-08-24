@@ -107,7 +107,7 @@ func waitAllFanOut(cl runs_v1connect.RunsServiceClient, refs []runRef, timeout i
 		go func(i int, ref runRef) {
 			defer wg.Done()
 			resp, err := cl.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{
-				Scenario: ref.scenario, RunId: ref.runID, TimeoutSeconds: int32(timeout),
+				Target: ref.scenario, RunId: ref.runID, TimeoutSeconds: int32(timeout),
 			}))
 			r := waitAllResult{ref: ref}
 			if err != nil {
@@ -190,7 +190,7 @@ func writeWaitAllJSON(w io.Writer, results []waitAllResult) error {
 	for _, r := range results {
 		st := r.status
 		if st == nil {
-			st = &runspb.RunLiveStatus{Scenario: r.ref.scenario, RunId: r.ref.runID, Status: "error"}
+			st = &runspb.RunLiveStatus{Target: r.ref.scenario, RunId: r.ref.runID, Status: "error"}
 			if r.err != nil {
 				st.Error = r.err.Error()
 			}

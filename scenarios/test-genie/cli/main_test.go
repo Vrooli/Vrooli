@@ -37,7 +37,7 @@ func (f *executeFakeRuns) StartRun(_ context.Context, req *connect.Request[runsp
 	f.mu.Lock()
 	f.started = req.Msg
 	f.mu.Unlock()
-	return connect.NewResponse(&runspb.StartRunResponse{RunId: "20260101-000000-abcd1234", Scenario: req.Msg.GetScenario()}), nil
+	return connect.NewResponse(&runspb.StartRunResponse{RunId: "20260101-000000-abcd1234", Target: req.Msg.GetTarget()}), nil
 }
 
 func (f *executeFakeRuns) FollowRun(_ context.Context, _ *connect.Request[runspb.FollowRunRequest], stream *connect.ServerStream[runspb.RunEvent]) error {

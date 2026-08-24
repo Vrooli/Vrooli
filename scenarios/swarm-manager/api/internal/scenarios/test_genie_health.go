@@ -57,7 +57,7 @@ func ProjectTestGenieHealth(ctx context.Context, client TestGenieHealthClient, s
 	if client == nil {
 		return ScenarioHealthSnapshot{EvidenceState: HealthEvidenceUnavailable, Reason: "Test Genie integration is not configured."}
 	}
-	response, err := client.GetRunFindings(ctx, connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: scenario, RunId: "latest"}))
+	response, err := client.GetRunFindings(ctx, connect.NewRequest(&runspb.GetRunFindingsRequest{Target: scenario, RunId: "latest"}))
 	if err != nil || response == nil || response.Msg == nil {
 		return providerFailure(err, "retrieve canonical findings")
 	}
@@ -80,7 +80,7 @@ func ProjectTestGenieHealth(ctx context.Context, client TestGenieHealthClient, s
 		snapshot.Reason = "The latest Test Genie evidence has no canonical phase presentation."
 		return snapshot
 	}
-	freshness, err := client.CheckFreshness(ctx, connect.NewRequest(&runspb.CheckFreshnessRequest{Scenario: scenario, Phases: phaseNames}))
+	freshness, err := client.CheckFreshness(ctx, connect.NewRequest(&runspb.CheckFreshnessRequest{Target: scenario, Phases: phaseNames}))
 	if err != nil || freshness == nil || freshness.Msg == nil {
 		return providerFailure(err, "check evidence freshness")
 	}

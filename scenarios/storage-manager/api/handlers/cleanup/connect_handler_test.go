@@ -38,6 +38,21 @@ func TestConnectHandlerListsProviderMetadataAndPolicy(t *testing.T) {
 	}
 }
 
+func TestRuntimeHomeProviderConfigsRegisterOnlyContractEligibleEntries(t *testing.T) {
+	configs := runtimeHomeProviderConfigs("/home/matthalloran8/Vrooli", t.TempDir())
+	if len(configs) != 8 {
+		t.Fatalf("runtime-home provider count = %d, want eight regenerable cleanup entries", len(configs))
+	}
+	for _, cfg := range configs {
+		if cfg.ProtectActive != true || cfg.RetentionMaxAge <= 0 {
+			t.Fatalf("runtime-home provider config = %#v, want active protection and age floor", cfg)
+		}
+		if cfg.ID == "runtime-home-backups" || cfg.ID == "runtime-home-secrets" || cfg.ID == "runtime-home-data" {
+			t.Fatalf("protected runtime-home entry registered for cleanup: %#v", cfg)
+		}
+	}
+}
+
 // [REQ:CLN-P0-005]
 func TestConnectHandlerPlanApplyAndAuditUseServiceContracts(t *testing.T) {
 	t.Parallel()

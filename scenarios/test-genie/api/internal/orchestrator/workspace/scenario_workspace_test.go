@@ -4,9 +4,18 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
-func TestNewScenarioWorkspace(t *testing.T) {
+func TestTargetKindNameUsesRepoContractToken(t *testing.T) {
+	got := targetKindName(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE)
+	if got != "control-plane" {
+		t.Fatalf("targetKindName() = %q, want control-plane", got)
+	}
+}
+
+func TestNewTargetWorkspace(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "demo")
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
@@ -20,8 +29,8 @@ func TestNewScenarioWorkspace(t *testing.T) {
 	if workspace.ScenarioDir != scenarioDir {
 		t.Fatalf("unexpected scenario dir %s", workspace.ScenarioDir)
 	}
-	if workspace.TestDir != filepath.Join(scenarioDir, "coverage") {
-		t.Fatalf("unexpected test dir %s", workspace.TestDir)
+	if workspace.CoverageDir != filepath.Join(scenarioDir, "coverage") {
+		t.Fatalf("unexpected test dir %s", workspace.CoverageDir)
 	}
 	expectedPhaseDir := filepath.Join(scenarioDir, "coverage", "phases")
 	if workspace.PhaseDir != expectedPhaseDir {
@@ -32,10 +41,10 @@ func TestNewScenarioWorkspace(t *testing.T) {
 	}
 
 	env := workspace.Environment()
-	if env.ScenarioName != "demo" || env.ScenarioDir == "" || env.TestDir == "" {
+	if env.ScenarioName != "demo" || env.ScenarioDir == "" || env.CoverageDir == "" {
 		t.Fatalf("environment missing data: %#v", env)
 	}
-	if info, err := os.Stat(workspace.TestDir); err != nil || !info.IsDir() {
+	if info, err := os.Stat(workspace.CoverageDir); err != nil || !info.IsDir() {
 		t.Fatalf("coverage dir missing: %v", err)
 	}
 
@@ -48,7 +57,7 @@ func TestNewScenarioWorkspace(t *testing.T) {
 	}
 }
 
-func TestNewScenarioWorkspaceValidatesNames(t *testing.T) {
+func TestNewTargetWorkspaceValidatesNames(t *testing.T) {
 	root := t.TempDir()
 	if _, err := New(root, ""); err == nil {
 		t.Fatalf("expected error for empty scenario")
@@ -58,7 +67,7 @@ func TestNewScenarioWorkspaceValidatesNames(t *testing.T) {
 	}
 }
 
-func TestNewScenarioWorkspaceWithPhysicalOverride(t *testing.T) {
+func TestNewTargetWorkspaceWithPhysicalOverride(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := filepath.Join(t.TempDir(), "scenarios", "demo")
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {

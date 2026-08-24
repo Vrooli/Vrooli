@@ -19,11 +19,12 @@ type Clock struct {
 func (c Clock) Now() time.Time { return c.Time }
 
 type FileSystem struct {
-	Root        string
-	Files       map[string]cleanup.FileInfo
-	Contents    map[string][]byte
-	Removed     []string
-	AllowRemove bool
+	Root         string
+	Files        map[string]cleanup.FileInfo
+	Contents     map[string][]byte
+	Removed      []string
+	AllowRemove  bool
+	RemoveErrors []error
 }
 
 func (fsys *FileSystem) ReadFile(ctx context.Context, path string) ([]byte, error) {
@@ -105,6 +106,13 @@ func (fsys *FileSystem) Walk(_ context.Context, root string, visit func(cleanup.
 }
 
 func (fsys *FileSystem) RemoveAll(_ context.Context, path string) error {
+	if len(fsys.RemoveErrors) > 0 {
+		err := fsys.RemoveErrors[0]
+		fsys.RemoveErrors = fsys.RemoveErrors[1:]
+		if err != nil {
+			return err
+		}
+	}
 	if !fsys.AllowRemove {
 		return fmt.Errorf("remove blocked by fake filesystem: %s", path)
 	}

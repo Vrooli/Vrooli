@@ -203,7 +203,7 @@ func runPlan(api *cliutil.APIClient, args []string, w io.Writer) error {
 		return errors.New(usage)
 	}
 	req := execute.Request{
-		ScenarioName: strings.TrimSpace(rest[0]),
+		Target:       strings.TrimSpace(rest[0]),
 		Preset:       strings.TrimSpace(*preset),
 		Phases:       cliutil.ParseCSV(*phaseCSV),
 		Skip:         cliutil.ParseCSV(*skipCSV),

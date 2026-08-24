@@ -95,6 +95,8 @@ type ProfilePlan struct {
 // ExecutionPlanPreview is the scenario-aware preflight response for CLI/UI surfaces.
 type ExecutionPlanPreview struct {
 	ScenarioName             string               `json:"scenarioName"`
+	TargetKind               string               `json:"targetKind,omitempty"`
+	TargetID                 string               `json:"targetId,omitempty"`
 	PresetUsed               string               `json:"presetUsed,omitempty"`
 	Profile                  *ProfilePlan         `json:"profile,omitempty"`
 	Phases                   []PlannedPhase       `json:"phases"`

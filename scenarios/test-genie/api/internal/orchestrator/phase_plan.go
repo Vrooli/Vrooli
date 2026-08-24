@@ -61,7 +61,7 @@ func (o *SuiteOrchestrator) buildPhasePlan(env workspacepkg.Environment, cfg *wo
 		available[def.Name.Key()] = struct{}{}
 	}
 
-	presets := o.loadPresets(env.TestDir, cfg, available)
+	presets := o.loadPresets(env.CoverageDir, cfg, available)
 	presets[phases.PresetComprehensive.String()] = definitionNames(applicableDefs)
 	selected, presetUsed, notices, err := selectPhases(applicableDefs, presets, req, globalToggles)
 	if err != nil {
@@ -170,9 +170,11 @@ func (o *SuiteOrchestrator) evaluatePhaseApplicability(defs []phases.Definition,
 			}
 			continue
 		}
+		applicabilityContext := ctx
+		applicabilityContext.DeclaredTargetKinds = append([]string(nil), entry.Descriptor.Targets.Kinds...)
 		notice := phaseApplicabilityNotice{
 			Definition: def,
-			Result:     applicability.Evaluate(def.Name.String(), entry.Descriptor.Applicability, ctx),
+			Result:     applicability.Evaluate(def.Name.String(), entry.Descriptor.Applicability, applicabilityContext),
 			Descriptor: entry.Descriptor,
 		}
 		if notice.Result.Status == applicability.StatusInvalid {

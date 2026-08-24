@@ -73,6 +73,9 @@ type Finding struct {
 	// Analyzer is the name of the analyzer that produced the finding (for
 	// deterministic ordering + provenance).
 	Analyzer string `json:"analyzer,omitempty"`
+	CapabilityID string `json:"capability_id,omitempty"`
+	FixClass string `json:"fix_class,omitempty"`
+	Metrics map[string]float64 `json:"metrics,omitempty"`
 	// Subject identifies the owner this finding is about when a fleet-level
 	// scenario validation reports on another manifest-backed target.
 	Subject *commonv1.ValidationTarget `json:"subject,omitempty"`

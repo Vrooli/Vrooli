@@ -43,8 +43,8 @@ func sampleResponse() *runspb.GetFleetHealthResponse {
 			FailedPhaseObservations: 2,
 			FindingQuality:          &runspb.FleetFindingQuality{Blockers: 3, Errors: 4, Warnings: 5, Infos: 6, Total: 18},
 			Scenarios: []*runspb.FleetScenarioHealth{
-				{Scenario: "flaky", Runs: 3, PassedRuns: 1, FailedRuns: 2, FailureRate: 0.66, Issues: 2, LastOutcome: "failed", LastRunAt: "2026-06-20T11:00:00Z", AgeDays: 0.04},
-				{Scenario: "healthy", Runs: 2, PassedRuns: 2, FailureRate: 0, LastOutcome: "passed", AgeDays: 1},
+				{Target: "flaky", Runs: 3, PassedRuns: 1, FailedRuns: 2, FailureRate: 0.66, Issues: 2, LastOutcome: "failed", LastRunAt: "2026-06-20T11:00:00Z", AgeDays: 0.04},
+				{Target: "healthy", Runs: 2, PassedRuns: 2, FailureRate: 0, LastOutcome: "passed", AgeDays: 1},
 			},
 			TopFindingSources:   []*runspb.FleetFindingSource{{Source: "standards", Issues: 2}},
 			NeverTestedInWindow: []string{"untouched"},

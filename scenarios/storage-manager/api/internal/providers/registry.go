@@ -119,6 +119,9 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 		providers = append(providers, deps.OllamaModelProvider)
 	}
 	providers = append(providers, OwnerScenarioBuiltIns(deps.OwnerScenarioClient)...)
+	for _, cfg := range deps.RuntimeHomeProviders {
+		providers = append(providers, NewRuntimeHomeProvider(deps.FileSystem, deps.Clock, cfg))
+	}
 
 	for _, provider := range providers {
 		if err := cleanup.ValidateProvider(provider); err != nil {
@@ -193,5 +196,6 @@ type BuiltInDeps struct {
 	GoBuildCacheRoots    []string
 	PlaywrightCacheRoots []string
 	ScenarioBinariesRoot string
+	RuntimeHomeProviders []FileProviderConfig
 	Saturated            func(context.Context) (bool, error)
 }

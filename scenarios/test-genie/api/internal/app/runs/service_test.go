@@ -49,7 +49,7 @@ func TestRunQueryForNonScenarioNameIsNotFoundAndCreatesNothing(t *testing.T) {
 	svc, root := newTestService(t)
 
 	for _, name := range []string{"minio", "maturity-go", "docs", "internal"} {
-		_, err := svc.ListRuns(context.Background(), connect.NewRequest(&runspb.ListRunsRequest{Scenario: name}))
+		_, err := svc.ListRuns(context.Background(), connect.NewRequest(&runspb.ListRunsRequest{Target: name}))
 		if err == nil {
 			t.Fatalf("ListRuns(%q): want error, got nil", name)
 		}
@@ -137,7 +137,7 @@ func TestListAndGetRun(t *testing.T) {
 	seedRecord(t, root, sharedruns.RunRecord{RunID: "r1", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed})
 	seedRecord(t, root, sharedruns.RunRecord{RunID: "r2", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusFailed})
 
-	list, err := svc.ListRuns(context.Background(), connect.NewRequest(&runspb.ListRunsRequest{Scenario: "demo"}))
+	list, err := svc.ListRuns(context.Background(), connect.NewRequest(&runspb.ListRunsRequest{Target: "demo"}))
 	if err != nil {
 		t.Fatalf("ListRuns: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestListAndGetRun(t *testing.T) {
 	}
 
 	// Status filter.
-	failed, err := svc.ListRuns(context.Background(), connect.NewRequest(&runspb.ListRunsRequest{Scenario: "demo", Status: "failed"}))
+	failed, err := svc.ListRuns(context.Background(), connect.NewRequest(&runspb.ListRunsRequest{Target: "demo", Status: "failed"}))
 	if err != nil {
 		t.Fatalf("ListRuns(failed): %v", err)
 	}
@@ -157,7 +157,7 @@ func TestListAndGetRun(t *testing.T) {
 		t.Fatalf("status filter failed: %v", failed.Msg.GetRuns())
 	}
 
-	got, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Scenario: "demo", RunId: "r1"}))
+	got, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: "demo", RunId: "r1"}))
 	if err != nil {
 		t.Fatalf("GetRun: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestListAndGetRun(t *testing.T) {
 	}
 
 	// Missing run → NotFound.
-	if _, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Scenario: "demo", RunId: "nope"})); connect.CodeOf(err) != connect.CodeNotFound {
+	if _, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: "demo", RunId: "nope"})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("expected NotFound, got %v", err)
 	}
 }
@@ -175,7 +175,7 @@ func TestPinUnpinAndForceDelete(t *testing.T) {
 	svc, root := newTestService(t)
 	seedRecord(t, root, sharedruns.RunRecord{RunID: "r1", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed})
 
-	pinned, err := svc.PinRun(context.Background(), connect.NewRequest(&runspb.PinRunRequest{Scenario: "demo", RunId: "r1", PinnedBy: "gct:baseline:x", Reason: "baseline"}))
+	pinned, err := svc.PinRun(context.Background(), connect.NewRequest(&runspb.PinRunRequest{Target: "demo", RunId: "r1", PinnedBy: "gct:baseline:x", Reason: "baseline"}))
 	if err != nil {
 		t.Fatalf("PinRun: %v", err)
 	}
@@ -184,15 +184,15 @@ func TestPinUnpinAndForceDelete(t *testing.T) {
 	}
 
 	// Deleting a pinned run without force → FailedPrecondition.
-	if _, err := svc.DeleteRun(context.Background(), connect.NewRequest(&runspb.DeleteRunRequest{Scenario: "demo", RunId: "r1"})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+	if _, err := svc.DeleteRun(context.Background(), connect.NewRequest(&runspb.DeleteRunRequest{Target: "demo", RunId: "r1"})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("expected FailedPrecondition for pinned delete, got %v", err)
 	}
 
-	if _, err := svc.UnpinRun(context.Background(), connect.NewRequest(&runspb.UnpinRunRequest{Scenario: "demo", RunId: "r1", PinnedBy: "gct:baseline:x"})); err != nil {
+	if _, err := svc.UnpinRun(context.Background(), connect.NewRequest(&runspb.UnpinRunRequest{Target: "demo", RunId: "r1", PinnedBy: "gct:baseline:x"})); err != nil {
 		t.Fatalf("UnpinRun: %v", err)
 	}
 
-	del, err := svc.DeleteRun(context.Background(), connect.NewRequest(&runspb.DeleteRunRequest{Scenario: "demo", RunId: "r1"}))
+	del, err := svc.DeleteRun(context.Background(), connect.NewRequest(&runspb.DeleteRunRequest{Target: "demo", RunId: "r1"}))
 	if err != nil {
 		t.Fatalf("DeleteRun: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestCompareRunsClassification(t *testing.T) {
 		capturedPhase("structure", "Structure"), capturedPhase("integration", "Integration"),
 	)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -268,7 +268,7 @@ func TestCompareRunsClassification(t *testing.T) {
 	}
 
 	// Phase filter restricts output.
-	filtered, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur", Phase: "structure"}))
+	filtered, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur", Phase: "structure"}))
 	if err != nil {
 		t.Fatalf("CompareRuns(filter): %v", err)
 	}
@@ -290,7 +290,7 @@ func TestCompareRunsDifferentGitSHAsRemainBehaviorallyComparable(t *testing.T) {
 	seedDescriptorSnapshot(t, root, "base-sha", capturedPhase("unit", "Unit"))
 	seedDescriptorSnapshot(t, root, "current-sha", capturedPhase("unit", "Unit"))
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base-sha", RunIdB: "current-sha"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base-sha", RunIdB: "current-sha"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -320,7 +320,7 @@ func TestCompareRunsStablePreflightFailureIsPreexisting(t *testing.T) {
 		t.Fatalf("finalize current preflight result: %v", err)
 	}
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -357,7 +357,7 @@ func TestCompareRunsChangedPreflightFailureRemainsNotComparable(t *testing.T) {
 		t.Fatalf("finalize current preflight result: %v", err)
 	}
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -399,7 +399,7 @@ func TestCompareRunsUsesCapturedCatalogEvolutionAndTypedReasons(t *testing.T) { 
 		capturedPhase("new-phase", "New Phase"), newStable, inapplicable, capturedPhase("runtime", "Runtime"),
 	)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "old", RunIdB: "new"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "old", RunIdB: "new"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -477,7 +477,7 @@ func TestCompareRunsSymmetricInapplicableIsExplicitlyUnmeasured(t *testing.T) {
 		capturedPhase("unit", "Unit"), capturedPhase("structure", "Structure"), inapplicablePhase("ai-conformance", "AI Conformance"),
 	)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -508,7 +508,7 @@ func TestCompareRunsSymmetricBestEffortProviderUnavailableIsNeutralCoverageGap(t
 		descriptor.Policy.Unavailable = "skip_without_failing"
 		seedDescriptorSnapshot(t, root, runID, descriptor)
 	}
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -562,7 +562,7 @@ func TestCompareRunsSymmetricSkippedProviderGapIgnoresLifecycleNoise(t *testing.
 		t.Fatalf("finalize current: %v", err)
 	}
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -619,7 +619,7 @@ func TestCompareRunsAdvisoryProviderGapWithChangedSourceIsNeutral(t *testing.T) 
 		t.Fatalf("finalize current: %v", err)
 	}
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -645,7 +645,7 @@ func TestCompareRunsResolvedBestEffortProviderOutageIsCurrentOnlyEvidence(t *tes
 		descriptor.Policy.Unavailable = "skip_without_failing"
 		seedDescriptorSnapshot(t, root, runID, descriptor)
 	}
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -702,7 +702,7 @@ func TestCompareRunsResolvedAdvisorySkippedProviderGapIsCurrentOnlyEvidence(t *t
 		t.Fatalf("finalize current: %v", err)
 	}
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -736,7 +736,7 @@ func TestCompareRunsAdditivePassingPhaseDoesNotPoisonAggregate(t *testing.T) {
 	additive.ComparisonMode = "additive"
 	seedDescriptorSnapshot(t, root, "cur", capturedPhase("unit", "Unit"), additive)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -776,7 +776,7 @@ func TestCompareRunsAdditiveFailingPhaseIsNewFailure(t *testing.T) {
 	additive.ComparisonMode = "additive"
 	seedDescriptorSnapshot(t, root, "cur", capturedPhase("unit", "Unit"), additive)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -810,7 +810,7 @@ func TestCompareRunsSameKeyContractChangeRequiresExplicitCompatibility(t *testin
 	changed.Provider = "unit-health-v2"
 	seedDescriptorSnapshot(t, root, "cur", changed)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -821,7 +821,7 @@ func TestCompareRunsSameKeyContractChangeRequiresExplicitCompatibility(t *testin
 
 	changed.ComparisonMode = "compatible"
 	seedDescriptorSnapshot(t, root, "cur", changed)
-	resp, err = svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err = svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -837,7 +837,7 @@ func TestCompareRunsUnknownPhaseStatusCannotLookClean(t *testing.T) {
 		seedRecord(t, root, sharedruns.RunRecord{RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, Phases: []sharedruns.PhaseRecord{{Name: "unit", Status: "future_terminal_state"}}})
 		seedDescriptorSnapshot(t, root, runID, capturedPhase("unit", "Unit"))
 	}
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -887,7 +887,7 @@ func TestCompareRunsAsymmetricInapplicableStillNotComparable(t *testing.T) {
 		capturedPhase("structure", "Structure"), inapplicablePhase("conditional", "Conditional"),
 	)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -915,7 +915,7 @@ func TestCompareRunsNewInapplicablePhaseWithoutResultIsNeutral(t *testing.T) {
 		capturedPhase("structure", "Structure"), inapplicablePhase("new-conditional", "New Conditional"),
 	)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
@@ -962,7 +962,7 @@ func TestGetPhaseArtifact(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, err := svc.GetPhaseArtifact(context.Background(), connect.NewRequest(&runspb.GetPhaseArtifactRequest{Scenario: "demo", RunId: "r1", Phase: "unit"}))
+	resp, err := svc.GetPhaseArtifact(context.Background(), connect.NewRequest(&runspb.GetPhaseArtifactRequest{Target: "demo", RunId: "r1", Phase: "unit"}))
 	if err != nil {
 		t.Fatalf("GetPhaseArtifact: %v", err)
 	}
@@ -974,13 +974,13 @@ func TestGetPhaseArtifact(t *testing.T) {
 	}
 
 	// Missing artifact → NotFound.
-	if _, err := svc.GetPhaseArtifact(context.Background(), connect.NewRequest(&runspb.GetPhaseArtifactRequest{Scenario: "demo", RunId: "r1", Phase: "missing"})); connect.CodeOf(err) != connect.CodeNotFound {
+	if _, err := svc.GetPhaseArtifact(context.Background(), connect.NewRequest(&runspb.GetPhaseArtifactRequest{Target: "demo", RunId: "r1", Phase: "missing"})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("expected NotFound, got %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(phaseDir, "oversized.json"), make([]byte, maxPhaseArtifactResponseBytes+1), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.GetPhaseArtifact(context.Background(), connect.NewRequest(&runspb.GetPhaseArtifactRequest{Scenario: "demo", RunId: "r1", Phase: "oversized"})); connect.CodeOf(err) != connect.CodeResourceExhausted {
+	if _, err := svc.GetPhaseArtifact(context.Background(), connect.NewRequest(&runspb.GetPhaseArtifactRequest{Target: "demo", RunId: "r1", Phase: "oversized"})); connect.CodeOf(err) != connect.CodeResourceExhausted {
 		t.Fatalf("oversized artifact code = %s err=%v", connect.CodeOf(err), err)
 	}
 }
@@ -1015,7 +1015,7 @@ func TestListAndGetRunArtifactsUseOpaqueTypedReferences(t *testing.T) { // [REQ:
 	}
 
 	listed, err := svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{
-		Scenario: "demo", RunId: runID, Kinds: []string{sharedartifacts.ArtifactKindScreenshot},
+		Target: "demo", RunId: runID, Kinds: []string{sharedartifacts.ArtifactKindScreenshot},
 	}))
 	if err != nil {
 		t.Fatalf("ListRunArtifacts: %v", err)
@@ -1034,7 +1034,7 @@ func TestListAndGetRunArtifactsUseOpaqueTypedReferences(t *testing.T) { // [REQ:
 		t.Fatalf("visual comparison semantics = %+v", artifact.GetComparison())
 	}
 	got, err := svc.GetRunArtifact(context.Background(), connect.NewRequest(&runspb.GetRunArtifactRequest{
-		Scenario: "demo", RunId: runID, ArtifactId: artifact.GetId(),
+		Target: "demo", RunId: runID, ArtifactId: artifact.GetId(),
 	}))
 	if err != nil {
 		t.Fatalf("GetRunArtifact: %v", err)
@@ -1057,24 +1057,24 @@ func TestRunArtifactCatalogLegacyAndCrossRunErrorsAreExplicit(t *testing.T) { //
 			t.Fatal(err)
 		}
 	}
-	legacy, err := svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Scenario: "demo", RunId: "legacy-a"}))
+	legacy, err := svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Target: "demo", RunId: "legacy-a"}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !legacy.Msg.GetLegacyDiscovered() || len(legacy.Msg.GetDegradedReasons()) == 0 {
 		t.Fatalf("legacy projection = %+v", legacy.Msg)
 	}
-	foreign, err := svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Scenario: "demo", RunId: "legacy-b"}))
+	foreign, err := svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Target: "demo", RunId: "legacy-b"}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = svc.GetRunArtifact(context.Background(), connect.NewRequest(&runspb.GetRunArtifactRequest{
-		Scenario: "demo", RunId: "legacy-a", ArtifactId: foreign.Msg.GetArtifacts()[0].GetId(),
+		Target: "demo", RunId: "legacy-a", ArtifactId: foreign.Msg.GetArtifacts()[0].GetId(),
 	}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("foreign artifact code = %s err=%v", connect.CodeOf(err), err)
 	}
-	_, err = svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Scenario: "../demo", RunId: "legacy-a"}))
+	_, err = svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Target: "../demo", RunId: "legacy-a"}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("scenario traversal code = %s err=%v", connect.CodeOf(err), err)
 	}
@@ -1126,7 +1126,7 @@ func TestGetRunFindings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "r1"}))
+	resp, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Target: "demo", RunId: "r1"}))
 	if err != nil {
 		t.Fatalf("GetRunFindings: %v", err)
 	}
@@ -1149,12 +1149,12 @@ func TestGetRunFindings(t *testing.T) {
 	if err := os.WriteFile(sharedartifacts.LatestManifestPath(scenarioDir), []byte(`{"run_id":"r1"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "latest"})); err != nil {
+	if _, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Target: "demo", RunId: "latest"})); err != nil {
 		t.Fatalf("GetRunFindings latest: %v", err)
 	}
 
 	// Missing artifact → NotFound.
-	if _, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "nope"})); connect.CodeOf(err) != connect.CodeNotFound {
+	if _, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Target: "demo", RunId: "nope"})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("expected NotFound, got %v", err)
 	}
 }
@@ -1182,7 +1182,7 @@ func TestGetRunFindingsDoesNotReadArtifactWithoutManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "historical"}))
+	_, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Target: "demo", RunId: "historical"}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("manifest-less artifact code = %s err=%v", connect.CodeOf(err), err)
 	}
@@ -1198,7 +1198,7 @@ func TestGetRunFindingsExplainsPrePhaseFailureWithoutEvidenceManifest(t *testing
 	})
 
 	_, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{
-		Scenario: "demo",
+		Target: "demo",
 		RunId:    "preflight-failed",
 	}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
@@ -1241,7 +1241,7 @@ func TestFindRun(t *testing.T) {
 	})
 
 	resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{
-		Scenario: "demo", GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline",
+		Target: "demo", GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline",
 		Status: "passed", RequireClean: true,
 	}))
 	if err != nil {
@@ -1256,7 +1256,7 @@ func TestFindRun(t *testing.T) {
 
 	// No run at this sha → found=false.
 	miss, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{
-		Scenario: "demo", GitSha: "zzz", Preset: "comprehensive", CaptureProfile: "baseline", RequireClean: true,
+		Target: "demo", GitSha: "zzz", Preset: "comprehensive", CaptureProfile: "baseline", RequireClean: true,
 	}))
 	if err != nil {
 		t.Fatalf("FindRun(miss): %v", err)
@@ -1284,7 +1284,7 @@ func TestFindRunRequiresCurrentComprehensivePhaseSetDigest(t *testing.T) {
 	})
 
 	resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{
-		Scenario: "demo", GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline",
+		Target: "demo", GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline",
 		Status: "passed", RequireClean: true,
 	}))
 	if err != nil {
@@ -1308,7 +1308,7 @@ func TestFindRunWithoutCaptureProfileMatchesOrdinaryComprehensiveRun(t *testing.
 	})
 
 	resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{
-		Scenario: "demo", Preset: "comprehensive", Status: "passed",
+		Target: "demo", Preset: "comprehensive", Status: "passed",
 	}))
 	if err != nil {
 		t.Fatalf("FindRun: %v", err)
@@ -1321,7 +1321,7 @@ func TestFindRunWithoutCaptureProfileMatchesOrdinaryComprehensiveRun(t *testing.
 func TestFindRunGateQualityRejectsCleanButUnprovenHistory(t *testing.T) {
 	svc, root := newTestService(t)
 	seedLegacyRecord(t, root, sharedruns.RunRecord{RunID: "clean-history", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline"})
-	resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{Scenario: "demo", GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline", RequireClean: true, RequireGateQuality: true}))
+	resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{Target: "demo", GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline", RequireClean: true, RequireGateQuality: true}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1351,7 +1351,7 @@ func TestFindRunMatchesCurrentScopedSourceAndConfiguration(t *testing.T) {
 	}
 	svc.planner = fixedExecutionPlanner{preview: &execution.ExecutionPlanPreview{ScenarioName: "demo", PhaseSetDigest: phaseDigest, ConfigurationFingerprint: "cfg:one"}}
 	find := func() *runspb.FindRunResponse {
-		resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{Scenario: "demo", Preset: "comprehensive", CaptureProfile: "baseline", MatchCurrentSource: true}))
+		resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{Target: "demo", Preset: "comprehensive", CaptureProfile: "baseline", MatchCurrentSource: true}))
 		if err != nil {
 			t.Fatal(err)
 		}
