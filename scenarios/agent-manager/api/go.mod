@@ -17,6 +17,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/measures-go v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
@@ -60,6 +61,8 @@ require (
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/ai-go => ../../../packages/ai-go
 

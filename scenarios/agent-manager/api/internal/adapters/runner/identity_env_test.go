@@ -3,6 +3,8 @@ package runner
 import (
 	"os"
 	"testing"
+
+	"github.com/vrooli/envkit-go"
 )
 
 func TestScrubInheritedIdentityRemovesParentToken(t *testing.T) {
@@ -38,10 +40,11 @@ func TestScrubInheritedIdentityUsesProcessEnvironmentWhenUnset(t *testing.T) {
 	}
 }
 
-func TestMergeRequestedEnvReplacesInheritedParentTokenWithChild(t *testing.T) {
-	got := mergeRequestedEnv(
-		[]string{"PATH=/bin", "VROOLI_AGENT_IDENTITY_TOKEN=parent"},
-		[]string{"VROOLI_AGENT_IDENTITY_TOKEN=child", "VROOLI_RUN_ID=child-run"},
+func TestDelegatedEnvironmentReplacesInheritedParentTokenWithChild(t *testing.T) {
+	got := envkit.WithOverlay(
+		envkit.Env{"PATH=/bin", "VROOLI_AGENT_IDENTITY_TOKEN=parent"},
+		envkit.DelegatedAgent,
+		envkit.Env{"VROOLI_AGENT_IDENTITY_TOKEN=child", "VROOLI_RUN_ID=child-run"},
 	)
 	for _, entry := range got {
 		if entry == "VROOLI_AGENT_IDENTITY_TOKEN=parent" {

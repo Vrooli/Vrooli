@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	platform "github.com/vrooli/platform-go"
 )
 
@@ -41,7 +42,7 @@ func (l *HostLauncher) Launch(ctx context.Context, req LaunchRequest) (LaunchedP
 	}
 	cmd := exec.CommandContext(ctx, req.Command, req.Args...)
 	cmd.Dir = req.WorkingDir
-	cmd.Env = mergeRequestedEnv(scrubInheritedIdentity(os.Environ()), req.Env)
+	cmd.Env = envkit.WithOverlay(envkit.Env(scrubInheritedIdentity(os.Environ())), envkit.DelegatedAgent, envkit.Env(req.Env))
 	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
 		return nil, err
 	}
@@ -78,36 +79,6 @@ func scrubInheritedIdentity(env []string) []string {
 		if strings.HasPrefix(entry, "VROOLI_AGENT_IDENTITY_TOKEN=") {
 			continue
 		}
-		result = append(result, entry)
-	}
-	return result
-}
-
-// mergeRequestedEnv removes inherited entries that would otherwise leak a
-// parent run token, then overlays the explicitly assembled child environment.
-// This is the critical distinction: a freshly minted child token supplied in
-// req.Env must survive, while the process-wide inherited token must not.
-func mergeRequestedEnv(base, requested []string) []string {
-	result := make([]string, 0, len(base)+len(requested))
-	index := make(map[string]int, len(base)+len(requested))
-	for _, entry := range base {
-		key, _, ok := strings.Cut(entry, "=")
-		if !ok || key == "" {
-			continue
-		}
-		index[key] = len(result)
-		result = append(result, entry)
-	}
-	for _, entry := range requested {
-		key, _, ok := strings.Cut(entry, "=")
-		if !ok || key == "" {
-			continue
-		}
-		if i, exists := index[key]; exists {
-			result[i] = entry
-			continue
-		}
-		index[key] = len(result)
 		result = append(result, entry)
 	}
 	return result

@@ -927,21 +927,17 @@ func main() {
 	logger := NewLogger()
 
 	// Use port registry for resource ports
-	n8nPort := getResourcePort("n8n")
-	windmillPort := getResourcePort("windmill")
 	_ = getResourcePort("postgres") // postgresPort - unused but kept for reference
 	qdrantPort := getResourcePort("qdrant")
 
-	// Optional service URLs (can be configured if needed)
-	n8nURL := os.Getenv("N8N_BASE_URL")
-	if n8nURL == "" && n8nPort != "" {
-		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
-	}
+	// n8n is no longer a Vrooli resource. Keep the platform slot empty so
+	// callers receive an explicit unavailable result instead of a localhost
+	// fallback to a dead producer.
+	n8nURL := ""
 
-	windmillURL := os.Getenv("WINDMILL_BASE_URL")
-	if windmillURL == "" && windmillPort != "" {
-		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
-	}
+	// Windmill is likewise not a lifecycle resource; leave its integration
+	// unavailable instead of inventing a localhost producer.
+	windmillURL := ""
 
 	qdrantURL := os.Getenv("QDRANT_BASE_URL")
 	if qdrantURL == "" && qdrantPort != "" {
