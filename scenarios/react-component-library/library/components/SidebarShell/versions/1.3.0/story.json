@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "SidebarShell",
+  "args": { "fields": [
+    { "path": "mode", "label": "Mode", "kind": "enum", "options": ["persistent", "overlay", "responsive"], "default": "persistent" },
+    { "path": "mobileOpen", "label": "Mobile Open", "kind": "boolean", "default": false },
+    { "path": "width", "label": "Width", "kind": "number", "default": 280 }
+  ] },
+  "environment": { "fixtures": [] },
+  "frame": { "asset": "navigation.page", "version": "1.0.0", "region": "navigation", "capability": "navigation", "fixture": "fixtures.resource-collection" },
+  "stories": [
+    {
+      "id": "persistent", "name": "Persistent workspace navigation", "harness": "Persistent",
+      "args": { "mode": "persistent", "mobileOpen": false, "width": 280 },
+      "expect": [
+        { "kind": "role", "role": "complementary", "name": "Workspace" },
+        { "kind": "text", "value": "Northstar workspace" },
+        { "kind": "text", "value": "Resources" },
+        { "kind": "text", "value": "2 alerts" }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "overlay-open", "name": "Open mobile navigation", "harness": "OverlayOpen",
+      "args": { "mode": "overlay", "mobileOpen": true },
+      "expect": [
+        { "kind": "role", "role": "dialog", "name": "Mobile navigation" },
+        { "kind": "text", "value": "Northstar menu" },
+        { "kind": "text", "value": "Settings" }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "fixture-failure", "name": "Navigation data failure", "harness": "FixtureFailure",
+      "args": { "mode": "persistent", "mobileOpen": false },
+      "expect": [
+        { "kind": "role", "role": "alert" },
+        { "kind": "text", "value": "Navigation data is unavailable" }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "responsive-closed", "name": "Responsive navigation closed", "harness": "ResponsiveClosed",
+      "args": { "mode": "responsive", "mobileOpen": false },
+      "expect": [
+        { "kind": "role", "role": "complementary", "name": "Scenario" },
+        { "kind": "attribute", "selector": "[data-testid='sidebar-shell']", "name": "data-mode", "value": "responsive" },
+        { "kind": "role", "role": "link", "name": "Overview" }
+      ],
+      "mode": "live"
+    }
+  ]
+}

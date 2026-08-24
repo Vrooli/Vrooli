@@ -15,6 +15,8 @@ import (
 	"react-component-library/internal/capabilities"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/catalogexperience"
+	"react-component-library/internal/components"
+	componenttests "react-component-library/internal/componenttests"
 	"react-component-library/internal/gates"
 	"react-component-library/internal/module"
 
@@ -32,6 +34,7 @@ type handler struct {
 	quarantineMu    sync.RWMutex
 	quarantined     map[string]bool
 	quarantineKnown bool
+	captureRunner   *componenttests.Runner
 }
 
 // Module exposes the same live coverage projection used by the component-test
@@ -42,6 +45,28 @@ func Module(repoRoot string, dbs ...*sql.DB) module.Module {
 		evidence = catalogcoverage.NewEvidenceStore(dbs[0])
 	}
 	h := &handler{repoRoot: repoRoot, evidence: evidence, quarantined: map[string]bool{}}
+	return h.module()
+}
+
+// ModuleWithCapture wires the catalog evidence endpoint to the same
+// version-pinned BAS-backed runner used by component tests. Keeping the
+// runner injectable makes the catalog projection testable without launching
+// a browser, while production receives the real BAS executor.
+func ModuleWithCapture(repoRoot string, db *sql.DB, assets components.Service, executor componenttests.StoryExecutor) module.Module {
+	var evidence *catalogcoverage.EvidenceStore
+	if db != nil {
+		evidence = catalogcoverage.NewEvidenceStore(db)
+	}
+	h := &handler{
+		repoRoot:      repoRoot,
+		evidence:      evidence,
+		quarantined:   map[string]bool{},
+		captureRunner: &componenttests.Runner{Assets: assets, Stories: assets, Executor: executor},
+	}
+	return h.module()
+}
+
+func (h *handler) module() module.Module {
 	// Warm the coverage report in the background at startup. The first
 	// computation costs ~45s because it runs the full gate suite including the
 	// toolchain-spawning `types` runner; paying that on a user's first page
@@ -415,6 +440,9 @@ func (h *handler) GetHealthOverview(ctx context.Context, _ *connect.Request[cata
 }
 
 func (h *handler) CaptureEvidence(ctx context.Context, req *connect.Request[catalogv1.CaptureEvidenceRequest]) (*connect.Response[catalogv1.CaptureEvidenceResponse], error) {
+	if h.captureRunner == nil || h.captureRunner.Assets == nil || h.captureRunner.Executor == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("catalog evidence capture is not wired to the BAS-backed component runner"))
+	}
 	assetID := strings.TrimSpace(req.Msg.GetAssetId())
 	if assetID == "" && !req.Msg.GetAll() {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("asset_id is required unless all=true"))
@@ -428,7 +456,139 @@ func (h *handler) CaptureEvidence(ctx context.Context, req *connect.Request[cata
 	if err := os.MkdirAll(directory, 0o755); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("create capture directory: %w", err))
 	}
-	manifest := map[string]any{"asset_id": assetID, "changed_only": req.Msg.GetChangedOnly(), "viewports": []map[string]any{{"name": "mobile", "width": 390, "height": 844, "themes": []string{"light", "dark"}}, {"name": "desktop", "width": 1440, "height": 900, "themes": []string{"light", "dark"}}}, "captured_at": time.Now().UTC().Format(time.RFC3339Nano)}
+	catalogRoot := filepath.Join(root, "catalog")
+	assets, assetErr := catalogcoverage.LoadCatalog(catalogRoot)
+	impls, implErr := catalogcoverage.LoadImplementations(filepath.Join(root, "library"))
+	if assetErr != nil || implErr != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load capture catalog: %v %v", assetErr, implErr))
+	}
+	wanted := map[string]bool{}
+	if req.Msg.GetAll() {
+		for _, asset := range assets {
+			wanted[asset.ID] = true
+		}
+	} else {
+		wanted[assetID] = true
+	}
+	implByAsset := map[string]catalogcoverage.Implementation{}
+	for _, impl := range impls {
+		if impl.CatalogID != "" {
+			implByAsset[impl.CatalogID] = impl
+		}
+	}
+	// Catalog-wide capture is deliberately bounded. The client can resume from
+	// next_offset without repeating already completed assets or exceeding the
+	// Connect client deadline.
+	if req.Msg.GetAll() {
+		ids := make([]string, 0, len(wanted))
+		for id := range wanted {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		offset := int(req.Msg.GetOffset())
+		if offset < 0 || offset > len(ids) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("offset %d is outside catalog range 0..%d", offset, len(ids)))
+		}
+		limit := int(req.Msg.GetLimit())
+		if limit <= 0 || offset+limit > len(ids) {
+			limit = len(ids) - offset
+		}
+		wanted = map[string]bool{}
+		for _, id := range ids[offset : offset+limit] {
+			wanted[id] = true
+		}
+	}
+	existing := map[string]bool{}
+	if req.Msg.GetChangedOnly() && h.evidence != nil {
+		if previous, listErr := h.evidence.List(ctx); listErr == nil {
+			for _, item := range previous {
+				if item.Gate == "visual" && item.Result == "pass" {
+					existing[item.AssetID] = true
+				}
+			}
+		}
+	}
+	type captureRow struct {
+		AssetID     string   `json:"assetId"`
+		Version     string   `json:"version"`
+		StoryID     string   `json:"storyId"`
+		StoryIDs    []string `json:"storyIds,omitempty"`
+		ArtifactKind string   `json:"artifactKind,omitempty"`
+		Result      string   `json:"result"`
+		Report      any      `json:"report"`
+	}
+	rows := make([]captureRow, 0)
+	// A bounded --all run writes one durable manifest across requests. Starting
+	// at offset zero intentionally begins a fresh migration; later batches
+	// merge into the prior manifest so an interrupted run remains inspectable.
+	if req.Msg.GetAll() && req.Msg.GetOffset() > 0 {
+		if prior, readErr := os.ReadFile(filepath.Join(directory, "capture-manifest.json")); readErr == nil {
+			var priorManifest struct {
+				Captures []captureRow `json:"captures"`
+			}
+			if json.Unmarshal(prior, &priorManifest) == nil {
+				rows = append(rows, priorManifest.Captures...)
+			}
+		}
+	}
+	missing := []string{}
+	var evidenceRows []catalogcoverage.GateEvidence
+	for id := range wanted {
+		impl, ok := implByAsset[id]
+		if !ok || impl.Latest == "" {
+			missing = append(missing, id)
+			continue
+		}
+		if req.Msg.GetChangedOnly() && existing[id] {
+			continue
+		}
+		libraryID := "react-component-library:" + impl.Name
+		component, getErr := h.captureRunner.Assets.GetByLibraryID(ctx, libraryID)
+		if getErr != nil {
+			missing = append(missing, id)
+			continue
+		}
+		report, runErr := h.captureRunner.Run(ctx, componenttests.Request{ComponentID: component.ID, Version: impl.Latest, IncludeClosure: false})
+		revision, revisionErr := catalogcoverage.CurrentRevision(h.repoRoot, id)
+		if revisionErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("hash capture asset %q: %w", id, revisionErr))
+		}
+		assetTarget := "react-vite"
+		for _, asset := range assets {
+			if asset.ID == id && len(asset.Targets) > 0 && asset.Targets[0] != "" {
+				assetTarget = asset.Targets[0]
+			}
+		}
+		if runErr != nil {
+			rows = append(rows, captureRow{AssetID: id, Version: impl.Latest, ArtifactKind: "individual", Result: "failed", Report: map[string]any{"error": runErr.Error(), "libraryId": libraryID}})
+			measurement, _ := json.Marshal(map[string]any{"runner": "bas-capture-service", "error": runErr.Error()})
+			evidenceRows = append(evidenceRows, catalogcoverage.GateEvidence{AssetID: id, Target: assetTarget, Gate: "visual", Version: impl.Latest, Result: "fail", MeasurementJSON: string(measurement), SourceRevision: revision})
+			continue
+		}
+		assetPassed := report.Verdict == componenttests.VerdictPassed
+		for _, result := range report.Results {
+			if result.Stage != componenttests.StageEvidence {
+				continue
+			}
+			storyPassed := result.Verdict == componenttests.VerdictPassed
+			if !storyPassed {
+				assetPassed = false
+			}
+			row := captureRow{AssetID: id, Version: result.Version, StoryID: result.Subject, ArtifactKind: "individual", Result: string(result.Verdict), Report: result}
+			if strings.HasPrefix(result.Subject, "review-sheet:") {
+				row.ArtifactKind = "review-sheet"
+				row.StoryIDs = strings.Split(strings.TrimPrefix(result.Subject, "review-sheet:"), ",")
+			}
+			rows = append(rows, row)
+		}
+		measurement, _ := json.Marshal(map[string]any{"runner": "bas-capture-service", "reportId": report.ID, "artifacts": report.Artifacts})
+		result := "fail"
+		if assetPassed {
+			result = "pass"
+		}
+		evidenceRows = append(evidenceRows, catalogcoverage.GateEvidence{AssetID: id, Target: assetTarget, Gate: "visual", Version: impl.Latest, Result: result, MeasurementJSON: string(measurement), SourceRevision: revision})
+	}
+	manifest := map[string]any{"asset_id": assetID, "changed_only": req.Msg.GetChangedOnly(), "runner": "browser-automation-studio.capture-service", "captured_at": time.Now().UTC().Format(time.RFC3339Nano), "captures": rows, "bounded": req.Msg.GetAll() && req.Msg.GetLimit() > 0, "offset": req.Msg.GetOffset(), "limit": req.Msg.GetLimit()}
 	data, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode capture manifest: %w", err))
@@ -436,73 +596,23 @@ func (h *handler) CaptureEvidence(ctx context.Context, req *connect.Request[cata
 	if err := os.WriteFile(filepath.Join(directory, "capture-manifest.json"), append(data, '\n'), 0o644); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write capture manifest: %w", err))
 	}
-	rowsWritten := 0
-	missing := []string{}
 	if h.evidence != nil {
-		catalogRoot := filepath.Join(root, "catalog")
-		assets, assetErr := catalogcoverage.LoadCatalog(catalogRoot)
-		impls, implErr := catalogcoverage.LoadImplementations(filepath.Join(root, "library"))
-		if assetErr != nil || implErr != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load capture catalog: %v %v", assetErr, implErr))
-		}
-		wanted := map[string]bool{}
-		if req.Msg.GetAll() {
-			for _, asset := range assets {
-				wanted[asset.ID] = true
-			}
-		} else {
-			wanted[assetID] = true
-		}
-		implByAsset := map[string]catalogcoverage.Implementation{}
-		for _, impl := range impls {
-			if impl.CatalogID != "" {
-				implByAsset[impl.CatalogID] = impl
-			}
-		}
-		existing := map[string]bool{}
-		if req.Msg.GetChangedOnly() {
-			if previous, listErr := h.evidence.List(ctx); listErr == nil {
-				for _, item := range previous {
-					if item.Gate == "visual" && item.Result == "pass" {
-						existing[item.AssetID] = true
-					}
-				}
-			}
-		}
-		var evidenceRows []catalogcoverage.GateEvidence
-		for id := range wanted {
-			impl, ok := implByAsset[id]
-			if !ok {
-				missing = append(missing, id)
-				continue
-			}
-			contractMatches, _ := filepath.Glob(filepath.Join(root, "library", impl.Root, impl.Name, "versions", impl.Latest, "experience-contract.json"))
-			if len(contractMatches) == 0 {
-				missing = append(missing, id)
-				continue
-			}
-			if req.Msg.GetChangedOnly() && existing[id] {
-				continue
-			}
-			target := "react-vite"
-			for _, asset := range assets {
-				if asset.ID == id && len(asset.Targets) > 0 && asset.Targets[0] != "" {
-					target = asset.Targets[0]
-				}
-			}
-			revision, revisionErr := catalogcoverage.CurrentRevision(h.repoRoot, id)
-			if revisionErr != nil {
-				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("hash capture asset %q: %w", id, revisionErr))
-			}
-			evidenceRows = append(evidenceRows, catalogcoverage.GateEvidence{AssetID: id, Target: target, Gate: "visual", Version: impl.Latest, Result: "pass", SourceRevision: revision})
-		}
-		if err := h.evidence.Save(ctx, evidenceRows); err != nil {
+		// Evidence capture is a durable write. If a CLI disconnects after BAS
+		// has completed, do not discard the already-collected measurement merely
+		// because the request context was canceled while the database write ran.
+		persistCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := h.evidence.Save(persistCtx, evidenceRows); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist capture evidence: %w", err))
 		}
-		rowsWritten = len(evidenceRows)
 		h.reports.invalidate()
 	}
-	return connect.NewResponse(&catalogv1.CaptureEvidenceResponse{AssetId: assetID, CaptureDirectory: directory, WorkbenchUrl: "/workbench?asset=" + assetID, RowsWritten: int32(rowsWritten), MissingContractAssets: missing}), nil
+	nextOffset := int(req.Msg.GetOffset())
+	if req.Msg.GetAll() {
+		nextOffset += len(wanted)
+	}
+	complete := !req.Msg.GetAll() || nextOffset >= len(assets)
+	return connect.NewResponse(&catalogv1.CaptureEvidenceResponse{AssetId: assetID, CaptureDirectory: directory, WorkbenchUrl: "/workbench?asset=" + assetID, RowsWritten: int32(len(evidenceRows)), MissingContractAssets: missing, NextOffset: int32(nextOffset), Complete: complete}), nil
 }
 
 func toProto(report *catalogcoverage.Report) *catalogv1.CoverageReport {

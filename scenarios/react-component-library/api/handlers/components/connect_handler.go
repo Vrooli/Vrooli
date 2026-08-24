@@ -581,7 +581,7 @@ func (h *connectHandler) PersistPreviewFrame(ctx context.Context, req *connect.R
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("story contract not found for %s@%s", subject.LibraryID, targetVersion))
 	}
 	contract, diagnostics := components.ParseStoryContract([]byte(stories[0].ContractJSON))
-	if len(diagnostics) > 0 || contract == nil {
+	if len(components.StoryContractErrors(diagnostics)) > 0 || contract == nil {
 		parts := make([]string, 0, len(diagnostics))
 		for _, diagnostic := range diagnostics {
 			parts = append(parts, diagnostic.Error())

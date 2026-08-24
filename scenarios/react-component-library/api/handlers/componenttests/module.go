@@ -32,6 +32,14 @@ func Module(db *sql.DB, assets components.Service, sourceRoot string, logger *lo
 	return ModuleWithExecutor(db, assets, sourceRoot, domain.NewBASCaptureExecutor(), logger)
 }
 
+// NewBASCaptureExecutor exposes the provider-owned browser boundary to the
+// catalog evidence endpoint. Both component tests and catalog capture must
+// use the same BAS-backed executor so they cannot drift into separate browser
+// implementations.
+func NewBASCaptureExecutor() domain.StoryExecutor {
+	return domain.NewBASCaptureExecutor()
+}
+
 // ModuleWithGeneratedFixture wires the provider-owned generated scenario
 // contract into the production Test Genie validation phase.
 func ModuleWithGeneratedFixture(db *sql.DB, assets components.Service, adoptionService adoptions.Service, sourceRoot string, logger *log.Logger) module.Module {

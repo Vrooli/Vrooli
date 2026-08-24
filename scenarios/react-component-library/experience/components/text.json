@@ -18,5 +18,5 @@
     { "id": "text-present", "type": "element-present", "statement": "The selected style renders visible text.", "tier": "machine", "elements": ["text"], "states": ["display", "title", "heading", "body", "label", "caption", "code", "overline"] },
     { "id": "typography-contract", "type": "custom", "statement": "Text exposes bounded typography styles backed by shared tokens.", "tier": "manual", "states": ["display", "title", "heading", "body", "label", "caption", "code", "overline"] }
   ],
-  "bindings": { "elements": { "text": { "selector": "[data-text-style]" } } }
+  "bindings": { "elements": { "text": { "testID": "rcl-text-sample" } } }
 }

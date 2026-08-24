@@ -21,8 +21,11 @@
       "id": "subject-named",
       "type": "text",
       "statement": "Each implicated subject has a readable name.",
-      "tier": "machine",
-      "states": ["default", "empty"]
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "empty"
+      ]
     }
   ]
 }

@@ -326,6 +326,9 @@ function buildConnectCall(rawPath: string, options?: RequestInit): ConnectCall |
   }
   match = path.match(/^\/investigations\/scripts\/([^/]+)$/);
   if (match?.[1]) {
+    if (method === 'PUT') {
+      return { procedure: `${scripts}/UpdateScript`, body: { id: decodeURIComponent(match[1]), content: body.content ?? '' }, unwrap: identity };
+    }
     return { procedure: `${scripts}/GetScript`, body: { id: decodeURIComponent(match[1]) }, unwrap: identity };
   }
   match = path.match(/^\/investigations\/scripts\/([^/]+)\/execute$/);

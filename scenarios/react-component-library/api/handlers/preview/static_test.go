@@ -1,6 +1,8 @@
 package preview
 
 import (
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -10,6 +12,16 @@ import (
 	internaldeps "react-component-library/internal/deps"
 	internalpreview "react-component-library/internal/preview"
 )
+
+func TestPreviewStorySheetIDsIsBoundedAndDeduplicated(t *testing.T) {
+	req := httptest.NewRequest("GET", "/preview/x/harness.html?stories=default,loading,default,error,extra", nil)
+	got := previewStorySheetIDs(req)
+	require.Equal(t, []string{"default", "loading", "error", "extra"}, got)
+	query := url.Values{}
+	query.Set("stories", "")
+	req.URL.RawQuery = query.Encode()
+	require.Empty(t, previewStorySheetIDs(req))
+}
 
 const testPreviewCSS = `:root { --color-primary: #2563eb; } .bg-app-primary { background: var(--color-primary); } .rounded-control { border-radius: var(--radius-control); }`
 
@@ -115,6 +127,8 @@ func TestRenderHarnessHTMLInjectsDesignSystemCSS(t *testing.T) {
 	require.Contains(t, html, `rcl-resolved-theme`)
 	require.Contains(t, html, `document.documentElement.dataset.resolvedTheme`)
 	require.Contains(t, html, `data-preview-sheet`)
+	require.Contains(t, html, `[data-preview-sheet]:has([data-rcl-dialog])`)
+	require.Contains(t, html, `Fixed overlays paint outside a tight content box`)
 	require.Contains(t, html, `t: "HELLO", appId: "react-component-library"`)
 	require.Contains(t, html, `"inspect"`)
 	require.Contains(t, html, `queueMicrotask(ready)`)

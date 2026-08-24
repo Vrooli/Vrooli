@@ -91,6 +91,65 @@ func TestParseStoryContractSupportsVersionedSharedHarness(t *testing.T) {
 	}
 }
 
+func TestParseStoryContractSchemaVersionFourResolvesExplicitCompositionRoles(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 4,
+  "kind": "component",
+  "composition": {
+    "specimen": {"module":"./story.tsx","export":"MetricCardStory"},
+    "fixture": {"asset":"fixtures.resource-collection","version":"1.0.0","state":"ready"},
+    "frame": {"asset":"navigation.page","version":"1.0.0","region":"content","fixture":"fixtures.user-directory"}
+  },
+  "stories": [{"id":"metric-card","name":"Metric card","args":{}}]
+}`))
+	if len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diagnostics)
+	}
+	composition := EffectiveStoryComposition(contract, &contract.Stories[0])
+	if composition == nil || composition.Specimen.Export != "MetricCardStory" || composition.Fixture.Version != "1.0.0" {
+		t.Fatalf("composition = %#v", composition)
+	}
+	if got := EffectiveStoryLocalHarness(contract, &contract.Stories[0]); got != "MetricCardStory" {
+		t.Fatalf("local harness = %q", got)
+	}
+}
+
+func TestParseStoryContractRejectsUnpinnedCompositionReferences(t *testing.T) {
+	_, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 4,
+  "kind": "component",
+  "composition": {
+    "specimen": {"module":"./other.tsx","export":"not-valid"},
+    "fixture": {"asset":"fixture.data","version":"latest"}
+  },
+  "stories": [{"id":"default","name":"Default","args":{}}]
+}`))
+	if len(diagnostics) != 4 {
+		t.Fatalf("diagnostics = %v", diagnostics)
+	}
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Severity != StoryDiagnosticError {
+			t.Fatalf("diagnostic severity = %#v", diagnostic)
+		}
+	}
+}
+
+func TestParseStoryContractWarnsForLegacyRawNodeWithoutBlocking(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 1,
+  "kind": "component",
+  "args": {"fields": [{"path":"children","kind":"structured"}]},
+  "environment": {"fixtures": []},
+  "stories": [{"id":"legacy","name":"Legacy","args":{"children":{"$node":{"tag":"div"}}}}]
+}`))
+	if contract == nil || len(diagnostics) != 1 {
+		t.Fatalf("contract=%#v diagnostics=%v", contract, diagnostics)
+	}
+	if diagnostics[0].Severity != StoryDiagnosticWarning || diagnostics[0].Rule != "legacy_raw_node" {
+		t.Fatalf("diagnostics = %#v", diagnostics)
+	}
+}
+
 func TestParseStoryContractRejectsLocalAndSharedHarnessTogether(t *testing.T) {
 	_, diagnostics := ParseStoryContract([]byte(`{
   "schemaVersion": 3,
@@ -132,6 +191,24 @@ func TestValidateStoryFramesReportsNamedCatalogDiagnostics(t *testing.T) {
 	}
 	if diagnostics[0].Rule != "frame_fixture_data_source" || diagnostics[1].Rule != "frame_region_exists" {
 		t.Fatalf("diagnostic rules = %v", diagnostics)
+	}
+}
+
+func TestValidateStoryCompositionRejectsNonFixtureCatalogAsset(t *testing.T) {
+	contract, parseDiagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 4,
+  "kind": "component",
+  "composition": {"fixture":{"asset":"fixtures.data","version":"1.0.0"}},
+  "stories": [{"id":"primary","name":"Primary","args":{}}]
+}`))
+	if len(parseDiagnostics) != 0 {
+		t.Fatalf("unexpected parse diagnostics: %v", parseDiagnostics)
+	}
+	diagnostics := ValidateStoryFrames(contract, frameRegistry{
+		"fixtures.data": {ID: "fixtures.data", Kind: "component"},
+	})
+	if len(diagnostics) != 1 || diagnostics[0].Rule != "fixture_asset_kind" {
+		t.Fatalf("diagnostics = %v", diagnostics)
 	}
 }
 

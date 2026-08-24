@@ -774,6 +774,11 @@
       "reason": "Script execution is driven by the investigation runner and UI; there is no CLI scripts domain."
     },
     {
+      "service": "ScriptsService",
+      "method": "UpdateScript",
+      "reason": "Script source persistence is owned by the Scripts UI/editor API; there is no user-facing CLI scripts domain."
+    },
+    {
       "service": "CapacityService",
       "method": "GetCapacityPolicy",
       "reason": "Read via the `get` positional of the `capacity policy` command, whose binding names the consequential set method."

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "FilterBar",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "search",
+          "name": "Filter results"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Apply filters"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Ready · 24"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "interactive",
+      "name": "Interactive",
+      "harness": "Interactive",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "search",
+          "name": "Filter results"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Reset"
+        },
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Last applied: No filters applied yet"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "shared-showcase",
+      "name": "Shared showcase context",
+      "sharedHarness": {
+        "asset": "preview.showcase",
+        "version": "1.0.0",
+        "export": "Showcase",
+        "config": {
+          "title": "Find the signal quickly",
+          "detail": "The shared context frames the FilterBar while the local stories retain its interaction-specific harness."
+        }
+      },
+      "args": {
+        "options": [
+          { "id": "ready", "label": "Ready", "count": 24 },
+          { "id": "review", "label": "Needs review", "count": 7 }
+        ],
+        "defaultActiveFilterIds": ["ready"]
+      },
+      "expect": [
+        { "kind": "role", "role": "search", "name": "Filter results" },
+        { "kind": "role", "role": "button", "name": "Apply filters" }
+      ],
+      "mode": "live"
+    }
+  ]
+}

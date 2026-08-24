@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Per-component preview harness that executes real React inside an isolated iframe, wired via @vrooli/iframe-bridge.",
-    "last_validated_at": "2026-08-12T22:47:53-04:00",
+    "last_validated_at": "2026-08-24T13:42:04-04:00",
     "module": "live-preview-iframe-execution",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PR-001",
       "title": "Per-component harness page renders the actual React component (not placeholder HTML)",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "api/handlers/preview/module_test.go::TestModule_HarnessHTML",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Preview module tests prove the harness returns real same-origin HTML, inlines the bundled component module, includes runtime import maps, and posts preview-ready. TestModule_HarnessAcceptsLibraryID covers stable `libraryId` route IDs used by experience-component capture."
         }
       ]
@@ -34,7 +34,7 @@
     {
       "id": "PR-002",
       "title": "Reload-on-save: editor save triggers iframe NAV via the host bridge",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
@@ -48,7 +48,7 @@
           "type": "test",
           "ref": "ui/src/features/components/ComponentEditor.test.tsx::reloads the iframe when save returns a new sha256",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The editor iframe URL includes the returned sha/retry key as a cache-buster; saves that change content force a new harness navigation."
         }
       ]
@@ -69,7 +69,7 @@
         {
           "type": "test",
           "status": "not_implemented",
-          "notes": "api/handlers/preview/module_test.go asserts the harness route returns HTML with same-origin /preview/runtime imports, stable `libraryId` route ids resolve, and runtime routes serve JavaScript. ui/src/features/components/ComponentEditor.test.tsx asserts the iframe uses the harness URL and sandbox attributes. ui/server.test.js asserts the production UI server proxies /preview harness and runtime paths to the API before SPA fallback, preventing recursive loading of the library UI inside the iframe. bas/cases/preview/preview-renders-component.json catches the user-visible recursion symptom through test-genie playbooks. ui/scripts/preview-e2e.mjs drives Chrome through the real UI and asserts preview frames remain /preview/... routes."
+          "notes": "api/handlers/preview/module_test.go asserts the harness route returns HTML with same-origin /preview/runtime imports, stable `libraryId` route ids resolve, and runtime routes serve JavaScript. ui/src/features/components/ComponentEditor.test.tsx asserts the iframe uses the harness URL and sandbox attributes. ui/server.test.js asserts the production UI server proxies /preview harness and runtime paths to the API before SPA fallback, preventing recursive loading of the library UI inside the iframe. bas/cases/preview/preview-renders-component.json catches the user-visible recursion symptom through test-genie playbooks. BAS CaptureService captures the isolated /preview/... route and returns structured evidence through api/internal/componenttests/bas_executor.go."
         }
       ]
     },
@@ -132,7 +132,7 @@
         {
           "type": "test",
           "status": "not_implemented",
-          "notes": "api/handlers/preview/static_test.go asserts harness render failures post `preview-error`. ui/src/features/components/ComponentEditor.test.tsx asserts a `preview-error` message renders the failure panel and retry reloads the iframe with a fresh retry key. ui/scripts/preview-e2e.mjs asserts the live preview reaches the Rendered badge and has no host or in-iframe preview error. `pnpm type-check`, `pnpm lint`, targeted Go preview tests, and `pnpm run test:preview-e2e` passed."
+          "notes": "api/handlers/preview/static_test.go asserts harness render failures post `preview-error`. ui/src/features/components/ComponentEditor.test.tsx asserts a `preview-error` message renders the failure panel and retry reloads the iframe with a fresh retry key. BAS CaptureService asserts the isolated harness reaches its declared ready state and returns console, network, accessibility, performance, DOM, and screenshot evidence. `pnpm type-check`, `pnpm lint`, and targeted Go preview tests passed."
         }
       ]
     }

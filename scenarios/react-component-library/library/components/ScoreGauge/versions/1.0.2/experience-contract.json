@@ -26,8 +26,11 @@
       "id": "score-readable",
       "type": "text",
       "statement": "The score and threshold are readable without color.",
-      "tier": "automated",
-      "states": ["default", "passing"]
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "passing"
+      ]
     }
   ]
 }

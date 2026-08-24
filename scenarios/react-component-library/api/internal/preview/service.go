@@ -301,6 +301,9 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 	}); ok && version != "" {
 		storyContent, storyErr := storyReader.GetVersionContentAt(ctx, id, version, "story.tsx")
 		if storyErr == nil {
+			if err := validateSpecimenSource(storyContent.Body); err != nil {
+				return Bundle{}, err
+			}
 			var storyWarnings []string
 			harnessJS, storyWarnings, storyErr = s.bundler.BuildBundle(ctx, storyContent.Body, storyContent.SourcePath)
 			warnings = append(warnings, storyWarnings...)
@@ -319,6 +322,38 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 		Warnings:     warnings,
 		Dependencies: declarations,
 	}, nil
+}
+
+// validateSpecimenSource keeps Preview specimens deterministic and local. A
+// story may use browser primitives for presentation, but it may not turn the
+// preview route into a production-data client or mutate browser persistence.
+// The check is intentionally conservative and runs before esbuild so the
+// failure is reported as a specimen diagnostic rather than a confusing blank
+// harness.
+func validateSpecimenSource(source string) error {
+	patterns := []struct {
+		needle string
+		detail string
+	}{
+		{"fetch(", "network fetch is not allowed in Preview specimens; use a deterministic fixture"},
+		{"XMLHttpRequest", "XMLHttpRequest is not allowed in Preview specimens"},
+		{"WebSocket", "WebSocket is not allowed in Preview specimens"},
+		{"localStorage", "localStorage is not allowed in Preview specimens"},
+		{"sessionStorage", "sessionStorage is not allowed in Preview specimens"},
+		{"indexedDB", "indexedDB is not allowed in Preview specimens"},
+		{"document.cookie", "document.cookie is not allowed in Preview specimens"},
+		{"child_process", "process access is not allowed in Preview specimens"},
+		{"node:fs", "filesystem access is not allowed in Preview specimens"},
+		{"node:http", "network access is not allowed in Preview specimens"},
+		{"process.", "process access is not allowed in Preview specimens"},
+		{"Deno.", "Deno access is not allowed in Preview specimens"},
+	}
+	for _, pattern := range patterns {
+		if strings.Contains(source, pattern.needle) {
+			return ErrBundle{SourcePath: "story.tsx", Messages: []string{pattern.detail}}
+		}
+	}
+	return nil
 }
 
 func isMissingStoryArtifact(err error) bool {

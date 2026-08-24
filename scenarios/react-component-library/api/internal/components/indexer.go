@@ -590,18 +590,20 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 		return nil, []IndexFinding{invalidStoryFinding(sourcePath, "/", "readable story.json", "", err.Error())}
 	}
 	contract, diagnostics := ParseStoryContract(raw)
-	if contract == nil || len(diagnostics) > 0 {
-		findings := make([]IndexFinding, 0, len(diagnostics))
-		for _, diagnostic := range diagnostics {
+	if contract == nil || len(storyErrors(diagnostics)) > 0 {
+		errors := storyErrors(diagnostics)
+		findings := make([]IndexFinding, 0, len(errors))
+		for _, diagnostic := range errors {
 			findings = append(findings, invalidStoryFinding(sourcePath, diagnostic.Pointer, diagnostic.Rule, "", diagnostic.Detail))
 		}
 		return nil, findings
 	}
 	if registry := idx.storyFrameRegistry(); registry != nil {
 		diagnostics = append(diagnostics, ValidateStoryFrames(contract, registry)...)
-		if len(diagnostics) > 0 {
-			findings := make([]IndexFinding, 0, len(diagnostics))
-			for _, diagnostic := range diagnostics {
+		if len(storyErrors(diagnostics)) > 0 {
+			errors := storyErrors(diagnostics)
+			findings := make([]IndexFinding, 0, len(errors))
+			for _, diagnostic := range errors {
 				findings = append(findings, invalidStoryFinding(sourcePath, diagnostic.Pointer, diagnostic.Rule, "", diagnostic.Detail))
 			}
 			return nil, findings
@@ -616,6 +618,9 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 	for _, definition := range contract.Stories {
 		if definition.Harness != "" {
 			harnesses[definition.Harness] = struct{}{}
+		}
+		if composition := EffectiveStoryComposition(contract, &definition); composition != nil && composition.Specimen != nil {
+			harnesses[composition.Specimen.Export] = struct{}{}
 		}
 	}
 	if len(harnesses) > 0 && errors.Is(storyErr, fs.ErrNotExist) {
@@ -640,6 +645,10 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 	stories, _ := json.Marshal(contract.Stories)
 	normalized, _ := json.Marshal(contract)
 	return &ComponentStory{LibraryID: libraryID, Version: version, SchemaVersion: contract.SchemaVersion, Kind: contract.Kind, Title: contract.Title, ArgsJSON: string(args), EnvironmentJSON: string(environment), StoriesJSON: string(stories), ContractJSON: string(normalized), SourcePath: sourcePath}, nil
+}
+
+func storyErrors(diagnostics []StoryDiagnostic) []StoryDiagnostic {
+	return StoryContractErrors(diagnostics)
 }
 
 func (idx *Indexer) storyFrameRegistry() CatalogFrameRegistry {

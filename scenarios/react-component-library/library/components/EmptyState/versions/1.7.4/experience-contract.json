@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "bindings": {
+    "elements": {
+      "action": {
+        "selector": "button"
+      },
+      "region": {
+        "selector": "[data-rcl-empty-state]"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["region"],
+      "id": "region-present",
+      "statement": "The empty state presents a labelled region.",
+      "states": ["no-components", "with-action", "compact"],
+      "tier": "machine",
+      "type": "element-present"
+    },
+    {
+      "elements": ["action"],
+      "id": "recovery-affordance",
+      "params": {
+        "affordances": ["action"]
+      },
+      "statement": "The actionable empty state offers a next step.",
+      "states": ["with-action"],
+      "tier": "machine",
+      "type": "affordance-present"
+    },
+    {
+      "id": "empty-state-craft",
+      "statement": "The empty state explains why it is empty and offers the most relevant next action.",
+      "states": ["no-components", "with-action", "compact"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "empty-state",
+    "purpose": "Explain an empty surface and offer its most relevant next action.",
+    "storyRef": "../../library/components/EmptyState/versions/1.7.4/story.json",
+    "title": "EmptyState"
+  },
+  "elements": [
+    {
+      "description": "The labelled empty-state region.",
+      "id": "region",
+      "role": "region"
+    },
+    {
+      "description": "The optional recovery action.",
+      "id": "action",
+      "role": "button"
+    }
+  ],
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "states": [
+    {
+      "description": "No content exists yet.",
+      "example": "no-components",
+      "id": "no-components"
+    },
+    {
+      "description": "The empty state offers a recovery action.",
+      "example": "with-action",
+      "id": "with-action"
+    },
+    {
+      "description": "The compact empty state preserves hierarchy.",
+      "example": "compact",
+      "id": "compact"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
-import { Moon, Pause, Play, Settings, Sun, Terminal } from 'lucide-react';
+import { Menu, Moon, Pause, Play, Settings, Sun, Terminal, X } from 'lucide-react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import { StatusIndicator } from './StatusIndicator';
 import { AgentDropdown } from './AgentDropdown';
 import { useTheme } from '../theme/ThemeProvider';
@@ -50,17 +51,88 @@ export const Header = ({
   const { range, setRange, paused, setPaused } = useTimeRange();
   const location = useLocation();
   const navigate = useNavigate();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileNavTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileNavPanelRef = useRef<HTMLElement>(null);
   const currentPath = location.pathname === '/' ? '/' : `/${location.pathname.split('/')[1]}`;
+
+  useEffect(() => {
+    if (!mobileNavOpen) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const panel = mobileNavPanelRef.current;
+    const focusableSelector = 'a[href], button:not([disabled])';
+    const firstFocusable = panel?.querySelector<HTMLElement>(focusableSelector);
+    firstFocusable?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMobileNavOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab' || !panel) {
+        return;
+      }
+
+      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+      mobileNavTriggerRef.current?.focus();
+    };
+  }, [mobileNavOpen]);
+
+  const closeMobileNav = () => { setMobileNavOpen(false); };
+  const navigateFromMobileNav = (path: string) => {
+    closeMobileNav();
+    void navigate(path);
+  };
 
   return (
     <header className="app-header">
       <div className="app-header-inner">
-        <h1
-          className="system-monitor-title icon-text"
-          data-sm-style="sm-style-a02ac2f8c1"
-        >
-          <span className="system-monitor-title-text">System Monitor</span>
-        </h1>
+        <div className="app-header-brand">
+          <h1
+            className="system-monitor-title icon-text"
+            data-sm-style="sm-style-a02ac2f8c1"
+          >
+            <span className="system-monitor-title-text">System Monitor</span>
+          </h1>
+
+          <button
+            ref={mobileNavTriggerRef}
+            className="app-mobile-nav-trigger"
+            type="button"
+            aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'}
+            aria-expanded={mobileNavOpen}
+            aria-controls="system-monitor-mobile-navigation"
+            onClick={() => { setMobileNavOpen(prev => !prev); }}
+          >
+            {mobileNavOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+            <span>Menu</span>
+          </button>
+        </div>
 
         <nav className="app-nav flex-row-center gap-sm" aria-label="Primary navigation" data-sm-style="sm-style-c938f99d82">
           {NAV_ITEMS.map(item => (
@@ -70,12 +142,43 @@ export const Header = ({
           ))}
         </nav>
 
-        <label className="app-mobile-nav">
-          <span className="sr-only">Navigate to</span>
-          <select aria-label="Navigate to" value={currentPath} onChange={event => { void navigate(event.target.value); }}>
-            {NAV_ITEMS.map(item => <option key={item.path} value={item.path}>{item.label}</option>)}
-          </select>
-        </label>
+        {mobileNavOpen && (
+          <>
+            <button
+              className="app-mobile-nav-scrim"
+              type="button"
+              aria-label="Close navigation"
+              onClick={closeMobileNav}
+            />
+            <aside
+              ref={mobileNavPanelRef}
+              id="system-monitor-mobile-navigation"
+              className="app-mobile-nav-panel"
+              aria-label="Primary navigation"
+            >
+              <div className="app-mobile-nav-panel-header">
+                <span className="app-mobile-nav-panel-title">Navigate</span>
+                <button className="header-button icon-button" type="button" onClick={closeMobileNav} aria-label="Close navigation">
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
+              <nav className="app-mobile-nav-links" aria-label="Primary navigation links">
+                {NAV_ITEMS.map(item => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    end={item.path === '/'}
+                    className="app-mobile-nav-link"
+                    onClick={() => { navigateFromMobileNav(item.path); }}
+                  >
+                    <span>{item.label}</span>
+                    {currentPath === item.path && <span className="app-mobile-nav-current">Current</span>}
+                  </NavLink>
+                ))}
+              </nav>
+            </aside>
+          </>
+        )}
 
         <div className="flex-row-center">
           {/* Instrument-scope: what this app is currently doing. */}

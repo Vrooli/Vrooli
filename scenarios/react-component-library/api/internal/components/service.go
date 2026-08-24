@@ -565,7 +565,7 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 		return result, nil
 	}
 	contract, diagnostics := ParseStoryContract(story)
-	if len(diagnostics) > 0 || contract == nil {
+	if len(StoryContractErrors(diagnostics)) > 0 || contract == nil {
 		messages := make([]string, 0, len(diagnostics))
 		for _, diagnostic := range diagnostics {
 			messages = append(messages, diagnostic.Error())

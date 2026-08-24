@@ -71,12 +71,54 @@ story ID (`loading`, `error`, `empty`, `disabled`, `focus`, or `default`). Use
 a specialized review set. Authors should not repeat the default capture matrix
 in every component contract.
 
+### Raw child-node migration
+
+Legacy `$node` values remain parseable so an existing catalog does not disappear
+during migration. The parser reports a warning with the exact JSON pointer; it
+does not treat the warning as a browser-capture failure. Replace a rich raw
+node with a named export in `story.tsx` when the content has hierarchy,
+multiple governed assets, or behavior that must be reviewed. Keep raw values
+only for small, stable primitive content where a specimen would add no useful
+meaning. The migration record must name the chosen disposition.
+
 ## Grammar
 
 Every asset version contains exactly one `story.json`. Schema version 1 remains
 fully supported. Schema version 2 adds optional story captions and a constrained
 code harness seam. Schema version 3 adds declarative composition frames;
-versions 1 and 2 continue to parse unchanged.
+versions 1 and 2 continue to parse unchanged. Schema version 4 adds an
+explicit composition block while the older frame and harness fields remain
+readable during migration.
+
+### Schema version 4: explicit composition roles
+
+Use `composition` when a story needs a named specimen, shared harness, typed
+fixture, or frame. References are exact and immutable:
+
+```json
+{
+  "schemaVersion": 4,
+  "kind": "component",
+  "composition": {
+    "specimen": { "module": "./story.tsx", "export": "MetricCardStory" },
+    "fixture": { "asset": "fixtures.resource-collection", "version": "1.0.0", "state": "ready" },
+    "frame": { "asset": "navigation.page", "version": "1.0.0", "region": "content", "fixture": "fixtures.user-directory" }
+  },
+  "stories": [{ "id": "metric-card", "name": "Metric card", "args": { "label": "Active" } }]
+}
+```
+
+`specimen.module` must be `./story.tsx`; `specimen.export` must be a named
+JavaScript export. A fixture must use the `fixtures.*` namespace and a full
+semantic version. A frame must name a declared region and exact version. A
+story-level composition replaces only the roles it declares. This makes the
+subject, specimen, harness, fixture, and frame visible in the contract and in
+capture metadata instead of hiding them in executable code.
+
+The authoritative fields remain in `story.json`: story identity, public args,
+expectations, interactions, state and evidence intent. `story.tsx` owns only
+the named render recipe. It must not define hidden story identity or hidden
+assertions.
 
 ```json
 {

@@ -241,6 +241,14 @@ func (s *componentsService) ListDesignStyles(_ context.Context, _ *connect.Reque
 	}), nil
 }
 
+func (s *componentsService) ListPreviewFrames(_ context.Context, _ *connect.Request[componentsv1.ListPreviewFramesRequest]) (*connect.Response[componentsv1.ListPreviewFramesResponse], error) {
+	return connect.NewResponse(&componentsv1.ListPreviewFramesResponse{}), nil
+}
+
+func (s *componentsService) PersistPreviewFrame(_ context.Context, _ *connect.Request[componentsv1.PersistPreviewFrameRequest]) (*connect.Response[componentsv1.PersistPreviewFrameResponse], error) {
+	return connect.NewResponse(&componentsv1.PersistPreviewFrameResponse{}), nil
+}
+
 func (s *componentsService) ValidateStyleFit(_ context.Context, req *connect.Request[componentsv1.ValidateStyleFitRequest]) (*connect.Response[componentsv1.ValidateStyleFitResponse], error) {
 	s.mu.Lock()
 	s.styleFitReqs = append(s.styleFitReqs, req.Msg)

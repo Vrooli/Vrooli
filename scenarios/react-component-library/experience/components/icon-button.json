@@ -11,7 +11,7 @@
   "states": [
     {
       "id": "default",
-      "example": "default",
+      "example": "variant-primary",
       "description": "Named icon-only action."
     }
   ],

@@ -37,6 +37,112 @@ type frameCatalogDocument struct {
 	} `json:"fixture"`
 }
 
+// DeterministicFixturePayload is the small, serializable data contract passed
+// to a Preview frame or harness. It is deliberately not a live provider: the
+// clock, seed, ordering, and records are fixed so two captures of the same
+// reference are comparable.
+type DeterministicFixturePayload struct {
+	Asset      string           `json:"asset"`
+	Version    string           `json:"version"`
+	State      string           `json:"state"`
+	Seed       string           `json:"seed"`
+	Clock      string           `json:"clock"`
+	DataShapes []string         `json:"dataShapes,omitempty"`
+	Records    []map[string]any `json:"records,omitempty"`
+	Series     []map[string]any `json:"series,omitempty"`
+	Nodes      []map[string]any `json:"nodes,omitempty"`
+	Error      string           `json:"error,omitempty"`
+}
+
+// ResolveDeterministicFixture returns typed-enough representative records for
+// the catalog fixture families used by Preview. It is intentionally bounded;
+// a story that needs a new domain must add a versioned fixture family instead
+// of reaching into a production service.
+func ResolveDeterministicFixture(asset, version, state string) (DeterministicFixturePayload, error) {
+	asset = strings.TrimSpace(asset)
+	version = strings.TrimSpace(version)
+	state = strings.TrimSpace(state)
+	if state == "" {
+		state = "typical"
+	}
+	if state == "ready" {
+		state = "typical"
+	}
+	if version == "" {
+		return DeterministicFixturePayload{}, frameBundleError(asset, "fixture version is required")
+	}
+	fixture := DeterministicFixturePayload{Asset: asset, Version: version, State: state, Seed: "rcl-fixture-v1", Clock: "2026-01-15T12:00:00Z"}
+	switch asset {
+	case "fixtures.resource-collection":
+		fixture.DataShapes = []string{"empty", "typical", "overflow", "volume", "failure"}
+		if state == "empty" {
+			return fixture, nil
+		}
+		fixture.Records = []map[string]any{
+			{"id": "resource-001", "name": "api-gateway", "owner": "Platform", "status": "Ready", "updated": "2026-01-15T11:42:00Z"},
+			{"id": "resource-002", "name": "event-stream", "owner": "Data", "status": "Needs attention", "updated": "2026-01-15T10:18:00Z"},
+			{"id": "resource-003", "name": "worker-cluster", "owner": "Operations", "status": "Paused", "updated": "2026-01-14T22:05:00Z"},
+		}
+		if state == "overflow" {
+			fixture.Records = append(fixture.Records, map[string]any{"id": "resource-long", "name": "resource-with-a-deliberately-long-name-that-must-wrap-without-breaking-the-row", "owner": "Platform", "status": "Ready", "updated": fixture.Clock})
+		}
+		if state == "failure" || state == "permission" {
+			fixture.Error = "Resource data is unavailable. Retry to restore the collection."
+		}
+	case "fixtures.user-directory":
+		fixture.DataShapes = []string{"empty", "typical", "overflow", "failure"}
+		fixture.Records = []map[string]any{
+			{"id": "user-001", "name": "Avery Chen", "role": "Administrator", "status": "Active"},
+			{"id": "user-002", "name": "Mina Patel", "role": "Reviewer", "status": "Active"},
+			{"id": "user-003", "name": "Noah Williams", "role": "Operator", "status": "Invited"},
+		}
+	case "fixtures.time-series":
+		fixture.DataShapes = []string{"empty", "typical", "overflow", "volume", "failure"}
+		if state != "empty" {
+			fixture.Series = []map[string]any{
+				{"at": "2026-01-15T11:00:00Z", "value": 42.0},
+				{"at": "2026-01-15T11:15:00Z", "value": 47.0},
+				{"at": "2026-01-15T11:30:00Z", "value": 39.0},
+				{"at": "2026-01-15T11:45:00Z", "value": 81.0},
+			}
+		}
+		if state == "failure" {
+			fixture.Error = "Metric history is unavailable. Retry to restore the series."
+		}
+	case "fixtures.navigation-tree":
+		fixture.DataShapes = []string{"empty", "typical", "overflow", "failure"}
+		fixture.Nodes = []map[string]any{
+			{"id": "overview", "label": "Overview", "current": true, "disabled": false, "badge": ""},
+			{"id": "resources", "label": "Resources", "current": false, "disabled": false, "badge": "2"},
+			{"id": "activity", "label": "Activity", "current": false, "disabled": false, "badge": ""},
+			{"id": "settings", "label": "Settings", "current": false, "disabled": false, "badge": ""},
+		}
+		if state == "failure" {
+			fixture.Error = "Navigation data is unavailable. Retry to restore workspace sections."
+		}
+	case "fixtures.status-health":
+		fixture.DataShapes = []string{"typical", "partial", "failure", "recovery"}
+		fixture.Records = []map[string]any{
+			{"id": "api", "label": "API gateway", "status": "healthy", "detail": "99.98% available"},
+			{"id": "events", "label": "Event stream", "status": "degraded", "detail": "Backlog above target"},
+			{"id": "workers", "label": "Worker pool", "status": "recovering", "detail": "3 of 4 nodes ready"},
+		}
+		if state == "failure" {
+			fixture.Error = "Health signals are unavailable. Retry to restore status."
+		}
+	case "fixtures.error-recovery":
+		fixture.DataShapes = []string{"failure", "permission", "timeout", "recovery"}
+		fixture.Records = []map[string]any{{"id": "request-001", "reason": "timeout", "message": "The operation took longer than expected.", "action": "Retry"}}
+		fixture.Error = "The operation took longer than expected."
+	default:
+		return DeterministicFixturePayload{}, frameBundleError(asset, "fixture family has no deterministic Preview implementation")
+	}
+	if !contains([]string{"empty", "typical", "overflow", "volume", "failure", "partial", "recovery", "permission", "timeout"}, state) {
+		return DeterministicFixturePayload{}, frameBundleError(asset, fmt.Sprintf("fixture state %q is not supported", state))
+	}
+	return fixture, nil
+}
+
 func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame) (string, string, string, []deps.Declaration, error) {
 	if frame == nil {
 		return "", "", "", nil, nil

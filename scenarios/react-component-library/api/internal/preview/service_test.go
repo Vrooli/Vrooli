@@ -272,6 +272,55 @@ func TestService_GetBundleVersionWithSharedHarnessInjectsGenericPreviewAsset(t *
 	require.NotContains(t, bundle.SharedHarnessJS, "library/components/")
 }
 
+func TestValidateSpecimenSourceRejectsNonDeterministicBrowserAccess(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		source string
+		want   string
+	}{
+		{name: "network", source: "export const Story = () => fetch('/api');", want: "network fetch"},
+		{name: "storage", source: "export const Story = () => localStorage.getItem('x');", want: "localStorage"},
+		{name: "process", source: "export const Story = () => process.env.MODE;", want: "process access"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateSpecimenSource(test.source)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), test.want)
+		})
+	}
+}
+
+func TestValidateSpecimenSourceAllowsDeterministicRecipe(t *testing.T) {
+	require.NoError(t, validateSpecimenSource(`import { useState } from "react"; export function Story() { const [open] = useState(false); return <button>{String(open)}</button>; }`))
+}
+
+func TestResolveDeterministicFixtureIsStableAndIncludesAdversarialState(t *testing.T) {
+	first, err := ResolveDeterministicFixture("fixtures.resource-collection", "1.0.0", "overflow")
+	require.NoError(t, err)
+	second, err := ResolveDeterministicFixture("fixtures.resource-collection", "1.0.0", "overflow")
+	require.NoError(t, err)
+	require.Equal(t, "rcl-fixture-v1", first.Seed)
+	require.Equal(t, first.Clock, second.Clock)
+	require.Len(t, first.Records, 4)
+	require.NotEmpty(t, first.Records[3]["name"])
+}
+
+func TestResolveDeterministicFixtureRejectsUnknownFamilyAndMissingVersion(t *testing.T) {
+	_, err := ResolveDeterministicFixture("fixtures.unknown", "1.0.0", "typical")
+	require.Error(t, err)
+	_, err = ResolveDeterministicFixture("fixtures.resource-collection", "", "typical")
+	require.Error(t, err)
+}
+
+func TestResolveDeterministicFixtureSupportsNavigationHealthAndRecoveryFamilies(t *testing.T) {
+	for _, asset := range []string{"fixtures.navigation-tree", "fixtures.status-health", "fixtures.error-recovery"} {
+		fixture, err := ResolveDeterministicFixture(asset, "1.0.0", "failure")
+		require.NoError(t, err, asset)
+		require.NotEmpty(t, fixture.DataShapes, asset)
+		require.NotEmpty(t, fixture.Error, asset)
+	}
+}
+
 func TestService_GetBundleVersionWithSharedHarnessBundlesEveryRegisteredFamily(t *testing.T) {
 	comp := &fakeComponentsService{
 		getFn: func(_ context.Context, id string) (components.Component, error) {

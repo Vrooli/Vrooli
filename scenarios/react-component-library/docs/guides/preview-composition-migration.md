@@ -59,12 +59,35 @@ node scripts/preview-composition-inventory.mjs > /tmp/preview-composition-invent
 ```
 
 The output contains one entry for every `library/**/story.json`, including its
-hierarchy, story IDs, current frame, shared harness, local harness presence,
-and disposition. It also contains one `storyRecords` row per story, with
-expectation and interaction counts, fixture usage, migration status, and an
-exception record for every local harness that still needs behavior-equivalence
-review. The current checked-in evidence snapshot is
+stable library/version identity, hierarchy, story IDs, composition roles,
+current frame, fixture, shared harness, local harness presence, diagnostics,
+and proposed disposition. It also contains one `storyRecords` row per story,
+with expectation and interaction counts, raw-child detection, review-set
+coverage, production-access checks, migration status, and an exception record
+for every local harness that still needs behavior-equivalence review. The
+current checked-in evidence snapshot is
 `docs/evidence/preview-composition-inventory.json`; it covers every story
 contract and story record found at capture time. Counts are time-dependent.
 Review the inventory before each migration batch and retain the batch evidence;
 do not copy derived counts into permanent prose.
+
+Run a bounded, resumable review batch with stable story keys:
+
+```bash
+node scripts/preview-composition-inventory.mjs \
+  --batch-size 25 \
+  --batch-index 0 \
+  --state /path/to/migration-state.json
+```
+
+The state file is read-only input with this shape:
+
+```json
+{ "completedStoryKeys": ["react-component-library:Button@2.2.0#async-save"] }
+```
+
+The report excludes completed keys, emits the next resumable key, and returns
+only the selected batch. The workflow must record a key only after its before
+manifest, focused test, capture, review disposition, and adoption check exist.
+This makes interruption safe: rerunning the same state and batch does not
+duplicate completed stories or silently skip unfinished ones.

@@ -78,6 +78,7 @@ describe('apiFetch and protoFetch', () => {
       ['/investigations/agent/a%2Fb/stop', { method: 'POST' }, 'StopAgent', { id: 'a/b' }],
       ['/investigations/scripts/a%2Fb', undefined, 'GetScript', { id: 'a/b' }],
       ['/investigations/scripts/a%2Fb/execute', { method: 'POST', body: JSON.stringify({ content: 'echo hi' }) }, 'ExecuteScript', { id: 'a/b', content: 'echo hi' }],
+      ['/investigations/scripts/a%2Fb', { method: 'PUT', body: JSON.stringify({ content: 'echo changed' }) }, 'UpdateScript', { id: 'a/b', content: 'echo changed' }],
     ];
 
     for (const [path, options, procedure, expectedBody] of routes) {

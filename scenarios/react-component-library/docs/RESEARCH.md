@@ -157,10 +157,9 @@ leave `react` as a dynamic CommonJS require in a browser ESM module. The
 runtime handler now wraps the vendored React and ReactDOM entrypoints
 with explicit ESM named exports (`jsx`, `jsxs`, `createRoot`, hooks,
 etc.) and bundles ReactDOM with React included. `pnpm run
-test:preview-e2e` drives Chrome through the real UI, clicks Preview for
-the StatusBadge component, asserts the iframe URL is `/preview/...`,
-checks the rendered DOM, and fails on the browser errors that caused the
-visible preview failure. The BAS playbook
+test:preview-evidence` delegates the browser session to BAS, captures the
+exact isolated story route, parses the declared contract, and persists
+structured evidence. The BAS playbook
 `preview-renders-component` covers the same user-visible contract at the
 test-genie workflow layer by asserting the host reaches the Rendered
 badge after switching the known component editor into Preview mode.

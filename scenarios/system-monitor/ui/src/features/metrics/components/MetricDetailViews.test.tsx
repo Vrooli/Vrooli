@@ -1,8 +1,8 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
 import { cloneElement, type ReactElement } from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DetailSection, MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 
 vi.mock('recharts', () => {
   const Box = ({ children, ...props }: { children?: React.ReactNode } & Record<string, unknown>) => <div {...props}>{children}</div>;
@@ -26,14 +26,45 @@ vi.mock('recharts', () => {
 });
 
 describe('MetricDetailViews', () => {
+  beforeEach(() => localStorage.clear());
+
   it('renders the shared detail layout and back action', () => {
     const onBack = vi.fn();
-    render(<MetricDetailLayout title="CPU" icon={<span>icon</span>} headline="42%" subhead="Last sample" onBack={onBack}><div>content</div></MetricDetailLayout>);
+    render(<MetricDetailLayout layoutId="test" title="CPU" icon={<span>icon</span>} headline="42%" subhead="Last sample" onBack={onBack}><div>content</div></MetricDetailLayout>);
     expect(screen.getAllByText('CPU').length).toBeGreaterThan(0);
     expect(screen.getByText('42%')).toBeInTheDocument();
+    expect(screen.getByText('42%').parentElement).toHaveClass('metric-detail-heading');
     expect(screen.getByText('Last sample')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Back To Dashboard/ }));
     expect(onBack).toHaveBeenCalledOnce();
+  });
+
+  it('recovers invalid preferences and supports keyboard-safe hide, reorder, density, columns, and reset', () => {
+    localStorage.setItem('system-monitor-detail-layout:prefs', JSON.stringify({
+      version: 1,
+      order: ['missing'],
+      hidden: ['missing'],
+      density: 'invalid',
+      columns: 9,
+    }));
+    render(
+      <MetricDetailLayout layoutId="prefs" title="CPU" icon={<span>icon</span>} headline="42%" onBack={vi.fn()}>
+        <DetailSection id="overview" title="Overview"><div>overview content</div></DetailSection>
+        <DetailSection id="history" title="History"><div>history content</div></DetailSection>
+      </MetricDetailLayout>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Customize layout' }));
+    expect(screen.getByRole('combobox', { name: 'Detail density' })).toHaveValue('comfortable');
+    expect(screen.getByRole('combobox', { name: 'Detail columns' })).toHaveValue('1');
+    expect(screen.getByRole('checkbox', { name: 'Overview' })).toBeChecked();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Overview' }));
+    expect(screen.queryByText('overview content')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Detail density' }), { target: { value: 'compact' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Detail columns' }), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Move History up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }));
+    expect(screen.getByText('overview content')).toBeInTheDocument();
+    expect(screen.getByText('history content')).toBeInTheDocument();
   });
 
   // Loading, empty, and error must stay visually and semantically distinct. A
@@ -117,5 +148,22 @@ describe('MetricDetailViews', () => {
     />);
     expect(screen.getByTestId('y-axis-left')).toHaveAttribute('data-scale', 'log');
     expect(screen.getByTestId('y-axis-left')).toHaveAttribute('data-domain', '[1,"auto"]');
+  });
+
+  it('provides accessible zoom, pan, reset, and summary controls without changing the source data', () => {
+    const data = Array.from({ length: 8 }, (_, index) => ({
+      timestamp: `2026-01-01T00:0${index}:00Z`,
+      cpu: index + 1,
+    }));
+    render(<MetricLineChart data={data} lines={[{ dataKey: 'cpu', name: 'CPU', color: 'red' }]} unit="%" seriesLabel="CPU" />);
+    expect(screen.getByTestId('metric-chart-summary')).toHaveTextContent('8 samples');
+    expect(screen.getByText('8 of 8 samples')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(screen.getByText('6 of 8 samples')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pan chart right' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Pan chart right' }));
+    expect(screen.getByText('6 of 8 samples')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset chart view' }));
+    expect(screen.getByText('8 of 8 samples')).toBeInTheDocument();
   });
 });

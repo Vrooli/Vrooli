@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "kind": "component-experience-contract",
+  "kind": "experience-component",
   "component": {
     "id": "input",
     "title": "Input",
@@ -61,13 +61,13 @@
   "elements": [
     {
       "id": "field",
-      "role": "textbox",
+      "role": "x-input",
       "description": "The native text-entry field."
     }
   ],
   "bindings": {
     "elements": {
-      "field": { "selector": "[data-rcl-input]" }
+      "field": { "selector": "[data-rcl-input], input[type=search], input[role=textbox]" }
     }
   }
 }

@@ -766,3 +766,34 @@ func TestService_ReconcileDryRunAndApplyGroupsProvenanceWithoutReporter(t *testi
 	require.Equal(t, 2, again.AlreadyRecorded)
 	require.Zero(t, again.Created)
 }
+
+func TestService_ReconcileResolvesLegacyCatalogIDToCanonicalLibraryID(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp-button": {ID: "cmp-button", CatalogID: "controls.button", LibraryID: "react-component-library:Button", LatestVersion: "2.2.0"},
+		},
+		versions: map[string]components.ComponentVersion{
+			"cmp-button@2.2.0": {
+				ComponentID: "cmp-button", LibraryID: "react-component-library:Button", Version: "2.2.0",
+				Status: components.VersionStatusReleased,
+				Files:  []components.ComponentVersionFile{{Path: "Button.tsx", Content: "entry", ContentSHA256: sha("entry"), IsEntry: true}},
+			},
+		},
+	}
+	files := &fakeFiles{
+		bytes: map[string][]byte{"target::ui/src/Button.tsx": []byte("entry")},
+		provenance: []adoptions.ProvenanceFile{{
+			Scenario: "target", AdoptedPath: "ui/src/Button.tsx", LibraryID: "controls.button", Version: "2.2.0", Content: []byte("entry"),
+		}},
+	}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
+	report, err := svc.Reconcile(context.Background(), adoptions.ReconcileInput{Apply: true})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Created)
+	require.Empty(t, report.Findings)
+	rows, err := svc.List(context.Background(), adoptions.ListQuery{Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "react-component-library:Button", rows[0].LibraryID)
+}

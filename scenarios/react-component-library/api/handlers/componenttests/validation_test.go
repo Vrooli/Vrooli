@@ -3,6 +3,8 @@ package componenttests
 import (
 	"testing"
 
+	domain "react-component-library/internal/componenttests"
+
 	"github.com/stretchr/testify/require"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -35,4 +37,23 @@ func TestComponentTestsAssessmentUsesCanonicalPresentationProjection(t *testing.
 	require.Equal(t, int32(2), findings[0].GetCount())
 	require.Equal(t, []string{"alpha", "zeta"}, findings[0].GetLocations())
 	require.Equal(t, commonv1.FixAffordance_FIX_AFFORDANCE_MANUAL, findings[0].GetFixAffordance())
+}
+
+func TestComponentValidationWorkersLeaveBASSessionHeadroom(t *testing.T) {
+	// BAS defaults to ten active browser sessions. Component validation can run
+	// beside other capture consumers, so the catalog provider must not consume
+	// the entire driver budget by itself.
+	require.Less(t, componentValidationWorkers, 10)
+	require.Greater(t, componentValidationWorkers, 0)
+}
+
+func TestHasReusablePassedReportRequiresExactImmutableClosure(t *testing.T) {
+	reports := []domain.Report{
+		{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: false, Verdict: domain.VerdictPassed},
+		{RootLibraryID: "rcl:Card", RootVersion: "1.1.0", IncludeClosure: true, Verdict: domain.VerdictPassed},
+		{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: true, Verdict: domain.VerdictFailed},
+	}
+	require.False(t, hasReusablePassedReport(reports, "rcl:Card", "1.2.0"))
+	reports = append(reports, domain.Report{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: true, Verdict: domain.VerdictPassed})
+	require.True(t, hasReusablePassedReport(reports, "rcl:Card", "1.2.0"))
 }

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({ protoFetch: vi.fn() }));
 vi.mock('../../../shared/api/apiFetch', () => ({ protoFetch: mocks.protoFetch }));
 vi.mock('../../../shared/api/proto-contracts', () => ({ parseDiskDetailResponse: vi.fn() }));
 vi.mock('./MetricDetailViews', () => ({
+  DetailSection: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   MetricDetailLayout: ({ title, headline, subhead, onBack, children }: { title: string; headline: string; subhead?: string; onBack: () => void; children: React.ReactNode }) => <main><button type="button" onClick={onBack}>back</button><h1>{title}</h1><div>{headline}</div><div>{subhead}</div>{children}</main>,
   MetricLineChart: ({ data }: { data: unknown[] }) => <div data-testid="chart">{data.length} chart points</div>,
 }));

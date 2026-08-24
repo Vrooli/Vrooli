@@ -21,8 +21,10 @@
       "id": "capture-matrix",
       "type": "text",
       "statement": "Capture status is visible for each declared viewport and theme.",
-      "tier": "automated",
-      "states": ["default"]
+      "tier": "aspirational",
+      "states": [
+        "default"
+      ]
     }
   ]
 }

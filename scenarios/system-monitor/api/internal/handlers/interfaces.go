@@ -52,6 +52,7 @@ type InvestigationManager interface {
 type ScriptRunner interface {
 	ListScripts() ([]services.ScriptMeta, error)
 	GetScript(id string) (services.ScriptMeta, string, error)
+	UpdateScript(id string, content string) (services.ScriptMeta, string, error)
 	ExecuteScript(ctx context.Context, id string, contentOverride string) (services.ScriptExecution, error)
 }
 

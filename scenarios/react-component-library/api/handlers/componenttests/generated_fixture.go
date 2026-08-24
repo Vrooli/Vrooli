@@ -14,6 +14,7 @@ import (
 
 	"react-component-library/internal/adoptions"
 	"react-component-library/internal/components"
+	domain "react-component-library/internal/componenttests"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -213,8 +214,67 @@ func (v *generatedFixtureValidator) cleanup(parent context.Context, root, name, 
 }
 
 func runGeneratedFixtureBrowser(ctx context.Context, root string, port int) error {
-	script := filepath.Join(root, "scenarios", "react-component-library", "ui", "scripts", "generated-fixture-e2e.mjs")
-	return runControlPlane(ctx, root, "node", script, fmt.Sprintf("http://127.0.0.1:%d/", port))
+	_ = root
+	capture, err := domain.NewBASCaptureExecutor().CaptureURL(
+		ctx,
+		fmt.Sprintf("http://127.0.0.1:%d/", port),
+		"rcl:generated-fixture",
+		`[data-rcl-control="true"]`,
+		`[data-rcl-control="true"]`,
+	)
+	if err != nil {
+		return fmt.Errorf("capture generated fixture through BAS: %w", err)
+	}
+	if !accessibilityHasStyledControl(capture.Accessibility) {
+		return fmt.Errorf("generated fixture BAS accessibility evidence did not contain a visibly styled adopted control")
+	}
+	return nil
+}
+
+func accessibilityHasStyledControl(raw string) bool {
+	var document any
+	if json.Unmarshal([]byte(raw), &document) != nil {
+		return false
+	}
+	var visit func(any) bool
+	visit = func(value any) bool {
+		node, ok := value.(map[string]any)
+		if !ok {
+			if children, ok := value.([]any); ok {
+				for _, child := range children {
+					if visit(child) {
+						return true
+					}
+				}
+			}
+			return false
+		}
+		if dom, ok := node["dom"].(map[string]any); ok {
+			if attributes, ok := dom["attributes"].(map[string]any); ok && attributes["data-rcl-control"] == "true" {
+				style, _ := node["computedStyle"].(map[string]any)
+				return painted(style["background-color"]) &&
+					painted(style["border-color"]) &&
+					style["border-style"] != "none" && style["border-width"] != "0px" &&
+					painted(style["color"])
+			}
+		}
+		for _, child := range node {
+			if visit(child) {
+				return true
+			}
+		}
+		return false
+	}
+	return visit(document)
+}
+
+func painted(value any) bool {
+	text, ok := value.(string)
+	if !ok {
+		return false
+	}
+	value = strings.ToLower(strings.TrimSpace(text))
+	return value != "" && value != "transparent" && value != "rgba(0, 0, 0, 0)"
 }
 
 func scenarioUIPort(ctx context.Context, root, name string) (int, error) {

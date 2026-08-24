@@ -89,10 +89,10 @@
         },
         {
           "type": "test",
-          "ref": "ui/scripts/preview-e2e.mjs",
+          "ref": "api/handlers/catalog/module.go",
           "phase": "workflow",
           "status": "failing",
-          "notes": "`pnpm run test:preview-e2e` passed across all 11 catalog components and their example frames during Phase 6."
+          "notes": "`pnpm run test:preview-evidence` records per-story BAS artifact references and visual gate results through the catalog evidence service."
         }
       ]
     },

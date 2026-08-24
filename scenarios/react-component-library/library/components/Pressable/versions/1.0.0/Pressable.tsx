@@ -9,8 +9,8 @@ import {
 } from "../../../ControlBase/versions/1.0.0/ControlBase";
 
 const pressableStyles = `
-[data-rcl-pressable-content] { position: relative; display: inline-flex; align-items: center; min-inline-size: 0; }
-[data-rcl-pressable-label], [data-rcl-pressable-pending] { display: inline-flex; align-items: center; gap: var(--space-2xs); }
+[data-rcl-pressable-content] { position: relative; display: inline-flex; align-items: center; min-inline-size: 0; max-inline-size: 100%; }
+[data-rcl-pressable-label], [data-rcl-pressable-pending] { display: inline-flex; align-items: center; gap: var(--space-2xs); min-inline-size: 0; max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-rcl-pressable-pending] { position: absolute; inset: 0; justify-content: center; visibility: hidden; white-space: nowrap; }
 [data-rcl-pressable][data-rcl-pending="true"] [data-rcl-pressable-label] { visibility: hidden; }
 [data-rcl-pressable][data-rcl-pending="true"] [data-rcl-pressable-pending] { visibility: visible; }

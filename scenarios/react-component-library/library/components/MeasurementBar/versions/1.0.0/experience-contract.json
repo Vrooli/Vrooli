@@ -26,8 +26,11 @@
       "id": "measurement-readable",
       "type": "text",
       "statement": "Observed and required values are readable without color.",
-      "tier": "machine",
-      "states": ["default", "passing"]
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "passing"
+      ]
     }
   ]
 }

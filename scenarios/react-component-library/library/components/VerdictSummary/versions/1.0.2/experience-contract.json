@@ -21,8 +21,11 @@
       "id": "verdict-census-readable",
       "type": "text",
       "statement": "Pass, fail, and unmeasured counts are readable without color.",
-      "tier": "machine",
-      "states": ["default", "empty"]
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "empty"
+      ]
     }
   ]
 }

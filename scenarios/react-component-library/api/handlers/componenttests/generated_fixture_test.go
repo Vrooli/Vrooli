@@ -6,6 +6,16 @@ import (
 	"testing"
 )
 
+func TestAccessibilityHasStyledControl(t *testing.T) {
+	raw := `{"root":{"children":[{"dom":{"attributes":{"data-rcl-control":"true"}},"computedStyle":{"background-color":"rgb(37, 99, 235)","border-color":"rgb(29, 78, 216)","border-style":"solid","border-width":"1px","color":"rgb(255, 255, 255)"}}]}}`
+	if !accessibilityHasStyledControl(raw) {
+		t.Fatal("styled control was not found in BAS accessibility evidence")
+	}
+	if accessibilityHasStyledControl(`{"root":{"children":[{"dom":{"attributes":{"data-rcl-control":"true"}},"computedStyle":{"background-color":"transparent","border-color":"transparent","border-style":"none","border-width":"0px","color":"transparent"}}]}}`) {
+		t.Fatal("unstyled control was accepted")
+	}
+}
+
 func TestRemoveRequiredSurfaceTokenPreservesOtherSurfaceFamilies(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "design-tokens.css")
 	content := ":root {\n  --color-surface: #fff;\n  --color-surface-muted: #f8fafc;\n}\n"

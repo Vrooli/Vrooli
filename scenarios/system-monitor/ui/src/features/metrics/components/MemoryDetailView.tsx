@@ -9,7 +9,7 @@ import type {
   MetricHistory,
   MetricValue
 } from '../../../types';
-import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
+import { DetailSection, MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 import { buildSingleSeriesData, combineFlowSeries, combineMemorySeries } from '../../../shared/utils/chartData';
 import { renderProcessTable } from './MetricRenderHelpers';
 
@@ -53,13 +53,14 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
 
   return (
     <MetricDetailLayout
+      layoutId="memory"
       title="MEMORY UTILIZATION"
       icon={<MemoryStick size={22} />}
       headline={memoryUsage === undefined ? 'Utilization not measured' : `${memoryUsage.toFixed(1)}% used`}
       subhead={subhead}
       onBack={onBack}
     >
-      <MetricLineChart
+      <DetailSection id="memory-history" title="Memory and swap history"><MetricLineChart
         status={metricHistory === null ? 'loading' : 'ready'}
         seriesLabel="memory"
         className="card"
@@ -71,9 +72,9 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
         unit="%"
         yDomain={[0, 100]}
         valueFormatter={value => `${value.toFixed(1)}%`}
-      />
+      /></DetailSection>
 
-      <MetricLineChart
+      <DetailSection id="swap-flow" title="Swap flow"><MetricLineChart
         status={metricHistory === null ? 'loading' : 'ready'}
         seriesLabel="swap level and traffic"
         className="card"
@@ -86,9 +87,9 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
         yDomain={[0, 100]}
         rightYAxisUnit="/sec"
         valueFormatter={value => `${value.toFixed(1)}%`}
-      />
+      /></DetailSection>
 
-      <MetricLineChart
+      <DetailSection id="major-faults" title="Major faults"><MetricLineChart
         status={metricHistory === null ? 'loading' : 'ready'}
         seriesLabel="major faults"
         className="card"
@@ -100,9 +101,9 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
         yDomain={[1, 'auto']}
         yAxisScale="log"
         valueFormatter={value => `${value.toFixed(1)}/sec`}
-      />
+      /></DetailSection>
 
-      <div className="detail-grid detail-grid-lg" data-sm-style="sm-style-f383142193">
+      <DetailSection id="swap-activity" title="Swap activity"><div className="detail-grid detail-grid-lg" data-sm-style="sm-style-f383142193">
         <div className="card flex-col-gap-sm">
           <h3 className="section-heading">Swap Activity</h3>
           {swapUsage ? (
@@ -124,10 +125,10 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
           </div>
         </div>
 
-      </div>
+      </div></DetailSection>
 
       {fragmentation?.maxFreeOrder?.state?.case === 'measured' ? (
-      <div className="card flex-col-gap-sm">
+      <DetailSection id="fragmentation" title="Memory fragmentation"><div className="card flex-col-gap-sm">
         <h3 className="section-heading">Memory Fragmentation</h3>
         {
           <>
@@ -146,12 +147,12 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
             {fragmentation.buddyinfo && <pre className="text-muted">{JSON.stringify(fragmentation.buddyinfo, null, 2)}</pre>}
           </>
         }
-      </div>
+      </div></DetailSection>
       ) : (
-        <div className="text-muted" role="status">{metricStateReason(fragmentation?.maxFreeOrder?.state) ?? 'Fragmentation is not yet measured.'}</div>
+        <DetailSection id="fragmentation" title="Memory fragmentation"><div className="text-muted" role="status">{metricStateReason(fragmentation?.maxFreeOrder?.state) ?? 'Fragmentation is not yet measured.'}</div></DetailSection>
       )}
 
-      <div className="card flex-col-gap-md">
+      <DetailSection id="memory-consumers" title="Top memory consumers"><div className="card flex-col-gap-md">
         <div>
           <h3 className="section-heading">Top Memory Consumers</h3>
           <div className="card-subtitle">
@@ -159,15 +160,15 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
           </div>
         </div>
         {renderProcessTable(topProcesses, 'Memory (MB)', process => process.memoryMb)}
-      </div>
+      </div></DetailSection>
 
-      <div className="card flex-col-gap-md">
+      <DetailSection id="paging-consumers" title="Top paging consumers"><div className="card flex-col-gap-md">
         <div>
           <h3 className="section-heading">Top Paging Consumers</h3>
           <div className="card-subtitle">Processes ranked by major faults per second</div>
         </div>
 				{renderProcessTable(topPagingProcesses, 'Major faults/sec', process => process.majorFaultsPerSecond)}
-      </div>
+      </div></DetailSection>
     </MetricDetailLayout>
   );
 };

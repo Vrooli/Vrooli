@@ -4,8 +4,18 @@
   "displayName": "EvidenceCarousel",
   "description": "A compact evidence reference strip for captures and diagnostics.",
   "assetKind": "component",
-  "tags": ["visualization", "token-bound"],
-  "latest": "1.0.7",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "tags": [
+    "visualization",
+    "token-bound"
+  ],
+  "latest": "1.0.9",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native"
+    }
+  ],
+  "dependencies": [],
+  "draft": "",
+  "deprecatedVersions": []
 }

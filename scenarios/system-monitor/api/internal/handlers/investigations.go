@@ -72,6 +72,19 @@ func (h *InvestigationHandler) GetScript(_ context.Context, req *connect.Request
 	}), nil
 }
 
+// UpdateScript handles the typed Connect-RPC script persistence contract.
+func (h *InvestigationHandler) UpdateScript(_ context.Context, req *connect.Request[scriptspb.UpdateScriptRequest]) (*connect.Response[scriptspb.GetScriptResponse], error) {
+	id := req.Msg.GetId()
+	if id == "" {
+		return nil, connectError(apierrors.Validation("id", "Script ID is required"))
+	}
+	meta, content, err := h.scriptSvc.UpdateScript(id, req.Msg.GetContent())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&scriptspb.GetScriptResponse{Script: convert.ScriptMetaToProto(meta), Content: content}), nil
+}
+
 // ExecuteScript handles the typed Connect-RPC script execution contract.
 func (h *InvestigationHandler) ExecuteScript(ctx context.Context, req *connect.Request[scriptspb.ExecuteScriptRequest]) (*connect.Response[scriptspb.ExecuteScriptResponse], error) {
 	id := req.Msg.GetId()
@@ -707,6 +720,22 @@ func (h *InvestigationHandler) HandleGetScript(w http.ResponseWriter, r *http.Re
 		Content: content,
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
+}
+
+// HandleUpdateScript handles PUT /api/v1/investigations/scripts/{id}.
+func (h *InvestigationHandler) HandleUpdateScript(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var pbReq scriptspb.UpdateScriptRequest
+	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
+		httputil.HandleError(w, h.log, r, apierrors.Validation("content", "Invalid script update payload"))
+		return
+	}
+	meta, content, err := h.scriptSvc.UpdateScript(id, pbReq.GetContent())
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	httputil.SafeProtoJSON(w, h.log, r, &scriptspb.GetScriptResponse{Script: convert.ScriptMetaToProto(meta), Content: content})
 }
 
 // HandleExecuteScript handles POST /api/v1/investigations/scripts/{id}/execute.

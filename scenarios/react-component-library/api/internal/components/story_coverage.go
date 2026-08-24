@@ -37,7 +37,7 @@ func releaseStoryCoverage(root string, c Component, version string) error {
 		return err
 	}
 	contract, diagnostics := ParseStoryContract(raw)
-	if len(diagnostics) > 0 || contract == nil {
+	if len(StoryContractErrors(diagnostics)) > 0 || contract == nil {
 		return nil
 	}
 	if gaps := StoryCoverageGaps(contract); len(gaps) > 0 {

@@ -34,6 +34,18 @@
       }
     },
     {
+      "id": "wait-harness-lifecycle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"component-harness\"][data-experience-state=\"loading\"], [data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"], [data-experience-surface=\"component-harness\"][data-experience-state=\"error\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Component harness exposes a loading or terminal lifecycle state" }
+      }
+    },
+    {
       "id": "wait-nav",
       "action": {
         "type": "ACTION_TYPE_WAIT",
@@ -104,7 +116,8 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-bottomnav-harness", "target": "wait-nav", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e1", "source": "navigate-bottomnav-harness", "target": "wait-harness-lifecycle", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e1b", "source": "wait-harness-lifecycle", "target": "wait-nav", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "e2", "source": "wait-nav", "target": "assert-harness-region", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "e2b", "source": "assert-harness-region", "target": "focus-first-item", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "e3", "source": "focus-first-item", "target": "press-tab", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },

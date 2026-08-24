@@ -16,7 +16,7 @@
     },
     {
       "id": "passing",
-      "example": "passing",
+      "example": "default",
       "description": "A satisfied requirement is explicit."
     }
   ],

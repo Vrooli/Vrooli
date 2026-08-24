@@ -2,10 +2,10 @@
 
 ## Work ladder
 
-- Rung: W3 implementation — UI hardening and governed re-measurement in progress
-- Evidence: UI unit coverage is green at 55 files / 293 tests; type-check and production build pass. The shell now has an installable manifest, branded icons, service-worker registration, shared focus styling, explicit stale-data recovery, responsive navigation, and 44px icon targets. Static `ui-health` confirms the manifest and PWA/native contracts are clean; runtime validation remains unavailable in static-only mode.
-- Blocker: the last governed run is not green (19/22 phases); unit coverage and the logs tap-target experience check still need a fresh full run. Linux arm64 hardware evidence is unavailable, so its support tier remains build-verified until a real Raspberry Pi 4 run is recorded.
-- Measured: 2026-08-21
+- Rung: W3 implementation — selected System Monitor redesign slices implemented; governed re-measurement remains partially red
+- Evidence: focused UI validation passes (Header, Scripts, metric detail variants: 9 tests) and TypeScript type-check passes. BAS desktop/mobile captures confirm the responsive shell, including a stable mobile Menu trigger after the header was restructured into an explicit brand row and control row. The final server-owned run `20260824-143930-f36c6335` passed 20/22 phases; only `docs` and `unit` remain failed. The run also recorded a host-level degraded Ollama dependency (declared CUDA, observed CPU) while System Monitor itself started healthy in best-effort mode.
+- Blocker: no missing authority. Remaining red phases are inherited contract/documentation and unit-health debt; broad catalog cleanup and Plan Manager baseline-comparator repair are intentionally deferred under the current user-visible-outcome reprioritization. Linux arm64 hardware evidence remains unavailable.
+- Measured: 2026-08-24
 
 ## Last Updated
 2026-08-21 (UI hardening pass)

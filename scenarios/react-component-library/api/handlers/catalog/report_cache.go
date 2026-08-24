@@ -125,7 +125,7 @@ func (c *reportCache) get(ctx context.Context, repoRoot string, compute func(con
 		// requests share it rather than each spawning their own toolchain.
 		if !c.refreshing {
 			c.refreshing = true
-			go c.refresh(repoRoot, compute)
+			go c.refresh(ctx, repoRoot, compute)
 		}
 		c.mu.Unlock()
 		return cached, nil
@@ -142,7 +142,7 @@ func (c *reportCache) get(ctx context.Context, repoRoot string, compute func(con
 	return report, nil
 }
 
-func (c *reportCache) refresh(repoRoot string, compute func(context.Context) (*catalogcoverage.Report, error)) {
+func (c *reportCache) refresh(requestCtx context.Context, repoRoot string, compute func(context.Context) (*catalogcoverage.Report, error)) {
 	defer func() {
 		c.mu.Lock()
 		c.refreshing = false
@@ -150,7 +150,7 @@ func (c *reportCache) refresh(repoRoot string, compute func(context.Context) (*c
 	}()
 	// Detached from the request context on purpose: the refresh must survive
 	// the response that triggered it, or a stale entry never converges.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(requestCtx), 5*time.Minute)
 	defer cancel()
 	report, err := compute(ctx)
 	if err != nil {

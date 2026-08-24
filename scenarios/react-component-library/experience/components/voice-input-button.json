@@ -1,36 +1,42 @@
 {
-  "schemaVersion": 1,
-  "componentId": "react-component-library:VoiceInputButton",
-  "version": "4.1.0",
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "voice-input-button",
+    "title": "VoiceInputButton",
+    "purpose": "Provide a stable, accessible voice capture control across idle, recording, transcription, and recovery states.",
+    "storyRef": "../../library/components/VoiceInputButton/versions/4.1.0/story.json"
+  },
   "states": [
-    "idle",
-    "preparing",
-    "recording",
-    "recovering",
-    "transcribing",
-    "unavailable",
-    "error"
+    { "id": "idle", "example": "idle", "description": "The control is ready to begin capture." },
+    { "id": "recording", "example": "recording", "description": "The control communicates active recording." },
+    { "id": "transcribing", "example": "transcribing", "description": "The captured input is being converted to text." },
+    { "id": "error", "example": "error", "description": "Recovery is available when capture or transcription fails." }
   ],
-  "behaviors": [
+  "elements": [
+    { "id": "control", "role": "button", "description": "The voice capture action." }
+  ],
+  "claims": [
     {
-      "id": "fixed-footprint",
-      "description": "Every lifecycle state uses the same IconButton geometry so surrounding composer layouts do not jump."
+      "id": "control-present",
+      "type": "element-present",
+      "statement": "Each voice lifecycle state exposes a named capture control.",
+      "tier": "machine",
+      "elements": ["control"],
+      "states": ["idle", "recording", "transcribing", "error"]
     },
     {
-      "id": "input-feedback",
-      "description": "Recording level fills the control and timeout mode adds a progress ring without replacing the microphone action."
-    },
-    {
-      "id": "press-intent",
-      "description": "Pointer press, release, cancel, click, and long-press preserve the existing start/stop/passive-exit intent contract."
+      "id": "recovery-actionable",
+      "type": "manual-review",
+      "statement": "The error state explains recovery without relying on color alone.",
+      "tier": "manual",
+      "states": ["error"]
     }
   ],
-  "accessibility": [
-    "named button",
-    "pressed state",
-    "state-specific labels",
-    "reduced motion",
-    "forced colors",
-    "non-color recording feedback"
-  ]
+  "bindings": {
+    "elements": {
+      "control": { "selector": "button" }
+    }
+  }
 }

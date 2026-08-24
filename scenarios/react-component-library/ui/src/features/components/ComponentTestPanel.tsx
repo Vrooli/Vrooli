@@ -29,11 +29,11 @@ import { OverlayCanvas } from "../../../../library/components/OverlayCanvas/vers
 import {
   EvidenceCarousel,
   type EvidenceItem,
-} from "../../../../library/components/EvidenceCarousel/versions/1.0.7/EvidenceCarousel";
+} from "../../../../library/components/EvidenceCarousel/versions/1.0.9/EvidenceCarousel";
 
 type VerdictTone = "success" | "danger" | "warning" | "neutral";
 
-function tone(verdict: string): VerdictTone {
+export function tone(verdict: string): VerdictTone {
   return verdict === "passed"
     ? "success"
     : verdict === "failed"
@@ -43,7 +43,7 @@ function tone(verdict: string): VerdictTone {
         : "neutral";
 }
 
-function verdictLabel(verdict: string) {
+export function verdictLabel(verdict: string) {
   return verdict === "passed"
     ? "Passed"
     : verdict === "failed"
@@ -121,7 +121,7 @@ type CaptureItem = EvidenceItem & {
   artifact?: ComponentTestArtifact;
 };
 
-function browserVisibleArtifactUrl(reference: string): string {
+export function browserVisibleArtifactUrl(reference: string): string {
   const rclBase = API_BASE.replace(/\/$/, "");
   if (reference.startsWith("/embedded/")) return `${rclBase}${reference}`;
 
@@ -144,7 +144,49 @@ function browserVisibleArtifactUrl(reference: string): string {
 
 const MAX_EVIDENCE_BYTES = 8_000_000;
 
-function summarizePerformance(value: unknown): {
+export async function readBoundedEvidenceText(
+  response: Response,
+  label: string,
+  maxBytes = MAX_EVIDENCE_BYTES,
+): Promise<string> {
+  const contentLength = Number(response.headers.get("content-length") ?? 0);
+  const tooLarge = () =>
+    new Error(`${label} is too large to render safely (over ${Math.round(maxBytes / 1024)} KB).`);
+  if (contentLength > maxBytes) throw tooLarge();
+
+  // Do not fall back to response.text() when a proxy omits Content-Length.
+  // Large Chrome traces can otherwise be fully materialized before the UI
+  // notices that rendering them would freeze the evidence workspace.
+  if (!response.body) {
+    const text = await response.text();
+    if (new TextEncoder().encode(text).byteLength > maxBytes) throw tooLarge();
+    return text;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        text += decoder.decode();
+        return text;
+      }
+      bytes += value.byteLength;
+      if (bytes > maxBytes) {
+        await reader.cancel();
+        throw tooLarge();
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+export function summarizePerformance(value: unknown): {
   summary: Record<string, unknown>;
   truncated: boolean;
 } {
@@ -265,19 +307,7 @@ function StructuredArtifact({ reference, label }: { reference: string; label: st
     })
       .then(async (response) => {
         if (!response.ok) throw new Error(`Evidence request returned ${response.status}.`);
-        const contentLength = Number(response.headers.get("content-length") ?? 0);
-        if (contentLength > MAX_EVIDENCE_BYTES) {
-          throw new Error(
-            `${label} is too large to render safely (${Math.round(contentLength / 1024)} KB).`,
-          );
-        }
-        const text = await response.text();
-        if (text.length > MAX_EVIDENCE_BYTES) {
-          throw new Error(
-            `${label} is too large to render safely (${Math.round(text.length / 1024)} KB).`,
-          );
-        }
-        return text;
+        return readBoundedEvidenceText(response, label);
       })
       .then((text) => {
         let formatted = text;
@@ -330,6 +360,58 @@ function StructuredArtifact({ reference, label }: { reference: string; label: st
           {state.text}
         </pre>
       )}
+    </div>
+  );
+}
+
+function ScreenshotArtifact({
+  reference,
+  showOverlay,
+  overlaySubjects,
+  overlayMessage,
+}: {
+  reference: string;
+  showOverlay: boolean;
+  overlaySubjects: Array<{
+    id: string;
+    label: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>;
+  overlayMessage: string;
+}) {
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  return (
+    <div className="relative flex min-h-[18rem] items-center justify-center overflow-auto bg-app-surface-muted p-space-sm">
+      {status === "loading" ? (
+        <div role="status" className="absolute inset-0 flex items-center justify-center text-xs text-app-muted-foreground">
+          Loading captured screenshot…
+        </div>
+      ) : null}
+      {status === "error" ? (
+        <div role="alert" className="max-w-md text-center">
+          <p className="text-sm font-medium">Screenshot could not be displayed</p>
+          <p className="mt-space-3xs text-xs text-app-muted-foreground">
+            The capture exists, but its embedded artifact route did not return an image. Rerun the
+            component test to publish a fresh capture.
+          </p>
+        </div>
+      ) : null}
+      <img
+        src={reference}
+        alt="Captured component screenshot"
+        className={`max-h-[42rem] max-w-full object-contain ${status === "ready" ? "opacity-100" : "opacity-0"}`}
+        onLoad={() => setStatus("ready")}
+        onError={() => setStatus("error")}
+      />
+      {status === "ready" && showOverlay && overlaySubjects.length ? (
+        <div className="pointer-events-none absolute inset-space-sm">
+          <OverlayCanvas subjects={overlaySubjects} message={overlayMessage} />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -418,18 +500,12 @@ function EvidenceWorkspace({
           const reference = browserVisibleArtifactUrl(capture.artifact.reference);
           if (item.id === "screenshot") {
             return (
-              <div className="relative flex min-h-[18rem] items-center justify-center overflow-auto p-space-sm">
-                <img
-                  src={reference}
-                  alt="Captured component screenshot"
-                  className="max-h-[42rem] max-w-full object-contain"
-                />
-                {showOverlay && overlaySubjects.length ? (
-                  <div className="pointer-events-none absolute inset-space-sm">
-                    <OverlayCanvas subjects={overlaySubjects} message={overlayMessage} />
-                  </div>
-                ) : null}
-              </div>
+              <ScreenshotArtifact
+                reference={reference}
+                showOverlay={showOverlay}
+                overlaySubjects={overlaySubjects}
+                overlayMessage={overlayMessage}
+              />
             );
           }
           return (

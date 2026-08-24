@@ -3,7 +3,7 @@
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {
-    "id": "data-display.data-table",
+    "id": "data-display-data-table",
     "title": "DataTable",
     "purpose": "Present dense data as a calm, selectable, keyboard-operable surface whose async states and mobile transformation preserve context.",
     "storyRef": "../../library/components/DataTable/versions/1.3.0/story.json"
@@ -95,5 +95,13 @@
       "tier": "manual",
       "states": ["default", "partial"]
     }
-  ]
+  ],
+  "bindings": {
+    "elements": {
+      "query": { "selector": "[role='searchbox']" },
+      "table": { "selector": "[role='table']" },
+      "selection": { "selector": "[role='checkbox']" },
+      "retry": { "selector": "button" }
+    }
+  }
 }

@@ -31,9 +31,23 @@ func (s *service) reconcileFiles(ctx context.Context, files []ProvenanceFile, ap
 	if err != nil {
 		return result, err
 	}
+	// Foundations are excluded from the ordinary component listing because
+	// they are not direct visual catalog entries, but adopted copies can still
+	// carry their provenance. Include the explicit foundation projection so
+	// closure reconciliation does not misclassify valid token/icon assets as
+	// missing.
+	foundations, err := s.library.List(ctx, components.SearchQuery{AssetKind: components.AssetKindFoundation, Limit: 1000})
+	if err != nil {
+		return result, err
+	}
+	componentsList = append(componentsList, foundations...)
 	byLibraryID := make(map[string]components.Component, len(componentsList))
+	byCatalogID := make(map[string]components.Component, len(componentsList))
 	for _, component := range componentsList {
 		byLibraryID[component.LibraryID] = component
+		if strings.TrimSpace(component.CatalogID) != "" {
+			byCatalogID[component.CatalogID] = component
+		}
 	}
 	existing, err := s.repo.List(ctx, ListQuery{Limit: 100000})
 	if err != nil {
@@ -68,6 +82,12 @@ func (s *service) reconcileFiles(ctx context.Context, files []ProvenanceFile, ap
 	for _, key := range keys {
 		group := groups[key]
 		component, ok := byLibraryID[group[0].LibraryID]
+		if !ok {
+			// Older adopted copies used the catalog asset id in
+			// @vrooliComponentSource. Treat that value as a compatibility
+			// alias, but persist the canonical library id in the new record.
+			component, ok = byCatalogID[group[0].LibraryID]
+		}
 		if !ok {
 			result.Findings = append(result.Findings, reconcileFinding(group[0], "library component is not indexed"))
 			continue

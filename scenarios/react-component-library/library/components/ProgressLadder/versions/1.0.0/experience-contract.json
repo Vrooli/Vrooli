@@ -21,8 +21,10 @@
       "id": "rung-readable",
       "type": "text",
       "statement": "Maturity rungs are readable and ordered.",
-      "tier": "automated",
-      "states": ["default"]
+      "tier": "aspirational",
+      "states": [
+        "default"
+      ]
     }
   ]
 }

@@ -1184,12 +1184,12 @@ export function ComponentEditorImpl({
                             )}
                             {framePickerEnabled && (
                               <div className="flex min-w-0 items-center gap-space-3xs">
-                                <label className="flex h-control-tight items-center gap-space-3xs rounded-control border border-app-border/80 bg-app-surface px-space-2xs text-xs text-app-muted-foreground">
+                                <label className="flex h-control items-center gap-space-3xs rounded-control border border-app-border/80 bg-app-surface px-space-2xs text-xs text-app-muted-foreground">
                                   <span className="sr-only">Preview frame</span>
                                   <select
                                     aria-label="Preview frame"
                                     data-testid="components-editor-frame-picker"
-                                    className="max-w-[12rem] bg-transparent text-app-foreground outline-none"
+                                    className="h-full min-h-touch max-w-[12rem] bg-transparent text-app-foreground outline-none"
                                     value={frameOverride ? frameOverride.asset : ""}
                                     disabled={
                                       frameCandidatesQuery.isPending || frameCandidatesQuery.isError

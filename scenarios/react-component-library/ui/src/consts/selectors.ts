@@ -605,13 +605,49 @@ const literalSelectors = {
 // validation in `normalizeParams` provides the same guarantee at call time.
 const dynamicSelectorDefinitions = {
   components: {
+    harness: {
+      ready: defineDynamicSelector({
+        description: "Component story harness in its ready state",
+        selectorPattern: '[data-experience-surface="component-harness"][data-experience-state="ready"]',
+      }),
+      surface: defineDynamicSelector({
+        description: "Component story harness experience surface",
+        selectorPattern: '[data-experience-surface="component-harness"]',
+      }),
+      lifecycle: defineDynamicSelector({
+        description: "Component story harness loading or terminal lifecycle surface",
+        selectorPattern:
+          '[data-experience-surface="component-harness"][data-experience-state="loading"], [data-experience-surface="component-harness"][data-experience-state="ready"], [data-experience-surface="component-harness"][data-experience-state="error"]',
+      }),
+    },
     editor: {
       storyCard: defineDynamicSelector({
         description: "Rendered component story card by canonical story id",
         selectorPattern: '[data-testid="components-editor-example-card"][data-story="${story}"]',
         params: { story: { type: "string" } },
       }),
+      previewSurface: defineDynamicSelector({
+        description: "Component editor preview experience surface",
+        selectorPattern: '[data-experience-surface="component-preview"]',
+      }),
+      previewTerminal: defineDynamicSelector({
+        description: "Component editor preview terminal experience surface",
+        selectorPattern:
+          '[data-experience-surface="component-preview"][data-experience-state="ready"], [data-experience-surface="component-preview"][data-experience-state="partial"]',
+      }),
     },
+  },
+  catalog: {
+    resultsLifecycle: defineDynamicSelector({
+      description: "Catalog results loading or terminal experience surface",
+      selectorPattern:
+        '[data-experience-surface="catalog-results"][data-experience-state="loading"], [data-experience-surface="catalog-results"][data-experience-state="ready"], [data-experience-surface="catalog-results"][data-experience-state="empty"], [data-experience-surface="catalog-results"][data-experience-state="error"]',
+    }),
+    resultsTerminal: defineDynamicSelector({
+      description: "Catalog results terminal experience surface",
+      selectorPattern:
+        '[data-experience-surface="catalog-results"][data-experience-state="ready"], [data-experience-surface="catalog-results"][data-experience-state="empty"], [data-experience-surface="catalog-results"][data-experience-state="error"]',
+    }),
   },
   preview: {
     select: defineDynamicSelector({

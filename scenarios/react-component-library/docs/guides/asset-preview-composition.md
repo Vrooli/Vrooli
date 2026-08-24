@@ -138,6 +138,26 @@ the bounded event logger. The harness may provide presentation and state
 adapters, but it may not import a subject, perform network or storage I/O, or
 move expectations and interactions out of `story.json`.
 
+## Deterministic fixture policy
+
+Fixture families are versioned catalog assets. They own data shape, not a
+component's story identity. Preview resolves them from a bounded in-process
+registry with a fixed seed (`rcl-fixture-v1`), fixed clock, stable IDs, and
+stable ordering. It never calls a production API or reads browser storage.
+
+Every reusable family must expose, where its domain supports them, `typical`,
+`empty`, `overflow`, `failure`, and `recovery` states. Collection fixtures
+contain enough records to show hierarchy and density; they also include at
+least one long label, missing optional value, or conflicting status when that
+is a credible production case. A reviewer must reject a fixture that contains
+only short happy-path values or claims a failure state without a consumer
+story that renders the failure.
+
+Keep a fixture local to `story.tsx` when its shape is unique to one subject.
+Promote it to `catalog/assets/fixtures` only after two subjects or consumers
+need the same domain and the family has a typed state contract. Capture
+metadata records the exact fixture asset, version, state, seed, and clock.
+
 For example, `controlled-state` requires explicit prop names when it owns the
 controlled loop. It injects `valueProp`, `changeProp`, and `initialValue`, then
 logs each controlled change. If those names are not declared, the family stays
@@ -217,17 +237,18 @@ frame, harness, fixture, theme, kit, viewport, and state. Workspace screenshots
 may be retained as debugging evidence, but their disposition must be
 `not-acceptance-evidence`.
 
-For efficient review, the capture runner supports a bounded story sheet. Set
-`RCL_PREVIEW_STORY_IDS=all` or provide a comma-separated story list, then set
-`RCL_PREVIEW_STORY_SHEET=1`. Stories are grouped in sheets of at most four;
-`RCL_PREVIEW_SHEET_SIZE` may request a smaller value but never a larger one.
-Each tile is still rendered and validated in its own isolated harness before it
-is placed on the labeled sheet. The manifest records the complete `stories`
-array and `sheetSize`, so a contact sheet does not hide which stories were
-reviewed. The rendered sheet header includes the component version, kit, theme,
-and viewport; each tile includes the story ID, state, and source artifact; and
-the footer points back to `capture-manifest.json`. Individual captures remain
-the authoritative evidence and the sheet is only a review accelerator.
+For efficient review, the generic isolated route supports a bounded story
+sheet. Provide `stories=<id>,<id>,...` on the same version-pinned
+`/preview/{library-id}/harness.html` URL; the route accepts at most four unique
+story IDs, renders each in a labeled iframe, and exposes exactly one outer
+`data-preview-sheet` boundary. The outer harness reaches `ready` only after all
+child stories report a passed result. BAS captures this URL through the same
+CaptureService workflow used for individual stories. Each tile is still
+rendered and validated in its own isolated harness before it is placed on the
+labeled sheet. The capture manifest records the complete story group and
+sheet artifact, so a contact sheet does not hide which stories were reviewed.
+Individual captures remain the authoritative evidence and the sheet is only a
+review accelerator.
 
 In the live Components Preview canvas, use the per-story comparison controls or
 the bounded Story sheet control to select a group of stories. The canvas switches from a

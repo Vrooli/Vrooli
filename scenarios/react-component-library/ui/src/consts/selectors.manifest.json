@@ -440,6 +440,18 @@
       "testId": "components-editor-preview-events-empty",
       "selector": "[data-testid=\"components-editor-preview-events-empty\"]"
     },
+    "components.editor.previewDiagnostics": {
+      "testId": "components-editor-preview-diagnostics",
+      "selector": "[data-testid=\"components-editor-preview-diagnostics\"]"
+    },
+    "components.editor.previewDiagnosticsCopy": {
+      "testId": "components-editor-preview-diagnostics-copy",
+      "selector": "[data-testid=\"components-editor-preview-diagnostics-copy\"]"
+    },
+    "components.editor.previewDiagnosticsCopied": {
+      "testId": "components-editor-preview-diagnostics-copied",
+      "selector": "[data-testid=\"components-editor-preview-diagnostics-copied\"]"
+    },
     "components.editor.previewToolsToggle": {
       "testId": "components-editor-preview-tools-toggle",
       "selector": "[data-testid=\"components-editor-preview-tools-toggle\"]"
@@ -1010,6 +1022,21 @@
     }
   },
   "dynamicSelectors": {
+    "components.harness.ready": {
+      "description": "Component story harness in its ready state",
+      "selectorPattern": "[data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"]",
+      "params": []
+    },
+    "components.harness.surface": {
+      "description": "Component story harness experience surface",
+      "selectorPattern": "[data-experience-surface=\"component-harness\"]",
+      "params": []
+    },
+    "components.harness.lifecycle": {
+      "description": "Component story harness loading or terminal lifecycle surface",
+      "selectorPattern": "[data-experience-surface=\"component-harness\"][data-experience-state=\"loading\"], [data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"], [data-experience-surface=\"component-harness\"][data-experience-state=\"error\"]",
+      "params": []
+    },
     "components.editor.storyCard": {
       "description": "Rendered component story card by canonical story id",
       "selectorPattern": "[data-testid=\"components-editor-example-card\"][data-story=\"${story}\"]",
@@ -1019,6 +1046,26 @@
           "type": "string"
         }
       ]
+    },
+    "components.editor.previewSurface": {
+      "description": "Component editor preview experience surface",
+      "selectorPattern": "[data-experience-surface=\"component-preview\"]",
+      "params": []
+    },
+    "components.editor.previewTerminal": {
+      "description": "Component editor preview terminal experience surface",
+      "selectorPattern": "[data-experience-surface=\"component-preview\"][data-experience-state=\"ready\"], [data-experience-surface=\"component-preview\"][data-experience-state=\"partial\"]",
+      "params": []
+    },
+    "catalog.resultsLifecycle": {
+      "description": "Catalog results loading or terminal experience surface",
+      "selectorPattern": "[data-experience-surface=\"catalog-results\"][data-experience-state=\"loading\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"ready\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"empty\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"error\"]",
+      "params": []
+    },
+    "catalog.resultsTerminal": {
+      "description": "Catalog results terminal experience surface",
+      "selectorPattern": "[data-experience-surface=\"catalog-results\"][data-experience-state=\"ready\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"empty\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"error\"]",
+      "params": []
     },
     "preview.select": {
       "description": "Preview harness native select control",
@@ -1053,7 +1100,11 @@
         {
           "name": "code",
           "type": "enum",
-          "values": ["en", "ja", "ar"]
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
         }
       ]
     }

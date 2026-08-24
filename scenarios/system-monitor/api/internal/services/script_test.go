@@ -49,6 +49,42 @@ func TestExecuteScript_Success(t *testing.T) {
 	}
 }
 
+func TestUpdateScriptPersistsContent(t *testing.T) {
+	dir := t.TempDir()
+	testutil.WriteExecutableFile(t, dir, "test-script.sh", "#!/bin/bash\n# NAME: Test script\necho old")
+	svc := NewScriptService(dir)
+	updated := "#!/bin/bash\n# NAME: Test script\necho updated"
+
+	meta, content, err := svc.UpdateScript("test-script", updated)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if meta.ID != "test-script" {
+		t.Fatalf("updated metadata ID = %q, want test-script", meta.ID)
+	}
+	if content != updated {
+		t.Fatalf("returned content = %q, want %q", content, updated)
+	}
+
+	onDisk, err := os.ReadFile(filepath.Join(dir, "test-script.sh"))
+	if err != nil {
+		t.Fatalf("reading updated script: %v", err)
+	}
+	if string(onDisk) != updated {
+		t.Fatalf("on-disk content = %q, want %q", string(onDisk), updated)
+	}
+}
+
+func TestUpdateScriptRejectsBlankContent(t *testing.T) {
+	dir := t.TempDir()
+	testutil.WriteExecutableFile(t, dir, "test-script.sh", "#!/bin/bash\necho old")
+	svc := NewScriptService(dir)
+
+	if _, _, err := svc.UpdateScript("test-script", " \n\t"); err == nil {
+		t.Fatal("expected blank content to be rejected")
+	}
+}
+
 func TestExecuteScript_Failure(t *testing.T) {
 	dir := t.TempDir()
 	testutil.WriteExecutableFile(t, dir, "test-script.sh", "#!/bin/bash\nexit 1")

@@ -3,7 +3,7 @@
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {
-    "id": "data-display.tree-view",
+    "id": "data-display-tree-view",
     "title": "TreeView",
     "purpose": "A navigable hierarchical surface for files and structured resources.",
     "storyRef": "../../library/components/TreeView/versions/1.0.0/story.json"

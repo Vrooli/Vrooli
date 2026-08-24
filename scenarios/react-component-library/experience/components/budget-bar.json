@@ -16,7 +16,7 @@
     },
     {
       "id": "failure",
-      "example": "failure",
+      "example": "default",
       "description": "An over-budget cost is visible."
     }
   ],

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MemoryDetailView } from './MemoryDetailView';
 
 vi.mock('./MetricDetailViews', () => ({
+  DetailSection: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   MetricDetailLayout: ({ children, onBack, headline }: { children: React.ReactNode; onBack: () => void; headline?: string }) => <div><button onClick={onBack}>back</button><div>{headline}</div>{children}</div>,
   MetricLineChart: ({ data, seriesLabel }: { data?: unknown[]; seriesLabel?: string }) => <div data-testid="chart" data-series-label={seriesLabel}>{JSON.stringify(data ?? [])}</div>,
 }));

@@ -9,7 +9,7 @@ import type {
   MetricHistory,
   ConnectionPool,
 } from '../../../types';
-import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
+import { DetailSection, MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 import { formatProtoTimestamp } from '../../../shared/utils/formatters';
 import { buildSingleSeriesData } from '../../../shared/utils/chartData';
 
@@ -33,13 +33,14 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
 
   return (
     <MetricDetailLayout
+      layoutId="network"
       title="NETWORK ACTIVITY"
       icon={<Network size={22} />}
       headline={totalConnections === undefined ? 'Connections not measured' : `${totalConnections.toLocaleString()} active connections`}
       subhead={subhead}
       onBack={onBack}
     >
-      <MetricLineChart
+      <DetailSection id="connection-history" title="Connection history"><MetricLineChart
         status={metricHistory === null ? 'loading' : 'ready'}
         seriesLabel="connection"
         className="card"
@@ -48,9 +49,9 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
         unit=""
         yDomain={['auto', 'auto']}
         valueFormatter={value => `${Math.round(value).toLocaleString()} connections`}
-      />
+      /></DetailSection>
 
-      <div className="metric-grid-auto-lg">
+      <DetailSection id="network-state" title="Network state"><div className="metric-grid-auto-lg">
         <div className="card flex-col-gap-sm">
           <h3 className="section-heading">TCP States</h3>
           {networkDetails?.tcpStates ? (
@@ -83,10 +84,10 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
             </div>
           )}
         </div>
-      </div>
+      </div></DetailSection>
 
       {networkDetails?.connectionPools && networkDetails.connectionPools.length > 0 && (
-        <div className="card flex-col-gap-md">
+        <DetailSection id="connection-pools" title="Connection pools"><div className="card flex-col-gap-md">
           <div>
             <h3 className="section-heading">Connection Pools</h3>
             <div className="card-subtitle">
@@ -112,7 +113,7 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
               </div>
             ))}
           </div>
-        </div>
+        </div></DetailSection>
       )}
     </MetricDetailLayout>
   );

@@ -1,0 +1,32 @@
+{
+  "claims": [
+    {
+      "id": "evidence-status-readable",
+      "statement": "Evidence status is communicated by text as well as tone.",
+      "states": [
+        "default",
+        "empty"
+      ],
+      "tier": "aspirational",
+      "type": "text"
+    }
+  ],
+  "component": {
+    "id": "visualization.evidence-carousel",
+    "purpose": "EvidenceCarousel keeps references to machine evidence visible and selectable.",
+    "title": "EvidenceCarousel"
+  },
+  "kind": "experience-component",
+  "states": [
+    {
+      "description": "Available and missing evidence differ by text.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "No capture is explicit.",
+      "example": "empty",
+      "id": "empty"
+    }
+  ]
+}

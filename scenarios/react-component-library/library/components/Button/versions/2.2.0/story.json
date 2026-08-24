@@ -89,7 +89,24 @@
       "args": { "children": { "$text": "Review and apply all pending workspace configuration changes" }, "aria-label": "Review and apply all pending workspace configuration changes" },
       "expect": [
         { "kind": "role", "role": "button", "name": "Review and apply all pending workspace configuration changes" },
+        { "kind": "count", "selector": "button", "value": "1" },
+        { "kind": "layout", "selector": "[data-rcl-control]", "noOverflow": true }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "error-retry",
+      "name": "Recoverable save failure",
+      "harness": "ErrorRecoveryStory",
+      "args": { "children": { "$text": "Try again" }, "aria-label": "Try again", "variant": "primary" },
+      "expect": [
+        { "kind": "role", "role": "status" },
+        { "kind": "role", "role": "button", "name": "Saved" },
         { "kind": "count", "selector": "button", "value": "1" }
+      ],
+      "interactions": [
+        { "kind": "click", "target": { "role": "button", "name": "Try again" } },
+        { "kind": "settle" }
       ],
       "mode": "live"
     }

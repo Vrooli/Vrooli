@@ -123,6 +123,22 @@ func (s *ScriptService) GetScript(id string) (ScriptMeta, string, error) {
 	return meta, string(content), nil
 }
 
+// UpdateScript persists the complete source for an existing script and returns
+// the parsed metadata and source that will be served to subsequent readers.
+func (s *ScriptService) UpdateScript(id string, content string) (ScriptMeta, string, error) {
+	path, err := s.resolveScriptPath(id)
+	if err != nil {
+		return ScriptMeta{}, "", err
+	}
+	if strings.TrimSpace(content) == "" {
+		return ScriptMeta{}, "", apierrors.Validation("content", "Script content is required")
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return ScriptMeta{}, "", apierrors.Internal("Script content could not be saved", err)
+	}
+	return s.GetScript(id)
+}
+
 // ExecuteScript runs a script with a timeout, capturing stdout/stderr/exit code.
 // If contentOverride is non-empty, it is written to a temp file and executed instead.
 func (s *ScriptService) ExecuteScript(ctx context.Context, id string, contentOverride string) (ScriptExecution, error) {

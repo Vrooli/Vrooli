@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Dialog",
+  "args": {
+    "fields": [
+      {
+        "path": "open",
+        "label": "Open",
+        "kind": "boolean",
+        "default": true
+      },
+      {
+        "path": "title",
+        "label": "Title",
+        "kind": "text",
+        "default": "Archive component"
+      },
+      {
+        "path": "description",
+        "label": "Description",
+        "kind": "text",
+        "default": "This keeps prior versions available for audit."
+      },
+      {
+        "path": "children",
+        "label": "Children",
+        "kind": "structured",
+        "default": {
+          "$text": "Archive Button v1.0.0?"
+        }
+      },
+      {
+        "path": "footer",
+        "label": "Footer",
+        "kind": "structured",
+        "default": {
+          "$node": "button",
+          "props": {
+            "type": "button",
+            "className": "rounded-control bg-app-primary px-3 py-2 text-app-primary-foreground"
+          },
+          "children": [
+            {
+              "$text": "Archive"
+            }
+          ]
+        }
+      },
+      {
+        "path": "onClose",
+        "label": "On Close",
+        "kind": "structured",
+        "default": {
+          "$handler": "close"
+        }
+      },
+      {
+        "path": "closeLabel",
+        "label": "Close Label",
+        "kind": "text",
+        "default": "Close dialog"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "confirm-open",
+      "name": "Confirm Open",
+      "args": {
+        "open": false,
+        "title": "Archive component",
+        "description": "This keeps prior versions available for audit.",
+        "children": {
+          "$text": "Archive Button v1.0.0?"
+        },
+        "footer": {
+          "$node": "button",
+          "props": {
+            "type": "button",
+            "className": "rounded-control bg-app-primary px-3 py-2 text-app-primary-foreground"
+          },
+          "children": [
+            {
+              "$text": "Archive"
+            }
+          ]
+        },
+        "onClose": {
+          "$handler": "close"
+        },
+        "closeLabel": "Close dialog"
+      },
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Open dialog"
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Archive component"
+        },
+        {
+          "kind": "text",
+          "value": "Archive Button v1.0.0?"
+        }
+      ],
+      "mode": "live",
+      "harness": "Interactive"
+    },
+    {
+      "id": "details-open",
+      "name": "Details open baseline",
+      "args": {
+        "open": true,
+        "title": "Component details",
+        "children": {
+          "$text": "Used by 14 scenarios"
+        },
+        "onClose": {
+          "$handler": "close"
+        },
+        "closeLabel": "Close details"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Used by 14 scenarios"
+        },
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Component details"
+        }
+      ],
+      "interactions": [],
+      "mode": "live",
+      "harness": "Interactive"
+    },
+    {
+      "id": "minimal-open",
+      "name": "Minimal open dialog",
+      "args": {
+        "open": true,
+        "title": "Minimal dialog",
+        "children": {
+          "$text": "Short confirmation copy"
+        },
+        "onClose": {
+          "$handler": "close"
+        },
+        "closeLabel": "Close"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Minimal dialog"
+        },
+        {
+          "kind": "text",
+          "value": "Short confirmation copy"
+        }
+      ],
+      "interactions": [],
+      "mode": "live",
+      "harness": "Interactive"
+    },
+    {
+      "id": "close-details",
+      "name": "Close button dismisses details",
+      "args": {
+        "open": true,
+        "title": "Component details",
+        "children": { "$text": "Used by 14 scenarios" },
+        "onClose": { "$handler": "close" },
+        "closeLabel": "Close details"
+      },
+      "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Close details" } }],
+      "expect": [{ "kind": "notVisible", "role": "dialog", "name": "Component details" }],
+      "mode": "live",
+      "harness": "Interactive"
+    },
+    {
+      "id": "escape-close",
+      "name": "Escape dismisses dialog",
+      "args": {
+        "open": true,
+        "title": "Minimal dialog",
+        "children": { "$text": "Short confirmation copy" },
+        "onClose": { "$handler": "close" },
+        "closeLabel": "Close"
+      },
+      "interactions": [{ "kind": "key", "target": { "role": "dialog", "name": "Minimal dialog" }, "text": "Escape" }],
+      "expect": [{ "kind": "notVisible", "role": "dialog", "name": "Minimal dialog" }],
+      "mode": "live",
+      "harness": "Interactive"
+    }
+  ]
+}

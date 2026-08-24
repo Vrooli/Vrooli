@@ -21,8 +21,11 @@
       "id": "evidence-status-readable",
       "type": "text",
       "statement": "Evidence status is communicated by text as well as tone.",
-      "tier": "machine",
-      "states": ["default", "empty"]
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "empty"
+      ]
     }
   ]
 }

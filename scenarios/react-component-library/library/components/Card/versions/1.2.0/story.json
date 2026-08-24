@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 4,
+  "kind": "component",
+  "title": "Card",
+  "args": {
+    "fields": [
+      {
+        "path": "className",
+        "label": "Class Name",
+        "kind": "text",
+        "default": "max-w-sm"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "metric-card",
+      "name": "Metric card with semantic content",
+      "composition": { "specimen": { "module": "./story.tsx", "export": "MetricCard" } },
+      "args": {},
+      "expect": [{ "kind": "count", "selector": "[data-rcl-card-metric]", "value": "1" }],
+      "interactions": [{ "kind": "settle" }],
+      "mode": "live",
+      "evidence": { "reviewSet": "card-core", "states": ["ready", "semantic-status"] }
+    },
+    {
+      "id": "empty-tool",
+      "name": "Empty card state",
+      "composition": { "specimen": { "module": "./story.tsx", "export": "EmptyStateCard" } },
+      "args": { "className": "max-w-sm" },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No drift detected"
+        }
+      ],
+      "mode": "live",
+      "evidence": { "reviewSet": "card-empty", "states": ["empty"] }
+    },
+    {
+      "id": "long-content",
+      "name": "Long content wraps cleanly",
+      "composition": { "specimen": { "module": "./story.tsx", "export": "LongContentCard" } },
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Review and apply all pending workspace configuration changes"
+        }
+      ],
+      "mode": "live",
+      "evidence": { "reviewSet": "card-long-content", "states": ["long-content", "wrap"] }
+    },
+    {
+      "id": "card-grid-raised",
+      "name": "Card inside raised grid context",
+      "composition": { "specimen": { "module": "./story.tsx", "export": "CardGrid" } },
+      "args": {},
+      "expect": [{ "kind": "text", "value": "Adoption health" }],
+      "mode": "live",
+      "evidence": { "reviewSet": "card-context", "states": ["raised-grid"] }
+    }
+  ]
+}

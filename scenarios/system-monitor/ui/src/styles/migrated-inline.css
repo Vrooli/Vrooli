@@ -1818,6 +1818,43 @@
   color: var(--color-warning-text);
 }
 
+.log-row {
+  display: grid;
+  grid-template-columns: minmax(14ch, 22ch) minmax(4.5rem, 6rem) minmax(10ch, 22ch) minmax(0, 1fr) auto;
+  gap: var(--spacing-sm);
+  align-items: start;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.log-row__timestamp,
+.log-row__source {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.log-row__timestamp { color: var(--color-text-secondary); white-space: nowrap; }
+.log-row__message { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-row__message.is-expanded { overflow-wrap: anywhere; white-space: normal; }
+.log-row__toggle { align-self: start; white-space: nowrap; }
+
+@media (max-width: 48rem) {
+  .log-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--spacing-2xs) var(--spacing-sm);
+  }
+
+  .log-row__timestamp { grid-column: 1; }
+  .log-row__priority { grid-column: 2; grid-row: 1 / span 2; }
+  .log-row__source { grid-column: 1; }
+  .log-row__message { grid-column: 1 / -1; white-space: normal; }
+  .log-row__toggle { grid-column: 1 / -1; justify-self: start; }
+}
+
 @media (max-width: 480px) {
   .connection-status-banner {
     width: min(100% - (var(--spacing-md) * 2), 1400px);
@@ -1828,6 +1865,47 @@
   .connection-status-banner__action {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* Chart navigation is deliberately native and compact. It remains usable
+   when the chart itself is unavailable or has no samples. */
+.metric-chart-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  margin: 0 0 var(--spacing-sm);
+  min-height: 2rem;
+}
+
+.metric-chart-toolbar__label {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-chart-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2xs);
+}
+
+.metric-chart-toolbar .btn-icon {
+  min-width: 2rem;
+  min-height: 2rem;
+}
+
+.metric-chart-toolbar__reset {
+  min-height: 2rem;
+  padding: 0 var(--spacing-sm);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 48rem) {
+  .metric-chart-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

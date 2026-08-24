@@ -11,7 +11,7 @@
   "states": [
     {
       "id": "default",
-      "example": "default",
+      "example": "desktop",
       "description": "The desktop navigation surface is available."
     },
     {

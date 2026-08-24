@@ -6,6 +6,7 @@ import { NetworkDetailView } from './NetworkDetailView';
 import { GpuDetailView } from './GpuDetailView';
 
 vi.mock('./MetricDetailViews', () => ({
+  DetailSection: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
   MetricDetailLayout: ({ children, headline, subhead }: { children: React.ReactNode; headline: string; subhead?: string }) => <div><div>{headline}</div>{subhead && <div>{subhead}</div>}{children}</div>,
   MetricLineChart: () => <div data-testid="chart" />,
 }));

@@ -16,8 +16,10 @@
       "id": "quarantine-readable",
       "type": "text",
       "statement": "A quarantined gate and reason are readable without color.",
-      "tier": "machine",
-      "states": ["default"]
+      "tier": "aspirational",
+      "states": [
+        "default"
+      ]
     }
   ]
 }

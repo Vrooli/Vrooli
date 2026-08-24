@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -304,9 +305,18 @@ func resolveSystemMonitorScenarioRoot() (string, error) {
 // checkNodeRed tests Node-RED connectivity
 func (h *HealthHandler) checkNodeRed() map[string]interface{} {
 	result := healthutil.NewResult()
+	target, err := parseHealthDependencyURL(h.config.Resources.NodeRedURL)
+	if err != nil {
+		return healthutil.WithError(result, "NODE_RED_URL_INVALID", err.Error(), "configuration", true)
+	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(h.config.Resources.NodeRedURL)
+	req, err := http.NewRequest(http.MethodGet, target.String(), nil)
+	if err != nil {
+		return healthutil.WithError(result, "NODE_RED_REQUEST_INVALID", err.Error(), "configuration", true)
+	}
+	// #nosec G704 -- the URL is validated as an operator-configured HTTP(S) dependency before the request.
+	resp, err := client.Do(req)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return healthutil.WithError(result, "CONNECTION_REFUSED",
@@ -330,12 +340,18 @@ func (h *HealthHandler) checkOllama() map[string]interface{} {
 	if base == "" {
 		base = "http://127.0.0.1:11434"
 	}
+	target, err := parseHealthDependencyURL(base)
+	if err != nil {
+		return healthutil.WithError(result, "OLLAMA_URL_INVALID", err.Error(), "configuration", true)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/tags", nil)
+	// #nosec G704 -- target was validated as an operator-configured HTTP(S) dependency above.
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.JoinPath("api/tags").String(), nil)
 	if err != nil {
 		return healthutil.WithError(result, "OLLAMA_CONNECTION_FAILED", err.Error(), "network", true)
 	}
+	// #nosec G704 -- the URL is validated as an operator-configured HTTP(S) dependency before the request.
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return healthutil.WithError(result, "OLLAMA_CONNECTION_FAILED",
@@ -346,6 +362,20 @@ func (h *HealthHandler) checkOllama() map[string]interface{} {
 		return healthutil.WithError(result, "OLLAMA_CONNECTION_FAILED", fmt.Sprintf("Ollama returned HTTP %d", resp.StatusCode), "network", true)
 	}
 	return healthutil.MarkConnected(result)
+}
+
+func parseHealthDependencyURL(raw string) (*url.URL, error) {
+	target, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return nil, fmt.Errorf("dependency URL is invalid: %w", err)
+	}
+	if target.Scheme != "http" && target.Scheme != "https" {
+		return nil, fmt.Errorf("dependency URL must use http or https")
+	}
+	if target.Hostname() == "" || target.User != nil {
+		return nil, fmt.Errorf("dependency URL must contain a host and no user credentials")
+	}
+	return target, nil
 }
 
 // checkWebhookEndpoint tests webhook URL accessibility

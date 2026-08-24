@@ -58,7 +58,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/components.editor.workspacePane[data-experience-state=\"loading\"]",
+          "selector": "@selector/components.editor.workspacePane[data-experience-state=\"loading\"], @selector/components.editor.workspacePane[data-experience-state=\"ready\"], @selector/components.editor.workspacePane[data-experience-state=\"partial\"]",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
@@ -163,6 +163,14 @@
       }
     },
     {
+      "id": "open-preview-tools",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/components.editor.previewToolsToggle" },
+        "metadata": { "label": "Open specimen tools" }
+      }
+    },
+    {
       "id": "assert-props-experiment",
       "action": {
         "type": "ACTION_TYPE_ASSERT",
@@ -194,6 +202,7 @@
     { "id": "edge-viewport-open", "source": "close-appearance", "target": "open-viewport", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "edge-viewport-panel", "source": "open-viewport", "target": "assert-viewport-panel", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "edge-viewport-close", "source": "assert-viewport-panel", "target": "close-viewport", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "edge-props", "source": "close-viewport", "target": "assert-props-experiment", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    { "id": "edge-props-tools", "source": "close-viewport", "target": "open-preview-tools", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-props", "source": "open-preview-tools", "target": "assert-props-experiment", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

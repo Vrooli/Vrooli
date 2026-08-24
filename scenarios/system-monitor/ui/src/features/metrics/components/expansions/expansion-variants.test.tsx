@@ -5,6 +5,7 @@ import { DiskExpansion } from './DiskExpansion';
 import { MemoryExpansion } from './MemoryExpansion';
 import { NetworkExpansion } from './NetworkExpansion';
 import { GpuExpansion } from './GpuExpansion';
+import { CpuExpansion } from './CpuExpansion';
 import { buildDiskUsageCard, renderProcessTable } from '../MetricRenderHelpers';
 import { FindingsPanel } from '../../../capacity/components/FindingsPanel';
 import { ClaimsTable } from '../../../capacity/components/ClaimsTable';
@@ -31,6 +32,22 @@ describe('metric expansion variants', () => {
     expect(screen.queryByText('Connection States:')).not.toBeInTheDocument();
     rerender(<NetworkExpansion details={{ tcpStates: {}, networkStats: {}, portUsage: {} } as never} />);
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('renders CPU process details and all metric states', () => {
+    render(<CpuExpansion details={{
+      topProcesses: [{ pid: 7, name: 'worker', cpuPercent: 12.5 }],
+      usageState: { state: { case: 'measured', value: 42 } },
+      modeBreakdown: { steal: { state: { case: 'notYetSampledReason', value: 'booting' } } },
+      runQueueDepth: { state: { case: 'unknown', value: 3 }, provenance: 'kernel' },
+      cpuPsiSomeAvg10: undefined,
+      coreImbalanceIndex: undefined,
+    } as never} />);
+    expect(screen.getByText('worker (7)')).toBeInTheDocument();
+    expect(screen.getByText('42.0')).toBeInTheDocument();
+    expect(screen.getByText('waiting for next sample: booting')).toBeInTheDocument();
+    expect(screen.getByText('unknown: 3 (kernel)')).toBeInTheDocument();
+    expect(screen.getAllByText('not yet sampled')).toHaveLength(2);
   });
 
   it('renders capacity findings and claims in empty and populated states', () => {

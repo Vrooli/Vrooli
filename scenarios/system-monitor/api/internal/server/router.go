@@ -55,6 +55,7 @@ func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 	// The typed Connect routes above remain the canonical CLI contract.
 	r.HandleFunc("GET /api/v1/investigations/scripts", investigation.HandleListScripts)
 	r.HandleFunc("GET /api/v1/investigations/scripts/{id}", investigation.HandleGetScript)
+	r.HandleFunc("PUT /api/v1/investigations/scripts/{id}", investigation.HandleUpdateScript)
 	r.HandleFunc("POST /api/v1/investigations/scripts/{id}/execute", investigation.HandleExecuteScript)
 
 	return r

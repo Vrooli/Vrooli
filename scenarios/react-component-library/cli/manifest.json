@@ -1054,7 +1054,10 @@
             },
             {
               "name": "changelog",
-              "description": "Changelog text for the release"
+              "description": "Changelog text for the release",
+              "bind": {
+                "field": "changelog_md"
+              }
             },
             {
               "name": "acknowledge-parity-waiver",
@@ -1911,7 +1914,7 @@
       "name": "evidence",
       "description": "Capture declared light/dark viewport evidence for an asset",
       "positionals": [{"name": "action", "required": true, "description": "capture", "local_only": true}, {"name": "asset-id", "required": true, "description": "Catalog asset id"}],
-      "flags": [{"name": "changed-only", "description": "Skip unchanged capture inputs"}],
+      "flags": [{"name": "all", "bool": true, "description": "Capture every catalog asset"}, {"name": "changed-only", "description": "Skip unchanged capture inputs"}, {"name": "batch-size", "description": "Maximum assets per BAS capture request when --all is used (default 8)", "local_only": true, "bind_waiver": "The CLI orchestrator uses this local batch boundary to issue multiple CaptureEvidence requests; it is intentionally not part of CaptureEvidenceRequest."}, {"name": "offset", "description": "Resume --all from this sorted catalog offset", "local_only": true, "bind_waiver": "The CLI orchestrator uses this local continuation offset; it is intentionally not part of CaptureEvidenceRequest."}],
       "binding": {"kind": "connect-rpc", "service": "CatalogService", "method": "CaptureEvidence"},
       "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
     }

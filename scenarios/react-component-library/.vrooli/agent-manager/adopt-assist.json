@@ -50,6 +50,6 @@
     ],
     "maxTurns": 100, "timeoutSeconds": 3600
   }}],
-  "budgets": {"wallTimeSeconds": 5400, "maxTurns": 100, "maxTokens": 1000000, "maxCostUsd": 50, "maxNodeAttempts": 2, "maxChildren": 16, "maxConcurrency": 16, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 3600},
+  "budgets": {"wallTimeSeconds": 5400, "maxTurns": 100, "maxTokens": 1000000, "maxChargeMicroUsd": 5000000, "maxNodeAttempts": 2, "maxChildren": 16, "maxConcurrency": 16, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 3600},
   "metadata": {"feature": "assisted-catalog-workflows", "owner": "react-component-library"}
 }

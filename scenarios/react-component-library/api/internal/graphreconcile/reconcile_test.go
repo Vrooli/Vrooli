@@ -107,8 +107,12 @@ func TestLiveReconcileReportsEveryCatalogAsset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Assets) != 428 {
-		t.Fatalf("assets=%d", len(report.Assets))
+	catalog, err := loadCatalog(filepath.Join(root, "scenarios", "react-component-library", "catalog"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Assets) != len(catalog) {
+		t.Fatalf("assets=%d want catalog assets=%d", len(report.Assets), len(catalog))
 	}
 	if len(report.Distribution) == 0 {
 		t.Fatal("empty verdict distribution")

@@ -3,7 +3,10 @@
   "catalogId": "overlays.dialog",
   "displayName": "Dialog",
   "description": "Accessible modal dialog shell with escape/backdrop dismissal and mobile-safe sizing.",
-  "tags": ["overlay", "interactive"],
+  "tags": [
+    "overlay",
+    "interactive"
+  ],
   "slot": "ui-pattern",
   "category": "overlays",
   "designStyles": [
@@ -20,7 +23,7 @@
       "affinity": "discouraged"
     }
   ],
-  "latest": "1.1.0",
+  "latest": "1.2.0",
   "draft": "",
   "deprecatedVersions": []
 }

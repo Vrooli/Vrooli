@@ -25,4 +25,22 @@ describe("CommandCenterShell", () => {
       "partial",
     );
   });
+
+  it("renders optional controls, metric details, and primary content", () => {
+    renderWithProviders(
+      <CommandCenterShell
+        title="Operations"
+        navigation={<a href="#runs">Runs</a>}
+        controls={<button type="button">Refresh</button>}
+        metrics={[{ label: "Active runs", value: "12", detail: "Across all environments" }]}
+        regionState="ready"
+      >
+        <p>Recent activity</p>
+      </CommandCenterShell>,
+    );
+
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeVisible();
+    expect(screen.getByText("Across all environments")).toBeVisible();
+    expect(screen.getByText("Recent activity")).toBeVisible();
+  });
 });

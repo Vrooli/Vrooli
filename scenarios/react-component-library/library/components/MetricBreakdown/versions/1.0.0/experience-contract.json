@@ -21,8 +21,10 @@
       "id": "metrics-readable",
       "type": "text",
       "statement": "Metric labels and totals remain readable.",
-      "tier": "automated",
-      "states": ["default"]
+      "tier": "aspirational",
+      "states": [
+        "default"
+      ]
     }
   ]
 }

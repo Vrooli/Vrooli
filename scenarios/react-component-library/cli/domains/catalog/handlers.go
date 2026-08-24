@@ -97,14 +97,43 @@ func (h *handlers) evidence(ctx cliapp.RunContext) error {
 	if ctx.Positional("action") != "capture" {
 		return fmt.Errorf("usage: catalog evidence capture <asset-id>")
 	}
-	resp, err := h.client.CaptureEvidence(context.Background(), connect.NewRequest(&catalogv1.CaptureEvidenceRequest{AssetId: ctx.Positional("asset-id"), ChangedOnly: ctx.Flag("changed-only") == "true"}))
-	if err != nil {
-		return cliapp.WrapAPIError("capture catalog evidence", err, nil)
+	all := ctx.BoolFlag("all")
+	batchSize := 0
+	if raw := ctx.Flag("batch-size"); raw != "" {
+		if _, err := fmt.Sscanf(raw, "%d", &batchSize); err != nil || batchSize < 1 {
+			return fmt.Errorf("batch-size must be a positive integer")
+		}
 	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no catalog evidence capture")
+	if all && batchSize == 0 {
+		batchSize = 8
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Captured %d evidence row(s) for %s.", resp.Msg.RowsWritten, resp.Msg.AssetId)}, ResultsHeading: "Capture", Results: []string{resp.Msg.CaptureDirectory, resp.Msg.WorkbenchUrl}})
+	offset := 0
+	if raw := ctx.Flag("offset"); raw != "" {
+		if _, err := fmt.Sscanf(raw, "%d", &offset); err != nil || offset < 0 {
+			return fmt.Errorf("offset must be a non-negative integer")
+		}
+	}
+	total := int32(0)
+	var last *catalogv1.CaptureEvidenceResponse
+	for {
+		resp, err := h.client.CaptureEvidence(context.Background(), connect.NewRequest(&catalogv1.CaptureEvidenceRequest{AssetId: ctx.Positional("asset-id"), All: all, ChangedOnly: ctx.Flag("changed-only") == "true", Limit: int32(batchSize), Offset: int32(offset)}))
+		if err != nil {
+			return cliapp.WrapAPIError("capture catalog evidence", err, nil)
+		}
+		if resp == nil || resp.Msg == nil {
+			return fmt.Errorf("server returned no catalog evidence capture")
+		}
+		last = resp.Msg
+		total += resp.Msg.RowsWritten
+		if !all || resp.Msg.Complete {
+			break
+		}
+		if resp.Msg.NextOffset <= int32(offset) {
+			return fmt.Errorf("catalog evidence capture did not advance past offset %d", offset)
+		}
+		offset = int(resp.Msg.NextOffset)
+	}
+	return cliapp.RenderProtoList(ctx, last, cliapp.ListReport{Summary: []string{fmt.Sprintf("Captured %d evidence row(s) for %s.", total, last.AssetId)}, ResultsHeading: "Capture", Results: []string{last.CaptureDirectory, last.WorkbenchUrl}})
 }
 
 func (h *handlers) gate(ctx cliapp.RunContext) error {

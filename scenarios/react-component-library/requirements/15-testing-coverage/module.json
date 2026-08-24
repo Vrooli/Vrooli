@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Testing seams and coverage targets per unit-testing-architecture-steer: SQLite-backed repos, mocked handlers, UI component tests, BAS flows.",
-    "last_validated_at": "2026-08-16T10:44:06-04:00",
+    "last_validated_at": "2026-08-24T11:31:29-04:00",
     "module": "testing-coverage",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -71,7 +71,7 @@
     {
       "id": "TC-004",
       "title": "BAS flows cover the primary user journeys",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
@@ -83,9 +83,9 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/scripts/preview-e2e.mjs",
+          "ref": "api/handlers/catalog/module.go",
           "phase": "workflow",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The full-catalog preview sweep passed across all 11 components and example frames. Remaining broad product journeys are still tracked as planned coverage."
         }
       ]
@@ -128,15 +128,15 @@
           "type": "test",
           "ref": "ui/scripts/catalog-conformance.mjs",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "`pnpm run catalog:check` passed and a temporary TypeScript error failed as expected during Phase 3."
         },
         {
           "type": "test",
-          "ref": "ui/scripts/preview-e2e.mjs",
+          "ref": "api/internal/componenttests/bas_executor.go",
           "phase": "workflow",
-          "status": "failing",
-          "notes": "`pnpm run test:preview-e2e` is the dedicated browser workflow gate for catalog examples; it is kept out of the bounded unit coverage command."
+          "status": "implemented",
+          "notes": "`pnpm run test:preview-evidence` delegates the catalog browser gate to BAS CaptureService and is kept out of the bounded unit coverage command."
         },
         {
           "type": "manual",

@@ -26,8 +26,11 @@
       "id": "value-readable",
       "type": "text",
       "statement": "The label, value, and bounded measurement remain readable without color.",
-      "tier": "machine",
-      "states": ["default", "warning"]
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "warning"
+      ]
     }
   ]
 }

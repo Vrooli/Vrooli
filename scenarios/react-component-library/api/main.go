@@ -265,7 +265,7 @@ func main() {
 		),
 		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot))), componentsH.WithVersionLedger(versionLedger), componentsH.WithPreviewService(previewSvc)),
 		componentTestsH.ModuleWithGeneratedFixture(primaryDB, componentsSvc, adoptionsSvc, sourceRoot, log.Default()),
-		catalogH.Module(filepath.Dir(scenariosRoot), primaryDB),
+		catalogH.ModuleWithCapture(filepath.Dir(scenariosRoot), primaryDB, componentsSvc, componentTestsH.NewBASCaptureExecutor()),
 		depsH.ModuleFromService(depsSvc, log.Default()),
 		healthH.Module(primaryDB, "react-component-library-api", "1.0.0"),
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),

@@ -90,6 +90,7 @@ func (s *EvidenceStore) ensureMeasurementColumn(ctx context.Context) error {
 		s.err = err
 		return err
 	}
+	defer rows.Close()
 	found := false
 	for rows.Next() {
 		var cid, notNull, pk int
@@ -615,21 +616,64 @@ func MergeExperienceEvidence(ctx context.Context, root string, store *EvidenceSt
 		}
 		targets[asset.ID] = target
 	}
+	// Experience Manager evidence is an optional enrichment, but the catalog
+	// contains hundreds of exact-version implementations. Fetching them in a
+	// single serial loop can consume the validation RPC deadline before the
+	// component gate even starts. Keep the fan-out bounded so the manager and
+	// its database are protected while the validation path remains responsive.
+	type fetchJob struct {
+		libraryID string
+		assetID   string
+		target    string
+		version   string
+	}
+	type fetchResult struct{ captures []ExperienceCapture }
+	jobs := make(chan fetchJob)
+	results := make(chan fetchResult)
+	const workers = 8
+	var wait sync.WaitGroup
+	for range workers {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for job := range jobs {
+				if ctx.Err() != nil {
+					return
+				}
+				fetched, fetchErr := fetch(ctx, job.libraryID, job.version)
+				if fetchErr != nil {
+					continue
+				}
+				for index := range fetched {
+					fetched[index].AssetID = job.assetID
+					fetched[index].Target = job.target
+					fetched[index].Version = job.version
+				}
+				results <- fetchResult{captures: fetched}
+			}
+		}()
+	}
+	go func() {
+		defer close(jobs)
+		for _, impl := range impls {
+			if impl.CatalogID == "" || impl.Latest == "" || targets[impl.CatalogID] == "" || ctx.Err() != nil {
+				continue
+			}
+			job := fetchJob{libraryID: "react-component-library:" + impl.Name, assetID: impl.CatalogID, target: targets[impl.CatalogID], version: impl.Latest}
+			select {
+			case jobs <- job:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	go func() {
+		wait.Wait()
+		close(results)
+	}()
 	var captures []ExperienceCapture
-	for _, impl := range impls {
-		if impl.CatalogID == "" || impl.Latest == "" || targets[impl.CatalogID] == "" {
-			continue
-		}
-		fetched, fetchErr := fetch(ctx, "react-component-library:"+impl.Name, impl.Latest)
-		if fetchErr != nil {
-			continue
-		}
-		for index := range fetched {
-			fetched[index].AssetID = impl.CatalogID
-			fetched[index].Target = targets[impl.CatalogID]
-			fetched[index].Version = impl.Latest
-		}
-		captures = append(captures, fetched...)
+	for result := range results {
+		captures = append(captures, result.captures...)
 	}
 	fresh, err := deriveExperienceEvidence(root, captures, gates)
 	if err != nil {

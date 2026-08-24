@@ -1,13 +1,16 @@
 {
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
   "contract": {
     "kind": "rcl-component-experience-contract",
     "schema": "scenario-experience-spec/v1",
     "provenance": "react-component-library:Tabs@1.0.0"
   },
   "component": {
-    "id": "navigation.tabs",
+    "id": "navigation-tabs",
     "title": "Tabs",
-    "purpose": "Tabs preserves responsive navigation semantics and token ownership."
+    "purpose": "Tabs preserves responsive navigation semantics and token ownership.",
+    "storyRef": "../../library/components/Tabs/versions/1.0.0/story.json"
   },
   "states": [
     {

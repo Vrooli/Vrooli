@@ -58,8 +58,8 @@ func TestCatalogStoryConformance(t *testing.T) {
 				continue
 			}
 			contract, diagnostics := ParseStoryContract(rawStory)
-			if contract == nil || len(diagnostics) > 0 {
-				for _, diagnostic := range diagnostics {
+			if contract == nil || len(StoryContractErrors(diagnostics)) > 0 {
+				for _, diagnostic := range StoryContractErrors(diagnostics) {
 					failures = append(failures, prefix+": story.json "+diagnostic.Error())
 				}
 				continue
@@ -81,11 +81,12 @@ func TestCatalogStoryConformance(t *testing.T) {
 					failures = append(failures, fmt.Sprintf("%s: story %d must declare mode live or pinned", prefix, storyIndex))
 					continue
 				}
-				if liveSource && story.Mode != StoryModeLive {
-					failures = append(failures, fmt.Sprintf("%s: story %q has story.tsx but is not live", prefix, story.ID))
+				localHarness := EffectiveStoryLocalHarness(contract, &story) != ""
+				if localHarness && story.Mode != StoryModeLive {
+					failures = append(failures, fmt.Sprintf("%s: story %q names executable story content but is not live", prefix, story.ID))
 				}
-				if !liveSource && story.Mode != StoryModePinned {
-					failures = append(failures, fmt.Sprintf("%s: story %q has no story.tsx but is not pinned", prefix, story.ID))
+				if !liveSource && story.Mode == StoryModeLive {
+					failures = append(failures, fmt.Sprintf("%s: story %q has no story.tsx but is live", prefix, story.ID))
 				}
 			}
 			for _, legacy := range []string{"examples.json", "test-contract.json", "setup.json", "controls.json"} {

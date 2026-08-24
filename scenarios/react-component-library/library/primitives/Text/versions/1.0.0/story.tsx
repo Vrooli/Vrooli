@@ -54,7 +54,7 @@ export function TypographyShowcase({ args }: { args?: { style?: TextStyle } }) {
           borderBlock: "var(--border-hairline) solid var(--color-border)",
         }}
       >
-        <Text style={style} balance>
+        <Text as="p" data-testid="rcl-text-sample" style={style} balance>
           {samples[style]}
         </Text>
         <Text textStyle="caption" tone="muted">

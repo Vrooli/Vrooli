@@ -136,6 +136,13 @@ type StoryExecutor interface {
 	ExecuteStory(context.Context, string, string, string) (StoryExecution, error)
 }
 
+// StorySheetExecutor is an optional capability of the production BAS
+// executor. Individual story captures remain authoritative; sheets are
+// bounded review accelerators and therefore never replace StoryExecutor.
+type StorySheetExecutor interface {
+	ExecuteStorySheet(context.Context, string, string, []string) (StoryExecution, error)
+}
+
 type Runner struct {
 	Assets   components.DependencyReader
 	Stories  StoryReader
@@ -252,6 +259,34 @@ func (r Runner) directStoryResults(ctx context.Context, asset components.Compone
 			evidenceMessage = "BAS did not return the complete structured evidence bundle"
 		}
 		results = append(results, Result{Stage: StageEvidence, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: evidenceVerdict, Message: evidenceMessage, Remediation: "repair BAS capture artifact production before trusting experience evidence", Evidence: storyEvidence(execution)})
+	}
+	if sheetExecutor, ok := r.Executor.(StorySheetExecutor); ok && len(story.Stories) > 1 {
+		storyIDs := make([]string, 0, len(story.Stories))
+		for _, definition := range story.Stories {
+			storyIDs = append(storyIDs, definition.ID)
+		}
+		for start := 0; start < len(storyIDs); start += 4 {
+			end := start + 4
+			if end > len(storyIDs) {
+				end = len(storyIDs)
+			}
+			group := storyIDs[start:end]
+			execution, sheetErr := sheetExecutor.ExecuteStorySheet(ctx, asset.LibraryID, version.Version, group)
+			verdict := VerdictPassed
+			message := "BAS labeled story review sheet captured"
+			if sheetErr != nil {
+				verdict = VerdictFailed
+				message = "story review sheet did not render: " + sheetErr.Error()
+			} else if !execution.Passed {
+				verdict = VerdictFailed
+				message = strings.Join(execution.Failures, "; ")
+				if message == "" {
+					message = "story review sheet assertions failed"
+				}
+			}
+			results = append(results, Result{Stage: StageEvidence, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: "review-sheet:" + strings.Join(group, ","), Verdict: verdict, Message: message, Remediation: "repair the generic BAS story-sheet route before trusting composite review evidence", Evidence: storyEvidence(execution)})
+			artifacts = append(artifacts, execution.Artifacts...)
+		}
 	}
 	artifacts = append(artifacts, Artifact{Kind: "story-contract", Label: "story.json", AssetLibraryID: asset.LibraryID, Version: version.Version, Reference: asset.LibraryID + "@" + version.Version + ":story.json"})
 	return results, artifacts, nil

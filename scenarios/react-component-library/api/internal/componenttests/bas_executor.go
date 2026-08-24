@@ -56,6 +56,7 @@ type basCaptureRequest struct {
 	InlineDOM           bool          `json:"inlineDom"`
 	InlineAccessibility bool          `json:"inlineAccessibility"`
 	InlineComputedStyle bool          `json:"inlineComputedStyle"`
+	ScreenshotSelector  string        `json:"screenshotSelector,omitempty"`
 	Label               string        `json:"label"`
 }
 
@@ -88,6 +89,16 @@ type basArtifact struct {
 	Reference string            `json:"reference"`
 	SizeBytes json.RawMessage   `json:"sizeBytes"`
 	Metadata  map[string]string `json:"metadata"`
+	Primary   bool              `json:"primary"`
+}
+
+// URLCapture is the structured result for a non-RCL page captured through the
+// same BAS boundary. It is used by generated-scenario validation so that the
+// provider has one browser implementation and no ad hoc Playwright runner.
+type URLCapture struct {
+	DOMHTML       string
+	Accessibility string
+	Artifacts     []basArtifact
 }
 
 func (e BASCaptureExecutor) ExecuteStory(ctx context.Context, libraryID, version, storyID string) (StoryExecution, error) {
@@ -101,47 +112,38 @@ func (e BASCaptureExecutor) ExecuteStory(ctx context.Context, libraryID, version
 	if err != nil {
 		return StoryExecution{}, err
 	}
-	payload := basCaptureRequest{
-		URL: storyURL,
-		Captures: []string{
-			"CAPTURE_TYPE_SCREENSHOT",
-			"CAPTURE_TYPE_DOM",
-			"CAPTURE_TYPE_CONSOLE_LOGS",
-			"CAPTURE_TYPE_NETWORK",
-			"CAPTURE_TYPE_PERFORMANCE",
-			"CAPTURE_TYPE_ACCESSIBILITY",
-		},
-		Dimensions:          basDimensions{Width: 1280, Height: 800},
-		WaitFor:             basWaitFor{Selector: `[data-experience-surface="component-harness"][data-experience-state="ready"]`},
-		InlineDOM:           true,
-		InlineAccessibility: true,
-		InlineComputedStyle: true,
-		Label:               fmt.Sprintf("rcl:%s@%s:%s", libraryID, version, storyID),
+	return e.executeCapture(ctx, storyURL, fmt.Sprintf("rcl:%s@%s:%s", libraryID, version, storyID), libraryID, version, storyID)
+}
+
+func (e BASCaptureExecutor) ExecuteStorySheet(ctx context.Context, libraryID, version string, storyIDs []string) (StoryExecution, error) {
+	if strings.TrimSpace(e.RCLBaseURL) == "" {
+		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("RCL preview API base URL is required")}
 	}
-	body, err := json.Marshal(payload)
+	if strings.TrimSpace(e.BASBaseURL) == "" {
+		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("BAS CaptureService base URL is required")}
+	}
+	if len(storyIDs) == 0 || len(storyIDs) > 4 {
+		return StoryExecution{}, fmt.Errorf("story sheet must contain between one and four stories")
+	}
+	base, err := e.storyURL(libraryID, version, "")
 	if err != nil {
-		return StoryExecution{}, fmt.Errorf("encode BAS capture request: %w", err)
+		return StoryExecution{}, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.BASBaseURL+"/browser_automation_studio.v1.capture.CaptureService/Capture", strings.NewReader(string(body)))
+	parsed, err := url.Parse(base)
 	if err != nil {
-		return StoryExecution{}, fmt.Errorf("create BAS capture request: %w", err)
+		return StoryExecution{}, fmt.Errorf("parse story sheet URL: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := e.client().Do(req)
+	query := parsed.Query()
+	query.Del("story")
+	query.Set("stories", strings.Join(storyIDs, ","))
+	parsed.RawQuery = query.Encode()
+	return e.executeCapture(ctx, parsed.String(), fmt.Sprintf("rcl:%s@%s:sheet:%s", libraryID, version, strings.Join(storyIDs, ",")), libraryID, version, "review-sheet:"+strings.Join(storyIDs, ","))
+}
+
+func (e BASCaptureExecutor) executeCapture(ctx context.Context, storyURL, label, libraryID, version, storyID string) (StoryExecution, error) {
+	capture, err := e.captureURL(ctx, storyURL, label, `[data-experience-surface="component-harness"][data-experience-state="ready"]`, `[data-preview-sheet]`)
 	if err != nil {
-		return StoryExecution{}, ExecutorUnavailableError{Err: err}
-	}
-	defer resp.Body.Close()
-	responseBody, readErr := io.ReadAll(resp.Body)
-	if readErr != nil {
-		return StoryExecution{}, fmt.Errorf("read BAS capture response: %w", readErr)
-	}
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return StoryExecution{}, fmt.Errorf("BAS CaptureService returned HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
-	}
-	var capture basCaptureResponse
-	if err := json.Unmarshal(responseBody, &capture); err != nil {
-		return StoryExecution{}, fmt.Errorf("decode BAS capture response: %w", err)
+		return StoryExecution{}, err
 	}
 	result, err := decodeBASStoryResult(capture.DOMHTML)
 	if err != nil {
@@ -156,6 +158,70 @@ func (e BASCaptureExecutor) ExecuteStory(ctx context.Context, libraryID, version
 		}
 	}
 	return result, nil
+}
+
+// CaptureURL captures an arbitrary page through BAS. Callers should provide a
+// semantic readiness selector and a bounded screenshot selector; BAS owns the
+// browser lifecycle and returns the durable structured evidence bundle.
+func (e BASCaptureExecutor) CaptureURL(ctx context.Context, pageURL, label, readinessSelector, screenshotSelector string) (URLCapture, error) {
+	capture, err := e.captureURL(ctx, pageURL, label, readinessSelector, screenshotSelector)
+	if err != nil {
+		return URLCapture{}, err
+	}
+	return URLCapture{DOMHTML: capture.DOMHTML, Accessibility: capture.Accessibility, Artifacts: capture.Artifacts}, nil
+}
+
+func (e BASCaptureExecutor) captureURL(ctx context.Context, pageURL, label, readinessSelector, screenshotSelector string) (basCaptureResponse, error) {
+	if strings.TrimSpace(pageURL) == "" {
+		return basCaptureResponse{}, fmt.Errorf("BAS capture URL is required")
+	}
+	if strings.TrimSpace(e.BASBaseURL) == "" {
+		return basCaptureResponse{}, fmt.Errorf("BAS CaptureService base URL is required")
+	}
+	payload := basCaptureRequest{
+		URL: pageURL,
+		Captures: []string{
+			"CAPTURE_TYPE_SCREENSHOT",
+			"CAPTURE_TYPE_DOM",
+			"CAPTURE_TYPE_CONSOLE_LOGS",
+			"CAPTURE_TYPE_NETWORK",
+			"CAPTURE_TYPE_PERFORMANCE",
+			"CAPTURE_TYPE_ACCESSIBILITY",
+		},
+		Dimensions:          basDimensions{Width: 1280, Height: 800},
+		WaitFor:             basWaitFor{Selector: readinessSelector},
+		InlineDOM:           true,
+		InlineAccessibility: true,
+		InlineComputedStyle: true,
+		ScreenshotSelector:  screenshotSelector,
+		Label:               label,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return basCaptureResponse{}, fmt.Errorf("encode BAS capture request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.BASBaseURL+"/browser_automation_studio.v1.capture.CaptureService/Capture", strings.NewReader(string(body)))
+	if err != nil {
+		return basCaptureResponse{}, fmt.Errorf("create BAS capture request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := e.client().Do(req)
+	if err != nil {
+		return basCaptureResponse{}, ExecutorUnavailableError{Err: err}
+	}
+	defer resp.Body.Close()
+	responseBody, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return basCaptureResponse{}, fmt.Errorf("read BAS capture response: %w", readErr)
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return basCaptureResponse{}, fmt.Errorf("BAS CaptureService returned HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
+	}
+	var capture basCaptureResponse
+	if err := json.Unmarshal(responseBody, &capture); err != nil {
+		return basCaptureResponse{}, fmt.Errorf("decode BAS capture response: %w", err)
+	}
+	return capture, nil
 }
 
 func parseBASInt(raw json.RawMessage) int64 {
@@ -232,6 +298,13 @@ func basArtifacts(libraryID, version, storyID, basBaseURL string, artifacts []ba
 	result := make([]Artifact, 0, len(artifacts))
 	seen := make(map[string]struct{}, len(artifacts))
 	for _, artifact := range artifacts {
+		// BAS may return intermediate screenshots from navigation and readiness
+		// steps. The final authoritative frame is marked primary. Selecting the
+		// first frame made dynamically mounted stories (especially overlays)
+		// appear blank even though the browser captured the correct final frame.
+		if strings.EqualFold(artifact.Type, "CAPTURE_TYPE_SCREENSHOT") && !artifact.Primary && hasPrimaryScreenshot(artifacts) {
+			continue
+		}
 		reference := artifact.Reference
 		if reference == "" {
 			reference = artifact.Path
@@ -250,6 +323,15 @@ func basArtifacts(libraryID, version, storyID, basBaseURL string, artifacts []ba
 		result = append(result, Artifact{Kind: "bas-" + kind, Label: fmt.Sprintf("%s:%s", storyID, kind), AssetLibraryID: libraryID, Version: version, Reference: reference})
 	}
 	return result
+}
+
+func hasPrimaryScreenshot(artifacts []basArtifact) bool {
+	for _, artifact := range artifacts {
+		if strings.EqualFold(artifact.Type, "CAPTURE_TYPE_SCREENSHOT") && artifact.Primary {
+			return true
+		}
+	}
+	return false
 }
 
 // browserVisibleBASArtifactPath deliberately returns an RCL-origin route.

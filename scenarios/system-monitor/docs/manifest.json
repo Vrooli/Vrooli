@@ -333,7 +333,7 @@
         },
         {
           "path": "internal/STORAGE_AUDIT.md",
-          "docType": "architecture",
+          "docType": "storage-audit",
           "title": "Storage Architecture Audit",
           "aliases": ["storage-audit", "storage-architecture"],
           "description": "Greenfield storage strategy, repository ownership, and data-state boundaries",

@@ -42,12 +42,12 @@ shipping.
 
 ### Preview evidence runner boundary
 
-Use the scenario-owned `ui/scripts/preview-e2e.mjs` runner for component-story
-evidence. It uses the repository's installed Playwright runtime because the
-check must navigate the catalog, follow the story-pinned iframe, assert the
-declared story contract, reopen the exact isolated preview URL, and capture the
-`data-preview-sheet` root. Go unit tests and Browser Automation Studio page
-captures do not currently provide all of those operations as one contract.
+Use `pnpm run test:preview-evidence` for catalog component-story evidence. The
+command delegates story execution and structured capture to the BAS-backed
+component-test runner, then persists per-story artifact references and visual
+gate evidence through `CatalogService.CaptureEvidence`. The isolated story
+route remains the authoritative capture boundary; the RCL UI does not launch a
+second browser runner.
 
 Browser Automation Studio remains the preferred producer for ordinary
 scenario-page workflows and lifecycle evidence. It is not a replacement for

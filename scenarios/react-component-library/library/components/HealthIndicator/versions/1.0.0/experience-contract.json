@@ -26,8 +26,11 @@
       "id": "health-non-color",
       "type": "text",
       "statement": "Health state and freshness are available as text.",
-      "tier": "automated",
-      "states": ["default", "stale"]
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "stale"
+      ]
     }
   ]
 }

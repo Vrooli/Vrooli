@@ -320,7 +320,7 @@
         "navigation"
       ],
       "blocking": true,
-      "runner": { "react-vite": "node ui/scripts/preview-e2e.mjs" },
+      "runner": { "react-vite": "react-component-library catalog evidence capture all --all --json" },
       "x-experience-claim-types": [
         "single-dominant-action",
         "visible-without-scroll",

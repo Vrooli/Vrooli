@@ -98,7 +98,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         <span
           data-testid="button-label"
           data-control-slot="label"
-          style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}
+          style={{
+            minWidth: 0,
+            maxWidth: "100%",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
         >
           {children}
         </span>

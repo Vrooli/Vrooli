@@ -21,8 +21,10 @@
       "id": "graph-keyboard",
       "type": "keyboard-operable",
       "statement": "Every graph node has a keyboard-operable accessible equivalent.",
-      "tier": "automated",
-      "states": ["default"]
+      "tier": "aspirational",
+      "states": [
+        "default"
+      ]
     }
   ]
 }

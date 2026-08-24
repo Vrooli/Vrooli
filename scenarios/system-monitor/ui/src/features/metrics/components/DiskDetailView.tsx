@@ -16,7 +16,7 @@ import type {
   DiskPartitionInfo,
   DiskUsageEntry
 } from '../../../types';
-import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
+import { DetailSection, MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 import { buildSingleSeriesData, combineDiskSeries } from '../../../shared/utils/chartData';
 import { buildDiskUsageCard } from './MetricRenderHelpers';
 
@@ -173,13 +173,14 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
 
   return (
     <MetricDetailLayout
+      layoutId="disk"
       title="DISK PERFORMANCE"
       icon={<HardDrive size={22} />}
       headline={summaryDiskInfo ? `${summaryDiskInfo.percent.toFixed(1)}% utilized on ${selectedMountLabel}` : 'Awaiting disk telemetry'}
       subhead={subheadParts.length > 0 ? subheadParts.join(' \u2022 ') : undefined}
       onBack={onBack}
     >
-      <MetricLineChart
+      <DetailSection id="disk-io-history" title="Disk I/O history"><MetricLineChart
         status={metricHistory === null ? 'loading' : 'ready'}
         seriesLabel="disk"
         className="card"
@@ -191,9 +192,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         unit=" MB/s"
         valueFormatter={formatMbPerSecond}
         yDomain={['auto', 'auto']}
-      />
+      /></DetailSection>
 
-      <div className="metric-grid-auto-lg">
+      <DetailSection id="storage-overview" title="Storage overview"><div className="metric-grid-auto-lg">
         {buildDiskUsageCard(summaryDiskInfo, {
           title: `Usage for ${selectedMountLabel}`,
           subtitle: deviceLabel ?? 'Current usage across monitored volumes'
@@ -304,9 +305,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             )}
           </div>
         )}
-      </div>
+      </div></DetailSection>
 
-      <div className="metric-grid-auto-lg">
+      <DetailSection id="volume-analysis" title="Volumes and analysis"><div className="metric-grid-auto-lg">
         <div className="card flex-col-gap-md">
           <div>
             <h3 className="section-heading">Mounted Volumes</h3>
@@ -407,25 +408,25 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             Deeper scans and file discovery may take longer on large volumes.
           </div>
         </div>
-      </div>
+      </div></DetailSection>
 
       {detailsError && (
-        <div className="card" data-sm-style="sm-style-f4d03882e0">
+        <DetailSection id="analysis-error" title="Analysis error"><div className="card" data-sm-style="sm-style-f4d03882e0">
           Failed to analyze disk usage: {detailsError}
-        </div>
+        </div></DetailSection>
       )}
 
       {diskDetails?.notes && diskDetails.notes.length > 0 && (
-        <div className="card" data-sm-style="sm-style-d370fc4399">
+        <DetailSection id="analysis-notes" title="Analysis notes"><div className="card" data-sm-style="sm-style-d370fc4399">
           {diskDetails.notes.map((note, index) => (
             <div key={`${note}-${index}`} data-sm-style="sm-style-84a0f8980c">
               {'\u2022'} {note}
             </div>
           ))}
-        </div>
+        </div></DetailSection>
       )}
 
-      <div className="card flex-col-gap-md">
+      <DetailSection id="top-directories" title="Top directories"><div className="card flex-col-gap-md">
         <div data-sm-style="sm-style-a2c4df2a66">
           <div>
             <h3 className="section-heading">Top Directories</h3>
@@ -460,9 +461,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             No directories exceeded the scan threshold at this depth.
           </div>
         )}
-      </div>
+      </div></DetailSection>
 
-      <div className="card flex-col-gap-md">
+      <DetailSection id="largest-files" title="Largest files"><div className="card flex-col-gap-md">
         <div>
           <h3 className="section-heading">Largest Files</h3>
           <div className="card-subtitle">
@@ -501,9 +502,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             Run the "Find Largest Files" scan to surface oversized artifacts.
           </div>
         )}
-      </div>
+      </div></DetailSection>
 
-      <div className="card flex-col-gap-md">
+      <DetailSection id="disk-usage-history" title="Disk usage history"><div className="card flex-col-gap-md">
         <div>
           <h3 className="section-heading">Disk Usage History</h3>
           <div className="card-subtitle">
@@ -520,7 +521,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           yDomain={[0, 100]}
           height={260}
         />
-      </div>
+      </div></DetailSection>
     </MetricDetailLayout>
   );
 };

@@ -227,6 +227,7 @@ export function TreeView({
             else refs.current.delete(node.id);
           }}
           role="treeitem"
+          aria-label={node.ariaLabel || undefined}
           aria-level={level}
           aria-selected={selectedId === node.id}
           aria-expanded={hasChildren ? isExpanded : undefined}

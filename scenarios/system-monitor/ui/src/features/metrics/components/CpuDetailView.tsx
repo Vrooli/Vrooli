@@ -10,7 +10,7 @@ import type {
   MetricHistory,
   MetricValue
 } from '../../../types';
-import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
+import { DetailSection, MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 import { formatProtoTimestamp } from '../../../shared/utils/formatters';
 import { buildSingleSeriesData } from '../../../shared/utils/chartData';
 import { renderProcessTable } from './MetricRenderHelpers';
@@ -38,13 +38,14 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
 
   return (
     <MetricDetailLayout
+      layoutId="cpu"
       title="CPU PERFORMANCE"
       icon={<Cpu size={22} />}
       headline={cpuVerdict(cpuDetails, cpuUsage)}
       subhead={subhead}
       onBack={onBack}
     >
-      <MetricLineChart
+      <DetailSection id="usage-history" title="Usage history"><MetricLineChart
         status={metricHistory === null ? 'loading' : 'ready'}
         seriesLabel="CPU"
         className="card"
@@ -54,9 +55,9 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
         unit="%"
         yDomain={[0, 100]}
         valueFormatter={value => `${value.toFixed(1)}%`}
-      />
+      /></DetailSection>
 
-      <div className="detail-grid detail-grid-lg">
+      <DetailSection id="mode-history" title="Mode and stall history"><div className="detail-grid detail-grid-lg">
         <div className="card" data-testid="cpu-mode-chart">
           <h3 className="section-heading">Mode Breakdown History</h3>
           <MetricLineChart
@@ -85,9 +86,9 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
             yDomain={[0, 100]}
           />
         </div>
-      </div>
+      </div></DetailSection>
 
-      <div className="card flex-col-gap-md" data-testid="cpu-mode-breakdown">
+      <DetailSection id="mode-breakdown" title="Mode breakdown"><div className="card flex-col-gap-md" data-testid="cpu-mode-breakdown">
         <h3 className="section-heading">Mode Breakdown</h3>
         <div className="detail-grid detail-grid-md">
           {Object.entries(cpuDetails?.modeBreakdown ?? {}).map(([mode, value]) => (
@@ -95,9 +96,9 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
           ))}
           {Object.keys(cpuDetails?.modeBreakdown ?? {}).length === 0 && <DetailRow label="Mode accounting" value="not yet sampled" />}
         </div>
-      </div>
+      </div></DetailSection>
 
-      <div className="detail-grid detail-grid-lg">
+      <DetailSection id="stall-saturation" title="Stall and saturation"><div className="detail-grid detail-grid-lg">
         <div className="card flex-col-gap-sm" data-testid="cpu-stall-panel">
           <h3 className="section-heading">Stall Evidence</h3>
           <DetailRow label="CPU pressure some" value={metricLabel(cpuDetails?.cpuPsiSomeAvg10)} />
@@ -109,9 +110,9 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
           <DetailRow label="Normalized load 1m" value={metricLabel(cpuDetails?.normalizedLoad1)} />
           <DetailRow label="Normalized load 5m" value={metricLabel(cpuDetails?.normalizedLoad5)} />
         </div>
-      </div>
+      </div></DetailSection>
 
-      <div className="detail-grid detail-grid-lg">
+      <DetailSection id="core-throttling" title="Core distribution and throttling"><div className="detail-grid detail-grid-lg">
         <div className="card flex-col-gap-sm">
           <h3 className="section-heading">Per-Core Distribution</h3>
           {Object.entries(cpuDetails?.perCoreUtilization ?? {}).map(([core, value]) => <DetailRow key={core} label={core} value={metricLabel(value)} />)}
@@ -125,9 +126,9 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
           <DetailRow label="Thermal evidence" value={metricLabel(cpuDetails?.thermalThrottleEvidence)} />
           <DetailRow label="Nearest thermal trip" value={metricLabel(cpuDetails?.thermalTripPointCelsius)} />
         </div>
-      </div>
+      </div></DetailSection>
 
-      <div className="card flex-col-gap-md" data-testid="cpu-attribution-panel">
+      <DetailSection id="cpu-attribution" title="CPU attribution"><div className="card flex-col-gap-md" data-testid="cpu-attribution-panel">
         <div>
           <h3 className="section-heading">Top CPU Consumers</h3>
           <div className="card-subtitle">
@@ -139,11 +140,11 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
         <div className="card-subtitle">Process CPU time accumulated during the sampling interval</div>
         {renderProcessTable(topCPUSecondsProcesses, 'CPU seconds', process => process.cpuSeconds)}
         <div className="card-subtitle">Historical owner attribution is available through <code>metrics process-timeline --rank cpu_seconds</code>.</div>
-      </div>
+      </div></DetailSection>
 
-      <div className="card">
+      <DetailSection id="process-monitor" title="Process monitor"><div className="card">
         <ProcessMonitor data={processMonitorData} collapsible={false} isExpanded={true} />
-      </div>
+      </div></DetailSection>
     </MetricDetailLayout>
   );
 };

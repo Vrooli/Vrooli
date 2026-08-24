@@ -618,6 +618,10 @@ func (f *fakeScriptRunner) GetScript(string) (services.ScriptMeta, string, error
 	return f.script, "#!/usr/bin/env bash\n", nil
 }
 
+func (f *fakeScriptRunner) UpdateScript(string, string) (services.ScriptMeta, string, error) {
+	return f.script, "#!/usr/bin/env bash\n", nil
+}
+
 func (f *fakeScriptRunner) ExecuteScript(context.Context, string, string) (services.ScriptExecution, error) {
 	now := time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)
 	return services.ScriptExecution{

@@ -16,7 +16,7 @@
     },
     {
       "id": "warning",
-      "example": "warning",
+      "example": "default",
       "description": "A threshold-adjacent value remains explicit without color."
     }
   ],

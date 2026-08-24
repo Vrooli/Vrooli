@@ -11,12 +11,9 @@
       "requirements_json": "[\"PR-001\"]",
       "input_contract": "story_url:string"
     },
-    "execution_mode": "observer"
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
   },
-  "settings": {
-    "viewport_width": 1280,
-    "viewport_height": 800
-  },
+  "settings": { "viewport_width": 1280, "viewport_height": 800 },
   "nodes": [
     {
       "id": "navigate-story",
@@ -35,11 +32,11 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"]",
+          "selector": "[data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"], [data-experience-surface=\"component-harness\"][data-experience-state=\"error\"]",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Wait for the story harness to reach ready" }
+        "metadata": { "label": "Wait for the story harness to reach a terminal ready or error state" }
       }
     },
     {
@@ -47,7 +44,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "[data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"]",
+          "selector": "@selector/components.harness.ready",
           "mode": "ASSERTION_MODE_VISIBLE",
           "timeout_ms": 5000,
           "failure_message": "The supplied story did not reach the isolated harness-ready state."
@@ -60,7 +57,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "[data-testid=\"component-harness-root\"]",
+          "selector": "@selector/components.harness.root",
           "mode": "ASSERTION_MODE_VISIBLE",
           "timeout_ms": 5000,
           "failure_message": "The supplied story did not expose its rendered subject root."
@@ -73,7 +70,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "[data-testid=\"component-harness-root\"]",
+          "selector": "@selector/components.harness.root",
           "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
           "expected": { "string_value": "passed" },
           "attribute_name": "data-rcl-story-status",
@@ -87,9 +84,7 @@
       "id": "capture-story",
       "action": {
         "type": "ACTION_TYPE_SCREENSHOT",
-        "screenshot": {
-          "full_page": false
-        },
+        "screenshot": { "full_page": false, "selector": "[data-preview-sheet]" },
         "metadata": { "label": "Capture the supplied story evidence boundary" }
       }
     }

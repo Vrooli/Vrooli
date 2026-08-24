@@ -116,7 +116,7 @@ claims together. Do not move TSX alone.
    projections for versions, dependencies, stories, and design
    affinities match Git.
 7. Run the catalog gates: `pnpm run catalog:check` and
-   `pnpm run test:preview-e2e` from `ui/`.
+   `pnpm run test:preview-evidence` from `ui/`; this delegates browser capture to BAS and persists the evidence manifest through `CatalogService.CaptureEvidence`.
 8. Run `test-genie execute react-component-library experience --json`
    so Experience Manager captures the preview harness and reconciles
 component machine claims against the BAS accessibility tree.

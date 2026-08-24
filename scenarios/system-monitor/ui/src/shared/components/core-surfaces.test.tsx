@@ -53,6 +53,16 @@ describe('shared runtime surfaces', () => {
     expect(() => render(<ThemeHarness />)).toThrow('useTheme must be used within ThemeProvider');
   });
 
+  it('honors an explicit capture theme and persists the applied result', () => {
+    localStorage.setItem('system-monitor-theme', 'light');
+    window.history.replaceState({}, '', '/?theme=dark');
+    function ThemeValue() { return <span>{useTheme().theme}</span>; }
+    render(<ThemeProvider><ThemeValue /></ThemeProvider>);
+    expect(screen.getByText('dark')).toBeInTheDocument();
+    expect(localStorage.getItem('system-monitor-theme')).toBe('dark');
+    window.history.replaceState({}, '', '/');
+  });
+
   it('falls back to OS preference and honors preference change events', async () => {
     localStorage.setItem('system-monitor-theme', 'invalid');
     let handler: ((event: MediaQueryListEvent) => void) | undefined;

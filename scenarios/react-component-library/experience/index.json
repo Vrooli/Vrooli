@@ -49,7 +49,7 @@
       "status": "active"
     },
     {
-      "id": "tabs",
+      "id": "navigation-tabs",
       "path": "components/tabs.json",
       "title": "Tabs",
       "status": "active"
@@ -151,13 +151,13 @@
       "status": "active"
     },
     {
-      "id": "data-table",
+      "id": "data-display-data-table",
       "path": "components/data-table.json",
       "title": "Data Table",
       "status": "active"
     },
     {
-      "id": "tree-view",
+      "id": "data-display-tree-view",
       "path": "components/tree-view.json",
       "title": "Tree View",
       "status": "active"
@@ -262,6 +262,18 @@
       "id": "verdict-summary",
       "path": "components/verdict-summary.json",
       "title": "Verdict Summary",
+      "status": "active"
+    },
+    {
+      "id": "bounded-meter",
+      "path": "components/bounded-meter.json",
+      "title": "Bounded Meter",
+      "status": "active"
+    },
+    {
+      "id": "primitives-card",
+      "path": "components/card.json",
+      "title": "Card",
       "status": "active"
     }
   ]

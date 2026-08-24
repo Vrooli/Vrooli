@@ -1040,7 +1040,10 @@ func adoptionUnitFiles(v components.ComponentVersion, entryTarget string) []adop
 	out := make([]adoptionUnitFile, 0, len(files))
 	targets := make(map[string]string, len(files))
 	for _, file := range files {
-		if file.Path == "story.tsx" || file.Path == "experience-contract.json" {
+		// Story metadata belongs to the library catalog, not the adopted
+		// runtime closure. Dependency stories otherwise collide at the shared
+		// target and make a valid Button adoption impossible.
+		if file.Path == "story.json" || file.Path == "story.tsx" || file.Path == "experience-contract.json" {
 			continue
 		}
 		target := filepath.ToSlash(filepath.Join(filepath.Dir(entryTarget), file.Path))

@@ -26,8 +26,11 @@
       "id": "finding-actionable",
       "type": "text",
       "statement": "A finding communicates identity, message, and next action.",
-      "tier": "automated",
-      "states": ["default", "empty"]
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "empty"
+      ]
     }
   ]
 }

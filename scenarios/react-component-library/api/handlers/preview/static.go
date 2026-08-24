@@ -9,6 +9,7 @@ import (
 	"html"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,7 @@ import (
 
 	"react-component-library/internal/components"
 	internaldeps "react-component-library/internal/deps"
-	"react-component-library/internal/preview"
+	internalpreview "react-component-library/internal/preview"
 )
 
 func base64Encode(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
@@ -39,24 +40,24 @@ var (
 // loads into the live-preview iframe. Inlines the transpiled module so
 // one request gives the browser everything it needs to render.
 type HarnessHandler struct {
-	service    preview.Service
+	service    internalpreview.Service
 	components components.Service
 	logger     *log.Logger
 	repoRoot   string
 }
 
-func NewHarnessHandler(svc preview.Service, logger *log.Logger) *HarnessHandler {
+func NewHarnessHandler(svc internalpreview.Service, logger *log.Logger) *HarnessHandler {
 	return NewHarnessHandlerWithStories(svc, nil, logger)
 }
 
-func NewHarnessHandlerWithStories(svc preview.Service, comp components.Service, logger *log.Logger) *HarnessHandler {
+func NewHarnessHandlerWithStories(svc internalpreview.Service, comp components.Service, logger *log.Logger) *HarnessHandler {
 	if logger == nil {
 		logger = log.Default()
 	}
 	return &HarnessHandler{service: svc, components: comp, logger: logger, repoRoot: discoverRepoRoot("")}
 }
 
-func NewHarnessHandlerWithStoriesAtRoot(svc preview.Service, comp components.Service, logger *log.Logger, repoRoot string) *HarnessHandler {
+func NewHarnessHandlerWithStoriesAtRoot(svc internalpreview.Service, comp components.Service, logger *log.Logger, repoRoot string) *HarnessHandler {
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -77,6 +78,10 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeHarnessError(w, h.logger, id, err)
 		return
 	}
+	if stories := previewStorySheetIDs(r); len(stories) > 0 {
+		h.serveStorySheet(w, r, componentID, stories)
+		return
+	}
 	story, err := h.resolveStory(r, componentID)
 	if err != nil {
 		writeHarnessError(w, h.logger, id, err)
@@ -89,9 +94,9 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if override := queryFrameOverride(r); override != nil {
 		frame = override
 	}
-	var bundle preview.Bundle
+	var bundle internalpreview.Bundle
 	if composer, ok := h.service.(interface {
-		GetBundleVersionWithFrameAndHarness(context.Context, string, string, *components.StoryFrame, *components.StoryHarnessRef) (preview.Bundle, error)
+		GetBundleVersionWithFrameAndHarness(context.Context, string, string, *components.StoryFrame, *components.StoryHarnessRef) (internalpreview.Bundle, error)
 	}); ok {
 		bundle, err = composer.GetBundleVersionWithFrameAndHarness(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")), frame, story.SharedHarness)
 	} else {
@@ -124,6 +129,102 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write([]byte(doc)); err != nil {
 		h.logger.Printf("preview.harness write %q: %v", id, err)
 	}
+}
+
+func previewStorySheetIDs(r *http.Request) []string {
+	raw := strings.TrimSpace(r.URL.Query().Get("stories"))
+	if raw == "" {
+		return nil
+	}
+	seen := map[string]bool{}
+	ids := make([]string, 0, 4)
+	for _, value := range strings.Split(raw, ",") {
+		id := strings.TrimSpace(value)
+		if id == "" || seen[id] || len(ids) >= 4 {
+			continue
+		}
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// serveStorySheet is the generic composite-review surface. It deliberately
+// contains only isolated story documents and labels their source contracts;
+// BAS captures the outer data-preview-sheet as one review accelerator while
+// each iframe remains independently capturable through the normal route.
+func (h *HarnessHandler) serveStorySheet(w http.ResponseWriter, r *http.Request, componentID string, storyIDs []string) {
+	type tile struct{ ID, Label, Source string }
+	tiles := make([]tile, 0, len(storyIDs))
+	componentLabel := componentID
+	if h.components != nil {
+		if component, err := h.components.Get(r.Context(), componentID); err == nil && strings.TrimSpace(component.DisplayName) != "" {
+			componentLabel = component.DisplayName
+		}
+	}
+	version := strings.TrimSpace(r.URL.Query().Get("version"))
+	kit := strings.TrimSpace(r.URL.Query().Get("kit"))
+	if kit == "" {
+		kit = defaultPreviewKit
+	}
+	for _, storyID := range storyIDs {
+		story, err := h.resolveStory(r, componentID)
+		if err != nil || story.Name != storyID {
+			// resolveStory reads the requested story query, so validate each tile
+			// with an explicit query clone rather than trusting client labels.
+			clone := r.Clone(r.Context())
+			query := clone.URL.Query()
+			query.Set("story", storyID)
+			clone.URL.RawQuery = query.Encode()
+			story, err = h.resolveStory(clone, componentID)
+			if err != nil {
+				writeHarnessError(w, h.logger, componentID, err)
+				return
+			}
+		}
+		if version == "" {
+			version = story.Version
+		}
+		query := url.Values{"story": []string{storyID}, "version": []string{version}, "kit": []string{kit}, "view": []string{"canvas"}}
+		tiles = append(tiles, tile{ID: storyID, Label: story.DisplayName, Source: "/preview/" + url.PathEscape(componentID) + "/harness.html?" + query.Encode()})
+	}
+	var body strings.Builder
+	body.WriteString(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>`)
+	body.WriteString(html.EscapeString(componentLabel + " story review"))
+	body.WriteString(`</title><style>
+:root{color-scheme:light;background:#f8fafc;color:#0f172a;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#f8fafc}.story-sheet{display:grid;gap:18px;padding:24px;min-width:0}
+.story-sheet__header{display:grid;gap:4px}.story-sheet__header h1{margin:0;font-size:20px;line-height:1.25}.story-sheet__header p{margin:0;color:#475569;font-size:13px}
+.story-sheet__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}.story-tile{display:grid;gap:8px;min-width:0}.story-tile h2{margin:0;font-size:13px;line-height:1.3}.story-tile p{margin:0;color:#64748b;font-size:11px;overflow-wrap:anywhere}.story-tile iframe{display:block;width:100%;height:360px;border:1px solid #cbd5e1;border-radius:10px;background:#fff}.story-sheet__footer{margin:0;color:#64748b;font-size:11px}
+@media(max-width:720px){.story-sheet{padding:16px}.story-sheet__grid{grid-template-columns:1fr}.story-tile iframe{height:340px}}
+</style></head><body><main class="story-sheet" data-preview-sheet="story-gallery" data-preview-capture-boundary="component-sheet" data-experience-surface="component-harness" data-experience-state="loading" data-rcl-story-status="pending"><header class="story-sheet__header"><h1>`)
+	body.WriteString(html.EscapeString(componentLabel + " stories"))
+	body.WriteString(`</h1><p data-story-sheet-summary aria-live="polite">Validating `)
+	body.WriteString(fmt.Sprint(len(tiles)))
+	body.WriteString(` labeled story specimens · `)
+	body.WriteString(html.EscapeString(version))
+	body.WriteString(` · `)
+	body.WriteString(html.EscapeString(kit))
+	body.WriteString(`</p></header><section class="story-sheet__grid" aria-label="Story specimens">`)
+	for _, tile := range tiles {
+		body.WriteString(`<article class="story-tile" data-story-id="`)
+		body.WriteString(html.EscapeString(tile.ID))
+		body.WriteString(`"><h2>`)
+		body.WriteString(html.EscapeString(tile.Label))
+		body.WriteString(`</h2><p>`)
+		body.WriteString(html.EscapeString(tile.ID))
+		body.WriteString(`</p><iframe title="`)
+		body.WriteString(html.EscapeString(tile.Label))
+		body.WriteString(` story" src="`)
+		body.WriteString(html.EscapeString(tile.Source))
+		body.WriteString(`" loading="eager"></iframe></article>`)
+	}
+	body.WriteString(`</section><p class="story-sheet__footer">Source: version-pinned RCL story contracts. Individual story captures remain authoritative.</p><pre id="rcl-story-result" hidden></pre></main><script>
+(function(){const root=document.querySelector('[data-preview-sheet]');const summary=document.querySelector('[data-story-sheet-summary]');const frames=[...document.querySelectorAll('iframe')];const check=()=>{let ready=0,failed=0;for(const frame of frames){try{const doc=frame.contentDocument;const harness=doc&&doc.querySelector('[data-experience-surface="component-harness"]');const state=harness?.getAttribute('data-experience-state');const result=harness?.getAttribute('data-rcl-story-status');if(state==='error'||result==='failed')failed++;if(state==='ready'&&result==='passed')ready++;}catch(_){}}if(failed){root.dataset.experienceState='error';root.dataset.rclStoryStatus='failed';summary.textContent='Validation failed · review the affected specimen for details.';}else if(ready===frames.length&&frames.length>0){root.dataset.experienceState='ready';root.dataset.rclStoryStatus='passed';summary.textContent='Ready · '+frames.length+' labeled story specimens';document.querySelector('#rcl-story-result').textContent=JSON.stringify({passed:true,failures:[],stories:frames.length});}else{root.dataset.experienceState='loading';root.dataset.rclStoryStatus='pending';summary.textContent='Validating '+ready+' of '+frames.length+' story specimens';}};frames.forEach(f=>f.addEventListener('load',()=>setTimeout(check,50)));check();setInterval(check,100);})();
+</script></body></html>`)
+	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte(body.String()))
 }
 
 // queryFrameOverride is intentionally transient. It is only accepted when a
@@ -161,7 +262,7 @@ func writeHarnessError(w http.ResponseWriter, logger *log.Logger, id string, err
 	var (
 		notFound   components.ErrComponentNotFound
 		pathEscape components.ErrPathEscape
-		bundleErr  preview.ErrBundle
+		bundleErr  internalpreview.ErrBundle
 	)
 	switch {
 	case errors.As(err, &notFound):
@@ -196,6 +297,7 @@ type harnessStory struct {
 	ExpectJSON            string
 	Harness               string
 	SharedHarness         *components.StoryHarnessRef
+	Fixture               *components.StoryFixtureRef
 	Frame                 *components.StoryFrame
 	Geometry              *components.StoryGeometry
 	Mode                  components.StoryMode
@@ -248,7 +350,12 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 				return harnessStory{}, fmt.Errorf("preview: encode story environment: %w", err)
 			}
 			frame := components.EffectiveStoryFrame(&contract, &definition)
-			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect), Harness: definition.Harness, SharedHarness: definition.SharedHarness, Frame: frame, Geometry: definition.Geometry, Mode: definition.Mode, Slot: component.Slot, AssetKind: component.AssetKind, Archetype: resolvePreviewArchetype(component.AssetKind, component.Slot, frame)}, nil
+			composition := components.EffectiveStoryComposition(&contract, &definition)
+			var fixture *components.StoryFixtureRef
+			if composition != nil {
+				fixture = composition.Fixture
+			}
+			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect), Harness: components.EffectiveStoryLocalHarness(&contract, &definition), SharedHarness: components.EffectiveStorySharedHarness(&contract, &definition), Fixture: fixture, Frame: frame, Geometry: definition.Geometry, Mode: definition.Mode, Slot: component.Slot, AssetKind: component.AssetKind, Archetype: resolvePreviewArchetype(component.AssetKind, component.Slot, frame)}, nil
 		}
 	}
 	return harnessStory{}, fmt.Errorf("preview: story %q not found for component %q", storyID, id)
@@ -286,7 +393,7 @@ func resolvePreviewArchetype(kind components.AssetKind, slot string, frame *comp
 	}
 }
 
-func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSystemCSS string, galleryMode ...any) string {
+func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, designSystemCSS string, galleryMode ...any) string {
 	var sb strings.Builder
 	bodyClass := ""
 	gallery := false
@@ -368,9 +475,30 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSyste
   .rcl-preview-stage--overlay { min-height: 100vh; padding: 0; }
   /* Stable boundary for component-sheet screenshot evidence. */
   [data-preview-sheet] { min-height: 100%; box-sizing: border-box; }
+  /* Isolated BAS/component-test evidence should describe the rendered
+     specimen, not a full browser viewport with a small control stranded in
+     the middle. Overlay and frame stories opt back into viewport geometry
+     below because their backdrop/focus context is part of the subject. */
+  html[data-rcl-capture-mode="isolated"] #root,
+  html[data-rcl-capture-mode="isolated"] [data-preview-sheet]:not(:has([role="dialog"])):not(:has([data-rcl-dialog])) {
+    min-height: 0;
+  }
+  html[data-rcl-capture-mode="isolated"] .rcl-preview-specimen,
+  html[data-rcl-capture-mode="isolated"] .rcl-preview-stage {
+    min-height: 0;
+  }
   [data-preview-sheet]:has([data-preview-harness-density="compact"]) {
     width: min(100%, 640px);
     margin-inline: auto;
+  }
+  /* Fixed overlays paint outside a tight content box. Keep the host-owned
+     capture boundary viewport-sized whenever a story contains an overlay so
+     the authoritative screenshot includes the surface, backdrop, and focus
+     context instead of clipping to the trigger's bounds. */
+  [data-preview-sheet]:has([data-rcl-dialog]),
+  [data-preview-sheet]:has([role="dialog"]) {
+    min-height: 100vh;
+    width: 100%;
   }
   .rcl-preview-well {
     width: min(100%, 760px);
@@ -509,7 +637,7 @@ const previewStory = {
   slot: ` + jsString(ex.Slot) + `,
   assetKind: ` + jsString(string(ex.AssetKind)) + `,
   archetype: ` + jsString(ex.Archetype) + `,
-  fixture: ` + jsonObjectLiteral(b.FixtureJSON) + `,
+  fixture: ` + fixtureJSON(ex.Fixture, b.FixtureJSON) + `,
 };
 // Resolved-theme bridge: the host owns the app/system decision and posts
 // {type:"rcl-resolved-theme", theme:"light"|"dark"}. Stamping the root is
@@ -736,7 +864,9 @@ const captureParams = new URLSearchParams(window.location.search);
 const captureTheme = captureParams.get("theme");
 const captureMotion = captureParams.get("motion");
 const captureSeed = captureParams.get("seed");
+const captureMode = captureParams.get("runner") === "1" ? "isolated" : "workbench";
 const captureFixtureShape = captureParams.get("fixtureShape") || (String(previewStory.name || "").toLowerCase().includes("failure") ? "failure" : "typical");
+document.documentElement.dataset.rclCaptureMode = captureMode;
 if (captureMotion === "reduce") {
   document.documentElement.dataset.rclCapture = "deterministic";
   document.documentElement.style.setProperty("--rcl-capture-motion", "reduced");
@@ -1305,7 +1435,7 @@ try {
 	return sb.String()
 }
 
-func buildImportMapJSON(b preview.Bundle) (string, []string) {
+func buildImportMapJSON(b internalpreview.Bundle) (string, []string) {
 	reactVersion, reactDOMVersion, warnings := resolveReactRuntimeVersions(b.Dependencies)
 	imports := map[string]string{
 		"react":                 runtimeURL("react", reactVersion, "", &warnings),
@@ -1396,7 +1526,7 @@ func packageRuntimeURL(name, version, subpath string, warnings *[]string) string
 	return "/preview/runtime/npm/" + name + "@" + version + "/index.js"
 }
 
-func renderBundleErrorHTML(err preview.ErrBundle) string {
+func renderBundleErrorHTML(err internalpreview.ErrBundle) string {
 	var sb strings.Builder
 	sb.WriteString(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8" /><title>preview: bundle error</title>
@@ -1462,6 +1592,27 @@ func frameJSON(frame *components.StoryFrame) string {
 		return "null"
 	}
 	return string(raw)
+}
+
+func fixtureJSON(fixture *components.StoryFixtureRef, base string) string {
+	baseLiteral := jsonObjectLiteral(base)
+	if fixture == nil {
+		return baseLiteral
+	}
+	raw, err := json.Marshal(fixture)
+	if err != nil {
+		return baseLiteral
+	}
+	payload, payloadErr := internalpreview.ResolveDeterministicFixture(fixture.Asset, fixture.Version, fixture.State)
+	if payloadErr != nil {
+		failure, _ := json.Marshal(map[string]string{"fixtureError": payloadErr.Error()})
+		return "Object.assign(" + baseLiteral + "," + string(raw) + "," + string(failure) + ")"
+	}
+	payloadJSON, marshalErr := json.Marshal(payload)
+	if marshalErr != nil {
+		return "Object.assign(" + baseLiteral + "," + string(raw) + ")"
+	}
+	return "Object.assign(" + baseLiteral + "," + string(raw) + "," + string(payloadJSON) + ")"
 }
 
 func sharedHarnessJSON(harness *components.StoryHarnessRef) string {
