@@ -22,7 +22,14 @@ import { useTheme } from "../../components/theme/useTheme";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { componentsClient, listComponentStories, type ComponentStory } from "../../api/components";
+import {
+  componentsClient,
+  listComponentStories,
+  listPreviewFrames,
+  persistPreviewFrame,
+  type ComponentStory,
+  type PreviewFrameCandidate,
+} from "../../api/components";
 import { useComponentInspector } from "../../hooks/useComponentInspector";
 import { useDeviceEmulation } from "../../hooks/useDeviceEmulation";
 import { useDeviceFilters } from "../../hooks/useDeviceFilters";
@@ -276,6 +283,23 @@ export function ComponentEditorImpl({
     queryFn: () => listComponentStories({ componentId: id, version: activeVersion, limit: 1 }),
     enabled: renderable && Boolean(activeVersion),
   });
+
+  const [frameOverride, setFrameOverride] = useState<PreviewFrameCandidate>();
+  const [frameSaveMessage, setFrameSaveMessage] = useState("");
+  const frameCandidatesQuery = useQuery({
+    queryKey: ["components", "preview-frames", id, activeVersion, selectedStory || ""],
+    queryFn: () =>
+      listPreviewFrames({
+        componentId: id,
+        version: activeVersion,
+        storyId: selectedStory,
+      }),
+    enabled: renderable && Boolean(activeVersion),
+  });
+  useEffect(() => {
+    setFrameOverride(undefined);
+    setFrameSaveMessage("");
+  }, [id, activeVersion, selectedStory]);
 
   const [buffer, setBuffer] = useState<string>("");
   const [baselineSha, setBaselineSha] = useState<string>("");
@@ -697,6 +721,32 @@ export function ComponentEditorImpl({
     },
   });
 
+  const persistFrameMutation = useMutation({
+    mutationFn: async () => {
+      if (!frameOverride) throw new Error("Select a compatible frame first");
+      const storyId = selectedStory || "";
+      if (!storyId) throw new Error("Select a story before saving its frame");
+      return persistPreviewFrame({
+        componentId: id,
+        version: activeVersion,
+        storyId,
+        asset: frameOverride.asset,
+        frameVersion: frameOverride.version,
+        region: frameOverride.region,
+        capability: frameOverride.capability,
+        fixture: frameOverride.fixture,
+      });
+    },
+    onSuccess: (response) => {
+      setFrameSaveMessage(`Saved to draft ${response.version}`);
+      setFrameOverride(undefined);
+      void queryClient.invalidateQueries({ queryKey: ["components", "versions", id] });
+      void queryClient.invalidateQueries({ queryKey: ["components", "stories", id] });
+      void queryClient.invalidateQueries({ queryKey: ["components", "preview-frames", id] });
+    },
+    onError: (error) => setFrameSaveMessage(errorMessage(error, t)),
+  });
+
   const readOnly = Boolean(selectedVersion) || selectedFile.endsWith(".json");
   const dirty = !readOnly && !!contentQuery.data && buffer !== contentQuery.data.content;
 
@@ -831,6 +881,10 @@ export function ComponentEditorImpl({
   const activeStoryContract: ComponentStory | undefined = (storiesQuery.data?.stories ?? []).find(
     (story) => story.version === (activeExample?.version || activeVersion),
   );
+  const compatibleFrameCandidates = (frameCandidatesQuery.data?.candidates ?? []).filter(
+    (candidate) => candidate.compatible,
+  );
+  const framePickerEnabled = renderable && Boolean(activeVersion);
   const activeSpecimenLabel = activeExample?.displayName || activeExample?.name;
   const paneLabels: Record<WorkspacePane, string> = {
     files: t(strings.components.editor.files),
@@ -1107,6 +1161,68 @@ export function ComponentEditorImpl({
                                 </div>
                               </nav>
                             )}
+                            {framePickerEnabled && (
+                              <div className="flex min-w-0 items-center gap-space-3xs">
+                                <label className="flex h-control-tight items-center gap-space-3xs rounded-control border border-app-border/80 bg-app-surface px-space-2xs text-xs text-app-muted-foreground">
+                                  <span className="sr-only">Preview frame</span>
+                                  <select
+                                    aria-label="Preview frame"
+                                    data-testid="components-editor-frame-picker"
+                                    className="max-w-[12rem] bg-transparent text-app-foreground outline-none"
+                                    value={frameOverride ? frameOverride.asset : ""}
+                                    disabled={
+                                      frameCandidatesQuery.isPending || frameCandidatesQuery.isError
+                                    }
+                                    onChange={(event) => {
+                                      const next = compatibleFrameCandidates.find(
+                                        (candidate) => candidate.asset === event.target.value,
+                                      );
+                                      setFrameSaveMessage("");
+                                      setFrameOverride(next);
+                                    }}
+                                  >
+                                    <option value="">
+                                      {frameCandidatesQuery.isPending
+                                        ? "Loading frames…"
+                                        : frameCandidatesQuery.isError
+                                          ? "Frames unavailable"
+                                          : compatibleFrameCandidates.length === 0
+                                            ? "No compatible frames"
+                                            : "Story frame"}
+                                    </option>
+                                    {compatibleFrameCandidates.map((candidate) => (
+                                      <option
+                                        key={`${candidate.asset}:${candidate.region}`}
+                                        value={candidate.asset}
+                                      >
+                                        {candidate.label} · {candidate.region}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                {frameOverride && (
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    className="h-control-tight px-space-2xs text-xs"
+                                    data-testid="components-editor-frame-save"
+                                    disabled={persistFrameMutation.isPending}
+                                    onClick={() => persistFrameMutation.mutate()}
+                                  >
+                                    {persistFrameMutation.isPending ? "Saving…" : "Save frame"}
+                                  </Button>
+                                )}
+                                {frameSaveMessage && (
+                                  <span
+                                    role={persistFrameMutation.isError ? "alert" : "status"}
+                                    className="max-w-[14rem] truncate text-xs text-app-muted-foreground"
+                                    title={frameSaveMessage}
+                                  >
+                                    {frameSaveMessage}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                             <IconButton
                               data-testid={selectors.components.editor.previewStageFullscreen}
                               type="button"
@@ -1194,6 +1310,7 @@ export function ComponentEditorImpl({
                             activeSpecimen={activeSpecimen}
                             previewKit={previewKit}
                             frameEnabled={frameEnabled}
+                            frameOverride={frameOverride}
                             id={id}
                             baselineSha={baselineSha}
                             previewReloadKey={previewReloadKey}

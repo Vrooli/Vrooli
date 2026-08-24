@@ -10,6 +10,7 @@
   },
   "frame": {
     "asset": "navigation.app-shell",
+    "version": "1.0.0",
     "region": "content",
     "fixture": "fixtures.user-directory"
   },

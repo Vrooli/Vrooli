@@ -72,6 +72,47 @@ export interface ListComponentStoriesResponse {
   stories: ComponentStory[];
 }
 
+export interface PreviewFrameCandidate {
+  asset: string;
+  version: string;
+  region: string;
+  capability: string;
+  fixture: string;
+  label: string;
+  compatible: boolean;
+  diagnosticCode: string;
+  diagnostic: string;
+}
+
+export interface ListPreviewFramesRequest {
+  componentId: string;
+  version?: string;
+  storyId?: string;
+}
+
+export interface ListPreviewFramesResponse {
+  candidates: PreviewFrameCandidate[];
+}
+
+export interface PersistPreviewFrameRequest {
+  componentId: string;
+  version?: string;
+  storyId: string;
+  asset: string;
+  frameVersion: string;
+  region: string;
+  capability?: string;
+  fixture?: string;
+}
+
+export interface PersistPreviewFrameResponse {
+  componentId: string;
+  version: string;
+  storyId: string;
+  storyJson: string;
+  sourcePath: string;
+}
+
 export interface ComponentExperienceState {
   id: string;
   exampleName: string;
@@ -132,6 +173,53 @@ export async function listComponentStories(
     ): Promise<ListComponentStoriesResponse>;
   };
   return client.listComponentStories(input);
+}
+
+export async function listPreviewFrames(
+  input: ListPreviewFramesRequest,
+): Promise<ListPreviewFramesResponse> {
+  const client = baseComponentsClient as unknown as {
+    listPreviewFrames(request: { componentId: string; version: string; storyId: string }): Promise<{
+      candidates: Array<{
+        asset: string;
+        version: string;
+        region: string;
+        capability: string;
+        fixture: string;
+        label: string;
+        compatible: boolean;
+        diagnosticCode: string;
+        diagnostic: string;
+      }>;
+    }>;
+  };
+  const response = await client.listPreviewFrames({
+    componentId: input.componentId,
+    version: input.version ?? "",
+    storyId: input.storyId ?? "",
+  });
+  return {
+    candidates: response.candidates.map((candidate) => ({
+      asset: candidate.asset,
+      version: candidate.version,
+      region: candidate.region,
+      capability: candidate.capability,
+      fixture: candidate.fixture,
+      label: candidate.label,
+      compatible: candidate.compatible,
+      diagnosticCode: candidate.diagnosticCode,
+      diagnostic: candidate.diagnostic,
+    })),
+  };
+}
+
+export async function persistPreviewFrame(
+  input: PersistPreviewFrameRequest,
+): Promise<PersistPreviewFrameResponse> {
+  const client = baseComponentsClient as unknown as {
+    persistPreviewFrame(request: PersistPreviewFrameRequest): Promise<PersistPreviewFrameResponse>;
+  };
+  return client.persistPreviewFrame(input);
 }
 
 export type { Component, ListComponentsResponse };

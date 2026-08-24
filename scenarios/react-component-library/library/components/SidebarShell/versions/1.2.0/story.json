@@ -84,7 +84,9 @@
   },
   "frame": {
     "asset": "navigation.page",
+    "version": "1.0.0",
     "region": "navigation",
+    "capability": "navigation",
     "fixture": "fixtures.resource-collection"
   },
   "stories": [

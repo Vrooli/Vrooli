@@ -341,7 +341,14 @@ func (s *service) GetVersionContentAt(ctx context.Context, componentID, version,
 	if err != nil {
 		return Content{}, err
 	}
+	entry := filepath.Base(c.SourcePath)
+	if entry == "." || entry == string(filepath.Separator) || entry == "" || strings.HasSuffix(entry, ".json") {
+		entry = c.Slug + ".tsx"
+	}
 	c.SourcePath = v.SourcePath
+	if !strings.Contains(filepath.ToSlash(c.SourcePath), "/versions/") {
+		c.SourcePath = filepath.ToSlash(filepath.Join("components", c.Slug, "versions", v.Version, entry))
+	}
 	store, ok := s.content.(PathContentStore)
 	if !ok {
 		return Content{}, errNoContentStore
@@ -361,6 +368,18 @@ func (s *service) UpdateContentAt(ctx context.Context, id, path string, in Write
 	if err != nil {
 		return Content{}, err
 	}
+	// JSON is a source artifact, not an opaque text blob. Normalize it at the
+	// write boundary so story contracts, experience contracts, and companion
+	// metadata remain deterministic regardless of which authoring surface wrote
+	// them. TypeScript formatting is owned by the source store's version-creation
+	// path; JSON can be canonicalized without a toolchain.
+	if strings.EqualFold(filepath.Ext(firstNonEmpty(path, c.SourcePath)), ".json") {
+		formatted, formatErr := canonicalJSONText(in.Body)
+		if formatErr != nil {
+			return Content{}, fmt.Errorf("format JSON artifact %q: %w", firstNonEmpty(path, c.SourcePath), formatErr)
+		}
+		in.Body = formatted
+	}
 	var written Content
 	if path != "" {
 		store, ok := s.content.(PathContentStore)
@@ -378,6 +397,57 @@ func (s *service) UpdateContentAt(ctx context.Context, id, path string, in Write
 		// Listener errors are non-fatal — the file is already written.
 		// Callers swallow + log at the handler edge.
 		_ = s.listener.OnContentSaved(ctx, c, written)
+	}
+	return written, nil
+}
+
+// UpdateVersionContentAt writes a companion artifact in an explicitly named
+// draft version. Preview authoring uses this narrow seam to persist a frame
+// choice without ever mutating a released version or falling back to the
+// manifest's moving latest pointer.
+func (s *service) UpdateVersionContentAt(ctx context.Context, componentID, version, path string, in WriteContentInput) (Content, error) {
+	if s.content == nil {
+		return Content{}, errNoContentStore
+	}
+	if strings.TrimSpace(path) == "" {
+		return Content{}, ErrInvalidHeader{SourcePath: path, Field: "path", Reason: "version companion path is required"}
+	}
+	c, err := s.Get(ctx, componentID)
+	if err != nil {
+		return Content{}, err
+	}
+	v, err := s.GetVersion(ctx, c.ID, strings.TrimSpace(version))
+	if err != nil {
+		return Content{}, err
+	}
+	if v.Status != VersionStatusDraft {
+		return Content{}, ErrInvalidHeader{SourcePath: v.SourcePath, Field: "version", Reason: "released component versions are immutable; create a draft first"}
+	}
+	store, ok := s.content.(PathContentStore)
+	if !ok {
+		return Content{}, errNoContentStore
+	}
+	entry := filepath.Base(c.SourcePath)
+	if entry == "." || entry == string(filepath.Separator) || entry == "" || strings.HasSuffix(entry, ".json") {
+		entry = c.Slug + ".tsx"
+	}
+	c.SourcePath = v.SourcePath
+	if !strings.Contains(filepath.ToSlash(c.SourcePath), "/versions/") {
+		c.SourcePath = filepath.ToSlash(filepath.Join("components", c.Slug, "versions", v.Version, entry))
+	}
+	if strings.EqualFold(filepath.Ext(path), ".json") {
+		formatted, formatErr := canonicalJSONText(in.Body)
+		if formatErr != nil {
+			return Content{}, fmt.Errorf("format JSON artifact %q: %w", path, formatErr)
+		}
+		in.Body = formatted
+	}
+	written, err := store.WritePath(ctx, c, path, in)
+	if err != nil {
+		return Content{}, fmt.Errorf("write version artifact %q from %q: %w", path, c.SourcePath, err)
+	}
+	if _, err := NewIndexer(s.repo, s.source.Root(), nil).IndexManifest(ctx, c.ManifestPath); err != nil {
+		return Content{}, err
 	}
 	return written, nil
 }

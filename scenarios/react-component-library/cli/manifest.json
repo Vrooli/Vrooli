@@ -1987,6 +1987,26 @@
   ],
   "omitted": [
     {
+      "service": "ComponentsService",
+      "method": "ListPreviewFrames",
+      "reason": "Preview-only UI composition discovery. The CLI exposes bundle diagnostics but does not author or persist story frame selections."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "PersistPreviewFrame",
+      "reason": "Preview-only UI authoring surface. Frame persistence creates versioned story drafts from the Components UI; no standalone CLI workflow exists."
+    },
+    {
+      "service": "InventoryService",
+      "method": "ScanScenario",
+      "reason": "Internal provider surface used by catalog inventory workflows; no standalone CLI command is intended."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateTarget",
+      "reason": "Provider-owned validation surface invoked by Test Genie; CLI consumers use the scenario test protocol."
+    },
+    {
       "service": "DepsService",
       "method": "ListDeclarations",
       "reason": "Internal/UI-only surface. DepsService is consumed by the UI and the adoption-validation flow, not by the CLI. No deps CLI domain exists (cli/domains has only adoptions, components, preview, versions); the endpoint is intentionally omitted from CLI coverage, and promoting it would require authoring a net-new deps CLI domain + handlers, not wiring an existing hand-appended command. Documented intent in this manifest's description."

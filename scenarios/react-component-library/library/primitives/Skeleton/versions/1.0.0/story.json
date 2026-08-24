@@ -12,6 +12,15 @@
     {
       "id": "default",
       "name": "Default",
+      "sharedHarness": {
+        "asset": "preview.showcase",
+        "version": "1.0.0",
+        "export": "Showcase",
+        "config": {
+          "title": "Loading geometry",
+          "detail": "A reusable primitive specimen with stable visual context."
+        }
+      },
       "args": {},
       "mode": "pinned"
     }

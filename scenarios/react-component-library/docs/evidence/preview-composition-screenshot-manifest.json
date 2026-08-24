@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Inspected component-sheet evidence for the Preview composition foundation and frame experiment flow. Workspace screenshots are diagnostic only and are not acceptance evidence.",
+  "capture": {
+    "renderer": "Google Chrome via Playwright",
+    "viewport": { "width": 1440, "height": 900 },
+    "theme": "light",
+    "kit": "vrooli-default",
+    "capturedAt": "2026-08-23",
+    "operator": "Codex"
+  },
+  "captures": [
+    {
+      "asset": "react-component-library:Button",
+      "version": "2.2.0",
+      "story": "shared-showcase",
+      "frame": "host.standalone",
+      "harness": {
+        "asset": "preview.showcase",
+        "version": "1.0.0",
+        "export": "Showcase"
+      },
+      "path": "docs/evidence/preview-composition/button-showcase.png",
+      "inspected": true,
+      "findings": [
+        "Subject remains visually primary inside the shared semantic showcase.",
+        "The frame picker and story controls remain usable without obscuring the subject.",
+        "The shared harness uses library surface, spacing, typography, and action styling."
+      ],
+      "captureTarget": "workspace-diagnostic",
+      "disposition": "not-acceptance-evidence"
+    },
+    {
+      "asset": "react-component-library:Page",
+      "version": "1.0.0",
+      "story": "default",
+      "frame": {
+        "asset": "navigation.app-shell",
+        "version": "1.0.0",
+        "region": "navigation"
+      },
+      "harness": null,
+      "path": "docs/evidence/preview-composition/page-app-shell.png",
+      "inspected": true,
+      "findings": [
+        "The temporary frame selection is visible in the toolbar and the Save frame action appears only after selection.",
+        "Navigation and content regions remain separated and the subject is visible in the content area.",
+        "The gallery reported one of two stories ready during this capture; the non-ready story requires a separate story-level follow-up."
+      ],
+      "captureTarget": "workspace-diagnostic",
+      "disposition": "not-acceptance-evidence"
+    },
+    {
+      "asset": "react-component-library:Page",
+      "version": "1.0.0",
+      "story": "default",
+      "frame": {
+        "asset": "navigation.app-shell",
+        "version": "1.0.0",
+        "region": "navigation"
+      },
+      "harness": null,
+      "path": "docs/evidence/preview-composition/page-app-shell-ready.png",
+      "inspected": true,
+      "findings": [
+        "The exact frame version is displayed in the selector label.",
+        "The subject remains visible without raw HTML chrome leaking into the composition."
+      ],
+      "captureTarget": "workspace-diagnostic",
+      "disposition": "not-acceptance-evidence"
+    },
+    {
+      "asset": "react-component-library:Button",
+      "version": "2.2.0",
+      "story": "shared-showcase",
+      "frame": "host.standalone",
+      "harness": {
+        "asset": "preview.showcase",
+        "version": "1.0.0",
+        "export": "Showcase"
+      },
+      "theme": "light",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "path": "docs/evidence/preview-composition/button-sheet-light.png",
+      "inspected": true,
+      "findings": [
+        "The artifact contains only the shared showcase sheet and Button subject; editor toolbar and Preview workspace chrome are absent.",
+        "The shared harness provides a coherent title, description, spacing, surface, and action treatment."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:Button",
+      "version": "2.2.0",
+      "story": "shared-showcase",
+      "frame": "host.standalone",
+      "harness": {
+        "asset": "preview.showcase",
+        "version": "1.0.0",
+        "export": "Showcase"
+      },
+      "theme": "dark",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "path": "docs/evidence/preview-composition/button-sheet-dark.png",
+      "inspected": true,
+      "findings": [
+        "The same component sheet remains legible and structurally coherent in the dark theme."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:Page",
+      "version": "1.0.0",
+      "story": "default",
+      "frame": {
+        "asset": "navigation.app-shell",
+        "version": "1.0.0",
+        "region": "navigation"
+      },
+      "harness": null,
+      "theme": "light",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "path": "docs/evidence/preview-composition/page-app-shell-sheet-light.png",
+      "inspected": true,
+      "findings": [
+        "The artifact is the isolated frame composition: navigation and Page content are visible together, with no editor workspace chrome.",
+        "The exact app-shell context is present in the rendered sheet rather than being represented only by a toolbar selection."
+      ],
+      "disposition": "accepted"
+    },
+    {
+      "asset": "react-component-library:Page",
+      "version": "1.0.0",
+      "story": "default",
+      "frame": {
+        "asset": "navigation.app-shell",
+        "version": "1.0.0",
+        "region": "navigation"
+      },
+      "harness": null,
+      "theme": "dark",
+      "kit": "vrooli-default",
+      "viewport": { "width": 1254, "height": 720 },
+      "captureTarget": "component-sheet",
+      "captureSelector": "[data-preview-sheet]",
+      "path": "docs/evidence/preview-composition/page-app-shell-sheet-dark.png",
+      "inspected": true,
+      "findings": [
+        "The composed app-shell sheet preserves hierarchy and contrast in the dark theme."
+      ],
+      "disposition": "accepted"
+    }
+  ],
+  "reviewRules": [
+    "Do not treat a generated image as reviewed until its pixels are inspected.",
+    "A partial story-readiness count is recorded as a follow-up, not silently treated as complete.",
+    "Future migration batches must append captures with exact asset, version, story, frame, harness, fixture, theme, kit, viewport, state, and disposition fields."
+  ]
+}

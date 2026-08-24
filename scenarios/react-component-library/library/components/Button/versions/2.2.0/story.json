@@ -49,6 +49,22 @@
       "args": { "children": { "$text": "Save changes" }, "disabled": true },
       "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }],
       "mode": "live"
+    },
+    {
+      "id": "shared-showcase",
+      "name": "Shared showcase harness",
+      "sharedHarness": {
+        "asset": "preview.showcase",
+        "version": "1.0.0",
+        "export": "Showcase",
+        "config": {
+          "title": "Primary action",
+          "detail": "The generic harness supplies context; Button remains the subject."
+        }
+      },
+      "args": { "children": { "$text": "Save changes" }, "variant": "primary" },
+      "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }],
+      "mode": "live"
     }
   ]
 }

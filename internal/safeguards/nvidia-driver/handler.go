@@ -16,6 +16,7 @@
 package nvidiadriver
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -84,6 +86,20 @@ var (
 			}
 		}
 		return lines > 0
+	}
+	// ComputeDeviceAccessFn reports whether the invoking user can open the
+	// NVIDIA compute device nodes. It is deliberately an open attempt rather
+	// than a presence check: a node the user cannot open exists, is a character
+	// device, and still cannot serve compute. That gap is the whole silent-CPU
+	// failure mode, and nvidia-smi answering does not close it — nvidia-smi
+	// opens /dev/nvidiactl, not /dev/nvidia0 and /dev/nvidia-uvm, which are the
+	// nodes a CUDA context needs.
+	ComputeDeviceAccessFn = func() (nodes []string, openable []string) {
+		snapshot, err := hostinventory.SystemCollector().CollectGPUFacts(context.Background())
+		if err != nil {
+			return nil, nil
+		}
+		return snapshot.NvidiaDeviceNodes, snapshot.OpenableDeviceNodes
 	}
 	// PersistencedPresentFn reports whether the persistence daemon this
 	// safeguard configures actually exists on the host.
@@ -174,6 +190,11 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	if DriverReadyFn() {
 		status.Installed = true
 		status.Notes = append(status.Notes, "NVIDIA PCI hardware and NVML driver are ready")
+		// Device access is reported before persistence, because it is true or
+		// false independently of it: a host with persistence enabled can still
+		// deny this user the compute nodes, and a host without persistence can
+		// still be granting them right now.
+		status = inspectComputeDeviceAccess(status)
 		return inspectDeviceNodeDurability(host, status)
 	}
 	if host.PackageManager != "apt" && host.PackageManager != "apt-get" {
@@ -216,6 +237,30 @@ func inspectDeviceNodeDurability(host hostreqkit.Host, status hostreqkit.ItemSta
 		"NVIDIA persistence mode is not durably enabled: the compute device nodes exist only while another client holds the driver open",
 		"a resource that starts before the first client observes a GPU-less host, falls back to CPU, and never re-probes",
 		"will install "+persistenceDropIn+" and reload nvidia-persistenced with --persistence-mode")
+	return status
+}
+
+// inspectComputeDeviceAccess is the third readiness dimension. Driver presence
+// and persistence say the device nodes will exist; this says the invoking user
+// can actually open them. A resource that cannot open the node falls back to
+// the CPU while every other dimension reports green, so the dimension is
+// reported even when nothing here can repair it: an unopenable node is a group
+// membership or udev rule question, and both belong to the operator.
+func inspectComputeDeviceAccess(status hostreqkit.ItemStatus) hostreqkit.ItemStatus {
+	nodes, openable := ComputeDeviceAccessFn()
+	if len(nodes) == 0 {
+		status.Notes = append(status.Notes, "no NVIDIA compute device nodes are present yet; they appear when a client first opens the driver, and a resource that starts before that lands on the CPU")
+		return status
+	}
+	if len(openable) > 0 {
+		status.Notes = append(status.Notes, fmt.Sprintf("compute device nodes are openable by this user: %s", strings.Join(openable, ", ")))
+		return status
+	}
+	status.BlockingReason = hostreqkit.BlockingManual
+	status.Notes = append(status.Notes,
+		fmt.Sprintf("NVIDIA compute device nodes exist but this user cannot open any of them: %s", strings.Join(nodes, ", ")),
+		"presence is not access: a resource will start, fail to create a CUDA context, and silently run on the CPU",
+		"add this user to the group that owns the device nodes, or install a udev rule that grants access, then re-run `vrooli setup`")
 	return status
 }
 

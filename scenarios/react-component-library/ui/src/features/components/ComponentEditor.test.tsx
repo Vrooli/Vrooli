@@ -780,6 +780,82 @@ describe("ComponentEditor", () => {
     });
   });
 
+  it("keeps frame experiments temporary until the author explicitly saves them", async () => {
+    const { componentsClient, listComponentStories, listPreviewFrames, persistPreviewFrame } =
+      await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "v1", sha256: "sha-frame-save" }),
+    );
+    vi.mocked(listComponentStories).mockResolvedValueOnce({
+      stories: [
+        {
+          id: "contract",
+          componentId: "cmp-frame-save",
+          libraryId: "lib:FrameSave",
+          version: "1.0.0",
+          schemaVersion: 3,
+          kind: "component",
+          title: "",
+          argsJson: '{"fields":[]}',
+          environmentJson: '{"fixtures":[]}',
+          storiesJson: '[{"id":"primary","name":"Primary","args":{}}]',
+          contractJson: '{"schemaVersion":3,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"primary","name":"Primary","args":{}}]}',
+          sourcePath: "story.json",
+        },
+      ],
+    });
+    vi.mocked(listPreviewFrames).mockResolvedValueOnce({
+      candidates: [
+        {
+          asset: "navigation.page",
+          version: "1.0.0",
+          region: "content",
+          capability: "",
+          fixture: "",
+          label: "navigation.page",
+          compatible: true,
+          diagnosticCode: "",
+          diagnostic: "",
+        },
+      ],
+    });
+    vi.mocked(persistPreviewFrame).mockResolvedValueOnce({
+      componentId: "cmp-frame-save",
+      version: "1.0.1-draft.1",
+      storyId: "primary",
+      storyJson: "{}",
+      sourcePath: "story.json",
+    });
+
+    renderWithProviders(
+      <ComponentEditor
+        id="cmp-frame-save"
+        libraryId="lib:FrameSave"
+        latestVersion="1.0.0"
+        selectedStory="primary"
+        onClose={() => {}}
+        activePane="preview"
+      />,
+    );
+
+    const picker = await screen.findByTestId<HTMLSelectElement>(
+      "components-editor-frame-picker",
+    );
+    expect(persistPreviewFrame).not.toHaveBeenCalled();
+    await userEvent.selectOptions(picker, "navigation.page");
+    const save = await screen.findByTestId("components-editor-frame-save");
+    await userEvent.click(save);
+    await waitFor(() => expect(persistPreviewFrame).toHaveBeenCalledTimes(1));
+    expect(persistPreviewFrame).toHaveBeenCalledWith(
+      expect.objectContaining({
+        componentId: "cmp-frame-save",
+        storyId: "primary",
+        asset: "navigation.page",
+        frameVersion: "1.0.0",
+      }),
+    );
+  });
+
   it("sends a temporary props override to the visible selected state", async () => {
     const originalMatchMedia = window.matchMedia;
     window.matchMedia = vi.fn().mockImplementation(() => ({

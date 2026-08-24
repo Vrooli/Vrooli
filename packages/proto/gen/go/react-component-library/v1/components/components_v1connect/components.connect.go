@@ -81,6 +81,12 @@ const (
 	// ComponentsServiceListComponentStoriesProcedure is the fully-qualified name of the
 	// ComponentsService's ListComponentStories RPC.
 	ComponentsServiceListComponentStoriesProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentStories"
+	// ComponentsServiceListPreviewFramesProcedure is the fully-qualified name of the
+	// ComponentsService's ListPreviewFrames RPC.
+	ComponentsServiceListPreviewFramesProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/ListPreviewFrames"
+	// ComponentsServicePersistPreviewFrameProcedure is the fully-qualified name of the
+	// ComponentsService's PersistPreviewFrame RPC.
+	ComponentsServicePersistPreviewFrameProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/PersistPreviewFrame"
 	// ComponentsServiceListDesignStylesProcedure is the fully-qualified name of the ComponentsService's
 	// ListDesignStyles RPC.
 	ComponentsServiceListDesignStylesProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/ListDesignStyles"
@@ -108,6 +114,8 @@ type ComponentsServiceClient interface {
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
 	GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error)
 	ListComponentStories(context.Context, *connect.Request[components.ListComponentStoriesRequest]) (*connect.Response[components.ListComponentStoriesResponse], error)
+	ListPreviewFrames(context.Context, *connect.Request[components.ListPreviewFramesRequest]) (*connect.Response[components.ListPreviewFramesResponse], error)
+	PersistPreviewFrame(context.Context, *connect.Request[components.PersistPreviewFrameRequest]) (*connect.Response[components.PersistPreviewFrameResponse], error)
 	ListDesignStyles(context.Context, *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error)
 	ValidateStyleFit(context.Context, *connect.Request[components.ValidateStyleFitRequest]) (*connect.Response[components.ValidateStyleFitResponse], error)
 }
@@ -220,6 +228,18 @@ func NewComponentsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(componentsServiceMethods.ByName("ListComponentStories")),
 			connect.WithClientOptions(opts...),
 		),
+		listPreviewFrames: connect.NewClient[components.ListPreviewFramesRequest, components.ListPreviewFramesResponse](
+			httpClient,
+			baseURL+ComponentsServiceListPreviewFramesProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("ListPreviewFrames")),
+			connect.WithClientOptions(opts...),
+		),
+		persistPreviewFrame: connect.NewClient[components.PersistPreviewFrameRequest, components.PersistPreviewFrameResponse](
+			httpClient,
+			baseURL+ComponentsServicePersistPreviewFrameProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("PersistPreviewFrame")),
+			connect.WithClientOptions(opts...),
+		),
 		listDesignStyles: connect.NewClient[components.ListDesignStylesRequest, components.ListDesignStylesResponse](
 			httpClient,
 			baseURL+ComponentsServiceListDesignStylesProcedure,
@@ -253,6 +273,8 @@ type componentsServiceClient struct {
 	listComponentVersions      *connect.Client[components.ListComponentVersionsRequest, components.ListComponentVersionsResponse]
 	getComponentVersionContent *connect.Client[components.GetComponentVersionContentRequest, components.GetComponentVersionContentResponse]
 	listComponentStories       *connect.Client[components.ListComponentStoriesRequest, components.ListComponentStoriesResponse]
+	listPreviewFrames          *connect.Client[components.ListPreviewFramesRequest, components.ListPreviewFramesResponse]
+	persistPreviewFrame        *connect.Client[components.PersistPreviewFrameRequest, components.PersistPreviewFrameResponse]
 	listDesignStyles           *connect.Client[components.ListDesignStylesRequest, components.ListDesignStylesResponse]
 	validateStyleFit           *connect.Client[components.ValidateStyleFitRequest, components.ValidateStyleFitResponse]
 }
@@ -352,6 +374,18 @@ func (c *componentsServiceClient) ListComponentStories(ctx context.Context, req 
 	return c.listComponentStories.CallUnary(ctx, req)
 }
 
+// ListPreviewFrames calls
+// vrooli.react_component_library.v1.components.ComponentsService.ListPreviewFrames.
+func (c *componentsServiceClient) ListPreviewFrames(ctx context.Context, req *connect.Request[components.ListPreviewFramesRequest]) (*connect.Response[components.ListPreviewFramesResponse], error) {
+	return c.listPreviewFrames.CallUnary(ctx, req)
+}
+
+// PersistPreviewFrame calls
+// vrooli.react_component_library.v1.components.ComponentsService.PersistPreviewFrame.
+func (c *componentsServiceClient) PersistPreviewFrame(ctx context.Context, req *connect.Request[components.PersistPreviewFrameRequest]) (*connect.Response[components.PersistPreviewFrameResponse], error) {
+	return c.persistPreviewFrame.CallUnary(ctx, req)
+}
+
 // ListDesignStyles calls
 // vrooli.react_component_library.v1.components.ComponentsService.ListDesignStyles.
 func (c *componentsServiceClient) ListDesignStyles(ctx context.Context, req *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error) {
@@ -383,6 +417,8 @@ type ComponentsServiceHandler interface {
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
 	GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error)
 	ListComponentStories(context.Context, *connect.Request[components.ListComponentStoriesRequest]) (*connect.Response[components.ListComponentStoriesResponse], error)
+	ListPreviewFrames(context.Context, *connect.Request[components.ListPreviewFramesRequest]) (*connect.Response[components.ListPreviewFramesResponse], error)
+	PersistPreviewFrame(context.Context, *connect.Request[components.PersistPreviewFrameRequest]) (*connect.Response[components.PersistPreviewFrameResponse], error)
 	ListDesignStyles(context.Context, *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error)
 	ValidateStyleFit(context.Context, *connect.Request[components.ValidateStyleFitRequest]) (*connect.Response[components.ValidateStyleFitResponse], error)
 }
@@ -490,6 +526,18 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 		connect.WithSchema(componentsServiceMethods.ByName("ListComponentStories")),
 		connect.WithHandlerOptions(opts...),
 	)
+	componentsServiceListPreviewFramesHandler := connect.NewUnaryHandler(
+		ComponentsServiceListPreviewFramesProcedure,
+		svc.ListPreviewFrames,
+		connect.WithSchema(componentsServiceMethods.ByName("ListPreviewFrames")),
+		connect.WithHandlerOptions(opts...),
+	)
+	componentsServicePersistPreviewFrameHandler := connect.NewUnaryHandler(
+		ComponentsServicePersistPreviewFrameProcedure,
+		svc.PersistPreviewFrame,
+		connect.WithSchema(componentsServiceMethods.ByName("PersistPreviewFrame")),
+		connect.WithHandlerOptions(opts...),
+	)
 	componentsServiceListDesignStylesHandler := connect.NewUnaryHandler(
 		ComponentsServiceListDesignStylesProcedure,
 		svc.ListDesignStyles,
@@ -536,6 +584,10 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 			componentsServiceGetComponentVersionContentHandler.ServeHTTP(w, r)
 		case ComponentsServiceListComponentStoriesProcedure:
 			componentsServiceListComponentStoriesHandler.ServeHTTP(w, r)
+		case ComponentsServiceListPreviewFramesProcedure:
+			componentsServiceListPreviewFramesHandler.ServeHTTP(w, r)
+		case ComponentsServicePersistPreviewFrameProcedure:
+			componentsServicePersistPreviewFrameHandler.ServeHTTP(w, r)
 		case ComponentsServiceListDesignStylesProcedure:
 			componentsServiceListDesignStylesHandler.ServeHTTP(w, r)
 		case ComponentsServiceValidateStyleFitProcedure:
@@ -611,6 +663,14 @@ func (UnimplementedComponentsServiceHandler) GetComponentVersionContent(context.
 
 func (UnimplementedComponentsServiceHandler) ListComponentStories(context.Context, *connect.Request[components.ListComponentStoriesRequest]) (*connect.Response[components.ListComponentStoriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.ListComponentStories is not implemented"))
+}
+
+func (UnimplementedComponentsServiceHandler) ListPreviewFrames(context.Context, *connect.Request[components.ListPreviewFramesRequest]) (*connect.Response[components.ListPreviewFramesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.ListPreviewFrames is not implemented"))
+}
+
+func (UnimplementedComponentsServiceHandler) PersistPreviewFrame(context.Context, *connect.Request[components.PersistPreviewFrameRequest]) (*connect.Response[components.PersistPreviewFrameResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.PersistPreviewFrame is not implemented"))
 }
 
 func (UnimplementedComponentsServiceHandler) ListDesignStyles(context.Context, *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error) {

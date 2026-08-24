@@ -114,6 +114,7 @@ func TestRenderHarnessHTMLInjectsDesignSystemCSS(t *testing.T) {
 	require.NotContains(t, html, `background: #0b0d12`)
 	require.Contains(t, html, `rcl-resolved-theme`)
 	require.Contains(t, html, `document.documentElement.dataset.resolvedTheme`)
+	require.Contains(t, html, `data-preview-sheet`)
 	require.Contains(t, html, `t: "HELLO", appId: "react-component-library"`)
 	require.Contains(t, html, `"inspect"`)
 	require.Contains(t, html, `queueMicrotask(ready)`)

@@ -95,7 +95,56 @@ func TestModule_AuthoringWorkflowUsesLibraryIDAndPublishesOnlyAfterCheck(t *test
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, components.Endpoints, 18, "components ships registry, authoring, ingest, style fit, styles, content, versions, and story endpoints")
+	require.Len(t, components.Endpoints, 20, "components ships registry, authoring, ingest, style fit, styles, content, versions, stories, and Preview frame endpoints")
+}
+
+func TestModule_PersistPreviewFrameCreatesVersionPinnedDraftStory(t *testing.T) {
+	r, root := setupModule(t)
+	writePageFrameTestCatalog(t, root)
+	writePageManifest(t, root)
+
+	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+
+	rw = callConnect(r, componentsconnect.ComponentsServiceListPreviewFramesProcedure, `{"componentId":"react-component-library:Page","version":"1.0.0","storyId":"default"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"asset":"navigation.page"`)
+
+	rw = callConnect(r, componentsconnect.ComponentsServicePersistPreviewFrameProcedure, `{
+  "componentId":"react-component-library:Page",
+  "version":"1.0.0",
+  "storyId":"default",
+  "asset":"navigation.page",
+  "frameVersion":"1.0.0",
+  "region":"navigation",
+  "capability":"navigation"
+}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"version":"1.0.1-draft.1"`)
+	require.Contains(t, rw.Body.String(), `navigation.page`)
+	require.FileExists(t, filepath.Join(root, "components", "Page", "versions", "1.0.1-draft.1", "story.json"))
+}
+
+func TestModule_PersistPreviewFrameRejectsInvalidRegionBeforeCreatingDraft(t *testing.T) {
+	r, root := setupModule(t)
+	writePageFrameTestCatalog(t, root)
+	writePageManifest(t, root)
+	require.Equal(t, http.StatusOK, callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`).Code)
+
+	rw := callConnect(r, componentsconnect.ComponentsServicePersistPreviewFrameProcedure, `{
+  "componentId":"react-component-library:Page",
+  "version":"1.0.0",
+  "storyId":"default",
+  "asset":"navigation.page",
+  "frameVersion":"1.0.0",
+  "region":"not-a-region",
+  "capability":"navigation"
+	}`)
+	require.Equal(t, http.StatusBadRequest, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"code":"failed_precondition"`)
+	_, err := os.Stat(filepath.Join(root, "components", "Page", "versions", "1.0.1-draft.1"))
+	require.Error(t, err)
+	require.True(t, os.IsNotExist(err))
 }
 
 func TestModule_InitializeComponentRoundTrip(t *testing.T) {
@@ -293,6 +342,47 @@ func writeButtonManifest(t *testing.T, root, source string) {
   "deprecatedVersions": []
 }`), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "versions", "1.0.0", "Button.tsx"), []byte(source), 0o600))
+}
+
+func writePageManifest(t *testing.T, root string) {
+	t.Helper()
+	dir := filepath.Join(root, "components", "Page")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "versions", "1.0.0"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "component.json"), []byte(`{
+  "libraryId": "react-component-library:Page",
+  "catalogId": "navigation.page",
+  "displayName": "Page",
+  "latest": "1.0.0",
+  "deprecatedVersions": []
+}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "versions", "1.0.0", "Page.tsx"), []byte(`/**
+ * @libraryId react-component-library:Page
+ * @version 1.0.0
+ */
+export const Page = () => null;
+`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "versions", "1.0.0", "story.json"), []byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id": "default", "name": "Default", "args": {}}]
+}`), 0o600))
+}
+
+func writePageFrameTestCatalog(t *testing.T, root string) {
+	t.Helper()
+	dir := filepath.Join(filepath.Dir(root), "catalog", "assets", "navigation")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "page.json"), []byte(`{
+  "kind": "catalog-asset",
+  "asset": {"id": "navigation.page", "kind": "navigation", "targets": ["react-vite"]},
+  "regions": [
+    {"id": "navigation", "accepts": "navigation"},
+    {"id": "content"}
+  ],
+  "expects": [{"capability": "router-adapter"}]
+}`), 0o600))
 }
 
 func writeButtonManifestWithStyles(t *testing.T, root, designStyles string) {

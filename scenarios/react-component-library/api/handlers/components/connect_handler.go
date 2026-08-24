@@ -2,9 +2,12 @@ package components
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
+	"path/filepath"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -430,6 +433,285 @@ func (h *connectHandler) ListComponentStories(ctx context.Context, req *connect.
 		resp.Stories = append(resp.Stories, storyToProto(story))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// ListPreviewFrames exposes catalog-owned frame candidates and their
+// compatibility diagnostics. The UI may render compatible candidates as a
+// temporary experiment; this RPC never edits story.json.
+func (h *connectHandler) ListPreviewFrames(ctx context.Context, req *connect.Request[componentsv1.ListPreviewFramesRequest]) (*connect.Response[componentsv1.ListPreviewFramesResponse], error) {
+	if strings.TrimSpace(req.Msg.ComponentId) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("component_id required"))
+	}
+	subject, err := h.deps.Service.Get(ctx, req.Msg.ComponentId)
+	if err != nil {
+		return nil, components.ToConnectError(err)
+	}
+	assets, err := components.CatalogFrameAssetsFromDir(filepath.Join(filepath.Dir(h.deps.SourceRoot), "catalog"))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load frame catalog: %w", err))
+	}
+	implementations, err := h.deps.Service.List(ctx, components.SearchQuery{Limit: 10000})
+	if err != nil {
+		return nil, components.ToConnectError(err)
+	}
+	capability := subjectCapability(subject.CatalogID)
+	out := &componentsv1.ListPreviewFramesResponse{}
+	for _, asset := range assets {
+		if asset.Kind == "fixture" || len(asset.Regions) == 0 {
+			continue
+		}
+		regions := previewRegionsForSubject(asset, capability)
+		for _, selectedRegion := range regions {
+			candidate := &componentsv1.PreviewFrameCandidate{Asset: asset.ID, Region: selectedRegion, Label: asset.ID, Compatible: true}
+			if !containsString(asset.Targets, "react-vite") {
+				candidate.Compatible = false
+				candidate.DiagnosticCode = "unsupported_target"
+				candidate.Diagnostic = "frame does not declare react-vite support"
+			}
+			if !canonicalPreviewFrame(asset.ID) && candidate.Compatible {
+				candidate.Compatible = false
+				candidate.DiagnosticCode = "not_canonical_frame"
+				candidate.Diagnostic = "region-bearing catalog asset is not approved as a canonical Preview frame"
+			}
+			implementation, found := findCatalogImplementation(implementations, asset.ID)
+			if !found && candidate.Compatible {
+				candidate.Compatible = false
+				candidate.DiagnosticCode = "implementation_missing"
+				candidate.Diagnostic = "catalog frame has no indexed react-vite implementation"
+			} else if found {
+				candidate.Version = implementation.LatestVersion
+			}
+			if candidate.Compatible {
+				if required := asset.RegionCapabilities[selectedRegion]; required != "" {
+					candidate.Capability = required
+					if capability != required {
+						candidate.Compatible = false
+						candidate.DiagnosticCode = "subject_capability_mismatch"
+						candidate.Diagnostic = fmt.Sprintf("subject exposes %q; region requires %q", capability, required)
+					}
+				}
+			}
+			for _, expected := range asset.Expects {
+				// Adapter ports are supplied by the Preview runtime. Only a
+				// catalog-declared data-source port requires a fixture asset.
+				if expected.Capability != "data-source" {
+					continue
+				}
+				fixture := findFixture(assets, expected)
+				if fixture == "" {
+					candidate.Compatible = false
+					candidate.DiagnosticCode = "fixture_unavailable"
+					candidate.Diagnostic = fmt.Sprintf("no fixture satisfies %q", expected.Capability)
+				} else {
+					candidate.Fixture = fixture
+				}
+			}
+			out.Candidates = append(out.Candidates, candidate)
+		}
+	}
+	return connect.NewResponse(out), nil
+}
+
+// PersistPreviewFrame promotes a temporary frame experiment into a new draft
+// story contract. The explicit draft boundary is important: Preview controls
+// must never mutate released library bytes in place.
+func (h *connectHandler) PersistPreviewFrame(ctx context.Context, req *connect.Request[componentsv1.PersistPreviewFrameRequest]) (*connect.Response[componentsv1.PersistPreviewFrameResponse], error) {
+	if strings.TrimSpace(req.Msg.ComponentId) == "" || strings.TrimSpace(req.Msg.StoryId) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("component_id and story_id are required"))
+	}
+	if strings.TrimSpace(req.Msg.Asset) == "" || strings.TrimSpace(req.Msg.FrameVersion) == "" || strings.TrimSpace(req.Msg.Region) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("asset, frame_version, and region are required"))
+	}
+	subject, err := h.deps.Service.Get(ctx, req.Msg.ComponentId)
+	if err != nil {
+		return nil, components.ToConnectError(err)
+	}
+	if err := h.validatePreviewFramePersistence(ctx, subject, req.Msg.Asset, req.Msg.FrameVersion, req.Msg.Region, req.Msg.Capability); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	requestedVersion := strings.TrimSpace(req.Msg.Version)
+	if requestedVersion != "" && requestedVersion != subject.LatestVersion && requestedVersion != subject.DraftVersion {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("frame persistence only targets the latest release or active draft; %q is not current", requestedVersion))
+	}
+	if h.deps.Authoring == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("component authoring service is not configured"))
+	}
+	targetVersion := subject.DraftVersion
+	if targetVersion == "" {
+		// Validate the story before creating a draft. An invalid story id must
+		// not leave an otherwise empty authoring draft behind.
+		currentStories, listErr := h.deps.Service.ListStories(ctx, components.StoryQuery{ComponentID: subject.ID, Version: subject.LatestVersion, Limit: 1})
+		if listErr != nil {
+			return nil, components.ToConnectError(listErr)
+		}
+		storyExists := false
+		for _, story := range currentStories {
+			contract, _ := components.ParseStoryContract([]byte(story.ContractJSON))
+			if contract == nil {
+				continue
+			}
+			for _, definition := range contract.Stories {
+				if definition.ID == req.Msg.StoryId {
+					storyExists = true
+					break
+				}
+			}
+		}
+		if !storyExists {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("story %q not found in %s@%s", req.Msg.StoryId, subject.LibraryID, subject.LatestVersion))
+		}
+		begun, beginErr := h.deps.Authoring.BeginComponentVersion(ctx, components.BeginComponentVersionInput{
+			Component: subject.LibraryID,
+			Bump:      "patch",
+		})
+		if beginErr != nil {
+			return nil, components.ToConnectError(beginErr)
+		}
+		targetVersion = begun.Version.Version
+	}
+	stories, err := h.deps.Service.ListStories(ctx, components.StoryQuery{ComponentID: subject.ID, Version: targetVersion, Limit: 1})
+	if err != nil {
+		return nil, components.ToConnectError(err)
+	}
+	if len(stories) == 0 {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("story contract not found for %s@%s", subject.LibraryID, targetVersion))
+	}
+	contract, diagnostics := components.ParseStoryContract([]byte(stories[0].ContractJSON))
+	if len(diagnostics) > 0 || contract == nil {
+		parts := make([]string, 0, len(diagnostics))
+		for _, diagnostic := range diagnostics {
+			parts = append(parts, diagnostic.Error())
+		}
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("story contract is not persistable: %s", strings.Join(parts, "; ")))
+	}
+	found := false
+	for i := range contract.Stories {
+		if contract.Stories[i].ID != req.Msg.StoryId {
+			continue
+		}
+		contract.Stories[i].Frame = &components.StoryFrame{
+			Asset: req.Msg.Asset, Version: req.Msg.FrameVersion, Region: req.Msg.Region,
+			Capability: req.Msg.Capability, Fixture: req.Msg.Fixture,
+		}
+		found = true
+		break
+	}
+	if !found {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("story %q not found in %s@%s", req.Msg.StoryId, subject.LibraryID, targetVersion))
+	}
+	raw, err := json.Marshal(contract)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode story contract: %w", err))
+	}
+	writer, ok := h.deps.Service.(interface {
+		UpdateVersionContentAt(context.Context, string, string, string, components.WriteContentInput) (components.Content, error)
+	})
+	if !ok {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("versioned story authoring is not configured"))
+	}
+	written, err := writer.UpdateVersionContentAt(ctx, subject.ID, targetVersion, "story.json", components.WriteContentInput{Body: string(raw)})
+	if err != nil {
+		return nil, components.ToConnectError(err)
+	}
+	return connect.NewResponse(&componentsv1.PersistPreviewFrameResponse{
+		ComponentId: subject.ID, Version: targetVersion, StoryId: req.Msg.StoryId,
+		StoryJson: written.Body, SourcePath: written.SourcePath,
+	}), nil
+}
+
+func (h *connectHandler) validatePreviewFramePersistence(ctx context.Context, subject components.Component, assetID, version, region, capability string) error {
+	assets, err := components.CatalogFrameAssetsFromDir(filepath.Join(filepath.Dir(h.deps.SourceRoot), "catalog"))
+	if err != nil {
+		return fmt.Errorf("load frame catalog: %w", err)
+	}
+	var frame components.CatalogFrameAsset
+	found := false
+	for _, candidate := range assets {
+		if candidate.ID == assetID {
+			frame, found = candidate, true
+			break
+		}
+	}
+	if !found || !canonicalPreviewFrame(assetID) {
+		return fmt.Errorf("frame %q is not a canonical Preview frame", assetID)
+	}
+	if !containsString(frame.Targets, "react-vite") || !containsString(frame.Regions, region) {
+		return fmt.Errorf("frame %q does not support target react-vite and region %q", assetID, region)
+	}
+	required := frame.RegionCapabilities[region]
+	if required != "" && required != capability {
+		return fmt.Errorf("frame region %q requires capability %q", region, required)
+	}
+	if capability != "" && subjectCapability(subject.CatalogID) != capability {
+		return fmt.Errorf("subject capability %q does not match frame capability %q", subjectCapability(subject.CatalogID), capability)
+	}
+	implementation, ok := func() (components.Component, bool) {
+		items, listErr := h.deps.Service.List(ctx, components.SearchQuery{Limit: 10000})
+		if listErr != nil {
+			return components.Component{}, false
+		}
+		return findCatalogImplementation(items, assetID)
+	}()
+	if !ok {
+		return fmt.Errorf("frame %q has no indexed implementation", assetID)
+	}
+	if _, err := h.deps.Service.GetVersion(ctx, implementation.ID, version); err != nil {
+		return fmt.Errorf("frame %q version %q is unavailable: %w", assetID, version, err)
+	}
+	return nil
+}
+
+func subjectCapability(catalogID string) string {
+	if domain, _, ok := strings.Cut(catalogID, "."); ok && domain == "navigation" {
+		return "navigation"
+	}
+	return ""
+}
+
+func findCatalogImplementation(items []components.Component, catalogID string) (components.Component, bool) {
+	for _, item := range items {
+		if item.CatalogID == catalogID && item.AssetKind != components.AssetKindHook {
+			return item, true
+		}
+	}
+	return components.Component{}, false
+}
+
+func containsString(items []string, wanted string) bool {
+	for _, item := range items {
+		if item == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func canonicalPreviewFrame(assetID string) bool {
+	return assetID == "navigation.page" || assetID == "navigation.app-shell"
+}
+
+func previewRegionsForSubject(asset components.CatalogFrameAsset, capability string) []string {
+	if capability == "navigation" {
+		if containsString(asset.Regions, "navigation") {
+			return []string{"navigation"}
+		}
+	}
+	if containsString(asset.Regions, "content") {
+		return []string{"content"}
+	}
+	if len(asset.Regions) > 0 {
+		return []string{asset.Regions[0]}
+	}
+	return nil
+}
+
+func findFixture(assets []components.CatalogFrameAsset, expected components.CatalogFramePort) string {
+	for _, asset := range assets {
+		if asset.Kind == "fixture" && asset.FixtureSatisfies != nil && asset.FixtureSatisfies.Capability == expected.Capability {
+			return asset.ID
+		}
+	}
+	return ""
 }
 
 func (h *connectHandler) UpdateComponentContent(ctx context.Context, req *connect.Request[componentsv1.UpdateComponentContentRequest]) (*connect.Response[componentsv1.UpdateComponentContentResponse], error) {

@@ -24,7 +24,8 @@
     "test:asset-stamp": "vitest run scripts/vite-plugin-asset-stamp.test.mjs",
     "strings:gen": "node scripts/gen-strings.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check",
-    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs"
+    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
+    "preview:inventory": "node ./scripts/preview-composition-inventory.mjs"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",

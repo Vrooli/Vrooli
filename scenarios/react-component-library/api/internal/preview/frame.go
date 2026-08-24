@@ -20,7 +20,8 @@ type frameCatalogDocument struct {
 		Targets []string `json:"targets"`
 	} `json:"asset"`
 	Regions []struct {
-		ID string `json:"id"`
+		ID      string `json:"id"`
+		Accepts string `json:"accepts"`
 	} `json:"regions"`
 	Expects []struct {
 		Capability    string   `json:"capability"`
@@ -50,15 +51,32 @@ func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame)
 	if !contains(frameDoc.Asset.Targets, "react-vite") {
 		return "", "", "", nil, frameBundleError(frame.Asset, "frame asset does not target react-vite")
 	}
-	if !containsRegion(frameDoc.Regions, frame.Region) {
+	regionDeclared := false
+	for _, region := range frameDoc.Regions {
+		if region.ID == frame.Region {
+			regionDeclared = true
+			break
+		}
+	}
+	if !regionDeclared {
 		return "", "", "", nil, frameBundleError(frame.Asset, fmt.Sprintf("frame region %q is not declared", frame.Region))
 	}
-	fixtureDoc, err := s.readCatalogFrame(frame.Fixture)
-	if err != nil {
-		return "", "", "", nil, err
+	for _, region := range frameDoc.Regions {
+		if region.ID == frame.Region && region.Accepts != "" && region.Accepts != frame.Capability {
+			return "", "", "", nil, frameBundleError(frame.Asset, fmt.Sprintf("frame region %q requires subject capability %q", frame.Region, region.Accepts))
+		}
 	}
-	if fixtureDoc.Asset.Kind != "fixture" {
-		return "", "", "", nil, frameBundleError(frame.Fixture, "frame fixture must be a fixture asset")
+	var fixtureDoc frameCatalogDocument
+	if strings.TrimSpace(frame.Fixture) != "" {
+		fixtureDoc, err = s.readCatalogFrame(frame.Fixture)
+		if err != nil {
+			return "", "", "", nil, err
+		}
+		if fixtureDoc.Asset.Kind != "fixture" {
+			return "", "", "", nil, frameBundleError(frame.Fixture, "frame fixture must be a fixture asset")
+		}
+	} else if frameRequiresFixture(frameDoc.Expects) {
+		return "", "", "", nil, frameBundleError(frame.Asset, "frame requires a fixture")
 	}
 	for _, expect := range frameDoc.Expects {
 		if expect.Capability != "data-source" {
@@ -83,7 +101,13 @@ func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame)
 	if implementation == nil {
 		return "", "", "", nil, frameBundleError(frame.Asset, "frame asset has no react-vite implementation")
 	}
-	version := implementation.LatestVersion
+	version := strings.TrimSpace(frame.Version)
+	if version == "" {
+		// Schema-v3 stories predate immutable frame references. Keep them
+		// renderable during migration, but make the fallback explicit and
+		// deterministic for the current catalog projection.
+		version = implementation.LatestVersion
+	}
 	if len(implementation.Dependencies) > 0 {
 		if _, err := components.ResolveDependencyClosure(ctx, s.components, implementation.ID, version); err != nil {
 			return "", "", "", nil, err
@@ -105,15 +129,30 @@ func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame)
 			return "", "", "", nil, depErr
 		}
 	}
-	fixtureJSON, err := json.Marshal(struct {
-		Asset       string   `json:"asset"`
-		DataShapes  []string `json:"dataShapes,omitempty"`
-		RecordCount any      `json:"recordCount,omitempty"`
-	}{Asset: fixtureDoc.Asset.ID, DataShapes: fixtureDoc.Fixture.DataShapes, RecordCount: fixtureDoc.Fixture.RecordCount})
-	if err != nil {
-		return "", "", "", nil, err
+	fixtureJSON := []byte(nil)
+	if strings.TrimSpace(frame.Fixture) != "" {
+		fixtureJSON, err = json.Marshal(struct {
+			Asset       string   `json:"asset"`
+			DataShapes  []string `json:"dataShapes,omitempty"`
+			RecordCount any      `json:"recordCount,omitempty"`
+		}{Asset: fixtureDoc.Asset.ID, DataShapes: fixtureDoc.Fixture.DataShapes, RecordCount: fixtureDoc.Fixture.RecordCount})
+		if err != nil {
+			return "", "", "", nil, err
+		}
 	}
 	return js, string(fixtureJSON), content.SourcePath, declarations, nil
+}
+
+func frameRequiresFixture(expects []struct {
+	Capability    string   `json:"capability"`
+	TypeArguments []string `json:"typeArguments"`
+}) bool {
+	for _, expect := range expects {
+		if expect.Capability == "data-source" {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *service) readCatalogFrame(id string) (frameCatalogDocument, error) {
@@ -146,18 +185,6 @@ func frameBundleError(sourcePath, detail string) error {
 func contains(values []string, wanted string) bool {
 	for _, value := range values {
 		if value == wanted {
-			return true
-		}
-	}
-	return false
-}
-
-func containsRegion(values []struct {
-	ID string `json:"id"`
-}, wanted string,
-) bool {
-	for _, value := range values {
-		if value.ID == wanted {
 			return true
 		}
 	}

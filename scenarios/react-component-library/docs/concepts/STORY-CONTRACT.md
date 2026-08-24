@@ -21,6 +21,32 @@ This boundary deliberately prevents both per-story controls and arbitrary
 hook/setup execution. The contract is declarative data, not an escape hatch
 for running code in the preview iframe.
 
+## Composition roles and author decision tree
+
+Use the smallest composition that proves the asset's public contract:
+
+1. Start with a direct story when the subject is understandable on its own.
+2. Add a variant story when only public argument values change.
+3. Add a controlled-state story when a public value/callback interaction is
+   the behavior under test.
+4. Add an async or fixture-backed story when deterministic external state is
+   required.
+5. Add a compatible frame when page, navigation, overlay, workspace, or
+   template context materially changes the subject's meaning.
+6. Select a shared harness when the behavior matches a documented reusable
+   harness family and the subject can be injected without a component import.
+7. Keep a local harness only when the behavior is genuinely asset-specific;
+   document the reason and preserve equivalent expectations/interactions.
+
+Frames and harnesses are complementary. A frame answers “where is this
+subject shown?” A harness answers “how is this subject exercised?” A frame can
+contain a direct subject or a harness-rendered subject, and a harness can run
+without a frame. Neither may silently replace the other.
+
+The complete authoring inventory, compatibility matrix, migration ledger, and
+screenshot evidence matrix are maintained in
+[`../guides/asset-preview-composition.md`](../guides/asset-preview-composition.md).
+
 ## Grammar
 
 Every asset version contains exactly one `story.json`. Schema version 1 remains
@@ -88,11 +114,20 @@ reference specimen is `navigation.sidebar` framed by `navigation.page`, so a
 sidebar is judged as it appears in a real page document rather than as an
 orphaned panel.
 
-### Schema version 2: captions and custom harnesses
+### Schema versions 2 and 3: captions, custom harnesses, and shared harnesses
 
 `stories[].description` is optional explanatory copy displayed below the
 specimen title and in the story picker. Omit it rather than rendering an empty
 caption.
+
+`stories[].sharedHarness` is available in schema version 3 and optionally
+selects a versioned Preview-only harness from the `preview.*` namespace. It
+contains `asset`, exact `version`, named `export`, and optional JSON `config`.
+The host injects the subject component as `subject`; the harness must not import
+a component-specific production asset.
+The reference implementation and family inventory are maintained in the
+authoring guide. This field is separate from the local `harness` export, which
+continues to resolve from the version-local `story.tsx`.
 
 `stories[].harness` optionally names a JavaScript named export from the one
 version-local `story.tsx` file. Direct exports and named re-exports are both

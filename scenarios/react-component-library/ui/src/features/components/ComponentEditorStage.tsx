@@ -22,6 +22,7 @@ import type { DeviceFiltersValue } from "../../hooks/useDeviceFilters";
 import { useTranslation } from "../../i18n";
 import type { PreviewKit } from "./ThemeSwitcher";
 import { EmulatorViewport } from "./EmulatorChrome";
+import type { PreviewFrameCandidate } from "../../api/components";
 
 export type SpecimenIdentity = `${string}:${string}`;
 export type PreviewSpecimen = {
@@ -54,6 +55,7 @@ type StageProps = {
   activeSpecimen: SpecimenIdentity | null;
   previewKit: PreviewKit;
   frameEnabled: boolean;
+  frameOverride?: PreviewFrameCandidate;
   id: string;
   baselineSha: string;
   previewReloadKey: number;
@@ -91,6 +93,7 @@ export function ComponentEditorStage({
   activeSpecimen,
   previewKit,
   frameEnabled,
+  frameOverride,
   id,
   baselineSha,
   previewReloadKey,
@@ -505,6 +508,7 @@ export function ComponentEditorStage({
                           selectedVersion,
                           previewKit,
                           frameEnabled,
+                          frameOverride,
                           stageMode,
                         )}
                         sandbox="allow-scripts allow-same-origin"
@@ -671,6 +675,7 @@ function harnessUrl(
   selectedVersion: string | undefined,
   kit: PreviewKit,
   frameEnabled: boolean,
+  frameOverride: PreviewFrameCandidate | undefined,
   stageMode: boolean,
 ): string {
   const url = new URL(
@@ -680,6 +685,13 @@ function harnessUrl(
   url.searchParams.set("r", String(reloadKey));
   url.searchParams.set("kit", kit);
   url.searchParams.set("frame", frameEnabled ? "on" : "off");
+  if (frameOverride) {
+    url.searchParams.set("frameAsset", frameOverride.asset);
+    url.searchParams.set("frameVersion", frameOverride.version);
+    url.searchParams.set("frameRegion", frameOverride.region);
+    url.searchParams.set("frameCapability", frameOverride.capability);
+    url.searchParams.set("frameFixture", frameOverride.fixture);
+  }
   url.searchParams.set("view", stageMode ? "focus" : "canvas");
   if (selectedVersion) url.searchParams.set("version", selectedVersion);
   if (example) {

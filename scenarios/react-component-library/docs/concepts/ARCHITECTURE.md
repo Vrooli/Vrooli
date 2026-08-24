@@ -31,6 +31,52 @@ This document does not own:
 - deployment and operations: [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md),
 - commercial strategy: [`../business/MONETIZATION.md`](../business/MONETIZATION.md).
 
+## Asset hierarchy and Preview composition
+
+The catalog is a dependency hierarchy, not a list of interchangeable UI
+parts. A lower rung may be required by a higher rung, but a higher rung is not
+automatically a valid display context for every lower rung. Catalog validation
+owns the dependency direction and the rung assignment; the Preview contract
+owns whether a particular frame region can display a particular subject.
+
+The current hierarchy is:
+
+| Rung | Asset kinds | Responsibility | Typical Preview treatment |
+|---:|---|---|---|
+| 5 | `page-template` | Complete page composition | Template frame or workflow story |
+| 4 | `pattern`, `navigation` | Reusable page-level regions | Page, app-shell, or specialized frame |
+| 3 | `component` | Reusable interactive UI | Direct, controlled, async, or contextual story |
+| 2 | `primitive` | Small visual/interaction building block | Standalone specimen or small shared harness |
+| 1 | `runtime-hook`, `adapter`, `generator`, `runtime-service` | Runtime and integration seams | Fixture-backed hook or contract story |
+| 0 | `foundation` | Tokens, icons, typography, and base styling | Standalone specimen; no forced frame |
+| — | `fixture` | Deterministic data/provider input | Environment dependency, never a visual subject |
+
+The six rungs are an architectural vocabulary. They do not determine a
+frame by numeric rank alone. A frame is a catalog-registered context asset
+with named regions, an implementation version, a renderer target, accepted
+subject capabilities, and fixture ports. A story has four separate roles:
+
+```mermaid
+flowchart LR
+  S[Subject asset] --> C{Compatibility resolver}
+  F[Optional frame + region] --> C
+  H[Optional shared or local harness] --> C
+  X[Deterministic fixture] --> C
+  C --> R[Isolated Preview rendering]
+  R --> E[Expectations, interactions, screenshots]
+  R -. Preview-only .-> A[Adoption closure excludes frame/harness/story]
+```
+
+The subject is what is being judged. The frame supplies context. The harness
+demonstrates behavior. The fixture supplies deterministic external state. Do
+not merge these roles to reduce file count: doing so makes compatibility,
+versioning, adoption, and evidence ambiguous.
+
+Canonical composition rules and the author decision tree live in
+[`STORY-CONTRACT.md`](STORY-CONTRACT.md). The concrete frame and harness
+inventory, examples, migration rules, and screenshot evidence requirements
+live in [`../guides/asset-preview-composition.md`](../guides/asset-preview-composition.md).
+
 ## Per-asset gate scoring and health cockpit
 
 Catalog identity is the join key: every implementation declares one

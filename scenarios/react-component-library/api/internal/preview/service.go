@@ -12,9 +12,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"react-component-library/internal/components"
@@ -30,7 +32,8 @@ type Bundle struct {
 	// HarnessJS is an optional separately bundled story.tsx module. Keeping it
 	// separate preserves the component entry's export selection and lets a
 	// harness import the version-local component normally.
-	HarnessJS string
+	HarnessJS       string
+	SharedHarnessJS string
 	// FrameJS is the optional catalog frame module used to render a subject in
 	// context. It is kept separate from JS so the subject's adoption closure
 	// never acquires the frame asset.
@@ -97,22 +100,98 @@ func (s *service) GetBundle(ctx context.Context, id string) (Bundle, error) {
 }
 
 func (s *service) GetBundleVersionWithFrame(ctx context.Context, id, version string, frame *components.StoryFrame) (Bundle, error) {
+	return s.GetBundleVersionWithFrameAndHarness(ctx, id, version, frame, nil)
+}
+
+func (s *service) GetBundleVersionWithFrameAndHarness(ctx context.Context, id, version string, frame *components.StoryFrame, harness *components.StoryHarnessRef) (Bundle, error) {
 	bundle, err := s.GetBundleVersion(ctx, id, version)
-	if err != nil || frame == nil {
+	if err != nil {
 		return bundle, err
 	}
-	frameJS, fixtureJSON, sourcePath, frameDeps, err := s.bundleFrame(ctx, frame)
-	if err != nil {
-		return Bundle{}, err
+	var frameDeps []deps.Declaration
+	if frame != nil {
+		frameJS, fixtureJSON, sourcePath, resolvedDeps, frameErr := s.bundleFrame(ctx, frame)
+		if frameErr != nil {
+			return Bundle{}, frameErr
+		}
+		bundle.FrameJS = frameJS
+		bundle.FrameAsset = frame.Asset
+		bundle.FrameRegion = frame.Region
+		bundle.FixtureJSON = fixtureJSON
+		bundle.FrameSourcePath = sourcePath
+		frameDeps = resolvedDeps
 	}
-	bundle.FrameJS = frameJS
-	bundle.FrameAsset = frame.Asset
-	bundle.FrameRegion = frame.Region
-	bundle.FixtureJSON = fixtureJSON
-	bundle.FrameSourcePath = sourcePath
+	if harness != nil {
+		shared, sharedErr := s.bundleSharedHarness(ctx, harness)
+		if sharedErr != nil {
+			return Bundle{}, sharedErr
+		}
+		bundle.SharedHarnessJS = shared
+	}
 	bundle.Dependencies = appendUniqueDeclarations(bundle.Dependencies, frameDeps)
-	bundle.SHA256 = digest(bundle.JS + bundle.HarnessJS + bundle.FrameJS + bundle.FixtureJSON + frame.Asset + frame.Region)
+	frameDigest := ""
+	if frame != nil {
+		frameDigest = frame.Asset + frame.Version + frame.Region + frame.Fixture
+	}
+	bundle.SHA256 = digest(bundle.JS + bundle.HarnessJS + bundle.SharedHarnessJS + bundle.FrameJS + bundle.FixtureJSON + frameDigest)
 	return bundle, nil
+}
+
+func (s *service) bundleSharedHarness(ctx context.Context, harness *components.StoryHarnessRef) (string, error) {
+	if harness == nil || strings.TrimSpace(s.repoRoot) == "" {
+		return "", frameBundleError("sharedHarness", "shared harness repository root is not configured")
+	}
+	parts := strings.Split(strings.TrimSpace(harness.Asset), ".")
+	if len(parts) != 2 || parts[0] != "preview" || parts[1] == "" || strings.ContainsAny(harness.Asset+harness.Version+harness.Export, `/\\`) || strings.TrimSpace(harness.Version) == "" || strings.TrimSpace(harness.Export) == "" {
+		return "", frameBundleError(harness.Asset, "invalid shared harness reference")
+	}
+	manifestPath := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "preview-harnesses", "manifest.json")
+	manifestBytes, manifestErr := os.ReadFile(manifestPath)
+	if manifestErr != nil {
+		return "", frameBundleError(harness.Asset, "shared harness registry was not found")
+	}
+	var manifest struct {
+		Families []struct {
+			ID      string `json:"id"`
+			Version string `json:"version"`
+			Export  string `json:"export"`
+		} `json:"families"`
+	}
+	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+		return "", frameBundleError(harness.Asset, "shared harness registry is invalid")
+	}
+	registered := false
+	for _, family := range manifest.Families {
+		if family.ID == parts[1] && family.Version == harness.Version && family.Export == harness.Export {
+			registered = true
+			break
+		}
+	}
+	if !registered {
+		return "", frameBundleError(harness.Asset, "shared harness is not registered at the requested version/export")
+	}
+	path := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "preview-harnesses", parts[1], "versions", harness.Version, harness.Export+".tsx")
+	root := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "preview-harnesses")
+	cleanRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	cleanPath, err := filepath.Abs(path)
+	if err != nil || (cleanPath != cleanRoot && !strings.HasPrefix(cleanPath, cleanRoot+string(os.PathSeparator))) {
+		return "", frameBundleError(harness.Asset, "shared harness path escapes configured root")
+	}
+	content, err := os.ReadFile(cleanPath)
+	if err != nil {
+		return "", frameBundleError(harness.Asset, "shared harness implementation was not found")
+	}
+	if strings.Contains(string(content), "library/components/") || strings.Contains(string(content), "library/primitives/") || strings.Contains(string(content), "library/hooks/") {
+		return "", frameBundleError(harness.Asset, "shared harness must not import a component-specific library asset")
+	}
+	js, _, err := s.bundler.BuildBundle(ctx, string(content), filepath.ToSlash(filepath.Join("library", "preview-harnesses", parts[1], "versions", harness.Version, harness.Export+".tsx")))
+	if err != nil {
+		return "", err
+	}
+	return js, nil
 }
 
 func appendUniqueDeclarations(base, extra []deps.Declaration) []deps.Declaration {

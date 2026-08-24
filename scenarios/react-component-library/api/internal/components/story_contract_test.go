@@ -49,6 +49,48 @@ func TestParseStoryContractSchemaVersionThreeSupportsFileAndStoryFrames(t *testi
 	}
 }
 
+func TestParseStoryContractValidatesOptionalPinnedFrameVersion(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "frame": {"asset":"navigation.page","version":"1.2.0","region":"navigation","fixture":"fixtures.user-directory"},
+  "stories": [{"id":"primary","name":"Primary","args":{}}]
+}`))
+	if len(diagnostics) != 0 || contract.Frame.Version != "1.2.0" {
+		t.Fatalf("contract=%#v diagnostics=%v", contract, diagnostics)
+	}
+
+	_, diagnostics = ParseStoryContract([]byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "frame": {"asset":"navigation.page","version":"latest","region":"navigation","fixture":"fixtures.user-directory"},
+  "stories": [{"id":"primary","name":"Primary","args":{}}]
+}`))
+	if len(diagnostics) != 1 || diagnostics[0].Rule != "frame_version" {
+		t.Fatalf("diagnostics=%v", diagnostics)
+	}
+}
+
+func TestParseStoryContractSupportsVersionedSharedHarness(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id":"default","name":"Default","sharedHarness":{"asset":"preview.showcase","version":"1.0.0","export":"Showcase","config":{"title":"Example"}},"args":{}}]
+}`))
+	if len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diagnostics)
+	}
+	if got := contract.Stories[0].SharedHarness; got == nil || got.Asset != "preview.showcase" || got.Export != "Showcase" {
+		t.Fatalf("shared harness = %#v", got)
+	}
+}
+
 type frameRegistry map[string]CatalogFrameAsset
 
 func (r frameRegistry) LookupCatalogFrameAsset(id string) (CatalogFrameAsset, bool) {

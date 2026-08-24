@@ -217,7 +217,7 @@ func TestService_GetBundleVersionWithFrameBundlesSubjectAndCatalogFrame(t *testi
 	}
 	repoRoot := filepath.Join("..", "..", "..", "..", "..")
 	svc := NewServiceWithDepsAtRoot(comp, NewEsbuilder(), nil, repoRoot)
-	bundle, err := svc.GetBundleVersionWithFrame(context.Background(), "subject-id", "1.2.0", &components.StoryFrame{Asset: "navigation.page", Region: "navigation", Fixture: "fixtures.resource-collection"})
+	bundle, err := svc.GetBundleVersionWithFrame(context.Background(), "subject-id", "1.2.0", &components.StoryFrame{Asset: "navigation.page", Version: "1.0.0", Region: "navigation", Capability: "navigation", Fixture: "fixtures.resource-collection"})
 	// The production service needs only the repository root to load the catalog;
 	// use the concrete root directly above so this remains a focused bundler
 	// assertion rather than a handler integration test.
@@ -228,6 +228,23 @@ func TestService_GetBundleVersionWithFrameBundlesSubjectAndCatalogFrame(t *testi
 	require.Equal(t, "navigation.page", bundle.FrameAsset)
 	require.Equal(t, "navigation", bundle.FrameRegion)
 	require.Contains(t, bundle.FixtureJSON, "fixtures.resource-collection")
+}
+
+func TestService_GetBundleVersionWithSharedHarnessInjectsGenericPreviewAsset(t *testing.T) {
+	comp := &fakeComponentsService{
+		getFn: func(_ context.Context, id string) (components.Component, error) {
+			return components.Component{ID: id, LibraryID: "react-component-library:Skeleton", LatestVersion: "1.0.0"}, nil
+		},
+		getVersionContentFn: func(_ context.Context, _, _ string) (components.Content, error) {
+			return components.Content{Body: "export default function Subject() { return <div>subject</div> }", SourcePath: "primitives/Skeleton/versions/1.0.0/Skeleton.tsx"}, nil
+		},
+	}
+	repoRoot := filepath.Join("..", "..", "..", "..", "..")
+	svc := NewServiceWithDepsAtRoot(comp, NewEsbuilder(), nil, repoRoot)
+	bundle, err := svc.(*service).GetBundleVersionWithFrameAndHarness(context.Background(), "subject-id", "1.0.0", nil, &components.StoryHarnessRef{Asset: "preview.showcase", Version: "1.0.0", Export: "Showcase"})
+	require.NoError(t, err)
+	require.Contains(t, bundle.SharedHarnessJS, "data-preview-harness")
+	require.NotContains(t, bundle.SharedHarnessJS, "library/components/")
 }
 
 func TestService_GetBundle_AllowsHookFixtures(t *testing.T) {

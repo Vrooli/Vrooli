@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -21,7 +24,7 @@ var (
 		cmd := exec.CommandContext(ctx, "scenario-dependency-analyzer", "deps", "install", "npm/"+packageName+"@"+versionRange,
 			"--scenario", "react-component-library", "--surface", "tools/"+surface, "--apply", "--json")
 		cmd.Dir = repoRoot
-		cmd.Env = append(os.Environ(), "VROOLI_ROOT="+repoRoot)
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_ROOT=" + repoRoot})
 		return cmd.CombinedOutput()
 	}
 )

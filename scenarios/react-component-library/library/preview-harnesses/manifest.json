@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "kind": "preview-harness-registry",
+  "ownership": "preview-only",
+  "families": [
+    {
+      "id": "showcase",
+      "version": "1.0.0",
+      "export": "Showcase",
+      "archetypes": ["direct", "variant"]
+    },
+    {
+      "id": "controlled-state",
+      "version": "1.0.0",
+      "export": "ControlledState",
+      "archetypes": ["controlled"]
+    },
+    {
+      "id": "state-transition",
+      "version": "1.0.0",
+      "export": "StateTransition",
+      "archetypes": ["interaction"]
+    },
+    {
+      "id": "async-state",
+      "version": "1.0.0",
+      "export": "AsyncState",
+      "archetypes": ["async"]
+    },
+    {
+      "id": "recovery",
+      "version": "1.0.0",
+      "export": "Recovery",
+      "archetypes": ["recovery"]
+    },
+    {
+      "id": "data-state",
+      "version": "1.0.0",
+      "export": "DataState",
+      "archetypes": ["fixture"]
+    },
+    {
+      "id": "overlay-interaction",
+      "version": "1.0.0",
+      "export": "OverlayInteraction",
+      "archetypes": ["overlay"]
+    },
+    {
+      "id": "responsive-mode",
+      "version": "1.0.0",
+      "export": "ResponsiveMode",
+      "archetypes": ["responsive"]
+    },
+    {
+      "id": "hook-contract",
+      "version": "1.0.0",
+      "export": "HookContract",
+      "archetypes": ["hook"]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 package preview
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -85,7 +86,17 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("frame")), "off") {
 		frame = nil
 	}
-	bundle, err := h.service.GetBundleVersionWithFrame(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")), frame)
+	if override := queryFrameOverride(r); override != nil {
+		frame = override
+	}
+	var bundle preview.Bundle
+	if composer, ok := h.service.(interface {
+		GetBundleVersionWithFrameAndHarness(context.Context, string, string, *components.StoryFrame, *components.StoryHarnessRef) (preview.Bundle, error)
+	}); ok {
+		bundle, err = composer.GetBundleVersionWithFrameAndHarness(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")), frame, story.SharedHarness)
+	} else {
+		bundle, err = h.service.GetBundleVersionWithFrame(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")), frame)
+	}
 	if err != nil {
 		writeHarnessError(w, h.logger, id, err)
 		return
@@ -112,6 +123,26 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// permissive in this dev tool by design.
 	if _, err := w.Write([]byte(doc)); err != nil {
 		h.logger.Printf("preview.harness write %q: %v", id, err)
+	}
+}
+
+// queryFrameOverride is intentionally transient. It is only accepted when a
+// complete immutable reference is present; persistence belongs to story.json
+// authoring and never happens as a side effect of Preview rendering.
+func queryFrameOverride(r *http.Request) *components.StoryFrame {
+	q := r.URL.Query()
+	asset := strings.TrimSpace(q.Get("frameAsset"))
+	version := strings.TrimSpace(q.Get("frameVersion"))
+	region := strings.TrimSpace(q.Get("frameRegion"))
+	if asset == "" || version == "" || region == "" {
+		return nil
+	}
+	return &components.StoryFrame{
+		Asset:      asset,
+		Version:    version,
+		Region:     region,
+		Capability: strings.TrimSpace(q.Get("frameCapability")),
+		Fixture:    strings.TrimSpace(q.Get("frameFixture")),
 	}
 }
 
@@ -164,6 +195,7 @@ type harnessStory struct {
 	InteractionsJSON      string
 	ExpectJSON            string
 	Harness               string
+	SharedHarness         *components.StoryHarnessRef
 	Frame                 *components.StoryFrame
 	Geometry              *components.StoryGeometry
 	Mode                  components.StoryMode
@@ -216,7 +248,7 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 				return harnessStory{}, fmt.Errorf("preview: encode story environment: %w", err)
 			}
 			frame := components.EffectiveStoryFrame(&contract, &definition)
-			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect), Harness: definition.Harness, Frame: frame, Geometry: definition.Geometry, Mode: definition.Mode, Slot: component.Slot, AssetKind: component.AssetKind, Archetype: resolvePreviewArchetype(component.AssetKind, component.Slot, frame)}, nil
+			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect), Harness: definition.Harness, SharedHarness: definition.SharedHarness, Frame: frame, Geometry: definition.Geometry, Mode: definition.Mode, Slot: component.Slot, AssetKind: component.AssetKind, Archetype: resolvePreviewArchetype(component.AssetKind, component.Slot, frame)}, nil
 		}
 	}
 	return harnessStory{}, fmt.Errorf("preview: story %q not found for component %q", storyID, id)
@@ -334,6 +366,8 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSyste
   .rcl-preview-stage--pattern { padding: clamp(24px, 4vw, 64px); }
   .rcl-preview-stage--page,
   .rcl-preview-stage--overlay { min-height: 100vh; padding: 0; }
+  /* Stable boundary for component-sheet screenshot evidence. */
+  [data-preview-sheet] { min-height: 100%; box-sizing: border-box; }
   .rcl-preview-well {
     width: min(100%, 760px);
     box-sizing: border-box;
@@ -446,6 +480,9 @@ const componentModuleURL = "data:text/javascript;base64,`)
 const storyHarnessModuleURL = "data:text/javascript;base64,`)
 	sb.WriteString(base64Encode(b.HarnessJS))
 	sb.WriteString(`";
+const sharedHarnessModuleURL = "data:text/javascript;base64,`)
+	sb.WriteString(base64Encode(b.SharedHarnessJS))
+	sb.WriteString(`";
 const frameModuleURL = "data:text/javascript;base64,`)
 	sb.WriteString(base64Encode(b.FrameJS))
 	sb.WriteString(`";
@@ -461,6 +498,7 @@ const previewStory = {
 	interactions: ` + jsonArrayLiteral(ex.InteractionsJSON) + `,
   expect: ` + jsonArrayLiteral(ex.ExpectJSON) + `,
   harness: ` + jsString(ex.Harness) + `,
+  sharedHarness: ` + sharedHarnessJSON(ex.SharedHarness) + `,
   frame: ` + frameJSON(ex.Frame) + `,
   geometry: ` + geometryJSON(ex.Geometry) + `,
   mode: ` + jsString(string(ex.Mode)) + `,
@@ -907,12 +945,13 @@ const isRenderableComponent = (value) => (
   (value && typeof value === "object" && typeof value.$$typeof === "symbol")
 );
 try {
-  const [{ createRoot }, Mod, React, Icons, HarnessMod, FrameMod] = await Promise.all([
+  const [{ createRoot }, Mod, React, Icons, HarnessMod, SharedHarnessMod, FrameMod] = await Promise.all([
     import("react-dom/client"),
     import(componentModuleURL),
     import("react"),
     import("lucide-react").catch(() => ({})),
 		previewStory.harness ? import(storyHarnessModuleURL) : Promise.resolve({}),
+		previewStory.sharedHarness ? import(sharedHarnessModuleURL) : Promise.resolve({}),
 		previewStory.frame ? import(frameModuleURL) : Promise.resolve({}),
   ]);
   const Cmp = isRenderableComponent(Mod.default)
@@ -920,7 +959,7 @@ try {
     : Mod[Object.keys(Mod).find(k => isRenderableComponent(Mod[k]))] ?? null;
   const hookEntry = Object.entries(Mod).find(([name, value]) => name.startsWith("use") && typeof value === "function");
   const Frame = Object.values(FrameMod).find((value) => isRenderableComponent(value));
-  if (previewStory.mode === "live" && !previewStory.harness) {
+	if (previewStory.mode === "live" && !previewStory.harness && !previewStory.sharedHarness) {
     showPreviewError("preview: live stories must declare an explicit harness");
   } else if (previewStory.kind === "hook" && !hookEntry) {
     showPreviewError("preview: hook file exports no callable use* hook");
@@ -945,6 +984,13 @@ try {
       mountStartedAt = performance.now();
       root.render(React.createElement(React.Profiler, { id: "story", onRender: onProfile }, element));
     };
+    const renderSheet = (element, kind) => renderElement(
+      React.createElement(
+        "div",
+        { "data-preview-sheet": kind || "standalone", "data-preview-capture-boundary": "component-sheet" },
+        element,
+      ),
+    );
     const postPreviewEvent = (name, ...args) => {
       const sanitize = (value, depth = 0) => {
         if (depth > 5) return "[depth limit]";
@@ -1059,7 +1105,9 @@ try {
       const props = resolveProps(mergeStoryProps(previewStory.props, safeOverride));
       if (Array.isArray(props.children)) props.children = React.Children.toArray(props.children);
       const fixtures = resolveFixtureContext(environment);
-      const subject = previewStory.harness
+      const subject = previewStory.sharedHarness
+        ? React.createElement(SharedHarnessMod[previewStory.sharedHarness.export], { subject: Cmp, args: props, config: previewStory.sharedHarness.config || {}, environment, fixtures, log: postPreviewEvent })
+        : previewStory.harness
         ? React.createElement(HarnessMod[previewStory.harness], { args: props, environment, fixtures, log: postPreviewEvent })
         : previewStory.kind === "hook" ? React.createElement(hookFixture(props, environment)) : React.createElement(Cmp, props);
       if (previewStory.frame && Frame) {
@@ -1084,19 +1132,25 @@ try {
         // region map. Named props keep simple frames such as Page ergonomic;
         // regions preserves the richer contract for frames that need to
         // inspect or iterate over all declared regions.
-        renderElement(React.createElement(Frame, { ...regions, regions, fixture: previewStory.fixture, children: subject, "data-frame-subject": previewStory.frame.asset }));
+        renderSheet(React.createElement(Frame, { ...regions, regions, fixture: previewStory.fixture, children: subject, "data-frame-subject": previewStory.frame.asset }), "frame");
         return;
       }
-      if (previewStory.harness) {
+	  if (previewStory.sharedHarness) {
+		const SharedHarness = SharedHarnessMod[previewStory.sharedHarness.export];
+		if (typeof SharedHarness !== "function") throw new Error("preview: shared harness export " + previewStory.sharedHarness.export + " was not found");
+		renderElement(wrapStandalone(React.createElement(SharedHarness, { subject: Cmp, args: props, config: previewStory.sharedHarness.config || {}, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })));
+		return;
+	  }
+	  if (previewStory.harness) {
         const Harness = HarnessMod[previewStory.harness];
         if (typeof Harness !== "function") throw new Error("preview: harness export " + previewStory.harness + " was not found");
-        renderElement(wrapStandalone(React.createElement(Harness, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })));
+		renderSheet(wrapStandalone(React.createElement(Harness, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })), "local-harness");
         return;
       }
       const standaloneSubject = previewStory.kind === "hook"
         ? React.createElement(hookFixture(props, environment))
         : React.createElement(Cmp, props);
-      renderElement(wrapStandalone(standaloneSubject));
+      renderSheet(wrapStandalone(standaloneSubject), "standalone");
     };
     const locate = (target) => {
       if (!target || typeof target !== "object") return null;
@@ -1376,6 +1430,17 @@ func frameJSON(frame *components.StoryFrame) string {
 		return "null"
 	}
 	raw, err := json.Marshal(frame)
+	if err != nil {
+		return "null"
+	}
+	return string(raw)
+}
+
+func sharedHarnessJSON(harness *components.StoryHarnessRef) string {
+	if harness == nil {
+		return "null"
+	}
+	raw, err := json.Marshal(harness)
 	if err != nil {
 		return "null"
 	}

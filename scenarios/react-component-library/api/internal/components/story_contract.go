@@ -80,9 +80,24 @@ type StoryFixture struct {
 // is deliberately declarative: the preview service resolves the catalog
 // asset and fixture, while the story only chooses the region to fill.
 type StoryFrame struct {
-	Asset   string `json:"asset"`
-	Region  string `json:"region"`
-	Fixture string `json:"fixture"`
+	Asset string `json:"asset"`
+	// Version pins the frame implementation used by a canonical story. Empty
+	// keeps the schema-v3 migration path for existing stories; the indexer and
+	// preview resolver may report that the story still needs pinning.
+	Version    string `json:"version,omitempty"`
+	Region     string `json:"region"`
+	Capability string `json:"capability,omitempty"`
+	Fixture    string `json:"fixture"`
+}
+
+// StoryHarnessRef selects a reusable Preview-only renderer. The renderer
+// receives the subject component from the host; it must not import a
+// component-specific production asset.
+type StoryHarnessRef struct {
+	Asset   string          `json:"asset"`
+	Version string          `json:"version"`
+	Export  string          `json:"export"`
+	Config  json.RawMessage `json:"config,omitempty"`
 }
 
 // storyFixtureAdapters is deliberately server-owned. A story may select a
@@ -102,13 +117,14 @@ type StoryDefinition struct {
 	Mode        StoryMode `json:"mode,omitempty"`
 	// Harness selects a named export from the version-local story.tsx file.
 	// It is available only in schemaVersion 2 and later.
-	Harness      string             `json:"harness,omitempty"`
-	Frame        *StoryFrame        `json:"frame,omitempty"`
-	Geometry     *StoryGeometry     `json:"geometry,omitempty"`
-	Args         json.RawMessage    `json:"args"`
-	Environment  map[string]string  `json:"environment,omitempty"`
-	Interactions []StoryInteraction `json:"interactions,omitempty"`
-	Expect       []StoryExpectation `json:"expect,omitempty"`
+	Harness       string             `json:"harness,omitempty"`
+	SharedHarness *StoryHarnessRef   `json:"sharedHarness,omitempty"`
+	Frame         *StoryFrame        `json:"frame,omitempty"`
+	Geometry      *StoryGeometry     `json:"geometry,omitempty"`
+	Args          json.RawMessage    `json:"args"`
+	Environment   map[string]string  `json:"environment,omitempty"`
+	Interactions  []StoryInteraction `json:"interactions,omitempty"`
+	Expect        []StoryExpectation `json:"expect,omitempty"`
 }
 
 // UnmarshalJSON makes the common zero-argument story ergonomic while keeping
@@ -178,12 +194,13 @@ type StoryDiagnostic struct {
 // grammar remain independent of the catalog loader and makes diagnostics
 // deterministic in indexer and preview tests.
 type CatalogFrameAsset struct {
-	ID               string
-	Kind             string
-	Targets          []string
-	Regions          []string
-	Expects          []CatalogFramePort
-	FixtureSatisfies *CatalogFramePort
+	ID                 string
+	Kind               string
+	Targets            []string
+	Regions            []string
+	RegionCapabilities map[string]string
+	Expects            []CatalogFramePort
+	FixtureSatisfies   *CatalogFramePort
 }
 
 type CatalogFramePort struct {
@@ -237,8 +254,14 @@ func validateStoryFrameShape(pointer string, frame *StoryFrame) []StoryDiagnosti
 	if !validCatalogAssetID(frame.Asset) {
 		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/asset", "frame_asset_id", "frame asset must be a catalog asset id"))
 	}
+	if frame.Version != "" && !validAssetVersion(frame.Version) {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/version", "frame_version", "frame version must be a stable semantic version"))
+	}
 	if !validStoryID(frame.Region) {
 		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/region", "frame_region", "frame region must be a stable lowercase slug"))
+	}
+	if frame.Capability != "" && !validStoryID(frame.Capability) {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/capability", "frame_capability", "frame capability must be a stable lowercase slug"))
 	}
 	if !validCatalogAssetID(frame.Fixture) {
 		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/fixture", "frame_fixture_id", "frame fixture must be a catalog asset id"))
@@ -260,6 +283,9 @@ func validateStoryFrame(pointer string, frame *StoryFrame, registry CatalogFrame
 	}
 	if !containsFrameString(asset.Regions, frame.Region) {
 		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/region", "frame_region_exists", "frame region is not declared by the frame asset"))
+	}
+	if required := asset.RegionCapabilities[frame.Region]; required != "" && frame.Capability != required {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/capability", "frame_region_capability", fmt.Sprintf("frame region requires subject capability %q", required)))
 	}
 	fixture, found := registry.LookupCatalogFrameAsset(frame.Fixture)
 	if !found {
@@ -299,6 +325,12 @@ func compatibleTypeArguments(expected, actual []string) bool {
 func validCatalogAssetID(value string) bool {
 	parts := strings.Split(strings.TrimSpace(value), ".")
 	return len(parts) == 2 && validStoryID(parts[0]) && validStoryID(parts[1])
+}
+
+var assetVersionPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$`)
+
+func validAssetVersion(value string) bool {
+	return assetVersionPattern.MatchString(strings.TrimSpace(value))
 }
 
 func containsFrameString(values []string, wanted string) bool {
@@ -473,8 +505,14 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		if story.Mode != "" && story.Mode != StoryModePinned && story.Mode != StoryModeLive {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/mode", "story_mode", "mode must be pinned or live"))
 		}
-		if contract.SchemaVersion == 1 && (story.Harness != "" || story.Description != "" || story.Frame != nil) {
-			diagnostics = append(diagnostics, storyDiagnostic(pointer, "schema_version", "harness and description require schemaVersion 2"))
+		if contract.SchemaVersion == 1 && (story.Harness != "" || story.Description != "" || story.Frame != nil || story.SharedHarness != nil) {
+			diagnostics = append(diagnostics, storyDiagnostic(pointer, "schema_version", "harness, sharedHarness, description, and frame require a newer schemaVersion"))
+		}
+		if contract.SchemaVersion < 3 && story.SharedHarness != nil {
+			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/sharedHarness", "schema_version", "shared harness requires schemaVersion 3"))
+		}
+		if story.SharedHarness != nil {
+			diagnostics = append(diagnostics, validateStoryHarnessRef(pointer+"/sharedHarness", story.SharedHarness)...)
 		}
 		if contract.SchemaVersion < 3 && story.Frame != nil {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/frame", "schema_version", "frame requires schemaVersion 3"))
@@ -512,6 +550,26 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		diagnostics = append(diagnostics, storyDiagnostic("/stories", "required", "at least one named story is required"))
 	}
 	sort.Slice(diagnostics, func(i, j int) bool { return diagnostics[i].Pointer < diagnostics[j].Pointer })
+	return diagnostics
+}
+
+func validateStoryHarnessRef(pointer string, harness *StoryHarnessRef) []StoryDiagnostic {
+	if harness == nil {
+		return nil
+	}
+	var diagnostics []StoryDiagnostic
+	if !validCatalogAssetID(harness.Asset) || !strings.HasPrefix(harness.Asset, "preview.") {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/asset", "shared_harness_asset", "shared harness asset must use the preview.* asset namespace"))
+	}
+	if !validAssetVersion(harness.Version) {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/version", "shared_harness_version", "shared harness version must be a stable semantic version"))
+	}
+	if !validHarnessExport(harness.Export) {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/export", "shared_harness_export", "shared harness export must be a valid named JavaScript export identifier"))
+	}
+	if len(harness.Config) > 0 && !json.Valid(harness.Config) {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/config", "shared_harness_config", "shared harness config must be valid JSON"))
+	}
 	return diagnostics
 }
 

@@ -711,6 +711,78 @@ class ListComponentStoriesResponse(_message.Message):
     stories: _containers.RepeatedCompositeFieldContainer[ComponentStory]
     def __init__(self, stories: _Optional[_Iterable[_Union[ComponentStory, _Mapping]]] = ...) -> None: ...
 
+class ListPreviewFramesRequest(_message.Message):
+    __slots__ = ("component_id", "version", "story_id")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    STORY_ID_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    version: str
+    story_id: str
+    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., story_id: _Optional[str] = ...) -> None: ...
+
+class PreviewFrameCandidate(_message.Message):
+    __slots__ = ("asset", "version", "region", "capability", "fixture", "label", "compatible", "diagnostic_code", "diagnostic")
+    ASSET_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    REGION_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    FIXTURE_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    COMPATIBLE_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_CODE_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    asset: str
+    version: str
+    region: str
+    capability: str
+    fixture: str
+    label: str
+    compatible: bool
+    diagnostic_code: str
+    diagnostic: str
+    def __init__(self, asset: _Optional[str] = ..., version: _Optional[str] = ..., region: _Optional[str] = ..., capability: _Optional[str] = ..., fixture: _Optional[str] = ..., label: _Optional[str] = ..., compatible: _Optional[bool] = ..., diagnostic_code: _Optional[str] = ..., diagnostic: _Optional[str] = ...) -> None: ...
+
+class ListPreviewFramesResponse(_message.Message):
+    __slots__ = ("candidates",)
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    candidates: _containers.RepeatedCompositeFieldContainer[PreviewFrameCandidate]
+    def __init__(self, candidates: _Optional[_Iterable[_Union[PreviewFrameCandidate, _Mapping]]] = ...) -> None: ...
+
+class PersistPreviewFrameRequest(_message.Message):
+    __slots__ = ("component_id", "version", "story_id", "asset", "frame_version", "region", "capability", "fixture")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    STORY_ID_FIELD_NUMBER: _ClassVar[int]
+    ASSET_FIELD_NUMBER: _ClassVar[int]
+    FRAME_VERSION_FIELD_NUMBER: _ClassVar[int]
+    REGION_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    FIXTURE_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    version: str
+    story_id: str
+    asset: str
+    frame_version: str
+    region: str
+    capability: str
+    fixture: str
+    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., story_id: _Optional[str] = ..., asset: _Optional[str] = ..., frame_version: _Optional[str] = ..., region: _Optional[str] = ..., capability: _Optional[str] = ..., fixture: _Optional[str] = ...) -> None: ...
+
+class PersistPreviewFrameResponse(_message.Message):
+    __slots__ = ("component_id", "version", "story_id", "story_json", "source_path")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    STORY_ID_FIELD_NUMBER: _ClassVar[int]
+    STORY_JSON_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    version: str
+    story_id: str
+    story_json: str
+    source_path: str
+    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., story_id: _Optional[str] = ..., story_json: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
+
 class DesignStyle(_message.Message):
     __slots__ = ("id", "name", "tags", "supports")
     ID_FIELD_NUMBER: _ClassVar[int]

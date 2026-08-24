@@ -43,6 +43,8 @@ service ComponentsService {
   rpc ListComponentVersions(ListComponentVersionsRequest) returns (ListComponentVersionsResponse);
   rpc GetComponentVersionContent(GetComponentVersionContentRequest) returns (GetComponentVersionContentResponse);
   rpc ListComponentStories(ListComponentStoriesRequest) returns (ListComponentStoriesResponse);
+  rpc ListPreviewFrames(ListPreviewFramesRequest) returns (ListPreviewFramesResponse);
+  rpc PersistPreviewFrame(PersistPreviewFrameRequest) returns (PersistPreviewFrameResponse);
   rpc ListDesignStyles(ListDesignStylesRequest) returns (ListDesignStylesResponse);
   rpc ValidateStyleFit(ValidateStyleFitRequest) returns (ValidateStyleFitResponse);
 }
@@ -593,6 +595,53 @@ message ListComponentStoriesRequest {
 
 message ListComponentStoriesResponse {
   repeated ComponentStory stories = 1;
+}
+
+// ListPreviewFrames returns catalog-backed frame candidates for a subject. It
+// is deliberately read-only: selecting a candidate in the UI changes only the
+// Preview request until an author explicitly persists a story reference.
+message ListPreviewFramesRequest {
+  string component_id = 1;
+  string version = 2;
+  string story_id = 3;
+}
+
+message PreviewFrameCandidate {
+  string asset = 1;
+  string version = 2;
+  string region = 3;
+  string capability = 4;
+  string fixture = 5;
+  string label = 6;
+  bool compatible = 7;
+  string diagnostic_code = 8;
+  string diagnostic = 9;
+}
+
+message ListPreviewFramesResponse {
+  repeated PreviewFrameCandidate candidates = 1;
+}
+
+// PersistPreviewFrame promotes a temporary frame experiment into a new draft
+// story contract. Released version bytes remain immutable; the server creates
+// a patch draft when the selected version has no active draft.
+message PersistPreviewFrameRequest {
+  string component_id = 1;
+  string version = 2;
+  string story_id = 3;
+  string asset = 4;
+  string frame_version = 5;
+  string region = 6;
+  string capability = 7;
+  string fixture = 8;
+}
+
+message PersistPreviewFrameResponse {
+  string component_id = 1;
+  string version = 2;
+  string story_id = 3;
+  string story_json = 4;
+  string source_path = 5;
 }
 
 message DesignStyle {

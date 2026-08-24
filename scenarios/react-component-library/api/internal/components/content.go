@@ -149,14 +149,15 @@ func (s *FSContentStore) WritePath(_ context.Context, c Component, path string, 
 }
 
 // Component versions may carry authored, non-code artifacts alongside their
-// entry and companion modules. The experience contract is one such artifact;
-// it is readable in the Files tab but remains intentionally read-only here.
+// entry and companion modules. JSON contracts are writable only through the
+// service boundary, which canonicalizes them before storage and preserves the
+// same path and optimistic-concurrency guards as source files.
 func isReadableCompanion(path string) bool {
 	return strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx") || strings.HasSuffix(path, ".json")
 }
 
 func isWritableCompanion(path string) bool {
-	return strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx")
+	return isReadableCompanion(path)
 }
 
 // resolve cleans the relative SourcePath against root and rejects

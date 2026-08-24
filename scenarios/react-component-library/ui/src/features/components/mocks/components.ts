@@ -20,6 +20,8 @@ export interface ComponentsMocks {
     updateComponentContent: ReturnType<typeof vi.fn>;
   };
   listComponentStories: ReturnType<typeof vi.fn>;
+  listPreviewFrames: ReturnType<typeof vi.fn>;
+  persistPreviewFrame: ReturnType<typeof vi.fn>;
 }
 
 export const makeComponentsMocks = (): ComponentsMocks => ({
@@ -36,4 +38,12 @@ export const makeComponentsMocks = (): ComponentsMocks => ({
     updateComponentContent: vi.fn().mockResolvedValue(makeUpdateComponentContentResponse()),
   },
   listComponentStories: vi.fn().mockResolvedValue({ stories: [] }),
+  listPreviewFrames: vi.fn().mockResolvedValue({ candidates: [] }),
+  persistPreviewFrame: vi.fn().mockResolvedValue({
+    componentId: "",
+    version: "1.0.0-draft.1",
+    storyId: "",
+    storyJson: "{}",
+    sourcePath: "",
+  }),
 });

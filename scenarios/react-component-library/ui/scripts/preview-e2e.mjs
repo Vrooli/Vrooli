@@ -91,6 +91,59 @@ function safeArtifactPart(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-");
 }
 
+function escapeHTML(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function storySheetGroups(stories) {
+  const requested = Number(process.env.RCL_PREVIEW_SHEET_SIZE || 4);
+  const size = Number.isFinite(requested) ? Math.max(1, Math.min(4, requested)) : 4;
+  const groups = [];
+  for (let index = 0; index < stories.length; index += size) {
+    groups.push(stories.slice(index, index + size));
+  }
+  return groups;
+}
+
+async function captureStorySheet(page, tiles, metadata) {
+  const tilesHTML = tiles
+    .map(
+      ({ story, bytes }) => `
+        <article data-preview-sheet-tile>
+          <h2>${escapeHTML(story)}</h2>
+          <img alt="${escapeHTML(story)} story" src="data:image/png;base64,${Buffer.from(bytes).toString("base64")}" />
+        </article>`,
+    )
+    .join("");
+  await page.setContent(`<!doctype html>
+    <html><head><style>
+      :root { color-scheme: ${metadata.theme}; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: ${metadata.theme === "dark" ? "#111827" : "#f8fafc"}; color: ${metadata.theme === "dark" ? "#f8fafc" : "#0f172a"}; font-family: ui-sans-serif, system-ui, sans-serif; }
+      [data-preview-sheet] { display: grid; gap: 16px; padding: 24px; width: min(100%, 1440px); background: inherit; }
+      [data-preview-sheet-header] { display: grid; gap: 4px; }
+      [data-preview-sheet-header] h1 { margin: 0; font-size: 20px; }
+      [data-preview-sheet-header] p { margin: 0; color: ${metadata.theme === "dark" ? "#cbd5e1" : "#475569"}; font-size: 13px; }
+      [data-preview-sheet-grid] { display: grid; grid-template-columns: repeat(${tiles.length > 1 ? 2 : 1}, minmax(0, 1fr)); gap: 16px; align-items: start; }
+      [data-preview-sheet-tile] { display: grid; gap: 8px; min-width: 0; }
+      [data-preview-sheet-tile] h2 { margin: 0; font-size: 13px; font-weight: 700; }
+      [data-preview-sheet-tile] img { display: block; width: 100%; height: auto; border: 1px solid ${metadata.theme === "dark" ? "#475569" : "#cbd5e1"}; border-radius: 10px; }
+    </style></head><body>
+      <main data-preview-sheet="story-gallery" data-preview-capture-boundary="component-sheet">
+        <header data-preview-sheet-header><h1>${escapeHTML(metadata.title)}</h1><p>${tiles.length} stories · ${escapeHTML(metadata.theme)} · ${escapeHTML(metadata.viewport)}</p></header>
+        <div data-preview-sheet-grid>${tilesHTML}</div>
+      </main>
+    </body></html>`, { waitUntil: "load" });
+  const sheet = page.locator("[data-preview-sheet]");
+  await sheet.waitFor({ state: "visible" });
+  return sheet.screenshot({ animations: "disabled" });
+}
+
 function previewViewports() {
   const requested = process.env.RCL_PREVIEW_VIEWPORTS;
   if (!requested) return [{ name: "desktop", width: 1254, height: 720 }];
@@ -181,12 +234,19 @@ async function captureThemeTier(
   const captureContexts = [];
   const viewports = previewViewports();
   const kits = previewKits();
+  const requestedStories = process.env.RCL_PREVIEW_STORY_IDS?.trim();
   const requestedStory = process.env.RCL_PREVIEW_STORY_ID?.trim();
-  const stories = requestedStory
-    ? [requestedStory]
+  const stories = requestedStories && requestedStories.toLowerCase() !== "all"
+    ? [...new Set(requestedStories.split(",").map((story) => story.trim()).filter(Boolean))]
+    : requestedStories?.toLowerCase() === "all"
+      ? [...new Set(storyIDs.filter(Boolean))]
+      : requestedStory
+        ? [requestedStory]
     : storyIDs.length > 0
       ? [...new Set(storyIDs)]
       : [undefined];
+  const sheetMode = process.env.RCL_PREVIEW_STORY_SHEET === "1" && stories.length > 1;
+  const sheetGroups = sheetMode ? storySheetGroups(stories.filter(Boolean)) : [];
 
   try {
     const mountedSources = new Set(sourceOverride ? [sourceOverride] : []);
@@ -223,16 +283,16 @@ async function captureThemeTier(
           await selectResolvedTheme(page, theme);
           await page.waitForTimeout(100);
           captures[theme] ||= [];
+          const sheetTiles = new Map();
           for (let index = 0; index < sources.length; index += 1) {
             const source = sources[index];
             for (const storyID of stories) {
               const kitSource = new URL(source);
               kitSource.searchParams.set("kit", kit);
-              // The host uses the frame contract to compose catalog surfaces
-              // inside the editor. Isolated screenshots need the component's
-              // own specimen only; retaining that frame can leave a capture
-              // waiting on a parent-owned region that does not exist here.
-              kitSource.searchParams.set("frame", "off");
+              // Preserve the story's declared frame. Isolated capture removes
+              // the editor workspace, but it must retain the component's
+              // declared composition context so the artifact proves the
+              // component works inside its intended sheet.
               // A focused capture may target any declared story without
               // changing the catalog route or the selected story in the host
               // editor. This keeps visual ground truth available for states
@@ -302,8 +362,8 @@ async function captureThemeTier(
                   ).length,
                   // Measure the rendered component surface, not hidden
                   // harness bookkeeping nodes outside #root. The screenshot
-                  // artifact is #root, so responsive validation must use the
-                  // same boundary.
+                  // artifact is the explicit component sheet, while layout
+                  // validation remains rooted at the full rendered surface.
                   scrollWidth: element.scrollWidth,
                   viewportWidth: window.innerWidth,
                   overflowing: Array.from(element.querySelectorAll("*"))
@@ -342,9 +402,15 @@ async function captureThemeTier(
                   `preview iframe ${index} overflows ${viewport.name} kit ${kit}: scrollWidth=${visual.scrollWidth}, viewportWidth=${visual.viewportWidth}${visual.overflowing.length > 0 ? ` offenders=${JSON.stringify(visual.overflowing)}` : ""}`,
                 );
               }
-              const bytes = await capturePage
-                .locator("#root")
-                .screenshot({ animations: "disabled" });
+              const sheet = capturePage.locator("[data-preview-sheet]");
+              const sheetCount = await sheet.count();
+              if (sheetCount !== 1) {
+                throw new Error(
+                  `isolated preview must expose exactly one component sheet, found ${sheetCount} at ${capturePage.url()}`,
+                );
+              }
+              await sheet.waitFor({ state: "visible", timeout: 5_000 });
+              const bytes = await sheet.screenshot({ animations: "disabled" });
               if (bytes.length < 256)
                 throw new Error(
                   `preview iframe ${index} ${theme} screenshot is unexpectedly small at ${viewport.name} kit ${kit}`,
@@ -366,9 +432,49 @@ async function captureThemeTier(
                 width: visual.width,
                 height: visual.height,
                 interactiveCount: visual.interactiveCount,
+                captureTarget: "component-sheet",
+                captureSelector: "[data-preview-sheet]",
                 artifact: outputDir ? artifact : undefined,
               });
+              const tileKey = `${index}`;
+              const tiles = sheetTiles.get(tileKey) || [];
+              tiles.push({ story, bytes });
+              sheetTiles.set(tileKey, tiles);
             }
+          }
+          if (sheetMode && outputDir) {
+            const sheetPage = await captureContext.newPage();
+            sheetPage.setDefaultTimeout(assetTimeoutMs());
+            for (const [sourceIndex, tiles] of sheetTiles) {
+              for (let groupIndex = 0; groupIndex < sheetGroups.length; groupIndex += 1) {
+                const group = sheetGroups[groupIndex];
+                const selectedTiles = group
+                  .map((story) => tiles.find((tile) => tile.story === story))
+                  .filter(Boolean);
+                if (selectedTiles.length === 0) continue;
+                const bytes = await captureStorySheet(sheetPage, selectedTiles, {
+                  title: `${componentID} stories`,
+                  theme,
+                  viewport: viewport.name,
+                });
+                const storyLabel = group.map((story) => safeArtifactPart(story)).join("-");
+                const artifact = `${safeArtifactPart(componentID)}--stories-${storyLabel}--${sourceIndex}--${safeArtifactPart(kit)}--${safeArtifactPart(viewport.name)}--${theme}.png`;
+                await writeFile(path.join(outputDir, artifact), bytes);
+                captures[theme].push({
+                  stories: group,
+                  index: Number(sourceIndex),
+                  viewport: viewport.name,
+                  kit,
+                  bytes: bytes.length,
+                  hash: screenshotHash(bytes),
+                  captureTarget: "component-sheet",
+                  captureSelector: "[data-preview-sheet]",
+                  sheetSize: selectedTiles.length,
+                  artifact,
+                });
+              }
+            }
+            await sheetPage.close();
           }
         }
       }

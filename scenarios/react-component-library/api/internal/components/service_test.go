@@ -25,6 +25,38 @@ func TestService_UpsertRejectsBlankLibraryID(t *testing.T) {
 	require.Equal(t, int64(0), repo.UpsertCalls.Load())
 }
 
+func TestService_UpdateVersionContentAtFormatsDraftJSONWithoutMutatingRelease(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	_, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+		LibraryID: "react-component-library:Button", Slug: "Button", DisplayName: "Button",
+		InitialVersion: "1.0.0", InitialSource: "export function Button() { return <button />; }",
+		ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+	authoring := svc.(components.AuthoringService)
+	draft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{
+		Component: "react-component-library:Button", Bump: "patch",
+	})
+	require.NoError(t, err)
+	writer := svc.(interface {
+		UpdateVersionContentAt(context.Context, string, string, string, components.WriteContentInput) (components.Content, error)
+	})
+	written, err := writer.UpdateVersionContentAt(context.Background(), "react-component-library:Button", draft.Version.Version, "story.json", components.WriteContentInput{
+		Body: `{"schemaVersion":3,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[]}`,
+	})
+	require.NoError(t, err)
+	require.Contains(t, written.Body, "\n  \"schemaVersion\": 3")
+
+	released, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "story.json"))
+	require.NoError(t, err)
+	require.Contains(t, string(released), "\"schemaVersion\": 1")
+	draftStory, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", draft.Version.Version, "story.json"))
+	require.NoError(t, err)
+	require.Equal(t, written.Body, string(draftStory))
+}
+
 func TestService_ListAppliesDefaultLimit(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	svc := components.NewService(repo)
