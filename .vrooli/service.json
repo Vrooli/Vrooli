@@ -354,6 +354,13 @@
       ]
     },
     {
+      "name": "autoheal_watchdog",
+      "notes": "Installs and verifies the autoheal loop in the invoking user's native scheduler. Dedicated-host policy enables Linux lingering for pre-login startup; shared-host policy remains login-scoped.",
+      "reason": "Ensure the supervisor that repairs failed workloads survives reboot and is not dependent on a separate scenario install command",
+      "required": true,
+      "when": ["setup"]
+    },
+    {
       "name": "emergency_watchdog",
       "notes": "Installs ~/.vrooli/libexec/emergency-watchdog.sh plus a systemd user service and timer under the invoking user's home. Needs no privilege. Replaces scripts/emergency-watchdog.sh, which was referenced by runbooks, installed by nothing, and whose hand-created unit hard-coded one operator's repository path. Holds unit restarts while CPU PSI shows the host is saturated.",
       "reason": "Give setup ownership of the last line of defense so every host has it, rather than depending on a hand-placed systemd unit that existed on exactly one machine",

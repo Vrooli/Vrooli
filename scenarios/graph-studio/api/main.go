@@ -30,39 +30,14 @@ func main() {
 		log.Fatal("API_PORT environment variable is required")
 	}
 
-	// Database configuration (support DSN fallback for resource-managed environments)
-	postgresURL := os.Getenv("POSTGRES_URL")
+	// Database configuration is resolved by the shared Postgres seam.
+	postgresURL, dsnErr := database.ResolvePostgresDSN(os.Getenv)
+	if dsnErr != nil {
+		log.Fatalf("Database configuration missing: %v", dsnErr)
+	}
 	dbConfig := DatabaseConfig{
 		URL:        postgresURL,
-		Host:       os.Getenv("POSTGRES_HOST"),
-		Port:       os.Getenv("POSTGRES_PORT"),
-		User:       os.Getenv("POSTGRES_USER"),
-		Password:   os.Getenv("POSTGRES_PASSWORD"),
-		Database:   os.Getenv("POSTGRES_DB"),
 		MaxRetries: 10,
-	}
-
-	if dbConfig.Database == "" {
-		dbConfig.Database = "graph_studio"
-	}
-
-	if dbConfig.URL == "" {
-		missing := make([]string, 0, 5)
-		if dbConfig.Host == "" {
-			missing = append(missing, "POSTGRES_HOST")
-		}
-		if dbConfig.Port == "" {
-			missing = append(missing, "POSTGRES_PORT")
-		}
-		if dbConfig.User == "" {
-			missing = append(missing, "POSTGRES_USER")
-		}
-		if dbConfig.Password == "" {
-			missing = append(missing, "POSTGRES_PASSWORD")
-		}
-		if len(missing) > 0 {
-			log.Fatalf("Database configuration missing. Provide POSTGRES_URL or set: %s", strings.Join(missing, ", "))
-		}
 	}
 
 	// Connect to database with retry logic

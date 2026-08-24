@@ -156,19 +156,11 @@
     "scenarios": {
       "scenario-authenticator": {
         "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
+        "required": true,
+        "startup_policy": "must_start",
         "description": "Multi-user authentication and user context",
-        "degraded_behavior": "Single-user mode without authentication",
-        "bundle_policy": "discover",
-        "bindings": [
-          {
-            "env_var": "AUTH_SERVICE_URL",
-            "form": "http_base_url",
-            "port": "api",
-            "when_unavailable": "omit"
-          }
-        ]
+        "degraded_behavior": "Calendar refuses to start without authentication",
+        "bundle_policy": "discover"
       },
       "notification-hub": {
         "enabled": true,
@@ -176,15 +168,7 @@
         "startup_policy": "try_start",
         "description": "Event reminders and schedule change notifications",
         "degraded_behavior": "In-memory reminder queue without delivery",
-        "bundle_policy": "discover",
-        "bindings": [
-          {
-            "env_var": "NOTIFICATION_SERVICE_URL",
-            "form": "http_base_url",
-            "port": "api",
-            "when_unavailable": "omit"
-          }
-        ]
+        "bundle_policy": "discover"
       }
     }
   },

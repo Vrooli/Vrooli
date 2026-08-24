@@ -1,15 +1,17 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "generation": {
     "template": {
       "id": "react-vite",
       "version": "1.6.5"
     },
     "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
-    "content_sha": "b016b9e7a5d7a21f40712aee481354ba02720d3bc8ae2aa0b2fa94655c240c56",
-    "adopted": true
+    "content_sha": "b016b9e7a5d7a21f40712aee481354ba02720d3bc8ae2aa0b2fa94655c240c56"
   },
   "service": {
     "parent": "vrooli",
@@ -99,98 +101,20 @@
         }
       ]
     },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/web-console-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "web-console"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o web-console-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
     "develop": {
       "description": "Launch API and Vite dev server",
       "steps": [
         {
-          "name": "start-api",
-          "run": "cd api && ./web-console-api",
-          "background": true,
-          "description": "Start Go API server in background (export WC_BROADCAST_TRACE=1 before a restart to capture broadcast fingerprints; it logs every PTY frame and grows the log by gigabytes per day)",
-          "condition": {
-            "file_exists": "api/web-console-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
           "name": "register-tts-hook",
-          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'",
+          "exec": [
+            "web-console",
+            "hooks",
+            "register"
+          ],
           "description": "Register Claude Code Stop hook for auto-TTS"
         }
       ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute web-console --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        },
-        {
-          "name": "sync-validation",
-          "run": "scripts/sync-validation-results.sh",
-          "description": "Sync requirement validations to phase-results for scoring"
-        }
-      ]
     }
-  },
-  "capabilities": {
-    "offline_capable": false,
-    "offline_limitations": "AI features require Ollama (local) or OpenRouter (cloud); audio features are owned by audio-tools",
-    "ai_providers": [
-      "ollama",
-      "openrouter"
-    ],
-    "ai_fallback": "openrouter",
-    "ai_note": "Ollama preferred (free+local); OpenRouter used when Ollama unavailable"
   },
   "dependencies": {
     "resources": {
@@ -226,9 +150,6 @@
       }
     }
   },
-  "notes": {
-    "storage_strategy": "Embedded SQLite in the API process for workspace layout, shortcuts, and AI provider config"
-  },
   "cli": {
     "enabled": true,
     "command": "web-console",
@@ -248,6 +169,37 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   }
 }

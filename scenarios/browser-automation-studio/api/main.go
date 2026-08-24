@@ -181,6 +181,9 @@ func main() {
 
 	// Load configuration
 	cfg := config.Load()
+	if resolved, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "landing-page-business-suite"); resolveErr == nil {
+		cfg.Entitlement.ServiceURL = resolved
+	}
 
 	// Initialize entitlement service
 	entitlementSvc := entitlement.NewService(cfg.Entitlement, log)
@@ -299,23 +302,18 @@ func main() {
 	// This enables automatic restart on crashes, health monitoring, and recording recovery
 	var sidecarDeps *sidecar.Dependencies
 	var stopSessionReconciler context.CancelFunc
-	if strings.TrimSpace(os.Getenv("AI_GATEWAY_URL")) == "" {
-		resolveCtx, resolveCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if gatewayURL, resolveErr := discovery.ResolveScenarioURLDefault(resolveCtx, "ai-gateway"); resolveErr == nil {
-			// The URL is routing metadata, not a credential. Passing it to the
-			// managed driver keeps discovery in the Go control plane while the
-			// driver remains a provider-neutral HTTP client.
-			_ = os.Setenv("AI_GATEWAY_URL", strings.TrimRight(gatewayURL, "/"))
-		} else {
-			log.WithError(resolveErr).Warn("AI Gateway discovery unavailable; managed vision calls will fail closed")
-		}
-		resolveCancel()
+	resolveCtx, resolveCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	gatewayURL, resolveErr := discovery.ResolveScenarioURLDefault(resolveCtx, "ai-gateway")
+	resolveCancel()
+	if resolveErr != nil {
+		log.WithError(resolveErr).Warn("AI Gateway discovery unavailable; managed vision calls will fail closed")
+		gatewayURL = ""
 	}
 	driverClient, err := driver.NewClient(driver.WithLogger(log))
 	if err != nil {
 		log.WithError(err).Warn("⚠️  Failed to create driver client - sidecar management disabled")
 	} else {
-		sidecarDeps, err = sidecar.BuildDependencies(db.DB, driverClient, hub, log)
+		sidecarDeps, err = sidecar.BuildDependencies(db.DB, driverClient, hub, log, gatewayURL)
 		if err != nil {
 			log.WithError(err).Warn("⚠️  Failed to initialize sidecar management")
 		} else if sidecarDeps.IsEnabled() {

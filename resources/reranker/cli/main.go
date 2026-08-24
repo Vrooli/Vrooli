@@ -59,7 +59,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 				Run:         capacitysync.Command(nil),
 			}},
 		}),
-		[]cliapp.SubcommandGroup{gateway.Commands(nil), models.Commands(nil)},
+		[]cliapp.SubcommandGroup{gateway.Commands(nil), models.Commands(nil), models.CapacityCommands(nil)},
 	)
 	return app, nil
 }

@@ -71,11 +71,13 @@ func main() {
 	// Initialize database connection (optional for chart generation)
 	var db *sql.DB
 
-	// Check if database is configured
-	if os.Getenv("POSTGRES_HOST") != "" || os.Getenv("POSTGRES_URL") != "" {
+	// Check if database is configured through the canonical seam.
+	dsn, dsnErr := database.ResolvePostgresDSN(os.Getenv)
+	if dsnErr == nil && dsn != "" {
 		var err error
 		db, err = database.Connect(context.Background(), database.Config{
 			Driver: "postgres",
+			DSN:    dsn,
 		})
 		if err != nil {
 			log.Printf("⚠️  Database connection failed: %v (continuing without database)", err)

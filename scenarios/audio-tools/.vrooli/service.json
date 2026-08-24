@@ -173,15 +173,7 @@
         "required": false,
         "startup_policy": "try_start",
         "degraded_behavior": "LPBS-backed audio routing remains unavailable while landing-page-business-suite is stopped; local and BYOK providers continue to serve supported requests.",
-        "bundle_policy": "discover",
-        "bindings": [
-          {
-            "env_var": "AUDIO_LPBS_BASE_URL",
-            "form": "http_base_url",
-            "port": "api",
-            "when_unavailable": "omit"
-          }
-        ]
+        "bundle_policy": "discover"
       }
     }
   },
@@ -191,7 +183,6 @@
     "AUDIO_KYUTAI_URL": "http://localhost:8094",
     "AUDIO_SHERPA_URL": "http://localhost:8880",
     "AUDIO_OLLAMA_URL": "http://localhost:11434",
-    "AUDIO_LPBS_BASE_URL": "",
     "AUDIO_AI_ENABLE_BYOK": "true",
     "AUDIO_AI_ENABLE_VROOLI": "false",
     "AUDIO_AI_ENABLE_LOCAL": "true",

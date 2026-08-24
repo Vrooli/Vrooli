@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+
+	"github.com/vrooli/envkit-go"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -130,7 +132,7 @@ func run() error {
 
 	cmd := exec.Command("go", "build", "-ldflags", flags, "-o", tmpPath, ".")
 	cmd.Dir = modulePath
-	cmd.Env = os.Environ()
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

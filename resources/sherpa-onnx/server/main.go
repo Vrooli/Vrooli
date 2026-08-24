@@ -25,7 +25,7 @@ func main() {
 	} else {
 		defer speaker.Close()
 	}
-	addr := envOr("RESOURCE_LISTEN_ADDR", "127.0.0.1:8880")
+	addr := envOr("RESOURCE_LISTEN_ADDR", "127.0.0.1:8881")
 	if err := http.ListenAndServe(addr, newHandlerWithEncoderStreamingAndSpeaker(engine, newFFmpegEncoder(), streaming, speaker)); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

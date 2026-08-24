@@ -127,6 +127,12 @@
           "rerank.llm_fallback"
         ]
       },
+      "postgres": {
+        "type": "postgres",
+        "enabled": false,
+        "required": false,
+        "description": "Optional relational source for observatory metadata"
+      },
       "reranker": {
         "type": "reranker",
         "enabled": true,

@@ -13,7 +13,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -573,36 +572,16 @@ func logStructuredError(msg string, fields map[string]interface{}) {
 }
 
 func resolveDatabaseURL() (string, error) {
-	if raw := strings.TrimSpace(envx.Get("DATABASE_URL")); raw != "" {
-		return raw, nil
-	}
-
-	host := strings.TrimSpace(envx.Get("POSTGRES_HOST"))
-	port := strings.TrimSpace(envx.Get("POSTGRES_PORT"))
-	user := strings.TrimSpace(envx.Get("POSTGRES_USER"))
-	password := strings.TrimSpace(envx.Get("POSTGRES_PASSWORD"))
-	name := strings.TrimSpace(envx.Get("POSTGRES_DB"))
-	// This scenario uses its own database (as defined in service.json).
-	// Override the default POSTGRES_DB if it's set to the global 'vrooli' database.
-	if name == "" || name == "vrooli" {
-		name = "landing-page-business-suite"
-	}
-
-	if host == "" || port == "" || user == "" || password == "" || name == "" {
-		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
-	}
-
-	pgURL := &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(user, password),
-		Host:   fmt.Sprintf("%s:%s", host, port),
-		Path:   name,
-	}
-	values := pgURL.Query()
-	values.Set("sslmode", "disable")
-	pgURL.RawQuery = values.Encode()
-
-	return pgURL.String(), nil
+	return database.ResolvePostgresDSN(func(key string) string {
+		value := strings.TrimSpace(envx.Get(key))
+		// This scenario uses its own database (as defined in service.json).
+		// Preserve lifecycle-provided variant names; only replace the legacy
+		// global default used by older development environments.
+		if key == "POSTGRES_DB" && (value == "" || value == "vrooli") {
+			return "landing-page-business-suite"
+		}
+		return value
+	})
 }
 
 func main() {

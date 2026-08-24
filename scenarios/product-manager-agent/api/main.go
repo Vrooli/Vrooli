@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
+	redisconfig "github.com/vrooli/api-core/redis"
 	"github.com/vrooli/api-core/server"
 )
 
@@ -108,18 +109,12 @@ func initDB() (*sql.DB, error) {
 }
 
 func initRedis() *redis.Client {
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		redisURL = "redis://localhost:6379"
-	}
-
-	opt, err := redis.ParseURL(redisURL)
+	resolved, err := redisconfig.Resolve(os.Getenv)
 	if err != nil {
-		log.Printf("Failed to parse Redis URL, using defaults: %v", err)
-		opt = &redis.Options{
-			Addr: "localhost:6379",
-		}
+		log.Printf("Redis is unavailable: %v", err)
+		return redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
 	}
+	opt := &redis.Options{Addr: resolved.Addr, Password: resolved.Password, DB: resolved.DB}
 
 	client := redis.NewClient(opt)
 

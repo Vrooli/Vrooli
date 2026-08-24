@@ -96,22 +96,11 @@ func NewServer() (*Server, error) {
 		log.Println("No .env file found")
 	}
 
-	// Database configuration - support both DATABASE_URL and individual components
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		// Try to build from individual components
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			return nil, fmt.Errorf("❌ Missing database configuration. Provide DATABASE_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
+	// Database configuration is resolved by api-core/database so URL
+	// precedence and lifecycle SSL settings are shared with every consumer.
+	dbURL, err := database.ResolvePostgresDSN(os.Getenv)
+	if err != nil {
+		return nil, fmt.Errorf("❌ Missing database configuration: %w", err)
 	}
 
 	config, err := pgxpool.ParseConfig(dbURL)

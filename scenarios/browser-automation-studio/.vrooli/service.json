@@ -211,15 +211,14 @@
         "runtime_only": true,
         "runtime_only_rationale": "BAS reaches LPBS through its configured entitlement HTTP boundary and the control-plane-discovered local port; no Go package import is expected or desirable across scenario modules.",
         "degraded_behavior": "LPBS-backed Class-A entitlement and shared-session operations report unavailable while the authority is stopped; local Class-B work remains usable under a still-valid cached lease.",
-        "bundle_policy": "discover",
-        "bindings": [
-          {
-            "env_var": "BAS_ENTITLEMENT_SERVICE_URL",
-            "form": "http_base_url",
-            "port": "api",
-            "when_unavailable": "omit"
-          }
-        ]
+        "bundle_policy": "discover"
+      },
+      "ai-gateway": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Vision sidecar requests use the provider-neutral AI gateway HTTP boundary resolved at startup.",
+        "degraded_behavior": "Managed vision calls fail closed while the AI gateway is unavailable."
       }
     }
   },

@@ -198,8 +198,8 @@ func authLoginProxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authServiceURL := strings.TrimSpace(os.Getenv("AUTH_SERVICE_URL"))
-	if authServiceURL == "" {
+	authServiceURL, err := discovery.ResolveScenarioURLDefault(r.Context(), "scenario-authenticator")
+	if err != nil {
 		errorHandler.HandleError(w, r, ServiceUnavailableError("authentication"))
 		return
 	}
@@ -254,22 +254,11 @@ func initConfig() *Config {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
 
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
+	// Database configuration is resolved by the shared Postgres seam so URL
+	// precedence, SSL mode, and lifecycle variants remain consistent.
+	postgresURL, err := database.ResolvePostgresDSN(os.Getenv)
+	if err != nil {
+		log.Fatalf("❌ Database configuration missing: %v", err)
 	}
 
 	// External service URLs - REQUIRED, no defaults
@@ -278,19 +267,12 @@ func initConfig() *Config {
 		log.Fatal("❌ QDRANT_URL environment variable is required")
 	}
 
-	// Auth service is optional - single user mode if not available
-	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
-	if authServiceURL == "" {
-		log.Println("⚠️  AUTH_SERVICE_URL not configured - running in single-user mode")
-		log.Println("   Events will not have user isolation")
+	authServiceURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-authenticator")
+	if err != nil {
+		log.Fatalf("authentication service is required: %v", err)
 	}
 
-	// Notification service is optional - reminders won't be delivered
-	notificationServiceURL := os.Getenv("NOTIFICATION_SERVICE_URL")
-	if notificationServiceURL == "" {
-		log.Println("⚠️  NOTIFICATION_SERVICE_URL not configured - notifications disabled")
-		log.Println("   Event reminders will be queued but not delivered")
-	}
+	notificationServiceURL, _ := discovery.ResolveScenarioURLDefault(context.Background(), "notification-hub")
 
 	// Ollama is optional - NLP features will gracefully degrade
 	ollamaURL := os.Getenv("OLLAMA_URL")
@@ -345,24 +327,8 @@ func authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Check if auth service is configured
-		authServiceURL := os.Getenv("AUTH_SERVICE_URL")
-		if authServiceURL == "" {
-			defaultUser := &User{
-				ID:          "default-user",
-				AuthUserID:  "default-user",
-				Email:       "user@localhost",
-				DisplayName: "Default User",
-				Timezone:    "UTC",
-			}
-
-			r.Header.Set("X-User-ID", defaultUser.ID)
-			r.Header.Set("X-Auth-User-ID", defaultUser.AuthUserID)
-			r.Header.Set("X-User-Email", defaultUser.Email)
-			r.Header.Set("X-User-Display-Name", defaultUser.DisplayName)
-			r.Header.Set("X-User-Timezone", defaultUser.Timezone)
-
-			next.ServeHTTP(w, attachUserToContext(r, defaultUser))
+		if _, err := discovery.ResolveScenarioURLDefault(r.Context(), "scenario-authenticator"); err != nil {
+			http.Error(w, "authentication service unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -444,22 +410,9 @@ func authMiddleware(next http.Handler) http.Handler {
 
 // Validate token with scenario-authenticator service
 func validateToken(token string) (*User, error) {
-	// Get auth service URL from environment or discovery
-	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
-	if authServiceURL == "" {
-		// Try discovery
-		discoveredURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-authenticator")
-		if err != nil {
-			// Return default user in single-user mode
-			return &User{
-				ID:          "default-user",
-				AuthUserID:  "default-user",
-				Email:       "user@localhost",
-				DisplayName: "Default User",
-				Timezone:    "UTC",
-			}, nil
-		}
-		authServiceURL = discoveredURL
+	authServiceURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-authenticator")
+	if err != nil {
+		return nil, fmt.Errorf("resolve authentication service: %w", err)
 	}
 
 	// Create validation request

@@ -32,6 +32,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
+	coreRedis "github.com/vrooli/api-core/redis"
 	"github.com/vrooli/api-core/server"
 )
 
@@ -1325,27 +1326,14 @@ func initDB() {
 
 func initRedisCache() {
 	// Redis is optional - if not available, caching will be disabled
-	redisHost := os.Getenv("REDIS_HOST")
-	if redisHost == "" {
-		redisHost = "localhost"
-	}
-
-	redisPort := os.Getenv("REDIS_PORT")
-	if redisPort == "" {
-		redisPort = "6379"
-	}
-
-	redisDB := 0
-	if dbStr := os.Getenv("REDIS_DB"); dbStr != "" {
-		if parsed, err := strconv.Atoi(dbStr); err == nil {
-			redisDB = parsed
-		}
+	redisConfig, err := coreRedis.Resolve(os.Getenv)
+	if err != nil {
+		log.Printf("⚠️  Redis configuration unavailable: %v - caching disabled", err)
+		return
 	}
 
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
-		DB:       redisDB,
-		Password: os.Getenv("REDIS_PASSWORD"),
+		Addr: redisConfig.Addr, DB: redisConfig.DB, Password: redisConfig.Password,
 	})
 
 	// Test Redis connection
@@ -1357,7 +1345,7 @@ func initRedisCache() {
 		redisClient = nil
 		cacheEnabled = false
 	} else {
-		log.Printf("✅ Redis cache enabled at %s:%s", redisHost, redisPort)
+		log.Printf("✅ Redis cache enabled at %s", redisConfig.Addr)
 		cacheEnabled = true
 	}
 }

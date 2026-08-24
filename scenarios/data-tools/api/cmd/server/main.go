@@ -46,9 +46,11 @@ type Response struct {
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
 	config := &Config{
-		Port:        getEnv("API_PORT", "18000"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/vrooli?sslmode=disable"),
-		N8NURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
+		Port: getEnv("API_PORT", "18000"),
+		// database.Connect owns Postgres environment resolution; keep this
+		// field only for compatibility with existing test fixtures.
+		DatabaseURL: "",
+		N8NURL:      "",
 		APIToken:    getEnv("API_TOKEN", "data-tools-secret-token"),
 	}
 

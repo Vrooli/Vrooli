@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	schema "scalable-app-cookbook-api/internal/cookbook"
 	"strconv"
 	"strings"
@@ -91,32 +90,6 @@ func main() {
 		ScenarioName: "scalable-app-cookbook",
 	}) {
 		return // Process was re-exec'd after rebuild
-	}
-
-	// Initialize database connection (require all environment variables)
-	dbHost := os.Getenv("POSTGRES_HOST")
-	if dbHost == "" {
-		log.Fatal("❌ POSTGRES_HOST environment variable is required")
-	}
-
-	dbPort := os.Getenv("POSTGRES_PORT")
-	if dbPort == "" {
-		log.Fatal("❌ POSTGRES_PORT environment variable is required")
-	}
-
-	dbUser := os.Getenv("POSTGRES_USER")
-	if dbUser == "" {
-		log.Fatal("❌ POSTGRES_USER environment variable is required")
-	}
-
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	if dbPassword == "" {
-		log.Fatal("❌ POSTGRES_PASSWORD environment variable is required")
-	}
-
-	dbName := os.Getenv("POSTGRES_DB")
-	if dbName == "" {
-		log.Fatal("❌ POSTGRES_DB environment variable is required")
 	}
 
 	var err error

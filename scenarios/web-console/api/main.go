@@ -961,10 +961,11 @@ func resolveSQLiteDSN() string {
 	migrateLegacyDB(dbPath)
 
 	log.Printf("SQLite database: %s", dbPath)
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
-		dbPath,
-	)
+	dsn, err := storage.SQLiteDSNAt(dbPath, storage.SQLiteTuning{})
+	if err != nil {
+		log.Fatalf("build sqlite dsn: %v", err)
+	}
+	return dsn
 }
 
 // migrateLegacyDB relocates a pre-runtime-home web-console database to the
