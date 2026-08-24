@@ -21,6 +21,7 @@ require (
 require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
+	github.com/vrooli/envkit-go v0.0.0 // indirect
 )
 
 require (
@@ -65,3 +66,7 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go

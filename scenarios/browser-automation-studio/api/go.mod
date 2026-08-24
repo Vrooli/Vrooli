@@ -18,6 +18,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.28.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/scenarioconfig-go v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/text v0.40.0
@@ -30,6 +31,8 @@ replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-go
 
 require (
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
@@ -89,6 +92,7 @@ require (
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
@@ -121,3 +125,5 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

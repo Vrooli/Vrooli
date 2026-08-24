@@ -46,9 +46,14 @@ replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/envkit-go v0.0.0
 	google.golang.org/protobuf v1.36.11
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime

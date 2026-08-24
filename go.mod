@@ -12,6 +12,7 @@ require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/binaryfetch v0.0.0
 	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -44,6 +45,8 @@ replace github.com/vrooli/cli-core => ./packages/cli-core
 replace github.com/vrooli/platform-go => ./packages/platform-go
 
 replace github.com/vrooli/repo-contract-go => ./packages/repo-contract-go
+
+replace github.com/vrooli/envkit-go => ./packages/envkit-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ./scenarios/scenario-to-desktop/runtime
 

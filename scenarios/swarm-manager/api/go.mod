@@ -37,6 +37,7 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/stoewer/go-strcase v1.3.1 // indirect
+	github.com/vrooli/envkit-go v0.0.0 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
@@ -68,3 +69,7 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go

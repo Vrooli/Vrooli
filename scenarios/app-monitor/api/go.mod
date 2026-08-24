@@ -75,6 +75,7 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/envkit-go v0.0.0
 	go.uber.org/atomic v1.11.0 // indirect
 )
 
@@ -93,3 +94,5 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

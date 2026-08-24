@@ -9,6 +9,8 @@ require (
 	google.golang.org/protobuf v1.36.11
 )
 
+require golang.org/x/mod v0.37.0
+
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect

@@ -69,6 +69,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	golang.org/x/mod v0.11.0 // indirect
@@ -82,3 +83,7 @@ require (
 replace github.com/vrooli/vrooli => ../../..
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go

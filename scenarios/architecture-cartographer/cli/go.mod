@@ -10,6 +10,7 @@ require (
 	google.golang.org/protobuf v1.36.11
 )
 
+require github.com/vrooli/envkit-go v0.0.0 // indirect
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -37,3 +38,4 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

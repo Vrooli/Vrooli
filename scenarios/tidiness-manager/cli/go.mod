@@ -7,6 +7,8 @@ require (
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 )
 
+require github.com/vrooli/envkit-go v0.0.0 // indirect
+
 require (
 	connectrpc.com/connect v1.19.2
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
@@ -29,3 +31,7 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go

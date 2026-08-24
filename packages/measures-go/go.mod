@@ -14,3 +14,5 @@ require golang.org/x/sync v0.20.0 // indirect
 replace github.com/vrooli/vrooli/packages/proto => ../proto
 
 replace github.com/vrooli/ai-go => ../ai-go
+
+replace github.com/vrooli/platform-go => ../platform-go
