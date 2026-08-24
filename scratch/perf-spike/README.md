@@ -46,11 +46,12 @@ vrooli scenario restart swarm-manager
 ```
 
 > **Why an env var?** `vrooli scenario restart` always runs the setup phase
-> with `force_setup=true`, which re-runs `pnpm run build`. The `build` script
-> in `ui/package.json` is mode-aware: when `VROOLI_BUILD_MODE=profile` is set,
-> it appends `--mode profile` to the `vite build` invocation. So the env var
-> survives across `restart` cycles and consistently produces a perf bundle for
-> the lifetime of the shell that set it. Unset it and re-restart to revert.
+> with `force_setup=true`, which re-runs the UI build. The lifecycle builder
+> reads `VROOLI_BUILD_MODE` and selects the `build:profile` package script for
+> the profile channel, so the choice is plain argv rather than a conditional
+> inside the script. The env var survives across `restart` cycles and
+> consistently produces a perf bundle for the lifetime of the shell that set
+> it. Unset it and re-restart to revert.
 
 ## What the script scripts
 

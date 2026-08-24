@@ -61,7 +61,7 @@ func (h *Handlers) adapterForScope(scope string) (*permissions.Adapter, error) {
 		return nil, fmt.Errorf("invalid scope %q (use project, project-local, or global)", scope)
 	}
 	return &permissions.Adapter{
-		SettingsPath:  filepath.Join(root, ".claude", settingsName),
-		HookScriptDir: filepath.Join(root, ".claude", ".vrooli-hooks"),
+		SettingsPath: filepath.Join(root, ".claude", settingsName),
+		HookStateDir: filepath.Join(root, ".claude", permissions.HookStateDirName),
 	}, nil
 }

@@ -131,7 +131,6 @@ func (env IdentityEnv) VerifyIdentity() (*VerifyResult, error) {
 			"AGENT_MANAGER_API_BASE",
 			"AGENT_MANAGER_API_URL",
 		},
-		PortEnvVars:  []string{"AGENT_MANAGER_API_PORT"},
 		PortDetector: detectAgentManagerPort,
 	})
 	if baseURL == "" {

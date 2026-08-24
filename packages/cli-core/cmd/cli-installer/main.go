@@ -8,12 +8,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
-
-	"github.com/vrooli/envkit-go"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 
 	"github.com/vrooli/cli-core/cliutil"
 )

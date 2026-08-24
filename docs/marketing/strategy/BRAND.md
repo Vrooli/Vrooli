@@ -37,4 +37,4 @@ Full canon in [`STRATEGY.md`](STRATEGY.md), including dev-log narrative principl
 
 ## Long-term direction
 
-When the `brand-manager` *scenario* ships (currently a draft skill — see [`scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md`](../../../scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md)), it will provide structured storage for logos, favicons, color systems, typography, and voice snippets — replacing the markdown-based canon in `ASSETS.md` and `IMAGE_STYLE.md`. At that point those files become pointers at the scenario's registry; this file remains the navigation hub.
+The `brand-manager` scenario skill (see [`scenarios/brand-manager/skills/brand-manager/SKILL.md`](../../../scenarios/brand-manager/skills/brand-manager/SKILL.md)) provides the interface guidance for structured storage of logos, favicons, color systems, typography, and voice snippets — replacing the markdown-based canon in `ASSETS.md` and `IMAGE_STYLE.md` as the scenario matures. Those files remain the strategic navigation hubs.

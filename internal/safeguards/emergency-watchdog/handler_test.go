@@ -71,6 +71,35 @@ func TestInspectRequiresSystemd(t *testing.T) {
 	}
 }
 
+func TestTimerProbeTargetsInvokingUserBus(t *testing.T) {
+	origRoot := hostreqkit.RunningAsRootFn
+	origCombined := hostreqkit.CombinedOutputFn
+	defer func() {
+		hostreqkit.RunningAsRootFn = origRoot
+		hostreqkit.CombinedOutputFn = origCombined
+	}()
+	hostreqkit.RunningAsRootFn = func() bool { return true }
+	os.Setenv("SUDO_USER", "alice")
+	os.Setenv("SUDO_UID", "1000")
+	os.Setenv("SUDO_GID", "1000")
+	defer os.Unsetenv("SUDO_USER")
+	defer os.Unsetenv("SUDO_UID")
+	defer os.Unsetenv("SUDO_GID")
+	var gotName string
+	var gotArgs []string
+	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
+		gotName, gotArgs = name, args
+		return []byte("enabled\n"), nil
+	}
+	if !timerEnabled() {
+		t.Fatal("timerEnabled() = false, want enabled")
+	}
+	joined := gotName + " " + strings.Join(gotArgs, " ")
+	if !strings.Contains(joined, "-u alice") || !strings.Contains(joined, "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus") {
+		t.Fatalf("timer probe command = %q, want invoking user's bus", joined)
+	}
+}
+
 // The unit must not carry a hard-coded repository path — that is what made the
 // script this safeguard replaces unusable on any other host.
 func TestNoHardCodedOperatorPaths(t *testing.T) {

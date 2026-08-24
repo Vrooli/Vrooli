@@ -14,7 +14,7 @@ If you (or an AI assistant reading this) are trying to understand or describe wh
 - [`narrative/PRESS_KIT.md`](narrative/PRESS_KIT.md) — composition skeleton for journalists and external publications
 - [`narrative/PITCH_DECK.md`](narrative/PITCH_DECK.md) — slide-by-slide deck outline
 
-For the long-term philosophical thesis (recursive intelligence, evolution timeline, compound-intelligence effect), see [`../VISION.md`](../VISION.md). For the marketing voice canon (positioning principles, voice samples, anti-patterns, dev-log narrative principles), see [`marketing/STRATEGY.md`](marketing/STRATEGY.md).
+For the long-term philosophical thesis (recursive intelligence, evolution timeline, compound-intelligence effect), see [`../VISION.md`](../VISION.md). For the marketing voice canon (positioning principles, voice samples, anti-patterns, dev-log narrative principles), see [`marketing/strategy/STRATEGY.md`](marketing/strategy/STRATEGY.md).
 
 ## Start Here (technical / contributor onboarding)
 
@@ -59,7 +59,7 @@ Everything else (`guides/`, `reference/`, `operations/`, `deployment/`, `scenari
 - [resources/README.md](resources/README.md) for the resource ecosystem
 - [strategy/README.md](strategy/README.md) for project framing, decisions, risks, and roadmap
 - [monetization/README.md](monetization/README.md) for the revenue / bundle / SKU canon
-- [skills/](skills/) for the external Claude Skills publishing pipeline (publishing guide, security baseline). The publication source itself lives at the repo top-level `skills/` folder; this `docs/skills/` directory holds the **how-to-publish** docs only.
+- [scenario-to-plugin/docs/](../scenarios/scenario-to-plugin/docs/) for the external Agent Plugin publishing pipeline, including the publication doctrine, build guide, and security posture.
 
 ## Structure
 

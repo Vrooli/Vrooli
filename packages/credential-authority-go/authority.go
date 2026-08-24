@@ -21,24 +21,24 @@ import (
 	"path/filepath"
 
 	"github.com/vrooli/vrooli/internal/resources/securestore"
-	"github.com/vrooli/vrooli/internal/secrets"
+	internalcredentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
 
 type (
-	Identity         = secrets.Identity
-	Status           = secrets.Status
+	Identity         = internalcredentialauthority.Identity
+	Status           = internalcredentialauthority.Status
 	KeyringReport    = securestore.KeyringReport
-	RecoveryEntry    = secrets.RecoveryEntry
-	RecoveryManifest = secrets.RecoveryManifest
-	RecoveryReceipt  = secrets.RecoveryReceipt
+	RecoveryEntry    = internalcredentialauthority.RecoveryEntry
+	RecoveryManifest = internalcredentialauthority.RecoveryManifest
+	RecoveryReceipt  = internalcredentialauthority.RecoveryReceipt
 )
 
-var ParseIdentity = secrets.ParseIdentity
+var ParseIdentity = internalcredentialauthority.ParseIdentity
 
 var (
-	InspectRecovery      = secrets.InspectRecovery
-	ReadRecoveryReceipt  = secrets.ReadRecoveryReceipt
-	WriteRecoveryReceipt = secrets.WriteRecoveryReceipt
+	InspectRecovery      = internalcredentialauthority.InspectRecovery
+	ReadRecoveryReceipt  = internalcredentialauthority.ReadRecoveryReceipt
+	WriteRecoveryReceipt = internalcredentialauthority.WriteRecoveryReceipt
 )
 
 // The failure taxonomy, re-exported because a consumer that cannot tell these
@@ -48,17 +48,19 @@ var (
 // defect this whole seam exists to prevent.
 var (
 	// ErrUnconfigured: the store works and holds no value for this identity.
-	ErrUnconfigured = secrets.ErrUnconfigured
+	ErrUnconfigured = internalcredentialauthority.ErrUnconfigured
 	// ErrProviderUnavailable: the store exists but cannot be reached now.
-	ErrProviderUnavailable = secrets.ErrProviderUnavailable
+	ErrProviderUnavailable = internalcredentialauthority.ErrProviderUnavailable
 	// ErrProviderAbsent: this host has no credential backend at all.
-	ErrProviderAbsent = secrets.ErrProviderAbsent
+	ErrProviderAbsent = internalcredentialauthority.ErrProviderAbsent
 )
 
-type Authority struct{ inner *secrets.Authority }
+type Authority struct {
+	inner *internalcredentialauthority.Authority
+}
 
 func NewAuthority(store securestore.Store) (*Authority, error) {
-	inner, err := secrets.NewAuthority(store)
+	inner, err := internalcredentialauthority.NewAuthority(store)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +68,7 @@ func NewAuthority(store securestore.Store) (*Authority, error) {
 }
 
 func Default() (*Authority, error) {
-	inner, err := secrets.DefaultAuthority()
+	inner, err := internalcredentialauthority.DefaultAuthority()
 	if err != nil {
 		return nil, err
 	}

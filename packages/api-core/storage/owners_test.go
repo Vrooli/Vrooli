@@ -26,10 +26,10 @@ func TestLoadOwnerInventoryDiscoversAllOwnerKindsDeterministically(t *testing.T)
 	if err != nil {
 		t.Fatalf("LoadOwnerInventory second: %v", err)
 	}
-	if len(first.Owners) != 4 {
-		t.Fatalf("owners = %d, want 4", len(first.Owners))
+	if len(first.Owners) != 6 {
+		t.Fatalf("owners = %d, want 6 including control-plane and project subjects", len(first.Owners))
 	}
-	if first.Owners[0].Kind != OwnerResource || first.Owners[0].ID != "postgres" {
+	if first.Owners[0].Kind != OwnerControlPlane || first.Owners[0].ID != "control-plane" {
 		t.Fatalf("owners are not sorted by kind/id: %#v", first.Owners)
 	}
 	resource := ownerByKind(first.Owners, OwnerResource)

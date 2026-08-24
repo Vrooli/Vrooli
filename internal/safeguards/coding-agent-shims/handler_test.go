@@ -52,6 +52,24 @@ func TestInspectReportsPendingWhenLauncherIsNotBuilt(t *testing.T) {
 	}
 }
 
+func TestShimDirUsesInvokingUserHomeWhenElevated(t *testing.T) {
+	origRoot := hostreqkit.RunningAsRootFn
+	origHome := shimHomeDir
+	defer func() {
+		hostreqkit.RunningAsRootFn = origRoot
+		shimHomeDir = origHome
+	}()
+	hostreqkit.RunningAsRootFn = func() bool { return true }
+	shimHomeDir = func() (string, error) { return "/home/alice", nil }
+	got, err := ShimDir()
+	if err != nil {
+		t.Fatalf("ShimDir() error = %v", err)
+	}
+	if got != "/home/alice/.vrooli/bin" {
+		t.Fatalf("ShimDir() = %q, want invoking user's path", got)
+	}
+}
+
 func TestApplyInstallsOneAliasPerSupportedAgent(t *testing.T) {
 	handler, binDir := newHandlerForTest(t)
 	launcher := writeLauncher(t, binDir)

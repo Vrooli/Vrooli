@@ -38,8 +38,8 @@ schemas/                            ← source .proto files
 vendor/googleapis/                  ← vendored BSR module (workspace member)
 vendor/protovalidate/               ← vendored BSR module (workspace member)
 buf.yaml                            ← lists 3 workspace modules
-buf.gen.yaml                        ← invokes 6 plugins on schemas/
-gen/{go,typescript,typescript/js,python}/   ← committed output
+buf.gen.yaml                        ← invokes 5 plugins on schemas/
+gen/{go,typescript,python}/                 ← committed output
 gen/descriptor/image.binpb                  ← committed descriptor image
 gen/manifests/<scenario>.lock.json          ← committed generation manifests
 ```
@@ -52,13 +52,13 @@ unignored in the repository because a fresh clone and Bridge working-tree
 transfer must carry them. Build outputs such as `gen/`, UI `dist/`, and
 `node_modules/` remain generated and are intentionally rebuilt by setup.
 
-`buf.gen.yaml` runs six plugin invocations against the `schemas/` input:
+`buf.gen.yaml` runs five plugin invocations against the `schemas/` input:
 
 | Plugin reference | Output | Plugin binary |
 |---|---|---|
 | `local: protoc-gen-go` | `path:packages/proto/gen/go/` | `protoc-gen-go` (installed via `go install`, pinned in `internal/tools/protoc-gen-go/tool.json`) |
 | `local: protoc-gen-connect-go` | `path:packages/proto/gen/go/` | `protoc-gen-connect-go` (installed via `go install`, pinned in `internal/tools/protoc-gen-connect-go/tool.json`) |
-| `local: protoc-gen-es` (×2: ts + js) | `path:packages/proto/gen/typescript/`, `path:packages/proto/gen/typescript/js/` | `@bufbuild/protoc-gen-es` (npm, pinned in `internal/tools/protoc-gen-es/tool.json`). Protobuf-ES v2 emits service descriptors consumed by Connect-ES v2; no separate Connect-ES plugin is used. |
+| `local: protoc-gen-es` | `path:packages/proto/gen/typescript/` | `@bufbuild/protoc-gen-es` (npm, pinned in `internal/tools/protoc-gen-es/tool.json`). Protobuf-ES v2 emits service descriptors consumed by Connect-ES v2; no separate Connect-ES plugin is used. A second `target=js` invocation was removed in 2026-08: consumers import the `.ts` sources through the `@vrooli/proto-types` file dependency, nothing resolved the emitted `.js`, and generating it cost ~46% of total codegen CPU. |
 | `protoc_builtin: python` | `gen/python/*.py` | `protoc` built-in (pinned in `internal/tools/protoc/tool.json`) |
 | `protoc_builtin: pyi` | `gen/python/*.pyi` | `protoc` built-in |
 

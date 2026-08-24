@@ -6,6 +6,14 @@ This is canon. Every per-category authoring guide cites this file for the univer
 
 Cites `LAYERS.md`, `PRIMITIVES.md`, and `PROMOTION_LADDER.md`.
 
+## Storage and metadata source
+
+Every skill is authored as a spec-conformant `SKILL.md` inside its owning
+scenario or the prompt-manager pack tree. YAML frontmatter is the source of
+truth for `name`, `description`, license, and Vrooli `metadata`; prompt-manager
+generates `skill.json` as a compatibility/index artifact. Do not edit a
+generated sidecar without changing the source frontmatter.
+
 ---
 
 ## The shared mental model problem

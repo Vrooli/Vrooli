@@ -130,4 +130,4 @@ Trigger conditions for the brand-manager (member) to propose a `brand-guideline-
 - [`docs/marketing/strategy/ASSETS.md`](ASSETS.md) — canonical brand assets (logos, fonts, etc.)
 - [`docs/marketing/strategy/BRAND.md`](BRAND.md) — visual identity overview
 - [`docs/marketing/strategy/STRATEGY.md`](STRATEGY.md) — voice canon (the linguistic counterpart to this file's visual canon)
-- [`scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md`](../../../scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md) — planned scenario that subsumes this file
+- [`scenarios/brand-manager/skills/brand-manager/SKILL.md`](../../../scenarios/brand-manager/skills/brand-manager/SKILL.md) — scenario interface that will consume this file's visual canon

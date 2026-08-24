@@ -20,8 +20,8 @@ func newTestHandlers(t *testing.T, kind cliutil.CallerKind) (*Handlers, *bytes.B
 	stderr := &bytes.Buffer{}
 	h := &Handlers{
 		Adapter: &permissions.Adapter{
-			SettingsPath:  filepath.Join(dir, "settings.json"),
-			HookScriptDir: filepath.Join(dir, ".vrooli-hooks"),
+			SettingsPath: filepath.Join(dir, "settings.json"),
+			HookStateDir: filepath.Join(dir, permissions.HookStateDirName),
 		},
 		DetectCaller:   func() cliutil.CallerKind { return kind },
 		Policy:         agentharness.DefaultPolicy(),

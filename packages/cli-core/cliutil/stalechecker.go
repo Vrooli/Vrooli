@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // StaleChecker compares the embedded build fingerprint against source files,
@@ -141,7 +143,7 @@ func (c *StaleChecker) autoRebuild(spec FreshnessSpec, currentFingerprint string
 		cmd.Args = append(cmd.Args, "--freshness-input", input)
 	}
 	cmd.Dir = filepath.Join(repoRoot, c.installerModule())
-	cmd.Env = os.Environ()
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -213,7 +215,7 @@ func (c *StaleChecker) reexec() func(string, []string, string) error {
 	return func(executable string, args []string, fingerprint string) error {
 		cmd := exec.Command(executable, args...)
 		// Set the rebuild fingerprint env var to detect loops
-		cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", rebuildLoopEnvVar, fingerprint))
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{fmt.Sprintf("%s=%s", rebuildLoopEnvVar, fingerprint)})
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin

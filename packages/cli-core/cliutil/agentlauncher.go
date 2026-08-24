@@ -324,7 +324,6 @@ func agentManagerLauncherBase(request AgentLaunchRequest) string {
 	return strings.TrimRight(DetermineAPIBase(APIBaseOptions{
 		Override:    request.APIBase,
 		EnvVars:     []string{AgentManagerLauncherBaseEnv, "AGENT_MANAGER_API_URL"},
-		PortEnvVars: []string{"AGENT_MANAGER_API_PORT"},
 		DefaultBase: defaultAgentManagerLauncherBase,
 	}), "/")
 }

@@ -16,10 +16,13 @@ import (
 type OwnerKind string
 
 const (
-	OwnerScenario  OwnerKind = "scenario"
-	OwnerResource  OwnerKind = "resource"
-	OwnerTool      OwnerKind = "tool"
-	OwnerSafeguard OwnerKind = "safeguard"
+	OwnerScenario     OwnerKind = "scenario"
+	OwnerResource     OwnerKind = "resource"
+	OwnerTool         OwnerKind = "tool"
+	OwnerSafeguard    OwnerKind = "safeguard"
+	OwnerPackage      OwnerKind = "package"
+	OwnerControlPlane OwnerKind = "control-plane"
+	OwnerProject      OwnerKind = "project"
 )
 
 // OwnerManifest is the normalized, owner-neutral view of one native manifest.
@@ -220,6 +223,19 @@ func LoadOwnerInventory(opts InventoryOptions) (OwnerInventory, error) {
 	if err := addTree(OwnerSafeguard, filepath.Join("internal", "safeguards"), "safeguard.json"); err != nil {
 		return OwnerInventory{}, err
 	}
+	// Package, control-plane, and project are aggregate validation subjects;
+	// they do not require a scenario-shaped native storage manifest.
+	if entries, readErr := os.ReadDir(filepath.Join(root, "packages")); readErr == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				candidates = append(candidates, candidate{kind: OwnerPackage, path: filepath.Join(root, "packages", entry.Name(), "module.json")})
+			}
+		}
+	}
+	candidates = append(candidates,
+		candidate{kind: OwnerControlPlane, path: filepath.Join(root, "internal", "control-plane.json")},
+		candidate{kind: OwnerProject, path: filepath.Join(root, ".vrooli", "repo-contract.json")},
+	)
 	sort.Slice(candidates, func(i, j int) bool {
 		if candidates[i].kind != candidates[j].kind {
 			return candidates[i].kind < candidates[j].kind
@@ -286,6 +302,14 @@ func LoadOwnerInventory(opts InventoryOptions) (OwnerInventory, error) {
 
 func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams PlatformSeams) (OwnerManifest, []InventoryFinding) {
 	owner := OwnerManifest{Kind: kind, ManifestPath: path}
+	if kind == OwnerPackage || kind == OwnerControlPlane || kind == OwnerProject {
+		id := filepath.Base(filepath.Dir(path))
+		if kind == OwnerControlPlane || kind == OwnerProject {
+			id = string(kind)
+		}
+		owner.ID = id
+		return owner, nil
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return owner, []InventoryFinding{{Code: "manifest_unreadable", Severity: "error", OwnerKind: kind, ManifestPath: path, Message: err.Error()}}

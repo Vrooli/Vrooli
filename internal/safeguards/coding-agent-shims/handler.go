@@ -67,11 +67,18 @@ func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
 
 // ShimDir returns the directory the aliases are installed into.
 func ShimDir() (string, error) {
-	home, err := os.UserHomeDir()
+	home, err := shimHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("resolve home directory: %w", err)
 	}
 	return filepath.Join(home, ".vrooli", "bin"), nil
+}
+
+var shimHomeDir = func() (string, error) {
+	if hostreqkit.RunningAsRootFn() {
+		return hostreqkit.InvokingUserHomeDir()
+	}
+	return os.UserHomeDir()
 }
 
 // executableName appends the platform's executable suffix.

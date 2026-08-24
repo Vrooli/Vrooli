@@ -91,7 +91,7 @@ func (h *Handlers) shared() *agentharness.PermissionHandlers {
 		ExclusivePatterns: false,
 		Stdout:            h.Stdout, Stderr: h.Stderr,
 		DoctorExtra: func(stdout, _ io.Writer, _ agentharness.PermissionAdapter) error {
-			_, _ = io.WriteString(stdout, "native deny hook: "+h.Adapter.HookScriptPath()+" (replay-verified)\n")
+			_, _ = io.WriteString(stdout, "native deny hook: "+permissions.GuardCommand()+" "+strings.Join(permissions.GuardSubcommand, " ")+" (replay-verified)\n")
 			return nil
 		},
 	})
@@ -102,6 +102,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 		h = Default("", "")
 	}
 	return h.shared().Commands([]cliapp.Command{
+		h.guardCommand(),
 		{Name: "plan", Description: "Plan a whole declared portable permission document (JSON)", Run: h.Plan},
 		{Name: "reconcile", Description: "Reconcile a whole declared portable permission document (mutating, JSON)", Run: h.Reconcile},
 	})

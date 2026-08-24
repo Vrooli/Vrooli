@@ -21,6 +21,13 @@ A scenario's manifest declares which resources it needs. Onboarding categorizes 
 - **Optional dependencies** — declared via `optional_dependencies` on a resource. The scenario degrades gracefully if absent. Onboarding presents these as toggleable.
 - **Standalone resources** — operator may choose to install for use by future scenarios or direct usage (e.g. running Ollama for ad-hoc local LLM work). Toggleable.
 
+Setup honors the same required/optional distinction. A failure installing a
+required resource blocks setup. A failure installing an enabled optional
+resource is recorded as degraded, setup continues with the remaining phases
+and resources, and the terminal result identifies the unavailable resource.
+This keeps a capability with a documented fallback from blocking unrelated
+bootstrap work without reporting that the capability itself is healthy.
+
 The wizard's resource step has no manual-only path: it always derives from the scenario step. If you want to enable a resource without selecting any scenario that uses it, you fall in the "standalone" bucket — that's the only way the wizard lets you enable a resource the scenarios layer doesn't request.
 
 ## Credential descriptors

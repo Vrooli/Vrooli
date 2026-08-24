@@ -121,3 +121,19 @@ When standing up a new scenario, decide upfront:
 3. What scenarios does it depend on? Declare them in `dependencies.scenarios` with `startup_policy` reflecting orchestration intent.
 
 The wizard surfaces all of this automatically once the manifest is correct. There is no separate onboarding registration step.
+## Schema-backed scenario settings
+
+Scenario tunables belong in `.vrooli/config.json` under `settings`, with their
+types and required defaults declared by the scenario's configuration schema.
+The shared `scenarioconfig-go` loader resolves values in this order:
+
+1. The scenario's `.vrooli/config.json` value.
+2. The setting's default in the scenario schema.
+
+An absent config file therefore has deterministic behavior, while an unknown
+setting or wrong type fails with the setting name. Resource credentials,
+dynamic ports, and peer addresses remain lifecycle/discovery concerns and do
+not belong in scenario settings.
+
+`browser-automation-studio` is the reference conversion at
+`.vrooli/config.json`; its sidecar timing settings use this contract.

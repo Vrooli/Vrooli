@@ -3,6 +3,7 @@ package cliutil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,8 +17,12 @@ import (
 )
 
 var (
-	lookPathFn           = exec.LookPath
-	execCommandContextFn = exec.CommandContext
+	lookPathFn              = exec.LookPath
+	execCommandContextFn    = exec.CommandContext
+	sqliteLookPathFn        = exec.LookPath
+	sqliteExecCommandFn     = exec.CommandContext
+	peerRecordLookupFn      = lookupPeerRecord
+	runtimeRegistryLookupFn = lookupRuntimeRegistry
 )
 
 // Port lookups shell out to the vrooli CLI, which is expensive: a cold Go
@@ -137,7 +142,10 @@ func LookupScenarioPort(ctx context.Context, target, portVar string, policy Port
 		}
 	}
 
-	outcome := lookupPeerRecord(target, portVar)
+	outcome := peerRecordLookupFn(target, portVar)
+	if !outcome.Resolved() {
+		outcome = runtimeRegistryLookupFn(ctx, target, portVar)
+	}
 	if !outcome.Resolved() {
 		outcome = portLookupRunner(ctx, target, portVar)
 	}
@@ -151,6 +159,46 @@ func LookupScenarioPort(ctx context.Context, target, portVar string, policy Port
 
 	entry.outcome, entry.resolved = outcome, portCacheNow()
 	return outcome
+}
+
+// lookupRuntimeRegistry is the second local authority after peer records.
+// The CLI package intentionally keeps this fallback behind the sqlite3 CLI so
+// it does not introduce a CGO or driver dependency into every CLI consumer;
+// the lifecycle-owned registry remains read-only and the subprocess is only
+// reached after the cheap peer-record miss.
+func lookupRuntimeRegistry(ctx context.Context, target, portVar string) ScenarioPortOutcome {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ScenarioPortOutcome{Err: err}
+	}
+	dbPath, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyRuntimeDB)
+	if err != nil {
+		return ScenarioPortOutcome{Err: err}
+	}
+	if _, err := os.Stat(dbPath); err != nil {
+		return ScenarioPortOutcome{Err: err}
+	}
+	scenario, variant := target, "live"
+	if base, requested, ok := strings.Cut(target, "@"); ok {
+		scenario, variant = base, requested
+	}
+	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }
+	query := fmt.Sprintf("SELECT rpc.port FROM runtime_instances ri JOIN runtime_port_claims rpc ON rpc.instance_id = ri.instance_id WHERE ri.scenario = %s AND ri.variant = %s AND ri.status = 'running' AND rpc.port_name = %s AND rpc.status = 'bound' ORDER BY ri.generation DESC LIMIT 1;", quote(scenario), quote(variant), quote(portVar))
+	sqlite, err := sqliteLookPathFn("sqlite3")
+	if err != nil || strings.TrimSpace(sqlite) == "" {
+		return ScenarioPortOutcome{Err: err}
+	}
+	cmd := sqliteExecCommandFn(ctx, sqlite, "-readonly", "-noheader", dbPath, query)
+	output, err := cmd.CombinedOutput()
+	text := strings.TrimSpace(string(output))
+	if err != nil {
+		return ScenarioPortOutcome{Output: text, Err: err}
+	}
+	port := sanitizePortOutput(text)
+	if port == "" {
+		return ScenarioPortOutcome{Output: text, Err: os.ErrNotExist}
+	}
+	return ScenarioPortOutcome{Port: port, Output: text}
 }
 
 // lookupPeerRecord is the cheap, lifecycle-published address source. A record

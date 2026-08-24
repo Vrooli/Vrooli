@@ -24,6 +24,17 @@ Same drift-protected pattern as tools (see [`tools.md`](tools.md)):
 
 Onboarding consumes the filesystem registry directly.
 
+To inspect the complete registry from the control plane, including capability,
+role, declared platforms, and whether this host has been sampled, run:
+
+```bash
+vrooli host safeguard list
+vrooli host safeguard list --json
+```
+
+The list reports `host_not_sampled` when no handler inspection has been run;
+that is intentionally distinct from an applied or failed observation.
+
 ## Deployment classification
 
 Safeguards declare the same deployment axes as tools; their canonical meanings
@@ -121,6 +132,22 @@ confirms the passwordless state. This is a real security reduction: any
 process running as that user can read secrets stored in the keyring. The
 safeguard never accepts or transmits the remote-desktop password. Without
 autologin it reports `not_applicable` and changes nothing.
+
+## Autoheal boot protection
+
+`autoheal_watchdog` is a required project safeguard. `vrooli setup` builds or
+refreshes the autoheal loop, installs the invoking user's native scheduler
+definition, enables only that scheduler entry, and verifies enablement plus
+active state. It does not install a root-owned autoheal service or require a
+separate `vrooli-autoheal install` command.
+
+The default `boot_policy` is `dedicated`: Linux setup explicitly enables user
+lingering so the user manager can start before login. A shared host can record
+`host_safeguards.autoheal_watchdog.config.boot_policy=shared` through the
+onboarding operator-state flow; that policy remains login-scoped and does not
+enable lingering. Setup status reports service enablement separately from
+verified boot protection. An unavailable scheduler bus is reported as
+incomplete/degraded with the exact `vrooli setup` recovery command.
 
 Record `host_safeguards.login_keyring_unlock.opted_in=true` through the
 onboarding operator-state `apply` command, then run setup from a session that
@@ -238,6 +265,15 @@ The wizard surfaces the new safeguard automatically.
 ## Removal
 
 Removing a safeguard from a manifest doesn't undo its host-state changes. If a safeguard has been applied and is later removed from the system, document the manual cleanup steps in the safeguard's `notes` field. A future feature could add an `Unapply` method, but that's out of scope today.
+
+Removing a safeguard is different from disposing of a workload it once
+installed. Removal changes the control-plane declaration and stops future
+reconciliation; it does not authorize deleting a surviving service, container,
+unit, or its data. Workload disposal requires an independent abandoned-workload
+classification, path-level evidence, the owning cleanup provider, and the
+approval required by that provider's safety tier. An emergency watchdog may
+report or propose disposal, but it must not infer disposal from safeguard
+absence.
 
 ## See also
 

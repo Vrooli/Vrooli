@@ -115,12 +115,17 @@ func (h handler) Name() string           { return h.manifest.Name }
 func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
 
 // homeDir is stubbed in tests.
-var homeDir = os.UserHomeDir
+var homeDir = func() (string, error) {
+	if hostreqkit.RunningAsRootFn() {
+		return hostreqkit.InvokingUserHomeDir()
+	}
+	return os.UserHomeDir()
+}
 
 var resolveWatchdogRootFn = repocontract.ResolveRepoRoot
 
 var buildWatchdogFn = func(root, output string) error {
-	if _, err := hostreqkit.CombinedOutputFn("go", "-C", root, "build", "-ldflags", "-X main.buildVersion=managed", "-o", output, "./cmd/vrooli-watchdog"); err != nil {
+	if err := hostreqkit.RunAsInvokingUser("go", []string{"-C", root, "build", "-ldflags", "-X main.buildVersion=managed", "-o", output, "./cmd/vrooli-watchdog"}, hostreqkit.EnsureOptions{}); err != nil {
 		return fmt.Errorf("build watchdog: %w", err)
 	}
 	return nil
@@ -201,7 +206,8 @@ func pendingState(p paths, s settings) []string {
 }
 
 func timerEnabled() bool {
-	out, err := hostreqkit.CombinedOutputFn("systemctl", "--user", "is-enabled", timerName)
+	name, args := hostreqkit.InvokingUserCommand("systemctl", "--user", "is-enabled", timerName)
+	out, err := hostreqkit.CombinedOutputFn(name, args...)
 	return err == nil && strings.TrimSpace(string(out)) == "enabled"
 }
 
@@ -251,18 +257,12 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		name    string
 		path    string
 		content string
-		mode    os.FileMode
 	}{
-		{"systemd service", p.ServiceUnit, serviceContent(p), 0o644},
-		{"systemd timer", p.TimerUnit, timerContent(), 0o644},
+		{"systemd service", p.ServiceUnit, serviceContent(p)},
+		{"systemd timer", p.TimerUnit, timerContent()},
 	}
 	for _, w := range writes {
-		if err := os.MkdirAll(filepath.Dir(w.path), 0o755); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, "create directory for "+w.name+" failed: "+err.Error())
-			return status, nil
-		}
-		if err := os.WriteFile(w.path, []byte(w.content), w.mode); err != nil {
+		if err := installUserFile(w.path, w.content, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, "install "+w.name+" failed: "+err.Error())
 			return status, nil
@@ -273,7 +273,8 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		{"--user", "daemon-reload"},
 		{"--user", "enable", "--now", timerName},
 	} {
-		if _, err := hostreqkit.CombinedOutputFn("systemctl", args...); err != nil {
+		name, commandArgs := hostreqkit.InvokingUserCommand("systemctl", args...)
+		if _, err := hostreqkit.CombinedOutputFn(name, commandArgs...); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, "systemctl "+strings.Join(args, " ")+" failed: "+err.Error())
 			return status, nil
@@ -316,7 +317,7 @@ func buildAndInstallWatchdog(p paths) error {
 	if strings.TrimSpace(root) == "" {
 		return fmt.Errorf("Vrooli source root is empty")
 	}
-	if err := os.MkdirAll(filepath.Dir(p.Binary), 0o755); err != nil {
+	if err := hostreqkit.RunAsInvokingUser("mkdir", []string{"-p", filepath.Dir(p.Binary)}, hostreqkit.EnsureOptions{}); err != nil {
 		return fmt.Errorf("create watchdog install directory: %w", err)
 	}
 	tmp := p.Binary + fmt.Sprintf(".%d.tmp", os.Getpid())
@@ -329,6 +330,24 @@ func buildAndInstallWatchdog(p paths) error {
 	}
 	if err := os.Rename(tmp, p.Binary); err != nil {
 		return fmt.Errorf("install watchdog atomically: %w", err)
+	}
+	return nil
+}
+
+func installUserFile(path, content string, opts hostreqkit.EnsureOptions) error {
+	if err := hostreqkit.RunAsInvokingUser("mkdir", []string{"-p", filepath.Dir(path)}, opts); err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
+	tmp, err := hostreqkit.WriteTempFileFn(content)
+	if err != nil {
+		return fmt.Errorf("prepare file: %w", err)
+	}
+	defer os.Remove(tmp)
+	if err := os.Chmod(tmp, 0o644); err != nil {
+		return fmt.Errorf("make file readable: %w", err)
+	}
+	if err := hostreqkit.RunAsInvokingUser("install", []string{"-m", "0644", tmp, path}, opts); err != nil {
+		return fmt.Errorf("install file: %w", err)
 	}
 	return nil
 }

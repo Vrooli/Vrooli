@@ -58,15 +58,23 @@ type ComposeStep struct {
 // predicate matches wins. An unsupported target is useful as a terminal,
 // explicit declaration for a platform the item does not serve.
 type AcquisitionTarget struct {
-	When           map[string]string `json:"when,omitempty"`
-	URL            string            `json:"url,omitempty"`
-	Image          string            `json:"image,omitempty"`
-	SHA256         string            `json:"sha256,omitempty"`
-	ArtifactSHA256 string            `json:"artifact_sha256,omitempty"`
-	Archive        string            `json:"archive,omitempty"`
-	Layout         string            `json:"layout,omitempty"`
-	BinPath        string            `json:"bin_path,omitempty"`
-	Mode           string            `json:"mode,omitempty"`
+	When map[string]string `json:"when,omitempty"`
+	// Kind overrides the acquisition-wide kind for this target alone. One item
+	// can genuinely need different sources per platform: PostgreSQL stages a
+	// digest-pinned OCI filesystem tree on Linux, where the official image
+	// carries the shared libraries the server links against, and a
+	// checksum-pinned upstream archive on macOS and Windows, where no
+	// equivalent image exists and the published archive is self-contained.
+	// Empty means the acquisition-wide kind.
+	Kind           string `json:"kind,omitempty"`
+	URL            string `json:"url,omitempty"`
+	Image          string `json:"image,omitempty"`
+	SHA256         string `json:"sha256,omitempty"`
+	ArtifactSHA256 string `json:"artifact_sha256,omitempty"`
+	Archive        string `json:"archive,omitempty"`
+	Layout         string `json:"layout,omitempty"`
+	BinPath        string `json:"bin_path,omitempty"`
+	Mode           string `json:"mode,omitempty"`
 	// Executable is the host command adopted by kind=none. It is deliberately
 	// explicit: a managed service may reuse a separately governed host tool,
 	// but it may not discover an arbitrary running process or binary.
@@ -93,11 +101,25 @@ type Provenance struct {
 // Validate checks the declaration before it is persisted in a manifest. It
 // deliberately does not resolve a target: resolution depends on host facts
 // that are unavailable while validating a release or resource manifest.
-func (a Acquisition) Validate() error {
-	kind := strings.ToLower(strings.TrimSpace(a.Kind))
+// EffectiveKind reports the kind governing one target: its own when declared,
+// otherwise the acquisition-wide kind.
+func (a Acquisition) EffectiveKind(target AcquisitionTarget) string {
+	if kind := strings.ToLower(strings.TrimSpace(target.Kind)); kind != "" {
+		return kind
+	}
+	return strings.ToLower(strings.TrimSpace(a.Kind))
+}
+
+func validAcquisitionKind(kind string) bool {
 	switch kind {
 	case "url", "oci-image", "none", "composed":
-	default:
+		return true
+	}
+	return false
+}
+
+func (a Acquisition) Validate() error {
+	if !validAcquisitionKind(strings.ToLower(strings.TrimSpace(a.Kind))) {
 		return fmt.Errorf("acquisition kind %q is invalid", a.Kind)
 	}
 	if len(a.Targets) == 0 {
@@ -113,6 +135,10 @@ func (a Acquisition) Validate() error {
 				return fmt.Errorf("acquisition target %d: unsupported target cannot also declare an artifact", index)
 			}
 			continue
+		}
+		kind := a.EffectiveKind(target)
+		if !validAcquisitionKind(kind) {
+			return fmt.Errorf("acquisition target %d: kind %q is invalid", index, target.Kind)
 		}
 		switch kind {
 		case "url":

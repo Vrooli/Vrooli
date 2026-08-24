@@ -211,6 +211,9 @@
 .min-h-9 {
     min-height: 2.25rem
 }
+.min-h-\[18rem\] {
+    min-height: 18rem
+}
 .min-h-\[var\(--control-height-lg\)\] {
     min-height: var(--control-height-lg)
 }
@@ -361,6 +364,9 @@
 .items-center {
     align-items: center
 }
+.justify-end {
+    justify-content: flex-end
+}
 .justify-center {
     justify-content: center
 }
@@ -494,6 +500,9 @@
 .border-b {
     border-bottom-width: 1px
 }
+.border-b-2 {
+    border-bottom-width: 2px
+}
 .border-l-2 {
     border-left-width: 2px
 }
@@ -592,6 +601,9 @@
     --tw-bg-opacity: 1;
     background-color: rgb(254 243 199 / var(--tw-bg-opacity, 1))
 }
+.bg-app-background {
+    background-color: var(--color-background)
+}
 .bg-app-primary {
     background-color: var(--color-primary)
 }
@@ -656,6 +668,9 @@
 .p-space-lg {
     padding: var(--space-lg)
 }
+.p-space-md {
+    padding: var(--space-md)
+}
 .px-1 {
     padding-left: 0.25rem;
     padding-right: 0.25rem
@@ -700,6 +715,10 @@
     padding-left: var(--space-md);
     padding-right: var(--space-md)
 }
+.px-space-sm {
+    padding-left: var(--space-sm);
+    padding-right: var(--space-sm)
+}
 .py-0\.5 {
     padding-top: 0.125rem;
     padding-bottom: 0.125rem
@@ -728,11 +747,17 @@
     padding-top: var(--space-xs);
     padding-bottom: var(--space-xs)
 }
+.pb-space-xs {
+    padding-bottom: var(--space-xs)
+}
 .pl-3 {
     padding-left: 0.75rem
 }
 .pt-1 {
     padding-top: 0.25rem
+}
+.pt-space-xs {
+    padding-top: var(--space-xs)
 }
 .text-left {
     text-align: left
@@ -1052,6 +1077,9 @@
 .placeholder\:text-app-muted-foreground::placeholder {
     color: var(--color-muted-foreground)
 }
+.hover\:border-app-border:hover {
+    border-color: var(--color-border)
+}
 .hover\:bg-\[var\(--color-surface-muted\)\]:hover {
     background-color: var(--color-surface-muted)
 }
@@ -1085,6 +1113,21 @@
 }
 .hover\:ring-app-muted-foreground:hover {
     --tw-ring-color: var(--color-muted-foreground)
+}
+.focus\:outline-none:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px
+}
+.focus\:ring-2:focus {
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)
+}
+.focus\:ring-inset:focus {
+    --tw-ring-inset: inset
+}
+.focus\:ring-app-primary:focus {
+    --tw-ring-color: var(--color-primary)
 }
 .focus-visible\:outline-none:focus-visible {
     outline: 2px solid transparent;

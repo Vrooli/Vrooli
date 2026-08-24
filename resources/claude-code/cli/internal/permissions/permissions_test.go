@@ -12,8 +12,8 @@ func newTestAdapter(t *testing.T) *Adapter {
 	t.Helper()
 	dir := t.TempDir()
 	return &Adapter{
-		SettingsPath:  filepath.Join(dir, "settings.json"),
-		HookScriptDir: filepath.Join(dir, ".vrooli-hooks"),
+		SettingsPath: filepath.Join(dir, "settings.json"),
+		HookStateDir: filepath.Join(dir, HookStateDirName),
 	}
 }
 
@@ -72,17 +72,15 @@ func TestSaveAddsDenyAndHookEntry(t *testing.T) {
 		t.Fatalf("matcher: %v", entry["matcher"])
 	}
 
-	info, err := os.Stat(a.HookScriptPath())
-	if err != nil {
-		t.Fatalf("managed shell hook was not materialized: %v", err)
-	}
-	if info.Mode().Perm() != 0o700 {
-		t.Fatalf("managed shell hook mode = %o, want 700", info.Mode().Perm())
+	if _, err := os.Stat(filepath.Join(a.HookStateDir, "pretooluse-bash-deny.sh")); err == nil {
+		t.Fatalf("a shell hook was materialized; the guard is native Go")
 	}
 	hookEntries := entry["hooks"].([]any)
 	hookCommand := hookEntries[0].(map[string]any)["command"].(string)
-	if !strings.Contains(hookCommand, HookScriptName) || !strings.Contains(hookCommand, "Bash(git stash*)") {
-		t.Fatalf("hook command does not carry the managed script and pattern: %q", hookCommand)
+	for _, want := range append(append([]string{}, GuardSubcommand...), "Bash(git stash*)") {
+		if !strings.Contains(hookCommand, want) {
+			t.Fatalf("hook command %q does not carry %q", hookCommand, want)
+		}
 	}
 }
 

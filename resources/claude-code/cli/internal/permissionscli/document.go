@@ -76,7 +76,7 @@ func (h *Handlers) planDocument(path string) (agentharness.PermissionPlanResult,
 	ask = claudeBashPatterns(ask)
 	deny = claudeBashPatterns(deny)
 	desired := permissions.Policy{BashAllow: allow, BashAsk: ask, BashDeny: deny, Hooks: true}
-	paths := []string{h.Adapter.SettingsPath, h.Adapter.HookScriptPath()}
+	paths := []string{h.Adapter.SettingsPath}
 	return agentharness.PlanPermissionProjection("claude-code", document, data,
 		agentharness.PermissionProjection{Allow: claudePortablePatterns(live.BashAllow), Ask: claudePortablePatterns(live.BashAsk), Deny: claudePortablePatterns(live.BashDeny)}, paths, claudePermissionPosture), desired, nil
 }

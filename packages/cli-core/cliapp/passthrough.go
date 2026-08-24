@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // PassthroughSpec describes an external command invocation owned by the
@@ -41,7 +43,7 @@ func RunPassthrough(spec PassthroughSpec, stdout, stderr io.Writer) error {
 	cmd := exec.Command(name, spec.Args...)
 	cmd.Dir = strings.TrimSpace(spec.Dir)
 	if len(spec.Env) > 0 {
-		cmd.Env = append(os.Environ(), spec.Env...)
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(spec.Env))
 	}
 	cmd.Stdin = os.Stdin
 	if stdout != nil {

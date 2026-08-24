@@ -42,7 +42,6 @@ type PTY interface {
 	Close() error
 	Kill() error
 	ExitCode() int
-	HasChildProcess() bool
 	ProbeReady(context.Context) error
 	CurrentDir(context.Context) (string, error)
 }
@@ -181,7 +180,6 @@ func (p *agentPTY) Close() error {
 }
 func (p *agentPTY) Kill() error                                { return p.Close() }
 func (p *agentPTY) ExitCode() int                              { return -1 }
-func (p *agentPTY) HasChildProcess() bool                      { return true }
 func (p *agentPTY) ProbeReady(context.Context) error           { return nil }
 func (p *agentPTY) CurrentDir(context.Context) (string, error) { return "", nil }
 
@@ -243,7 +241,6 @@ func (p *sshPTY) SetSize(cols, rows uint16) error            { return p.session.
 func (p *sshPTY) Close() error                               { return p.session.Close() }
 func (p *sshPTY) Kill() error                                { return p.session.Close() }
 func (p *sshPTY) ExitCode() int                              { return -1 }
-func (p *sshPTY) HasChildProcess() bool                      { return true }
 func (p *sshPTY) ProbeReady(context.Context) error           { return nil }
 func (p *sshPTY) CurrentDir(context.Context) (string, error) { return "", nil }
 

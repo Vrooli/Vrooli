@@ -6,14 +6,13 @@
 // entry tagged `"managedBy": "vrooli"`. Every other top-level key, and
 // every hook entry not tagged as Vrooli-managed, round-trips untouched.
 //
-// The PreToolUse hook is a source-controlled native matcher paired with every
-// Bash deny rule. Native permission rules remain authoritative; the hook
-// receives JSON as data and never evaluates the command text.
+// The PreToolUse hook is a native Go matcher paired with every Bash deny rule.
+// Native permission rules remain authoritative; the hook receives JSON as data
+// and never evaluates the command text.
 package permissions
 
 import (
 	"crypto/sha256"
-	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -32,14 +31,33 @@ import (
 // omit this marker are preserved across Save calls.
 const ManagedByMarker = "vrooli"
 
-// HookScriptName is the managed native matcher invoked by the PreToolUse hook.
-const HookScriptName = "pretooluse-bash-deny.sh"
+// HookStateDirName is the directory beside Claude's settings file that holds
+// the hook's audit log.
+const HookStateDirName = ".vrooli-hooks"
 
-// denyHookScript is the source-controlled native matcher installed beside
-// Claude's settings file. It receives command text as data and never evals it.
-//
-//go:embed pretooluse-bash-deny.sh
-var denyHookScript []byte
+// GuardCommandEnv overrides the executable Claude invokes for the PreToolUse
+// decision. It exists for tests and for operators running an out-of-tree build.
+const GuardCommandEnv = "VROOLI_CLAUDE_HOOK_GUARD"
+
+// GuardSubcommand is the verb that performs one PreToolUse decision.
+var GuardSubcommand = []string{"permissions", "hook-guard"}
+
+// GuardCommand resolves the executable that evaluates the PreToolUse hook. It
+// defaults to the running binary so the installed hook always executes the
+// same implementation that wrote it, with no PATH lookup to go stale.
+func GuardCommand() string {
+	if override := strings.TrimSpace(os.Getenv(GuardCommandEnv)); override != "" {
+		return override
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return "resource-claude-code"
+	}
+	if resolved, resolveErr := filepath.EvalSymlinks(executable); resolveErr == nil {
+		return resolved
+	}
+	return executable
+}
 
 // Policy is the canonical in-memory shape of the bash-pattern subset of
 // the Claude Code permissions file the adapter manages.
@@ -58,8 +76,8 @@ type Adapter struct {
 	// SettingsPath is the absolute path of settings.json (typically
 	// ~/.claude/settings.json).
 	SettingsPath string
-	// HookScriptDir is the directory used to derive HookScriptPath.
-	HookScriptDir string
+	// HookStateDir is the directory holding the hook's audit log.
+	HookStateDir string
 }
 
 // HookResult is the stable result returned by the generic hook seam. Hook
@@ -104,15 +122,14 @@ func DefaultAdapter() (*Adapter, error) {
 		return nil, fmt.Errorf("resolve $HOME: %w", err)
 	}
 	return &Adapter{
-		SettingsPath:  filepath.Join(home, ".claude", "settings.json"),
-		HookScriptDir: filepath.Join(home, ".claude", ".vrooli-hooks"),
+		SettingsPath: filepath.Join(home, ".claude", "settings.json"),
+		HookStateDir: filepath.Join(home, ".claude", HookStateDirName),
 	}, nil
 }
 
-// HookScriptPath is the managed shell-hook path used by Claude's PreToolUse
-// command entry.
-func (a *Adapter) HookScriptPath() string {
-	return filepath.Join(a.HookScriptDir, HookScriptName)
+// HookLogPath is the append-only audit log the PreToolUse guard writes.
+func (a *Adapter) HookLogPath() string {
+	return filepath.Join(a.HookStateDir, "log")
 }
 
 // Load reads and parses the settings file. A missing file is not an
@@ -266,12 +283,6 @@ func (a *Adapter) Save(p Policy) error {
 		doc.TopLevel["permissions"] = encoded
 	}
 
-	if p.Hooks && len(p.BashDeny) > 0 {
-		if err := a.installHookScript(); err != nil {
-			return err
-		}
-	}
-
 	out, err := marshalOrderedMap(doc.TopLevel)
 	if err != nil {
 		return fmt.Errorf("encode settings: %w", err)
@@ -294,7 +305,7 @@ func (a *Adapter) Save(p Policy) error {
 		return err
 	}
 
-	hook := buildHookEntry(a.HookScriptPath(), p.BashDeny)
+	hook := buildHookEntry(GuardCommand(), p.BashDeny)
 	if p.Hooks && len(p.BashDeny) > 0 {
 		inner := hook["hooks"].([]map[string]string)[0]
 		_, err = broker.Reconcile(
@@ -314,11 +325,11 @@ func (a *Adapter) Save(p Policy) error {
 	return err
 }
 
-// buildHookEntry constructs the canonical PreToolUse entry. The command
-// invokes the source-controlled native matcher with each pattern as a quoted
-// argument, keeping exact Claude Bash(...) semantics at the resource edge.
-func buildHookEntry(scriptPath string, patterns []string) map[string]any {
-	commandParts := []string{shellQuote(scriptPath)}
+// buildHookEntry constructs the canonical PreToolUse entry. The command invokes
+// the native Go matcher with each pattern as a quoted argument, keeping exact
+// Claude Bash(...) semantics at the resource edge.
+func buildHookEntry(guardCommand string, patterns []string) map[string]any {
+	commandParts := append([]string{shellQuote(guardCommand)}, GuardSubcommand...)
 	for _, pattern := range patterns {
 		commandParts = append(commandParts, shellQuote(pattern))
 	}
@@ -339,40 +350,13 @@ func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
-func (a *Adapter) installHookScript() error {
-	if err := os.MkdirAll(a.HookScriptDir, 0o755); err != nil {
-		return fmt.Errorf("mkdir hook directory %s: %w", a.HookScriptDir, err)
-	}
-	tmp, err := os.CreateTemp(a.HookScriptDir, "."+HookScriptName+".tmp-")
-	if err != nil {
-		return fmt.Errorf("create hook script temporary file: %w", err)
-	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
-	if err := tmp.Chmod(0o700); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("chmod hook script temporary file: %w", err)
-	}
-	if _, err := tmp.Write(denyHookScript); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("write hook script temporary file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close hook script temporary file: %w", err)
-	}
-	if err := os.Rename(tmpName, a.HookScriptPath()); err != nil {
-		return fmt.Errorf("install hook script %s: %w", a.HookScriptPath(), err)
-	}
-	return nil
-}
-
 // RenderHook returns the hook entry as a JSON object, primarily for
 // docs/debugging surfaces. The same shape is what Save writes.
 func (a *Adapter) RenderHook(p Policy) map[string]any {
 	if !p.Hooks || len(p.BashDeny) == 0 {
 		return nil
 	}
-	return buildHookEntry(a.HookScriptPath(), p.BashDeny)
+	return buildHookEntry(GuardCommand(), p.BashDeny)
 }
 
 // Fingerprint returns the sha256 hex of the canonical Policy projection.

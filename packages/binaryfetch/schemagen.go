@@ -32,6 +32,7 @@ func AcquisitionSchema() map[string]any {
 					"type": "object", "additionalProperties": false,
 					"properties": map[string]any{
 						"when":            map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}},
+						"kind":            map[string]any{"type": "string", "enum": []string{"url", "oci-image", "none", "composed"}},
 						"url":             map[string]any{"type": "string", "format": "uri"},
 						"image":           map[string]any{"type": "string"},
 						"sha256":          map[string]any{"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},

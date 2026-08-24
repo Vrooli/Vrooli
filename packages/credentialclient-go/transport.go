@@ -19,6 +19,7 @@ import (
 type ClientOptions struct {
 	Authority       *credentialauthority.Authority
 	InProcess       Client
+	Root            string
 	StateDir        string
 	Descriptors     func() ([]CredentialRef, error)
 	BundlePortFile  string
@@ -36,7 +37,7 @@ func NewClient(options ClientOptions) (Client, error) {
 		return options.InProcess, nil
 	}
 	if options.Authority != nil && options.Authority.Availability() == nil {
-		client, err := NewInProcess(InProcessOptions{Authority: options.Authority, StateDir: options.StateDir, Descriptors: options.Descriptors})
+		client, err := NewInProcess(InProcessOptions{Authority: options.Authority, Root: options.Root, StateDir: options.StateDir, Descriptors: options.Descriptors})
 		if err == nil {
 			return client, nil
 		}

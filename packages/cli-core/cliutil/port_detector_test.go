@@ -2,6 +2,7 @@ package cliutil
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"reflect"
 	"testing"
@@ -22,6 +23,58 @@ func TestSanitizePortOutput(t *testing.T) {
 	for _, tc := range cases {
 		if got := sanitizePortOutput(tc.input); got != tc.expect {
 			t.Fatalf("%s: expected %q, got %q", tc.name, tc.expect, got)
+		}
+	}
+}
+
+func TestLookupScenarioPortUsesRegistryAfterPeerMiss(t *testing.T) {
+	resetPortDetectorCache()
+	oldPeer, oldRegistry, oldRunner := peerRecordLookupFn, runtimeRegistryLookupFn, portLookupRunner
+	t.Cleanup(func() {
+		peerRecordLookupFn, runtimeRegistryLookupFn, portLookupRunner = oldPeer, oldRegistry, oldRunner
+		resetPortDetectorCache()
+	})
+	var calls []string
+	peerRecordLookupFn = func(target, port string) ScenarioPortOutcome {
+		calls = append(calls, "peer:"+target+":"+port)
+		return ScenarioPortOutcome{Err: os.ErrNotExist}
+	}
+	runtimeRegistryLookupFn = func(_ context.Context, target, port string) ScenarioPortOutcome {
+		calls = append(calls, "registry:"+target+":"+port)
+		return ScenarioPortOutcome{Port: "18443"}
+	}
+	portLookupRunner = func(context.Context, string, string) ScenarioPortOutcome {
+		t.Fatal("CLI fallback must not run after registry resolution")
+		return ScenarioPortOutcome{}
+	}
+	got := LookupScenarioPort(context.Background(), "agent-manager", "API_PORT", PortCachePolicy{MaxAge: 0, NegativeMaxAge: 0})
+	if !got.Resolved() || got.Port != "18443" {
+		t.Fatalf("outcome = %#v", got)
+	}
+	want := []string{"peer:agent-manager:API_PORT", "registry:agent-manager:API_PORT"}
+	if !reflect.DeepEqual(calls, want) {
+		t.Fatalf("lookup order = %v, want %v", calls, want)
+	}
+}
+
+func BenchmarkLookupScenarioPortPeerRecord(b *testing.B) {
+	oldPeer, oldRegistry, oldRunner := peerRecordLookupFn, runtimeRegistryLookupFn, portLookupRunner
+	b.Cleanup(func() {
+		peerRecordLookupFn, runtimeRegistryLookupFn, portLookupRunner = oldPeer, oldRegistry, oldRunner
+	})
+	peerRecordLookupFn = func(string, string) ScenarioPortOutcome { return ScenarioPortOutcome{Port: "18443"} }
+	runtimeRegistryLookupFn = func(context.Context, string, string) ScenarioPortOutcome {
+		b.Fatal("registry should not run")
+		return ScenarioPortOutcome{}
+	}
+	portLookupRunner = func(context.Context, string, string) ScenarioPortOutcome {
+		b.Fatal("CLI should not run")
+		return ScenarioPortOutcome{}
+	}
+	policy := PortCachePolicy{}
+	for i := 0; i < b.N; i++ {
+		if got := LookupScenarioPort(context.Background(), "agent-manager", "API_PORT", policy); got.Port != "18443" {
+			b.Fatal(got)
 		}
 	}
 }

@@ -49,16 +49,41 @@ type ProviderDiagnosis struct {
 }
 
 type RecoveryStatus struct {
-	ReceiptExists bool     `json:"receipt_exists"`
-	ExportedAt    string   `json:"exported_at"`
-	EntryCount    int      `json:"entry_count"`
-	Uncovered     []string `json:"uncovered"`
+	ReceiptExists            bool     `json:"receipt_exists"`
+	ExportedAt               string   `json:"exported_at"`
+	EntryCount               int      `json:"entry_count"`
+	Uncovered                []string `json:"uncovered"`
+	Basis                    string   `json:"basis"`
+	ManagedInstancesIncluded bool     `json:"managed_instances_included"`
 }
 
 type DoctorResponse struct {
-	Provider    ProviderDiagnosis `json:"provider"`
-	Credentials []CredentialRef   `json:"credentials"`
-	Recovery    RecoveryStatus    `json:"recovery"`
+	Provider                 ProviderDiagnosis `json:"provider"`
+	Credentials              []CredentialRef   `json:"credentials"`
+	CredentialCount          int               `json:"credential_count"`
+	DeclarationSiteCount     int               `json:"declaration_site_count"`
+	InventoryBasis           string            `json:"inventory_basis"`
+	ManagedInstancesIncluded bool              `json:"managed_instances_included"`
+	Recovery                 RecoveryStatus    `json:"recovery"`
+}
+
+// InventoryResponse is the metadata-only inventory shared by credential
+// surfaces. Values are intentionally absent. Counts are explicit about their
+// basis so declaration-site and distinct-address answers cannot be conflated.
+type InventoryResponse struct {
+	Credentials              []CredentialRef `json:"credentials"`
+	CredentialCount          int             `json:"credential_count"`
+	DeclarationSiteCount     int             `json:"declaration_site_count"`
+	InventoryBasis           string          `json:"inventory_basis"`
+	ManagedInstancesIncluded bool            `json:"managed_instances_included"`
+	Uncovered                []string        `json:"uncovered"`
+}
+
+// InventoryProvider is implemented by transports that can return the
+// authoritative metadata inventory. It is optional to preserve compatibility
+// with narrow test doubles and older transports.
+type InventoryProvider interface {
+	Inventory(context.Context) (InventoryResponse, error)
 }
 
 type RecoveryExportRequest struct {
@@ -97,9 +122,20 @@ type StoreStatus struct {
 }
 
 type KeyringReport struct {
-	Path     string `json:"path"`
-	Loadable bool   `json:"loadable"`
-	Repaired int    `json:"repaired"`
+	Path          string          `json:"path"`
+	Format        string          `json:"format,omitempty"`
+	Assessed      bool            `json:"assessed"`
+	Loadable      bool            `json:"loadable"`
+	Repaired      int             `json:"repaired"`
+	Verdict       string          `json:"verdict,omitempty"`
+	VerdictReason string          `json:"verdict_reason,omitempty"`
+	Backups       []KeyringBackup `json:"backups,omitempty"`
+}
+
+type KeyringBackup struct {
+	Path       string `json:"path"`
+	ModifiedAt string `json:"modified_at"`
+	AgeSeconds int64  `json:"age_seconds"`
 }
 
 type Client interface {

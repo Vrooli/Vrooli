@@ -21,13 +21,22 @@ type (
 	DependencyResult               = core.DependencyResult
 	Resolution                     = core.Resolution
 	CapabilityImplementation       = core.CapabilityImplementation
+	CapabilityDeclarer             = core.CapabilityDeclarer
 	CapabilityResolutionStatus     = core.CapabilityResolutionStatus
 	CapabilityResolution           = core.CapabilityResolution
+	ConformanceFinding             = core.ConformanceFinding
+	ConformanceReport              = core.ConformanceReport
+	ConformanceTarget              = core.ConformanceTarget
 	InstanceLiteral                = core.InstanceLiteral
+	ManifestDeclaration            = core.ManifestDeclaration
+	PlatformObservation            = core.PlatformObservation
+	PlatformStatus                 = core.PlatformStatus
+	Qualification                  = core.Qualification
 	SwapSource                     = core.SwapSource
 	SwapAlternative                = core.SwapAlternative
 	ResourceSwapSuggestion         = core.ResourceSwapSuggestion
 	AcquisitionCoverageDeclaration = core.AcquisitionCoverageDeclaration
+	UnknownPlatformStatusError     = core.UnknownPlatformStatusError
 )
 
 const (

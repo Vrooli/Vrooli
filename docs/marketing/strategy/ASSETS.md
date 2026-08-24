@@ -4,7 +4,7 @@ Canonical registry of Vrooli's brand assets — logos, favicons, social previews
 
 **Write rule:** operator-curated via accepted `brand-guideline-update` decisions. Agents propose updates (new asset added, asset deprecated, usage rule changed); they do not edit directly.
 
-**Status:** Inventory of current assets in `path:assets/public/` and surrounding paths. **Eventually subsumed by the `brand-manager` scenario** when it ships (see [`prompt-manager skill read brand-manager`](../../../scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md)). Until then, this markdown file is the registry of record.
+**Status:** Inventory of current assets in `path:assets/public/` and surrounding paths. **Eventually subsumed by the `brand-manager` scenario** when it ships (see [`prompt-manager skill read brand-manager`](../../../scenarios/brand-manager/skills/brand-manager/SKILL.md)). Until then, this markdown file is the registry of record.
 
 ---
 
@@ -94,4 +94,4 @@ Trigger conditions for the brand-manager (member) to propose a `brand-guideline-
 - [`docs/narrative/PRESS_KIT.md`](../../narrative/PRESS_KIT.md) — composition of assets for external coverage
 - [`docs/marketing/strategy/IMAGE_STYLE.md`](IMAGE_STYLE.md) — AI image generation style guide (for non-logo imagery)
 - [`docs/marketing/strategy/BRAND.md`](BRAND.md) — visual identity overview (currently a thin pointer at this file and STRATEGY.md)
-- [`scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md`](../../../scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md) — planned `brand-manager` scenario CLI; eventually subsumes this file
+- [`scenarios/brand-manager/skills/brand-manager/SKILL.md`](../../../scenarios/brand-manager/skills/brand-manager/SKILL.md) — `brand-manager` scenario CLI; eventually subsumes this file
