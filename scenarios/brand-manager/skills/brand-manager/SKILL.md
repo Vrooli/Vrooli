@@ -1,3 +1,22 @@
+---
+name: "brand-manager"
+description: "Use the brand-manager CLI to check branding status across scenarios, generate brand assets (AI-assisted via OpenRouter), apply brands to scenarios, and export brand packages."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["branding","design-system","assets","validation","openrouter"]
+  status: "draft"
+  revision: 1
+  createdAt: "2026-03-20T00:00:00Z"
+  updatedAt: "2026-03-20T00:00:00Z"
+  requires:
+    scenarios: ["swarm-manager", "vrooli"]
+    commands: ["swarm-manager ideas", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Brand Manager
 
 Manage the full branding lifecycle for Vrooli scenarios — check status, generate assets, apply brands, and export packages using the brand-manager CLI.

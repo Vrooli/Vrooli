@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/envkit-go"
 )
 
 // Process abstracts process operations for testing.
@@ -110,10 +111,10 @@ func (p *NodeProcess) Start() error {
 		p.log.Warn("API_PORT not set, using default for history callbacks")
 	}
 	historyCallbackURL := fmt.Sprintf("http://127.0.0.1:%s/internal/history-callback", apiPort)
-	p.cmd.Env = append(os.Environ(),
+	p.cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		fmt.Sprintf("PLAYWRIGHT_DRIVER_PORT=%d", p.port),
 		fmt.Sprintf("HISTORY_CALLBACK_URL=%s", historyCallbackURL),
-	)
+	})
 	p.cmd.Env = append(p.cmd.Env, p.env...)
 
 	// Capture stdout/stderr for logging

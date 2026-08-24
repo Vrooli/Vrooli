@@ -63,6 +63,16 @@ func TestBuildCaptureRequest_DimensionsAndExplicitOverride(t *testing.T) {
 	}
 }
 
+func TestBuildCaptureRequest_ScreenshotBoundary(t *testing.T) {
+	req, err := buildCaptureRequest(captureFlags{url: "u", screenshotSelector: "  [data-preview-sheet]  "})
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if req.GetScreenshotSelector() != "[data-preview-sheet]" {
+		t.Fatalf("screenshot selector = %q", req.GetScreenshotSelector())
+	}
+}
+
 func TestBuildCaptureRequest_DimensionsPresetOnly(t *testing.T) {
 	f := captureFlags{url: "u", dimensions: "mobile"}
 	req, err := buildCaptureRequest(f)

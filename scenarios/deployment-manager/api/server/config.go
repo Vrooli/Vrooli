@@ -2,7 +2,6 @@
 package server
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"

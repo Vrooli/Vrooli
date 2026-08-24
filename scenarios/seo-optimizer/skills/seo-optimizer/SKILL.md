@@ -1,3 +1,23 @@
+---
+name: "seo-optimizer"
+description: "Comprehensive SEO analysis and optimization including site audits, keyword research, content optimization, and competitor analysis"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","marketing","seo","analytics"]
+  icon: "search"
+  status: "active"
+  revision: 1
+  createdAt: "2026-03-19T00:00:00Z"
+  updatedAt: "2026-03-19T00:00:00Z"
+  requires:
+    scenarios: ["vrooli"]
+    commands: ["vrooli", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: SEO Optimizer
 
 Analyze and improve search engine visibility with site audits, keyword research, content optimization suggestions, and competitor analysis — all powered by AI.

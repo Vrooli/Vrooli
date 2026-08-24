@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // Role-based OpenRouter model selection.
@@ -53,7 +55,7 @@ func resolveRoleModel(ctx context.Context, role string) (string, error) {
 // execResolveRoleModel shells out to resource-openrouter to resolve the role.
 func execResolveRoleModel(ctx context.Context, role string) (string, error) {
 	cmd := exec.CommandContext(ctx, openRouterCommand, "policy", "resolve", "--role", role, "--field", "model")
-	cmd.Env = os.Environ()
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 
 	out, err := cmd.Output()
 	if err != nil {

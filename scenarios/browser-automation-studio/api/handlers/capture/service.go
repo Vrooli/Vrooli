@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -203,6 +204,36 @@ func (s *service) Capture(
 	artifacts, err := s.deps.Producers.ProduceAll(captures, executionOutDir)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("harvest artifacts: %w", err))
+	}
+	// Producers harvest files from the capture bundle. Publish those files
+	// through BAS storage as well so downstream consumers receive a durable,
+	// browser-openable URL instead of only the internal bas-capture:// id.
+	for _, artifact := range artifacts {
+		if s.deps.Storage == nil {
+			break
+		}
+		if artifact == nil || artifact.GetPath() == "" || artifact.GetMetadata()["unavailable_reason"] != "" {
+			continue
+		}
+		contentType := mime.TypeByExtension(filepath.Ext(artifact.GetPath()))
+		stored, storeErr := s.deps.Storage.StoreArtifactFromFile(
+			ctx,
+			executionUUID,
+			"capture/"+strings.ToLower(strings.TrimPrefix(artifact.GetType().String(), "CAPTURE_TYPE_")),
+			artifact.GetPath(),
+			contentType,
+		)
+		if storeErr != nil {
+			if s.deps.Logger != nil {
+				s.deps.Logger.WithError(storeErr).WithField("artifact", artifact.GetPath()).Warn("capture artifact URL publication failed")
+			}
+			continue
+		}
+		if artifact.Metadata == nil {
+			artifact.Metadata = map[string]string{}
+		}
+		artifact.Metadata["view_url"] = stored.URL
+		artifact.Metadata["content_type"] = stored.ContentType
 	}
 	attachArtifactReferences(execID, artifacts)
 	if err := writeCaptureArtifactSummary(executionOutDir, artifacts); err != nil {
@@ -550,6 +581,7 @@ func buildAdhocRequest(
 		}
 		nodes = append(nodes, spliced.nodes...)
 		edges = append(edges, spliced.edges...)
+		predecessorID = spliced.nodes[len(spliced.nodes)-1].GetId()
 	}
 
 	domNodeID := ""
@@ -569,6 +601,29 @@ func buildAdhocRequest(
 			Id:     uuid.NewString(),
 			Source: predecessorID,
 			Target: domNode.Id,
+		})
+		predecessorID = domNode.Id
+	}
+
+	// A capture boundary is a first-class concern of the generic capture
+	// service. Keep it as the final screenshot step so the producer marks the
+	// element capture as the authoritative artifact without requiring callers
+	// to hand-build an interaction flow.
+	if selector := strings.TrimSpace(msg.GetScreenshotSelector()); selector != "" {
+		screenshotNode := &workflowsv1.WorkflowNodeV2{
+			Id: uuid.NewString(),
+			Action: &actionsv1.ActionDefinition{
+				Type: actionsv1.ActionType_ACTION_TYPE_SCREENSHOT,
+				Params: &actionsv1.ActionDefinition_Screenshot{
+					Screenshot: &actionsv1.ScreenshotParams{Selector: &selector},
+				},
+			},
+		}
+		nodes = append(nodes, screenshotNode)
+		edges = append(edges, &workflowsv1.WorkflowEdgeV2{
+			Id:     uuid.NewString(),
+			Source: predecessorID,
+			Target: screenshotNode.Id,
 		})
 	}
 

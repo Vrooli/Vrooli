@@ -48,6 +48,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/emit"
 	"agent-manager/internal/orchestration/phases"
+	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
 
@@ -120,8 +121,9 @@ type RunExecutor struct {
 	parked bool
 
 	// Caller-provided env vars
-	customEnv  map[string]string
-	sessionEnv map[string]string
+	customEnv   map[string]string
+	sessionEnv  map[string]string
+	skillSource promptmanager.SourceClient
 
 	// Identity token state
 	identitySecret []byte
@@ -174,6 +176,13 @@ func NewRunExecutor(
 func (e *RunExecutor) WithLevers(l config.Levers) *RunExecutor { e.levers = l; return e }
 
 func (e *RunExecutor) WithRunStateRoot(root string) *RunExecutor { e.runStateRoot = root; return e }
+
+// WithSkillSource supplies prompt-manager's immutable source seam for profile
+// pack composition. A nil source leaves profiles without a skill pack valid.
+func (e *RunExecutor) WithSkillSource(source promptmanager.SourceClient) *RunExecutor {
+	e.skillSource = source
+	return e
+}
 
 func (e *RunExecutor) WithRunStateWriteObserver(observer func()) *RunExecutor {
 	e.runStateWrite = observer
@@ -362,6 +371,40 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 			return
 		}
 		e.sessionEnv = sessionEnv
+		skillEnv, err := PrepareRunnerSkillScope(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType)
+		if err != nil {
+			e.failWithError(execCtx, err)
+			return
+		}
+		if e.sessionEnv == nil && len(skillEnv) > 0 {
+			e.sessionEnv = make(map[string]string)
+		}
+		for key, value := range skillEnv {
+			e.sessionEnv[key] = value
+		}
+		if e.profile != nil && len(e.profile.SkillPack) > 0 {
+			runtimeRoot := ""
+			for _, key := range []string{"CLAUDE_CONFIG_DIR", "CODEX_HOME", "GROK_HOME", "OPENCODE_CONFIG_DIR", "ANTIGRAVITY_STATE_DIR"} {
+				if value := e.sessionEnv[key]; value != "" {
+					runtimeRoot = value
+					break
+				}
+			}
+			if runtimeRoot == "" {
+				e.failWithError(execCtx, fmt.Errorf("profile skill pack has no private runtime root for %s", e.run.ResolvedConfig.RunnerType))
+				return
+			}
+			var projectErr error
+			if e.run.ResolvedConfig.SkillExperimentID != "" {
+				_, projectErr = ProjectProfileSkillsAssigned(execCtx, e.runStateRoot, e.run.ID, runtimeRoot, e.run.ResolvedConfig.SkillExperimentID, e.profile.SkillPack, e.skillSource, defaultProfileSkillTokenCeiling)
+			} else {
+				_, projectErr = ProjectProfileSkills(execCtx, e.runStateRoot, e.run.ID, runtimeRoot, e.profile.SkillPack, e.skillSource, defaultProfileSkillTokenCeiling)
+			}
+			if projectErr != nil {
+				e.failWithError(execCtx, projectErr)
+				return
+			}
+		}
 	}
 	if err := execCtx.Err(); err != nil {
 		e.handleContextError(ctx, err)
@@ -659,6 +702,9 @@ func (e *RunExecutor) finalize() {
 	if e.run != nil && e.run.ResolvedConfig != nil {
 		if err := CleanupCodecSessionHomeCredentials(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
 			e.emitSystem(context.Background(), "warn", "failed to clean run-scoped session credentials: "+err.Error())
+		}
+		if err := CleanupRunnerSkillScope(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
+			e.emitSystem(context.Background(), "warn", "failed to clean run-scoped skill scope: "+err.Error())
 		}
 	}
 	phases.Finalize(phases.FinalizeInput{

@@ -433,10 +433,15 @@ func (r *Reconciler) cleanupRunStateDirs(ctx context.Context) {
 		return
 	}
 	known := make(map[string]struct{}, len(runs))
+	live := make(map[uuid.UUID]bool, len(runs))
 	for _, run := range runs {
 		if run != nil {
 			known[run.ID.String()] = struct{}{}
+			live[run.ID] = true
 		}
+	}
+	if err := SweepOrphanedSkillScopes(root, live); err != nil {
+		r.log().Warn("skill-scope orphan sweep failed", obs.KeyError, err.Error())
 	}
 	entries, err := os.ReadDir(root)
 	if err != nil {

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/envkit-go"
+
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/logutil"
 )
@@ -68,7 +70,7 @@ func (c *OpenRouterClient) ExecutePromptWithModel(ctx context.Context, model, pr
 
 func (c *OpenRouterClient) executePromptWithModel(ctx context.Context, model, prompt string) (string, error) {
 	cmd := exec.CommandContext(ctx, openRouterCommand, "generate", "--model", model)
-	cmd.Env = os.Environ()
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	cmd.Stdin = strings.NewReader(prompt)
 
 	start := time.Now()

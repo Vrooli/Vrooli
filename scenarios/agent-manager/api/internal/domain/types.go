@@ -66,6 +66,10 @@ type AgentProfile struct {
 	// DeclaredScopes is an optional profile ceiling for delegated identity
 	// tokens. Empty/nil preserves the account's full scope by default.
 	DeclaredScopes []string `json:"declaredScopes,omitempty" db:"declared_scopes"`
+	// SkillPack names the prompt-manager skills projected into this profile's
+	// private run scope. It is an allow-list of identifiers, never a path.
+	SkillPack         []string `json:"skillPack,omitempty" db:"skill_pack"`
+	SkillExperimentID string   `json:"skillExperimentId,omitempty" db:"skill_experiment_id"`
 
 	// Metadata
 	CreatedBy       string    `json:"createdBy,omitempty" db:"created_by"`
@@ -1386,8 +1390,10 @@ type RunConfig struct {
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty"`
 
 	// Path restrictions
-	AllowedPaths []string `json:"allowedPaths,omitempty"`
-	DeniedPaths  []string `json:"deniedPaths,omitempty"`
+	AllowedPaths      []string `json:"allowedPaths,omitempty"`
+	DeniedPaths       []string `json:"deniedPaths,omitempty"`
+	SkillPack         []string `json:"skillPack,omitempty"`
+	SkillExperimentID string   `json:"skillExperimentId,omitempty"`
 }
 
 // ApplyProfile applies values from an AgentProfile as the base configuration.
@@ -1420,6 +1426,8 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	}
 	c.AllowedPaths = profile.AllowedPaths
 	c.DeniedPaths = profile.DeniedPaths
+	c.SkillPack = append([]string(nil), profile.SkillPack...)
+	c.SkillExperimentID = profile.SkillExperimentID
 }
 
 // DefaultRunConfig returns sensible defaults for run configuration.

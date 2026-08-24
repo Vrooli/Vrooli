@@ -1,3 +1,23 @@
+---
+name: "funnel-builder"
+description: "Visual conversion funnel creation with drag-and-drop builder, lead capture, analytics, branching logic, and template library"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","marketing","funnels","lead-generation"]
+  icon: "filter"
+  status: "active"
+  revision: 1
+  createdAt: "2026-03-19T00:00:00Z"
+  updatedAt: "2026-03-19T00:00:00Z"
+  requires:
+    scenarios: ["vrooli"]
+    commands: ["vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Funnel Builder
 
 Create and manage multi-step conversion funnels with a visual drag-and-drop builder, lead capture, branching logic, analytics, and a template library.

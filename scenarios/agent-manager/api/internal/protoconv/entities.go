@@ -69,6 +69,8 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 		CreatedBy:             p.CreatedBy,
 		CreatedAt:             TimestampToProto(p.CreatedAt),
 		UpdatedAt:             TimestampToProto(p.UpdatedAt),
+		SkillPack:             p.SkillPack,
+		SkillExperimentId:     p.SkillExperimentID,
 	}
 }
 
@@ -105,6 +107,8 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 		CreatedBy:             p.CreatedBy,
 		CreatedAt:             TimestampFromProto(p.CreatedAt),
 		UpdatedAt:             TimestampFromProto(p.UpdatedAt),
+		SkillPack:             p.SkillPack,
+		SkillExperimentID:     p.SkillExperimentId,
 	}
 }
 

@@ -115,6 +115,8 @@ func (h *connectHandler) ValidateTarget(ctx context.Context, req *connect.Reques
 	switch kind {
 	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT:
 		targetKind = manifestvalidation.TargetKindProject
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE:
+		targetKind = manifestvalidation.TargetKindControlPlane
 	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO:
 		targetKind = manifestvalidation.TargetKindScenario
 		for _, reserved := range h.deps.ReservedNames {

@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 
 	"deployment-manager/shared"
@@ -69,16 +67,8 @@ func NewProxyRepository(scenarioLookup ScenarioLookup, opts ...ProxyRepositoryOp
 }
 
 // getDefaultSigningAPIURL resolves the scenario-to-desktop signing API through
-// the standard Vrooli discovery contract. An explicit URL remains available as
-// a deterministic test/development override.
+// the standard Vrooli discovery contract.
 func getDefaultSigningAPIURL() string {
-	if url := strings.TrimSpace(os.Getenv("SCENARIO_TO_DESKTOP_URL")); url != "" {
-		validated, err := shared.ValidateServiceURL(url)
-		if err != nil {
-			return ""
-		}
-		return validated
-	}
 	url, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-to-desktop")
 	if err != nil {
 		return ""

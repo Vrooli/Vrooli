@@ -1,3 +1,27 @@
+---
+name: "ui-health"
+description: "Single steer authority for Vrooli UI validation — manifest, interop, project-UI standards (i18n/tokens/a11y/favicon/strict), runtime render, and deterministic auto-fix — driven off the ui-health provider CLI"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","react","ui"]
+  tags: ["skill","audit-technique"]
+  icon: "monitor-check"
+  status: "active"
+  defaultScope: "architecture-scope"
+  targetDimensions: ["ui","visual","accessibility"]
+  targetToolId: "run-agent"
+  programmaticHome: "test-genie:ui-health"
+  revision: 1
+  createdAt: "2026-06-23T00:00:00Z"
+  updatedAt: "2026-06-23T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "test-genie", "test-genie execute", "test-genie fix", "test-genie runs", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: UI Health
 
 Prioritize **making the scenario's UI render correctly and embed safely across every Vrooli deployment context** in `scenarios/{{TARGET}}/ui/`. ui-health is the single authority for UI validation — manifest contract, static interop, project-UI standards (i18n / design tokens / accessibility / favicon-PWA / strict-config), bundle freshness, and live runtime render — and it ships deterministic auto-fixers for the safe mechanical subset. This skill routes you to that authority, then helps you reason about and remediate what it reports.

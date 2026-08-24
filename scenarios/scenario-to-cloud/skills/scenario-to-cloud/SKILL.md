@@ -1,3 +1,23 @@
+---
+name: "scenario-to-cloud"
+description: "Deploy any Vrooli scenario to a VPS with full lifecycle management, state inspection, edge/TLS management, and remote process control using the scenario-to-cloud CLI"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["cloud","vps","deployment","infrastructure","dns","tls","ssh","caddy"]
+  icon: "cloud"
+  status: "active"
+  revision: 9
+  createdAt: "2026-02-06T12:00:00Z"
+  updatedAt: "2026-02-07T20:05:00Z"
+  requires:
+    scenarios: ["vrooli"]
+    commands: ["vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Scenario to Cloud
 
 Use `scenario-to-cloud` to deploy a scenario to an existing VPS and operate that deployment.

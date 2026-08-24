@@ -474,7 +474,7 @@ func (db *DB) initSchema() error {
 		}
 		return err
 	}
-	if err := db.migrateColumns(ctx, "agent_profiles", []columnMigration{{column: "tool_restriction_policy", ddl: "ALTER TABLE agent_profiles ADD COLUMN tool_restriction_policy TEXT NOT NULL DEFAULT 'enforced'"}, {column: "effort", ddl: "ALTER TABLE agent_profiles ADD COLUMN effort TEXT NOT NULL DEFAULT ''"}, {column: "declared_scopes", ddl: "ALTER TABLE agent_profiles ADD COLUMN declared_scopes TEXT DEFAULT '[]'"}, {column: "spawn_policy", ddl: "ALTER TABLE agent_profiles ADD COLUMN spawn_policy TEXT DEFAULT '{}'"}}); err != nil {
+	if err := db.migrateColumns(ctx, "agent_profiles", []columnMigration{{column: "tool_restriction_policy", ddl: "ALTER TABLE agent_profiles ADD COLUMN tool_restriction_policy TEXT NOT NULL DEFAULT 'enforced'"}, {column: "effort", ddl: "ALTER TABLE agent_profiles ADD COLUMN effort TEXT NOT NULL DEFAULT ''"}, {column: "declared_scopes", ddl: "ALTER TABLE agent_profiles ADD COLUMN declared_scopes TEXT DEFAULT '[]'"}, {column: "skill_pack", ddl: "ALTER TABLE agent_profiles ADD COLUMN skill_pack TEXT DEFAULT '[]'"}, {column: "skill_experiment_id", ddl: "ALTER TABLE agent_profiles ADD COLUMN skill_experiment_id TEXT DEFAULT ''"}, {column: "spawn_policy", ddl: "ALTER TABLE agent_profiles ADD COLUMN spawn_policy TEXT DEFAULT '{}'"}}); err != nil {
 		return err
 	}
 	if err := db.migrateColumns(ctx, "workflow_executions", []columnMigration{{column: "parent_attempt_id", ddl: "ALTER TABLE workflow_executions ADD COLUMN parent_attempt_id TEXT"}, {column: "depth", ddl: "ALTER TABLE workflow_executions ADD COLUMN depth INTEGER NOT NULL DEFAULT 0"}}); err != nil {

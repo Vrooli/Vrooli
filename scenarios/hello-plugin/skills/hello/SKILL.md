@@ -1,6 +1,12 @@
 ---
 name: hello
 description: Run the standalone hello-plugin fixture.
+metadata:
+  requires:
+    scenarios: []
+    commands:
+      - hello-plugin hello
+      - hello-plugin status
 ---
 
 # Hello Plugin

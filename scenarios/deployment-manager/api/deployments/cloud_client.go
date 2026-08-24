@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -33,24 +32,28 @@ type HTTPCloudHealthClient struct {
 	log        func(string, map[string]interface{})
 }
 
-// NewHTTPCloudHealthClient constructs the default cloud health client.
-// Reads SCENARIO_TO_CLOUD_URL for testing, otherwise uses service discovery.
+// NewHTTPCloudHealthClient constructs the default cloud health client through
+// scenario discovery.
 func NewHTTPCloudHealthClient(log func(string, map[string]interface{})) (*HTTPCloudHealthClient, error) {
-	var baseURL string
-	if env := strings.TrimSpace(os.Getenv("SCENARIO_TO_CLOUD_URL")); env != "" {
-		baseURL = strings.TrimRight(env, "/")
-	} else {
-		url, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-to-cloud")
-		if err != nil {
-			return nil, fmt.Errorf("resolve scenario-to-cloud URL: %w", err)
-		}
-		baseURL = url
+	baseURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-to-cloud")
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario-to-cloud URL: %w", err)
 	}
 	return &HTTPCloudHealthClient{
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 		baseURL:    baseURL,
 		log:        log,
 	}, nil
+}
+
+// NewHTTPCloudHealthClientAt is a deterministic constructor for unit tests
+// and explicitly supplied callers; production discovery remains the default.
+func NewHTTPCloudHealthClientAt(baseURL string, log func(string, map[string]interface{})) *HTTPCloudHealthClient {
+	return &HTTPCloudHealthClient{
+		httpClient: &http.Client{Timeout: 30 * time.Second},
+		baseURL:    strings.TrimRight(baseURL, "/"),
+		log:        log,
+	}
 }
 
 // CheckLPBSHealth returns whether the LPBS cloud deployment is healthy.

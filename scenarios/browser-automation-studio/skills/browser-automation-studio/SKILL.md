@@ -1,3 +1,23 @@
+---
+name: "browser-automation-studio"
+description: "Reference for using BAS CLI to execute workflows, analyze artifacts, and debug UI automation failures"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill"]
+  icon: "play"
+  status: "active"
+  revision: 46
+  createdAt: "2026-01-25T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
+    commands: ["prompt-manager actions", "prompt-manager discover", "prompt-manager skill", "prompt-manager skill read", "swarm-manager", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Browser Automation Studio
 
 Reference for using Browser Automation Studio (BAS) to execute browser workflows, validate UI behavior, and debug automation failures.

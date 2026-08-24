@@ -47,6 +47,10 @@
               "bind_waiver": "CLI-local readiness syntax is parsed into the structured WaitFor request by the capture command."
             },
             {
+              "name": "screenshot-selector",
+              "description": "CSS selector for the authoritative screenshot boundary"
+            },
+            {
               "name": "out",
               "description": "Server-relative output directory for artifact files",
               "local_only": true

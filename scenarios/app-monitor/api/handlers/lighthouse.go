@@ -11,7 +11,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
 	"time"
+
+	"github.com/vrooli/envkit-go"
 
 	"github.com/gin-gonic/gin"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -125,10 +128,10 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 	cmd.Dir = h.repoRoot
 
 	// Set environment
-	cmd.Env = append(os.Environ(),
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		fmt.Sprintf("VROOLI_ROOT=%s", h.repoRoot),
 		fmt.Sprintf("TESTING_LIGHTHOUSE_PAGES=%s", strings.Join(req.Pages, ",")),
-	)
+	})
 
 	// Capture output
 	var stdout, stderr bytes.Buffer

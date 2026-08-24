@@ -1,3 +1,26 @@
+---
+name: "quality-health"
+description: "Static quality contracts, lint/type safety, suppressions, and config hardening"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","quality","audits"]
+  tags: ["skill","audit-technique","quality"]
+  icon: "shield-check"
+  status: "active"
+  targetDimensions: ["standards"]
+  targetToolId: "run-agent"
+  programmaticHome: "test-genie:quality"
+  revision: 1
+  createdAt: "2026-06-15T00:00:00Z"
+  updatedAt: "2026-06-15T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie", "vrooli"]
+    commands: ["prompt-manager", "prompt-manager skill", "prompt-manager skill read", "test-genie", "test-genie execute", "test-genie phase", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Quality Health
 
 Prioritize **making `scenarios/{{TARGET}}/` statically safe, strict, and resistant to quality-contract drift** — use Quality Health as the authority for lint, type-safety, config strictness, suppressions, and deterministic config repair, rather than loosening local tool settings to make failures disappear.

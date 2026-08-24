@@ -20,8 +20,9 @@ const ProjectCLIBinary = "vrooli"
 type TargetKind string
 
 const (
-	TargetKindScenario TargetKind = "scenario"
-	TargetKindProject  TargetKind = "project"
+	TargetKindScenario     TargetKind = "scenario"
+	TargetKindProject      TargetKind = "project"
+	TargetKindControlPlane TargetKind = "control-plane"
 )
 
 // Target is the transport-neutral target shape used by the validation service.
@@ -42,7 +43,7 @@ func (s *Service) ValidateTarget(ctx context.Context, target Target) (Report, er
 	kind := TargetKind(strings.ToLower(strings.TrimSpace(string(target.Kind))))
 	id := strings.TrimSpace(target.ID)
 	switch kind {
-	case TargetKindProject:
+	case TargetKindProject, TargetKindControlPlane:
 		if id == "" {
 			id = ProjectTargetID
 		}

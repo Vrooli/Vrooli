@@ -150,14 +150,19 @@ func parseHelpEntries(helpOut []byte) []helpEntry {
 		if len(candidates) == 0 {
 			return
 		}
-		maxIndent := 0
+		// Wrapped descriptions are indented farther than the command line
+		// itself (for example the long import flags in prompt-manager). Choose
+		// the shallowest command indentation so continuation prose cannot be
+		// mistaken for a new command. Category labels without descriptions are
+		// already filtered before reaching candidates.
+		minIndent := 0
 		for _, candidate := range candidates {
-			if candidate.indent > maxIndent {
-				maxIndent = candidate.indent
+			if minIndent == 0 || candidate.indent < minIndent {
+				minIndent = candidate.indent
 			}
 		}
 		for _, candidate := range candidates {
-			if candidate.indent != maxIndent {
+			if candidate.indent != minIndent {
 				continue
 			}
 			if _, duplicate := seen[candidate.name]; duplicate {
@@ -201,6 +206,12 @@ func parseHelpEntries(helpOut []byte) []helpEntry {
 		}
 		// Skip names that look like usage patterns rather than identifiers.
 		if !isCommandName(name) {
+			continue
+		}
+		// cli-core command names are lowercase; an uppercase token at a
+		// deeper indentation is normally wrapped prose ("Import ...") or a
+		// multi-word category label ("AI Gateway"), not a leaf command.
+		if name != strings.ToLower(name) {
 			continue
 		}
 		// Skip the cli-core "help" pseudo-command: every CLI emits a `help`

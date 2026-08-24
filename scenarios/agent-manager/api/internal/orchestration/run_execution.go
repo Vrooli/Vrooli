@@ -18,6 +18,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/spawn"
+	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
 
@@ -317,6 +318,38 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 			env = make(map[string]string)
 		}
 		env[key] = value
+	}
+	skillEnv, err := PrepareRunnerSkillScope(runStateRoot, run.ID, run.ResolvedConfig.RunnerType)
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range skillEnv {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		env[key] = value
+	}
+	if len(run.ResolvedConfig.SkillPack) > 0 {
+		runtimeRoot := ""
+		for _, key := range []string{"CLAUDE_CONFIG_DIR", "CODEX_HOME", "GROK_HOME", "OPENCODE_CONFIG_DIR", "ANTIGRAVITY_STATE_DIR"} {
+			if value := env[key]; value != "" {
+				runtimeRoot = value
+				break
+			}
+		}
+		source, ok := o.promptClient.(promptmanager.SourceClient)
+		if !ok || source == nil {
+			return nil, fmt.Errorf("continuation profile skill pack requires prompt-manager source")
+		}
+		var projectErr error
+		if run.ResolvedConfig.SkillExperimentID != "" {
+			_, projectErr = ProjectProfileSkillsAssigned(ctx, runStateRoot, run.ID, runtimeRoot, run.ResolvedConfig.SkillExperimentID, run.ResolvedConfig.SkillPack, source, defaultProfileSkillTokenCeiling)
+		} else {
+			_, projectErr = ProjectProfileSkills(ctx, runStateRoot, run.ID, runtimeRoot, run.ResolvedConfig.SkillPack, source, defaultProfileSkillTokenCeiling)
+		}
+		if projectErr != nil {
+			return nil, projectErr
+		}
 	}
 	return env, nil
 }
@@ -719,6 +752,12 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 				obs.KeyError, cleanupErr.Error(),
 			)
 		}
+		if cleanupErr := CleanupRunnerSkillScope(runStateRoot, run.ID, run.ResolvedConfig.RunnerType); cleanupErr != nil {
+			obs.Component("continuation").Warn("failed to clean run-scoped skill scope",
+				obs.KeyRunID, run.ID.String(),
+				obs.KeyError, cleanupErr.Error(),
+			)
+		}
 	}
 	// Completion-driven advance: a workflow continue-node run just reached
 	// terminal (the parked path returned above, keeping its attempt open).
@@ -799,6 +838,9 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	executor.WithClock(o.now)
 	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
 	executor.WithRunStateRoot(runStateRoot)
+	if source, ok := o.promptClient.(promptmanager.SourceClient); ok {
+		executor.WithSkillSource(source)
+	}
 	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)
 	// Apply orchestration-settings overrides to executor levers when a store

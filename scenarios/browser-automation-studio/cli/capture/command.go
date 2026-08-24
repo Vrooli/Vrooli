@@ -67,6 +67,7 @@ func captureArgSchema() cliapp.ArgSchema {
 			{Name: "height", Description: "Explicit viewport height (overrides preset)"},
 			{Name: "device-scale-factor", Description: "CSS pixel ratio (0.5-4.0)"},
 			{Name: "wait-for", Description: "Readiness: CSS selector | 'networkidle' | timeout in ms"},
+			{Name: "screenshot-selector", Description: "CSS selector for the authoritative screenshot boundary"},
 			{Name: "out", Description: "Output directory for artifact files; relative paths resolve under the scenario's captures storage root"},
 			{Name: "label", Description: "Label echoed into the artifact bundle"},
 			{Name: "inline-accessibility", Bool: true, Description: "Return the normalized accessibility-tree snapshot JSON inline (drives the AX capture; independent of --capture)"},
@@ -86,6 +87,7 @@ type captureFlags struct {
 	hasHeight           bool
 	hasDeviceScale      bool
 	waitFor             string
+	screenshotSelector  string
 	outDir              string
 	label               string
 	inlineAccessibility bool
@@ -99,6 +101,7 @@ func flagsFromContext(rc cliapp.RunContext) (captureFlags, error) {
 		url:                 strings.TrimSpace(rc.Flag("url")),
 		dimensions:          strings.ToLower(strings.TrimSpace(rc.Flag("dimensions"))),
 		waitFor:             rc.Flag("wait-for"),
+		screenshotSelector:  rc.Flag("screenshot-selector"),
 		outDir:              rc.Flag("out"),
 		label:               rc.Flag("label"),
 		inlineAccessibility: rc.BoolFlag("inline-accessibility"),
@@ -178,6 +181,7 @@ func buildCaptureRequest(f captureFlags) (*capturev1.CaptureRequest, error) {
 		Url:                 f.url,
 		OutDir:              f.outDir,
 		Label:               f.label,
+		ScreenshotSelector:  strings.TrimSpace(f.screenshotSelector),
 		InlineAccessibility: f.inlineAccessibility,
 	}
 

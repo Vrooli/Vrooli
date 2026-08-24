@@ -41,7 +41,7 @@
     "requiredResources": []
   },
   "docs": {
-    "path": "scenarios/audio-tools/docs/test-genie/soak/README.md"
+    "path": "../audio-tools/docs/test-genie/soak/README.md"
   },
   "maturity": {
     "version": "1.0.0",

@@ -85,6 +85,7 @@ type Client interface {
 // promptRef resolution can be recorded in a digest-deterministic way.
 type SkillSourceSnapshot struct {
 	SkillID      string
+	Description  string
 	Revision     int
 	VariantID    string
 	ExperimentID string
@@ -266,6 +267,7 @@ func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID, experimentID 
 	}
 	return SkillSourceSnapshot{
 		SkillID:      skill.GetId(),
+		Description:  skill.GetDescription(),
 		Revision:     int(skill.GetRevision()),
 		VariantID:    variant,
 		ExperimentID: strings.TrimSpace(readResp.GetExperimentId()),

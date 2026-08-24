@@ -1,3 +1,23 @@
+---
+name: "scenario-to-desktop"
+description: "Convert Vrooli scenarios into cross-platform desktop applications using Electron wrappers, including generation, building, troubleshooting, and deployment"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["desktop","electron","packaging","deployment","cross-platform"]
+  icon: "monitor"
+  status: "active"
+  revision: 50
+  createdAt: "2026-01-31T00:00:00Z"
+  updatedAt: "2026-02-05T23:00:00Z"
+  requires:
+    scenarios: ["vrooli"]
+    commands: ["vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Scenario to Desktop
 
 Convert any Vrooli scenario into a cross-platform desktop application (Windows, macOS, Linux) using the scenario-to-desktop CLI. The tool creates Electron wrappers that connect to your running scenario.

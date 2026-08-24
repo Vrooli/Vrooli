@@ -32,10 +32,14 @@ import {
 function stringToNavigateWaitEvent(waitUntil: string | undefined): NavigateWaitEvent | undefined {
   if (!waitUntil) return undefined;
   switch (waitUntil.toLowerCase()) {
-    case 'load': return NavigateWaitEvent.LOAD;
-    case 'domcontentloaded': return NavigateWaitEvent.DOMCONTENTLOADED;
-    case 'networkidle': return NavigateWaitEvent.NETWORKIDLE;
-    default: return undefined;
+    case 'load':
+      return NavigateWaitEvent.LOAD;
+    case 'domcontentloaded':
+      return NavigateWaitEvent.DOMCONTENTLOADED;
+    case 'networkidle':
+      return NavigateWaitEvent.NETWORKIDLE;
+    default:
+      return undefined;
   }
 }
 
@@ -45,10 +49,14 @@ function stringToNavigateWaitEvent(waitUntil: string | undefined): NavigateWaitE
 function stringToFrameSwitchAction(action: string | undefined): FrameSwitchAction {
   if (!action) return FrameSwitchAction.UNSPECIFIED;
   switch (action.toLowerCase()) {
-    case 'enter': return FrameSwitchAction.ENTER;
-    case 'exit': return FrameSwitchAction.EXIT;
-    case 'parent': return FrameSwitchAction.PARENT;
-    default: return FrameSwitchAction.UNSPECIFIED;
+    case 'enter':
+      return FrameSwitchAction.ENTER;
+    case 'exit':
+      return FrameSwitchAction.EXIT;
+    case 'parent':
+      return FrameSwitchAction.PARENT;
+    default:
+      return FrameSwitchAction.UNSPECIFIED;
   }
 }
 
@@ -58,11 +66,16 @@ function stringToFrameSwitchAction(action: string | undefined): FrameSwitchActio
 function stringToTabSwitchAction(action: string | undefined): TabSwitchAction {
   if (!action) return TabSwitchAction.UNSPECIFIED;
   switch (action.toLowerCase()) {
-    case 'open': return TabSwitchAction.OPEN;
-    case 'switch': return TabSwitchAction.SWITCH;
-    case 'close': return TabSwitchAction.CLOSE;
-    case 'list': return TabSwitchAction.LIST;
-    default: return TabSwitchAction.UNSPECIFIED;
+    case 'open':
+      return TabSwitchAction.OPEN;
+    case 'switch':
+      return TabSwitchAction.SWITCH;
+    case 'close':
+      return TabSwitchAction.CLOSE;
+    case 'list':
+      return TabSwitchAction.LIST;
+    default:
+      return TabSwitchAction.UNSPECIFIED;
   }
 }
 
@@ -73,11 +86,11 @@ function stringToTabSwitchAction(action: string | undefined): TabSwitchAction {
 export function createTestInstruction(
   overrides: Partial<HandlerInstruction> = {}
 ): HandlerInstruction {
-	return {
-		index: 0,
-		nodeId: 'test-node',
-		action: buildAction('click', {}),
-		...overrides,
+  return {
+    index: 0,
+    nodeId: 'test-node',
+    action: buildAction('click', {}),
+    ...overrides,
   };
 }
 
@@ -96,13 +109,13 @@ export function createTestInstruction(
 export function createTypedInstruction(
   actionType: string,
   params: Record<string, unknown>,
-	overrides: Partial<Omit<HandlerInstruction, 'action'>> = {}
+  overrides: Partial<Omit<HandlerInstruction, 'action'>> = {}
 ): HandlerInstruction {
   const action = buildAction(actionType, params);
   return {
     index: 0,
     nodeId: 'test-node',
-		action,
+    action,
     ...overrides,
   };
 }
@@ -136,7 +149,8 @@ function buildAction(actionType: string, params: Record<string, unknown>): Actio
           url: String(params.url ?? params.target ?? params.href ?? ''),
           timeoutMs: params.timeoutMs != null ? Number(params.timeoutMs) : undefined,
           waitUntil: stringToNavigateWaitEvent(params.waitUntil as string | undefined),
-          waitForSelector: params.waitForSelector != null ? String(params.waitForSelector) : undefined,
+          waitForSelector:
+            params.waitForSelector != null ? String(params.waitForSelector) : undefined,
         }),
       };
       break;
@@ -230,6 +244,7 @@ function buildAction(actionType: string, params: Record<string, unknown>): Actio
         case: 'screenshot',
         value: create(ScreenshotParamsSchema, {
           fullPage: params.fullPage != null ? Boolean(params.fullPage) : undefined,
+          selector: params.selector != null ? String(params.selector) : undefined,
           quality: params.quality != null ? Number(params.quality) : undefined,
         }),
       };

@@ -11,6 +11,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -21,6 +23,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/sidecar/recovery"
 	"github.com/vrooli/browser-automation-studio/sidecar/supervisor"
 	"github.com/vrooli/browser-automation-studio/websocket"
+	"github.com/vrooli/scenarioconfig-go"
 )
 
 // Dependencies holds all sidecar-related dependencies.
@@ -62,11 +65,15 @@ func BuildDependencies(
 	driverClient *driver.Client,
 	hub *websocket.Hub,
 	log *logrus.Logger,
+	gatewayURL string,
 ) (*Dependencies, error) {
-	// Load configurations - this handles the BAS_SIDECAR_ENABLED vs PLAYWRIGHT_DRIVER_URL logic
-	supervisorCfg := supervisor.LoadConfig()
-	healthCfg := health.LoadConfig()
-	recoveryCfg := recovery.LoadConfig()
+	settings, err := loadScenarioSettings()
+	if err != nil {
+		return nil, err
+	}
+	supervisorCfg := supervisor.LoadConfig(settings)
+	healthCfg := health.LoadConfig(settings)
+	recoveryCfg := recovery.LoadConfig(settings)
 
 	// Check if supervision is disabled (either explicitly or due to external driver)
 	if !supervisorCfg.Enabled {
@@ -109,6 +116,7 @@ func BuildDependencies(
 		supervisorCfg.DriverPort,
 		log,
 		fmt.Sprintf("%s=%s", driver.PlaywrightDriverAdminSecretEnv, adminSecret),
+		gatewayEnvironment(gatewayURL),
 	)
 
 	// 4. Build supervisor
@@ -206,6 +214,25 @@ func BuildDependencies(
 		CheckpointManager: checkpointMgr,
 		Store:             checkpointStore,
 	}, nil
+}
+
+func gatewayEnvironment(gatewayURL string) string {
+	if strings.TrimSpace(gatewayURL) == "" {
+		return ""
+	}
+	return "AI_GATEWAY_URL=" + strings.TrimRight(gatewayURL, "/")
+}
+
+func loadScenarioSettings() (map[string]any, error) {
+	_, source, _, ok := runtime.Caller(0)
+	if !ok {
+		return nil, fmt.Errorf("locate browser-automation-studio source")
+	}
+	scenarioRoot := filepath.Clean(filepath.Join(filepath.Dir(source), "../.."))
+	return scenarioconfig.Load(
+		filepath.Join(scenarioRoot, ".vrooli", "config.json"),
+		filepath.Join(scenarioRoot, ".vrooli", "config.schema.json"),
+	)
 }
 
 func recoveryAdminSecret() (string, error) {

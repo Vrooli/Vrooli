@@ -1,6 +1,13 @@
 ---
 name: sandbox
 description: Create and review isolated workspace changes without the Vrooli control plane.
+metadata:
+  requires:
+    scenarios: []
+    commands:
+      - workspace-sandbox sandbox create
+      - workspace-sandbox change diff
+      - workspace-sandbox change promote
 ---
 
 # Workspace Sandbox

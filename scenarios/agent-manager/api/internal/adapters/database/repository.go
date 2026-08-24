@@ -113,6 +113,8 @@ type profileRow struct {
 	AllowedPaths          StringSlice              `db:"allowed_paths"`
 	DeniedPaths           StringSlice              `db:"denied_paths"`
 	DeclaredScopes        StringSlice              `db:"declared_scopes"`
+	SkillPack             StringSlice              `db:"skill_pack"`
+	SkillExperimentID     string                   `db:"skill_experiment_id"`
 	CreatedBy             string                   `db:"created_by"`
 	OwnerScenario         string                   `db:"owner_scenario"`
 	SourcePath            string                   `db:"source_path"`
@@ -146,6 +148,8 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 		AllowedPaths:          r.AllowedPaths,
 		DeniedPaths:           r.DeniedPaths,
 		DeclaredScopes:        r.DeclaredScopes,
+		SkillPack:             r.SkillPack,
+		SkillExperimentID:     r.SkillExperimentID,
 		CreatedBy:             r.CreatedBy,
 		OwnerScenario:         r.OwnerScenario,
 		SourcePath:            r.SourcePath,
@@ -186,6 +190,8 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 		AllowedPaths:          p.AllowedPaths,
 		DeniedPaths:           p.DeniedPaths,
 		DeclaredScopes:        p.DeclaredScopes,
+		SkillPack:             p.SkillPack,
+		SkillExperimentID:     p.SkillExperimentID,
 		CreatedBy:             p.CreatedBy,
 		OwnerScenario:         p.OwnerScenario,
 		SourcePath:            p.SourcePath,
@@ -211,7 +217,7 @@ func decodeSpawnPolicy(raw string) *domain.SpawnPolicy {
 
 const profileColumns = `id, name, profile_key, description, role_ref, max_turns, timeout_ms,
 	effort, allowed_tools, denied_tools, tool_restriction_policy, skip_permission_prompt, features, extra_flags,
-	network_access, sandbox_config, spawn_policy, allowed_paths, denied_paths, declared_scopes, created_by, owner_scenario, source_path,
+	network_access, sandbox_config, spawn_policy, allowed_paths, denied_paths, declared_scopes, skill_pack, skill_experiment_id, created_by, owner_scenario, source_path,
 	source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at`
 
 func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentProfile) error {
@@ -225,11 +231,11 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 	row := profileFromDomain(profile)
 	query := `INSERT INTO agent_profiles (id, name, profile_key, description, role_ref, max_turns, timeout_ms,
 		effort, allowed_tools, denied_tools, tool_restriction_policy, skip_permission_prompt, features, extra_flags,
-		network_access, sandbox_config, spawn_policy, allowed_paths, denied_paths, declared_scopes, created_by, owner_scenario, source_path,
+		network_access, sandbox_config, spawn_policy, allowed_paths, denied_paths, declared_scopes, skill_pack, skill_experiment_id, created_by, owner_scenario, source_path,
 		source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at)
 		VALUES (:id, :name, :profile_key, :description, :role_ref, :max_turns, :timeout_ms,
 		:effort, :allowed_tools, :denied_tools, :tool_restriction_policy, :skip_permission_prompt, :features, :extra_flags,
-		:network_access, :sandbox_config, :spawn_policy, :allowed_paths, :denied_paths, :declared_scopes, :created_by, :owner_scenario, :source_path,
+		:network_access, :sandbox_config, :spawn_policy, :allowed_paths, :denied_paths, :declared_scopes, :skill_pack, :skill_experiment_id, :created_by, :owner_scenario, :source_path,
 		:source_hash, :last_applied_hash, :source_updated_at, :local_override, :created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
@@ -303,7 +309,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 		skip_permission_prompt = :skip_permission_prompt, features = :features, extra_flags = :extra_flags,
 		network_access = :network_access,
 		sandbox_config = :sandbox_config, spawn_policy = :spawn_policy, allowed_paths = :allowed_paths, denied_paths = :denied_paths,
-		declared_scopes = :declared_scopes,
+		declared_scopes = :declared_scopes, skill_pack = :skill_pack, skill_experiment_id = :skill_experiment_id,
 		created_by = :created_by, owner_scenario = :owner_scenario, source_path = :source_path,
 		source_hash = :source_hash, last_applied_hash = :last_applied_hash, source_updated_at = :source_updated_at,
 		local_override = :local_override, updated_at = :updated_at

@@ -1,3 +1,23 @@
+---
+name: "program-runtime"
+description: "Use for high-arity or multi-scenario work: write one governed Python program to fan out across scenario bindings, join cross-scenario reads, discard intermediate data, and return bounded results instead of long tool-call loops."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","program","python","session","binding","typed inference","governance","runtime","high arity","multi-scenario","cross-scenario","fan-out","bounded results","return bounded results","discard intermediates","discard intermediate data","tool-call compression"]
+  icon: "terminal"
+  status: "active"
+  revision: 3
+  createdAt: "2026-08-06T00:00:00Z"
+  updatedAt: "2026-08-19T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie", "vrooli"]
+    commands: ["prompt-manager", "test-genie", "test-genie runs", "vrooli", "vrooli import", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Program Runtime
 
 Use `program-runtime` when a task needs a persistent, governed program session, typed scenario operations, bounded result handles, or provenance-bearing failure discovery. Keep every operation inside the declared binding registry and make materialization, grants, and provenance explicit. For construction patterns, read `scenarios/program-runtime/docs/guides/program-construction.md`.

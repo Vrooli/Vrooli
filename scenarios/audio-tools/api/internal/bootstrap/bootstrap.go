@@ -30,6 +30,7 @@ import (
 	inttts "audio-tools/internal/tts"
 	"audio-tools/internal/usagereport"
 
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/database"
@@ -67,6 +68,9 @@ type Deps struct {
 // dev-only routed-pool service before requests reach the scenario handler.
 func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, error) {
 	env := Load()
+	if resolved, resolveErr := discovery.ResolveScenarioURLDefault(ctx, "landing-page-business-suite"); resolveErr == nil {
+		env.LPBSBaseURL = resolved
+	}
 
 	db, _, err := OpenDB(ctx, env)
 	if err != nil {

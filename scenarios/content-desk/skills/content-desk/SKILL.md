@@ -1,3 +1,20 @@
+---
+name: "content-desk"
+description: "Use Content Desk as the durable editorial ledger for evidence-backed content workflows."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  status: "active"
+  modes: []
+  tags: [content, editorial, publishing]
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
+
 ## Content Desk
 
 Use Content Desk as the durable editorial ledger. It stores drafts, cited
