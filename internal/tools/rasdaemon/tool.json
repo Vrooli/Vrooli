@@ -56,7 +56,23 @@
     "linux"
   ],
   "installHint": "Install rasdaemon via your package manager and enable the systemd unit (rasdaemon.service).",
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "hardware-error-telemetry",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    }
+  }
 }

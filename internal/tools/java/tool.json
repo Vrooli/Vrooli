@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "java",
-  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
+  "name": "java",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
   "description": "Java runtime used by formal verification backends such as Quint verify",
   "commands": [
     "java"
@@ -27,7 +30,21 @@
     "windows"
   ],
   "notes": "Required for `quint verify`; keep version guidance aligned with Quint verification backend requirements.",
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "build-toolchain",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    }
+  }
 }

@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "protoc-gen-es",
-  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
+  "name": "protoc-gen-es",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
   "description": "TypeScript/JavaScript protoc plugin (@bufbuild/protoc-gen-es) used by packages/proto codegen (local plugin, no BSR fetch)",
   "commands": [
     "protoc-gen-es"
@@ -18,7 +21,21 @@
   ],
   "installHint": "Installed via `npm install --prefix ~/.cache/vrooli/protoc-plugins/node @bufbuild/protoc-gen-es@2.12.0` then symlinked to ~/.local/bin/protoc-gen-es. Requires Node on PATH (handled by the `node` host tool).",
   "notes": "Pinned alongside buf.gen.yaml; bump in lockstep with the proto-codegen byte-stability gate (`make check`).",
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "protobuf-toolchain",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    }
+  }
 }

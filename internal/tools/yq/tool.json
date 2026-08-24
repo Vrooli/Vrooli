@@ -50,5 +50,19 @@
         "mode": "0755"
       }
     ]
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    }
   }
 }

@@ -2,12 +2,34 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "timedatectl",
   "description": "Linux clock and time-synchronization status tool.",
-  "commands": ["timedatectl"],
-  "versionArgs": ["--version"],
-  "platforms": ["linux"],
+  "commands": [
+    "timedatectl"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "platforms": [
+    "linux"
+  ],
   "manual": true,
   "installHint": "Provided by the Linux systemd package.",
   "bundling": "host-required",
   "capability": "clock-accuracy",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "manual",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "manual",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    }
+  }
 }

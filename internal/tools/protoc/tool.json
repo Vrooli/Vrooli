@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "protoc",
-  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
+  "name": "protoc",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
   "description": "Protocol Buffers compiler — provides built-in Python and pyi codegen invoked by buf via protoc_builtin",
   "commands": [
     "protoc"
@@ -29,7 +32,21 @@
   ],
   "installHint": "Install via the OS package manager (e.g. `apt install protobuf-compiler`, `brew install protobuf`). Vrooli's setup uses the same. v25+ is required so `--python_out` and `--pyi_out` are both built in.",
   "notes": "Used as `protoc_builtin: python` / `protoc_builtin: pyi` in packages/proto/buf.gen.yaml; bytes may vary by minor version, so the proto-codegen byte-stability gate (`make check`) will catch upstream upgrades.",
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "protobuf-toolchain",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    }
+  }
 }

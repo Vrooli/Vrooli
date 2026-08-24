@@ -31,7 +31,23 @@
     "linux"
   ],
   "installHint": "Install kdump-tools and reboot after the crashkernel_reserve safeguard adds the crashkernel= parameter. Without crashkernel reserved, kdump cannot operate.",
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "crash-forensics",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    }
+  }
 }

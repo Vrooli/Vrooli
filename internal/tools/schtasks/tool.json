@@ -2,12 +2,35 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "schtasks",
   "description": "Windows scheduled-task lifecycle command.",
-  "commands": ["schtasks"],
-  "versionArgs": ["/Query", "/?"],
-  "platforms": ["windows"],
+  "commands": [
+    "schtasks"
+  ],
+  "versionArgs": [
+    "/Query",
+    "/?"
+  ],
+  "platforms": [
+    "windows"
+  ],
   "manual": true,
   "installHint": "Provided by Windows.",
   "bundling": "host-required",
   "capability": "service-resource-limits",
-  "capability_role": "peer"
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {
+      "status": "unsupported",
+      "mechanism": "manual",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "manual",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    }
+  }
 }

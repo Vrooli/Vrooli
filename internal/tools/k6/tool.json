@@ -1,14 +1,39 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "k6",
-  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
+  "name": "k6",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
   "description": "k6 load-testing CLI supplied by the operator",
-  "commands": ["k6"],
-  "versionArgs": ["version"],
+  "commands": [
+    "k6"
+  ],
+  "versionArgs": [
+    "version"
+  ],
   "installHint": "Install k6 before using this host-managed resource.",
-  "platforms": ["linux", "macos", "windows"],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "manual": true,
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "load-testing",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    }
+  }
 }

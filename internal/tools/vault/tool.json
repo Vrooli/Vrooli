@@ -1,7 +1,20 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "vault",
-  "storage": {"entries": {"token_cache": {"rung": "owned", "path": "$USER_HOME/.vault-token", "kind": "file", "class": "config", "sensitive": true, "regenerable": false, "rationale": "The Vault CLI token helper caches the authenticated token in the user's home directory."}}, "rationale": "Vault owns a sensitive user-level token cache when CLI login is used."},
+  "name": "vault",
+  "storage": {
+    "entries": {
+      "token_cache": {
+        "rung": "owned",
+        "path": "$USER_HOME/.vault-token",
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "regenerable": false,
+        "rationale": "The Vault CLI token helper caches the authenticated token in the user's home directory."
+      }
+    },
+    "rationale": "Vault owns a sensitive user-level token cache when CLI login is used."
+  },
   "description": "HashiCorp Vault CLI for secrets management and credential operations",
   "commands": [
     "vault"
@@ -20,7 +33,21 @@
     "macos",
     "windows"
   ],
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "credential-storage",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    }
+  }
 }

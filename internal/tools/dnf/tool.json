@@ -2,12 +2,34 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "dnf",
   "description": "Fedora and RHEL package-event command used by host evidence.",
-  "commands": ["dnf"],
-  "versionArgs": ["--version"],
-  "platforms": ["linux"],
+  "commands": [
+    "dnf"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "platforms": [
+    "linux"
+  ],
   "manual": true,
   "installHint": "Provided by Fedora and RHEL-family Linux distributions.",
   "bundling": "host-required",
   "capability": "package-management",
-  "capability_role": "peer"
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "manual",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "manual",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    }
+  }
 }

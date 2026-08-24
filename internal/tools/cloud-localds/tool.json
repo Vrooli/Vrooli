@@ -2,8 +2,12 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "cloud-localds",
   "description": "cloud-init seed image generator used by the disposable local-QEMU validation lane",
-  "commands": ["cloud-localds"],
-  "versionArgs": ["--version"],
+  "commands": [
+    "cloud-localds"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
   "defaultPackage": "cloud-image-utils",
   "packages": {
     "apt": "cloud-image-utils",
@@ -12,8 +16,24 @@
     "pacman": "cloud-init"
   },
   "installHint": "Install cloud-image-utils so local-qemu can create a cloud-init seed disk.",
-  "platforms": ["linux"],
+  "platforms": [
+    "linux"
+  ],
   "bundling": "host-required",
   "capability": "headless-gui",
-  "capability_role": "peer"
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": "No implementation is declared for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": "No implementation is declared for this host OS."
+    }
+  }
 }

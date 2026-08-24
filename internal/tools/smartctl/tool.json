@@ -27,5 +27,19 @@
   "bundling": "host-required",
   "capability": "hardware-error-telemetry",
   "capability_role": "peer",
-  "notes": "Peer to rasdaemon: rasdaemon is the primary for memory and PCIe error telemetry, smartctl covers the storage half. Consumed by scenarios/system-monitor/api/internal/devicegraph/smart.go, which parses the -j output for both the NVMe health log and the ATA attribute table."
+  "notes": "Peer to rasdaemon: rasdaemon is the primary for memory and PCIe error telemetry, smartctl covers the storage half. Consumed by scenarios/system-monitor/api/internal/devicegraph/smart.go, which parses the -j output for both the NVMe health log and the ATA attribute table.",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": "No implementation is declared for this host OS."
+    }
+  }
 }

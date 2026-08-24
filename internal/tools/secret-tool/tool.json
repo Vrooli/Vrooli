@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "secret-tool",
-  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
+  "name": "secret-tool",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
   "description": "libsecret Secret Service command client used only by the Linux managed-resource credential store",
   "commands": [
     "secret-tool"
@@ -18,7 +21,21 @@
   "platforms": [
     "linux"
   ],
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "credential-storage",
-  "capability_role": "peer"
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": "No implementation is declared for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": "No implementation is declared for this host OS."
+    }
+  }
 }

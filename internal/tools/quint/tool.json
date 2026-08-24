@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "quint",
-  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
+  "name": "quint",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
   "description": "Quint formal specification tool for temporal-flow model checking and model-based test artifact generation",
   "commands": [
     "quint"
@@ -18,7 +21,21 @@
   ],
   "installHint": "Installed via `npm install --prefix ~/.cache/vrooli/formal-tools/quint/node @informalsystems/quint@0.32.0` then symlinked to ~/.local/bin/quint. Requires Node/npm on PATH and Java 17+ for `quint verify`.",
   "notes": "Pinned for deterministic formal-model validation; bump with generated temporal-flow artifacts.",
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "developer-utility",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    }
+  }
 }

@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "protoc-gen-go",
-  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
+  "name": "protoc-gen-go",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
   "description": "Go protoc plugin used by packages/proto codegen (local plugin, no BSR fetch)",
   "commands": [
     "protoc-gen-go"
@@ -18,7 +21,21 @@
   ],
   "installHint": "Installed via `go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11` (requires Go on PATH; binary lands in $GOBIN or $HOME/go/bin which Vrooli's setup symlinks into ~/.local/bin)",
   "notes": "Pinned alongside buf.gen.yaml; bump in lockstep with the proto-codegen byte-stability gate (`make check`).",
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "protobuf-toolchain",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    }
+  }
 }

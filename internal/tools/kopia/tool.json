@@ -1,14 +1,39 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "kopia",
-  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
+  "name": "kopia",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
   "description": "Kopia backup CLI supplied by the operator",
-  "commands": ["kopia"],
-  "versionArgs": ["--version"],
+  "commands": [
+    "kopia"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
   "installHint": "Install Kopia before using this host-managed resource.",
-  "platforms": ["linux", "macos", "windows"],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "manual": true,
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "backup-storage",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    }
+  }
 }
