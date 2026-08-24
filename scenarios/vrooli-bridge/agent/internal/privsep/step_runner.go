@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // osStepRunner is the production StepRunner. Like the runner's command executor
@@ -51,7 +53,7 @@ func (osStepRunner) RunWithInputEnvironment(ctx context.Context, argv []string, 
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Dir = dir
 	if len(env) > 0 {
-		cmd.Env = mergeEnvironment(os.Environ(), env)
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, envkit.Env(env))
 	}
 	if input != nil {
 		cmd.Stdin = bytes.NewReader(input)
@@ -106,34 +108,6 @@ func (osStepRunner) RunWithInputEnvironment(ctx context.Context, argv []string, 
 		return exitErr.ExitCode(), nil
 	}
 	return startFailureExitCode, err
-}
-
-// mergeEnvironment replaces inherited variables instead of appending duplicate
-// keys. POSIX environments technically permit duplicates, but lookup behavior
-// differs across runtimes and launch contexts; cleanup relies on HOME,
-// VROOLI_ROOT, and its service-deferral policy being the exact helper values.
-func mergeEnvironment(base, overrides []string) []string {
-	merged := append([]string(nil), base...)
-	positions := make(map[string]int, len(merged))
-	for i, entry := range merged {
-		key, _, ok := strings.Cut(entry, "=")
-		if ok {
-			positions[key] = i
-		}
-	}
-	for _, entry := range overrides {
-		key, _, ok := strings.Cut(entry, "=")
-		if !ok || key == "" {
-			continue
-		}
-		if i, found := positions[key]; found {
-			merged[i] = entry
-			continue
-		}
-		positions[key] = len(merged)
-		merged = append(merged, entry)
-	}
-	return merged
 }
 
 func streamLines(wg *sync.WaitGroup, r io.Reader, onLog func(string)) {

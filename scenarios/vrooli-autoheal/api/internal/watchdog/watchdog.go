@@ -60,15 +60,10 @@ type Detector struct {
 type detectorProbe interface {
 	goos() string
 	commandOutput(name string, args ...string) ([]byte, error)
-	commandOutputInput(name, input string, args ...string) ([]byte, error)
 	commandRun(name string, args ...string) error
 	readDir(path string) ([]os.DirEntry, error)
 	readFile(path string) ([]byte, error)
 	stat(path string) error
-	mkdirAll(path string, perm os.FileMode) error
-	writeFile(path string, data []byte, perm os.FileMode) error
-	remove(path string) error
-	writeTempFile(pattern string, data []byte) (string, error)
 	currentUser() (*user.User, error)
 	userHomeDir() (string, error)
 	getenv(key string) string
@@ -81,38 +76,15 @@ func (realDetectorProbe) commandOutput(name string, args ...string) ([]byte, err
 	return exec.Command(name, args...).Output()
 }
 
-func (realDetectorProbe) commandOutputInput(name, input string, args ...string) ([]byte, error) {
-	cmd := exec.Command(name, args...)
-	cmd.Stdin = strings.NewReader(input)
-	return cmd.CombinedOutput()
-}
-
 func (realDetectorProbe) commandRun(name string, args ...string) error {
 	return exec.Command(name, args...).Run()
 }
 func (realDetectorProbe) readDir(path string) ([]os.DirEntry, error) { return os.ReadDir(path) }
 func (realDetectorProbe) readFile(path string) ([]byte, error)       { return os.ReadFile(path) }
 func (realDetectorProbe) stat(path string) error                     { _, err := os.Stat(path); return err }
-func (realDetectorProbe) mkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
-func (realDetectorProbe) writeFile(path string, data []byte, perm os.FileMode) error {
-	return os.WriteFile(path, data, perm)
-}
-func (realDetectorProbe) remove(path string) error { return os.Remove(path) }
-func (realDetectorProbe) writeTempFile(pattern string, data []byte) (string, error) {
-	f, err := os.CreateTemp("", pattern)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	_, err = f.Write(data)
-	return f.Name(), err
-}
-func (realDetectorProbe) currentUser() (*user.User, error) { return user.Current() }
-func (realDetectorProbe) userHomeDir() (string, error)     { return os.UserHomeDir() }
-func (realDetectorProbe) getenv(key string) string         { return os.Getenv(key) }
+func (realDetectorProbe) currentUser() (*user.User, error)           { return user.Current() }
+func (realDetectorProbe) userHomeDir() (string, error)               { return os.UserHomeDir() }
+func (realDetectorProbe) getenv(key string) string                   { return os.Getenv(key) }
 
 func NewDetector(plat *platform.Capabilities) *Detector {
 	if plat == nil {

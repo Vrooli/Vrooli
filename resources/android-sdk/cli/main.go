@@ -17,6 +17,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 	"time"
 )
 
@@ -458,7 +460,7 @@ func acceptLicensesAndInstall(layout sdkLayout, plan InstallPlan) error {
 	}
 	args := []string{"--sdk_root=" + layout.SDKRoot, "platform-tools", plan.PlatformPackage, plan.BuildTools, plan.EmulatorPackage, plan.SystemImage}
 	cmd := exec.Command(sdkmanager, args...)
-	cmd.Env = append(os.Environ(), "ANDROID_SDK_ROOT="+layout.SDKRoot)
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, envkit.Env{"ANDROID_SDK_ROOT=" + layout.SDKRoot})
 	cmd.Stdin = bytes.NewBufferString(strings.Repeat("y\n", 128))
 	output, err := cmd.CombinedOutput()
 	if err != nil {

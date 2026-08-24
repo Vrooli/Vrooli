@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/discovery"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/procmetrics"
@@ -625,11 +626,12 @@ func (s *DefaultService) reportJourneyEvidence(ctx context.Context, smokeTestID,
 		s.recordEvidenceReportFailure(smokeTestID, fmt.Errorf("list captures for evidence report: %w", err))
 		return
 	}
+	producerBaseURL, _ := discovery.ResolveScenarioURLDefault(ctx, "scenario-to-desktop")
 	reportErr := s.evidenceReporter.ReportJourney(ctx, EvidenceReportInput{
 		ProfileID: profileID, GitCommit: gitCommit, ScenarioName: status.ScenarioName,
 		Platform: platform, RunID: smokeTestID, Disposition: string(journey.Disposition),
 		Target: &domainv1.EvidenceTarget{Kind: domainv1.EvidenceTarget_KIND_LOCAL}, Captures: items,
-		Journey: journey, ProducerBaseURL: os.Getenv("SCENARIO_TO_DESKTOP_URL"),
+		Journey: journey, ProducerBaseURL: producerBaseURL,
 	})
 	if reportErr != nil {
 		s.recordEvidenceReportFailure(smokeTestID, reportErr)

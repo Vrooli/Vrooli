@@ -309,18 +309,10 @@ type BundleSkeletonApp struct {
 }
 
 type BundleSkeletonPeer struct {
-	Scenario         string              `json:"scenario"`
-	BundlePolicy     string              `json:"bundle_policy"`
-	StartupPolicy    string              `json:"startup_policy,omitempty"`
-	DegradedBehavior string              `json:"degraded_behavior,omitempty"`
-	Bindings         []BundlePeerBinding `json:"bindings"`
-}
-
-type BundlePeerBinding struct {
-	EnvVar          string `json:"env_var"`
-	Form            string `json:"form"`
-	Port            string `json:"port"`
-	WhenUnavailable string `json:"when_unavailable"`
+	Scenario         string `json:"scenario"`
+	BundlePolicy     string `json:"bundle_policy"`
+	StartupPolicy    string `json:"startup_policy,omitempty"`
+	DegradedBehavior string `json:"degraded_behavior,omitempty"`
 }
 
 type BundleSkeletonIPC struct {

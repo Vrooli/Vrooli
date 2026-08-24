@@ -204,7 +204,7 @@ export const defaultPlatforms: PlatformsState = {
 
 /** Default local API endpoint, resolved via @vrooli/api-base with env-var override. */
 export const DEFAULT_LOCAL_API_ENDPOINT: string =
-  (import.meta.env.VITE_LOCAL_API_ENDPOINT as string | undefined) ??
+  (window.__VROOLI_CONFIG__?.localApiEndpoint as string | undefined) ??
   resolveApiBase({ appendSuffix: true });
 
 export const defaultConnection: ConnectionState = {

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/envkit-go"
 	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
@@ -28,11 +29,11 @@ func (b *defaultRuntimeBuilder) Build(srcDir, outPath, goos, goarch, target stri
 
 	cmd := exec.Command("go", args...)
 	cmd.Dir = srcDir
-	cmd.Env = append(os.Environ(),
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		"CGO_ENABLED=0",
-		"GOOS="+goos,
-		"GOARCH="+goarch,
-	)
+		"GOOS=" + goos,
+		"GOARCH=" + goarch,
+	})
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("go build failed: %w: %s", err, strings.TrimSpace(string(output)))
@@ -119,11 +120,11 @@ func compileGoBinary(srcDir, outPath, goos, goarch string, build *bundlemanifest
 
 	cmd := exec.Command("go", args...)
 	cmd.Dir = srcDir
-	cmd.Env = append(os.Environ(),
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		"CGO_ENABLED=0",
-		"GOOS="+goos,
-		"GOARCH="+goarch,
-	)
+		"GOOS=" + goos,
+		"GOARCH=" + goarch,
+	})
 
 	// Add custom environment variables
 	for k, v := range build.Env {
@@ -252,7 +253,7 @@ func npmBuild(srcDir, goos, goarch string, build *bundlemanifest.BuildConfig) er
 
 	cmd := exec.Command("npm", buildArgs...)
 	cmd.Dir = srcDir
-	cmd.Env = os.Environ()
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	for k, v := range build.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
@@ -429,11 +430,11 @@ func compileCustomBinary(srcDir, outPath, goos, goarch string, build *bundlemani
 
 	cmd := exec.Command(cmdName, cmdArgs...)
 	cmd.Dir = srcDir
-	cmd.Env = append(os.Environ(),
-		"GOOS="+goos,
-		"GOARCH="+goarch,
-		"OUTPUT_PATH="+outPath,
-	)
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
+		"GOOS=" + goos,
+		"GOARCH=" + goarch,
+		"OUTPUT_PATH=" + outPath,
+	})
 
 	// Add custom environment variables
 	for k, v := range build.Env {

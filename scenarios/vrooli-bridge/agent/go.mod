@@ -7,6 +7,7 @@ require (
 	github.com/creack/pty/v2 v2.0.1
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
+	github.com/vrooli/envkit-go v0.0.0
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -19,3 +20,5 @@ require (
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

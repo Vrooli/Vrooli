@@ -3,6 +3,7 @@ package watchdog
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"vrooli-autoheal/cli/internal/support"
@@ -71,8 +72,8 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 			},
 		},
 		NextSteps: []string{
-			"vrooli-autoheal install",
-			"vrooli-autoheal uninstall --yes",
+			"sudo vrooli setup",
+			"vrooli setup status",
 			"vrooli-autoheal loop --interval-seconds=60",
 		},
 	})
@@ -86,38 +87,18 @@ func Install(core *cliapp.ScenarioApp, args []string) error {
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-
-	body, err := core.Request("POST", "/watchdog/install", nil, map[string]interface{}{
-		"useSystemService": *system,
-		"enableLingering":  *enableLinger,
-	})
-	if err != nil {
-		return err
+	if *system {
+		return fmt.Errorf("root autoheal services are not supported; use `sudo vrooli setup` for the project-owned user service")
 	}
+	if *enableLinger {
+		fmt.Fprintln(os.Stdout, "autoheal watchdog installation is owned by project setup; the dedicated boot policy enables lingering there")
+	}
+	cmd := exec.Command("vrooli", "setup")
 	if *jsonOutput {
-		fmt.Fprintln(os.Stdout, support.PrettyJSON(body))
-		return nil
+		cmd.Args = append(cmd.Args, "--json")
 	}
-
-	var result support.WatchdogMutationResult
-	if err := support.Decode(body, &result); err != nil {
-		return err
-	}
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
-		Result: []string{
-			result.Message,
-			fmt.Sprintf("Success: %s", support.BoolWord(result.Success)),
-		},
-		Changes: []string{
-			strings.TrimSpace(result.ServicePath),
-			strings.TrimSpace(result.Error),
-			strings.TrimSpace(result.LingerCommand),
-		},
-		NextCommand: []string{
-			"vrooli-autoheal watchdog",
-			"vrooli-autoheal status",
-		},
-	})
+	cmd.Stdout, cmd.Stderr, cmd.Stdin = os.Stdout, os.Stderr, os.Stdin
+	return cmd.Run()
 }
 
 func Uninstall(core *cliapp.ScenarioApp, args []string) error {
@@ -158,7 +139,7 @@ func Uninstall(core *cliapp.ScenarioApp, args []string) error {
 		},
 		NextCommand: []string{
 			"vrooli-autoheal watchdog",
-			"vrooli-autoheal install",
+			"sudo vrooli setup",
 		},
 	})
 }

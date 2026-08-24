@@ -443,6 +443,15 @@
   ],
   "dependencies": {
     "resources": {},
+    "scenarios": {
+      "system-monitor": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Disk pressure observations use the system-monitor HTTP boundary through discovery.",
+        "degraded_behavior": "Disk pressure observation is unavailable while system-monitor is stopped."
+      }
+    },
     "scenarios": {}
   },
   "cli": {

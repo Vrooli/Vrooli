@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func TestResolveScenarioPortCachesWithinTTL(t *testing.T) {
@@ -346,28 +348,96 @@ func TestPackageWrappersShareOneResolver(t *testing.T) {
 }
 
 func TestPackageWrapperCacheActuallyHits(t *testing.T) {
-	resolver := DefaultResolver()
+	// Drives the real production path: the wrappers route through the shared
+	// cliutil seam, so the fake is installed there rather than on the Resolver.
 	calls := 0
-	restore := resolver.runner
-	resolver.runner = func(context.Context, string, ...string) ([]byte, error) {
+	restore := cliutil.SetPortLookupRunner(func(context.Context, string, string) cliutil.ScenarioPortOutcome {
 		calls++
-		return []byte("4321\n"), nil
-	}
-	t.Cleanup(func() { resolver.runner = restore })
+		return cliutil.ScenarioPortOutcome{Port: "4321", Output: "4321"}
+	})
+	t.Cleanup(restore)
 
+	resolver := DefaultResolver()
 	hitsBefore, _ := resolver.CacheStats()
 	for i := 0; i < 5; i++ {
-		if _, err := ResolveScenarioPortDefault(context.Background(), "wrapper-cache-scenario"); err != nil {
+		port, err := ResolveScenarioPortDefault(context.Background(), "wrapper-cache-scenario")
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if port != 4321 {
+			t.Fatalf("port=%d, want 4321", port)
 		}
 	}
 	hitsAfter, _ := resolver.CacheStats()
 
 	if calls != 1 {
-		t.Fatalf("5 wrapper calls forked the CLI %d times, want 1", calls)
+		t.Fatalf("5 wrapper calls performed %d lookups, want 1", calls)
 	}
 	if hitsAfter <= hitsBefore {
 		t.Fatalf("cache hits did not increase (%d -> %d)", hitsBefore, hitsAfter)
+	}
+}
+
+// TestSharedSeamIsUsedByBothCallers is the regression test for the durable fix.
+// Two independent implementations of `vrooli scenario port` used to exist; a
+// lookup done through the CLI helper and one done through the discovery
+// resolver each paid their own process. They must now share one.
+func TestSharedSeamIsUsedByBothCallers(t *testing.T) {
+	calls := 0
+	restore := cliutil.SetPortLookupRunner(func(_ context.Context, target, portVar string) cliutil.ScenarioPortOutcome {
+		calls++
+		return cliutil.ScenarioPortOutcome{Port: "8080", Output: "8080"}
+	})
+	t.Cleanup(restore)
+
+	// The CLI-facing detector resolves first.
+	if got := cliutil.DetectPortFromVrooli("shared-seam-scenario", "API_PORT")(); got != "8080" {
+		t.Fatalf("cliutil detector returned %q, want 8080", got)
+	}
+	// The discovery resolver then asks for the same scenario and port.
+	port, err := ResolveScenarioPortDefault(context.Background(), "shared-seam-scenario")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if port != 8080 {
+		t.Fatalf("port=%d, want 8080", port)
+	}
+
+	if calls != 1 {
+		t.Fatalf("two callers performed %d lookups, want 1 shared between them", calls)
+	}
+}
+
+// The shared cache must not lengthen this Resolver's staleness window. A
+// resolver whose TTL has expired re-looks-up even though a CLI caller with a
+// 60s tolerance would still consider the cached entry fresh.
+func TestSharedCacheHonorsPerCallerStaleness(t *testing.T) {
+	calls := 0
+	restore := cliutil.SetPortLookupRunner(func(context.Context, string, string) cliutil.ScenarioPortOutcome {
+		calls++
+		return cliutil.ScenarioPortOutcome{Port: "7000", Output: "7000"}
+	})
+	t.Cleanup(restore)
+
+	now := time.Now()
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL: 2 * time.Second,
+		Now:      func() time.Time { return now },
+	})
+
+	if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "staleness-scenario"); err != nil {
+		t.Fatal(err)
+	}
+	// Past this resolver's tolerance but well inside the CLI default of 60s.
+	now = now.Add(30 * time.Second)
+	cliutil.SetPortCacheNowForTest(func() time.Time { return now })
+	t.Cleanup(func() { cliutil.SetPortCacheNowForTest(nil) })
+
+	if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "staleness-scenario"); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatalf("lookups=%d, want 2: the shared cache extended this resolver's staleness window", calls)
 	}
 }
 
@@ -466,5 +536,27 @@ func TestTimeoutIsNotCached(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Fatalf("calls=%d, want 2: a cached timeout would deny an unrelated caller", calls)
+	}
+}
+
+// A hung lookup with no caller deadline is bounded by the shared seam. That
+// bound must still surface as a timeout, not as a generic command failure.
+func TestInternalBoundClassifiesAsTimeout(t *testing.T) {
+	restore := cliutil.SetPortLookupRunner(func(context.Context, string, string) cliutil.ScenarioPortOutcome {
+		return cliutil.ScenarioPortOutcome{Err: context.DeadlineExceeded}
+	})
+	t.Cleanup(restore)
+
+	resolver := NewResolver(ResolverConfig{})
+	_, err := resolver.ResolveScenarioPortDefault(context.Background(), "hung-scenario")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	var derr *Error
+	if !errors.As(err, &derr) {
+		t.Fatalf("error is not a discovery error: %v", err)
+	}
+	if derr.Kind != ErrTimeout {
+		t.Fatalf("kind=%q, want %q", derr.Kind, ErrTimeout)
 	}
 }

@@ -117,19 +117,25 @@ Register-ScheduledTask -TaskName "VrooliAutoheal" -Action $action -Trigger $trig
 
 ## Installation Flow
 
+Installation is owned by the project control plane. Operators run `sudo vrooli
+setup`; the `autoheal_watchdog` safeguard renders and installs the native
+user-scoped scheduler definition, applies the selected boot policy, and
+verifies scheduler state. The scenario reports status but does not mutate host
+scheduler state.
+
 ```mermaid
 flowchart TD
-    A[watchdog install] --> B{Detect platform}
+    A[vrooli setup] --> B{Detect platform}
     B -->|Linux| C{Has systemd?}
     B -->|macOS| D[Generate launchd plist]
     B -->|Windows| E[Create scheduled task]
 
-    C -->|Yes| F[Generate systemd unit]
+    C -->|Yes| F[Generate user systemd unit]
     C -->|No| G[Use cron fallback]
 
-    F --> H[systemctl enable]
-    D --> I[launchctl bootstrap]
-    E --> J[Register-ScheduledTask]
+    F --> H[Control plane enables user unit]
+    D --> I[Control plane loads launch agent]
+    E --> J[Control plane registers scheduled task]
     G --> K[Add crontab entry]
 
     H --> L[Watchdog active]
@@ -144,7 +150,7 @@ Check watchdog status:
 
 ```bash
 # Linux
-systemctl status vrooli-autoheal
+vrooli setup status
 
 # macOS
 launchctl list | grep vrooli
@@ -216,8 +222,8 @@ func (c *WatchdogCheck) Run(ctx context.Context) checks.Result {
 
 ## Design Principles
 
-1. **Idempotent Installation**: Running `watchdog install` multiple times is safe
+1. **Idempotent Installation**: Re-running `vrooli setup` is safe
 2. **Graceful Degradation**: Works without watchdog (just with reduced resilience)
-3. **Platform Abstraction**: Same CLI command, platform-specific implementation
+3. **Platform Abstraction**: Project setup uses platform-specific native schedulers
 4. **Minimal Privileges**: Only requests elevated access when needed
 5. **Visible Status**: Watchdog status shown in dashboard

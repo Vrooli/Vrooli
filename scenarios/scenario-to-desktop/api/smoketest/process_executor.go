@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // DefaultMaxOutputBytes is the default maximum output size (10MB).
@@ -135,7 +137,7 @@ func (e *DefaultProcessExecutor) executionCommand(workDir, command string, args,
 	cmd.Dir = workDir
 	configureProcessGroup(cmd)
 	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(env))
 	}
 	capture := executionCapture{newLimitedWriter(e.maxOutputBytes), newLimitedWriter(e.maxOutputBytes), newLimitedWriter(e.maxOutputBytes)}
 	cmd.Stdout = io.MultiWriter(capture.stdout, capture.combined)

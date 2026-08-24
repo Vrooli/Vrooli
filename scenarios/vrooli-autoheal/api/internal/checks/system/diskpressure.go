@@ -91,9 +91,6 @@ func (r *systemMonitorDiskPressureReader) resolveURL(ctx context.Context) (strin
 	if r.baseURL != "" {
 		return r.baseURL, nil
 	}
-	if configured := strings.TrimRight(os.Getenv("SYSTEM_MONITOR_API_URL"), "/"); configured != "" {
-		return configured, nil
-	}
 	url, err := discovery.ResolveScenarioURLDefault(ctx, "system-monitor")
 	if err != nil {
 		return "", fmt.Errorf("resolve system-monitor: %w", err)

@@ -36,21 +36,8 @@ Disposition meanings:
 | 17 | `checks/system/memory.go` | `sh -c "echo 3 > /proc/sys/vm/drop_caches"` | delete | Dropping the host page cache is destructive, non-diagnostic, and not a safe automatic repair. |
 | 18 | `checks/system/disk.go` | `apt-get clean` | delete | Mutating the package cache is outside autoheal's recovery responsibility. |
 | 19 | `checks/system/gpu.go` | `nvidia-smi --gpu-reset` | operator-action | Resetting a GPU can interrupt unrelated workloads and requires operator consent. |
-| 20 | `watchdog/installer.go` | `loginctl enable-linger <user>` | setup-only | User lingering is installation state and is now reported as setup guidance. |
-| 21 | `watchdog/installer.go` | `tee etc/systemd/system/vrooli-autoheal.service` | setup-only | Service-file installation belongs to the platform service seam. |
-| 22 | `watchdog/installer.go` | `systemctl daemon-reload` (install) | setup-only | Reloading the service manager is lifecycle work, not a health-check heal. |
-| 23 | `watchdog/installer.go` | `systemctl enable vrooli-autoheal` | setup-only | Enabling the watchdog is installation state. |
-| 24 | `watchdog/installer.go` | `systemctl restart vrooli-autoheal` | setup-only | Restarting the installed watchdog belongs to the platform seam. |
-| 25 | `watchdog/installer.go` | `tee Library/LaunchDaemons/com.vrooli.autoheal.plist` | setup-only | launchd installation belongs to the platform service seam. |
-| 26 | `watchdog/installer.go` | `launchctl bootstrap` | setup-only | Launchd loading is owned by the platform-go bootstrap backend. |
-| 27 | `watchdog/installer.go` | `systemctl stop vrooli-autoheal` | setup-only | Watchdog uninstall belongs to the platform service seam. |
-| 28 | `watchdog/installer.go` | `systemctl disable vrooli-autoheal` | setup-only | Watchdog uninstall belongs to the platform service seam. |
-| 29 | `watchdog/installer.go` | `rm -f etc/systemd/system/vrooli-autoheal.service` | setup-only | Removing installed service state belongs to setup/lifecycle ownership. |
-| 30 | `watchdog/installer.go` | `systemctl daemon-reload` (uninstall) | setup-only | Service-manager reload is lifecycle work. |
-| 31 | `watchdog/installer.go` | `launchctl unload` | setup-only | Legacy launchd unloading is replaced by platform-owned bootout. |
-| 32 | `watchdog/installer.go` | `rm -f Library/LaunchDaemons/com.vrooli.autoheal.plist` | setup-only | Removing launchd state belongs to setup/lifecycle ownership. |
-| 33 | `watchdog/installer.go` | `schtasks /Create /XML` | setup-only | Windows watchdog installation belongs to the native task/service seam. |
-| 34 | `watchdog/installer.go` | `schtasks /Delete` | setup-only | Windows watchdog removal belongs to the native task/service seam. |
+| 20 | `internal/safeguards/autoheal-watchdog/handler.go` | `loginctl enable-linger <user>` | project setup-only | User lingering is an explicit dedicated-host boot policy operation owned by the control plane. |
+| 21 | `watchdog/installer.go` | none | compatibility-only | Scenario install, uninstall, and lingering methods return setup guidance and perform no host mutation. |
 | 35 | `healing/strategies/systemd.go` | `systemctl restart <service>` | grant | Runtime recovery is expressed through the typed closed action set; callers cannot supply arbitrary privileged argv. |
 | 36 | `healing/strategies/systemd.go` | `systemctl start <service>` | grant | Runtime recovery is expressed through the typed closed action set. |
 | 37 | `healing/strategies/systemd.go` | `systemctl stop <service>` | operator-action | Stopping a service is disruptive and is not an automatic recovery grant. |

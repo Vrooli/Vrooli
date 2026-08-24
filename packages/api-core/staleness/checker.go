@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/envkit-go"
 )
 
 // Environment variable names
@@ -468,7 +469,7 @@ func (c *Checker) autoRebuild(binaryPath, apiDir string) bool {
 	c.log("api-core: rebuilding binary...\n")
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
 	cmd.Dir = apiDir
-	cmd.Env = os.Environ()
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

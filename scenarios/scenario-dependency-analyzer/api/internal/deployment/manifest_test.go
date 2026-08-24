@@ -37,9 +37,6 @@ func TestEmbedPeerServicesProjectsDeclaredPeer(t *testing.T) {
 	cfg := &types.Manifest{Dependencies: scenariomodel.Dependencies{Scenarios: map[string]scenariomodel.Dependency{
 		"helper": {
 			BundlePolicy: "embed",
-			Bindings: []scenariomodel.Binding{{
-				EnvVar: "HELPER_URL", Form: "http_base_url", Port: "api", WhenUnavailable: "fail",
-			}},
 		},
 	}}}
 	root := []types.BundleSkeletonService{{ID: "consumer", Env: map[string]string{}}}
@@ -47,11 +44,11 @@ func TestEmbedPeerServicesProjectsDeclaredPeer(t *testing.T) {
 	if len(services) != 2 || services[1].ID != "helper--api" {
 		t.Fatalf("embedded services = %#v", services)
 	}
-	if got := services[0].Env["HELPER_URL"]; got != "http://127.0.0.1:${helper--api.api}" {
-		t.Fatalf("embedded binding = %q", got)
+	if _, ok := services[0].Env["HELPER_URL"]; ok {
+		t.Fatal("embedded peer binding was projected into the consumer environment")
 	}
-	if !reflect.DeepEqual(services[0].Dependencies, []string{"helper--api"}) {
-		t.Fatalf("embedded dependency = %#v", services[0].Dependencies)
+	if !reflect.DeepEqual(services[0].Dependencies, []string(nil)) {
+		t.Fatalf("embedded dependency projection = %#v", services[0].Dependencies)
 	}
 }
 

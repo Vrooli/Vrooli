@@ -59,8 +59,8 @@ func LegacyRegister(core *cliapp.ScenarioApp, deps support.Dependencies) cliapp.
 			},
 			{
 				Name:        "install",
-				NeedsAPI:    true,
-				Description: "Install the OS watchdog service",
+				NeedsAPI:    false,
+				Description: "Delegate autoheal protection installation to project setup",
 				Run: func(args []string) error {
 					return watchdogInstall(core, args)
 				},

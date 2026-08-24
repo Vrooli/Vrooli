@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/binaryfetch v0.0.0
+	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 )
@@ -25,6 +26,8 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 

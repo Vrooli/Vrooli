@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 )
@@ -339,7 +340,7 @@ func waitForLoopbackListener(port int, timeout time.Duration) error {
 func shellExec(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(env))
 	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

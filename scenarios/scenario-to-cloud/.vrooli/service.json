@@ -126,7 +126,14 @@
       "agent-manager": {
         "enabled": true,
         "required": false,
-        "description": "Optional investigation and task orchestration backend"
+      "description": "Optional investigation and task orchestration backend"
+    },
+    "secrets-manager": {
+      "required": false,
+      "startup_policy": "try_start",
+      "runtime_only": true,
+      "runtime_only_rationale": "Secret resolution uses the secrets-manager HTTP boundary through discovery.",
+      "degraded_behavior": "Operations requiring secret resolution fail explicitly while secrets-manager is unavailable."
       }
     }
   },

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os/exec"
+	"strings"
 	"time"
 
 	apierrors "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/errors"
@@ -93,10 +95,13 @@ func (h *Handlers) WatchdogInstall(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
-	defer cancel()
-
-	result := h.watchdogDetector.Install(ctx, opts)
+	_ = opts // policy is resolved by the setup-owned control-plane safeguard.
+	cmd := exec.CommandContext(r.Context(), "vrooli", "host", "safeguard", "autoheal_watchdog")
+	output, runErr := cmd.CombinedOutput()
+	result := &watchdog.InstallResult{Success: runErr == nil, Message: "autoheal watchdog installation delegated to vrooli setup", ServicePath: ""}
+	if runErr != nil {
+		result.Error = fmt.Sprintf("vrooli host safeguard autoheal_watchdog: %v: %s", runErr, strings.TrimSpace(string(output)))
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if !result.Success {

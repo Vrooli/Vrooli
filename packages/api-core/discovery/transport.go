@@ -90,7 +90,7 @@ func (r *Resolver) ResolveScenario(ctx context.Context, address, portKey, comman
 		command = "scenario status"
 	}
 	if r.targetResolver == nil {
-		return ScenarioResolution{}, r.remoteError(ErrRemoteTransportUnavailable, node, localName, command, errors.New("target resolver is not configured"))
+		return ScenarioResolution{}, r.remoteError(ErrNodeUnpaired, node, localName, command, errors.New("bridge target is not paired or the bridge registry is unavailable"))
 	}
 	target, err := r.targetResolver.ResolveTarget(ctx, node)
 	if err != nil {

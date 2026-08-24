@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/envkit-go"
+
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
@@ -125,11 +127,11 @@ func buildLocalVrooliBinary(platform remotePlatform) (string, func(), error) {
 func buildLocalVrooliBinaryCommand(repoRoot, outputPath string, platform remotePlatform) *exec.Cmd {
 	cmd := execCommandForCLIInstall("go", "build", "-trimpath", "-o", outputPath, "./cmd/vrooli")
 	cmd.Dir = repoRoot
-	cmd.Env = append(os.Environ(),
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		"CGO_ENABLED=0",
-		"GOOS="+platform.GOOS,
-		"GOARCH="+platform.GOARCH,
+		"GOOS=" + platform.GOOS,
+		"GOARCH=" + platform.GOARCH,
 		"GOWORK=off",
-	)
+	})
 	return cmd
 }

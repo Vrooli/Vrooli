@@ -564,9 +564,11 @@ func main() {
 			return internalonboard.FirewallAdmissionResult{Status: result.Status, Code: result.Code, Changed: result.Changed, Managed: result.Evidence.Managed}, err
 		})),
 	}
-	if handoffEndpoint := strings.TrimSpace(os.Getenv("VROOLI_ONBOARDING_HANDOFF_URL")); handoffEndpoint != "" {
+	if handoffEndpoint, handoffErr := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-onboarding"); handoffErr == nil {
 		onboardOpts = append(onboardOpts, internalonboard.WithOnboardingHandoff(internalonboarding.HTTPHandoffClient{Endpoint: handoffEndpoint}))
-		log.Printf("onboard: external selection handoff enabled at %s", handoffEndpoint)
+		log.Printf("onboard: scenario selection handoff enabled at %s", handoffEndpoint)
+	} else {
+		log.Printf("onboard: optional onboarding scenario unavailable: %v", handoffErr)
 	}
 	if cpURL, source := canonicalControlPlaneEndpoint(); source == "configured" {
 		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(cpURL))

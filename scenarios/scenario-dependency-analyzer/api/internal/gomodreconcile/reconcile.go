@@ -34,6 +34,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // Topology maps an in-repo Go module path to its absolute on-disk directory.
@@ -442,7 +444,7 @@ func editedGoMod(ctx context.Context, goModPath, content string, missing []Missi
 func parseGoMod(ctx context.Context, goModPath string) (goModView, error) {
 	var view goModView
 	cmd := exec.CommandContext(ctx, "go", "mod", "edit", "-json", goModPath)
-	cmd.Env = append(os.Environ(), "GOWORK=off")
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off"})
 	out, err := cmd.Output()
 	if err != nil {
 		return view, fmt.Errorf("go mod edit -json %s: %w", goModPath, err)
@@ -456,7 +458,7 @@ func parseGoMod(ctx context.Context, goModPath string) (goModView, error) {
 func runGo(ctx context.Context, dir string, args ...string) error {
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off", "GOFLAGS=-mod=mod"})
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%v: %s", err, strings.TrimSpace(string(out)))
 	}

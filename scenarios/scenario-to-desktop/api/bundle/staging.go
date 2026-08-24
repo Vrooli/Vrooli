@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // defaultCLIStager is the default implementation of CLIStager.
@@ -57,7 +59,7 @@ func (s *defaultCLIStager) Stage(bundleRoot, platform string) error {
 	shim := filepath.Join(binDir, shimName)
 	cmd := exec.Command("go", "build", "-o", shim, "./cmd/vrooli-shim")
 	cmd.Dir = runtimeDir
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS="+goos, "GOARCH="+goarch)
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"CGO_ENABLED=0", "GOOS=" + goos, "GOARCH=" + goarch})
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("build vrooli shim: %w: %s", err, strings.TrimSpace(string(output)))

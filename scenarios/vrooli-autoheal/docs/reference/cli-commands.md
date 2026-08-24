@@ -277,7 +277,7 @@ Protection: ENABLED ✓
 #### watchdog install
 
 ```bash
-vrooli-autoheal watchdog install [--system]
+sudo vrooli setup
 ```
 
 **Options:**
@@ -288,7 +288,8 @@ vrooli-autoheal watchdog install [--system]
 #### watchdog uninstall
 
 ```bash
-vrooli-autoheal watchdog uninstall
+There is no separate uninstall path for the project-owned protection; use
+the setup-owned operator policy and `vrooli setup` to reconcile it.
 ```
 
 ---

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,10 +58,11 @@ func TestOSStepRunnerDoesNotWaitForInheritedPipeHandles(t *testing.T) {
 	}
 }
 
-func TestMergeEnvironmentReplacesInheritedValues(t *testing.T) {
-	got := mergeEnvironment(
-		[]string{"HOME=/old", "PATH=/bin", "KEEP=yes"},
-		[]string{"HOME=/runner", "VROOLI_ROOT=/tmp/work", "PATH=/custom"},
+func TestBoundaryEnvironmentReplacesInheritedValues(t *testing.T) {
+	got := envkit.WithOverlay(
+		envkit.Env{"HOME=/old", "PATH=/bin", "KEEP=yes"},
+		envkit.ForeignScenario,
+		envkit.Env{"HOME=/runner", "VROOLI_ROOT=/tmp/work", "PATH=/custom"},
 	)
-	require.Equal(t, []string{"HOME=/runner", "PATH=/custom", "KEEP=yes", "VROOLI_ROOT=/tmp/work"}, got)
+	require.Equal(t, envkit.Env{"HOME=/runner", "KEEP=yes", "PATH=/custom", "VROOLI_ROOT=/tmp/work"}, got)
 }

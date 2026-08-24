@@ -26,6 +26,7 @@ export {
   // Runtime configuration
   fetchRuntimeConfig,
   getInjectedConfig,
+  getRuntimeConfigValue,
   resolveWithConfig,
   createConfigCache,
   createScenarioConnectTransport,

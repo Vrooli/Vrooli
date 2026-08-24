@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 )
@@ -238,12 +239,16 @@ func (s *ServiceSupervisor) prepareLaunch(item Item) (serviceLaunchDirectories, 
 }
 
 func (dirs serviceLaunchDirectories) environment(service *Service, ports map[string]int) (map[string]string, []string) {
-	env := mergeEnvironmentMap(os.Environ(), service.Environment, map[string]string{"VROOLI_RESOURCE_DATA_DIR": dirs.dataDir, "VROOLI_RESOURCE_CONFIG_DIR": dirs.configDir, "VROOLI_RESOURCE_LOGS_DIR": dirs.logDir, "RESOURCE_DATA_DIR": dirs.dataDir, "RESOURCE_CONFIG_DIR": dirs.configDir, "RESOURCE_LOGS_DIR": dirs.logDir, "VROOLI_MANAGED_PROVIDER": "managed-private"})
+	overrides := map[string]string{"VROOLI_RESOURCE_DATA_DIR": dirs.dataDir, "VROOLI_RESOURCE_CONFIG_DIR": dirs.configDir, "VROOLI_RESOURCE_LOGS_DIR": dirs.logDir, "RESOURCE_DATA_DIR": dirs.dataDir, "RESOURCE_CONFIG_DIR": dirs.configDir, "RESOURCE_LOGS_DIR": dirs.logDir, "VROOLI_MANAGED_PROVIDER": "managed-private"}
+	for key, value := range service.Environment {
+		overrides[key] = value
+	}
 	for name, port := range ports {
 		envName := servicePortEnvName(name)
-		env[envName] = fmt.Sprintf("%d", port)
-		env["VROOLI_"+envName] = fmt.Sprintf("%d", port)
+		overrides[envName] = fmt.Sprintf("%d", port)
+		overrides["VROOLI_"+envName] = fmt.Sprintf("%d", port)
 	}
+	env := envkitEntriesToMap(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, envkitMap(overrides)))
 	for key, value := range env {
 		env[key] = expandServiceTemplate(value, env)
 	}
@@ -349,15 +354,18 @@ func cloneEnvironment(input map[string]string) map[string]string {
 	return result
 }
 
-func mergeEnvironmentMap(base []string, overlays ...map[string]string) map[string]string {
-	values := make(map[string]string, len(base))
-	for _, value := range base {
-		if key, value, ok := strings.Cut(value, "="); ok {
-			values[key] = value
-		}
+func envkitMap(values map[string]string) envkit.Env {
+	entries := make(envkit.Env, 0, len(values))
+	for key, value := range values {
+		entries = append(entries, key+"="+value)
 	}
-	for _, overlay := range overlays {
-		for key, value := range overlay {
+	return entries
+}
+
+func envkitEntriesToMap(entries envkit.Env) map[string]string {
+	values := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		if key, value, ok := strings.Cut(entry, "="); ok {
 			values[key] = value
 		}
 	}

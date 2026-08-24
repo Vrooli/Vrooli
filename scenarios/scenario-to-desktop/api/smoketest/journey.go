@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/envkit-go"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/procmetrics"
@@ -199,9 +201,9 @@ func (api monetizationJourneyAPI) Probe(ctx context.Context, operation string) (
 }
 
 func (loopbackJourneyAPI) Greet(ctx context.Context, expectedName string) (string, error) {
-	baseURL := strings.TrimRight(os.Getenv("HELLO_DESKTOP_API_URL"), "/")
-	if baseURL == "" {
-		baseURL = "http://127.0.0.1:23100"
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "hello-desktop")
+	if err != nil {
+		return "", fmt.Errorf("resolve hello-desktop: %w", err)
 	}
 	parsedBase, err := url.Parse(baseURL)
 	if err != nil || parsedBase.Scheme != "http" || parsedBase.Hostname() != "127.0.0.1" {
@@ -770,7 +772,7 @@ func runJourneyCommand(ctx context.Context, command string, args []string, env [
 		return nil, fmt.Errorf("journey command args are required")
 	}
 	process := exec.CommandContext(ctx, command, args...)
-	process.Env = append(os.Environ(), env...)
+	process.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(env))
 	output, err := process.CombinedOutput()
 	result := &ExecutionResult{Combined: string(output), ExitCode: 0}
 	if err != nil {

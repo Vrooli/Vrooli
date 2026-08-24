@@ -237,7 +237,6 @@ func embedPeerServices(root []types.BundleSkeletonService, cfg *types.Manifest, 
 		}
 		peerServices := buildSkeletonServices(peerConfig)
 		prefix := peerName + "--"
-		portOwners := map[string]string{}
 		prefixedIDs := map[string]string{}
 		for _, service := range peerServices {
 			prefixedIDs[service.ID] = prefix + service.ID
@@ -262,27 +261,6 @@ func embedPeerServices(root []types.BundleSkeletonService, cfg *types.Manifest, 
 				binary.Path = strings.ReplaceAll(binary.Path, "/"+originalID, "/"+prefix+originalID)
 				peerServices[index].Binaries[platform] = binary
 			}
-			if peerServices[index].Ports != nil {
-				for _, requested := range peerServices[index].Ports.Requested {
-					portOwners[requested.Name] = peerServices[index].ID
-				}
-			}
-		}
-
-		dependency := cfg.Dependencies.Scenarios[peerName]
-		for _, binding := range dependency.Bindings {
-			owner := portOwners[binding.Port]
-			if owner == "" {
-				continue
-			}
-			value := embeddedPeerBindingValue(binding.Form, owner, binding.Port)
-			for index := range root {
-				if root[index].Env == nil {
-					root[index].Env = map[string]string{}
-				}
-				root[index].Env[binding.EnvVar] = value
-				root[index].Dependencies = dedupeStrings(append(root[index].Dependencies, owner))
-			}
 		}
 		root = append(root, peerServices...)
 	}
@@ -301,20 +279,6 @@ func findScenarioNode(nodes []types.DeploymentDependencyNode, name string) (type
 	return types.DeploymentDependencyNode{}, false
 }
 
-func embeddedPeerBindingValue(form, service, port string) string {
-	placeholder := fmt.Sprintf("${%s.%s}", service, port)
-	switch form {
-	case "http_base_url":
-		return "http://127.0.0.1:" + placeholder
-	case "ws_base_url":
-		return "ws://127.0.0.1:" + placeholder
-	case "host_port":
-		return "127.0.0.1:" + placeholder
-	default:
-		return placeholder
-	}
-}
-
 func derivePeers(cfg *types.Manifest) []types.BundleSkeletonPeer {
 	names := make([]string, 0, len(cfg.Dependencies.Scenarios))
 	for name, dependency := range cfg.Dependencies.Scenarios {
@@ -331,15 +295,6 @@ func derivePeers(cfg *types.Manifest) []types.BundleSkeletonPeer {
 			BundlePolicy:     dependency.BundlePolicy,
 			StartupPolicy:    dependency.StartupPolicy,
 			DegradedBehavior: dependency.DegradedBehavior,
-			Bindings:         make([]types.BundlePeerBinding, 0, len(dependency.Bindings)),
-		}
-		for _, binding := range dependency.Bindings {
-			peer.Bindings = append(peer.Bindings, types.BundlePeerBinding{
-				EnvVar:          binding.EnvVar,
-				Form:            binding.Form,
-				Port:            binding.Port,
-				WhenUnavailable: binding.WhenUnavailable,
-			})
 		}
 		peers = append(peers, peer)
 	}

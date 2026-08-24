@@ -186,7 +186,7 @@ alias vrooli-autoheal='./cli/vrooli-autoheal'
 
 **Solution:** Use sudo for system-level installation:
 ```bash
-sudo vrooli-autoheal watchdog install
+sudo vrooli setup
 ```
 
 ### Watchdog keeps restarting the process

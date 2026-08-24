@@ -527,7 +527,9 @@ Get the watchdog configuration template for the current platform.
 
 #### POST /api/v1/watchdog/install
 
-Install the OS-level watchdog service. Timeout: 2 minutes.
+Request the project control plane to apply the autoheal watchdog safeguard.
+The scenario does not mutate native scheduler state. Operators should normally
+run `sudo vrooli setup` directly. Timeout: 2 minutes.
 
 **Request Body (optional):**
 ```json
@@ -541,7 +543,7 @@ Install the OS-level watchdog service. Timeout: 2 minutes.
 ```json
 {
   "success": true,
-  "message": "Watchdog service installed and started"
+  "message": "autoheal watchdog installation delegated to vrooli setup"
 }
 ```
 
@@ -549,13 +551,14 @@ Install the OS-level watchdog service. Timeout: 2 minutes.
 
 #### POST /api/v1/watchdog/uninstall
 
-Remove the OS-level watchdog service.
+Scenario-owned watchdog removal is unsupported because project setup owns the
+declared protection lifecycle.
 
 **Response:**
 ```json
 {
-  "success": true,
-  "message": "Watchdog service removed"
+  "success": false,
+  "message": "autoheal watchdog lifecycle is owned by project setup"
 }
 ```
 

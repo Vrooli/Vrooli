@@ -299,6 +299,16 @@ func buildPostgresDSN(getenv func(string) string) (string, error) {
 	), nil
 }
 
+// ResolvePostgresDSN exposes the canonical lifecycle environment precedence
+// for callers that need to validate or pass a DSN to another subsystem. It
+// keeps URL precedence, component reconstruction, and SSL mode in one seam.
+func ResolvePostgresDSN(getenv func(string) string) (string, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	return buildPostgresDSN(func(key string) string { return strings.TrimSpace(getenv(key)) })
+}
+
 // buildSQLiteDSN resolves a scenario's own SQLite database and returns its DSN.
 //
 // Resolution takes NO path from the environment, and that absence is the point.

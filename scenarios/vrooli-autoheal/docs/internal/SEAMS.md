@@ -235,26 +235,17 @@ requires policy/provider-version/approval gates, and audits any apply attempt.
 Tests should protect this seam by asserting broad-cleanup handoff actions make
 zero `CommandExecutor` calls.
 
-### Watchdog Installer Entry Seam (Probe-Reused)
+### Watchdog Compatibility Seam (Read-Only)
 
-`api/internal/watchdog/installer.go` now reuses `detectorProbe` for installer entry decisions that vary by environment:
+`api/internal/watchdog/installer.go` retains the historical install, uninstall,
+and lingering method signatures for API compatibility, but those methods now
+return setup guidance and perform no host mutation. Native scheduler rendering,
+installation, enablement, and boot-policy changes are owned by
+`internal/safeguards/autoheal-watchdog` in the project control plane.
 
-- runtime OS checks for Windows-only install/uninstall gating
-- `VROOLI_ROOT` and home-directory lookup when resolving loop binary path
-- binary existence verification before installation
-
-This keeps platform/env discovery at a single seam (`Detector.probe`) and makes installer boundary behavior unit-testable without depending on the host OS or real filesystem layout.
-
-### Watchdog Installer Side-Effect Seam (Probe-Enforced)
-
-`api/internal/watchdog/installer.go` now routes installer/uninstaller side effects through `detectorProbe` instead of calling OS/process APIs directly in boundary logic:
-
-- command execution for service/task lifecycle (`systemctl`, `launchctl`, `schtasks`, `loginctl`, `sudo rm`)
-- command execution with stdin for privileged file writes (`sudo tee` for system service/plist files)
-- filesystem mutations (`mkdirAll`, `writeFile`, `remove`)
-- temporary task-file writes for Windows scheduled task creation (`writeTempFile`)
-
-This consolidates environment-coupled behavior behind one seam so installation flow remains decision-oriented and testable with fakes.
+The scenario watchdog detector remains an observation surface: it reports
+native service state and can render a diagnostic template, but it has no file,
+process, scheduler, or privilege-mutation seam.
 
 ### User Config Filesystem + Home-Dir Seam
 

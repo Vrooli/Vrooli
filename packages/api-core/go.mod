@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/crypto v0.54.0
@@ -29,6 +30,8 @@ require (
 )
 
 replace github.com/vrooli/cli-core => ../cli-core
+
+replace github.com/vrooli/envkit-go => ../envkit-go
 
 replace github.com/vrooli/repo-contract-go => ../repo-contract-go
 

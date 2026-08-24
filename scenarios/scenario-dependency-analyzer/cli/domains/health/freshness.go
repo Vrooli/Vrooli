@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	"scenario-dependency-analyzer/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -586,7 +587,7 @@ func runGo(ctx context.Context, dir string, args ...string) (string, bool, error
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=")
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off", "GOFLAGS="})
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

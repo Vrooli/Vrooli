@@ -44,6 +44,7 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 
 require (
 	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/ssh-core v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 )
@@ -63,3 +64,5 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

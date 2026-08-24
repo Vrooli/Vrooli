@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/vrooli/envkit-go"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
@@ -29,7 +30,7 @@ type execRunner struct{}
 func (execRunner) Run(ctx context.Context, dir string, name string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off")
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off"})
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }

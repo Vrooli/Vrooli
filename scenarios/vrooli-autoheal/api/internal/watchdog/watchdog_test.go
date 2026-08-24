@@ -24,18 +24,10 @@ type fakeCommandResult struct {
 type fakeProbe struct {
 	goosValue        string
 	commandOutputs   map[string]fakeCommandResult
-	commandInputs    map[string]fakeCommandResult
 	commandRuns      map[string]error
 	dirEntries       map[string][]os.DirEntry
 	files            map[string][]byte
 	stats            map[string]error
-	mkdirErrs        map[string]error
-	writeErrs        map[string]error
-	removeErrs       map[string]error
-	writtenFiles     map[string][]byte
-	removedFiles     map[string]bool
-	tempPath         string
-	tempWriteErr     error
 	currentUserValue *user.User
 	currentUserErr   error
 	userHomeDirPath  string
@@ -46,17 +38,10 @@ func newFakeProbe() *fakeProbe {
 	return &fakeProbe{
 		goosValue:      "linux",
 		commandOutputs: map[string]fakeCommandResult{},
-		commandInputs:  map[string]fakeCommandResult{},
 		commandRuns:    map[string]error{},
 		dirEntries:     map[string][]os.DirEntry{},
 		files:          map[string][]byte{},
 		stats:          map[string]error{},
-		mkdirErrs:      map[string]error{},
-		writeErrs:      map[string]error{},
-		removeErrs:     map[string]error{},
-		writtenFiles:   map[string][]byte{},
-		removedFiles:   map[string]bool{},
-		tempPath:       "/tmp/vrooli-autoheal-test.xml",
 		env:            map[string]string{},
 	}
 }
@@ -67,14 +52,6 @@ func (f *fakeProbe) commandOutput(name string, args ...string) ([]byte, error) {
 	result, ok := f.commandOutputs[commandKey(name, args...)]
 	if !ok {
 		return nil, errors.New("command output not configured")
-	}
-	return result.output, result.err
-}
-
-func (f *fakeProbe) commandOutputInput(name, input string, args ...string) ([]byte, error) {
-	result, ok := f.commandInputs[commandInputKey(name, input, args...)]
-	if !ok {
-		return nil, errors.New("command output input not configured")
 	}
 	return result.output, result.err
 }
@@ -107,39 +84,6 @@ func (f *fakeProbe) stat(path string) error {
 		return err
 	}
 	return os.ErrNotExist
-}
-
-func (f *fakeProbe) mkdirAll(path string, perm os.FileMode) error {
-	if err, ok := f.mkdirErrs[path]; ok {
-		return err
-	}
-	return nil
-}
-
-func (f *fakeProbe) writeFile(path string, data []byte, perm os.FileMode) error {
-	if err, ok := f.writeErrs[path]; ok {
-		return err
-	}
-	f.writtenFiles[path] = append([]byte(nil), data...)
-	f.stats[path] = nil
-	return nil
-}
-
-func (f *fakeProbe) remove(path string) error {
-	if err, ok := f.removeErrs[path]; ok {
-		return err
-	}
-	f.removedFiles[path] = true
-	delete(f.stats, path)
-	return nil
-}
-
-func (f *fakeProbe) writeTempFile(pattern string, data []byte) (string, error) {
-	if f.tempWriteErr != nil {
-		return "", f.tempWriteErr
-	}
-	f.writtenFiles[f.tempPath] = append([]byte(nil), data...)
-	return f.tempPath, nil
 }
 
 func (f *fakeProbe) currentUser() (*user.User, error) {
@@ -177,10 +121,6 @@ func commandKey(name string, args ...string) string {
 	return name + "|" + strings.Join(args, "|")
 }
 
-func commandInputKey(name, input string, args ...string) string {
-	return name + "|" + input + "|" + strings.Join(args, "|")
-}
-
 func detectorWithProbe(plat *platform.Capabilities, probe detectorProbe) *Detector {
 	d := NewDetector(plat)
 	d.probe = probe
@@ -188,72 +128,9 @@ func detectorWithProbe(plat *platform.Capabilities, probe detectorProbe) *Detect
 	return d
 }
 
-// probeServiceBackend keeps watchdog tests deterministic while production uses
-// nativeServiceBackend. It mirrors the platform-go contract rather than
-// reimplementing watchdog lifecycle decisions in the scenario.
+// probeServiceBackend keeps status detection deterministic while production
+// uses nativeServiceBackend.
 type probeServiceBackend struct{ probe detectorProbe }
-
-func (b probeServiceBackend) Install(options platformgo.NativeServiceOptions) (platformgo.NativeServiceResult, error) {
-	if b.probe.goos() == "linux" {
-		unitName := strings.TrimSuffix(options.Name, ".service")
-		prefix := "systemctl"
-		argsPrefix := []string{}
-		if options.User {
-			argsPrefix = []string{"--user"}
-		} else {
-			prefix = "sudo"
-		}
-		if options.User {
-			if err := b.probe.writeFile(options.Path, []byte(options.Content), 0o644); err != nil {
-				return platformgo.NativeServiceResult{}, err
-			}
-		} else if _, err := b.probe.commandOutputInput("sudo", options.Content, "tee", options.Path); err != nil {
-			return platformgo.NativeServiceResult{}, err
-		}
-		for _, action := range [][]string{{"daemon-reload"}, {"enable", unitName}, {"restart", unitName}} {
-			args := append(append([]string{}, argsPrefix...), action...)
-			if !options.User {
-				if _, err := b.probe.commandOutput("sudo", append([]string{"systemctl"}, action...)...); err != nil {
-					return platformgo.NativeServiceResult{}, err
-				}
-				continue
-			}
-			if _, err := b.probe.commandOutput(prefix, args...); err != nil {
-				return platformgo.NativeServiceResult{}, err
-			}
-		}
-		return platformgo.NativeServiceResult{Name: options.Name, Path: options.Path, State: platformgo.ServiceStateRunning, Running: true, Enabled: true}, nil
-	}
-	return platformgo.NativeServiceResult{Name: options.Name, Path: options.Path, State: platformgo.ServiceStateRunning, Running: true, Enabled: true}, nil
-}
-
-func (b probeServiceBackend) Uninstall(options platformgo.NativeServiceOptions) (platformgo.NativeServiceResult, error) {
-	if b.probe.goos() == "linux" {
-		unitName := strings.TrimSuffix(options.Name, ".service")
-		prefix := "systemctl"
-		argsPrefix := []string{}
-		if options.User {
-			argsPrefix = []string{"--user"}
-		} else {
-			prefix = "sudo"
-		}
-		for _, action := range [][]string{{"stop", unitName}, {"disable", unitName}, {"daemon-reload"}} {
-			args := append(append([]string{}, argsPrefix...), action...)
-			if !options.User {
-				args = append([]string{"systemctl"}, action...)
-			}
-			if err := b.probe.commandRun(prefix, args...); err != nil {
-				return platformgo.NativeServiceResult{}, err
-			}
-		}
-	}
-	if options.Path != "" {
-		if err := b.probe.remove(options.Path); err != nil && !os.IsNotExist(err) {
-			return platformgo.NativeServiceResult{}, err
-		}
-	}
-	return platformgo.NativeServiceResult{Name: options.Name, Path: options.Path, State: platformgo.ServiceStateStopped}, nil
-}
 
 func (b probeServiceBackend) Status(options platformgo.NativeServiceOptions) (platformgo.NativeServiceResult, error) {
 	result := platformgo.NativeServiceResult{Name: options.Name, Path: options.Path, State: platformgo.ServiceStateUnknown}

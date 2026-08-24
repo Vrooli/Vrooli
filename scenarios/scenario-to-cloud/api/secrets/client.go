@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 	"unicode"
@@ -85,15 +84,9 @@ func NewClient() *Client {
 	}
 }
 
-// resolveBaseURL resolves the secrets-manager URL using discovery.
-// Priority: 1) SECRETS_MANAGER_URL env var, 2) vrooli CLI discovery
+// resolveBaseURL resolves the secrets-manager URL using discovery at call
+// time so peer restarts are reflected without a process restart.
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
-	// Check for explicit environment override
-	if envURL := strings.TrimSpace(os.Getenv("SECRETS_MANAGER_URL")); envURL != "" {
-		return httputil.ValidateServiceBaseURL(envURL)
-	}
-
-	// Use service discovery
 	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "secrets-manager")
 	if err != nil {
 		return "", fmt.Errorf("resolve secrets-manager URL: %w", err)

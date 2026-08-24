@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // DisplayManager creates and manages virtual displays for headless rendering.
@@ -205,7 +207,7 @@ func startWindowManagerWithMetadata(display string) (*os.Process, string, bool) 
 		}
 
 		wmCmd := exec.Command(wmPath, wm.args...)
-		wmCmd.Env = append(os.Environ(), displayEnv)
+		wmCmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{displayEnv})
 		if err := wmCmd.Start(); err != nil {
 			slog.Warn("window manager failed to start",
 				"wm", wm.name, "display", display, "error", err.Error())

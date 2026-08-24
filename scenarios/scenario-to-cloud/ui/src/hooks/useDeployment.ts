@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { getInjectedConfig } from "@vrooli/api-base";
 import {
   validateManifest,
   initManifest,
@@ -33,7 +34,7 @@ const MAX_HISTORY_SIZE = 50;
 
 const STORAGE_KEY = "scenario-to-cloud:deployment";
 const REQUIRE_SSH_SUCCESS_FOR_MANIFEST =
-  import.meta.env.VITE_REQUIRE_SSH_SUCCESS_FOR_MANIFEST === "true";
+  getInjectedConfig()?.REQUIRE_SSH_SUCCESS_FOR_MANIFEST === "true";
 
 type SavedDeployment = {
   manifestJson: string;

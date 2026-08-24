@@ -107,7 +107,7 @@ packages/proto/schemas/workflow-health/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/workflow-health/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/workflow-health/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/workflow-health/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/workflow-health/v1/...   (ui)
        └──▶ packages/proto/gen/python/workflow_health/v1/...    (future tools)
 ```
 

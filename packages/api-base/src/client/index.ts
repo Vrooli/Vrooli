@@ -17,6 +17,7 @@ export { isProxyContext, getProxyInfo, getProxyIndex } from './detect.js'
 export {
   fetchRuntimeConfig,
   getInjectedConfig,
+  getRuntimeConfigValue,
   resolveWithConfig,
   createConfigCache,
 } from './config.js'

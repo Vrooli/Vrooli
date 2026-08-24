@@ -32,7 +32,7 @@ interface BridgeMessage {
 }
 
 function resolveParentOrigin(): string {
-  const fromEnv: unknown = import.meta.env.VITE_PARENT_ORIGIN;
+  const fromEnv: unknown = window.__VROOLI_CONFIG__?.parentOrigin;
   if (typeof fromEnv === "string" && fromEnv.length > 0) {
     return fromEnv;
   }

@@ -5,11 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	coreRedis "github.com/vrooli/api-core/redis"
 )
 
 // RedisStore is the production Store backed by go-redis/v9.
@@ -47,41 +46,16 @@ func (r *RedisStore) Close() error { return r.client.Close() }
 // error rather than a quiet fallback to a store that shares nothing across
 // replicas.
 func RedisConfigured() bool {
-	for _, name := range []string{"REDIS_URL", "REDIS_HOST"} {
-		if strings.TrimSpace(os.Getenv(name)) != "" {
-			return true
-		}
-	}
-	return false
+	_, err := coreRedis.Resolve(os.Getenv)
+	return err == nil
 }
 
 func optionsFromEnv() (*redis.Options, error) {
-	if url := os.Getenv("REDIS_URL"); url != "" {
-		opts, err := redis.ParseURL(url)
-		if err != nil {
-			return nil, fmt.Errorf("parse REDIS_URL: %w", err)
-		}
-		return opts, nil
+	cfg, err := coreRedis.Resolve(os.Getenv)
+	if err != nil {
+		return nil, err
 	}
-	host := os.Getenv("REDIS_HOST")
-	if host == "" {
-		host = "localhost"
-	}
-	port := os.Getenv("REDIS_PORT")
-	if port == "" {
-		port = "6379"
-	}
-	db := 0
-	if v := os.Getenv("REDIS_DB"); v != "" {
-		if parsed, err := strconv.Atoi(v); err == nil {
-			db = parsed
-		}
-	}
-	return &redis.Options{
-		Addr:     host + ":" + port,
-		DB:       db,
-		Password: os.Getenv("REDIS_PASSWORD"),
-	}, nil
+	return &redis.Options{Addr: cfg.Addr, DB: cfg.DB, Password: cfg.Password}, nil
 }
 
 var _ Store = (*RedisStore)(nil)

@@ -82,6 +82,7 @@ type Resolver struct {
 	commandScope   CommandScopeResolver
 	cacheTTL       time.Duration
 	negativeTTL    time.Duration
+	sharedLookup   bool
 	now            func() time.Time
 	cacheMu        sync.Mutex
 	cache          map[string]*cachedPort
@@ -198,19 +199,31 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 	if now == nil {
 		now = time.Now
 	}
+	targetResolver := cfg.TargetResolver
+	relay := cfg.Relay
+	commandScope := cfg.CommandScope
+	if cfg.CommandRunner == nil && cfg.VrooliPath == "" && targetResolver == nil && relay == nil {
+		targetResolver = bridgeTargetResolver{runner: runner, path: "vrooli-bridge"}
+		relay = bridgeRelay{runner: runner, path: "vrooli-bridge"}
+		commandScope = defaultCommandScope
+	}
 	return &Resolver{
-		vrooliPath:     vrooliPath,
-		runner:         runner,
-		host:           host,
-		scheme:         scheme,
-		staticBaseURL:  strings.TrimRight(cfg.StaticBaseURL, "/"),
-		cacheTTL:       cacheTTL,
-		negativeTTL:    negativeTTL,
+		vrooliPath:    vrooliPath,
+		runner:        runner,
+		host:          host,
+		scheme:        scheme,
+		staticBaseURL: strings.TrimRight(cfg.StaticBaseURL, "/"),
+		cacheTTL:      cacheTTL,
+		negativeTTL:   negativeTTL,
+		// Only an unconfigured resolver may use the shared seam; an injected
+		// runner or binary path is an explicit request for this resolver's own
+		// execution path.
+		sharedLookup:   cfg.CommandRunner == nil && cfg.VrooliPath == "",
 		now:            now,
 		cache:          make(map[string]*cachedPort),
-		targetResolver: cfg.TargetResolver,
-		relay:          cfg.Relay,
-		commandScope:   cfg.CommandScope,
+		targetResolver: targetResolver,
+		relay:          relay,
+		commandScope:   commandScope,
 	}
 }
 
@@ -362,11 +375,51 @@ func (r *Resolver) CacheStats() (hits, misses int64) {
 // lookupPort shells `vrooli scenario port <target> <portKey>` and classifies the
 // result. reportSlug is the user-facing scenario name recorded on any Error
 // (which may differ from target when routing to a variant record).
+// runLookup obtains one raw port reading. In production it routes through
+// cliutil's process-wide cache, which is the single owner of
+// `vrooli scenario port` — so a lookup performed for a CLI helper and one
+// performed here cost one process between them rather than one each. The
+// Resolver's own staleness tolerance travels with the request as a
+// PortCachePolicy, so sharing the cache never lengthens the window in which
+// this Resolver may hand back the address of a restarted scenario.
+//
+// A Resolver configured with an explicit CommandRunner or VrooliPath keeps its
+// own path: that injection is the test seam, and honoring it is what lets a
+// test drive this code without a real CLI on PATH.
+//
+// It returns the text to parse as a port, the full output for classification,
+// and the execution error.
+func (r *Resolver) runLookup(ctx context.Context, target, portKey string) (portText, output string, err error) {
+	if r.sharedLookup {
+		outcome := cliutil.LookupScenarioPort(ctx, target, portKey, cliutil.PortCachePolicy{
+			MaxAge:         nonNegative(r.cacheTTL),
+			NegativeMaxAge: nonNegative(r.negativeTTL),
+		})
+		return outcome.Port, outcome.Output, outcome.Err
+	}
+	raw, runErr := r.runner(ctx, r.vrooliPath, "scenario", "port", target, portKey)
+	text := strings.TrimSpace(string(raw))
+	return text, text, runErr
+}
+
+func nonNegative(d time.Duration) time.Duration {
+	if d < 0 {
+		return 0
+	}
+	return d
+}
+
 func (r *Resolver) lookupPort(ctx context.Context, reportSlug, target, portKey string) (int, *Error) {
-	output, err := r.runner(ctx, r.vrooliPath, "scenario", "port", target, portKey)
-	text := strings.TrimSpace(string(output))
+	portText, text, err := r.runLookup(ctx, target, portKey)
 	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
+		// A deadline may come from the caller's context or from the bound the
+		// shared lookup applies when the caller supplied none. Both are
+		// timeouts; classifying the latter as a generic command failure would
+		// send an operator hunting a CLI bug instead of a hung lookup.
+		if ctxErr := ctx.Err(); ctxErr != nil || errors.Is(err, context.DeadlineExceeded) {
+			if ctxErr == nil {
+				ctxErr = err
+			}
 			return 0, &Error{
 				Kind:     ErrTimeout,
 				Scenario: reportSlug,
@@ -403,7 +456,7 @@ func (r *Resolver) lookupPort(ctx context.Context, reportSlug, target, portKey s
 		}
 	}
 
-	port, parseErr := strconv.Atoi(text)
+	port, parseErr := strconv.Atoi(portText)
 	if parseErr != nil || port <= 0 {
 		return 0, &Error{
 			Kind:     ErrInvalidPort,

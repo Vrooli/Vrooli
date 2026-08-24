@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // OrchestratorManager handles profile activation and resource orchestration
@@ -200,7 +202,7 @@ func (om *OrchestratorManager) startResource(resourceName string) map[string]int
 	om.logger.Info(fmt.Sprintf("Starting resource: %s", resourceName))
 
 	cmd := exec.Command("vrooli", "resource", resourceName, "start")
-	cmd.Env = append(os.Environ(), "VROOLI_ORCHESTRATOR_MODE=true")
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_ORCHESTRATOR_MODE=true"})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -229,7 +231,7 @@ func (om *OrchestratorManager) stopResource(resourceName string) map[string]inte
 	om.logger.Info(fmt.Sprintf("Stopping resource: %s", resourceName))
 
 	cmd := exec.Command("vrooli", "resource", resourceName, "stop")
-	cmd.Env = append(os.Environ(), "VROOLI_ORCHESTRATOR_MODE=true")
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_ORCHESTRATOR_MODE=true"})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -258,7 +260,7 @@ func (om *OrchestratorManager) startScenario(scenarioName string) map[string]int
 	om.logger.Info(fmt.Sprintf("Starting scenario: %s", scenarioName))
 
 	cmd := exec.Command("vrooli", "scenario", "run", scenarioName)
-	cmd.Env = append(os.Environ(), "VROOLI_ORCHESTRATOR_MODE=true")
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_ORCHESTRATOR_MODE=true"})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -287,7 +289,7 @@ func (om *OrchestratorManager) stopScenario(scenarioName string) map[string]inte
 	om.logger.Info(fmt.Sprintf("Stopping scenario: %s", scenarioName))
 
 	cmd := exec.Command("vrooli", "scenario", "stop", scenarioName)
-	cmd.Env = append(os.Environ(), "VROOLI_ORCHESTRATOR_MODE=true")
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"VROOLI_ORCHESTRATOR_MODE=true"})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

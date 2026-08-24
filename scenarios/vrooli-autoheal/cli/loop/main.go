@@ -25,8 +25,11 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
 	"syscall"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -536,7 +539,7 @@ func runVrooliCommandInto(config *Config, stdout, stderr io.Writer, subArgs ...s
 	defer cancel()
 
 	cmd := buildVrooliCmd(config.VrooliCmdPath, subArgs...)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot)})
 
 	// Stop waiting on inherited pipes shortly after the direct child is gone.
 	cmd.WaitDelay = vrooliOutputGrace

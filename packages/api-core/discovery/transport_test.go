@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"strings"
 	"testing"
@@ -159,5 +160,29 @@ func TestResolveScenarioNamesRemoteReadinessReasons(t *testing.T) {
 				t.Fatalf("error = %v, want kind %q", err, tc.kind)
 			}
 		})
+	}
+}
+
+func TestDefaultResolverWiresRemoteAdapters(t *testing.T) {
+	resolver := NewResolver(ResolverConfig{})
+	if resolver.targetResolver == nil || resolver.relay == nil || resolver.commandScope == nil {
+		t.Fatal("default resolver must wire target, relay, and command-scope adapters")
+	}
+}
+
+func TestBridgeAdaptersUsePublicCLIShapes(t *testing.T) {
+	runner := func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		if len(args) >= 2 && args[0] == "nodes" {
+			return []byte(`{"targets":[{"id":"node-1","label":"desk","node_id":"node-1","platform":"desktop","available":true,"transport":{"kind":"bridge","available":true},"scopes":["vrooli:read"]}]}`), nil
+		}
+		return []byte(`{"correlation_id":"c-1","outcome":"completed","data":"` + base64.StdEncoding.EncodeToString([]byte("ok")) + `"}`), nil
+	}
+	target, err := (bridgeTargetResolver{runner: runner, path: "vrooli-bridge"}).ResolveTarget(context.Background(), "desk")
+	if err != nil || target.NodeID != "node-1" {
+		t.Fatalf("target=%#v err=%v", target, err)
+	}
+	response, err := (bridgeRelay{runner: runner, path: "vrooli-bridge"}).Call(context.Background(), RelayRequest{NodeID: "node-1", Scenario: "web-search", Command: "scenario status"})
+	if err != nil || string(response.Data) != "ok" || response.CorrelationID != "c-1" {
+		t.Fatalf("response=%#v err=%v", response, err)
 	}
 }

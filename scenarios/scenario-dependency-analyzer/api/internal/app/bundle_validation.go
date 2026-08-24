@@ -74,18 +74,10 @@ type manifestSwap struct {
 }
 
 type manifestPeer struct {
-	Scenario         string                `json:"scenario"`
-	BundlePolicy     string                `json:"bundle_policy"`
-	StartupPolicy    string                `json:"startup_policy,omitempty"`
-	DegradedBehavior string                `json:"degraded_behavior,omitempty"`
-	Bindings         []manifestPeerBinding `json:"bindings"`
-}
-
-type manifestPeerBinding struct {
-	EnvVar          string `json:"env_var"`
-	Form            string `json:"form"`
-	Port            string `json:"port"`
-	WhenUnavailable string `json:"when_unavailable"`
+	Scenario         string `json:"scenario"`
+	BundlePolicy     string `json:"bundle_policy"`
+	StartupPolicy    string `json:"startup_policy,omitempty"`
+	DegradedBehavior string `json:"degraded_behavior,omitempty"`
 }
 
 type manifestSecret struct {
@@ -249,16 +241,10 @@ func validatePeer(peer manifestPeer, services []manifestServiceEntry) error {
 			return fmt.Errorf("PEER_EMBED_SERVICES_MISSING: peer %s contributes no bundled services", peer.Scenario)
 		}
 	case "discover", "either":
-		if len(peer.Bindings) == 0 {
-			return fmt.Errorf("PEER_DISCOVERY_PATH_MISSING: peer %s has no discovery bindings", peer.Scenario)
-		}
+		// Peer addresses are resolved through discovery at call time. The
+		// manifest no longer projects environment bindings into the bundle.
 	default:
 		return fmt.Errorf("peer %s has unsupported bundle_policy %q", peer.Scenario, peer.BundlePolicy)
-	}
-	for _, binding := range peer.Bindings {
-		if binding.EnvVar == "" || binding.Port == "" || binding.Form == "" || binding.WhenUnavailable == "" {
-			return fmt.Errorf("peer %s has an incomplete binding", peer.Scenario)
-		}
 	}
 	return nil
 }

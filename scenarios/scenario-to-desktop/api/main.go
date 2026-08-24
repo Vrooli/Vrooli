@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
@@ -245,7 +246,7 @@ func NewServer(port int) *Server {
 			// environment while overriding display-scoped values. Supplying only
 			// DISPLAY makes xdotool unreliable on headless displays because it
 			// drops the environment needed by the X client stack.
-			cmd.Env = append(os.Environ(), env...)
+			cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(env))
 		}
 		return cmd.Output()
 	})

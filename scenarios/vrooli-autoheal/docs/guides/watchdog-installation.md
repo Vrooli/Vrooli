@@ -19,58 +19,30 @@ With a watchdog:
 ### Quick Install
 
 ```bash
-# Detect platform and install appropriate watchdog
-vrooli-autoheal watchdog install
+# Project setup owns the complete autoheal protection stack.
+sudo vrooli setup
 ```
 
 ### Verify Installation
 
 ```bash
-# Check watchdog status
-vrooli-autoheal watchdog status
+# Inspect the setup-owned safeguard and boot policy
+vrooli setup status
+vrooli setup explain autoheal_watchdog
 ```
 
 ## Platform-Specific Details
 
 ### Linux (systemd)
 
-The installer creates `<systemd-service-dir>/vrooli-autoheal.service`:
+Project setup creates a user-scoped `vrooli-autoheal.service` using the shared
+platform-go definition. On dedicated Linux hosts it also enables user lingering
+so the service can start before login. Shared-host policy is explicitly
+login-scoped and does not enable lingering.
 
-```ini
-[Unit]
-Description=Vrooli Autoheal - Self-healing infrastructure supervisor
-After=network.target docker.service
-
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/vrooli-autoheal loop --interval-seconds=60
-Restart=always
-RestartSec=10
-Environment=VROOLI_LIFECYCLE_MANAGED=true
-User=root
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**Manual Management:**
-
-```bash
-# Start the service
-sudo systemctl start vrooli-autoheal
-
-# Stop the service
-sudo systemctl stop vrooli-autoheal
-
-# View logs
-sudo journalctl -u vrooli-autoheal -f
-
-# Disable (remove from boot)
-sudo systemctl disable vrooli-autoheal
-
-# Re-enable
-sudo systemctl enable vrooli-autoheal
-```
+Native scheduler mutation is intentionally not an operator procedure. Use
+`vrooli setup` to reconcile it; setup reports a degraded state when the user
+systemd bus is unavailable.
 
 ### macOS (launchd)
 
@@ -144,12 +116,12 @@ Unregister-ScheduledTask -TaskName "VrooliAutoheal" -Confirm:$false
 
 **Linux:**
 ```bash
-sudo vrooli-autoheal watchdog install
+sudo vrooli setup
 ```
 
 **macOS:** User-level launchd doesn't require sudo. For system-wide:
 ```bash
-sudo vrooli-autoheal watchdog install --system
+sudo vrooli setup
 ```
 
 **Windows:** Run PowerShell as Administrator.
@@ -196,12 +168,10 @@ journalctl -u vrooli-autoheal --since "10 minutes ago" | grep -i error
 ## Uninstalling
 
 ### Linux
-```bash
-sudo systemctl stop vrooli-autoheal
-sudo systemctl disable vrooli-autoheal
-sudo rm /etc/systemd/system/vrooli-autoheal.service
-sudo systemctl daemon-reload
-```
+
+There is no root-owned autoheal unit to remove. Keep or change the policy in
+operator state, then reconcile with `sudo vrooli setup`. The setup-owned user
+unit and lingering state must be inspected through `vrooli setup status`.
 
 ### macOS
 ```bash

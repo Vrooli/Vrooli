@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -76,23 +77,17 @@ func TestCLITickJSON(t *testing.T) {
 }
 
 func TestCLIWatchdogInstallJSON(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/health":
-			_, _ = w.Write([]byte(`{"status":"healthy","readiness":true}`))
-		case "/api/v1/watchdog/install":
-			_, _ = w.Write([]byte(`{"success":true,"message":"installed","servicePath":"/tmp/vrooli-autoheal.service"}`))
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer ts.Close()
+	bin := t.TempDir()
+	stub := filepath.Join(bin, "vrooli")
+	if err := os.WriteFile(stub, []byte("#!/bin/sh\nprintf '{\"message\": \"installed\"}\n'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() error = %v", err)
 	}
-	app.core.APIOverride = ts.URL
 	app.core.CLI.SetStaleChecker(nil)
 
 	output := captureStdout(t, func() {
