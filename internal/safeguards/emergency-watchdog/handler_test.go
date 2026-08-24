@@ -2,6 +2,7 @@ package emergencywatchdog
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,27 +37,18 @@ func TestDefaultsMatchManifest(t *testing.T) {
 	}
 	var manifest struct {
 		Config struct {
-			Properties map[string]struct {
-				Default float64 `json:"default"`
-			} `json:"properties"`
+			Properties map[string]json.RawMessage `json:"properties"`
 		} `json:"config"`
 	}
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatalf("parse manifest: %v", err)
 	}
-	got := defaults()
-	for name, want := range map[string]float64{
-		"disk_floor_mb":          float64(got.DiskFloorMB),
-		"unit_threshold_seconds": float64(got.UnitThreshold),
-		"cpu_pressure_avg10":     got.CPUPressureAvg,
-	} {
-		declared, ok := manifest.Config.Properties[name]
-		if !ok {
-			t.Errorf("manifest declares no %q", name)
-			continue
-		}
-		if declared.Default != want {
-			t.Errorf("%s: handler %v, manifest %v", name, want, declared.Default)
+	if _, ok := manifest.Config.Properties["setpoint_path"]; !ok {
+		t.Fatal("manifest must expose the shared setpoint path, not private watchdog thresholds")
+	}
+	for _, obsolete := range []string{"disk_floor_mb", "unit_threshold_seconds", "cpu_pressure_avg10"} {
+		if _, ok := manifest.Config.Properties[obsolete]; ok {
+			t.Errorf("obsolete private watchdog threshold remains in manifest: %s", obsolete)
 		}
 	}
 }
@@ -66,7 +58,7 @@ func TestInspectNonLinuxUnsupported(t *testing.T) {
 	if status.SupportClass != hostreqkit.SupportUnsupported {
 		t.Fatalf("SupportClass = %q, want unsupported", status.SupportClass)
 	}
-	if !strings.Contains(strings.Join(status.Notes, " "), "launchd") {
+	if !strings.Contains(strings.Join(status.Notes, " "), "native scheduler") {
 		t.Errorf("the unsupported note should name the missing platform mechanism; got %v", status.Notes)
 	}
 }
@@ -97,9 +89,8 @@ func TestSettingsFlowIntoTheScript(t *testing.T) {
 	script := scriptContent(resolveSettings(map[string]any{
 		"disk_floor_mb":          float64(2048),
 		"unit_threshold_seconds": float64(90),
-		"cpu_pressure_avg10":     float64(35.5),
 	}))
-	for _, want := range []string{"2048", "90", "35.5"} {
+	for _, want := range []string{"2048", "90"} {
 		if !strings.Contains(script, want) {
 			t.Errorf("script should embed configured value %s", want)
 		}
@@ -110,7 +101,6 @@ func TestSettingsRejectNonsense(t *testing.T) {
 	got := resolveSettings(map[string]any{
 		"disk_floor_mb":          float64(0),
 		"unit_threshold_seconds": float64(-5),
-		"cpu_pressure_avg10":     "high",
 	})
 	if got != defaults() {
 		t.Fatalf("nonsensical config should fall back to defaults, got %#v", got)
@@ -120,14 +110,43 @@ func TestSettingsRejectNonsense(t *testing.T) {
 func TestServiceUnitPointsAtTheInstalledScript(t *testing.T) {
 	p := resolvePaths("/home/u")
 	unit := serviceContent(p)
-	if !strings.Contains(unit, "ExecStart="+p.Script) {
-		t.Errorf("service must run the installed script, got:\n%s", unit)
+	if !strings.Contains(unit, "ExecStart="+p.Binary+" --report-only") {
+		t.Errorf("service must run the portable watchdog binary, got:\n%s", unit)
 	}
 	if !strings.Contains(timerContent(), "OnUnitActiveSec=5min") {
 		t.Error("timer should keep the five-minute cadence")
 	}
 	if !strings.Contains(timerContent(), "Persistent=true") {
 		t.Error("timer should be persistent so a missed window still fires")
+	}
+}
+
+func TestFailedBuildPreservesPreviousWatchdog(t *testing.T) {
+	origRoot := resolveWatchdogRootFn
+	origBuild := buildWatchdogFn
+	t.Cleanup(func() {
+		resolveWatchdogRootFn = origRoot
+		buildWatchdogFn = origBuild
+	})
+	root := t.TempDir()
+	resolveWatchdogRootFn = func() (string, error) { return root, nil }
+	buildWatchdogFn = func(string, string) error { return fmt.Errorf("compiler unavailable") }
+	p := resolvePaths(root)
+	if err := os.MkdirAll(filepath.Dir(p.Binary), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p.Binary, []byte("known-good"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := buildAndInstallWatchdog(p); err == nil {
+		t.Fatal("expected build failure")
+	}
+	data, err := os.ReadFile(p.Binary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "known-good" {
+		t.Fatalf("previous watchdog was not preserved: %q", data)
 	}
 }
 
@@ -202,24 +221,6 @@ func readLog(t *testing.T, logPath string) string {
 		return ""
 	}
 	return string(raw)
-}
-
-// The brake: a saturated host must not be restarted into.
-func TestWatchdogHoldsRestartWhileSaturated(t *testing.T) {
-	s := defaults()
-	s.UnitThreshold = 0 // escalate on the second observation
-	script, home, logPath := sandbox(t, s, false, "87.40")
-
-	run(t, script, home) // first observation records hysteresis
-	run(t, script, home) // second would escalate, but the host is saturated
-
-	log := readLog(t, logPath)
-	if !strings.Contains(log, "HOLDING restart") {
-		t.Fatalf("expected the saturation brake to engage; log:\n%s", log)
-	}
-	if strings.Contains(log, "ESCALATING") {
-		t.Errorf("must not escalate while saturated; log:\n%s", log)
-	}
 }
 
 // The brake must not become a permanent excuse: once pressure clears, the very

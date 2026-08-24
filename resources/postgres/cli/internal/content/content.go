@@ -164,10 +164,7 @@ func openManagedAdminDatabase(ctx context.Context, req DatabaseEnsureRequest) (*
 	return db, nil
 }
 
-const (
-	defaultInstance = "main"
-	containerPrefix = "vrooli-postgres-"
-)
+const defaultInstance = "main"
 
 // Handlers owns the runtime dependencies (Runner, env lookup, stdout) for the
 // content subcommand group. Tests inject fakes.
@@ -182,10 +179,10 @@ type Handlers struct {
 	LookupDir      func(path string) ([]string, error) // hook for listing .sql files
 }
 
-// Default returns Handlers wired to real OS/docker.
+// Default returns Handlers wired to the real host and the staged psql client.
 func Default() *Handlers {
 	return &Handlers{
-		Runner:    NewDockerRunner(),
+		Runner:    NewProcessRunner(),
 		GetEnv:    os.Getenv,
 		Stdout:    os.Stdout,
 		Stderr:    os.Stderr,
@@ -202,7 +199,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 	}
 	return cliapp.SubcommandGroup{
 		Name:        "content",
-		Description: "Execute SQL and manage databases inside the postgres resource container",
+		Description: "Execute SQL and manage databases in the managed postgres instance",
 		Subcommands: []cliapp.Command{
 			{
 				Name:        "execute",
@@ -411,7 +408,6 @@ func (h *Handlers) Get(args []string) error {
 	}
 
 	fmt.Fprintf(h.Stdout, "Instance:          %s\n", *instance)
-	fmt.Fprintf(h.Stdout, "Container:         %s%s\n", containerPrefix, *instance)
 	fmt.Fprintf(h.Stdout, "Database:          %s\n", db)
 	fmt.Fprintf(h.Stdout, "Host:              %s\n", host)
 	fmt.Fprintf(h.Stdout, "Port:              %s\n", port)
@@ -473,14 +469,16 @@ func (h *Handlers) Remove(args []string) error {
 // --- shared ------------------------------------------------------------------
 
 func (h *Handlers) runPSQL(instance, database string, psqlArgs []string, stdin io.Reader) error {
-	container := containerPrefix + instance
+	endpoint := Endpoint{Host: h.resolveHost(instance), Port: h.resolvePort()}
 	user := h.resolveUser()
+	// The password travels in the child environment, never in argv, so it does
+	// not appear in a process listing.
 	env := []string{
 		"PGPASSWORD=" + h.resolvePassword(),
 	}
-	args := []string{"psql", "-U", user, "-d", database, "-v", "ON_ERROR_STOP=1", "--no-psqlrc", "-w"}
+	args := []string{"-U", user, "-d", database, "-v", "ON_ERROR_STOP=1", "--no-psqlrc", "-w"}
 	args = append(args, psqlArgs...)
-	stdout, stderr, err := h.Runner.Run(context.Background(), container, args, stdin, env)
+	stdout, stderr, err := h.Runner.Run(context.Background(), endpoint, args, stdin, env)
 	if len(stdout) > 0 {
 		_, _ = h.Stdout.Write(stdout)
 	}
@@ -522,10 +520,9 @@ func (h *Handlers) resolvePassword() string {
 }
 
 func (h *Handlers) resolveHost(instance string) string {
-	// From the scenario's POV the resource is reachable on the host; the
-	// CLI-side `docker exec` path doesn't need this, but `get --as-env`
-	// reports the host-side connection string so scenarios can connect without
-	// going through docker exec.
+	// The managed instance listens on the host loopback address, so the same
+	// resolved endpoint serves both the CLI's own psql invocations and the
+	// connection string `get --as-env` reports to scenarios.
 	if v := h.GetEnv("POSTGRES_HOST"); v != "" {
 		return v
 	}

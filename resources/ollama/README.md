@@ -7,7 +7,7 @@ Managed Ollama runtime for local model serving and inference workloads.
 - Resource ID: `ollama`
 - Category: `ai`
 - Driver: `managed-service` (checksum-verified native artifact)
-- Portability tier: `partial`
+- Portability tier: `build-verified`
 
 ## Use Cases
 

@@ -72,10 +72,10 @@ func TestEnsureRequiresConfig(t *testing.T) {
 // --- fake runner -------------------------------------------------------------
 
 type call struct {
-	container string
-	args      []string
-	stdin     string
-	env       []string
+	endpoint Endpoint
+	args     []string
+	stdin    string
+	env      []string
 }
 
 type fakeRunner struct {
@@ -86,14 +86,14 @@ type fakeRunner struct {
 	errs    []error
 }
 
-func (f *fakeRunner) Run(_ context.Context, container string, args []string, stdin io.Reader, env []string) ([]byte, []byte, error) {
+func (f *fakeRunner) Run(_ context.Context, endpoint Endpoint, args []string, stdin io.Reader, env []string) ([]byte, []byte, error) {
 	data := []byte{}
 	if stdin != nil {
 		b, _ := io.ReadAll(stdin)
 		data = b
 	}
 	idx := len(f.calls)
-	f.calls = append(f.calls, call{container: container, args: args, stdin: string(data), env: env})
+	f.calls = append(f.calls, call{endpoint: endpoint, args: args, stdin: string(data), env: env})
 	var stdout, stderr []byte
 	var err error
 	if idx < len(f.stdouts) {
@@ -142,10 +142,15 @@ func TestExecute_SQL(t *testing.T) {
 		t.Fatalf("expected 1 runner call, got %d", len(runner.calls))
 	}
 	c := runner.calls[0]
-	if c.container != "vrooli-postgres-main" {
-		t.Errorf("container = %q, want vrooli-postgres-main", c.container)
+	if c.endpoint.Host == "" || c.endpoint.Port == "" {
+		t.Errorf("endpoint = %+v, want a resolved host and port", c.endpoint)
 	}
-	mustContainAll(t, c.args, []string{"psql", "-U", "vrooli", "-d", "vrooli", "-c", "SELECT 1", "-v", "ON_ERROR_STOP=1"})
+	mustContainAll(t, c.args, []string{"-U", "vrooli", "-d", "vrooli", "-c", "SELECT 1", "-v", "ON_ERROR_STOP=1"})
+	// The password must reach the child through the environment, never argv,
+	// so it cannot be read out of a process listing.
+	if containsString(c.args, "secret") {
+		t.Errorf("password leaked into argv: %v", c.args)
+	}
 	if !containsString(c.env, "PGPASSWORD=secret") {
 		t.Errorf("env missing PGPASSWORD=secret: %v", c.env)
 	}
@@ -176,8 +181,8 @@ func TestExecute_Instance(t *testing.T) {
 	if err := h.Execute([]string{"--instance", "analytics", "--sql", "SELECT 1"}); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if runner.calls[0].container != "vrooli-postgres-analytics" {
-		t.Errorf("container = %q, want vrooli-postgres-analytics", runner.calls[0].container)
+	if runner.calls[0].endpoint.Host == "" {
+		t.Errorf("endpoint = %+v, want a resolved host", runner.calls[0].endpoint)
 	}
 }
 
@@ -486,5 +491,88 @@ func TestCommands_RegistersAllSubcommands(t *testing.T) {
 		if !got[n] {
 			t.Errorf("missing subcommand %q", n)
 		}
+	}
+}
+
+// The resource declares a native managed service, so its CLI must reach the
+// supervised process directly. A Docker reference here would restore the
+// contradiction this package was changed to remove.
+func TestRunnerResolvesTheStagedClient(t *testing.T) {
+	root := t.TempDir()
+	binDir := filepath.Join(root, "postgresql-16.15.0-x86_64-apple-darwin", "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	staged := filepath.Join(binDir, psqlName())
+	if err := os.WriteFile(staged, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write staged client: %v", err)
+	}
+	t.Setenv(psqlExecutableEnv, "")
+	t.Setenv("RESOURCE_ARTIFACT_DIR", root)
+	found, err := LookupPSQL()
+	if err != nil {
+		t.Fatalf("LookupPSQL: %v", err)
+	}
+	if found != staged {
+		t.Fatalf("LookupPSQL = %q, want the staged client %q", found, staged)
+	}
+}
+
+func TestRunnerPrefersAnExplicitClientOverride(t *testing.T) {
+	override := filepath.Join(t.TempDir(), psqlName())
+	if err := os.WriteFile(override, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write override: %v", err)
+	}
+	t.Setenv(psqlExecutableEnv, override)
+	found, err := LookupPSQL()
+	if err != nil {
+		t.Fatalf("LookupPSQL: %v", err)
+	}
+	if found != override {
+		t.Fatalf("LookupPSQL = %q, want %q", found, override)
+	}
+}
+
+func TestRunnerReportsAnUnusableOverrideRatherThanFallingBack(t *testing.T) {
+	t.Setenv(psqlExecutableEnv, filepath.Join(t.TempDir(), "absent-psql"))
+	if _, err := LookupPSQL(); err == nil {
+		t.Fatal("an unusable explicit override must be an error, not a silent fallback")
+	}
+}
+
+// Debian's PostgreSQL packaging ships a Perl wrapper named psql at usr/bin/psql
+// alongside the real client at usr/lib/postgresql/<major>/bin/psql. Selecting
+// the first match in the tree picks the wrapper, which fails at runtime with
+// "Can't locate PgCommon.pm" on any host that is not a Debian PostgreSQL
+// install. The client must be resolved beside the server executable.
+func TestRunnerSkipsThePackagingWrapperForTheRealClient(t *testing.T) {
+	root := t.TempDir()
+	wrapperDir := filepath.Join(root, "usr", "bin")
+	realDir := filepath.Join(root, "usr", "lib", "postgresql", "16", "bin")
+	for _, dir := range []string{wrapperDir, realDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	wrapper := filepath.Join(wrapperDir, psqlName())
+	if err := os.WriteFile(wrapper, []byte("#!/usr/bin/perl\nuse PgCommon;\n"), 0o755); err != nil {
+		t.Fatalf("write wrapper: %v", err)
+	}
+	realClient := filepath.Join(realDir, psqlName())
+	if err := os.WriteFile(realClient, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write real client: %v", err)
+	}
+	// The server executable is what marks the real client's directory.
+	if err := os.WriteFile(filepath.Join(realDir, serverName()), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write server: %v", err)
+	}
+	t.Setenv(psqlExecutableEnv, "")
+	t.Setenv("RESOURCE_ARTIFACT_DIR", root)
+	found, err := LookupPSQL()
+	if err != nil {
+		t.Fatalf("LookupPSQL: %v", err)
+	}
+	if found != realClient {
+		t.Fatalf("LookupPSQL = %q, want the client beside the server %q", found, realClient)
 	}
 }

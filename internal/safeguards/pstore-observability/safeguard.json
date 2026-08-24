@@ -62,7 +62,7 @@
   "privilege": "elevated",
  "bundling": "prohibited",
   "capability": "crash-forensics",
-  "capability_role": "primary",
+  "capability_role": "control",
   "deployment": {
     "profiles": {
       "desktop": {

@@ -11,6 +11,6 @@
   "privilege": "elevated",
  "bundling": "prohibited",
   "capability": "crash-forensics",
-  "capability_role": "primary",
+  "capability_role": "control",
   "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

@@ -7,7 +7,7 @@ Managed PostgreSQL runtime for local scenario storage and multi-instance databas
 - Resource ID: `postgres`
 - Category: `storage`
 - Driver: `managed-service`
-- Portability tier: `Linux native; macOS and Windows explicitly unsupported until reproducible native trees are published`
+- Portability tier: `Native on Linux, macOS, and Windows amd64; Windows on ARM unsupported`
 
 ## Use Cases
 
@@ -17,9 +17,28 @@ Managed PostgreSQL runtime for local scenario storage and multi-instance databas
 
 ## Architecture
 
-This resource uses the managed-service structure. Linux PostgreSQL binaries,
-libraries, and the share tree are extracted from a digest-pinned official OCI
-source and launched directly; Docker is not a runtime prerequisite.
+This resource uses the managed-service structure, and Docker is never a runtime
+prerequisite on any platform. The acquisition kind is declared per target
+because the upstreams genuinely differ:
+
+- **Linux (amd64, arm64)** extracts binaries, libraries, and the share tree from
+  a digest-pinned official OCI source and launches them directly. The image is
+  used because it carries the shared libraries the server links against.
+- **macOS (amd64, arm64)** and **Windows (amd64)** stage a checksum-pinned
+  upstream archive from `theseus-rs/postgresql-binaries`. The macOS archives are
+  built from source on GitHub runners and load OpenSSL through `@loader_path`;
+  the Windows archive repackages EnterpriseDB's official build and ships its
+  ICU, OpenSSL, and libxml2 DLLs beside the executables. Both are relocatable
+  and need no package manager or administrator rights.
+- **Windows on ARM** is unsupported: upstream publishes no
+  `aarch64-pc-windows-msvc` archive to pin.
+
+Windows has no Unix-domain sockets, so the socket-directory argument and the
+`pg_hba.conf` local-line bootstrap flag are omitted for that target. Those
+differences are declared per target in `resource.json` rather than branched on
+in Go. No macOS or Windows hardware run has been performed; see
+[platform support](../../docs/reference/platform-support.md) for the evidence
+tier of each row.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.

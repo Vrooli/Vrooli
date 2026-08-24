@@ -12,7 +12,7 @@
   "privilege": "user",
   "bundling": "prohibited",
   "capability": "developer-utility",
-  "capability_role": "primary",
+  "capability_role": "control",
   "notes": "Retired per-scenario CLI installers appended an unguarded PATH line to ~/.bashrc each time they ran; one host accumulated 105 such lines across eight installers, yielding a 236-entry PATH with 17 unique directories. The managed block is delimited by markers so a rewrite replaces it instead of appending another copy, and it strips-then-prepends so ~/.vrooli/bin stays ahead of a stale `go install` copy regardless of what later startup files prepend.",
   "deployment": {
     "profiles": {

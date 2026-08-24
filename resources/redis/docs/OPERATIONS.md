@@ -1,8 +1,9 @@
 # Operations
 
-`redis` is organized as a native `managed-service` resource. The Linux
-artifact is acquired from a digest-pinned OCI source and launched directly;
-Docker is not a runtime prerequisite.
+`redis` is organized as a native `managed-service` resource. Linux uses the
+digest-pinned OCI tree without a container runtime, while Windows amd64 uses a
+checksum-pinned Redis 8.10.0 MSYS2 archive. macOS and Windows ARM remain
+explicitly unsupported until a matching native artifact is available.
 
 ## Architecture Boundary
 

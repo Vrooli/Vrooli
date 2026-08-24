@@ -137,7 +137,8 @@
         "linux-amd64": "6de264e9396f76050d7e52eba55b5f5a3faf36b72bbb40dd1a6bc086ffa17e1d",
         "linux-arm64": "a08ccae5f5bc28f7d0dabf62c8dcdc6edfa560405d1ef21f00a5b449529698f2",
         "macos-amd64": "2977c5b38dfcf6a8293c7c027348bfb77ba2ef519b421b1a748a6285d4fcf7b8",
-        "macos-arm64": "2977c5b38dfcf6a8293c7c027348bfb77ba2ef519b421b1a748a6285d4fcf7b8"
+        "macos-arm64": "2977c5b38dfcf6a8293c7c027348bfb77ba2ef519b421b1a748a6285d4fcf7b8",
+        "windows-amd64": "98cd3471b03c9fc382a94ba38682d20770ed711883a0b287b5c4f1834b599401"
       },
       "bundle_artifact": "ollama_${os}_${arch}"
     },
@@ -150,15 +151,67 @@
       "kind": "url",
       "license": "MIT",
       "targets": [
-        {"when": {"os": "linux", "arch": "amd64"}, "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/ollama-linux-amd64.tar.zst", "sha256": "046d8f28e58d58477a49558d8d1bcb2e81ca8b287f93c44b12ff919c10d178dd", "archive": "tar.zst", "layout": "dir", "bin_path": "bin/ollama"},
-        {"when": {"os": "linux", "arch": "arm64"}, "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/ollama-linux-arm64.tar.zst", "sha256": "b626aef722ddb9d64dd20a76eeba9267abc5e9494faabb97839db85462b707d7", "archive": "tar.zst", "layout": "dir", "bin_path": "bin/ollama"},
-        {"when": {"os": "macos", "arch": "amd64"}, "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/Ollama-darwin.zip", "sha256": "18ff2fd66e141595edbb79fa6887806ed2fe6e08fdfe8b91ecc9376a6bfcb29f", "archive": "zip", "layout": "dir", "bin_path": "Ollama.app/Contents/Resources/ollama"},
-        {"when": {"os": "macos", "arch": "arm64"}, "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/Ollama-darwin.zip", "sha256": "18ff2fd66e141595edbb79fa6887806ed2fe6e08fdfe8b91ecc9376a6bfcb29f", "archive": "zip", "layout": "dir", "bin_path": "Ollama.app/Contents/Resources/ollama"},
-        {"when": {"os": "windows"}, "unsupported": "the Vrooli managed-service contract does not yet stage the Windows server tree"}
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/ollama-linux-amd64.tar.zst",
+          "sha256": "046d8f28e58d58477a49558d8d1bcb2e81ca8b287f93c44b12ff919c10d178dd",
+          "archive": "tar.zst",
+          "layout": "dir",
+          "bin_path": "bin/ollama"
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/ollama-linux-arm64.tar.zst",
+          "sha256": "b626aef722ddb9d64dd20a76eeba9267abc5e9494faabb97839db85462b707d7",
+          "archive": "tar.zst",
+          "layout": "dir",
+          "bin_path": "bin/ollama"
+        },
+        {
+          "when": {
+            "os": "macos",
+            "arch": "amd64"
+          },
+          "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/Ollama-darwin.zip",
+          "sha256": "18ff2fd66e141595edbb79fa6887806ed2fe6e08fdfe8b91ecc9376a6bfcb29f",
+          "archive": "zip",
+          "layout": "dir",
+          "bin_path": "Ollama.app/Contents/Resources/ollama"
+        },
+        {
+          "when": {
+            "os": "macos",
+            "arch": "arm64"
+          },
+          "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/Ollama-darwin.zip",
+          "sha256": "18ff2fd66e141595edbb79fa6887806ed2fe6e08fdfe8b91ecc9376a6bfcb29f",
+          "archive": "zip",
+          "layout": "dir",
+          "bin_path": "Ollama.app/Contents/Resources/ollama"
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "arch": "amd64",
+          "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/ollama-windows-amd64.zip",
+          "sha256": "9606cee7501703a0969682667def313130f99ed73f44a88a7a8efe82d4b565f0",
+          "archive": "zip",
+          "layout": "dir",
+          "bin_path": "ollama.exe"
+        }
       ]
     },
     "attach_health_path": "/api/tags",
-    "arguments": ["serve"],
+    "arguments": [
+      "serve"
+    ],
     "environment": {
       "OLLAMA_HOST": "127.0.0.1:${RESOURCE_PORT_HTTP}",
       "OLLAMA_MODELS": "${RESOURCE_DATA_DIR}/models",
@@ -177,7 +230,9 @@
         "linux": {
           "support": "conditional",
           "mode": "manual",
-          "architectures": ["amd64"],
+          "architectures": [
+            "amd64"
+          ],
           "requires": [],
           "limitations": [
             "The signed native Linux artifact is currently evidenced for amd64; arm64 remains conditional until a matching Vrooli bundle is published."
@@ -205,18 +260,17 @@
           ]
         },
         "windows": {
-          "support": "unsupported",
-          "mode": "manual",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": ["amd64"],
           "requires": [],
           "limitations": [
-            "The native Windows release is available upstream, but a Vrooli-extracted, checksum-paired server bundle and target smoke evidence have not yet been staged."
+            "The checksum-pinned standalone Windows server archive is staged for amd64; no real Windows host smoke run has been performed, so this remains build-verified."
           ],
-          "evidence": [],
-          "reason": "Windows remains unsupported until the signed native server bundle is staged and exercised by the managed-service supervisor."
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
         }
       }
     }
@@ -230,26 +284,58 @@
       ]
     }
   ],
-  "capacity": {
-    "resource_kind": "vram",
-    "gpu_index": 0,
-    "preferred_bytes": 11811160064,
-    "floor_bytes": 3221225472,
-    "priority": "service",
-    "yield_when_idle": true,
-    "idle_grace_seconds": 900,
-    "profile": {
-      "steps": [
-        {"label": "qwen3.5:9b", "amount_bytes": 11811160064},
-        {"label": "qwen3.5:4b", "amount_bytes": 6442450944},
-        {"label": "qwen3:4b", "amount_bytes": 5368709120},
-        {"label": "qwen3:1.7b", "amount_bytes": 3221225472}
-      ],
-      "apply": {
-        "verb": "capacity",
-        "argv": ["degrade", "--to", "{label}"]
-      },
-      "upshift": true
+  "acceleration": {
+    "backends": [
+      "cuda",
+      "metal",
+      "cpu"
+    ],
+    "require": "preferred",
+    "cuda": {},
+    "metal": {
+      "verify": {
+        "kind": "process-device",
+        "device": "metal"
+      }
+    },
+    "cpu": {},
+    "claim": {
+      "resource_kind": "vram",
+      "gpu_index": 0,
+      "preferred_bytes": 11811160064,
+      "floor_bytes": 3221225472,
+      "priority": "service",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 900,
+      "profile": {
+        "steps": [
+          {
+            "label": "qwen3.5:9b",
+            "amount_bytes": 11811160064
+          },
+          {
+            "label": "qwen3.5:4b",
+            "amount_bytes": 6442450944
+          },
+          {
+            "label": "qwen3:4b",
+            "amount_bytes": 5368709120
+          },
+          {
+            "label": "qwen3:1.7b",
+            "amount_bytes": 3221225472
+          }
+        ],
+        "apply": {
+          "verb": "capacity",
+          "argv": [
+            "degrade",
+            "--to",
+            "{label}"
+          ]
+        },
+        "upshift": true
+      }
     }
   },
   "category": "ai",
@@ -257,7 +343,6 @@
     "ram_mb": 8192,
     "disk_mb": 12288,
     "cpu_cores": 4,
-    "gpu": {},
     "network": "optional",
     "bucket": "large",
     "source": "estimated",
@@ -267,8 +352,8 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "partial",
-    "windows": "unsupported"
+    "macos": "build-verified",
+    "windows": "build-verified"
   },
   "ports": [
     {
@@ -302,15 +387,16 @@
   "hostSafeguards": [
     {
       "name": "nvidia_driver",
-      "required": true,
+      "required": false,
       "when": [
-        "setup"
+        "setup",
+        "develop"
       ],
       "platforms": [
         "linux"
       ],
-      "reason": "Repair and validate the host NVIDIA kernel driver when NVIDIA hardware is present; GPU containers require a working host driver.",
-      "notes": "No-op on hosts without NVIDIA display hardware. On Ubuntu, setup repairs the current-kernel module package and its installed kernel meta package, then reports a required reboot."
+      "reason": "This resource declares an accelerator backend. The safeguard proves the host driver is ready, that the compute device nodes survive a boot with no client attached, and that this user can open them; without all three the resource starts and silently falls back to the CPU.",
+      "notes": "No-op on hosts without NVIDIA display hardware. Optional because ollama declares acceleration.require = preferred: a CPU fallback is a supported, reported state, and a durability safeguard awaiting an operator sudo run must never stop the resource starting. Strictness is declared in one place, the acceleration block, and enforced by the start-time readiness gate with a typed error."
     }
   ],
   "dependency_schema": {

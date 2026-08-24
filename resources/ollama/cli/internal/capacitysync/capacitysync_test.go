@@ -2,14 +2,22 @@ package capacitysync
 
 import (
 	"context"
-	"strconv"
-	"strings"
+	"encoding/json"
+	"errors"
 	"testing"
+	"time"
 
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
 )
 
-// fakePS returns a fixed loaded-model list (or an error to simulate /api/ps down).
+// Feature: ollama reports its loaded footprint, and nothing else
+//
+//	As the ollama CLI
+//	I want to implement only the /api/ps observation
+//	So that the claim, resize, release and heartbeat logic is the same code
+//	every other accelerated resource runs, fixed once rather than three times.
+
 type fakePS struct {
 	running []ensure.RunningModel
 	err     error
@@ -19,108 +27,114 @@ func (f fakePS) ListRunning(context.Context) ([]ensure.RunningModel, error) {
 	return f.running, f.err
 }
 
-// recExec records the vrooli capacity calls and returns canned list output.
-type recExec struct {
-	listJSON string
-	calls    []string
-}
-
-func (r *recExec) exec(_ context.Context, name string, args ...string) ([]byte, error) {
-	joined := name + " " + strings.Join(args, " ")
-	r.calls = append(r.calls, joined)
-	if len(args) >= 2 && args[0] == "capacity" && args[1] == "list" {
-		return []byte(r.listJSON), nil
-	}
-	return []byte("{}"), nil
-}
-
-func newHandlers(ps fakePS, listJSON string) (*Handlers, *recExec) {
-	rec := &recExec{listJSON: listJSON}
-	h := &Handlers{
-		Stdout:    &strings.Builder{},
-		Stderr:    &strings.Builder{},
+func handlersFor(ps psClient) *Handlers {
+	return &Handlers{
 		GetEnv:    func(string) string { return "" },
 		NewClient: func() psClient { return ps },
-		Exec:      rec.exec,
+		Exec:      func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
 	}
-	return h, rec
 }
 
-func callContains(calls []string, sub string) bool {
-	for _, c := range calls {
-		if strings.Contains(c, sub) {
-			return true
+// Scenario: the observed footprint is the sum of the loaded models.
+func TestObserveSumsLoadedModelFootprints(t *testing.T) {
+	// Given two models resident on the device
+	h := handlersFor(fakePS{running: []ensure.RunningModel{
+		{Name: "qwen3.5:9b", SizeVRAM: 8 << 30},
+		{Name: "nomic-embed-text", SizeVRAM: 1 << 30},
+	}})
+
+	// When the observer looks
+	footprint, err := h.Observe(context.Background())
+	// Then it reports their total
+	if err != nil {
+		t.Fatalf("Observe() = %v, want nil", err)
+	}
+	if want := int64(9) << 30; footprint.Bytes != want {
+		t.Fatalf("Bytes = %d, want %d", footprint.Bytes, want)
+	}
+}
+
+// Scenario: nothing loaded is an honest zero.
+func TestObserveReportsZeroWhenNothingIsLoaded(t *testing.T) {
+	// Given no resident models
+	h := handlersFor(fakePS{})
+
+	// When the observer looks
+	footprint, err := h.Observe(context.Background())
+
+	// Then zero is reported, which the shared loop turns into a release
+	if err != nil || footprint.Bytes != 0 {
+		t.Fatalf("Observe() = %+v, %v; want an empty footprint and no error", footprint, err)
+	}
+}
+
+// Scenario: an unreachable ollama is an error, never a zero.
+//
+// "Everything unloaded" and "cannot reach ollama" look identical from a zero,
+// and only one of them should release a live reservation.
+func TestObserveSurfacesAPollFailureRatherThanReportingZero(t *testing.T) {
+	// Given ollama's API unavailable
+	h := handlersFor(fakePS{err: context.DeadlineExceeded})
+
+	// When the observer looks
+	_, err := h.Observe(context.Background())
+
+	// Then the failure surfaces
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Observe() = %v, want the poll failure", err)
+	}
+}
+
+// Scenario: the declared ladder comes from the model policy, not from the
+// currently loaded set.
+func TestConfigDeclaresTheModelPolicyLadder(t *testing.T) {
+	// Given the default handlers
+	h := handlersFor(fakePS{})
+
+	// When the companion declaration is built
+	cfg := h.config()
+
+	// Then it names ollama at the service tier, yielding when idle
+	if cfg.Resource != resourceName || cfg.Priority != "service" || !cfg.YieldWhenIdle {
+		t.Fatalf("config = %+v, want ollama/service/yield-when-idle", cfg)
+	}
+	// And it carries a degrade ladder that ends at the floor
+	var profile degradeProfile
+	if err := json.Unmarshal([]byte(cfg.Profile), &profile); err != nil {
+		t.Fatalf("profile is not valid JSON: %v", err)
+	}
+	if len(profile.Steps) == 0 {
+		t.Fatal("the declared profile has no steps; the broker could never ask ollama to step down")
+	}
+	if profile.Steps[0].AmountBytes != cfg.PreferredBytes {
+		t.Fatalf("first step = %d, want it to equal preferred %d", profile.Steps[0].AmountBytes, cfg.PreferredBytes)
+	}
+	if profile.Steps[len(profile.Steps)-1].AmountBytes != cfg.FloorBytes {
+		t.Fatalf("last step = %d, want it to equal floor %d", profile.Steps[len(profile.Steps)-1].AmountBytes, cfg.FloorBytes)
+	}
+	// And the apply verb is the shared one, so the broker calls every resource
+	// the same way
+	if profile.Apply.Verb != "capacity" {
+		t.Fatalf("apply verb = %q, want capacity", profile.Apply.Verb)
+	}
+	// And ollama satisfies the shared observer contract
+	var _ companion.Observer = h
+}
+
+// Scenario: an environment override changes the poll cadence.
+func TestConfigHonoursTheIntervalOverride(t *testing.T) {
+	// Given an operator-set interval
+	h := handlersFor(fakePS{})
+	h.GetEnv = func(key string) string {
+		if key == intervalEnv {
+			return "90s"
 		}
+		return ""
 	}
-	return false
-}
 
-// A model loaded with no existing claim → the poller creates the declared
-// preferred/floor reservation rather than making the reservation disappear
-// between model loads.
-func TestSyncClaimsWhenModelLoadsWithNoClaim(t *testing.T) {
-	ps := fakePS{running: []ensure.RunningModel{{Name: "qwen3:4b", SizeVRAM: 4 << 30}}}
-	h, rec := newHandlers(ps, `{"claims":[]}`)
-	h.syncOnce(context.Background())
-	if !callContains(rec.calls, "capacity claim") {
-		t.Fatalf("expected a claim call, got %v", rec.calls)
+	// When the declaration is built
+	// Then the override wins over the default
+	if got := h.config().Interval; got != 90*time.Second {
+		t.Fatalf("Interval = %s, want 90s", got)
 	}
-	if !callContains(rec.calls, "--preferred "+itoa(11<<30)) || !callContains(rec.calls, "--floor "+itoa(3<<30)) {
-		t.Errorf("claim must carry the declared model ladder, got %v", rec.calls)
-	}
-	if !callContains(rec.calls, `"steps":[{"label":"qwen3.5:9b"`) {
-		t.Errorf("claim must include the policy-derived degrade profile, got %v", rec.calls)
-	}
-}
-
-// Everything unloaded with an active claim → the poller releases it (no churn).
-func TestSyncReleasesWhenAllUnloaded(t *testing.T) {
-	ps := fakePS{running: nil}
-	h, rec := newHandlers(ps, `{"claims":[{"claim_id":"clm-o","owner_id":"ollama","amount_bytes":4294967296,"generation":3}]}`)
-	h.syncOnce(context.Background())
-	if !callContains(rec.calls, "capacity release --claim-id clm-o") {
-		t.Fatalf("expected a release of the ollama claim, got %v", rec.calls)
-	}
-	if callContains(rec.calls, "capacity claim") {
-		t.Errorf("must not claim when nothing is loaded, got %v", rec.calls)
-	}
-}
-
-// Footprint steady → the poller only heartbeats (keeps the claim alive).
-func TestSyncHeartbeatsWhenSteady(t *testing.T) {
-	ps := fakePS{running: []ensure.RunningModel{{Name: "qwen3:4b", SizeVRAM: 4 << 30}}}
-	h, rec := newHandlers(ps, `{"claims":[{"claim_id":"clm-o","owner_id":"ollama","amount_bytes":4294967296,"generation":3}]}`)
-	h.syncOnce(context.Background())
-	if !callContains(rec.calls, "capacity heartbeat --claim-id clm-o --generation 3") {
-		t.Fatalf("expected a heartbeat, got %v", rec.calls)
-	}
-	if callContains(rec.calls, "capacity release") || callContains(rec.calls, "capacity claim") {
-		t.Errorf("steady footprint must not churn the claim, got %v", rec.calls)
-	}
-}
-
-// /api/ps down → fail-open: the poller touches nothing.
-func TestSyncFailOpenOnPollError(t *testing.T) {
-	ps := fakePS{err: context.DeadlineExceeded}
-	h, rec := newHandlers(ps, `{"claims":[{"claim_id":"clm-o","owner_id":"ollama","amount_bytes":4294967296,"generation":3}]}`)
-	h.syncOnce(context.Background())
-	for _, c := range rec.calls {
-		if strings.Contains(c, "capacity claim") || strings.Contains(c, "capacity release") || strings.Contains(c, "capacity heartbeat") {
-			t.Fatalf("poll error must leave the ledger unchanged, got call %q", c)
-		}
-	}
-}
-
-// A materially different footprint → resize (release + reclaim).
-func TestSyncResizesOnFootprintChange(t *testing.T) {
-	ps := fakePS{running: []ensure.RunningModel{{Name: "qwen3:30b", SizeVRAM: 12 << 30}}}
-	h, rec := newHandlers(ps, `{"claims":[{"claim_id":"clm-o","owner_id":"ollama","amount_bytes":4294967296,"generation":3}]}`)
-	h.syncOnce(context.Background())
-	if !callContains(rec.calls, "capacity release --claim-id clm-o") || !callContains(rec.calls, "capacity claim") {
-		t.Fatalf("a materially-changed footprint must release+reclaim, got %v", rec.calls)
-	}
-}
-
-func itoa(n int64) string {
-	return strconv.FormatInt(n, 10)
 }

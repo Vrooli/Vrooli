@@ -104,34 +104,37 @@
           ]
         },
         "macos": {
-          "support": "unsupported",
-          "mode": "manual",
+          "support": "conditional",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
           "limitations": [
-            "A reproducible native macOS PostgreSQL tree is not yet available in the selected acquisition channel."
+            "The native PostgreSQL tree is a checksum-pinned upstream archive built from source on macOS runners; OpenSSL ships inside the archive and resolves through @loader_path.",
+            "No macOS hardware run has been performed. Start, readiness, and shutdown are build-verified only."
           ],
           "evidence": [
-            "manifest-validation"
-          ],
-          "reason": "PostgreSQL is unsupported on macOS until its native tree can be staged and smoke-tested without a package manager."
+            "manifest-validation",
+            "artifact-checksum"
+          ]
         },
         "windows": {
-          "support": "unsupported",
-          "mode": "manual",
+          "support": "conditional",
+          "mode": "bundled-service",
           "architectures": [
-            "amd64",
-            "arm64"
+            "amd64"
           ],
           "limitations": [
-            "A reproducible native Windows PostgreSQL tree is not yet available in the selected acquisition channel."
+            "The native PostgreSQL tree is a checksum-pinned upstream archive repackaging EnterpriseDB's official Windows build; its ICU, OpenSSL, and libxml2 DLLs ship beside the executables.",
+            "Windows has no Unix-domain sockets, so the server listens on TCP only and the socket-directory argument is omitted for this target.",
+            "Windows on ARM is unsupported: no aarch64-pc-windows-msvc archive is published upstream.",
+            "No Windows hardware run has been performed. Start, readiness, and shutdown are build-verified only; shutdown relies on a console control event and pg_ctl stop -m fast ships in the same archive as the known fallback."
           ],
           "evidence": [
-            "manifest-validation"
-          ],
-          "reason": "PostgreSQL is unsupported on Windows until its native tree can be staged and smoke-tested without a package manager."
+            "manifest-validation",
+            "artifact-checksum"
+          ]
         }
       }
     }
@@ -150,8 +153,8 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "unsupported",
-    "windows": "unsupported"
+    "macos": "build-verified",
+    "windows": "build-verified"
   },
   "dependencies": [],
   "ports": [
@@ -191,12 +194,15 @@
     },
     "artifact": {
       "path": "server/postgres",
-      "version": "16.14-bookworm",
+      "version": "16",
       "layout": "dir",
       "entry_path": "usr/lib/postgresql/16/bin/postgres",
       "sha256_by_platform": {
         "linux-amd64": "8c18753fd1965bb4eaf099ad88412be883b25396b6a5e3b97ad610ddfa3855f2",
-        "linux-arm64": "e495022187d70554a26e83311146b847ee3477e972a97ae4224658e52ab299ef"
+        "linux-arm64": "e495022187d70554a26e83311146b847ee3477e972a97ae4224658e52ab299ef",
+        "macos-arm64": "95c628f192ae0466c58351b2e7c79a1c6eda86bc72a9db3c26740aaf1b75eaa3",
+        "macos-amd64": "67cdcb759433cfeb7e282804fa505c2c9fe514f407846604b3237066505802b1",
+        "windows-amd64": "d03f8182c7985e9f0c01264ae8cb6039a3a8a10309a1ebc03812139fccadfc9d"
       },
       "bundle_artifact": "postgres_${os}_${arch}"
     },
@@ -204,18 +210,88 @@
       "kind": "oci-image",
       "license": "PostgreSQL",
       "targets": [
-        {"when": {"os": "linux", "arch": "amd64"}, "image": "library/postgres@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b", "layout": "dir", "bin_path": "usr/lib/postgresql/16/bin/postgres", "runtime_env": {"LD_PRELOAD": "${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libpq.so.5:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicui18n.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicuuc.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicudata.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libzstd.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/liblz4.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libxml2.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libpam.so.0:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libssl.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libcrypto.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libz.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libldap.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libsystemd.so.0"}},
-        {"when": {"os": "linux", "arch": "arm64"}, "image": "library/postgres@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b", "layout": "dir", "bin_path": "usr/lib/postgresql/16/bin/postgres", "runtime_env": {"LD_PRELOAD": "${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libpq.so.5:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicui18n.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicuuc.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicudata.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libzstd.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/liblz4.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libxml2.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libpam.so.0:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libssl.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libcrypto.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libgssapi_krb5.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libz.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libldap.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libsystemd.so.0"}},
-        {"when": {"os": "macos"}, "unsupported": "PostgreSQL upstream's native macOS distribution is not a reproducible archive accepted by the current stager"},
-        {"when": {"os": "windows"}, "unsupported": "PostgreSQL native Windows distribution is not a reproducible archive accepted by the current stager"}
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "image": "library/postgres@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b",
+          "layout": "dir",
+          "bin_path": "usr/lib/postgresql/16/bin/postgres",
+          "runtime_env": {
+            "LD_PRELOAD": "${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libpq.so.5:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicui18n.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicuuc.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicudata.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libzstd.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/liblz4.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libxml2.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libpam.so.0:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libssl.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libcrypto.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libz.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libldap.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libsystemd.so.0"
+          }
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "image": "library/postgres@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b",
+          "layout": "dir",
+          "bin_path": "usr/lib/postgresql/16/bin/postgres",
+          "runtime_env": {
+            "LD_PRELOAD": "${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libpq.so.5:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicui18n.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicuuc.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicudata.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libzstd.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/liblz4.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libxml2.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libpam.so.0:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libssl.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libcrypto.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libgssapi_krb5.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libz.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libldap.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libsystemd.so.0"
+          }
+        },
+        {
+          "when": {
+            "os": "macos",
+            "arch": "arm64"
+          },
+          "kind": "url",
+          "url": "https://github.com/theseus-rs/postgresql-binaries/releases/download/16.15.0/postgresql-16.15.0-aarch64-apple-darwin.tar.gz",
+          "sha256": "46f6382024d9b633d1f4b4903ffef8c2404e00ae83098d628c00591048cb0512",
+          "archive": "tar.gz",
+          "layout": "dir",
+          "bin_path": "postgresql-16.15.0-aarch64-apple-darwin/bin/postgres",
+          "artifact_sha256": "95c628f192ae0466c58351b2e7c79a1c6eda86bc72a9db3c26740aaf1b75eaa3"
+        },
+        {
+          "when": {
+            "os": "macos",
+            "arch": "amd64"
+          },
+          "kind": "url",
+          "url": "https://github.com/theseus-rs/postgresql-binaries/releases/download/16.15.0/postgresql-16.15.0-x86_64-apple-darwin.tar.gz",
+          "sha256": "dfae21b2b931f1d8d1103afb6e8e108fdd94c6f407ce24d35b6cd0ad34f286d1",
+          "archive": "tar.gz",
+          "layout": "dir",
+          "bin_path": "postgresql-16.15.0-x86_64-apple-darwin/bin/postgres",
+          "artifact_sha256": "67cdcb759433cfeb7e282804fa505c2c9fe514f407846604b3237066505802b1"
+        },
+        {
+          "when": {
+            "os": "windows",
+            "arch": "amd64"
+          },
+          "kind": "url",
+          "url": "https://github.com/theseus-rs/postgresql-binaries/releases/download/16.15.0/postgresql-16.15.0-x86_64-pc-windows-msvc.zip",
+          "sha256": "98fe43cff00f5aef4a7669adb575655e913dc65b1fdfb997c46fe3c1e07f4efb",
+          "archive": "zip",
+          "layout": "dir",
+          "bin_path": "postgresql-16.15.0-x86_64-pc-windows-msvc/bin/postgres.exe",
+          "artifact_sha256": "d03f8182c7985e9f0c01264ae8cb6039a3a8a10309a1ebc03812139fccadfc9d"
+        },
+        {
+          "when": {
+            "os": "windows",
+            "arch": "arm64"
+          },
+          "unsupported": "The upstream PostgreSQL binary channel publishes no aarch64-pc-windows-msvc archive, so no Windows ARM target can be pinned by checksum."
+        }
       ]
     },
     "attach_health_path": "/",
     "arguments": [
-      "-D", "${RESOURCE_DATA_DIR}/instances/main/data",
-      "-p", "${RESOURCE_PORT_POSTGRESQL}",
-      "-h", "127.0.0.1",
-      "-k", "${RESOURCE_DATA_DIR}/instances/main"
+      "-D",
+      "${RESOURCE_DATA_DIR}/instances/main/data",
+      "-p",
+      "${RESOURCE_PORT_POSTGRESQL}",
+      "-h",
+      "127.0.0.1",
+      "-k",
+      "${RESOURCE_DATA_DIR}/instances/main"
     ],
     "environment": {
       "POSTGRES_DB": "vrooli",
@@ -230,15 +306,50 @@
       "marker": "instances/main/data/PG_VERSION",
       "executable": "usr/lib/postgresql/16/bin/initdb",
       "arguments": [
-        "-D", "${RESOURCE_DATA_DIR}/instances/main/data",
-        "--username", "${POSTGRES_USER}",
-        "--pwfile", "${RESOURCE_CONFIG_DIR}/.bootstrap-password",
-        "--auth-host", "scram-sha-256",
-        "--auth-local", "trust",
-        "--encoding", "UTF8"
+        "-D",
+        "${RESOURCE_DATA_DIR}/instances/main/data",
+        "--username",
+        "${POSTGRES_USER}",
+        "--pwfile",
+        "${RESOURCE_CONFIG_DIR}/.bootstrap-password",
+        "--auth-host",
+        "scram-sha-256",
+        "--auth-local",
+        "trust",
+        "--encoding",
+        "UTF8"
       ],
       "password_env": "POSTGRES_PASSWORD",
-      "password_file": ".bootstrap-password"
+      "password_file": ".bootstrap-password",
+      "executable_by_platform": {
+        "macos-arm64": "postgresql-16.15.0-aarch64-apple-darwin/bin/initdb",
+        "macos-amd64": "postgresql-16.15.0-x86_64-apple-darwin/bin/initdb",
+        "windows-amd64": "postgresql-16.15.0-x86_64-pc-windows-msvc/bin/initdb.exe"
+      },
+      "arguments_by_platform": {
+        "windows": [
+          "-D",
+          "${RESOURCE_DATA_DIR}/instances/main/data",
+          "--username",
+          "${POSTGRES_USER}",
+          "--pwfile",
+          "${RESOURCE_CONFIG_DIR}/.bootstrap-password",
+          "--auth-host",
+          "scram-sha-256",
+          "--encoding",
+          "UTF8"
+        ]
+      }
+    },
+    "arguments_by_platform": {
+      "windows": [
+        "-D",
+        "${RESOURCE_DATA_DIR}/instances/main/data",
+        "-p",
+        "${RESOURCE_PORT_POSTGRESQL}",
+        "-h",
+        "127.0.0.1"
+      ]
     }
   },
   "dependency_schema": {

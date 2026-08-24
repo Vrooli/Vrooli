@@ -135,14 +135,30 @@ func healthGPU(args []string) error {
 		return err
 	}
 	report := ensure.SummarizeProcessors(models)
-	host, hostErr := hostinventory.Collect(ctx)
-	hostGPU := hostErr == nil && host.HasNvidiaGPU()
+
+	// Ask the host which accelerator backends it can reach, through the one
+	// shared projection. CollectGPUFacts is the accelerator-only path: the full
+	// inventory also probes desktop and credential-store state, which can hang
+	// for seconds on a wedged host and has nothing to do with GPU residency.
+	host, hostErr := hostinventory.CollectGPUFacts(ctx)
+	var backends string
+	accelerated := false
+	if hostErr == nil {
+		backends = host.AcceleratorFacts()[hostinventory.FactAccelBackends]
+		for _, backend := range strings.Split(backends, ",") {
+			if strings.TrimSpace(backend) != "" && strings.TrimSpace(backend) != hostinventory.BackendCPU {
+				accelerated = true
+				break
+			}
+		}
+	}
 	payload := map[string]any{
 		"processor":            report.Processor,
 		"models":               report.Models,
 		"has_cpu_model":        report.HasCPUModel,
 		"has_gpu_model":        report.HasGPUModel,
-		"host_nvidia_gpu":      hostGPU,
+		"host_accel_backends":  backends,
+		"host_accelerated":     accelerated,
 		"host_inventory_error": "",
 	}
 	if hostErr != nil {
@@ -153,10 +169,10 @@ func healthGPU(args []string) error {
 			return err
 		}
 	} else {
-		fmt.Fprintf(os.Stdout, "processor: %s (models: %d, host_nvidia_gpu: %t)\n", report.Processor, len(models), hostGPU)
+		fmt.Fprintf(os.Stdout, "processor: %s (models: %d, host_accel_backends: %s)\n", report.Processor, len(models), backends)
 	}
-	if hostGPU && !report.HasGPUModel {
-		return fmt.Errorf("Ollama has no GPU-resident model while the host exposes an NVIDIA GPU (processor: %s)", report.Processor)
+	if accelerated && !report.HasGPUModel {
+		return fmt.Errorf("Ollama has no GPU-resident model while the host reaches %s (processor: %s)", backends, report.Processor)
 	}
 	return nil
 }

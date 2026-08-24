@@ -8,7 +8,7 @@
   "privilege": "elevated",
   "bundling": "prohibited",
   "capability": "developer-utility",
-  "capability_role": "primary",
+  "capability_role": "control",
   "storage": {
     "entries": {
       "sudoers": {

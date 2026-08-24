@@ -1,6 +1,6 @@
 # Ollama managed-service maturity assessment
 
-Evaluation date: 2026-08-15. This assessment uses the resource maturity and
+Evaluation date: 2026-08-22. This assessment uses the resource maturity and
 deployment contracts in [`docs/resources/maturity-migration.md`](../../../docs/resources/maturity-migration.md)
 and [`docs/resources/deployment-contract.md`](../../../docs/resources/deployment-contract.md).
 
@@ -19,7 +19,7 @@ system.
 | Configuration | 2 | `model-policy.json`, typed dependency validation, role resolution, relocation keys, and the Go `ensure`/policy commands preserve existing model state while migrating callers to roles. |
 | Runtime and health | 2 | The server artifact is version- and checksum-pinned; `/api/tags` is readiness and `health-gpu` reports processor placement rather than trusting a scheduler hint. |
 | Tests | 2 | `resources/ollama/Makefile` Go gates pass; focused capacity, health, policy, gateway, and ensure tests pass; Search Hub consumer smoke passed with the native service and Docker stopped. |
-| Portability | 2 | Linux amd64 is conditional on the staged artifact; macOS amd64/arm64 is conditional pending target smoke; Windows is explicitly unsupported until a Vrooli server bundle exists. |
+| Portability | 2 | Linux amd64 and Windows amd64 have staged, checksum-verified bundles; macOS amd64/arm64 remains conditional pending target smoke. |
 | Legacy debt | 2 | No resource shell layer or Docker fallback is present in the manifest or normal operator path. Historical migration notes remain explicitly historical. |
 | Deployment readiness | 2 | The managed-service profile names artifacts, checksums, architectures, health evidence, and unsupported/conditional reasons for every desktop target. |
 
@@ -49,7 +49,8 @@ artifact or target smoke evidence is absent.
 | Linux amd64 | Pinned native `0.30.10` server artifact with SHA-256 | Conditional; manifest validation, checksum verification, native restart, readiness, GPU health, and Search Hub consumer evidence are recorded. |
 | Linux arm64 | No matching Vrooli bundle | Conditional in the deployment contract; do not claim support until an artifact is published and exercised. |
 | macOS amd64/arm64 | Pinned universal upstream server artifact | Conditional; checksum evidence exists, but native target smoke is still outstanding. |
-| Windows amd64/arm64 | No staged Vrooli server bundle | Unsupported, with a clear pre-runtime reason. |
+| Windows amd64 | Pinned upstream standalone ZIP, extracted tree digest, amd64 manifest route | Build-verified; target smoke is still outstanding. |
+| Windows arm64 | No matching upstream standalone bundle | Unsupported, with a clear pre-runtime reason. |
 
 ## 5. Gap list
 
@@ -57,8 +58,9 @@ artifact or target smoke evidence is absent.
   release requirement (owner: resource-platform maintainers).
 - Record native macOS lifecycle and readiness evidence before upgrading its
   tier (owner: release qualification maintainers).
-- Stage and validate a Vrooli-extracted Windows server bundle before enabling
-  Windows (owner: resource-platform maintainers).
+- Exercise the staged Windows amd64 server bundle on a real target before
+  promoting Windows beyond build-verified (owner: release qualification
+  maintainers).
 - Keep model registry/network failures visible; model downloads remain a
   first-run operational dependency even though the server itself is bundled
   (owner: Ollama resource maintainers).
@@ -80,7 +82,7 @@ stays under the same relocation key throughout.
 | Runtime | Native managed-service restart, `/api/tags` readiness, `health-gpu`, and status processor mode. |
 | Capacity | `vrooli capacity reconcile`; multi-step VRAM degradation profile and zero-claim finding tests. |
 | Consumer | Search Hub server-owned suite and native Ollama smoke with Docker stopped. |
-| Platform gates | Explicit Linux amd64, macOS conditional, Linux arm64 conditional, and Windows unsupported profiles. |
+| Platform gates | Explicit Linux amd64, macOS conditional, Linux arm64 conditional, Windows amd64 build-verified, and Windows arm64 unsupported profiles. |
 
 ## 8. Risks and decisions
 

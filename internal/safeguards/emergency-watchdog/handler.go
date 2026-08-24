@@ -1,20 +1,15 @@
-// Package emergencywatchdog installs the last-line-of-defense watchdog: a
-// pure-POSIX script plus the systemd user timer that runs it every five
-// minutes.
+// Package emergencywatchdog installs the last-line-of-defense watchdog: the
+// portable vrooli-watchdog binary plus the native scheduler that runs it every
+// five minutes (systemd on Linux, launchd on macOS, and Task Scheduler on
+// Windows).
 //
 // The watchdog itself is not new. It existed as scripts/emergency-watchdog.sh,
 // was referenced by three runbooks, and was installed by nothing — its unit had
 // been hand-created and hard-coded one operator's repository path, so no other
 // host had it and `vrooli setup` could not reason about it. This safeguard
-// makes setup the owner, which is the whole point of the setup contract.
-//
-// Two design choices are deliberate.
-//
-// It stays a shell script rather than becoming a compiled binary. The
-// watchdog's entire value is that it works when everything Vrooli builds is
-// broken; depending on a Go artifact would couple the last line of defense to
-// the thing it exists to recover. Generating per-OS scripts is also how the
-// other host collectors in this package work.
+// makes setup the owner, which is the whole point of the setup contract. The
+// legacy script renderer remains only for compatibility tests; new installs
+// schedule the binary directly.
 //
 // It runs as the invoking user, not root. The units it watches are systemd
 // *user* units, and everything it writes lives under the user's own home, so
@@ -33,32 +28,32 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/watchdoginstall"
 )
 
 const (
 	serviceName = "vrooli-emergency-watchdog.service"
 	timerName   = "vrooli-emergency-watchdog.timer"
 
-	defaultDiskFloorMB    = 10240
-	defaultUnitThreshold  = 600
-	defaultCPUPressureAvg = 50.0
+	defaultDiskFloorMB   = 10240
+	defaultUnitThreshold = 600
 )
 
 // settings is the resolved operator configuration.
 type settings struct {
-	DiskFloorMB    int
-	UnitThreshold  int
-	CPUPressureAvg float64
+	DiskFloorMB   int
+	UnitThreshold int
 }
 
 func resolveSettings(config map[string]any) settings {
 	s := settings{
-		DiskFloorMB:    defaultDiskFloorMB,
-		UnitThreshold:  defaultUnitThreshold,
-		CPUPressureAvg: defaultCPUPressureAvg,
+		DiskFloorMB:   defaultDiskFloorMB,
+		UnitThreshold: defaultUnitThreshold,
 	}
 	if config == nil {
 		return s
@@ -68,16 +63,6 @@ func resolveSettings(config map[string]any) settings {
 	}
 	if v, ok := intFromConfig(config["unit_threshold_seconds"]); ok && v > 0 {
 		s.UnitThreshold = v
-	}
-	switch v := config["cpu_pressure_avg10"].(type) {
-	case float64:
-		if v >= 0 {
-			s.CPUPressureAvg = v
-		}
-	case int:
-		if v >= 0 {
-			s.CPUPressureAvg = float64(v)
-		}
 	}
 	return s
 }
@@ -96,17 +81,25 @@ func intFromConfig(value any) (int, bool) {
 // paths groups the user-scoped install locations.
 type paths struct {
 	Home        string
+	Binary      string
 	Script      string
 	ServiceUnit string
 	TimerUnit   string
+	LaunchAgent string
 }
 
 func resolvePaths(home string) paths {
+	binaryName := "vrooli-watchdog"
+	if os.PathSeparator == '\\' {
+		binaryName += ".exe"
+	}
 	return paths{
 		Home:        home,
+		Binary:      filepath.Join(home, ".vrooli", "libexec", binaryName),
 		Script:      filepath.Join(home, ".vrooli", "libexec", "emergency-watchdog.sh"),
 		ServiceUnit: filepath.Join(home, ".config", "systemd", "user", serviceName),
 		TimerUnit:   filepath.Join(home, ".config", "systemd", "user", timerName),
+		LaunchAgent: filepath.Join(home, "Library", "LaunchAgents", "com.vrooli.emergency-watchdog.plist"),
 	}
 }
 
@@ -124,6 +117,15 @@ func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
 // homeDir is stubbed in tests.
 var homeDir = os.UserHomeDir
 
+var resolveWatchdogRootFn = repocontract.ResolveRepoRoot
+
+var buildWatchdogFn = func(root, output string) error {
+	if _, err := hostreqkit.CombinedOutputFn("go", "-C", root, "build", "-ldflags", "-X main.buildVersion=managed", "-o", output, "./cmd/vrooli-watchdog"); err != nil {
+		return fmt.Errorf("build watchdog: %w", err)
+	}
+	return nil
+}
+
 func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 	status := hostreqkit.BaseStatus(requirement)
 	status.SupportClass = hostreqkit.SupportSupported
@@ -133,14 +135,15 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		return status
 	}
-	if host.OS != "linux" {
+	if host.OS != "linux" && !nativeSchedulerAvailable(host.OS) {
+		schedule := watchdoginstall.For(host.OS, 5*time.Minute)
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes,
-			"the emergency watchdog is installed as a systemd user timer; macOS (launchd) and Windows (Task Scheduler) variants are not implemented yet")
+			"the native scheduler for "+host.OS+" is unavailable: "+schedule.Remediation)
 		return status
 	}
-	if !host.SupportsSystemd {
+	if host.OS == "linux" && !host.SupportsSystemd {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "the emergency watchdog requires systemd user service/timer support")
@@ -156,11 +159,22 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 
 	p := resolvePaths(home)
 	resolved := resolveSettings(requirement.Config)
+	if host.OS != "linux" {
+		pending := nativePending(host.OS, p)
+		if len(pending) == 0 {
+			status.Applied = true
+			status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
+			status.Notes = append(status.Notes, "emergency watchdog is installed in the native "+host.OS+" scheduler")
+			return status
+		}
+		status.Notes = append(status.Notes, "emergency watchdog pending: "+strings.Join(pending, ", "))
+		return status
+	}
 	pending := pendingState(p, resolved)
 	if len(pending) == 0 {
 		status.Applied = true
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
-		status.Notes = append(status.Notes, "emergency watchdog script and timer are installed")
+		status.Notes = append(status.Notes, "emergency watchdog binary and timer are installed")
 		return status
 	}
 
@@ -170,8 +184,9 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 
 func pendingState(p paths, s settings) []string {
 	var pending []string
-	if !hostreqkit.FileContentMatches(p.Script, scriptContent(s)) {
-		pending = append(pending, p.Script+" missing or stale")
+	_ = s // thresholds are enforced by the standalone watchdog/setpoint.
+	if _, err := os.Stat(p.Binary); err != nil {
+		pending = append(pending, p.Binary+" missing")
 	}
 	if !hostreqkit.FileContentMatches(p.ServiceUnit, serviceContent(p)) {
 		pending = append(pending, p.ServiceUnit+" missing or stale")
@@ -214,13 +229,19 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 	p := resolvePaths(home)
-	resolved := resolveSettings(status.Config)
-
 	if opts.DryRun {
 		status.ExecutionState = hostreqkit.ExecutionWouldApply
 		status.Notes = append(status.Notes,
-			fmt.Sprintf("dry-run: would install %s, %s and %s, then enable %s", p.Script, p.ServiceUnit, p.TimerUnit, timerName))
+			fmt.Sprintf("dry-run: would build %s and install the native watchdog scheduler for %s", p.Binary, host.OS))
 		return status, nil
+	}
+	if err := buildAndInstallWatchdog(p); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "degraded: previous watchdog binary was preserved: "+err.Error())
+		return status, nil
+	}
+	if host.OS != "linux" {
+		return applyNative(host.OS, p, status, opts)
 	}
 
 	// Everything below writes inside the user's own home, so it uses ordinary
@@ -232,7 +253,6 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		content string
 		mode    os.FileMode
 	}{
-		{"watchdog script", p.Script, scriptContent(resolved), 0o755},
 		{"systemd service", p.ServiceUnit, serviceContent(p), 0o644},
 		{"systemd timer", p.TimerUnit, timerContent(), 0o644},
 	}
@@ -267,16 +287,50 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 }
 
 func serviceContent(p paths) string {
+	setpoint := ""
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		setpoint = filepath.Join(root, "scenarios", "infrastructure-manager", "setpoint", "reliability-setpoint.json")
+	}
+	setpointEnv := ""
+	if setpoint != "" {
+		setpointEnv = "Environment=VROOLI_SETPOINT_PATH=" + setpoint + "\n"
+	}
 	return `[Unit]
-Description=Vrooli emergency watchdog (Go-independent last-line-of-defense)
+Description=Vrooli emergency watchdog (portable host-pressure binary)
 Documentation=internal/safeguards/emergency-watchdog/handler.go
 After=default.target
 
 [Service]
 Type=oneshot
 Environment=HOME=` + p.Home + `
-ExecStart=` + p.Script + `
+` + setpointEnv + `
+ExecStart=` + p.Binary + ` --report-only
 `
+}
+
+func buildAndInstallWatchdog(p paths) error {
+	root, err := resolveWatchdogRootFn()
+	if err != nil {
+		return fmt.Errorf("resolve Vrooli source root: %w", err)
+	}
+	if strings.TrimSpace(root) == "" {
+		return fmt.Errorf("Vrooli source root is empty")
+	}
+	if err := os.MkdirAll(filepath.Dir(p.Binary), 0o755); err != nil {
+		return fmt.Errorf("create watchdog install directory: %w", err)
+	}
+	tmp := p.Binary + fmt.Sprintf(".%d.tmp", os.Getpid())
+	defer os.Remove(tmp)
+	if err := buildWatchdogFn(root, tmp); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmp, 0o755); err != nil {
+		return fmt.Errorf("mark watchdog executable: %w", err)
+	}
+	if err := os.Rename(tmp, p.Binary); err != nil {
+		return fmt.Errorf("install watchdog atomically: %w", err)
+	}
+	return nil
 }
 
 func timerContent() string {
@@ -328,7 +382,6 @@ LAST_DISK_FILE="${STATE_DIR}/emergency-watchdog.last-disk"
 THRESHOLD_SECONDS="${EMERGENCY_WATCHDOG_THRESHOLD:-` + strconv.Itoa(s.UnitThreshold) + `}"
 DISK_FLOOR_MB="${EMERGENCY_WATCHDOG_DISK_FLOOR_MB:-` + strconv.Itoa(s.DiskFloorMB) + `}"
 DISK_THRESHOLD_SECONDS="${EMERGENCY_WATCHDOG_DISK_THRESHOLD:-120}"
-CPU_PRESSURE_AVG10="${EMERGENCY_WATCHDOG_CPU_PRESSURE:-` + formatFloat(s.CPUPressureAvg) + `}"
 WATCH_MOUNT="${EMERGENCY_WATCHDOG_MOUNT:-/}"
 LOG_MAX_BYTES="${EMERGENCY_WATCHDOG_LOG_MAX_BYTES:-1048576}"
 
@@ -366,21 +419,6 @@ now() { date +%s; }
 # for the supervisor.
 available_mb() {
   df -PBM "$WATCH_MOUNT" 2>/dev/null | awk 'NR==2 {gsub(/M/,"",$4); print $4; found=1} END {if (!found) print ""}'
-}
-
-# cpu_pressure prints CPU PSI some.avg10, or nothing when unavailable. This is
-# the share of the last ten seconds during which at least one task was stalled
-# waiting for CPU; sustained high values mean the run queue is deep enough that
-# starting more work cannot help.
-cpu_pressure() {
-  [ -r /proc/pressure/cpu ] || return 0
-  awk '/^some/ { for (i = 2; i <= NF; i++) { split($i, kv, "="); if (kv[1] == "avg10") { print kv[2]; exit } } }' \
-    /proc/pressure/cpu 2>/dev/null || true
-}
-
-# exceeds compares two decimal numbers without requiring bc.
-exceeds() {
-  awk -v a="$1" -v b="$2" 'BEGIN { exit !(a + 0 >= b + 0) }'
 }
 
 read_state() {
@@ -475,23 +513,7 @@ if [ "$elapsed" -lt "$THRESHOLD_SECONDS" ]; then
   exit 0
 fi
 
-# ---------------------------------------------------------------------------
-# Saturation brake
-# ---------------------------------------------------------------------------
-#
-# A restart needs CPU to complete. On 2026-08-19 autoheal restarted itself into
-# a host at load 110 on 32 CPUs; the restart could not be scheduled and the
-# machine got no better. Hold the escalation while the host is saturated and say
-# so, rather than adding work to a work problem. Hysteresis is deliberately not
-# reset here: the moment pressure clears, the next tick escalates immediately.
-
-cpu_avg10="$(cpu_pressure)"
-if [ -n "$cpu_avg10" ] && exceeds "$cpu_avg10" "$CPU_PRESSURE_AVG10"; then
-  log "HOLDING restart: units unhealthy ${elapsed}s but host is saturated (cpu PSI some.avg10=${cpu_avg10} >= ${CPU_PRESSURE_AVG10})"
-  exit 0
-fi
-
-log "ESCALATING: units unhealthy for ${elapsed}s (cpu PSI some.avg10=${cpu_avg10:-unavailable})"
+log "ESCALATING: units unhealthy for ${elapsed}s; pressure disposition is owned by the standalone watchdog binary"
 
 # Attempt 1: cheap, non-mutating dependency refresh at the repo root, when the
 # unit supplied one. There is no hard-coded fallback: a watchdog that guesses at
@@ -515,10 +537,4 @@ done
 rm -f "$LAST_FAIL_FILE" 2>/dev/null || true
 exit 0
 `
-}
-
-// formatFloat renders a threshold without a trailing ".0" so the generated
-// script reads the way an operator would write it.
-func formatFloat(v float64) string {
-	return strconv.FormatFloat(v, 'f', -1, 64)
 }
