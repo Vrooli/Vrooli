@@ -1,22 +1,29 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "skill-authoring-practice",
-  "name": "Practice Skill Authoring",
+  "createdAt": "2026-02-03T02:40:00Z",
   "description": "Authoring guide for Practice skills that define systematic engineering methodologies. Covers process structure, convergence patterns, knowledge capture, and artifact requirements.",
+  "entry": "SKILL.md",
+  "icon": "wrench",
+  "id": "skill-authoring-practice",
+  "kind": "skill",
   "modes": [
     "meta",
     "practice"
   ],
+  "name": "Practice Skill Authoring",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 28,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill",
     "practice",
     "authoring"
   ],
-  "icon": "wrench",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 28,
-  "createdAt": "2026-02-03T02:40:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

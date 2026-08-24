@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-plan-workshop-review"
+description: "Return a bounded typed Plan Workshop review packet and proposal drafts from an immutable Swarm subject snapshot."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","plan-workshop","workflow","prompt-contract"]
+  status: "active"
+  revision: 2
+  createdAt: "2026-07-22T00:00:00Z"
+  updatedAt: "2026-07-22T03:30:00Z"
+  modes: ["contract"]
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Plan Workshop Review
 
 Review the subject and its canonical plan from the immutable snapshot. Return one typed packet of findings, decision questions, and proposal drafts. The packet is the operator's entire review surface for this round — everything worth their attention goes in it, and nothing else does.

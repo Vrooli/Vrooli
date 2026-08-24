@@ -1,3 +1,20 @@
+---
+name: "rcl-adopt-assist"
+description: "Adopt a React Component Library asset into a scenario with integration and baseline-aware verification."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["contract"]
+  tags: ["react-component-library","catalog","adopt"]
+  icon: "package"
+  status: "active"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Tools focus: RCL Adopt Assist
 
 Adopt one React Component Library component, hook, or other catalog asset into a target scenario. Integrate scenario code freely, but use the RCL CLI as the only catalog mutation authority.

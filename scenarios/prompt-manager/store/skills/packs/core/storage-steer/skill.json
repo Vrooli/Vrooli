@@ -1,12 +1,40 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "storage-steer",
-  "name": "Storage Architecture",
+  "createdAt": "2026-01-30T20:00:00-05:00",
+  "defaultScope": "architecture-scope",
   "description": "Steers scenarios toward engine-independent, per-domain storage architecture: schema embedded next to the code that interprets it (SchemaProvider/EnsureSchemas substrate in api-core/database), repository interfaces hide the engine, the same per-domain rule applies to Qdrant collections and Redis namespaces, and migrations follow a three-tier story (declarative greenfield, out-of-tree scripts for greenfield-with-data, versioned migrations only when production schema evolution earns them).",
+  "entry": "SKILL.md",
+  "id": "storage-steer",
+  "kind": "skill",
   "modes": [
     "steer"
   ],
+  "name": "Storage Architecture",
+  "origin": {
+    "kind": "authored"
+  },
+  "programmaticHome": "storage-manager:storage",
+  "requires": {
+    "commands": [
+      "git-control-tower baseline",
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "swarm-manager captures",
+      "test-genie",
+      "test-genie phase",
+      "vrooli",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "git-control-tower",
+      "prompt-manager",
+      "swarm-manager",
+      "test-genie",
+      "vrooli"
+    ]
+  },
+  "revision": 51,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "storage",
     "database",
@@ -23,14 +51,8 @@
     "isolation",
     "greenfield"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "defaultScope": "architecture-scope",
   "targetDimensions": [
     "storage"
   ],
-  "programmaticHome": "storage-manager:storage",
-  "revision": 51,
-  "createdAt": "2026-01-30T20:00:00-05:00",
   "updatedAt": "2026-06-22T00:00:00Z"
 }

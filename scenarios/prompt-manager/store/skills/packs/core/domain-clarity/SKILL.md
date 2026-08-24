@@ -1,3 +1,25 @@
+---
+name: "domain-clarity"
+description: "Make the domain model small, consistently named, and explicit about intent. Three lenses: concept compression, vocabulary unification, intent documentation. Hands structural findings to screaming-architecture-audit and local code-craft to cognitive-load-reduction."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","abstraction","naming","documentation"]
+  tags: ["skill"]
+  icon: "minimize2"
+  status: "active"
+  defaultScope: "architecture-scope"
+  targetDimensions: ["docs"]
+  revision: 1
+  createdAt: "2026-07-21T00:00:00Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Domain Clarity
 
 Prioritize making the **domain model of `scenarios/{{TARGET}}/` small, consistently named, and explicit about intent** — so any agent can answer "what are the core concepts, what is each called, and why does each exist?" from the code and its `docs/concepts/` alone. This skill governs the conceptual layer: which concepts exist, what they are named, and whether their purpose is visible. It does not move files, own lifecycle, or polish local function shape — those hand off (see §1).

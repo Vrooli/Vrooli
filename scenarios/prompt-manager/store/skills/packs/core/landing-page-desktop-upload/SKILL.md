@@ -1,3 +1,23 @@
+---
+name: "landing-page-desktop-upload"
+description: "Orchestrate desktop release delivery by sequencing scenario-to-cloud, landing-page-deploy-setup, and scenario-to-desktop with explicit gate checks"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["landing-page-business-suite","desktop","upload","deployment","orchestration","scenario-to-desktop","scenario-to-cloud"]
+  icon: "upload"
+  status: "active"
+  revision: 6
+  createdAt: "2026-02-04T23:30:00Z"
+  updatedAt: "2026-02-08T00:20:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Landing Page Desktop Upload
 
 Drive an end-to-end LPBS desktop release through `deployment-manager`. DM owns the release pipeline: cloud-health gate, LPBS readiness gate, release-id allocation, build/sign/package, publish to LPBS, and post-release verification. This skill is a thin operator wrapper around `deployment-manager releases start`.

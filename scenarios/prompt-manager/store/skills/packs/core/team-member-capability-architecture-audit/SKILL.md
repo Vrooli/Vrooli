@@ -1,3 +1,23 @@
+---
+name: "team-member-capability-architecture-audit"
+description: "Audit a team member's capability architecture: identity, ownership, plan-of-record, skills, intake, collection, analysis, promotion, and feedback loops."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","meta-optimization","agents","teams","capability-architecture","audit"]
+  icon: "network"
+  status: "active"
+  revision: 1
+  createdAt: "2026-05-01T00:00:00Z"
+  updatedAt: "2026-05-01T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager graph", "prompt-manager skill", "prompt-manager skill read", "prompt-manager team"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Team Member Capability Architecture Audit
 
 Audit whether a prompt-manager team member has the right capability structure around its work. Use this when a member is vague, workflow-heavy, repeatedly blocked, or dependent on external signals that are not captured cleanly.

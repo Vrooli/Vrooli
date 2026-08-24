@@ -1,3 +1,24 @@
+---
+name: "report-friction"
+description: "Universal writer skill for filing a friction observation — system-level capture-leak in tooling, runs, storage, or recurring workarounds. Writes a friction-inbox/<scope>/<slug> entry on the meta-optimization team for the friction-curator to drain and route to the appropriate scoped friction topic."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","observability","friction-report","writer-skill"]
+  writes_to: ["friction-inbox/*"]
+  icon: "alert-triangle"
+  status: "active"
+  revision: 3
+  createdAt: "2026-05-03T00:00:00Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager", "prompt-manager team"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Report Friction
 
 Universal writer skill any agent on any team may invoke when they observe friction — something that was missing, broken, confusing, slow, undocumented, or harder than it should have been. The skill writes a structured entry to `team:meta-optimization`'s `topic:friction-inbox/<scope>/<slug>` topic; the `literal:meta-optimization/friction-curator` member drains the inbox, classifies the scope, and routes to the appropriate scoped friction topic owned by an existing meta-optimization sub-member.

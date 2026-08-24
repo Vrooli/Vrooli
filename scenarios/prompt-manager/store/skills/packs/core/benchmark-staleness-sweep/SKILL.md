@@ -1,3 +1,24 @@
+---
+name: "benchmark-staleness-sweep"
+description: "Periodic sweep of monetization market-scan entries: detect stale captures by dimension-aware thresholds and auto-populate validation-inbox entries so signal-classifier can re-fetch and supersede. Does not itself fetch sources or write decisions."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","monetization","validation","hygiene","maintenance","writer-skill"]
+  writes_to: ["validation-inbox/benchmark-staleness/*"]
+  icon: "clock"
+  status: "active"
+  revision: 1
+  createdAt: "2026-05-01T00:00:00Z"
+  updatedAt: "2026-05-01T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager", "prompt-manager team"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Benchmark Staleness Sweep
 
 Periodically sweep the monetization market-scan canon — knowledge entries under `monetization/market-scan/<slug>` — and auto-populate `validation-inbox/benchmark-staleness/<slug>` entries for any scan that has aged past its dimension-aware threshold. Complement to `signal-classifier` (which triages the queue) and `pricing-comp-capture` (which does the actual re-fetch).

@@ -1,3 +1,24 @@
+---
+name: "scenario-improvement-campaign"
+description: "Drive a scenario to an operator-selected maturity target with provider-owned Test Genie evidence and an optional profile-ranked Architecture Cartographer campaign."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools","audits"]
+  tags: ["skill","audit-technique"]
+  icon: "list-checks"
+  status: "active"
+  targetToolId: "run-agent"
+  revision: 2
+  createdAt: "2026-05-29T00:00:00Z"
+  updatedAt: "2026-07-26T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager", "test-genie"]
+    commands: ["prompt-manager discover", "prompt-manager skill", "prompt-manager skill read", "swarm-manager", "test-genie", "test-genie execute", "test-genie runs"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Scenario Improvement Campaign
 
 Drive `{{TARGET}}` toward an operator-selected maturity target. Use Test Genie's current, provider-owned phase standing as the evidence source. Use an Architecture Cartographer campaign to preserve and rank multi-pass work. Do not replace either system's judgment with a second score or a copied finding list.

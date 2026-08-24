@@ -149,6 +149,9 @@
   "trust_signing": {
     "provider": "development"
   },
+  "environment": {
+    "VROOLI_SKILL_PROJECTION_ALL": "true"
+  },
   "cli": {
     "enabled": true,
     "command": "prompt-manager",

@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-workflow-work-follow-up"
+description: "Typed prompt contract for authorized follow-up."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-18T03:05:28Z"
+  updatedAt: "2026-07-18T03:05:28Z"
+  modes: ["contract"]
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Work Follow-Up Workflow
 
 Do the follow-up work the operator requested on the completed parent execution. The snapshot is immutable; the operator note defines the follow-up scope.

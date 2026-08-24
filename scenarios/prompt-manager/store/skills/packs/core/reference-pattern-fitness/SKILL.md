@@ -1,3 +1,24 @@
+---
+name: "reference-pattern-fitness"
+description: "Audit lens for artifacts that exist to be copied (templates, reference scenarios, canonical examples). Composes with single-instance audit lenses; surfaces multiplier-aware findings the others miss."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","meta-optimization","audits"]
+  tags: ["skill","template-fitness"]
+  icon: "git-branch"
+  status: "active"
+  targetToolId: "run-agent"
+  revision: 1
+  createdAt: "2026-05-04T00:00:00Z"
+  updatedAt: "2026-05-04T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "test-genie"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Reference-Pattern Fitness
 
 Prioritize **whether an artifact intended to be copied is fit to be a copy source**.

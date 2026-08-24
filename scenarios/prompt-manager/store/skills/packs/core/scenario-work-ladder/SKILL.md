@@ -1,3 +1,23 @@
+---
+name: "scenario-work-ladder"
+description: "Locate the highest broken layer of an existing scenario - contract (W0), obligations (W1), evidence (W2), implementation (W3) - using a runnable gate per rung, then route the repair to the skill that owns that rung. W2 is the L0-L4 traceability ladder and W3 is the R0-R4 maturity ladder; W0 and W1 are the contract rungs neither one covers."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","scenario","ladder","contract","prd","requirements","routing","methodology"]
+  icon: "layers"
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-27T00:00:00Z"
+  updatedAt: "2026-07-27T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager", "swarm-manager goals", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Scenario Work Ladder
 
 Locate the highest broken layer in an existing scenario's artifact stack — contract, obligations, evidence, implementation — then repair that layer before any layer under it. Your goal is to work on the layer that is wrong, rather than the layer that is easiest to measure.

@@ -1,3 +1,23 @@
+---
+name: "scientific-debugging"
+description: "Hypothesis-driven debugging methodology: generate falsifiable hypotheses, design experiments to validate them, and systematically narrow to root cause. Produces regression tests and documented findings."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","debugging","testing","methodology","investigation-technique"]
+  icon: "bug"
+  status: "active"
+  revision: 28
+  createdAt: "2026-02-03T02:40:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager ai-search", "swarm-manager backlog", "swarm-manager record", "swarm-manager records", "swarm-manager scenarios"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Scientific Debugging
 
 Apply the **scientific method to debugging**: generate falsifiable hypotheses, design experiments (tests) to validate them, and systematically narrow down to the root cause. This methodology produces regression tests and documented findings that prevent recurrence.

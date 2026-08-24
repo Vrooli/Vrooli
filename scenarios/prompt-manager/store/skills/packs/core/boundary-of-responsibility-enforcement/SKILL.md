@@ -1,3 +1,24 @@
+---
+name: "boundary-of-responsibility-enforcement"
+description: "Clarify and enforce module boundaries and responsibilities"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","architecture"]
+  tags: ["skill","audit-technique"]
+  icon: "box"
+  status: "active"
+  defaultScope: "architecture-scope"
+  revision: 48
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:41:36Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Boundary-of-Responsibility Enforcement
 
 Prioritize **where code lives** in `scenarios/{{TARGET}}/`. This skill governs the directory and package layout — which folders own which responsibility, what may import what, and how cross-cutting concerns enter and leave each zone. Two agents working independently from the same docs should land code in the same place.

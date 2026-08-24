@@ -1,3 +1,25 @@
+---
+name: "prd-authoring"
+description: "Judgment guide for authoring a scenario's business contract (PRD.md + requirements/) through the business-health wizard — the deterministic, no-AI interview that renders a canonical PRD and requirements skeleton conformant by construction. Covers when to author vs preserve, the interactive-TTY vs answers-file wizard flow (resumable, diff-preview first), taking capability-dedup hints seriously (answer-space cell #34), what the validator enforces (exact emoji section headings, OT line format `- [ ] OT-P0-001 | Title | description`, one target per tier, Purpose/Preferred content anchors), requirements linkage rules (every requirement carries a prd_ref to a real operational target plus at least one validation entry; statuses are earned by sync, never asserted), the finding-code remediation docs (docs/findings/<code>.md) and the deterministic business-health fix loop, and anti-gaming bans (no fabricated validation refs, no hand-flipped statuses, don't delete P0 requirements to silence findings)."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["prd","requirements","business-health","wizard","operational-targets","contract","authoring","capability-dedup","canonical-prd-template","validation-refs","anti-gaming"]
+  topics: ["prd authoring","write a prd","business contract","requirements bootstrap","prd overhaul","operational targets"]
+  icon: "file-text"
+  status: "active"
+  defaultScope: "architecture-scope"
+  revision: 2
+  createdAt: "2026-07-02T00:00:00Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie", "vrooli"]
+    commands: ["prompt-manager", "test-genie fix", "test-genie run", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 # PRD Authoring
 
 ## Purpose

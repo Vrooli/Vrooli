@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-21T13:19:06-04:00"
+    "last_validated_at": "2026-08-22T16:20:39-04:00"
   },
   "requirements": [
     {
@@ -27,7 +27,7 @@
           "type": "test",
           "ref": "bas/cases/01-foundation/01-smoke/world-ui-loads.json",
           "phase": "workflow",
-          "status": "implemented",
+          "status": "failing",
           "notes": "World canvas smoke journey"
         }
       ]
@@ -57,7 +57,7 @@
     {
       "id": "REQ-P2-029",
       "title": "3D World State Management",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
       "category": "ui",
       "description": "Zustand state management for 3D world state",
@@ -72,7 +72,7 @@
           "type": "test",
           "ref": "bas/cases/01-foundation/02-world/environment-scene-switch.json",
           "phase": "workflow",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Environment scene switch journey"
         }
       ]

@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -389,6 +388,7 @@ func (h *Handlers) buildReadResponse(store SkillStore, skill indexedSkill, varia
 		return Response{}, err
 	}
 
+	content = StripFrontmatter(content)
 	// Extract variables from original content before substitution
 	resp.Variables = ExtractVariables(content)
 	resp.ContentHash = contentSHA256(content)
@@ -456,7 +456,12 @@ func (h *Handlers) selectVariant(ctx context.Context, exp *store.Experiment, req
 			return "", nil, fmt.Errorf("variant %s is not an arm of experiment %s", requestedVariantID, exp.ID)
 		}
 	} else {
-		roll := rand.Float64()
+		// Reads are intentionally deterministic. Assignment-bearing workflow
+		// dispatches use AssignExperiment, which persists the content snapshot;
+		// this explicit read path remains useful for one-off callers without
+		// introducing an untracked random treatment on every request.
+		digest := sha256.Sum256([]byte(exp.ID + "\x00" + exp.SkillID))
+		roll := float64(uint64(digest[0])<<56|uint64(digest[1])<<48|uint64(digest[2])<<40|uint64(digest[3])<<32|uint64(digest[4])<<24|uint64(digest[5])<<16|uint64(digest[6])<<8|uint64(digest[7])) / float64(^uint64(0))
 		var cumulative float64
 		for _, arm := range exp.Arms {
 			cumulative += arm.Weight

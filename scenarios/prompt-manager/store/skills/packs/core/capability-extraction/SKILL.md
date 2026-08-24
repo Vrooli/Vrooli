@@ -1,3 +1,23 @@
+---
+name: "capability-extraction"
+description: "Methodology for auditing agent files to identify embedded methodologies that should be extracted into reusable, optimizable skills. Covers the 'Agent instructions to Skills' half of the promotion pipeline."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","meta-optimization","extraction","methodology","agents"]
+  icon: "package"
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-11T00:00:00Z"
+  updatedAt: "2026-02-11T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Capability Extraction
 
 Audit agent files (SOUL.md, AGENTS.md, TOOLS.md) to **identify embedded methodologies that should be extracted into reusable skills**. This methodology covers the first half of the promotion pipeline: `Agent instructions -> Skills`. Deterministic operations should continue toward Vrooli-controlled CLI implementation and Action exposure, while judgment stays in skills.

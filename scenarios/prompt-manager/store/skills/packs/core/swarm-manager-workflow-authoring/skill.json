@@ -1,15 +1,35 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "swarm-manager-workflow-authoring",
-  "name": "Swarm Manager Improve The System Session",
+  "createdAt": "2026-07-18T00:00:00Z",
   "description": "Human-led design of changes to how the operator and agents work together — skills, prompts, workflows, transitions, briefs, and session surfaces — resolved in-session as a reviewed proposal, a design record, or a recorded no-change.",
+  "entry": "SKILL.md",
+  "icon": "workflow",
+  "id": "swarm-manager-workflow-authoring",
+  "kind": "skill",
   "modes": [
     "tools",
     "conversation",
     "swarm-manager",
     "authoring"
   ],
+  "name": "Swarm Manager Improve The System Session",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager",
+      "swarm-manager",
+      "vrooli"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "swarm-manager",
     "session",
@@ -22,10 +42,5 @@
     "proposal",
     "design-record"
   ],
-  "icon": "workflow",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 3,
-  "createdAt": "2026-07-18T00:00:00Z",
   "updatedAt": "2026-08-11T00:00:00Z"
 }

@@ -1,3 +1,20 @@
+---
+name: "swarm-manager-workflow-goal-plan"
+description: "Typed prompt contract for goal planning."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 2
+  modes: ["contract"]
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager", "swarm-manager goals"]
+  origin:
+    kind: "authored"
+---
 # Goal Plan Workflow
 
 Use the immutable goal snapshot to propose a bounded, sequenced change to its targets, milestones, or dependencies. Do not mutate the goal.

@@ -1,3 +1,23 @@
+---
+name: "swarm-manager-workflow-authoring"
+description: "Human-led design of changes to how the operator and agents work together — skills, prompts, workflows, transitions, briefs, and session surfaces — resolved in-session as a reviewed proposal, a design record, or a recorded no-change."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools","conversation","swarm-manager","authoring"]
+  tags: ["swarm-manager","session","meta","improve-the-system","workflow","agent-manager","transition-catalog","authoring","proposal","design-record"]
+  icon: "workflow"
+  status: "active"
+  revision: 3
+  createdAt: "2026-07-18T00:00:00Z"
+  updatedAt: "2026-08-11T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
+    commands: ["prompt-manager", "swarm-manager", "vrooli"]
+  origin:
+    kind: "authored"
+---
 # Swarm Manager Improve The System Session
 
 Help the operator turn a real observation about **how they and agents work together** into a

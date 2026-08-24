@@ -1,3 +1,23 @@
+---
+name: "seam-discovery-and-enforcement"
+description: "Find and strengthen module boundaries and integration points"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","architecture"]
+  tags: ["skill","audit-technique"]
+  icon: "scissors"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Seam Discovery & Enforcement
 
 Prioritize **how variation is substituted** in `scenarios/{{TARGET}}/`. A *seam* is a named interface declared at the point of use whose production implementation is wired once and whose test double lives in a known catalog. This skill governs the seam itself — its shape, its fakes, and the registry that lets a future agent find it — not the directory layout that holds it.

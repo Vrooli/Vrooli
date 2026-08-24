@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-21T12:08:34-04:00"
+    "last_validated_at": "2026-08-24T00:52:01-04:00"
   },
   "requirements": [
     {
@@ -20,7 +20,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "POST /api/v1/teams/{id}/members creates membership"
         }
       ]
@@ -28,7 +28,7 @@
     {
       "id": "REQ-P1-024",
       "title": "Member Role Management",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "prompt-manager-should-have-team-membership-with-roles",
       "category": "api",
       "description": "Member role assignment and status management",
@@ -36,7 +36,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "PUT /api/v1/teams/{id}/members/{agentId} updates roles"
         }
       ]

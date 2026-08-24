@@ -999,6 +999,29 @@ func callSkills(ctx context.Context, client skillsconnect.SkillsServiceClient, m
 		}
 		resp, err := client.ReadSkills(ctx, connect.NewRequest(req))
 		return rpcBody(resp, "", true, err)
+	case method == "POST" && len(s) == 2 && s[1] == "import":
+		req := &skillsv1.ImportSkillRequest{}
+		if err := unmarshalPayload(payload, req); err != nil {
+			return nil, true, err
+		}
+		resp, err := client.ImportSkill(ctx, connect.NewRequest(req))
+		return rpcBody(resp, "", true, err)
+	case method == "POST" && len(s) == 3 && s[2] == "review":
+		req := &skillsv1.ReviewImportedSkillRequest{Id: s[1]}
+		if err := unmarshalPayload(payload, req); err != nil {
+			return nil, true, err
+		}
+		req.Id = s[1]
+		resp, err := client.ReviewImportedSkill(ctx, connect.NewRequest(req))
+		return rpcBody(resp, "", true, err)
+	case method == "POST" && len(s) == 3 && s[2] == "staleness":
+		req := &skillsv1.ReportImportedSkillStalenessRequest{Id: s[1]}
+		if err := unmarshalPayload(payload, req); err != nil {
+			return nil, true, err
+		}
+		req.Id = s[1]
+		resp, err := client.ReportImportedSkillStaleness(ctx, connect.NewRequest(req))
+		return rpcBody(resp, "", true, err)
 	case method == "POST" && len(s) == 1:
 		req := &skillsv1.CreateSkillRequest{}
 		if err := unmarshalPayload(payload, req); err != nil {

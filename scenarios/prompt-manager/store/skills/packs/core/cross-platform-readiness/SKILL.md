@@ -1,3 +1,22 @@
+---
+name: "cross-platform-readiness"
+description: "Prepares scenarios for deployment beyond Tier 1 (local stack) by eliminating environment variable dependencies, replacing non-portable resources, adopting api-core/storage for runtime filesystem state, and ensuring build/runtime portability across desktop, mobile, cloud, and enterprise tiers."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer"]
+  tags: ["portability","desktop","mobile","deployment","environment-variables","resources","filesystem","api-core-storage","sqlite","bundling","electron","cross-compilation"]
+  status: "active"
+  revision: 30
+  createdAt: "2026-02-03T14:00:00Z"
+  updatedAt: "2026-05-04T02:48:26Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Cross-Platform Readiness
 
 Prioritize **preparing scenarios for deployment beyond Tier 1** (local Vrooli stack) in `scenarios/{{TARGET}}/`. This skill steers toward eliminating assumptions that break on desktop, mobile, cloud, or enterprise deployments.

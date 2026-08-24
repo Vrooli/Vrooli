@@ -1,3 +1,22 @@
+---
+name: "visited-tracker-tools"
+description: "Use visited-tracker to record file visits, exclusions, and handoff notes with glob and batch-friendly patterns."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["visited-tracker","memory","coverage","workflow"]
+  status: "active"
+  revision: 11
+  createdAt: "2026-02-04T20:30:00Z"
+  updatedAt: "2026-02-05T01:07:20Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Visited Tracker Tools
 
 Use `visited-tracker` to record file coverage, avoid duplicate work, and leave handoff notes that persist across conversations.

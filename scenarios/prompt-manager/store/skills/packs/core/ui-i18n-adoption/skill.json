@@ -1,22 +1,36 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "ui-i18n-adoption",
-  "name": "UI i18n Adoption",
+  "createdAt": "2026-05-02T03:51:50Z",
+  "defaultScope": "architecture-scope",
   "description": "Adopt multi-language support in a scenario UI: wire i18next through the typed strings.ts/selectors.ts registries, default tests to cimode, layer accessibility and locale-parity contracts on top, so adding new locales is a config change and tests don't drift when copy moves",
+  "entry": "SKILL.md",
+  "icon": "languages",
+  "id": "ui-i18n-adoption",
+  "kind": "skill",
   "modes": [
     "steer",
     "react",
     "ux"
   ],
+  "name": "UI i18n Adoption",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "vrooli"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill"
   ],
-  "icon": "languages",
-  "status": "active",
-  "entry": "SKILL.md",
-  "defaultScope": "architecture-scope",
-  "revision": 2,
-  "createdAt": "2026-05-02T03:51:50Z",
   "updatedAt": "2026-05-02T15:00:00Z"
 }

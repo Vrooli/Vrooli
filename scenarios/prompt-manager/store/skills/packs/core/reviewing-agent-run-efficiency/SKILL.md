@@ -1,3 +1,19 @@
+---
+name: "reviewing-agent-run-efficiency"
+description: "Practice method for finding avoidable friction in successful agent runs."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["agent-manager","efficiency","investigation"]
+  status: "active"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Reviewing agent-run efficiency
 
 Start with `agent-manager run report <id>`. Review successful and failed runs

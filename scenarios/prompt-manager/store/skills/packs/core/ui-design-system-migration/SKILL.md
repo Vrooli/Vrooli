@@ -1,3 +1,24 @@
+---
+name: "ui-design-system-migration"
+description: "Migrate scenario UIs to a token-driven design system with phased rollout, quality gates, and convergence tracking"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","react","ux"]
+  tags: ["skill"]
+  icon: "palette"
+  status: "active"
+  defaultScope: "architecture-scope"
+  revision: 2
+  createdAt: "2026-02-07T00:00:00Z"
+  updatedAt: "2026-02-07T20:12:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: UI Design System Migration
 
 Prioritize migrating `scenarios/{{TARGET}}/ui/` to a **token-driven, primitive-owned design system** so major theme refreshes become low-risk and repeatable.

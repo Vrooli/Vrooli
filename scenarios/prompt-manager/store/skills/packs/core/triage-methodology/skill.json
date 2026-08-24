@@ -1,12 +1,31 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "triage-methodology",
-  "name": "Triage Methodology",
+  "createdAt": "2026-02-10T00:00:00Z",
   "description": "Severity assessment and prioritization methodology: gather symptoms, assess severity and blast radius, decide response urgency and approach. Produces a triage report that drives downstream investigation or resolution.",
+  "entry": "SKILL.md",
+  "icon": "alert-triangle",
+  "id": "triage-methodology",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Triage Methodology",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "swarm-manager"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "triage",
@@ -14,10 +33,5 @@
     "prioritization",
     "methodology"
   ],
-  "icon": "alert-triangle",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-02-10T00:00:00Z",
   "updatedAt": "2026-02-10T00:00:00Z"
 }

@@ -1,3 +1,23 @@
+---
+name: "experience-architecture-audit"
+description: "Audit the overall user and developer experience architecture"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","ux","audits"]
+  tags: ["skill"]
+  icon: "layout"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Experience Architecture Audit
 
 Prioritize understanding and improving the **experience architecture** of this scenario:

@@ -1,21 +1,28 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "swarm-manager-workflow-plan-repair",
-  "name": "swarm-manager-workflow-plan-repair",
+  "createdAt": "2026-07-18T03:05:25Z",
   "description": "Typed prompt contract for Plan Manager validation-driven repair.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-workflow-plan-repair",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "swarm-manager-workflow-plan-repair",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "swarm-manager",
     "agent-manager",
     "workflow",
     "prompt-contract"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-07-18T03:05:25Z",
-  "updatedAt": "2026-07-18T03:05:25Z",
-  "modes": [
-    "contract"
-  ]
+  "updatedAt": "2026-07-18T03:05:25Z"
 }

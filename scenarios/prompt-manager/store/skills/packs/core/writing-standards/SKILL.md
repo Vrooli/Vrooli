@@ -1,3 +1,23 @@
+---
+name: "writing-standards"
+description: "Placement map of controlled-language standards (ASD-STE100, EARS, RFC 2119, Gherkin) to Vrooli artifacts — which standard governs plans, requirements, PRDs, tests, reports, and skills, and where each does not apply"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta"]
+  tags: ["writing","style","standards","ste100","ears","authoring"]
+  icon: "pen-line"
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-21T00:00:00Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["swarm-manager", "test-genie"]
+    commands: ["swarm-manager", "test-genie"]
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Writing Standards
 
 Map of which controlled-language industry standard governs which Vrooli

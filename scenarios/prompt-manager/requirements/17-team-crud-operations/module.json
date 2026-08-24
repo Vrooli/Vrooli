@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-21T12:08:34-04:00"
+    "last_validated_at": "2026-08-24T00:52:01-04:00"
   },
   "requirements": [
     {
@@ -14,7 +14,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "All team CRUD endpoints return correct HTTP status codes"
         },
         {
@@ -36,7 +36,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Roles can be defined and stored on the team"
         },
         {
@@ -50,7 +50,7 @@
     {
       "id": "REQ-P0-020",
       "title": "Team Org Chart",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
       "category": "api",
       "description": "Organizational chart with manager-report relationships",
@@ -58,7 +58,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Org chart edges stored and retrieved correctly"
         }
       ]

@@ -1,3 +1,20 @@
+---
+name: "team-coordination-peer"
+description: "Supplemental guidance for peer teams that coordinate laterally without a leader"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["agent"]
+  tags: ["coordination","team","peer"]
+  status: "active"
+  revision: 1
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Coordination Guidance (Peer)
 
 This is supplemental guidance referenced from the generated Operating Policy. You are part of a peer team. Teammates are independent specialists, but coordination between peers is expected when it improves outcomes.

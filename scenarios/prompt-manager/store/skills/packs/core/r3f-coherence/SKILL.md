@@ -1,3 +1,23 @@
+---
+name: "r3f-coherence"
+description: "React Three Fiber performance patterns - prevent re-renders, optimize useFrame, and maintain 60fps rendering in 3D scenes"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","react","performance"]
+  tags: ["skill"]
+  icon: "box"
+  status: "active"
+  revision: 46
+  createdAt: "2026-01-25T00:00:00Z"
+  updatedAt: "2026-02-05T01:02:03Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: React Three Fiber Coherence
 
 Prioritize **performance-first 3D development** using React Three Fiber patterns that prevent re-renders, optimize animation loops, and maintain architectural coherence across 3D scenes.

@@ -1,3 +1,23 @@
+---
+name: "landing-page-deploy-setup"
+description: "Prepare landing-page-business-suite for desktop artifact deployments by validating admin session, storage, app registry, remote profiles, and service auth prerequisites"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["landing-page-business-suite","desktop","deployment","downloads","remote-profiles","scenario-to-desktop","scenario-to-cloud"]
+  icon: "settings"
+  status: "active"
+  revision: 2
+  createdAt: "2026-02-08T00:00:00Z"
+  updatedAt: "2026-02-08T00:20:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Landing Page Deploy Setup
 
 Prepare a local `landing-page-business-suite` (LPBS) instance so `scenario-to-desktop` can deploy desktop artifacts through LPBS to a remote LPBS deployment.

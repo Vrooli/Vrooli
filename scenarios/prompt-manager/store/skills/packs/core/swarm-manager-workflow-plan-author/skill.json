@@ -1,21 +1,35 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "swarm-manager-workflow-plan-author",
-  "name": "swarm-manager-workflow-plan-author",
+  "createdAt": "2026-07-18T03:05:25Z",
   "description": "Candidate-only Swarm workflow wrapper that applies the canonical Implementation Plan Authoring methodology to a bounded backlog snapshot.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-workflow-plan-author",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "swarm-manager-workflow-plan-author",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "swarm-manager"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "swarm-manager",
     "agent-manager",
     "workflow",
     "prompt-contract"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 2,
-  "createdAt": "2026-07-18T03:05:25Z",
-  "updatedAt": "2026-07-18T00:00:00Z",
-  "modes": [
-    "contract"
-  ]
+  "updatedAt": "2026-07-18T00:00:00Z"
 }

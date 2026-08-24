@@ -1,3 +1,23 @@
+---
+name: "navigation-integrity-audit"
+description: "Audit navigation flows and routing consistency"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","ux","audits"]
+  tags: ["skill"]
+  icon: "navigation"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Navigation Integrity Audit
 
 Prioritize **making navigation in `scenarios/{{TARGET}}/` a verifiable contract**: every URL, container, affordance, return path, shortcut, and reachability/deep-link policy is declared once in `ui/flow/navigation.json` and checked by `flow-verifier`. Move qualifying surfaces up the maturity ladder until label↔destination drift, hidden auth/role gaps, and viewport-keyed reachability surprises fail statically rather than ship.

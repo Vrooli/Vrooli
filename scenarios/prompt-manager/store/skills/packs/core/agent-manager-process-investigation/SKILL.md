@@ -1,3 +1,22 @@
+---
+name: "agent-manager-process-investigation"
+description: "Diagnose why agent runs fail by classifying root causes as Environment/Tooling or Agent Setup through active codebase exploration."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["contract"]
+  tags: ["agent-manager","investigation"]
+  status: "active"
+  revision: 3
+  createdAt: "2026-02-17T00:00:00Z"
+  updatedAt: "2026-03-15T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Investigation contract
 
 Diagnose the supplied run evidence and return the workflow's declared result.

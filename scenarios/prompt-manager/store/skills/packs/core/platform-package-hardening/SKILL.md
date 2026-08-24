@@ -1,3 +1,23 @@
+---
+name: "platform-package-hardening"
+description: "Improve a shared package’s reliability, tests, docs, and output contracts without breaking downstream consumers."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["platform","hardening"]
+  tags: ["platform","packages","testing","docs","compatibility"]
+  status: "active"
+  defaultScope: "platform-scope"
+  revision: 1
+  createdAt: "2026-02-10T00:00:00Z"
+  updatedAt: "2026-02-10T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Platform focus: Package Hardening
 
 Harden `packages/{{PACKAGE}}/` for reliability and usability: stabilize contracts, improve default human output (when relevant), add tests and docs, and prove changes via a downstream compat set. Default posture is brownfield-safe and non-breaking.

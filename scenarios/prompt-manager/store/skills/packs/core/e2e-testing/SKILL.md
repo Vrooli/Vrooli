@@ -1,3 +1,23 @@
+---
+name: "e2e-testing"
+description: "Strategy and implementation guide for end-to-end testing using BAS workflows and requirement integration"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","test"]
+  tags: ["skill"]
+  icon: "checkcircle"
+  status: "active"
+  revision: 49
+  createdAt: "2026-01-25T00:00:00Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: E2E Testing with Browser Automation Studio
 
 Prioritize **end-to-end test coverage** for critical user journeys using BAS workflows.

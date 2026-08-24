@@ -1,3 +1,23 @@
+---
+name: "error-semantics-recovery-path-design"
+description: "Design meaningful error types and recovery strategies"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","errorhandling"]
+  tags: ["skill"]
+  icon: "alerttriangle"
+  status: "active"
+  revision: 46
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-05T01:01:14Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Error Semantics & Recovery Path Design
 
 Prioritize **making errors meaningful, structured, and recoverable** for both users and agents.

@@ -1,12 +1,40 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "scenario-readiness-review",
-  "name": "Scenario Readiness Review",
+  "createdAt": "2026-03-20T00:00:00Z",
   "description": "Assess scenario readiness for commit using the git-control-tower unified review endpoint for code health signals and git state for change coherence",
+  "entry": "SKILL.md",
+  "icon": "clipboard-check",
+  "id": "scenario-readiness-review",
+  "kind": "skill",
   "modes": [
     "tools"
   ],
+  "name": "Scenario Readiness Review",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "git-control-tower",
+      "git-control-tower needs",
+      "git-control-tower unified",
+      "prompt-manager decision",
+      "prompt-manager when",
+      "swarm-manager",
+      "swarm-manager backlog",
+      "test-genie",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "git-control-tower",
+      "prompt-manager",
+      "swarm-manager",
+      "test-genie",
+      "vrooli"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "review",
     "quality",
@@ -14,10 +42,5 @@
     "assessment",
     "readiness"
   ],
-  "icon": "clipboard-check",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 2,
-  "createdAt": "2026-03-20T00:00:00Z",
   "updatedAt": "2026-03-24T00:00:00Z"
 }

@@ -2,11 +2,28 @@ package skills
 
 import (
 	"errors"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	clitest "prompt-manager/cli/internal/testutil"
 )
+
+func TestProjectionDirsAcceptsMultiTargetEnvironment(t *testing.T) {
+	sep := string(os.PathListSeparator)
+	got := projectionDirs("/one" + sep + " /two " + sep + "/one" + sep)
+	if !reflect.DeepEqual(got, []string{"/one", "/two"}) {
+		t.Fatalf("projectionDirs = %#v", got)
+	}
+}
+
+func TestResidentProjectionTokensIgnoreSkillBody(t *testing.T) {
+	content := []byte("---\nname: short\ndescription: compact description\n---\n\n" + strings.Repeat("body ", 1000))
+	if got := residentProjectionTokens(content); got >= len(content)/4 {
+		t.Fatalf("residentProjectionTokens counted the lazy body: got %d for %d bytes", got, len(content))
+	}
+}
 
 func TestCommandsRegistersSkillCommand(t *testing.T) {
 	groups := Commands(nil)

@@ -1,14 +1,32 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "swarm-manager-operations-session",
-  "name": "Swarm Manager Operations Session",
+  "createdAt": "2026-05-15T00:00:00Z",
   "description": "Conversational operations guidance over work already in the ledger: true state, the one thing that matters most, its next registered transition, and staleness triage by outcome.",
+  "entry": "SKILL.md",
+  "icon": "gauge",
+  "id": "swarm-manager-operations-session",
+  "kind": "skill",
   "modes": [
     "tools",
     "conversation",
     "swarm-manager"
   ],
+  "name": "Swarm Manager Operations Session",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "swarm-manager",
+      "swarm-manager operations",
+      "swarm-manager sessions"
+    ],
+    "scenarios": [
+      "swarm-manager"
+    ]
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "swarm-manager",
     "operations",
@@ -16,10 +34,5 @@
     "workflows",
     "transition-catalog"
   ],
-  "icon": "gauge",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 3,
-  "createdAt": "2026-05-15T00:00:00Z",
   "updatedAt": "2026-08-11T00:00:00Z"
 }

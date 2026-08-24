@@ -1,21 +1,28 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "audit-scope",
-  "name": "Audit Scope",
+  "createdAt": "2026-02-03T00:00:00Z",
   "description": "Investigate and document, no code changes",
+  "entry": "SKILL.md",
+  "icon": "search",
+  "id": "audit-scope",
+  "kind": "skill",
   "modes": [
     "scope"
   ],
+  "name": "Audit Scope",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 33,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "scope",
     "audit",
     "constraints"
   ],
-  "icon": "search",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 33,
-  "createdAt": "2026-02-03T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

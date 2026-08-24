@@ -1,12 +1,29 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "leader-triage-investigate-resolve",
-  "name": "Leader: Triage-Investigate-Resolve Pipeline",
+  "createdAt": "2026-02-10T00:00:00Z",
   "description": "Leader-focused pipeline that orchestrates severity triage, hypothesis-driven investigation, and coordinated resolution. Composes triage-methodology and scientific-debugging into a delegation workflow with phase gates and coordination protocols.",
+  "entry": "SKILL.md",
+  "icon": "shield",
+  "id": "leader-triage-investigate-resolve",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Leader: Triage-Investigate-Resolve Pipeline",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "pipeline",
@@ -16,10 +33,5 @@
     "coordination",
     "methodology"
   ],
-  "icon": "shield",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-02-10T00:00:00Z",
   "updatedAt": "2026-02-10T00:00:00Z"
 }

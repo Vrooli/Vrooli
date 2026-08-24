@@ -1,3 +1,25 @@
+---
+name: "test"
+description: "Test suite strengthening - coverage, reliability, signal strength"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","test"]
+  tags: ["skill"]
+  icon: "testtube"
+  status: "active"
+  targetDimensions: ["tests","coverage"]
+  programmaticHome: "unit-health:unit"
+  revision: 48
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Test Suite Strengthening
 
 > **Ladder position:** R0 and R3 (runnable & green, then features hardened — coverage). Green-and-runnable is the floor; real coverage of critical behavior is the hardening. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.

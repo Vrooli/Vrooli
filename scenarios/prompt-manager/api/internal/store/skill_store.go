@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/filerouting"
@@ -28,13 +30,29 @@ func isValidSkillID(id string) bool {
 
 // FileSkillStore implements SkillStore using the file system
 type FileSkillStore struct {
-	configDir string
-	roots     *filerouting.RoutedRoots
+	configDir        string
+	roots            *filerouting.RoutedRoots
+	scenarioRoots    []string
+	scenarioCacheDir string
 }
 
 // NewFileSkillStore creates a new file-based skill store
 func NewFileSkillStore(configDir string) *FileSkillStore {
 	return &FileSkillStore{configDir: configDir}
+}
+
+// NewFileSkillStoreWithScenarioRoots indexes scenario-owned skills in addition
+// to prompt-manager's governed packs. The scenario directories remain the
+// source of truth; the registry only synthesizes read metadata.
+func NewFileSkillStoreWithScenarioRoots(configDir string, scenarioRoots ...string) *FileSkillStore {
+	return &FileSkillStore{configDir: configDir, scenarioRoots: append([]string(nil), scenarioRoots...)}
+}
+
+// NewFileSkillStoreWithScenarioRootsAndCache adds a rebuildable derived index
+// for scenario-owned skills. The cache is never read as authority: deleting it
+// cannot hide a source skill, and rebuilding always walks the declared roots.
+func NewFileSkillStoreWithScenarioRootsAndCache(configDir, cacheDir string, scenarioRoots ...string) *FileSkillStore {
+	return &FileSkillStore{configDir: configDir, scenarioRoots: append([]string(nil), scenarioRoots...), scenarioCacheDir: cacheDir}
 }
 
 // NewRoutedFileSkillStore creates a skill store whose Config-class root is
@@ -122,10 +140,30 @@ func (s *FileSkillStore) List(ctx context.Context) ([]Skill, error) {
 			if err != nil {
 				continue // Skip malformed skills
 			}
+			entry := skill.Entry
+			if entry == "" {
+				entry = "SKILL.md"
+			}
+			if _, err := os.Stat(filepath.Join(packPath, skillID, entry)); err != nil {
+				continue // Compatibility sidecar without authored bytes; root owns it.
+			}
 
 			skill.Pack = pack
 			skills = append(skills, *skill)
 			seen[skillID] = true
+		}
+	}
+	for _, scenarioRoot := range s.scenarioRoots {
+		scenarioSkills, err := s.listScenarioRoot(scenarioRoot)
+		if err != nil {
+			return nil, err
+		}
+		for _, skill := range scenarioSkills {
+			if seen[skill.ID] {
+				return nil, fmt.Errorf("duplicate skill identifier %q across registry roots", skill.ID)
+			}
+			seen[skill.ID] = true
+			skills = append(skills, skill)
 		}
 	}
 
@@ -147,9 +185,36 @@ func (s *FileSkillStore) Get(ctx context.Context, id string) (*Skill, error) {
 	for _, pack := range packs {
 		skill, err := s.loadSkill(pack, id)
 		if err == nil {
+			entry := skill.Entry
+			if entry == "" {
+				entry = "SKILL.md"
+			}
+			if _, statErr := os.Stat(filepath.Join(s.packsDir(), pack, id, entry)); statErr != nil {
+				continue // Generated registry index; source is discovered below.
+			}
+			if skill.Origin != nil && skill.Origin.Kind == OriginImported && skill.Origin.Review.Verdict != ReviewVerdictPassed {
+				return nil, fmt.Errorf("skill %s is quarantined: review verdict is %s", id, skill.Origin.Review.Verdict)
+			}
 			skill.Pack = pack
 			return skill, nil
 		}
+	}
+	for _, scenarioRoot := range s.scenarioRoots {
+		scenarioSkills, err := s.listScenarioRoot(scenarioRoot)
+		if err != nil {
+			return nil, err
+		}
+		for _, skill := range scenarioSkills {
+			if skill.ID == id {
+				skill.Pack = "scenario"
+				return &skill, nil
+			}
+		}
+	}
+	// Keep quarantine visible to callers as a named refusal rather than making
+	// a pending import look like a typo or a missing skill.
+	if pending, pendingErr := s.loadSkill("vendor", id); pendingErr == nil && pending.Origin != nil && pending.Origin.Kind == OriginImported && pending.Origin.Review.Verdict != ReviewVerdictPassed {
+		return nil, fmt.Errorf("skill %s is quarantined: review verdict is %s", id, pending.Origin.Review.Verdict)
 	}
 
 	return nil, fmt.Errorf("skill not found: %s", id)
@@ -168,6 +233,9 @@ func (s *FileSkillStore) GetWithContent(ctx context.Context, id string) (*Skill,
 	}
 
 	contentPath := filepath.Join(s.packsDir(), skill.Pack, id, skill.Entry)
+	if skill.SourceDir != "" {
+		contentPath = filepath.Join(skill.SourceDir, skill.Entry)
+	}
 	content, err := ReadContent(contentPath)
 	if err != nil {
 		return skill, "", fmt.Errorf("reading content: %w", err)
@@ -226,7 +294,7 @@ func (s *FileSkillStore) Create(ctx context.Context, pack string, skill *Skill, 
 	}
 
 	// Write content
-	if err := WriteContent(filepath.Join(skillDir, "SKILL.md"), content); err != nil {
+	if err := WriteContent(filepath.Join(skillDir, "SKILL.md"), EnsureSkillFrontmatter(skill, content)); err != nil {
 		return fmt.Errorf("writing content: %w", err)
 	}
 
@@ -256,6 +324,12 @@ func (s *FileSkillStore) Update(ctx context.Context, id string, updates *Skill, 
 	skill, err := s.Get(ctx, id)
 	if err != nil {
 		return err
+	}
+	if skill.SourceDir != "" {
+		return fmt.Errorf("cannot edit scenario-owned skill %s in place; edit its source at %s", id, skill.SourceDir)
+	}
+	if skill.Origin != nil && skill.Origin.Kind == OriginImported {
+		return fmt.Errorf("cannot edit vendored skill %s in place; write an overlay under %s", id, s.ImportedSkillOverlayPath(id))
 	}
 
 	skillDir := filepath.Join(s.packsDir(), skill.Pack, id)
@@ -305,7 +379,7 @@ func (s *FileSkillStore) Update(ctx context.Context, id string, updates *Skill, 
 
 	// Write content if provided
 	if content != nil {
-		if err := WriteContent(filepath.Join(skillDir, "SKILL.md"), *content); err != nil {
+		if err := WriteContent(filepath.Join(skillDir, "SKILL.md"), EnsureSkillFrontmatter(skill, *content)); err != nil {
 			return fmt.Errorf("writing content: %w", err)
 		}
 	}
@@ -390,6 +464,126 @@ func (s *FileSkillStore) GetVersionHistory(ctx context.Context, id string) ([]Hi
 func (s *FileSkillStore) loadSkill(pack, skillID string) (*Skill, error) {
 	skillPath := filepath.Join(s.packsDir(), pack, skillID, "skill.json")
 	return LoadJSON[Skill](skillPath)
+}
+
+func (s *FileSkillStore) listScenarioRoot(root string) ([]Skill, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	result := make([]Skill, 0)
+	for _, scenario := range entries {
+		if !scenario.IsDir() {
+			continue
+		}
+		skillsDir := filepath.Join(root, scenario.Name(), "skills")
+		for _, entry := range mustReadDir(skillsDir) {
+			if !entry.IsDir() {
+				continue
+			}
+			sourceDir := filepath.Join(skillsDir, entry.Name())
+			content, readErr := os.ReadFile(filepath.Join(sourceDir, "SKILL.md"))
+			if readErr != nil {
+				continue
+			}
+			name, description, valid := frontmatterSummary(string(content))
+			if !valid || name != entry.Name() {
+				return nil, fmt.Errorf("scenario skill %s has invalid or mismatched frontmatter", sourceDir)
+			}
+			result = append(result, Skill{ID: entry.Name(), Name: name, Description: description, Status: StatusActive, Entry: "SKILL.md", Pack: "scenario", SourceDir: sourceDir, Timestamps: Timestamps{Revision: 1}})
+		}
+	}
+	return result, nil
+}
+
+type scenarioSkillCacheEntry struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	SourceDir   string `json:"sourceDir"`
+}
+
+// ScenarioSkillCachePath returns the derived cache location. An empty result
+// means this store was created without a cache seam (as in small unit tests).
+func (s *FileSkillStore) ScenarioSkillCachePath() string {
+	if s == nil || s.scenarioCacheDir == "" {
+		return ""
+	}
+	return filepath.Join(s.scenarioCacheDir, "skills", "scenario-index.json")
+}
+
+// RebuildScenarioSkillCache walks the source roots and writes a deterministic
+// index. It intentionally does not make List depend on this file; the cache is
+// an acceleration/evidence artifact, never a second source of truth.
+func (s *FileSkillStore) RebuildScenarioSkillCache(ctx context.Context) error {
+	if s == nil {
+		return fmt.Errorf("skill store is nil")
+	}
+	resolved, err := s.forContext(ctx)
+	if err != nil {
+		return err
+	}
+	path := resolved.ScenarioSkillCachePath()
+	if path == "" {
+		return fmt.Errorf("scenario skill cache is not configured")
+	}
+	var entries []scenarioSkillCacheEntry
+	for _, root := range resolved.scenarioRoots {
+		items, err := resolved.listScenarioRoot(root)
+		if err != nil {
+			return err
+		}
+		for _, item := range items {
+			entries = append(entries, scenarioSkillCacheEntry{ID: item.ID, Name: item.Name, Description: item.Description, SourceDir: item.SourceDir})
+		}
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].ID == entries[j].ID {
+			return entries[i].SourceDir < entries[j].SourceDir
+		}
+		return entries[i].ID < entries[j].ID
+	})
+	data, err := json.MarshalIndent(entries, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(data, '\n'), 0o644)
+}
+
+func mustReadDir(path string) []os.DirEntry {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil
+	}
+	return entries
+}
+
+func frontmatterSummary(content string) (name, description string, valid bool) {
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+		return "", "", false
+	}
+	closed := false
+	for _, raw := range lines[1:] {
+		line := strings.TrimSpace(raw)
+		if line == "---" {
+			closed = true
+			break
+		}
+		if strings.HasPrefix(line, "name:") {
+			name = strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "name:")), "\"'")
+		}
+		if strings.HasPrefix(line, "description:") {
+			description = strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "description:")), "\"'")
+		}
+	}
+	return name, description, closed && name != "" && description != ""
 }
 
 // ContentPath returns the path where a skill's content would be stored.

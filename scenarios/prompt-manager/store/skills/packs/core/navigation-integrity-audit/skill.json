@@ -1,21 +1,33 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "navigation-integrity-audit",
-  "name": "Navigation Integrity Audit",
+  "createdAt": "2025-01-15T00:00:00Z",
   "description": "Audit navigation flows and routing consistency",
+  "entry": "SKILL.md",
+  "icon": "navigation",
+  "id": "navigation-integrity-audit",
+  "kind": "skill",
   "modes": [
     "steer",
     "ux",
     "audits"
   ],
+  "name": "Navigation Integrity Audit",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 43,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill"
   ],
-  "icon": "navigation",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 43,
-  "createdAt": "2025-01-15T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

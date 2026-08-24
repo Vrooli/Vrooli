@@ -1,21 +1,28 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "experience-architecture-audit",
-  "name": "Experience Architecture Audit",
+  "createdAt": "2025-01-15T00:00:00Z",
   "description": "Audit the overall user and developer experience architecture",
+  "entry": "SKILL.md",
+  "icon": "layout",
+  "id": "experience-architecture-audit",
+  "kind": "skill",
   "modes": [
     "steer",
     "ux",
     "audits"
   ],
+  "name": "Experience Architecture Audit",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 43,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill"
   ],
-  "icon": "layout",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 43,
-  "createdAt": "2025-01-15T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

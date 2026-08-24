@@ -1,3 +1,20 @@
+---
+name: "team-coordination-leader-led"
+description: "Supplemental guidance for teams with an explicit coordinating lead"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["agent"]
+  tags: ["coordination","team","leader-led"]
+  status: "active"
+  revision: 1
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill"]
+  origin:
+    kind: "authored"
+---
 # Coordination Guidance (Leader-Led)
 
 This is supplemental guidance referenced from the generated Operating Policy. You are operating inside a leader-led team. The Operating Policy will tell you whether you are the lead or a reporting member, and whether execution is single-process or multi-process.

@@ -25,6 +25,7 @@ type Skill struct {
 	// Finding-to-skill recommendations remain descriptor-owned by Test Genie.
 	TargetDimensions []string       `json:"targetDimensions,omitempty"`
 	Requires         *SkillRequires `json:"requires,omitempty"`
+	Origin           *SkillOrigin   `json:"origin,omitempty"`
 	// ProgrammaticHome is a record-of-fact pointer (format "engine:identifier",
 	// e.g. "test-genie:architecture") set when this skill's detection has
 	// graduated into a programmatic engine. Nil while detection is still agentic.
@@ -34,8 +35,37 @@ type Skill struct {
 	Timestamps
 
 	// Runtime fields (not persisted in skill.json)
-	Pack string `json:"-"` // Which pack this skill belongs to
+	Pack      string `json:"-"` // Which pack this skill belongs to
+	SourceDir string `json:"-"` // Direct scenario-owned source directory, when set
 }
+
+// SkillOrigin records immutable provenance and independent review state for a
+// vendored skill. Imported skills remain inactive until explicitly passed.
+type SkillOrigin struct {
+	Kind            string      `json:"kind"`
+	SourceURL       string      `json:"sourceUrl"`
+	Commit          string      `json:"commit"`
+	License         string      `json:"license"`
+	Checksum        string      `json:"checksum"`
+	ImportedBy      string      `json:"importedBy"`
+	ImportedAt      string      `json:"importedAt"`
+	UpstreamVersion string      `json:"upstreamVersion,omitempty"`
+	Review          SkillReview `json:"review"`
+}
+
+type SkillReview struct {
+	Verdict    string `json:"verdict"`
+	Reviewer   string `json:"reviewer,omitempty"`
+	ReviewedAt string `json:"reviewedAt,omitempty"`
+}
+
+const (
+	OriginAuthored        = "authored"
+	OriginImported        = "imported"
+	ReviewVerdictPending  = "pending"
+	ReviewVerdictPassed   = "passed"
+	ReviewVerdictRejected = "rejected"
+)
 
 // Action represents a typed executable wrapper over one controlled CLI command.
 //

@@ -1,20 +1,27 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "progress-continuity-interruption-resilience",
-  "name": "Progress Continuity \u0026 Interruption Resilience",
+  "createdAt": "2025-01-15T00:00:00Z",
   "description": "Ensure work can resume after interruptions",
+  "entry": "SKILL.md",
+  "icon": "playcircle",
+  "id": "progress-continuity-interruption-resilience",
+  "kind": "skill",
   "modes": [
     "steer",
     "reliability"
   ],
+  "name": "Progress Continuity \u0026 Interruption Resilience",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 43,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill"
   ],
-  "icon": "playcircle",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 43,
-  "createdAt": "2025-01-15T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

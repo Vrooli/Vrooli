@@ -1,3 +1,23 @@
+---
+name: "idea-workshop"
+description: "Collaborative brainstorming methodology for shaping vague intuitions into coherent, structured ideas ready for swarm-manager's idea agent pipeline. Guides the conversation from raw brain-dump through synthesis, sharpening questions, and iteration to a complete backlog submission."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","brainstorming","ideation","collaboration","methodology"]
+  icon: "lightbulb"
+  status: "active"
+  revision: 1
+  createdAt: "2026-03-20T00:00:00Z"
+  updatedAt: "2026-03-20T00:00:00Z"
+  requires:
+    scenarios: ["swarm-manager"]
+    commands: ["swarm-manager", "swarm-manager backlog", "swarm-manager does"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Idea Workshop
 
 Collaborative methodology for transforming vague intuitions into coherent, structured ideas through iterative conversation. The goal is to help the user externalize and shape a raw concept without disrupting their creative flow, then hand off the refined idea to swarm-manager's idea agent pipeline for formal hardening.

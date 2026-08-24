@@ -1,3 +1,23 @@
+---
+name: "signal-classifier"
+description: "Classify a raw intake item against a caller-supplied taxonomy: assign the type slot, score evidence_strength, set honesty_flags, and recommend a default method. Parameterized over marketing, monetization, and market-validation taxonomies. Pure judgment - no inboxes, destinations, or team coupling."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","classifier","signal","triage","marketing","monetization"]
+  icon: "search"
+  status: "active"
+  revision: 1
+  createdAt: "2026-05-01T00:00:00Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Signal Classifier
 
 Given a raw intake item, identify its type, evidence strength, and honesty flags, and recommend a default method. This skill is pure judgment against a taxonomy the caller supplies. It does not retag, delete, promote, or file decisions; the caller's drain procedure runs those steps with this skill's output as input.

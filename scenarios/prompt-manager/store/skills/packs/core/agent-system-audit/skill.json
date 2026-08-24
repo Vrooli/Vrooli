@@ -1,12 +1,30 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "agent-system-audit",
-  "name": "Agent System Audit",
+  "createdAt": "2026-07-24T00:00:00Z",
   "description": "Audit the whole agent system as one composed system: all six teams, their members, plans of record, and framework canon. Scores per-team contract conformance, cross-team composition, goal alignment, and entropy against the framework-health targets.",
+  "entry": "SKILL.md",
+  "icon": "network",
+  "id": "agent-system-audit",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Agent System Audit",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager graph",
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "meta-optimization",
@@ -15,10 +33,5 @@
     "operating-model",
     "framework-health"
   ],
-  "icon": "network",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 3,
-  "createdAt": "2026-07-24T00:00:00Z",
   "updatedAt": "2026-07-30T00:00:00Z"
 }

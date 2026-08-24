@@ -1,21 +1,28 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "skill-authoring-search",
-  "name": "Search Skill Authoring",
+  "createdAt": "2026-01-28T00:00:00Z",
   "description": "Authoring guide for Search skills focused on discovery, evidence, and output contracts.",
+  "entry": "SKILL.md",
+  "icon": "search",
+  "id": "skill-authoring-search",
+  "kind": "skill",
   "modes": [
     "meta",
     "search"
   ],
+  "name": "Search Skill Authoring",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 43,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill",
     "authoring"
   ],
-  "icon": "search",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 43,
-  "createdAt": "2026-01-28T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

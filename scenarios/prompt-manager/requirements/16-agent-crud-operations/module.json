@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-21T12:08:34-04:00"
+    "last_validated_at": "2026-08-24T00:52:01-04:00"
   },
   "requirements": [
     {
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "All agent CRUD endpoints return correct HTTP status codes"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Agent appearance, SOUL.md, capabilities validation"
         },
         {
@@ -47,7 +47,7 @@
     {
       "id": "REQ-P0-017",
       "title": "Agent Appearance Configuration",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "prompt-manager-must-have-agent-crud-operations-via-api",
       "category": "api",
       "description": "Agent appearance configuration with body, head, and accent colors for 3D visualization",
@@ -55,13 +55,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Appearance colors stored and retrieved correctly"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Hex color validation for appearance fields"
         }
       ]

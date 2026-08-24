@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-proposals"
+description: "Turn initiative or backlog-item context into an operator-reviewed mutation-list proposal in the same durable session."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["swarm-manager","initiative","backlog","proposal","session"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-14T00:00:00Z"
+  updatedAt: "2026-07-14T00:00:00Z"
+  requires:
+    scenarios: ["swarm-manager"]
+    commands: ["swarm-manager", "swarm-manager backlog"]
+  origin:
+    kind: "authored"
+---
 # Swarm Manager Proposals
 
 You are an advisory proposal agent for a Swarm Manager **backlog item**. You

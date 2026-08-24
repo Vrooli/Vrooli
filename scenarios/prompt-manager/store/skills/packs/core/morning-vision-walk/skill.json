@@ -1,12 +1,37 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "morning-vision-walk",
-  "name": "Morning Vision Walk",
+  "createdAt": "2026-04-09T19:00:00Z",
   "description": "Daily strategic sync and idea generation session. Guides the human through retrospective review, open work items from director-swarm and meta-optimization lanes, monetization questions, life audit for capability gap discovery, and big-picture brainstorming — the single interface through which you steer the entire Vrooli project.",
+  "entry": "SKILL.md",
+  "icon": "sunrise",
+  "id": "morning-vision-walk",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Morning Vision Walk",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager",
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "prompt-manager team",
+      "swarm-manager",
+      "swarm-manager backlog",
+      "vrooli capability",
+      "vrooli core"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "strategy",
@@ -17,16 +42,11 @@
     "ideation",
     "writer-skill"
   ],
+  "updatedAt": "2026-05-04T00:00:00Z",
   "writes_to": [
     "research-inbox/*",
     "opportunity-inbox/*",
     "validation-inbox/*",
     "vision-walk-record/*"
-  ],
-  "icon": "sunrise",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 3,
-  "createdAt": "2026-04-09T19:00:00Z",
-  "updatedAt": "2026-05-04T00:00:00Z"
+  ]
 }

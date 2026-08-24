@@ -56,10 +56,11 @@ func NewFileStore(roots paths.Roots, routedRoots ...*filerouting.RoutedRoots) (*
 	}
 
 	// Create entity stores
-	skillStore := NewFileSkillStore(roots.Config)
+	skillStore := NewFileSkillStoreWithScenarioRootsAndCache(roots.Config, roots.RuntimeCache, roots.ScenariosDir)
 	actionStore := NewFileActionStore(roots.Config)
 	if len(routedRoots) > 0 && routedRoots[0] != nil {
 		skillStore = NewRoutedFileSkillStore(routedRoots[0])
+		skillStore.scenarioRoots = []string{roots.ScenariosDir}
 		actionStore = NewRoutedFileActionStore(routedRoots[0])
 	}
 	variantStore := NewFileVariantStore(skillStore)

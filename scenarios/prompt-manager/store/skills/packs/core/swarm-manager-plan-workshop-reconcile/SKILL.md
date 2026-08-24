@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-plan-workshop-reconcile"
+description: "Reconcile one accepted Plan Workshop response into a candidate-only change or attention outcome."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","plan-workshop","workflow","prompt-contract"]
+  status: "active"
+  revision: 2
+  createdAt: "2026-07-22T00:00:00Z"
+  updatedAt: "2026-07-22T03:45:00Z"
+  modes: ["contract"]
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Plan Workshop Reconciliation
 
 Fold the operator's response — their answers and accepted proposals — into one coherent whole-plan candidate. The base is the pinned plan in the snapshot; the response is the complete statement of what changes.

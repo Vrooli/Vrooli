@@ -1,3 +1,25 @@
+---
+name: "performance"
+description: "Measure and gate UI/UX performance with performance-health: audit a specific slow interaction (scroll, drag, click/type) via a targeted BAS capture, analyze the trace for React render/re-render jank and web-vitals (LCP), set per-flow and per-scenario budgets, and triage hotspots. Also build/bundle size, load/startup times, and caching."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","performance"]
+  tags: ["skill","performance","ui","ux","react","render","re-render","jank","scroll","drag","slow","responsiveness","latency","interaction","component","commit","frame","hotspot","audit","trace","measure","lcp","web-vitals","budget","performance-health"]
+  icon: "zap"
+  status: "active"
+  targetDimensions: ["performance"]
+  programmaticHome: "performance-health:performance"
+  revision: 49
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-06-22T00:00:00Z"
+  requires:
+    scenarios: ["git-control-tower", "prompt-manager", "test-genie", "vrooli"]
+    commands: ["git-control-tower baseline", "prompt-manager discover", "prompt-manager skill", "prompt-manager skill read", "test-genie", "test-genie registry", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Performance & Responsiveness
 
 > **Ladder position:** R3 (features hardened — performance/responsiveness). See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.

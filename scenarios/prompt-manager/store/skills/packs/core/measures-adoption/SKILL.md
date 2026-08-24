@@ -1,3 +1,26 @@
+---
+name: "measures-adoption"
+description: "Steers a scenario toward provider-validated Measures adoption without degrading existing analytics products. It uses a decision model for direct aggregates, authoritative external reads, and event-sourced CQRS analytical read models; requires typed, parameterized, provenance-stamped Measures over shared analytical semantics; and distinguishes a transport-only aggregate contract from a Stats/dashboard/CLI product. Uses `measures-health validate scenario` as the maturity source of truth and cites packages/measures-go/README.md and docs/concepts/MEASURES.md."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer"]
+  targetDimensions: ["measures"]
+  tags: ["measures","measures-go","measures-health","analytical-query","time-window","cqrs","event-log","read-model","manifest","measure-block","governance","auto-execution-gate","search-hub","analytics-product","semantic-parity","behavioral-probe","adoption","steer"]
+  icon: "bar-chart"
+  status: "active"
+  defaultScope: "architecture-scope"
+  programmaticHome: "measures-health:measures"
+  revision: 4
+  createdAt: "2026-06-08T00:00:00Z"
+  updatedAt: "2026-07-26T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager", "prompt-manager skill", "prompt-manager skill read", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Measures Adoption
 
 Prioritize making analytical questions in `scenarios/{{TARGET}}/` answerable as declared, typed, parameterized Measures without changing the scenario's analytical meaning or degrading an existing operator analytics product. Build each Measure as a thin, auditable query over the scenario's authoritative analytical substrate.

@@ -1,3 +1,23 @@
+---
+name: "implementation-plan-execution"
+description: "Execute a Plan Manager plan to its intent rather than its letter: read prior-plan status correctly, decide how far to diverge when the plan is wrong, extend the change boundary instead of writing workarounds, wait properly for long-running validation, and reserve 'blocked' for missing authority"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","execution","planning","implementation","scope","friction"]
+  icon: "play"
+  status: "active"
+  revision: 1
+  createdAt: "2026-08-07T00:00:00Z"
+  updatedAt: "2026-08-07T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Implementation Plan Execution
 
 Execute a Plan Manager plan to its **intent**, not to its letter. A plan is a

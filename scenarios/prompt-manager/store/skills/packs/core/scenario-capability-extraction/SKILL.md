@@ -1,3 +1,24 @@
+---
+name: "scenario-capability-extraction"
+description: "Methodology for extracting a mature product capability from one or more existing scenarios into a dedicated reusable Vrooli scenario with API, CLI, UI, docs, requirements, migration plan, and adoption contracts."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","scenario","extraction","architecture","reuse"]
+  topics: ["feature extraction","capability extraction","shared scenario","scenario extraction","scenario migration"]
+  icon: "git-branch-plus"
+  status: "active"
+  revision: 1
+  createdAt: "2026-05-14T00:00:00Z"
+  updatedAt: "2026-05-14T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Scenario Capability Extraction
 
 Extract mature product capabilities from one or more existing scenarios into a dedicated reusable Vrooli scenario. The outcome is never a headless service: every extracted capability becomes a full scenario with API, CLI, UI, docs, requirements, tests, adoption contracts, and a migration path for source and consumer scenarios.

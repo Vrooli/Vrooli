@@ -1,12 +1,29 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "systematic-exploration",
-  "name": "Systematic Exploration",
+  "createdAt": "2026-02-10T00:00:00Z",
   "description": "Methodology for systematically investigating any codebase or system: scope the investigation, map the landscape, form understanding hypotheses, validate through targeted reads, and produce a structured findings document.",
+  "entry": "SKILL.md",
+  "icon": "search",
+  "id": "systematic-exploration",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Systematic Exploration",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "exploration",
@@ -14,10 +31,5 @@
     "codebase-analysis",
     "methodology"
   ],
-  "icon": "search",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-02-10T00:00:00Z",
   "updatedAt": "2026-02-10T00:00:00Z"
 }

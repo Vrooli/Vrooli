@@ -1,12 +1,25 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "rcl-adopt-assist",
-  "name": "RCL Adopt Assist",
   "description": "Adopt a React Component Library asset into a scenario with integration and baseline-aware verification.",
-  "modes": ["contract"],
-  "tags": ["react-component-library", "catalog", "adopt"],
+  "entry": "SKILL.md",
   "icon": "package",
+  "id": "rcl-adopt-assist",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "RCL Adopt Assist",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "schemaVersion": 1,
   "status": "active",
-  "entry": "SKILL.md"
+  "tags": [
+    "react-component-library",
+    "catalog",
+    "adopt"
+  ]
 }

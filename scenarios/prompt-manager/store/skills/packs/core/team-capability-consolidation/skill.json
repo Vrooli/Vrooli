@@ -1,12 +1,31 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "team-capability-consolidation",
-  "name": "Team Capability Consolidation",
+  "createdAt": "2026-07-28T00:00:00Z",
   "description": "Turn a team's hand-maintained state into a scenario, then re-derive the team's roster from the gates that scenario enforces. Admits a team on either of two triggers — near-zero output against a large roster, or orientation cost rising while scenario coverage grows — then classifies state surfaces, derives the missing capability, bounds it by failure mode and clock, and collapses the member separations that existed only to hand off state.",
+  "entry": "SKILL.md",
+  "icon": "git-merge",
+  "id": "team-capability-consolidation",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Team Capability Consolidation",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager",
+      "prompt-manager graph",
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "meta-optimization",
@@ -16,10 +35,5 @@
     "scenario-design",
     "consolidation"
   ],
-  "icon": "git-merge",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 2,
-  "createdAt": "2026-07-28T00:00:00Z",
   "updatedAt": "2026-07-30T00:00:00Z"
 }

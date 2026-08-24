@@ -1,3 +1,23 @@
+---
+name: "leader-explore-plan-implement"
+description: "Leader-focused pipeline that orchestrates systematic exploration, implementation plan authoring, and coordinated implementation delegation. Defines phase transitions, coordination protocols, and convergence patterns for when to use the full pipeline vs partial entry."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","pipeline","leadership","delegation","coordination","methodology"]
+  icon: "git-branch"
+  status: "active"
+  revision: 2
+  createdAt: "2026-02-10T00:00:00Z"
+  updatedAt: "2026-02-10T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Leader Explore-Plan-Implement Pipeline
 
 Orchestrate the full lifecycle of delegated technical work: explore the problem space, author an implementation plan, then coordinate implementation across team members. This is a three-phase gated pipeline over two leaf skills.

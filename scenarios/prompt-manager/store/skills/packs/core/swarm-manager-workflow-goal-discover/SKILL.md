@@ -1,3 +1,20 @@
+---
+name: "swarm-manager-workflow-goal-discover"
+description: "Typed prompt contract for goal discovery."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 2
+  modes: ["contract"]
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager", "swarm-manager backlog", "swarm-manager goals"]
+  origin:
+    kind: "authored"
+---
 # Goal Discover Workflow
 
 Inspect the immutable goal snapshot and propose bounded missing work that advances the goal. Do not mutate the goal.

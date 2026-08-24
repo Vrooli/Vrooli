@@ -1,3 +1,25 @@
+---
+name: "experience-spec-authoring"
+description: "Judgment guide for authoring scenario experience contracts in experience/ through experience-manager: route/page identity, communication priorities, elements, claims, bindings, states, journeys, enforcement tiers, validation, and anti-gaming rules."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["experience","ux","scenario-experience-spec","experience-manager","routes","claims","bindings","validation"]
+  topics: ["experience spec","ux contract","scenario experience","experience authoring","route experience","experience-manager"]
+  icon: "layout-template"
+  status: "active"
+  defaultScope: "architecture-scope"
+  revision: 1
+  createdAt: "2026-07-05T00:00:00Z"
+  updatedAt: "2026-07-05T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager", "vrooli"]
+  origin:
+    kind: "authored"
+---
 # Experience Spec Authoring
 
 ## Purpose

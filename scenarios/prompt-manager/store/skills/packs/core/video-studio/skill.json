@@ -1,22 +1,33 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "video-studio",
-  "name": "Video Studio",
+  "createdAt": "2026-03-19T00:00:00Z",
   "description": "AI-driven video production combining browser recording, desktop recording, and compositing for marketing and demo content. Draft: no video-studio scenario exists, so this skill is not currently executable — pending an owner decision to build, retire, or rescope it.",
+  "entry": "SKILL.md",
+  "icon": "video",
+  "id": "video-studio",
+  "kind": "skill",
   "modes": [
     "tools"
   ],
+  "name": "Video Studio",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "swarm-manager backlog"
+    ],
+    "scenarios": [
+      "swarm-manager"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "draft",
   "tags": [
     "skill",
     "marketing",
     "video",
     "content-creation"
   ],
-  "icon": "video",
-  "status": "draft",
-  "entry": "SKILL.md",
-  "revision": 2,
-  "createdAt": "2026-03-19T00:00:00Z",
   "updatedAt": "2026-07-28T00:00:00Z"
 }

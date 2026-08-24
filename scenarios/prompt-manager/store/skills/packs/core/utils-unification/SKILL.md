@@ -1,3 +1,24 @@
+---
+name: "utils-unification"
+description: "Extract, standardize, and consolidate shared utilities (React-specific or general) to prevent duplication and drift while improving discoverability and testability"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","architecture","refactor"]
+  tags: ["skill"]
+  icon: "merge"
+  status: "active"
+  defaultScope: "refactor-scope"
+  revision: 48
+  createdAt: "2026-01-26T00:00:00Z"
+  updatedAt: "2026-02-07T01:05:12Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Utils Unification
 
 Prioritize **extracting, standardizing, and consolidating utilities** so shared logic is consistent, discoverable, and testable. The goal is to prevent duplication and drift while keeping utilities sharply scoped and aligned to screaming architecture.

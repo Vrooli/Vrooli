@@ -1,3 +1,24 @@
+---
+name: "refactor"
+description: "Code quality and structure improvements"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","refactor"]
+  tags: ["skill"]
+  icon: "refreshcw"
+  status: "active"
+  targetDimensions: ["structure","standards","cycles","tidiness"]
+  revision: 44
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Refactor & Structural Improvement
 
 > **Ladder position:** R2–R3 (evolvable architecture / features hardened). Large structural refactors — breaking import cycles, relocating packages, untangling coupling — are the *expected* move at R2; don't shrink them into cosmetic edits. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.

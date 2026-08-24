@@ -1,3 +1,22 @@
+---
+name: "interoperability-steer"
+description: "Ensure scenarios communicate reliably through type-safe, proto-first contracts between UI↔API and API↔API boundaries"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","architecture"]
+  tags: ["proto","types","validation","contracts"]
+  status: "active"
+  revision: 46
+  createdAt: "2026-01-30T15:30:00-05:00"
+  updatedAt: "2026-02-05T01:01:21Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Interoperability Steer
 
 Prioritize **hardening end-to-end interoperability** — both UI↔API within `scenarios/{{TARGET}}/` and API↔API across scenario boundaries — across contracts, serialization, discovery, dependency declarations, and runtime recovery.

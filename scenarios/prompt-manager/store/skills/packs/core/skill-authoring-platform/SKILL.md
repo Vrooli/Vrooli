@@ -1,3 +1,23 @@
+---
+name: "skill-authoring-platform"
+description: "Authoring guide for Platform skills that govern shared packages and cross-scenario standards without breaking downstream consumers."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta","platform"]
+  tags: ["skill","packages","platform","authoring"]
+  icon: "package"
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-10T00:00:00Z"
+  updatedAt: "2026-02-10T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Platform Skill Authoring
 
 Guide for creating **platform** skills (the authored skill declares `modes[0] = "platform"`). Platform skills steer safe evolution of shared code (for example `path:packages/*`, shared templates, shared contracts) that is consumed by many scenarios.

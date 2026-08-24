@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-workflow-work-correct"
+description: "Typed prompt contract for authorized correction."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-18T03:05:28Z"
+  updatedAt: "2026-07-18T03:05:28Z"
+  modes: ["contract"]
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Work Correction Workflow
 
 Apply the authorized correction to the parent execution's completed work. Correct only what the correction request names. The snapshot is immutable; do not act on state it does not contain.

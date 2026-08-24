@@ -49,21 +49,20 @@ func TestSkillJSONRoundTripsProgrammaticHome(t *testing.T) {
 }
 
 func TestProgramRuntimeSkillDeclaresHighArityDiscoveryVocabulary(t *testing.T) {
-	root := filepath.Join("..", "..", "..", "store", "skills", "packs", "core")
-	skill := readSkillJSON(t, filepath.Join(root, "program-runtime", "skill.json"))
-	description := strings.ToLower(skill.Description)
+	path := filepath.Join("..", "..", "..", "..", "..", "scenarios", "program-runtime", "skills", "program-runtime", "SKILL.md")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read scenario-owned program-runtime skill: %v", err)
+	}
+	description := strings.ToLower(string(data))
 	for _, phrase := range []string{"high-arity", "multi-scenario", "fan out", "cross-scenario", "discard intermediate data", "bounded results", "tool-call loops"} {
 		if !strings.Contains(description, phrase) {
-			t.Errorf("program-runtime description missing discovery phrase %q: %q", phrase, skill.Description)
+			t.Errorf("program-runtime source missing discovery phrase %q", phrase)
 		}
 	}
-	tags := make(map[string]struct{}, len(skill.Tags))
-	for _, tag := range skill.Tags {
-		tags[strings.ToLower(tag)] = struct{}{}
-	}
 	for _, tag := range []string{"high arity", "multi-scenario", "cross-scenario", "fan-out", "discard intermediate data", "return bounded results", "tool-call compression"} {
-		if _, ok := tags[tag]; !ok {
-			t.Errorf("program-runtime tags missing %q: %v", tag, skill.Tags)
+		if !strings.Contains(description, tag) {
+			t.Errorf("program-runtime source missing tag %q", tag)
 		}
 	}
 }

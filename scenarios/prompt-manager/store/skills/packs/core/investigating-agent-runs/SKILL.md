@@ -1,3 +1,19 @@
+---
+name: "investigating-agent-runs"
+description: "Practice method for diagnosing agent runs from the shared bounded report and CLI drill-downs."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["agent-manager","investigation","reliability"]
+  status: "active"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Investigating agent runs
 
 Start with `agent-manager run report <id>`. It supplies status, costs, result

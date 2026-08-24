@@ -1,3 +1,23 @@
+---
+name: "x-dev-log"
+description: "Generate X/Twitter dev log threads by mining Vrooli scenario activity (git-control-tower, agent-manager, swarm-manager, app-issue-tracker)"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill"]
+  icon: "messagecircle"
+  status: "active"
+  revision: 43
+  createdAt: "2026-01-29T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["git-control-tower", "prompt-manager", "swarm-manager", "vrooli"]
+    commands: ["git-control-tower", "prompt-manager work", "swarm-manager", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: X Dev Log Generator
 
 Generate engaging X/Twitter dev log threads by mining activity data from Vrooli scenarios for a given time period. Outputs draft content for review before posting.

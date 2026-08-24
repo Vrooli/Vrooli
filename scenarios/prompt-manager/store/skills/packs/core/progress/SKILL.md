@@ -1,3 +1,24 @@
+---
+name: "progress"
+description: "Focus on advancing operational targets in a stable, test-driven manner"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","progress"]
+  tags: ["skill"]
+  icon: "rocket"
+  status: "active"
+  targetDimensions: ["operational-targets"]
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Progress
 
 > **Ladder position:** R4 (capability progression). Advancing an operational target end-to-end — requirement → implementation → tests → validation — is large, expected work; a missing feature is **not** closed by a hygiene pass. Build the missing capability. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.

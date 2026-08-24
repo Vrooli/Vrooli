@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-workflow-evidence-request"
+description: "Typed prompt contract for evidence gathering."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-18T03:05:27Z"
+  updatedAt: "2026-07-18T03:05:27Z"
+  modes: ["contract"]
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager"]
+  origin:
+    kind: "authored"
+---
 # Evidence Request Workflow
 
 Gather exactly the evidence the request in the snapshot names, and return it with provenance. Do not judge the work and do not fix it.

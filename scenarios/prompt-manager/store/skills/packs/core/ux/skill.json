@@ -1,28 +1,40 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "ux",
-  "name": "UX Improvement",
+  "createdAt": "2025-01-15T00:00:00Z",
+  "defaultScope": "refactor-scope",
   "description": "User experience quality across all interfaces",
+  "entry": "SKILL.md",
+  "icon": "users",
+  "id": "ux",
+  "kind": "skill",
   "modes": [
     "steer",
     "ux"
   ],
+  "name": "UX Improvement",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 50,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill",
     "mobile",
     "responsive"
   ],
-  "icon": "users",
-  "status": "active",
-  "entry": "SKILL.md",
   "targetDimensions": [
     "accessibility",
     "visual",
     "ui"
   ],
-  "defaultScope": "refactor-scope",
-  "revision": 50,
-  "createdAt": "2025-01-15T00:00:00Z",
   "updatedAt": "2026-02-17T17:17:26Z"
 }

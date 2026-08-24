@@ -5,6 +5,8 @@
  * UI-only types are defined here.
  */
 
+import type { FolderType } from '@/lib/schemas'
+
 // Re-export API types from schemas (these include runtime validation)
 export type {
   FolderType,
@@ -34,7 +36,7 @@ export type {
  * This is a UI-only type (not from API - computed client-side).
  */
 export interface Folder {
-  id: 'core' | 'local' | 'drafts'
+  id: FolderType
   name: string
   description: string
   icon: string
@@ -47,7 +49,7 @@ export interface Folder {
  */
 export interface SearchFilters {
   tag?: string
-  folder?: 'core' | 'local' | 'drafts'
+  folder?: FolderType
   modes?: string[]
 }
 

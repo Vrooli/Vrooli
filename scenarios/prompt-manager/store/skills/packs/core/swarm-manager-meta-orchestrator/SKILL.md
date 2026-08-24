@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-meta-orchestrator"
+description: "Human-led shaping of raw operator material into goals, milestones, and backlog items, resolved in-session as a reviewed proposal, one research item, or a recorded reason not to build."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools","conversation"]
+  tags: ["swarm-manager","backlog","session","initiative","proposal","workflow"]
+  status: "active"
+  revision: 4
+  createdAt: "2026-03-23T00:00:00Z"
+  updatedAt: "2026-08-11T00:00:00Z"
+  requires:
+    scenarios: ["swarm-manager"]
+    commands: ["swarm-manager", "swarm-manager backlog", "swarm-manager goals", "swarm-manager portfolio", "swarm-manager sessions"]
+  origin:
+    kind: "authored"
+---
 # Swarm Manager Plan Work Session
 
 Help the operator turn raw material — an idea, a complaint, a screenshot, a half-formed objective —

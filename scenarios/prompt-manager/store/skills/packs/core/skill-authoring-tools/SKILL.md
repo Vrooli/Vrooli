@@ -1,3 +1,23 @@
+---
+name: "skill-authoring-tools"
+description: "Authoring guide for Tools skills covering safe usage, guardrails, and verification."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta","tools"]
+  tags: ["skill","authoring"]
+  icon: "wrench"
+  status: "active"
+  revision: 43
+  createdAt: "2026-01-28T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Tools Skill Authoring
 
 Guide for creating **tools** skills (the authored skill declares `modes[0] = "tools"`). Tools skills teach how to use a resource, scenario, or tool safely and effectively.

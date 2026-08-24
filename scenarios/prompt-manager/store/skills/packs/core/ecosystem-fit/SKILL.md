@@ -1,3 +1,23 @@
+---
+name: "ecosystem-fit"
+description: "Decision-time lens for placing a scenario in Vrooli's self-improving ecosystem: which interfaces it serves or enables, what functional role it plays, and how it is built for compound value. Translates the vision into concrete 'what does done mean' obligations during planning, building, and refactoring. Cites docs/concepts/ECOSYSTEM.md."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","planning","ecosystem","architecture","scenario-design","methodology"]
+  icon: "network"
+  status: "active"
+  revision: 1
+  createdAt: "2026-06-03T00:00:00Z"
+  updatedAt: "2026-06-03T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager action", "prompt-manager graph", "prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Ecosystem Fit
 
 Before treating a scenario as a standalone app, decide how it becomes a good citizen of Vrooli's self-improving ecosystem — which **interfaces** it serves, what **functional role** it plays, and how it is built for **compound value**. The goal is to make the vision bite at decision time, so two agents planning the same scenario reach the same structural decisions about where it fits.

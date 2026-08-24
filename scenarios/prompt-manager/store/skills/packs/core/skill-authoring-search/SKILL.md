@@ -1,3 +1,23 @@
+---
+name: "skill-authoring-search"
+description: "Authoring guide for Search skills focused on discovery, evidence, and output contracts."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta","search"]
+  tags: ["skill","authoring"]
+  icon: "search"
+  status: "active"
+  revision: 43
+  createdAt: "2026-01-28T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Search Skill Authoring
 
 Guide for creating **search** skills (the authored skill declares `modes[0] = "search"`). Search skills focus on discovery, mapping, and evidence gathering, not implementation.

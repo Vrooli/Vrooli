@@ -1,14 +1,39 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "swarm-manager-review",
-  "name": "Swarm Manager Review Agent",
-  "description": "Gather visual and functional evidence for a completed backlog execution to support human archive/follow-up decisions.",
-  "modes": ["tools"],
-  "tags": ["swarm-manager", "review", "evidence", "verification"],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
   "createdAt": "2026-04-02T00:00:00Z",
+  "description": "Gather visual and functional evidence for a completed backlog execution to support human archive/follow-up decisions.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-review",
+  "kind": "skill",
+  "modes": [
+    "tools"
+  ],
+  "name": "Swarm Manager Review Agent",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager action",
+      "prompt-manager discover",
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "swarm-manager",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "swarm-manager",
+    "review",
+    "evidence",
+    "verification"
+  ],
   "updatedAt": "2026-04-02T00:00:00Z"
 }

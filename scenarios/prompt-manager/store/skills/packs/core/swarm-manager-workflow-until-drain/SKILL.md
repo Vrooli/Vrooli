@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-workflow-until-drain"
+description: "Warm, resumable execution of an accepted Plan Manager frontier until completion."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","workflow","until-drain"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-08-21T18:43:56Z"
+  updatedAt: "2026-08-21T18:43:56Z"
+  modes: ["contract"]
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Swarm Manager workflow: until drain
 
 ## Contract

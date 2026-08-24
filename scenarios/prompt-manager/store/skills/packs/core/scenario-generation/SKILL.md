@@ -1,3 +1,23 @@
+---
+name: "scenario-generation"
+description: "Guide an approved scenario idea through template selection, scaffold onboarding, phased-plan development, and evidence-driven maintenance."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["vrooli","scenario","generation","idea","scaffold"]
+  topics: ["scenario creation","scenario generation","new scenario","idea execution"]
+  status: "active"
+  revision: 4
+  createdAt: "2026-03-26T00:00:00Z"
+  updatedAt: "2026-07-27T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
+    commands: ["prompt-manager discover", "prompt-manager discovery", "prompt-manager skill", "prompt-manager skill read", "swarm-manager applies", "swarm-manager execution", "swarm-manager phased", "vrooli", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 # Scenario Generation
 
 ## Purpose

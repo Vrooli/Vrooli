@@ -1,3 +1,24 @@
+---
+name: "unit-testing-architecture-steer"
+description: "Establishes robust unit test infrastructure including file organization, test isolation, mock organization, testable production code patterns, and systematic edge case coverage structures."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","test"]
+  tags: ["testing","unit-tests","architecture","mocks","testcontainers","dependency-injection"]
+  status: "active"
+  targetDimensions: ["tests"]
+  programmaticHome: "unit-health:unit"
+  revision: 9
+  createdAt: "2026-02-04T12:50:18Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Unit Testing Architecture
 
 Prioritize **the test infrastructure that makes unit tests trustworthy, fast, and easy to add** in `scenarios/{{TARGET}}/`. Treat test architecture as a precondition for test content: co-located test files, a centralized `testutil` package, injectable seams (clock, HTTP, env, logger), and drift-gates that fail when production code leaks untestable dependencies.

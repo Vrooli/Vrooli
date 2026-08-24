@@ -1,3 +1,25 @@
+---
+name: "storage-steer"
+description: "Steers scenarios toward engine-independent, per-domain storage architecture: schema embedded next to the code that interprets it (SchemaProvider/EnsureSchemas substrate in api-core/database), repository interfaces hide the engine, the same per-domain rule applies to Qdrant collections and Redis namespaces, and migrations follow a three-tier story (declarative greenfield, out-of-tree scripts for greenfield-with-data, versioned migrations only when production schema evolution earns them)."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer"]
+  tags: ["storage","database","schema-architecture","per-domain-schema","schema-provider","ensure-schemas","migrations","repository-pattern","sqlite","postgres","qdrant","redis","isolation","greenfield"]
+  status: "active"
+  defaultScope: "architecture-scope"
+  targetDimensions: ["storage"]
+  programmaticHome: "storage-manager:storage"
+  revision: 51
+  createdAt: "2026-01-30T20:00:00-05:00"
+  updatedAt: "2026-06-22T00:00:00Z"
+  requires:
+    scenarios: ["git-control-tower", "prompt-manager", "swarm-manager", "test-genie", "vrooli"]
+    commands: ["git-control-tower baseline", "prompt-manager skill", "prompt-manager skill read", "swarm-manager captures", "test-genie", "test-genie phase", "vrooli", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Storage Architecture
 
 Prioritize **engine-independent, per-domain storage architecture** in `scenarios/{{TARGET}}/`. Schema lives next to the code that interprets it. Repository interfaces hide the engine. Cross-store ownership (SQL tables, Qdrant collections, Redis namespaces) follows the same per-domain rule. Greenfield by default; brownfield substrate appears only when production data evolution demands it.

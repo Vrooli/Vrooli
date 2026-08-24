@@ -1,3 +1,23 @@
+---
+name: "idempotency-replay-safety-hardening"
+description: "Ensure operations are safe to retry and replay"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","reliability"]
+  tags: ["skill"]
+  icon: "repeat"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Idempotency & Replay Safety Hardening
 
 Prioritize making the scenario’s behaviors **idempotent, replay-safe, and predictable** under retries, partial failures, or repeated execution of the same action.

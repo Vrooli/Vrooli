@@ -1,3 +1,23 @@
+---
+name: "team-tool-mapping"
+description: "Governance for equipping teams with scenario-based tool skills using lazy evaluation to generate honest demand signals for development prioritization"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta"]
+  tags: ["skill","governance","teams","tools","demand-signals"]
+  icon: "link"
+  status: "active"
+  revision: 1
+  createdAt: "2026-03-19T00:00:00Z"
+  updatedAt: "2026-03-19T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager graph", "prompt-manager skill", "prompt-manager skill read", "swarm-manager backlog"]
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Team Tool Mapping
 
 Govern how teams are equipped with scenario capability — by routing it into the team's **instrument** first, and only writing per-member tool skills for teams that have no instrument yet.

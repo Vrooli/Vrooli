@@ -1,3 +1,23 @@
+---
+name: "swarm-manager-operations-session"
+description: "Conversational operations guidance over work already in the ledger: true state, the one thing that matters most, its next registered transition, and staleness triage by outcome."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools","conversation","swarm-manager"]
+  tags: ["swarm-manager","operations","sessions","workflows","transition-catalog"]
+  icon: "gauge"
+  status: "active"
+  revision: 3
+  createdAt: "2026-05-15T00:00:00Z"
+  updatedAt: "2026-08-11T00:00:00Z"
+  requires:
+    scenarios: ["swarm-manager"]
+    commands: ["swarm-manager", "swarm-manager operations", "swarm-manager sessions"]
+  origin:
+    kind: "authored"
+---
 # Swarm Manager Operations Session
 
 Help the operator see the true state of work already in the ledger, decide what to move next, and

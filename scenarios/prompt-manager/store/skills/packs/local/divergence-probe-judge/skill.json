@@ -1,20 +1,27 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "divergence-probe-judge",
-  "name": "divergence-probe-judge",
+  "createdAt": "2026-07-21T13:41:25Z",
   "description": "Divergence-probe judge: diff three runner decision lists and anchor material divergence to the permitting skill sentence.",
+  "entry": "SKILL.md",
+  "id": "divergence-probe-judge",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "divergence-probe-judge",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "divergence-probe",
     "dtv",
     "meta"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-07-21T13:41:25Z",
-  "updatedAt": "2026-07-21T13:41:25Z",
-  "modes": [
-    "contract"
-  ]
+  "updatedAt": "2026-07-21T13:41:25Z"
 }

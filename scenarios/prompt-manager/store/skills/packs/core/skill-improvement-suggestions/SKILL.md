@@ -1,3 +1,23 @@
+---
+name: "skill-improvement-suggestions"
+description: "Audit a skill on two axes — execution efficiency (E1-E9) and conditioning quality (C1-C5, per SKILL_AUTHORING.md) — and produce prioritized improvement suggestions plus a Prose Retirement Map."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta"]
+  tags: ["skill"]
+  icon: "lightbulb"
+  status: "active"
+  revision: 47
+  createdAt: "2026-01-30T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager action", "prompt-manager discover", "prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Skill Improvement Suggestions
 
 Analyze **{{SKILL}}** and propose meaningful improvements to its tools, wording, or structure. Improvement asks one question: **is the contract cheap and well-conditioned?** The sibling skill `skill-validation` asks the complementary question — is the contract true and executable — so route correctness findings there. Audit on two axes that compose: **efficiency** (token cost, manual loops, promotion candidates — §3) and **conditioning quality** (does the text converge behavior — §4). An inefficient skill and a poorly-conditioning skill are different defects with different fixes.

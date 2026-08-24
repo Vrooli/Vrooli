@@ -1,3 +1,24 @@
+---
+name: "morning-vision-walk"
+description: "Daily strategic sync and idea generation session. Guides the human through retrospective review, open work items from director-swarm and meta-optimization lanes, monetization questions, life audit for capability gap discovery, and big-picture brainstorming — the single interface through which you steer the entire Vrooli project."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","strategy","brainstorming","daily","vision","planning","ideation","writer-skill"]
+  writes_to: ["research-inbox/*","opportunity-inbox/*","validation-inbox/*","vision-walk-record/*"]
+  icon: "sunrise"
+  status: "active"
+  revision: 3
+  createdAt: "2026-04-09T19:00:00Z"
+  updatedAt: "2026-05-04T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
+    commands: ["prompt-manager", "prompt-manager skill", "prompt-manager skill read", "prompt-manager team", "swarm-manager", "swarm-manager backlog", "vrooli capability", "vrooli core"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Morning Vision Walk
 
 Daily strategic sync and idea generation session — the single interface through which you steer the entire Vrooli project. This skill guides a structured conversation that covers decision triage, strategic review, and open-ended brainstorming, ensuring nothing falls through the cracks while preserving space for creative exploration.

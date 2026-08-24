@@ -1,13 +1,30 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "platform-package-hardening",
-  "name": "Platform Package Hardening",
+  "createdAt": "2026-02-10T00:00:00Z",
+  "defaultScope": "platform-scope",
   "description": "Improve a shared package’s reliability, tests, docs, and output contracts without breaking downstream consumers.",
+  "entry": "SKILL.md",
+  "id": "platform-package-hardening",
+  "kind": "skill",
   "modes": [
     "platform",
     "hardening"
   ],
+  "name": "Platform Package Hardening",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "platform",
     "packages",
@@ -15,11 +32,5 @@
     "docs",
     "compatibility"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "defaultScope": "platform-scope",
-  "revision": 1,
-  "createdAt": "2026-02-10T00:00:00Z",
   "updatedAt": "2026-02-10T00:00:00Z"
 }
-

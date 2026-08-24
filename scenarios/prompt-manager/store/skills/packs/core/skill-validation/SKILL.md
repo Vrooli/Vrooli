@@ -1,3 +1,23 @@
+---
+name: "skill-validation"
+description: "Validation suite for skills: contract extraction, consistency and executability checks, divergence probe, severity-classified findings with expansion patches."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta"]
+  tags: ["skill"]
+  icon: "check-circle"
+  status: "active"
+  revision: 45
+  createdAt: "2026-01-30T11:19:51-05:00"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Skill Validation
 
 Analyze **{{SKILL}}** by running a structured "validation suite" that surfaces **issues, inconsistencies, and capability gaps**. Validation asks one question: **is the contract true and executable?** The sibling skill `skill-improvement-suggestions` asks the complementary question — is the contract cheap and well-conditioned. The routing rule between them is canon (`docs/agent-system/SKILL_AUTHORING.md` §"Conditioning defect patterns"): validation keeps exactly one conditioning check — the divergence probe (§3.3) — because a demonstrated divergence is an executability defect; C1, C2, C3, and C5 findings hand off to `skill-improvement-suggestions`.

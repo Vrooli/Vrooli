@@ -1,3 +1,22 @@
+---
+name: "agent-manager-process-investigation-apply"
+description: "Implement fixes from an investigation report organized by category with per-change verification."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["contract"]
+  tags: ["agent-manager","investigation","apply"]
+  status: "active"
+  revision: 3
+  createdAt: "2026-02-17T00:00:00Z"
+  updatedAt: "2026-03-15T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Investigation apply contract
 
 Apply only the operator-approved investigation findings and return the

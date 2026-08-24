@@ -13,6 +13,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,6 +44,10 @@ type SkillUsageRow struct {
 	ConversionRate *float64 `json:"conversionRate,omitempty"`
 	// LastReadAt is the newest read timestamp in the window, RFC3339.
 	LastReadAt string `json:"lastReadAt,omitempty"`
+	// Projected identifies skills resident in a generated native harness scope.
+	// It prevents an operator from interpreting a projected skill's absent CLI
+	// reads as absence of demand.
+	Projected bool `json:"projected"`
 }
 
 // SkillUsageReport is the windowed aggregation across all skills seen.
@@ -56,13 +62,14 @@ type SkillUsageReport struct {
 
 // UsageReporter builds SkillUsageReport from the two telemetry logs.
 type UsageReporter struct {
-	reads *store.SkillReadStore
-	calls *store.DiscoveryCallStore
+	reads        *store.SkillReadStore
+	calls        *store.DiscoveryCallStore
+	projectedDir string
 }
 
 // NewUsageReporter builds a reporter over the read and discovery logs.
 func NewUsageReporter(reads *store.SkillReadStore, calls *store.DiscoveryCallStore) *UsageReporter {
-	return &UsageReporter{reads: reads, calls: calls}
+	return &UsageReporter{reads: reads, calls: calls, projectedDir: strings.TrimSpace(os.Getenv("VROOLI_SKILL_PROJECTION_DIR"))}
 }
 
 // Report aggregates the window. A nil store contributes zero rather than
@@ -129,7 +136,20 @@ func (ur *UsageReporter) Report(window time.Duration) (SkillUsageReport, error) 
 		}
 	}
 
+	projectedDirs := []string{ur.projectedDir}
+	if configured := strings.TrimSpace(os.Getenv("VROOLI_SKILL_PROJECTION_DIRS")); configured != "" {
+		projectedDirs = append(projectedDirs, strings.Split(configured, string(os.PathListSeparator))...)
+	}
 	for _, r := range rows {
+		for _, dir := range projectedDirs {
+			if strings.TrimSpace(dir) == "" {
+				continue
+			}
+			if _, err := os.Stat(filepath.Join(dir, r.SkillID, "SKILL.md")); err == nil {
+				r.Projected = true
+				break
+			}
+		}
 		if r.Returned > 0 {
 			rate := float64(r.Reads) / float64(r.Returned)
 			r.ConversionRate = &rate

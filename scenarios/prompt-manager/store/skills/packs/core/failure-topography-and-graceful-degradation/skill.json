@@ -1,20 +1,32 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "failure-topography-and-graceful-degradation",
-  "name": "Failure Topography \u0026 Graceful Degradation",
+  "createdAt": "2025-01-15T00:00:00Z",
   "description": "Map failure modes and implement graceful degradation",
+  "entry": "SKILL.md",
+  "icon": "activity",
+  "id": "failure-topography-and-graceful-degradation",
+  "kind": "skill",
   "modes": [
     "steer",
     "reliability"
   ],
+  "name": "Failure Topography \u0026 Graceful Degradation",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 43,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill"
   ],
-  "icon": "activity",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 43,
-  "createdAt": "2025-01-15T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

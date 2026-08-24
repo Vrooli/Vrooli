@@ -1,3 +1,20 @@
+---
+name: "rcl-extract-assist"
+description: "Extract a scenario asset into the React Component Library with source refactoring and baseline-aware verification."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["contract"]
+  tags: ["react-component-library","catalog","extract"]
+  icon: "package"
+  status: "active"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Tools focus: RCL Extract Assist
 
 Extract one component, hook, or other catalog asset into React Component Library. Refactor source scenario code when needed, then use the RCL CLI as the only catalog mutation authority.

@@ -1,20 +1,27 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "idempotency-replay-safety-hardening",
-  "name": "Idempotency \u0026 Replay Safety",
+  "createdAt": "2025-01-15T00:00:00Z",
   "description": "Ensure operations are safe to retry and replay",
+  "entry": "SKILL.md",
+  "icon": "repeat",
+  "id": "idempotency-replay-safety-hardening",
+  "kind": "skill",
   "modes": [
     "steer",
     "reliability"
   ],
+  "name": "Idempotency \u0026 Replay Safety",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 43,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill"
   ],
-  "icon": "repeat",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 43,
-  "createdAt": "2025-01-15T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

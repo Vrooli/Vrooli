@@ -403,6 +403,14 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Skill not found", http.StatusNotFound)
 		return
 	}
+	if folder == "vendor" {
+		overlayPath := filepath.Join("vendor", id, "overlays")
+		if provider, ok := store.(interface{ ImportedSkillOverlayPath(string) string }); ok {
+			overlayPath = provider.ImportedSkillOverlayPath(id)
+		}
+		http.Error(w, "Cannot edit vendored skill in place; write an overlay under "+overlayPath, http.StatusForbidden)
+		return
+	}
 	if req.Content != nil {
 		current, err := store.GetContent(folder, skill.File)
 		if err != nil {
@@ -849,6 +857,7 @@ func (h *Handlers) toResponseWithContent(store SkillStore, p Metadata) Response 
 	if len(parts) == 2 {
 		content, err := store.GetContent(parts[0], parts[1])
 		if err == nil {
+			content = StripFrontmatter(content)
 			response.Content = content
 			response.Variables = ExtractVariables(content)
 		}

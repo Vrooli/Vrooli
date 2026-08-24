@@ -1,3 +1,24 @@
+---
+name: "opportunity-pool-hygiene"
+description: "Periodically sweep the monetization opportunity pool: evaluate revisit triggers, retire stale or disproved bets, propose catalog-promotion decisions when triggers fire, and keep pool size honest. Complements the opportunity router, which handles intake."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","monetization","opportunity","hygiene","maintenance","writer-skill"]
+  writes_to: ["monetization/opportunity/*"]
+  icon: "broom"
+  status: "active"
+  revision: 1
+  createdAt: "2026-05-01T00:00:00Z"
+  updatedAt: "2026-05-01T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager", "prompt-manager team", "swarm-manager backlog"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Opportunity Pool Hygiene
 
 Periodically sweep the monetization opportunity pool — knowledge entries under `monetization/opportunity/<slug>` — to keep it honest. Evaluate each entry's revisit trigger; promote, retire, or leave as-is. Complement to `signal-classifier`, which handles intake; this skill handles outflow and decay.

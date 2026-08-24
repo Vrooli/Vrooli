@@ -1,12 +1,29 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "benchmark-staleness-sweep",
-  "name": "Benchmark Staleness Sweep",
+  "createdAt": "2026-05-01T00:00:00Z",
   "description": "Periodic sweep of monetization market-scan entries: detect stale captures by dimension-aware thresholds and auto-populate validation-inbox entries so signal-classifier can re-fetch and supersede. Does not itself fetch sources or write decisions.",
+  "entry": "SKILL.md",
+  "icon": "clock",
+  "id": "benchmark-staleness-sweep",
+  "kind": "skill",
   "modes": [
     "tools"
   ],
+  "name": "Benchmark Staleness Sweep",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager",
+      "prompt-manager team"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill",
     "monetization",
@@ -15,13 +32,8 @@
     "maintenance",
     "writer-skill"
   ],
+  "updatedAt": "2026-05-01T00:00:00Z",
   "writes_to": [
     "validation-inbox/benchmark-staleness/*"
-  ],
-  "icon": "clock",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-05-01T00:00:00Z",
-  "updatedAt": "2026-05-01T00:00:00Z"
+  ]
 }

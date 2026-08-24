@@ -1,3 +1,23 @@
+---
+name: "team-capability-consolidation"
+description: "Turn a team's hand-maintained state into a scenario, then re-derive the team's roster from the gates that scenario enforces. Admits a team on either of two triggers — near-zero output against a large roster, or orientation cost rising while scenario coverage grows — then classifies state surfaces, derives the missing capability, bounds it by failure mode and clock, and collapses the member separations that existed only to hand off state."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","meta-optimization","teams","operating-model","capability-work","scenario-design","consolidation"]
+  icon: "git-merge"
+  status: "active"
+  revision: 2
+  createdAt: "2026-07-28T00:00:00Z"
+  updatedAt: "2026-07-30T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager", "prompt-manager graph", "prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Team Capability Consolidation
 
 Turn a team's hand-maintained state into a scenario, then re-derive the team's shape from what that scenario now enforces. The second half is the point: a roster that exists to hand state between members can collapse once gates enforce the ordering.

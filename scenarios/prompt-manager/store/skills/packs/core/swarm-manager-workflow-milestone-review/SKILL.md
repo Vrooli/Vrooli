@@ -1,3 +1,20 @@
+---
+name: "swarm-manager-workflow-milestone-review"
+description: "Typed prompt contract for milestone review."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 2
+  modes: ["contract"]
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager", "swarm-manager goals"]
+  origin:
+    kind: "authored"
+---
 # Milestone Review Workflow
 
 Judge one milestone's definition of done against its member-item evidence. Do not mutate the milestone, its goal, items, or repository files.

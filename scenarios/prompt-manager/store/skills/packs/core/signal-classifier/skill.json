@@ -1,12 +1,24 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "signal-classifier",
-  "name": "Signal Classifier",
+  "createdAt": "2026-05-01T00:00:00Z",
   "description": "Classify a raw intake item against a caller-supplied taxonomy: assign the type slot, score evidence_strength, set honesty_flags, and recommend a default method. Parameterized over marketing, monetization, and market-validation taxonomies. Pure judgment - no inboxes, destinations, or team coupling.",
+  "entry": "SKILL.md",
+  "icon": "search",
+  "id": "signal-classifier",
+  "kind": "skill",
   "modes": [
     "tools"
   ],
+  "name": "Signal Classifier",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill",
     "classifier",
@@ -15,10 +27,5 @@
     "marketing",
     "monetization"
   ],
-  "icon": "search",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-05-01T00:00:00Z",
   "updatedAt": "2026-07-21T00:00:00Z"
 }

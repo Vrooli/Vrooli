@@ -1,3 +1,23 @@
+---
+name: "skill-authoring-meta"
+description: "Authoring guide for Meta skills governing the skill system itself."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta"]
+  tags: ["skill","authoring"]
+  icon: "settings"
+  status: "active"
+  revision: 44
+  createdAt: "2026-01-28T00:00:00Z"
+  updatedAt: "2026-03-31T15:57:43Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Meta Skill Authoring
 
 Guide for creating **meta** skills (the authored skill declares `modes[0] = "meta"`). Meta skills govern how the skill system itself evolves, stays coherent, and avoids drift.

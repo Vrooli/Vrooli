@@ -1,3 +1,23 @@
+---
+name: "scenario-maturity-ladder"
+description: "Read a scenario's test results, locate its current maturity rung (R0-R4), and pick the right-sized change - including the large architectural and feature work expected at the higher rungs."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["skill","maturity-ladder"]
+  icon: "trendingup"
+  status: "active"
+  revision: 2
+  createdAt: "2026-06-01T00:00:00Z"
+  updatedAt: "2026-07-27T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "test-genie report", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Scenario Maturity Ladder
 
 A scenario climbs a fixed ladder toward production-readiness. **Locate the current rung, then make the change that rung calls for** — which, at the higher rungs, means *large architectural and feature work*, not timid hygiene. This is the cross-dimension, scenario-level sibling of the per-dimension ladder inside `screaming-architecture-audit`.

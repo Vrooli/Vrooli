@@ -101,6 +101,16 @@ func (a *StoreAdapter) FindByID(id string) (*Metadata, string, error) {
 	return &meta, skill.Pack, nil
 }
 
+// ImportedSkillOverlayPath exposes the safe mutation destination for the
+// handler layer without making the concrete storage package part of the
+// skills domain interface.
+func (a *StoreAdapter) ImportedSkillOverlayPath(id string) string {
+	if provider, ok := a.skillStore.(interface{ ImportedSkillOverlayPath(string) string }); ok {
+		return provider.ImportedSkillOverlayPath(id)
+	}
+	return filepath.Join("vendor", id, "overlays")
+}
+
 // LoadMetadata loads skills from a pack's skill directories.
 // Implements skills.SkillStore.LoadMetadata()
 func (a *StoreAdapter) LoadMetadata(folder string) ([]Metadata, error) {

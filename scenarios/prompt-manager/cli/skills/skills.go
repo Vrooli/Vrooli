@@ -9,10 +9,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"prompt-manager/cli/internal/appctx"
 	"prompt-manager/cli/internal/clipboard"
@@ -141,7 +145,7 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 					Name:        "skill",
 					Aliases:     []string{"skills", "s"},
 					NeedsAPI:    true,
-					Description: "Manage skills (list|show|read|add|update|delete|sync|rate|versions|revert|variants|add-variant|rm-variant)",
+					Description: "Manage skills (list|topology|show|read|add|update|delete|sync|rate|versions|revert|variants|import|review-import|import-staleness)",
 					Usage:       "prompt-manager skill <subcommand> [args]",
 					HelpText:    usageText(),
 					Run: func(args []string) error {
@@ -165,6 +169,8 @@ func route(ctx appctx.Context, args []string) error {
 	switch subcommand {
 	case "list", "ls":
 		return cmdList(ctx, subArgs)
+	case "topology":
+		return cmdTopology(ctx, subArgs)
 	case "show", "get":
 		return cmdShow(ctx, subArgs)
 	case "read", "cat":
@@ -191,6 +197,14 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdAddVariant(ctx, subArgs)
 	case "rm-variant":
 		return cmdRmVariant(ctx, subArgs)
+	case "import":
+		return cmdImport(ctx, subArgs)
+	case "review-import":
+		return cmdReviewImport(ctx, subArgs)
+	case "import-staleness":
+		return cmdImportStaleness(ctx, subArgs)
+	case "activation-hook":
+		return cmdActivationHook(ctx)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, usageText())
 	}
@@ -206,6 +220,7 @@ func usageText() string {
 
 Subcommands:
   list, ls              List all skills
+  topology              Report each skill's pack and generated projection status
   show, get <id>        Show skill details
   read <identifier>...  Read skills (content or combined output)
   add, create <name>    Create a new skill
@@ -217,7 +232,136 @@ Subcommands:
   revert, restore <id> <version>  Revert to a specific version
   variants <id>         List variants for a skill
   add-variant <id>      Create a new variant
-  rm-variant <id> <vid> Delete a variant`
+  rm-variant <id> <vid> Delete a variant
+  import --source-dir <dir> --source-url <url> --commit <sha> --license <SPDX> --checksum <sha256:...> --imported-by <id> [--id <id>]
+                       Import pinned local skill material into quarantined vendor storage
+  review-import <id> --reviewer <id> --verdict passed|rejected
+                       Record an independent review verdict
+  import-staleness <id> --upstream-version <version>
+                       Compare the recorded upstream version with a current version
+  activation-hook       Read a native tool-activation event from stdin and report it fail-open`
+}
+
+// cmdActivationHook is designed for native PreToolUse/skill hooks. It never
+// turns telemetry failure into an agent failure and bounds the local request.
+func cmdActivationHook(ctx appctx.Context) error {
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return nil
+	}
+	var event struct {
+		ToolName  string `json:"tool_name"`
+		ToolInput struct {
+			SkillName string `json:"skill_name"`
+			Skill     string `json:"skill"`
+			Name      string `json:"name"`
+		} `json:"tool_input"`
+		SkillName string `json:"skill_name"`
+	}
+	if json.Unmarshal(data, &event) != nil {
+		return nil
+	}
+	id := event.ToolInput.SkillName
+	if id == "" {
+		id = event.ToolInput.Skill
+	}
+	if id == "" {
+		id = event.ToolInput.Name
+	}
+	if id == "" {
+		id = event.SkillName
+	}
+	if id == "" {
+		return nil
+	}
+	done := make(chan struct{})
+	go func() {
+		var ignored struct{}
+		_ = ctx.Post("/skills/"+url.PathEscape(id)+"/use", nil, &ignored)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(750 * time.Millisecond):
+	}
+	return nil
+}
+
+func cmdImport(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("import", flag.ContinueOnError)
+	sourceDir := fs.String("source-dir", "", "Pinned local directory containing SKILL.md")
+	sourceURL := fs.String("source-url", "", "Immutable source URL")
+	commit := fs.String("commit", "", "Pinned commit")
+	license := fs.String("license", "", "SPDX license identifier")
+	checksum := fs.String("checksum", "", "sha256:<64 hex> checksum of SKILL.md")
+	importedBy := fs.String("imported-by", "", "Importer identity")
+	version := fs.String("upstream-version", "", "Upstream version")
+	id := fs.String("id", "", "Skill ID (must match frontmatter name)")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if *sourceDir == "" || *sourceURL == "" || *commit == "" || *license == "" || *checksum == "" || *importedBy == "" || *id == "" {
+		return fmt.Errorf("usage: skill import --source-dir <dir> --source-url <url> --commit <sha> --license <SPDX> --checksum <sha256:...> --imported-by <id> --id <id>")
+	}
+	var response struct {
+		ID            string `json:"id"`
+		Pack          string `json:"pack"`
+		Status        string `json:"status"`
+		Checksum      string `json:"checksum"`
+		ReviewVerdict string `json:"reviewVerdict"`
+		ImportedAt    string `json:"importedAt"`
+	}
+	if err := ctx.Post("/skills/import", map[string]string{"sourceDir": *sourceDir, "sourceUrl": *sourceURL, "commit": *commit, "license": *license, "checksum": *checksum, "importedBy": *importedBy, "upstreamVersion": *version, "id": *id}, &response); err != nil {
+		return fmt.Errorf("import skill: %w", err)
+	}
+	fmt.Printf("Imported %s into %s pack: status=%s review=%s checksum=%s\n", response.ID, response.Pack, response.Status, response.ReviewVerdict, response.Checksum)
+	return nil
+}
+
+func cmdReviewImport(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("review-import", flag.ContinueOnError)
+	reviewer := fs.String("reviewer", "", "Reviewer identity")
+	verdict := fs.String("verdict", "", "passed or rejected")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 || *reviewer == "" || *verdict == "" {
+		return fmt.Errorf("usage: skill review-import <id> --reviewer <id> --verdict passed|rejected")
+	}
+	var response struct {
+		ID         string `json:"id"`
+		Status     string `json:"status"`
+		Verdict    string `json:"verdict"`
+		Reviewer   string `json:"reviewer"`
+		ReviewedAt string `json:"reviewedAt"`
+	}
+	if err := ctx.Post("/skills/"+url.PathEscape(fs.Arg(0))+"/review", map[string]string{"reviewer": *reviewer, "verdict": *verdict}, &response); err != nil {
+		return fmt.Errorf("review imported skill: %w", err)
+	}
+	fmt.Printf("Reviewed %s: verdict=%s reviewer=%s\n", response.ID, response.Verdict, response.Reviewer)
+	return nil
+}
+
+func cmdImportStaleness(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("import-staleness", flag.ContinueOnError)
+	version := fs.String("upstream-version", "", "Current upstream version")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 || *version == "" {
+		return fmt.Errorf("usage: skill import-staleness <id> --upstream-version <version>")
+	}
+	var response struct {
+		ID              string `json:"id"`
+		RecordedVersion string `json:"recordedVersion"`
+		CurrentVersion  string `json:"currentVersion"`
+		Stale           bool   `json:"stale"`
+	}
+	if err := ctx.Post("/skills/"+url.PathEscape(fs.Arg(0))+"/staleness", map[string]string{"upstreamVersion": *version}, &response); err != nil {
+		return fmt.Errorf("report import staleness: %w", err)
+	}
+	fmt.Printf("%s: recorded=%s current=%s stale=%t\n", response.ID, response.RecordedVersion, response.CurrentVersion, response.Stale)
+	return nil
 }
 
 func cmdList(ctx appctx.Context, args []string) error {
@@ -272,6 +416,190 @@ func cmdList(ctx appctx.Context, args []string) error {
 			rating = fmt.Sprintf(" ★%d", *p.EffectivenessRating)
 		}
 		fmt.Printf("  %s - %s (used %d times)%s%s [%s]\n", p.Name, p.Folder, p.UsageCount, rating, tags, p.ID)
+	}
+	return nil
+}
+
+// topologyRow is the operator-facing view of the one skill registry. Pack is
+// returned by the registry; projection is derived from the generated target
+// and therefore cannot accidentally report a merely configured target as
+// resident.
+type topologyRow struct {
+	ID               string   `json:"id"`
+	Pack             string   `json:"pack"`
+	Projected        bool     `json:"projected"`
+	ProjectedTargets []string `json:"projectedTargets,omitempty"`
+	ProjectedBytes   int      `json:"projectedBytes,omitempty"`
+	ProjectedTokens  int      `json:"projectedTokens,omitempty"`
+}
+
+func projectionDirs(value string) []string {
+	seen := map[string]bool{}
+	var dirs []string
+	for _, raw := range strings.Split(value, string(os.PathListSeparator)) {
+		dir := strings.TrimSpace(raw)
+		if dir == "" || seen[dir] {
+			continue
+		}
+		seen[dir] = true
+		dirs = append(dirs, dir)
+	}
+	return dirs
+}
+
+// declaredProjectionDirs reads the skills directory each coding-agent resource
+// declares, so an operator who passes no flag still gets the truth instead of a
+// confident "nothing is projected". This mirrors the api module's
+// projection.LoadTargets; the two modules cannot share the package, so the read
+// is deliberately limited to the one declared field.
+func declaredProjectionDirs() []string {
+	root := cliutil.ResolveRepoRoot()
+	if root == "" {
+		return nil
+	}
+	resourcesDir := strings.TrimSpace(os.Getenv("VROOLI_RESOURCES_DIR"))
+	if resourcesDir == "" {
+		resourcesDir = filepath.Join(root, "resources")
+	}
+	entries, err := os.ReadDir(resourcesDir)
+	if err != nil {
+		return nil
+	}
+	home, homeErr := os.UserHomeDir()
+	seen := map[string]bool{}
+	var dirs []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		data, readErr := os.ReadFile(filepath.Join(resourcesDir, entry.Name(), "resource.json"))
+		if readErr != nil {
+			continue
+		}
+		var doc struct {
+			Storage struct {
+				Entries struct {
+					Skills struct {
+						Path string `json:"path"`
+					} `json:"skills"`
+				} `json:"entries"`
+			} `json:"storage"`
+		}
+		if json.Unmarshal(data, &doc) != nil {
+			continue
+		}
+		path := strings.TrimSpace(doc.Storage.Entries.Skills.Path)
+		if path == "" {
+			continue
+		}
+		if strings.Contains(path, "$USER_HOME") {
+			if homeErr != nil {
+				continue
+			}
+			path = strings.ReplaceAll(path, "$USER_HOME", home)
+		}
+		if seen[path] {
+			continue
+		}
+		seen[path] = true
+		dirs = append(dirs, path)
+	}
+	sort.Strings(dirs)
+	return dirs
+}
+
+func residentProjectionTokens(content []byte) int {
+	residentBytes := 0
+	inFrontmatter := false
+	for _, raw := range strings.Split(string(content), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "---" {
+			if inFrontmatter {
+				break
+			}
+			inFrontmatter = true
+			continue
+		}
+		if !inFrontmatter {
+			continue
+		}
+		for _, key := range []string{"name:", "description:"} {
+			if strings.HasPrefix(line, key) {
+				residentBytes += len(strings.TrimSpace(strings.TrimPrefix(line, key)))
+				break
+			}
+		}
+	}
+	return (residentBytes + 3) / 4
+}
+
+func cmdTopology(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("topology", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	projectionDir := fs.String("projection-dir", os.Getenv("VROOLI_SKILL_PROJECTION_DIR"), "Generated projection directory or path-list")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	configured := strings.TrimSpace(*projectionDir)
+	if configured == "" {
+		configured = os.Getenv("VROOLI_SKILL_PROJECTION_DIRS")
+	}
+	dirs := projectionDirs(configured)
+	// With nothing configured, fall back to what the resources declare. An empty
+	// list would otherwise report every skill as not-projected, which reads as a
+	// finding rather than as the absence of one.
+	declared := false
+	if len(dirs) == 0 {
+		dirs = declaredProjectionDirs()
+		declared = len(dirs) > 0
+	}
+
+	var catalog []SkillResponse
+	if err := ctx.GetWithQuery("/skills", nil, &catalog); err != nil {
+		return fmt.Errorf("failed to load skill registry: %w", err)
+	}
+	rows := make([]topologyRow, 0, len(catalog))
+	for _, skill := range catalog {
+		row := topologyRow{ID: skill.ID, Pack: skill.Folder}
+		for _, dir := range dirs {
+			path := filepath.Join(dir, skill.ID, "SKILL.md")
+			if data, err := os.ReadFile(path); err == nil {
+				row.Projected = true
+				row.ProjectedTargets = append(row.ProjectedTargets, dir)
+				if row.ProjectedBytes == 0 {
+					row.ProjectedBytes = len(data)
+					row.ProjectedTokens = residentProjectionTokens(data)
+				}
+			}
+		}
+		rows = append(rows, row)
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
+	if *jsonOut {
+		return json.NewEncoder(os.Stdout).Encode(rows)
+	}
+	fmt.Printf("Skills: %d\n", len(rows))
+	switch {
+	case len(dirs) == 0:
+		fmt.Println("Projection targets: none — no directory configured and no resource declares one.")
+	case declared:
+		fmt.Printf("Projection targets (declared by resources): %s\n", strings.Join(dirs, ", "))
+	default:
+		fmt.Printf("Projection targets (configured): %s\n", strings.Join(dirs, ", "))
+	}
+	projected := 0
+	for _, row := range rows {
+		if row.Projected {
+			projected++
+		}
+	}
+	fmt.Printf("Projected: %d of %d\n", projected, len(rows))
+	for _, row := range rows {
+		status := "not-projected"
+		if row.Projected {
+			status = fmt.Sprintf("projected in %d target(s) (%d tokens)", len(row.ProjectedTargets), row.ProjectedTokens)
+		}
+		fmt.Printf("  %-48s pack=%-10s %s\n", row.ID, row.Pack, status)
 	}
 	return nil
 }

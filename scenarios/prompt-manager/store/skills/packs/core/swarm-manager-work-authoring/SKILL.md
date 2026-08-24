@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-work-authoring"
+description: "How to write backlog item, goal, and milestone text so it stays true as the code moves: outcome statement plus Gherkin done-condition."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["swarm-manager","backlog","goals","writing"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-25T00:00:00Z"
+  updatedAt: "2026-07-25T00:00:00Z"
+  requires:
+    scenarios: ["vrooli"]
+    commands: ["vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 # Work Authoring
 
 ## Purpose

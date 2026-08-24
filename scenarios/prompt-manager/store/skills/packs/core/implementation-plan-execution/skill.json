@@ -1,12 +1,31 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "implementation-plan-execution",
-  "name": "Implementation Plan Execution",
+  "createdAt": "2026-08-07T00:00:00Z",
   "description": "Execute a Plan Manager plan to its intent rather than its letter: read prior-plan status correctly, decide how far to diverge when the plan is wrong, extend the change boundary instead of writing workarounds, wait properly for long-running validation, and reserve 'blocked' for missing authority",
+  "entry": "SKILL.md",
+  "icon": "play",
+  "id": "implementation-plan-execution",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Implementation Plan Execution",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "swarm-manager"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "execution",
@@ -15,10 +34,5 @@
     "scope",
     "friction"
   ],
-  "icon": "play",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-08-07T00:00:00Z",
   "updatedAt": "2026-08-07T00:00:00Z"
 }

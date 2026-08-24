@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-workflow-plan-repair"
+description: "Typed prompt contract for Plan Manager validation-driven repair."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-18T03:05:25Z"
+  updatedAt: "2026-07-18T03:05:25Z"
+  modes: ["contract"]
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Plan Repair Workflow
 
 Repair the supplied canonical plan so that every Plan Manager validation finding is resolved. Return a whole-plan candidate; do not apply it.

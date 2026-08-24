@@ -1,17 +1,24 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "skill-experiment-auditor",
-  "name": "skill-experiment-auditor",
+  "createdAt": "2026-07-21T21:57:58Z",
   "description": "Bounded independent audit contract for controlled skill experiments",
+  "entry": "SKILL.md",
+  "id": "skill-experiment-auditor",
+  "kind": "skill",
+  "name": "skill-experiment-auditor",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill-experiment",
     "audit",
     "meta-optimization"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 2,
-  "createdAt": "2026-07-21T21:57:58Z",
   "updatedAt": "2026-07-21T22:00:47Z"
 }

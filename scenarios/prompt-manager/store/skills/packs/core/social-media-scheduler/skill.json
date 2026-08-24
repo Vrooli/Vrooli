@@ -1,22 +1,33 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "social-media-scheduler",
-  "name": "Social Media Scheduler",
+  "createdAt": "2026-03-19T00:00:00Z",
   "description": "Multi-platform content scheduling with calendar management, AI optimization, and analytics across Twitter, Instagram, LinkedIn, Facebook, and TikTok",
+  "entry": "SKILL.md",
+  "icon": "calendar",
+  "id": "social-media-scheduler",
+  "kind": "skill",
   "modes": [
     "tools"
   ],
+  "name": "Social Media Scheduler",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "vrooli"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill",
     "marketing",
     "social-media",
     "scheduling"
   ],
-  "icon": "calendar",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-03-19T00:00:00Z",
   "updatedAt": "2026-03-19T00:00:00Z"
 }

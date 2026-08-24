@@ -1,3 +1,23 @@
+---
+name: "x-scenario-spotlight"
+description: "Generate a scenario-spotlight draft pitching one Vrooli scenario as a useful tool/app/product to its target user. Asset-led, conversion-rung-aware, contrarian-checked against type-level failure modes."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill"]
+  icon: "sparkles"
+  status: "active"
+  revision: 1
+  createdAt: "2026-04-28T16:27:32Z"
+  updatedAt: "2026-04-28T16:27:32Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
+    commands: ["prompt-manager", "prompt-manager skill", "prompt-manager skill read", "swarm-manager", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Scenario Spotlight Generator
 
 Generate a scenario-spotlight draft pitching **one Vrooli scenario** as a useful tool / app / product to its target user. Asset-led. Conversion-rung-aware. Contrarian-checked against type-level failure modes before handoff.

@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-workflow-phased-plan-slice-review"
+description: "Typed prompt contract for independent plan-slice review."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-18T03:05:27Z"
+  updatedAt: "2026-07-18T03:05:27Z"
+  modes: ["contract"]
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Phased Plan Slice Review
 
 Review one slice handoff against the plan it claims to advance. Resolve the plan with `plan-manager plans render <plan_reference>` and compare the handoff's claims to the plan's expectations for that slice.

@@ -1,3 +1,23 @@
+---
+name: "scenario-readiness-review"
+description: "Assess scenario readiness for commit using the git-control-tower unified review endpoint for code health signals and git state for change coherence"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["review","quality","git","assessment","readiness"]
+  icon: "clipboard-check"
+  status: "active"
+  revision: 2
+  createdAt: "2026-03-20T00:00:00Z"
+  updatedAt: "2026-03-24T00:00:00Z"
+  requires:
+    scenarios: ["git-control-tower", "prompt-manager", "swarm-manager", "test-genie", "vrooli"]
+    commands: ["git-control-tower", "git-control-tower needs", "git-control-tower unified", "prompt-manager decision", "prompt-manager when", "swarm-manager", "swarm-manager backlog", "test-genie", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Scenario Readiness Review
 
 Assess whether a scenario's uncommitted changes are ready to commit by querying the git-control-tower unified review endpoint for code health signals, then reviewing the actual git changes for coherence and intent.

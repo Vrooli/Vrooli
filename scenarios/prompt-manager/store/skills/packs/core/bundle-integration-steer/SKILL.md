@@ -1,3 +1,23 @@
+---
+name: "bundle-integration-steer"
+description: "Integrates a scenario into the Vrooli Business Suite bundle so it enforces subscription gating, class-correct metering, and authenticated downloads consistently with every other bundled app, managed through the Landing Page Business Suite (LPBS). Implements the contract in docs/concepts/PAID_FEATURES.md: the client trust boundary, the signed entitlement lease, and the cost-bearing vs local-capacity meter split."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["bundle","lpbs","subscription","metering","entitlements","monetization","steer","architecture"]
+  modes: ["steer","architecture"]
+  status: "active"
+  defaultScope: "architecture-scope"
+  revision: 2
+  createdAt: "2026-03-22T12:00:00Z"
+  updatedAt: "2026-08-13T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "test-genie execute", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Bundle Integration
 
 Integrate `scenarios/{{TARGET}}/` into the **Vrooli Business Suite bundle** so that it participates in subscription gating, credit-based metering, and authenticated downloads managed by the Landing Page Business Suite (LPBS) scenario.

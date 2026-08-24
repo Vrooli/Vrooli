@@ -1,3 +1,23 @@
+---
+name: "systematic-exploration"
+description: "Methodology for systematically investigating any codebase or system: scope the investigation, map the landscape, form understanding hypotheses, validate through targeted reads, and produce a structured findings document."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","exploration","investigation","codebase-analysis","methodology"]
+  icon: "search"
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-10T00:00:00Z"
+  updatedAt: "2026-02-10T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Systematic Exploration
 
 Apply a **structured investigation methodology** to any codebase or system: define what you need to learn, map the landscape, form understanding hypotheses, validate through targeted reading, and produce findings that inform downstream decisions. This methodology produces exploration reports that accelerate planning and implementation.

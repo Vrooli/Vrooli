@@ -61,6 +61,23 @@ func TestScanAll_RepositoryAndGeneratedPromptReferenceSources(t *testing.T) {
 	}
 }
 
+func TestScanUnresolvedSkillReferencesUsesRegistryIdentifiers(t *testing.T) {
+	s := NewScanner(&mockAgentLister{}, &mockTeamLister{}, &mockSkillLister{
+		skills: []store.Skill{{ID: "known-skill"}, {ID: "source-skill"}},
+		contentMap: map[string]string{
+			"known-skill":  "prompt-manager skill read source-skill",
+			"source-skill": "prompt-manager skill read missing-skill",
+		},
+	}, nil, nil)
+	unresolved, err := s.ScanUnresolvedSkillReferences(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(unresolved) != 1 || unresolved[0].SourceSkill != "source-skill" || unresolved[0].SkillID != "missing-skill" {
+		t.Fatalf("unexpected unresolved references: %#v", unresolved)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // ScanAll tests
 // ---------------------------------------------------------------------------

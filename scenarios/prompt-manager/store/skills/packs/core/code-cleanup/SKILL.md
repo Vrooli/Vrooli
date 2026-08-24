@@ -1,3 +1,24 @@
+---
+name: "code-cleanup"
+description: "Remove dead code, unused imports, and obsolete patterns"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","cleanup"]
+  tags: ["skill","audit-technique"]
+  icon: "trash2"
+  status: "active"
+  defaultScope: "refactor-scope"
+  revision: 46
+  createdAt: "2025-01-14T00:00:00Z"
+  updatedAt: "2026-02-06T14:33:21Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Code Cleanup
 
 Prioritize **systematic removal of dead code, deprecated implementations, and backwards-compatibility cruft** across this scenario.

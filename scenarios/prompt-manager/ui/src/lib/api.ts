@@ -234,8 +234,8 @@ import {
 import type { ZodType } from 'zod'
 import {
   parseOrThrow,
+  parseArrayFiltered,
   SkillSchema,
-  SkillArraySchema,
   ActionSchema,
   ActionArraySchema,
   ActionMutationResponseSchema,
@@ -630,6 +630,13 @@ export const FOLDERS: Folder[] = [
     icon: 'edit',
     skillCount: 0,
   },
+  {
+    id: 'scenario',
+    name: 'Scenario',
+    description: 'Owned by a scenario, read from its own skills/ root',
+    icon: 'package',
+    skillCount: 0,
+  },
 ]
 
 /**
@@ -714,7 +721,7 @@ class ApiClient {
   async getFolders(): Promise<Folder[]> {
     // Get all skills and compute folder counts
     const skills = await this.getSkills()
-    const counts: Record<FolderType, number> = { core: 0, local: 0, drafts: 0 }
+    const counts: Record<FolderType, number> = { core: 0, local: 0, drafts: 0, scenario: 0 }
 
     for (const skill of skills) {
       if (skill.folder in counts) {
@@ -733,7 +740,10 @@ class ApiClient {
     const response = await skillsClient.listSkills(create(ListSkillsRequestProtoSchema, {
       tag: filters?.tag ?? '', folder: filters?.folder ?? '', modes: filters?.modes ?? [],
     }))
-    return parseOrThrow(SkillArraySchema, response.skills.map(skill => toJson(SkillProtoSchema, skill)), 'SkillsService.ListSkills')
+    // A skill whose shape this build does not recognize (for example a pack
+    // added by the API after the UI shipped) must not hide every other
+    // skill. Drop the unreadable record and warn instead of rejecting the list.
+    return parseArrayFiltered(SkillSchema, response.skills.map(skill => toJson(SkillProtoSchema, skill)), 'SkillsService.ListSkills')
   }
 
   async getSkillsByFolder(folder: FolderType): Promise<Skill[]> {

@@ -1,3 +1,25 @@
+---
+name: "documentation-health"
+description: "Ensure documentation quality, consistency, and bidirectional traceability between code and docs. Includes audit checklist and reference format standards."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","documentation","audits"]
+  tags: ["skill"]
+  icon: "filetext"
+  status: "active"
+  targetDimensions: ["docs"]
+  defaultScope: "architecture-scope"
+  revision: 47
+  createdAt: "2026-01-24T00:00:00Z"
+  updatedAt: "2026-02-06T19:42:45Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "test-genie docs"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Documentation Health
 
 > **Ladder position:** R2 (evolvable architecture — the docs map that keeps the system legible). See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.

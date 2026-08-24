@@ -1,20 +1,27 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "documentation-search",
-  "name": "Documentation Search",
+  "createdAt": "2026-01-26T00:00:00Z",
   "description": "Deep documentation discovery workflow for contextual search, reference following, and relevance ranking.",
+  "entry": "SKILL.md",
+  "icon": "search",
+  "id": "documentation-search",
+  "kind": "skill",
   "modes": [
     "search",
     "documentation"
   ],
+  "name": "Documentation Search",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 43,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill"
   ],
-  "icon": "search",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 43,
-  "createdAt": "2026-01-26T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

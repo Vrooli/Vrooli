@@ -1,3 +1,23 @@
+---
+name: "improvement-do-and-dont"
+description: "Canonical reference for what counts as a real improvement vs. metric-gaming. Read alongside any steer skill before changing tests, ledgers, or rule configs."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["skill","anti-gaming"]
+  icon: "checkcircle"
+  status: "active"
+  revision: 1
+  createdAt: "2026-06-01T00:00:00Z"
+  updatedAt: "2026-06-01T00:00:00Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Improvement Do & Don't
 
 The single reference for **what counts as a real improvement vs. metric-gaming**. Every steer skill (`refactor`, `test`, `security`, `polish`, `documentation-health`, `progress`, `performance`, `ux`) points here. Read it before you touch a test, a known-issue ledger, a lint/type config, or an auditor rule.

@@ -1,1 +1,34 @@
-{"kind":"skill","schemaVersion":1,"id":"swarm-manager-workflow-goal-plan","name":"swarm-manager-workflow-goal-plan","description":"Typed prompt contract for goal planning.","tags":["swarm-manager","agent-manager","workflow","prompt-contract"],"status":"active","entry":"SKILL.md","revision":2,"modes":["contract"]}
+{
+  "description": "Typed prompt contract for goal planning.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-workflow-goal-plan",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "swarm-manager-workflow-goal-plan",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "swarm-manager",
+      "swarm-manager goals"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "swarm-manager",
+    "agent-manager",
+    "workflow",
+    "prompt-contract"
+  ]
+}

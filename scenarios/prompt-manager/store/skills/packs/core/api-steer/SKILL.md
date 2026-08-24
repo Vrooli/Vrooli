@@ -1,3 +1,23 @@
+---
+name: "api-steer"
+description: "Steers a scenario's API toward stable, proto-first, Connect-RPC contracts as the canonical entrypoint into its core logic, consumed by every UI, CLI, and other scenario through generated typed clients."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["api","proto","connect-rpc","contracts","steer","architecture"]
+  modes: ["steer","architecture"]
+  status: "active"
+  defaultScope: "architecture-scope"
+  revision: 49
+  createdAt: "2026-01-30T13:13:00-05:00"
+  updatedAt: "2026-02-06T23:12:28Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: API Steer
 
 Prioritize **scenario APIs as stable, proto-first, Connect-RPC contracts** in `scenarios/{{TARGET}}/api/`. Treat the API as the canonical entrypoint into the scenario's core logic — every UI and CLI surface, and every other scenario, consumes it through generated typed clients. The four REST exceptions enumerated in `path:templates/scenarios/react-vite/api/internal/module/module.go` are the only escape hatch.

@@ -1,14 +1,34 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "swarm-manager-proposals",
-  "name": "Swarm Manager Proposals",
-  "description": "Turn initiative or backlog-item context into an operator-reviewed mutation-list proposal in the same durable session.",
-  "modes": ["tools"],
-  "tags": ["swarm-manager", "initiative", "backlog", "proposal", "session"],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
   "createdAt": "2026-07-14T00:00:00Z",
+  "description": "Turn initiative or backlog-item context into an operator-reviewed mutation-list proposal in the same durable session.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-proposals",
+  "kind": "skill",
+  "modes": [
+    "tools"
+  ],
+  "name": "Swarm Manager Proposals",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "swarm-manager",
+      "swarm-manager backlog"
+    ],
+    "scenarios": [
+      "swarm-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "swarm-manager",
+    "initiative",
+    "backlog",
+    "proposal",
+    "session"
+  ],
   "updatedAt": "2026-07-14T00:00:00Z"
 }

@@ -1,3 +1,23 @@
+---
+name: "invariant-discovery-and-enforcement"
+description: "Discover and enforce system invariants and constraints"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","analysis"]
+  tags: ["skill","audit-technique"]
+  icon: "lock"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Invariant Discovery & Enforcement (Behavior Definition & Verification)
 
 Make every rule the code relies on **formally declared, anchored to code, and mechanically verified**. Invariants are the load-bearing facts of a scenario; this skill ensures they are stated where they belong (local to code, or additionally in the cross-cutting registry), backed by a real enforcement mechanism, and exercised by tests. The skill succeeds to the extent that intended behaviors and enforced behaviors are the same set.

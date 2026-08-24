@@ -6,6 +6,7 @@ import {
   TagSchema,
 } from '../skill.schema'
 import { FolderTypeSchema } from '../common.schema'
+import { parseArrayFiltered } from '../safeParse'
 
 describe('FolderTypeSchema', () => {
   it('should accept valid folder types', () => {
@@ -154,6 +155,30 @@ describe('SkillArraySchema', () => {
   it('should parse empty array', () => {
     const result = SkillArraySchema.parse([])
     expect(result).toEqual([])
+  })
+
+  // The API gained a fourth pack ('scenario') for skills owned by a scenario.
+  // The UI must accept it; when it did not, every skill vanished from the list.
+  it('should accept a scenario-owned skill', () => {
+    const result = SkillArraySchema.parse([
+      { id: 'ui-health', file: 'SKILL.md', name: 'UI Health', folder: 'scenario' },
+    ])
+    expect(result).toHaveLength(1)
+    expect(result[0]?.folder).toBe('scenario')
+  })
+
+  // One record the UI cannot read must never hide the rest of the corpus.
+  it('should keep valid skills when one record has an unknown pack', () => {
+    const kept = parseArrayFiltered(
+      SkillSchema,
+      [
+        { id: 'good', file: 'SKILL.md', name: 'Good', folder: 'core' },
+        { id: 'from-the-future', file: 'SKILL.md', name: 'Future', folder: 'not-a-pack' },
+      ],
+      'test'
+    )
+    expect(kept).toHaveLength(1)
+    expect(kept[0]?.id).toBe('good')
   })
 })
 

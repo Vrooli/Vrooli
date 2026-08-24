@@ -1,3 +1,22 @@
+---
+name: "divergence-probe-judge"
+description: "Divergence-probe judge: diff three runner decision lists and anchor material divergence to the permitting skill sentence."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["divergence-probe","dtv","meta"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-21T13:41:25Z"
+  updatedAt: "2026-07-21T13:41:25Z"
+  modes: ["contract"]
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Divergence Probe — Judge
 
 Three runners independently executed the skill `{{.skill_id}}` against the same

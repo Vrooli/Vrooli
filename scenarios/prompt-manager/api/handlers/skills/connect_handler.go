@@ -17,16 +17,54 @@ import (
 
 	"prompt-manager/handlers/transportbridge"
 	domain "prompt-manager/internal/skills"
+	"prompt-manager/internal/store"
 )
 
 type connectHandler struct {
 	skillsconnect.UnimplementedSkillsServiceHandler
 	legacy   *domain.Handlers
 	variants *domain.VariantHandlers
+	imports  domain.ImportService
 }
 
-func NewConnectMount(legacy *domain.Handlers, variants *domain.VariantHandlers) (string, http.Handler) {
-	return skillsconnect.NewSkillsServiceHandler(&connectHandler{legacy: legacy, variants: variants})
+func NewConnectMount(legacy *domain.Handlers, variants *domain.VariantHandlers, imports ...domain.ImportService) (string, http.Handler) {
+	var importer domain.ImportService
+	if len(imports) > 0 {
+		importer = imports[0]
+	}
+	return skillsconnect.NewSkillsServiceHandler(&connectHandler{legacy: legacy, variants: variants, imports: importer})
+}
+
+func (h *connectHandler) ImportSkill(ctx context.Context, req *connect.Request[skillsv1.ImportSkillRequest]) (*connect.Response[skillsv1.ImportSkillResponse], error) {
+	if h.imports == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("skill import is unavailable"))
+	}
+	skill, err := h.imports.ImportSkill(store.ImportRequest{SourceDir: req.Msg.GetSourceDir(), SourceURL: req.Msg.GetSourceUrl(), Commit: req.Msg.GetCommit(), License: req.Msg.GetLicense(), Checksum: req.Msg.GetChecksum(), ImportedBy: req.Msg.GetImportedBy(), UpstreamVersion: req.Msg.GetUpstreamVersion(), ID: req.Msg.GetId()})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&skillsv1.ImportSkillResponse{Id: skill.ID, Pack: skill.Pack, Status: skill.Status, Checksum: skill.Origin.Checksum, ReviewVerdict: skill.Origin.Review.Verdict, ImportedAt: skill.Origin.ImportedAt}), nil
+}
+
+func (h *connectHandler) ReviewImportedSkill(ctx context.Context, req *connect.Request[skillsv1.ReviewImportedSkillRequest]) (*connect.Response[skillsv1.ReviewImportedSkillResponse], error) {
+	if h.imports == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("skill review is unavailable"))
+	}
+	if err := h.imports.ReviewImportedSkill(req.Msg.GetId(), req.Msg.GetReviewer(), req.Msg.GetVerdict()); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&skillsv1.ReviewImportedSkillResponse{Id: req.Msg.GetId(), Verdict: req.Msg.GetVerdict(), Reviewer: req.Msg.GetReviewer()}), nil
+}
+
+func (h *connectHandler) ReportImportedSkillStaleness(ctx context.Context, req *connect.Request[skillsv1.ReportImportedSkillStalenessRequest]) (*connect.Response[skillsv1.ReportImportedSkillStalenessResponse], error) {
+	if h.imports == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("skill staleness reporting is unavailable"))
+	}
+	recorded, stale, err := h.imports.ImportedSkillStaleness(req.Msg.GetId(), req.Msg.GetUpstreamVersion())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(&skillsv1.ReportImportedSkillStalenessResponse{Id: req.Msg.GetId(), RecordedVersion: recorded, CurrentVersion: req.Msg.GetUpstreamVersion(), Stale: stale}), nil
 }
 
 func (h *connectHandler) ListSkills(ctx context.Context, req *connect.Request[skillsv1.ListSkillsRequest]) (*connect.Response[skillsv1.ListSkillsResponse], error) {

@@ -1,3 +1,24 @@
+---
+name: "temporal-flow-audit"
+description: "Audit time-dependent logic and async flows"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","audits"]
+  tags: ["skill"]
+  icon: "clock"
+  status: "active"
+  targetDimensions: ["cycles","structure"]
+  revision: 44
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-05-08T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Temporal Flow Audit
 
 Prioritize **making time-dependent behavior explicit, testable, and low-drift** in `scenarios/{{TARGET}}/`. Classify temporal risk first, then move qualifying flows toward domain-owned workflow models, matrix/trace conformance, declarative specs, and eventually checked formal models.

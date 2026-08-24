@@ -1,21 +1,28 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "swarm-manager-workflow-scenario-spec-sync",
-  "name": "swarm-manager-workflow-scenario-spec-sync",
+  "createdAt": "2026-07-18T03:05:30Z",
   "description": "Typed prompt contract for scenario specification synchronization.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-workflow-scenario-spec-sync",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "swarm-manager-workflow-scenario-spec-sync",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "swarm-manager",
     "agent-manager",
     "workflow",
     "prompt-contract"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-07-18T03:05:30Z",
-  "updatedAt": "2026-07-18T03:05:30Z",
-  "modes": [
-    "contract"
-  ]
+  "updatedAt": "2026-07-18T03:05:30Z"
 }

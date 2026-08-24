@@ -1,3 +1,23 @@
+---
+name: "cognitive-load-reduction"
+description: "Simplify code to reduce mental overhead for developers"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","simplification"]
+  tags: ["skill","audit-technique"]
+  icon: "brain"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Cognitive Load Reduction
 
 Prioritize **making the code-craft layer of `scenarios/{{TARGET}}/` match the template's canonical shape**: file layout, function shape, naming, comment discipline, and local state flow. This skill governs the local readability that remains after structural audits have placed code correctly. The destination is "this scenario's code reads like the template's code," verified through `tidiness-manager` and routed to existing docs.

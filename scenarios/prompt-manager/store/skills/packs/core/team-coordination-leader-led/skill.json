@@ -1,12 +1,29 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "team-coordination-leader-led",
-  "name": "Coordination Guidance (Leader-Led)",
   "description": "Supplemental guidance for teams with an explicit coordinating lead",
-  "modes": ["agent"],
-  "tags": ["coordination", "team", "leader-led"],
-  "status": "active",
   "entry": "SKILL.md",
-  "revision": 1
+  "id": "team-coordination-leader-led",
+  "kind": "skill",
+  "modes": [
+    "agent"
+  ],
+  "name": "Coordination Guidance (Leader-Led)",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "coordination",
+    "team",
+    "leader-led"
+  ]
 }

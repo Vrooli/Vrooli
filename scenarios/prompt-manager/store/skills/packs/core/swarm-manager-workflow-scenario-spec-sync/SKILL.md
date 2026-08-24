@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-workflow-scenario-spec-sync"
+description: "Typed prompt contract for scenario specification synchronization."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-18T03:05:30Z"
+  updatedAt: "2026-07-18T03:05:30Z"
+  modes: ["contract"]
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Scenario Spec Sync Workflow
 
 Synchronize the named scenario's specification with its preset or custom target, keeping every preserve path intact. Verify the result before you report it.

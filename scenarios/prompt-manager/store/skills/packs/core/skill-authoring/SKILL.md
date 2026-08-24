@@ -1,3 +1,23 @@
+---
+name: "skill-authoring"
+description: "Authoring guide for Steer skills: the {{TARGET}} placeholder rule, the steer opening template, and the maturity-source requirement for audit-shaped steer skills."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta","steer"]
+  tags: ["skill","authoring"]
+  icon: "fileedit"
+  status: "active"
+  revision: 44
+  createdAt: "2026-01-23T00:00:00Z"
+  updatedAt: "2026-02-04T21:15:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager"]
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Skill Authoring
 
 Steer-specific authoring guidance. Universal authoring quality bars (intent statement, boundaries, convergence patterns, output expectations, troubleshooting section, anti-gaming, memory loop, registration) live in canon and are not restated here.

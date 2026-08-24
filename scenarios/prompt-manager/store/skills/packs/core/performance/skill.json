@@ -1,13 +1,39 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "performance",
-  "name": "Performance",
+  "createdAt": "2025-01-15T00:00:00Z",
   "description": "Measure and gate UI/UX performance with performance-health: audit a specific slow interaction (scroll, drag, click/type) via a targeted BAS capture, analyze the trace for React render/re-render jank and web-vitals (LCP), set per-flow and per-scenario budgets, and triage hotspots. Also build/bundle size, load/startup times, and caching.",
+  "entry": "SKILL.md",
+  "icon": "zap",
+  "id": "performance",
+  "kind": "skill",
   "modes": [
     "steer",
     "performance"
   ],
+  "name": "Performance",
+  "origin": {
+    "kind": "authored"
+  },
+  "programmaticHome": "performance-health:performance",
+  "requires": {
+    "commands": [
+      "git-control-tower baseline",
+      "prompt-manager discover",
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "test-genie",
+      "test-genie registry",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "git-control-tower",
+      "prompt-manager",
+      "test-genie",
+      "vrooli"
+    ]
+  },
+  "revision": 49,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill",
     "performance",
@@ -35,14 +61,8 @@
     "budget",
     "performance-health"
   ],
-  "icon": "zap",
-  "status": "active",
-  "entry": "SKILL.md",
   "targetDimensions": [
     "performance"
   ],
-  "programmaticHome": "performance-health:performance",
-  "revision": 49,
-  "createdAt": "2025-01-15T00:00:00Z",
   "updatedAt": "2026-06-22T00:00:00Z"
 }

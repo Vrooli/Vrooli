@@ -1,3 +1,23 @@
+---
+name: "platform-package-consumption-audit"
+description: "Audit how scenarios consume a shared package, identify friction/inconsistency, and produce a prioritized package-level reliability backlog with verification plans."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["platform","audit"]
+  tags: ["platform","packages","audit","compatibility"]
+  status: "active"
+  defaultScope: "platform-scope"
+  revision: 1
+  createdAt: "2026-02-10T00:00:00Z"
+  updatedAt: "2026-02-10T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Platform focus: Package Consumption Audit
 
 Analyze how scenarios consume `packages/{{PACKAGE}}/`, identify repeated friction and contract drift, and produce a prioritized improvement backlog that makes the package more reliable and easier to use without breaking downstream consumers.

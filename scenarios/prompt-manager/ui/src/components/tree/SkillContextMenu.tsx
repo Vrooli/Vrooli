@@ -13,6 +13,15 @@ import { cn } from '@/lib/utils'
 import { Popover } from '@/components/shared/Popover'
 import type { FolderType } from '@/types'
 
+// A scenario-owned skill lives in its scenario's own skills/ root, so it is
+// neither Core nor Local and must not be labelled as either.
+const STORAGE_LABELS: Partial<Record<FolderType, string>> = {
+  core: 'Core',
+  local: 'Local',
+  drafts: 'Drafts',
+  scenario: 'Scenario',
+}
+
 interface SkillContextMenuProps {
   x: number
   y: number
@@ -193,7 +202,7 @@ export function SkillContextMenu({
           >
             <div className="flex items-center gap-2">
               <HardDrive className="h-4 w-4" />
-              <span>Storage: {currentFolder === 'core' ? 'Core' : 'Local'}</span>
+              <span>Storage: {STORAGE_LABELS[currentFolder] ?? 'Local'}</span>
             </div>
             <ChevronRight className="h-4 w-4" />
           </div>

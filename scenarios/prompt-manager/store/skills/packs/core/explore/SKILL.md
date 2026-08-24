@@ -1,3 +1,23 @@
+---
+name: "explore"
+description: "Creative exploration, experimentation, and discovery within architectural boundaries"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","explore"]
+  tags: ["skill"]
+  icon: "compass"
+  status: "active"
+  revision: 44
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-05-31T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Exploration & Discovery
 
 Prioritize **creative exploration, experimentation, and discovery** within the boundaries of the scenario’s architecture.

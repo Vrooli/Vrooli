@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-workflow-capture-classify"
+description: "Typed prompt contract for immutable capture classification."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-18T03:05:24Z"
+  updatedAt: "2026-07-18T03:05:24Z"
+  modes: ["contract"]
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 # Capture Grounding and Shaping Workflow
 
 Ground one operator capture and shape it into the smallest honest landing. Read the supplied capture, grounding packet, repository evidence, web sources, and attached images as needed. Return only the structured outcome; Swarm Manager owns every write.

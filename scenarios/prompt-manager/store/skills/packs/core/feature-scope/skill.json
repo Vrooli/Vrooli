@@ -1,21 +1,28 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "feature-scope",
-  "name": "Feature Scope",
+  "createdAt": "2026-02-03T00:00:00Z",
   "description": "Add functionality while maintaining stability",
+  "entry": "SKILL.md",
+  "icon": "plus-circle",
+  "id": "feature-scope",
+  "kind": "skill",
   "modes": [
     "scope"
   ],
+  "name": "Feature Scope",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 30,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "scope",
     "feature",
     "constraints"
   ],
-  "icon": "plus-circle",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 30,
-  "createdAt": "2026-02-03T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

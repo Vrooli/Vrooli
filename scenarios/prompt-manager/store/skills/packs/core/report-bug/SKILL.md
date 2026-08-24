@@ -1,3 +1,24 @@
+---
+name: "report-bug"
+description: "Universal writer skill for filing a bug observation against any scenario, skill, member, or CLI command. Writes a bug-inbox/<signal-type>/<slug> entry on the scenario-qa team for the bug-investigator to drain."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","observability","bug-report","writer-skill"]
+  writes_to: ["bug-inbox/*"]
+  icon: "bug"
+  status: "active"
+  revision: 3
+  createdAt: "2026-05-03T00:00:00Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager team", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Report Bug
 
 Universal writer skill any agent on any team may invoke when they observe a bug — broken code, broken scenario behavior, prompt confusion, data-shape mismatch, unexpected error, or anything that looks defective. The skill writes a structured entry to `team:scenario-qa`'s `topic:bug-inbox/<signal-type>/<slug>` topic; the `literal:scenario-qa/bug-investigator` member drains the inbox, applies a registered investigation technique, and closes the entry with a `topic:bug-investigation-report/<slug>` audit-log entry.

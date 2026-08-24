@@ -1,3 +1,23 @@
+---
+name: "leader-triage-investigate-resolve"
+description: "Leader-focused pipeline that orchestrates severity triage, hypothesis-driven investigation, and coordinated resolution. Composes triage-methodology and scientific-debugging into a delegation workflow with phase gates and coordination protocols."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","pipeline","leadership","debugging","delegation","coordination","methodology"]
+  icon: "shield"
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-10T00:00:00Z"
+  updatedAt: "2026-02-10T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Leader Triage-Investigate-Resolve Pipeline
 
 Orchestrate the full lifecycle of delegated problem resolution: triage severity and blast radius, drive hypothesis-based investigation through team members, then coordinate the fix with regression testing and verification. This is a three-phase gated pipeline over two leaf skills, with an investigation cycle inside Phase 2.

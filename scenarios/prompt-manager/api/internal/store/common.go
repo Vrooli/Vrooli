@@ -12,6 +12,8 @@
 package store
 
 import (
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -64,6 +66,25 @@ const (
 // CurrentSchemaVersion is the current schema version for all entities
 const CurrentSchemaVersion = 1
 
+// EnsureSkillFrontmatter makes SKILL.md self-describing for native runtimes.
+// Existing authored envelopes are preserved byte-for-byte; legacy body-only
+// writes receive the generated compatibility envelope from the durable skill
+// metadata. API reads strip this envelope at the handler boundary.
+func EnsureSkillFrontmatter(skill *Skill, content string) string {
+	if strings.HasPrefix(strings.TrimSpace(content), "---") {
+		return content
+	}
+	name := skill.ID
+	if strings.TrimSpace(skill.Name) != "" {
+		name = skill.Name
+	}
+	description := skill.Description
+	if strings.TrimSpace(description) == "" {
+		description = name
+	}
+	return "---\nname: " + strconv.Quote(skill.ID) + "\ndescription: " + strconv.Quote(description) + "\nlicense: \"CC-BY-4.0\"\nmetadata:\n  requires:\n    scenarios: []\n    commands: []\n  origin:\n    kind: authored\n---\n\n" + content
+}
+
 // BaseEntity contains common fields for all entities
 type BaseEntity struct {
 	Kind          string `json:"kind"`
@@ -102,4 +123,6 @@ type Capability struct {
 // SkillRequires contains capability requirements for a skill
 type SkillRequires struct {
 	Capabilities []Capability `json:"capabilities,omitempty"`
+	Scenarios    []string     `json:"scenarios,omitempty"`
+	Commands     []string     `json:"commands,omitempty"`
 }

@@ -1,3 +1,15 @@
+---
+name: report-friction
+description: Write one friction entry per invocation.
+license: CC-BY-4.0
+metadata:
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: authored
+---
+
 # report-friction
 
 Writes one friction entry per invocation:

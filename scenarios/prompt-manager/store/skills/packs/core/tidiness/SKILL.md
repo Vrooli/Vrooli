@@ -1,3 +1,26 @@
+---
+name: "tidiness"
+description: "Maintainability cleanup, long-file and complexity debt, issue queues, and cleanup campaigns"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","tidiness","audits"]
+  tags: ["skill","audit-technique","maintainability"]
+  icon: "list-checks"
+  status: "active"
+  targetDimensions: ["tidiness"]
+  targetToolId: "run-agent"
+  programmaticHome: "test-genie:tidiness"
+  revision: 1
+  createdAt: "2026-06-15T00:00:00Z"
+  updatedAt: "2026-06-15T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie"]
+    commands: ["prompt-manager", "prompt-manager skill", "prompt-manager skill read", "test-genie execute"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Tidiness
 
 Prioritize **making `scenarios/{{TARGET}}/` easier to maintain by reducing file/function bloat, duplication, technical-debt markers, stale cleanup queues, and campaign drift**. Use Tidiness Manager for maintainability findings; leave lint, type-safety, and strict config policy to Quality Health.

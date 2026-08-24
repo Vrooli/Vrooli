@@ -1,25 +1,39 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "test",
-  "name": "Test",
+  "createdAt": "2025-01-15T00:00:00Z",
   "description": "Test suite strengthening - coverage, reliability, signal strength",
+  "entry": "SKILL.md",
+  "icon": "testtube",
+  "id": "test",
+  "kind": "skill",
   "modes": [
     "steer",
     "test"
   ],
+  "name": "Test",
+  "origin": {
+    "kind": "authored"
+  },
+  "programmaticHome": "unit-health:unit",
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "vrooli"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 48,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill"
   ],
-  "icon": "testtube",
-  "status": "active",
-  "entry": "SKILL.md",
   "targetDimensions": [
     "tests",
     "coverage"
   ],
-  "programmaticHome": "unit-health:unit",
-  "revision": 48,
-  "createdAt": "2025-01-15T00:00:00Z",
   "updatedAt": "2026-07-21T00:00:00Z"
 }

@@ -1,3 +1,23 @@
+---
+name: "decision-boundary-extraction"
+description: "Extract and clarify decision logic from implementation details"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","analysis"]
+  tags: ["skill","audit-technique"]
+  icon: "file-text"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Decision Boundary Extraction
 
 Prioritize **making important decisions in the scenario explicit, intentional, and easy to locate**.

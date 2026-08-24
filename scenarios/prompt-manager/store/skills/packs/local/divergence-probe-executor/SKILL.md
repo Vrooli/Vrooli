@@ -1,3 +1,22 @@
+---
+name: "divergence-probe-executor"
+description: "Divergence-probe runner: independently execute a skill against a target scenario and emit a structured decision list."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["divergence-probe","dtv","meta"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-21T13:41:25Z"
+  updatedAt: "2026-07-21T13:41:25Z"
+  modes: ["contract"]
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill"]
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Divergence Probe — Runner
 
 You are one of three independent runners in a divergence probe. Your job is to

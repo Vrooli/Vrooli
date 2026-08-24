@@ -1,1 +1,35 @@
-{"kind":"skill","schemaVersion":1,"id":"swarm-manager-workflow-goal-discover","name":"swarm-manager-workflow-goal-discover","description":"Typed prompt contract for goal discovery.","tags":["swarm-manager","agent-manager","workflow","prompt-contract"],"status":"active","entry":"SKILL.md","revision":2,"modes":["contract"]}
+{
+  "description": "Typed prompt contract for goal discovery.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-workflow-goal-discover",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "swarm-manager-workflow-goal-discover",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "swarm-manager",
+      "swarm-manager backlog",
+      "swarm-manager goals"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "swarm-manager",
+    "agent-manager",
+    "workflow",
+    "prompt-contract"
+  ]
+}

@@ -328,6 +328,41 @@
           "architecture": {
             "primitive": "action"
           }
+        },
+        {
+          "name": "topology",
+          "description": "Report skill packs and generated projection residency.",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "import",
+          "description": "Import pinned skill material into quarantine.",
+          "binding": {"kind": "connect-rpc", "service": "SkillsService", "method": "ImportSkill"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "review-import",
+          "description": "Record an independent imported-skill review.",
+          "binding": {"kind": "connect-rpc", "service": "SkillsService", "method": "ReviewImportedSkill"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "import-staleness",
+          "description": "Compare an imported skill with its upstream version.",
+          "binding": {"kind": "connect-rpc", "service": "SkillsService", "method": "ReportImportedSkillStaleness"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "activation-hook",
+          "description": "Record native skill activation telemetry fail-open.",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": false},
+          "architecture": {"primitive": "action"}
         }
       ]
     },

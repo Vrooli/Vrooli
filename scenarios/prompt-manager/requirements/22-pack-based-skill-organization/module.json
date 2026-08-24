@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-21T12:08:34-04:00"
+    "last_validated_at": "2026-08-24T00:52:01-04:00"
   },
   "requirements": [
     {
@@ -14,7 +14,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "GET /api/v1/skills?folder=core filters by pack"
         },
         {
@@ -28,7 +28,7 @@
     {
       "id": "REQ-P1-031",
       "title": "Pack Precedence Ordering",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "prompt-manager-should-have-pack-based-skill-organization",
       "category": "api",
       "description": "Pack precedence ordering for skill resolution",
@@ -36,7 +36,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "_pack-order.json configures active/inactive packs"
         }
       ]

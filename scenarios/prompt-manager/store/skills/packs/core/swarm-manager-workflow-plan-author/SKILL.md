@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-workflow-plan-author"
+description: "Candidate-only Swarm workflow wrapper that applies the canonical Implementation Plan Authoring methodology to a bounded backlog snapshot."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 2
+  createdAt: "2026-07-18T03:05:25Z"
+  updatedAt: "2026-07-18T00:00:00Z"
+  modes: ["contract"]
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager"]
+  origin:
+    kind: "authored"
+---
 # Plan Author Workflow
 
 Author a Plan-Manager-compatible implementation plan for the authorized backlog item. Return the plan as a markdown candidate. The supplied entity and snapshot are the bounded planning source; no earlier transcript exists.

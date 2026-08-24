@@ -1,3 +1,23 @@
+---
+name: "progress-continuity-interruption-resilience"
+description: "Ensure work can resume after interruptions"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","reliability"]
+  tags: ["skill"]
+  icon: "playcircle"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Progress Continuity & Interruption Resilience
 
 Prioritize **making work safely stoppable and resumable** for both users and agents.

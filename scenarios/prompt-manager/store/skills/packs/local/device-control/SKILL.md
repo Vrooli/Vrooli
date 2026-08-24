@@ -1,3 +1,21 @@
+---
+name: "device-control"
+description: "Safely drive owner-trusted physical Android phones through device-control with stable identity, leases, bounded flows, and redacted evidence."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["device-control","android","physical-device","automation"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-08-12T17:04:15Z"
+  updatedAt: "2026-08-12T17:04:15Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Agent skill: drive a physical Android phone
 
 Use the `device-control` CLI as the agent boundary. Never address an ADB

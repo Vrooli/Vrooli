@@ -59,7 +59,7 @@ import { getAllItemIdsInSubtree } from '@/services/treeService'
 import { NewFolderDialog } from '../tree/NewFolderDialog'
 import { getSkill, searchSkillIds } from '@/services/skillService'
 import type { TreeNode } from '@/types/editor'
-import type { Skill, CreateSkillRequest, UpdateSkillRequest, ContentSearchOptions, SkillSearchMode } from '@/types'
+import type { Skill, FolderType, CreateSkillRequest, UpdateSkillRequest, ContentSearchOptions, SkillSearchMode } from '@/types'
 import type { ContentSearchMatch, Reference } from '@/lib/schemas'
 import type { HighlightRequest } from '@/lib/highlight'
 import { createHighlightMatch } from '@/lib/highlight'
@@ -1020,7 +1020,13 @@ function SkillManagerLayoutImpl() {
   }, [updateSkills])
 
   // Handle change storage location (update skill folder)
-  const handleChangeStorage = useCallback(async (skillId: string, folder: 'local' | 'core' | 'drafts') => {
+  const handleChangeStorage = useCallback(async (skillId: string, folder: FolderType) => {
+    // A scenario-owned skill lives in its scenario's own skills/ root and is not
+    // one of the writable packs, so it is not a valid move target.
+    if (folder === 'scenario') {
+      console.error('Cannot move a skill into the scenario pack; it is owned by its scenario.')
+      return
+    }
     try {
       const updates = new Map<string, { folder: 'local' | 'core' | 'drafts' }>()
       updates.set(skillId, { folder })

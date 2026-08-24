@@ -1,3 +1,23 @@
+---
+name: "social-media-scheduler"
+description: "Multi-platform content scheduling with calendar management, AI optimization, and analytics across Twitter, Instagram, LinkedIn, Facebook, and TikTok"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","marketing","social-media","scheduling"]
+  icon: "calendar"
+  status: "active"
+  revision: 1
+  createdAt: "2026-03-19T00:00:00Z"
+  updatedAt: "2026-03-19T00:00:00Z"
+  requires:
+    scenarios: ["vrooli"]
+    commands: ["vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Social Media Scheduler
 
 Schedule and manage content across multiple social media platforms with AI-powered optimization, calendar management, and performance analytics.

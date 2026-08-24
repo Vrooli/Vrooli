@@ -23,6 +23,7 @@ require (
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -63,4 +64,5 @@ replace github.com/vrooli/measures-go => ../../../packages/measures-go
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

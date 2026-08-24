@@ -1,3 +1,23 @@
+---
+name: "conversation-friction-analysis"
+description: "Analyze a goal-oriented conversation to identify friction points, attribute root causes, and recommend high-leverage fixes across skills, tooling, docs, and process policy."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta"]
+  tags: ["conversation","retrospective","friction","skills","cli","process-improvement"]
+  icon: "lightbulb"
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-09T00:00:00Z"
+  updatedAt: "2026-02-09T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Conversation Friction Analysis
 
 Analyze a goal-oriented conversation to identify friction points, attribute root causes, and propose high-leverage fixes across skills, CLI/tooling, docs, and process policy.

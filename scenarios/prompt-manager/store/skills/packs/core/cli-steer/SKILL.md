@@ -1,3 +1,24 @@
+---
+name: "cli-steer"
+description: "Design and maintain scenario CLIs as thin, professional wrappers over the API using cli-core for cross-platform consistency"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","architecture"]
+  tags: ["cli","cli-core","go","cross-platform","api-parity"]
+  status: "active"
+  defaultScope: "architecture-scope"
+  programmaticHome: "cli-health:contracts"
+  revision: 49
+  createdAt: "2026-01-30T16:30:00-05:00"
+  updatedAt: "2026-06-16T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "test-genie", "vrooli", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: CLI Steer
 
 Design and maintain scenario CLIs as **thin, proto-first wrappers over the scenario API** in `scenarios/{{TARGET}}/cli/`. The CLI is the developer's primary interface — every Connect-RPC method on the API should be reachable as a CLI command via a generated Connect client, with the four REST exceptions reserved for the same reasons enforced at the API.

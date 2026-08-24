@@ -1,3 +1,24 @@
+---
+name: "ui-i18n-adoption"
+description: "Adopt multi-language support in a scenario UI: wire i18next through the typed strings.ts/selectors.ts registries, default tests to cimode, layer accessibility and locale-parity contracts on top, so adding new locales is a config change and tests don't drift when copy moves"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","react","ux"]
+  tags: ["skill"]
+  icon: "languages"
+  status: "active"
+  defaultScope: "architecture-scope"
+  revision: 2
+  createdAt: "2026-05-02T03:51:50Z"
+  updatedAt: "2026-05-02T15:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: UI Internationalization Adoption
 
 Adopt **multi-language support** for `scenarios/{{TARGET}}/ui/` by wiring `i18next` through the existing `strings.ts` registry, with RTL/locale-formatting hooks pre-wired so adding the next locale is a config change rather than a code rewrite.

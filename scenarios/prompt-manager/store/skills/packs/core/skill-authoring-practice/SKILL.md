@@ -1,3 +1,23 @@
+---
+name: "skill-authoring-practice"
+description: "Authoring guide for Practice skills that define systematic engineering methodologies. Covers process structure, convergence patterns, knowledge capture, and artifact requirements."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta","practice"]
+  tags: ["skill","practice","authoring"]
+  icon: "wrench"
+  status: "active"
+  revision: 28
+  createdAt: "2026-02-03T02:40:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Practice Skill Authoring
 
 Guide for creating **practice** skills (the authored skill declares `modes[0] = "practice"`). Practice skills define systematic engineering methodologies — repeatable approaches to recurring challenges that apply across scenarios, tools, and tech stacks.

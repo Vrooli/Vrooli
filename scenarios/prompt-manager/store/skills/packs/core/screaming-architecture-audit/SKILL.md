@@ -1,3 +1,26 @@
+---
+name: "screaming-architecture-audit"
+description: "Architecture alignment and refactoring - make the codebase express its purpose"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","architecture","audits"]
+  tags: ["skill","audit-technique"]
+  icon: "building2"
+  status: "active"
+  targetDimensions: ["structure","cycles"]
+  targetToolId: "run-agent"
+  programmaticHome: "test-genie:architecture"
+  revision: 46
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-05-31T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "test-genie", "test-genie execute"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Screaming Architecture Audit
 
 Prioritize **making scenario structure express the product's capabilities and boundaries** in `scenarios/{{TARGET}}/`. Assess the architecture first, then move code, docs, and tests toward domain-owned implementation with clear shared infrastructure and seams.

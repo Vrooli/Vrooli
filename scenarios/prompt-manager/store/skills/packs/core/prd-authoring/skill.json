@@ -1,12 +1,34 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2026-07-02T00:00:00Z",
+  "defaultScope": "architecture-scope",
+  "description": "Judgment guide for authoring a scenario's business contract (PRD.md + requirements/) through the business-health wizard — the deterministic, no-AI interview that renders a canonical PRD and requirements skeleton conformant by construction. Covers when to author vs preserve, the interactive-TTY vs answers-file wizard flow (resumable, diff-preview first), taking capability-dedup hints seriously (answer-space cell #34), what the validator enforces (exact emoji section headings, OT line format `- [ ] OT-P0-001 | Title | description`, one target per tier, Purpose/Preferred content anchors), requirements linkage rules (every requirement carries a prd_ref to a real operational target plus at least one validation entry; statuses are earned by sync, never asserted), the finding-code remediation docs (docs/findings/\u003ccode\u003e.md) and the deterministic business-health fix loop, and anti-gaming bans (no fabricated validation refs, no hand-flipped statuses, don't delete P0 requirements to silence findings).",
+  "entry": "SKILL.md",
+  "icon": "file-text",
   "id": "prd-authoring",
-  "name": "PRD Authoring",
-  "description": "Judgment guide for authoring a scenario's business contract (PRD.md + requirements/) through the business-health wizard — the deterministic, no-AI interview that renders a canonical PRD and requirements skeleton conformant by construction. Covers when to author vs preserve, the interactive-TTY vs answers-file wizard flow (resumable, diff-preview first), taking capability-dedup hints seriously (answer-space cell #34), what the validator enforces (exact emoji section headings, OT line format `- [ ] OT-P0-001 | Title | description`, one target per tier, Purpose/Preferred content anchors), requirements linkage rules (every requirement carries a prd_ref to a real operational target plus at least one validation entry; statuses are earned by sync, never asserted), the finding-code remediation docs (docs/findings/<code>.md) and the deterministic business-health fix loop, and anti-gaming bans (no fabricated validation refs, no hand-flipped statuses, don't delete P0 requirements to silence findings).",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "PRD Authoring",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager",
+      "test-genie fix",
+      "test-genie run",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "test-genie",
+      "vrooli"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "prd",
     "requirements",
@@ -28,11 +50,5 @@
     "prd overhaul",
     "operational targets"
   ],
-  "icon": "file-text",
-  "status": "active",
-  "entry": "SKILL.md",
-  "defaultScope": "architecture-scope",
-  "revision": 2,
-  "createdAt": "2026-07-02T00:00:00Z",
   "updatedAt": "2026-07-21T00:00:00Z"
 }

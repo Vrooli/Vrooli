@@ -1,3 +1,24 @@
+---
+name: "spec-sync"
+description: "Synchronize scenario specifications (PRD.md, requirements/, README.md, docs/) with actual implementation state. Ensures specs accurately reflect what the code does, enabling faithful scenario recreation after archiving."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","documentation","audits"]
+  tags: ["skill"]
+  icon: "refreshcw"
+  status: "active"
+  defaultScope: "audit-scope"
+  revision: 1
+  createdAt: "2026-02-16T00:00:00Z"
+  updatedAt: "2026-02-16T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
+    commands: ["prompt-manager configuration", "prompt-manager skill", "prompt-manager skill read", "swarm-manager", "swarm-manager archive", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Spec Sync
 
 Synchronize **specification artifacts with actual implementation state** in `scenarios/{{TARGET}}/`, ensuring that PRD.md, requirements/, README.md, and docs/ accurately describe what the code does today.

@@ -43,6 +43,7 @@ import (
 	"prompt-manager/internal/metrics"
 	localmodules "prompt-manager/internal/modules"
 	"prompt-manager/internal/paths"
+	"prompt-manager/internal/projection"
 	"prompt-manager/internal/sourceledger"
 	"prompt-manager/internal/store"
 
@@ -302,6 +303,62 @@ func main() {
 	if err != nil {
 		log.Fatalf("Storage path resolution failed: %v", err)
 	}
+	// Native runtimes opt into a bounded projection either with one private
+	// target or by asking for every resource-declared shared target. Projection
+	// is fail-open: an unavailable target must never prevent prompt-manager from
+	// serving its canonical corpus.
+	projectSource := filepath.Join(roots.RepoRoot, "scenarios", "prompt-manager", "store", "skills", "packs")
+	projectAll := strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_SKILL_PROJECTION_ALL")), "true")
+	var projectionTargets []projection.Target
+	if projectAll {
+		resourcesDir := strings.TrimSpace(os.Getenv("VROOLI_RESOURCES_DIR"))
+		if resourcesDir == "" {
+			resourcesDir = filepath.Join(roots.RepoRoot, "resources")
+		}
+		targets, targetErr := projection.LoadTargets(resourcesDir, "")
+		if targetErr != nil {
+			log.Printf("skill projection targets unavailable: %v", targetErr)
+		} else {
+			projectionTargets = targets
+			dirs := make([]string, 0, len(targets))
+			for _, target := range targets {
+				dirs = append(dirs, target.Path)
+			}
+			_ = os.Setenv("VROOLI_SKILL_PROJECTION_DIRS", strings.Join(dirs, string(os.PathListSeparator)))
+		}
+	}
+	if target := strings.TrimSpace(os.Getenv("VROOLI_SKILL_PROJECTION_DIR")); target != "" || len(projectionTargets) > 0 {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			pack, packErr := projection.LoadBasePack(filepath.Join(roots.RepoRoot, "scenarios", "prompt-manager", "store", "skills", "_base-pack.json"))
+			if packErr != nil {
+				log.Printf("skill projection disabled: %v", packErr)
+				return
+			}
+			select {
+			case <-ctx.Done():
+				log.Printf("skill projection timed out")
+				return
+			default:
+			}
+			if len(projectionTargets) > 0 {
+				results, projectErr := projection.ProjectTargets(projectSource, projectionTargets, pack)
+				if projectErr != nil {
+					log.Printf("skill projection partially unavailable after %d targets: %v", len(results), projectErr)
+					return
+				}
+				log.Printf("skill projection activated: %d targets, %d skills per target", len(results), len(pack.Skills))
+				return
+			}
+			result, projectErr := projection.Project(projectSource, target, pack)
+			if projectErr != nil {
+				log.Printf("skill projection unavailable: %v", projectErr)
+				return
+			}
+			log.Printf("skill projection activated: %d skills, %d resident tokens", len(result.Skills), result.ResidentTokens)
+		}()
+	}
 
 	// Open SQLite. Bound startup storage work so the lifecycle health gate gets
 	// a clear failure instead of killing a silent retry loop.
@@ -420,7 +477,7 @@ func main() {
 
 	// Variant and experiment handlers
 	variantHandlers := skills.NewVariantHandlers(fileStore.Variants(), fileStore.Skills())
-	skillsConnectPath, skillsConnectHandler := skills.NewConnectMount(skillHandlers, variantHandlers)
+	skillsConnectPath, skillsConnectHandler := skills.NewConnectMount(skillHandlers, variantHandlers, fileStore.FileSkills())
 	experimentHandlers := skills.NewExperimentHandlers(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
 	experimentHandlers.SetWorkPublisher(skills.NewHTTPWorkPublisherFromEnv())
 	// Lifecycle/Secrets Manager writes a standard runtime config into the

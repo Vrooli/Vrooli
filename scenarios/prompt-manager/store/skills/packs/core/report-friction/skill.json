@@ -1,25 +1,37 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2026-05-03T00:00:00Z",
+  "description": "Universal writer skill for filing a friction observation — system-level capture-leak in tooling, runs, storage, or recurring workarounds. Writes a friction-inbox/\u003cscope\u003e/\u003cslug\u003e entry on the meta-optimization team for the friction-curator to drain and route to the appropriate scoped friction topic.",
+  "entry": "SKILL.md",
+  "icon": "alert-triangle",
   "id": "report-friction",
-  "name": "Report Friction",
-  "description": "Universal writer skill for filing a friction observation — system-level capture-leak in tooling, runs, storage, or recurring workarounds. Writes a friction-inbox/<scope>/<slug> entry on the meta-optimization team for the friction-curator to drain and route to the appropriate scoped friction topic.",
+  "kind": "skill",
   "modes": [
     "tools"
   ],
+  "name": "Report Friction",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager",
+      "prompt-manager team"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill",
     "observability",
     "friction-report",
     "writer-skill"
   ],
+  "updatedAt": "2026-07-21T00:00:00Z",
   "writes_to": [
     "friction-inbox/*"
-  ],
-  "icon": "alert-triangle",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 3,
-  "createdAt": "2026-05-03T00:00:00Z",
-  "updatedAt": "2026-07-21T00:00:00Z"
+  ]
 }

@@ -1,3 +1,26 @@
+---
+name: "proto-contract-audit"
+description: "Protocol Buffer contract organization and generated-surface health"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","architecture","audits"]
+  tags: ["skill","audit-technique","proto"]
+  icon: "braces"
+  status: "active"
+  targetDimensions: ["proto-health","contracts"]
+  targetToolId: "run-agent"
+  programmaticHome: "proto-health:proto"
+  revision: 2
+  createdAt: "2026-06-11T00:00:00Z"
+  updatedAt: "2026-06-16T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "scenario-dependency-analyzer", "test-genie", "vrooli"]
+    commands: ["prompt-manager", "prompt-manager skill", "prompt-manager skill read", "scenario-dependency-analyzer for", "scenario-dependency-analyzer work", "test-genie execute", "test-genie phase", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Proto Contract Audit
 
 Prioritize **making `scenarios/{{TARGET}}/` use Protocol Buffer contracts that are domain-organized, generated, adopted, and transport-clear**. Audit proto structure first, then fix schema placement, generated artifacts, and API/CLI/UI consumption without reaching into fleet-wide dependency graph work.

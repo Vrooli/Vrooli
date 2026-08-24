@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-goal-context"
+description: "Shared reference for loading a goal, its derived scope, and milestones before proposing goal changes or reviewing milestone delivery."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools","conversation"]
+  tags: ["swarm-manager","goal","milestone","context"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-07-22T00:00:00Z"
+  updatedAt: "2026-07-22T00:00:00Z"
+  requires:
+    scenarios: ["swarm-manager"]
+    commands: ["swarm-manager backlog", "swarm-manager goals"]
+  origin:
+    kind: "authored"
+---
 # Swarm Manager Goal Context
 
 Load a goal and its milestones before proposing a goal change or reviewing milestone delivery. Use the goal's derived scope as the authoritative membership view.

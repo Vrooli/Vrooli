@@ -1,12 +1,31 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "opportunity-pool-hygiene",
-  "name": "Opportunity Pool Hygiene",
+  "createdAt": "2026-05-01T00:00:00Z",
   "description": "Periodically sweep the monetization opportunity pool: evaluate revisit triggers, retire stale or disproved bets, propose catalog-promotion decisions when triggers fire, and keep pool size honest. Complements the opportunity router, which handles intake.",
+  "entry": "SKILL.md",
+  "icon": "broom",
+  "id": "opportunity-pool-hygiene",
+  "kind": "skill",
   "modes": [
     "tools"
   ],
+  "name": "Opportunity Pool Hygiene",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager",
+      "prompt-manager team",
+      "swarm-manager backlog"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill",
     "monetization",
@@ -15,13 +34,8 @@
     "maintenance",
     "writer-skill"
   ],
+  "updatedAt": "2026-05-01T00:00:00Z",
   "writes_to": [
     "monetization/opportunity/*"
-  ],
-  "icon": "broom",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-05-01T00:00:00Z",
-  "updatedAt": "2026-05-01T00:00:00Z"
+  ]
 }

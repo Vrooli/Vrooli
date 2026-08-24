@@ -1,3 +1,25 @@
+---
+name: "requirements-traceability-steer"
+description: "Steers a scenario up a Traceability Maturity Ladder (L0 starter-template → L4 findings-clean) gated at every rung by a runnable command: make the requirements registry (requirements/*.json + PRD.md operational-target linkage) a TRUE claim about what the scenario does and how you'd know — every requirement tied to evidence via validation refs and [REQ:ID]-tagged tests, every prd_ref matched to a real PRD operational target, statuses earned from passing validations rather than declared. Driven by the test-genie business phase's typed findings (business_starter_template, business_req_no_validation, business_prd_ref_unmatched, business_validation_ref_missing, …); closes the EM `business` dimension. Includes the you-changed-X→check-Y work table and explicit anti-gaming bans (never flip status complete without a passing validation ref; never rewrite a requirement to match drifted code without deciding which side is wrong)."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer"]
+  targetDimensions: ["business"]
+  tags: ["requirements","prd","traceability","business","operational-targets","validation-refs","req-tags","registry","drift","test-genie","business-phase","findings","ladder","steer"]
+  icon: "link"
+  status: "active"
+  defaultScope: "architecture-scope"
+  revision: 2
+  createdAt: "2026-06-10T00:00:00Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "test-genie", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "test-genie", "test-genie execute", "test-genie internals", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Requirements Traceability
 
 `scenarios/{{TARGET}}/`'s requirements registry is a **claim** about what the scenario does and how you'd know; when behavior changes and the registry doesn't, the claim is a lie. Your job is to **make the registry true, not green** — every requirement tied to real evidence, every PRD operational target tied to requirements, every status earned rather than declared.

@@ -1,0 +1,27 @@
+{
+  "createdAt": "2026-08-21T18:43:56Z",
+  "description": "Warm, resumable execution of an accepted Plan Manager frontier until completion.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-workflow-until-drain",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "swarm-manager-workflow-until-drain",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "swarm-manager",
+    "workflow",
+    "until-drain"
+  ],
+  "updatedAt": "2026-08-21T18:43:56Z"
+}

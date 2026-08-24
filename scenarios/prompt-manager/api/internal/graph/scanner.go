@@ -44,6 +44,15 @@ type extractedRef struct {
 	lineNumber int // 1-based
 }
 
+// UnresolvedSkillReference is a named registry validation failure. References
+// are resolved against the skill store's identifier index, never a filesystem
+// prefix, so a source can move without changing its callers.
+type UnresolvedSkillReference struct {
+	SourceSkill string
+	SkillID     string
+	LineNumber  int
+}
+
 // agentLister provides agent scanning methods.
 type agentLister interface {
 	List(ctx context.Context) ([]store.Agent, error)
@@ -190,6 +199,45 @@ func (s *Scanner) ScanAll(ctx context.Context) ([]Edge, error) {
 	edges = append(edges, memberEdges...)
 
 	return edges, nil
+}
+
+// ScanUnresolvedSkillReferences checks every indexed skill body for explicit
+// prompt-manager skill reads that do not resolve to a registry identifier.
+func (s *Scanner) ScanUnresolvedSkillReferences(ctx context.Context) ([]UnresolvedSkillReference, error) {
+	skills, err := s.skillStore.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	known := make(map[string]bool, len(skills))
+	for _, skill := range skills {
+		known[skill.ID] = true
+	}
+	var unresolved []UnresolvedSkillReference
+	for _, skill := range skills {
+		_, content, err := s.skillStore.GetWithContent(ctx, skill.ID)
+		if err != nil {
+			return nil, err
+		}
+		for _, match := range cliReadRE.FindAllStringSubmatchIndex(content, -1) {
+			if len(match) < 4 {
+				continue
+			}
+			line := content[:match[0]]
+			for _, token := range strings.Fields(content[match[2]:match[3]]) {
+				token = strings.Trim(token, "`'\".,;:()[]{}")
+				if token == "" || strings.HasPrefix(token, "-") {
+					continue
+				}
+				if !validIDRE.MatchString(token) {
+					break
+				}
+				if !known[token] {
+					unresolved = append(unresolved, UnresolvedSkillReference{SourceSkill: skill.ID, SkillID: token, LineNumber: strings.Count(line, "\n") + 1})
+				}
+			}
+		}
+	}
+	return unresolved, nil
 }
 
 func (s *Scanner) scanRepositoryReferences(validIDs map[string]bool) []Edge {

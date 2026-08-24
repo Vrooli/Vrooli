@@ -1,3 +1,25 @@
+---
+name: "security"
+description: "Vulnerability scanning - input validation, authentication, secrets"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","security"]
+  tags: ["skill"]
+  icon: "shield"
+  status: "active"
+  targetDimensions: ["security"]
+  programmaticHome: "security-health:security"
+  revision: 47
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-06-16T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Security Hardening
 
 > **Ladder position:** R1–R2 (safe & standards-clean — a hard gate the scenario must clear early). High/critical security findings block "safe"; clearing them is foundational, not optional polish. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.

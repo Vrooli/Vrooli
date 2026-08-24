@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-workflow-phased-plan-slice"
+description: "Typed prompt contract for one authorized plan slice."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
+  status: "active"
+  revision: 3
+  createdAt: "2026-07-18T03:05:26Z"
+  updatedAt: "2026-07-27T00:00:00Z"
+  modes: ["contract"]
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager discover", "swarm-manager"]
+  origin:
+    kind: "authored"
+---
 # Phased Plan Slice Workflow
 
 Execute exactly one coherent slice of the accepted plan. This is a fresh conversation: your only context is the plan itself and the compact handoffs below. Never infer an earlier transcript.

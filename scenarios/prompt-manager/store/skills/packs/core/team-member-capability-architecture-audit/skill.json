@@ -1,12 +1,31 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "team-member-capability-architecture-audit",
-  "name": "Team Member Capability Architecture Audit",
+  "createdAt": "2026-05-01T00:00:00Z",
   "description": "Audit a team member's capability architecture: identity, ownership, plan-of-record, skills, intake, collection, analysis, promotion, and feedback loops.",
+  "entry": "SKILL.md",
+  "icon": "network",
+  "id": "team-member-capability-architecture-audit",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Team Member Capability Architecture Audit",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager graph",
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "prompt-manager team"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "meta-optimization",
@@ -15,10 +34,5 @@
     "capability-architecture",
     "audit"
   ],
-  "icon": "network",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-05-01T00:00:00Z",
   "updatedAt": "2026-05-01T00:00:00Z"
 }

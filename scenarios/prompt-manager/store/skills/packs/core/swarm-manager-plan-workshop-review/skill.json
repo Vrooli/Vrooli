@@ -1,21 +1,28 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "swarm-manager-plan-workshop-review",
-  "name": "swarm-manager-plan-workshop-review",
+  "createdAt": "2026-07-22T00:00:00Z",
   "description": "Return a bounded typed Plan Workshop review packet and proposal drafts from an immutable Swarm subject snapshot.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-plan-workshop-review",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "swarm-manager-plan-workshop-review",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "swarm-manager",
     "plan-workshop",
     "workflow",
     "prompt-contract"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 2,
-  "createdAt": "2026-07-22T00:00:00Z",
-  "updatedAt": "2026-07-22T03:30:00Z",
-  "modes": [
-    "contract"
-  ]
+  "updatedAt": "2026-07-22T03:30:00Z"
 }

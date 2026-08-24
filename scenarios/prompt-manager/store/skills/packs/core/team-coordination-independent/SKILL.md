@@ -1,3 +1,22 @@
+---
+name: "team-coordination-independent"
+description: "Supplemental guidance for independent specialist teams with no default coordinator"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["agent"]
+  tags: ["coordination","team","independent"]
+  status: "active"
+  revision: 188
+  createdAt: ""
+  updatedAt: "2026-07-24T20:34:11Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Coordination Guidance (Independent)
 
 This is supplemental guidance referenced from the generated Operating Policy. You are part of an independent specialist team with no coordinator in the default execution path. Own your lane, persist durable findings, and avoid inventing coordination work that the Operating Policy did not enable.

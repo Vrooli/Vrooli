@@ -1,3 +1,23 @@
+---
+name: "agent-system-audit"
+description: "Audit the whole agent system as one composed system: all six teams, their members, plans of record, and framework canon. Scores per-team contract conformance, cross-team composition, goal alignment, and entropy against the framework-health targets."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","meta-optimization","teams","audit","operating-model","framework-health"]
+  icon: "network"
+  status: "active"
+  revision: 3
+  createdAt: "2026-07-24T00:00:00Z"
+  updatedAt: "2026-07-30T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager graph", "prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Agent System Audit
 
 Audit the whole agent system — all six teams, their members, their plans of record, and the framework canon they run on — as one composed system. Answer three questions the operator cannot otherwise ask cheaply: *is each team internally coherent*, *do the teams compose*, and *does any of it serve what the operator actually wants*.

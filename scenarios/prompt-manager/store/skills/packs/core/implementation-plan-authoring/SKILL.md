@@ -1,3 +1,23 @@
+---
+name: "implementation-plan-authoring"
+description: "Author durable implementation plans through Plan Manager's guided structured-plan runtime, preserving context, constraints, phases, validation strategy, and execution handoff"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["planning","handoff","implementation","documentation","execution"]
+  icon: "file-text"
+  status: "active"
+  revision: 8
+  createdAt: "2026-02-09T00:00:00Z"
+  updatedAt: "2026-08-07T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager discover", "prompt-manager is", "prompt-manager skill", "prompt-manager skill read", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Implementation Plan Authoring
 
 Author durable implementation plans through Plan Manager's guided authoring

@@ -1,21 +1,28 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "swarm-manager-workflow-phased-plan-slice-review",
-  "name": "swarm-manager-workflow-phased-plan-slice-review",
+  "createdAt": "2026-07-18T03:05:27Z",
   "description": "Typed prompt contract for independent plan-slice review.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-workflow-phased-plan-slice-review",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "swarm-manager-workflow-phased-plan-slice-review",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "swarm-manager",
     "agent-manager",
     "workflow",
     "prompt-contract"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-07-18T03:05:27Z",
-  "updatedAt": "2026-07-18T03:05:27Z",
-  "modes": [
-    "contract"
-  ]
+  "updatedAt": "2026-07-18T03:05:27Z"
 }

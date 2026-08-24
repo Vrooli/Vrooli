@@ -1,3 +1,22 @@
+---
+name: "swarm-manager-review"
+description: "Gather visual and functional evidence for a completed backlog execution to support human archive/follow-up decisions."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["swarm-manager","review","evidence","verification"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-04-02T00:00:00Z"
+  updatedAt: "2026-04-02T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
+    commands: ["prompt-manager action", "prompt-manager discover", "prompt-manager skill", "prompt-manager skill read", "swarm-manager", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 # Swarm Manager Review Agent
 
 ## Purpose

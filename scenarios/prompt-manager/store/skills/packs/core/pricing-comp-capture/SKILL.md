@@ -1,3 +1,23 @@
+---
+name: "pricing-comp-capture"
+description: "Capture a competitor's pricing into a structured market-scan entry. Encodes source priority (company /pricing first, ProductHunt/G2 fallback, archive.org last), what fields to extract, honesty flags for partial or unavailable pricing, and the >15% material-change threshold for raising a benchmark-update decision."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","monetization","pricing","validation","method"]
+  icon: "currency-dollar"
+  status: "active"
+  revision: 1
+  createdAt: "2026-05-01T00:00:00Z"
+  updatedAt: "2026-05-01T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager team"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Pricing Comp Capture
 
 Capture a competitor's pricing as a structured `topic[old]:monetization/market-scan/<slug>` knowledge entry. This skill is opinionated — source priority, required fields, honesty flags, and material-change thresholds are baked in so capture is repeatable across heartbeats and across operators.

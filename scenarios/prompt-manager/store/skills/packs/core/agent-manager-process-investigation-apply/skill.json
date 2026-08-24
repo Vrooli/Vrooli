@@ -1,14 +1,32 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "agent-manager-process-investigation-apply",
-  "name": "Agent Manager Process Investigation Apply",
-  "description": "Implement fixes from an investigation report organized by category with per-change verification.",
-  "modes": ["contract"],
-  "tags": ["agent-manager", "investigation", "apply"],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 3,
   "createdAt": "2026-02-17T00:00:00Z",
+  "description": "Implement fixes from an investigation report organized by category with per-change verification.",
+  "entry": "SKILL.md",
+  "id": "agent-manager-process-investigation-apply",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "Agent Manager Process Investigation Apply",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "agent-manager",
+    "investigation",
+    "apply"
+  ],
   "updatedAt": "2026-03-15T00:00:00Z"
 }

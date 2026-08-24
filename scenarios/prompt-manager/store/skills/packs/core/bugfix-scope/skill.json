@@ -1,21 +1,28 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "bugfix-scope",
-  "name": "Bugfix Scope",
+  "createdAt": "2026-02-04T12:00:00Z",
   "description": "Minimal targeted changes with regression tests",
+  "entry": "SKILL.md",
+  "icon": "bug",
+  "id": "bugfix-scope",
+  "kind": "skill",
   "modes": [
     "scope"
   ],
+  "name": "Bugfix Scope",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 19,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "scope",
     "bugfix",
     "constraints"
   ],
-  "icon": "bug",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 19,
-  "createdAt": "2026-02-04T12:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }
