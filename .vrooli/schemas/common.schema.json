@@ -4,6 +4,19 @@
   "title": "Common Schema Definitions",
   "description": "Shared definitions used across Vrooli service schemas",
   "definitions": {
+    "platformStatus": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["supported", "build-verified", "experimental", "unqualified", "partial", "unsupported"]
+        },
+        "mechanism": { "type": "string" },
+        "evidence": { "type": "string" }
+      }
+    },
     "semver": {
       "type": "string",
       "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
@@ -167,6 +180,44 @@
         "sensitive": {
           "type": "boolean",
           "description": "True if the entry holds secrets/credentials (e.g. OAuth tokens). Surfaced with a warning and never auto-accepted; contents are never read into UIs or logs."
+        },
+        "owner": {
+          "type": "string",
+          "description": "Named authority responsible for writes, repair, and lifecycle decisions."
+        },
+        "protected": {
+          "type": "boolean",
+          "description": "True when the entry is durable or otherwise protected from default cleanup."
+        },
+        "cleanup": {
+          "type": "string",
+          "enum": ["never", "storage_manager"],
+          "description": "Cleanup authority. `never` is the conservative protected default."
+        },
+        "retention": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_age": {
+              "type": "string",
+              "pattern": "^\\d+(ms|s|m|h|d)$",
+              "description": "Maximum age before an eligible entry may be reclaimed."
+            },
+            "max_bytes": {
+              "type": "string",
+              "pattern": "^\\d+(B|KiB|MiB|GiB|TiB|KB|MB|GB|TB)$",
+              "description": "Maximum aggregate bytes for an eligible entry."
+            },
+            "keep_count": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Minimum number of newest entries to retain."
+            },
+            "protect_active": {
+              "type": "boolean",
+              "description": "Protect entries carrying active process or test-run lease markers."
+            }
+          }
         },
         "rationale": {
           "type": "string",

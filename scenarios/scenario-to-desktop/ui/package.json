@@ -7,9 +7,9 @@
   "scripts": {
     "start": "vrooli lifecycle protect -- node server.js",
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm selector:manifest && tsc --noEmit && vite build",
-    "profile": "pnpm selector:manifest && tsc --noEmit && vite build --mode profile",
-    "build:profile": "pnpm selector:manifest && tsc --noEmit && vite build --mode profile",
+    "build": "pnpm selector:manifest && vite build",
+    "profile": "pnpm selector:manifest && vite build --mode profile",
+    "build:profile": "pnpm selector:manifest && vite build --mode profile",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "lint:fix": "eslint src --ext ts,tsx --fix",

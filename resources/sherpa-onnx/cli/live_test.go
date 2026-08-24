@@ -15,7 +15,7 @@ func TestSherpaOnnxLiveContract(t *testing.T) {
 	}
 	base := os.Getenv("SHERPA_ONNX_BASE_URL")
 	if base == "" {
-		base = "http://127.0.0.1:8880"
+		base = "http://127.0.0.1:8881"
 	}
 	voices, err := http.Get(base + "/v1/audio/voices")
 	if err != nil {

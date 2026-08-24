@@ -45,7 +45,7 @@ Vrooli-owned artifacts are published and tested.
 
 | Target | Delivery | Result and limitation |
 |---|---|---|
-| Linux amd64 | Pinned TEI `1.7.4` server artifact with SHA-256 | Conditional; manifest validation, checksum verification, readiness contract, and consumer evidence are recorded. GPU use depends on the host CUDA driver; supported CPU fallback remains model/backend dependent. |
+| Linux amd64 | Pinned TEI `1.7.4` server artifact with SHA-256 | Conditional; manifest validation, checksum verification, readiness contract, and consumer evidence are recorded. The staged target requires CUDA 8.9+; the CPU image remains explicitly unsupported until a relocatable, closure-verified bundle is published. |
 | macOS amd64/arm64 | No staged native TEI bundle | Unsupported, with a clear pre-runtime reason. |
 | Windows amd64/arm64 | No staged native TEI bundle | Unsupported, with a clear pre-runtime reason. |
 

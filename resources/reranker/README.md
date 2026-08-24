@@ -40,14 +40,17 @@ the TEI process and verifies the staged artifact checksum before every launch.
 
 ## GPU vs CPU
 
-The staged Linux amd64 TEI 1.7.4 binary uses the host CUDA driver when compatible
-and otherwise runs its CPU backend. The resource reports native GPU capability
-conditionally; it never claims GPU health from a scheduler hint alone.
+The currently staged Linux amd64 target requires a compatible CUDA host. The
+CPU image is intentionally marked unavailable: single-file extraction loses
+the image's `libiomp5.so` dependency, and no host-wide copy is assumed. The
+runtime therefore rejects that target before installation instead of leaving
+an artifact that cannot start.
 
-> **Known CPU-fallback limitation:** TEI CPU support depends on the host
-> processor and selected model backend. Keep the resource conditional on hosts
-> where the selected model has been smoke-tested; the GPU path is the primary
-> validated target.
+The resource remains optional. Consumers fall back to the LLM reranker or fused
+retrieval order when no validated reranker target is available. A future CPU
+target must be shipped as a checksum-pinned executable tree (or a self-
+contained executable) and pass runtime-closure and startup smoke tests before
+the manifest can advertise CPU support.
 
 ## CLI gateway
 

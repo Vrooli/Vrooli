@@ -16,6 +16,7 @@ import (
 	"resource-reranker/cli/internal/client"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
 type Handlers struct {
@@ -56,6 +57,41 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{Name: "list", Description: "List the measured reranker catalog", Usage: "resource-reranker models list [--json]", Run: h.List},
 			{Name: "status", Description: "Show the active model and live TEI identity", Usage: "resource-reranker models status [--json]", Run: h.Status},
 			{Name: "activate", Description: "Activate a measured model and restart the managed service", Usage: "resource-reranker models activate --model <id> [--role <role>] [--no-restart] [--json]", Run: h.Activate},
+		},
+	}
+}
+
+// CapacityCommands returns the `capacity` subcommand group every accelerated
+// resource exposes. The broker calls `resource-reranker capacity degrade --to
+// <model-id>`; for the reranker, a rung IS a model, so the degrade handler is
+// the existing measured-model activation. The verb and its flags come from the
+// fleet-wide contract in packages/capacity/companion.
+func CapacityCommands(h *Handlers) cliapp.SubcommandGroup {
+	if h == nil {
+		h = Default()
+	}
+	verbs := companion.Verbs{
+		Resource: "reranker",
+		Degrade: func(_ context.Context, label string) error {
+			return h.Activate([]string{"--model", label})
+		},
+	}
+	return cliapp.SubcommandGroup{
+		Name:        "capacity",
+		Description: "Respond to the capacity broker",
+		Subcommands: []cliapp.Command{
+			{
+				Name:        "degrade",
+				Description: "Activate a smaller measured model at the capacity broker's request",
+				Usage:       "resource-reranker capacity degrade --to <model-id>",
+				Run:         func(args []string) error { return verbs.Run(append([]string{"degrade"}, args...)) },
+			},
+			{
+				Name:        "upshift",
+				Description: "Activate a larger measured model when headroom returns",
+				Usage:       "resource-reranker capacity upshift --to <model-id>",
+				Run:         func(args []string) error { return verbs.Run(append([]string{"upshift"}, args...)) },
+			},
 		},
 	}
 }

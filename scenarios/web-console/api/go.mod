@@ -40,10 +40,12 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 require (
+	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core

@@ -6,6 +6,13 @@ import (
 	"strings"
 )
 
+type RetentionPolicy struct {
+	MaxAge        string `json:"max_age,omitempty"`
+	MaxBytes      string `json:"max_bytes,omitempty"`
+	KeepCount     int    `json:"keep_count,omitempty"`
+	ProtectActive bool   `json:"protect_active,omitempty"`
+}
+
 // Runtime-home entry keys. These are the stable logical identifiers for the
 // well-known entries under the operator runtime home. Consumers reference these
 // constants instead of bare path literals so the contract remains the single
@@ -25,6 +32,8 @@ const (
 	HomeKeyProcesses  = "processes"
 	HomeKeyBuild      = "build"
 	HomeKeyTestRuns   = "test_runs"
+	HomeKeyBackups    = "backups"
+	HomeKeyArtifacts  = "artifacts"
 
 	// Scoped (parameterized) runtime-home path keys.
 	ScopedScenarioSecrets = "scenario_secrets"
@@ -69,11 +78,15 @@ type RuntimeHomeSpec struct {
 // RuntimeHomeEntrySpec is a single well-known entry directly under the runtime
 // home, as authored in the contract.
 type RuntimeHomeEntrySpec struct {
-	Path        string `json:"path"`
-	Kind        string `json:"kind"`
-	Regenerable bool   `json:"regenerable"`
-	Format      string `json:"format,omitempty"`
-	Sensitive   bool   `json:"sensitive,omitempty"`
+	Path        string           `json:"path"`
+	Kind        string           `json:"kind"`
+	Regenerable bool             `json:"regenerable"`
+	Format      string           `json:"format,omitempty"`
+	Sensitive   bool             `json:"sensitive,omitempty"`
+	Owner       string           `json:"owner,omitempty"`
+	Protected   bool             `json:"protected,omitempty"`
+	Cleanup     string           `json:"cleanup,omitempty"`
+	Retention   *RetentionPolicy `json:"retention,omitempty"`
 }
 
 // HomeEntry is a runtime-home entry resolved against a concrete OS home dir.
@@ -85,6 +98,10 @@ type HomeEntry struct {
 	Regenerable bool
 	Format      string
 	Sensitive   bool
+	Owner       string
+	Protected   bool
+	Cleanup     string
+	Retention   *RetentionPolicy
 }
 
 // RuntimeHomeDirName returns the contract-defined runtime-home directory name
@@ -169,7 +186,19 @@ func resolveHomeEntry(root, key string, spec RuntimeHomeEntrySpec) HomeEntry {
 		Regenerable: spec.Regenerable,
 		Format:      spec.Format,
 		Sensitive:   spec.Sensitive,
+		Owner:       spec.Owner,
+		Protected:   spec.Protected,
+		Cleanup:     spec.Cleanup,
+		Retention:   cloneRetentionPolicy(spec.Retention),
 	}
+}
+
+func cloneRetentionPolicy(in *RetentionPolicy) *RetentionPolicy {
+	if in == nil {
+		return nil
+	}
+	out := *in
+	return &out
 }
 
 func joinHomeRoot(home, dirName string) (string, error) {

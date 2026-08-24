@@ -75,6 +75,16 @@
       },
       "description": "Platforms this tool applies to. Omit for all platforms."
     },
+    "platform_status": {
+      "type": "object",
+      "description": "Per-host-OS implementation status and evidence.",
+      "additionalProperties": false,
+      "properties": {
+        "linux": { "$ref": "common.schema.json#/definitions/platformStatus" },
+        "macos": { "$ref": "common.schema.json#/definitions/platformStatus" },
+        "windows": { "$ref": "common.schema.json#/definitions/platformStatus" }
+      }
+    },
     "handler": {
       "type": "string",
       "description": "Name of a custom Go handler. When set, the generic package-install logic is bypassed."

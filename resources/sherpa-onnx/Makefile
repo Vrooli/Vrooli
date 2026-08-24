@@ -33,7 +33,7 @@ release-stage:
 	@test -n "$(TARGET)" || (echo 'TARGET is required (linux-amd64, linux-arm64, macos-arm64, or windows-amd64)' >&2; exit 1)
 	@test -n "$(ROOT)" || (echo 'ROOT is required' >&2; exit 1)
 	@test -n "$(OUT)" || (echo 'OUT is required' >&2; exit 1)
-	TARGET="$(TARGET)" ROOT="$(ROOT)" OUT="$(OUT)" VERSION="$(VERSION)" SIGN="$(SIGN)" PUBLICATION_URL="$(PUBLICATION_URL)" ./scripts/package-native-release.sh
+	TARGET="$(TARGET)" ROOT="$(ROOT)" OUT="$(OUT)" VERSION="$(VERSION)" SIGN="$(SIGN)" PUBLICATION_URL="$(PUBLICATION_URL)" ../../scripts/package-sherpa-native-release.sh
 
 native-test:
 	@test -n "$(ROOT)" || (echo 'ROOT is required' >&2; exit 1)

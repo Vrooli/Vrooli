@@ -426,9 +426,6 @@ func TestRDPCheckDistinguishesCorruptKeyringFromLockedKeyring(t *testing.T) {
 		}
 		// The posture claim must be withdrawn: it is the wrong diagnosis for a
 		// file that never loaded, and acting on it costs root and a session.
-		if result.Details["lockedKeyringPosture"] != false {
-			t.Errorf("lockedKeyringPosture = %v, want false when the file was rejected", result.Details["lockedKeyringPosture"])
-		}
 		if !strings.Contains(result.Message, "malformed") {
 			t.Errorf("Message must name the file fault, got: %s", result.Message)
 		}
@@ -450,18 +447,18 @@ func TestRDPCheckDistinguishesCorruptKeyringFromLockedKeyring(t *testing.T) {
 		}
 	})
 
-	t.Run("locked-keyring posture survives when no rejection was logged", func(t *testing.T) {
+	t.Run("locked-keyring posture is not reported when no rejection was logged", func(t *testing.T) {
 		result := rdpKeyringHarness(t, emptyCredentialsOutput, "alice", false,
 			[]string{"gnome-keyring-daemon: some unrelated keyring message"}, nil)
 
 		if result.Details["keyringCorrupt"] != false {
 			t.Errorf("keyringCorrupt = %v, want false", result.Details["keyringCorrupt"])
 		}
-		if result.Details["lockedKeyringPosture"] != true {
-			t.Errorf("lockedKeyringPosture = %v, want true when nothing was rejected", result.Details["lockedKeyringPosture"])
+		if _, present := result.Details["lockedKeyringPosture"]; present {
+			t.Errorf("lockedKeyringPosture must be retired, got: %v", result.Details["lockedKeyringPosture"])
 		}
-		if !strings.Contains(result.Message, "autologin cannot unlock") {
-			t.Errorf("Message must keep the posture diagnosis, got: %s", result.Message)
+		if strings.Contains(result.Message, "autologin cannot unlock") {
+			t.Errorf("Message must not advise changing autologin, got: %s", result.Message)
 		}
 	})
 

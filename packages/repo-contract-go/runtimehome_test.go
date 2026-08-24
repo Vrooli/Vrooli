@@ -103,6 +103,21 @@ func TestRuntimeHomeEntriesSortedAndComplete(t *testing.T) {
 	}
 }
 
+func TestRuntimeHomeProtectedEntriesCannotBecomeCleanupCandidatesByDefault(t *testing.T) {
+	c := validContract(t)
+	for _, entry := range c.doc.RuntimeHome.Entries {
+		if !entry.Protected {
+			continue
+		}
+		if entry.Cleanup != "" && entry.Cleanup != "never" {
+			t.Fatalf("protected entry cleanup = %q, want empty or never", entry.Cleanup)
+		}
+		if entry.Retention != nil {
+			t.Fatalf("protected entry has default retention policy: %#v", entry.Retention)
+		}
+	}
+}
+
 func TestScopedRuntimePath(t *testing.T) {
 	c := validContract(t)
 	home := filepath.Join(string(filepath.Separator), "tmp", "vrooli-home")

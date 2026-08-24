@@ -18,6 +18,8 @@ require (
 
 replace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_API}}/api-core
 
+replace github.com/vrooli/envkit-go => {{PACKAGES_REL_FROM_API}}/envkit-go
+
 replace github.com/vrooli/cli-core => {{PACKAGES_REL_FROM_API}}/cli-core
 
 replace github.com/vrooli/measures-go => {{PACKAGES_REL_FROM_API}}/measures-go

@@ -106,6 +106,64 @@ func TestLoadDefaultValidatesRepoRoot(t *testing.T) {
 	assertErrorKind(t, err, ErrInvalidInput)
 }
 
+func TestLoadRejectsContradictoryRuntimeHomeRetention(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(*contractDoc)
+	}{
+		{
+			name: "protected cleanup",
+			mutate: func(doc *contractDoc) {
+				entry := doc.RuntimeHome.Entries["data"]
+				entry.Cleanup = "storage_manager"
+				doc.RuntimeHome.Entries["data"] = entry
+			},
+		},
+		{
+			name: "sensitive unprotected",
+			mutate: func(doc *contractDoc) {
+				entry := doc.RuntimeHome.Entries["logs"]
+				entry.Sensitive = true
+				doc.RuntimeHome.Entries["logs"] = entry
+			},
+		},
+		{
+			name: "negative keep count",
+			mutate: func(doc *contractDoc) {
+				entry := doc.RuntimeHome.Entries["logs"]
+				entry.Retention = &RetentionPolicy{KeepCount: -1}
+				doc.RuntimeHome.Entries["logs"] = entry
+			},
+		},
+		{
+			name: "invalid age",
+			mutate: func(doc *contractDoc) {
+				entry := doc.RuntimeHome.Entries["logs"]
+				entry.Retention = &RetentionPolicy{MaxAge: "forever"}
+				doc.RuntimeHome.Entries["logs"] = entry
+			},
+		},
+		{
+			name: "invalid bytes",
+			mutate: func(doc *contractDoc) {
+				entry := doc.RuntimeHome.Entries["logs"]
+				entry.Retention = &RetentionPolicy{MaxBytes: "many"}
+				doc.RuntimeHome.Entries["logs"] = entry
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := validContractDoc(t)
+			tc.mutate(&doc)
+			path := writeContractFile(t, t.TempDir(), doc)
+			if _, err := Load(path); err == nil {
+				t.Fatalf("Load(%q) accepted invalid retention policy", tc.name)
+			}
+		})
+	}
+}
+
 func TestValidateContractDocHappyPath(t *testing.T) {
 	if err := validateContractDoc(validContractDoc(t)); err != nil {
 		t.Fatalf("validateContractDoc() error = %v", err)

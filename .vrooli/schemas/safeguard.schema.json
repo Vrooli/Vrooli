@@ -37,6 +37,16 @@
       },
       "description": "Platforms this safeguard applies to. Omit for all platforms."
     },
+    "platform_status": {
+      "type": "object",
+      "description": "Per-host-OS implementation status and evidence.",
+      "additionalProperties": false,
+      "properties": {
+        "linux": { "$ref": "common.schema.json#/definitions/platformStatus" },
+        "macos": { "$ref": "common.schema.json#/definitions/platformStatus" },
+        "windows": { "$ref": "common.schema.json#/definitions/platformStatus" }
+      }
+    },
     "risk": {
       "type": "string",
       "enum": ["low", "medium", "high"],

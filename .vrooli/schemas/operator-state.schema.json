@@ -25,6 +25,12 @@
       "default": "personal",
       "description": "Per-install operator-selected trust stance. It selects token, break-glass, node-execution, and JWKS-cache defaults; it never disables identity verification. Missing means personal."
     },
+    "host_workload_posture": {
+      "type": "string",
+      "enum": ["whole_host", "vrooli_only"],
+      "default": "vrooli_only",
+      "description": "Operator-declared scope for workload reporting. It changes reporting, grading, and recorded detail, but never how declared, unmanaged, or abandoned workloads are classified. It is independent of trust_posture, which selects credential and node-execution defaults. Missing means vrooli_only."
+    },
     "operator_id": {
       "type": "string",
       "minLength": 1,

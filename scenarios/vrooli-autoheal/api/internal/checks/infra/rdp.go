@@ -82,11 +82,6 @@ func NewRDPCheck(caps *platform.Capabilities, opts ...RDPCheckOption) *RDPCheck 
 // parsed with a password either.
 const keyringFormatMarker = "keyring was in an invalid or unrecognized format"
 
-// keyringUnlockFailureMarker is the PAM module's report of the same event, from
-// the login side. It is a corroborating signal only: it is also emitted for a
-// genuinely locked keyring, so it can never identify the fault on its own.
-const keyringUnlockFailureMarker = "couldn't unlock the login keyring"
-
 // keyringJournalTimeout bounds the journal read, matching the denial probe. It
 // is distinct from session.go's keyringProbeTimeout, which bounds a D-Bus call.
 const keyringJournalTimeout = 15 * time.Second
@@ -113,6 +108,8 @@ type keyringLoadState struct {
 	// malformed file that is no longer malformed, and an operator following its
 	// advice would run the repair again and again.
 	RepairPending bool
+	Verdict       string
+	VerdictReason string
 }
 
 // keyringFileLoadable asks the Vrooli CLI whether a keyring file parses today.
@@ -147,6 +144,23 @@ func (c *RDPCheck) keyringFileLoadable(ctx context.Context, path string) (bool, 
 	return payload.Reports[0].Loadable, true
 }
 
+func (c *RDPCheck) keyringVerdict(ctx context.Context) (string, string, bool) {
+	output, err := keyringInspectOutput(ctx, "")
+	if err != nil {
+		return "", "", false
+	}
+	var payload struct {
+		Reports []struct {
+			Verdict       string `json:"verdict"`
+			VerdictReason string `json:"verdict_reason"`
+		} `json:"reports"`
+	}
+	if err := json.Unmarshal(output, &payload); err != nil || len(payload.Reports) == 0 || payload.Reports[0].Verdict == "" {
+		return "", "", false
+	}
+	return payload.Reports[0].Verdict, payload.Reports[0].VerdictReason, true
+}
+
 // readKeyringLoadState asks the system journal whether gnome-keyring rejected a
 // keyring file during this boot.
 //
@@ -167,6 +181,7 @@ func (c *RDPCheck) readKeyringLoadState(ctx context.Context) keyringLoadState {
 	}
 
 	state := keyringLoadState{Readable: true}
+	state.Verdict, state.VerdictReason, _ = c.keyringVerdict(ctx)
 	for _, entry := range entries {
 		message := entry.Message
 		if message == "" {
@@ -177,9 +192,6 @@ func (c *RDPCheck) readKeyringLoadState(ctx context.Context) keyringLoadState {
 			if path := keyringPathFromMessage(message); path != "" {
 				state.RejectedPath = path
 			}
-		}
-		if strings.Contains(message, keyringUnlockFailureMarker) {
-			state.PAMUnlockFailed = true
 		}
 	}
 	if state.FormatRejected {
@@ -314,11 +326,9 @@ func (c *RDPCheck) checkGnomeRDP(ctx context.Context, result checks.Result) chec
 	// host whose operator unlocked the keyring by hand matches the same posture
 	// while working perfectly.
 	_, sessionAvailable := graphicalSessionAvailable(ctx, c.executor, "")
-	autoLogin := c.getAutoLoginUser()
 	keyringPresent := loginKeyringCollectionPresent(ctx, c.executor)
 
 	result.Details["sessionAvailable"] = sessionAvailable
-	result.Details["autoLoginUser"] = autoLogin
 	result.Details["loginKeyringCollectionPresent"] = keyringPresent
 
 	// Did the keyring daemon actually accept its keyring files? This is asked
@@ -328,26 +338,18 @@ func (c *RDPCheck) checkGnomeRDP(ctx context.Context, result checks.Result) chec
 	keyringLoad := c.readKeyringLoadState(ctx)
 	result.Details["keyringJournalReadable"] = keyringLoad.Readable
 	result.Details["keyringFileRejected"] = keyringLoad.FormatRejected
-	result.Details["keyringUnlockFailureLogged"] = keyringLoad.PAMUnlockFailed
 	result.Details["keyringRepairPending"] = keyringLoad.RepairPending
+	result.Details["keyringVerdict"] = keyringLoad.Verdict
+	if keyringLoad.VerdictReason != "" {
+		result.Details["keyringVerdictReason"] = keyringLoad.VerdictReason
+	}
 	if keyringLoad.RejectedPath != "" {
 		result.Details["keyringFilePath"] = keyringLoad.RejectedPath
 	}
 
-	// The known-bad posture: an autologin host running a user-session daemon
-	// whose login keyring never unlocked.
-	isUserSession, _ := result.Details["isUserSession"].(bool)
 	credentialFault := credentialState != CredentialStatePresent
 	corruptKeyring := credentialFault && keyringLoad.FormatRejected
 	result.Details["keyringCorrupt"] = corruptKeyring
-
-	// The posture claim is withdrawn when the daemon has already said it threw
-	// the file away. The three booleans below are still recorded as facts —
-	// they are true — but "locked" is a diagnosis, and it is the wrong one for
-	// a file that never loaded. Reporting both at once is what sent an operator
-	// to disable autologin for a fault autologin did not cause.
-	lockedKeyringPosture := autoLogin != "" && isUserSession && !keyringPresent && !keyringLoad.FormatRejected
-	result.Details["lockedKeyringPosture"] = lockedKeyringPosture
 
 	credentialModel := c.gnomeRDPCredentialModel(ctx)
 	result.Details["credentialModel"] = string(credentialModel)
@@ -408,8 +410,6 @@ func (c *RDPCheck) checkGnomeRDP(ctx context.Context, result checks.Result) chec
 		}
 		result.Message += " - gnome-keyring rejected " + rejected +
 			" as malformed, so no secret stored in it can be read; this is a file fault, not a locked keyring"
-	case lockedKeyringPosture && credentialFault:
-		result.Message += " - GDM autologin cannot unlock the login keyring, so the user-session daemon cannot read its credentials"
 	}
 
 	// Observed denials are proof of an outage in progress and outrank any

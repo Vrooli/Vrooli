@@ -459,8 +459,6 @@ func TestRDPCheckPostureCorrelation(t *testing.T) {
 		keyringPresent bool
 		grdctl         string
 		wantStatus     checks.Status
-		wantPosture    bool
-		wantCauseNamed bool
 	}{
 		{
 			name:           "posture matched with credentials empty names the root cause",
@@ -468,8 +466,6 @@ func TestRDPCheckPostureCorrelation(t *testing.T) {
 			keyringPresent: false,
 			grdctl:         "RDP:\n\tStatus: enabled\n\tUsername: (empty)\n\tPassword: (empty)\n",
 			wantStatus:     checks.StatusCritical,
-			wantPosture:    true,
-			wantCauseNamed: true,
 		},
 		{
 			name:           "posture matched with credentials present stays OK",
@@ -477,8 +473,6 @@ func TestRDPCheckPostureCorrelation(t *testing.T) {
 			keyringPresent: false,
 			grdctl:         "RDP:\n\tStatus: enabled\n\tUsername: alice\n\tPassword: hunter2\n",
 			wantStatus:     checks.StatusOK,
-			wantPosture:    true,
-			wantCauseNamed: false,
 		},
 		{
 			name:           "posture unmatched with credentials empty is still critical",
@@ -486,8 +480,6 @@ func TestRDPCheckPostureCorrelation(t *testing.T) {
 			keyringPresent: true,
 			grdctl:         "RDP:\n\tStatus: enabled\n\tUsername: (empty)\n\tPassword: (empty)\n",
 			wantStatus:     checks.StatusCritical,
-			wantPosture:    false,
-			wantCauseNamed: false,
 		},
 	}
 
@@ -513,11 +505,8 @@ func TestRDPCheckPostureCorrelation(t *testing.T) {
 			if result.Status != tt.wantStatus {
 				t.Errorf("Status = %v, want %v (message: %s)", result.Status, tt.wantStatus, result.Message)
 			}
-			if result.Details["lockedKeyringPosture"] != tt.wantPosture {
-				t.Errorf("lockedKeyringPosture = %v, want %v", result.Details["lockedKeyringPosture"], tt.wantPosture)
-			}
-			if result.Details["autoLoginUser"] != tt.autoLogin {
-				t.Errorf("autoLoginUser = %v, want %q", result.Details["autoLoginUser"], tt.autoLogin)
+			if _, present := result.Details["lockedKeyringPosture"]; present {
+				t.Errorf("lockedKeyringPosture must be retired, got %v", result.Details["lockedKeyringPosture"])
 			}
 			if result.Details["loginKeyringCollectionPresent"] != tt.keyringPresent {
 				t.Errorf("loginKeyringCollectionPresent = %v, want %v",
@@ -527,9 +516,8 @@ func TestRDPCheckPostureCorrelation(t *testing.T) {
 				t.Errorf("sessionAvailable = %v, want true", result.Details["sessionAvailable"])
 			}
 
-			causeNamed := strings.Contains(result.Message, "autologin cannot unlock the login keyring")
-			if causeNamed != tt.wantCauseNamed {
-				t.Errorf("root cause named = %v, want %v (message: %s)", causeNamed, tt.wantCauseNamed, result.Message)
+			if strings.Contains(result.Message, "autologin cannot unlock the login keyring") {
+				t.Errorf("message must not name autologin as the remedy: %s", result.Message)
 			}
 		})
 	}
@@ -689,8 +677,8 @@ func TestRepairCredentialsRefusesUserSessionModel(t *testing.T) {
 			}
 		}
 	}
-	if !strings.Contains(result.Output, "autologin") {
-		t.Errorf("refusal must carry the operator remedy, got: %s", result.Output)
+	if !strings.Contains(result.Output, "system-level") {
+		t.Errorf("refusal must carry the migration remedy, got: %s", result.Output)
 	}
 }
 

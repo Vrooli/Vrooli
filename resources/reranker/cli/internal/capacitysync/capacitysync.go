@@ -1,134 +1,115 @@
-// Package capacitysync keeps the reranker's resident VRAM claim alive.
+// Package capacitysync is the reranker's half of the capacity companion
+// contract: observe how much VRAM the reranker currently holds.
 //
-// The managed-service lifecycle admits the initial claim, but capacity claims
-// expire unless their owner heartbeats them. This companion is deliberately
-// small: model selection and broker actuation remain owned by the reranker CLI
-// and capacity broker, while this process only reclaims a missing claim and
-// heartbeats the current one.
+// Everything after the observation — claim, resize, release, heartbeat, flags,
+// signals and the exit contract — lives in packages/capacity/companion, shared
+// with every other accelerated resource. This file holds only what is specific
+// to the reranker.
 package capacitysync
 
 import (
 	"context"
 	"encoding/json"
-	"flag"
-	"fmt"
 	"io"
 	"os"
-	"os/exec"
-	"os/signal"
-	"strconv"
-	"syscall"
 	"time"
+
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
 const (
 	resourceName    = "reranker"
 	defaultInterval = 15 * time.Second
+	// intervalEnv lets an operator slow the companion down without a rebuild.
+	intervalEnv = "RERANKER_CAPACITY_SYNC_INTERVAL"
 )
 
+// Handlers carries the injectable seams. Tests provide fakes; production takes
+// the defaults.
 type Handlers struct {
 	Stdout   io.Writer
 	Stderr   io.Writer
-	Exec     func(context.Context, string, ...string) ([]byte, error)
+	Exec     companion.Exec
+	GetEnv   func(string) string
 	Interval time.Duration
 }
 
-type claim struct {
-	ClaimID    string `json:"claim_id"`
-	OwnerID    string `json:"owner_id"`
-	Generation int64  `json:"generation"`
-}
-
+// Default returns Handlers wired to the real shell and environment.
 func Default() *Handlers {
 	return &Handlers{
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
-		Exec: func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			return exec.CommandContext(ctx, name, args...).Output()
-		},
+		Exec:   companion.DefaultExec,
+		GetEnv: os.Getenv,
 	}
 }
 
+// Command returns the `capacity-sync` command for registration.
 func Command(h *Handlers) func([]string) error {
 	if h == nil {
 		h = Default()
 	}
 	return func(args []string) error {
-		fs := flag.NewFlagSet("capacity-sync", flag.ContinueOnError)
-		fs.SetOutput(h.Stderr)
-		interval := fs.Duration("interval", h.interval(), "heartbeat interval")
-		once := fs.Bool("once", false, "run one claim reconciliation and exit")
-		if err := fs.Parse(args); err != nil {
-			return err
-		}
-		if fs.NArg() != 0 {
-			return fmt.Errorf("unexpected positional arguments: %v", fs.Args())
-		}
-		if *once {
-			h.syncOnce(context.Background())
-			return nil
-		}
-		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-		defer stop()
-		fmt.Fprintf(h.Stdout, "reranker capacity-sync: heartbeating every %s\n", *interval)
-		ticker := time.NewTicker(*interval)
-		defer ticker.Stop()
-		h.syncOnce(ctx)
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case <-ticker.C:
-				h.syncOnce(ctx)
-			}
-		}
+		return companion.Run(companion.CommandOptions{Config: h.config(), Stderr: h.Stderr}, args)
 	}
 }
 
-func (h *Handlers) syncOnce(ctx context.Context) {
-	active := h.activeClaim(ctx)
-	if active == nil {
-		// The lifecycle admission path owns the manifest-derived values and is
-		// normally responsible for creating this claim. A missing claim can occur
-		// after expiry or manual ledger cleanup; re-admit through the control plane
-		// so the manifest remains the single source of policy truth.
-		_, _ = h.exec(ctx, "vrooli", "resource", "start", resourceName, "--json")
-		return
+// config declares the reranker's companion.
+func (h *Handlers) config() companion.Config {
+	interval := h.Interval
+	if interval <= 0 {
+		interval = companion.PollInterval(h.GetEnv, intervalEnv, defaultInterval)
 	}
-	_, _ = h.exec(ctx, "vrooli", "capacity", "heartbeat",
-		"--claim-id", active.ClaimID,
-		"--generation", strconv.FormatInt(active.Generation, 10), "--json")
+	return companion.Config{
+		Resource: resourceName,
+		Observer: h,
+		Exec:     h.Exec,
+		Interval: interval,
+		Priority: "service",
+		Log:      h.Stderr,
+	}
 }
 
-func (h *Handlers) activeClaim(ctx context.Context) *claim {
-	out, err := h.exec(ctx, "vrooli", "capacity", "list", "--owner", resourceName, "--active", "--json")
+// residentFootprint is the slice of `vrooli capacity list --json` the observer
+// reads to learn what the reranker currently holds.
+type residentFootprint struct {
+	Claims []struct {
+		OwnerID       string `json:"owner_id"`
+		AmountBytes   int64  `json:"amount_bytes"`
+		ObservedBytes int64  `json:"observed_bytes"`
+	} `json:"claims"`
+}
+
+// Observe reports the reranker's resident footprint.
+//
+// The reranker loads one cross-encoder at start and holds it for its whole
+// lifetime, so its footprint is whatever the host observes it using. Reading
+// the observed figure rather than a declared constant is what lets the
+// right-sizing advisory work on a claim this companion maintains.
+func (h *Handlers) Observe(ctx context.Context) (companion.Footprint, error) {
+	out, err := h.Exec(ctx, "vrooli", "capacity", "list", "--owner", resourceName, "--active", "--json")
 	if err != nil {
-		return nil
+		return companion.Footprint{}, err
 	}
-	var payload struct {
-		Claims []claim `json:"claims"`
-	}
+	var payload residentFootprint
 	if err := json.Unmarshal(out, &payload); err != nil {
-		return nil
+		return companion.Footprint{}, err
 	}
-	for i := range payload.Claims {
-		if payload.Claims[i].OwnerID == resourceName && payload.Claims[i].ClaimID != "" {
-			return &payload.Claims[i]
+	for _, claim := range payload.Claims {
+		if claim.OwnerID != resourceName {
+			continue
 		}
+		// An observed figure is the truth when the host has produced one;
+		// otherwise the claim's own amount keeps the reservation alive without
+		// inventing a measurement.
+		if claim.ObservedBytes > 0 {
+			return companion.Footprint{Bytes: claim.ObservedBytes}, nil
+		}
+		return companion.Footprint{Bytes: claim.AmountBytes}, nil
 	}
-	return nil
-}
-
-func (h *Handlers) exec(ctx context.Context, name string, args ...string) ([]byte, error) {
-	if h.Exec == nil {
-		return nil, fmt.Errorf("capacity-sync executor is not configured")
-	}
-	return h.Exec(ctx, name, args...)
-}
-
-func (h *Handlers) interval() time.Duration {
-	if h.Interval > 0 {
-		return h.Interval
-	}
-	return defaultInterval
+	// No active claim. The lifecycle admission path owns the manifest-derived
+	// values, so re-admitting through the control plane keeps the manifest the
+	// single source of policy truth rather than reconstructing it here.
+	_, _ = h.Exec(ctx, "vrooli", "resource", "start", resourceName, "--json")
+	return companion.Footprint{}, nil
 }

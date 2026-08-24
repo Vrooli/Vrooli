@@ -31,6 +31,15 @@ type handler struct {
 	manifest hostreqkit.SafeguardManifest
 }
 
+// These seams keep the safeguard matrix testable without manufacturing device
+// nodes or changing the process supplementary groups. In production they
+// point at the host probes below; tests replace them with deterministic host
+// states and still observe the exact privileged argv.
+var (
+	grantableDeviceFn = grantableDevice
+	accountInGroupFn  = accountInGroup
+)
+
 func NewHandler(manifest hostreqkit.SafeguardManifest) hostreqkit.Handler {
 	return handler{manifest: manifest}
 }
@@ -57,7 +66,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 
 	// A host with no TPM is not a broken host. The encrypted store still works
 	// through the passphrase wrap, and there is nothing here to grant.
-	device, group, found := grantableDevice()
+	device, group, found := grantableDeviceFn()
 	if !found {
 		status.SupportClass = hostreqkit.SupportNotApplicable
 		status.ExecutionState = hostreqkit.ExecutionNotApplicable
@@ -75,7 +84,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	member, err := accountInGroup(account, group)
+	member, err := accountInGroupFn(account, group)
 	if err != nil {
 		status.Notes = append(status.Notes, "could not read group membership for "+account+": "+err.Error())
 		return status
@@ -113,7 +122,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	device, group, found := grantableDevice()
+	device, group, found := grantableDeviceFn()
 	if !found {
 		status.ExecutionState = hostreqkit.ExecutionNotApplicable
 		return status, nil

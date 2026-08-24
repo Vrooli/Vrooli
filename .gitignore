@@ -519,6 +519,8 @@ vrooli
 
 # Per-clone scenario stale-check sidecar (see internal/scenariostale).
 **/.build-fingerprint.json
+# Lifecycle install-input digest markers are local cache state, not source.
+**/.vrooli-install-*.json
 .claude/scheduled_tasks.lock
 vrooli.lock
 resources/whisper/cli/cli

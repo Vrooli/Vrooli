@@ -275,6 +275,7 @@ func cloneRuntimeHomeSpec(in RuntimeHomeSpec) RuntimeHomeSpec {
 	if len(in.Entries) > 0 {
 		out.Entries = make(map[string]RuntimeHomeEntrySpec, len(in.Entries))
 		for key, entry := range in.Entries {
+			entry.Retention = cloneRetentionPolicy(entry.Retention)
 			out.Entries[key] = entry
 		}
 	}

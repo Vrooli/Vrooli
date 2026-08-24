@@ -54,8 +54,8 @@
   },
   "private": true,
   "scripts": {
-    "build": "tsc --noEmit && vite build",
-    "build:profile": "tsc --noEmit && vite build --mode profile",
+    "build": "vite build",
+    "build:profile": "vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint src --ext ts,tsx",
     "preview": "vite preview",

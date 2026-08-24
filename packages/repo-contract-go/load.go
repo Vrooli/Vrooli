@@ -204,6 +204,23 @@ func validateRuntimeHome(spec RuntimeHomeSpec) error {
 		if entry.Format != "" && entry.Format != "sqlite" && entry.Format != "json" {
 			return &Error{Kind: ErrInvalidContract, Message: field + ".format must be \"sqlite\" or \"json\"", Details: entry.Format}
 		}
+		if entry.Protected && entry.Cleanup != "" && entry.Cleanup != "never" {
+			return &Error{Kind: ErrInvalidContract, Message: field + ".protected entries cannot declare a cleanup provider", Details: entry.Cleanup}
+		}
+		if entry.Sensitive && !entry.Protected {
+			return &Error{Kind: ErrInvalidContract, Message: field + ".sensitive entries must be protected"}
+		}
+		if entry.Retention != nil {
+			if entry.Retention.KeepCount < 0 {
+				return &Error{Kind: ErrInvalidContract, Message: field + ".retention.keep_count must not be negative"}
+			}
+			if entry.Retention.MaxAge != "" && !validRetentionAge(entry.Retention.MaxAge) {
+				return &Error{Kind: ErrInvalidContract, Message: field + ".retention.max_age is invalid", Details: entry.Retention.MaxAge}
+			}
+			if entry.Retention.MaxBytes != "" && !validRetentionBytes(entry.Retention.MaxBytes) {
+				return &Error{Kind: ErrInvalidContract, Message: field + ".retention.max_bytes is invalid", Details: entry.Retention.MaxBytes}
+			}
+		}
 		if _, dup := seenPaths[entry.Path]; dup {
 			return &Error{Kind: ErrInvalidContract, Message: "runtime_home.entries contains duplicate path", Details: entry.Path}
 		}
@@ -218,6 +235,31 @@ func validateRuntimeHome(spec RuntimeHomeSpec) error {
 		}
 	}
 	return nil
+}
+
+func validRetentionAge(value string) bool {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" {
+		return true
+	}
+	for _, suffix := range []string{"d", "h", "m", "s"} {
+		if strings.HasSuffix(value, suffix) {
+			_, err := strconv.ParseFloat(strings.TrimSuffix(value, suffix), 64)
+			return err == nil
+		}
+	}
+	return false
+}
+
+func validRetentionBytes(value string) bool {
+	value = strings.TrimSpace(strings.ToLower(value))
+	for _, suffix := range []string{"tib", "tb", "gib", "gb", "mib", "mb", "kib", "kb", "b"} {
+		if strings.HasSuffix(value, suffix) {
+			_, err := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(value, suffix)), 64)
+			return err == nil
+		}
+	}
+	return false
 }
 
 func validateVersion(version string) error {

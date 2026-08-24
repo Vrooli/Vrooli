@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "dev": "vrooli lifecycle protect -- ts-node template-generator.ts",
     "test": "jest --passWithNoTests",
     "clean": "rimraf dist"

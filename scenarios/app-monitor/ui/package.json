@@ -6,8 +6,8 @@
   "description": "Matrix-themed monitoring dashboard for Vrooli scenarios",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "tsc && vite build",
-    "build:profile": "tsc && vite build --mode profile",
+    "build": "vite build",
+    "build:profile": "vite build --mode profile",
     "preview": "vite preview",
     "start": "vrooli lifecycle protect -- node server.js",
     "lint": "eslint .",

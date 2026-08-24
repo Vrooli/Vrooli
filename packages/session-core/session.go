@@ -12,14 +12,15 @@ import (
 	"strings"
 )
 
-// InputKind distinguishes ordinary terminal input from a clipboard payload.
-// Backends such as tmux may use the distinction to avoid interpreting pasted
-// bytes as mode-switching commands; a plain PTY treats both identically.
+// InputKind distinguishes ordinary terminal input, clipboard payloads, and
+// synthetic terminal control bytes. Control bytes are best-effort and must
+// never inherit a reliable delivery queue from the caller.
 type InputKind uint8
 
 const (
 	KindKeystroke InputKind = iota
 	KindPaste
+	KindControl
 )
 
 // LaunchSpec is the backend-neutral process/session launch request.

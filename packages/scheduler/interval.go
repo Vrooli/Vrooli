@@ -34,6 +34,7 @@ func New(interval time.Duration, run func(context.Context) error) *Runner {
 	}
 	return &Runner{interval: interval, run: run}
 }
+
 func (r *Runner) Observe(fn func(Cycle)) *Runner {
 	if r != nil {
 		r.observe = fn
@@ -44,6 +45,7 @@ func (r *Runner) Observe(fn func(Cycle)) *Runner {
 // WithObserver is the domain-neutral spelling retained for callers that use
 // the scheduler as a fluent constructor.
 func (r *Runner) WithObserver(fn func(Cycle)) *Runner { return r.Observe(fn) }
+
 func (r *Runner) Stats() Stats {
 	if r == nil {
 		return Stats{}
@@ -52,6 +54,7 @@ func (r *Runner) Stats() Stats {
 	defer r.mu.Unlock()
 	return r.stats
 }
+
 func (r *Runner) Start(ctx context.Context) {
 	if r == nil || r.run == nil {
 		return
@@ -68,6 +71,7 @@ func (r *Runner) RunOnce(ctx context.Context) error {
 	}
 	return r.run(ctx)
 }
+
 func (r *Runner) loop(ctx context.Context) {
 	timer := time.NewTimer(r.interval)
 	defer timer.Stop()

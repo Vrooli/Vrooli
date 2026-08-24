@@ -74,6 +74,8 @@ persists across restarts and is measured by Storage Manager.
 
 The Linux amd64 artifact is TEI 1.7.4's `text-embeddings-router` executable.
 The acquisition ladder selects the CUDA 8.9+ image when the host reports that
-capability and otherwise selects the digest-pinned CPU image; both selected
-executables are verified by SHA-256 before launch. macOS and Windows remain
+capability. The CPU target is currently an explicit unsupported terminal target
+because the pinned image's `libiomp5.so` dependency is outside the single-file
+extraction boundary; it must not be treated as a working fallback until a
+relocatable, closure-verified CPU bundle is published. macOS and Windows remain
 unsupported until signed native bundles and target smoke evidence exist.

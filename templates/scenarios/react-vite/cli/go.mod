@@ -14,6 +14,8 @@ require (
 
 replace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_CLI}}/api-core
 
+replace github.com/vrooli/envkit-go => {{PACKAGES_REL_FROM_CLI}}/envkit-go
+
 replace github.com/vrooli/cli-core => {{PACKAGES_REL_FROM_CLI}}/cli-core
 
 replace github.com/vrooli/binaryfetch => {{PACKAGES_REL_FROM_CLI}}/binaryfetch

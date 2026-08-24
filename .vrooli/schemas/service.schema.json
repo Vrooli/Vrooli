@@ -503,7 +503,7 @@
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["go_module", "pnpm_vite", "node_bundle", "python_uv", "cargo"]
+          "enum": ["cargo", "go_module", "node_bundle", "pnpm_vite", "python_uv", "reuse"]
         },
         "dir": {
           "type": "string",
@@ -1640,7 +1640,7 @@
         "startup_grace_period": {
           "type": "integer",
           "default": 10000,
-          "description": "Grace period in milliseconds before first health check"
+          "description": "Failure ceiling in milliseconds for derived component readiness before the health contract is evaluated; a ready component proceeds immediately"
         }
       },
       "additionalProperties": false

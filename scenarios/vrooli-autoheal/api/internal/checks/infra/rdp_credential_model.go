@@ -22,7 +22,6 @@ func (c *RDPCheck) gnomeRDPCredentialModel(_ context.Context) CredentialModel {
 
 func keyringModelRemedies() []string {
 	return []string{
-		"Disable GDM autologin in /etc/gdm3/custom.conf and log in interactively once, so pam_gnome_keyring unlocks the login keyring with the account password.",
-		"Or migrate this host to the system-level gnome-remote-desktop.service credential store, where credentials do not depend on a user keyring and autoheal can repair the fault automatically.",
+		"Migrate this host to the system-level gnome-remote-desktop.service credential store, where credentials do not depend on a user keyring and autoheal can repair the fault automatically.",
 	}
 }
