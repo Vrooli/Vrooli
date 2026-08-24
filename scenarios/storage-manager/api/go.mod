@@ -10,6 +10,7 @@ require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/maturity-go v0.0.0-00010101000000-000000000000
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0-00010101000000-000000000000
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/sys v0.47.0
@@ -55,3 +56,7 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go
+
+replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime

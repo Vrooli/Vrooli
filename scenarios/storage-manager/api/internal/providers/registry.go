@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -63,6 +64,7 @@ func (r *Registry) List() []cleanup.ProviderMetadata {
 
 func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 	providers := []cleanup.Provider{
+		NewUndeclaredWorkloadProvider(deps.ProcessRunner, UndeclaredWorkloadProviderConfig{HistoricalNames: map[string]string{"airbyte-abctl-control-plane": "agent-experiments/airbyte-abctl-control-plane absent manifest"}, Posture: "vrooli_only"}),
 		NewScenarioBinariesProvider(deps.FileSystem, deps.ProcessLiveness, deps.Clock, ScenarioBinariesProviderConfig{Root: deps.ScenarioBinariesRoot}),
 		NewTrashProvider(deps.FileSystem, deps.Clock, FileProviderConfig{
 			ID:          "trash",
@@ -191,4 +193,5 @@ type BuiltInDeps struct {
 	GoBuildCacheRoots    []string
 	PlaywrightCacheRoots []string
 	ScenarioBinariesRoot string
+	Saturated            func(context.Context) (bool, error)
 }

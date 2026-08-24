@@ -17,6 +17,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/maturity-go/assessment"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -619,7 +620,7 @@ func run(ctx context.Context, logWriter io.Writer, args ...string) error {
 	lifecycleCtx, cancel := context.WithTimeout(ctx, defaultLifecycleTimeout)
 	defer cancel()
 	cmd := commandContext(lifecycleCtx, "vrooli", args...)
-	cmd.Env = os.Environ()
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	var output bytes.Buffer
 	var writer io.Writer = &output
 	if logWriter != nil {

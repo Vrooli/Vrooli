@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/envkit-go"
+
 	"test-genie/internal/orchestrator/phases"
 
 	reqsvc "test-genie/internal/requirements"
@@ -262,10 +264,10 @@ func (s *nodeRequirementsSyncer) Sync(ctx context.Context, input SyncInput) (*Sy
 
 	cmd := execCommandContext(ctx, "node", s.scriptPath, "--scenario", input.ScenarioName, "--mode", "sync")
 	cmd.Dir = s.projectRoot
-	cmd.Env = append(os.Environ(),
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		fmt.Sprintf("REQUIREMENTS_SYNC_PHASE_STATUS=%s", string(phaseJSON)),
 		fmt.Sprintf("REQUIREMENTS_SYNC_TEST_COMMANDS=%s", string(commandJSON)),
-	)
+	})
 
 	var output bytes.Buffer
 	cmd.Stdout = &output

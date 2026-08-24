@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { RefreshCcw } from "lucide-react";
+import { getInjectedConfig } from "@vrooli/api-base";
 import { Header } from "./sections/Header";
 import { OrientationHub } from "./sections/OrientationHub";
 import { TierReadiness } from "./sections/TierReadiness";
@@ -485,7 +486,7 @@ export default function App() {
         </div>
 
         <footer className="pb-6 text-center text-xs text-white/40">
-          Powered by the Vrooli lifecycle · API base: {import.meta.env.VITE_API_BASE_URL || "lifecycle-managed"}
+          Powered by the Vrooli lifecycle · API base: {getInjectedConfig()?.apiUrl || "lifecycle-managed"}
         </footer>
       </main>
 

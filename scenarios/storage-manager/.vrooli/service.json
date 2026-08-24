@@ -9,6 +9,28 @@
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
+    "capabilities": [
+      "workload-disposal"
+    ],
+    "platform_capabilities": {
+      "workload-disposal": {
+        "linux": {
+          "status": "supported",
+          "mechanism": "conditional-storage-manager-cleanup-provider",
+          "evidence": "provider preview, approval, disposal, and verification tests"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "typed-cleanup-provider-with-platform-census-boundary",
+          "evidence": "cross-platform build and provider contract tests"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "typed-cleanup-provider-with-platform-census-boundary",
+          "evidence": "cross-platform build and provider contract tests"
+        }
+      }
+    },
     "tags": [
       "react-ui",
       "go-api"
@@ -187,6 +209,14 @@
     }
   },
   "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional local model inventory and cleanup provider"
+      }
+    },
     "scenarios": {
       "code-facts": {
         "type": "scenario",

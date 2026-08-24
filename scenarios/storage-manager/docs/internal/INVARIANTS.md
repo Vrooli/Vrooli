@@ -9,6 +9,8 @@
   and test substitute.
 - Forbidden providers are disabled and cannot be enabled by default.
 - Conditional providers require operator approval or are disabled.
+
+- `undeclared-workload` is conditional, disabled by default, and operator-approved. It previews only abandoned workloads with historical Vrooli evidence; unmanaged and declared workloads are never disposal candidates.
 - Tests use fake filesystems, fake process runners, fake Docker clients,
   fake journal clients, fake clocks, and fake owner-scenario clients.
 - Production code must not instantiate filesystem deletion, Docker prune,

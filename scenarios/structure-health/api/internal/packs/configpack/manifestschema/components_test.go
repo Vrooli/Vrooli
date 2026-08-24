@@ -66,24 +66,25 @@ func TestScenarioPeerBindingRuleFleetMotivators(t *testing.T) {
 		wantPhrase string
 	}{
 		{
-			name:      "passing discovered peer",
-			motivator: "browser-automation-studio",
-			scenario:  "browser-automation-studio",
-			manifest:  `{"dependencies":{"scenarios":{"landing-page-business-suite":{"startup_policy":"try_start","degraded_behavior":"Local work remains available.","bindings":[{"env_var":"BAS_ENTITLEMENT_SERVICE_URL","form":"http_base_url","port":"api","when_unavailable":"omit"}]}}}}`,
+			name:       "failing retired binding projection",
+			motivator:  "browser-automation-studio",
+			scenario:   "browser-automation-studio",
+			manifest:   `{"dependencies":{"scenarios":{"landing-page-business-suite":{"startup_policy":"try_start","degraded_behavior":"Local work remains available.","bindings":[{"env_var":"BAS_ENTITLEMENT_SERVICE_URL","form":"http_base_url","port":"api","when_unavailable":"omit"}]}}}}`,
+			wantPhrase: "retired bindings",
 		},
 		{
 			name:       "failing undeclared peer port",
 			motivator:  "calendar",
 			scenario:   "calendar",
 			manifest:   `{"dependencies":{"scenarios":{"scenario-authenticator":{"startup_policy":"must_start","bindings":[{"env_var":"AUTH_SERVICE_URL","form":"http_base_url","port":"hardcoded_15785","when_unavailable":"fail"}]}}}}`,
-			wantPhrase: `port "hardcoded_15785" is not declared`,
+			wantPhrase: "retired bindings",
 		},
 		{
 			name:       "failing omitted peer without degradation",
 			motivator:  "browser-automation-studio",
 			scenario:   "browser-automation-studio",
 			manifest:   `{"dependencies":{"scenarios":{"landing-page-business-suite":{"startup_policy":"try_start","bindings":[{"env_var":"BAS_ENTITLEMENT_SERVICE_URL","form":"http_base_url","port":"api","when_unavailable":"omit"}]}}}}`,
-			wantPhrase: "without degraded_behavior",
+			wantPhrase: "retired bindings",
 		},
 	}
 	for _, test := range tests {

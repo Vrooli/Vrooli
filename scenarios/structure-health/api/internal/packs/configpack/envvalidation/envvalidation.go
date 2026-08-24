@@ -359,11 +359,37 @@ type envAcc struct {
 }
 
 var (
-	bashAssignPattern = regexp.MustCompile(`(?i)(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*\$\{?([A-Z_][A-Z0-9_]*)`)
-	bashVarPattern    = regexp.MustCompile(`\$\{([A-Z_][A-Z0-9_]*)\}|\$([A-Z_][A-Z0-9_]*)`)
-	jsAssignPattern   = regexp.MustCompile(`(?i)(?:const|let|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*process\.env\.([A-Za-z_][A-Za-z0-9_]*)`)
-	jsEnvPattern      = regexp.MustCompile(`process\.env\.([A-Za-z_][A-Za-z0-9_]*)`)
+	bashAssignPattern  = regexp.MustCompile(`(?i)(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*\$\{?([A-Z_][A-Z0-9_]*)`)
+	bashVarPattern     = regexp.MustCompile(`\$\{([A-Z_][A-Z0-9_]*)\}|\$([A-Z_][A-Z0-9_]*)`)
+	jsAssignPattern    = regexp.MustCompile(`(?i)(?:const|let|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*process\.env\.([A-Za-z_][A-Za-z0-9_]*)`)
+	jsEnvPattern       = regexp.MustCompile(`process\.env\.([A-Za-z_][A-Za-z0-9_]*)`)
+	viteRuntimePattern = regexp.MustCompile(`import\.meta\.env\.VITE_([A-Za-z_][A-Za-z0-9_]*)`)
 )
+
+// CheckViteRuntimeConfig rejects Vite environment variables in application
+// code. Vite config files are the one intentional exception because they run
+// before the application and therefore cannot use the runtime config API.
+func CheckViteRuntimeConfig(content string, filepath string) []Violation {
+	if strings.Contains(filepath, "vite.config.") {
+		return nil
+	}
+	lines := strings.Split(content, "\n")
+	var violations []Violation
+	for i, line := range lines {
+		matches := viteRuntimePattern.FindAllStringSubmatch(line, -1)
+		for _, match := range matches {
+			name := "VITE_" + match[1]
+			violations = append(violations, Violation{
+				RuleID: "ui_runtime_config", Type: "ui_runtime_config", Severity: "high",
+				Title: "UI reads build-time runtime configuration", Message: "UI runtime configuration must come from api-base: " + name,
+				Description: "import.meta.env values are compiled into the bundle and cannot change without a rebuild.",
+				FilePath:    filepath, LineNumber: i + 1, Category: "config",
+				Recommendation: "Use getScenarioConfig or fetchRuntimeConfig from @vrooli/api-base; keep Vite-only settings in vite.config.*.",
+			})
+		}
+	}
+	return violations
+}
 
 // Check analyzes code for proper environment variable handling across supported languages
 func (r *EnvValidationRule) Check(content string, filepath string) ([]Violation, error) {

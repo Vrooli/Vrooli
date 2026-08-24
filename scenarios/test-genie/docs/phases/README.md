@@ -14,6 +14,7 @@ Every descriptor declares a **[Phase Capability Contract](../concepts/phase-capa
 |-------|-------|---------|-----------|--------------------|--------|---------|--------|---------|
 | 1 | [Portability](portability/README.md) | 2m | `default_when_applicable` | `none` | `gating` | No | validation-provider | Runs the deployability resolver against declared resource inputs and the observed host OS. |
 | 2 | [Structure](structure/README.md) | 1m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates scenario skeleton and lifecycle wiring through structure-health. |
+| — | [Environment conformance](env-conformance/README.md) | 1m | `default_when_applicable` | `required_when_applicable` | `gating` | No | repository-scanner | Derives environment producers and reports unsatisfiable, bypassed, or address-shaped reads. |
 | 3 | [Contracts](contracts/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. |
 | 4 | [UI Health](ui-health/README.md) | 5m | `default_when_applicable` | `required_when_applicable` | `gating` | Yes | validation-provider | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. |
 | 5 | [API Health](api/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. |

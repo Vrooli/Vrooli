@@ -127,6 +127,18 @@ func TestPackagePackPositiveAndNegative(t *testing.T) {
 	}
 }
 
+func TestPackageResourceEnvironmentOwnershipRequiresResourceManifest(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, ".vrooli/package.json", `{"$schema":"schemas/package.schema.json","version":"1.0.0","package":{"name":"demo","kind":"go_runtime","module_identifiers":["example/demo"],"adoption":{"scenario_adoptable":true,"allowed_consumers":[],"adoption_modes":[],"owns_resource_environment":["postgres","missing-resource"]},"lifecycle":{},"refresh":{}}}`)
+	write(t, root, "README.md", "# demo\n")
+	write(t, root, "go.mod", "module example/demo\n\ngo 1.25\n")
+	write(t, root, "resources/postgres/resource.json", `{"name":"postgres"}`)
+	got := codes(Evaluate("package", root, "demo"))
+	if !got["PACKAGE_RESOURCE_ENV_OWNER_INVALID"] {
+		t.Fatalf("expected missing resource ownership finding, got %v", got)
+	}
+}
+
 func TestPackagePackRequiresManifest(t *testing.T) {
 	if got := codes(Evaluate("package", t.TempDir(), "demo")); !got["PACKAGE_MANIFEST_MISSING"] {
 		t.Fatalf("expected missing package manifest, got %v", got)

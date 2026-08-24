@@ -46,7 +46,7 @@ func CheckScenarioHardcodedPeerAddress(content []byte, filePath string) []Violat
 	for componentName, component := range manifest.Components {
 		for key, value := range component.Run.Env {
 			if hasLoopbackPortLiteral(value) {
-				messages = append(messages, fmt.Sprintf("component %q run.env.%s hardcodes a loopback peer address; use dependencies.scenarios[].bindings", componentName, key))
+				messages = append(messages, fmt.Sprintf("component %q run.env.%s hardcodes a loopback peer address; resolve the peer through discovery", componentName, key))
 			}
 		}
 	}
@@ -194,6 +194,20 @@ func loadResourceExportKeys(repoRoot, name string) []string {
 	return keys
 }
 
+func repositoryRootFromScenarioManifest(servicePath string) (string, bool) {
+	dir := filepath.Clean(filepath.Dir(servicePath))
+	for {
+		if filepath.Base(dir) == "scenarios" {
+			return filepath.Dir(dir), true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false
+		}
+		dir = parent
+	}
+}
+
 func environmentContractViolations(filePath, title string, messages []string) []Violation {
 	sort.Strings(messages)
 	out := make([]Violation, 0, len(messages))
@@ -205,7 +219,7 @@ func environmentContractViolations(filePath, title string, messages []string) []
 			Description:    message,
 			FilePath:       filePath,
 			LineNumber:     1,
-			Recommendation: "Use peer bindings, resource exports, and credential descriptors as the environment authorities.",
+			Recommendation: "Use discovery, resource exports, and credential descriptors as the environment authorities.",
 			Standard:       "configuration-v1",
 		})
 	}

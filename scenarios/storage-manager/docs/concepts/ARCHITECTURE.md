@@ -121,7 +121,7 @@ packages/proto/schemas/storage-manager/v1/<domain>/<file>.proto
        │
        ├──▶ packages/proto/gen/go/storage-manager/v1/...              (api, cli)
        ├──▶ packages/proto/gen/go/storage-manager/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/storage-manager/v1/...   (ui)
+       ├──▶ packages/proto/gen/typescript/storage-manager/v1/...   (ui)
        └──▶ packages/proto/gen/python/cleanup_manager/v1/...    (future tools)
 ```
 

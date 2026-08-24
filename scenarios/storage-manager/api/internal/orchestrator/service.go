@@ -374,15 +374,22 @@ func (s *Service) applyProvider(ctx context.Context, plan Plan, pp ProviderPlan,
 	if err != nil {
 		return cleanup.ApplyResult{}, false, err
 	}
-	if !providerPolicyRunnable(pp.Policy) {
+	oneOffApproval := oneOffConditionalApproval(pp, provider.Metadata(), input)
+	if !providerPolicyRunnable(pp.Policy) && !oneOffApproval {
 		return cleanup.ApplyResult{}, false, nil
 	}
 	if skipReason := previewSkipReason(pp.Preview); skipReason != "" {
-		_ = s.audit(ctx, AuditEvent{Type: "provider.skipped", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: skipReason})
-		return cleanup.ApplyResult{}, false, nil
+		if oneOffApproval && skipReason == "provider disabled by policy" {
+			_ = s.audit(ctx, AuditEvent{Type: "provider.one_off_approved", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: "conditional provider executed under explicit operator approval"})
+		} else {
+			_ = s.audit(ctx, AuditEvent{Type: "provider.skipped", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: skipReason})
+			return cleanup.ApplyResult{}, false, nil
+		}
 	}
-	if err := requireProviderApproval(pp, input); err != nil {
-		return cleanup.ApplyResult{}, false, err
+	if !oneOffApproval {
+		if err := requireProviderApproval(pp, input); err != nil {
+			return cleanup.ApplyResult{}, false, err
+		}
 	}
 	result, err := provider.Apply(ctx, cleanup.ApplyRequest{
 		PlanID:          plan.ID,
@@ -430,6 +437,20 @@ func (s *Service) providerForPlan(pp ProviderPlan) (cleanup.Provider, error) {
 
 func providerPolicyRunnable(policy cleanup.ProviderPolicy) bool {
 	return policy.Enabled && policy.ApprovalMode != cleanup.ApprovalModeDisabled
+}
+
+// oneOffConditionalApproval permits a single conditional provider whose
+// durable policy is disabled by default to run only when the operator has
+// supplied an explicit approval token. It does not mutate policy and cannot
+// open safe or forbidden providers.
+func oneOffConditionalApproval(pp ProviderPlan, meta cleanup.ProviderMetadata, input ApplyInput) bool {
+	return !pp.Policy.Enabled &&
+		pp.Policy.ApprovalMode != cleanup.ApprovalModeDisabled &&
+		meta.SafetyTier == cleanup.SafetyTierConditional &&
+		input.ApprovalMode == cleanup.ApprovalModeOperator &&
+		strings.TrimSpace(input.ApprovalToken) != "" &&
+		pp.Preview.BlockedReason == "provider disabled by policy" &&
+		len(pp.Preview.Items) > 0
 }
 
 func previewSkipReason(preview cleanup.Preview) string {

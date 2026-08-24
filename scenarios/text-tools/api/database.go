@@ -43,8 +43,9 @@ type DatabaseConnection struct {
 
 // NewDatabaseConfig creates a new database configuration from environment
 func NewDatabaseConfig() *DatabaseConfig {
+	databaseURL, _ := database.ResolvePostgresDSN(os.Getenv)
 	return &DatabaseConfig{
-		URL:             os.Getenv("DATABASE_URL"),
+		URL:             databaseURL,
 		MaxOpenConns:    25,
 		MaxIdleConns:    5,
 		ConnMaxLifetime: 5 * time.Minute,

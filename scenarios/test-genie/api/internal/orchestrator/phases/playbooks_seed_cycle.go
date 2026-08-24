@@ -101,7 +101,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 	restoreEnv := isolation.ApplyEnv(isoResult.Env)
 	envApplied := true
 
-	if err := applyPlaybooksMigrations(ctx, env, needs, logWriter); err != nil {
+	if err := applyPlaybooksMigrations(ctx, env, needs, isoResult.Env, logWriter); err != nil {
 		if envApplied {
 			restoreEnv()
 		}
@@ -168,7 +168,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 
 // applyPlaybooksMigrations applies optional .sql files under bas/seeds/migrations
 // against the isolated database backend. Files execute in lexicographic order.
-func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, needs resourceNeeds, logWriter io.Writer) error {
+func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, needs resourceNeeds, isolatedEnv map[string]string, logWriter io.Writer) error {
 	if !needs.RequirePostgres && !needs.RequireSQLite {
 		return nil
 	}
@@ -193,7 +193,7 @@ func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, ne
 	if needs.RequirePostgres {
 		files := append([]string(nil), commonFiles...)
 		files = append(files, postgresFiles...)
-		if err := applyPostgresMigrations(ctx, env, files, logWriter); err != nil {
+		if err := applyPostgresMigrations(ctx, env, isolatedEnv, files, logWriter); err != nil {
 			return err
 		}
 	}
@@ -207,11 +207,11 @@ func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, ne
 	return nil
 }
 
-func applyPostgresMigrations(ctx context.Context, env workspace.Environment, files []string, logWriter io.Writer) error {
+func applyPostgresMigrations(ctx context.Context, env workspace.Environment, isolatedEnv map[string]string, files []string, logWriter io.Writer) error {
 	if err := EnsureCommandAvailable("psql"); err != nil {
 		return fmt.Errorf("psql not available for playbooks migrations: %w", err)
 	}
-	connURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	connURL := strings.TrimSpace(firstNonEmpty(isolatedEnv["DATABASE_URL"], isolatedEnv["POSTGRES_URL"]))
 	if connURL == "" {
 		return fmt.Errorf("DATABASE_URL is not set for playbooks migrations")
 	}

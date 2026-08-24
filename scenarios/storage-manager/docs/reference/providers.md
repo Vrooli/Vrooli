@@ -1,5 +1,24 @@
 # Cleanup provider contracts
 
+## Abandoned undeclared workloads
+
+`undeclared-workload` is a conditional, disabled-by-default provider for
+operator-approved disposal proposals. It consumes the control-plane workload
+classification and previews only `abandoned` findings; declared workloads and
+unmanaged workloads are never candidates. Under `vrooli_only`, the abandoned
+evidence must name a manifest, scenario, resource, or historical Vrooli path.
+
+The preview records the exact native action and evidence line. Depending on
+the workload kind, apply uses Docker, the user service manager, Windows Task
+Scheduler, or the platform's binary-removal command. Apply requires operator
+approval and an idempotency key, is braked while host pressure is saturated,
+and is followed by native-registry verification. The provider does not infer
+ownership from names and does not run as part of an automatic retention sweep.
+
+The provider declares Linux, macOS, and Windows support. Tests substitute a
+fake process runner and classification resolver; no live disposal is performed
+by the provider test suite.
+
 ## Scenario binaries
 
 `scenario-binaries` is a disabled-by-default, `safe_with_owner` provider owned

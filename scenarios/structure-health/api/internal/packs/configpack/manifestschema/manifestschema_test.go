@@ -148,7 +148,7 @@ func TestDeclaredScenarioFourComponentShapesValidate(t *testing.T) {
     "registry": {"role": "worker", "build": {"reuse": "api"}, "run": {"argv": ["{{bin.api}}", "--registry-mode"], "port": "registry", "depends_on": [{"component": "api", "wait": "started"}]}},
     "playwright-driver": {"role": "sidecar", "build": {"kind": "node_bundle", "dir": "playwright-driver", "entry": "src/server.ts", "output": "playwright-driver/dist/server.js"}, "run": {"argv": ["node", "dist/server.js"], "cwd": "playwright-driver", "env": {"MODE": "service"}, "port": "playwright_driver", "supervised_by": "api"}}
   },
-  "dependencies": {"scenarios": {"landing-page-business-suite": {"required": true, "startup_policy": "try_start", "degraded_behavior": "Local work remains available.", "bundle_policy": "discover", "bindings": [{"env_var": "BAS_ENTITLEMENT_SERVICE_URL", "form": "http_base_url", "port": "api", "when_unavailable": "omit"}]}}},
+  "dependencies": {"scenarios": {"landing-page-business-suite": {"required": true, "startup_policy": "try_start", "degraded_behavior": "Local work remains available.", "bundle_policy": "discover"}}},
   "hostTools": [{"name": "node", "required": true, "min_version": "20.0.0", "reason": "Runs the bundled UI and sidecar."}],
   "lifecycle": {"setup": {"steps": [{"name": "provision", "exec": ["resource-minio", "create-bucket", "bas"], "cwd": ".", "env": {"MODE": "setup"}, "on_error": "retry", "retry": {"max_attempts": 3, "delay": 100, "backoff": "exponential"}, "timeout": 30000}]}}
 }`)

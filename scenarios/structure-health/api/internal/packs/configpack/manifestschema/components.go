@@ -3,8 +3,6 @@ package manifestschema
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -64,15 +62,9 @@ func CheckScenarioUIServesBuild(content []byte, filePath string) []Violation {
 }
 
 type peerDependency struct {
-	StartupPolicy    string        `json:"startup_policy"`
-	DegradedBehavior string        `json:"degraded_behavior"`
-	Bindings         []peerBinding `json:"bindings"`
-}
-
-type peerBinding struct {
-	EnvVar          string `json:"env_var"`
-	Port            string `json:"port"`
-	WhenUnavailable string `json:"when_unavailable"`
+	StartupPolicy    string          `json:"startup_policy"`
+	DegradedBehavior string          `json:"degraded_behavior"`
+	Bindings         json.RawMessage `json:"bindings"`
 }
 
 // CheckScenarioComponents validates references inside one component graph.
@@ -135,9 +127,9 @@ func CheckScenarioComponents(content []byte, filePath string) []Violation {
 	return componentViolations(filePath, "Scenario component contract is invalid", messages)
 }
 
-// CheckScenarioPeerBindings validates each edge against the peer manifest it
-// names. This is intentionally cross-manifest: a local schema cannot prove the
-// referenced port exists on the peer.
+// CheckScenarioPeerBindings rejects the retired bindings projection. Peer
+// addresses are resolved by discovery at call time; service manifests retain
+// scenario dependencies for graph ordering and visibility only.
 func CheckScenarioPeerBindings(content []byte, filePath string) []Violation {
 	manifest, ok := decodeComponentManifest(content, filePath)
 	if !ok {
@@ -151,30 +143,8 @@ func CheckScenarioPeerBindings(content []byte, filePath string) []Violation {
 	sort.Strings(peerNames)
 	for _, peerName := range peerNames {
 		dependency := manifest.Dependencies.Scenarios[peerName]
-		if len(dependency.Bindings) == 0 {
-			continue
-		}
-		for index, binding := range dependency.Bindings {
-			switch strings.TrimSpace(binding.WhenUnavailable) {
-			case "fail":
-				if strings.TrimSpace(dependency.StartupPolicy) != "must_start" {
-					messages = append(messages, fmt.Sprintf("peer %q binding[%d] uses when_unavailable=fail without startup_policy=must_start", peerName, index))
-				}
-			case "omit":
-				if strings.TrimSpace(dependency.DegradedBehavior) == "" {
-					messages = append(messages, fmt.Sprintf("peer %q binding[%d] uses when_unavailable=omit without degraded_behavior", peerName, index))
-				}
-			}
-		}
-		peerPorts, err := loadPeerPorts(filePath, peerName)
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("peer %q bindings cannot be checked: %v", peerName, err))
-			continue
-		}
-		for index, binding := range dependency.Bindings {
-			if _, exists := peerPorts[strings.TrimSpace(binding.Port)]; !exists {
-				messages = append(messages, fmt.Sprintf("peer %q binding[%d] port %q is not declared by that peer", peerName, index, binding.Port))
-			}
+		if len(dependency.Bindings) != 0 && string(dependency.Bindings) != "null" {
+			messages = append(messages, fmt.Sprintf("peer %q declares retired bindings; resolve its address through discovery", peerName))
 		}
 	}
 	return componentViolations(filePath, "Scenario peer binding is invalid", messages)
@@ -225,39 +195,6 @@ func componentViolations(filePath, title string, messages []string) []Violation 
 		})
 	}
 	return out
-}
-
-func loadPeerPorts(servicePath, peerName string) (map[string]json.RawMessage, error) {
-	repoRoot, ok := repositoryRootFromScenarioManifest(servicePath)
-	if !ok {
-		return nil, fmt.Errorf("cannot locate repository root from %s", servicePath)
-	}
-	peerPath := filepath.Join(repoRoot, "scenarios", peerName, ".vrooli", "service.json")
-	raw, err := os.ReadFile(peerPath)
-	if err != nil {
-		return nil, err
-	}
-	var peer struct {
-		Ports map[string]json.RawMessage `json:"ports"`
-	}
-	if err := json.Unmarshal(raw, &peer); err != nil {
-		return nil, err
-	}
-	return peer.Ports, nil
-}
-
-func repositoryRootFromScenarioManifest(servicePath string) (string, bool) {
-	dir := filepath.Clean(filepath.Dir(servicePath))
-	for {
-		if filepath.Base(dir) == "scenarios" {
-			return filepath.Dir(dir), true
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", false
-		}
-		dir = parent
-	}
 }
 
 func componentCycle(graph map[string][]string) []string {

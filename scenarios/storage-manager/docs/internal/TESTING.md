@@ -870,7 +870,7 @@ Steps:
 
    New artifacts land under the language-specific generated trees:
    `packages/proto/gen/go/storage-manager/v1/<domain>/`,
-   `packages/proto/gen/typescript/js/storage-manager/v1/<domain>/`, and
+   `packages/proto/gen/typescript/storage-manager/v1/<domain>/`, and
    `packages/proto/gen/python/cleanup_manager/v1/<domain>/`.
    Commit them alongside the schema — generated code is checked in so
    downstream scenarios don't have to re-run codegen.

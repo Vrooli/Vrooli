@@ -58,6 +58,7 @@ replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 require (
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/envkit-go v0.0.0 // indirect
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
@@ -67,3 +68,5 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

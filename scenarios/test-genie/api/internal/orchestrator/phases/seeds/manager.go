@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 const (
@@ -79,12 +81,12 @@ func (m *FileManager) Apply(ctx context.Context) (func(), error) {
 func (m *FileManager) runScript(ctx context.Context, command string, args ...string) error {
 	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = m.scenarioDir
-	cmd.Env = append(os.Environ(),
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		fmt.Sprintf("TEST_GENIE_SCENARIO_DIR=%s", m.scenarioDir),
 		fmt.Sprintf("TEST_GENIE_REPO_ROOT=%s", m.appRoot),
 		fmt.Sprintf("VROOLI_ROOT=%s", m.appRoot),
 		"TEST_GENIE_SEEDS=1",
-	)
+	})
 	cmd.Stdout = m.logWriter
 	cmd.Stderr = m.logWriter
 

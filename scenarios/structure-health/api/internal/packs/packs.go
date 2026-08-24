@@ -225,6 +225,13 @@ var registry = []entry{
 		},
 	},
 	{
+		Code: "UI_RUNTIME_CONFIG", Name: "UI Runtime Configuration",
+		Feed: feedPerFile, Target: scan.TargetUI, Severity: "high",
+		run: func(c, p, s string) []auditrules.Violation {
+			return envvalidation.CheckViteRuntimeConfig(c, p)
+		},
+	},
+	{
 		Code: "PROFILE_HARDCODED_VALUES", Name: "No Hardcoded Values",
 		Feed: feedPerFile, Target: scan.TargetAPI, Severity: "high",
 		run: func(c, p, s string) []auditrules.Violation { return hardcodedvalues.CheckHardcodedValues([]byte(c), p) },

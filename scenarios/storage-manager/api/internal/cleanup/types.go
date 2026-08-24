@@ -204,6 +204,7 @@ type ApplyResult struct {
 	ProviderID     string
 	Applied        bool
 	AlreadyDone    bool
+	AppliedItems   []string
 	ReclaimedBytes int64
 	SkippedItems   []string
 	Warnings       []string

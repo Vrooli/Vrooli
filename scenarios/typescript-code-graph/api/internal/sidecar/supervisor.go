@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/envkit-go"
+
 	"github.com/google/uuid"
 )
 
@@ -180,7 +182,7 @@ func (s *Supervisor) spawn(startupCtx context.Context) error {
 
 	cmd := exec.CommandContext(s.rootCtx, s.cfg.NodeBin, s.cfg.DistPath)
 	if len(s.extraEnv) > 0 {
-		cmd.Env = append(os.Environ(), s.extraEnv...)
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(s.extraEnv))
 	}
 
 	stdin, err := cmd.StdinPipe()

@@ -1,12 +1,16 @@
 package cleanup
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"storage-manager/hostfs"
 	"storage-manager/hostpaths"
@@ -14,6 +18,7 @@ import (
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/providers"
 
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
@@ -98,6 +103,7 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 	builtIns, err := providers.ConservativeBuiltIns(providers.BuiltInDeps{
 		FileSystem:        files,
 		ProcessLiveness:   hostfs.NewProcessLiveness(),
+		ProcessRunner:     hostfs.NewProcessRunner(),
 		Clock:             schedule.System(),
 		DockerImageLedger: ledger,
 		OllamaModelProvider: providers.NewOllamaModelRetentionProvider(
@@ -112,11 +118,49 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		GoBuildCacheRoots:    roots.GoBuildCache,
 		PlaywrightCacheRoots: roots.PlaywrightCache,
 		ScenarioBinariesRoot: binRoot,
+		Saturated:            autohealSaturationProbe(http.DefaultClient),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return providers.NewRegistry(builtIns...)
+}
+
+// autohealSaturationProbe keeps irreversible cleanup behind the same
+// host-pressure gate used by the control plane. Discovery is resolved at call
+// time so a restarted autoheal instance or a port change is handled without
+// restarting storage-manager.
+func autohealSaturationProbe(client *http.Client) func(context.Context) (bool, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	return func(ctx context.Context) (bool, error) {
+		baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "vrooli-autoheal")
+		if err != nil {
+			return false, fmt.Errorf("resolve vrooli-autoheal: %w", err)
+		}
+		requestCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(requestCtx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/api/v1/checks/system-host-pressure", nil)
+		if err != nil {
+			return false, fmt.Errorf("build host-pressure request: %w", err)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return false, fmt.Errorf("query host pressure: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode/100 != 2 {
+			return false, fmt.Errorf("query host pressure: HTTP %s", resp.Status)
+		}
+		var payload struct {
+			Status string `json:"status"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return false, fmt.Errorf("decode host pressure: %w", err)
+		}
+		return strings.EqualFold(strings.TrimSpace(payload.Status), "critical"), nil
+	}
 }
 
 func resolveScenarioBinariesRoot(repoRoot, home string) (string, error) {

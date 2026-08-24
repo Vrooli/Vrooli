@@ -26,6 +26,7 @@ import (
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
+	sharedscheduler "github.com/vrooli/vrooli/packages/scheduler"
 	_ "modernc.org/sqlite"
 
 	advisorH "storage-manager/handlers/advisor"
@@ -86,6 +87,14 @@ func main() {
 			}
 			_, err = snapshotStore.Save(ctx, report)
 			return err
+		}).WithObserver(func(cycle census.Cycle) {
+			if cycle.Err != nil {
+				logger.Printf("census cycle failed after %s: %v", cycle.Duration.Round(time.Millisecond), cycle.Err)
+			}
+			if cycle.Overran {
+				logger.Printf("census cycle took %s, at or beyond its %s interval; the next walk waits a full interval so the host is not left under a continuous metadata scan",
+					cycle.Duration.Round(time.Second), censusInterval())
+			}
 		})
 		storageScheduler.Start(schedulerContext)
 		retentionScheduler := managerRetention.NewScheduler(retentionInterval(), func(ctx context.Context) error {
@@ -95,6 +104,13 @@ func main() {
 			}
 			_, err = (managerRetention.Enforcer{RepoRoot: repoRoot, Platform: storage.Platform(runtime.GOOS)}).Enforce(ctx, inventory)
 			return err
+		}).WithObserver(func(cycle sharedscheduler.Cycle) {
+			if cycle.Err != nil {
+				logger.Printf("retention cycle failed after %s: %v", cycle.Duration.Round(time.Millisecond), cycle.Err)
+			}
+			if cycle.Overran {
+				logger.Printf("retention cycle took %s, at or beyond its %s interval; the next walk waits a full interval", cycle.Duration.Round(time.Second), retentionInterval())
+			}
 		})
 		retentionScheduler.Start(schedulerContext)
 	}

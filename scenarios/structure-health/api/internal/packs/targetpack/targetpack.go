@@ -5,6 +5,7 @@ package targetpack
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -99,7 +100,32 @@ func evaluatePackage(root, id string, parseUnits []ParseUnit) []rules.Finding {
 	out = append(out, packageBuildOutputRules(root)...)
 	out = append(out, packageSourceEntrypointRules(root)...)
 	out = append(out, packageParseUnitRules(root, parseUnits)...)
+	out = append(out, packageResourceOwnershipRules(root)...)
 	out = append(out, packageConsumerClassRules(root, id)...)
+	return out
+}
+
+func packageResourceOwnershipRules(root string) []rules.Finding {
+	_, doc, ok := loadObject(filepath.Join(root, ".vrooli", "package.json"))
+	if !ok {
+		return nil
+	}
+	entry, _ := doc["package"].(map[string]any)
+	adoption, _ := entry["adoption"].(map[string]any)
+	resources, _ := adoption["owns_resource_environment"].([]any)
+	var out []rules.Finding
+	for index, raw := range resources {
+		name := strings.TrimSpace(stringValue(raw))
+		if name == "" {
+			continue
+		}
+		manifest := filepath.Join(root, "resources", name, "resource.json")
+		if fileExists(manifest) {
+			continue
+		}
+		location := filepath.ToSlash(filepath.Join(".vrooli", "package.json")) + "#/package/adoption/owns_resource_environment/" + strconv.Itoa(index)
+		out = append(out, finding("PACKAGE_RESOURCE_ENV_OWNER_INVALID", "error", fmt.Sprintf("package claims ownership of missing resource environment %q", name), location, fmt.Sprintf("Declare an existing resources/%s/resource.json or remove the ownership claim.", name)))
+	}
 	return out
 }
 

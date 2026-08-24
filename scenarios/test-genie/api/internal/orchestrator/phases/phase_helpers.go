@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/vrooli/envkit-go"
 	"test-genie/internal/shared"
 )
 
@@ -64,12 +65,12 @@ func runCommand(ctx context.Context, dir string, logWriter io.Writer, name strin
 	if dir != "" {
 		cmd.Dir = dir
 	}
-	cmd.Env = append(os.Environ(),
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		"NO_COLOR=1",
 		"FORCE_COLOR=0",
 		"CLICOLOR=0",
 		"TERM=dumb",
-	)
+	})
 	if logWriter == nil {
 		logWriter = io.Discard
 	}
@@ -88,12 +89,12 @@ func runCommandCapture(ctx context.Context, dir string, logWriter io.Writer, nam
 		cmd.Dir = dir
 	}
 	// Disable ANSI color in captured output to keep logs readable.
-	cmd.Env = append(os.Environ(),
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		"NO_COLOR=1",
 		"FORCE_COLOR=0",
 		"CLICOLOR=0",
 		"TERM=dumb",
-	)
+	})
 	var output bytes.Buffer
 	if logWriter != nil {
 		cmd.Stdout = io.MultiWriter(logWriter, &output)

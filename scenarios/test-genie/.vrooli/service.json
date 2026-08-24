@@ -108,6 +108,20 @@
     }
   },
   "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional isolated database fixture provider"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional isolated cache fixture provider"
+      }
+    },
     "scenarios": {
       "agent-inbox": {
         "enabled": true,
