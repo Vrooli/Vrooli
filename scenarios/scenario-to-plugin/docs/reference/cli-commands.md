@@ -288,3 +288,13 @@ For a command inside an existing domain:
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture
+## Distribution checks
+
+```bash
+scenario-to-plugin distribution report <scenario> <target-cli-manifest>
+```
+
+This report evaluates each declared skill's `metadata.requires.commands` against
+the named target `cli/manifest.json`. A missing command is named and returns a
+failed precondition; the same check is enforced when composing a tier-2 package
+with `target_cli_manifest`.

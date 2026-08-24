@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // writeModule writes a go.mod (and optional .go files) into dir.
@@ -29,9 +31,14 @@ func writeModule(t *testing.T, dir, gomod string, files map[string]string) {
 }
 
 func TestLoadTopologyReadsModulePaths(t *testing.T) {
-	root := t.TempDir()
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "demo")
+	root := fixture.Root
 	writeModule(t, filepath.Join(root, "packages", "leaf"), "module example.com/leaf\n\ngo 1.25.0\n", nil)
 	writeModule(t, filepath.Join(root, "scenarios", "demo", "cli"), "module demo/cli\n\ngo 1.25.0\n", nil)
+	writeModule(t, filepath.Join(root, "packages", "envkit-go"), "module github.com/vrooli/envkit-go\n\ngo 1.25.0\n", nil)
+	writeModule(t, filepath.Join(root, "templates", "scenarios", "react-vite", "api"), "module {{SCENARIO_ID}}\n\ngo 1.25.0\n", nil)
 	// node_modules must be skipped.
 	writeModule(t, filepath.Join(root, "node_modules", "junk"), "module junk\n\ngo 1.25.0\n", nil)
 
@@ -47,6 +54,12 @@ func TestLoadTopologyReadsModulePaths(t *testing.T) {
 	}
 	if _, ok := topo["junk"]; ok {
 		t.Fatalf("node_modules module should be skipped")
+	}
+	if _, ok := topo["{{SCENARIO_ID}}"]; ok {
+		t.Fatalf("template module should be skipped because templates are outside contract targets")
+	}
+	if got := topo["github.com/vrooli/envkit-go"]; got != filepath.Join(root, "packages", "envkit-go") {
+		t.Fatalf("envkit-go dir = %q", got)
 	}
 }
 

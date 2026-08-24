@@ -3,8 +3,11 @@ package depsapproved
 import (
 	"context"
 	"fmt"
+	"io/fs"
+	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -12,6 +15,7 @@ import (
 	"scenario-dependency-analyzer/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
@@ -27,10 +31,11 @@ const goModReplaceRuleID = "dependency.gomod.replace.missing"
 func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("deps reconcile")
 	var scenario, surface string
-	var all, apply, jsonOutput bool
+	var all, allModules, apply, jsonOutput bool
 	fs.StringVar(&scenario, "scenario", "", "Target scenario")
 	fs.StringVar(&surface, "surface", "", "Only report/fix this surface (api|cli|ui|…)")
 	fs.BoolVar(&all, "all", false, "Reconcile every discovered scenario")
+	fs.BoolVar(&allModules, "all-modules", false, "Reconcile every buildable in-repo Go module")
 	fs.BoolVar(&apply, "apply", false, "Write the replaces (default is a dry run)")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
 	if err := support.ParseFlags(fs, args); err != nil {
@@ -39,11 +44,24 @@ func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 	if len(fs.Args()) != 0 {
 		return reconcileUsage()
 	}
-	if all == (scenario != "") {
+	if allModules && (all || scenario != "") || !allModules && all == (scenario != "") {
 		return reconcileUsage()
 	}
 
 	targets := []string{scenario}
+	var modulePaths map[string]string
+	if allModules {
+		var err error
+		modulePaths, err = discoverBuildableModules()
+		if err != nil {
+			return err
+		}
+		targets = make([]string, 0, len(modulePaths))
+		for path := range modulePaths {
+			targets = append(targets, path)
+		}
+		sort.Strings(targets)
+	}
 	if all {
 		var err error
 		targets, err = listScenarioNames(core)
@@ -53,21 +71,36 @@ func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 	}
 
 	client := validationClient(core)
-	responses := make([]*scenariovalidationv1.FixResponse, 0, len(targets))
-	for _, name := range targets {
-		req := &scenariovalidationv1.FixRequest{Scenario: name, RuleIds: []string{goModReplaceRuleID}}
-		var resp *connect.Response[scenariovalidationv1.FixResponse]
-		var err error
-		if apply {
-			resp, err = client.ApplyFix(context.Background(), connect.NewRequest(req))
-		} else {
-			resp, err = client.PreviewFix(context.Background(), connect.NewRequest(req))
-		}
-		if err != nil {
-			return cliapp.WrapAPIError("reconcile go.mod replaces", err, nil)
-		}
-		responses = append(responses, filterSurface(resp.Msg, surface))
+	responses := make([]*scenariovalidationv1.FixResponse, len(targets))
+	sem := make(chan struct{}, 8)
+	var wg sync.WaitGroup
+	for idx, name := range targets {
+		idx, name := idx, name
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			req := &scenariovalidationv1.FixRequest{Scenario: name, RuleIds: []string{goModReplaceRuleID}}
+			if allModules {
+				req.Scenario = filepath.Base(filepath.Dir(modulePaths[name]))
+				req.Path = filepath.Dir(modulePaths[name])
+			}
+			var resp *connect.Response[scenariovalidationv1.FixResponse]
+			var err error
+			if apply {
+				resp, err = client.ApplyFix(context.Background(), connect.NewRequest(req))
+			} else {
+				resp, err = client.PreviewFix(context.Background(), connect.NewRequest(req))
+			}
+			if err != nil {
+				responses[idx] = &scenariovalidationv1.FixResponse{Scenario: name, Messages: []string{fmt.Sprintf("%s: %v", name, err)}}
+				return
+			}
+			responses[idx] = filterSurface(resp.Msg, surface)
+		}()
 	}
+	wg.Wait()
 
 	if jsonOutput {
 		if len(responses) == 1 {
@@ -79,7 +112,35 @@ func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 }
 
 func reconcileUsage() error {
-	return fmt.Errorf("usage: %s deps reconcile (--scenario <name> | --all) [--surface api|cli|ui] [--apply] [--json]", support.AppName)
+	return fmt.Errorf("usage: %s deps reconcile (--scenario <name> | --all | --all-modules) [--surface api|cli|ui] [--apply] [--json]", support.AppName)
+}
+
+func discoverBuildableModules() (map[string]string, error) {
+	root := cliutil.ResolveRepoRoot()
+	out := map[string]string{}
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", "node_modules", "vendor", "data", "dist", "build", ".cache", "phase-cache":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.Name() != "go.mod" {
+			return nil
+		}
+		rel, _ := filepath.Rel(root, path)
+		rel = filepath.ToSlash(rel)
+		if strings.HasPrefix(rel, "templates/") || strings.Contains(rel, "/bas/") {
+			return nil
+		}
+		out[rel] = path
+		return nil
+	})
+	return out, err
 }
 
 func validationClient(core *cliapp.ScenarioApp) scenariovalidationconnect.ScenarioValidationServiceClient {
@@ -127,11 +188,14 @@ func filepathSlash(p string) string { return strings.ReplaceAll(p, "\\", "/") }
 
 func printReconcileJSON(responses []*scenariovalidationv1.FixResponse) error {
 	for _, resp := range responses {
-		if err := printProto(resp); err != nil {
-			return err
+		if len(responses) == 1 {
+			return printProto(resp)
 		}
+		break
 	}
-	return nil
+	return support.PrintReportJSON(struct {
+		Responses []*scenariovalidationv1.FixResponse `json:"responses"`
+	}{Responses: responses})
 }
 
 func printReconcileReport(responses []*scenariovalidationv1.FixResponse, applied bool) error {

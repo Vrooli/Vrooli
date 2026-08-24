@@ -4,8 +4,8 @@
     "entries": {
       "data": {
         "budget": {
-          "max_bytes": "2MiB",
-          "rationale": "Measured at 668209 bytes on 2026-08-16 at the resolved data location; 2MiB leaves more than twice the observed SQLite database and sidecar footprint."
+          "max_bytes": "16MiB",
+          "rationale": "Measured at 2745291 bytes on 2026-08-24 at the resolved data location; the 16MiB ceiling preserves a bounded margin for SQLite growth without making this durable surface unbounded."
         },
         "class": "data",
         "kind": "dir",

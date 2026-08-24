@@ -74,6 +74,7 @@ Three vocabularies describe one cell, and they answer three different questions.
 |---|---|
 | `implemented` | An implementation is available on this host OS. |
 | `degraded` | An implementation is available with known functional limits. |
+| `controls_incomplete` | A provider resolves, but one or more required controls do not resolve on this host OS. |
 | `unwired` | A mechanism is named for this host OS but no implementation is declared for it. |
 | `ineligible` | Every declaration deliberately marks this host OS out of scope, and none names a mechanism to wire. |
 | `peerless` | Nothing at all is declared for this host OS. |
@@ -89,6 +90,8 @@ Three vocabularies describe one cell, and they answer three different questions.
 | `no_work_required` | The absence is policy: this OS was deliberately scoped out and the vocabulary's `platform_policies` says so. |
 | `no_equivalent_ever` | No equivalent mechanism exists on that platform. Closing this is not a matter of effort. |
 | `real_peer_nobody_wired` | A real mechanism exists on that platform and nobody has wired it. **This is the only situation that is unambiguously work.** |
+| `controls_unported` | A provider resolves, but required controls remain unported on one or more host OSes. |
+| `scoped_out` | The capability is deliberately ineligible on the affected host OS. |
 
 ## The Device Ladder
 
@@ -117,7 +120,7 @@ Two placement rules, each with a reason that survives restatement.
 
 | Question | Surface |
 |---|---|
-| What does the repo declare, right now, with nothing running? | `vrooli capability ledger` |
+| What does the repo declare, right now, with the control-plane resolver? | `vrooli capability ledger` (the command delegates to the running infrastructure-manager Connect service) |
 | Which scenarios are blocked on which OS? | `vrooli capability fleet` |
 | The same, with situation classification and trust | `infrastructure-manager portability grid` |
 | How far up the ladder is each device class? | `infrastructure-manager ladder status` |
@@ -154,7 +157,7 @@ Recorded as data. The distance between this model and the code is the point of m
 2. **Providers are `OR`; controls are `AND`.** A capability is a category, not a unit of coverage. Every safeguard is a control.
 3. **Report the absent declarers, always.** A winner-only resolution cannot distinguish full coverage from partial.
 4. **Declarations stay with the thing they describe.** This domain aggregates and never authors. A roster here would drift by construction.
-5. **The resolver stays in the control plane.** `vrooli setup` must resolve with nothing running.
+5. **The resolver stays in the control plane.** The ledger delegates its readout to the running infrastructure-manager service; setup-owned resolution remains pure and separately callable.
 6. **One vocabulary, derived everywhere else.** A second hand-maintained list is a drift source that silently changes what validates.
 7. **Unobservable is not uninstrumented.** A cell for an OS nobody is standing on must say so in its own words, and must never be counted as a sensor gap somebody could close.
 8. **Measurement here, conformance in the control plane, judgment in the audit lane.** A declaration that is false is a gate failure, not a lower ratio.

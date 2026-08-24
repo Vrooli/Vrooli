@@ -16,8 +16,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // VerdictFile is the per-model-dir filename the cached verdict is stored under.
@@ -68,7 +71,7 @@ func (in Invoker) Probe(ctx context.Context, args []string) (string, error) {
 func defaultRunner(ctx context.Context, python string, args, extraEnv []string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, python, args...)
 	if len(extraEnv) > 0 {
-		cmd.Env = append(os.Environ(), extraEnv...)
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(extraEnv))
 	}
 	return cmd.CombinedOutput()
 }

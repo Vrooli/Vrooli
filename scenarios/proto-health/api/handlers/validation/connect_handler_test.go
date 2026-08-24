@@ -12,19 +12,40 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/maturity-go/assessment"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 type fakeValidator struct {
-	report internal.Report
-	path   string
+	report   internal.Report
+	path     string
+	scenario string
 }
 
 func (f fakeValidator) ValidateScenario(ctx context.Context, scenario string) (internal.Report, error) {
+	if f.scenario != "" && scenario != f.scenario {
+		return internal.Report{}, fmt.Errorf("scenario = %q, want %q", scenario, f.scenario)
+	}
 	if f.path != "" && internal.ScenarioPathFrom(ctx) != f.path {
 		return internal.Report{}, fmt.Errorf("scenario path = %q, want %q", internal.ScenarioPathFrom(ctx), f.path)
 	}
 	return f.report, nil
+}
+
+func TestValidateTargetMapsControlPlaneToSharedProtoSurface(t *testing.T) {
+	handler := NewConnectHandler(Deps{
+		Validator:    fakeValidator{report: internal.Report{Scenario: "control-plane", Passed: true}, scenario: "control-plane"},
+		MaturitySpec: protoHealthSpec(t),
+	})
+
+	resp, err := handler.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target: &commonv1.ValidationTarget{
+			Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE,
+			Id:   "internal",
+		},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "internal", resp.Msg.GetTarget().GetId())
 }
 
 func (f fakeValidator) DescribeScenarioProtos(context.Context, string) (protosurface.Surface, error) {

@@ -98,12 +98,14 @@ func TestGridCoversEveryVocabularyCapabilityOnEveryHostOS(t *testing.T) {
 		t.Fatalf("grid has %d rows for %d vocabulary capabilities", len(grid.Capabilities), len(vocabulary.Capabilities))
 	}
 	for _, entry := range grid.Capabilities {
-		if len(entry.Platforms) != len(operatingSystems) {
-			t.Fatalf("%s has %d platform entries, want %d", entry.Capability, len(entry.Platforms), len(operatingSystems))
+		if len(entry.Platforms) != len(operatingSystems)*2 {
+			t.Fatalf("%s has %d platform entries, want %d", entry.Capability, len(entry.Platforms), len(operatingSystems)*2)
 		}
 		for _, hostOS := range operatingSystems {
-			if _, ok := entry.Platform(hostOS); !ok {
-				t.Fatalf("%s has no entry for %s", entry.Capability, hostOS)
+			for _, architecture := range []string{"amd64", "arm64"} {
+				if _, ok := entry.PlatformFor(hostOS, architecture); !ok {
+					t.Fatalf("%s has no entry for %s/%s", entry.Capability, hostOS, architecture)
+				}
 			}
 		}
 	}
@@ -118,7 +120,7 @@ func TestGridCoversEveryVocabularyCapabilityOnEveryHostOS(t *testing.T) {
 	}
 }
 
-func TestGridClassifiesAllFourCapabilitySituations(t *testing.T) {
+func TestGridClassifiesEveryCapabilitySituation(t *testing.T) {
 	grid := liveGrid(t)
 	seen := map[CapabilitySituation]bool{}
 	for _, entry := range grid.Capabilities {
@@ -128,6 +130,52 @@ func TestGridClassifiesAllFourCapabilitySituations(t *testing.T) {
 		if !seen[situation] {
 			t.Errorf("grid did not classify any capability as %s", situation)
 		}
+	}
+}
+
+func TestEveryResolutionStatusHasASituation(t *testing.T) {
+	statuses := []deployability.CapabilityResolutionStatus{
+		deployability.CapabilityImplemented,
+		deployability.CapabilityDegraded,
+		deployability.CapabilityIneligible,
+		deployability.CapabilityUnwired,
+		deployability.CapabilityPeerless,
+		deployability.CapabilityStatusInvalid,
+		deployability.CapabilityControlsIncomplete,
+	}
+	for _, status := range statuses {
+		if _, ok := situationByStatus[status]; !ok {
+			t.Errorf("resolution status %q has no situation mapping", status)
+		}
+	}
+	if _, _, err := classifySituation("injected", map[deployability.HostOS]deployability.CapabilityResolutionStatus{
+		deployability.HostOSLinux: "injected_status",
+	}, nil); err == nil {
+		t.Fatal("unmapped resolution status was silently classified")
+	}
+	if _, _, err := classifySituation("empty", nil, nil); err == nil {
+		t.Fatal("empty resolution status set was silently classified")
+	}
+}
+
+func TestClassifySituationRequiresPolicyForNoEquivalent(t *testing.T) {
+	situation, _, err := classifySituation("capability", map[deployability.HostOS]deployability.CapabilityResolutionStatus{
+		deployability.HostOSLinux: deployability.CapabilityPeerless,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if situation != SituationControlsUnported {
+		t.Fatalf("unasserted peerless capability classified as %s, want %s", situation, SituationControlsUnported)
+	}
+	situation, _, err = classifySituation("capability", map[deployability.HostOS]deployability.CapabilityResolutionStatus{
+		deployability.HostOSLinux: deployability.CapabilityPeerless,
+	}, map[string]map[string]string{"capability": {"linux": string(SituationNoEquivalentEver)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if situation != SituationNoEquivalentEver {
+		t.Fatalf("asserted no-equivalent policy classified as %s", situation)
 	}
 }
 
@@ -147,6 +195,42 @@ func TestGridNeverEmitsAnInvalidPlatformStatus(t *testing.T) {
 			if platform.HasImplementation != platform.Status.HasImplementation() {
 				t.Errorf("%s/%s reports has_implementation=%v for status %s", entry.Capability, platform.HostOS, platform.HasImplementation, platform.Status)
 			}
+		}
+	}
+}
+
+func TestGridRejectsUnprovenNonLinuxQualifiedClaims(t *testing.T) {
+	root := t.TempDir()
+	writeVocabulary(t, root, []string{"probe"}, nil)
+	writeToolFixture(t, root, "probe-tool", "probe", map[string]string{"macos": string(deployability.StatusSupported)})
+	reader, err := NewReader(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reader.Grid(time.Now()); err == nil || !strings.Contains(err.Error(), "macos/amd64") {
+		t.Fatalf("unproven qualified macOS claim was accepted: %v", err)
+	}
+}
+
+func TestGridExposesBothArchitectureCells(t *testing.T) {
+	grid := liveGrid(t)
+	entry, ok := grid.Capability("source-control")
+	if !ok {
+		t.Fatal("source-control capability missing")
+	}
+	for _, hostOS := range operatingSystems {
+		for _, architecture := range []string{"amd64", "arm64"} {
+			if _, ok := entry.PlatformFor(hostOS, architecture); !ok {
+				t.Fatalf("missing architecture cell %s/%s", hostOS, architecture)
+			}
+		}
+	}
+	if len(grid.Resources) == 0 {
+		t.Fatal("resource profile architecture declarations were not read into the grid")
+	}
+	for _, claim := range grid.Resources {
+		if claim.Mismatch {
+			t.Fatalf("live resource architecture claim is contradictory: %+v", claim)
 		}
 	}
 }

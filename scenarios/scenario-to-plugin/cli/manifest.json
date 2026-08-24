@@ -17,6 +17,11 @@
       "name": "publish",
       "description": "Governed publication operations",
       "commands": [{"name": "run", "description": "Publish only with a matching release decision", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:external"], "requires_confirmation": true}}]
+    },
+    {
+      "name": "distribution",
+      "description": "Check target CLI distributability",
+      "commands": [{"name": "report", "description": "Report skills satisfied by a target CLI manifest", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": []}}]
     }
   ],
   "omitted": [

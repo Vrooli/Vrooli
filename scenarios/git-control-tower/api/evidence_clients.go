@@ -43,7 +43,7 @@ func (c evidenceRunsClient) ListRuns(ctx context.Context, scenario string, limit
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.ListRuns(ctx, connect.NewRequest(&runspb.ListRunsRequest{Scenario: scenario, Limit: int32(limit)}))
+	resp, err := client.ListRuns(ctx, connect.NewRequest(&runspb.ListRunsRequest{Target: scenario, Limit: int32(limit)}))
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (c evidenceRunsClient) GetRun(ctx context.Context, scenario, runID string) 
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.GetRun(ctx, connect.NewRequest(&runspb.GetRunRequest{Scenario: scenario, RunId: runID}))
+	resp, err := client.GetRun(ctx, connect.NewRequest(&runspb.GetRunRequest{Target: scenario, RunId: runID}))
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (c evidenceRunsClient) ListRunArtifacts(ctx context.Context, scenario, runI
 		return nil, err
 	}
 	resp, err := client.ListRunArtifacts(ctx, connect.NewRequest(&runspb.ListRunArtifactsRequest{
-		Scenario: scenario, RunId: runID, Kinds: kinds,
+		Target: scenario, RunId: runID, Kinds: kinds,
 	}))
 	if err != nil {
 		return nil, err

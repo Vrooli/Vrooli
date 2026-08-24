@@ -1,0 +1,11 @@
+{
+  "$schema": "../../test-genie/schemas/testing.schema.json",
+  "phases": {
+    "api": { "enabled": false },
+    "ui-health": { "enabled": false },
+    "workflow": { "enabled": false },
+    "performance": { "enabled": false },
+    "storage": { "enabled": false },
+    "templates": { "enabled": false }
+  }
+}

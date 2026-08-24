@@ -17,6 +17,7 @@ import { CommitPanel } from "./components/CommitPanel";
 import { GitHistory } from "./components/GitHistory";
 import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
+import { StageSameNameConfirmationModal } from "./components/StageSameNameConfirmationModal";
 import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
 import { FileSearchModal } from "./components/FileSearchModal";
 import { MobileFileSearch } from "./components/MobileFileSearch";
@@ -230,6 +231,7 @@ export default function App() {
   const lastSelectedKeyRef = useRef<string | null>(null);
   const [confirmingDiscard, setConfirmingDiscard] = useState<string | null>(null);
   const [pendingDiscardFiles, setPendingDiscardFiles] = useState<DiscardFile[] | null>(null);
+  const [pendingStageSameNameFiles, setPendingStageSameNameFiles] = useState<string[] | null>(null);
   const [confirmingIgnore, setConfirmingIgnore] = useState<string | null>(null);
   const [_lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
@@ -937,6 +939,25 @@ export default function App() {
     },
     [stageMutation]
   );
+
+  const handleRequestStageFilesWithSameName = useCallback((path: string) => {
+    const files = statusQuery.data?.files;
+    if (!files) return;
+    const basename = path.split("/").pop() || path;
+    const matches = Array.from(new Set([
+      ...(files.staged ?? []),
+      ...(files.unstaged ?? []),
+      ...(files.untracked ?? []),
+      ...(files.conflicts ?? []),
+    ].filter((candidate) => (candidate.split("/").pop() || candidate) === basename))).sort();
+    if (matches.length > 1) setPendingStageSameNameFiles(matches);
+  }, [statusQuery.data?.files]);
+
+  const handleConfirmStageFilesWithSameName = useCallback(() => {
+    if (!pendingStageSameNameFiles) return;
+    handleStagePaths(pendingStageSameNameFiles);
+    setPendingStageSameNameFiles(null);
+  }, [handleStagePaths, pendingStageSameNameFiles]);
 
   const handleStageApproved = useCallback(() => {
     const suggestedMessage = approvedChangesQuery.data?.suggestedMessage ?? "";
@@ -2154,6 +2175,7 @@ export default function App() {
             onScrollComplete={handleScrollComplete}
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
+            onStageFilesWithSameName={handleRequestStageFilesWithSameName}
             repoId={repoId}
             onOpenReview={(slug) => { if (reviewScenarioSlug && slug !== reviewScenarioSlug) { scenarioReview.switchScenario(reviewScenarioSlug, slug); } setReviewScenarioSlug(slug); setPrimaryPanel("review"); }}
             mobileSelectionMode={mobileSelectionMode}
@@ -2433,6 +2455,7 @@ export default function App() {
             scrollTopStore={changesScrollTopRef}
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
+            onStageFilesWithSameName={handleRequestStageFilesWithSameName}
             repoId={repoId}
             onOpenReview={(slug) => { setReviewScenarioSlug(slug); setMobileActivePanel("review"); }}
             mobileSelectionMode={mobileSelectionMode}
@@ -2766,6 +2789,13 @@ export default function App() {
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
         />
+        <StageSameNameConfirmationModal
+          isOpen={pendingStageSameNameFiles !== null}
+          files={pendingStageSameNameFiles ?? []}
+          isLoading={stageMutation.isPending}
+          onConfirm={handleConfirmStageFilesWithSameName}
+          onCancel={() => setPendingStageSameNameFiles(null)}
+        />
         <MobileFileSearch
           isOpen={isFileSearchOpen}
           onClose={() => setIsFileSearchOpen(false)}
@@ -2982,6 +3012,13 @@ export default function App() {
         isLoading={isDeleting}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+      />
+      <StageSameNameConfirmationModal
+        isOpen={pendingStageSameNameFiles !== null}
+        files={pendingStageSameNameFiles ?? []}
+        isLoading={stageMutation.isPending}
+        onConfirm={handleConfirmStageFilesWithSameName}
+        onCancel={() => setPendingStageSameNameFiles(null)}
       />
       <FileSearchModal
         isOpen={isFileSearchOpen}

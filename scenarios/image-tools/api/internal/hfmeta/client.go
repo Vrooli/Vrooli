@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // HFClient is the production Fetcher. It dispatches by source shape:
@@ -93,9 +95,9 @@ func (c *HFClient) runProbe(ctx context.Context, repoID string) ([]byte, error) 
 	}
 	cmd := exec.CommandContext(ctx, python, "-c", probeScript, repoID)
 	if c.Env != nil {
-		cmd.Env = c.Env
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(c.Env))
 	} else {
-		cmd.Env = os.Environ()
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	}
 	out, err := cmd.Output()
 	if err != nil {

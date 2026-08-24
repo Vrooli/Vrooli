@@ -99,6 +99,7 @@ type Manifest struct {
 	Capability           string                         `json:"capability"`
 	Role                 string                         `json:"capability_role"`
 	Platforms            []string                       `json:"platforms"`
+	PlatformStatus       map[string]PlatformDeclaration `json:"platform_status,omitempty"`
 	PlatformDeclarations map[string]PlatformDeclaration `json:"platform_declarations,omitempty"`
 	Packages             map[string]interface{}         `json:"packages"`
 	Source               json.RawMessage                `json:"source"`
@@ -109,6 +110,7 @@ type Manifest struct {
 type PlatformDeclaration struct {
 	Status    string `json:"status"`
 	Mechanism string `json:"mechanism"`
+	Evidence  string `json:"evidence"`
 }
 
 // ResourceInput is the slice of a resource manifest the fleet view reads.
@@ -121,7 +123,8 @@ type ResourceInput struct {
 }
 
 type ResourceProfileInput struct {
-	Requires []string `json:"requires"`
+	Requires      []string `json:"requires"`
+	Architectures []string `json:"architectures"`
 }
 
 type ResourceDeploymentInput struct {

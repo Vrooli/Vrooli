@@ -16,8 +16,9 @@ var db *sql.DB
 // initDB initializes the PostgreSQL database connection with automatic retry and backoff.
 // Reads POSTGRES_* environment variables set by the lifecycle system.
 func initDB() {
-	// Check if database configuration is available
-	if os.Getenv("POSTGRES_HOST") == "" && os.Getenv("POSTGRES_PORT") == "" {
+	// Check if database configuration is available through the shared seam.
+	dsn, dsnErr := database.ResolvePostgresDSN(os.Getenv)
+	if dsnErr != nil || dsn == "" {
 		dbLogger.Info("Database configuration not found, persistence disabled", nil)
 		return
 	}
@@ -25,6 +26,7 @@ func initDB() {
 	var err error
 	db, err = database.Connect(context.Background(), database.Config{
 		Driver:          "postgres",
+		DSN:             dsn,
 		MaxOpenConns:    25,
 		MaxIdleConns:    5,
 		ConnMaxLifetime: 5 * time.Minute,

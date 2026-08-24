@@ -1,25 +1,29 @@
-# Vrooli Skills
+# Vrooli skill topology and publication
 
-This folder is **publication source** for Claude Skills (the [open SKILL.md standard](https://github.com/anthropics/skills)) that teach external agents — Claude Code, Codex CLI, Antigravity CLI, Cursor, Windsurf, etc. — how to use specific Vrooli capabilities standalone.
-
-It is **not** a runtime skills directory. Internal skills used while working *on* Vrooli (vision walks, planning, debugging, etc.) live in [prompt-manager](../scenarios/prompt-manager/), invoked via `prompt-manager skill ...`. Don't confuse the two:
+Every Vrooli skill uses the open `SKILL.md` format. A skill has one authored
+source and several governed surfaces; publication never creates a second
+authored corpus.
 
 | Surface | Audience | Storage | Access |
 |---|---|---|---|
-| Internal skills | Agents working *on* Vrooli (you, right now) | `prompt-manager` | `prompt-manager skill ...` CLI |
-| External skills | Agents in other runtimes using Vrooli capabilities | This folder (`skills/`) | Published via OCI / curated registries |
+| Scenario-owned source | `scenarios/<slug>/skills/<id>/SKILL.md` | Interface guidance versioned with its scenario |
+| Prompt-manager source | `scenarios/prompt-manager/store/skills/packs/<pack>/<id>/SKILL.md` | Repo-wide practice and platform guidance |
+| Vendor source | `scenarios/prompt-manager/store/skills/packs/vendor/<id>/SKILL.md` | Imported material, inactive until independent review passes |
+| Registry and projection | prompt-manager | Indexes sources, resolves identifiers, records usage, and generates bounded runtime views |
+| Publication | scenario-to-plugin output | Signed plugin artifacts for eligible scenario-owned skills |
 
-Different audience, different content shape, different lifecycle. Don't try to unify them.
+Prompt-manager is the registry and long-tail CLI surface. The same skill format
+and identifier resolver apply at every surface.
 
-## What lives here
+## What lives in the publication source
 
-- One subfolder per published skill (folder name = skill slug, kebab-case).
+- One subfolder per scenario-owned published skill (folder name = skill slug, kebab-case).
 - `SECURITY.md` — disclosure policy, signing/scanning conventions, kill-switch process. Read this before publishing.
 - `.templates/scenario-skill/` — starter template for a new scenario-wrapping skill. Copy, fill in, publish.
 
 The leading dot on `.templates/` keeps it out of skill-shaped scans. Templates use `SKILL.md.template` (not `SKILL.md`) so registry indexers don't mistake them for real skills.
 
-## When to add a skill here
+## When to publish a skill
 
 Most scenarios should NOT publish a skill. Default answer is no. Add one only when **all** of these are true:
 
@@ -58,30 +62,22 @@ Publishing is valid before direct monetization exists. Free agent usage is a val
 ## Folder conventions
 
 ```
-skills/
-├── README.md                     ← this file
-├── SECURITY.md                   ← disclosure + signing conventions
-├── .templates/
-│   └── scenario-skill/           ← starter template for a scenario-wrapping skill
-│       ├── README.md
-│       ├── SKILL.md.template
-│       └── scripts/
-│           └── install.sh.template
-├── git-control-tower/            ← real skill (when added)
-│   ├── SKILL.md
-│   ├── scripts/
-│   │   └── install.sh
-│   └── references/               ← optional, agent-readable deep-dive docs
-└── ...
+scenarios/<scenario-slug>/skills/
+└── <skill-id>/SKILL.md            # authored source and YAML frontmatter
+
+scenarios/prompt-manager/store/skills/
+├── packs/core|local|drafts/       # governed repo-wide sources
+├── packs/vendor/                  # imported, quarantined sources
+└── _base-pack.json                # bounded native startup tier
 ```
 
-- Skill folder name = slug = scenario slug (1:1). If a scenario has multiple skills (rare), use suffixes: `git-control-tower-pr-flow/`.
+- Skill folder name = skill ID. A scenario may own multiple skills; each has a distinct kebab-case ID.
 - No top-level `SKILL.md`. Each skill is a folder.
 - Publication artifacts (signatures, SBOMs, OCI manifests) are CI outputs, not committed here.
 
-## Why these are publication source rather than the published artifact itself
+## Why these are source rather than the published artifact itself
 
-The scenario-owned source is what humans edit. CI (see [build-and-publishing.md](../guides/build-and-publishing.md)) builds it into signed OCI artifacts published to `ghcr.io/vrooli/plugin-<slug>:<version>` and registered with curated registries. The published artifact has the signature, provenance, and SBOM attached; source does not.
+The scenario-owned source is what humans edit. CI (see [build-and-publishing.md](../guides/build-and-publishing.md)) builds it into signed OCI artifacts published to `ghcr.io/vrooli/plugin-<slug>:<version>` and registered with curated registries. The published artifact has the signature, provenance, and SBOM attached; source does not. Prompt-manager remains the registry; publication does not create a second skill system.
 
 So if you're an agent reading this folder directly: you're looking at editable source. The trust artifact for any specific version of a skill lives at the OCI registry, not here.
 
@@ -89,4 +85,4 @@ So if you're an agent reading this folder directly: you're looking at editable s
 
 - [build-and-publishing.md](../guides/build-and-publishing.md) — full publish pipeline (Cosign, SLSA L3, SBOM, OCI, registry submission)
 - [SECURITY-POSTURE.md](../internal/SECURITY-POSTURE.md) — 13-point security checklist + OWASP Agentic Skills Top 10 mapping
-- [docs/monetization/catalogs/channels/skill-registries.md](../docs/monetization/catalogs/channels/skill-registries.md) — why this folder exists (channel discipline, activation triggers)
+- [docs/monetization/catalogs/channels/skill-registries.md](../../../../docs/monetization/catalogs/channels/skill-registries.md) — why this folder exists (channel discipline, activation triggers)

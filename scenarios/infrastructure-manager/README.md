@@ -29,7 +29,8 @@ bus and a slow scenario restart are different failures and must not share a unit
 > about *this* running host. **Portability** is a separate denominator asking
 > where things would run at all — capability × host OS, plus the device ladder.
 > Read it with `portability grid` and `ladder status`; the flat control-plane
-> answer, which needs nothing running, is `vrooli capability ledger`. Reaching
+> answer is `vrooli capability ledger`, which delegates the readout to the
+> running infrastructure-manager service over Connect. Reaching
 > for `coverage` when the question is about Windows is the single most common
 > wrong turn into this scenario.
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -67,6 +68,53 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// ValidateTarget is the generalized target seam used by Test Genie. The proto
+// surface for the control plane lives in the shared CLI proto namespace, so it
+// is intentionally mapped to the loader's control-plane view rather than
+// treating the target id (for example, "internal") as a scenario proto prefix.
+func (h *connectHandler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	if h.deps.Validator == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("validation validator is not wired"))
+	}
+	target := req.Msg.GetTarget()
+	if target == nil || strings.TrimSpace(target.GetId()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("validation target is required"))
+	}
+	targetKind := strings.TrimPrefix(strings.ToLower(target.GetKind().String()), "validation_target_kind_")
+	targetKind = strings.ReplaceAll(targetKind, "_", "-")
+	if targetKind != "scenario" && targetKind != "control-plane" {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("proto-health does not support target kind %s", target.GetKind().String()))
+	}
+	source := target.GetId()
+	if targetKind == "control-plane" {
+		source = "control-plane"
+	}
+	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
+	validationCtx := internal.WithScenarioPath(internal.WithMetrics(ctx, collector), req.Msg.GetPath())
+	report, err := h.deps.Validator.ValidateScenario(validationCtx, source)
+	if err != nil {
+		collector.Stop()
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	maturityAssessment, err := buildMaturityAssessment(report, h.deps.MaturitySpec)
+	if err != nil {
+		collector.Stop()
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
+	}
+	execMetrics := collector.Stop()
+	sharedResp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil, execMetrics)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared target response: %w", err))
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target:       target,
+		Status:       sharedResp.GetStatus(),
+		Assessment:   sharedResp.GetAssessment(),
+		NativeDetail: sharedResp.GetNativeDetail(),
+		Metrics:      sharedResp.GetMetrics(),
+	}), nil
 }
 
 func buildMaturityAssessment(rep internal.Report, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {

@@ -35,7 +35,7 @@ type RunsClient interface {
 }
 
 func (s *Server) StartRun(ctx context.Context, req *connect.Request[runspb.StartRunRequest]) (*connect.Response[runspb.StartRunResponse], error) {
-	if strings.TrimSpace(req.Msg.GetScenario()) == "" {
+	if strings.TrimSpace(req.Msg.GetTarget()) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
 	response, err := s.runs.StartRun(ctx, req.Msg)

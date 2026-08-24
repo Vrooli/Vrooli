@@ -24,7 +24,6 @@ package gomodreconcile
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -34,12 +33,20 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/vrooli/envkit-go"
+	repocontract "github.com/vrooli/repo-contract-go"
+	"golang.org/x/mod/modfile"
 )
 
 // Topology maps an in-repo Go module path to its absolute on-disk directory.
 type Topology map[string]string
+
+var topologyCache = struct {
+	sync.Mutex
+	byRoot map[string]Topology
+}{byRoot: map[string]Topology{}}
 
 // goModView is the subset of `go mod edit -json` output we consume.
 type goModView struct {
@@ -90,12 +97,26 @@ type Candidate struct {
 // reconcilable surfaces.
 func LoadTopology(repoRoot string) (Topology, error) {
 	repoRoot = filepath.Clean(repoRoot)
+	topologyCache.Lock()
+	if cached, ok := topologyCache.byRoot[repoRoot]; ok {
+		out := make(Topology, len(cached))
+		for path, dir := range cached {
+			out[path] = dir
+		}
+		topologyCache.Unlock()
+		return out, nil
+	}
+	topologyCache.Unlock()
 	topo := make(Topology)
+	targetRoots, err := reconcilableTargetRoots(repoRoot)
+	if err != nil {
+		return nil, err
+	}
 	skipDir := map[string]struct{}{
 		".git": {}, "node_modules": {}, "vendor": {}, "data": {},
 		"dist": {}, "build": {}, ".cache": {},
 	}
-	err := filepath.WalkDir(repoRoot, func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(repoRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -108,6 +129,9 @@ func LoadTopology(repoRoot string) (Topology, error) {
 		if d.Name() != "go.mod" {
 			return nil
 		}
+		if !isUnderTargetRoot(filepath.Dir(path), targetRoots) {
+			return nil
+		}
 		modulePath := readModulePath(path)
 		if modulePath == "" {
 			return nil
@@ -118,7 +142,50 @@ func LoadTopology(repoRoot string) (Topology, error) {
 	if err != nil {
 		return nil, err
 	}
+	topologyCache.Lock()
+	topologyCache.byRoot[repoRoot] = topo
+	topologyCache.Unlock()
 	return topo, nil
+}
+
+// reconcilableTargetRoots derives the module search boundary from the
+// repository contract. Project/docs/team targets describe governance surfaces,
+// not Go module roots; source-bearing target kinds are the only roots relevant
+// to dependency reconciliation. In particular, template modules are not
+// targets and must never enter the topology.
+func reconcilableTargetRoots(repoRoot string) ([]string, error) {
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("load repository contract for Go module topology: %w", err)
+	}
+	targets, err := contract.EnumerateTargets(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("enumerate repository targets for Go module topology: %w", err)
+	}
+	allowed := map[repocontract.TargetKind]struct{}{
+		repocontract.TargetKindScenario:     {},
+		repocontract.TargetKindResource:     {},
+		repocontract.TargetKindPackage:      {},
+		repocontract.TargetKindControlPlane: {},
+	}
+	roots := make([]string, 0, len(targets))
+	for _, target := range targets {
+		if _, ok := allowed[target.Kind]; !ok {
+			continue
+		}
+		roots = append(roots, filepath.Join(repoRoot, filepath.FromSlash(target.Root)))
+	}
+	return roots, nil
+}
+
+func isUnderTargetRoot(path string, roots []string) bool {
+	for _, root := range roots {
+		rel, err := filepath.Rel(root, path)
+		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }
 
 func readModulePath(goModPath string) string {
@@ -244,7 +311,7 @@ func requiredInRepoModules(ctx context.Context, view goModView, topo Topology) (
 }
 
 func importedInRepoModules(moduleDir, selfModule string, topo Topology) ([]string, error) {
-	modules := sortedTopologyModules(topo)
+	modules := modulePrefixIndex(topo)
 	seen := map[string]struct{}{}
 	skipDir := map[string]struct{}{
 		".git": {}, "node_modules": {}, "vendor": {}, "data": {},
@@ -289,13 +356,25 @@ func importedInRepoModules(moduleDir, selfModule string, topo Topology) ([]strin
 	return out, nil
 }
 
-func matchingInRepoModule(importPath string, modules []string) string {
-	for _, module := range modules {
-		if importPathMatchesModule(importPath, module) {
+func matchingInRepoModule(importPath string, modules map[string]string) string {
+	parts := strings.Split(importPath, "/")
+	for i := len(parts); i > 0; i-- {
+		if module, ok := modules[strings.Join(parts[:i], "/")]; ok {
 			return module
 		}
 	}
 	return ""
+}
+
+// modulePrefixIndex turns longest-prefix module matching into one map lookup.
+// Every import path is reduced to its own slash-separated prefixes, so nested
+// modules retain the exact longest match without scanning the topology.
+func modulePrefixIndex(topo Topology) map[string]string {
+	index := make(map[string]string)
+	for module := range topo {
+		index[module] = module
+	}
+	return index
 }
 
 func importPathMatchesModule(importPath, module string) bool {
@@ -442,15 +521,44 @@ func editedGoMod(ctx context.Context, goModPath, content string, missing []Missi
 }
 
 func parseGoMod(ctx context.Context, goModPath string) (goModView, error) {
-	var view goModView
-	cmd := exec.CommandContext(ctx, "go", "mod", "edit", "-json", goModPath)
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off"})
-	out, err := cmd.Output()
-	if err != nil {
-		return view, fmt.Errorf("go mod edit -json %s: %w", goModPath, err)
+	select {
+	case <-ctx.Done():
+		return goModView{}, ctx.Err()
+	default:
 	}
-	if err := json.Unmarshal(out, &view); err != nil {
-		return view, fmt.Errorf("parse go.mod json: %w", err)
+	data, err := os.ReadFile(goModPath)
+	if err != nil {
+		return goModView{}, fmt.Errorf("read go.mod %s: %w", goModPath, err)
+	}
+	file, err := modfile.Parse(goModPath, data, nil)
+	if err != nil {
+		return goModView{}, fmt.Errorf("parse go.mod %s: %w", goModPath, err)
+	}
+	var view goModView
+	if file.Module != nil {
+		view.Module.Path = file.Module.Mod.Path
+	}
+	if view.Module.Path == "" {
+		return goModView{}, fmt.Errorf("parse go.mod %s: module path is empty", goModPath)
+	}
+	for _, req := range file.Require {
+		view.Require = append(view.Require, struct {
+			Path     string
+			Version  string
+			Indirect bool
+		}{Path: req.Mod.Path, Version: req.Mod.Version, Indirect: req.Indirect})
+	}
+	for _, replacement := range file.Replace {
+		view.Replace = append(view.Replace, struct {
+			Old struct{ Path string }
+			New struct {
+				Path    string
+				Version string
+			}
+		}{Old: struct{ Path string }{Path: replacement.Old.Path}, New: struct {
+			Path    string
+			Version string
+		}{Path: replacement.New.Path, Version: replacement.New.Version}})
 	}
 	return view, nil
 }

@@ -3,6 +3,7 @@ package dependencyhealth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -70,7 +71,10 @@ func (h *connectHandler) runFix(ctx context.Context, req *connect.Request[scenar
 			cand, cerr = gomodreconcile.PreviewSurface(ctx, goModPath, topo)
 		}
 		if cerr != nil {
-			return nil, connect.NewError(connect.CodeInternal, cerr)
+			// A malformed surface is isolated evidence, not a reason to discard
+			// the valid candidates from its sibling surfaces.
+			resp.Messages = append(resp.Messages, fmt.Sprintf("%s: failed: %v", relScenarioPath(goModPath), cerr))
+			continue
 		}
 		if cand == nil {
 			continue

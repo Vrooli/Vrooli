@@ -72,6 +72,7 @@ export interface FileListProps {
   scrollTopStore?: React.MutableRefObject<number>;
   onDeletePath?: (path: string, isDir: boolean) => void;
   onBlameFile?: (path: string) => void;
+  onStageFilesWithSameName?: (path: string) => void;
   repoId?: string | null;
   mobileSelectionMode?: boolean;
   onOpenReview?: (scenarioSlug: string) => void;

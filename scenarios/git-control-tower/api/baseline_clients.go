@@ -50,7 +50,7 @@ func asRunBusy(err error) *baseline.RunBusyError {
 			continue
 		}
 		if bi, ok := msg.(*runspb.RunBusyInfo); ok {
-			return &baseline.RunBusyError{Scenario: bi.GetScenario(), RunID: bi.GetRunId(), Preset: bi.GetPreset()}
+			return &baseline.RunBusyError{Scenario: bi.GetTarget(), RunID: bi.GetRunId(), Preset: bi.GetPreset()}
 		}
 	}
 	return nil
@@ -131,7 +131,7 @@ func isPreviewSaturated(err error) bool {
 
 func baselineStartRequest(scenario string) *connect.Request[runspb.StartRunRequest] {
 	request := connect.NewRequest(&runspb.StartRunRequest{
-		Scenario:       scenario,
+		Target:         scenario,
 		Preset:         "comprehensive",
 		CaptureProfile: "baseline",
 		// Ordinary baseline capture deliberately uses shared-scoped provenance.
@@ -152,7 +152,7 @@ func (e baselineExecutor) RunStatus(ctx context.Context, scenario, runID string)
 		return baseline.RunStatusInfo{}, err
 	}
 	resp, err := cl.GetRunStatus(ctx, connect.NewRequest(&runspb.GetRunStatusRequest{
-		Scenario: scenario, RunId: runID,
+		Target: scenario, RunId: runID,
 	}))
 	if err != nil {
 		var connectErr *connect.Error
@@ -180,7 +180,7 @@ func (e baselineExecutor) FindReusableRun(ctx context.Context, scenario string) 
 		return baseline.ReusableRun{}, false, err
 	}
 	resp, err := cl.FindRun(ctx, connect.NewRequest(&runspb.FindRunRequest{
-		Scenario:           scenario,
+		Target:             scenario,
 		Preset:             "comprehensive",
 		Status:             "passed",
 		MatchCurrentSource: true,
@@ -203,7 +203,7 @@ func (e baselineExecutor) AwaitResult(ctx context.Context, scenario, runID strin
 	}
 	waited, err := waitForBaselineTerminal(ctx, func() (*connect.Response[runspb.WaitRunResponse], error) {
 		return cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{
-			Scenario: scenario, RunId: runID,
+			Target: scenario, RunId: runID,
 		}))
 	})
 	if err != nil {
@@ -379,7 +379,7 @@ func (c baselineRunsClient) PinRun(ctx context.Context, scenario, runID, pinnedB
 		return err
 	}
 	_, err = cl.PinRun(ctx, connect.NewRequest(&runspb.PinRunRequest{
-		Scenario: scenario, RunId: runID, PinnedBy: pinnedBy, Reason: reason,
+		Target: scenario, RunId: runID, PinnedBy: pinnedBy, Reason: reason,
 	}))
 	return err
 }
@@ -390,7 +390,7 @@ func (c baselineRunsClient) UnpinRun(ctx context.Context, scenario, runID, pinne
 		return err
 	}
 	_, err = cl.UnpinRun(ctx, connect.NewRequest(&runspb.UnpinRunRequest{
-		Scenario: scenario, RunId: runID, PinnedBy: pinnedBy,
+		Target: scenario, RunId: runID, PinnedBy: pinnedBy,
 	}))
 	return err
 }
@@ -401,7 +401,7 @@ func (c baselineRunsClient) CompareRuns(ctx context.Context, scenario, runIDA, r
 		return baseline.CompareResult{}, err
 	}
 	resp, err := cl.CompareRuns(ctx, connect.NewRequest(&runspb.CompareRunsRequest{
-		Scenario: scenario, RunIdA: runIDA, RunIdB: runIDB, Phase: phase,
+		Target: scenario, RunIdA: runIDA, RunIdB: runIDB, Phase: phase,
 	}))
 	if err != nil {
 		return baseline.CompareResult{}, err
@@ -417,7 +417,7 @@ func (c baselineRunsClient) ListRunArtifacts(ctx context.Context, scenario, runI
 		return baseline.ArtifactCatalog{}, err
 	}
 	resp, err := cl.ListRunArtifacts(ctx, connect.NewRequest(&runspb.ListRunArtifactsRequest{
-		Scenario: scenario, RunId: runID,
+		Target: scenario, RunId: runID,
 	}))
 	if err != nil {
 		return baseline.ArtifactCatalog{}, err
@@ -441,7 +441,7 @@ func (c baselineRunsClient) CompareRunVisuals(ctx context.Context, scenario, bas
 		return nil, err
 	}
 	resp, err := cl.CompareRunVisuals(ctx, connect.NewRequest(&runspb.CompareRunVisualsRequest{
-		Scenario: scenario, BaseRunId: baseRunID, CurrentRunId: curRunID,
+		Target: scenario, BaseRunId: baseRunID, CurrentRunId: curRunID,
 	}))
 	if err != nil {
 		return nil, err
@@ -470,7 +470,7 @@ func (c baselineRunsClient) CaptureMissingEvidence(ctx context.Context, scenario
 		return "", err
 	}
 	request := connect.NewRequest(&runspb.StartRunRequest{
-		Scenario:       scenario,
+		Target:         scenario,
 		Phases:         []string{"ui-health"},
 		CaptureProfile: "baseline",
 	})
@@ -486,7 +486,7 @@ func (c baselineRunsClient) CaptureMissingEvidence(ctx context.Context, scenario
 		return "", fmt.Errorf("test-genie returned no missing-evidence run id")
 	}
 	waited, err := waitForBaselineTerminal(ctx, func() (*connect.Response[runspb.WaitRunResponse], error) {
-		return cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Scenario: scenario, RunId: runID}))
+		return cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Target: scenario, RunId: runID}))
 	})
 	if err != nil {
 		return "", err

@@ -112,6 +112,7 @@ func NewWithDB(repoRoot string, db *sql.DB) module.Module {
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/package/compose", h.composeREST).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/package/{id}", h.packageREST).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/distributability", h.distributabilityREST).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/publish", h.publishREST).Methods(http.MethodPost)
 		path, endpoint := declconnect.NewDeclarationServiceHandler(h)
 		mount(r, path, endpoint)
@@ -126,6 +127,23 @@ func NewWithDB(repoRoot string, db *sql.DB) module.Module {
 		path, endpoint = distconnect.NewDistributionServiceHandler(h)
 		mount(r, path, endpoint)
 	}, Endpoints: Endpoints}
+}
+
+func (h *handler) distributabilityREST(w http.ResponseWriter, req *http.Request) {
+	var in struct {
+		Scenario          string `json:"scenario"`
+		TargetCLIManifest string `json:"targetCliManifest"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&in); err != nil || strings.TrimSpace(in.Scenario) == "" || strings.TrimSpace(in.TargetCLIManifest) == "" {
+		writeJSON(w, map[string]string{"error": "scenario and targetCliManifest are required"}, http.StatusBadRequest)
+		return
+	}
+	report, err := distributabilityForScenario(h.root, in.Scenario, in.TargetCLIManifest)
+	if err != nil {
+		writeJSON(w, map[string]string{"error": err.Error()}, http.StatusPreconditionFailed)
+		return
+	}
+	writeJSON(w, report, http.StatusOK)
 }
 
 func writeJSON(w http.ResponseWriter, value any, status int) {
@@ -267,6 +285,21 @@ func (h *handler) Compose(_ context.Context, req *connect.Request[comp.ComposeRe
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New(r.BlockingPrerequisite))
 	}
 	m, _, _ := h.read(req.Msg.Scenario)
+	selectedSkills := d.Skills
+	if strings.EqualFold(strings.TrimSpace(req.Msg.EntitlementTier), "tier-2") && strings.TrimSpace(req.Msg.TargetCliManifest) == "" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("PLG-DIST-TARGET: tier-2 composition requires target_cli_manifest"))
+	}
+	if strings.TrimSpace(req.Msg.TargetCliManifest) != "" {
+		report, reportErr := distributabilityForScenario(h.root, req.Msg.Scenario, req.Msg.TargetCliManifest)
+		if reportErr != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("PLG-DIST-MANIFEST: %w", reportErr))
+		}
+		for _, item := range report.Skills {
+			if !item.Distributable {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("PLG-DIST-DRIFT: skill %s requires missing command(s): %s", item.Skill, strings.Join(item.MissingCommands, ", ")))
+			}
+		}
+	}
 	revision := req.Msg.SourceRevision
 	if revision == "" {
 		revision = "working-tree"
@@ -279,7 +312,7 @@ func (h *handler) Compose(_ context.Context, req *connect.Request[comp.ComposeRe
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	manifest := map[string]any{"$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", "name": d.Slug, "version": m.Service.Version, "description": m.Service.Description}
-	for _, s := range d.Skills {
+	for _, s := range selectedSkills {
 		src := filepath.Join(scenarioRoot, s.Source)
 		body, e := os.ReadFile(src)
 		if e != nil {

@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // RepoSpec is a HuggingFace-style multi-file model repository — the install shape
@@ -77,7 +80,7 @@ func (f *HFSnapshotFetcher) Snapshot(ctx context.Context, repo RepoSpec, destDir
 	if f.Env != nil {
 		cmd.Env = f.Env
 	} else {
-		cmd.Env = os.Environ()
+		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {

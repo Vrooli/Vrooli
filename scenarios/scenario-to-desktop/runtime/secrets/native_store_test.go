@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/resources/securestore"
-	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
+	"github.com/vrooli/vrooli/internal/secrets"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 

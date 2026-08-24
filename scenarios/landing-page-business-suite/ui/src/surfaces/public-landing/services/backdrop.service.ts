@@ -7,7 +7,7 @@ export interface BackdropReference {
   reserved_regions?: Array<{ x: number; y: number; width: number; height: number; kind?: string }>;
 }
 
-const configuredBackdropStudioURL = import.meta.env.VITE_BACKDROP_STUDIO_URL;
+const configuredBackdropStudioURL = getInjectedConfig()?.BACKDROP_STUDIO_URL;
 const backdropStudioURL = typeof configuredBackdropStudioURL === "string" ? configuredBackdropStudioURL.replace(/\/$/, "") : undefined;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -44,3 +44,4 @@ export async function resolveBackdropReference(
     reserved_regions: regions,
   };
 }
+import { getInjectedConfig } from "@vrooli/api-base";

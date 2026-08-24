@@ -2,7 +2,11 @@ package portability
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,6 +24,8 @@ const (
 	SituationNoWorkRequired   CapabilitySituation = "no_work_required"
 	SituationNoEquivalentEver CapabilitySituation = "no_equivalent_ever"
 	SituationPeerNobodyWired  CapabilitySituation = "real_peer_nobody_wired"
+	SituationControlsUnported CapabilitySituation = "controls_unported"
+	SituationScopedOut        CapabilitySituation = "scoped_out"
 )
 
 // Situations returns the closed situation vocabulary.
@@ -29,6 +35,8 @@ func Situations() []CapabilitySituation {
 		SituationNoWorkRequired,
 		SituationNoEquivalentEver,
 		SituationPeerNobodyWired,
+		SituationControlsUnported,
+		SituationScopedOut,
 	}
 }
 
@@ -38,6 +46,7 @@ func Situations() []CapabilitySituation {
 // resolve as implemented and are not the same claim.
 type PlatformEntry struct {
 	HostOS                      deployability.HostOS                     `json:"host_os"`
+	Architecture                string                                   `json:"architecture"`
 	Status                      deployability.CapabilityResolutionStatus `json:"status"`
 	Qualification               deployability.Qualification              `json:"qualification"`
 	ObservedQualification       deployability.Qualification              `json:"observed_qualification"`
@@ -49,8 +58,21 @@ type PlatformEntry struct {
 	HasImplementation           bool                                     `json:"has_implementation"`
 	Controls                    []string                                 `json:"controls,omitempty"`
 	Absent                      []string                                 `json:"absent,omitempty"`
+	AbsentControls              []string                                 `json:"absent_controls,omitempty"`
+	AbsentProviders             []string                                 `json:"absent_providers,omitempty"`
 	Declarers                   []deployability.CapabilityDeclarer       `json:"declarers,omitempty"`
 	ObservedDeclarers           []ObservedDeclarer                       `json:"observed_declarers,omitempty"`
+}
+
+// ResourceArchitectureClaim exposes resource profile architecture declarations
+// in the same readout as capability portability.
+type ResourceArchitectureClaim struct {
+	Resource      string               `json:"resource"`
+	HostOS        deployability.HostOS `json:"host_os"`
+	Architectures []string             `json:"architectures,omitempty"`
+	Support       string               `json:"support"`
+	Mismatch      bool                 `json:"mismatch"`
+	Reason        string               `json:"reason,omitempty"`
 }
 
 // ObservedDeclarer is the host-side evidence for one declared provider or
@@ -82,6 +104,15 @@ func (e Entry) Platform(hostOS deployability.HostOS) (PlatformEntry, bool) {
 	return PlatformEntry{}, false
 }
 
+func (e Entry) PlatformFor(hostOS deployability.HostOS, architecture string) (PlatformEntry, bool) {
+	for _, platform := range e.Platforms {
+		if platform.HostOS == hostOS && platform.Architecture == architecture {
+			return platform, true
+		}
+	}
+	return PlatformEntry{}, false
+}
+
 // Grid is the whole capability readout. ManifestRoot is part of the readout,
 // not metadata about it: a grid is only meaningful against a named tree.
 type Grid struct {
@@ -90,6 +121,18 @@ type Grid struct {
 	ManifestsRead      int                         `json:"manifests_read"`
 	ComputedAt         time.Time                   `json:"computed_at"`
 	ObservedSafeguards []hostreq.ObservedSafeguard `json:"observed_safeguards,omitempty"`
+	Resources          []ResourceArchitectureClaim `json:"resources,omitempty"`
+	NativeEvidence     []NativeEvidence            `json:"native_evidence,omitempty"`
+}
+
+// NativeEvidence is runner-produced proof about a target OS/architecture.
+type NativeEvidence struct {
+	HostOS       deployability.HostOS `json:"host_os"`
+	Architecture string               `json:"architecture"`
+	Commit       string               `json:"commit,omitempty"`
+	GeneratedAt  time.Time            `json:"generated_at"`
+	Passed       bool                 `json:"passed"`
+	Source       string               `json:"source"`
 }
 
 // Capability returns one row by name.
@@ -122,6 +165,11 @@ func (r *Reader) Grid(now time.Time) (Grid, error) {
 		return Grid{}, err
 	}
 	implementations := capabilityImplementations(manifests)
+	architectures := []string{"amd64", "arm64"}
+	evidence, err := r.NativeEvidence()
+	if err != nil {
+		return Grid{}, err
+	}
 
 	grid := Grid{
 		Capabilities:  make([]Entry, 0, len(vocabulary.Capabilities)),
@@ -130,31 +178,135 @@ func (r *Reader) Grid(now time.Time) (Grid, error) {
 		ComputedAt:    now.UTC(),
 	}
 	for _, capability := range vocabulary.Capabilities {
-		entry := Entry{Capability: capability, Platforms: make([]PlatformEntry, 0, len(operatingSystems))}
+		entry := Entry{Capability: capability, Platforms: make([]PlatformEntry, 0, len(operatingSystems)*len(architectures))}
 		statuses := make(map[deployability.HostOS]deployability.CapabilityResolutionStatus, len(operatingSystems))
 		for _, hostOS := range operatingSystems {
 			resolution := deployability.ResolveCapability(implementations, capability, hostOS)
 			statuses[hostOS] = resolution.Status
-			entry.Platforms = append(entry.Platforms, PlatformEntry{
-				HostOS:                      hostOS,
-				Status:                      resolution.Status,
-				Qualification:               resolution.Qualification,
-				ObservedQualification:       deployability.QualificationUndeclared,
-				ObservedQualificationReason: "host observation is not attached to a manifest-only grid read",
-				Implementer:                 resolution.Implementer,
-				Mechanism:                   resolution.Mechanism,
-				Reason:                      resolution.Reason,
-				QualificationReason:         resolution.Qualification.Reason(),
-				HasImplementation:           resolution.Status.HasImplementation(),
-				Controls:                    resolution.Controls,
-				Absent:                      resolution.Absent,
-				Declarers:                   resolution.Declarers,
-			})
+			for _, architecture := range architectures {
+				if resolution.Qualification == deployability.QualificationQualified && hostOS != deployability.HostOSLinux && !hasNativeEvidence(evidence, hostOS, architecture) {
+					return Grid{}, fmt.Errorf("qualified portability claim for %s/%s has no host-sampled native evidence", hostOS, architecture)
+				}
+				entry.Platforms = append(entry.Platforms, PlatformEntry{
+					HostOS:                      hostOS,
+					Architecture:                architecture,
+					Status:                      resolution.Status,
+					Qualification:               resolution.Qualification,
+					ObservedQualification:       deployability.QualificationUndeclared,
+					ObservedQualificationReason: "host observation is not attached to a manifest-only grid read",
+					Implementer:                 resolution.Implementer,
+					Mechanism:                   resolution.Mechanism,
+					Reason:                      resolution.Reason,
+					QualificationReason:         resolution.Qualification.Reason(),
+					HasImplementation:           resolution.Status.HasImplementation(),
+					Controls:                    resolution.Controls,
+					Absent:                      resolution.Absent,
+					AbsentControls:              resolution.AbsentControls,
+					AbsentProviders:             resolution.AbsentProviders,
+					Declarers:                   resolution.Declarers,
+				})
+			}
 		}
-		entry.Situation, entry.SituationReason = classifySituation(capability, statuses, vocabulary.PlatformPolicies)
+		entry.Situation, entry.SituationReason, err = classifySituation(capability, statuses, vocabulary.PlatformPolicies)
+		if err != nil {
+			return Grid{}, err
+		}
 		grid.Capabilities = append(grid.Capabilities, entry)
 	}
+	grid.Resources, err = r.ResourceArchitectureClaims()
+	if err != nil {
+		return Grid{}, err
+	}
+	grid.NativeEvidence = evidence
 	return grid, nil
+}
+
+func hasNativeEvidence(evidence []NativeEvidence, hostOS deployability.HostOS, architecture string) bool {
+	for _, item := range evidence {
+		if item.HostOS == hostOS && item.Architecture == architecture && item.Passed {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Reader) NativeEvidence() ([]NativeEvidence, error) {
+	paths, err := filepath.Glob(filepath.Join(r.root, ".vrooli", "evidence", "native-platform", "*.json"))
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(paths)
+	result := make([]NativeEvidence, 0, len(paths))
+	for _, path := range paths {
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil, fmt.Errorf("read native evidence %s: %w", path, readErr)
+		}
+		var raw struct {
+			RunnerOS    string            `json:"runnerOS"`
+			RunnerArch  string            `json:"runnerArch"`
+			GoArch      string            `json:"goArch"`
+			Commit      string            `json:"commit"`
+			GeneratedAt time.Time         `json:"generatedAt"`
+			Outcomes    map[string]string `json:"outcomes"`
+		}
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return nil, fmt.Errorf("decode native evidence %s: %w", path, err)
+		}
+		hostOS, ok := normalizeHostOS(raw.RunnerOS)
+		if !ok {
+			continue
+		}
+		arch := raw.GoArch
+		if arch == "" {
+			arch = raw.RunnerArch
+		}
+		passed := len(raw.Outcomes) > 0
+		for _, outcome := range raw.Outcomes {
+			if outcome != "success" && outcome != "passed" {
+				passed = false
+			}
+		}
+		result = append(result, NativeEvidence{HostOS: hostOS, Architecture: arch, Commit: raw.Commit, GeneratedAt: raw.GeneratedAt, Passed: passed, Source: "ci/unit-health-native-evidence"})
+	}
+	return result, nil
+}
+
+func (r *Reader) ResourceArchitectureClaims() ([]ResourceArchitectureClaim, error) {
+	resources, err := r.Resources()
+	if err != nil {
+		return nil, err
+	}
+	claims := make([]ResourceArchitectureClaim, 0)
+	for name, resource := range resources {
+		for osName, support := range resource.Platforms {
+			hostOS, ok := normalizeHostOS(osName)
+			if !ok {
+				continue
+			}
+			profile := resource.Deployment.Profiles["desktop"][osName]
+			architectures := append([]string(nil), profile.Architectures...)
+			sort.Strings(architectures)
+			mismatch := support != "unsupported" && len(architectures) == 0
+			reason := "resource profile architecture declaration agrees with the platform claim"
+			if mismatch {
+				reason = "resource platform is declared available but its deployment profile declares no architectures"
+			}
+			claims = append(claims, ResourceArchitectureClaim{Resource: name, HostOS: hostOS, Architectures: architectures, Support: support, Mismatch: mismatch, Reason: reason})
+		}
+	}
+	sort.Slice(claims, func(i, j int) bool {
+		if claims[i].Resource != claims[j].Resource {
+			return claims[i].Resource < claims[j].Resource
+		}
+		return claims[i].HostOS < claims[j].HostOS
+	})
+	for _, claim := range claims {
+		if claim.Mismatch {
+			return claims, fmt.Errorf("resource %s/%s has contradictory platform and architecture claims: %s", claim.Resource, claim.HostOS, claim.Reason)
+		}
+	}
+	return claims, nil
 }
 
 // AttachObservedQualifications joins the control-plane's read-only safeguard
@@ -237,15 +389,14 @@ func capabilityImplementations(manifests []Manifest) []deployability.CapabilityI
 				Mechanism: mechanism(item, hostOS),
 			}
 		}
-		for _, declared := range item.Platforms {
-			hostOS := deployability.HostOS(strings.TrimSpace(declared))
-			if _, ok := platforms[hostOS]; ok {
-				platforms[hostOS] = deployability.PlatformDeclaration{Status: string(deployability.StatusSupported)}
+		for declaredOS, declaration := range item.PlatformStatus {
+			if hostOS, ok := normalizeHostOS(declaredOS); ok {
+				platforms[hostOS] = deployability.PlatformDeclaration{Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: declaration.Evidence}
 			}
 		}
 		for declaredOS, declaration := range item.PlatformDeclarations {
 			if hostOS, ok := normalizeHostOS(declaredOS); ok {
-				platforms[hostOS] = deployability.PlatformDeclaration{Status: declaration.Status, Mechanism: declaration.Mechanism}
+				platforms[hostOS] = deployability.PlatformDeclaration{Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: declaration.Evidence}
 			}
 		}
 		implementations = append(implementations, deployability.CapabilityImplementation{
@@ -260,10 +411,15 @@ func capabilityImplementations(manifests []Manifest) []deployability.CapabilityI
 func manifestDeclarations(manifests []Manifest) []deployability.ManifestDeclaration {
 	declarations := make([]deployability.ManifestDeclaration, 0, len(manifests))
 	for _, item := range manifests {
-		platforms := make(map[string]deployability.PlatformDeclaration, len(item.PlatformDeclarations))
+		platforms := make(map[string]deployability.PlatformDeclaration, len(item.PlatformStatus)+len(item.PlatformDeclarations))
+		for osName, declaration := range item.PlatformStatus {
+			platforms[osName] = deployability.PlatformDeclaration{
+				Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: declaration.Evidence,
+			}
+		}
 		for osName, declaration := range item.PlatformDeclarations {
 			platforms[osName] = deployability.PlatformDeclaration{
-				Status: declaration.Status, Mechanism: declaration.Mechanism,
+				Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: declaration.Evidence,
 			}
 		}
 		declarations = append(declarations, deployability.ManifestDeclaration{
@@ -274,7 +430,25 @@ func manifestDeclarations(manifests []Manifest) []deployability.ManifestDeclarat
 	return declarations
 }
 
-func classifySituation(capability string, statuses map[deployability.HostOS]deployability.CapabilityResolutionStatus, policies map[string]map[string]string) (CapabilitySituation, string) {
+var situationByStatus = map[deployability.CapabilityResolutionStatus]CapabilitySituation{
+	deployability.CapabilityImplemented:        SituationBuiltEverywhere,
+	deployability.CapabilityDegraded:           SituationBuiltEverywhere,
+	deployability.CapabilityIneligible:         SituationScopedOut,
+	deployability.CapabilityUnwired:            SituationPeerNobodyWired,
+	deployability.CapabilityPeerless:           SituationControlsUnported,
+	deployability.CapabilityStatusInvalid:      SituationControlsUnported,
+	deployability.CapabilityControlsIncomplete: SituationControlsUnported,
+}
+
+func classifySituation(capability string, statuses map[deployability.HostOS]deployability.CapabilityResolutionStatus, policies map[string]map[string]string) (CapabilitySituation, string, error) {
+	if len(statuses) == 0 {
+		return "", "", fmt.Errorf("capability %q has no resolution statuses", capability)
+	}
+	for hostOS, status := range statuses {
+		if _, ok := situationByStatus[status]; !ok {
+			return "", "", fmt.Errorf("capability %q has unmapped resolution status %q for %s", capability, status, hostOS)
+		}
+	}
 	if policy := policies[capability]; len(policy) > 0 {
 		noEquivalent := false
 		noWork := false
@@ -285,14 +459,21 @@ func classifySituation(capability string, statuses map[deployability.HostOS]depl
 			case string(SituationNoEquivalentEver):
 				noEquivalent = true
 			default:
-				return SituationNoEquivalentEver, "the capability policy contains an unsupported value for " + hostOS
+				return "", "", fmt.Errorf("capability %q policy contains an unsupported value for %s", capability, hostOS)
 			}
 		}
 		if noEquivalent {
-			return SituationNoEquivalentEver, "the capability policy declares no equivalent for at least one OS or architecture"
+			return SituationNoEquivalentEver, "the capability policy declares no equivalent for at least one OS or architecture", nil
 		}
-		if noWork {
-			return SituationNoWorkRequired, "the capability policy declares the host OS mechanism native and requiring no setup"
+		allImplemented := true
+		for _, status := range statuses {
+			if !status.HasImplementation() {
+				allImplemented = false
+				break
+			}
+		}
+		if noWork && allImplemented {
+			return SituationNoWorkRequired, "the capability policy declares the host OS mechanism native and requiring no setup", nil
 		}
 	}
 	allImplemented := true
@@ -303,14 +484,24 @@ func classifySituation(capability string, statuses map[deployability.HostOS]depl
 		}
 	}
 	if allImplemented {
-		return SituationBuiltEverywhere, "a declared implementation resolves on linux, macos, and windows"
+		return SituationBuiltEverywhere, "a declared implementation resolves on linux, macos, and windows", nil
 	}
-	for _, status := range statuses {
-		if status == deployability.CapabilityUnwired {
-			return SituationPeerNobodyWired, "a mechanism is named for an unsupported host OS, but no peer implementation is wired"
+	for _, hostOS := range operatingSystems {
+		if status, ok := statuses[hostOS]; ok && situationByStatus[status] == SituationScopedOut {
+			return SituationScopedOut, "the capability is explicitly scoped out on " + string(hostOS), nil
 		}
 	}
-	return SituationNoEquivalentEver, "no implementation or mechanism resolves on at least one host OS"
+	for _, hostOS := range operatingSystems {
+		if status, ok := statuses[hostOS]; ok && situationByStatus[status] == SituationControlsUnported {
+			return SituationControlsUnported, "required controls or implementation are not wired on " + string(hostOS), nil
+		}
+	}
+	for _, hostOS := range operatingSystems {
+		if status, ok := statuses[hostOS]; ok && situationByStatus[status] == SituationPeerNobodyWired {
+			return SituationPeerNobodyWired, "a mechanism is named for an unsupported host OS, but no peer implementation is wired", nil
+		}
+	}
+	return "", "", fmt.Errorf("capability %q has no situation despite %d resolved statuses", capability, len(statuses))
 }
 
 // mechanism names how this manifest would acquire its implementation. It is

@@ -82,11 +82,17 @@ func (l *DescriptorLoader) LoadScenario(scenario string) (Surface, error) {
 	if scenario == "" {
 		return Surface{}, fmt.Errorf("scenario name is required")
 	}
+	if scenario == "control-plane" || strings.HasPrefix(scenario, "control-plane:") {
+		scenario = "control-plane"
+	}
 	files, err := l.currentFiles()
 	if err != nil {
 		return Surface{}, err
 	}
 	prefix := scenario + "/"
+	if scenario == "control-plane" {
+		prefix = "cli/v1/"
+	}
 	s := Surface{Scenario: scenario, TransportWorld: TransportWorldNone}
 	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
 		path := fd.Path()

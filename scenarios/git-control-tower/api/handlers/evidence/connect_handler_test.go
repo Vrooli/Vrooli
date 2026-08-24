@@ -17,7 +17,7 @@ type fakeRuns struct {
 }
 
 func (f fakeRuns) StartRun(_ context.Context, request *runspb.StartRunRequest) (*runspb.StartRunResponse, error) {
-	return &runspb.StartRunResponse{RunId: "run-started", Scenario: request.GetScenario()}, nil
+	return &runspb.StartRunResponse{RunId: "run-started", Target: request.GetTarget()}, nil
 }
 
 func (f fakeRuns) ListRuns(_ context.Context, _ string, limit int) ([]*runspb.RunInfo, error) {
@@ -57,7 +57,7 @@ func (f fakeRuns) ListRunArtifacts(_ context.Context, _, runID string, kinds []s
 
 func unknownFixture() fakeRuns {
 	run := &runspb.RunInfo{
-		RunId: "run-future", Scenario: "demo", Status: "failed", StartedAt: "2026-07-10T12:00:00Z",
+		RunId: "run-future", Target: "demo", Status: "failed", StartedAt: "2026-07-10T12:00:00Z",
 		Phases: []*runspb.PhaseInfo{{Name: "future-health", Status: "failed", DurationSeconds: 3.25}},
 		DescriptorSnapshot: &runspb.RunDescriptorSnapshot{SchemaVersion: 1, Digest: "sha256:future", Phases: []*runspb.RunPhaseDescriptor{{
 			Phase: "future-health", DisplayName: "Future Health", Provider: "future-provider", PhaseClass: "future-class",
@@ -97,7 +97,7 @@ func TestGetRunPreservesUnknownDescriptorAndArtifactMetadata(t *testing.T) {
 
 func TestListRunsFiltersCapturedDescriptorMetadataAndPaginates(t *testing.T) {
 	fixture := unknownFixture()
-	fixture.runs = append(fixture.runs, &runspb.RunInfo{RunId: "run-other", Scenario: "demo", Status: "passed"})
+	fixture.runs = append(fixture.runs, &runspb.RunInfo{RunId: "run-other", Target: "demo", Status: "passed"})
 	server := NewServer(Deps{Runs: fixture})
 	resp, err := server.ListRuns(context.Background(), connect.NewRequest(&evidencepb.ListRunsRequest{
 		Scenario: "demo", Provider: "future-provider", Dimension: "novel-dimension", Limit: 1,

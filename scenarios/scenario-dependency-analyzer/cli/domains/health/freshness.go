@@ -3,6 +3,7 @@ package health
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,28 +15,31 @@ import (
 	"time"
 
 	"github.com/vrooli/envkit-go"
+	"golang.org/x/mod/modfile"
 	"scenario-dependency-analyzer/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
 
 type freshnessReport struct {
-	Clean       bool                     `json:"clean"`
-	Root        string                   `json:"root"`
-	Mode        string                   `json:"mode"`
-	Touched     []string                 `json:"touched,omitempty"`
-	Surfaces    []freshnessSurfaceReport `json:"surfaces"`
-	Summary     freshnessSummary         `json:"summary"`
-	NextActions []freshnessAction        `json:"next_actions,omitempty"`
-	ElapsedMs   int64                    `json:"elapsed_ms"`
+	Clean       bool                       `json:"clean"`
+	Root        string                     `json:"root"`
+	Mode        string                     `json:"mode"`
+	Touched     []string                   `json:"touched,omitempty"`
+	Surfaces    []freshnessSurfaceReport   `json:"surfaces"`
+	Exclusions  []freshnessExclusionReport `json:"exclusions,omitempty"`
+	Summary     freshnessSummary           `json:"summary"`
+	NextActions []freshnessAction          `json:"next_actions,omitempty"`
+	ElapsedMs   int64                      `json:"elapsed_ms"`
 }
 
 type freshnessSummary struct {
-	Checked int `json:"checked"`
-	Clean   int `json:"clean"`
-	Stale   int `json:"stale"`
-	Errors  int `json:"errors"`
-	Skipped int `json:"skipped"`
+	Checked       int `json:"checked"`
+	Clean         int `json:"clean"`
+	Stale         int `json:"stale"`
+	Errors        int `json:"errors"`
+	NeedsDownload int `json:"needs_download"`
+	Skipped       int `json:"skipped"`
 }
 
 type freshnessSurfaceReport struct {
@@ -47,6 +51,7 @@ type freshnessSurfaceReport struct {
 	ImpactedBy      []string `json:"impacted_by,omitempty"`
 	ImpactedByCount int      `json:"impacted_by_count,omitempty"`
 	Error           string   `json:"error,omitempty"`
+	CacheHit        bool     `json:"cache_hit,omitempty"`
 }
 
 type freshnessAction struct {
@@ -56,18 +61,38 @@ type freshnessAction struct {
 	Fixability string `json:"fixability,omitempty"`
 }
 
+type freshnessExclusionReport struct {
+	GoModPath string `json:"go_mod_path"`
+	Reason    string `json:"reason"`
+}
+
 type goSurface struct {
 	scenario string
 	surface  string
 	goMod    string
 	module   string
 	requires map[string]struct{}
+	replaces map[string]string
 }
 
 type goModule struct {
 	dir      string
 	module   string
 	requires map[string]struct{}
+	replaces map[string]string
+}
+
+type moduleExclusion struct {
+	Path   string
+	Reason string
+}
+
+var freshnessExclusions = []moduleExclusion{
+	{Path: "scenarios/browser-automation-studio/bas/seeds/go.mod", Reason: "synthetic BAS seed fixture"},
+	{Path: "scenarios/go-code-graph/bas/fixtures/go-cycles/go.mod", Reason: "synthetic BAS fixture"},
+	{Path: "scenarios/go-code-graph/bas/fixtures/go-usage-facts/go.mod", Reason: "synthetic BAS fixture"},
+	{Path: "scenarios/go-code-graph/bas/fixtures/go-tests/go.mod", Reason: "synthetic BAS fixture"},
+	{Path: "scenarios/go-code-graph/bas/fixtures/go-mislocated/go.mod", Reason: "synthetic BAS fixture"},
 }
 
 func runFreshness(args []string) error {
@@ -75,6 +100,8 @@ func runFreshness(args []string) error {
 	var repoRoot string
 	var concurrency int
 	var touched, all, apply, build, jsonOutput bool
+	var timeout time.Duration
+	var noCache bool
 	fs.StringVar(&repoRoot, "repo-root", "", "Repository root (defaults to current workspace)")
 	fs.IntVar(&concurrency, "concurrency", 8, "Maximum package surfaces to check concurrently")
 	fs.BoolVar(&touched, "touched", false, "Only check surfaces impacted by changed in-repo modules")
@@ -82,6 +109,8 @@ func runFreshness(args []string) error {
 	fs.BoolVar(&apply, "apply", false, "Run go mod tidy on stale surfaces")
 	fs.BoolVar(&build, "build", false, "Run go build ./... after tidy checks")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
+	fs.DurationVar(&timeout, "timeout", 5*time.Minute, "Overall freshness deadline")
+	fs.BoolVar(&noCache, "no-cache", false, "Do not read or write the freshness result cache")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
@@ -95,7 +124,9 @@ func runFreshness(args []string) error {
 	if err != nil {
 		return err
 	}
-	report, err := checkFreshness(context.Background(), root, freshnessRequest{touched: touched, apply: apply, build: build, concurrency: concurrency})
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	report, err := checkFreshness(ctx, root, freshnessRequest{touched: touched, apply: apply, build: build, noCache: noCache, concurrency: concurrency})
 	if err != nil {
 		return err
 	}
@@ -106,19 +137,22 @@ func runFreshness(args []string) error {
 }
 
 type freshnessRequest struct {
-	touched     bool
-	apply       bool
-	build       bool
-	concurrency int
+	touched       bool
+	apply         bool
+	build         bool
+	noCache       bool
+	fastRootCache bool
+	treeDigest    string
+	concurrency   int
 }
 
 func checkFreshness(ctx context.Context, root string, req freshnessRequest) (freshnessReport, error) {
 	start := time.Now()
-	surfaces, err := discoverGoSurfaces(root)
+	modules, err := discoverGoModules(root)
 	if err != nil {
 		return freshnessReport{}, err
 	}
-	modules, err := discoverGoModules(root)
+	surfaces, err := discoverGoSurfacesFromModules(root, modules)
 	if err != nil {
 		return freshnessReport{}, err
 	}
@@ -129,18 +163,26 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 		if err != nil {
 			return freshnessReport{}, err
 		}
+		req.fastRootCache = containsRootModuleMetadata(touchedPaths)
 		impacted = impactedSurfaces(root, surfaces, modules, touchedPaths)
 		touchedPaths = reportTouchedPaths(impacted)
 		surfaces = filterImpactedSurfaces(surfaces, impacted)
+		if !req.noCache && !req.apply && !req.build {
+			req.treeDigest = digestStrings(touchedPaths)
+		}
+	}
+	if !req.noCache && !req.apply && !req.build && req.treeDigest == "" {
+		req.treeDigest = freshnessTreeDigest(root)
 	}
 
 	report := freshnessReport{
-		Clean:     true,
-		Root:      root,
-		Mode:      "all",
-		Touched:   touchedPaths,
-		Surfaces:  make([]freshnessSurfaceReport, 0, len(surfaces)),
-		ElapsedMs: time.Since(start).Milliseconds(),
+		Clean:      true,
+		Root:       root,
+		Mode:       "all",
+		Touched:    touchedPaths,
+		Surfaces:   make([]freshnessSurfaceReport, 0, len(surfaces)),
+		ElapsedMs:  time.Since(start).Milliseconds(),
+		Exclusions: discoverGoExclusions(root, modules),
 	}
 	if req.touched {
 		report.Mode = "touched"
@@ -156,6 +198,8 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 		case "error":
 			report.Summary.Errors++
 			report.Clean = false
+		case "needs_download":
+			report.Summary.NeedsDownload++
 		default:
 			report.Summary.Skipped++
 		}
@@ -179,6 +223,61 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 	}
 	report.ElapsedMs = time.Since(start).Milliseconds()
 	return report, nil
+}
+
+func discoverGoExclusions(root string, modules map[string]goModule) []freshnessExclusionReport {
+	var out []freshnessExclusionReport
+	seen := map[string]struct{}{}
+	for _, module := range modules {
+		path := filepath.Join(module.dir, "go.mod")
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			continue
+		}
+		rel = filepath.ToSlash(rel)
+		reason := ""
+		for _, exclusion := range freshnessExclusions {
+			if rel == exclusion.Path {
+				reason = exclusion.Reason
+				break
+			}
+		}
+		if reason == "" && strings.HasPrefix(rel, "templates/") {
+			reason = "template module is a generation source, not a fleet surface"
+		}
+		if reason != "" {
+			out = append(out, freshnessExclusionReport{GoModPath: rel, Reason: reason})
+			seen[rel] = struct{}{}
+		}
+	}
+	for _, exclusion := range freshnessExclusions {
+		if _, ok := seen[exclusion.Path]; ok {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, exclusion.Path)); err == nil {
+			out = append(out, freshnessExclusionReport{GoModPath: exclusion.Path, Reason: exclusion.Reason})
+		}
+	}
+	templatesRoot := filepath.Join(root, "templates")
+	_ = filepath.WalkDir(templatesRoot, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if d.Name() == "go.mod" {
+			rel, _ := filepath.Rel(root, path)
+			rel = filepath.ToSlash(rel)
+			if _, ok := seen[rel]; !ok {
+				out = append(out, freshnessExclusionReport{GoModPath: rel, Reason: "template module is a generation source, not a fleet surface"})
+				seen[rel] = struct{}{}
+			}
+		}
+		return nil
+	})
+	sort.Slice(out, func(i, j int) bool { return out[i].GoModPath < out[j].GoModPath })
+	return out
 }
 
 func checkGoSurfaces(ctx context.Context, root string, surfaces []goSurface, impacted map[string][]string, req freshnessRequest) []freshnessSurfaceReport {
@@ -214,56 +313,31 @@ func checkGoSurfaces(ctx context.Context, root string, surfaces []goSurface, imp
 }
 
 func discoverGoSurfaces(root string) ([]goSurface, error) {
-	scenariosDir := filepath.Join(root, "scenarios")
-	entries, err := os.ReadDir(scenariosDir)
+	modules, err := discoverGoModules(root)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
+	return discoverGoSurfacesFromModules(root, modules)
+}
+
+func discoverGoSurfacesFromModules(root string, modules map[string]goModule) ([]goSurface, error) {
 	var out []goSurface
-	for _, entry := range entries {
-		if !entry.IsDir() {
+	for _, module := range modules {
+		goModPath := filepath.Join(module.dir, "go.mod")
+		if excludedGoMod(goModPath, root) {
 			continue
 		}
-		scenarioDir := filepath.Join(scenariosDir, entry.Name())
-		err := filepath.WalkDir(scenarioDir, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return nil
+		rel, _ := filepath.Rel(root, module.dir)
+		parts := strings.Split(filepath.ToSlash(rel), "/")
+		scenario, surface := "root", filepath.ToSlash(rel)
+		if len(parts) >= 2 && parts[0] == "scenarios" {
+			scenario = parts[1]
+			surface = strings.Join(parts[2:], "/")
+			if surface == "" {
+				surface = scenario
 			}
-			if d.IsDir() {
-				switch d.Name() {
-				case ".git", "node_modules", "vendor", "data", "dist", "build", ".cache":
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if d.Name() != "go.mod" {
-				return nil
-			}
-			view, err := parseGoModFile(path)
-			if err != nil {
-				return nil
-			}
-			surfaceRoot := filepath.Dir(path)
-			rel, _ := filepath.Rel(scenarioDir, surfaceRoot)
-			surfaceID := filepath.ToSlash(rel)
-			if surfaceID == "." {
-				surfaceID = entry.Name()
-			}
-			out = append(out, goSurface{
-				scenario: entry.Name(),
-				surface:  surfaceID,
-				goMod:    path,
-				module:   view.module,
-				requires: view.requires,
-			})
-			return nil
-		})
-		if err != nil {
-			return nil, err
 		}
+		out = append(out, goSurface{scenario: scenario, surface: surface, goMod: goModPath, module: module.module, requires: module.requires, replaces: module.replaces})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].goMod < out[j].goMod })
 	return out, nil
@@ -277,7 +351,7 @@ func discoverGoModules(root string) (map[string]goModule, error) {
 		}
 		if d.IsDir() {
 			switch d.Name() {
-			case ".git", "node_modules", "vendor", "data", "dist", "build", ".cache":
+			case ".git", "node_modules", "vendor", "data", "dist", "build", ".cache", "phase-cache":
 				return filepath.SkipDir
 			}
 			return nil
@@ -287,12 +361,16 @@ func discoverGoModules(root string) (map[string]goModule, error) {
 		}
 		view, err := parseGoModFile(path)
 		if err != nil || view.module == "" {
+			if excludedGoMod(path, root) {
+				out["__excluded:"+path] = goModule{dir: filepath.Dir(path)}
+			}
 			return nil
 		}
 		out[view.module] = goModule{
 			dir:      filepath.Dir(path),
 			module:   view.module,
 			requires: view.requires,
+			replaces: view.replaces,
 		}
 		return nil
 	})
@@ -302,6 +380,7 @@ func discoverGoModules(root string) (map[string]goModule, error) {
 type goModView struct {
 	module   string
 	requires map[string]struct{}
+	replaces map[string]string
 }
 
 func parseGoModFile(path string) (goModView, error) {
@@ -309,38 +388,38 @@ func parseGoModFile(path string) (goModView, error) {
 	if err != nil {
 		return goModView{}, err
 	}
-	view := goModView{requires: map[string]struct{}{}}
-	inRequireBlock := false
-	for _, raw := range strings.Split(string(data), "\n") {
-		line := strings.TrimSpace(raw)
-		if line == "" || strings.HasPrefix(line, "//") {
-			continue
-		}
-		if rest, ok := strings.CutPrefix(line, "module "); ok {
-			view.module = strings.Fields(rest)[0]
-			continue
-		}
-		if inRequireBlock {
-			if line == ")" {
-				inRequireBlock = false
-				continue
-			}
-			if fields := strings.Fields(line); len(fields) >= 2 {
-				view.requires[fields[0]] = struct{}{}
-			}
-			continue
-		}
-		if strings.HasPrefix(line, "require (") {
-			inRequireBlock = true
-			continue
-		}
-		if rest, ok := strings.CutPrefix(line, "require "); ok {
-			if fields := strings.Fields(rest); len(fields) >= 2 {
-				view.requires[fields[0]] = struct{}{}
-			}
-		}
+	file, err := modfile.Parse(path, data, nil)
+	if err != nil {
+		return goModView{}, fmt.Errorf("parse %s: %w", path, err)
+	}
+	view := goModView{requires: map[string]struct{}{}, replaces: map[string]string{}}
+	if file.Module != nil {
+		view.module = file.Module.Mod.Path
+	}
+	if view.module == "" {
+		return goModView{}, fmt.Errorf("%s: module path is empty", path)
+	}
+	for _, req := range file.Require {
+		view.requires[req.Mod.Path] = struct{}{}
+	}
+	for _, replacement := range file.Replace {
+		view.replaces[replacement.Old.Path] = replacement.New.Path
 	}
 	return view, nil
+}
+
+func excludedGoMod(path, root string) bool {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	rel = filepath.ToSlash(rel)
+	for _, exclusion := range freshnessExclusions {
+		if rel == exclusion.Path || strings.HasPrefix(rel, "templates/") {
+			return true
+		}
+	}
+	return false
 }
 
 func impactedSurfaces(root string, surfaces []goSurface, modules map[string]goModule, touched []string) map[string][]string {
@@ -423,6 +502,35 @@ func filterImpactedSurfaces(surfaces []goSurface, impacted map[string][]string) 
 }
 
 func checkGoFreshness(ctx context.Context, root string, surface goSurface, impactedBy []string, req freshnessRequest) freshnessSurfaceReport {
+	item := freshnessSurfaceReport{
+		Scenario: surface.scenario, Surface: surface.surface,
+		GoModPath: filepath.ToSlash(mustRel(root, surface.goMod)), Status: "clean",
+		ImpactedBy: limitStrings(compactStrings(impactedBy), maxImpactedByPaths), ImpactedByCount: len(compactStrings(impactedBy)),
+	}
+	if !req.noCache && !req.apply && !req.build {
+		if req.fastRootCache {
+			if cached, ok := loadFreshnessCacheIndex(root, surface, req.treeDigest); ok {
+				cached.Scenario, cached.Surface, cached.GoModPath = item.Scenario, item.Surface, item.GoModPath
+				cached.ImpactedBy, cached.ImpactedByCount, cached.CacheHit = item.ImpactedBy, item.ImpactedByCount, true
+				return cached
+			}
+		}
+		if cached, ok := loadFreshnessCache(root, surface); ok {
+			cached.Scenario, cached.Surface, cached.GoModPath = item.Scenario, item.Surface, item.GoModPath
+			cached.ImpactedBy, cached.ImpactedByCount = item.ImpactedBy, item.ImpactedByCount
+			cached.CacheHit = true
+			storeFreshnessCache(root, surface, cached, req.treeDigest)
+			return cached
+		}
+	}
+	result := checkGoFreshnessUncached(ctx, root, surface, impactedBy, req)
+	if !req.noCache && !req.apply && !req.build && result.Status != "needs_download" {
+		storeFreshnessCache(root, surface, result, req.treeDigest)
+	}
+	return result
+}
+
+func checkGoFreshnessUncached(ctx context.Context, root string, surface goSurface, impactedBy []string, req freshnessRequest) freshnessSurfaceReport {
 	impactedBy = compactStrings(impactedBy)
 	item := freshnessSurfaceReport{
 		Scenario:        surface.scenario,
@@ -435,6 +543,18 @@ func checkGoFreshness(ctx context.Context, root string, surface goSurface, impac
 	surfaceRoot := filepath.Dir(surface.goMod)
 	diff, clean, err := runGoCommand(ctx, surfaceRoot, "mod", "tidy", "-diff")
 	if err != nil {
+		if needsModuleDownload(err) && !knownInRepoDownload(root, err) {
+			// Offline evaluation is authoritative for defects. A single ambient
+			// proxy retry distinguishes a cold host cache from a bad surface.
+			retryDiff, retryClean, retryErr := runGoNetwork(ctx, surfaceRoot, "mod", "tidy", "-diff")
+			item.Status = "needs_download"
+			if retryErr != nil {
+				item.Error = retryErr.Error()
+			} else if !retryClean {
+				item.DiffPaths = tidyDiffPaths(root, surface.goMod, retryDiff)
+			}
+			return item
+		}
 		item.Status = "error"
 		item.Error = err.Error()
 		return item
@@ -487,6 +607,177 @@ func checkGoFreshness(ctx context.Context, root string, surface goSurface, impac
 		}
 	}
 	return item
+}
+
+const (
+	freshnessCacheSchema = 2
+	freshnessCacheLimit  = 2000
+)
+
+var freshnessCacheMu sync.Mutex
+
+func containsRootModuleMetadata(paths []string) bool {
+	for _, path := range paths {
+		if path == "go.mod" || path == "go.sum" {
+			return true
+		}
+	}
+	return false
+}
+
+func freshnessTreeDigest(root string) string {
+	h := sha256.New()
+	status := exec.Command("git", "status", "--porcelain=v1", "--untracked-files=all")
+	status.Dir = root
+	if data, err := status.Output(); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			if strings.HasSuffix(line, ".go") || strings.HasSuffix(line, ".mod") || strings.HasSuffix(line, ".sum") {
+				h.Write([]byte(line + "\n"))
+			}
+		}
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func freshnessCacheDir(root string) string {
+	return filepath.Join(root, "scenarios", "scenario-dependency-analyzer", "data", "freshness-cache")
+}
+
+func freshnessCacheKey(surface goSurface) (string, bool) {
+	h := sha256.New()
+	h.Write([]byte(fmt.Sprintf("schema=%d\nmodule=%s\n", freshnessCacheSchema, surface.module)))
+	for _, name := range []string{"go.mod", "go.sum"} {
+		data, err := os.ReadFile(filepath.Join(filepath.Dir(surface.goMod), name))
+		if err == nil {
+			h.Write([]byte(name + "\n"))
+			h.Write(data)
+		}
+	}
+	var files []string
+	_ = filepath.WalkDir(filepath.Dir(surface.goMod), func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", "vendor", "node_modules", "dist", "build", ".cache":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), ".go") {
+			files = append(files, path)
+		}
+		return nil
+	})
+	sort.Strings(files)
+	for _, path := range files {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", false
+		}
+		h.Write([]byte(filepath.ToSlash(path) + "\n"))
+		h.Write(data)
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), true
+}
+
+func loadFreshnessCache(root string, surface goSurface) (freshnessSurfaceReport, bool) {
+	key, ok := freshnessCacheKey(surface)
+	if !ok {
+		return freshnessSurfaceReport{}, false
+	}
+	data, err := os.ReadFile(filepath.Join(freshnessCacheDir(root), key+".json"))
+	if err != nil {
+		return freshnessSurfaceReport{}, false
+	}
+	var item freshnessSurfaceReport
+	if json.Unmarshal(data, &item) != nil || item.Status == "" || item.Status == "needs_download" {
+		return freshnessSurfaceReport{}, false
+	}
+	return item, true
+}
+
+type freshnessCacheIndex struct {
+	TreeDigest string            `json:"tree_digest"`
+	Keys       map[string]string `json:"keys"`
+}
+
+func loadFreshnessCacheIndex(root string, surface goSurface, treeDigest string) (freshnessSurfaceReport, bool) {
+	data, err := os.ReadFile(filepath.Join(freshnessCacheDir(root), "index.json"))
+	if err != nil {
+		return freshnessSurfaceReport{}, false
+	}
+	var index freshnessCacheIndex
+	if json.Unmarshal(data, &index) != nil {
+		return freshnessSurfaceReport{}, false
+	}
+	if index.TreeDigest != treeDigest {
+		return freshnessSurfaceReport{}, false
+	}
+	key, ok := index.Keys[surface.goMod]
+	if !ok {
+		return freshnessSurfaceReport{}, false
+	}
+	data, err = os.ReadFile(filepath.Join(freshnessCacheDir(root), key+".json"))
+	if err != nil {
+		return freshnessSurfaceReport{}, false
+	}
+	var item freshnessSurfaceReport
+	if json.Unmarshal(data, &item) != nil || item.Status == "" || item.Status == "needs_download" {
+		return freshnessSurfaceReport{}, false
+	}
+	return item, true
+}
+
+func storeFreshnessCache(root string, surface goSurface, item freshnessSurfaceReport, treeDigest string) {
+	freshnessCacheMu.Lock()
+	defer freshnessCacheMu.Unlock()
+	key, ok := freshnessCacheKey(surface)
+	if !ok {
+		return
+	}
+	dir := freshnessCacheDir(root)
+	if os.MkdirAll(dir, 0o755) != nil {
+		return
+	}
+	data, err := json.Marshal(item)
+	if err != nil {
+		return
+	}
+	tmp, err := os.CreateTemp(dir, ".freshness-*")
+	if err != nil {
+		return
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if _, err = tmp.Write(data); err == nil {
+		err = tmp.Close()
+	} else {
+		_ = tmp.Close()
+	}
+	if err == nil {
+		_ = os.Rename(tmpName, filepath.Join(dir, key+".json"))
+		indexPath := filepath.Join(dir, "index.json")
+		index := freshnessCacheIndex{TreeDigest: treeDigest, Keys: map[string]string{}}
+		if existing, readErr := os.ReadFile(indexPath); readErr == nil {
+			_ = json.Unmarshal(existing, &index)
+		}
+		if index.Keys == nil {
+			index.Keys = map[string]string{}
+		}
+		index.TreeDigest = treeDigest
+		index.Keys[surface.goMod] = key
+		if encoded, marshalErr := json.Marshal(index); marshalErr == nil {
+			_ = os.WriteFile(indexPath, encoded, 0o644)
+		}
+	}
+	entries, _ := os.ReadDir(dir)
+	if len(entries) > freshnessCacheLimit {
+		for _, entry := range entries[:len(entries)-freshnessCacheLimit] {
+			_ = os.Remove(filepath.Join(dir, entry.Name()))
+		}
+	}
 }
 
 // forceGoSumRewrite repairs a go.sum that `go mod tidy` cannot converge.
@@ -580,14 +871,29 @@ func limitStrings(values []string, limit int) []string {
 	return out
 }
 
-var runGoCommand = runGo
+var (
+	runGoCommand = runGo
+	runGoNetwork = runGoNetworkCommand
+)
 
 func runGo(ctx context.Context, dir string, args ...string) (string, bool, error) {
+	return runGoEnv(ctx, dir, true, args...)
+}
+
+func runGoNetworkCommand(ctx context.Context, dir string, args ...string) (string, bool, error) {
+	return runGoEnv(ctx, dir, false, args...)
+}
+
+func runGoEnv(ctx context.Context, dir string, offline bool, args ...string) (string, bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = dir
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off", "GOFLAGS="})
+	overlay := envkit.Env{"GOWORK=off", "GOFLAGS="}
+	if offline {
+		overlay = append(overlay, "GOPROXY=off")
+	}
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, overlay)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -603,38 +909,54 @@ func runGo(ctx context.Context, dir string, args ...string) (string, bool, error
 	return stdout.String(), false, fmt.Errorf("%v: %s", err, strings.TrimSpace(stderr.String()))
 }
 
+func needsModuleDownload(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "module lookup disabled by GOPROXY=off")
+}
+
+func knownInRepoDownload(root string, err error) bool {
+	message := err.Error()
+	// In-repo modules are a surface defect when their replace is absent. They
+	// must never enter the ambient retry tier, or the same local defect becomes
+	// a network request for every consumer.
+	_, statErr := os.Stat(filepath.Join(root, "packages", "envkit-go", "go.mod"))
+	return strings.Contains(message, "github.com/vrooli/envkit-go") && statErr == nil
+}
+
 func changedPaths(root string) ([]string, error) {
-	var combined []string
-	for _, args := range [][]string{{"diff", "--name-only", "HEAD"}, {"diff", "--cached", "--name-only"}} {
-		cmd := exec.Command("git", args...)
-		cmd.Dir = root
-		out, err := cmd.Output()
-		if err != nil && args[0] == "diff" && args[len(args)-1] == "HEAD" {
-			cmd = exec.Command("git", "status", "--porcelain=v1", "--untracked-files=no")
-			cmd.Dir = root
-			out, err = cmd.Output()
-		}
-		if err != nil {
-			return nil, err
-		}
-		combined = append(combined, strings.Split(string(out), "\n")...)
+	cmd := exec.Command("git", "status", "--porcelain=v1", "--untracked-files=all")
+	cmd.Dir = root
+	raw, err := cmd.Output()
+	if err != nil {
+		return nil, err
 	}
 	seen := map[string]struct{}{}
-	for _, line := range combined {
-		path := strings.TrimSpace(line)
-		if len(path) > 3 && path[1] == ' ' {
-			path = strings.TrimSpace(path[3:])
+	for _, line := range strings.Split(string(raw), "\n") {
+		if len(line) < 4 {
+			continue
+		}
+		path := strings.TrimSpace(line[3:])
+		if arrow := strings.Index(path, " -> "); arrow >= 0 {
+			path = path[arrow+4:]
 		}
 		if path != "" {
 			seen[filepath.ToSlash(path)] = struct{}{}
 		}
 	}
-	out := make([]string, 0, len(seen))
+	paths := make([]string, 0, len(seen))
 	for path := range seen {
-		out = append(out, path)
+		paths = append(paths, path)
 	}
-	sort.Strings(out)
-	return out, nil
+	sort.Strings(paths)
+	return paths, nil
+}
+
+func digestStrings(values []string) string {
+	h := sha256.New()
+	for _, value := range values {
+		h.Write([]byte(value))
+		h.Write([]byte{'\n'})
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 func tidyDiffPaths(root, goModPath, diff string) []string {
@@ -662,6 +984,7 @@ func printFreshnessReport(report freshnessReport) error {
 		fmt.Sprintf("Surfaces checked: %d", report.Summary.Checked),
 		fmt.Sprintf("Stale: %d", report.Summary.Stale),
 		fmt.Sprintf("Errors: %d", report.Summary.Errors),
+		fmt.Sprintf("Needs download: %d", report.Summary.NeedsDownload),
 	}
 	var results []string
 	for _, surface := range report.Surfaces {

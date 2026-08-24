@@ -4,7 +4,7 @@
 
 ## Overview
 
-The `env_validation` rule enforces explicit, fail-fast validation of environment variables across Go, Bash, and JavaScript/TypeScript. This document explains the intentional design decisions that make this rule strict and opinionated.
+The `env_validation` rule enforces explicit, fail-fast validation of environment variables across Go, Bash, and JavaScript/TypeScript. This document explains the intentional design decisions that make this rule strict and opinionated. Producer satisfiability is handled by the sibling `env-conformance` phase in Test Genie, which reports undeclared resource producers and stale cross-scenario address reads separately from this syntax-focused rule.
 
 ## Core Principles
 

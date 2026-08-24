@@ -369,6 +369,50 @@ func TestCheckGoSurfacesRunsConcurrentlyAndPreservesOrder(t *testing.T) {
 	}
 }
 
+func TestCheckGoFreshnessRetriesColdModuleAsNeedsDownloadWithoutDirtyingClean(t *testing.T) {
+	root := t.TempDir()
+	surface := goSurface{scenario: "demo", surface: "api", goMod: filepath.Join(root, "scenarios/demo/api/go.mod")}
+	writeFreshnessFile(t, surface.goMod, "module demo\ngo 1.25.0\n")
+	previousOffline, previousNetwork := runGoCommand, runGoNetwork
+	offlineCalls, networkCalls := 0, 0
+	runGoCommand = func(context.Context, string, ...string) (string, bool, error) {
+		offlineCalls++
+		return "", false, errors.New("go: module lookup disabled by GOPROXY=off")
+	}
+	runGoNetwork = func(context.Context, string, ...string) (string, bool, error) { networkCalls++; return "", true, nil }
+	t.Cleanup(func() { runGoCommand, runGoNetwork = previousOffline, previousNetwork })
+
+	got := checkGoFreshness(context.Background(), root, surface, nil, freshnessRequest{noCache: true})
+	if got.Status != "needs_download" || offlineCalls != 1 || networkCalls != 1 {
+		t.Fatalf("report=%+v offline=%d network=%d", got, offlineCalls, networkCalls)
+	}
+	report, err := checkFreshness(context.Background(), root, freshnessRequest{noCache: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Clean {
+		t.Fatalf("needs_download changed clean verdict: %+v", report)
+	}
+}
+
+func TestCheckGoFreshnessDoesNotRetryKnownInRepoModule(t *testing.T) {
+	root := t.TempDir()
+	writeFreshnessFile(t, filepath.Join(root, "packages/envkit-go/go.mod"), "module github.com/vrooli/envkit-go\ngo 1.25.0\n")
+	surface := goSurface{scenario: "demo", surface: "api", goMod: filepath.Join(root, "scenarios/demo/api/go.mod")}
+	writeFreshnessFile(t, surface.goMod, "module demo\ngo 1.25.0\n")
+	previous := runGoCommand
+	calls := 0
+	runGoCommand = func(context.Context, string, ...string) (string, bool, error) {
+		calls++
+		return "", false, errors.New("go: module lookup disabled by GOPROXY=off github.com/vrooli/envkit-go")
+	}
+	t.Cleanup(func() { runGoCommand = previous })
+	got := checkGoFreshness(context.Background(), root, surface, nil, freshnessRequest{noCache: true})
+	if got.Status != "error" || calls != 1 {
+		t.Fatalf("report=%+v calls=%d", got, calls)
+	}
+}
+
 func TestCheckFreshnessAddsReconcileActionForErroredSurfaces(t *testing.T) {
 	root := t.TempDir()
 	writeFreshnessFile(t, filepath.Join(root, "scenarios", "demo", "api", "go.mod"), "module example.com/demo\n")

@@ -15,6 +15,7 @@ import (
 )
 
 type cliManifest struct {
+	Name   string `json:"name"`
 	Groups []struct {
 		Name     string `json:"name"`
 		Commands []struct {
@@ -102,6 +103,9 @@ func (h *handler) conformance(p packageRecord) []*conf.Finding {
 			add("PLG-CONF-FRONTMATTER", "skill description exceeds 1024 characters", entry)
 		}
 		for _, line := range strings.Split(front, "\n") {
+			if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
+				continue
+			}
 			if strings.Contains(line, ":") {
 				key := strings.TrimSpace(strings.SplitN(line, ":", 2)[0])
 				if key != "name" && key != "description" && key != "allowed-tools" && key != "license" && key != "compatibility" && key != "metadata" {

@@ -124,6 +124,7 @@ export interface PanelDeps {
   onScrollComplete: () => void;
   onDeletePath: (path: string, isDir: boolean) => void;
   onBlameFile: (path: string) => void;
+  onStageFilesWithSameName?: (path: string) => void;
   onExitBlameMode: () => void;
   onCycleViewMode: () => void;
   onSetChangesCollapsed: (fn: (prev: boolean) => boolean) => void;
@@ -232,6 +233,7 @@ export function renderPanel(
           onScrollComplete={deps.onScrollComplete}
           onDeletePath={deps.onDeletePath}
           onBlameFile={deps.onBlameFile}
+          onStageFilesWithSameName={deps.onStageFilesWithSameName}
           repoId={deps.repoId}
           onOpenReview={(slug) => {
             if (deps.reviewScenarioSlug && slug !== deps.reviewScenarioSlug) {

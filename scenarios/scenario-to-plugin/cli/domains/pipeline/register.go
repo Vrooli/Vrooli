@@ -69,5 +69,17 @@ func Register(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 			fmt.Println(string(body))
 			return nil
 		}},
+	}}, {Name: "distribution", Description: "Check target CLI distributability", NeedsAPI: true, Subcommands: []cliapp.Command{
+		{Name: "report", Description: "Report skills satisfied by a target CLI manifest", Run: func(args []string) error {
+			if len(args) != 2 {
+				return fmt.Errorf("usage: scenario-to-plugin distribution report <scenario> <target-cli-manifest>")
+			}
+			body, err := core.Request("POST", "/distributability", nil, map[string]string{"scenario": args[0], "targetCliManifest": args[1]})
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(body))
+			return nil
+		}},
 	}}}
 }

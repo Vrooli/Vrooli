@@ -376,3 +376,33 @@ scenario-dependency-analyzer freshness --touched --json \
 # parse every go.mod, walk the require graph, count surfaces reaching
 # github.com/vrooli/vrooli
 ```
+
+## Before (execution host)
+
+The committed harness is `test/perf/freshness-bench.sh`; its stored result is
+`coverage/perf/before.json`. The historical baseline above remains the
+authoritative pre-change measurement (71.9 s).
+
+| Fact | Value |
+|---|---|
+| Cores / RAM | 32 / 60.96 GiB |
+| Go | go1.25.12 |
+| GOPROXY | https://proxy.golang.org,direct |
+| Harness timings | 2.76 s / 2.64 s / 2.66 s |
+
+## After (execution host)
+
+The same harness produced `coverage/perf/after-final-2/after-final-2.json` after
+offline-first evaluation, caching, coverage expansion, reconcile repair, and
+hygiene-lane changes. The first run includes normal process startup; the next
+two are the warm-cache measurements used for the sub-second target.
+
+| Run | Wall | Checked / clean / stale / errors | Cache hits |
+|---|---:|---|---:|
+| after-final-2 (startup) | 1.14 s | 292 / 292 / 0 / 0 | 292 |
+| after-final-2 (warm) | 0.98 s | 292 / 292 / 0 / 0 | 292 |
+| after-final-2 (warm) | 0.96 s | 292 / 292 / 0 / 0 | 292 |
+
+The post-repair report contains zero `envkit-go` error rows, zero
+`needs_download` rows, and zero stale/error surfaces. Seventeen named fixture
+and template modules are reported as exclusions rather than silently omitted.

@@ -4,8 +4,14 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-plugin",
   "generator": "v1.0.0",
-  "manifest_hash": "5db66d3b97c062f9a7ff9c1c55ae17b4dd5d6bbd5a35802705a301f007782cb9",
+  "manifest_hash": "478e072df20a855a38e562e044421dc9b994203f6817bd7d46185ef6bb9bc5df",
   "commands": [
+    {
+      "path": "distribution report",
+      "group": "distribution",
+      "command": "report",
+      "binding": "."
+    },
     {
       "path": "package compose",
       "group": "package",

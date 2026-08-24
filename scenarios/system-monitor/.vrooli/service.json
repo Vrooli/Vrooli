@@ -310,8 +310,10 @@
       "ollama": {
         "type": "ollama",
         "enabled": true,
-        "required": true,
-        "description": "AI analysis for anomaly investigations"
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional AI analysis for anomaly investigations",
+        "degraded_behavior": "Core monitoring and the dashboard remain available; AI-backed investigations report unavailable until Ollama recovers."
       }
     }
   },

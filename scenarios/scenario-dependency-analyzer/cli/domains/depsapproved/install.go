@@ -24,6 +24,7 @@ func RegisterInstall(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			{Name: "install", Description: "Install a governed dependency into a scenario surface (dry-run by default)", Run: func(args []string) error { return runInstall(core, args) }},
 			{Name: "reconcile", Description: "Add missing local replaces for in-repo go.mod modules (dry-run by default)", Run: func(args []string) error { return runReconcile(core, args) }},
+			{Name: "vendor", Description: "Synchronise a committed Go vendor tree through the dependency gateway", Run: func(args []string) error { return runVendor(core, args) }},
 		},
 	}
 }

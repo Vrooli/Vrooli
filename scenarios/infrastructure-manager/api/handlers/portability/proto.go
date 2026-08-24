@@ -57,6 +57,7 @@ func protoTier(tier deployability.DeliveryTier) portabilityv1.DeliveryTier {
 func protoPlatform(platform internalportability.PlatformEntry) *portabilityv1.PlatformEntry {
 	return &portabilityv1.PlatformEntry{
 		HostOs:                      protoHostOS(platform.HostOS),
+		Architecture:                platform.Architecture,
 		Status:                      protoStatus(platform.Status),
 		Qualification:               protoQualification(platform.Qualification),
 		ObservedQualification:       protoQualification(platform.ObservedQualification),
@@ -68,6 +69,8 @@ func protoPlatform(platform internalportability.PlatformEntry) *portabilityv1.Pl
 		HasImplementation:           platform.HasImplementation,
 		Controls:                    platform.Controls,
 		Absent:                      platform.Absent,
+		AbsentControls:              platform.AbsentControls,
+		AbsentProviders:             platform.AbsentProviders,
 		Declarers:                   protoDeclarers(platform.Declarers),
 		ObservedDeclarers:           protoObservedDeclarers(platform.ObservedDeclarers),
 	}

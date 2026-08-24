@@ -83,6 +83,7 @@ function FileListImpl({
   scrollTopStore,
   onDeletePath,
   onBlameFile,
+  onStageFilesWithSameName,
   repoId,
   onOpenReview,
   mobileSelectionMode = false,
@@ -206,7 +207,7 @@ function FileListImpl({
     };
   }, [mobileActionFile, files]);
 
-  // Context menu state for right-click blame action
+  // Context menu state for right-click file actions.
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -226,15 +227,30 @@ function FileListImpl({
   }, []);
 
   const contextMenuItems = useMemo<ContextMenuItem[]>(() => {
-    if (!contextMenu || !onBlameFile) return [];
-    return [
-      {
+    if (!contextMenu) return [];
+    const items: ContextMenuItem[] = [];
+    if (onBlameFile) items.push({
         label: "View File History",
         icon: <History className="h-4 w-4" />,
         onClick: () => onBlameFile(contextMenu.file),
-      },
+    });
+    const basename = contextMenu.file.split("/").pop() || contextMenu.file;
+    const changedFiles = [
+      ...(files?.staged ?? []),
+      ...(files?.unstaged ?? []),
+      ...(files?.untracked ?? []),
+      ...(files?.conflicts ?? []),
     ];
-  }, [contextMenu, onBlameFile]);
+    const sameNameCount = new Set(
+      changedFiles.filter((candidate) => (candidate.split("/").pop() || candidate) === basename),
+    ).size;
+    if (onStageFilesWithSameName && sameNameCount > 1) items.push({
+      label: `Stage all changed files named ${basename}`,
+      icon: <ClipboardCheck className="h-4 w-4" />,
+      onClick: () => onStageFilesWithSameName(contextMenu.file),
+    });
+    return items;
+  }, [contextMenu, files, onBlameFile, onStageFilesWithSameName]);
 
   // Mobile long-press enters selection mode; tap in selection mode toggles
   const handleLongPress = useCallback(
@@ -882,7 +898,7 @@ function FileListImpl({
                                 onConfirmIgnore={onConfirmIgnore}
                                 resolvedGroups={resolvedGroups}
                                 onOpenMobileActions={handleOpenMobileActions}
-                                onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                                onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
                                 mobileSelectionMode={mobileSelectionMode}
                                 onLongPress={handleLongPress}
                                 onMobileTap={handleMobileTap}
@@ -923,7 +939,7 @@ function FileListImpl({
                                 onConfirmIgnore={onConfirmIgnore}
                                 resolvedGroups={resolvedGroups}
                                 onOpenMobileActions={handleOpenMobileActions}
-                                onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                                onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
                                 mobileSelectionMode={mobileSelectionMode}
                                 onLongPress={handleLongPress}
                                 onMobileTap={handleMobileTap}
@@ -968,7 +984,7 @@ function FileListImpl({
                                 onConfirmIgnore={onConfirmIgnore}
                                 resolvedGroups={resolvedGroups}
                                 onOpenMobileActions={handleOpenMobileActions}
-                                onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                                onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
                                 mobileSelectionMode={mobileSelectionMode}
                                 onLongPress={handleLongPress}
                                 onMobileTap={handleMobileTap}
@@ -1014,7 +1030,7 @@ function FileListImpl({
                                 onConfirmIgnore={onConfirmIgnore}
                                 resolvedGroups={resolvedGroups}
                                 onOpenMobileActions={handleOpenMobileActions}
-                                onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                                onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
                                 mobileSelectionMode={mobileSelectionMode}
                                 onLongPress={handleLongPress}
                                 onMobileTap={handleMobileTap}
@@ -1061,7 +1077,7 @@ function FileListImpl({
                       onConfirmIgnore={onConfirmIgnore}
                     resolvedGroups={resolvedGroups}
                       onOpenMobileActions={handleOpenMobileActions}
-                      onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                      onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
                       mobileSelectionMode={mobileSelectionMode}
                       onLongPress={handleLongPress}
                       onMobileTap={handleMobileTap}
@@ -1101,7 +1117,7 @@ function FileListImpl({
                       onConfirmIgnore={onConfirmIgnore}
                     resolvedGroups={resolvedGroups}
                       onOpenMobileActions={handleOpenMobileActions}
-                      onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                      onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
                       mobileSelectionMode={mobileSelectionMode}
                       onLongPress={handleLongPress}
                       onMobileTap={handleMobileTap}
@@ -1143,7 +1159,7 @@ function FileListImpl({
                       onConfirmIgnore={onConfirmIgnore}
                     resolvedGroups={resolvedGroups}
                       onOpenMobileActions={handleOpenMobileActions}
-                      onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                      onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
                       mobileSelectionMode={mobileSelectionMode}
                       onLongPress={handleLongPress}
                       onMobileTap={handleMobileTap}
@@ -1186,7 +1202,7 @@ function FileListImpl({
                       onConfirmIgnore={onConfirmIgnore}
                     resolvedGroups={resolvedGroups}
                       onOpenMobileActions={handleOpenMobileActions}
-                      onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                      onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
                       mobileSelectionMode={mobileSelectionMode}
                       onLongPress={handleLongPress}
                       onMobileTap={handleMobileTap}

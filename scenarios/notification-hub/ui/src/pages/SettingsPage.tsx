@@ -6,6 +6,7 @@ import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 import { useQuery } from "@tanstack/react-query";
 import { recipientsClient, registerBrowserPushSubscription } from "../api/notifications";
 import { useState } from "react";
+import { getInjectedConfig } from "@vrooli/api-base";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
@@ -22,7 +23,7 @@ export function SettingsPage() {
   const [pushMessage, setPushMessage] = useState("");
 
 	  const enablePush = async () => {
-	    const publicKey = devices.data?.vapidPublicKey || (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined);
+    const publicKey = devices.data?.vapidPublicKey || getInjectedConfig()?.VAPID_PUBLIC_KEY as string | undefined;
     if (!publicKey || !("serviceWorker" in navigator) || !("PushManager" in window)) {
       setPushMessage("Push is not configured for this origin yet.");
       return;

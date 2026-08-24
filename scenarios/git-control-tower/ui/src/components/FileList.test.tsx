@@ -60,6 +60,34 @@ function renderFileList(overrides: Partial<FileListProps> = {}) {
 }
 
 describe("FileList", () => {
+  it("offers exact-basename bulk staging only when another changed match exists", async () => {
+    const onStageFilesWithSameName = vi.fn();
+    const { user } = renderFileList({
+      files: {
+        staged: ["services/one/go.mod"],
+        unstaged: ["go.mod"],
+        untracked: ["docs/go.mod.bak"],
+        conflicts: [],
+      },
+      onStageFilesWithSameName,
+    });
+
+    fireEvent.contextMenu(screen.getByText("go.mod").closest("li") as HTMLLIElement, {
+      clientX: 20,
+      clientY: 20,
+    });
+    const action = screen.getByRole("menuitem", { name: "Stage all changed files named go.mod" });
+    await user.click(action);
+    expect(onStageFilesWithSameName).toHaveBeenCalledWith("go.mod");
+
+    await user.click(screen.getByTestId("file-section-toggle-untracked"));
+    fireEvent.contextMenu(screen.getByText("docs/go.mod.bak").closest("li") as HTMLLIElement, {
+      clientX: 20,
+      clientY: 20,
+    });
+    expect(screen.queryByRole("menuitem", { name: /Stage all changed files named go.mod.bak/ })).not.toBeInTheDocument();
+  });
+
   it("renders change sections and routes file actions to their callbacks", async () => {
     const { props, user } = renderFileList();
 

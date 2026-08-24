@@ -218,11 +218,7 @@ func TestConfigConnectionString(t *testing.T) {
 	connStr := config.GetDatabaseConnectionString()
 
 	expectedParts := []string{
-		"host=testhost",
-		"port=5432",
-		"user=testuser",
-		"password=testpass",
-		"dbname=testdb",
+		"postgres://testuser:testpass@testhost:5432/testdb",
 		"sslmode=disable",
 	}
 
