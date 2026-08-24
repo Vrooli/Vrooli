@@ -74,12 +74,43 @@ func CheckFleetContract(root string) error {
 		if err := checkCapabilityContract(root, name); err != nil {
 			return err
 		}
+		if err := checkPlatformProfileClaims(name, manifest); err != nil {
+			return err
+		}
 	}
 	if err := checkPlatformClaims(resourceRoot, names); err != nil {
 		return err
 	}
 	if err := checkResourceImages(resourceRoot); err != nil {
 		return err
+	}
+	return nil
+}
+
+// checkPlatformProfileClaims keeps the OS-level claim and the richer desktop
+// profile in agreement. The profile is the artifact-level evidence: an OS
+// marked unsupported there cannot be promoted to a supported or build-verified
+// fleet claim, and an unsupported fleet claim cannot hide a usable profile.
+func checkPlatformProfileClaims(name string, manifest manifestpkg.ResourceManifest) error {
+	violations := make([]string, 0)
+	for _, osName := range []string{"linux", "macos", "windows"} {
+		claim := strings.ToLower(strings.TrimSpace(platformClaim(manifest.Platforms, osName)))
+		target, found := manifest.Deployment.Target("desktop", osName, "")
+		if !found || claim == "" {
+			continue
+		}
+		if target.Support != "unsupported" && claim == "unsupported" {
+			violations = append(violations, fmt.Sprintf("%s declares %s unsupported but its desktop profile is %s", name, osName, target.Support))
+		}
+		if target.Support != "unsupported" && len(target.Architectures) == 0 {
+			violations = append(violations, fmt.Sprintf("%s declares %s %q but its desktop profile has no architectures", name, osName, claim))
+		}
+		if target.Support == "unsupported" && len(target.Limitations) == 0 && len(target.Evidence) == 0 {
+			violations = append(violations, fmt.Sprintf("%s declares %s unsupported without limitations or evidence", name, osName))
+		}
+	}
+	if len(violations) > 0 {
+		return fmt.Errorf("resource platform/profile contradictions: %s", strings.Join(violations, "; "))
 	}
 	return nil
 }

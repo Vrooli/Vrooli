@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	plansapp "github.com/vrooli/vrooli/internal/app/plans"
 )
@@ -54,6 +55,8 @@ type plansProvider struct {
 }
 
 func (p plansProvider) ID() string { return plansProviderID }
+
+func (p plansProvider) Budget() time.Duration { return 15 * time.Second }
 
 func (p plansProvider) Run(ctx context.Context, req Request, report *Report) error {
 	if p.reconciler == nil {

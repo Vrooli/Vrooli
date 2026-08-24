@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/safeguards"
 	autohealrecoveryprivileges "github.com/vrooli/vrooli/internal/safeguards/autoheal-recovery-privileges"
+	autohealwatchdog "github.com/vrooli/vrooli/internal/safeguards/autoheal-watchdog"
 	"github.com/vrooli/vrooli/internal/safeguards/clock"
 	codingagentshims "github.com/vrooli/vrooli/internal/safeguards/coding-agent-shims"
 	crashkernelreserve "github.com/vrooli/vrooli/internal/safeguards/crashkernel-reserve"
@@ -79,6 +80,7 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) hostreqkit.Handler{
 	"clock":                        clock.NewHandler,
 	"autoheal_recovery_privileges": autohealrecoveryprivileges.NewHandler,
+	"autoheal_watchdog":            autohealwatchdog.NewHandler,
 	"onboarding_apply_privileges":  onboardingapplyprivileges.NewHandler,
 	"model_policy_drift":           modelpolicydrift.NewHandler,
 	"path_hygiene":                 pathhygiene.NewHandler,

@@ -46,6 +46,7 @@ package hostreqkit
 import (
 	"errors"
 	"os"
+	osuser "os/user"
 	"strconv"
 	"strings"
 )
@@ -119,6 +120,41 @@ func InvokingUserHomeDir() (string, error) {
 		return h, nil
 	}
 	return "", errors.New("hostreqkit: could not resolve invoking user's home directory")
+}
+
+// InvokingUserCommand returns a command invocation that targets the operator's
+// user session. User-scoped systemd commands need both the operator's uid
+// runtime directory and that user's D-Bus session bus; inheriting the
+// elevated process environment commonly points at root's nonexistent bus.
+// When the process is elevated, the command is also run as the invoking user.
+func InvokingUserCommand(name string, args ...string) (string, []string) {
+	user := InvokingUser()
+	uid := 0
+	if current, err := osuser.Current(); err == nil {
+		uid, _ = strconv.Atoi(current.Uid)
+	}
+	if RunningAsRootFn() {
+		if invokingUID, _, ok := InvokingUserIDs(); ok {
+			uid = invokingUID
+		} else {
+			uid = 0
+		}
+	}
+
+	commandArgs := append([]string(nil), args...)
+	if name == "systemctl" && uid > 0 {
+		busArgs := []string{
+			"XDG_RUNTIME_DIR=/run/user/" + strconv.Itoa(uid),
+			"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/" + strconv.Itoa(uid) + "/bus",
+			name,
+		}
+		commandArgs = append(busArgs, commandArgs...)
+		name = "env"
+	}
+	if RunningAsRootFn() && user != "" && user != "root" {
+		return "sudo", append([]string{"-u", user, "-H", "--", name}, commandArgs...)
+	}
+	return name, commandArgs
 }
 
 // lookupHomeFromPasswdFn is a test seam over /etc/passwd. Production reads

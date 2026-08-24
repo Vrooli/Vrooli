@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/envkit-go"
 	_ "github.com/vrooli/vrooli/internal/acquisition" // register the caller-owned tar.zst archive decoder
 	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -264,7 +265,7 @@ func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.Acqui
 				platform = arch + "-pc-windows-msvc"
 			}
 			command := exec.CommandContext(ctx, "uv", "pip", "install", "--only-binary", ":all:", "--target", dest, "--requirement", lockfile, "--python-version", "3.12", "--python-platform", platform)
-			command.Env = append(os.Environ(), "UV_NO_PROGRESS=1")
+			command.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, envkit.Env{"UV_NO_PROGRESS=1"})
 			if output, err := command.CombinedOutput(); err != nil {
 				return fmt.Errorf("uv wheel resolution failed: %w: %s", err, strings.TrimSpace(string(output)))
 			}

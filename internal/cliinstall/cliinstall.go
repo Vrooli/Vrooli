@@ -84,6 +84,57 @@ type DiscoveryReport struct {
 	Failures []discovery.Failure `json:"failures,omitempty"`
 }
 
+// AtomicInstall copies src to dst without ever truncating the live executable.
+// The temporary-file, fsync, rename sequence preserves the last runnable
+// binary if power is lost during installation. This retains the 2026-05-07
+// incident history: a direct install left a zero-filled executable in PATH.
+func AtomicInstall(src, dst string) error {
+	tmp := dst + ".new"
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	if err := os.Chmod(src, 0o755); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	if err != nil {
+		_ = in.Close()
+		return err
+	}
+	_, copyErr := io.Copy(out, in)
+	if copyErr == nil {
+		copyErr = out.Sync()
+	}
+	if closeErr := out.Close(); copyErr == nil {
+		copyErr = closeErr
+	}
+	if closeErr := in.Close(); copyErr == nil {
+		copyErr = closeErr
+	}
+	if copyErr != nil {
+		_ = os.Remove(tmp)
+		return copyErr
+	}
+	if err := os.Rename(tmp, dst); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return syncFile(filepath.Dir(dst))
+}
+
+func syncFile(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return f.Sync()
+}
+
 func (s InstallLocationStatus) PathMismatch() bool {
 	return s.Resolved && !s.ResolvedCanonical
 }

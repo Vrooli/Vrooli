@@ -9,6 +9,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/vrooli/envkit-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // ConformanceTarget binds an authored platform claim to the Go module that
@@ -36,62 +40,48 @@ type ConformanceReport struct {
 // is Go-backed. It intentionally discovers modules rather than maintaining a
 // hand-written list of packages.
 func DiscoverConformanceTargets(root string) ([]ConformanceTarget, error) {
-	var targets []ConformanceTarget
-	for _, pattern := range []string{
-		filepath.Join(root, "internal", "tools", "*", "tool.json"),
-		filepath.Join(root, "internal", "safeguards", "*", "safeguard.json"),
-	} {
-		paths, err := filepath.Glob(pattern)
-		if err != nil {
-			return nil, err
-		}
-		for _, path := range paths {
-			var manifest struct {
-				Platforms []string `json:"platforms"`
-			}
-			if err := decodeJSON(path, &manifest); err != nil {
-				return nil, err
-			}
-			module, err := nearestGoModule(root, filepath.Dir(path))
-			if err != nil {
-				return nil, fmt.Errorf("%s: %w", path, err)
-			}
-			for _, osName := range manifest.Platforms {
-				hostOS, ok := conformanceHostOS(osName)
-				if !ok {
-					return nil, fmt.Errorf("%s declares unknown platform %q", path, osName)
-				}
-				targets = append(targets, ConformanceTarget{ManifestPath: relativePath(root, path), OS: hostOS, CodeRoot: relativePath(root, module)})
-			}
-		}
-	}
-	// Scenario platform_capabilities are claims about their API module.
-	scenarioPaths, err := filepath.Glob(filepath.Join(root, "scenarios", "*", ".vrooli", "service.json"))
+	contract, err := repocontract.LoadDefault(root)
 	if err != nil {
 		return nil, err
 	}
-	for _, path := range scenarioPaths {
-		var service struct {
-			Service struct {
-				PlatformCapabilities map[string]map[string]json.RawMessage `json:"platform_capabilities"`
-			} `json:"service"`
-		}
-		if err := decodeJSON(path, &service); err != nil {
-			return nil, err
-		}
-		apiRoot := filepath.Join(filepath.Dir(filepath.Dir(path)), "api")
-		module, err := nearestGoModule(root, apiRoot)
-		if err != nil {
-			continue
-		}
-		for _, capability := range service.Service.PlatformCapabilities {
-			for osName := range capability {
-				hostOS, ok := conformanceHostOS(osName)
-				if !ok {
-					return nil, fmt.Errorf("%s declares unknown platform %q", path, osName)
-				}
-				targets = append(targets, ConformanceTarget{ManifestPath: relativePath(root, path), OS: hostOS, CodeRoot: relativePath(root, module)})
+	concrete, err := contract.EnumerateTargets(root)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(concrete, func(i, j int) bool { return len(concrete[i].Root) > len(concrete[j].Root) })
+	var targets []ConformanceTarget
+	seenModules := map[string]struct{}{}
+	for _, target := range concrete {
+		targetRoot := filepath.Join(root, filepath.FromSlash(target.Root))
+		if err := filepath.WalkDir(targetRoot, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
 			}
+			if entry.IsDir() && (entry.Name() == "node_modules" || entry.Name() == "vendor") {
+				return filepath.SkipDir
+			}
+			if target.Kind == repocontract.TargetKindProject && path != targetRoot && entry.IsDir() {
+				return filepath.SkipDir
+			}
+			if entry.IsDir() || entry.Name() != "go.mod" || isFixtureModule(path) {
+				return nil
+			}
+			module := filepath.Dir(path)
+			key := filepath.Clean(module)
+			if _, ok := seenModules[key]; ok {
+				return nil
+			}
+			seenModules[key] = struct{}{}
+			for _, hostOS := range []HostOS{HostOSMacOS, HostOSWindows} {
+				targets = append(targets, ConformanceTarget{
+					ManifestPath: conformanceManifest(root, target, module),
+					OS:           hostOS,
+					CodeRoot:     relativePath(root, module),
+				})
+			}
+			return nil
+		}); err != nil {
+			return nil, err
 		}
 	}
 	sort.Slice(targets, func(i, j int) bool { return targetKey(targets[i]) < targetKey(targets[j]) })
@@ -106,19 +96,65 @@ func CheckRepository(ctx context.Context, root string) (ConformanceReport, error
 		return ConformanceReport{}, err
 	}
 	report := ConformanceReport{Targets: targets}
-	seen := make(map[string]error)
-	for _, target := range targets {
-		key := target.CodeRoot + "\x00" + string(target.OS)
-		buildErr, ok := seen[key]
-		if !ok {
-			buildErr = crossCompile(ctx, filepath.Join(root, target.CodeRoot), target.OS)
-			seen[key] = buildErr
+	type result struct {
+		target ConformanceTarget
+		err    error
+	}
+	jobs := make(chan ConformanceTarget)
+	results := make(chan result, len(targets))
+	workers := 8
+	if len(targets) < workers {
+		workers = len(targets)
+	}
+	if workers == 0 {
+		return report, nil
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for target := range jobs {
+				results <- result{target: target, err: crossCompile(ctx, filepath.Join(root, target.CodeRoot), target.OS)}
+			}
+		}()
+	}
+	go func() {
+		for _, target := range targets {
+			jobs <- target
 		}
-		if buildErr != nil {
-			report.Findings = append(report.Findings, ConformanceFinding{ManifestPath: target.ManifestPath, OS: target.OS, CodeRoot: target.CodeRoot, Message: buildErr.Error()})
+		close(jobs)
+		wg.Wait()
+		close(results)
+	}()
+	for item := range results {
+		if item.err != nil {
+			report.Findings = append(report.Findings, ConformanceFinding{ManifestPath: item.target.ManifestPath, OS: item.target.OS, CodeRoot: item.target.CodeRoot, Message: item.err.Error()})
 		}
 	}
+	sort.Slice(report.Findings, func(i, j int) bool {
+		return report.Findings[i].ManifestPath+string(report.Findings[i].OS) < report.Findings[j].ManifestPath+string(report.Findings[j].OS)
+	})
 	return report, nil
+}
+
+func conformanceManifest(root string, target repocontract.Target, module string) string {
+	for _, marker := range []string{".vrooli/service.json", "resource.json", "tool.json", "safeguard.json", "manifest.json"} {
+		candidate := filepath.Join(root, filepath.FromSlash(target.Root), filepath.FromSlash(marker))
+		if _, err := os.Stat(candidate); err == nil {
+			return relativePath(root, candidate)
+		}
+	}
+	return relativePath(root, filepath.Join(module, "go.mod"))
+}
+
+func isFixtureModule(path string) bool {
+	for dir := filepath.Dir(path); dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+		if filepath.Base(dir) == "fixtures" {
+			return true
+		}
+	}
+	return false
 }
 
 func crossCompile(ctx context.Context, module string, hostOS HostOS) error {
@@ -130,7 +166,7 @@ func crossCompile(ctx context.Context, module string, hostOS HostOS) error {
 	}
 	cmd := exec.CommandContext(ctx, "go", "build", "./...")
 	cmd.Dir = module
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOOS="+goos, "GOARCH="+arch)
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off", "GOOS=" + goos, "GOARCH=" + arch})
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("GOOS=%s GOARCH=%s: %w: %s", goos, arch, err, strings.TrimSpace(string(out)))

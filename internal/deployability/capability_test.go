@@ -156,7 +156,7 @@ func TestResolveCapabilityRequiresEveryControlAndReportsAbsentDeclarers(t *testi
 	resolution := ResolveCapability([]CapabilityImplementation{
 		{Name: "provider", Capability: "host-metrics", Role: "primary", Platforms: map[HostOS]PlatformDeclaration{HostOSWindows: {Status: string(StatusSupported)}}},
 		{Name: "applied-control", Capability: "host-metrics", Role: "control", Platforms: map[HostOS]PlatformDeclaration{HostOSWindows: {Status: string(StatusSupported)}}},
-		{Name: "missing-control", Capability: "host-metrics", Role: "control", Platforms: map[HostOS]PlatformDeclaration{HostOSLinux: {Status: string(StatusSupported)}}},
+		{Name: "missing-control", Capability: "host-metrics", Role: "control", Platforms: map[HostOS]PlatformDeclaration{HostOSLinux: {Status: string(StatusSupported)}, HostOSWindows: {Status: string(StatusUnsupported)}}},
 	}, "host-metrics", HostOSWindows)
 	if resolution.Status != CapabilityControlsIncomplete {
 		t.Fatalf("expected incomplete controls, got %+v", resolution)
@@ -166,6 +166,12 @@ func TestResolveCapabilityRequiresEveryControlAndReportsAbsentDeclarers(t *testi
 	}
 	if len(resolution.Absent) != 1 || resolution.Absent[0] != "missing-control" {
 		t.Fatalf("unexpected absent declarers: %+v", resolution.Absent)
+	}
+	if len(resolution.AbsentControls) != 1 || resolution.AbsentControls[0] != "missing-control" || len(resolution.AbsentProviders) != 0 {
+		t.Fatalf("unexpected role-separated absence: controls=%v providers=%v", resolution.AbsentControls, resolution.AbsentProviders)
+	}
+	if strings.Contains(resolution.Reason, "provider") && !strings.Contains(resolution.Reason, "provider \"provider\"") {
+		t.Fatalf("required-control reason names an absent provider: %q", resolution.Reason)
 	}
 }
 

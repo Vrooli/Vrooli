@@ -2,6 +2,7 @@ package packageapp
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/lifecycle"
@@ -60,5 +61,28 @@ func TestRefreshUsesInterfaceBasedScenarioDependencies(t *testing.T) {
 	}
 	if _, ok := any(svc.ScenarioRunner).(func() (ScenarioPhaseRunner, error)); !ok {
 		t.Fatal("ScenarioRunner is not interface-based")
+	}
+}
+
+func TestTestUsesServerOwnedTestGenieTarget(t *testing.T) {
+	var target string
+	svc := Service{
+		Stdout: &bytes.Buffer{},
+		Stderr: &bytes.Buffer{},
+		TestGenieRunner: func(got string, _, _ io.Writer) error {
+			target = got
+			return nil
+		},
+	}
+
+	resp, err := svc.Test(" envkit-go ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if target != "package:envkit-go" {
+		t.Fatalf("target = %q, want package:envkit-go", target)
+	}
+	if resp.Action != "test-genie" {
+		t.Fatalf("action = %q, want test-genie", resp.Action)
 	}
 }

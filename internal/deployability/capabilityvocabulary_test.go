@@ -1,10 +1,14 @@
 package deployability
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
 //go:generate go run ./cmd/capability-vocabulary --root ../..
@@ -18,6 +22,33 @@ func TestCapabilitySchemaEnumsFollowTheSingleVocabulary(t *testing.T) {
 	root := repositoryRootForVocabularyTest(t)
 	if err := CheckCapabilitySchemaEnums(root); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestVocabularyPoliciesValidateAgainstSchema(t *testing.T) {
+	root := repositoryRootForVocabularyTest(t)
+	compiler := jsonschema.NewCompiler()
+	schemaRaw, err := os.ReadFile(filepath.Join(root, ".vrooli", "schemas", "capability-vocabulary.schema.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := compiler.AddResource("capability-vocabulary.schema.json", bytes.NewReader(schemaRaw)); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := compiler.Compile("capability-vocabulary.schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vocabularyRaw, err := os.ReadFile(filepath.Join(root, ".vrooli", "capability-vocabulary.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document any
+	if err := json.Unmarshal(vocabularyRaw, &document); err != nil {
+		t.Fatal(err)
+	}
+	if err := schema.Validate(document); err != nil {
+		t.Fatalf("capability vocabulary does not validate against its schema: %v", err)
 	}
 }
 

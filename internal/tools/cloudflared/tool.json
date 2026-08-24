@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "cloudflared",
-  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
+  "name": "cloudflared",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
   "description": "Cloudflare Tunnel client for exposing local services via secure tunnels",
   "commands": [
     "cloudflared"
@@ -20,7 +23,21 @@
     "macos",
     "windows"
   ],
- "bundling": "host-required",
+  "bundling": "host-required",
   "capability": "web-proxy",
-  "capability_role": "primary"
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    }
+  }
 }

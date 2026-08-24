@@ -52,7 +52,7 @@ const (
 // this host OS, whatever its proof level. Callers that only ask "is this
 // implemented?" should use this rather than comparing against a single status.
 func (s CapabilityResolutionStatus) HasImplementation() bool {
-	return s == CapabilityImplemented || s == CapabilityDegraded
+	return s == CapabilityImplemented || s == CapabilityDegraded || s == CapabilityControlsIncomplete
 }
 
 type CapabilityResolution struct {
@@ -61,13 +61,15 @@ type CapabilityResolution struct {
 	Status     CapabilityResolutionStatus `json:"status"`
 	// Qualification is the honesty rung of the winning declaration: how much
 	// real-world proof it carries, independent of whether it resolved.
-	Qualification Qualification        `json:"qualification"`
-	Implementer   string               `json:"implementer,omitempty"`
-	Mechanism     string               `json:"mechanism,omitempty"`
-	Reason        string               `json:"reason"`
-	Controls      []string             `json:"controls,omitempty"`
-	Absent        []string             `json:"absent,omitempty"`
-	Declarers     []CapabilityDeclarer `json:"declarers,omitempty"`
+	Qualification   Qualification        `json:"qualification"`
+	Implementer     string               `json:"implementer,omitempty"`
+	Mechanism       string               `json:"mechanism,omitempty"`
+	Reason          string               `json:"reason"`
+	Controls        []string             `json:"controls,omitempty"`
+	Absent          []string             `json:"absent,omitempty"`
+	AbsentControls  []string             `json:"absent_controls,omitempty"`
+	AbsentProviders []string             `json:"absent_providers,omitempty"`
+	Declarers       []CapabilityDeclarer `json:"declarers,omitempty"`
 }
 
 type capabilityCandidate struct {
@@ -98,7 +100,7 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 	var candidates []capabilityCandidate
 	var controls []capabilityCandidate
 	var declarers []string
-	var resolved = make(map[string]bool)
+	resolved := make(map[string]bool)
 	for _, implementation := range implementations {
 		if strings.TrimSpace(implementation.Capability) != capability {
 			continue
@@ -169,10 +171,11 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 		result.Reason = winner.qualification.Reason()
 		result.Controls = sortedNames(controls)
 		result.Absent = absentNames(declarers, resolved)
+		result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
 		result.Declarers = declarerDetails(implementations, capability, os, resolved)
-		if len(controls) < countControls(implementations, capability) {
+		if len(controls) < countControls(implementations, capability, os) {
 			result.Status = CapabilityControlsIncomplete
-			result.Reason = fmt.Sprintf("provider %q resolves, but required controls are absent: %s", result.Implementer, strings.Join(result.Absent, ", "))
+			result.Reason = fmt.Sprintf("provider %q resolves, but required controls are absent: %s", result.Implementer, strings.Join(result.AbsentControls, ", "))
 		}
 		return result
 	}
@@ -184,6 +187,7 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 		result.Reason = "a mechanism is named but no implementation is declared for this host OS"
 		result.Controls = sortedNames(controls)
 		result.Absent = absentNames(declarers, resolved)
+		result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
 		result.Declarers = declarerDetails(implementations, capability, os, resolved)
 		return result
 	}
@@ -192,6 +196,7 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 		result.Qualification = QualificationIneligible
 		result.Reason = QualificationIneligible.Reason()
 		result.Absent = absentNames(declarers, resolved)
+		result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
 		result.Declarers = declarerDetails(implementations, capability, os, resolved)
 		return result
 	}
@@ -199,6 +204,7 @@ func ResolveCapability(implementations []CapabilityImplementation, capability st
 	result.Reason = "no implementation or mechanism is declared for this capability on this host OS"
 	result.Controls = sortedNames(controls)
 	result.Absent = absentNames(declarers, resolved)
+	result.AbsentControls, result.AbsentProviders = absentByRole(implementations, capability, os, resolved)
 	result.Declarers = declarerDetails(implementations, capability, os, resolved)
 	return result
 }
@@ -227,14 +233,40 @@ func declarerDetails(implementations []CapabilityImplementation, capability stri
 	return details
 }
 
-func countControls(implementations []CapabilityImplementation, capability string) int {
+func countControls(implementations []CapabilityImplementation, capability string, os HostOS) int {
 	count := 0
 	for _, implementation := range implementations {
 		if strings.TrimSpace(implementation.Capability) == capability && implementation.Role == "control" && strings.TrimSpace(implementation.Name) != "" {
+			if _, declared := implementation.Platforms[os]; !declared {
+				continue
+			}
 			count++
 		}
 	}
 	return count
+}
+
+func absentByRole(implementations []CapabilityImplementation, capability string, os HostOS, resolved map[string]bool) ([]string, []string) {
+	var controls, providers []string
+	seen := make(map[string]struct{})
+	for _, implementation := range implementations {
+		name := strings.TrimSpace(implementation.Name)
+		if strings.TrimSpace(implementation.Capability) != capability || name == "" || resolved[name] {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		if implementation.Role == "control" {
+			controls = append(controls, name)
+		} else {
+			providers = append(providers, name)
+		}
+	}
+	sort.Strings(controls)
+	sort.Strings(providers)
+	return controls, providers
 }
 
 func sortedNames(candidates []capabilityCandidate) []string {

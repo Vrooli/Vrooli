@@ -3,6 +3,7 @@ package hygiene
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/structureprovider"
 )
@@ -15,6 +16,8 @@ type structureProvider struct {
 }
 
 func (p structureProvider) ID() string { return structureProviderID }
+
+func (p structureProvider) Budget() time.Duration { return 10 * time.Second }
 
 func (p structureProvider) Run(ctx context.Context, _ Request, report *Report) error {
 	if p.client == nil {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"net"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -240,9 +239,7 @@ func (m *Manager) BuildProjectEnvironment(item scenario.Scenario) (Environment, 
 			continue
 		}
 		port := 0
-		if override, err := strconv.Atoi(strings.TrimSpace(os.Getenv(portSummary.EnvVar))); err == nil && override > 0 {
-			port = override
-		} else if portSummary.FixedPort != nil {
+		if portSummary.FixedPort != nil {
 			port = *portSummary.FixedPort
 		}
 		if port <= 0 {

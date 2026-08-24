@@ -18,6 +18,7 @@ type HandlerDeps[C any] struct {
 	OutputFormat       func(C) (cliout.Format, error)
 	ScenarioOperations func(C) (packageapp.ScenarioRuntime, error)
 	LifecycleRunner    func(C) (packageapp.ScenarioPhaseRunner, error)
+	TestGenieRunner    func(C, string, io.Writer, io.Writer) error
 }
 
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
@@ -192,6 +193,12 @@ func newService[C any](deps HandlerDeps[C], ctx C, format cliout.Format) package
 				return nil, nil
 			}
 			return deps.LifecycleRunner(ctx)
+		},
+		TestGenieRunner: func(target string, stdout, stderr io.Writer) error {
+			if deps.TestGenieRunner == nil {
+				return nil
+			}
+			return deps.TestGenieRunner(ctx, target, stdout, stderr)
 		},
 	}
 }

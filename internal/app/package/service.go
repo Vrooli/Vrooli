@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/packagegov"
@@ -29,6 +30,9 @@ type Service struct {
 	Stderr          io.Writer
 	ScenarioService func() (ScenarioRuntime, error)
 	ScenarioRunner  func() (ScenarioPhaseRunner, error)
+	// TestGenieRunner owns package-target test execution when the control-plane
+	// CLI is wired to the server-owned Test Genie runtime.
+	TestGenieRunner func(target string, stdout, stderr io.Writer) error
 }
 
 type RunResponse struct {
@@ -93,6 +97,15 @@ func (s Service) Generate(name string) (RunResponse, error) {
 }
 
 func (s Service) Test(name string) (RunResponse, error) {
+	if s.TestGenieRunner != nil {
+		if strings.TrimSpace(name) == "" {
+			return RunResponse{}, fmt.Errorf("package name is required for test")
+		}
+		if err := s.TestGenieRunner("package:"+strings.TrimSpace(name), s.Stdout, s.Stderr); err != nil {
+			return RunResponse{}, err
+		}
+		return RunResponse{PackageName: name, Action: "test-genie"}, nil
+	}
 	return s.runLifecycle(name, "test")
 }
 
@@ -310,7 +323,7 @@ func rebuildGoConsumerTargets(dependents []packagegov.Dependent, stdout, stderr 
 			Name:   "go",
 			Args:   []string{"build", "./..."},
 			Dir:    buildPath,
-			Env:    append(os.Environ(), "GOWORK=off"),
+			Env:    envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off"}),
 			Stdout: stdout,
 			Stderr: stderr,
 		}

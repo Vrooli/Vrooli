@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostfacts"
 )
@@ -73,7 +74,7 @@ func (osCommandRunner) RunWithEnv(ctx context.Context, env []string, name string
 func runOSCommand(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
 	command := exec.CommandContext(ctx, name, args...)
 	if len(env) > 0 {
-		command.Env = append(os.Environ(), env...)
+		command.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, envkit.Env(env))
 	}
 	configureCommandProcessGroup(command)
 	// The context must cancel the whole process group, not only a wrapper

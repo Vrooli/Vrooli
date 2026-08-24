@@ -64,6 +64,10 @@ type EnsureOptions struct {
 	MaintenanceWindow bool
 	Stdout            io.Writer
 	Stderr            io.Writer
+	// OnOperation receives a safe semantic label for long-running work. It is
+	// observational only; callback failures or panics must never affect host
+	// requirement semantics.
+	OnOperation func(string)
 }
 
 // BlockingReason categorises *why* an item is not yet satisfied. It is

@@ -96,11 +96,13 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 		return nil, os.ErrNotExist
 	}
 
+	var operations []string
 	report, err := EnsureRequirements(EnsureOptions{
 		Environment: "development",
 		DryRun:      true,
 		AutoInstall: true,
 		SudoMode:    "skip",
+		OnOperation: func(label string) { operations = append(operations, label) },
 	}, hostreq.Resolution{
 		Tools: []hostreq.ResolvedRequirement{
 			{Name: "tmux", Kind: hostreq.KindTool, Required: true, Reasons: []string{"scenario tmux"}},
@@ -112,6 +114,9 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("EnsureRequirements: %v", err)
+	}
+	if len(operations) == 0 || !strings.Contains(strings.Join(operations, "|"), "tmux") {
+		t.Fatalf("operation labels = %v, want safe requirement label", operations)
 	}
 
 	tmux := findStatus(t, report.Tools, "tmux")
@@ -623,7 +628,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 
 	safeguardNames := reg.names(hostreq.KindSafeguard)
 	expectedSafeguards := []string{
-		"autoheal_recovery_privileges", "clock", "coding_agent_shims", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
+		"autoheal_recovery_privileges", "autoheal_watchdog", "clock", "coding_agent_shims", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
 		"edac_modules", "emergency_watchdog", "host_hardening", "kdump_observability", "kernel_config", "login_keyring_unlock", "model_policy_drift", "nat_protection", "netconsole", "onboarding_apply_privileges",
 		"nvidia_driver",
 		"ollama_resource_controls",

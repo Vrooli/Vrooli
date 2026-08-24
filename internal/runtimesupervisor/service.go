@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/accel"
 	"github.com/vrooli/vrooli/internal/hostsession"
@@ -1064,22 +1065,11 @@ func firstNonNilWriter(configured io.Writer, logFile *os.File) io.Writer {
 }
 
 func supervisorCommandEnv(env []string, home string) []string {
-	out := append([]string(nil), env...)
+	overlay := envkit.Env{ModeEnv + "=" + ModeOn}
 	if strings.TrimSpace(home) != "" {
-		out = setEnv(out, "HOME", home)
+		overlay = append(overlay, "HOME="+home)
 	}
-	return setEnv(out, ModeEnv, ModeOn)
-}
-
-func setEnv(env []string, key string, value string) []string {
-	prefix := key + "="
-	for i, entry := range env {
-		if strings.HasPrefix(entry, prefix) {
-			env[i] = prefix + value
-			return env
-		}
-	}
-	return append(env, prefix+value)
+	return envkit.WithOverlay(envkit.Env(env), envkit.SameScenario, overlay)
 }
 
 func durationEnv(name string, fallback time.Duration) time.Duration {

@@ -95,6 +95,25 @@ func TestResolveMergesRootScenarioAndResourceDeclarations(t *testing.T) {
 	}
 }
 
+func TestResolveKeepsRootAutohealProtectionWhenScenarioSelectionIsNone(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service:        scenario.ServiceMetadata{Name: "vrooli"},
+		HostSafeguards: []hostreqspec.Declaration{{Name: "autoheal_watchdog", Required: true, Reason: "protect autoheal across reboot", When: []string{"setup"}}},
+	})
+	resolution, err := Resolve(root, home, ResolveOptions{Environment: "development", When: "setup", Resources: "none", Scenarios: "none", Platform: "linux"})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	item := findRequirement(t, resolution.Safeguards, "autoheal_watchdog")
+	if !item.Required {
+		t.Fatal("root autoheal watchdog must remain required")
+	}
+	if len(item.Provenance) != 1 || item.Provenance[0].Kind != "root" {
+		t.Fatalf("provenance=%+v, want root-only", item.Provenance)
+	}
+}
+
 func TestResolveHonorsSelectorsAndFilters(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

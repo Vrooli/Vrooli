@@ -85,6 +85,13 @@ func (l Locator) SetupStateDir() string {
 	return l.setupStateDir
 }
 
+// ActiveSetupPath is the best-effort, versioned in-progress setup record.
+// It is separate from terminal result files so interrupted setup can be
+// diagnosed without changing the existing result contract.
+func (l Locator) ActiveSetupPath() string {
+	return filepath.Join(l.SetupStateDir(), "active-setup.json")
+}
+
 // BootstrapCompletePath is written by the elevated, non-interactive setup
 // phase. It is intentionally distinct from configuration completion, which is
 // owned by onboarding.

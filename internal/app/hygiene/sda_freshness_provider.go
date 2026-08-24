@@ -35,9 +35,10 @@ type sdaFreshnessReport struct {
 }
 
 type sdaFreshnessSummary struct {
-	Checked int `json:"checked"`
-	Stale   int `json:"stale"`
-	Errors  int `json:"errors"`
+	Checked       int `json:"checked"`
+	Stale         int `json:"stale"`
+	Errors        int `json:"errors"`
+	NeedsDownload int `json:"needs_download"`
 }
 
 type sdaFreshnessSurface struct {
@@ -57,6 +58,8 @@ type sdaFreshnessAction struct {
 }
 
 func (p sdaFreshnessProvider) ID() string { return dependencyFreshnessProviderID }
+
+func (p sdaFreshnessProvider) Budget() time.Duration { return 45 * time.Second }
 
 func (p sdaFreshnessProvider) Run(ctx context.Context, _ Request, report *Report) error {
 	root := filepath.Clean(strings.TrimSpace(p.root))
@@ -119,6 +122,9 @@ func (p sdaFreshnessProvider) reportUnavailable(report *Report, reason string) {
 func (p sdaFreshnessProvider) apply(report *Report, freshness sdaFreshnessReport) {
 	drift := p.compatSharedDrift(freshness)
 	report.SharedDrift = &drift
+	if freshness.Summary.NeedsDownload > 0 {
+		report.addCheck("dependency_freshness_cold_cache", true, SeverityInfo, fmt.Sprintf("SDA needed downloads for %d cold-cache surface(s); this is host state, not a surface defect", freshness.Summary.NeedsDownload))
+	}
 	if freshness.Clean {
 		message := "SDA reports no stale dependency surfaces"
 		if freshness.Summary.Checked == 0 {

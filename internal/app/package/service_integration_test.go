@@ -66,6 +66,37 @@ func TestListInfoAndDependents(t *testing.T) {
 	}
 }
 
+func TestDependentsReportsGoConsumerWhenGovernedReplaceIsMissing(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	testpackage.WritePackageManifest(t, fixture.Root, "alpha", testpackage.PackageManifest(
+		"alpha",
+		testpackage.WithPackageDisplayName("example.com/alpha"),
+		testpackage.WithPackageKind(packagegov.KindGoRuntime),
+		testpackage.WithPackageModuleIdentifiers("example.com/alpha"),
+		testpackage.WithPackageAllowedConsumers(packagegov.ConsumerScenarioCLI),
+		testpackage.WithPackageAdoptionModes(packagegov.ModeGoModuleReplace),
+	))
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo"))
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "cli", "go.mod"), `module example.com/demo/cli
+
+go 1.25.0
+
+require example.com/alpha v0.0.0
+`)
+
+	_, report, err := newIntegrationPackageService(fixture, false).Dependents("alpha")
+	if err != nil {
+		t.Fatalf("Dependents: %v", err)
+	}
+	if len(report.Dependents) != 1 || report.Dependents[0].ConsumerName != "demo" {
+		t.Fatalf("dependents = %#v", report.Dependents)
+	}
+	if len(report.Issues) != 1 || report.Issues[0].Code != "package-go-module-replace-required" {
+		t.Fatalf("issues = %#v", report.Issues)
+	}
+}
+
 func TestRefreshScenarioSetupRunsBuildAndSetup(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)

@@ -914,6 +914,24 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			LifecycleRunner: func(ctx *CommandContext) (packageapp.ScenarioPhaseRunner, error) {
 				return ctx.app.newScenarioLifecycleRunner(ctx)
 			},
+			TestGenieRunner: func(ctx *CommandContext, target string, stdout, stderr io.Writer) error {
+				home, err := ctx.HomeDir()
+				if err != nil {
+					return err
+				}
+				cliPath, err := ctx.app.locateTestGenieCLI(ctx.Root, home)
+				if err != nil {
+					return err
+				}
+				return ctx.app.RunScenarioSubprocess(scenarioexec.SubprocessSpec{
+					Name:   cliPath,
+					Args:   []string{"--auto-start", "execute", target},
+					Dir:    ctx.Root,
+					Env:    ctx.app.CommandEnv(ctx.Root, ctx.Globals),
+					Stdout: stdout,
+					Stderr: stderr,
+				})
+			},
 		}),
 		topcli.CommandResource: resourcehandlers.RootHandler(resourcehandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,

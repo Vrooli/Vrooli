@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -22,7 +23,7 @@ type CommandOptions struct {
 
 func RunCommands(workdir string, commands []CommandSpec, stdout, stderr io.Writer) error {
 	return RunCommandsWithOptions(workdir, commands, stdout, stderr, CommandOptions{
-		Env:   os.Environ(),
+		Env:   envkit.Env(os.Environ()),
 		Stdin: os.Stdin,
 	})
 }
@@ -34,7 +35,7 @@ func RunCommands(workdir string, commands []CommandSpec, stdout, stderr io.Write
 func RunCommandsWithOptions(workdir string, commands []CommandSpec, stdout, stderr io.Writer, options CommandOptions) error {
 	env := options.Env
 	if env == nil {
-		env = os.Environ()
+		env = envkit.Env(os.Environ())
 	}
 	stdin := options.Stdin
 	if stdin == nil {

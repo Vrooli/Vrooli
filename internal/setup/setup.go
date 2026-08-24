@@ -206,18 +206,30 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	case "explain":
 		return s.runSetupExplain(root, home, opts, stdout)
 	}
+	statePath := ""
+	if locator, locatorErr := projectstate.NewLocator(home, root); locatorErr == nil {
+		statePath = locator.ActiveSetupPath()
+	}
+	progress := newProgressCoordinator(progressWriter(stderr, stdout), progressOptions{DryRun: opts.DryRun, StatePath: statePath})
+	progress.Start()
+	defer progress.Finish(err)
+	progress.StartPhase(PhaseValidation)
 
 	if err := s.deps.currentHost().ValidateSetup(); err != nil {
 		return err
 	}
+	progress.CompletePhase()
 
 	stage = "project"
+	progress.StartPhase(PhaseProject)
 	if _, err := s.deps.loadProject(root); err != nil {
 		return err
 	}
+	progress.CompletePhase()
 
 	if !opts.DryRun {
 		stage = "filesystem"
+		progress.StartPhase(PhaseFilesystem)
 		if err := ensureProjectFilesystem(root, home); err != nil {
 			return err
 		}
@@ -228,8 +240,10 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		} else if reowned > 0 {
 			fmt.Fprintf(stdout, "Reclaimed ownership of %d root-owned entries under ~/.vrooli.\n", reowned)
 		}
+		progress.CompletePhase()
 	}
 	stage = "resolution"
+	progress.StartPhase(PhaseResolution)
 	requirements, err := s.deps.resolveHostRequirements(root, home, hostreq.ResolveOptions{
 		Environment: opts.Environment,
 		When:        "setup",
@@ -240,6 +254,7 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	if err != nil {
 		return err
 	}
+	progress.CompletePhase()
 	requirements = bootstrapAwareRequirements(requirements)
 	// The onboarding apply API runs later and cannot safely open an interactive
 	// sudo prompt. During this setup pass, provision one literal grant for the
@@ -258,16 +273,22 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		MaintenanceWindow: opts.MaintenanceWindow,
 		Stdout:            stdout,
 		Stderr:            stderr,
+		OnOperation:       progress.Operation,
 	}
 	if !opts.DryRun {
 		stage = "bootstrap"
+		progress.StartPhase(PhaseBootstrap)
+		progress.Operation("Checking bootstrap tools (git, go)")
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Checking bootstrap tools (git, go)...")
 		if err := s.deps.ensureBootstrapTools(home, ensureOptions); err != nil {
 			return err
 		}
+		progress.CompletePhase()
 	}
 
 	stage = "requirements"
+	progress.StartPhase(PhaseRequirements)
+	progress.Operation("Applying selected host requirements")
 	_, _ = fmt.Fprintln(stdout, "[INFO]    Applying selected host requirements...")
 	report, ensureErr := s.deps.ensureRequirements(ensureOptions, requirements)
 	terminalReport = report
@@ -275,20 +296,26 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	if ensureErr != nil && !opts.DryRun {
 		return ensureErr
 	}
+	progress.CompletePhase()
 	if opts.DryRun {
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Dry-run mode skips git configuration, resource installation, and setup completion markers")
 		return nil
 	}
 	stage = "generated-packages"
+	progress.StartPhase(PhaseGeneratedPackages)
+	progress.Operation("Generating repository packages")
 	_, _ = fmt.Fprintln(stdout, "[INFO]    Generating repository packages needed by the control plane...")
 	if err := lifecycle.ProvisionGeneratedPackages(root, home, stdout, stdout); err != nil {
 		return fmt.Errorf("provision generated packages: %w", err)
 	}
+	progress.CompletePhase()
 	if opts.BootstrapOnly {
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Bootstrap-only setup applied host requirements; native CLI finalization is still required")
 		return nil
 	}
 	stage = "credentials"
+	progress.StartPhase(PhaseCredentials)
+	progress.Operation("Configuring the credential backend")
 	_, _ = fmt.Fprintln(stdout, "[INFO]    Configuring the credential backend...")
 	if opts.CredentialPassphraseStdin {
 		passphrase, readErr := readCredentialPassphraseStdin()
@@ -301,11 +328,17 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	} else if err := s.deps.configureCredentialBackend(stdout, stderr); err != nil {
 		return err
 	}
+	progress.CompletePhase()
 	stage = "credential-capabilities"
+	progress.StartPhase(PhaseCredentialCapabilities)
+	progress.Operation("Discovering operator capabilities")
 	if err := discoverAndQueueCapabilities(context.Background(), s.deps.discoverCapabilities, root, home, stdout); err != nil {
 		return err
 	}
+	progress.CompletePhase()
 	stage = "privilege-broker"
+	progress.StartPhase(PhasePrivilegeBroker)
+	progress.Operation("Installing the privilege broker")
 	_, _ = fmt.Fprintln(stdout, "[INFO]    Installing the privilege broker...")
 	if executableErr != nil {
 		return fmt.Errorf("resolve executable for privilege broker: %w", executableErr)
@@ -315,18 +348,27 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		return brokerErr
 	}
 	renderPrivilegeBrokerStatus(stdout, brokerStatus)
+	progress.CompletePhase()
 	stage = "git"
+	progress.StartPhase(PhaseGit)
+	progress.Operation("Configuring Git defaults")
 	_, _ = fmt.Fprintln(stdout, "[INFO]    Configuring Git defaults...")
 	if err := configureGit(root); err != nil {
 		return err
 	}
+	progress.CompletePhase()
 	stage = "resources"
+	progress.StartPhase(PhaseResources)
+	progress.Operation("Reconciling selected resources")
 	_, _ = fmt.Fprintln(stdout, "[INFO]    Reconciling selected resources...")
-	if err := s.maybeInstallResources(root, home, opts, stdout, stderr); err != nil {
+	if err := s.maybeInstallResources(root, home, opts, stdout, stderr, progress.Operation); err != nil {
 		return err
 	}
+	progress.CompletePhase()
 	stage = "cli"
+	progress.StartPhase(PhaseCLI)
 	if strings.TrimSpace(opts.Resources) == "none" {
+		progress.Operation("Skipping resource CLI synchronization")
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Skipping resource CLI schema synchronization (resources=none)")
 	} else {
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Synchronizing resource CLI schemas...")
@@ -334,7 +376,10 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 			return err
 		}
 	}
+	progress.CompletePhase()
 	stage = "finalize"
+	progress.StartPhase(PhaseFinalize)
+	progress.Operation("Refreshing selected scenario and resource CLIs")
 	_, _ = fmt.Fprintln(stdout, "[INFO]    Refreshing the bootstrap and selected scenario CLIs...")
 	cliManager, err := s.deps.newCLIInstallManager(root, home)
 	if err != nil {
@@ -347,7 +392,7 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	if err := cliManager.EnsureScenarioCLI("secrets-manager"); err != nil {
 		return fmt.Errorf("refresh secrets-manager bootstrap CLI: %w", err)
 	}
-	if err := installSelectedCLIs(cliManager, opts.Resources, opts.Scenarios); err != nil {
+	if err := installSelectedCLIs(cliManager, opts.Resources, opts.Scenarios, progress.Operation); err != nil {
 		return err
 	}
 	if err := s.deps.recordProjectInstall(root, home); err != nil {
@@ -361,8 +406,11 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		_, _ = fmt.Fprintln(stdout, "[ACTION]  Continue configuration with: vrooli scenario open vrooli-onboarding")
 		_, _ = fmt.Fprintln(stdout, "[ACTION]  Or use the onboarding CLI/API to resolve pending operator inputs.")
 	}
+	progress.CompletePhase()
+	progress.StartPhase(PhaseCompletion)
 	_, _ = fmt.Fprintln(stdout, "[INFO]    Setup completed successfully.")
 	_, _ = fmt.Fprintln(stdout, "[INFO]    Bootstrap setup completed; configuration remains pending until onboarding reports completion.")
+	progress.CompletePhase()
 	return nil
 }
 
@@ -370,16 +418,22 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 // used for host requirements and resource installation. In particular, an
 // explicit "none" must not build every CLI in the repository: a minimal fresh
 // host should only pay for the capabilities the operator selected.
-func installSelectedCLIs(manager cliInstallManager, resourceSelector, scenarioSelector string) error {
+func installSelectedCLIs(manager cliInstallManager, resourceSelector, scenarioSelector string, onOperation ...func(string)) error {
+	operation := func(label string) {}
+	if len(onOperation) > 0 && onOperation[0] != nil {
+		operation = onOperation[0]
+	}
 	resources := strings.TrimSpace(resourceSelector)
 	switch resources {
 	case "none":
 	case "", "enabled":
+		operation("Refreshing enabled resource CLIs")
 		if err := manager.InstallEnabledResourceCLIs(); err != nil {
 			return err
 		}
 	default:
 		for _, name := range splitSelection(resources) {
+			operation("Refreshing resource CLI " + name)
 			if err := manager.InstallResourceCLI(name); err != nil {
 				return err
 			}
@@ -390,11 +444,13 @@ func installSelectedCLIs(manager cliInstallManager, resourceSelector, scenarioSe
 	switch scenarios {
 	case "", "none":
 	case "all":
+		operation("Refreshing all scenario CLIs")
 		if err := manager.InstallAllScenarioCLIs(); err != nil {
 			return err
 		}
 	default:
 		for _, name := range splitSelection(scenarios) {
+			operation("Refreshing scenario CLI " + name)
 			if err := manager.InstallScenarioCLI(name); err != nil {
 				return err
 			}
@@ -507,6 +563,9 @@ func ensureBootstrapHostTools(home string, opts vrooliruntime.EnsureOptions) err
 		return err
 	}
 	for _, name := range []string{"git", "go"} {
+		if opts.OnOperation != nil {
+			opts.OnOperation("Checking bootstrap tool " + name)
+		}
 		status, err := vrooliruntime.EnsureTool(name, opts)
 		if err != nil {
 			return fmt.Errorf("install bootstrap host tool %s: %w", name, err)
@@ -559,7 +618,7 @@ func ensureBootstrapPackageManager(
 	}); err != nil {
 		return fmt.Errorf("bootstrap Homebrew: download official installer: %w", err)
 	}
-	env := append(os.Environ(), "NONINTERACTIVE=1", "HOME="+home)
+	env := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"NONINTERACTIVE=1", "HOME=" + home})
 	if err := run(shell.Spec{
 		Name: "/bin/bash", Args: []string{scriptPath}, Env: env,
 		Stdout: opts.Stdout, Stderr: opts.Stderr, Stdin: os.Stdin,
@@ -718,8 +777,7 @@ func buildProjectBinary(root, outputPath, target string, fingerprintPaths []stri
 		fingerprint,
 	)
 
-	env := append([]string(nil), os.Environ()...)
-	env = append(env, "CGO_ENABLED=0")
+	env := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"CGO_ENABLED=0"})
 	return shell.Run(shell.Spec{
 		Name:   "go",
 		Args:   []string{"build", "-trimpath", "-ldflags", ldflags, "-o", outputPath, target},
@@ -741,8 +799,7 @@ func buildProjectBinary(root, outputPath, target string, fingerprintPaths []stri
 // from its own directory and does not receive the main module's buildinfo
 // ldflags (those -X symbols do not exist in this module).
 func buildNestedModuleBinary(moduleDir, outputPath string, stdout, stderr io.Writer) error {
-	env := append([]string(nil), os.Environ()...)
-	env = append(env, "CGO_ENABLED=0")
+	env := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"CGO_ENABLED=0"})
 	return shell.Run(shell.Spec{
 		Name:   "go",
 		Args:   []string{"build", "-trimpath", "-o", outputPath, "."},
@@ -800,7 +857,11 @@ func configureGit(root string) error {
 	return cmd.Run()
 }
 
-func (s *setupService) maybeInstallResources(root, home string, opts Options, stdout, stderr io.Writer) error {
+func (s *setupService) maybeInstallResources(root, home string, opts Options, stdout, stderr io.Writer, onOperation ...func(string)) error {
+	operation := func(label string) {}
+	if len(onOperation) > 0 && onOperation[0] != nil {
+		operation = onOperation[0]
+	}
 	selection := strings.TrimSpace(opts.Resources)
 	if selection == "" {
 		selection = "enabled"
@@ -819,6 +880,7 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 			return err
 		}
 		for _, name := range names {
+			operation("Installing resource " + name)
 			if err := controller.Run(name, []string{"install"}, stdout, stderr); err != nil {
 				return err
 			}
@@ -838,6 +900,7 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 		return err
 	}
 	for _, name := range names {
+		operation("Installing resource " + name)
 		if err := controller.Run(name, []string{"install"}, stdout, stderr); err != nil {
 			return err
 		}
@@ -1294,6 +1357,9 @@ func (s *setupService) runSetupStatus(root, home string, opts Options, stdout io
 	}
 	if _, err := s.deps.loadProject(root); err != nil {
 		return err
+	}
+	if locator, err := projectstate.NewLocator(home, root); err == nil {
+		renderActiveSetupState(stdout, locator.ActiveSetupPath(), s.deps.now())
 	}
 	requirements, err := s.deps.resolveHostRequirements(root, home, hostreq.ResolveOptions{
 		Environment: opts.Environment,

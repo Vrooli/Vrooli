@@ -184,6 +184,9 @@ func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report
 	}
 
 	for index, status := range report.Tools {
+		if opts.OnOperation != nil {
+			opts.OnOperation("Applying tool " + status.Name)
+		}
 		if requirementSatisfied(status) {
 			continue
 		}
@@ -198,6 +201,9 @@ func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report
 		report.Tools[index] = annotateBlockingReason(updated)
 	}
 	for index, status := range report.Safeguards {
+		if opts.OnOperation != nil {
+			opts.OnOperation("Applying safeguard " + status.Name)
+		}
 		if requirementSatisfied(status) {
 			continue
 		}

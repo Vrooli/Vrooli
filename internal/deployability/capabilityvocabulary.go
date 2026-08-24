@@ -61,6 +61,53 @@ func CheckCapabilitySchemaEnums(root string) error {
 			return fmt.Errorf("%s capability enum drifted from .vrooli/capability-vocabulary.json: got %v want %v", schemaName, got, want)
 		}
 	}
+	if err := checkPlatformPolicyEnums(filepath.Join(root, ".vrooli", "schemas", "capability-vocabulary.schema.json")); err != nil {
+		return err
+	}
+	if err := checkPlatformStatusEnum(filepath.Join(root, ".vrooli", "schemas", "common.schema.json")); err != nil {
+		return err
+	}
+	if err := CheckCapabilityManifestPlatformStatus(root); err != nil {
+		return err
+	}
+	return nil
+}
+
+// CheckCapabilityManifestPlatformStatus is the retirement lint for the legacy
+// tool/safeguard platforms array. Capability resolution must consume an
+// explicit declaration for every host OS; the array remains metadata for
+// older acquisition code but may not be the source of a capability claim.
+func CheckCapabilityManifestPlatformStatus(root string) error {
+	paths, err := filepath.Glob(filepath.Join(root, "internal", "tools", "*", "tool.json"))
+	if err != nil {
+		return err
+	}
+	safeguards, err := filepath.Glob(filepath.Join(root, "internal", "safeguards", "*", "safeguard.json"))
+	if err != nil {
+		return err
+	}
+	paths = append(paths, safeguards...)
+	if len(paths) == 0 {
+		return nil
+	}
+	want := []string{"linux", "macos", "windows"}
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		var manifest struct {
+			PlatformStatus map[string]json.RawMessage `json:"platform_status"`
+		}
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			return fmt.Errorf("parse %s: %w", path, err)
+		}
+		for _, hostOS := range want {
+			if _, ok := manifest.PlatformStatus[hostOS]; !ok {
+				return fmt.Errorf("%s relies on the legacy platforms array for %s capability resolution", path, hostOS)
+			}
+		}
+	}
 	return nil
 }
 
@@ -97,7 +144,154 @@ func GenerateCapabilitySchemaEnums(root string) error {
 			return err
 		}
 	}
+	path := filepath.Join(root, ".vrooli", "schemas", "capability-vocabulary.schema.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	updated := replacePlatformPolicyEnums(data)
+	if !bytes.Equal(data, updated) {
+		info, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, updated, info.Mode().Perm()); err != nil {
+			return err
+		}
+	}
+	commonPath := filepath.Join(root, ".vrooli", "schemas", "common.schema.json")
+	common, err := os.ReadFile(commonPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	updatedCommon := replacePlatformStatusEnum(common)
+	if !bytes.Equal(common, updatedCommon) {
+		info, err := os.Stat(commonPath)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(commonPath, updatedCommon, info.Mode().Perm()); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+var platformPolicyValues = []string{"no_equivalent_ever", "no_work_required"}
+
+var platformStatusValues = []string{"supported", "build-verified", "experimental", "unqualified", "partial", "unsupported"}
+
+func checkPlatformStatusEnum(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var schema struct {
+		Definitions map[string]struct {
+			Properties map[string]struct {
+				Enum []string `json:"enum"`
+			} `json:"properties"`
+		} `json:"definitions"`
+	}
+	if err := json.Unmarshal(data, &schema); err != nil {
+		return fmt.Errorf("parse %s: %w", path, err)
+	}
+	got := append([]string(nil), schema.Definitions["platformStatus"].Properties["status"].Enum...)
+	want := append([]string(nil), platformStatusValues...)
+	sort.Strings(got)
+	sort.Strings(want)
+	if !sameStrings(got, want) {
+		return fmt.Errorf("%s platform status enum drifted: got %v want %v", path, got, want)
+	}
+	return nil
+}
+
+func replacePlatformStatusEnum(data []byte) []byte {
+	replacement, _ := json.Marshal(platformStatusValues)
+	marker := []byte(`"platformStatus"`)
+	definition := bytes.Index(data, marker)
+	if definition < 0 {
+		return data
+	}
+	property := bytes.Index(data[definition:], []byte(`"status"`))
+	if property < 0 {
+		return data
+	}
+	property += definition
+	enum := bytes.Index(data[property:], []byte(`"enum"`))
+	if enum < 0 {
+		return data
+	}
+	enum += property
+	start := bytes.IndexByte(data[enum:], '[')
+	if start < 0 {
+		return data
+	}
+	start += enum
+	end, err := jsonArrayEnd(data, start)
+	if err != nil {
+		return data
+	}
+	updated := make([]byte, 0, len(data)-end+start+len(replacement))
+	updated = append(updated, data[:start]...)
+	updated = append(updated, replacement...)
+	updated = append(updated, data[end:]...)
+	return updated
+}
+
+func checkPlatformPolicyEnums(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var schema struct {
+		Properties struct {
+			PlatformPolicies struct {
+				AdditionalProperties struct {
+					Properties map[string]struct {
+						Enum []string `json:"enum"`
+					} `json:"properties"`
+					PatternProperties map[string]struct {
+						Enum []string `json:"enum"`
+					} `json:"patternProperties"`
+				} `json:"additionalProperties"`
+			} `json:"platform_policies"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(data, &schema); err != nil {
+		return fmt.Errorf("parse %s: %w", path, err)
+	}
+	want := append([]string(nil), platformPolicyValues...)
+	sort.Strings(want)
+	for name, property := range schema.Properties.PlatformPolicies.AdditionalProperties.Properties {
+		got := append([]string(nil), property.Enum...)
+		sort.Strings(got)
+		if !sameStrings(got, want) {
+			return fmt.Errorf("%s platform policy %s enum drifted: got %v want %v", path, name, got, want)
+		}
+	}
+	for name, property := range schema.Properties.PlatformPolicies.AdditionalProperties.PatternProperties {
+		got := append([]string(nil), property.Enum...)
+		sort.Strings(got)
+		if !sameStrings(got, want) {
+			return fmt.Errorf("%s platform policy %s enum drifted: got %v want %v", path, name, got, want)
+		}
+	}
+	return nil
+}
+
+func replacePlatformPolicyEnums(data []byte) []byte {
+	replacement, _ := json.Marshal(platformPolicyValues)
+	old := []byte(`["no_work_required", "no_equivalent_ever"]`)
+	updated := bytes.ReplaceAll(data, old, replacement)
+	old = []byte(`["no_equivalent_ever", "no_work_required"]`)
+	return bytes.ReplaceAll(updated, old, replacement)
 }
 
 func capabilitySchemaEnum(path string) ([]string, error) {

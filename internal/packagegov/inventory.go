@@ -184,8 +184,6 @@ func (inv dependencyInventory) scanGoMod(path string, scope consumerScope, ident
 					Path:        filepath.Clean(path),
 					PackageName: pkg.Name,
 				})
-				inv.reports[pkg.Name] = report
-				continue
 			}
 			report.Dependents = append(report.Dependents, Dependent{
 				PackageName:      pkg.Name,

@@ -76,6 +76,7 @@ type GPURequirement struct{ MinCUDACompute string }
 type PlatformDeclaration struct {
 	Status    string
 	Mechanism string
+	Evidence  string
 }
 
 type CapabilityDeclaration struct {

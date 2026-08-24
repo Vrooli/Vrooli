@@ -132,6 +132,27 @@ func TestInvokingUserHomeDirFallsBackToHOMEWhenPasswdMisses(t *testing.T) {
 	}
 }
 
+func TestInvokingUserCommandTargetsElevatedOperatorBus(t *testing.T) {
+	origRoot := RunningAsRootFn
+	defer func() { RunningAsRootFn = origRoot }()
+	RunningAsRootFn = func() bool { return true }
+	t.Setenv("SUDO_USER", "alice")
+	t.Setenv("SUDO_UID", "1000")
+	t.Setenv("SUDO_GID", "1000")
+
+	name, args := InvokingUserCommand("systemctl", "--user", "daemon-reload")
+	joined := name + " " + strings.Join(args, " ")
+	if name != "sudo" || !strings.Contains(joined, "-u alice") {
+		t.Fatalf("command = %q, want sudo targeting alice", joined)
+	}
+	if !strings.Contains(joined, "XDG_RUNTIME_DIR=/run/user/1000") {
+		t.Fatalf("command = %q, want operator runtime directory", joined)
+	}
+	if !strings.Contains(joined, "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus") {
+		t.Fatalf("command = %q, want operator session bus", joined)
+	}
+}
+
 func TestRunAsInvokingUserNoOpWhenNotRoot(t *testing.T) {
 	// When not running as root there's nothing to drop privileges from.
 	// The command should be invoked verbatim — no sudo wrap.
