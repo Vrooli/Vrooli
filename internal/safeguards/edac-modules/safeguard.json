@@ -1,7 +1,23 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
- "name": "edac_modules",
-  "storage": {"entries": {"module_load": {"rung": "pinned", "path": {"linux": "/etc/modules-load.d/99-vrooli-amd64_edac.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The Linux safeguard persists the detected AMD EDAC module load."}}, "rationale": "Linux-only module-load configuration is verified by the handler's driver detection."},
+  "name": "edac_modules",
+  "storage": {
+    "entries": {
+      "module_load": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/modules-load.d/99-vrooli-amd64_edac.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The Linux safeguard persists the detected AMD EDAC module load."
+      }
+    },
+    "rationale": "Linux-only module-load configuration is verified by the handler's driver detection."
+  },
   "description": "Load EDAC drivers for memory error reporting on supported chipsets",
   "handler": "edac_modules",
   "platforms": [
@@ -9,8 +25,44 @@
   ],
   "risk": "high",
   "privilege": "elevated",
- "bundling": "prohibited",
+  "bundling": "prohibited",
   "capability": "hardware-error-telemetry",
   "capability_role": "control",
-  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    }
+  }
 }

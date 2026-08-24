@@ -261,7 +261,7 @@
         },
         "windows": {
           "support": "conditional",
-          "mode": "bundled-service",
+      "mode": "manual",
           "architectures": ["amd64"],
           "requires": [],
           "limitations": [

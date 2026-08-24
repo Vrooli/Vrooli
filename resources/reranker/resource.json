@@ -98,19 +98,53 @@
       "kind": "oci-image",
       "license": "Apache-2.0",
       "targets": [
-        {"when": {"os": "linux", "arch": "amd64", "gpu.cuda_compute": ">=8.9"}, "image": "ghcr.io/huggingface/text-embeddings-inference@sha256:8350eef88360fd746de01cd951adef9584a35ad957a7d02fa3309c2b6e962323", "artifact_sha256": "0e18dd5070cf9a3dbb6833e6f546afe8030cf9e731c73236d84d301f9093bc4a", "layout": "file", "bin_path": "/usr/local/bin/text-embeddings-router"},
-        {"when": {"os": "linux", "arch": "amd64"}, "image": "ghcr.io/huggingface/text-embeddings-inference@sha256:22eac176ead3eb7008c672123b05331347e1a86661a7f27f3f6550dbe31ff96c", "artifact_sha256": "68b30d1c0efa51d6ec0916bde786d9a4824f3cd0055148ae0dfe4c51993b43ee", "layout": "file", "bin_path": "/usr/local/bin/text-embeddings-router"},
-        {"when": {"os": "macos", "arch": "amd64"}, "unsupported": "the pinned TEI image has no native macOS executable bundle"},
-        {"when": {"os": "macos", "arch": "arm64"}, "unsupported": "the pinned TEI image has no native macOS executable bundle"},
-        {"when": {"os": "windows", "arch": "amd64"}, "unsupported": "the pinned TEI image has no native Windows executable bundle"}
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64",
+            "gpu.cuda_compute": ">=8.9"
+          },
+          "image": "ghcr.io/huggingface/text-embeddings-inference@sha256:8350eef88360fd746de01cd951adef9584a35ad957a7d02fa3309c2b6e962323",
+          "artifact_sha256": "0e18dd5070cf9a3dbb6833e6f546afe8030cf9e731c73236d84d301f9093bc4a",
+          "layout": "file",
+          "bin_path": "/usr/local/bin/text-embeddings-router"
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "unsupported": "the pinned TEI CPU image links libiomp5.so, which the image ships outside the extracted bin_path executable; single-file extraction cannot capture it and the host provides no system-wide copy, so the artifact passes its digest check and cannot start. Measured on 2026-08-20: `reranker_linux_amd64: error while loading shared libraries: libiomp5.so: cannot open shared object file`."
+        },
+        {
+          "when": {
+            "os": "macos",
+            "arch": "amd64"
+          },
+          "unsupported": "the pinned TEI image has no native macOS executable bundle"
+        },
+        {
+          "when": {
+            "os": "macos",
+            "arch": "arm64"
+          },
+          "unsupported": "the pinned TEI image has no native macOS executable bundle"
+        },
+        {
+          "when": {
+            "os": "windows",
+            "arch": "amd64"
+          },
+          "unsupported": "the pinned TEI image has no native Windows executable bundle"
+        }
       ]
     },
     "attach_health_path": "/health",
-      "arguments": [
-        "--model-id=${RERANKER_MODEL}",
-        "--port=${RESOURCE_PORT_HTTP}",
-        "--prometheus-port=${RESOURCE_PORT_METRICS}",
-        "--hostname=127.0.0.1",
+    "arguments": [
+      "--model-id=${RERANKER_MODEL}",
+      "--port=${RESOURCE_PORT_HTTP}",
+      "--prometheus-port=${RESOURCE_PORT_METRICS}",
+      "--hostname=127.0.0.1",
       "--huggingface-hub-cache=${RESOURCE_DATA_DIR}/model-cache"
     ],
     "environment_file": "active.env",
@@ -130,10 +164,12 @@
         "linux": {
           "support": "unsupported",
           "mode": "manual",
-          "architectures": ["amd64"],
+          "architectures": [
+            "amd64"
+          ],
           "requires": [],
           "limitations": [
-            "The pinned TEI 1.7.4 server binary is evidenced on Linux amd64. GPU acceleration depends on the host CUDA driver; CPU mode remains available where the selected model supports it."
+            "The pinned TEI 1.7.4 server binary is evidenced on Linux amd64 when the host provides CUDA compute 8.9+. The current CPU image is explicitly unsupported because single-file extraction cannot carry its libiomp5.so runtime dependency."
           ],
           "evidence": [],
           "reason": "The pinned OCI image is available for controlled acquisition, but desktop bundling remains unsupported until target smoke evidence is published."
@@ -141,7 +177,10 @@
         "macos": {
           "support": "unsupported",
           "mode": "manual",
-          "architectures": ["amd64", "arm64"],
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
           "requires": [],
           "limitations": [
             "A signed native macOS TEI bundle has not yet been staged and exercised."
@@ -152,7 +191,10 @@
         "windows": {
           "support": "unsupported",
           "mode": "manual",
-          "architectures": ["amd64", "arm64"],
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
           "requires": [],
           "limitations": [
             "A signed native Windows TEI bundle has not yet been staged and exercised."
@@ -163,31 +205,52 @@
       }
     }
   },
-  "capacity": {
-    "resource_kind": "vram",
-    "gpu_index": 0,
-    "preferred_bytes": 1447034880,
-    "floor_bytes": 633339904,
-    "priority": "service",
-    "yield_when_idle": true,
-    "idle_grace_seconds": 900,
-    "profile": {
-      "steps": [
-        {"label": "BAAI/bge-reranker-v2-m3", "amount_bytes": 1447034880},
-        {"label": "Alibaba-NLP/gte-reranker-modernbert-base", "amount_bytes": 633339904}
-      ],
-      "apply": {
-        "verb": "models",
-        "argv": ["activate", "--model", "{label}"]
-      },
-      "upshift": true
+  "acceleration": {
+    "backends": [
+      "cuda"
+    ],
+    "require": "required",
+    "cuda": {
+      "min_compute": "8.9"
+    },
+    "claim": {
+      "resource_kind": "vram",
+      "gpu_index": 0,
+      "preferred_bytes": 1447034880,
+      "floor_bytes": 633339904,
+      "priority": "service",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 900,
+      "profile": {
+        "steps": [
+          {
+            "label": "BAAI/bge-reranker-v2-m3",
+            "amount_bytes": 1447034880
+          },
+          {
+            "label": "Alibaba-NLP/gte-reranker-modernbert-base",
+            "amount_bytes": 633339904
+          }
+        ],
+        "apply": {
+          "verb": "capacity",
+          "argv": [
+            "degrade",
+            "--to",
+            "{label}"
+          ]
+        },
+        "upshift": true
+      }
     }
   },
   "companions": [
     {
       "name": "capacity-sync",
       "command": "resource-reranker",
-      "args": ["capacity-sync"]
+      "args": [
+        "capacity-sync"
+      ]
     }
   ],
   "category": "ai",
@@ -261,5 +324,20 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "host-required",
+  "hostSafeguards": [
+    {
+      "name": "nvidia_driver",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "reason": "This resource declares a CUDA backend. The safeguard proves the host driver is ready, that the compute device nodes survive a boot with no client attached, and that this user can open them.",
+      "notes": "No-op on hosts without NVIDIA display hardware. Optional because reranking has documented consumer fallbacks when no validated target is available; the resource reports unavailable rather than pretending an unsupported CPU bundle is runnable."
+    }
+  ]
 }

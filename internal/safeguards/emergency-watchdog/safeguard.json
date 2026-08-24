@@ -29,7 +29,9 @@
   },
   "notes": "The watchdog's pressure thresholds are declared in infrastructure-manager/setpoint/reliability-setpoint.json; this manifest intentionally carries no private CPU deadband. The portable report-only decision binary reads hostpressure directly. Platform scheduling remains owned by each host's native scheduler.",
   "verificationCheck": {
-    "files": ["$USER_HOME/.vrooli/libexec/vrooli-watchdog"]
+    "files": [
+      "$USER_HOME/.vrooli/libexec/vrooli-watchdog"
+    ]
   },
   "deployment": {
     "profiles": {
@@ -50,6 +52,20 @@
           "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
         }
       }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
     }
   }
 }

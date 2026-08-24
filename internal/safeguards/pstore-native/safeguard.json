@@ -1,7 +1,35 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
- "name": "pstore_native",
-  "storage": {"entries": {"efi_module_load": {"rung": "pinned", "path": {"linux": "/etc/modules-load.d/99-vrooli-efi_pstore.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard persists the Linux EFI pstore module load."}, "erst_module_load": {"rung": "pinned", "path": {"linux": "/etc/modules-load.d/99-vrooli-erst.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard persists the Linux ERST pstore module load."}}, "rationale": "Linux-only module-load configuration is verified by the handler's module seam."},
+  "name": "pstore_native",
+  "storage": {
+    "entries": {
+      "efi_module_load": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/modules-load.d/99-vrooli-efi_pstore.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard persists the Linux EFI pstore module load."
+      },
+      "erst_module_load": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/modules-load.d/99-vrooli-erst.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard persists the Linux ERST pstore module load."
+      }
+    },
+    "rationale": "Linux-only module-load configuration is verified by the handler's module seam."
+  },
   "description": "Activate native kernel pstore backends (efi_pstore / erst) so panic dumps survive resets without modifying GRUB",
   "handler": "pstore_native",
   "platforms": [
@@ -9,8 +37,44 @@
   ],
   "risk": "low",
   "privilege": "elevated",
- "bundling": "prohibited",
+  "bundling": "prohibited",
   "capability": "crash-forensics",
   "capability_role": "control",
-  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    }
+  }
 }

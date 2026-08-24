@@ -1,22 +1,42 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "path_hygiene",
-  "storage": {
-    "entries": {},
-    "rationale": "The safeguard creates no files of its own. It rewrites a marked region inside the invoking user's pre-existing shell startup files, which the operator owns and which are not Vrooli state."
-  },
-  "description": "Keep ~/.vrooli/bin on the interactive PATH exactly once and first, and report duplicate PATH entries or a shadowing vrooli binary",
-  "handler": "path_hygiene",
+  "name": "autoheal_watchdog",
+  "description": "Install and verify the Vrooli autoheal supervisor in the invoking user's native boot scheduler.",
+  "handler": "autoheal_watchdog",
   "platforms": [
     "linux",
-    "macos"
+    "macos",
+    "windows"
   ],
   "risk": "low",
   "privilege": "user",
   "bundling": "prohibited",
-  "capability": "developer-utility",
+  "capability": "process-containment",
   "capability_role": "control",
-  "notes": "Retired per-scenario CLI installers appended an unguarded PATH line to ~/.bashrc each time they ran; one host accumulated 105 such lines across eight installers, yielding a 236-entry PATH with 17 unique directories. The managed block is delimited by markers so a rewrite replaces it instead of appending another copy, and it strips-then-prepends so ~/.vrooli/bin stays ahead of a stale `go install` copy regardless of what later startup files prepend.",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "boot_policy": {
+        "type": "string",
+        "enum": [
+          "dedicated",
+          "shared"
+        ],
+        "default": "dedicated",
+        "description": "Dedicated hosts enable Linux user lingering for pre-login startup; shared hosts remain login-scoped."
+      }
+    }
+  },
+  "storage": {
+    "entries": {},
+    "rationale": "The safeguard owns only the invoking user's native scheduler entry; it never writes a root-owned autoheal service."
+  },
+  "verificationCheck": {
+    "files": [
+      "$USER_HOME/.config/systemd/user/vrooli-autoheal.service"
+    ]
+  },
   "deployment": {
     "profiles": {
       "desktop": {
@@ -48,9 +68,8 @@
       "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
     },
     "windows": {
-      "status": "unsupported",
-      "mechanism": "handler",
-      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
     }
   }
 }

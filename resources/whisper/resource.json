@@ -255,7 +255,9 @@
           "limitations": [
             "The upstream XCFramework is not a server executable; a signed macOS native server build and smoke evidence remain pending."
           ],
-          "evidence": [],
+          "evidence": [
+            "manifest-validation"
+          ],
           "reason": "No native macOS whisper-server executable is currently staged."
         },
         "windows": {

@@ -15,6 +15,18 @@
           "max_bytes": "1TiB",
           "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
         }
+      },
+      "skills": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.claude/skills",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "projection": {
+          "environment": "CLAUDE_CONFIG_DIR",
+          "project_scope": true
+        },
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
       }
     }
   },
@@ -184,7 +196,7 @@
   "platforms": {
     "linux": "supported",
     "macos": "supported",
-    "windows": "partial"
+    "windows": "build-verified"
   },
   "health_checks": [
     {
@@ -275,5 +287,14 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "host-required",
+  "vrooli_memory_targets": [
+    {
+      "runtime": "claude-code",
+      "path": "$USER_HOME/.claude/projects/$WORKSPACE_KEY/memory/MEMORY.md",
+      "section": "",
+      "byte_cap": 32768,
+      "line_cap": 200
+    }
+  ]
 }

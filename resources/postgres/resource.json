@@ -5,7 +5,7 @@
   "description": "Managed PostgreSQL service for project and scenario storage.",
   "storage": {
     "entries": {
-      "main_data": {
+        "main_data": {
         "rung": "pinned",
         "kind": "dir",
         "regenerable": false,
@@ -16,12 +16,28 @@
         "rationale": "The PostgreSQL container's bind-mounted data directory; relocation requires the resource to be stopped.",
         "class": "data",
         "subpath": "instances/main/data",
-        "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
-        }
-      },
-      "config": {
+          "budget": {
+            "max_bytes": "1TiB",
+            "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+          }
+        },
+        "instance_runtime": {
+          "rung": "pinned",
+          "kind": "dir",
+          "regenerable": false,
+          "class": "data",
+          "subpath": "instances/main",
+          "rationale": "PostgreSQL server-managed runtime markers and Unix socket files live beside the durable cluster. The containing instance directory is pinned so validation accounts for those files without granting cleanup authority."
+        },
+        "migration_backups": {
+          "rung": "pinned",
+          "kind": "dir",
+          "regenerable": false,
+          "class": "data",
+          "subpath": "migration-backups",
+          "rationale": "Historical PostgreSQL migration dumps and verification records are durable recovery evidence. They remain protected until an explicit operator backup-retention decision removes them."
+        },
+        "config": {
         "rung": "owned",
         "kind": "dir",
         "class": "config",

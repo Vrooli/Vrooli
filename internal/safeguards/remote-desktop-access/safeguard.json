@@ -7,25 +7,41 @@
   },
   "description": "Declare and verify the host remote-desktop experience without overriding distribution display policy",
   "handler": "remote_desktop_access",
-  "platforms": ["linux", "macos", "windows"],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "risk": "high",
   "privilege": "elevated",
- "bundling": "prohibited",
+  "bundling": "prohibited",
   "capability": "remote-desktop",
-  "capability_role": "primary",
+  "capability_role": "control",
   "config": {
     "type": "object",
     "additionalProperties": false,
     "properties": {
       "experience": {
         "type": "string",
-        "enum": ["direct-desktop", "login-screen", "observe-only"],
+        "enum": [
+          "direct-desktop",
+          "login-screen",
+          "observe-only"
+        ],
         "default": "observe-only",
         "description": "The experience a remote desktop connection should present."
       },
       "provider": {
         "type": "string",
-        "enum": ["auto", "gnome-system", "gnome-user-shared", "gnome-headless", "xrdp", "windows-termservice", "macos-screen-sharing"],
+        "enum": [
+          "auto",
+          "gnome-system",
+          "gnome-user-shared",
+          "gnome-headless",
+          "xrdp",
+          "windows-termservice",
+          "macos-screen-sharing"
+        ],
         "default": "auto",
         "description": "The provider adapter to inspect, or auto to select the best detected provider."
       },
@@ -64,10 +80,36 @@
   "deployment": {
     "profiles": {
       "desktop": {
-        "linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."},
-        "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."},
-        "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
       }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
     }
   }
 }

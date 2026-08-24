@@ -35,7 +35,7 @@
     ]
   },
   "privilege": "elevated",
- "bundling": "prohibited",
+  "bundling": "prohibited",
   "capability": "developer-utility",
   "capability_role": "control",
   "deployment": {
@@ -57,6 +57,21 @@
           "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
         }
       }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
     }
   }
 }

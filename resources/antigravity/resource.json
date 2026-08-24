@@ -31,6 +31,18 @@
           "max_age": "30d",
           "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
         }
+      },
+      "skills": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.gemini/skills",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "projection": {
+          "environment": "ANTIGRAVITY_STATE_DIR",
+          "project_scope": false
+        },
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
       }
     }
   },
@@ -267,5 +279,21 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "host-required",
+  "vrooli_memory_targets": [
+    {
+      "runtime": "antigravity",
+      "path": "$USER_HOME/.gemini/antigravity/brain/MEMORY.md",
+      "section": "",
+      "byte_cap": 32768,
+      "line_cap": 200
+    },
+    {
+      "runtime": "gemini",
+      "path": "$USER_HOME/.gemini/GEMINI.md",
+      "section": "Gemini Added Memories",
+      "byte_cap": 32768,
+      "line_cap": 200
+    }
+  ]
 }

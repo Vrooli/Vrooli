@@ -82,15 +82,21 @@
             "docker-preflight"
           ]
         },
-        "macos": {
-          "support": "unsupported",
-          "mode": "docker-desktop",
-          "reason": "Real-time streaming STT requires an NVIDIA CUDA GPU; Docker Desktop on macOS cannot pass through NVIDIA GPUs, and CPU decode is not real-time."
+      "macos": {
+        "support": "unsupported",
+        "mode": "docker-desktop",
+        "limitations": [
+          "Real-time streaming STT requires an NVIDIA CUDA GPU; Docker Desktop on macOS cannot pass through NVIDIA GPUs."
+        ],
+        "reason": "Real-time streaming STT requires an NVIDIA CUDA GPU; Docker Desktop on macOS cannot pass through NVIDIA GPUs, and CPU decode is not real-time."
         },
-        "windows": {
-          "support": "unsupported",
-          "mode": "docker-desktop",
-          "reason": "Real-time streaming STT requires an NVIDIA CUDA GPU with linux/amd64 container support; CPU decode is not real-time."
+      "windows": {
+        "support": "unsupported",
+        "mode": "docker-desktop",
+        "limitations": [
+          "Real-time streaming STT requires an NVIDIA CUDA GPU with linux/amd64 container support; CPU decode is not real-time."
+        ],
+        "reason": "Real-time streaming STT requires an NVIDIA CUDA GPU with linux/amd64 container support; CPU decode is not real-time."
         }
       }
     }

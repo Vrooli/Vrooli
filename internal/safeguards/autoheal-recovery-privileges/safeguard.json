@@ -3,17 +3,23 @@
   "name": "autoheal_recovery_privileges",
   "description": "Write the minimal Linux sudoers grant used by autoheal's service recovery actions.",
   "handler": "autoheal_recovery_privileges",
-  "platforms": ["linux"],
+  "platforms": [
+    "linux"
+  ],
   "risk": "medium",
   "privilege": "elevated",
   "bundling": "prohibited",
   "capability": "service-resource-limits",
-  "capability_role": "primary",
+  "capability_role": "control",
   "storage": {
     "entries": {
       "sudoers": {
         "rung": "pinned",
-        "path": {"linux": "/etc/sudoers.d/vrooli-autoheal", "macos": null, "windows": null},
+        "path": {
+          "linux": "/etc/sudoers.d/vrooli-autoheal",
+          "macos": null,
+          "windows": null
+        },
         "kind": "file",
         "class": "config",
         "sensitive": true,
@@ -22,6 +28,46 @@
     },
     "rationale": "The grant is setup-managed host state, never scenario data."
   },
-  "verificationCheck": {"files": ["/etc/sudoers.d/vrooli-autoheal"]},
-  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
+  "verificationCheck": {
+    "files": [
+      "/etc/sudoers.d/vrooli-autoheal"
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    }
+  }
 }

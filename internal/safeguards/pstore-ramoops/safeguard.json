@@ -1,7 +1,10 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
- "name": "pstore_ramoops",
-  "storage": {"entries": {}, "rationale": "This safeguard contributes kernel parameters to the shared /etc/default/grub file owned by crashkernel-reserve; declaring that file twice would double-count it."},
+  "name": "pstore_ramoops",
+  "storage": {
+    "entries": {},
+    "rationale": "This safeguard contributes kernel parameters to the shared /etc/default/grub file owned by crashkernel-reserve; declaring that file twice would double-count it."
+  },
   "description": "Reserve a RAM-backed pstore region for kernel oops/panic capture across resets (GRUB-editing fallback when native pstore is unavailable)",
   "handler": "pstore_ramoops",
   "platforms": [
@@ -9,13 +12,16 @@
   ],
   "risk": "high",
   "privilege": "elevated",
- "bundling": "prohibited",
+  "bundling": "prohibited",
   "capability": "crash-forensics",
   "capability_role": "control",
   "config": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["mem_address", "mem_size"],
+    "required": [
+      "mem_address",
+      "mem_size"
+    ],
     "properties": {
       "mem_address": {
         "type": "string",
@@ -35,5 +41,41 @@
       }
     }
   },
-  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    }
+  }
 }

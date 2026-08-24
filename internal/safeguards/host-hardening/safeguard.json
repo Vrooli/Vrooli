@@ -45,7 +45,7 @@
   "privilege": "elevated",
   "bundling": "prohibited",
   "capability": "process-containment",
-  "capability_role": "primary",
+  "capability_role": "control",
   "deployment": {
     "profiles": {
       "desktop": {
@@ -95,6 +95,22 @@
         "default": 120,
         "description": "Seconds a task may stay blocked in D state before the kernel logs it. 0 disables the detector."
       }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
     }
   }
 }

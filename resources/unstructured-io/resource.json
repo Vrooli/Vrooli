@@ -176,7 +176,7 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "build-verified",
+    "macos": "partial",
     "windows": "build-verified"
   },
   "ports": [

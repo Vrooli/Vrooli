@@ -15,6 +15,18 @@
           "max_bytes": "1TiB",
           "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
         }
+      },
+      "skills": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.grok/skills",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "projection": {
+          "environment": "GROK_DATA_DIR",
+          "project_scope": false
+        },
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
       }
     }
   },
@@ -227,5 +239,14 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "host-required",
+  "vrooli_memory_targets": [
+    {
+      "runtime": "grok",
+      "path": "$USER_HOME/.grok/memory/MEMORY.md",
+      "section": "",
+      "byte_cap": 32768,
+      "line_cap": 200
+    }
+  ]
 }

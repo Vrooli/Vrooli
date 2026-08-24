@@ -1,7 +1,71 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
- "name": "remote_session_protection",
-  "storage": {"entries": {"sysctl_config": {"rung": "pinned", "path": {"linux": "/etc/sysctl.d/99-vrooli-remote-session-protection.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes Linux remote-session kernel settings."}, "user_service_dropin": {"rung": "pinned", "path": {"linux": "/etc/systemd/system/user@.service.d/90-vrooli-remote-session-protection.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes a Linux systemd user-service drop-in."}, "logind_config": {"rung": "pinned", "path": {"linux": "/etc/systemd/logind.conf.d/90-vrooli-remote-session-protection.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes a Linux logind drop-in."}, "user_slice_dropin": {"rung": "pinned", "path": {"linux": "/etc/systemd/system/user-1000.slice.d/50-memory-protect.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes a Linux user-slice drop-in."}, "workload_slice": {"rung": "pinned", "path": {"linux": "/etc/systemd/system/workload.slice", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes a Linux workload slice unit."}}, "rationale": "Linux-only system configuration is verified by the safeguard file check."},
+  "name": "remote_session_protection",
+  "storage": {
+    "entries": {
+      "sysctl_config": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/sysctl.d/99-vrooli-remote-session-protection.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard writes Linux remote-session kernel settings."
+      },
+      "user_service_dropin": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/system/user@.service.d/90-vrooli-remote-session-protection.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard writes a Linux systemd user-service drop-in."
+      },
+      "logind_config": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/logind.conf.d/90-vrooli-remote-session-protection.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard writes a Linux logind drop-in."
+      },
+      "user_slice_dropin": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/system/user-1000.slice.d/50-memory-protect.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard writes a Linux user-slice drop-in."
+      },
+      "workload_slice": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/system/workload.slice",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard writes a Linux workload slice unit."
+      }
+    },
+    "rationale": "Linux-only system configuration is verified by the safeguard file check."
+  },
   "description": "Linux sysctl, systemd, cgroup, and swap hardening for remote GUI/SSH sessions with desktop-aware memory protection",
   "handler": "remote_session_protection",
   "platforms": [
@@ -18,8 +82,44 @@
     ]
   },
   "privilege": "elevated",
- "bundling": "prohibited",
+  "bundling": "prohibited",
   "capability": "remote-desktop",
-  "capability_role": "peer",
-  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": "Manifest-declared applicability; no host-sampled qualification recorded."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "handler",
+      "evidence": "A mechanism exists but no implementation is wired for this host OS."
+    }
+  }
 }
