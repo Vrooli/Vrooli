@@ -1,13 +1,13 @@
 {
   "_metadata": {
     "description": "Background campaigns that systematically improve code health across scenarios",
-    "last_validated_at": "2026-06-16T12:39:25-04:00"
+    "last_validated_at": "2026-08-24T23:50:51-04:00"
   },
   "requirements": [
     {
       "id": "TM-AC-001",
       "title": "Campaign configuration",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "description": "Support campaigns with max_sessions, max_files_per_session, priority rules, optional category focus",
       "validation": [
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/auto_campaigns_config_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -28,7 +28,7 @@
     {
       "id": "TM-AC-002",
       "title": "Campaign concurrency limit",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "description": "Enforce maximum K concurrent auto-tidiness campaigns (default K=3)",
       "validation": [
@@ -36,7 +36,7 @@
           "type": "test",
           "ref": "api/auto_campaigns_concurrency_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -49,7 +49,7 @@
     {
       "id": "TM-AC-003",
       "title": "Campaign auto-completion - files visited",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "description": "Transition campaign to 'completed' when all files in scope have at least one visit",
       "validation": [
@@ -57,7 +57,7 @@
           "type": "test",
           "ref": "api/auto_campaigns_completion_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -70,7 +70,7 @@
     {
       "id": "TM-AC-004",
       "title": "Campaign auto-completion - max sessions",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "description": "Transition campaign to 'completed' when max_sessions limit reached",
       "validation": [
@@ -78,7 +78,7 @@
           "type": "test",
           "ref": "api/auto_campaigns_completion_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -91,7 +91,7 @@
     {
       "id": "TM-AC-005",
       "title": "Campaign pause/resume",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "description": "Support manual pause and resume of active campaigns from UI",
       "validation": [
@@ -99,7 +99,7 @@
           "type": "test",
           "ref": "api/auto_campaigns_lifecycle_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -112,7 +112,7 @@
     {
       "id": "TM-AC-006",
       "title": "Campaign manual termination",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "description": "Support manual termination of campaigns before completion",
       "validation": [
@@ -120,7 +120,7 @@
           "type": "test",
           "ref": "api/auto_campaigns_lifecycle_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -133,7 +133,7 @@
     {
       "id": "TM-AC-007",
       "title": "Campaign error detection",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "description": "Mark campaigns as 'error' on repeated agent failures with visible error reason",
       "validation": [
@@ -141,7 +141,7 @@
           "type": "test",
           "ref": "api/auto_campaigns_errors_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -154,7 +154,7 @@
     {
       "id": "TM-AC-008",
       "title": "Campaign safety controls",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "description": "Auto-stop campaigns in error state to prevent resource waste",
       "validation": [
@@ -162,7 +162,7 @@
           "type": "test",
           "ref": "api/auto_campaigns_stats_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",

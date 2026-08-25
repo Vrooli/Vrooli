@@ -1,13 +1,13 @@
 {
   "_metadata": {
     "description": "HTTP/CLI API for other agents to request tidiness recommendations",
-    "last_validated_at": "2026-06-16T12:39:25-04:00"
+    "last_validated_at": "2026-08-24T23:50:51-04:00"
   },
   "requirements": [
     {
       "id": "TM-API-001",
       "title": "Scenario summary endpoint",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "description": "Expose API endpoint to request top N tidiness issues for a given scenario",
       "validation": [
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/agent_api_scenario_summary_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Unit tests passing - TestAgentGetIssues_BasicScenarioQuery, TestAgentGetIssues_LimitParameter validate endpoint behavior"
         }
       ]
@@ -23,7 +23,7 @@
     {
       "id": "TM-API-002",
       "title": "File-scoped issue query",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "description": "Support querying issues scoped to specific file or folder",
       "validation": [
@@ -31,7 +31,7 @@
           "type": "test",
           "ref": "api/agent_api_scoped_query_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Unit tests passing - TestAgentGetIssues_FileFilter, TestAgentGetIssues_FolderFilter validate file and folder scoping"
         }
       ]
@@ -39,7 +39,7 @@
     {
       "id": "TM-API-003",
       "title": "Category-scoped issue query",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "description": "Support querying issues filtered by category (e.g., 'long files', 'dead code')",
       "validation": [
@@ -47,7 +47,7 @@
           "type": "test",
           "ref": "api/agent_api_scoped_query_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Unit tests passing - TestAgentGetIssues_CategoryFilter validates category-based filtering"
         }
       ]
@@ -55,7 +55,7 @@
     {
       "id": "TM-API-004",
       "title": "Issue ranking heuristic",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "description": "Rank returned issues by severity, occurrence count, and file criticality",
       "validation": [
@@ -63,14 +63,14 @@
           "type": "test",
           "ref": "api/agent_api_ranking_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-API-005",
       "title": "CLI wrapper for agent integration",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "description": "Provide CLI commands that wrap HTTP API for agent consumption",
       "validation": [
@@ -78,14 +78,14 @@
           "type": "test",
           "ref": "api/agent_api_cli_wrapper_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-API-006",
       "title": "Issue storage in postgres",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "description": "Store issues in postgres with all required fields (scenario, file, category, severity, notes, remediation, campaign metadata)",
       "validation": [
@@ -93,14 +93,14 @@
           "type": "test",
           "ref": "api/agent_api_storage_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-API-007",
       "title": "Campaign metadata linkage",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "description": "Link issues to campaign ID, session ID, and visit timestamp",
       "validation": [
@@ -108,7 +108,7 @@
           "type": "test",
           "ref": "api/agent_api_storage_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

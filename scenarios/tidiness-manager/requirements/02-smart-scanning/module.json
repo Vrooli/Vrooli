@@ -1,13 +1,13 @@
 {
   "_metadata": {
     "description": "AI-powered deep analysis using resource-claude-code and resource-codes",
-    "last_validated_at": "2026-06-16T12:39:25-04:00"
+    "last_validated_at": "2026-08-24T23:50:51-04:00"
   },
   "requirements": [
     {
       "id": "TM-SS-001",
       "title": "AI batch configuration",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "description": "Support configurable max files per batch, max tokens per request, max concurrent requests",
       "validation": [
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/smart_scanner_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-SS-002",
       "title": "AI issue recording",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "description": "Record AI issues with scenario, file paths, category, severity, explanation, and remediation steps",
       "validation": [
@@ -30,14 +30,14 @@
           "type": "test",
           "ref": "api/smart_scanner_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-SS-003",
       "title": "visited-tracker campaign creation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "description": "Create new visited-tracker campaign if none exists for a scenario",
       "validation": [
@@ -45,14 +45,14 @@
           "type": "test",
           "ref": "api/campaign_manager_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-SS-004",
       "title": "visited-tracker campaign attachment",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "description": "Attach to existing visited-tracker campaign when available",
       "validation": [
@@ -60,14 +60,14 @@
           "type": "test",
           "ref": "api/campaign_manager_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-SS-005",
       "title": "File prioritization - unvisited first",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "description": "Prioritize unvisited files over visited files in smart scans",
       "validation": [
@@ -75,14 +75,14 @@
           "type": "test",
           "ref": "api/file_prioritizer_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-SS-006",
       "title": "File prioritization - least visited",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "description": "Among visited files, prioritize least-visited files",
       "validation": [
@@ -90,14 +90,14 @@
           "type": "test",
           "ref": "api/file_prioritizer_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-SS-007",
       "title": "No duplicate analysis per session",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "description": "Prevent analyzing the same file twice within a single smart scan session",
       "validation": [
@@ -105,14 +105,14 @@
           "type": "test",
           "ref": "api/smart_scanner_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-SS-008",
       "title": "Configurable max visits per file",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "description": "Prevent analyzing files beyond configurable max visit count unless explicitly requested",
       "validation": [
@@ -120,7 +120,7 @@
           "type": "test",
           "ref": "api/file_prioritizer_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

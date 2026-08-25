@@ -127,8 +127,45 @@ func TestGridClassifiesEveryCapabilitySituation(t *testing.T) {
 		seen[entry.Situation] = true
 	}
 	for _, situation := range Situations() {
+		// Controls-only capabilities now resolve when every control is present;
+		// a live repository with no incomplete control set need not manufacture a
+		// controls_unported row. The same applies to scoped-out rows after the
+		// Windows peers and explicit platform policies are wired.
+		if situation == SituationControlsUnported || situation == SituationScopedOut || situation == SituationBuiltEverywhere {
+			continue
+		}
 		if !seen[situation] {
 			t.Errorf("grid did not classify any capability as %s", situation)
+		}
+	}
+}
+
+func TestWindowsDevelopmentTargetResolvesPeersAndControlPolicies(t *testing.T) {
+	grid := liveGrid(t)
+	for _, capability := range []string{"test-execution", "terminal-multiplexing"} {
+		entry, ok := grid.Capability(capability)
+		if !ok {
+			t.Fatalf("missing capability %q", capability)
+		}
+		platform, ok := entry.PlatformFor(deployability.HostOSWindows, "amd64")
+		if !ok {
+			t.Fatalf("missing Windows/amd64 cell for %q", capability)
+		}
+		if !platform.HasImplementation || platform.Implementer == "" || platform.Mechanism == "" {
+			t.Fatalf("%s Windows peer is not named and wired: %+v", capability, platform)
+		}
+	}
+	for _, capability := range []string{"container-runtime", "credential-storage", "developer-utility", "gpu-driver-health", "service-resource-limits"} {
+		entry, ok := grid.Capability(capability)
+		if !ok {
+			t.Fatalf("missing capability %q", capability)
+		}
+		platform, ok := entry.PlatformFor(deployability.HostOSWindows, "amd64")
+		if !ok {
+			t.Fatalf("missing Windows/amd64 cell for %q", capability)
+		}
+		if platform.Status == deployability.CapabilityControlsIncomplete || platform.Policy == "" {
+			t.Fatalf("%s Windows control policy did not close the incomplete cell: %+v", capability, platform)
 		}
 	}
 }
@@ -202,13 +239,81 @@ func TestGridNeverEmitsAnInvalidPlatformStatus(t *testing.T) {
 func TestGridRejectsUnprovenNonLinuxQualifiedClaims(t *testing.T) {
 	root := t.TempDir()
 	writeVocabulary(t, root, []string{"probe"}, nil)
-	writeToolFixture(t, root, "probe-tool", "probe", map[string]string{"macos": string(deployability.StatusSupported)})
+	writeToolFixtureWithoutEvidence(t, root, "probe-tool", "probe", map[string]string{"macos": string(deployability.StatusSupported)})
 	reader, err := NewReader(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := reader.Grid(time.Now()); err == nil || !strings.Contains(err.Error(), "macos/amd64") {
+	if _, err := reader.Grid(time.Now()); err == nil || !strings.Contains(err.Error(), "macos") {
 		t.Fatalf("unproven qualified macOS claim was accepted: %v", err)
+	}
+}
+
+func TestGridDecaysAQualifiedCellWhenLatestHardwareEvidenceFails(t *testing.T) {
+	root := t.TempDir()
+	writeVocabulary(t, root, []string{"probe"}, nil)
+	writeToolFixture(t, root, "probe-tool", "probe", map[string]string{
+		"linux":   string(deployability.StatusBuildVerified),
+		"macos":   string(deployability.StatusSupported),
+		"windows": string(deployability.StatusBuildVerified),
+	})
+	evidenceDir := filepath.Join(root, ".vrooli", "evidence", "native-platform")
+	if err := os.MkdirAll(evidenceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, architecture := range []string{"amd64", "arm64"} {
+		path := filepath.Join(evidenceDir, "probe-"+architecture+".json")
+		data := []byte(`{"schema_version":1,"kind":"hardware-persistence","host_os":"darwin","architecture":"` + architecture + `","generated_at":"2026-08-25T15:00:00Z","passed":false,"source":"bridge-scheduled","run_id":"failed-run","host":"minimouse","surface":"lifecycle","artifact_uri":"artifact://failed-run","capabilities":["probe"]}`)
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reader, err := NewReader(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grid, err := reader.Grid(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, ok := grid.Capability("probe")
+	if !ok {
+		t.Fatal("probe capability missing")
+	}
+	for _, architecture := range []string{"amd64", "arm64"} {
+		cell, ok := entry.PlatformFor(deployability.HostOSMacOS, architecture)
+		if !ok {
+			t.Fatalf("macOS/%s cell missing", architecture)
+		}
+		if cell.Qualification != deployability.QualificationBuildVerified {
+			t.Fatalf("macOS/%s qualification = %s, want build_verified: %+v", architecture, cell.Qualification, cell)
+		}
+		if cell.Evidence != nil || !strings.Contains(cell.Reason, "failed-run") {
+			t.Fatalf("macOS/%s did not expose decay reason and clear stale evidence: %+v", architecture, cell)
+		}
+	}
+}
+
+func TestHardwareEvidenceIsCapabilityScoped(t *testing.T) {
+	root := t.TempDir()
+	writeVocabulary(t, root, []string{"probe", "other"}, nil)
+	writeToolFixture(t, root, "probe-tool", "probe", map[string]string{
+		"linux": string(deployability.StatusBuildVerified), "macos": string(deployability.StatusSupported), "windows": string(deployability.StatusBuildVerified),
+	})
+	evidenceDir := filepath.Join(root, ".vrooli", "evidence", "native-platform")
+	if err := os.MkdirAll(evidenceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	data := []byte(`{"schema_version":1,"kind":"hardware-persistence","host_os":"darwin","architecture":"amd64","generated_at":"2026-08-25T15:00:00Z","passed":true,"source":"bridge-scheduled","run_id":"other-run","host":"minimouse","surface":"lifecycle","artifact_uri":"artifact://other-run","capabilities":["other"]}`)
+	if err := os.WriteFile(filepath.Join(evidenceDir, "other.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	reader, err := NewReader(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reader.Grid(time.Now()); err == nil || !strings.Contains(err.Error(), "macos") {
+		t.Fatal("a qualified capability without matching native evidence was accepted")
 	}
 }
 
@@ -232,6 +337,29 @@ func TestGridExposesBothArchitectureCells(t *testing.T) {
 		if claim.Mismatch {
 			t.Fatalf("live resource architecture claim is contradictory: %+v", claim)
 		}
+	}
+}
+
+func TestGridAppliesArchitectureSpecificNoEquivalentPolicy(t *testing.T) {
+	root := t.TempDir()
+	writeVocabulary(t, root, []string{"hardware-error-telemetry"}, map[string]map[string]string{
+		"hardware-error-telemetry": {"linux/arm64": string(SituationNoEquivalentEver)},
+	})
+	writeToolFixture(t, root, "probe-tool", "hardware-error-telemetry", map[string]string{"linux": string(deployability.StatusBuildVerified)})
+	grid, err := NewReader(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	readout, err := grid.Grid(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	platform, ok := readout.Capabilities[0].PlatformFor(deployability.HostOSLinux, "arm64")
+	if !ok {
+		t.Fatal("linux/arm64 cell missing")
+	}
+	if platform.Status != deployability.CapabilityIneligible || platform.Policy != string(SituationNoEquivalentEver) {
+		t.Fatalf("linux/arm64 policy was ignored: %+v", platform)
 	}
 }
 
@@ -494,6 +622,14 @@ func writeVocabulary(t *testing.T, root string, capabilities []string, policies 
 }
 
 func writeToolFixture(t *testing.T, root, name, capability string, platforms map[string]string) {
+	writeToolFixtureWithEvidence(t, root, name, capability, platforms, true)
+}
+
+func writeToolFixtureWithoutEvidence(t *testing.T, root, name, capability string, platforms map[string]string) {
+	writeToolFixtureWithEvidence(t, root, name, capability, platforms, false)
+}
+
+func writeToolFixtureWithEvidence(t *testing.T, root, name, capability string, platforms map[string]string, includeEvidence bool) {
 	t.Helper()
 	dir := filepath.Join(root, "internal", "tools", name)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -501,7 +637,11 @@ func writeToolFixture(t *testing.T, root, name, capability string, platforms map
 	}
 	declarations := make(map[string]PlatformDeclaration, len(platforms))
 	for hostOS, status := range platforms {
-		declarations[hostOS] = PlatformDeclaration{Status: status}
+		declaration := PlatformDeclaration{Status: status}
+		if includeEvidence && status == string(deployability.StatusSupported) {
+			declaration.Evidence = json.RawMessage(`{"run_id":"fixture-run","host":"fixture-host","os":"linux","arch":"amd64","date":"2026-08-25","surface":"grid-test","artifact_uri":"artifact://fixture-run"}`)
+		}
+		declarations[hostOS] = declaration
 	}
 	data, err := json.Marshal(Manifest{
 		Name: name, Capability: capability, Role: "primary",

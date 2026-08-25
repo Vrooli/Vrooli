@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P0 operational targets: the coverage grid, the setpoint, trust, the ranked surface, and the open-loop self-report.",
-    "last_validated_at": "2026-08-22T18:18:09-04:00",
+    "last_validated_at": "2026-08-25T06:44:00-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "IFM-P0-001",
       "title": "Live cell grid",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "Join each control layer's authored reliability space against the fleet's live surface into a typed cell grid, reporting NOW / IN-REACH / MISSING per cell with per-projection denominator-confidence. Spaces are read live from their owners and never cached; a cell absent from a live join keeps its authored status rather than being fabricated as MISSING.",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "api/internal/coverage/service_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Coverage join behavior is exercised by the coverage service tests [REQ:IFM-P0-001]."
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "IFM-P0-002",
       "title": "Setpoint read and integrity",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "Parse the checked-in setpoint into typed bars and validate it: every NOW cell has a bar, no bar equals the reading it was authored against, every honesty flag is derived rather than hand-set, and every changed bar carries a decision reference. An unparseable setpoint fails loudly instead of reporting zero targets as zero problems. No API path may write the setpoint.",
@@ -36,7 +36,7 @@
           "type": "test",
           "ref": "api/internal/coverage/service_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Setpoint parsing and integrity validation are exercised by coverage service tests [REQ:IFM-P0-002]."
         }
       ]
@@ -44,7 +44,7 @@
     {
       "id": "IFM-P0-003",
       "title": "Trust-qualified readings",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "Attach a closed-vocabulary trust verdict to every reading (VALID, GHOST, SATURATED, SHELVED, UNIT_MISMATCH, UNAVAILABLE, UNTRUSTED). Only VALID contributes to an aggregate, every trust number is reported as a distribution over checked readings over total readings, and an untrusted reading routes to the instrument's owner rather than becoming plant work.",
@@ -53,7 +53,7 @@
           "type": "test",
           "ref": "api/internal/condition/banding_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Trust vocabulary and band exclusion rules are exercised by condition tests [REQ:IFM-P0-003]."
         }
       ]
@@ -61,7 +61,7 @@
     {
       "id": "IFM-P0-004",
       "title": "One ranked error surface",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "Merge out-of-band readings, untrusted readings, open-loop cells, coverage drift and source unavailability into a single ranked surface a member reads with one call. Sources are named and independently degradable, and ranking honours cascade order — sensor-channel integrity first — and states that it is doing so.",
@@ -70,7 +70,7 @@
           "type": "test",
           "ref": "api/internal/focus/rank_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Focus ranking and cascade rationale are exercised by focus tests [REQ:IFM-P0-004]."
         }
       ]
@@ -78,7 +78,7 @@
     {
       "id": "IFM-P0-005",
       "title": "Open-loop self-report",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
       "description": "Count and date every MISSING cell, including this scenario's own blind spots, so an honest hole is visible and ageing rather than silent. The instrumentation roadmap becomes the computed open-loop set rather than a hand-maintained list that can disagree with the grid beside it.",
@@ -87,7 +87,7 @@
           "type": "test",
           "ref": "api/internal/coverage/service_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Coverage missing-cell enumeration is exercised by coverage service tests [REQ:IFM-P0-005]."
         }
       ]

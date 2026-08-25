@@ -1,13 +1,13 @@
 {
   "_metadata": {
     "description": "Cheap, fast static analysis using Makefile integration and file metrics",
-    "last_validated_at": "2026-06-27T14:20:22-04:00"
+    "last_validated_at": "2026-08-24T23:50:51-04:00"
   },
   "requirements": [
     {
       "id": "TM-LS-001",
       "title": "Makefile integration for lint execution",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "description": "Execute `make lint` for any scenario with a Makefile and capture full output",
       "validation": [
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/lint_execution_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -34,7 +34,7 @@
     {
       "id": "TM-LS-002",
       "title": "Makefile integration for type checking",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "description": "Execute `make type` for any scenario with a Makefile and capture full output",
       "validation": [
@@ -42,7 +42,7 @@
           "type": "test",
           "ref": "api/type_execution_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -61,7 +61,7 @@
     {
       "id": "TM-LS-003",
       "title": "Lint output parser",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "description": "Parse lint outputs into structured issues with scenario, file path, line/column, message, and tool",
       "validation": [
@@ -69,13 +69,13 @@
           "type": "test",
           "ref": "api/parsers_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/no_makefile_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -88,7 +88,7 @@
     {
       "id": "TM-LS-004",
       "title": "Type output parser",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "description": "Parse type checker outputs into structured issues",
       "validation": [
@@ -96,7 +96,7 @@
           "type": "test",
           "ref": "api/parsers_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -109,7 +109,7 @@
     {
       "id": "TM-LS-005",
       "title": "File metrics - line counting",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "description": "Compute per-file line counts for all source files matching configurable glob patterns",
       "validation": [
@@ -117,7 +117,7 @@
           "type": "test",
           "ref": "api/file_metrics_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
@@ -136,7 +136,7 @@
     {
       "id": "TM-LS-006",
       "title": "File metrics - long file flagging",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "description": "Flag files exceeding configurable line count threshold as 'long file' issues",
       "validation": [
@@ -144,7 +144,7 @@
           "type": "test",
           "ref": "api/file_metrics_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",

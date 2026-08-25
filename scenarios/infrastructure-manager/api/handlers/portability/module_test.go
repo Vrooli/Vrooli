@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	portabilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/portability"
@@ -95,6 +96,28 @@ func TestEnumProjectionsCoverEveryToken(t *testing.T) {
 				t.Errorf("qualification %q projects to UNSPECIFIED", platform.Qualification)
 			}
 		}
+	}
+}
+
+func TestGridProjectsNativeEvidence(t *testing.T) {
+	grid := internalportability.Grid{
+		NativeEvidence: []internalportability.NativeEvidence{{
+			Kind: "hardware-persistence", HostOS: "macos", Architecture: "amd64",
+			GeneratedAt: time.Date(2026, 8, 25, 15, 0, 0, 0, time.UTC), Passed: false,
+			Source: "bridge-scheduled", RunID: "run-1", Host: "minimouse", Surface: "lifecycle",
+			ArtifactURI: "artifact://run-1", Capabilities: []string{"system-monitor-cpu"},
+		}},
+	}
+	projected := protoGrid(grid, nil)
+	if len(projected.GetNativeEvidence()) != 1 {
+		t.Fatalf("native evidence count = %d, want 1", len(projected.GetNativeEvidence()))
+	}
+	evidence := projected.GetNativeEvidence()[0]
+	if evidence.GetKind() != "hardware-persistence" || evidence.GetPassed() || evidence.GetRunId() != "run-1" {
+		t.Fatalf("native evidence projected incorrectly: %+v", evidence)
+	}
+	if len(evidence.GetCapabilities()) != 1 || evidence.GetCapabilities()[0] != "system-monitor-cpu" {
+		t.Fatalf("native evidence capabilities = %v", evidence.GetCapabilities())
 	}
 }
 

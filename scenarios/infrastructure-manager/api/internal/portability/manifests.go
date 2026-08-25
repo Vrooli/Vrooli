@@ -83,10 +83,14 @@ func (r *Reader) Root() string { return r.root }
 
 // Vocabulary is the operator-owned list of capability names, plus the per-OS
 // policy that says when an absent implementation is a deliberate decision
-// rather than a gap.
+// rather than a gap. The reserved "hardware-persistence" policy key carries
+// dated qualification metadata; it is not a capability row and is ignored by
+// resolution.
 type Vocabulary struct {
-	Capabilities     []string                     `json:"capabilities"`
-	PlatformPolicies map[string]map[string]string `json:"platform_policies,omitempty"`
+	Capabilities         []string                                `json:"capabilities"`
+	PlatformPolicies     map[string]map[string]string            `json:"platform_policies,omitempty"`
+	ControlPolicies      map[string]map[string]map[string]string `json:"control_policies,omitempty"`
+	ControlPolicyReasons map[string]map[string]map[string]string `json:"control_policy_reasons,omitempty"`
 }
 
 // Manifest is one capability declaration as authored. Status stays a raw
@@ -108,9 +112,20 @@ type Manifest struct {
 }
 
 type PlatformDeclaration struct {
-	Status    string `json:"status"`
-	Mechanism string `json:"mechanism"`
-	Evidence  string `json:"evidence"`
+	Status    string          `json:"status"`
+	Mechanism string          `json:"mechanism"`
+	Evidence  json.RawMessage `json:"evidence"`
+}
+
+func evidenceValue(raw json.RawMessage) *deployability.Evidence {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+	var evidence deployability.Evidence
+	if json.Unmarshal(raw, &evidence) != nil || !evidence.Complete() {
+		return nil
+	}
+	return &evidence
 }
 
 // ResourceInput is the slice of a resource manifest the fleet view reads.

@@ -586,6 +586,8 @@ func main() {
 		Check(health.HTTP("playwright_driver", playwrightURL+"/health"), health.Optional).
 		Handler()
 	r.Get("/health", healthHandler)
+	ownerCleanup := registerOwnerCleanupRoutes(r, repo, handler.RecordingsRoot(), paths.ResolveCapturesRoot(log), log)
+	ownerCleanup.StartAutomaticRetention(context.Background())
 	// RESTException: WebSocket endpoints are not RPC and stay on chi.
 	// RESTReason: third_party_shape (browser WebSocket transport + binary
 	// playwright-driver frame stream). Tracked in docs/internal/REST_EXCEPTIONS.md.

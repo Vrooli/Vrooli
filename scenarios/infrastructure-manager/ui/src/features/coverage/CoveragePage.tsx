@@ -9,7 +9,7 @@ import { CellStatus } from "@vrooli/proto-types/infrastructure-manager/v1/shared
 import { strings } from "../../consts/strings.generated";
 import { useTranslation } from "../../i18n";
 import { formatNumber } from "../../i18n/format";
-import { EmptyState } from "../../components/ui/empty-state";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
 import { ConfidenceChip, Figure, RatioConfidence } from "../../components/ui/instrument-status";
 import { Lamp, LampLegend } from "../../components/instrument/Lamp";
 import { LegendPlate } from "../../components/instrument/LegendPlate";

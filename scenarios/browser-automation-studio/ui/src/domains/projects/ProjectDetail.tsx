@@ -20,7 +20,7 @@ import { useProjectDetailStore } from "./hooks/useProjectDetailStore";
 import {
   ExperienceSurface,
   type ExperienceSurfaceState,
-} from "@/components/ExperienceSurface";
+} from "@vrooli/react-component-library/ExperienceSurface";
 
 const ExecutionPanel = lazy(async () => {
   const module = await import("./ExecutionPanel");

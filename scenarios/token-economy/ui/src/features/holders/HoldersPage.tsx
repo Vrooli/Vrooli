@@ -3,7 +3,7 @@ import type { Holder } from "@vrooli/proto-types/token-economy/v1/access/access_
 import { useState } from "react";
 
 import { minterClient, nextIdempotencyKey } from "../../api/tokenEconomy";
-import { DataTable, type DataTableColumn } from "../../components/ui/data-table";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.2.0";
 import { Input } from "../../components/ui/input";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

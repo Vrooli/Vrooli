@@ -1,34 +1,4 @@
 {
-  "name": "browser-automation-studio-ui",
-  "version": "1.0.0",
-  "description": "Visual browser automation workflow builder",
-  "private": true,
-  "type": "module",
-  "exports": {
-    ".": "./dist/bootstrap.js",
-    "./bootstrap": "./dist/bootstrap.js"
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "dev": "vrooli lifecycle protect -- npx vite",
-    "build": "pnpm run type-check && npx vite build && node ./scripts/gzip-dist.mjs",
-    "build:profile": "pnpm run type-check && npx vite build --mode profile && node ./scripts/gzip-dist.mjs",
-    "preview": "npx vite preview",
-    "test": "node scripts/run-vitest.mjs",
-    "test:full": "node scripts/run-vitest.mjs --suite full",
-    "test:stores": "vitest run --project stores",
-    "test:components": "vitest run --project components",
-    "test:execution-viewer": "vitest run --project execution-viewer",
-    "test:workflow-builder": "vitest run --project workflow-builder",
-    "test:watch": "vitest",
-    "test:coverage": "node scripts/run-vitest.mjs --suite full --coverage",
-    "test:ui": "vitest --ui",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "type-check": "tsc --noEmit"
-  },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",
     "@connectrpc/connect": "^2.1.1",
@@ -47,6 +17,7 @@
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "@vrooli/vitest-requirement-reporter": "file:../../../packages/vitest-requirement-reporter",
     "axe-core": "^4.12.1",
     "clsx": "^2.1.0",
@@ -69,6 +40,7 @@
     "zod": "^3.23.8",
     "zustand": "^4.4.7"
   },
+  "description": "Visual browser automation workflow builder",
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@testing-library/jest-dom": "^6.9.1",
@@ -91,6 +63,15 @@
     "vite": "^5.0.11",
     "vitest": "^3.2.4"
   },
+  "exports": {
+    ".": "./dist/bootstrap.js",
+    "./bootstrap": "./dist/bootstrap.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "name": "browser-automation-studio-ui",
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748",
   "pnpm": {
     "overrides": {
       "brace-expansion@^1.1.0": "1.1.18",
@@ -98,5 +79,25 @@
       "js-yaml@^4.0.0": "4.3.1"
     }
   },
-  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+  "private": true,
+  "scripts": {
+    "build": "pnpm run type-check \u0026\u0026 npx vite build \u0026\u0026 node ./scripts/gzip-dist.mjs",
+    "build:profile": "pnpm run type-check \u0026\u0026 npx vite build --mode profile \u0026\u0026 node ./scripts/gzip-dist.mjs",
+    "dev": "vrooli lifecycle protect -- npx vite",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "preview": "npx vite preview",
+    "test": "node scripts/run-vitest.mjs",
+    "test:components": "vitest run --project components",
+    "test:coverage": "node scripts/run-vitest.mjs --suite full --coverage",
+    "test:execution-viewer": "vitest run --project execution-viewer",
+    "test:full": "node scripts/run-vitest.mjs --suite full",
+    "test:stores": "vitest run --project stores",
+    "test:ui": "vitest --ui",
+    "test:watch": "vitest",
+    "test:workflow-builder": "vitest run --project workflow-builder",
+    "type-check": "tsc --noEmit"
+  },
+  "type": "module",
+  "version": "1.0.0"
 }

@@ -1,13 +1,13 @@
 {
   "_metadata": {
     "description": "Human-friendly issue triage, resolution tracking, and scan triggers",
-    "last_validated_at": "2026-06-16T12:39:25-04:00"
+    "last_validated_at": "2026-08-24T23:50:51-04:00"
   },
   "requirements": [
     {
       "id": "TM-IM-001",
       "title": "Mark issue as resolved",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "description": "Allow marking issues as resolved with optional resolution notes",
       "validation": [
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/issue_manager_resolved_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-IM-002",
       "title": "Mark issue as ignored",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "description": "Allow marking issues as ignored with reason (e.g., false positive, intentional design)",
       "validation": [
@@ -30,14 +30,14 @@
           "type": "test",
           "ref": "api/issue_manager_ignored_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "TM-IM-003",
       "title": "Issue status filtering",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "description": "Filter issues by status: open, resolved, ignored, all",
       "validation": [
@@ -45,7 +45,7 @@
           "type": "test",
           "ref": "api/issue_manager_filter_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },

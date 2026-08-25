@@ -2,6 +2,7 @@ package portability
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -72,6 +73,14 @@ func (s *Service) Fleet(ctx context.Context) (FleetReadout, error) {
 	if err != nil {
 		return FleetReadout{}, err
 	}
+	resources, err := reader.Resources()
+	if err != nil {
+		return FleetReadout{}, err
+	}
+	desktop, err := desktopBundling(resources)
+	if err != nil {
+		return FleetReadout{}, err
+	}
 	if s.platformSource == nil {
 		return FleetReadout{ManifestRoot: s.root, ComputedAt: s.now().UTC(), Available: false, Reason: "scenario-dependency-analyzer platform verdict source is not configured"}, nil
 	}
@@ -83,7 +92,7 @@ func (s *Service) Fleet(ctx context.Context) (FleetReadout, error) {
 	if err != nil {
 		return FleetReadout{ManifestRoot: s.root, ComputedAt: s.now().UTC(), Available: false, Reason: err.Error()}, nil
 	}
-	readout := FleetReadout{ManifestRoot: s.root, ComputedAt: s.now().UTC(), Available: true, BlockedByOS: []ScenarioBlock{}, Peerless: []ScenarioPeerless{}, TierUpgrades: []TierUpgrade{}}
+	readout := FleetReadout{ManifestRoot: s.root, ComputedAt: s.now().UTC(), Available: true, BlockedByOS: []ScenarioBlock{}, Peerless: []ScenarioPeerless{}, TierUpgrades: []TierUpgrade{}, DesktopBundling: desktop}
 	for _, item := range derived.Scenarios {
 		if item.Status != "blocked" || item.BlockingDependency == "" {
 			continue
@@ -111,4 +120,26 @@ func (s *Service) Fleet(ctx context.Context) (FleetReadout, error) {
 		}
 	}
 	return readout, nil
+}
+
+func desktopBundling(resources map[string]ResourceInput) (DesktopBundlingVerdict, error) {
+	if len(resources) == 0 {
+		return DesktopBundlingVerdict{}, fmt.Errorf("desktopBundling computed no resources")
+	}
+	result := DesktopBundlingVerdict{}
+	for _, resource := range resources {
+		result.Resources++
+		switch resource.Bundling {
+		case deployability.BundlingHostRequired:
+			result.HostRequired++
+		case deployability.BundlingVendorable:
+			result.Vendorable++
+		case deployability.BundlingProhibited:
+			result.Prohibited++
+		default:
+			result.Unknown++
+		}
+	}
+	result.Reason = fmt.Sprintf("desktop bundling classified %d resources", result.Resources)
+	return result, nil
 }

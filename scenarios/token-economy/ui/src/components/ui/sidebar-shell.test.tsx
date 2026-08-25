@@ -3,7 +3,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
-import { SidebarShell } from "./sidebar-shell";
+import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/1.2.0";
 
 const navigationLabel = "Navigation";
 

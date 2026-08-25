@@ -1,7 +1,7 @@
 import { Gift, History, Home, Sparkles } from "lucide-react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import { BottomNav, type BottomNavItem } from "../../components/ui/bottom-nav";
+import { BottomNav, type BottomNavItem } from "@vrooli/react-component-library/BottomNav/1.2.0";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 

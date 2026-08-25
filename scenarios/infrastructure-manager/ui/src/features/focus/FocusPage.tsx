@@ -4,7 +4,7 @@ import type { Finding } from "@vrooli/proto-types/infrastructure-manager/v1/focu
 import { strings } from "../../consts/strings.generated";
 import { useTranslation } from "../../i18n";
 import { formatNumber } from "../../i18n/format";
-import { EmptyState } from "../../components/ui/empty-state";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
 import { Figure } from "../../components/ui/instrument-status";
 import { Lamp } from "../../components/instrument/Lamp";
 import { LegendPlate } from "../../components/instrument/LegendPlate";

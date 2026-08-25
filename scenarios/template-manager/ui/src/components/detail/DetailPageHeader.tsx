@@ -2,7 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { StatusBadge } from "../ui/status-badge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
 import type { Tone } from "../../lib/templateLabels";
 
 export interface DetailPageHeaderProps {

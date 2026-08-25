@@ -59,7 +59,22 @@ func rank(snapshot Snapshot) []focus.RankedFinding {
 	for _, cell := range snapshot.Cells {
 		findings = append(findings, cellFindings(cell)...)
 	}
-	return focus.Rank(findings)
+	ranked := focus.Rank(findings)
+	// Architecture-expanded cells can describe the same actionable defect.
+	// Keep the first ranked instance and renumber so the ladder does not present
+	// identical work twice merely because amd64 and arm64 share one finding.
+	seen := make(map[string]struct{}, len(ranked))
+	deduplicated := make([]focus.RankedFinding, 0, len(ranked))
+	for _, finding := range ranked {
+		key := fmt.Sprintf("%d|%s|%s", finding.Stage, finding.Title, finding.Message)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		finding.Rank = len(deduplicated) + 1
+		deduplicated = append(deduplicated, finding)
+	}
+	return deduplicated
 }
 
 // cellFindings turns one graded cell into its findings. A cell contributes to

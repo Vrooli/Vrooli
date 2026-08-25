@@ -6,7 +6,7 @@ import { LegendPlate } from "../../components/instrument/LegendPlate";
 import { Lamp, LampLegend } from "../../components/instrument/Lamp";
 import { StatPlate, StatStrip } from "../../components/instrument/StatPlate";
 import { AnnunciatorGrid, type AnnunciatorRow } from "../../components/instrument/AnnunciatorGrid";
-import { EmptyState } from "../../components/ui/empty-state";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
 import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
 import { RUNG_ORDER, type SignalState } from "../../theme/instrument";
 import { DeviceConstellation, describeConstellation } from "./DeviceConstellation";

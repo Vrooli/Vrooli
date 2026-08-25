@@ -2,8 +2,8 @@ import { ArrowDownCircle, ArrowUpCircle, CircleCheck, Clock3, Coins, History } f
 import { Link } from "react-router-dom";
 import { EventKind, RedemptionState } from "@vrooli/proto-types/token-economy/v1/access/access_pb";
 
-import { EmptyState } from "../../components/ui/empty-state";
-import { StatusBadge } from "../../components/ui/status-badge";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { eventDate, useHolderEconomy } from "./useHolderEconomy";

@@ -4,11 +4,11 @@ import { useState } from "react";
 import { SupplyPolicy, type TokenType } from "@vrooli/proto-types/token-economy/v1/access/access_pb";
 
 import { minterClient } from "../../api/tokenEconomy";
-import { Button } from "../../components/ui/button";
-import { DataTable, type DataTableColumn } from "../../components/ui/data-table";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.2.0";
 import { Input } from "../../components/ui/input";
-import { Select } from "../../components/ui/select";
-import { StatusBadge } from "../../components/ui/status-badge";
+import { Select } from "@vrooli/react-component-library/Select/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { ConsoleForm, ConsolePage, Field, RequestState } from "../console/ConsolePage";

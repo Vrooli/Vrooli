@@ -6,8 +6,8 @@ import { ValidationMode } from "@vrooli/proto-types/template-manager/v1/validati
 
 import { fetchTemplateDashboard } from "../api/templateDomain";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { EmptyState } from "../components/ui/empty-state";
-import { StatusBadge } from "../components/ui/status-badge";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { HealthCard } from "../features/health/HealthCard";

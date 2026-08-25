@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Home } from "lucide-react";
 
 import { renderWithProviders } from "../../test-utils";
-import { BottomNav } from "./bottom-nav";
+import { BottomNav } from "@vrooli/react-component-library/BottomNav/1.2.0";
 
 /**
  * Fixture copy, named once. These are the test's OWN sample values rather

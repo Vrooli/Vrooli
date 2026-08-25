@@ -226,7 +226,7 @@ func TestSweep_KeepLatestProtectsNewest(t *testing.T) {
 
 func TestSweep_AgeFilterSkipsTooNew(t *testing.T) {
 	wf := uuid.New()
-	tooNew := mkExec(t, database.ExecutionStatusCompleted, 1, wf)
+	tooNew := mkExec(t, database.ExecutionStatusCompleted, 0, wf)
 	store := &fakeStore{execs: []*database.ExecutionIndex{tooNew}}
 	fs := newFakeFS()
 	fs.sizes[filepath.Join(testRoot, tooNew.ID.String())] = 10
@@ -241,6 +241,27 @@ func TestSweep_AgeFilterSkipsTooNew(t *testing.T) {
 	}
 	if rep.Skipped[0].Reason != ReasonTooNew {
 		t.Fatalf("expected too-new reason, got %q", rep.Skipped[0].Reason)
+	}
+}
+
+func TestSweep_AgeFilterUsesTransportSeconds(t *testing.T) {
+	wf := uuid.New()
+	tooNew := mkExec(t, database.ExecutionStatusCompleted, 0, wf)
+	old := mkExec(t, database.ExecutionStatusCompleted, 3, wf)
+	store := &fakeStore{execs: []*database.ExecutionIndex{tooNew, old}}
+	fs := newFakeFS()
+	fs.sizes[filepath.Join(testRoot, tooNew.ID.String())] = 10
+	fs.sizes[filepath.Join(testRoot, old.ID.String())] = 20
+
+	rep, err := newService(store, fs).Sweep(context.Background(), Options{MaxAgeSeconds: 24 * 60 * 60, Apply: false})
+	if err != nil {
+		t.Fatalf("sweep: %v", err)
+	}
+	if rep.RemovedCount != 1 || rep.Removed[0].ExecutionID != old.ID {
+		t.Fatalf("transport age filter removed %#v, want only old execution", rep.Removed)
+	}
+	if rep.SkippedCount != 1 || rep.Skipped[0].ExecutionID != tooNew.ID || rep.Skipped[0].Reason != ReasonTooNew {
+		t.Fatalf("transport age filter skipped %#v, want too-new execution", rep.Skipped)
 	}
 }
 

@@ -36,6 +36,16 @@ func protoQualification(qualification deployability.Qualification) portabilityv1
 	return protoEnum[portabilityv1.Qualification](portabilityv1.Qualification_value, "QUALIFICATION_", string(qualification))
 }
 
+func protoEvidence(evidence *deployability.Evidence) *portabilityv1.Evidence {
+	if !evidence.Complete() {
+		return nil
+	}
+	return &portabilityv1.Evidence{
+		RunId: evidence.RunID, Host: evidence.Host, Os: evidence.OS, Arch: evidence.Arch,
+		Date: evidence.Date, Surface: evidence.Surface, ArtifactUri: evidence.ArtifactURI,
+	}
+}
+
 func protoSituation(situation internalportability.CapabilitySituation) portabilityv1.CapabilitySituation {
 	return protoEnum[portabilityv1.CapabilitySituation](portabilityv1.CapabilitySituation_value, "CAPABILITY_SITUATION_", string(situation))
 }
@@ -60,6 +70,8 @@ func protoPlatform(platform internalportability.PlatformEntry) *portabilityv1.Pl
 		Architecture:                platform.Architecture,
 		Status:                      protoStatus(platform.Status),
 		Qualification:               protoQualification(platform.Qualification),
+		Evidence:                    protoEvidence(platform.Evidence),
+		Policy:                      platform.Policy,
 		ObservedQualification:       protoQualification(platform.ObservedQualification),
 		ObservedQualificationReason: platform.ObservedQualificationReason,
 		Implementer:                 platform.Implementer,
@@ -112,6 +124,7 @@ func protoGrid(grid internalportability.Grid, entries []internalportability.Entr
 		ComputedAt:         timestamppb.New(grid.ComputedAt),
 		Capabilities:       make([]*portabilityv1.CapabilityEntry, 0, len(entries)),
 		ObservedSafeguards: make([]*portabilityv1.ObservedSafeguard, 0, len(grid.ObservedSafeguards)),
+		NativeEvidence:     make([]*portabilityv1.NativeEvidence, 0, len(grid.NativeEvidence)),
 	}
 	for _, entry := range entries {
 		out.Capabilities = append(out.Capabilities, protoEntry(entry))
@@ -122,6 +135,14 @@ func protoGrid(grid internalportability.Grid, entries []internalportability.Entr
 			Platforms: safeguard.Platforms, SupportClass: safeguard.SupportClass,
 			ExecutionState: safeguard.ExecutionState, Notes: safeguard.Notes,
 			ObservedAt: timestamppb.New(safeguard.ObservedAt),
+		})
+	}
+	for _, evidence := range grid.NativeEvidence {
+		out.NativeEvidence = append(out.NativeEvidence, &portabilityv1.NativeEvidence{
+			Kind: evidence.Kind, HostOs: protoHostOS(evidence.HostOS), Architecture: evidence.Architecture,
+			Commit: evidence.Commit, GeneratedAt: timestamppb.New(evidence.GeneratedAt), Passed: evidence.Passed,
+			Source: evidence.Source, RunId: evidence.RunID, Host: evidence.Host, Surface: evidence.Surface,
+			ArtifactUri: evidence.ArtifactURI, Capabilities: evidence.Capabilities,
 		})
 	}
 	return out

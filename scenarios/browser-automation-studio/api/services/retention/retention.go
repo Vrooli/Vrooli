@@ -34,6 +34,7 @@ const (
 	ReasonMissingDir      = "artifact directory already absent"
 	ReasonDeleteDirFailed = "failed to delete artifact directory"
 	ReasonDeleteRowFailed = "failed to delete execution row"
+	ReasonMaxBytes        = "bounded by max_bytes per sweep"
 )
 
 // ErrRecordingsRootNotConfigured is returned when no recordings root is set, in
@@ -90,6 +91,9 @@ type Options struct {
 	// MaxAgeDays removes executions older than this many days (by completed_at
 	// when present, otherwise started_at). 0 disables the age filter.
 	MaxAgeDays int
+	// MaxAgeSeconds is the transport-precise equivalent used by the owner
+	// cleanup contract. When set it takes precedence over MaxAgeDays.
+	MaxAgeSeconds int64
 	// KeepLatest spares this many most-recent terminal executions per workflow.
 	KeepLatest int
 	// WorkflowID, ProjectID optionally narrow the candidate set.
@@ -98,6 +102,12 @@ type Options struct {
 	// Status optionally restricts to a single terminal status; empty means both
 	// completed and failed are eligible.
 	Status string
+	// ExecutionIDs restricts apply to the items returned by a preview.
+	ExecutionIDs []uuid.UUID
+	// MaxBytes caps the bytes selected by one sweep. It is a reclaim-batch cap,
+	// not a declaration of total storage capacity; the owner declaration remains
+	// the source of the age/size policy shown to operators.
+	MaxBytes int64
 	// Apply performs deletion. When false, the sweep is a pure dry-run.
 	Apply bool
 }
@@ -153,11 +163,15 @@ func (s *Service) Sweep(ctx context.Context, opts Options) (*Report, error) {
 	})
 
 	protected := s.computeProtected(candidates, opts.KeepLatest)
+	selectedBySize := s.selectByMaxBytes(candidates, protected, opts)
 
 	cleanRoot := filepath.Clean(s.recordingsRoot)
 	var cutoff time.Time
 	if opts.MaxAgeDays > 0 {
 		cutoff = s.now().Add(-time.Duration(opts.MaxAgeDays) * 24 * time.Hour)
+	}
+	if opts.MaxAgeSeconds > 0 {
+		cutoff = s.now().Add(-time.Duration(opts.MaxAgeSeconds) * time.Second)
 	}
 
 	report := &Report{DryRun: !opts.Apply, RemovedByStatus: map[string]int{}}
@@ -181,7 +195,11 @@ func (s *Service) Sweep(ctx context.Context, opts Options) (*Report, error) {
 			report.skip(item, ReasonKeepLatest)
 			continue
 		}
-		if opts.MaxAgeDays > 0 && effectiveTime(exec).After(cutoff) {
+		if opts.MaxBytes > 0 && !selectedBySize[exec.ID] {
+			report.skip(item, ReasonMaxBytes)
+			continue
+		}
+		if !cutoff.IsZero() && effectiveTime(exec).After(cutoff) {
 			report.skip(item, ReasonTooNew)
 			continue
 		}
@@ -238,6 +256,45 @@ func (s *Service) Sweep(ctx context.Context, opts Options) (*Report, error) {
 	return report, nil
 }
 
+func (s *Service) selectByMaxBytes(candidates []*database.ExecutionIndex, protected map[uuid.UUID]bool, opts Options) map[uuid.UUID]bool {
+	selected := make(map[uuid.UUID]bool)
+	if opts.MaxBytes <= 0 {
+		for _, candidate := range candidates {
+			selected[candidate.ID] = true
+		}
+		return selected
+	}
+	var used int64
+	cleanRoot := filepath.Clean(s.recordingsRoot)
+	cutoff := time.Time{}
+	if opts.MaxAgeDays > 0 {
+		cutoff = s.now().Add(-time.Duration(opts.MaxAgeDays) * 24 * time.Hour)
+	}
+	if opts.MaxAgeSeconds > 0 {
+		cutoff = s.now().Add(-time.Duration(opts.MaxAgeSeconds) * time.Second)
+	}
+	// Candidates are newest-first. Select from the oldest end so a batch cap
+	// preserves the newest expired evidence when the cap is smaller than the
+	// eligible set.
+	for i := len(candidates) - 1; i >= 0; i-- {
+		exec := candidates[i]
+		if protected[exec.ID] || !database.IsTerminalStatus(exec.Status) || (!cutoff.IsZero() && effectiveTime(exec).After(cutoff)) {
+			continue
+		}
+		artifactDir, ok := resolveArtifactDir(cleanRoot, exec)
+		if !ok {
+			continue
+		}
+		size, _, err := s.fs.DirSize(artifactDir)
+		if err != nil || size <= 0 || used+size > opts.MaxBytes {
+			continue
+		}
+		selected[exec.ID] = true
+		used += size
+	}
+	return selected
+}
+
 func (s *Service) gatherCandidates(ctx context.Context, opts Options, status string) ([]*database.ExecutionIndex, error) {
 	targetStatuses := []string{database.ExecutionStatusCompleted, database.ExecutionStatusFailed}
 	if status != "" {
@@ -261,7 +318,7 @@ func (s *Service) gatherCandidates(ctx context.Context, opts Options, status str
 				out = append(out, e)
 			}
 		}
-		return out, nil
+		return filterExecutionIDs(out, opts.ExecutionIDs), nil
 	}
 
 	var out []*database.ExecutionIndex
@@ -272,7 +329,26 @@ func (s *Service) gatherCandidates(ctx context.Context, opts Options, status str
 		}
 		out = append(out, list...)
 	}
-	return out, nil
+	return filterExecutionIDs(out, opts.ExecutionIDs), nil
+}
+
+func filterExecutionIDs(candidates []*database.ExecutionIndex, wanted []uuid.UUID) []*database.ExecutionIndex {
+	if len(wanted) == 0 {
+		return candidates
+	}
+	set := make(map[uuid.UUID]struct{}, len(wanted))
+	for _, id := range wanted {
+		set[id] = struct{}{}
+	}
+	out := make([]*database.ExecutionIndex, 0, len(wanted))
+	for _, candidate := range candidates {
+		if candidate != nil {
+			if _, ok := set[candidate.ID]; ok {
+				out = append(out, candidate)
+			}
+		}
+	}
+	return out
 }
 
 func (s *Service) computeProtected(candidates []*database.ExecutionIndex, keepLatest int) map[uuid.UUID]bool {

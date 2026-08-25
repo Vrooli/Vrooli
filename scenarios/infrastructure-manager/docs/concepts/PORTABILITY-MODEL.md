@@ -162,6 +162,20 @@ Recorded as data. The distance between this model and the code is the point of m
 7. **Unobservable is not uninstrumented.** A cell for an OS nobody is standing on must say so in its own words, and must never be counted as a sensor gap somebody could close.
 8. **Measurement here, conformance in the control plane, judgment in the audit lane.** A declaration that is false is a gate failure, not a lower ratio.
 
+## Native qualification surfaces
+
+The grid reads `.vrooli/evidence/native-platform/*.json` as a durable
+qualification surface. CI records are broad and may apply to every capability
+on one runner target; hardware records name the exact capability claims they
+validate. The latest applicable failed record decays a `supported` declaration
+to `build_verified` and removes its stale evidence from the rendered cell.
+This is deliberately fail-closed: a scheduled validator that cannot prove the
+claim cannot leave an old qualified rung in place.
+
+The reserved `platform_policies.hardware-persistence` entry records the narrow
+ceiling and review date for claims without a dedicated machine. It does not
+classify the platform as unsupported and is not a platform-wide ceiling.
+
 ## Cross-References
 
 - [`DOMAINS.md`](DOMAINS.md) — the `portability` and `ladder` domain contracts

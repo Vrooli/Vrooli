@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../../test-utils";
-import { EmptyState } from "./empty-state";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
 
 describe("EmptyState", () => {
   afterEach(cleanup);

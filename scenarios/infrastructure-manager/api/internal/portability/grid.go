@@ -49,12 +49,14 @@ type PlatformEntry struct {
 	Architecture                string                                   `json:"architecture"`
 	Status                      deployability.CapabilityResolutionStatus `json:"status"`
 	Qualification               deployability.Qualification              `json:"qualification"`
+	Evidence                    *deployability.Evidence                  `json:"evidence,omitempty"`
 	ObservedQualification       deployability.Qualification              `json:"observed_qualification"`
 	ObservedQualificationReason string                                   `json:"observed_qualification_reason"`
 	Implementer                 string                                   `json:"implementer,omitempty"`
 	Mechanism                   string                                   `json:"mechanism,omitempty"`
 	Reason                      string                                   `json:"reason"`
 	QualificationReason         string                                   `json:"qualification_reason"`
+	Policy                      string                                   `json:"policy,omitempty"`
 	HasImplementation           bool                                     `json:"has_implementation"`
 	Controls                    []string                                 `json:"controls,omitempty"`
 	Absent                      []string                                 `json:"absent,omitempty"`
@@ -127,12 +129,20 @@ type Grid struct {
 
 // NativeEvidence is runner-produced proof about a target OS/architecture.
 type NativeEvidence struct {
+	// Kind distinguishes broad CI runner evidence from a capability-scoped
+	// hardware validation record. Legacy runner manifests normalize to "ci".
+	Kind         string               `json:"kind,omitempty"`
 	HostOS       deployability.HostOS `json:"host_os"`
 	Architecture string               `json:"architecture"`
 	Commit       string               `json:"commit,omitempty"`
 	GeneratedAt  time.Time            `json:"generated_at"`
 	Passed       bool                 `json:"passed"`
 	Source       string               `json:"source"`
+	RunID        string               `json:"run_id,omitempty"`
+	Host         string               `json:"host,omitempty"`
+	Surface      string               `json:"surface,omitempty"`
+	ArtifactURI  string               `json:"artifact_uri,omitempty"`
+	Capabilities []string             `json:"capabilities,omitempty"`
 }
 
 // Capability returns one row by name.
@@ -184,26 +194,50 @@ func (r *Reader) Grid(now time.Time) (Grid, error) {
 			resolution := deployability.ResolveCapability(implementations, capability, hostOS)
 			statuses[hostOS] = resolution.Status
 			for _, architecture := range architectures {
-				if resolution.Qualification == deployability.QualificationQualified && hostOS != deployability.HostOSLinux && !hasNativeEvidence(evidence, hostOS, architecture) {
+				cellResolution := resolution
+				policy := platformPolicy(vocabulary.PlatformPolicies, capability, hostOS, architecture)
+				cellResolution, controlPolicy := applyControlPolicies(cellResolution, vocabulary.ControlPolicies, vocabulary.ControlPolicyReasons, capability, hostOS, architecture)
+				if failed, ok := latestFailedNativeEvidence(evidence, hostOS, architecture, capability); ok && cellResolution.Qualification == deployability.QualificationQualified {
+					// A scheduled native failure is stronger current evidence than
+					// an old supported declaration. Keep the implementation, but
+					// decay the honesty rung so stale qualification cannot persist.
+					cellResolution.Qualification = deployability.QualificationBuildVerified
+					cellResolution.Evidence = nil
+					cellResolution.Reason = fmt.Sprintf("native validation %s failed for %s/%s on %s", failed.RunID, hostOS, architecture, failed.Host)
+				}
+				if policy == string(SituationNoEquivalentEver) {
+					cellResolution.Status = deployability.CapabilityIneligible
+					cellResolution.Qualification = deployability.QualificationIneligible
+					cellResolution.Implementer = ""
+					cellResolution.Mechanism = ""
+					cellResolution.Evidence = nil
+					cellResolution.Reason = fmt.Sprintf("platform policy %q excludes %s/%s", policy, hostOS, architecture)
+				}
+				if cellResolution.Qualification == deployability.QualificationQualified && !cellResolution.Evidence.Complete() {
+					return Grid{}, fmt.Errorf("qualified portability claim for %s/%s has no structured evidence naming a run", hostOS, architecture)
+				}
+				if cellResolution.Qualification == deployability.QualificationQualified && hostOS != deployability.HostOSLinux && !hasNativeEvidence(evidence, hostOS, architecture, capability) {
 					return Grid{}, fmt.Errorf("qualified portability claim for %s/%s has no host-sampled native evidence", hostOS, architecture)
 				}
 				entry.Platforms = append(entry.Platforms, PlatformEntry{
 					HostOS:                      hostOS,
 					Architecture:                architecture,
-					Status:                      resolution.Status,
-					Qualification:               resolution.Qualification,
+					Status:                      cellResolution.Status,
+					Qualification:               cellResolution.Qualification,
+					Policy:                      strings.Join(nonEmptyPolicies(policy, controlPolicy), ","),
+					Evidence:                    cellResolution.Evidence,
 					ObservedQualification:       deployability.QualificationUndeclared,
 					ObservedQualificationReason: "host observation is not attached to a manifest-only grid read",
-					Implementer:                 resolution.Implementer,
-					Mechanism:                   resolution.Mechanism,
-					Reason:                      resolution.Reason,
-					QualificationReason:         resolution.Qualification.Reason(),
-					HasImplementation:           resolution.Status.HasImplementation(),
-					Controls:                    resolution.Controls,
-					Absent:                      resolution.Absent,
-					AbsentControls:              resolution.AbsentControls,
-					AbsentProviders:             resolution.AbsentProviders,
-					Declarers:                   resolution.Declarers,
+					Implementer:                 cellResolution.Implementer,
+					Mechanism:                   cellResolution.Mechanism,
+					Reason:                      cellResolution.Reason,
+					QualificationReason:         cellResolution.Qualification.Reason(),
+					HasImplementation:           cellResolution.Status.HasImplementation(),
+					Controls:                    cellResolution.Controls,
+					Absent:                      cellResolution.Absent,
+					AbsentControls:              cellResolution.AbsentControls,
+					AbsentProviders:             cellResolution.AbsentProviders,
+					Declarers:                   cellResolution.Declarers,
 				})
 			}
 		}
@@ -221,13 +255,123 @@ func (r *Reader) Grid(now time.Time) (Grid, error) {
 	return grid, nil
 }
 
-func hasNativeEvidence(evidence []NativeEvidence, hostOS deployability.HostOS, architecture string) bool {
+func platformPolicy(policies map[string]map[string]string, capability string, hostOS deployability.HostOS, architecture string) string {
+	byOS := policies[capability]
+	if byOS == nil {
+		return ""
+	}
+	if value := strings.TrimSpace(byOS[string(hostOS)+"/"+architecture]); value != "" {
+		return value
+	}
+	return strings.TrimSpace(byOS[string(hostOS)])
+}
+
+// applyControlPolicies turns an explicitly recorded control decision into a
+// cell result. A no_work_required policy means the host OS owns that boundary
+// natively; no_equivalent_ever makes the capability ineligible. An absent
+// policy leaves the resolver's controls_incomplete result untouched.
+func applyControlPolicies(resolution deployability.CapabilityResolution, policies map[string]map[string]map[string]string, reasons map[string]map[string]map[string]string, capability string, hostOS deployability.HostOS, architecture string) (deployability.CapabilityResolution, string) {
+	if resolution.Status != deployability.CapabilityControlsIncomplete {
+		return resolution, ""
+	}
+	byControl := policies[capability]
+	if len(byControl) == 0 {
+		return resolution, ""
+	}
+	remaining := make([]string, 0, len(resolution.AbsentControls))
+	covered := make([]string, 0, len(resolution.AbsentControls))
+	for _, control := range resolution.AbsentControls {
+		policy := controlPolicy(byControl, control, hostOS, architecture)
+		if policy == string(SituationNoWorkRequired) || policy == string(SituationNoEquivalentEver) {
+			covered = append(covered, control+"="+policy)
+			continue
+		}
+		remaining = append(remaining, control)
+	}
+	if len(remaining) > 0 || len(covered) == 0 {
+		return resolution, strings.Join(covered, ";")
+	}
+	for _, control := range resolution.AbsentControls {
+		if controlPolicy(byControl, control, hostOS, architecture) == string(SituationNoEquivalentEver) {
+			resolution.Status = deployability.CapabilityIneligible
+			resolution.Qualification = deployability.QualificationIneligible
+			resolution.Implementer = ""
+			resolution.Mechanism = ""
+			resolution.Evidence = nil
+			resolution.Reason = fmt.Sprintf("control policy excludes %s/%s: %s", hostOS, architecture, controlPolicyReason(reasons, capability, control, hostOS, architecture))
+			resolution.AbsentControls = nil
+			return resolution, strings.Join(covered, ";")
+		}
+	}
+	resolution.Status = deployability.CapabilityImplemented
+	if resolution.Qualification == deployability.QualificationDegraded {
+		resolution.Status = deployability.CapabilityDegraded
+	}
+	resolution.AbsentControls = nil
+	resolution.Reason = fmt.Sprintf("provider %q resolves; control policies cover %s", resolution.Implementer, strings.Join(covered, ", "))
+	return resolution, strings.Join(covered, ";")
+}
+
+func controlPolicy(policies map[string]map[string]string, control string, hostOS deployability.HostOS, architecture string) string {
+	byTarget := policies[control]
+	if value := strings.TrimSpace(byTarget[string(hostOS)+"/"+architecture]); value != "" {
+		return value
+	}
+	return strings.TrimSpace(byTarget[string(hostOS)])
+}
+
+func controlPolicyReason(reasons map[string]map[string]map[string]string, capability, control string, hostOS deployability.HostOS, architecture string) string {
+	byControl := reasons[capability][control]
+	if value := strings.TrimSpace(byControl[string(hostOS)+"/"+architecture]); value != "" {
+		return value
+	}
+	return strings.TrimSpace(byControl[string(hostOS)])
+}
+
+func nonEmptyPolicies(values ...string) []string {
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			result = append(result, value)
+		}
+	}
+	return result
+}
+
+func hasNativeEvidence(evidence []NativeEvidence, hostOS deployability.HostOS, architecture, capability string) bool {
 	for _, item := range evidence {
-		if item.HostOS == hostOS && item.Architecture == architecture && item.Passed {
+		if item.HostOS == hostOS && item.Architecture == architecture && item.Passed && evidenceAppliesTo(item, capability) {
 			return true
 		}
 	}
 	return false
+}
+
+func evidenceAppliesTo(item NativeEvidence, capability string) bool {
+	if len(item.Capabilities) == 0 {
+		return true
+	}
+	for _, candidate := range item.Capabilities {
+		if candidate == capability {
+			return true
+		}
+	}
+	return false
+}
+
+func latestFailedNativeEvidence(evidence []NativeEvidence, hostOS deployability.HostOS, architecture, capability string) (NativeEvidence, bool) {
+	var latest NativeEvidence
+	found := false
+	for _, item := range evidence {
+		if item.HostOS != hostOS || item.Architecture != architecture || !evidenceAppliesTo(item, capability) {
+			continue
+		}
+		if !found || item.GeneratedAt.After(latest.GeneratedAt) {
+			latest = item
+			found = true
+		}
+	}
+	return latest, found && !latest.Passed
 }
 
 func (r *Reader) NativeEvidence() ([]NativeEvidence, error) {
@@ -243,16 +387,50 @@ func (r *Reader) NativeEvidence() ([]NativeEvidence, error) {
 			return nil, fmt.Errorf("read native evidence %s: %w", path, readErr)
 		}
 		var raw struct {
-			RunnerOS    string            `json:"runnerOS"`
-			RunnerArch  string            `json:"runnerArch"`
-			GoArch      string            `json:"goArch"`
-			Commit      string            `json:"commit"`
-			GeneratedAt time.Time         `json:"generatedAt"`
-			Outcomes    map[string]string `json:"outcomes"`
+			Kind         string            `json:"kind"`
+			RunnerOS     string            `json:"runnerOS"`
+			RunnerArch   string            `json:"runnerArch"`
+			GoOS         string            `json:"goOS"`
+			GoArch       string            `json:"goArch"`
+			HostOS       string            `json:"host_os"`
+			Architecture string            `json:"architecture"`
+			Commit       string            `json:"commit"`
+			GeneratedAt  time.Time         `json:"generatedAt"`
+			GeneratedAt2 time.Time         `json:"generated_at"`
+			Passed       *bool             `json:"passed"`
+			Source       string            `json:"source"`
+			RunID        string            `json:"run_id"`
+			Host         string            `json:"host"`
+			Surface      string            `json:"surface"`
+			ArtifactURI  string            `json:"artifact_uri"`
+			Capabilities []string          `json:"capabilities"`
+			Outcomes     map[string]string `json:"outcomes"`
 		}
 		if err := json.Unmarshal(data, &raw); err != nil {
 			return nil, fmt.Errorf("decode native evidence %s: %w", path, err)
 		}
+		if raw.Kind == "hardware-persistence" || raw.HostOS != "" {
+			hostOS, ok := normalizeHostOS(raw.HostOS)
+			if !ok {
+				continue
+			}
+			arch := raw.Architecture
+			if arch == "" {
+				arch = raw.GoArch
+			}
+			generatedAt := raw.GeneratedAt2
+			if generatedAt.IsZero() {
+				generatedAt = raw.GeneratedAt
+			}
+			passed := raw.Passed != nil && *raw.Passed
+			kind := raw.Kind
+			if kind == "" {
+				kind = "hardware-persistence"
+			}
+			result = append(result, NativeEvidence{Kind: kind, HostOS: hostOS, Architecture: arch, Commit: raw.Commit, GeneratedAt: generatedAt, Passed: passed, Source: raw.Source, RunID: raw.RunID, Host: raw.Host, Surface: raw.Surface, ArtifactURI: raw.ArtifactURI, Capabilities: raw.Capabilities})
+			continue
+		}
+
 		hostOS, ok := normalizeHostOS(raw.RunnerOS)
 		if !ok {
 			continue
@@ -267,7 +445,7 @@ func (r *Reader) NativeEvidence() ([]NativeEvidence, error) {
 				passed = false
 			}
 		}
-		result = append(result, NativeEvidence{HostOS: hostOS, Architecture: arch, Commit: raw.Commit, GeneratedAt: raw.GeneratedAt, Passed: passed, Source: "ci/unit-health-native-evidence"})
+		result = append(result, NativeEvidence{Kind: "ci", HostOS: hostOS, Architecture: arch, Commit: raw.Commit, GeneratedAt: raw.GeneratedAt, Passed: passed, Source: "ci/unit-health-native-evidence"})
 	}
 	return result, nil
 }
@@ -391,12 +569,12 @@ func capabilityImplementations(manifests []Manifest) []deployability.CapabilityI
 		}
 		for declaredOS, declaration := range item.PlatformStatus {
 			if hostOS, ok := normalizeHostOS(declaredOS); ok {
-				platforms[hostOS] = deployability.PlatformDeclaration{Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: declaration.Evidence}
+				platforms[hostOS] = deployability.PlatformDeclaration{Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: evidenceValue(declaration.Evidence)}
 			}
 		}
 		for declaredOS, declaration := range item.PlatformDeclarations {
 			if hostOS, ok := normalizeHostOS(declaredOS); ok {
-				platforms[hostOS] = deployability.PlatformDeclaration{Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: declaration.Evidence}
+				platforms[hostOS] = deployability.PlatformDeclaration{Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: evidenceValue(declaration.Evidence)}
 			}
 		}
 		implementations = append(implementations, deployability.CapabilityImplementation{
@@ -414,12 +592,12 @@ func manifestDeclarations(manifests []Manifest) []deployability.ManifestDeclarat
 		platforms := make(map[string]deployability.PlatformDeclaration, len(item.PlatformStatus)+len(item.PlatformDeclarations))
 		for osName, declaration := range item.PlatformStatus {
 			platforms[osName] = deployability.PlatformDeclaration{
-				Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: declaration.Evidence,
+				Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: evidenceValue(declaration.Evidence),
 			}
 		}
 		for osName, declaration := range item.PlatformDeclarations {
 			platforms[osName] = deployability.PlatformDeclaration{
-				Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: declaration.Evidence,
+				Status: declaration.Status, Mechanism: declaration.Mechanism, Evidence: evidenceValue(declaration.Evidence),
 			}
 		}
 		declarations = append(declarations, deployability.ManifestDeclaration{
