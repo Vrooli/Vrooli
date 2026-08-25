@@ -235,3 +235,11 @@ func TestProjectPackNegativeRuleFixtures(t *testing.T) {
 		})
 	}
 }
+
+func TestProjectWorkspaceCommentsDoNotTriggerScenarioWorkspaceFinding(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "pnpm-workspace.yaml", "# scenarios/ must stay isolated\npackages:\n  - packages/*\nautoInstallPeers: false\nlink-workspace-packages: false\n")
+	if findings := projectWorkspaceSmells(root); len(findings) != 0 {
+		t.Fatalf("comment-only scenario reference produced findings: %v", findings)
+	}
+}

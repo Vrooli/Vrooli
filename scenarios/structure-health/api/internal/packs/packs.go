@@ -73,6 +73,13 @@ var registry = []entry{
 		},
 	},
 	{
+		Code: "SCENARIO_README_POLICY", Name: "Scenario README Policy",
+		Feed: feedStructure, Severity: "error",
+		run: func(c, p, s string) []auditrules.Violation {
+			return requiredlayout.CheckScenarioDocumentation(c, p, s)
+		},
+	},
+	{
 		Code: "PROFILE_TEST_COVERAGE", Name: "Test Package Coverage",
 		Feed: feedStructure, Severity: "medium",
 		run: func(c, p, s string) []auditrules.Violation {

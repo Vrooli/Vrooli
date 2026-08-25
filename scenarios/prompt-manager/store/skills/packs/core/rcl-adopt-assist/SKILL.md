@@ -31,9 +31,10 @@ Out of scope: direct catalog storage changes, claiming adoption without CLI evid
 2. Inspect the selected catalog asset and target scenario integration points.
 3. Update target scenario code. Replace local usages when appropriate. Keep imports, theme wiring, and asset-specific integration correct.
 4. Run `react-component-library adoptions preflight <component-id> <scenario>` and inspect the complete adoptability verdict. If tokens are missing, run `react-component-library adoptions tokens-sync <scenario> --dry-run`, review collisions, then apply the sync before retrying preflight.
-5. For related assets, submit one batch so shared dependencies and target collisions are checked once. Otherwise run `react-component-library adoptions apply <component-id> <scenario> <adopted-path>` with the requested version and explicit overwrite or validation options when supplied.
-6. Read the CLI result. A completed agent run is not proof that adoption committed.
-7. Verify the adoption through the RCL CLI. Re-run the recorded checks and show no new build or test failures in touched scenarios.
+5. Link the selected pinned version with `react-component-library adoptions link <component-id> <scenario>`. The link must install the managed locale bridge and derived English keys, and must generate and compose `ui/src/consts/selectors.library.ts` into the adopter selector registry.
+6. If the published contract and `className` restyle seam cannot express a deliberate local behavior, stop for review and use `react-component-library adoptions eject <component-id> <scenario> --reason "..."`; ejection is the only source-writing exception.
+7. Read the CLI result. A completed agent run is not proof that adoption committed. Run `react-component-library adoptions obligations <scenario> --json` and verify the token, locale-bridge, and selector dimensions.
+8. Verify the adoption through the RCL CLI. Re-run the recorded checks and show no new build or test failures in touched scenarios.
 
 ## Requested operation
 
@@ -46,6 +47,7 @@ Out of scope: direct catalog storage changes, claiming adoption without CLI evid
 | Target has a compatible local use | Replace it and verify imports. |
 | Target needs theme or provider wiring | Add the integration before final validation. |
 | Adoption CLI fails | Do not claim success. Return evidence for the failure. |
+| Published contract is insufficient | Require a reasoned `adoptions eject`; never fall back to an untracked copy. |
 | Preflight has unsatisfied tokens | Run `react-component-library adoptions tokens-sync <scenario>`, resolve collisions, and rerun preflight; do not hide the finding. |
 | Post-change check adds a failure | Fix it or return `blocked` or `needs_review`. |
 

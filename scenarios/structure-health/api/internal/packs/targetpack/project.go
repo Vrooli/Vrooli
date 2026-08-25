@@ -312,7 +312,15 @@ func projectWorkspaceSmells(root string) []rules.Finding {
 	}
 	workspacePath := filepath.Join(root, "pnpm-workspace.yaml")
 	if raw, err := os.ReadFile(workspacePath); err == nil {
-		text := string(raw)
+		// Comments commonly document the forbidden scenario workspace shape;
+		// they must not make a valid packages-only workspace fail the rule.
+		lines := strings.Split(string(raw), "\n")
+		for i, line := range lines {
+			if comment := strings.IndexByte(line, '#'); comment >= 0 {
+				lines[i] = line[:comment]
+			}
+		}
+		text := strings.Join(lines, "\n")
 		if !strings.Contains(text, "packages:") || !strings.Contains(text, "packages/*") || strings.Contains(text, "scenarios/") || !strings.Contains(text, "autoInstallPeers: false") || !strings.Contains(text, "link-workspace-packages: false") {
 			add("PROJECT_PNPM_WORKSPACE_INVALID", "root pnpm workspace settings are invalid", "pnpm-workspace.yaml", "Keep the root workspace scoped to packages/* with isolated package settings.")
 		}

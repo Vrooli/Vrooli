@@ -23,6 +23,26 @@ func TestRequiredLayoutAcceptsCanonicalMakefile(t *testing.T) {
 	}
 }
 
+func TestCheckScenarioDocumentationRejectsTemplateScaffold(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("This scenario was generated from the `react-vite` template.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := CheckScenarioDocumentation("", root, "demo"); len(got) != 1 {
+		t.Fatalf("findings = %v, want one README policy finding", got)
+	}
+}
+
+func TestCheckScenarioDocumentationAcceptsScenarioIdentity(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# Demo\n\nA permanent capability.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := CheckScenarioDocumentation("", root, "demo"); len(got) != 0 {
+		t.Fatalf("findings = %v, want none", got)
+	}
+}
+
 func TestRequiredLayoutRejectsNonCanonicalMakefile(t *testing.T) {
 	root := t.TempDir()
 	writeRequiredLayoutFixture(t, root, ".PHONY: help\nhelp:\n\t@echo bad\n")

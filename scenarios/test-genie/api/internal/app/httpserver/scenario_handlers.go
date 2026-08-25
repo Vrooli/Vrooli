@@ -133,5 +133,8 @@ func (s *Server) handleRunScenarioTests(w http.ResponseWriter, r *http.Request) 
 	if result != nil && strings.TrimSpace(result.LogPath) != "" {
 		response["logPath"] = result.LogPath
 	}
+	if result != nil {
+		response["skipSummary"] = result.SkipSummary
+	}
 	s.writeJSON(w, http.StatusOK, response)
 }

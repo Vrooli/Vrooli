@@ -29,7 +29,7 @@ Out of scope: direct catalog storage changes, claiming a catalog mutation withou
 
 1. Record the current build and test result for each scenario you will touch. Existing failures are acceptable. The final state must add no failures.
 2. Inspect the requested asset and its local imports. Decide whether it is a component, hook, or another supported catalog asset.
-3. Refactor the source scenario as needed. Remove scenario-specific names, references, and coupling so the source is a clean reusable library target.
+3. Refactor the source scenario as needed. Remove scenario-specific names, references, and coupling so the source is a clean reusable library target. Add an optional `className` prop, merge it through the published helper, and forward it to the outermost rendered element so consumers can link the asset without forking for styling.
 4. Run `react-component-library components ingest <scenario> <source-file> <slug>`. Use the source filename without its extension as the default slug.
 5. Read the CLI result. A completed agent run is not proof that ingest committed.
 6. Verify the catalog through the RCL CLI. Run the recorded build and test checks again for every touched scenario. Report the before and after result, the asset kind, the CLI mutation evidence, and any blocker.

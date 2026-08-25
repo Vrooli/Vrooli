@@ -54,6 +54,7 @@ Targets: structure
 type Violation = auditrules.Violation
 
 var scenarioMakefileTargetRegexp = regexp.MustCompile(`(?m)^([A-Za-z0-9_.-]+)\s*:`)
+var templateReadmeScaffoldRegexp = regexp.MustCompile(`(?i)generated from the .*react-vite.*template`)
 
 type scenarioMakefileTarget struct {
 	Header  string
@@ -108,6 +109,25 @@ func Check(content string, scenarioPath string, scenario string) ([]Violation, e
 	}
 
 	return violations, nil
+}
+
+// CheckScenarioDocumentation enforces the durable scenario identity surface.
+// A README must describe the scenario's capability, not the template that
+// happened to create it.
+func CheckScenarioDocumentation(_ string, scenarioPath string, _ string) []Violation {
+	if strings.TrimSpace(scenarioPath) == "" {
+		return nil
+	}
+	readme, err := os.ReadFile(filepath.Join(scenarioPath, "README.md"))
+	if err != nil || !templateReadmeScaffoldRegexp.Match(readme) {
+		return nil
+	}
+	return []Violation{{
+		Severity:       "critical",
+		Message:        "scenario README contains template scaffold language",
+		FilePath:       "README.md",
+		Recommendation: "Rewrite the README to describe the scenario's permanent capability and remove template provenance boilerplate.",
+	}}
 }
 
 func fileExists(root, rel string, known map[string]struct{}) bool {

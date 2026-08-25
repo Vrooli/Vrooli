@@ -227,7 +227,7 @@
       "properties": {
         "reason": {
           "type": "string",
-          "enum": ["multipart_upload", "webhook_receiver", "third_party_shape", "ops_probe"]
+          "enum": ["multipart_upload", "webhook_receiver", "third_party_shape", "ops_probe", "stream_upgrade"]
         },
         "note": {
           "type": "string"
