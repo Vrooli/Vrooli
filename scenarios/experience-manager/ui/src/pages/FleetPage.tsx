@@ -8,7 +8,7 @@ import { fetchFleet } from "../api/experience";
 import { MetricCard } from "../components/MetricCard";
 import { PageFrame } from "../components/PageFrame";
 import { Button } from "../components/ui/button";
-import { DataTable, type DataTableColumn, type DataTableFilter } from "../components/ui/data-table";
+import { DataTable, type DataTableColumn, type DataTableFilter } from "@vrooli/react-component-library/DataTable/1.2.0";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

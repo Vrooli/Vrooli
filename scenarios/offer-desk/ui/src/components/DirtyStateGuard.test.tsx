@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { DirtyStateGuard, type DirtyStateGuardHandle } from "./DirtyStateGuard";
+import { DirtyStateGuard, type DirtyStateGuardHandle } from "@vrooli/react-component-library/DirtyStateGuard/1.0.0";
 import { renderWithProviders } from "../test-utils";
 
 describe("DirtyStateGuard", () => {

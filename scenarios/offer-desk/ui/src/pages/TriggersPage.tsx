@@ -5,12 +5,12 @@ import type { TFunction } from "i18next";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
-import { FormSection } from "../components/FormSection";
-import { DirtyStateGuard } from "../components/DirtyStateGuard";
-import { Button } from "../components/ui/button";
+import { FormSection } from "@vrooli/react-component-library/FormSection/1.0.0";
+import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1.0.0";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
-import { DataTable } from "../components/ui/data-table";
+import { Select } from "@vrooli/react-component-library/Select/1.1.0";
+import { DataTable } from "@vrooli/react-component-library/DataTable/1.2.0";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";

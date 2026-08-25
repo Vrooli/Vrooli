@@ -1,34 +1,69 @@
 /**
  * @vrooliComponentSource react-component-library:Input
  * @vrooliComponentVersion 1.1.0
- * @vrooliComponentAdoption 3ba1f8b7-85f3-416d-b76c-d464874333cb
- * @vrooliComponentAppliedAt 2026-07-15T03:15:14Z
- * @vrooliComponentSourceSha256 460078e2e5c34ee506c7e70d3f0ee91625736eb1c43f1c98be7b7238b3903c30
- * @vrooliComponentDriftHash 460078e2e5c34ee506c7e70d3f0ee91625736eb1c43f1c98be7b7238b3903c30
+ * @vrooliComponentAdoption 45c12833-e435-43d6-87c4-ada73b54fdbf
+ * @vrooliComponentAppliedAt 2026-08-25T09:55:45Z
+ * @vrooliComponentSourceSha256 9f252ad6fdee171d8c67d6b5efb9461b2fa4ad3393e6483ea95a7b3de92832b1
+ * @vrooliComponentDriftHash 031b0ea19609b00d266da0d78be9f6e9337b6bea7da30d63828b406c5f83390a
+ * @vrooliComponentTokenTranslation border-app-border->border-app-border
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import { forwardRef, type InputHTMLAttributes } from "react";
+export const INPUT_MODES = ["controlled", "uncontrolled"] as const;
+export const INPUT_SIZES = ["sm", "md", "lg"] as const;
+export const INPUT_TONES = ["default", "invalid"] as const;
+export const INPUT_PARTS = ["prefix", "control", "suffix"] as const;
 
-export type InputProps = InputHTMLAttributes<HTMLInputElement>;
+export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
+  "data-testid"?: string;
+};
 
-const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+const joinClasses = (...inputs: Array<string | undefined>) =>
+  inputs.filter(Boolean).join(" ");
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  function Input({ className, type, ...props }, ref) {
-    return (
+const styleSheet = `
+[data-rcl-input] {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--tap-target-min);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  padding-inline: var(--space-sm);
+  font: inherit;
+  transition: border-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), background var(--dur-quick) var(--ease-standard);
+}
+[data-rcl-input]::placeholder { color: var(--color-muted-foreground); opacity: var(--opacity-muted); }
+[data-rcl-input]:hover:not(:disabled) { border-color: var(--color-primary); }
+[data-rcl-input]:focus-visible { border-color: var(--color-focus); outline: var(--border-strong) solid color-mix(in srgb, var(--color-focus) 30%, transparent); outline-offset: var(--space-3xs); }
+[data-rcl-input]:disabled { cursor: not-allowed; opacity: var(--opacity-disabled); }
+@media (prefers-reduced-motion: reduce) { [data-rcl-input] { transition: none; } }
+`;
+
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  { className, type, "data-testid": testID, ...props },
+  ref,
+) {
+  return (
+    <>
+      <style
+        data-rcl-input-styles
+        dangerouslySetInnerHTML={{ __html: styleSheet }}
+      />
       <input
         ref={ref}
         type={type}
-        className={cn(
-          "flex min-h-11 w-full rounded-control border border-app-border bg-app-surface px-3 py-2 text-base text-app-foreground placeholder:text-app-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:cursor-not-allowed disabled:opacity-60 md:text-sm",
+        data-testid={testID ?? "rcl-input"}
+        data-rcl-input="true"
+        className={joinClasses(
+          "rounded-control border border-app-border",
           className,
         )}
         {...props}
       />
-    );
-  },
-);
+    </>
+  );
+});

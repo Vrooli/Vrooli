@@ -1,13 +1,13 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
-import { FormSection } from "../components/FormSection";
-import { DirtyStateGuard } from "../components/DirtyStateGuard";
-import { Button } from "../components/ui/button";
+import { FormSection } from "@vrooli/react-component-library/FormSection/1.0.1";
+import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1.0.1";
+import { Button } from "@vrooli/react-component-library/Button/2.2.0";
 import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
+import { Select } from "@vrooli/react-component-library/Select/1.1.1";
 import { HealthCard } from "../features/health/HealthCard";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -17,8 +17,8 @@ import { formatCurrency, formatDate } from "../i18n/format";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { SustainPeriodUnit } from "@vrooli/proto-types/money-ledger/v1/ledger/ledger_pb";
 import { Basis } from "@vrooli/proto-types/money-ledger/v1/shared/ledger_types_pb";
-import { CartesianCharts } from "../components/CartesianCharts";
-import type { ChartDatum } from "../components/Chart";
+import { CartesianCharts } from "@vrooli/react-component-library/CartesianCharts/1.0.2";
+import type { ChartDatum } from "@vrooli/react-component-library/Chart/1.0.1";
 
 interface PositionView {
   cashMinor: bigint;
@@ -170,7 +170,7 @@ export function DashboardPage() {
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div><CardTitle>{t(strings.pages.dashboard.trendTitle)}</CardTitle><p className="text-sm text-app-muted-foreground">{t(strings.pages.dashboard.trendDescription)}</p></div>
-          <label className="grid min-w-36 gap-1" htmlFor="trend-window"><span>{t(strings.pages.dashboard.trendWindowLabel)}</span><Select id="trend-window" data-testid={selectors.pages.trendWindow} value={String(trendWindowDays)} onChange={(event) => setTrendWindowDays(Number(event.target.value))} options={[7, 30, 90].map((days) => ({ value: String(days), label: t(strings.pages.dashboard.trendWindowDays, { days }) }))} /></label>
+          <label className="grid min-w-36 gap-1" htmlFor="trend-window"><span>{t(strings.pages.dashboard.trendWindowLabel)}</span><Select id="trend-window" data-testid={selectors.pages.trendWindow} value={String(trendWindowDays)} onChange={(event: ChangeEvent<HTMLSelectElement>) => setTrendWindowDays(Number(event.target.value))} options={[7, 30, 90].map((days) => ({ value: String(days), label: t(strings.pages.dashboard.trendWindowDays, { days }) }))} /></label>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div data-testid={selectors.pages.runwayBurnTrend} role="img" aria-label={t(strings.pages.dashboard.trendTitle)} className="grid gap-4 xl:grid-cols-3">
@@ -211,10 +211,10 @@ export function DashboardPage() {
                 <form className="mt-3 grid gap-3" onSubmit={submitGoal}>
                   <label className="grid gap-1" htmlFor="goal-name"><span>{t(strings.pages.dashboard.goalNameLabel)}</span><Input id="goal-name" value={goalForm.name} onChange={(event) => setGoalForm({ ...goalForm, name: event.target.value })} /></label>
                   <label className="grid gap-1" htmlFor="goal-metric"><span>{t(strings.pages.dashboard.goalMetricLabel)}</span><Input id="goal-metric" value={goalForm.metric} onChange={(event) => setGoalForm({ ...goalForm, metric: event.target.value })} /></label>
-                  <label className="grid gap-1" htmlFor="goal-comparator"><span>{t(strings.pages.dashboard.goalComparatorLabel)}</span><Select id="goal-comparator" value={goalForm.comparator} onChange={(event) => setGoalForm({ ...goalForm, comparator: event.target.value })} options={[{ value: ">=", label: ">=" }, { value: "<=", label: "<=" }, { value: ">", label: ">" }]} /></label>
+                  <label className="grid gap-1" htmlFor="goal-comparator"><span>{t(strings.pages.dashboard.goalComparatorLabel)}</span><Select id="goal-comparator" value={goalForm.comparator} onChange={(event: ChangeEvent<HTMLSelectElement>) => setGoalForm({ ...goalForm, comparator: event.target.value })} options={[{ value: ">=", label: ">=" }, { value: "<=", label: "<=" }, { value: ">", label: ">" }]} /></label>
                   <label className="grid gap-1" htmlFor="goal-threshold"><span>{t(strings.pages.dashboard.goalThresholdLabel)}</span><Input id="goal-threshold" type="number" min="0" step="1" value={goalForm.thresholdMinor} onChange={(event) => setGoalForm({ ...goalForm, thresholdMinor: event.target.value })} /></label>
                   <label className="grid gap-1" htmlFor="goal-sustain-periods"><span>{t(strings.pages.dashboard.goalSustainPeriodsLabel)}</span><Input id="goal-sustain-periods" type="number" min="1" step="1" value={goalForm.sustainPeriods} onChange={(event) => setGoalForm({ ...goalForm, sustainPeriods: event.target.value })} /></label>
-                  <label className="grid gap-1" htmlFor="goal-period-unit"><span>{t(strings.pages.dashboard.goalPeriodUnitLabel)}</span><Select id="goal-period-unit" value={goalForm.periodUnit} onChange={(event) => setGoalForm({ ...goalForm, periodUnit: event.target.value })} options={[{ value: String(SustainPeriodUnit.DAY), label: "DAY" }, { value: String(SustainPeriodUnit.WEEK), label: "WEEK" }, { value: String(SustainPeriodUnit.MONTH), label: "MONTH" }]} /></label>
+                  <label className="grid gap-1" htmlFor="goal-period-unit"><span>{t(strings.pages.dashboard.goalPeriodUnitLabel)}</span><Select id="goal-period-unit" value={goalForm.periodUnit} onChange={(event: ChangeEvent<HTMLSelectElement>) => setGoalForm({ ...goalForm, periodUnit: event.target.value })} options={[{ value: String(SustainPeriodUnit.DAY), label: "DAY" }, { value: String(SustainPeriodUnit.WEEK), label: "WEEK" }, { value: String(SustainPeriodUnit.MONTH), label: "MONTH" }]} /></label>
                   {goalError && <p role="alert" className="text-sm text-app-danger">{goalMutation.isError ? t(strings.pages.dashboard.requestError) : t(strings.pages.dashboard.validationError)}</p>}
                   {goalMessage && <p role="status" className="text-sm text-app-success">{goalMessage}</p>}
                   <Button type="submit" disabled={goalMutation.isPending || !bookId}>{t(strings.pages.dashboard.goalCreateAction)}</Button>

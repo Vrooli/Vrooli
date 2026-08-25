@@ -1,18 +1,30 @@
 /**
  * @vrooliComponentSource react-component-library:Dialog
  * @vrooliComponentVersion 1.1.0
- * @vrooliComponentAdoption fa2fbec9-7adf-44e1-9bc2-0c250d17bfb6
- * @vrooliComponentAppliedAt 2026-07-09T04:30:56Z
- * @vrooliComponentSourceSha256 329cfb14d3b60cbc58d6049dd429b89b3820d34b45b9b93f006c808c6f418020
- * @vrooliComponentDriftHash 329cfb14d3b60cbc58d6049dd429b89b3820d34b45b9b93f006c808c6f418020
+ * @vrooliComponentAdoption 8641e92a-ba64-4a78-955a-83011ba76c1a
+ * @vrooliComponentAppliedAt 2026-08-25T09:55:45Z
+ * @vrooliComponentSourceSha256 5ac74dc8e5e06aab4cec656f8b02c3bf4899e42bdc6a7d38993f0339af975c82
+ * @vrooliComponentDriftHash 98e3ab91a17675ef62c83064184d2fca2cdf57fd5b0d379b9ef6ad429f6a01d9
+ * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import { X } from "lucide-react";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useId } from "react";
+import { dialogStyles } from "./styles";
+export const DIALOG_MODES = ["controlled", "uncontrolled"] as const;
+export const DIALOG_PARTS = [
+  "trigger",
+  "overlay",
+  "content",
+  "header",
+  "title",
+  "description",
+  "body",
+  "footer",
+  "close",
+] as const;
 
 export interface DialogProps {
   open: boolean;
@@ -25,7 +37,8 @@ export interface DialogProps {
   className?: string;
 }
 
-const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+const cn = (...inputs: Array<string | undefined>) =>
+  inputs.filter(Boolean).join(" ");
 
 export function Dialog({
   open,
@@ -37,6 +50,9 @@ export function Dialog({
   closeLabel,
   className,
 }: DialogProps) {
+  const id = useId();
+  const titleID = `${id}-title`;
+  const descriptionID = `${id}-description`;
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -53,23 +69,31 @@ export function Dialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-app-shell/60 p-3 pt-safe pb-safe md:items-center">
-      <button type="button" aria-label={closeLabel} className="absolute inset-0 cursor-default" onClick={onClose} />
+    <div data-rcl-dialog className="rcl-dialog">
+      <style
+        data-rcl-dialog-styles
+        dangerouslySetInnerHTML={{ __html: dialogStyles }}
+      />
+      <button
+        type="button"
+        aria-label={closeLabel}
+        className="rcl-dialog__backdrop"
+        onClick={onClose}
+      />
       <section
         role="dialog"
         aria-modal="true"
-        aria-labelledby="dialog-title"
-        aria-describedby={description ? "dialog-description" : undefined}
-        className={cn(
-          "relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-panel border border-app-border bg-app-surface text-app-foreground shadow-xl",
-          className,
-        )}
+        aria-labelledby={titleID}
+        aria-describedby={description ? descriptionID : undefined}
+        className={cn("rcl-dialog__surface", className)}
       >
-        <header className="flex items-start justify-between gap-3 border-b border-app-border px-4 py-3">
-          <div className="min-w-0">
-            <h2 id="dialog-title" className="text-base font-semibold">{title}</h2>
+        <header className="rcl-dialog__header">
+          <div className="rcl-dialog__heading">
+            <h2 id={titleID} className="rcl-dialog__title">
+              {title}
+            </h2>
             {description && (
-              <p id="dialog-description" className="mt-1 text-sm text-app-muted-foreground">
+              <p id={descriptionID} className="rcl-dialog__description">
                 {description}
               </p>
             )}
@@ -77,16 +101,15 @@ export function Dialog({
           <button
             type="button"
             aria-label={closeLabel}
-            className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
+            className="rcl-dialog__close"
             onClick={onClose}
           >
-            <X aria-hidden className="h-5 w-5" />
+            <X aria-hidden width="20" height="20" />
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-auto px-4 py-4">{children}</div>
-        {footer && <footer className="border-t border-app-border px-4 py-3">{footer}</footer>}
+        <div className="rcl-dialog__body">{children}</div>
+        {footer && <footer className="rcl-dialog__footer">{footer}</footer>}
       </section>
     </div>
   );
 }
-

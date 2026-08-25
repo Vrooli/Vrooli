@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "../../test-utils";
 import { Dialog } from "./dialog";
-import { EmptyState } from "./empty-state";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
 
 describe("EmptyState", () => {
   it("renders optional description, icon, action, and custom class", () => {

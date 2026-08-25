@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { FormSection } from "./FormSection";
+import { FormSection } from "@vrooli/react-component-library/FormSection/1.0.1";
 import { renderWithProviders } from "../test-utils";
 
 describe("FormSection", () => {

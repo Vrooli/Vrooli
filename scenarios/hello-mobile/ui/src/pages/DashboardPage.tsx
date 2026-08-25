@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { strings } from "../consts/strings";
 import { selectors } from "../consts/selectors";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";

@@ -1,7 +1,7 @@
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
-import { DataTable, type DataTableColumn } from "../components/ui/data-table";
-import { EmptyState } from "../components/ui/empty-state";
-import { StatusBadge } from "../components/ui/status-badge";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.2.0";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useSurfaces } from "../hooks/useStudio";

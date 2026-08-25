@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { actuateDevice, acquireSession, describeDevice, listSessions, readDeviceState, releaseSession, watchDeviceEvents, type Capability, type Device, type DeviceState, type PropertyDescriptor, type Session } from "../api/deviceControl";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { selectors } from "../consts/selectors";
 

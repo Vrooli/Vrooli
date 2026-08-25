@@ -2,7 +2,7 @@ import {
   useVoiceInput as useAdoptedVoiceInput,
   type VoiceInputOptions as AdoptedVoiceInputOptions,
   type VoiceCapabilityProbe,
-} from "./useVoiceInput";
+} from "@vrooli/react-component-library/useVoiceInput/3.0.0";
 import { voiceCoreServices } from "../voiceCoreServices";
 
 export type { VoiceCapabilityProbe };

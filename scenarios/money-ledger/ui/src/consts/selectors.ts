@@ -1,3 +1,5 @@
+import { librarySelectors } from "./selectors.library";
+export { librarySelectors };
 /**
  * Vrooli Ascension selector registry
  *
@@ -79,7 +81,13 @@ type SelectorTreeResult<
         Extract<L[K], LiteralSelectorTree>,
         K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
       >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : Record<string, never>);
+} & {
+  [K in Exclude<keyof D, keyof L>]: D[K] extends DynamicSelectorDefinition<infer P>
+    ? DynamicSelectorFn<P>
+    : D[K] extends DynamicSelectorTree
+      ? DynamicBranchResult<D[K]>
+      : never;
+};
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
@@ -428,7 +436,7 @@ const dynamicSelectorDefinitions = {
   },
 } satisfies DynamicSelectorTree;
 
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
+const registry = createSelectorRegistry({ library: librarySelectors, ...literalSelectors }, dynamicSelectorDefinitions);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

@@ -1,16 +1,16 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { archiveBook, createAccount, createBook, fetchAccounts, fetchBooks, fetchPostings, transfer } from "../api/ledger";
-import { DirtyStateGuard } from "../components/DirtyStateGuard";
-import { FormSection } from "../components/FormSection";
+import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1.0.1";
+import { FormSection } from "@vrooli/react-component-library/FormSection/1.0.1";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.0";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
-import { Textarea } from "../components/ui/textarea";
-import { DataTable } from "../components/ui/data-table";
+import { Select } from "@vrooli/react-component-library/Select/1.1.1";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.0.1";
+import { DataTable } from "@vrooli/react-component-library/DataTable/1.3.1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { formatCurrency } from "../i18n/format";
@@ -213,7 +213,7 @@ export function AccountsPage() {
         <DirtyStateGuard isDirty={Boolean(accountForm.name || accountForm.kind !== "ASSET")} protectUnload title={t(strings.pages.accounts.createAccountTitle)} description={t(strings.pages.accounts.description)}>
           <FormSection title={t(strings.pages.accounts.createAccountTitle)}>
             <form className="grid gap-3" onSubmit={submitAccount}>
-              <label className="grid gap-1" htmlFor="account-book"><span>{t(strings.pages.accounts.selectBook)}</span><Select id="account-book" value={bookId} onChange={(event) => setSelectedBookId(event.target.value)} options={(books.data?.books ?? []).map((book) => ({ value: book.id, label: `${book.name} · ${book.currency}` }))} placeholder={t(strings.pages.accounts.selectBook)} /></label>
+              <label className="grid gap-1" htmlFor="account-book"><span>{t(strings.pages.accounts.selectBook)}</span><Select id="account-book" value={bookId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setSelectedBookId(event.target.value)} options={(books.data?.books ?? []).map((book) => ({ value: book.id, label: `${book.name} · ${book.currency}` }))} placeholder={t(strings.pages.accounts.selectBook)} /></label>
               <label className="grid gap-1" htmlFor="account-name"><span>{t(strings.pages.accounts.accountNameLabel)}</span><Input id="account-name" value={accountForm.name} onChange={(event) => setAccountForm({ ...accountForm, name: event.target.value })} /></label>
               <label className="grid gap-1" htmlFor="account-kind"><span>{t(strings.pages.accounts.accountKindLabel)}</span><Input id="account-kind" value={accountForm.kind} onChange={(event) => setAccountForm({ ...accountForm, kind: event.target.value.toUpperCase() })} aria-describedby="account-kind-vocabulary" /></label>
               <span id="account-kind-vocabulary" data-testid="account-kind-vocabulary" role="group" className="text-xs text-app-muted-foreground">{t(strings.pages.accounts.acceptedKinds)}</span>
@@ -239,12 +239,12 @@ export function AccountsPage() {
         <div id="transfer-form">
           <FormSection title={t(strings.pages.accounts.transferTitle)}>
             <form className="grid gap-3" onSubmit={submitTransfer}>
-              <label className="grid gap-1" htmlFor="transfer-from"><span>{t(strings.pages.accounts.fromAccountLabel)}</span><Select id="transfer-from" value={transferForm.fromAccountId} onChange={(event) => setTransferForm({ ...transferForm, fromAccountId: event.target.value })} options={accountOptions} placeholder={t(strings.pages.accounts.fromAccountLabel)} /></label>
-              <label className="grid gap-1" htmlFor="transfer-to"><span>{t(strings.pages.accounts.toAccountLabel)}</span><Select id="transfer-to" value={transferForm.toAccountId} onChange={(event) => setTransferForm({ ...transferForm, toAccountId: event.target.value })} options={accountOptions} placeholder={t(strings.pages.accounts.toAccountLabel)} /></label>
+              <label className="grid gap-1" htmlFor="transfer-from"><span>{t(strings.pages.accounts.fromAccountLabel)}</span><Select id="transfer-from" value={transferForm.fromAccountId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setTransferForm({ ...transferForm, fromAccountId: event.target.value })} options={accountOptions} placeholder={t(strings.pages.accounts.fromAccountLabel)} /></label>
+              <label className="grid gap-1" htmlFor="transfer-to"><span>{t(strings.pages.accounts.toAccountLabel)}</span><Select id="transfer-to" value={transferForm.toAccountId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setTransferForm({ ...transferForm, toAccountId: event.target.value })} options={accountOptions} placeholder={t(strings.pages.accounts.toAccountLabel)} /></label>
               <label className="grid gap-1" htmlFor="transfer-amount"><span>{t(strings.pages.accounts.transferAmountLabel)}</span><Input id="transfer-amount" type="number" min="1" step="1" value={transferForm.amountMinor} onChange={(event) => setTransferForm({ ...transferForm, amountMinor: event.target.value })} /></label>
               <label className="grid gap-1" htmlFor="transfer-currency"><span>{t(strings.pages.accounts.currencyLabel)}</span><Input id="transfer-currency" value={transferForm.currency} onChange={(event) => setTransferForm({ ...transferForm, currency: event.target.value })} maxLength={3} /></label>
               <label className="grid gap-1" htmlFor="transfer-date"><span>{t(strings.pages.journal.dateLabel)}</span><Input id="transfer-date" type="date" value={transferForm.date} onChange={(event) => setTransferForm({ ...transferForm, date: event.target.value })} /></label>
-              <label className="grid gap-1" htmlFor="transfer-description"><span>{t(strings.pages.accounts.transferDescriptionLabel)}</span><Textarea id="transfer-description" value={transferForm.description} onChange={(event) => setTransferForm({ ...transferForm, description: event.target.value })} /></label>
+              <label className="grid gap-1" htmlFor="transfer-description"><span>{t(strings.pages.accounts.transferDescriptionLabel)}</span><Textarea id="transfer-description" value={transferForm.description} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setTransferForm({ ...transferForm, description: event.target.value })} /></label>
               {transferError && <p role="alert" className="text-sm text-app-danger">{transferMutation.isError ? t(strings.pages.accounts.requestError) : t(strings.pages.accounts.validationError)}</p>}
               {transferMessage && <p role="status" className="text-sm text-app-success">{transferMessage}</p>}
               <Button type="submit" disabled={transferMutation.isPending}>{t(strings.pages.accounts.transferAction)}</Button>

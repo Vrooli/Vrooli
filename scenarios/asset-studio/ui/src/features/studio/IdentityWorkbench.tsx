@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AssetReference, Identity } from "@vrooli/proto-types/asset-studio/v1/studio/studio_pb";
 import { createProductIdentity, createRender, judgeConformance, listIdentities, releaseAsset, resolveProductSpec, selectCandidate } from "../../api/studio";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { strings } from "../../consts/strings";

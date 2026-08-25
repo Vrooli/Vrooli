@@ -1,5 +1,5 @@
-import { Button } from "../components/ui/button";
-import { Select } from "../components/ui/select";
+import { Button } from "@vrooli/react-component-library/Button/2.2.0";
+import { Select } from "@vrooli/react-component-library/Select/1.1.1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // fakeProbe is a programmable RuntimeProbe test double.
@@ -322,7 +323,7 @@ func TestRuntimeProbe_ProbeErrorDegrades(t *testing.T) {
 func writeScriptOnPath(t *testing.T, name, body string) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
-		t.Skip("POSIX shell fixture; not run on Windows")
+		repocontracttest.SkipPlatform(t, "POSIX shell fixture; not run on Windows")
 	}
 	dir := t.TempDir()
 	script := filepath.Join(dir, name)

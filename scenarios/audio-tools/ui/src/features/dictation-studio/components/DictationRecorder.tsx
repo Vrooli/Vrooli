@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { RotateCcw, X } from "lucide-react";
 
 import { PcmVoiceStreamProvider, MicReadinessIndicator } from "../../../audio-integration";
-import { VoiceInputButton } from "../../../audio-integration/SharedVoiceInputButton";
+import { VoiceInputButton } from "@vrooli/react-component-library/VoiceInputButton/3.0.0";
 import { Button } from "../../../components/ui/button";
 import { useTranslation } from "../../../i18n";
 import { strings } from "../../../consts/strings";

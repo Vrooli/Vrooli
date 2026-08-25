@@ -1,6 +1,6 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { Select } from "../components/ui/select";
+import { Select } from "@vrooli/react-component-library/Select/1.1.0";
 import { useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "../test-utils";
-import { AsyncBoundary } from "./AsyncBoundary";
+import { AsyncBoundary } from "@vrooli/react-component-library/AsyncBoundary/1.0.0";
 
 describe("AsyncBoundary", () => {
   it("renders ready and pending content, including the delayed skeleton", async () => {

@@ -1,6 +1,6 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { VoiceInputButton } from "./SharedVoiceInputButton";
+import { VoiceInputButton } from "@vrooli/react-component-library/VoiceInputButton/3.0.0";
 import { renderWithProviders } from "../test-utils";
 
 /**

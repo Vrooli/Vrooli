@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { createPersona, listPersonas } from "../api/persona";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { selectors } from "../consts/selectors";

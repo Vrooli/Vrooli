@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { EmptyState } from "./empty-state";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
 import { renderWithProviders } from "../../test-utils";
 
 describe("EmptyState", () => {

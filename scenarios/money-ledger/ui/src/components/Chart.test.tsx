@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "../test-utils";
-import { Chart, type ChartDatum } from "./Chart";
+import { Chart, type ChartDatum } from "@vrooli/react-component-library/Chart/1.0.1";
 
 const points: ChartDatum[] = [
   { id: "first", label: "January", value: 12, detail: "authoritative" },

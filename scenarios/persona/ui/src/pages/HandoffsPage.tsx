@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { completeHandoff, getHandoff, listAllHandoffs, listPersonas } from "../api/persona";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { selectors } from "../consts/selectors";
 import { HandoffState } from "@vrooli/proto-types/persona/v1/handoffs/handoffs_pb";

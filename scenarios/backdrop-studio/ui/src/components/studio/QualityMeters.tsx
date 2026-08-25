@@ -1,7 +1,7 @@
 import type { QualityVerdict } from "../../api/studio";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { StatusBadge } from "../ui/status-badge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
 
 /**
  * The perceptual verdict, with its margins.

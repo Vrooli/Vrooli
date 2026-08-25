@@ -1,6 +1,17 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+
+const localNodeModules = fileURLToPath(new URL("./node_modules", import.meta.url));
+const libraryRuntimeAliases = {
+  // The governed package is a file dependency. Resolve its external runtime
+  // dependencies from the adopter surface during Vite tests and builds.
+  "lucide-react": join(localNodeModules, "lucide-react"),
+  clsx: join(localNodeModules, "clsx"),
+  "tailwind-merge": join(localNodeModules, "tailwind-merge"),
+};
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -31,17 +42,21 @@ export default defineConfig(({ mode }): UserConfig => {
     // INTEROP-CRITICAL: relative assets keep the bundle safe behind a proxy or iframe.
     base: './',
     plugins: [react(), stringsCodegen()],
-    resolve: isProfile
-      ? {
-          alias: {
-            "react-dom/client": "react-dom/profiling",
-            // Internal references inside react-dom/client.js do
-            // `require('react-dom')`, which would resolve back to the
-            // stripped-prod bundle. Force them through the profiling entry too.
-            "react-dom$": "react-dom/profiling",
-          },
-        }
-      : undefined,
+    resolve: {
+      alias: libraryRuntimeAliases,
+      ...(isProfile
+        ? {
+            alias: {
+              ...libraryRuntimeAliases,
+              "react-dom/client": "react-dom/profiling",
+              // Internal references inside react-dom/client.js do
+              // `require('react-dom')`, which would resolve back to the
+              // stripped-prod bundle. Force them through the profiling entry too.
+              "react-dom$": "react-dom/profiling",
+            },
+          }
+        : {}),
+    },
     esbuild: isProfile
       ? {
           keepNames: true,

@@ -12,7 +12,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
-import { Textarea } from "./textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.0.1";
 
 describe("Textarea", () => {
   it("emits the base className chunk so the cn() merge contract holds", () => {

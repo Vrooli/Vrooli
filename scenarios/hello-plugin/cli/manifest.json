@@ -11,6 +11,7 @@
           "name": "hello",
           "description": "Print a deterministic greeting",
           "flags": [{"name": "name", "description": "Name to greet"}],
+          "binding": {"kind": "local"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": []}
         }
       ]
@@ -22,6 +23,7 @@
         {
           "name": "status",
           "description": "Print ok",
+          "binding": {"kind": "local"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": []}
         }
       ]

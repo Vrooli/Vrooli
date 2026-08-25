@@ -10,7 +10,7 @@ import {
 } from "../api/experience";
 import { PageFrame } from "../components/PageFrame";
 import { Button } from "../components/ui/button";
-import { DataTable, type DataTableColumn } from "../components/ui/data-table";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.2.0";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

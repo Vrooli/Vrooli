@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { DirtyStateGuard, type DirtyStateGuardHandle } from "./DirtyStateGuard";
+import { DirtyStateGuard, type DirtyStateGuardHandle } from "@vrooli/react-component-library/DirtyStateGuard/1.0.1";
 import { renderWithProviders } from "../test-utils";
 
 describe("DirtyStateGuard", () => {
@@ -22,7 +22,6 @@ describe("DirtyStateGuard", () => {
         defaultOpen
         title="Unsaved event"
         description="The event has not been recorded."
-        note="Choose what to do."
         onAction={onAction}
         onLeave={onLeave}
         onDiscard={onDiscard}
@@ -34,21 +33,21 @@ describe("DirtyStateGuard", () => {
     );
 
     expect(screen.getByRole("alertdialog", { name: /Unsaved event/ })).toBeVisible();
-    await user.click(screen.getByTestId("dirty-state-guard-continue"));
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(onAction).toHaveBeenCalledWith("continue");
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 
     act(() => {
       expect(ref.current?.requestLeave()).toBe(false);
     });
-    await user.click(screen.getByTestId("dirty-state-guard-discard"));
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
     expect(onDiscard).toHaveBeenCalledOnce();
     expect(onLeave).toHaveBeenCalledOnce();
 
     act(() => {
       expect(ref.current?.requestLeave()).toBe(false);
     });
-    await user.click(screen.getByTestId("dirty-state-guard-save"));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
     await screen.findByText(/editor/);
     expect(onSave).toHaveBeenCalledOnce();
     expect(onAction).toHaveBeenCalledWith("save");

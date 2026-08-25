@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 
-import { SidebarShell } from "../components/ui/sidebar-shell";
+import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/1.2.0";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

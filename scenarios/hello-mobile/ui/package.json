@@ -1,23 +1,4 @@
 {
-  "name": "hello-mobile-ui",
-  "version": "1.0.0",
-  "description": "React + Vite front-end for Hello Mobile",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm strings:gen && vite build",
-    "build:profile": "pnpm strings:gen && vite build --mode profile",
-    "preview": "vite preview",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "type-check": "pnpm strings:check && tsc --noEmit",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "strings:gen": "node scripts/gen-strings.mjs",
-    "strings:check": "node scripts/gen-strings.mjs --check",
-    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs"
-  },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",
     "@connectrpc/connect": "^2.1.1",
@@ -27,6 +8,7 @@
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "express": "^4.18.2",
@@ -38,6 +20,7 @@
     "react-router-dom": "^6.28.0",
     "tailwind-merge": "^2.3.0"
   },
+  "description": "React + Vite front-end for Hello Mobile",
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@testing-library/jest-dom": "^6.6.3",
@@ -67,5 +50,23 @@
     "vite": "^5.4.6",
     "vitest": "^2.1.4"
   },
-  "packageManager": "pnpm@9.12.1"
+  "name": "hello-mobile-ui",
+  "packageManager": "pnpm@9.12.1",
+  "private": true,
+  "scripts": {
+    "build": "pnpm strings:gen \u0026\u0026 vite build",
+    "build:profile": "pnpm strings:gen \u0026\u0026 vite build --mode profile",
+    "dev": "vrooli lifecycle protect -- vite",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "preview": "vite preview",
+    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
+    "strings:check": "node scripts/gen-strings.mjs --check",
+    "strings:gen": "node scripts/gen-strings.mjs",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "type-check": "pnpm strings:check \u0026\u0026 tsc --noEmit"
+  },
+  "type": "module",
+  "version": "1.0.0"
 }

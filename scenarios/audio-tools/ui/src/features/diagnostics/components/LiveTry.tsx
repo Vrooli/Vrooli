@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PcmVoiceStreamProvider, MicReadinessIndicator } from "../../../audio-integration";
-import { VoiceInputButton } from "../../../audio-integration/SharedVoiceInputButton";
+import { VoiceInputButton } from "@vrooli/react-component-library/VoiceInputButton/3.0.0";
 import type { ProviderTrace } from "../../../services/diagnostics";
 import { useTranslation } from "../../../i18n";
 import { strings } from "../../../consts/strings";

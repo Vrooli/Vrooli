@@ -1,18 +1,18 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Basis, type Posting } from "@vrooli/proto-types/money-ledger/v1/shared/ledger_types_pb";
 
 import { fetchAccounts, fetchAdapters, fetchBooks, fetchPostings, ingestEvent, registerManualAdapter, reversePosting } from "../api/ledger";
-import { DirtyStateGuard } from "../components/DirtyStateGuard";
-import { FormSection } from "../components/FormSection";
+import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1.0.1";
+import { FormSection } from "@vrooli/react-component-library/FormSection/1.0.1";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.0";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
-import { Textarea } from "../components/ui/textarea";
-import { DataTable } from "../components/ui/data-table";
+import { Select } from "@vrooli/react-component-library/Select/1.1.1";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.0.1";
+import { DataTable } from "@vrooli/react-component-library/DataTable/1.3.1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { formatCurrency, formatDate } from "../i18n/format";
@@ -165,10 +165,10 @@ export function JournalPage() {
               <FormSection title={t(strings.pages.journal.manualEntry)} description={t(strings.pages.journal.eventSource)}>
                 <form data-testid={selectors.pages.manualEntry} aria-label={t(strings.pages.journal.manualEntry)} className="grid gap-3" onSubmit={submitEvent}>
                   <label className="grid gap-1" htmlFor="journal-date"><span>{t(strings.pages.journal.dateLabel)}</span><Input id="journal-date" type="date" value={eventForm.date} onChange={(event) => setEventForm({ ...eventForm, date: event.target.value })} /></label>
-                  <label className="grid gap-1" htmlFor="journal-account"><span>{t(strings.pages.journal.accountLabel)}</span><Select id="journal-account" value={eventForm.accountId} onChange={(event) => setEventForm({ ...eventForm, accountId: event.target.value })} options={(accounts.data?.accounts ?? []).map((account) => ({ value: account.id, label: `${account.name} · ${account.kind}` }))} placeholder={t(strings.pages.journal.accountLabel)} /></label>
+                  <label className="grid gap-1" htmlFor="journal-account"><span>{t(strings.pages.journal.accountLabel)}</span><Select id="journal-account" value={eventForm.accountId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setEventForm({ ...eventForm, accountId: event.target.value })} options={(accounts.data?.accounts ?? []).map((account) => ({ value: account.id, label: `${account.name} · ${account.kind}` }))} placeholder={t(strings.pages.journal.accountLabel)} /></label>
                   <label className="grid gap-1" htmlFor="journal-amount"><span>{t(strings.pages.journal.signedAmountLabel)}</span><Input id="journal-amount" type="number" step="1" value={eventForm.amountMinor} onChange={(event) => setEventForm({ ...eventForm, amountMinor: event.target.value })} /></label>
                   <label className="grid gap-1" htmlFor="journal-currency"><span>{t(strings.pages.journal.currencyLabel)}</span><Input id="journal-currency" value={eventForm.currency} onChange={(event) => setEventForm({ ...eventForm, currency: event.target.value })} maxLength={3} /></label>
-                  <label className="grid gap-1" htmlFor="journal-description"><span>{t(strings.pages.journal.descriptionLabel)}</span><Textarea id="journal-description" value={eventForm.description} onChange={(event) => setEventForm({ ...eventForm, description: event.target.value })} /></label>
+                  <label className="grid gap-1" htmlFor="journal-description"><span>{t(strings.pages.journal.descriptionLabel)}</span><Textarea id="journal-description" value={eventForm.description} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setEventForm({ ...eventForm, description: event.target.value })} /></label>
                   <label className="grid gap-1" htmlFor="journal-external-id"><span>{t(strings.pages.journal.externalIdLabel)}</span><Input id="journal-external-id" value={eventForm.externalId} onChange={(event) => setEventForm({ ...eventForm, externalId: event.target.value })} /></label>
                   <label className="grid gap-1" htmlFor="journal-basis"><span>{t(strings.pages.journal.basisLabel)}</span><Input id="journal-basis" value={basisName(Basis.OPERATOR_ASSERTED)} readOnly /></label>
                   {eventValidationError && <p role="alert" className="text-sm text-app-danger">{eventMutation.isError ? t(strings.pages.journal.requestError) : t(strings.pages.journal.validationError)}</p>}
@@ -186,7 +186,7 @@ export function JournalPage() {
             )))}
           </ul>
 
-          <DataTable rows={postingRows} columns={postingColumns} getRowKey={(posting) => posting.id} getRowTestId={(posting) => `journal-posting-${posting.id}`} tableId="journal-table" caption={t(strings.pages.journal.cardTitle)} searchLabel={t(strings.pages.journal.postingAccount)} searchPlaceholder={t(strings.pages.journal.postingAccount)} emptyMessage={t(strings.pages.journal.emptyGuidance)} tableTestId={selectors.pages.eventTable} className="mt-4" />
+          <DataTable rows={postingRows} columns={postingColumns} getRowKey={(posting) => posting.id} caption={t(strings.pages.journal.cardTitle)} searchLabel={t(strings.pages.journal.postingAccount)} searchPlaceholder={t(strings.pages.journal.postingAccount)} emptyMessage={t(strings.pages.journal.emptyGuidance)} tableTestId={selectors.pages.eventTable} className="mt-4" />
           <p data-testid={selectors.pages.journalEmptyGuidance} role="note" className="mt-3 rounded-md border border-dashed p-3 text-app-muted-foreground">{t(strings.pages.journal.emptyGuidance)}</p>
           <p className="mt-3 text-sm text-app-muted-foreground">{t(strings.pages.journal.reversalReason)}</p>
         </CardContent>
@@ -195,7 +195,7 @@ export function JournalPage() {
       <Dialog open={Boolean(selectedPosting)} title={t(strings.pages.journal.reversalDialogTitle)} description={t(strings.pages.journal.reversalDialogDescription)} onClose={() => setSelectedPosting(null)} closeLabel={t(strings.pages.journal.cancel)} footer={<div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setSelectedPosting(null)}>{t(strings.pages.journal.cancel)}</Button><Button type="submit" form="reverse-posting-form" disabled={reversalMutation.isPending}>{t(strings.pages.journal.confirmReversal)}</Button></div>}>
         <form id="reverse-posting-form" className="grid gap-3" onSubmit={submitReversal}>
           <p className="text-sm text-app-muted-foreground">{selectedPosting?.id}</p>
-          <label className="grid gap-1" htmlFor="reversal-reason"><span>{t(strings.pages.journal.reversalReasonLabel)}</span><Textarea id="reversal-reason" value={reversalReason} onChange={(event) => setReversalReason(event.target.value)} /></label>
+          <label className="grid gap-1" htmlFor="reversal-reason"><span>{t(strings.pages.journal.reversalReasonLabel)}</span><Textarea id="reversal-reason" value={reversalReason} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setReversalReason(event.target.value)} /></label>
           {reversalValidationError && <p role="alert" className="text-sm text-app-danger">{reversalMutation.isError ? t(strings.pages.journal.requestError) : t(strings.pages.journal.validationError)}</p>}
         </form>
       </Dialog>

@@ -1,6 +1,7 @@
 import { selectors } from "../consts/selectors";
+import type { ChangeEvent } from "react";
 import { strings } from "../consts/strings";
-import { Select } from "../components/ui/select";
+import { Select } from "@vrooli/react-component-library/Select/1.1.1";
 import { useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
@@ -38,7 +39,7 @@ export function TopBar() {
           <span className="sr-only">{t(strings.theme.switcherLabel)}</span>
           <Select
             value={choice}
-            onChange={(e) => setTheme(e.target.value as ThemeChoice)}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => setTheme(e.target.value as ThemeChoice)}
             data-testid={selectors.theme.select}
             aria-label={t(strings.theme.switcherLabel)}
             className="min-h-11 rounded-control border border-app-border bg-app-surface px-2 py-1 text-app-foreground"

@@ -7,10 +7,10 @@ import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Textarea } from "../components/ui/textarea";
-import { DataTable } from "../components/ui/data-table";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.0.0";
+import { DataTable } from "@vrooli/react-component-library/DataTable/1.2.0";
 import { Status } from "@vrooli/proto-types/offer-desk/v1/offers/offers_pb";
 
 type TimestampLike = { seconds: bigint | number; nanos?: number };

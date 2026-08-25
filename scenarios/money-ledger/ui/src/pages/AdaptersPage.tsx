@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
-import { FormSection } from "../components/FormSection";
-import { DirtyStateGuard } from "../components/DirtyStateGuard";
-import { Button } from "../components/ui/button";
+import { FormSection } from "@vrooli/react-component-library/FormSection/1.0.1";
+import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1.0.1";
+import { Button } from "@vrooli/react-component-library/Button/2.2.0";
 import { Input } from "../components/ui/input";
-import { Select } from "../components/ui/select";
+import { Select } from "@vrooli/react-component-library/Select/1.1.1";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -122,7 +122,7 @@ export function AdaptersPage() {
             <form className="grid gap-3" onSubmit={submitRegistration}>
               <label className="grid gap-1" htmlFor="adapter-id"><span>{t(strings.pages.adapters.adapterIdLabel)}</span><Input id="adapter-id" value={form.id} onChange={(event) => setForm({ ...form, id: event.target.value })} /></label>
               <label className="grid gap-1" htmlFor="adapter-name"><span>{t(strings.pages.adapters.adapterNameLabel)}</span><Input id="adapter-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
-              <label className="grid gap-1" htmlFor="adapter-kind"><span>{t(strings.pages.adapters.adapterKindLabel)}</span><Select id="adapter-kind" value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value })} options={[{ value: String(AdapterKind.FILE), label: t(strings.pages.adapters.fileKind) }, { value: String(AdapterKind.AGGREGATOR), label: t(strings.pages.adapters.aggregatorKind) }]} /></label>
+              <label className="grid gap-1" htmlFor="adapter-kind"><span>{t(strings.pages.adapters.adapterKindLabel)}</span><Select id="adapter-kind" value={form.kind} onChange={(event: ChangeEvent<HTMLSelectElement>) => setForm({ ...form, kind: event.target.value })} options={[{ value: String(AdapterKind.FILE), label: t(strings.pages.adapters.fileKind) }, { value: String(AdapterKind.AGGREGATOR), label: t(strings.pages.adapters.aggregatorKind) }]} /></label>
               <Button type="submit" disabled={registerMutation.isPending}>{t(strings.pages.adapters.registerAction)}</Button>
             </form>
           </FormSection>
@@ -130,7 +130,7 @@ export function AdaptersPage() {
         <DirtyStateGuard isDirty={Boolean(fileAdapterId)} protectUnload title={t(strings.pages.adapters.importTitle)} description={t(strings.pages.adapters.description)}>
           <FormSection title={t(strings.pages.adapters.importTitle)}>
             <form className="grid gap-3" onSubmit={submitImport}>
-              <label className="grid gap-1" htmlFor="import-adapter"><span>{t(strings.pages.adapters.adapterIdLabel)}</span><Select id="import-adapter" value={fileAdapterId} onChange={(event) => setFileAdapterId(event.target.value)} options={(adapters.data?.adapters ?? []).filter((adapter) => adapter.kind === AdapterKind.FILE).map((adapter) => ({ value: adapter.id, label: adapter.name }))} placeholder={t(strings.pages.adapters.adapterIdLabel)} /></label>
+              <label className="grid gap-1" htmlFor="import-adapter"><span>{t(strings.pages.adapters.adapterIdLabel)}</span><Select id="import-adapter" value={fileAdapterId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setFileAdapterId(event.target.value)} options={(adapters.data?.adapters ?? []).filter((adapter) => adapter.kind === AdapterKind.FILE).map((adapter) => ({ value: adapter.id, label: adapter.name }))} placeholder={t(strings.pages.adapters.adapterIdLabel)} /></label>
               <label className="grid gap-1" htmlFor="adapter-file"><span>{t(strings.pages.adapters.fileLabel)}</span><Input id="adapter-file" name="adapter-file" type="file" accept=".csv,text/csv" /></label>
               <Button type="submit" disabled={importMutation.isPending}>{t(strings.pages.adapters.importTitle)}</Button>
             </form>

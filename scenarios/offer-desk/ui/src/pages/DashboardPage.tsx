@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { DataTable } from "../components/ui/data-table";
+import { DataTable } from "@vrooli/react-component-library/DataTable/1.2.0";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { HealthCard } from "../features/health/HealthCard";
