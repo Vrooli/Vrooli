@@ -257,7 +257,7 @@ func (c *RDPCheck) executeRepairKeyring(ctx context.Context, result checks.Actio
 	// message that stopped at "repaired" would leave the operator watching a
 	// check that stays critical and concluding the repair did not work.
 	result.Message = "Repaired the keyring file. Log out and back in, or reboot, so gnome-keyring-daemon reloads it; " +
-		"then confirm the RDP password with `grdctl status` and set it again if it reads (empty)."
+		"then confirm the remote-desktop credential with `vrooli credentials doctor`."
 	return result
 }
 
@@ -407,14 +407,9 @@ func (c *RDPCheck) executeOpenSettings(ctx context.Context, result checks.Action
 	var outputBuilder strings.Builder
 
 	outputBuilder.WriteString("=== GNOME Remote Desktop Settings ===\n\n")
-	outputBuilder.WriteString("To configure GNOME Remote Desktop:\n\n")
-	outputBuilder.WriteString("1. Open GNOME Settings:\n")
-	outputBuilder.WriteString("   gnome-control-center sharing\n\n")
-	outputBuilder.WriteString("2. Or navigate to:\n")
-	outputBuilder.WriteString("   Settings → Sharing → Remote Desktop\n\n")
-	outputBuilder.WriteString("3. Enable 'Remote Desktop' toggle\n")
-	outputBuilder.WriteString("4. Configure username and password\n")
-	outputBuilder.WriteString("5. Optionally enable 'Remote Control' for input\n")
+	outputBuilder.WriteString("Apply the declared remote-desktop safeguard through the Vrooli control plane:\n\n")
+	outputBuilder.WriteString("   vrooli setup --include-optional --maintenance-window --sudo-mode=ask\n\n")
+	outputBuilder.WriteString("Credential values are read only by the Vrooli credential authority; do not pass them to a host command.\n")
 
 	result.Duration = time.Since(start)
 	result.Output = outputBuilder.String()
@@ -435,8 +430,7 @@ func (c *RDPCheck) executeInstallInfo(ctx context.Context, result checks.ActionR
 		outputBuilder.WriteString("  • Enable in Settings → Sharing → Remote Desktop\n\n")
 
 		outputBuilder.WriteString("Option 2: xrdp (traditional RDP server)\n")
-		outputBuilder.WriteString("  • Install: sudo apt install xrdp\n")
-		outputBuilder.WriteString("  • Start: use the declared native service-manager action for xrdp\n")
+		outputBuilder.WriteString("  • Install and start: use the declared Vrooli host-requirement action\n")
 		outputBuilder.WriteString("  • Note: May conflict with GNOME Remote Desktop\n")
 	} else if c.caps.Platform == platform.Windows {
 		outputBuilder.WriteString("Windows Remote Desktop:\n")

@@ -578,7 +578,7 @@ func TestKeyringPathFromMessage(t *testing.T) {
 // [REQ:INFRA-RDP-003] [REQ:TEST-SEAM-001]
 func TestRDPCheckReportsRepairPending(t *testing.T) {
 	const rejection = "keyring was in an invalid or unrecognized format: /home/alice/.local/share/keyrings/login.keyring"
-	const inspectKey = "secrets-manager keyring inspect --path /home/alice/.local/share/keyrings/login.keyring --format json"
+	const inspectKey = "vrooli credentials keyring inspect --path /home/alice/.local/share/keyrings/login.keyring --format json"
 
 	build := func(inspectOutput string, inspectErr error) checks.Result {
 		caps := &platform.Capabilities{Platform: platform.Linux, SupportsSystemd: true}
@@ -592,7 +592,7 @@ func TestRDPCheckReportsRepairPending(t *testing.T) {
 		mockExec.Responses[inspectKey] = testutil.MockResponse{Output: []byte(inspectOutput), Error: inspectErr}
 		previousInspect := keyringInspectOutput
 		keyringInspectOutput = func(ctx context.Context, path string) ([]byte, error) {
-			return mockExec.Output(ctx, "secrets-manager", "keyring", "inspect", "--path", path, "--format", "json")
+			return mockExec.Output(ctx, "vrooli", "credentials", "keyring", "inspect", "--path", path, "--format", "json")
 		}
 		t.Cleanup(func() { keyringInspectOutput = previousInspect })
 		return NewRDPCheck(caps, WithRDPExecutor(mockExec),

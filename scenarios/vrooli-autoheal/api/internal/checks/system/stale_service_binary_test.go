@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
@@ -52,7 +53,7 @@ var twoUnits = []SupervisedUnit{
 func runStaleCheck(t *testing.T, r ProcessExeResolver) checks.Result {
 	t.Helper()
 	if checkOS != "linux" {
-		t.Skip("stale binary check reads /proc")
+		repocontracttest.SkipPlatform(t, "stale binary check reads /proc")
 	}
 	return NewStaleServiceBinaryCheck(
 		WithSupervisedUnits(twoUnits),
@@ -142,7 +143,7 @@ func TestRestartActionIDIsGated(t *testing.T) {
 // that cleared between detection and action does not cause a pointless restart.
 func TestExecuteReResolvesAndSkipsRecoveredUnits(t *testing.T) {
 	if checkOS != "linux" {
-		t.Skip("stale binary check reads /proc")
+		repocontracttest.SkipPlatform(t, "stale binary check reads /proc")
 	}
 	var restarted []string
 	c := NewStaleServiceBinaryCheck(
@@ -169,7 +170,7 @@ func TestExecuteReResolvesAndSkipsRecoveredUnits(t *testing.T) {
 
 func TestExecuteReportsRestartFailure(t *testing.T) {
 	if checkOS != "linux" {
-		t.Skip("stale binary check reads /proc")
+		repocontracttest.SkipPlatform(t, "stale binary check reads /proc")
 	}
 	c := NewStaleServiceBinaryCheck(
 		WithSupervisedUnits(twoUnits[:1]),
@@ -193,7 +194,7 @@ func TestExecuteReportsRestartFailure(t *testing.T) {
 // check and the action ratchets the failure backoff for no reason.
 func TestExecuteWithNothingStaleSucceeds(t *testing.T) {
 	if checkOS != "linux" {
-		t.Skip("stale binary check reads /proc")
+		repocontracttest.SkipPlatform(t, "stale binary check reads /proc")
 	}
 	c := NewStaleServiceBinaryCheck(
 		WithSupervisedUnits(twoUnits),
@@ -239,7 +240,7 @@ func TestRestartOfferedAfterAJSONRoundTrip(t *testing.T) {
 // asked for a unit name and nothing else.
 func TestResolverIsAskedForUnitNamesNotPatterns(t *testing.T) {
 	if checkOS != "linux" {
-		t.Skip("stale binary check reads /proc")
+		repocontracttest.SkipPlatform(t, "stale binary check reads /proc")
 	}
 	seen := map[string]bool{}
 	spy := &recordingResolver{seen: seen}

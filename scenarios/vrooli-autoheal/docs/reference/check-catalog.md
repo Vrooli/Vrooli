@@ -150,9 +150,9 @@ Complete reference of all available health checks.
   (`recentDenials`, `recentCredentialDenials`, `journalReadable`)
 - Keyring loadability from gnome-keyring's own boot-scoped journal verdict
   (`keyringFileRejected`, `keyringFilePath`, `keyringCorrupt`, `keyringRepairPending`) —
-  a rejected file outranks the autologin posture, which is withdrawn when it is set
+  a rejected file outranks login-session hints
 - Host posture: `autoLoginUser`, `loginKeyringCollectionPresent`, `isUserSession`,
-  `lockedKeyringPosture`, `sessionAvailable`
+  `sessionAvailable`
 - Credential model (`system` or `user-session`), which decides whether automated
   repair is safe
 
@@ -168,11 +168,10 @@ graphical-session layer and makes no statement about RDP.
 
 **Troubleshooting:**
 - `vrooli-autoheal check get infra-rdp --json`
-- GNOME: run `grdctl status` with `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` set
-- Keyring rejected as malformed (`keyringCorrupt=true`): `secrets-manager keyring inspect`,
-  then `secrets-manager keyring repair` — no root required, then log out and back in
-- Linux xrdp: `systemctl status xrdp`
-- Windows: `Get-Service TermService`
+- Keyring rejected as malformed (`keyringCorrupt=true`): run
+  `vrooli credentials keyring inspect --format json`, then
+  `vrooli credentials keyring repair --format json`; log out and back in when
+  the repair report says the daemon is stale.
 
 [Detailed documentation](checks/infra-rdp.md)
 

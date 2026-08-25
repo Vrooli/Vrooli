@@ -18,10 +18,10 @@ func corruptKeyringRemedies(path string) []string {
 		target = path
 	}
 	return []string{
-		"Run `secrets-manager keyring inspect` to see which entries gnome-keyring rejected in " + target + ".",
-		"Run `secrets-manager keyring repair` to rewrite the malformed Vrooli-owned entries. It backs the file up first, declines entries other applications own, and needs no elevated privileges.",
+		"Run `vrooli credentials keyring inspect --format json` to see which entries gnome-keyring rejected in " + target + ".",
+		"Run `vrooli credentials keyring repair --format json` to rewrite the malformed Vrooli-owned entries. It backs the file up first, declines entries other applications own, and needs no elevated privileges.",
 		"Log out and back in, or reboot, so gnome-keyring-daemon reloads the repaired file.",
-		"Confirm the RDP password survived with `grdctl status`; if it reads (empty), set it again with `grdctl rdp set-credentials <username> <password>`.",
+		"Confirm the remote-desktop credential metadata with `vrooli credentials status --identity vrooli/remote-desktop --field password`; provision it through the Vrooli credential authority if it is not configured.",
 	}
 }
 
@@ -33,6 +33,6 @@ func repairPendingRemedies(path string) []string {
 	return []string{
 		"No further repair is needed: " + target + " parses correctly again.",
 		"Log out and back in, or reboot, so gnome-keyring-daemon reloads it. Until then the running daemon still holds the file in its rejected state, and credential writes will hang on an unlock prompt nobody can answer.",
-		"After logging back in, check `grdctl status`; if the RDP password reads (empty), set it again with `grdctl rdp set-credentials <username> <password>`.",
+		"After logging back in, run `vrooli credentials doctor` and confirm the remote-desktop credential remains configured in the encrypted authority.",
 	}
 }

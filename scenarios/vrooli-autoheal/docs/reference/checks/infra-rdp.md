@@ -176,12 +176,10 @@ gnome-keyring-daemon[2953]: keyring was in an invalid or unrecognized format:
 gdm-autologin][2912]: gkr-pam: couldn't unlock the login keyring.
 ```
 
-**A rejected file outranks the autologin posture.** The posture is an inference
-from three booleans that are also true on hosts where RDP works; the rejection
-is the daemon's own statement about what it did. When a file was rejected,
-`lockedKeyringPosture` is reported as `false` — the posture may still match, but
-"locked" is the wrong diagnosis for a file that never loaded, and acting on it
-costs root and a desktop session for nothing.
+**A rejected file outranks login-session hints.** The session hints can also be
+true on hosts where RDP works; the rejection is the daemon's own statement
+about what it did. "Locked" is the wrong diagnosis for a file that never
+loaded, and acting on it costs root and a desktop session for nothing.
 
 `keyringUnlockFailureLogged` is corroborating only. It is emitted for a genuinely
 locked keyring too, so it never identifies the fault alone.
@@ -211,19 +209,11 @@ These fields predict the failure class before any client attempts a connection.
 | `autoLoginUser` | The GDM autologin user, if configured |
 | `loginKeyringCollectionPresent` | Whether the login keyring is unlocked and registered on the session bus |
 | `isUserSession` | Whether the daemon runs as a user-session daemon |
-| `lockedKeyringPosture` | All three of the above match the known-bad shape |
 | `sessionAvailable` | Whether a graphical session exists to share |
 
-The known-bad posture is GDM autologin **plus** a user-session daemon **plus** an
-absent login keyring collection. The `gdm-autologin` PAM stack authenticates
-through `pam_permit` with no password, so `pam_gnome_keyring` has nothing to
-unlock the keyring with. Anything stored in that keyring — including the RDP
-credentials — is unreadable for the life of the session.
-
-**Posture alone never changes the status.** An operator who unlocks the keyring
-by hand after boot still matches the posture while RDP works perfectly. The
-posture only annotates the root cause when the credential state is also `empty`
-or `unreadable`.
+These fields describe login-session conditions that may affect a desktop
+keyring. They are context only; the credential verdict comes from the
+control-plane keyring inspection and the RDP credential state.
 
 ## Status meanings
 
@@ -294,11 +284,11 @@ All of these are user-scoped; none needs root.
 
 ```bash
 # Which entries did gnome-keyring reject?
-secrets-manager keyring inspect
+vrooli credentials keyring inspect --format json
 
 # Rewrite the malformed Vrooli-owned entries (backs up first, declines
 # entries other applications own, and sweeps abandoned *.keyring.temp-* files)
-secrets-manager keyring repair
+vrooli credentials keyring repair --format json
 ```
 
 Then log out and back in, or reboot, so `gnome-keyring-daemon` reloads the file.
@@ -311,7 +301,7 @@ value that was already empty inside it:
 
 ```bash
 grdctl status                                          # Password: (empty)?
-grdctl rdp set-credentials <username> <password>       # then set it again
+vrooli credentials status --identity vrooli/remote-desktop --field password
 ```
 
 ## Operator remedies for a locked keyring

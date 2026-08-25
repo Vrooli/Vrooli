@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestBuildVrooliCmd_InjectsNoStaleCheck(t *testing.T) {
@@ -191,7 +193,7 @@ func TestAPIIsAliveReportsNothingListeningAsDead(t *testing.T) {
 // must return the command's output on the command's own timescale.
 func TestVrooliCommandReturnsWhenADescendantHoldsThePipe(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("shell fixture is POSIX-specific")
+		repocontracttest.SkipPlatform(t, "shell fixture is POSIX-specific")
 	}
 	script := filepath.Join(t.TempDir(), "fake-vrooli")
 	// Echoes, then leaves a background child holding stdout/stderr for far
@@ -229,7 +231,7 @@ func TestVrooliCommandReturnsWhenADescendantHoldsThePipe(t *testing.T) {
 // command that exits non-zero still has to be reported as an error.
 func TestVrooliCommandStillReportsFailure(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("shell fixture is POSIX-specific")
+		repocontracttest.SkipPlatform(t, "shell fixture is POSIX-specific")
 	}
 	script := filepath.Join(t.TempDir(), "fake-vrooli")
 	if err := os.WriteFile(script, []byte("#!/bin/sh\necho boom >&2\nexit 3\n"), 0o755); err != nil {

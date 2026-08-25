@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
@@ -49,7 +50,7 @@ func runPstore(entries []fs.DirEntry, err error) checks.Result {
 
 func TestPstoreOK_Empty(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("linux-only check")
+		repocontracttest.SkipPlatform(t, "linux-only check")
 	}
 	r := runPstore(nil, nil)
 	if r.Status != checks.StatusOK {
@@ -59,7 +60,7 @@ func TestPstoreOK_Empty(t *testing.T) {
 
 func TestPstoreOK_NotConfigured(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("linux-only check")
+		repocontracttest.SkipPlatform(t, "linux-only check")
 	}
 	r := runPstore(nil, fs.ErrNotExist)
 	if r.Status != checks.StatusOK {
@@ -72,7 +73,7 @@ func TestPstoreOK_NotConfigured(t *testing.T) {
 
 func TestPstoreWarning_EACCES(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("linux-only check")
+		repocontracttest.SkipPlatform(t, "linux-only check")
 	}
 	r := runPstore(nil, fs.ErrPermission)
 	if r.Status != checks.StatusWarning {
@@ -85,7 +86,7 @@ func TestPstoreWarning_EACCES(t *testing.T) {
 
 func TestPstoreUsesExportWhenDirectUnreadable(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("linux-only check")
+		repocontracttest.SkipPlatform(t, "linux-only check")
 	}
 	c := NewPstoreEvidenceCheck(
 		WithPstorePath("/direct/pstore"),
@@ -106,7 +107,7 @@ func TestPstoreUsesExportWhenDirectUnreadable(t *testing.T) {
 
 func TestPstoreCritical_OnDmesg(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("linux-only check")
+		repocontracttest.SkipPlatform(t, "linux-only check")
 	}
 	r := runPstore([]fs.DirEntry{
 		mockDirEntry{name: "dmesg-efi_pstore-1234"},
@@ -122,7 +123,7 @@ func TestPstoreCritical_OnDmesg(t *testing.T) {
 
 func TestPstoreCritical_OnConsole(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("linux-only check")
+		repocontracttest.SkipPlatform(t, "linux-only check")
 	}
 	r := runPstore([]fs.DirEntry{
 		mockDirEntry{name: "console-ramoops-0"},
@@ -134,7 +135,7 @@ func TestPstoreCritical_OnConsole(t *testing.T) {
 
 func TestPstoreWarning_OnPmsgOnly(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("linux-only check")
+		repocontracttest.SkipPlatform(t, "linux-only check")
 	}
 	r := runPstore([]fs.DirEntry{
 		mockDirEntry{name: "pmsg-ramoops-0"},
@@ -146,7 +147,7 @@ func TestPstoreWarning_OnPmsgOnly(t *testing.T) {
 
 func TestPstoreWarning_OnGenericError(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("linux-only check")
+		repocontracttest.SkipPlatform(t, "linux-only check")
 	}
 	r := runPstore(nil, errors.New("some weird I/O error"))
 	if r.Status != checks.StatusWarning {
@@ -170,7 +171,7 @@ func TestPstoreMetadata(t *testing.T) {
 // Sanity: timestamp gets set on healthy result.
 func TestPstoreSetsTimestamp(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("linux-only check")
+		repocontracttest.SkipPlatform(t, "linux-only check")
 	}
 	r := runPstore(nil, nil)
 	if r.Timestamp.IsZero() || time.Since(r.Timestamp) > time.Minute {

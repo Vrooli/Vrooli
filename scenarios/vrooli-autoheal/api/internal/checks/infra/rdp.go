@@ -369,7 +369,7 @@ func (c *RDPCheck) checkGnomeRDP(ctx context.Context, result checks.Result) chec
 		result.Details["recommendations"] = remedies
 		result.Details["safeActions"] = []string{safe}
 		result.Details["postChecks"] = []string{
-			"secrets-manager keyring inspect",
+			"vrooli credentials keyring inspect --format json",
 			"vrooli-autoheal check get infra-rdp",
 		}
 	case credentialFault && credentialModel == CredentialModelUserSession:

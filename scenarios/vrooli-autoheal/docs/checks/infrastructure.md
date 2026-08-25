@@ -218,6 +218,6 @@ graphical-session layer and makes no statement about RDP.
 2. GNOME credentials: run `grdctl status` with `XDG_RUNTIME_DIR` and
    `DBUS_SESSION_BUS_ADDRESS` set for the session user
 3. Denials: `journalctl --user-unit gnome-remote-desktop --since "15 minutes ago"`
-4. Rejected keyring (`keyringCorrupt=true`): `secrets-manager keyring inspect`,
-   then `secrets-manager keyring repair`, then log out and back in. No root needed.
+4. Rejected keyring (`keyringCorrupt=true`): `vrooli credentials keyring inspect --format json`,
+   then `vrooli credentials keyring repair --format json`, then log out and back in. No root needed.
 5. xrdp hosts: `sudo systemctl status xrdp` and `ss -tlnp | grep 3389`

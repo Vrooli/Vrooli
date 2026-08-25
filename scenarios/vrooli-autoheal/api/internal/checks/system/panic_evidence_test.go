@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostobservability"
 )
@@ -25,7 +26,7 @@ func (s stubCrashDumpReader) ReadCrashDumpManifest(string) (hostobservability.Cr
 func runPanicCheck(t *testing.T, opts ...PanicEvidenceCheckOption) checks.Result {
 	t.Helper()
 	if checkOS != "linux" {
-		t.Skip("panic evidence check is Linux-only")
+		repocontracttest.SkipPlatform(t, "panic evidence check is Linux-only")
 	}
 	return NewPanicEvidenceCheck(opts...).Run(context.Background())
 }
@@ -124,7 +125,7 @@ func TestRetentionPressureIsSurfaced(t *testing.T) {
 // reader's expectations cannot drift apart silently.
 func TestReadsARealManifestFile(t *testing.T) {
 	if checkOS != "linux" {
-		t.Skip("panic evidence check is Linux-only")
+		repocontracttest.SkipPlatform(t, "panic evidence check is Linux-only")
 	}
 	dir := t.TempDir()
 	body := map[string]any{

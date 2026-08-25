@@ -418,9 +418,6 @@ func diagnosisForResult(result checks.Result) string {
 		if !boolDetail(result.Details, "sessionAvailable") {
 			return "Remote desktop has no graphical session to share"
 		}
-		if boolDetail(result.Details, "lockedKeyringPosture") {
-			return "Remote desktop credentials are unreadable because GDM autologin never unlocked the login keyring"
-		}
 		return "Remote desktop is running but cannot authenticate any client"
 	case "host-runtime-integrity":
 		return "Host runtime exists but cannot communicate with its backing driver or daemon"
