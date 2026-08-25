@@ -81,6 +81,7 @@ type PressureOutcome struct {
 	ProvidersApplied       []string
 	ProvidersWithheld      []string
 	Reason                 string
+	BugReference           string
 	AutonomousApplyEnabled bool
 }
 
@@ -156,9 +157,9 @@ func (g *pressureGuard) release(partition string, band PressureBand, now time.Ti
 
 // ReportPressure handles an inbound pressure signal.
 //
-// Escalation is graded: warning records the observation, high runs an estimate
-// and preview without deleting anything, and critical applies safe-tier
-// providers with no operator present.
+// Escalation is graded: warning plans and applies only the safe tier, high runs
+// an estimate and preview without deleting anything, and critical applies
+// safe-tier providers with no operator present.
 func (s *Service) ReportPressure(ctx context.Context, signal PressureSignal) (PressureOutcome, error) {
 	if _, err := ParsePressureBand(string(signal.Band)); err != nil {
 		return PressureOutcome{}, err
@@ -177,11 +178,28 @@ func (s *Service) ReportPressure(ctx context.Context, signal PressureSignal) (Pr
 		Message: fmt.Sprintf("%s reported %s pressure on %s at %.1f%%", signal.SourceScenario, signal.Band, signal.Partition, signal.UsedPercent),
 	})
 
-	// Warning observes and records. Nothing is planned or executed, so it does
-	// not consume the deduplication window either.
+	// Warning is the early counterweight: plan and run only the safe tier, while
+	// recording an operator-visible escalation for the fastest unbounded owner.
+	// Owner-delegated and conditional providers remain withheld by the same
+	// autonomousTierAllowed gate used at critical pressure.
 	if signal.Band == BandWarning {
-		outcome.Action = ActionObserved
-		return outcome, nil
+		allowed, reason := s.pressure.acquire(signal.Partition, signal.Band, s.now())
+		if !allowed {
+			outcome.Action = ActionDeduplicated
+			outcome.Reason = reason
+			_ = s.audit(ctx, AuditEvent{Type: "pressure.deduplicated", Message: reason})
+			return outcome, nil
+		}
+		defer func() { s.pressure.release(signal.Partition, signal.Band, s.now()) }()
+		plan, err := s.Plan(ctx, cleanup.ObservationScope{Now: s.now()})
+		if err != nil {
+			return PressureOutcome{}, fmt.Errorf("plan for warning pressure: %w", err)
+		}
+		outcome.PlanID = plan.ID
+		outcome.EstimatedBytes = plan.TotalBytes
+		s.fileWarningBug(ctx, signal, &outcome)
+		_ = s.audit(ctx, AuditEvent{Type: "pressure.warning_action", PlanID: plan.ID, Message: fmt.Sprintf("warning pressure on %s: safe-tier cleanup ran and growth review is required for the fastest unbounded owner", signal.Partition)})
+		return s.applyAutonomously(ctx, signal, plan, outcome)
 	}
 
 	allowed, reason := s.pressure.acquire(signal.Partition, signal.Band, s.now())
@@ -213,8 +231,71 @@ func (s *Service) ReportPressure(ctx context.Context, signal PressureSignal) (Pr
 	return s.applyAutonomously(ctx, signal, plan, outcome)
 }
 
+// fileWarningBug reports the fastest growing unbounded entry at most once per
+// owner per 24 hours. Reporting is advisory and never prevents safe-tier
+// cleanup when Prompt Manager or growth storage is unavailable.
+func (s *Service) fileWarningBug(ctx context.Context, signal PressureSignal, outcome *PressureOutcome) {
+	s.warningMu.Lock()
+	deps := s.warningDeps
+	s.warningMu.Unlock()
+	if deps.FastestUnbounded == nil || deps.FileBug == nil {
+		return
+	}
+	target, ok, err := deps.FastestUnbounded(ctx)
+	if err != nil {
+		_ = s.audit(ctx, AuditEvent{Type: "pressure.bug_failed", Message: cleanup.Redact(err.Error()), Redacted: true})
+		return
+	}
+	if !ok || target.OwnerID == "" || target.EntryName == "" || target.SlopeBytesPerHour <= 0 {
+		return
+	}
+	ownerKey := target.OwnerKind + "/" + target.OwnerID
+	now := s.now()
+	s.warningMu.Lock()
+	if s.warningBugBusy[ownerKey] || (!s.warningBugLast[ownerKey].IsZero() && now.Sub(s.warningBugLast[ownerKey]) < 24*time.Hour) {
+		s.warningMu.Unlock()
+		return
+	}
+	s.warningBugBusy[ownerKey] = true
+	s.warningMu.Unlock()
+
+	bug := WarningBugReport{
+		Title:      fmt.Sprintf("Unbounded storage growth: %s/%s", ownerKey, target.EntryName),
+		SignalType: "code-defect",
+		Severity:   "major",
+		Repro: []string{
+			"Run `storage-manager storage growth --window=24h`.",
+			fmt.Sprintf("Inspect owner `%s/%s` entry `%s`.", target.OwnerKind, target.OwnerID, target.EntryName),
+			"Send a warning pressure signal to storage-manager.",
+		},
+		Expected:    fmt.Sprintf("The owner declares a retention ceiling for `%s`.", target.EntryName),
+		Actual:      fmt.Sprintf("`%s` is unbounded and growing at %.2f bytes per hour from %d current bytes.", target.EntryName, target.SlopeBytesPerHour, target.CurrentBytes),
+		Description: fmt.Sprintf("Warning pressure was reported for partition %s at %.1f%% used. The growth projection ranked this owner first among unbounded entries.", signal.Partition, signal.UsedPercent),
+		Context: map[string]string{
+			"scenario": target.OwnerID,
+			"command":  "storage-manager storage growth",
+		},
+		HonestyFlags:   []string{"ai-generated-summary"},
+		IdempotencyKey: fmt.Sprintf("storage-manager-warning|%s|%s", ownerKey, now.UTC().Format("2006-01-02")),
+	}
+	ref, err := deps.FileBug(ctx, bug)
+	s.warningMu.Lock()
+	delete(s.warningBugBusy, ownerKey)
+	if err == nil {
+		s.warningBugLast[ownerKey] = now
+	}
+	s.warningMu.Unlock()
+	if err != nil {
+		_ = s.audit(ctx, AuditEvent{Type: "pressure.bug_failed", Message: cleanup.Redact(err.Error()), Redacted: true})
+		return
+	}
+	outcome.BugReference = ref
+	_ = s.audit(ctx, AuditEvent{Type: "pressure.bug_filed", Message: fmt.Sprintf("warning pressure filed growth bug %s for %s", cleanup.Redact(ref), ownerKey), Redacted: true})
+}
+
 // applyAutonomously runs the safe-tier subset of a plan with no operator
-// present. It is only reachable at the critical band.
+// present. Warning and critical bands both reach this function; the tier gate
+// is deliberately identical for both paths.
 func (s *Service) applyAutonomously(ctx context.Context, signal PressureSignal, plan Plan, outcome PressureOutcome) (PressureOutcome, error) {
 	// Partition the plan by what may run unattended, so the withheld set can
 	// be reported rather than silently dropped.
@@ -275,7 +356,7 @@ func (s *Service) applyAutonomously(ctx context.Context, signal PressureSignal, 
 	_ = s.audit(ctx, AuditEvent{
 		Type:    "pressure.applied",
 		PlanID:  plan.ID,
-		Message: fmt.Sprintf("critical pressure on %s: ran %v, reclaimed %d bytes, withheld %v", signal.Partition, outcome.ProvidersApplied, outcome.ReclaimedBytes, outcome.ProvidersWithheld),
+		Message: fmt.Sprintf("%s pressure on %s: ran %v, reclaimed %d bytes, withheld %v", signal.Band, signal.Partition, outcome.ProvidersApplied, outcome.ReclaimedBytes, outcome.ProvidersWithheld),
 	})
 	return outcome, nil
 }

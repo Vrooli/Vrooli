@@ -270,8 +270,9 @@ func TestReportPressure_HighPreviewsWithoutDeleting(t *testing.T) {
 	}
 }
 
-// TestReportPressure_WarningOnlyObserves asserts warning neither plans nor deletes.
-func TestReportPressure_WarningOnlyObserves(t *testing.T) {
+// TestReportPressure_WarningRunsSafeTier asserts warning pressure starts the
+// bounded safe-tier action and leaves owner/conditional providers withheld.
+func TestReportPressure_WarningRunsSafeTier(t *testing.T) {
 	safe := &tierProvider{id: "tmp", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone}
 	svc := newPressureService(t, safe)
 
@@ -284,11 +285,84 @@ func TestReportPressure_WarningOnlyObserves(t *testing.T) {
 		t.Fatalf("ReportPressure: %v", err)
 	}
 
-	if outcome.Action != ActionObserved {
-		t.Errorf("action = %s, want observed", outcome.Action)
+	if outcome.Action != ActionApplied {
+		t.Errorf("action = %s, want applied", outcome.Action)
 	}
-	if safe.didApply() {
-		t.Error("the warning band deleted something")
+	if !safe.didApply() {
+		t.Error("the warning band did not run the safe tier")
+	}
+}
+
+type warningTestClock struct{ now time.Time }
+
+func (c warningTestClock) Now() time.Time { return c.now }
+
+func TestReportPressure_WarningFilesFastestUnboundedOwnerOncePerDay(t *testing.T) {
+	safe := &tierProvider{id: "tmp", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone}
+	svc := newPressureService(t, safe)
+	now := time.Date(2026, 8, 25, 12, 0, 0, 0, time.UTC)
+	svc.clock = warningTestClock{now: now}
+	var reports []WarningBugReport
+	svc.SetWarningDependencies(WarningDependencies{
+		FastestUnbounded: func(context.Context) (WarningGrowthTarget, bool, error) {
+			return WarningGrowthTarget{OwnerKind: "scenario", OwnerID: "fixture", EntryName: "records", CurrentBytes: 100, SlopeBytesPerHour: 25}, true, nil
+		},
+		FileBug: func(_ context.Context, report WarningBugReport) (string, error) {
+			reports = append(reports, report)
+			return "knw-growth-1", nil
+		},
+	})
+
+	for _, partition := range []string{"/", "/var"} {
+		signal := criticalSignal()
+		signal.Band = BandWarning
+		signal.Partition = partition
+		outcome, err := svc.ReportPressure(context.Background(), signal)
+		if err != nil {
+			t.Fatalf("ReportPressure(%s): %v", partition, err)
+		}
+		if outcome.BugReference != "knw-growth-1" && partition == "/" {
+			t.Fatalf("first warning bug reference = %q", outcome.BugReference)
+		}
+	}
+	if len(reports) != 1 {
+		t.Fatalf("bug reports = %d, want one within the daily owner limit", len(reports))
+	}
+	if reports[0].IdempotencyKey == "" || reports[0].Actual == "" {
+		t.Fatalf("warning bug omitted idempotency or measured actual: %+v", reports[0])
+	}
+
+	svc.clock = warningTestClock{now: now.Add(25 * time.Hour)}
+	signal := criticalSignal()
+	signal.Band = BandWarning
+	signal.Partition = "/home"
+	if _, err := svc.ReportPressure(context.Background(), signal); err != nil {
+		t.Fatal(err)
+	}
+	if len(reports) != 2 {
+		t.Fatalf("bug reports after daily limit = %d, want two", len(reports))
+	}
+}
+
+func TestReportPressure_WarningBugSurvivesAutonomousKillSwitch(t *testing.T) {
+	safe := &tierProvider{id: "tmp", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone}
+	svc := newPressureService(t, safe)
+	var filed int
+	svc.SetWarningDependencies(WarningDependencies{
+		FastestUnbounded: func(context.Context) (WarningGrowthTarget, bool, error) {
+			return WarningGrowthTarget{OwnerID: "fixture", EntryName: "records", SlopeBytesPerHour: 1}, true, nil
+		},
+		FileBug: func(context.Context, WarningBugReport) (string, error) { filed++; return "knw-growth-2", nil },
+	})
+	svc.SetAutonomousApplyEnabled(false)
+	signal := criticalSignal()
+	signal.Band = BandWarning
+	outcome, err := svc.ReportPressure(context.Background(), signal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.Action != ActionSuppressed || filed != 1 {
+		t.Fatalf("warning with kill switch = action %q, filed %d; want suppressed, 1", outcome.Action, filed)
 	}
 }
 

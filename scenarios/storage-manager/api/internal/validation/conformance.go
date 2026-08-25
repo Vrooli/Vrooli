@@ -41,6 +41,9 @@ func (storageEntryConformance) Analyze(_ context.Context, ac AnalyzerContext) ([
 		if entry.Regenerable && entry.Class == corestorage.ClassData && !sidecar {
 			findings = append(findings, storageFinding("STORAGE_ENTRY_CLASS_CONFLICT", SeverityWarning, ac, entry, "regenerable data is contradictory", "Use class cache/state, or mark the entry non-regenerable."))
 		}
+		if entry.Regenerable && !sidecar && entry.Budget == nil {
+			findings = append(findings, storageFinding("RETENTION_CEILING_UNBOUNDED", SeverityWarning, ac, entry, "regenerable storage has no retention ceiling", "Declare a workload-derived budget.max_age or budget.max_bytes before this entry grows without bound."))
+		}
 		if entry.Regenerable && !sidecar && entry.Reclaim == nil && entry.Budget == nil {
 			findings = append(findings, storageFinding("STORAGE_ENTRY_UNRECLAIMABLE", SeverityWarning, ac, entry, "regenerable storage has no reclaim command or builtin budget", "Declare reclaim.command, reclaim.pruner=builtin, or a framework-owned budget."))
 		}
@@ -61,8 +64,21 @@ func (storageEntryConformance) Analyze(_ context.Context, ac AnalyzerContext) ([
 		}
 		if entry.Budget != nil && entry.Budget.MaxBytes != "" {
 			if budget, parseErr := retention.ParseBytes(entry.Budget.MaxBytes); parseErr == nil {
-				if observed := observedBytes(ac, entry); observed > budget {
-					findings = append(findings, storageFinding("STORAGE_BUDGET_BELOW_OBSERVED", SeverityError, ac, entry, fmt.Sprintf("observed size %d bytes exceeds max_bytes %s", observed, entry.Budget.MaxBytes), "Raise the ceiling or reclaim data before enforcement."))
+				if observed := observedBytes(ac, entry, budget); observed > budget {
+					severity := SeverityError
+					if budget == 0 && strings.Contains(strings.ToLower(entry.Rationale), "superseded") {
+						// A zero-byte superseded-location declaration is an
+						// intentional reclaim signal. It remains visible and
+						// over-budget, but must not make every fleet validation run
+						// fail while the owner waits for its cleanup cycle.
+						severity = SeverityWarning
+					}
+					findings = append(findings, storageFinding("STORAGE_BUDGET_BELOW_OBSERVED", severity, ac, entry, fmt.Sprintf("observed size %d bytes exceeds max_bytes %s", observed, entry.Budget.MaxBytes), "Raise the ceiling or reclaim data before enforcement."))
+				} else if observed > 0 && float64(budget-observed)/float64(observed) <= 0.10 {
+					findings = append(findings, storageFinding("CEILING_NOT_BINDING", SeverityWarning, ac, entry, fmt.Sprintf("max_bytes %s is only %.1f%% above the measured %d bytes and will not bind before the next measurement", entry.Budget.MaxBytes, 100*float64(budget-observed)/float64(observed), observed), "Set a workload-derived ceiling with headroom for normal operation, and record the workload basis in the rationale."))
+				}
+				if strings.Contains(strings.ToLower(entry.Budget.Rationale), "measured and governed on") {
+					findings = append(findings, storageFinding("CEILING_NOT_BINDING", SeverityWarning, ac, entry, "the budget rationale copies a point-in-time measurement rather than a workload-derived ceiling", "Replace the measured-value rationale with the retention or working-set requirement that the ceiling enforces."))
 				}
 			}
 		}
@@ -274,7 +290,7 @@ func sqliteSidecarFindings(ac AnalyzerContext, entry corestorage.StorageEntry, e
 	return findings
 }
 
-func observedBytes(ac AnalyzerContext, entry corestorage.StorageEntry) int64 {
+func observedBytes(ac AnalyzerContext, entry corestorage.StorageEntry, budget int64) int64 {
 	if ac.Owner == nil || ac.RepoRoot == "" {
 		return 0
 	}
@@ -287,13 +303,19 @@ func observedBytes(ac AnalyzerContext, entry corestorage.StorageEntry) int64 {
 		return 0
 	}
 	var total int64
+	visited := 0
+	const maxVisited = 10000
 	_ = filepath.WalkDir(path, func(_ string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d.IsDir() {
 			return nil
 		}
+		visited++
 		info, statErr := d.Info()
 		if statErr == nil {
 			total += info.Size()
+		}
+		if total > budget || visited >= maxVisited {
+			return fs.SkipAll
 		}
 		return nil
 	})

@@ -37,8 +37,8 @@
         "regenerable": false,
         "rationale": "Scenario-owned durable data observed in the canonical data directory.",
         "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
         }
       },
       "api_data": {
@@ -49,8 +49,8 @@
         "rationale": "Scenario-owned API data observed in the canonical API data directory.",
         "subpath": "api/data",
         "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
         }
       }
     },

@@ -166,6 +166,9 @@ type Estimate struct {
 	RequiresApproval bool
 	BlockedReason    string
 	ObservedAt       time.Time
+	MinAge           time.Duration
+	KeepCount        int
+	MaxBytes         int64
 }
 
 type PreviewRequest struct {

@@ -10,7 +10,7 @@
         "regenerable": false,
         "rationale": "Scenario-owned durable SQLite session, telemetry, and program provenance data resolved beneath the cross-platform data root.",
         "budget": {
-          "max_bytes": "1TiB",
+          "max_bytes": "5GiB",
           "rationale": "Durable program-runtime state is retained for agent provenance and session governance; the ceiling prevents unbounded growth without authorizing automatic deletion."
         }
       }

@@ -135,6 +135,11 @@
       "binding": "."
     },
     {
+      "path": "storage growth",
+      "group": "storage",
+      "command": "growth"
+    },
+    {
       "path": "storage history",
       "group": "storage",
       "command": "history",

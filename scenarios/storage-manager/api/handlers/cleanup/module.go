@@ -1,6 +1,7 @@
 package cleanup
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,13 +12,16 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"storage-manager/hostfs"
 	"storage-manager/hostpaths"
+	"storage-manager/internal/census"
 	cleanupcore "storage-manager/internal/cleanup"
+	"storage-manager/internal/growth"
 	"storage-manager/internal/module"
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/providers"
@@ -30,6 +34,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
+	corestorage "github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
 	cleanupconnect "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup/cleanup_v1connect"
 )
@@ -53,7 +58,109 @@ func Module(logger *log.Logger, db *database.RoutedDB, fileRoots *filerouting.Ro
 	if db != nil {
 		store = orchestrator.NewSQLiteStore(db)
 	}
-	return ModuleWithService(orchestrator.NewService(registry, store, nil))
+	service := orchestrator.NewService(registry, store, nil)
+	wireWarningPressure(service, db)
+	return ModuleWithService(service)
+}
+
+func wireWarningPressure(service *orchestrator.Service, db *database.RoutedDB) {
+	repoRoot, _ := repocontract.ResolveRepoRoot()
+	if strings.TrimSpace(repoRoot) == "" {
+		repoRoot, _ = os.Getwd()
+	}
+	growthStore := growth.NewStore(db)
+	service.SetWarningDependencies(orchestrator.WarningDependencies{
+		FastestUnbounded: func(ctx context.Context) (orchestrator.WarningGrowthTarget, bool, error) {
+			inventory, err := coreRetentionInventory(repoRoot)
+			if err != nil {
+				return orchestrator.WarningGrowthTarget{}, false, err
+			}
+			ceilings := make(map[string]int64)
+			for _, owner := range inventory.Owners {
+				for _, entry := range owner.StorageEntries {
+					if entry.Budget == nil || entry.Budget.MaxBytes == "" {
+						continue
+					}
+					max, parseErr := coreRetention.ParseBytes(entry.Budget.MaxBytes)
+					if parseErr == nil {
+						ceilings[string(owner.Kind)+"/"+owner.ID+"/"+entry.Name] = max
+					}
+				}
+			}
+			root := "/"
+			if canonical, rootErr := census.DeviceRoot(root); rootErr == nil && canonical != "" {
+				root = canonical
+			}
+			report, err := growthStore.Build(ctx, root, 24*time.Hour, ceilings)
+			if err != nil {
+				return orchestrator.WarningGrowthTarget{}, false, err
+			}
+			for _, row := range report.Owners {
+				if row.CeilingStatus == "unbounded" && row.SlopeBytesPerHour > 0 {
+					return orchestrator.WarningGrowthTarget{OwnerKind: row.OwnerKind, OwnerID: row.OwnerID, EntryName: row.EntryName, CurrentBytes: row.CurrentBytes, SlopeBytesPerHour: row.SlopeBytesPerHour}, true, nil
+				}
+			}
+			return orchestrator.WarningGrowthTarget{}, false, nil
+		},
+		FileBug: fileScenarioQABug,
+	})
+}
+
+func coreRetentionInventory(repoRoot string) (corestorage.OwnerInventory, error) {
+	return corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: repoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+}
+
+type warningBugCapture struct {
+	Title          string            `json:"title"`
+	SignalType     string            `json:"signal_type"`
+	Severity       string            `json:"severity"`
+	Repro          []string          `json:"repro"`
+	Expected       string            `json:"expected"`
+	Actual         string            `json:"actual"`
+	Description    string            `json:"description"`
+	Context        map[string]string `json:"context"`
+	HonestyFlags   []string          `json:"honesty_flags"`
+	IdempotencyKey string            `json:"idempotency_key"`
+}
+
+func fileScenarioQABug(ctx context.Context, report orchestrator.WarningBugReport) (string, error) {
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "prompt-manager")
+	if err != nil {
+		return "", fmt.Errorf("resolve prompt-manager: %w", err)
+	}
+	payload, err := json.Marshal(warningBugCapture{Title: report.Title, SignalType: report.SignalType, Severity: report.Severity, Repro: report.Repro, Expected: report.Expected, Actual: report.Actual, Description: report.Description, Context: report.Context, HonestyFlags: report.HonestyFlags, IdempotencyKey: report.IdempotencyKey})
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(baseURL, "/")+"/api/v1/teams/scenario-qa/bugs/capture", bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("capture scenario-qa bug: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("capture scenario-qa bug: HTTP %s", resp.Status)
+	}
+	var result struct {
+		DraftID   string `json:"draft_id"`
+		Knowledge struct {
+			ID string `json:"id"`
+		} `json:"knowledge"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decode scenario-qa bug: %w", err)
+	}
+	if result.Knowledge.ID != "" {
+		return result.Knowledge.ID, nil
+	}
+	if result.DraftID != "" {
+		return result.DraftID, nil
+	}
+	return "", fmt.Errorf("scenario-qa bug capture returned no reference")
 }
 
 func ModuleWithService(service Service) module.Module {
@@ -125,6 +232,10 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		ScenarioBinariesRoot: binRoot,
 		RuntimeHomeProviders: runtimeHomeProviderConfigs(repoRoot, home, newRuntimeHomeBrokerRepairer()),
 		Saturated:            autohealSaturationProbe(http.DefaultClient),
+		OwnerScenarioClient: &cleanupcore.HTTPScenarioProviderClient{
+			ResolveURL: discovery.ResolveScenarioURLDefault,
+			HTTPClient: http.DefaultClient,
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -381,7 +492,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        cleanupconnect.CleanupServiceReportPressureProcedure,
 		Method:      "POST",
 		Summary:     "Report disk pressure",
-		Description: "Inbound disk-pressure signal from a safeguard. Warning records the observation; high runs estimate and preview without deleting; critical applies safe-tier providers with no operator present. Duplicate concurrent reports of the same partition and band collapse into one execution.",
+		Description: "Inbound disk-pressure signal from a safeguard. Warning plans and applies the safe tier; high runs estimate and preview without deleting; critical applies safe-tier providers with no operator present. Duplicate concurrent reports of the same partition and band collapse into one execution.",
 		Category:    "cleanup",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
 			"source_scenario": "string",

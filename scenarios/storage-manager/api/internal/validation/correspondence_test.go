@@ -45,3 +45,24 @@ func TestStorageCoverageRejectsBytesOutsideDeclaredClassSubpath(t *testing.T) {
 		t.Fatalf("findings = %#v, want one hard coverage finding", findings)
 	}
 }
+
+func TestStorageCoverageAuditsEmptyOwnerAcrossSiblingClassRoots(t *testing.T) {
+	root := t.TempDir()
+	dataRoot := filepath.Join(root, "runtime")
+	t.Setenv("VROOLI_DATA_ROOT", dataRoot)
+	owner := &corestorage.OwnerManifest{Kind: corestorage.OwnerScenario, ID: "empty-owner", ManifestPath: filepath.Join(root, "scenarios", "empty-owner", ".vrooli", "service.json")}
+	path := filepath.Join(dataRoot, "vrooli", "empty-owner", "data", "orphan.bin")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("unlisted"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings, err := (&storageCoverage{}).Analyze(context.Background(), AnalyzerContext{RepoRoot: root, Platform: corestorage.PlatformLinux, Owner: owner})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 1 || findings[0].Code != "STORAGE_PATH_UNCOVERED" {
+		t.Fatalf("findings = %#v, want an uncovered finding for an empty owner", findings)
+	}
+}

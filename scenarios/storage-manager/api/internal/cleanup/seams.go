@@ -111,9 +111,11 @@ type JournalClient interface {
 }
 
 type ScenarioCleanupRequest struct {
-	ScenarioID string
-	ProviderID string
-	Preview    Preview
+	ScenarioID     string
+	ProviderID     string
+	IdempotencyKey string
+	ApprovalMode   ApprovalMode
+	Preview        Preview
 }
 
 // ScenarioProviderClient delegates scenario-private cleanup to the owner.

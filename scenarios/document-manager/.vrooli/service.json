@@ -146,7 +146,7 @@
         "class": "cache",
         "regenerable": true,
         "budget": {
-          "max_bytes": "1TiB",
+          "max_bytes": "5GiB",
           "rationale": "Derived readings are reproducible from the durable raw bytes."
         },
         "rationale": "Versioned parser output may be rebuilt after retention."
@@ -158,7 +158,7 @@
         "class": "cache",
         "regenerable": true,
         "budget": {
-          "max_bytes": "1TiB",
+          "max_bytes": "5GiB",
           "rationale": "The FTS and vector index is rebuildable from units and enrichment metadata."
         },
         "rationale": "Retrieval state is a derived cache and is never the source of corpus truth."

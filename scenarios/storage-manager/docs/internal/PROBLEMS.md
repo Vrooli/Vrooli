@@ -83,7 +83,7 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
-- Rung: W3
-- Evidence: focused Ollama CLI, Storage Manager handler, and full API package tests passed; live `resource-ollama models inventory --json` reported 19 named models with digests, sizes, policy reachability, and regeneration reasons; live `GET /api/v1/storage/inventory` reported the same 19 rows, 62,434,233,666 logical model bytes, and the physical model-root accounting note.
-- Blocker: the comprehensive suite still has four pre-existing failed phases (dependency governance/module replace, documentation debt, unit execution/evidence debt, and proto REST payload declarations); the phase-3 model identity behavior itself is validated.
-- Measured: 2026-08-15
+- Rung: W0
+- Evidence: `swarm-manager goals list --json` returned no goal whose name, title, or description mentions `storage-manager`; the active user goal is external to swarm-manager. The scenario PRD/requirements therefore cannot be compared against an owning scenario goal through the deterministic W0 gate.
+- Blocker: contract truth is unverifiable until a named swarm-manager goal exists; implementation work may continue against the explicit user plan, but W1-W3 scenario-ladder gates must not be treated as contract proof.
+- Measured: 2026-08-25

@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/searchregister-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
@@ -30,7 +31,6 @@ require (
 	github.com/vrooli/ai-go v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
-	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260727163830-6c54dddc4772 // indirect
@@ -61,4 +61,5 @@ replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

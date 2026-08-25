@@ -1,5 +1,23 @@
 {
   "$schema": "schemas/service.schema.json",
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/remote-desktop",
+        "field": "username",
+        "label": "Remote desktop username",
+        "description": "Username consumed by the host remote-desktop provider.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/remote-desktop",
+        "field": "password",
+        "label": "Remote desktop password",
+        "description": "Password consumed by the host remote-desktop provider.",
+        "required": false
+      }
+    ]
+  },
   "dependencies": {
     "resources": {
       "adguard-home": {
@@ -213,7 +231,7 @@
     },
     {
       "name": "remote_desktop_access",
-      "notes": "Declares remote desktop experience and reports provider support without overriding display-manager policy",
+      "notes": "Declares remote desktop experience and reports provider support without overriding display-manager policy; remote-desktop credentials are held by Vrooli's encrypted credential authority, not the login keyring",
       "reason": "Make remote desktop behavior explicit and safe to inspect before applying",
       "required": false,
       "when": [

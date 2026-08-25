@@ -60,6 +60,21 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		logger.Fatalf("schema initialization failed: %v", err)
 	}
+	// Upgrade persisted report blobs into the narrow growth read model without
+	// delaying API readiness. The operation is idempotent and resumes safely.
+	if repoRoot, resolveErr := repocontract.ResolveRepoRoot(); resolveErr == nil && repoRoot != "" {
+		go func() {
+			store := census.NewSnapshotStore(db)
+			root, rootErr := census.DeviceRoot(repoRoot)
+			if rootErr != nil {
+				logger.Printf("census sample backfill root resolution failed: %v", rootErr)
+				return
+			}
+			if _, backfillErr := store.BackfillEntrySamples(context.Background(), root, 100); backfillErr != nil {
+				logger.Printf("census sample backfill failed: %v", backfillErr)
+			}
+		}()
+	}
 	repoRoot, repoErr := repocontract.ResolveRepoRoot()
 	if repoErr != nil {
 		logger.Printf("repo root resolution failed; validation will report unresolved targets: %v", repoErr)

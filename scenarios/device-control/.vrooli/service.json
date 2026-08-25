@@ -107,7 +107,7 @@
         "regenerable": false,
         "rationale": "Retained, redacted device-control captures referenced by completed flow runs.",
         "budget": {
-          "max_bytes": "10GiB",
+          "max_bytes": "5GiB",
           "rationale": "Bound retained evidence while preserving audit references; operators can configure a stricter evidence directory policy."
         }
       }

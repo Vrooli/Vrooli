@@ -16,12 +16,12 @@ import {
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/1.2.0";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { EmptyState } from "../components/ui/empty-state";
-import { BottomNav } from "../components/ui/bottom-nav";
-import { DataTable } from "../components/ui/data-table";
-import { StatusBadge } from "../components/ui/status-badge";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { BottomNav } from "@vrooli/react-component-library/BottomNav/1.2.0";
+import { DataTable } from "@vrooli/react-component-library/DataTable/1.2.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
 import { HealthCard } from "../components/HealthCard";
 import { Metric } from "../components/Metric";
 import { QueryError } from "../components/QueryError";

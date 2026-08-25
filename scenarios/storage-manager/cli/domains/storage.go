@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -56,7 +57,7 @@ func storageGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		return err
 	}
 	history := func() error {
-		req, err := http.NewRequest(http.MethodGet, base+"/api/v1/census/history", nil)
+		req, err := http.NewRequest(http.MethodGet, base+"/api/v1/census/history?detail=summary", nil)
 		if err != nil {
 			return err
 		}
@@ -68,6 +69,34 @@ func storageGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		if resp.StatusCode >= http.StatusBadRequest {
 			body, _ := io.ReadAll(resp.Body)
 			return fmt.Errorf("storage census history: %s", string(body))
+		}
+		_, err = io.Copy(os.Stdout, resp.Body)
+		return err
+	}
+	growth := func(args []string) error {
+		window := "24h"
+		for i := 0; i < len(args); i++ {
+			if args[i] == "--window" && i+1 < len(args) {
+				window = args[i+1]
+				i++
+				continue
+			}
+			if strings.HasPrefix(args[i], "--window=") {
+				window = strings.TrimPrefix(args[i], "--window=")
+			}
+		}
+		req, err := http.NewRequest(http.MethodGet, base+"/api/v1/storage/growth?root=/&window="+url.QueryEscape(window), nil)
+		if err != nil {
+			return err
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return fmt.Errorf("storage growth: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode >= http.StatusBadRequest {
+			body, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("storage growth: %s", string(body))
 		}
 		_, err = io.Copy(os.Stdout, resp.Body)
 		return err
@@ -163,6 +192,7 @@ func storageGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		{Name: "status", Description: "Show the latest persisted storage accounting", Run: func(args []string) error { return read(args, false) }},
 		{Name: "census", Description: "Run a read-only storage census", Run: func(args []string) error { return read(args, true) }},
 		{Name: "history", Description: "Show persisted census snapshots and growth observations", Run: func([]string) error { return history() }},
+		{Name: "growth", Description: "Rank per-owner storage velocity and ceiling projections", Run: growth},
 		{Name: "retention", Description: "Show retention budgets across every owner kind", Run: func([]string) error { return retentionOwners() }},
 		{Name: "placement", Description: "Show resolved cross-platform storage placement", Run: func([]string) error { return placement() }},
 		{Name: "placement-audit", Description: "Show placement migration audit events", Run: func([]string) error { return placementAudit() }},

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	_ "modernc.org/sqlite"
 )
 
@@ -33,7 +34,7 @@ func TestScenarioOpensItsOwnDatabaseUnderInheritedEnvironment(t *testing.T) {
 		return
 	}
 	if runtime.GOOS != "linux" {
-		t.Skip("open file descriptors are read from /proc, which is Linux-only")
+		repocontracttest.SkipPlatform(t, "open file descriptors are read from /proc, which is Linux-only")
 	}
 
 	root := t.TempDir()

@@ -31,7 +31,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/maturity-go v0.0.0
-	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+	github.com/vrooli/repo-contract-go v0.0.0
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/tools v0.47.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -64,4 +64,5 @@ replace github.com/vrooli/platform-go => ../../../packages/platform-go
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
 
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
+
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

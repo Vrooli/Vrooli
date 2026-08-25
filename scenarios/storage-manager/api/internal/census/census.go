@@ -193,7 +193,7 @@ func ScanInventory(root string, inventory corestorage.OwnerInventory) (Report, e
 			}
 			declarations = append(declarations, resolvedDeclaration{owner: owner.ID, kind: kind, name: declaration.Name, path: path})
 		}
-		ownerRoots = append(ownerRoots, ownerStorageRoot(owner))
+		ownerRoots = append(ownerRoots, ownerStorageRoots(root, owner)...)
 	}
 	for _, orphan := range orphanScenarioRoots(root, inventory, hostFileSystem{}) {
 		findings = append(findings, Finding{Code: "STORAGE_PATH_ORPHANED", Severity: "warning", Kind: string(corestorage.OwnerScenario), Path: orphan.Path, Message: fmt.Sprintf("scenario directory has no canonical .vrooli/service.json; %d bytes are outside the owner inventory", orphan.Bytes)})
@@ -224,7 +224,7 @@ func ScanInventoryWithPolicy(root string, inventory corestorage.OwnerInventory, 
 	}
 	for _, owner := range inventory.Owners {
 		counts[string(owner.Kind)]++
-		ownerRoots = append(ownerRoots, ownerStorageRoot(owner))
+		ownerRoots = append(ownerRoots, ownerStorageRoots(root, owner)...)
 		for _, declaration := range owner.StorageEntries {
 			path, err := corestorage.ResolveOwnerStoragePath(root, owner, declaration, corestorage.Platform(runtime.GOOS), corestorage.PlatformSeams{})
 			if err != nil {
@@ -686,6 +686,41 @@ func ownerStorageRoot(owner corestorage.OwnerManifest) string {
 	return filepath.Clean(path)
 }
 
+// ownerStorageRoots includes the resolver-owned per-class namespaces in
+// addition to the legacy manifest-adjacent root. The latter remains during the
+// migration so repository-local scenario artifacts are still attributed; the
+// class roots are what make ~/.local/share/vrooli/<kind>/<owner> visible even
+// when an owner omitted that class from its declaration.
+func ownerStorageRoots(repoRoot string, owner corestorage.OwnerManifest) []string {
+	// Keep the manifest-adjacent root in the census migration boundary so
+	// repository-local metadata remains attributed; validation deliberately
+	// uses only class roots and bounded candidate directories.
+	roots := []string{ownerStorageRoot(owner)}
+	if owner.Kind == corestorage.OwnerScenario {
+		// Keep repository-local runtime artifact directories attributable during
+		// the migration, but never treat the whole source tree as an owner's
+		// storage namespace.
+		roots = append(roots, scenarioCandidateRoots(repoRoot, owner)...)
+	}
+	for _, class := range []corestorage.Class{corestorage.ClassConfig, corestorage.ClassData, corestorage.ClassCache, corestorage.ClassLogs, corestorage.ClassState} {
+		path, err := corestorage.ResolveOwnerStoragePath(repoRoot, owner, corestorage.StorageEntry{Rung: corestorage.RungOwned, Kind: "dir", Class: class}, corestorage.HostPlatform(), corestorage.PlatformSeams{})
+		if err == nil {
+			roots = append(roots, path)
+		}
+	}
+	seen := make(map[string]struct{}, len(roots))
+	result := make([]string, 0, len(roots))
+	for _, path := range roots {
+		path = filepath.Clean(path)
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		result = append(result, path)
+	}
+	return result
+}
+
 func underAny(path string, roots []string) bool {
 	for _, root := range roots {
 		if isWithin(path, root) {
@@ -742,18 +777,15 @@ func (s *SnapshotStore) Save(ctx context.Context, report Report) (Report, error)
 	if s == nil {
 		return report, nil
 	}
-	previous, err := s.latest(ctx, report.Root)
+	report.ObservedAt = time.Now().UTC()
+	report.SnapshotID = snapshotID(report)
+	devicePoints, err := s.devicePoints(ctx, report.Root, 24*time.Hour)
 	if err != nil {
 		return report, err
 	}
-	report.ObservedAt = time.Now().UTC()
-	report.SnapshotID = snapshotID(report)
-	if previous != nil && previous.ObservedAt.Before(report.ObservedAt) {
-		hours := report.ObservedAt.Sub(previous.ObservedAt).Hours()
-		if hours > 0 {
-			slope := float64(report.MeasuredBytes-previous.MeasuredBytes) / hours
-			report.GrowthSlopeBytesPerHour = &slope
-		}
+	devicePoints = append(devicePoints, growthPoint{At: report.ObservedAt, Bytes: report.MeasuredBytes})
+	if slope, ok := fitSlope(devicePoints); ok {
+		report.GrowthSlopeBytesPerHour = &slope
 	}
 	payload, err := json.Marshal(report)
 	if err != nil {
@@ -763,7 +795,81 @@ func (s *SnapshotStore) Save(ctx context.Context, report Report) (Report, error)
 	if err != nil {
 		return Report{}, fmt.Errorf("save census snapshot: %w", err)
 	}
+	if _, err := s.db.ExecContext(ctx, `INSERT OR REPLACE INTO census_snapshot_metrics (snapshot_id, drift_bytes, growth_slope_bytes_per_hour) VALUES (?, ?, ?)`, report.SnapshotID, report.DriftBytes, report.GrowthSlopeBytesPerHour); err != nil {
+		return Report{}, fmt.Errorf("save census snapshot metrics: %w", err)
+	}
+	for _, entry := range report.Entries {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO census_entry_samples (snapshot_id, observed_at, root, owner_kind, owner_id, entry_name, bytes) VALUES (?, ?, ?, ?, ?, ?, ?)`, report.SnapshotID, report.ObservedAt.Format(time.RFC3339Nano), report.Root, entry.Kind, entry.Owner, entry.Name, entry.Bytes); err != nil {
+			return Report{}, fmt.Errorf("save census entry sample %s/%s/%s: %w", entry.Kind, entry.Owner, entry.Name, err)
+		}
+	}
+	if err := s.pruneEntrySamples(ctx, report.ObservedAt.Add(-30*24*time.Hour)); err != nil {
+		return Report{}, err
+	}
 	return report, nil
+}
+
+// pruneEntrySamples keeps the projected read model bounded independently of
+// the immutable snapshot retention policy. The report blobs remain available
+// for forensic callers; growth queries only need the recent sample window.
+func (s *SnapshotStore) pruneEntrySamples(ctx context.Context, before time.Time) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM census_entry_samples WHERE observed_at < ?`, before.UTC().Format(time.RFC3339Nano)); err != nil {
+		return fmt.Errorf("prune census entry samples: %w", err)
+	}
+	return nil
+}
+
+type growthPoint struct {
+	At    time.Time
+	Bytes int64
+}
+
+func (s *SnapshotStore) devicePoints(ctx context.Context, root string, window time.Duration) ([]growthPoint, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT observed_at, measured_bytes FROM census_snapshots WHERE root = ? AND observed_at >= ? ORDER BY observed_at ASC`, root, time.Now().UTC().Add(-window).Format(time.RFC3339Nano))
+	if err != nil {
+		return nil, fmt.Errorf("load census device samples: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	points := make([]growthPoint, 0)
+	for rows.Next() {
+		var raw string
+		var bytes int64
+		if err := rows.Scan(&raw, &bytes); err != nil {
+			return nil, err
+		}
+		at, err := time.Parse(time.RFC3339Nano, raw)
+		if err != nil {
+			return nil, err
+		}
+		points = append(points, growthPoint{At: at, Bytes: bytes})
+	}
+	return points, rows.Err()
+}
+
+func fitSlope(points []growthPoint) (float64, bool) {
+	// Device capacity projections are deliberately conservative: require six
+	// snapshots so a short-lived write burst cannot become a days-to-full
+	// signal. Owner growth projections have their own three-sample minimum.
+	if len(points) < 6 {
+		return 0, false
+	}
+	meanX, meanY := 0.0, 0.0
+	for _, point := range points {
+		meanX += point.At.Sub(points[0].At).Hours()
+		meanY += float64(point.Bytes)
+	}
+	meanX /= float64(len(points))
+	meanY /= float64(len(points))
+	var numerator, denominator float64
+	for _, point := range points {
+		x := point.At.Sub(points[0].At).Hours() - meanX
+		numerator += x * (float64(point.Bytes) - meanY)
+		denominator += x * x
+	}
+	if denominator == 0 {
+		return 0, false
+	}
+	return numerator / denominator, true
 }
 
 func (s *SnapshotStore) latest(ctx context.Context, root string) (*Report, error) {
@@ -834,6 +940,92 @@ func (s *SnapshotStore) History(ctx context.Context, root string, limit int) ([]
 		return nil, fmt.Errorf("read census history: %w", err)
 	}
 	return result, nil
+}
+
+type SnapshotSummary struct {
+	SnapshotID        string    `json:"snapshot_id"`
+	ObservedAt        time.Time `json:"observed_at"`
+	Root              string    `json:"root"`
+	MeasuredBytes     int64     `json:"measured_bytes"`
+	AttributedBytes   int64     `json:"attributed_bytes"`
+	DriftBytes        int64     `json:"drift_bytes"`
+	UnattributedBytes int64     `json:"unattributed_bytes"`
+	Confidence        string    `json:"confidence"`
+	GrowthSlope       *float64  `json:"growth_slope_bytes_per_hour,omitempty"`
+}
+
+func (s *SnapshotStore) Count(ctx context.Context, root string) (int, error) {
+	if s == nil {
+		return 0, nil
+	}
+	var count int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM census_snapshots WHERE root = ?`, root).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count census snapshots: %w", err)
+	}
+	return count, nil
+}
+
+// BackfillEntrySamples upgrades snapshots written before the indexed sample
+// table existed. It is idempotent and only inserts missing rows, so startup
+// can safely resume after an interrupted backfill.
+func (s *SnapshotStore) BackfillEntrySamples(ctx context.Context, root string, limit int) (int, error) {
+	history, err := s.History(ctx, root, limit)
+	if err != nil {
+		return 0, err
+	}
+	inserted := 0
+	for _, report := range history {
+		if _, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO census_snapshot_metrics (snapshot_id, drift_bytes, growth_slope_bytes_per_hour) VALUES (?, ?, ?)`, report.SnapshotID, report.DriftBytes, report.GrowthSlopeBytesPerHour); err != nil {
+			return inserted, err
+		}
+		for _, entry := range report.Entries {
+			result, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO census_entry_samples (snapshot_id, observed_at, root, owner_kind, owner_id, entry_name, bytes) VALUES (?, ?, ?, ?, ?, ?, ?)`, report.SnapshotID, report.ObservedAt.Format(time.RFC3339Nano), report.Root, entry.Kind, entry.Owner, entry.Name, entry.Bytes)
+			if err != nil {
+				return inserted, err
+			}
+			if count, _ := result.RowsAffected(); count > 0 {
+				inserted += int(count)
+			}
+		}
+	}
+	return inserted, nil
+}
+
+// Summaries reads only indexed columns. It is the default operator-facing
+// history shape for large hosts; full report blobs remain available through
+// History for forensic callers.
+func (s *SnapshotStore) Summaries(ctx context.Context, root string, limit int) ([]SnapshotSummary, error) {
+	if s == nil {
+		return []SnapshotSummary{}, nil
+	}
+	if limit < 1 || limit > 1000 {
+		limit = 20
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT s.id, s.observed_at, s.root, s.measured_bytes, s.attributed_bytes, COALESCE(m.drift_bytes, 0), s.unattributed_bytes, s.confidence, m.growth_slope_bytes_per_hour FROM census_snapshots s LEFT JOIN census_snapshot_metrics m ON m.snapshot_id = s.id WHERE s.root = ? ORDER BY s.observed_at DESC LIMIT ?`, root, limit)
+	if err != nil {
+		return nil, fmt.Errorf("load census summaries: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := make([]SnapshotSummary, 0, limit)
+	for rows.Next() {
+		var summary SnapshotSummary
+		var raw string
+		var slope sql.NullFloat64
+		if err := rows.Scan(&summary.SnapshotID, &raw, &summary.Root, &summary.MeasuredBytes, &summary.AttributedBytes, &summary.DriftBytes, &summary.UnattributedBytes, &summary.Confidence, &slope); err != nil {
+			return nil, err
+		}
+		parsed, err := time.Parse(time.RFC3339Nano, raw)
+		if err != nil {
+			return nil, err
+		}
+		summary.ObservedAt = parsed
+		if slope.Valid {
+			value := slope.Float64
+			summary.GrowthSlope = &value
+		}
+		out = append(out, summary)
+	}
+	return out, rows.Err()
 }
 
 func snapshotID(report Report) string {

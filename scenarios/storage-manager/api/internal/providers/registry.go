@@ -172,6 +172,14 @@ func OwnerScenarioBuiltIns(client cleanup.ScenarioProviderClient) []cleanup.Prov
 			DefaultMode:     cleanup.ProviderModeDisabled,
 			DefaultApproval: cleanup.ApprovalModeOwner,
 		},
+		{
+			ID:              "browser-automation-studio-recordings",
+			Name:            "Browser Automation Studio terminal recordings",
+			OwnerScenario:   "browser-automation-studio",
+			SafetyTier:      cleanup.SafetyTierSafeWithOwner,
+			DefaultMode:     cleanup.ProviderModeDisabled,
+			DefaultApproval: cleanup.ApprovalModeOwner,
+		},
 	}
 
 	out := make([]cleanup.Provider, 0, len(configs))

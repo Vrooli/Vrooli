@@ -23,13 +23,22 @@ func init() { register(&storageCoverage{}) }
 func (storageCoverage) Name() string { return "storage.coverage" }
 
 func (storageCoverage) Applies(ac AnalyzerContext) bool {
-	return ac.Owner != nil && len(ac.Owner.StorageEntries) > 0
+	return ac.Owner != nil
 }
 
 func (storageCoverage) Analyze(_ context.Context, ac AnalyzerContext) ([]Finding, error) {
 	entries := ac.Owner.StorageEntries
 	declared := make([]string, 0, len(entries))
-	roots := make([]string, 0, len(entries))
+	// Walk every resolver-owned class root. A declaration for one class must
+	// not hide writes to a sibling class, and an owner with an empty storage
+	// block must still be auditable.
+	roots := make([]string, 0, len(entries)+5)
+	for _, class := range []corestorage.Class{corestorage.ClassConfig, corestorage.ClassData, corestorage.ClassCache, corestorage.ClassLogs, corestorage.ClassState} {
+		root, err := resolveEntry(ac, corestorage.StorageEntry{Rung: corestorage.RungOwned, Kind: "dir", Class: class})
+		if err == nil {
+			roots = append(roots, filepath.Clean(root))
+		}
+	}
 	for _, entry := range entries {
 		path, err := resolveEntry(ac, entry)
 		if err != nil {
@@ -59,12 +68,23 @@ func (storageCoverage) Analyze(_ context.Context, ac AnalyzerContext) ([]Finding
 	}
 	declared = uniquePaths(declared)
 	roots = uniquePaths(roots)
-	if len(declared) == 0 || len(roots) == 0 {
+	if len(roots) == 0 {
 		return nil, nil
 	}
 	var uncovered int64
 	var example string
+	const maxUncoveredFiles = 1000
+	const maxWalkEntries = 10000
+	uncoveredFiles := 0
+	walkedEntries := 0
+	truncated := false
 	for _, root := range roots {
+		// A declared root already covers its entire subtree. Do not descend it
+		// merely because the canonical class-root list also contains it; this is
+		// the common case for large artifact stores.
+		if coveredBy(root, declared) {
+			continue
+		}
 		info, err := os.Stat(root)
 		if os.IsNotExist(err) {
 			continue
@@ -72,9 +92,35 @@ func (storageCoverage) Analyze(_ context.Context, ac AnalyzerContext) ([]Finding
 		if err != nil {
 			return nil, err
 		}
+		const maxTopLevelEntries = 10000
+		children, readErr := os.ReadDir(root)
+		if readErr != nil {
+			return nil, readErr
+		}
+		if len(children) > maxTopLevelEntries {
+			uncovered++
+			uncoveredFiles++
+			if example == "" {
+				example = root
+			}
+			truncated = true
+			continue
+		}
 		walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
+			}
+			if path != root {
+				walkedEntries++
+				if walkedEntries >= maxWalkEntries {
+					truncated = true
+					if uncovered == 0 {
+						uncovered = 1
+						uncoveredFiles = 1
+						example = root
+					}
+					return fs.SkipAll
+				}
 			}
 			if d.IsDir() || coveredBy(path, declared) {
 				return nil
@@ -84,8 +130,13 @@ func (storageCoverage) Analyze(_ context.Context, ac AnalyzerContext) ([]Finding
 				return statErr
 			}
 			uncovered += fileInfo.Size()
+			uncoveredFiles++
 			if example == "" {
 				example = path
+			}
+			if uncoveredFiles >= maxUncoveredFiles {
+				truncated = true
+				return fs.SkipAll
 			}
 			return nil
 		})
@@ -96,6 +147,10 @@ func (storageCoverage) Analyze(_ context.Context, ac AnalyzerContext) ([]Finding
 	}
 	if uncovered == 0 {
 		return nil, nil
+	}
+	message := fmt.Sprintf("owner has %d measured bytes outside its declared storage roots; example %q", uncovered, example)
+	if truncated {
+		message += "; file scan truncated after the configured safety cap"
 	}
 	return []Finding{{
 		Code:        "STORAGE_PATH_UNCOVERED",

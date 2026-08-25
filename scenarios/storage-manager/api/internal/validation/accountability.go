@@ -26,6 +26,8 @@ var reconciliationCodes = map[string]struct{}{
 	"STORAGE_SQLITE_SIDECAR_UNDECLARED": {},
 	"STORAGE_RETENTION_CONFLICT":        {},
 	"STORAGE_BUDGET_BELOW_OBSERVED":     {},
+	"CEILING_NOT_BINDING":               {},
+	"RETENTION_CEILING_UNBOUNDED":       {},
 	"STORAGE_PATH_NOT_PORTABLE":         {},
 	"STORAGE_PATH_PLATFORM_MISMATCH":    {},
 	"STORAGE_PATH_BRANCH_MISSING":       {},

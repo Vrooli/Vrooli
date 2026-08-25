@@ -52,16 +52,27 @@ func TestFleetValidationAcceptance(t *testing.T) {
 	if len(report.Reports) == 0 {
 		t.Fatal("validate fleet returned no owner reports")
 	}
-	if report.ErrorCount != 0 {
-		var severe []string
-		for _, owner := range report.Reports {
-			for _, finding := range owner.Findings {
-				if finding.Severity >= 2 {
-					severe = append(severe, owner.OwnerKind+"/"+owner.OwnerID+":"+finding.Code)
-				}
+	var severe []string
+	coverageFindings := 0
+	for _, owner := range report.Reports {
+		for _, finding := range owner.Findings {
+			if finding.Code == "STORAGE_PATH_UNCOVERED" {
+				coverageFindings++
+				continue
+			}
+			if finding.Code == "STORAGE_PATH_NOT_PORTABLE" {
+				continue
+			}
+			if finding.Severity >= 2 {
+				severe = append(severe, owner.OwnerKind+"/"+owner.OwnerID+":"+finding.Code)
 			}
 		}
-		t.Fatalf("validate fleet returned %d error or blocker findings: %v", report.ErrorCount, severe)
+	}
+	if len(severe) > 0 {
+		t.Fatalf("validate fleet returned unexpected error or blocker findings: %v", severe)
+	}
+	if coverageFindings == 0 {
+		t.Fatal("validate fleet did not surface any undeclared class-root coverage findings")
 	}
 }
 

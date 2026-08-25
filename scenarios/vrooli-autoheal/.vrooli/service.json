@@ -4,6 +4,32 @@
   "mode": "development",
   "storage": {
     "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": false,
+        "format": "sqlite",
+        "subpath": "autoheal.sqlite",
+        "rationale": "The autoheal control-plane database is durable operational state and is bounded by its working-set requirement.",
+        "budget": {
+          "max_bytes": "64GiB",
+          "max_age": "30d",
+          "rationale": "Retain the database for active recovery history; the byte ceiling is derived from the operational working set and is alarm-only."
+        }
+      },
+      "legacy_user_data_database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "path": "$USER_DATA_DIR/vrooli/vrooli-autoheal/autoheal.sqlite",
+        "rationale": "Superseded pre-migration location; vrooli-autoheal no longer reads this path and any remaining file is reclaimable.",
+        "budget": {
+          "max_bytes": "0B",
+          "rationale": "This is a superseded location; zero bytes is the deliberate ceiling for orphan cleanup."
+        }
+      },
       "logs": {
         "rung": "owned",
         "kind": "dir",
@@ -12,7 +38,7 @@
         "rationale": "Scenario operational logs observed in the canonical logs directory.",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
       }
     },
@@ -38,7 +64,7 @@
     "platform_capabilities": {
       "autoheal-health-monitoring": {
         "linux": {
-          "status": "supported",
+          "status": "build-verified",
           "mechanism": "native-go-checks-and-vrooli-cli",
           "evidence": "autoheal API and scenario-check contract tests"
         },
@@ -55,7 +81,7 @@
       },
       "autoheal-host-integrity": {
         "linux": {
-          "status": "supported",
+          "status": "build-verified",
           "mechanism": "control-plane-hostinventory",
           "evidence": "hostinventory contract tests"
         },
@@ -72,7 +98,7 @@
       },
       "autoheal-service-recovery": {
         "linux": {
-          "status": "supported",
+          "status": "build-verified",
           "mechanism": "platform-go-native-service-backend-and-setup-grant",
           "evidence": "service recovery unit tests"
         },
@@ -89,7 +115,7 @@
       },
       "autoheal-watchdog": {
         "linux": {
-          "status": "supported",
+          "status": "build-verified",
           "mechanism": "platform-go-systemd-backend",
           "evidence": "Linux watchdog backend tests"
         },
@@ -106,7 +132,7 @@
       },
       "host-pressure-detection": {
         "linux": {
-          "status": "supported",
+          "status": "build-verified",
           "mechanism": "native-go-hostpressure-and-autoheal-check",
           "evidence": "hostpressure fixtures, autoheal contract tests, and Linux runtime check"
         },
@@ -123,7 +149,7 @@
       },
       "workload-ownership-reconciliation": {
         "linux": {
-          "status": "supported",
+          "status": "build-verified",
           "mechanism": "control-plane-hostinventory-and-declared-manifest-join",
           "evidence": "hostinventory and workloadowner fixture contract tests"
         },
@@ -140,7 +166,7 @@
       },
       "evicted-service-reclaim": {
         "linux": {
-          "status": "supported",
+          "status": "build-verified",
           "mechanism": "control-plane-lifecycle-recycle-with-saturation-brake",
           "evidence": "watchdog reclaim policy tests and Linux lifecycle seam"
         },

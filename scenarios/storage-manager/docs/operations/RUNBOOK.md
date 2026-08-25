@@ -75,6 +75,33 @@ The static Test Genie `storage` phase remains a fast isolation/persistence
 gate. It does not run this host census; use the storage-manager comprehensive
 run for product acceptance and live API truthfulness.
 
+## Disk is filling
+
+1. Run `storage-manager storage growth --window 24h`.
+2. Inspect the fastest positive-slope owner and its ceiling status.
+3. Run `storage-manager cleanup plan --json`.
+4. Apply only the approved safe tier, or use the owner approval token named by
+   the plan for an owner-delegated provider.
+5. Run `storage-manager cleanup audit --json` and record the reclaimed bytes.
+
+## A provider is blocked
+
+1. Run `storage-manager cleanup plan --json`.
+2. Read the provider's blocked reason.
+3. If the reason is `owner scenario client unavailable`, verify local scenario
+   discovery and restart the owner through its lifecycle.
+4. If the reason is `owner scenario unreachable`, inspect the owner health endpoint.
+5. If the reason is `owner scenario does not implement cleanup`, file or route the owner
+   capability gap; do not delete its files by hand.
+
+## A ceiling is not binding
+
+1. Run `storage-manager storage validate <owner>`.
+2. Read `CEILING_NOT_BINDING` and the measured bytes.
+3. Replace a point-in-time ceiling with a workload-derived `max_bytes` or
+   `max_age` value.
+4. Keep `regenerable` explicit and run the owner validation again.
+
 ## Escalation
 
 Record known operational issues in

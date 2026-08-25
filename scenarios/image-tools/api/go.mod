@@ -45,7 +45,7 @@ require (
 	github.com/tetratelabs/wazero v1.9.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0
-	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+	github.com/vrooli/repo-contract-go v0.0.0
 	golang.org/x/net v0.0.0-20221002022538-bcab6841153b // indirect
 	golang.org/x/text v0.38.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

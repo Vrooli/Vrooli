@@ -10,6 +10,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/mdns-go v0.0.0
+	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli v3.2.0+incompatible
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -31,7 +32,6 @@ require (
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
-	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -63,4 +63,5 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go

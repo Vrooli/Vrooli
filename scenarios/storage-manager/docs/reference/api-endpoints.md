@@ -58,8 +58,17 @@ overlaps are findings; they are never silently treated as closed accounting.
 ### `GET /api/v1/census/history`
 
 Returns immutable persisted census reports for the selected `root` (newest
-first). `limit` defaults to 20 and is capped at 100. History is empty until a
-census has been run.
+first). `limit` defaults to 20 and is capped at 100. Add `detail=summary` to
+read indexed snapshot summaries without loading the full report blobs. History
+is empty until a census has been run.
+
+### `GET /api/v1/storage/growth`
+
+Reads persisted census samples and fits per-owner, per-entry least-squares
+growth over `window` (for example `24h` or `7d`; the default is 24 hours). Each
+row includes sample count, slope, R², confidence, ceiling status, and an
+optional hours-to-ceiling projection. The device projection requires at least
+six samples and reports `days_to_full`. This endpoint never walks the host.
 
 ### `GET /api/v1/retention/owners`
 
@@ -113,7 +122,17 @@ pass `platform` to select the target platform. The response includes
 ### `GET /api/v1/infra-health/storage`
 
 Returns declared-ceiling coverage and the latest persisted census confidence and
-growth slope. This endpoint never triggers a host scan.
+growth slope, sample count, and `days_to_full` from the fitted device series.
+This endpoint never triggers a host scan.
+
+### Owner cleanup contract
+
+Owner-delegated providers call the owning scenario's
+`/api/v1/cleanup/estimate`, `/api/v1/cleanup/preview`, and
+`/api/v1/cleanup/apply` endpoints. Estimate and preview are read-only; apply
+requires an idempotency key and owner or operator approval. A stopped owner is
+reported as `owner scenario unreachable`, while a 404 contract is reported as
+`owner scenario does not implement cleanup`.
 
 ### `GET /health`
 

@@ -78,9 +78,16 @@ func (p *OwnerScenarioProvider) Apply(ctx context.Context, req cleanup.ApplyRequ
 		return cleanup.ApplyResult{ProviderID: p.cfg.ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"operator approval required"}}, nil
 	}
 	if p.client == nil {
-		return cleanup.ApplyResult{}, fmt.Errorf("owner scenario client unavailable")
+		return cleanup.ApplyResult{ProviderID: p.cfg.ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"owner scenario client unavailable"}}, nil
 	}
-	return p.client.Apply(ctx, cleanup.ScenarioCleanupRequest{ScenarioID: p.cfg.OwnerScenario, ProviderID: p.cfg.ID, Preview: req.Preview})
+	result, err := p.client.Apply(ctx, cleanup.ScenarioCleanupRequest{ScenarioID: p.cfg.OwnerScenario, ProviderID: p.cfg.ID, IdempotencyKey: req.IdempotencyKey, ApprovalMode: req.ApprovalMode, Preview: req.Preview})
+	if err != nil {
+		result.ProviderID = p.cfg.ID
+		result.SkippedItems = previewItemIDs(req.Preview.Items)
+		result.Warnings = append(result.Warnings, cleanup.BlockedReasonForError(err))
+		return result, nil
+	}
+	return result, nil
 }
 
 func (p *OwnerScenarioProvider) Verify(context.Context, cleanup.VerifyRequest) (cleanup.VerifyResult, error) {

@@ -70,3 +70,24 @@ func TestBalancedProfileKeepsGoBuildCacheAtSevenDays(t *testing.T) {
 		t.Fatalf("go-build-cache balanced policy = %#v", got)
 	}
 }
+
+func TestReconcileAddsMissingProvidersWithoutChangingExistingPolicy(t *testing.T) {
+	providers := []cleanup.ProviderMetadata{
+		{ID: "a", Name: "A", Version: "v1", OwnerScenario: "storage-manager", SafetyTier: cleanup.SafetyTierSafe, DefaultMode: cleanup.ProviderModeEnabled, DefaultApproval: cleanup.ApprovalModeNone, SupportedPlatforms: []string{"linux"}, IrreversibleEffects: []string{"none"}, TestSubstitute: "fake"},
+		{ID: "b", Name: "B", Version: "v1", OwnerScenario: "storage-manager", SafetyTier: cleanup.SafetyTierSafe, DefaultMode: cleanup.ProviderModeEnabled, DefaultApproval: cleanup.ApprovalModeNone, SupportedPlatforms: []string{"linux"}, IrreversibleEffects: []string{"none"}, TestSubstitute: "fake"},
+	}
+	existing := map[string]cleanup.ProviderPolicy{"a": {Enabled: false, MinAge: 99 * time.Hour, ApprovalMode: cleanup.ApprovalModeOperator}}
+	version, got, added, err := ReconcilePolicy(ProfileBalanced, "old", existing, time.Time{}, providers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(added) != 1 || added[0] != "b" || len(got) != 2 {
+		t.Fatalf("added=%v policies=%#v", added, got)
+	}
+	if got["a"] != existing["a"] {
+		t.Fatalf("existing operator policy changed: %#v", got["a"])
+	}
+	if version == "old" || version != StableVersion(ProfileBalanced, got) {
+		t.Fatalf("reconciled version = %q, want new stable fingerprint", version)
+	}
+}

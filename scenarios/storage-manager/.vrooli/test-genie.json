@@ -650,6 +650,32 @@
         "fix_class": "manual",
         "reason": "The owner must reconcile observed bytes with its declared ceiling."
       },
+      "CEILING_NOT_BINDING": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "A measured-value ceiling cannot detect growth; the owner must state a workload-derived limit."
+      },
+      "RETENTION_CEILING_UNBOUNDED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "storage-steer"
+        ],
+        "fix_class": "manual",
+        "reason": "Regenerable storage must have a workload-derived age or byte ceiling before it can grow without bound."
+      },
       "STORAGE_RETENTION_CONFLICT": {
         "capability_id": "declaration_accountability",
         "local_level_impact": "L1",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	corestorage "github.com/vrooli/api-core/storage"
 )
@@ -45,6 +46,13 @@ func (storageCorrespondence) Analyze(_ context.Context, ac AnalyzerContext) ([]F
 		if entry.Path.ByOS != nil || (ac.Owner.Kind != corestorage.OwnerScenario && entry.Path.Value != "") {
 			// A platform map or a non-scenario explicit path records an
 			// upstream/system layout that the class resolver cannot own.
+			continue
+		}
+		// A superseded legacy location is intentionally explicit: it may sit
+		// outside the canonical class root so retention can drain it to zero.
+		// Its rationale is the review record that prevents an ordinary repo-
+		// relative path from using this escape hatch.
+		if entry.Path.Value != "" && (strings.HasPrefix(entry.Name, "legacy_") || strings.Contains(strings.ToLower(entry.Rationale), "superseded")) {
 			continue
 		}
 		canonical := entry

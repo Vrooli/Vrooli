@@ -7,13 +7,13 @@ require (
 	github.com/vrooli/binaryfetch v0.0.0
 	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/platform-go v0.0.0
+	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 )
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
-	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 )
 

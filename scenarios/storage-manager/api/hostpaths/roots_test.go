@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // TestResolve_FindsTheTempRoot asserts the one root that must exist on every
@@ -150,7 +152,7 @@ func TestTrashRoots_MatchesPlatformConvention(t *testing.T) {
 // respected on the platforms that follow the spec.
 func TestTrashRoots_HonoursXDGDataHome(t *testing.T) {
 	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
-		t.Skip("XDG_DATA_HOME is not the trash convention on this platform")
+		repocontracttest.SkipPlatform(t, "XDG_DATA_HOME is not the trash convention on this platform")
 	}
 	relocated := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", relocated)

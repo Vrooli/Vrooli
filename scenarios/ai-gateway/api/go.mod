@@ -39,7 +39,7 @@ require (
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/maturity-go v0.0.0
-	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	golang.org/x/sys v0.47.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"storage-manager/internal/cleanup"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func write(t *testing.T, path string, contents string) {
@@ -73,7 +75,7 @@ func TestWalk_ReportsFilesAndDirectories(t *testing.T) {
 func TestWalk_DoesNotFollowSymlinks(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS == "windows" {
-		t.Skip("symlink creation on windows requires elevation or developer mode")
+		repocontracttest.SkipPlatform(t, "symlink creation on windows requires elevation or developer mode")
 	}
 
 	root := t.TempDir()
@@ -102,7 +104,7 @@ func TestWalk_DoesNotFollowSymlinks(t *testing.T) {
 func TestWalk_SkipsUnreadableSubtreeAndContinues(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS == "windows" {
-		t.Skip("unix permission bits do not model windows ACLs")
+		repocontracttest.SkipPlatform(t, "unix permission bits do not model windows ACLs")
 	}
 	if os.Getuid() == 0 {
 		t.Skip("root bypasses permission bits, so the failure cannot be provoked")
@@ -168,7 +170,7 @@ func TestRemoveAll_DeletesSubtree(t *testing.T) {
 func TestRemoveAll_RemovesSymlinkNotTarget(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS == "windows" {
-		t.Skip("symlink creation on windows requires elevation or developer mode")
+		repocontracttest.SkipPlatform(t, "symlink creation on windows requires elevation or developer mode")
 	}
 
 	root := t.TempDir()
@@ -193,7 +195,7 @@ func TestRemoveAll_RemovesSymlinkNotTarget(t *testing.T) {
 func TestStat_ReportsSymlinkItselfNotTarget(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS == "windows" {
-		t.Skip("symlink creation on windows requires elevation or developer mode")
+		repocontracttest.SkipPlatform(t, "symlink creation on windows requires elevation or developer mode")
 	}
 
 	root := t.TempDir()

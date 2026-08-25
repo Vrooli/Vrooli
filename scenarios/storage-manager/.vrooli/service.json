@@ -15,7 +15,7 @@
     "platform_capabilities": {
       "workload-disposal": {
         "linux": {
-          "status": "supported",
+          "status": "build-verified",
           "mechanism": "conditional-storage-manager-cleanup-provider",
           "evidence": "provider preview, approval, disposal, and verification tests"
         },
@@ -38,11 +38,12 @@
   },
   "storage": {
     "entries": {
-      "database": {
-        "rung": "owned",
-        "kind": "file",
-        "class": "data",
-        "format": "sqlite",
+    "database": {
+      "rung": "owned",
+      "kind": "file",
+      "class": "data",
+      "regenerable": false,
+      "format": "sqlite",
         "sensitive": false,
         "budget": {
           "max_bytes": "2GiB",
@@ -61,7 +62,7 @@
         "subpath": "storage-manager.db-wal",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
       },
       "database_shm": {
@@ -73,7 +74,7 @@
         "subpath": "storage-manager.db-shm",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
       },
       "cleanup_database": {

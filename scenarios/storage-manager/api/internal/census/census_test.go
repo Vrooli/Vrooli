@@ -3,7 +3,6 @@ package census
 import (
 	"context"
 	"encoding/json"
-	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -172,20 +171,32 @@ func hasFinding(findings []Finding, code string) bool {
 	return false
 }
 
-func TestSnapshotStorePersistsHistoryAndGrowthSlope(t *testing.T) {
+func TestSnapshotStorePersistsHistoryAndDefersGrowthSlopeUntilSixSamples(t *testing.T) {
 	database := apidb.NewFromPrimary(db.NewSQLite(t))
 	store := NewSnapshotStore(database)
 	if _, err := database.ExecContext(context.Background(), censusSchemaSQL); err != nil {
 		t.Fatal(err)
 	}
 	root := t.TempDir()
-	first, err := store.Save(context.Background(), Report{Root: root, MeasuredBytes: 10, AttributedBytes: 10, AccountingIdentity: true, Confidence: "high"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	second, err := store.Save(context.Background(), Report{Root: root, MeasuredBytes: 20, AttributedBytes: 20, AccountingIdentity: true, Confidence: "high"})
-	if err != nil {
-		t.Fatal(err)
+	base := time.Now().UTC().Add(-6 * time.Hour)
+	var first, second Report
+	for i := 0; i < 6; i++ {
+		report, err := store.Save(context.Background(), Report{Root: root, ObservedAt: base.Add(time.Duration(i) * time.Hour), MeasuredBytes: int64(10 + i*10), AttributedBytes: int64(10 + i*10), AccountingIdentity: true, Confidence: "high"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i == 0 {
+			first = report
+		}
+		if i == 1 {
+			second = report
+		}
+		if i == 1 && report.GrowthSlopeBytesPerHour != nil {
+			t.Fatalf("growth slope = %v, want nil before six samples", report.GrowthSlopeBytesPerHour)
+		}
+		if i == 5 && report.GrowthSlopeBytesPerHour == nil {
+			t.Fatal("growth slope is nil after six samples")
+		}
 	}
 	if first.SnapshotID == "" || second.SnapshotID == "" || first.SnapshotID == second.SnapshotID {
 		t.Fatalf("snapshot ids = %q, %q", first.SnapshotID, second.SnapshotID)
@@ -194,11 +205,31 @@ func TestSnapshotStorePersistsHistoryAndGrowthSlope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(history) != 2 {
+	if len(history) != 6 {
 		t.Fatalf("history length = %d", len(history))
 	}
-	if second.GrowthSlopeBytesPerHour == nil || math.IsNaN(*second.GrowthSlopeBytesPerHour) {
-		t.Fatalf("growth slope = %v", second.GrowthSlopeBytesPerHour)
+}
+
+func TestSnapshotStorePrunesProjectedSamplesAfterThirtyDays(t *testing.T) {
+	database := apidb.NewFromPrimary(db.NewSQLite(t))
+	store := NewSnapshotStore(database)
+	if _, err := database.ExecContext(context.Background(), censusSchemaSQL); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	oldAt := time.Now().UTC().Add(-31 * 24 * time.Hour).Format(time.RFC3339Nano)
+	if _, err := database.ExecContext(context.Background(), `INSERT INTO census_entry_samples (snapshot_id, observed_at, root, owner_kind, owner_id, entry_name, bytes) VALUES ('old', ?, ?, 'scenario', 'old-owner', 'data', 10)`, oldAt, root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Save(context.Background(), Report{Root: root, Entries: []Entry{{Owner: "new-owner", Kind: "scenario", Name: "data", Bytes: 20}}}); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := database.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM census_entry_samples WHERE root = ?`, root).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("projected sample count = %d, want only the recent sample", count)
 	}
 }
 

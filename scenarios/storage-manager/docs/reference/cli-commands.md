@@ -183,6 +183,18 @@ messages are path-redacted before they are stored.
 storage-manager cleanup audit
 ```
 
+## Scenario commands — `storage`
+
+### `storage-manager storage growth [--window <duration>]`
+
+Rank persisted per-owner storage velocity and project declared ceilings. The
+command reads the indexed census sample table and does not scan the filesystem.
+
+```bash
+storage-manager storage growth
+storage-manager storage growth --window 7d --json
+```
+
 ## Scenario commands — `placement` and `validate`
 
 ### `storage-manager placement verify`

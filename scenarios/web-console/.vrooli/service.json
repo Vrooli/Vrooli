@@ -2,8 +2,21 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "storage": {
-    "entries": {},
-    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+    "entries": {
+      "sessions": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": false,
+        "subpath": "sessions",
+        "rationale": "Session transcripts are durable user work and remain available for a 30-day review window.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Retain session transcripts for 30 days for user recovery; owner cleanup protects active sessions."
+        }
+      }
+    },
+    "rationale": "The session tree is owner-managed durable state; cleanup is delegated to web-console so active sessions remain protected."
   },
   "generation": {
     "template": {
@@ -70,7 +83,7 @@
         "setup",
         "develop"
       ],
-      "notes": "Web console falls back to the standard PTY backend when tmux is unavailable. Platform support: Linux is supported (measured on the current host); macOS is reasoned from source and runs without live session working-directory inspection, so relative file preview reports an error; Windows is reasoned from source and unsupported because no PTY implementation exists."
+      "notes": "Web console falls back to the standard PTY backend when tmux is unavailable. Consult the runtime capability verdicts from /api/v1/capabilities/describe for current platform and dependency status."
     }
   ],
   "lifecycle": {
@@ -145,8 +158,18 @@
       "audio-tools": {
         "required": false,
         "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "web-console reaches audio-tools through its scenario resolver and audioports client boundary; the dependency is a separately orchestrated service and is not linked as an in-process implementation dependency.",
         "description": "All audio capabilities (TTS synthesis, voice listing, summarization, STT/transcription, speaker verification, wake word) flow through audio-tools via audioports.Remote* and the shared browser capture package. web-console contains zero audio synthesis or transcription code.",
         "degraded_behavior": "Terminal workspace boots without audio-tools. Voice, TTS, summarization, speaker verification, and wake word features show degraded/unavailable until audio-tools is reachable, then recover on the next lazy resolution or capability refresh."
+      },
+      "vrooli-bridge": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "web-console reaches vrooli-bridge through the configured Bridge URL and bridge session transport; the dependency is an externally orchestrated service boundary rather than an in-process import.",
+        "description": "Optional remote terminal capability. web-console uses the bridge session transport when a Bridge URL and enrolled node are configured.",
+        "degraded_behavior": "Local terminal sessions remain available; remote targets show bridge_url_missing or another typed capability reason until vrooli-bridge is configured."
       }
     }
   },
@@ -168,10 +191,7 @@
       ]
     },
     "source_build": {
-      "kind": "go_module",
-      "env": {
-        "CGO_ENABLED": "0"
-      }
+      "kind": "go_module"
     }
   },
   "components": {
@@ -179,10 +199,7 @@
       "role": "api",
       "build": {
         "kind": "go_module",
-        "dir": "api",
-        "env": {
-          "CGO_ENABLED": "0"
-        }
+        "dir": "api"
       },
       "run": {
         "argv": [

@@ -35,6 +35,35 @@ func TestStorageEntryConformanceFlagsOwnedPhantom(t *testing.T) {
 	t.Fatalf("findings = %#v, want STORAGE_ENTRY_NO_WRITER", got)
 }
 
+func TestStorageEntryConformanceFlagsNonBindingCeiling(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "scenarios", "fixture")
+	manifest := filepath.Join(scenarioDir, ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(manifest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "data"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "data", "records.bin"), make([]byte, 100), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifest, []byte(`{"service":{"name":"fixture"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	owner := &corestorage.OwnerManifest{Kind: corestorage.OwnerScenario, ID: "fixture", ManifestPath: manifest, StorageEntries: []corestorage.StorageEntry{{Name: "records", Rung: corestorage.RungOwned, Path: corestorage.PortablePath{Value: "data"}, Kind: "dir", Class: corestorage.ClassData, Budget: &corestorage.BudgetDeclaration{MaxBytes: "110B", Rationale: "measured and governed on 2026-08-05"}}}}
+	got, err := (storageEntryConformance{}).Analyze(context.Background(), AnalyzerContext{RepoRoot: root, Scenario: "fixture", Owner: owner})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range got {
+		if finding.Code == "CEILING_NOT_BINDING" {
+			return
+		}
+	}
+	t.Fatalf("findings = %#v, want CEILING_NOT_BINDING", got)
+}
+
 func TestStorageEntryConformanceAcceptsFrameworkOwnedEntry(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "scenarios", "fixture")

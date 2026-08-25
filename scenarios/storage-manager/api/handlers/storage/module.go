@@ -14,7 +14,9 @@ import (
 	"strings"
 	"time"
 
+	"storage-manager/internal/budget"
 	"storage-manager/internal/census"
+	"storage-manager/internal/growth"
 	"storage-manager/internal/module"
 	"storage-manager/internal/placement"
 	"storage-manager/internal/providers"
@@ -36,6 +38,7 @@ type ModuleDeps struct {
 func Module(d ModuleDeps) module.Module {
 	return module.Module{Name: "storage", Mount: func(r *mux.Router) {
 		store := census.NewSnapshotStore(d.DB)
+		growthStore := growth.NewStore(d.DB)
 		placementService := placement.New(d.DB)
 		snapshotRoot := func(root string) string {
 			if canonical, err := census.DeviceRoot(root); err == nil && strings.TrimSpace(canonical) != "" {
@@ -103,6 +106,16 @@ func Module(d ModuleDeps) module.Module {
 				root = requested
 			}
 			limit, _ := strconv.Atoi(req.URL.Query().Get("limit"))
+			if strings.EqualFold(req.URL.Query().Get("detail"), "summary") || req.URL.Query().Get("summary") == "true" {
+				summaries, err := store.Summaries(req.Context(), snapshotRoot(root), limit)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(summaries)
+				return
+			}
 			history, err := store.History(context.Background(), snapshotRoot(root), limit)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -110,6 +123,61 @@ func Module(d ModuleDeps) module.Module {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(history)
+		}).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/storage/growth", func(w http.ResponseWriter, req *http.Request) {
+			root := d.RepoRoot
+			if requested := strings.TrimSpace(req.URL.Query().Get("root")); requested != "" {
+				root = requested
+			}
+			window := 24 * time.Hour
+			if raw := strings.TrimSpace(req.URL.Query().Get("window")); raw != "" {
+				parsed, parseErr := parseGrowthWindow(raw)
+				if parseErr != nil {
+					http.Error(w, parseErr.Error(), http.StatusBadRequest)
+					return
+				}
+				window = parsed
+			}
+			ceilings := map[string]int64{}
+			if strings.TrimSpace(d.RepoRoot) != "" {
+				inventory, inventoryErr := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+				if inventoryErr != nil {
+					http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				for _, owner := range inventory.Owners {
+					for _, entry := range owner.StorageEntries {
+						if entry.Budget == nil || entry.Budget.MaxBytes == "" {
+							continue
+						}
+						max, parseErr := retention.ParseBytes(entry.Budget.MaxBytes)
+						if parseErr != nil {
+							continue
+						}
+						ceilings[string(owner.Kind)+"/"+owner.ID+"/"+entry.Name] = max
+					}
+				}
+			}
+			out, err := growthStore.Build(req.Context(), snapshotRoot(root), window, ceilings)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(out)
+		}).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/storage/budget-health", func(w http.ResponseWriter, req *http.Request) {
+			inventory, inventoryErr := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+			if inventoryErr != nil {
+				http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			capacity := int64(0)
+			if latest, latestErr := store.Latest(req.Context(), snapshotRoot(d.RepoRoot)); latestErr == nil && latest != nil {
+				capacity = latest.ScanCoverage.DeviceTotalBytes
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(budget.Aggregate(inventory, capacity))
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/retention/owners", func(w http.ResponseWriter, req *http.Request) {
 			discovery, err := retention.DiscoverOwners(d.RepoRoot)
@@ -124,7 +192,21 @@ func Module(d ModuleDeps) module.Module {
 			}
 			enforcement := managerRetention.Enforcer{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)}
 			storageEnforcement, _ := enforcement.Enforce(req.Context(), inventory)
-			out := retentionInventory{Findings: discovery.Findings}
+			capacity := int64(0)
+			if latest, latestErr := store.Latest(req.Context(), snapshotRoot(d.RepoRoot)); latestErr == nil && latest != nil {
+				capacity = latest.ScanCoverage.DeviceTotalBytes
+			}
+			out := retentionInventory{Findings: discovery.Findings, BudgetAggregate: budget.Aggregate(inventory, capacity)}
+			if out.BudgetAggregate.Status == budget.StatusUnreasonable {
+				out.Findings = append(out.Findings, corestorage.InventoryFinding{
+					Code:         "STORAGE_BUDGET_AGGREGATE_UNREASONABLE",
+					Severity:     "error",
+					OwnerKind:    corestorage.OwnerControlPlane,
+					OwnerID:      "storage-manager",
+					ManifestPath: "",
+					Message:      out.BudgetAggregate.UnreasonableReason,
+				})
+			}
 			for _, owner := range discovery.Configs {
 				record := retentionOwner{Kind: string(owner.Kind), ID: owner.ID, ManifestPath: owner.ManifestPath, EnforcementState: "unenforced"}
 				if receipt, receiptErr := retention.ReadEnforcementReceipt(owner.ID); receiptErr == nil {
@@ -177,7 +259,7 @@ func Module(d ModuleDeps) module.Module {
 						}
 					}
 				}
-				if storageBudget {
+				if storageBudget && record.EnforcementState != "over_budget" {
 					result, enforced := storageEnforcement[owner.ID]
 					switch {
 					case enforced && result.Error == "" && len(record.Findings) == 0:
@@ -203,6 +285,8 @@ func Module(d ModuleDeps) module.Module {
 					out.Summary.Unenforced++
 				case "unbounded":
 					out.Summary.Unbounded++
+				case "over_budget":
+					out.Summary.OverBudget++
 				}
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -472,6 +556,7 @@ func Module(d ModuleDeps) module.Module {
 			if requested := strings.TrimSpace(req.URL.Query().Get("root")); requested != "" {
 				root = requested
 			}
+			root = snapshotRoot(root)
 			history, err := store.History(req.Context(), root, 1)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -491,11 +576,20 @@ func Module(d ModuleDeps) module.Module {
 					}
 				}
 			}
-			out := infraHealthReport{OwnerCount: len(inventory.Owners), OwnersWithDeclaredCeiling: withCeiling, DeclaredCeilingCoverage: ratio(withCeiling, len(inventory.Owners)), SnapshotCount: len(history), Confidence: "unknown"}
+			snapshotCount, countErr := store.Count(req.Context(), root)
+			if countErr != nil {
+				http.Error(w, countErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			out := infraHealthReport{OwnerCount: len(inventory.Owners), OwnersWithDeclaredCeiling: withCeiling, DeclaredCeilingCoverage: ratio(withCeiling, len(inventory.Owners)), SnapshotCount: snapshotCount, Confidence: "unknown"}
+			growthReport, growthErr := growthStore.Build(req.Context(), root, 24*time.Hour, nil)
+			if growthErr == nil && growthReport.Device.SampleCount >= 6 && growthReport.Device.Confidence != "insufficient_samples" {
+				out.GrowthSlopeBytesPerHour = &growthReport.Device.SlopeBytesPerHour
+				out.DaysToFull = growthReport.Device.DaysToFull
+			}
 			if len(history) > 0 {
 				out.Confidence = history[0].Confidence
 				out.LatestSnapshot = &history[0]
-				out.GrowthSlopeBytesPerHour = history[0].GrowthSlopeBytesPerHour
 				budgetedOwners := map[string]bool{}
 				enforced, _ := (managerRetention.Enforcer{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)}).Enforce(req.Context(), inventory)
 				for ownerID, result := range enforced {
@@ -628,15 +722,17 @@ func resourceEnvironmentExports(repoRoot string) map[string]string {
 }
 
 type retentionInventory struct {
-	Owners   []retentionOwner               `json:"owners"`
-	Findings []corestorage.InventoryFinding `json:"findings,omitempty"`
-	Summary  retentionSummary               `json:"summary"`
+	Owners          []retentionOwner               `json:"owners"`
+	Findings        []corestorage.InventoryFinding `json:"findings,omitempty"`
+	Summary         retentionSummary               `json:"summary"`
+	BudgetAggregate budget.Report                  `json:"budget_aggregate"`
 }
 
 type retentionSummary struct {
 	Governed   int `json:"governed"`
 	Unenforced int `json:"unenforced"`
 	Unbounded  int `json:"unbounded"`
+	OverBudget int `json:"over_budget"`
 }
 
 // declarationCheck reports adoption, not manifest readability. "Declared"
@@ -879,11 +975,28 @@ type infraHealthReport struct {
 	SnapshotCount                     int            `json:"snapshot_count"`
 	Confidence                        string         `json:"confidence"`
 	GrowthSlopeBytesPerHour           *float64       `json:"growth_slope_bytes_per_hour,omitempty"`
+	DaysToFull                        *float64       `json:"days_to_full,omitempty"`
 	MeasuredBytesUnderEnforcedCeiling int64          `json:"measured_bytes_under_enforced_ceiling"`
 	EnforcedCeilingCoverage           float64        `json:"enforced_ceiling_coverage"`
 	MeasuredBytesUnderDeclaredCeiling int64          `json:"measured_bytes_under_declared_ceiling"`
 	DeclaredCeilingMeasuredCoverage   float64        `json:"declared_ceiling_measured_coverage"`
 	LatestSnapshot                    *census.Report `json:"latest_snapshot,omitempty"`
+}
+
+func parseGrowthWindow(raw string) (time.Duration, error) {
+	raw = strings.TrimSpace(strings.ToLower(raw))
+	if strings.HasSuffix(raw, "d") {
+		value, err := strconv.ParseFloat(strings.TrimSuffix(raw, "d"), 64)
+		if err != nil || value <= 0 {
+			return 0, fmt.Errorf("window must be a positive duration such as 12h or 7d")
+		}
+		return time.Duration(value * float64(24*time.Hour)), nil
+	}
+	window, err := time.ParseDuration(raw)
+	if err != nil || window <= 0 {
+		return 0, fmt.Errorf("window must be a positive duration such as 12h or 7d")
+	}
+	return window, nil
 }
 
 func ratio(n, d int) float64 {
@@ -953,7 +1066,9 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "storage_inventory", Path: "/api/v1/storage/inventory", Method: http.MethodGet, Summary: "List storage owners and declarations", Description: "Deterministic owner-neutral inventory across scenarios, resources, tools, and safeguards.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_census", Path: "/api/v1/census", Method: http.MethodGet, Summary: "Measure declared and unattributed storage", Description: "Read-only closed accounting over the selected root.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_census_history", Path: "/api/v1/census/history", Method: http.MethodGet, Summary: "Read persisted census history", Description: "Returns immutable census snapshots and growth observations for the selected root.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
+	{ID: "storage_growth", Path: "/api/v1/storage/growth", Method: http.MethodGet, Summary: "Rank storage growth", Description: "Fits per-owner growth over persisted census samples and projects declared ceilings.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_retention_owners", Path: "/api/v1/retention/owners", Method: http.MethodGet, Summary: "List owner retention budgets", Description: "Loads retention declarations across scenarios, resources, tools, and safeguards with typed parse errors.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
+	{ID: "storage_budget_health", Path: "/api/v1/storage/budget-health", Method: http.MethodGet, Summary: "Check aggregate storage budget health", Description: "Sums declared byte ceilings and compares the reservation with the latest device capacity.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_placement_show", Path: "/api/v1/placement", Method: http.MethodGet, Summary: "Show resolved storage placement", Description: "Resolves portable owner declarations for a requested platform without changing host state.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_placement_verify", Path: "/api/v1/placement/verify", Method: http.MethodGet, Summary: "Verify storage placement for a platform", Description: "Resolves every declaration and distinguishes declared absence from an unresolvable path without moving bytes.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},
 	{ID: "storage_placement_plan", Path: "/api/v1/placement/plan", Method: http.MethodPost, Summary: "Preview a placement migration", Description: "Creates a deterministic migration plan after checking source and destination safety.", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe}},

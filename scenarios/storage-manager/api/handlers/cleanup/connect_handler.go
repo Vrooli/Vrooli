@@ -122,6 +122,13 @@ func (h *connectHandler) ReportPressure(ctx context.Context, req *connect.Reques
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
+	reason := outcome.Reason
+	if outcome.BugReference != "" {
+		if reason != "" {
+			reason += "; "
+		}
+		reason += fmt.Sprintf("warning bug reference: %s", outcome.BugReference)
+	}
 	return connect.NewResponse(&cleanupv1.ReportPressureResponse{
 		Band:                   bandToProto(outcome.Band),
 		Action:                 actionToProto(outcome.Action),
@@ -130,8 +137,9 @@ func (h *connectHandler) ReportPressure(ctx context.Context, req *connect.Reques
 		ReclaimedBytes:         outcome.ReclaimedBytes,
 		ProvidersApplied:       append([]string(nil), outcome.ProvidersApplied...),
 		ProvidersWithheld:      append([]string(nil), outcome.ProvidersWithheld...),
-		Reason:                 outcome.Reason,
+		Reason:                 reason,
 		AutonomousApplyEnabled: outcome.AutonomousApplyEnabled,
+		BugReference:           outcome.BugReference,
 	}), nil
 }
 

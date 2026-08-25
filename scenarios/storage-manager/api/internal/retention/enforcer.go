@@ -42,6 +42,10 @@ type Result struct {
 	Reason    string
 	UsedBytes int64
 	OverBytes int64
+	// EntryResults preserves the outcome for every budgeted entry. The other
+	// fields remain an owner-level rollup for compatibility with existing
+	// consumers that only need the governance state.
+	EntryResults []Result `json:"entry_results,omitempty"`
 }
 
 type budgetPruner interface {
@@ -69,21 +73,21 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 				if errors.As(err, &notApplicable) {
 					continue
 				}
-				results[owner.ID] = Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("resolve storage path: %w", err).Error()}
+				addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("resolve storage path: %w", err).Error()})
 				continue
 			}
 			budget := coreRetention.Budget{Name: entry.Name}
 			if strings.TrimSpace(entry.Budget.MaxBytes) != "" {
 				budget.MaxBytes, err = coreRetention.ParseBytes(entry.Budget.MaxBytes)
 				if err != nil {
-					results[owner.ID] = Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("parse max_bytes: %w", err).Error()}
+					addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("parse max_bytes: %w", err).Error()})
 					continue
 				}
 			}
 			if strings.TrimSpace(entry.Budget.MaxAge) != "" {
 				budget.MaxAge, err = coreRetention.ParseAge(entry.Budget.MaxAge)
 				if err != nil {
-					results[owner.ID] = Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("parse max_age: %w", err).Error()}
+					addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("parse max_age: %w", err).Error()})
 					continue
 				}
 			}
@@ -94,7 +98,7 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 				pruner, err = coreRetention.NewFilePruner(coreRetention.FileConfig{Path: path})
 			}
 			if err != nil {
-				results[owner.ID] = Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("build provider: %w", err).Error()}
+				addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("build provider: %w", err).Error()})
 				continue
 			}
 			// Pruning deletes files. For an entry its owner declared it cannot
@@ -104,7 +108,7 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 			if !entry.Regenerable {
 				usage, measureErr := pruner.Measure(ctx)
 				if measureErr != nil {
-					results[owner.ID] = Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("measure non-regenerable entry: %w", measureErr).Error()}
+					addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("measure non-regenerable entry: %w", measureErr).Error()})
 					continue
 				}
 				result := Result{
@@ -114,26 +118,44 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 				if budget.MaxBytes > 0 && usage.Bytes > budget.MaxBytes {
 					result.OverBytes = usage.Bytes - budget.MaxBytes
 				}
-				results[owner.ID] = result
+				addResult(results, owner.ID, result)
 				continue
 			}
 			out, err := pruner.Prune(ctx, budget)
 			if err != nil {
-				results[owner.ID] = Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("enforce: %w", err).Error()}
+				addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("enforce: %w", err).Error()})
 				continue
 			}
-			results[owner.ID] = Result{Owner: owner.ID, Entry: entry.Name, Deleted: int(out.Deleted), Freed: out.FreedBytes}
+			addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Deleted: int(out.Deleted), Freed: out.FreedBytes})
 		}
 		var ownerErr error
-		for _, result := range results {
-			if result.Owner == owner.ID && result.Error != "" {
-				ownerErr = errors.New(result.Error)
-				break
-			}
+		if result, ok := results[owner.ID]; ok && result.Error != "" {
+			ownerErr = errors.New(result.Error)
 		}
 		if err := coreRetention.RecordEnforcementReceipt(owner.ID, time.Now().UTC(), ownerErr); err != nil {
 			results[owner.ID] = Result{Owner: owner.ID, Error: fmt.Errorf("record enforcement receipt: %w", err).Error()}
 		}
 	}
 	return results, nil
+}
+
+func addResult(results map[string]Result, ownerID string, entryResult Result) {
+	rollup, exists := results[ownerID]
+	if !exists {
+		rollup = Result{Owner: ownerID, Entry: entryResult.Entry}
+	}
+	rollup.Deleted += entryResult.Deleted
+	rollup.Freed += entryResult.Freed
+	rollup.UsedBytes += entryResult.UsedBytes
+	rollup.OverBytes += entryResult.OverBytes
+	rollup.Refused = rollup.Refused || entryResult.Refused
+	if entryResult.Error != "" {
+		if rollup.Error == "" {
+			rollup.Error = entryResult.Error
+		} else {
+			rollup.Error += "; " + entryResult.Error
+		}
+	}
+	rollup.EntryResults = append(rollup.EntryResults, entryResult)
+	results[ownerID] = rollup
 }

@@ -68,6 +68,40 @@ type ApplyReport struct {
 	ReclaimedBytes int64
 }
 
+// WarningGrowthTarget is the actionable growth row consumed by the warning
+// pressure path. The reader deliberately returns one row: pressure handling
+// needs the fastest unbounded owner, not a second copy of the full report.
+type WarningGrowthTarget struct {
+	OwnerKind         string
+	OwnerID           string
+	EntryName         string
+	CurrentBytes      int64
+	SlopeBytesPerHour float64
+}
+
+// WarningBugReport is the typed hand-off to the report-bug writer. The
+// orchestrator does not know how scenario-qa stores entries.
+type WarningBugReport struct {
+	Title          string
+	SignalType     string
+	Severity       string
+	Repro          []string
+	Expected       string
+	Actual         string
+	Description    string
+	Context        map[string]string
+	HonestyFlags   []string
+	IdempotencyKey string
+}
+
+// WarningDependencies keep pressure policy independent from growth storage and
+// the external bug-inbox transport. Both callbacks are optional and fail
+// closed: cleanup still runs if either observation or reporting is unavailable.
+type WarningDependencies struct {
+	FastestUnbounded func(context.Context) (WarningGrowthTarget, bool, error)
+	FileBug          func(context.Context, WarningBugReport) (string, error)
+}
+
 type AuditEvent struct {
 	ID             string
 	Time           time.Time
@@ -98,6 +132,10 @@ type Service struct {
 	// Disk-pressure intake state. pressure collapses duplicate reports of the
 	// same event; autonomousApply is the kill switch for unattended deletion.
 	pressure        *pressureGuard
+	warningMu       sync.Mutex
+	warningDeps     WarningDependencies
+	warningBugLast  map[string]time.Time
+	warningBugBusy  map[string]bool
 	autonomousMu    sync.RWMutex
 	autonomousApply bool
 
@@ -125,16 +163,27 @@ const defaultPressureDedupWindow = 5 * time.Minute
 
 func NewService(registry *providers.Registry, store Store, clock cleanup.Clock) *Service {
 	return &Service{
-		registry: registry,
-		store:    store,
-		clock:    clock,
-		pressure: newPressureGuard(defaultPressureDedupWindow),
+		registry:       registry,
+		store:          store,
+		clock:          clock,
+		pressure:       newPressureGuard(defaultPressureDedupWindow),
+		warningBugLast: make(map[string]time.Time),
+		warningBugBusy: make(map[string]bool),
 		// Autonomous apply is on by default: the incident happened because
 		// nothing acted overnight. The kill switch exists to turn remediation
 		// off deliberately, not to require a deliberate act to turn it on.
 		autonomousApply: true,
 		censusJobs:      make(map[string]*censusJob),
 	}
+}
+
+// SetWarningDependencies wires the read-only growth projection and the
+// report-bug transport used by warning pressure. It is a production seam so
+// tests can prove the action without contacting Prompt Manager.
+func (s *Service) SetWarningDependencies(deps WarningDependencies) {
+	s.warningMu.Lock()
+	s.warningDeps = deps
+	s.warningMu.Unlock()
 }
 
 func (s *Service) Catalog() []cleanup.ProviderMetadata {
@@ -168,6 +217,25 @@ func (s *Service) CurrentPolicy(ctx context.Context) (Policy, error) {
 	if existing, ok, err := s.store.CurrentPolicy(ctx); err != nil {
 		return Policy{}, err
 	} else if ok {
+		// Older in-memory callers and pre-profile databases may carry a
+		// deliberately minimal policy row. Preserve that row until an operator
+		// chooses a profile; a zero profile cannot be reconciled safely.
+		if existing.Profile == "" {
+			return existing, nil
+		}
+		version, providers, added, reconcileErr := policy.ReconcilePolicy(existing.Profile, existing.Version, existing.Providers, existing.CreatedAt, s.registry.List())
+		if reconcileErr != nil {
+			return Policy{}, reconcileErr
+		}
+		if len(added) == 0 {
+			return existing, nil
+		}
+		existing.Version = version
+		existing.Providers = providers
+		if err := s.store.SavePolicy(ctx, existing); err != nil {
+			return Policy{}, err
+		}
+		_ = s.audit(ctx, AuditEvent{Type: "policy.reconciled", Message: fmt.Sprintf("added %d provider(s) at %s defaults: %s", len(added), existing.Profile, strings.Join(added, ", "))})
 		return existing, nil
 	}
 	return s.SetPolicyProfile(ctx, policy.ProfileBalanced)
@@ -496,10 +564,7 @@ func (s *Service) now() time.Time {
 }
 
 func stablePolicyVersion(name policy.ProfileName, policies map[string]cleanup.ProviderPolicy) string {
-	return "policy-" + hashJSON(struct {
-		Name     policy.ProfileName
-		Policies map[string]cleanup.ProviderPolicy
-	}{Name: name, Policies: policies})[:16]
+	return policy.StableVersion(name, policies)
 }
 
 func stablePlanID(plan Plan) string {
