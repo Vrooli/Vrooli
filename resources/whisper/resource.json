@@ -20,7 +20,7 @@
         "rationale": "Whisper model files are re-downloadable and read directly by the supervised native server.",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
       },
       "uploads": {
@@ -36,8 +36,8 @@
         "sensitive": true,
         "rationale": "Uploaded audio is operator input and remains until explicitly removed by the resource workflow.",
         "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+          "max_bytes": "20GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
         }
       }
     }
@@ -289,8 +289,8 @@
     "claim": {
       "resource_kind": "vram",
       "gpu_index": 0,
-      "preferred_bytes": 5259657216,
-      "floor_bytes": 968884224,
+      "preferred_bytes": 5368709120,
+      "floor_bytes": 2147483648,
       "priority": "interactive",
       "yield_when_idle": true,
       "idle_grace_seconds": 900,
@@ -298,15 +298,15 @@
         "steps": [
           {
             "label": "large-v3",
-            "amount_bytes": 5259657216
+            "amount_bytes": 5368709120
           },
           {
             "label": "medium",
-            "amount_bytes": 2768240640
+            "amount_bytes": 4294967296
           },
           {
             "label": "small",
-            "amount_bytes": 968884224
+            "amount_bytes": 2147483648
           }
         ],
         "apply": {

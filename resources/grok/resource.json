@@ -12,8 +12,8 @@
         "sensitive": true,
         "rationale": "The managed Grok CLI sets GROK_DATA_DIR to ~/.grok for sessions, memory, configuration, and authentication.",
         "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+          "max_bytes": "20GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
         }
       },
       "skills": {
@@ -155,7 +155,7 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
+    "macos": "build-verified",
     "windows": "build-verified"
   },
   "health_checks": [

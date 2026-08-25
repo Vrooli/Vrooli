@@ -22,7 +22,36 @@
     },
     "platformStatusToken": {
       "type": "string",
-      "enum": ["supported", "build-verified", "experimental", "unqualified", "partial", "unsupported"]
+      "enum": ["supported", "build-verified", "experimental", "unqualified", "partial", "unsupported", "not_implemented", "not_applicable"]
+    },
+    "invariant": {
+      "type": "object",
+      "description": "An OS-neutral relationship that must hold for a host capability to work. An invariant names no package and no package manager; platform providers derive concrete implementation details.",
+      "required": ["id", "kind", "statement", "severity"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "statement": { "type": "string", "minLength": 1 },
+        "severity": { "type": "string", "enum": ["info", "low", "medium", "high", "critical"] },
+        "applicability": { "$ref": "#/definitions/invariantApplicability" },
+        "notes": { "type": "string" }
+      }
+    },
+    "invariantApplicability": {
+      "type": "object",
+      "description": "Optional host predicates for an invariant. An empty object means the invariant is always applicable.",
+      "additionalProperties": false,
+      "properties": {
+        "device_class": { "type": "string", "minLength": 1 },
+        "vendor_id": { "type": "string", "minLength": 1 },
+        "platforms": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["linux", "macos", "windows"] },
+          "uniqueItems": true
+        },
+        "capability": { "type": "string", "minLength": 1 }
+      }
     },
     "platformEvidence": {
       "type": "object",
@@ -252,7 +281,8 @@
       "additionalProperties": false,
       "required": [
         "rung",
-        "kind"
+        "kind",
+        "regenerable"
       ],
       "properties": {
         "rung": {
@@ -336,7 +366,8 @@
           "description": "Optional path below the resolver-selected class root. Must be relative and traversal-safe."
         },
         "regenerable": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Required deletion intent. true means the owner can reconstruct the entry; false means retention may measure it but must never prune it."
         },
         "format": {
           "type": "string",

@@ -250,6 +250,45 @@ jobs:
         run: go test ./bundle -run TestDefaultCLIStagerStage -count=1
         working-directory: scenarios/scenario-to-desktop/api
 
+  cross-platform-lifecycle:
+    name: Cross-platform lifecycle (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Run lifecycle contract suite
+        shell: bash
+        run: go test -count=1 ./internal/lifecycle/... ./internal/process/... ./internal/cli/scenariocli/...
+
+      - name: Run a complete scenario lifecycle through the control plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          go run ./cmd/vrooli help >/dev/null
+          go run ./cmd/vrooli scenario --help >/dev/null
+          go run ./cmd/vrooli scenario start hello-plugin --timeout 120 --json
+          go run ./cmd/vrooli scenario status hello-plugin --json
+          go run ./cmd/vrooli scenario stop hello-plugin --json
+
   # The credential seam is the one place where a platform adapter can differ
   # silently: a backend that answers "no such value" as "backend broken" turns an
   # unset API key back into a failed scenario start. One shared conformance suite

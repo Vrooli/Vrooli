@@ -10,6 +10,11 @@
       "$ref": "common.schema.json#/definitions/storageSurface",
       "description": "Portable declaration of the safeguard's on-disk storage surface."
     },
+    "invariants": {
+      "type": "array",
+      "description": "OS-neutral capability relationships evaluated by platform providers. Declarations name no package or package manager.",
+      "items": { "$ref": "common.schema.json#/definitions/invariant" }
+    },
     "retention": {
       "$ref": "common.schema.json#/definitions/retention",
       "description": "Declared storage ceilings for the runtime data this safeguard accumulates. Enforced by packages/api-core/retention. Distinct from durable_data, which declares what to back up."

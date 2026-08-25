@@ -15,7 +15,7 @@
         "regenerable": false,
         "rationale": "AdGuard Home work data is bind-mounted to /opt/adguardhome/work by the managed resource.",
         "budget": {
-          "max_bytes": "1TiB",
+          "max_bytes": "10GiB",
           "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
         }
       },

@@ -15,8 +15,8 @@
         "regenerable": false,
         "rationale": "MinIO object data is bind-mounted to /data and must survive container replacement.",
         "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+          "max_bytes": "100GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
         }
       },
       "config": {
@@ -138,7 +138,7 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
+    "macos": "build-verified",
     "windows": "build-verified"
   },
   "dependencies": [],

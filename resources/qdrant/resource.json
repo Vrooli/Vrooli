@@ -15,8 +15,8 @@
         "regenerable": false,
         "rationale": "Qdrant collections and WAL data are bind-mounted to /qdrant/storage.",
         "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+          "max_bytes": "100GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
         }
       },
       "snapshots": {
@@ -27,8 +27,8 @@
         "rationale": "Qdrant snapshots are persisted separately from live collection storage.",
         "subpath": "snapshots",
         "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable state storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+          "max_bytes": "20GiB",
+          "rationale": "Durable state storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
         }
       },
       "health_log": {
@@ -168,7 +168,7 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
+    "macos": "build-verified",
     "windows": "build-verified"
   },
   "dependencies": [],

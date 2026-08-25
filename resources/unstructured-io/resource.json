@@ -20,7 +20,7 @@
         "rationale": "The service binds RESOURCE_CACHE_DIR to /app/cache for reusable extraction artifacts.",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
       },
       "logs": {
@@ -40,7 +40,7 @@
         "rationale": "The service binds RESOURCE_LOGS_DIR to /app/logs; logs are diagnostic and regenerable.",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
       },
       "processing": {
@@ -60,7 +60,7 @@
         "rationale": "The compose service binds this directory to /tmp/unstructured-processing for transient extraction work.",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
       }
     }

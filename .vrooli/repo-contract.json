@@ -42,6 +42,7 @@
       "capability-vocabulary.json",
       "operator-state.json",
       "repo-contract.json",
+      "skip-budgets.json",
       "resources",
       "schemas",
       "service.json",

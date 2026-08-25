@@ -16,8 +16,8 @@
         "sensitive": true,
         "rationale": "Managed Vault uses file storage under RESOURCE_DATA_DIR; this contains encrypted secret state and must be preserved.",
         "budget": {
-          "max_bytes": "1TiB",
-          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+          "max_bytes": "10GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
         }
       },
       "config": {
@@ -34,7 +34,7 @@
         "rationale": "The generated loopback-only vault.hcl lives under RESOURCE_CONFIG_DIR.",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
       }
     }
@@ -232,9 +232,9 @@
     "weight": 1
   },
   "platforms": {
-    "linux": "build-verified",
-    "macos": "build-verified",
-    "windows": "build-verified"
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
   },
   "hostTools": [
     {

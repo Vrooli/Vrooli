@@ -14,16 +14,39 @@
     },
     "platform_policies": {
       "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "linux": {"enum": ["no_work_required", "no_equivalent_ever"]},
-          "macos": {"enum": ["no_work_required", "no_equivalent_ever"]},
-          "windows": {"enum": ["no_work_required", "no_equivalent_ever"]}
-        },
-        "patternProperties": {
-          "^(linux|macos|windows)/(amd64|arm64|arm|386|armv7)$": {"enum": ["no_work_required", "no_equivalent_ever"]}
+      "properties": {
+        "hardware-persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ceiling", "scope", "not_platform_ceiling", "review_by", "rationale"],
+          "properties": {
+            "ceiling": {"const": "build_verified"},
+            "scope": {"const": "hardware-persistence"},
+            "not_platform_ceiling": {"const": "true"},
+            "review_by": {"type": "string", "format": "date"},
+            "rationale": {"type": "string", "minLength": 1},
+            "dedicated_machines": {"type": "string", "minLength": 1}
+          }
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z0-9]+(?:-[a-z0-9]+)*$": {
+          "oneOf": [
+            {"$ref": "#/properties/platform_policies/properties/hardware-persistence"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "linux": {"enum": ["no_work_required", "no_equivalent_ever"]},
+                "macos": {"enum": ["no_work_required", "no_equivalent_ever"]},
+                "windows": {"enum": ["no_work_required", "no_equivalent_ever"]}
+              },
+              "patternProperties": {
+                "^(linux|macos|windows)/(amd64|arm64|arm|386|armv7)$": {"enum": ["no_work_required", "no_equivalent_ever"]}
+              }
+            }
+          ]
         }
       }
     },

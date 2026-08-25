@@ -43,8 +43,8 @@
   "driver": "native-cli",
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
-    "windows": "supported"
+    "macos": "build-verified",
+    "windows": "build-verified"
   },
   "deployment": {
     "profiles": {
