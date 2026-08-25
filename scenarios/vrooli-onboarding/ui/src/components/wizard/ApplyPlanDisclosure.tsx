@@ -34,8 +34,7 @@ export function ApplyPlanDisclosure({ items }: { items: ApplyPlanItem[] }) {
     <div data-testid="apply-plan">
       <p data-testid="apply-plan-summary" className="mt-2 text-sm text-foreground">
         {summary.total} selected item{summary.total === 1 ? "" : "s"}: {summary.pending.length} not yet in
-        place, {summary.satisfied.length} already in place, {summary.unknown.length} not checkable before
-        applying.
+        place, {summary.satisfied.length} already in place, {summary.unknown.length} not sampled.
       </p>
 
       <details data-testid="apply-plan-effects" className="mt-3 rounded-lg border border-border bg-surface p-3 text-sm">
@@ -71,7 +70,7 @@ export function ApplyPlanDisclosure({ items }: { items: ApplyPlanItem[] }) {
       {summary.unknown.length > 0 && (
         <PlanSection
           testID="apply-plan-unknown"
-          heading={`Not checked — state is reported by the handler during apply (${summary.unknown.length})`}
+          heading={`Not sampled — checking these costs a control-plane round trip each, so this plan did not (${summary.unknown.length})`}
           items={summary.unknown}
           tone="muted"
         />

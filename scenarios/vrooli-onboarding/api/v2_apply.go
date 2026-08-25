@@ -40,6 +40,13 @@ type applyExecutor interface {
 	StartScenario(context.Context, string) error
 }
 
+// scenarioFreshnessProbe reports whether a scenario's build artifacts are
+// stale. It is read-only. The apply run needs it to protect itself: see
+// selfRestartBlocker.
+type scenarioFreshnessProbe interface {
+	ScenarioIsStale(context.Context, string) (bool, error)
+}
+
 type privilegedApplyExecutor interface {
 	InstallToolPrivileged(context.Context, string) error
 	ApplySafeguardPrivileged(context.Context, string) error
@@ -103,6 +110,21 @@ func (e controlPlaneExecutor) runCapabilityJSON(ctx context.Context, action stri
 func (controlPlaneExecutor) runNamed(ctx context.Context, name string, args ...string) error {
 	_, err := (controlPlaneExecutor{}).runNamedWithInput(ctx, nil, name, args...)
 	return err
+}
+
+// runNamedInDir runs a control-plane command from an explicit working
+// directory. Commands whose result depends on the caller's cwd must use this
+// rather than inheriting the API process's directory.
+func (controlPlaneExecutor) runNamedInDir(ctx context.Context, dir string, commandName string, args ...string) ([]byte, error) {
+	command := controlPlaneCommand(ctx, commandName, args...)
+	if strings.TrimSpace(dir) != "" {
+		command.Dir = dir
+	}
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w: %s", commandName, strings.Join(args, " "), err, strings.TrimSpace(string(output)))
+	}
+	return output, nil
 }
 
 func (controlPlaneExecutor) runNamedWithInput(ctx context.Context, input []byte, commandName string, args ...string) ([]byte, error) {
@@ -192,6 +214,34 @@ func isElevationDenied(err error) bool {
 
 func (e controlPlaneExecutor) EnableResource(ctx context.Context, name string) error {
 	return e.run(ctx, "resource", "enable", name, "--json")
+}
+
+// ScenarioIsStale asks the control plane whether a scenario would be rebuilt
+// on its next start. It never starts anything.
+//
+// The probe runs from the repository root deliberately. `vrooli scenario
+// freshness` returns opposite verdicts for the same scenario depending on the
+// caller's working directory -- run from the repo root it reported fresh while
+// the identical call from scenarios/vrooli-onboarding/api reported
+// "build input changed" at the same instant. This API's own working directory
+// is the latter, so inheriting it made the probe report a permanent false
+// stale and refuse every apply.
+func (e controlPlaneExecutor) ScenarioIsStale(ctx context.Context, name string) (bool, error) {
+	roots, rootErr := resolveRoots()
+	if rootErr != nil {
+		return false, rootErr
+	}
+	output, err := e.runNamedInDir(ctx, roots.RepoRoot, "vrooli", "scenario", "freshness", name, "--json")
+	if err != nil {
+		return false, err
+	}
+	var report struct {
+		Stale bool `json:"stale"`
+	}
+	if err := json.Unmarshal(output, &report); err != nil {
+		return false, fmt.Errorf("decode freshness report for %s: %w", name, err)
+	}
+	return report.Stale, nil
 }
 
 func (e controlPlaneExecutor) StartScenario(ctx context.Context, name string) error {
@@ -443,8 +493,65 @@ func executeApplyItem(ctx context.Context, item applyItem) error {
 	return err
 }
 
+// selfRestartBlocker reports the condition under which this apply run cannot
+// survive itself.
+//
+// Skipping the onboarding scenario's own apply item is necessary but not
+// sufficient. Other scenarios in the plan declare it as a dependency with
+// startup_policy "try_start" -- vrooli-bridge does -- so starting them cascades
+// into starting this one. That cascade is harmless while this scenario's
+// artifacts are fresh: start on an already-running fresh scenario is a no-op.
+// When they are stale, the cascade rebuilds and swaps them, which stops the
+// process executing the apply. The run then never reaches a terminal state and
+// every remaining item is silently skipped.
+//
+// Refusing up front is strictly better than dying halfway: the host is
+// unchanged, and the operator gets an instruction instead of a truncated run.
+func selfRestartBlocker(ctx context.Context, run applyRun) *completionBlocker {
+	probe, ok := onboardingApplyExecutor.(scenarioFreshnessProbe)
+	if !ok {
+		return nil
+	}
+	var cascades bool
+	for _, item := range run.Items {
+		if item.Kind == "scenario" && item.Name != onboardingScenarioName {
+			cascades = true
+			break
+		}
+	}
+	if !cascades {
+		return nil
+	}
+	stale, err := probe.ScenarioIsStale(ctx, onboardingScenarioName)
+	if err != nil {
+		// A probe that could not run is not evidence of a healthy host, but it
+		// is also not grounds to refuse an apply the operator consented to.
+		// Proceed; a self-restart now surfaces as a reported error rather than
+		// as silence.
+		return nil
+	}
+	if !stale {
+		return nil
+	}
+	return &completionBlocker{
+		Kind:   "apply",
+		Name:   onboardingScenarioName,
+		Reason: "this scenario's build artifacts are stale, and another scenario in the plan starts it as a dependency; applying would rebuild and restart the process running this apply",
+		Remediation: "Run `vrooli scenario start " + onboardingScenarioName +
+			"` to rebuild it, then apply the selection again.",
+	}
+}
+
 func executeApplyRun(ctx context.Context, run applyRun) {
 	if run.Status == "already_satisfied" {
+		updateApplyRun(run)
+		return
+	}
+	if blocker := selfRestartBlocker(ctx, run); blocker != nil {
+		run.Status = "blocked"
+		run.Error = blocker.Reason
+		run.Blockers = []completionBlocker{*blocker}
+		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
 		updateApplyRun(run)
 		return
 	}
@@ -465,6 +572,18 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 			}
 		}
 		if run.Items[i].Outcome == "blocked" {
+			continue
+		}
+		// Starting this scenario means stopping it first, and this code is
+		// running inside it. The apply would kill the process mid-run: the
+		// operator's wizard loses the API it is polling, the run never reaches
+		// a terminal state, and the remaining items never execute. Skipping is
+		// not a compromise here -- the scenario is demonstrably already running,
+		// because it is answering this request.
+		if item.Kind == "scenario" && item.Name == onboardingScenarioName {
+			run.Items[i].Outcome = "skipped_self"
+			run.Items[i].Remediation = "already running; onboarding does not restart itself mid-apply, because that would stop the process serving this run"
+			updateApplyRun(run)
 			continue
 		}
 		if err := executeApplyItem(ctx, item); err != nil {

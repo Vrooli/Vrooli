@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -56,10 +57,38 @@ func TestRunMain(t *testing.T) {
 	if err := runMain([]string{"--version"}); err != nil {
 		t.Fatalf("runMain() error: %v", err)
 	}
-	if code := runExitCode([]string{"--version"}); code != 0 {
+	var quiet bytes.Buffer
+	if code := runExitCode([]string{"--version"}, &quiet); code != 0 {
 		t.Fatalf("runExitCode() = %d", code)
 	}
-	if code := runExitCode([]string{"unknown-command"}); code == 0 {
+	if quiet.Len() != 0 {
+		t.Fatalf("a successful run must print nothing to stderr, got %q", quiet.String())
+	}
+	var stderr bytes.Buffer
+	if code := runExitCode([]string{"unknown-command"}, &stderr); code == 0 {
 		t.Fatal("unknown command should return a non-zero exit code")
+	}
+	if stderr.Len() == 0 {
+		t.Fatal("a failing run must say why; this CLI exited silently for every error, which during the wizard was indistinguishable from success")
+	}
+}
+
+// TestFailuresAreNeverSilent pins the contract the wizard depends on: an
+// operator who answers a consent prompt and sees the command vanish cannot tell
+// whether the host was changed. Any error must reach stderr.
+func TestFailuresAreNeverSilent(t *testing.T) {
+	for _, args := range [][]string{
+		{"unknown-command"},
+		{"wizard", "unknown-subcommand"},
+		{"wizard", "commit"}, // missing the required --selection
+	} {
+		var stderr bytes.Buffer
+		code := runExitCode(args, &stderr)
+		if code == 0 {
+			continue // not an error path on this build; nothing to assert
+		}
+		if !strings.Contains(stderr.String(), "Error:") {
+			t.Fatalf("%v exited %d without naming the failure; stderr = %q", args, code, stderr.String())
+		}
 	}
 }

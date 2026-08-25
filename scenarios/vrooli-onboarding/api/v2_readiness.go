@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/vrooli/packages/hostreq"
 )
 
 type credentialReadiness struct {
@@ -498,15 +499,13 @@ func inspectSafeguardReadiness(root string, item hostItem) hostReadiness {
 	}
 	if len(manifest.VerificationCheck.Files) == 0 {
 		if strings.TrimSpace(manifest.Handler) != "" {
-			// A handler-owned safeguard is verified by the control plane when
-			// the selection is applied, not by a file this process can stat.
-			// Calling that unsupported would report a host fault that does not
-			// exist and would block completion on a probe rather than on the
-			// host, so the verdict is deferred to the apply outcome.
-			result.Status = "deferred"
-			result.Detail = "This safeguard is verified by its control-plane handler when the selection is applied."
-			result.Remediation = "Apply the selection; the handler reports the outcome for this item."
-			return result
+			// A handler-owned safeguard has no file this process can stat, but
+			// that never made it unknowable: the control plane owns a read-only
+			// inspection half that is separate from Apply by interface. Asking
+			// it is the whole check. Deferring to the apply outcome instead
+			// told the operator a safeguard was uncheckable while the answer
+			// was one unprivileged call away.
+			return observeHandlerSafeguard(root, item)
 		}
 		result.Status = "unsupported"
 		result.Detail = "The safeguard has no declarative verification probe and no handler."
@@ -532,6 +531,83 @@ func inspectSafeguardReadiness(root string, item hostItem) hostReadiness {
 	result.Detail = "The declared safeguard verification files are present."
 	result.Remediation = ""
 	return result
+}
+
+// observeHandlerSafeguard reports a handler-owned safeguard through the control
+// plane's read-only observation boundary. The boundary never calls Apply, so
+// this stays safe to run before the operator has consented to anything.
+//
+// The mapping is deliberately not collapsed into ready/missing. A safeguard
+// that applied but needs a reboot has not taken effect, and a probe that could
+// not run is not a host fault; flattening either into "missing" would report a
+// gap the operator cannot act on and would send them to fix a healthy host.
+func observeHandlerSafeguard(root string, item hostItem) hostReadiness {
+	result := hostReadiness{readinessItem: readinessItem{Name: item.Name}, Kind: "safeguard", Required: item.Required}
+
+	observed, err := hostreq.ObserveSafeguard(root, item.Name, nil)
+	if err != nil {
+		result.Status = "deferred"
+		result.Detail = "The control plane could not sample this safeguard: " + err.Error()
+		result.Remediation = "Apply the selection; the handler reports the outcome for this item."
+		return result
+	}
+
+	result.Detail = lastNote(observed.Notes)
+
+	switch observed.ExecutionState {
+	case "already_present", "applied", "installed":
+		result.Status = "ready"
+		if result.Detail == "" {
+			result.Detail = "The control-plane handler reports this safeguard is in place."
+		}
+	case "pending", "would_apply", "would_install":
+		result.Status = "missing"
+		if result.Detail == "" {
+			result.Detail = "The control-plane handler reports this safeguard is not in place."
+		}
+		// The detail above is the handler's own reason, and it is often more
+		// specific than "apply this" -- a missing credential, an absent device.
+		// The remediation must not talk past it.
+		result.Remediation = "Apply the selection to let the handler make this change; when the reason above names a missing input, supply that first."
+	case "reboot_required":
+		result.Status = "degraded"
+		if result.Detail == "" {
+			result.Detail = "This safeguard is configured but does not take effect until the host reboots."
+		}
+		result.Remediation = "Reboot the host to activate this safeguard."
+	case "manual_action_required":
+		result.Status = "missing"
+		if result.Detail == "" {
+			result.Detail = "This safeguard requires an action Vrooli will not take on the operator's behalf."
+		}
+		result.Remediation = "Complete the manual step this safeguard declares, then rerun validation."
+	case "unsupported", "not_applicable":
+		result.Status = "unsupported"
+		if result.Detail == "" {
+			result.Detail = "This safeguard does not apply to this host."
+		}
+		result.Remediation = "Deselect this safeguard, or run on a host it supports."
+	default:
+		// "failed" and any state added later. An inspection that did not reach
+		// a verdict must not be rendered as one.
+		result.Status = "deferred"
+		if result.Detail == "" {
+			result.Detail = "The control-plane handler did not reach a verdict for this safeguard."
+		}
+		result.Remediation = "Apply the selection; the handler reports the outcome for this item."
+	}
+	return result
+}
+
+// lastNote returns the most specific line a handler emitted. Handler notes are
+// ordered general-to-specific, with the deciding observation last.
+func lastNote(notes []string) string {
+	for index := len(notes) - 1; index >= 0; index-- {
+		if trimmed := strings.TrimSpace(notes[index]); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 // resolveSafeguardVerificationPath expands the portable tokens a safeguard

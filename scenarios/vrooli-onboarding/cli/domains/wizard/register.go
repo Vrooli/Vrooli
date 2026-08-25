@@ -763,7 +763,7 @@ func printApplyPlan(body []byte) error {
 		}
 	}
 
-	_, _ = fmt.Fprintf(os.Stdout, "\nApply plan — %d selected item(s): %d not yet in place, %d already in place, %d not checkable before applying.\n",
+	_, _ = fmt.Fprintf(os.Stdout, "\nApply plan — %d selected item(s): %d not yet in place, %d already in place, %d not sampled.\n",
 		len(plan.Items), len(pending), len(satisfied), len(unknown))
 
 	_, _ = fmt.Fprintln(os.Stdout, "\nWhat \"apply\" does, per kind:")
@@ -783,7 +783,7 @@ func printApplyPlan(body []byte) error {
 		printItemsGrouped(satisfied, false)
 	}
 	if len(unknown) > 0 {
-		_, _ = fmt.Fprintf(os.Stdout, "\nNOT CHECKED — state is reported by the handler during apply (%d)\n", len(unknown))
+		_, _ = fmt.Fprintf(os.Stdout, "\nNOT SAMPLED — checking these costs a control-plane round trip each, so this plan did not (%d)\n", len(unknown))
 		printItemsGrouped(unknown, false)
 	}
 	_, _ = fmt.Fprintln(os.Stdout, "\nNothing has been applied yet. Answering no leaves the host unchanged.")
@@ -874,20 +874,41 @@ func printApplyReport(body []byte) error {
 	var report struct {
 		Status string `json:"status"`
 		Items  []struct {
-			Name      string `json:"name"`
-			Outcome   string `json:"outcome"`
-			Error     string `json:"error"`
-			BlockedBy string `json:"blocked_by"`
+			Name        string `json:"name"`
+			Outcome     string `json:"outcome"`
+			Error       string `json:"error"`
+			BlockedBy   string `json:"blocked_by"`
+			Remediation string `json:"remediation"`
 		} `json:"items"`
+		Blockers []struct {
+			Name        string `json:"name"`
+			Reason      string `json:"reason"`
+			Remediation string `json:"remediation"`
+		} `json:"blockers"`
 	}
 	if err := json.Unmarshal(body, &report); err != nil {
 		return fmt.Errorf("decode apply report: %w", err)
 	}
 	_, _ = fmt.Fprintln(os.Stdout, "Apply report:", report.Status)
+	// A run can end without applying anything -- refused up front, for example.
+	// Printing only the status would tell the operator that something went
+	// wrong while withholding the one line that says what to do about it.
+	for _, blocker := range report.Blockers {
+		_, _ = fmt.Fprintf(os.Stdout, "  ! %s: %s\n", blocker.Name, blocker.Reason)
+		if strings.TrimSpace(blocker.Remediation) != "" {
+			_, _ = fmt.Fprintf(os.Stdout, "    fix: %s\n", blocker.Remediation)
+		}
+	}
 	for _, item := range report.Items {
 		detail := item.Error
 		if detail == "" {
 			detail = item.BlockedBy
+		}
+		// An item can carry a reason without having failed -- a skipped item is
+		// the plain case. Falling straight through to "completed" reported those
+		// as if they had run.
+		if detail == "" {
+			detail = item.Remediation
 		}
 		if detail == "" {
 			detail = "completed"

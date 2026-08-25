@@ -55,6 +55,19 @@ describe("ApplyPlanDisclosure", () => {
     expect(screen.queryByTestId("apply-plan-satisfied")).toBeNull();
   });
 
+  // Safeguards are checked before consent through the control plane's read-only
+  // inspection boundary, so the unsampled group may no longer blame a handler
+  // for state it could have reported. Saying "not checked" of something the
+  // system can check is the defect this heading previously carried.
+  it("attributes the unsampled group to its cost, not to a handler", () => {
+    render(<ApplyPlanDisclosure items={[postgresItem]} />);
+    const unsampled = screen.getByTestId("apply-plan-unknown").textContent ?? "";
+    expect(unsampled).toContain("Not sampled");
+    expect(unsampled).toContain("control-plane round trip");
+    expect(unsampled).not.toContain("reported by the handler during apply");
+    expect(screen.getByTestId("apply-plan-summary").textContent).toContain("1 not sampled");
+  });
+
   it("keeps the empty-plan message", () => {
     render(<ApplyPlanDisclosure items={[]} />);
     expect(screen.getByTestId("apply-plan").textContent).toContain("no consented host changes");

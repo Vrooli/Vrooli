@@ -294,10 +294,10 @@ func TestApplyPlanSeparatesPendingFromAlreadyApplied(t *testing.T) {
 		"5 selected item(s)",
 		"2 not yet in place",
 		"2 already in place",
-		"1 not checkable",
+		"1 not sampled",
 		"NOT YET IN PLACE",
 		"ALREADY IN PLACE",
-		"NOT CHECKED",
+		"NOT SAMPLED",
 		"! host_hardening (required, elevated)",
 		"- clock (required)",
 		"Nothing is removed, disabled, or uninstalled by apply",
@@ -327,8 +327,8 @@ func TestApplyPlanTreatsMissingStateAsUnknown(t *testing.T) {
 			t.Fatalf("printApplyPlan: %v", err)
 		}
 	})
-	if !strings.Contains(output, "NOT CHECKED") {
-		t.Fatalf("an item with no state must be reported as unchecked:\n%s", output)
+	if !strings.Contains(output, "NOT SAMPLED") {
+		t.Fatalf("an item with no state must be reported as unsampled:\n%s", output)
 	}
 	if strings.Contains(output, "ALREADY IN PLACE") {
 		t.Fatalf("an item with no state must never be claimed as already in place:\n%s", output)
@@ -345,5 +345,46 @@ func TestApplyPlanWithNoChangesSaysSo(t *testing.T) {
 	})
 	if !strings.Contains(output, "no changes") {
 		t.Fatalf("empty plan must say so plainly, got %q", output)
+	}
+}
+
+// TestApplyReportShowsWhyNothingHappened covers the refused-run path. A run can
+// end without applying anything, and printing only the status would name the
+// failure without saying what to do about it.
+func TestApplyReportShowsWhyNothingHappened(t *testing.T) {
+	body := []byte(`{"status":"blocked","items":[],"blockers":[{"name":"vrooli-onboarding","reason":"artifacts are stale and a dependency would restart it","remediation":"Run ` + "`vrooli scenario start vrooli-onboarding`" + `, then apply again."}]}`)
+	output := captureStdout(t, func() {
+		if err := printApplyReport(body); err != nil {
+			t.Fatalf("printApplyReport: %v", err)
+		}
+	})
+	for _, want := range []string{
+		"blocked",
+		"vrooli-onboarding",
+		"artifacts are stale",
+		"fix:",
+		"vrooli scenario start",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("apply report missing %q:\n%s", want, output)
+		}
+	}
+}
+
+// TestApplyReportDoesNotCallASkippedItemCompleted keeps a skipped item from
+// rendering as if it had run. The detail fell straight through to "completed"
+// whenever an item carried a reason but no error.
+func TestApplyReportDoesNotCallASkippedItemCompleted(t *testing.T) {
+	body := []byte(`{"status":"applied","items":[{"name":"vrooli-onboarding","outcome":"skipped_self","remediation":"already running; onboarding does not restart itself mid-apply"}]}`)
+	output := captureStdout(t, func() {
+		if err := printApplyReport(body); err != nil {
+			t.Fatalf("printApplyReport: %v", err)
+		}
+	})
+	if strings.Contains(output, "completed") {
+		t.Fatalf("a skipped item was reported as completed:\n%s", output)
+	}
+	if !strings.Contains(output, "already running") {
+		t.Fatalf("a skipped item must carry its reason:\n%s", output)
 	}
 }

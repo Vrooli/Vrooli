@@ -27,11 +27,15 @@ func observedState(observed map[string]string, id string) string {
 }
 
 // observeApplyStates measures the host for the item kinds that can be checked
-// cheaply and without side effects. Tools resolve through PATH and safeguards
-// through their declared verification files, which is the same inspection the
-// readiness endpoint performs. Resources and scenarios would each need a
-// control-plane round trip, so they are reported as unknown rather than
-// guessed at.
+// without side effects. Tools resolve through PATH; safeguards resolve through
+// their declared verification files, or, when they are handler-owned, through
+// the control plane's read-only inspection boundary. This is the same
+// inspection the readiness endpoint performs.
+//
+// Resources and scenarios are reported as unknown. That is a cost verdict, not
+// a capability one: sampling them means a control-plane round trip per item
+// (`vrooli resource status` alone takes tens of seconds), which is too slow to
+// run before every plan render. They are the only remaining unknowns by design.
 func observeApplyStates(root string, requirements hostRequirementsResponse) map[string]string {
 	observed := map[string]string{}
 	for _, tool := range requirements.Tools {
@@ -49,9 +53,14 @@ func applyStateFromReadiness(status string) string {
 		return applyStateSatisfied
 	case "missing":
 		return applyStatePending
+	case "degraded":
+		// Configured but not yet in effect (a safeguard awaiting a reboot).
+		// "Already in place" would overstate it: the operator still has
+		// something to do before the host is actually protected.
+		return applyStatePending
 	default:
-		// "deferred" and "unsupported" both mean this process could not decide,
-		// so neither may be presented to the operator as a fact.
+		// "deferred" and "unsupported" both mean this process did not reach a
+		// verdict about applying, so neither may be presented as a fact.
 		return applyStateUnknown
 	}
 }

@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
@@ -160,22 +162,68 @@ func TestSafeguardVerificationPathExpandsPortableTokens(t *testing.T) {
 }
 
 // [REQ:ONB-HOST-PROBE-TRUTH]
-// A handler-owned safeguard has no file to stat. Reporting it unsupported
-// claimed a host fault that does not exist; its real verdict comes from the
-// control-plane handler when the selection is applied.
-func TestHandlerOwnedSafeguardDefersToApplyRatherThanClaimingUnsupported(t *testing.T) {
+// A handler-owned safeguard has no file to stat, but that never made it
+// uncheckable: the control plane owns a read-only inspection half that is
+// separate from Apply by interface. This asserts onboarding asks it rather than
+// short-circuiting to "state is reported during apply", which told the operator
+// a safeguard was unknowable while the answer was one unprivileged call away.
+func TestHandlerOwnedSafeguardIsCheckedThroughTheControlPlane(t *testing.T) {
 	root := t.TempDir()
 	writeFixtureFile(t, filepath.Join(root, "internal", "safeguards", "handler_owned", "safeguard.json"),
 		`{"name":"handler_owned","description":"Handler owned","handler":"internal/safeguards/handler-owned","privilege":"elevated"}`)
 	writeFixtureFile(t, filepath.Join(root, "internal", "safeguards", "no_probe", "safeguard.json"),
 		`{"name":"no_probe","description":"Neither probe nor handler"}`)
 
+	// This fixture is declared under the test root but is not a member of the
+	// control plane's safeguard catalog, so no unprivileged read can reach it.
+	// That still may not be reported as a host fault, and it may not be
+	// reported with the old canned excuse either: the operator is entitled to
+	// know that the check did not run and why.
 	handlerItem := hostItem{hostRequirement: hostRequirement{Name: "handler_owned", Required: true}, Status: "required"}
-	if got := inspectSafeguardReadiness(root, handlerItem).Status; got != "deferred" {
-		t.Fatalf("handler-owned safeguard status = %q, want deferred", got)
+	got := inspectSafeguardReadiness(root, handlerItem)
+	if got.Status != "deferred" {
+		t.Fatalf("uncatalogued safeguard status = %q, want deferred", got.Status)
 	}
+	if !strings.Contains(got.Detail, "could not sample") || !strings.Contains(got.Detail, "handler_owned") {
+		t.Fatalf("a skipped check must say what failed, got %q", got.Detail)
+	}
+
 	unverifiable := hostItem{hostRequirement: hostRequirement{Name: "no_probe", Required: true}, Status: "required"}
-	if got := inspectSafeguardReadiness(root, unverifiable).Status; got != "unsupported" {
-		t.Fatalf("safeguard with neither probe nor handler status = %q, want unsupported", got)
+	if status := inspectSafeguardReadiness(root, unverifiable).Status; status != "unsupported" {
+		t.Fatalf("safeguard with neither probe nor handler status = %q, want unsupported", status)
 	}
+}
+
+// [REQ:ONB-HOST-PROBE-TRUTH]
+// Every handler-owned safeguard in the real catalog must reach a verdict from
+// an unprivileged read. "deferred" is reserved for a probe that could not run;
+// if one appears here it means onboarding is again reporting a knowable host as
+// unknowable, which is the exact defect this path was built to remove.
+func TestCatalogHandlerOwnedSafeguardsReachAVerdict(t *testing.T) {
+	root := repoRootForTest(t)
+	decided := map[string]bool{"ready": true, "missing": true, "degraded": true, "unsupported": true}
+
+	for _, name := range []string{"tpm_credential_access", "remote_desktop_access"} {
+		item := hostItem{hostRequirement: hostRequirement{Name: name, Required: true}, Status: "required"}
+		got := inspectSafeguardReadiness(root, item)
+		if !decided[got.Status] {
+			t.Fatalf("%s: status = %q, want a decided verdict; detail = %q", name, got.Status, got.Detail)
+		}
+		if strings.TrimSpace(got.Detail) == "" {
+			t.Fatalf("%s: a decided verdict must carry the handler's reason, got an empty detail", name)
+		}
+	}
+}
+
+// repoRootForTest locates the repository root from the api package directory.
+func repoRootForTest(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, "internal", "safeguards")); statErr != nil {
+		t.Fatalf("repository root %q does not contain internal/safeguards: %v", root, statErr)
+	}
+	return root
 }

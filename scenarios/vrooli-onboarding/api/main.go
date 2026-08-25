@@ -107,6 +107,11 @@ func (s *Server) Handler() http.Handler {
 	return handlers.RecoveryHandler()(s.router)
 }
 
+// onboardingScenarioName is this API's own scenario. The apply executor needs
+// it to recognise itself in a plan: starting this scenario from inside a
+// request it is serving stops the process mid-run.
+const onboardingScenarioName = "vrooli-onboarding"
+
 // loggingMiddleware prints simple request logs
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +122,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
-		ScenarioName: "vrooli-onboarding",
+		ScenarioName: onboardingScenarioName,
 	}) {
 		return // Process was re-exec'd after rebuild
 	}
